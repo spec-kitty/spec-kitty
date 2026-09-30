@@ -1,8 +1,9 @@
 ---
 title: AI Agent Architecture Explained
-description: "How Spec Kitty stays agent-agnostic across 12 AI agents: slash commands backed by one shared command-template source, rendered per agent format, driving the same lane workflow."
+description: "How Spec Kitty stays agent-agnostic: slash commands and Agent Skills rendered from one shared command-template source, per agent format, driving the same lane workflow."
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/execution-lanes.md
 - docs/architecture/kanban-workflow.md
@@ -10,7 +11,7 @@ related:
 ---
 # AI Agent Architecture Explained
 
-Spec Kitty supports 12 different AI agents, allowing teams to use their preferred tools. This document explains how the multi-agent system works and why it's designed this way.
+Spec Kitty supports 17 AI agents (13 slash-command agents and 4 Agent Skills agents), allowing teams to use their preferred tools. This document explains how the multi-agent system works and why it's designed this way.
 
 ## How Slash Commands Work
 
@@ -28,34 +29,51 @@ The command file contains:
 
 This lets each AI agent execute the same workflow, even though they have different interfaces.
 
-## The 12 Supported Agents
+## The Supported Agents
 
-Spec Kitty supports multiple AI agents across two categories:
+Spec Kitty supports agents in three groups. The canonical lists are `AI_CHOICES` and
+`IDE_AGENTS` in `src/specify_cli/core/config.py` and `AGENT_DIRS` in
+`src/specify_cli/agent_utils/directories.py`; if this page and those lists disagree,
+the code wins.
 
-### CLI-Based Agents
+### CLI slash-command agents
 
-These agents run from the command line:
+These agents run from the command line and read a per-agent command directory:
 
 | Agent | Directory | Format | CLI Tool |
 |-------|-----------|--------|----------|
 | Claude Code | `.claude/commands/` | Markdown | `claude` |
 | Gemini CLI | `.gemini/commands/` | TOML | `gemini` |
-| Cursor | `.cursor/commands/` | Markdown | `cursor-agent` |
 | Qwen Code | `.qwen/commands/` | TOML | `qwen` |
 | OpenCode | `.opencode/command/` | Markdown | `opencode` |
-| Amazon Q | `.amazonq/prompts/` | Markdown | `q` |
+| Augment Code (Auggie CLI) | `.augment/commands/` | Markdown | `auggie` |
+| Amazon Q Developer CLI (legacy; use Kiro) | `.amazonq/prompts/` | Markdown | `q` |
+| Kiro CLI | `.kiro/prompts/` | Markdown | `kiro-cli` |
+| LLxprt Code | `.llxprt/commands/` | TOML | `llxprt` |
 
-### IDE-Based Agents
+### IDE slash-command agents
 
-These agents run inside an IDE or editor:
+These agents run inside an IDE or editor, so Spec Kitty does not check for a CLI tool:
 
 | Agent | Directory | Format |
 |-------|-----------|--------|
 | GitHub Copilot | `.github/prompts/` | Markdown |
+| Cursor | `.cursor/commands/` | Markdown |
 | Windsurf | `.windsurf/workflows/` | Markdown |
-| Kilocode | `.kilocode/workflows/` | Markdown |
-| Augment Code | `.augment/commands/` | Markdown |
-| Codex CLI | `.agents/skills/spec-kitty.<command>/SKILL.md` | Agent Skill |
+| Kilo Code | `.kilocode/workflows/` | Markdown |
+| Google Antigravity | `.agent/workflows/` | Markdown |
+
+### Agent Skills agents
+
+These agents share one skills root, `.agents/skills/spec-kitty.<command>/SKILL.md`,
+tracked in `.kittify/command-skills-manifest.json`:
+
+| Agent | How commands are invoked |
+|-------|--------------------------|
+| Codex CLI | `$spec-kitty.<command>` |
+| Mistral Vibe | `/spec-kitty.<command>` (via `.vibe/config.toml`) |
+| Pi | `/skill:spec-kitty.<command>` |
+| Letta Code | Agent Skills |
 
 ## Agent-Specific Directories
 
@@ -80,7 +98,7 @@ project/
 │   └── prompts/
 │       └── [same commands for Copilot]
 │
-└── ... (10 more agent directories)
+└── ... (the other slash-command agent directories, plus .agents/skills/)
 ```
 
 Each directory follows the conventions expected by that agent.
@@ -92,18 +110,18 @@ Each directory follows the conventions expected by that agent.
 All agents execute the same workflow, but their command file formats differ. Spec Kitty maintains a single source of truth:
 
 ```
-src/specify_cli/missions/
+packs/built-in/missions/mission-steps/
 └── software-dev/
-    └── command-templates/
-        ├── specify.md      # Template content
-        ├── plan.md
-        ├── tasks.md
-        └── ...
+    ├── specify/prompt.md      # Template content
+    ├── plan/prompt.md
+    ├── tasks/prompt.md
+    └── ...
 ```
 
-During `spec-kitty init`, these templates are adapted for each agent:
+During `spec-kitty init` and `spec-kitty upgrade`, these templates are adapted for each agent:
 - **Markdown agents** get `.md` files
 - **TOML agents** get `.toml` files with converted syntax
+- **Agent Skills agents** get a `SKILL.md` per command under `.agents/skills/`
 - **Different arg syntax** (`$ARGUMENTS` vs `{{args}}`) is handled per agent
 
 ### Template Structure
@@ -111,7 +129,7 @@ During `spec-kitty init`, these templates are adapted for each agent:
 Each command template contains:
 
 ```markdown
-# /spec-kitty.specify - Create Feature Specification
+# /spec-kitty.specify - Create Mission Specification
 
 **Purpose**: [What this command does]
 
@@ -134,9 +152,12 @@ When you upgrade Spec Kitty (`pipx upgrade spec-kitty-cli`, or the equivalent
 command for your installer), migrations update all agent directories:
 
 ```python
-# Example migration updating all 12 agents
-for agent_key, (agent_dir, _) in AGENT_DIRS.items():
-    update_command_template(agent_key, "specify.md", new_content)
+# Example migration: only the agents configured in .kittify/config.yaml
+for agent_root, subdir in get_agent_dirs_for_project(project_path):
+    agent_dir = project_path / agent_root / subdir
+    if not agent_dir.exists():
+        continue  # respect deletions; never mkdir
+    update_command_template(agent_dir, "specify.md", new_content)
 ```
 
 This ensures all agents stay synchronized when the workflow changes.
@@ -148,7 +169,7 @@ This ensures all agents stay synchronized when the workflow changes.
 The execution workspace model enables multi-agent collaboration:
 
 ```
-Feature: 012-user-auth
+Mission: 012-user-auth
 ├── Lane A (WP01, WP02 sequential) → Agent A (Claude Code) in .worktrees/012-user-auth-lane-a/
 ├── Lane B (parallel API work)     → Agent B (Gemini) in .worktrees/012-user-auth-lane-b/
 └── Lane C (parallel UI work)      → Agent C (Copilot) in .worktrees/012-user-auth-lane-c/
@@ -165,7 +186,7 @@ Each agent:
 All agents:
 1. Read the same WP prompt from `tasks/WP##.md`
 2. Follow the same implementation workflow
-3. Use the same lane transitions (planned → doing → for_review)
+3. Use the same lane transitions (planned → claimed → in_progress → for_review)
 4. Produce compatible output (code + commits)
 
 The only difference is which AI model powers each agent.
@@ -213,7 +234,7 @@ By supporting multiple agents, Spec Kitty isn't locked to any single vendor.
 ### Team Flexibility
 
 A team might use different agents for different tasks:
-- Claude Code for complex feature implementation
+- Claude Code for complex implementation work
 - Copilot for quick edits and reviews
 - Gemini for research tasks
 
@@ -223,7 +244,7 @@ Spec Kitty's workflows work the same regardless of which agent runs them.
 
 When a new AI agent appears, Spec Kitty can add support by:
 
-1. **Adding to AGENT_DIRS**: Update the canonical list
+1. **Adding to `AI_CHOICES` and `AGENT_DIRS`**: Update the canonical lists
 2. **Creating directory structure**: `.<agent>/commands/` (or agent-specific path)
 3. **Converting templates**: Generate command files in the agent's format
 4. **Adding CLI checks**: Verify the agent's CLI tool is installed (if CLI-based)

@@ -1,19 +1,20 @@
 ---
-title: 3.x Runtime/Execution Domain (Container Detail)
-description: 'Living 3.x container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty.'
+title: Runtime/Execution Domain (living container detail)
+description: 'Living container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty.'
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
 ---
-# 3.x Runtime/Execution Domain (Container Detail)
+# Runtime/Execution Domain (living container detail)
 
 | Field | Value |
 |---|---|
 | Status | Living |
 | Date | 2026-06-11 |
-| Scope | Container-level execution-state resolution, routing, and the canonical WP lifecycle FSM (3.x) |
+| Scope | Container-level execution-state resolution, routing, and the canonical WP lifecycle FSM |
 | Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-07-1`, `2026-04-06-1`, `2026-05-01-1` |
 
 ## Purpose
@@ -41,7 +42,7 @@ routing, and the canonical work-package lifecycle FSM.
 3. `target_branch` is resolved **exactly once** per operation and threaded onto
    the context; no downstream surface re-derives it.
 4. `mid8` is derived **exactly once** as `mission_id[:8]`.
-5. Lifecycle authority remains host-owned even when projection is enabled.
+5. Lifecycle authority remains host-owned even when hosted moments are enabled.
 
 ## Single Commit Destination (CommitTarget)
 
@@ -62,7 +63,7 @@ flowchart LR
 - `CommitTarget` is `(ref, kind)`: a destination `ref` paired with its topology
   `kind` — `PRIMARY`, `COORDINATION`, or `FLATTENED`. (It is NOT the earlier
   `(worktree_root, destination_ref)` sketch — see the 2026-06-10 addendum to ADR
-  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md).)
+  [`docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md).)
 - `resolve_placement_only` is a narrower entry point over the **same** resolution
   authority as `resolve_action_context` — the topology classification is
   byte-identical for the same mission, not a parallel resolver.
@@ -143,7 +144,7 @@ flowchart LR
     workspace["Workspace / worktree lifecycle"]
     status["status/ OHS facade (Mission Management)"]
     guard["commit_guard.evaluate"]
-    extTracker["Tracker / SaaS projection"]
+    moments["Zeitgeist moment (drain-gated, after local persistence)"]
 
     cmd --> runtime
     runtime --> workspace
@@ -151,13 +152,13 @@ flowchart LR
     cmd -->|lifecycle mutation command| status
     status -->|event log + snapshot| status
     status -->|guarded commit on resolved ref| guard
-    status --> extTracker
+    status -->|lane transition| moments
 ```
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
-- WP State pattern ADR: [`../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md`](../../../adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md)
+- Domain model ADR: [`docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- WP State pattern ADR: [`docs/adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md`](../../../adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md)
 - Container map: [`README.md`](README.md)
 - Component model: [`../03_components/README.md`](../03_components/README.md)

@@ -1,12 +1,15 @@
 ---
 title: 2.x Components
 description: '2.x components view (C4 level 3): the historical breakdown of Spec Kitty container internals into components, preserved beneath the current living architecture.'
-doc_status: active
-updated: '2026-04-05'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
 ---
 # 2.x Components
+
+> **Frozen 2.x snapshot.** Kept as a record and not refreshed. The current view is [Components (living)](../diagrams/03_components/README.md). This page uses 2.x-era wording (for example "feature" where current docs say "mission", and the retired sync transport).
 
 | Field | Value |
 |---|---|

@@ -2,7 +2,8 @@
 title: Understanding the Retrospective Learning Loop
 description: Conceptual explanation of the four-category model, bounded contexts, event-model layering, and the synthesize anti-corruption layer.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 ---
 # Understanding the Retrospective Learning Loop
 

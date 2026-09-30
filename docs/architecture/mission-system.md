@@ -2,7 +2,8 @@
 title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/divio-documentation.md
 - docs/architecture/kanban-workflow.md
@@ -17,9 +18,9 @@ Terminology note:
 - `Mission Type` = reusable blueprint such as `software-dev` or `research`
 - `Mission` = concrete tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
-- `Feature` = software-dev compatibility alias for a mission
+- `Feature` = retired legacy term for a mission; do not use it
 
-**3.1.0 naming updates**: The `--mission` flag is now canonical on all commands that previously used `--feature` (e.g., `spec-kitty implement`, `spec-kitty consolidate`, `spec-kitty next`). `--feature` was a hidden deprecated compatibility alias; as of 3.2.x it has been **removed everywhere** — from the internal/agent command cluster (`agent status/tasks/action/context/mission`, `charter lint`, `materialize`, `validate-encoding`, `validate-tasks`, `verify`; #1060-A) and from the user-facing top-level commands (`implement`, `consolidate`, `next`, `research`, `context`, `accept`, `lifecycle`, `mission_type`; #1060). `--mission` is now the sole selector; passing `--feature` exits with `No such option`. Additionally, `spec-kitty constitution` has been renamed to `spec-kitty charter`; the old command name no longer exists.
+**Selector**: `--mission` is the only mission selector on every command; the old `--feature` alias is removed (#1060) and exits with `No such option`. `spec-kitty constitution` is now `spec-kitty charter`.
 
 ## Why Different Missions?
 
@@ -65,7 +66,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
 
 **Mission** -- A concrete tracked item, stored in `kitty-specs/###-name/`. Each mission is linked to exactly one mission type via its `meta.json` file. Different missions in the same project can use different mission types.
 
-**Feature** -- Compatibility alias for a software-delivery mission. In software-dev contexts you will still see `feature` on legacy commands and filesystem fields.
+**Feature** -- Retired legacy term for a mission. You may still see `feature` in old filesystem fields and archived records; current commands and docs say mission.
 
 **work package (WP)** -- One parallelizable slice of work within a mission. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
 
@@ -324,11 +325,11 @@ discover --> audit --> design --> generate --> validate --> publish
 # List available missions
 spec-kitty mission list
 
-# Start a feature with a specific mission
+# Start a mission with a specific mission type
 spec-kitty specify --mission research "What are the best auth patterns?"
 
-# Check which mission a feature uses
-cat kitty-specs/<feature-slug>/meta.json
+# Check which mission type a mission uses
+cat kitty-specs/<mission-slug>/meta.json
 ```
 
 ## Template Resolution: Customizing Mission Prompts
@@ -411,7 +412,7 @@ Each mission customizes the slash commands with domain-appropriate prompts:
 | **Plan** | (no implementation phase) |
 | **Documentation** | Template creation, generator setup, content authoring |
 
-## Per-Feature vs. Global
+## Per-Mission vs. Global
 
 ### Before 0.8.0: Project-Wide Mission
 
@@ -421,14 +422,14 @@ Early versions set the mission at project level:
   mission.yaml  # One mission for entire project
 ```
 
-**Problem**: Real projects need different approaches for different features:
-- Feature A is new software development
-- Feature B is researching which library to use
-- Feature C is writing user documentation
+**Problem**: Real projects need different approaches for different pieces of work:
+- Mission A is new software development
+- Mission B is researching which library to use
+- Mission C is writing user documentation
 
-### After 0.8.0: Per-Feature Mission
+### After 0.8.0: Per-Mission Mission Type
 
-Now missions are selected per-feature:
+Now the mission type is selected per mission:
 ```
 kitty-specs/
   010-auth-system/
@@ -441,7 +442,7 @@ kitty-specs/
 
 **Benefits**:
 - Choose the right workflow for each task
-- Same project can have software, research, and documentation features
+- Same project can have software, research, and documentation missions
 - No need to reconfigure between different types of work
 
 ## How Missions Affect Agent Behavior

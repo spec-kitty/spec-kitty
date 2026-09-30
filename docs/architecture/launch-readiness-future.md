@@ -1,12 +1,22 @@
 ---
 title: Launch-Readiness Behavior (Coming Soon)
 description: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
-doc_status: active
-updated: '2026-09-27'
+doc_status: superseded
+updated: '2026-09-30'
 type: explanation
-audience: launch coordinators
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Launch-Readiness Behavior (Coming Soon)
+
+> **Superseded; kept as a pre-Zeitgeist design record.** This plan was framed
+> around the retired sync transport: `SPEC_KITTY_ENABLE_SAAS_SYNC` no longer
+> gates hosted behavior, and there is no `spec-kitty sync` command. Hosted
+> interaction is now opt-in twice on the client (drain, managed with
+> `spec-kitty moments drain on|off|status`) and gated on the server by team
+> membership and repository admission. Read
+> [Team Kitty and Zeitgeist](../context/team-kitty.md) and ADR
+> [`2026-09-26-3`](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md) for the
+> current model.
 
 > **Status (2026-09-27): the packaged-default half of the flip was reversed
 > (endpoint opt-in, ADR

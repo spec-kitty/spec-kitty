@@ -1,8 +1,9 @@
 ---
 title: Calibration Report Template
-description: Template for per-mission calibration reports documenting the §4.5.1 inequality check (R-005) for every mission step; reports are created and updated by WP10.
+description: Template for per-mission-type calibration reports that check, for every mission step, that DRG context resolution returns what the step needs and nothing irrelevant.
 doc_status: active
-updated: '2026-04-27'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/calibration/documentation.md
 - docs/architecture/calibration/erp-custom.md
@@ -11,9 +12,16 @@ related:
 ---
 # Calibration Report Template
 
-Each per-mission calibration report documents the §4.5.1 inequality check
-(R-005) for every step in the mission.  Reports are created by WP10 and
-updated whenever calibration is re-run.
+## What this checks
+
+For every step of a mission type, calibration compares the context the step
+**needs** (its required scope) with the context the DRG actually **resolves** for it.
+Two things must hold: everything required is resolved (a gap is a *half-1
+violation*), and nothing irrelevant is resolved (extra context is a *half-2
+violation*). In the originating spec this is the "§4.5.1 inequality check" (R-005).
+
+Each per-mission-type report records that check for every step, and is updated
+whenever calibration is re-run.
 
 ## Column Shape
 

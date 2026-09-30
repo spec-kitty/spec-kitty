@@ -2,26 +2,40 @@
   href: spec-driven-development.md
 - name: Divio Documentation System
   href: divio-documentation.md
+- name: Mission System
+  href: mission-system.md
+- name: Mission-Type Resolution
+  href: mission-type-resolution.md
+- name: Spec Kitty Mission Workflow
+  href: spec-kitty-mission-workflow.md
 - name: Execution Lanes
   href: execution-lanes.md
 - name: Git Worktrees
   href: git-worktrees.md
 - name: Git Workflow
   href: git-workflow.md
-- name: Mission System
-  href: mission-system.md
-- name: Mission-Type Resolution
-  href: mission-type-resolution.md
+- name: Branch-Target Routing
+  href: branch-target-routing.md
+- name: The Artifact Placement Seam
+  href: artifact-placement-seam.md
+- name: Post-Merge Partition Authority
+  href: post-merge-partition-authority.md
 - name: Kanban Workflow
   href: kanban-workflow.md
-- name: AI Agent Architecture
-  href: ai-agent-architecture.md
-- name: Documentation Mission
-  href: documentation-mission.md
-- name: Multi-Agent Orchestration
-  href: multi-agent-orchestration.md
+- name: Status Model
+  href: status-model.md
+- name: Mission Transition Gates
+  href: mission-gates.md
 - name: Runtime Loop
   href: runtime-loop.md
+- name: AI Agent Architecture
+  href: ai-agent-architecture.md
+- name: Host-Surface Parity Matrix
+  href: host-surface-parity.md
+- name: Multi-Agent Orchestration
+  href: multi-agent-orchestration.md
+- name: Zeitgeist Publisher and Lease Identity
+  href: zeitgeist-session-identity.md
 - name: Pip vs pipx vs uv
   href: pip-vs-pipx-vs-uv.md
 - name: "Understanding Charter: Synthesis, DRG, and Governed Context"
@@ -30,11 +44,13 @@
   href: org-doctrine-layer.md
 - name: Understanding Governed Profile Invocation
   href: governed-profile-invocation.md
+- name: Trail Model
+  href: trail-model.md
 - name: Doctrine Artifact Kinds
   href: doctrine-kinds.md
+- name: Doctrine Relationships
+  href: doctrine-relationships.md
 - name: SPDD and the REASONS Canvas
   href: spdd-reasons.md
 - name: Understanding the Retrospective Learning Loop
   href: retrospective-learning-loop.md
-- name: Launch-Readiness Behavior (Coming Soon)
-  href: launch-readiness-future.md

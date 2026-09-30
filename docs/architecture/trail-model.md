@@ -2,7 +2,7 @@
 title: Trail Model
 description: 'Operator reference for the Phase 4 trail model: how every standalone spec-kitty dispatch writes an auditable JSONL trail for accountability, SaaS coherence, and provenance.'
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-09-30'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -17,7 +17,7 @@ related:
 Every standalone Spec Kitty dispatch leaves an auditable trail. The trail serves three purposes:
 
 1. **Local accountability**: operators can reconstruct what happened on any checkout without SaaS connectivity.
-2. **SaaS coherence**: the dashboard timeline shows the same history as the local audit log.
+2. **Hosted coherence (design intent)**: a hosted timeline could show the same history as the local audit log. No hosted projection path is live today; see [SaaS Read-Model Policy](#saas-read-model-policy).
 3. **Governance provenance**: downstream retrospective and doctrine work can reference specific invocations.
 
 ## minimal viable trail
@@ -101,7 +101,7 @@ the `started`/`completed` pair.
 
 Both events are append-only (never mutate existing lines) and readable by a single-file scan. Readers that do not recognise these event types may safely skip the line — the same additive-reader invariant that protects `glossary_checked`.
 
-**SaaS projection status (3.2.x)**: Correlation events are **local-only** in the 3.2.x line. The projection policy (`POLICY_TABLE` in `src/specify_cli/invocation/projection_policy.py`) assigns `project=True` for `task_execution` / `mission_step` correlation events, but the dict-record submission path in `_propagate_one` is not yet wired. SaaS projection of correlation events will land in a future release consistent with the ADR-004 local-only stance for Tier 2 content.
+**SaaS projection status**: Correlation events are **local-only**. The projection policy (`POLICY_TABLE` in `src/specify_cli/invocation/projection_policy.py`) assigns `project=True` for `task_execution` / `mission_step` correlation events, but no SaaS client is registered (see [SaaS Read-Model Policy](#saas-read-model-policy)), so nothing leaves the checkout.
 
 See ADR-001-correlation-contract.md for the design; contracts/profile-invocation-complete.md for the CLI shape.
 
@@ -179,7 +179,9 @@ themselves (weakens the preservation guarantee far beyond this surface).
 
 ## SaaS Read-Model Policy
 
-Projection is conditional on `CheckoutSyncRouting.effective_sync_enabled`. When sync is disabled for a checkout, no events are emitted — even if the user is authenticated. When sync is enabled and the user is authenticated, Spec Kitty consults `src/specify_cli/invocation/projection_policy.py::POLICY_TABLE` to decide per `(mode_of_work, event)` what to project.
+**No SaaS projection path is live.** The invocation propagator (`src/specify_cli/invocation/propagator.py`) asks an adapter seam for a SaaS client, and no package registers one, so every call is a no-op (#3030, the hosted-consent incident whose fix removed the dead registration). The sync transport that once sat behind it was retired. Whoever registers a real transport owns the auth and admission gate that makes it safe, because the payload carries `request_text`, the verbatim agent prompt.
+
+The policy table below is what the propagator consults per `(mode_of_work, event)` once a client exists (`src/specify_cli/invocation/projection_policy.py::POLICY_TABLE`).
 
 | mode_of_work | event | project | include_request_text | include_evidence_ref |
 |--------------|-------|---------|----------------------|----------------------|
@@ -193,18 +195,18 @@ Projection is conditional on `CheckoutSyncRouting.effective_sync_enabled`. When 
 | mission_step | commit_link | yes | no | no |
 | query | any | no | — | — |
 
-Pre-mission records (no `mode_of_work`) project under the `task_execution` rules — the legacy 3.2.0a5 behaviour is preserved for them.
+Pre-mission records (no `mode_of_work`) project under the `task_execution` rules (the legacy behaviour, kept for them).
 
 Policy is additive and resolvable from code/config alone. See ADR-003-projection-policy.md for the rationale.
 
-Projection is additive. Events accumulate; there is no deletion, replay-based overwrite, or idempotency-key gating in 3.2.
+Projection is additive. Events accumulate; there is no deletion, replay-based overwrite, or idempotency-key gating.
 
 ## Tier 2 SaaS Projection — Deferred
 
-**Status**: Tier 2 evidence artifacts (`.kittify/evidence/<invocation_id>/evidence.md` and `record.json`) are **local-only** in the 3.2.x release line. They are not uploaded to SaaS. This decision was finalised by the Phase 4 closeout mission (ADR-004-tier2-saas-deferral.md).
+**Status**: Tier 2 evidence artifacts (`.kittify/evidence/<invocation_id>/evidence.md` and `record.json`) are **local-only**. They are not uploaded to SaaS. This decision was finalised by the Phase 4 closeout mission (ADR-004-tier2-saas-deferral.md).
 
 **Reasoning**:
-1. The shipped 3.2.0a5 baseline already behaves this way; operators observing the product today see local-only evidence.
+1. The product has always behaved this way (since the 3.2.0a5 baseline); operators see local-only evidence.
 2. SaaS projection of evidence bodies requires privacy, redaction, and size-limit design that lies outside the Phase 4 closeout scope.
 3. Future projection remains possible without contract change — a later epic can read the existing local artifact and emit its own envelope.
 
@@ -214,10 +216,10 @@ Projection is additive. Events accumulate; there is no deletion, replay-based ov
 
 | Field | Treatment |
 |-------|-----------|
-| `request_text` | Retained as-written in local JSONL. No automatic redaction in 3.2. |
+| `request_text` | Retained as-written in local JSONL. No automatic redaction. |
 | `governance_context_hash` | First 16 hex chars of SHA-256 only. Full governance context is never persisted. |
 | JSONL files | Persist indefinitely unless the operator purges `kitty-ops/`. |
-| SaaS propagation | Additive. No delete-on-disable in 3.2. |
+| SaaS propagation | None live today. The policy is additive, with no delete-on-disable. |
 
 Propagation failures are written to `kitty-ops/propagation-errors.jsonl` and never affect the CLI exit code.
 

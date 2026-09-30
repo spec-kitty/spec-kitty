@@ -1,20 +1,21 @@
 ---
-title: 2.x Implementation Mapping
-description: '2.x implementation mapping (C4 level 4): the historical link from architecture components to the code that realizes them, preserved beneath the living model.'
+title: Implementation Mapping (living)
+description: 'Living implementation mapping (C4 level 4): where each architecture concept lives in the source tree today. A derived view of the enforced module map.'
 doc_status: active
-updated: '2026-09-06'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
 - docs/architecture/04_implementation_mapping/code-patterns.md
 - docs/architecture/05_ownership_map.md
 ---
-# 2.x Implementation Mapping
+# Implementation Mapping (living)
 
 | Field | Value |
 |---|---|
-| Status | Draft |
+| Status | Living (derived view; the enforced pair wins on conflict) |
 | Date | 2026-03-04 |
-| Last Updated | 2026-03-25 |
+| Last Updated | 2026-09-30 |
 | Scope | Maps C4 architecture views and doctrine stack to current codebase |
 | Parent | [System Landscape](../00_landscape/README.md) |
 | Related ADRs | `2026-03-25-1-glossary-type-ownership` |
@@ -44,15 +45,15 @@ implementation aligns with or diverges from the target architecture.
 
 ## Level 0 — System Landscape → Codebase Modules
 
-The landscape defines 8 domain containers. All 8 exist in the current codebase
-as Python modules within a single-process CLI application.
+The landscape's domain containers all exist in the current codebase as Python
+modules within a single-process CLI application. The main ones map as follows.
 
 | Landscape Container | Primary Codebase Location | Package | Notes |
 |---|---|---|---|
 | **Control Plane** | `src/specify_cli/cli/` | `specify_cli` | Typer-based CLI. Single user entry point for all commands. |
 | **Kitty-core** | `src/specify_cli/core/`, `mission.py`, `mission_v1/`, `missions/`, `template/`, `runtime/` | `specify_cli` | Planning pipeline (specify→plan→tasks). The next-action loop itself lives at `src/runtime/next/_internal_runtime/` (`specify_cli/next` is gone). |
 | **Event Store** | `src/specify_cli/status/` | `specify_cli` | JSONL event logs (`store.py`), reducer (`reducer.py`), WP frontmatter, `meta.json`. Filesystem-only today. |
-| **Orchestration** | `src/specify_cli/orchestrator_api/`, `merge/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, merge execution, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
+| **Orchestration** | `src/specify_cli/orchestrator_api/`, `consolidation/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, lane consolidation, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
 | **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; doctrine code lives at `src/charter/offering/`. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in mission 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
@@ -466,9 +467,9 @@ expected shapes.
 
 - System Landscape: `../00_landscape/README.md`
 - Architectural Principles: `../00_landscape/README.md#architectural-principles`
-- System Context: `../01_context/README.md`
-- Container View: `../02_containers/README.md`
-- Component View: `../03_components/README.md`
+- System Context (living): [`../diagrams/01_context/README.md`](../diagrams/01_context/README.md)
+- Container View (living): [`../diagrams/02_containers/README.md`](../diagrams/02_containers/README.md)
+- Component View (living): [`../diagrams/03_components/README.md`](../diagrams/03_components/README.md)
+- Frozen 2.x C4 snapshot: `../01_context/`, `../02_containers/`, `../03_components/`
 - Code Patterns Catalog: [code-patterns.md](code-patterns.md)
-- Doctrine Stack Domain Model: `../03_components/README.md#doctrine-stack-domain-model`
-- Doctrine governance ADR: `../adr/2026-02-23-1-doctrine-artifact-governance-model.md`
+- Doctrine governance ADR: [`docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`](../../adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md)

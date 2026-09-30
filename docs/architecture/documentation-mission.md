@@ -2,7 +2,8 @@
 title: Documentation Mission Guide
 description: The Documentation Kitty mission — Divio 4-type system, gap analysis, generators, and Charter-era governance integration.
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-09-30'
+audience: docs/context/audience/external/project-owner.md
 related:
 - docs/architecture/governed-profile-invocation.md
 ---
@@ -67,7 +68,7 @@ The mission will:
 4. Prioritize missing documentation
 5. Generate tasks to fill high-priority gaps
 
-### Feature-Specific Documentation
+### Mission-Specific Documentation
 
 Document a specific feature or component:
 
@@ -585,7 +586,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 - **MEDIUM**: Missing tutorials for advanced features
 - **LOW**: Missing explanations (nice-to-have, not blocking)
 
-### Feature-Specific Mode
+### Mission-Specific Mode
 
 **Use Case**: Documenting a specific feature or component
 

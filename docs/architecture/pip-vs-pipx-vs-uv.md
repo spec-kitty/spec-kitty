@@ -2,9 +2,9 @@
 title: Pip vs pipx vs uv — which installer should you use?
 description: "Choosing a Python installer for the Spec Kitty CLI: pipx by default, uv tool for uv teams, pip in a venv for contributors, and why per-tool isolation and PEP 668 matter."
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-09-30'
 type: explanation
-audience: end-users
+audience: docs/context/audience/external/project-owner.md
 ---
 # Pip vs pipx vs uv — which installer should you use?
 

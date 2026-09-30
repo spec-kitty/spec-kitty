@@ -2,7 +2,8 @@
 title: Explanation
 description: 'Understanding-oriented background on Spec Kitty: spec-driven development, the mission system, execution lanes, git workflow, and multi-agent orchestration.'
 doc_status: active
-updated: '2026-07-14'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/ai-agent-architecture.md
 - docs/architecture/execution-lanes.md
@@ -18,7 +19,7 @@ related:
 # Explanation
 
 Understanding-oriented pages that explain *why* Spec Kitty works the way it does. Start
-here when you want the mental model behind a feature rather than step-by-step instructions.
+here when you want the mental model behind a capability rather than step-by-step instructions.
 
 ## Key pages
 
@@ -32,9 +33,13 @@ here when you want the mental model behind a feature rather than step-by-step in
 - [AI agent architecture](ai-agent-architecture.md) — how supported agents integrate.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for.
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in structured-prompt-driven-development doctrine pack.
+- [Status model](status-model.md) and [mission transition gates](mission-gates.md) — how lane state is recorded and guarded.
+- [Post-merge partition authority](post-merge-partition-authority.md) — which bytes win after consolidation, and which surface readers trust.
+
+The full list is in the [architecture index](index.md).
 
 ## See also
 
-- [Tutorials](../guides/index.md) — learning-oriented walkthroughs.
+- [Tutorials](../guides/tutorials/index.md) — learning-oriented walkthroughs.
 - [How-to guides](../guides/index.md) — task-oriented instructions.
 - [Reference](../api/index.md) — authoritative specifications.

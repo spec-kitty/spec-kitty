@@ -1,10 +1,13 @@
 ---
 title: 2.x Runtime/Execution Domain (Container Detail)
 description: '2.x container detail for the runtime/execution domain: the historical view of how mission execution and orchestration were structured, kept as decayed history.'
-doc_status: active
-updated: '2026-03-10'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # 2.x Runtime/Execution Domain (Container Detail)
+
+> **Frozen 2.x snapshot.** Kept as a record and not refreshed. The current view is [Runtime/Execution Domain (living)](../diagrams/02_containers/runtime-execution-domain.md). This page uses 2.x-era wording (for example "feature" where current docs say "mission", and the retired sync transport).
 
 | Field | Value |
 |---|---|

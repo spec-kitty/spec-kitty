@@ -2,7 +2,8 @@
 title: Understanding the Org Doctrine Layer
 description: How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
 doc_status: active
-updated: '2026-07-14'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/charter-synthesis-drg.md
 - docs/architecture/mission-type-resolution.md

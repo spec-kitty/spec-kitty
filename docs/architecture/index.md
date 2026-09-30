@@ -1,8 +1,9 @@
 ---
 title: Architecture notes
-description: 'Page index for docs/architecture/: living C4 model and vision, per-version (1.x/2.x/3.x) history, explanations, assessments, connector/installation notes, and reference templates.'
+description: 'Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history.'
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
 - docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
@@ -14,39 +15,23 @@ related:
 # Architecture notes
 
 Internal architecture and design notes for Spec Kitty subsystems. These pages capture
-design rationale and gap analyses; they are working engineering material rather than
+design rationale and models; they are working engineering material rather than
 end-user documentation. This index enumerates every page in `docs/architecture/`
-(the section's curated-complete index — see [`README.md`](README.md) for the
-boundary rule and layout).
+(see [`README.md`](README.md) for the boundary rule and layout). The active release
+cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadmap.md).
 
 ## Living architecture (current + forward)
 
-- [Architecture](README.md) — the canonical corpus landing page: the `architecture/` vs `docs/` boundary rule and living-at-top / versioned-history-beneath model.
-- [Architecture Vision (living)](vision/README.md) — current and future forward intent, above versioned history.
-- [Architecture Diagrams (living C4)](diagrams/README.md) — the living C4 model for the current 3.x architecture.
-- [Diagrams: 3.x System Context](diagrams/01_context/README.md) — living C4 level 1.
-- [Diagrams: 3.x Containers](diagrams/02_containers/README.md) — living C4 level 2.
-- [Diagrams: 3.x Runtime/Execution Domain](diagrams/02_containers/runtime-execution-domain.md) — living C4 level 2 container detail.
-- [Diagrams: 3.x Components](diagrams/03_components/README.md) — living C4 level 3.
-
-## Versioned history — 3.x
-
-- [3.x — vision (history slot)](vision/README-3.x.md) — the 3.x era's settled vision history.
-
-## Versioned history — 2.x
-
-- [2.x — vision (history slot)](vision/README-2.x.md) — per-era vision record for 2.x.
-- [2.x System Landscape](00_landscape/README.md) — C4 level 0 historical snapshot.
-- [2.x System Context](01_context/README.md) — C4 level 1 historical record.
-- [2.x Containers](02_containers/README.md) — C4 level 2 historical decomposition.
-- [2.x Runtime/Execution Domain](02_containers/runtime-execution-domain.md) — C4 level 2 historical container detail.
-- [2.x Components](03_components/README.md) — C4 level 3 historical breakdown.
-- [2.x Implementation Mapping](04_implementation_mapping/README.md) — C4 level 4 historical link from components to code.
-- [Core Code Patterns Applied in the Codebase](04_implementation_mapping/code-patterns.md) — recurring implementation idioms mapped to components (2.x-era record).
-
-## Versioned history — 1.x
-
-- [1.x — vision (history slot)](vision/README-1.x.md) — per-era vision record for 1.x.
+- [Architecture](README.md) — the corpus landing page: the decisions-vs-consumption boundary rule, living pages, and frozen history.
+- [Architecture Vision (living)](vision/README.md) — current and future forward intent, including the 4.x forward signal.
+- [Architecture Diagrams (living C4)](diagrams/README.md) — the living C4 model and how its modules map onto the enforced layer packages.
+- [Diagrams: System Context (living)](diagrams/01_context/README.md) — C4 level 1, including Team Kitty and the Zeitgeist relay.
+- [Diagrams: Containers (living)](diagrams/02_containers/README.md) — C4 level 2.
+- [Diagrams: Runtime/Execution Domain (living)](diagrams/02_containers/runtime-execution-domain.md) — C4 level 2 container detail.
+- [Diagrams: Components (living)](diagrams/03_components/README.md) — C4 level 3.
+- [System Landscape (living)](00_landscape/README.md) — C4 level 0: domain containers and the packages that implement them.
+- [Implementation Mapping (living)](04_implementation_mapping/README.md) — C4 level 4: where each architecture concept lives in the source tree.
+- [Core Code Patterns Applied in the Codebase](04_implementation_mapping/code-patterns.md) — recurring implementation idioms mapped to components.
 
 ## Explanations
 
@@ -62,13 +47,13 @@ boundary rule and layout).
 - [Kanban workflow](kanban-workflow.md) — the nine lanes and their transitions.
 - [Mission transition gates](mission-gates.md) — the declarative, asset-backed, trust-gated model for the checks that guard lane transitions.
 - [The runtime loop](runtime-loop.md) — how `spec-kitty next` inverts control.
-- [AI agent architecture](ai-agent-architecture.md) — how Spec Kitty stays agent-agnostic across agents.
+- [AI agent architecture](ai-agent-architecture.md) — how Spec Kitty stays agent-agnostic across the 17 supported agents.
 - [Why the Divio documentation system?](divio-documentation.md) — tutorials/how-to/reference/explanation mapping.
 - [Doctrine relationships](doctrine-relationships.md) — DRG relation types as typed graph edges.
 - [Understanding the org doctrine layer](org-doctrine-layer.md) — built-in/org/project doctrine resolution.
 - [Understanding Charter: synthesis, DRG, and governed context](charter-synthesis-drg.md).
 - [Understanding governed profile invocation](governed-profile-invocation.md) — standalone dispatch under governance.
-- [Profile-load reliability](profile-load-reliability.md) — why squads stopped loading charter agent profiles, and the 3.2.6 stabilization design.
+- [Profile-load reliability](profile-load-reliability.md) — why squads stopped loading charter agent profiles, and the stabilization design (partly shipped in 3.2.6; the rest is on 4.x Work).
 - [Charter backend service (future)](charter-backend-service-future.md) — preliminary backlog design for a deployable charter/doctrine resolution endpoint.
 - [Documentation Mission Guide](documentation-mission.md) — the Documentation Kitty mission.
 - [Understanding the retrospective learning loop](retrospective-learning-loop.md) — the four-category model.
@@ -76,11 +61,9 @@ boundary rule and layout).
 - [Post-merge partition authority](post-merge-partition-authority.md) — one model for the write half (which bytes win per artifact on squash) and the read half (which surface a post-merge reader trusts).
 - [Branch-target routing](branch-target-routing.md) — which git branch receives each type of change.
 - [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
-- [Launch-readiness behavior (coming soon)](launch-readiness-future.md) — pre-launch Teamspace design intent.
-- [Architecture: centralized feature detection](feature-detection.md) — how Spec Kitty detects project frameworks and capabilities.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development doctrine pack and its change-intent canvas.
-- [Team Kitty and Zeitgeist](../context/team-kitty.md) — the live hosted model: CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram. The former [hosted-sync flow page](team-kitty-saas.md) describes the deleted transport and is kept as a deprecated historical record only.
+- [Team Kitty and Zeitgeist](../context/team-kitty.md) — the live hosted model: CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram.
 
 ## Status, trail & workflow models
 
@@ -89,19 +72,18 @@ boundary rule and layout).
 - [Host-surface parity matrix](host-surface-parity.md) — how each supported host surface teaches the governance-injection contract, with per-surface parity status.
 - [Spec Kitty mission workflow (canonical authority)](spec-kitty-mission-workflow.md) — the nine-phase end-to-end mission workflow and the focused-PR path.
 
-## Connector & installation notes
+## Connector & installation decisions
 
-- [Gap analysis: connector installation model](gap-analysis-connector-installation-model.md) — open gaps in the installation-link-mapping-override connector model.
 - [Connector auth / binding separation](../adr/3.x/2026-04-06-2-connector-auth-binding-separation.md) — separating connector authentication from binding.
 - [GitHub App installation authority](../adr/3.x/2026-04-06-3-github-app-installation-authority.md) — installation-authority model for the GitHub App.
 
 ## Assessments
 
-- [Code as a Crime Scene — High-Level Overview](assessments/code-as-a-crime-scene-overview.md) — pedagogical overview of the CaaCS auditing technique (durable methodology explainer; the dated 2026-05 forensic run itself lives under [`docs/plans/engineering-notes/architecture-audits/`](../plans/engineering-notes/architecture-audits/), see FR-002 verdict below).
+- [Code as a Crime Scene — High-Level Overview](assessments/code-as-a-crime-scene-overview.md) — pedagogical overview of the CaaCS auditing technique (durable methodology explainer; the dated 2026-05 forensic run itself lives under [`docs/plans/engineering-notes/architecture-audits/`](../plans/engineering-notes/architecture-audits/)).
 
 ## Calibration reports
 
-- [Calibration Report Template](calibration/README.md) — the §4.5.1 inequality-check template, created/updated by WP10.
+- [Calibration Report Template](calibration/README.md) — the per-mission-type DRG context calibration template: does context resolution return what each step needs, and nothing irrelevant?
 - [Calibration Report: documentation](calibration/documentation.md).
 - [Calibration Report: erp-custom](calibration/erp-custom.md).
 - [Calibration Report: research](calibration/research.md).
@@ -109,21 +91,34 @@ boundary rule and layout).
 
 ## Ownership & charter models
 
-- [Functional Ownership Map](05_ownership_map.md) — which code slices own which functional areas.
 - [Unified Charter Bundle](06_unified_charter_bundle.md) — the single-file authoritative `charter.yaml` model.
 - [Charter Pack Usage Journey](charter-pack-usage-journey.md) — the `apply` → `generate` two-step and the empty-charter dispatch safety net.
 
 ## Templates & reference
 
-- [ADR template](adr-template.md) — the shared ADR authoring template used by all tracks.
+- [ADR template](adr-template.md) — the shared ADR authoring template used by all eras.
 - [Pip vs pipx vs uv](pip-vs-pipx-vs-uv.md) — which installer to use for the Spec Kitty CLI.
 
-## Retired / redirect guides
+## Historical / prior cycle
 
+Kept as records; not maintained as current.
+
+- [Vision history slot — 3.x](vision/README-3.x.md) — the prior era's settled vision, including the 2026-08-12 forward signal.
+- [Vision history slot — 2.x](vision/README-2.x.md) — per-era vision record for 2.x.
+- [Vision history slot — 1.x](vision/README-1.x.md) — per-era vision record for 1.x.
+- [2.x System Context](01_context/README.md) — frozen 2.x C4 level 1 snapshot.
+- [2.x Containers](02_containers/README.md) — frozen 2.x C4 level 2 snapshot.
+- [2.x Runtime/Execution Domain](02_containers/runtime-execution-domain.md) — frozen 2.x C4 level 2 container detail.
+- [2.x Components](03_components/README.md) — frozen 2.x C4 level 3 snapshot.
+- [Functional Ownership Map (demoted)](05_ownership_map.md) — superseded narrative; module boundaries are owned by the enforced pyproject package list and layer rules.
+- [Architecture: centralized feature detection](feature-detection.md) — the v0.14.0 centralized mission-selection design, superseded by `mission_id` identity.
+- [Launch-readiness behavior (coming soon)](launch-readiness-future.md) — superseded pre-Zeitgeist launch plan built on the retired sync gate.
+- [Team Kitty (SaaS): the hosted-sync flow](team-kitty-saas.md) — the deleted sync transport, kept as a record.
+- [Gap analysis: connector installation model](gap-analysis-connector-installation-model.md) — point-in-time 2026-03 gap analysis against the pre-convergence code.
 - [Architecture Documentation Guide](ARCHITECTURE_DOCS_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
 - [Architecture Navigation Guide](NAVIGATION_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
 
 ## See also
 
 - [Documentation home](../index.md)
-- [Architecture Decision Records](../adr/3.x/README.md)
+- [Architecture Decision Records](../adr/index.md)

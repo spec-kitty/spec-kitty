@@ -1,17 +1,19 @@
 ---
 title: Architecture Vision (living)
-description: 'Landing page for the living architecture vision: the current and future, still-changeable forward intent at the top of architecture/, above versioned history.'
+description: 'Landing page for the living architecture vision: the current and future, still-changeable forward intent for Spec Kitty, above the per-era history slots.'
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
+- docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/code-quality/index.md
 ---
 # Architecture Vision (living)
 
 This directory holds the **current and future** architecture vision for Spec Kitty —
-forward intent that may still change. It is part of the *living architecture at the
-top* of `architecture/` (see [`../README.md`](../README.md) for the boundary and decay rules).
+forward intent that may still change. It is one of the living architecture surfaces
+(see [`../README.md`](../README.md) for the boundary and decay rules).
 
 ## What belongs here
 
@@ -20,40 +22,35 @@ top* of `architecture/` (see [`../README.md`](../README.md) for the boundary and
 
 ## What does NOT belong here
 
-- **Ratified decisions** — those are ADRs under `architecture/<version>/adr/` (immutable, era-stamped).
-- **Explorations / spikes** — those are research notes under `architecture/<version>/research/`.
+- **Ratified decisions** — those are ADRs under `docs/adr/<era>/` (immutable, era-stamped).
+- **Explorations / spikes** — those are research notes under `docs/plans/research/`.
 - **Historical vision** — when a vision statement is no longer current/future it is
-  *demoted* into its era directory `architecture/<version>/vision/` (the decay path; nothing is deleted).
+  *demoted* into its era's history slot, `vision/README-<era>.md` (the decay path; nothing is deleted).
 
 ## Vision vs Decision vs Spike
 
 | Artifact | Meaning | Home | Mutability |
 |---|---|---|---|
 | Vision | Forward intent | `docs/architecture/vision/` (top-level, living) | May change |
-| Decision (ADR) | Ratified decision | `architecture/<version>/adr/` | Immutable, era-stamped |
-| Spike | Exploration | `architecture/<version>/research/` | Versioned record |
+| Decision (ADR) | Ratified decision | `docs/adr/<era>/` | Immutable, era-stamped |
+| Spike | Exploration | `docs/plans/research/` | Dated record |
 
-## Current-era forward signal (2026-08-12)
+## Forward signal for the 4.x line (2026-09-30)
 
-Forward intent, corroborated by the 2026-08-12 code-health measurement (full detail:
-[Code Quality — Working Collection](../../plans/code-quality/index.md)). Not yet an ADR.
+4.0.0 is the active cycle, at release-candidate stage. The authority for its intent is the
+[4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md); in architecture terms it
+points at:
 
-The 3.x north-star — a **doctrine-governed, charter-activated runtime with a hardened
-execution model** — is showing up in the measurements, not just the design:
+- **Hosted collaboration over Zeitgeist.** Team Kitty is the hosted product, and the only
+  outbound hosted path is one bounded moment per lane transition to the team's relay, opt-in
+  on the client. The retired sync transport stays retired. See
+  [Team Kitty and Zeitgeist](../../context/team-kitty.md).
+- **Structural finish.** Post-convergence client surfaces (`zeitgeist_client/`, `saas_client/`)
+  settle onto their upstream authorities, and one canonical event store stays the single
+  source of lifecycle truth.
+- **One governed front door.** A stable, versioned application API that the CLI, UI, MCP
+  and SDK consumers build against, rather than parallel ad-hoc surfaces.
+- **No new shadow paths.** Route or extract onto an existing authority; never build a
+  parallel one.
 
-- **The stabilization cycle is converging.** Coverage recovered from a mid-2026 trough
-  of ~47% to a project-high **84%**, reliability bugs cleared to **0**, and duplication
-  holds at **0.5%**. The `next` control loop and the execution-lane / coord-primary
-  model are built and canonical; the health signal now tracks the "hardened execution
-  model" intent rather than lagging it.
-- **The remaining structural debt is scoped, not drifting.** The one standing red — a
-  SonarCloud `security_rating` of E from ~21 pre-existing subprocess/path findings —
-  concentrates in the lane / coordination / sync surfaces the 3.x execution model built
-  out, and maps almost 1:1 onto the **already-planned** Wave 2 / Wave 4 degod slices.
-  The forward intent is to burn that backlog down *through* the degod program (with
-  characterization tests first), not as cosmetic passes, and to keep the
-  charter-as-sole-door and governance-honesty through-lines as the gate on new debt.
-- **Governance honesty holds as a design principle.** "Red main is honest; CI is the
-  release authority" (ADR 2026-07-17-1) is what lets an honest standing red coexist
-  with a cuttable release candidate — the release posture is read from the *functional*
-  gates, with the Sonar backlog tracked as known/deferred.
+The 3.x-era forward signal (2026-08-12) was demoted to the [3.x history slot](README-3.x.md).

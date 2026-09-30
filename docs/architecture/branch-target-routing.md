@@ -2,7 +2,8 @@
 title: Branch-Target Routing
 description: Explanation of which git branch a mission's code, coordination surface, and base-level artifacts land on.
 doc_status: active
-updated: '2026-07-28'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 type: explanation
 related:
 - docs/architecture/artifact-placement-seam.md

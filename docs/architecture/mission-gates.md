@@ -2,7 +2,8 @@
 title: Mission transition gates — declarative, asset-backed, trust-gated
 description: 'The declarative model for transition gates: a gate artefact whose check ships as an asset, trust-checked before it runs, with severity-typed outcomes.'
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
 - docs/architecture/mission-type-resolution.md

@@ -2,7 +2,8 @@
 title: 'Git Workflow: Who Does What'
 description: "The boundary between infrastructure git that Python owns (worktrees, status commits, merges) and content git that agents own (code, rebases, conflicts), plus auto-commit rules."
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/execution-lanes.md
 - docs/architecture/git-worktrees.md
@@ -82,19 +83,27 @@ spec-kitty consolidate --mission 042-feature
 ```
 
 Acceptance validates that all WPs are approved or done before consolidation. Python
-then merges execution branches into the target branch in dependency order. In
-lane mode, it first merges lane branches into the mission branch, then merges
-the mission branch into the target branch. For each execution worktree:
+then lands the lane branches onto the local target branch in dependency order (in
+lane mode, lanes land on the mission branch first, then the mission branch lands on
+the target).
 
-1. `git merge --no-ff <workspace-branch>` (preserving merge history)
-2. `git worktree remove` (cleaning up the directory)
-3. `git branch -d` (removing the branch)
+1. **Land the work.** The default strategy is **squash**; `--strategy merge` and
+   `--strategy rebase` are the alternatives. The chosen strategy is persisted in
+   `ConsolidationState.strategy`, so `consolidate --resume` keeps it.
+2. **Verify the landing.** A reconciliation gate checks that every content change on the
+   target can be attributed to an approved WP. If it fails or refuses, the target is
+   restored to its pre-run tip with a compare-and-swap rollback.
+3. **Clean up.** Lane worktrees are removed (`git worktree remove`) and lane branches
+   deleted, unless `--keep-worktree` / `--keep-branch` or the mission's
+   `retain_worktrees` / `retain_branches` metadata says to keep them.
 
-The `--push` flag is opt-in. Without it, the consolidation stays local.
+Consolidation is local only; publish the result through a topic branch and a pull
+request. See [status model](status-model.md) and the `spec-kitty consolidate` help for
+the details.
 
 ### 5. Cleaned Up
 
-After consolidation, the worktree directory is gone, the branch is deleted, and the workspace context file is removed. The WP's work now lives on the target branch.
+After consolidation (unless retention was requested), the worktree directory is gone, the branch is deleted, and the workspace context file is removed. The WP's work now lives on the target branch.
 
 ## Auto-Commit Behavior
 

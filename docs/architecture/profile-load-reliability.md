@@ -1,8 +1,9 @@
 ---
 title: Profile-Load Reliability (Squads & WP Prompts)
-description: 'Why adversarial and research squads stopped loading charter agent profiles, and the 3.2.6 fix: resolve-then-inject, fail-loud dispatch, and a /spk-load-profile primitive.'
+description: 'Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/governed-profile-invocation.md
 - docs/architecture/multi-agent-orchestration.md
@@ -12,17 +13,24 @@ related:
 
 This document records a corroborated investigation into why **research / adversarial
 squads recently stopped loading charter agent profiles**, and defines the **near-term
-(3.2.6-scope) stabilization design**. The deployable charter-backend evolution that this
+stabilization design**. The deployable charter-backend evolution that this
 work makes possible is a **separate, backlog-scoped** design — see
 [Charter Backend Service (Future)](charter-backend-service-future.md).
+
+> **Status (2026-09-30).** Partly shipped. The activation-allowlist fix (#3810, §4.1)
+> and the `directive:<id>` selector fix (#3816, §6 D1) shipped in 3.2.6. #3814 was closed.
+> The rest is open on the **4.x Work** milestone: the orchestrator-injects contract
+> (#3811, §4.2), `/spk-load-profile` (#3812, §4.3) and WP-prompt hygiene (#3813, §4.4).
+> The charter-backend spike (#3815) stays in the Product backlog. Where the sections below
+> say "3.2.6", read it as the cycle the design was written for.
 
 > **Provenance.** Root cause established 2026-08-30 by five agents across four lenses
 > (researcher, debugger, reviewer, architect), each profile-loaded through the
 > charter API. The squad overturned an initial mis-attribution (see §2.4) and converged
 > on the activation-allowlist root cause with live-command and git evidence.
 
-> **Tracking.** Epic [#3809](https://github.com/Priivacy-ai/spec-kitty/issues/3809)
-> ("squads must never dispatch unprofiled"). Children in **3.2.6**: #3810 (activation-
+> **Tracking.** Epic [#3809](https://github.com/spec-kitty/spec-kitty/issues/3809)
+> ("squads must never dispatch unprofiled"). Children originally scoped to **3.2.6**: #3810 (activation-
 > allowlist bug, §4.1), #3811 (orchestrator-injects fail-loud contract, §4.2), #3812
 > (`/spk-load-profile`, §4.3), #3813 (WP-prompt hygiene, §4.4), #3816 (`directive:<id>`
 > selector bug, §6 D1). In **Product backlog**: #3815 (charter-backend design spike) and
@@ -108,7 +116,7 @@ and the activation set drifted apart the moment the allowlist was compiled.
 - **`research` and `documentation` task-prompt templates carry no profile-load section at
   all** — a real cross-mission-type inconsistency, but *additive*, not a rename target.
 
-## 4. Near-term stabilization design (3.2.6 scope)
+## 4. Near-term stabilization design
 
 Three coordinated changes. The activation-data fix restores squads immediately; the
 orchestrator-injects contract closes the failure **class**.
@@ -166,20 +174,20 @@ If pursued, rename WP-template references `/ad-hoc-profile-load → /spk-load-pr
 
 ## 5. Scope boundary
 
-| In 3.2.6 | Backlog (NOT 3.2.6) |
+| Near-term (shipped or queued) | Backlog |
 |---|---|
-| §4.1 activation-data fix + regression guard | Deployable charter backend service (API/MCP) |
-| §4.2 orchestrator-injects contract + fail-loud dispatch | Remote compute / shared cache / out-of-cycle context precompute |
-| §4.3 `/spk-load-profile` consolidation | — |
-| §4.4 WP-prompt hygiene (optional, LOW) | — |
+| §4.1 activation-data fix + regression guard (shipped, #3810) | Deployable charter backend service (API/MCP) |
+| §4.2 orchestrator-injects contract + fail-loud dispatch (#3811, 4.x Work) | Remote compute / shared cache / out-of-cycle context precompute |
+| §4.3 `/spk-load-profile` consolidation (#3812, 4.x Work) | — |
+| §4.4 WP-prompt hygiene (optional, LOW; #3813, 4.x Work) | — |
 
-The backend evolution is deliberately **out of 3.2.6**. §4.2 is intentionally a transport
+The backend evolution is deliberately **out of the near-term scope**. §4.2 is intentionally a transport
 change the *orchestrator* owns, so a future backend slots in behind the **same resolution
 contract** without touching delegates. See
 [Charter Backend Service (Future)](charter-backend-service-future.md).
 
 > **Freeze note.** The `adversarial-squad` skill and charter packs are doctrine surfaces;
-> some changes may fall under the 3.2.x doctrine-surface freeze (`pr:deferred`). Sequence
+> during the 3.2.x cycle some changes fell under the doctrine-surface freeze (`pr:deferred`). Sequence
 > the data fix (§4.1) first — it restores squads with the least surface.
 
 ## 6. Dialectic review outcomes (2026-08-30)
@@ -204,7 +212,7 @@ hybrid §4.2 already names, but both narrow it:
      found"** for every directive ID tested (agent-profile and tactic selectors
      work; the *directive* selector does not). This makes "inject IDs, not bodies"
      (§4.2) a **dead end** — delegates cannot expand injected directive IDs. Fix the
-     selector, or inject directive bodies. **Filed as #3816 (3.2.6, P1, Bug).**
+     selector, or inject directive bodies. **Filed as #3816 (P1, Bug); fixed in 3.2.6.**
   2. **Sequencing dependency: §4.1 must land before any §4.2 injection rollout.** Injecting
      a resolved roster *today* would freeze the current 23-of-25 allowlist (daphne/randy
      de-activated) into every delegate with **no runtime recovery** — converting Issue 1

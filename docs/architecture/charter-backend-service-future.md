@@ -1,8 +1,9 @@
 ---
 title: Charter Backend Service (Future — Backlog)
-description: 'Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Not 3.2.6.'
+description: 'Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Backlog.'
 doc_status: draft
-updated: '2026-08-30'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/profile-load-reliability.md
 - docs/architecture/governed-profile-invocation.md
@@ -10,7 +11,7 @@ related:
 ---
 # Charter Backend Service (Future — Backlog)
 
-> **Scope:** **BACKLOG — explicitly NOT 3.2.6.** This is a *preliminary* design sketch
+> **Scope:** **BACKLOG — not scheduled for 4.0.0** (design spike #3815 sits in the Product backlog; see the [4.0.0 roadmap](../plans/4-0-0-milestone-roadmap.md)). This is a *preliminary* design sketch
 > for discussion, not committed work. The near-term stabilization that must land first
 > (activation-data fix + orchestrator-injects contract + `/spk-load-profile`) is specified
 > in [Profile-Load Reliability](profile-load-reliability.md) §4. This document describes
@@ -57,7 +58,7 @@ model cannot offer:
 
 | Option | Wins | New failure modes |
 |---|---|---|
-| **Local daemon + API** (precedent: `sync/daemon_protocol.py`, `core/loopback_http.py`, `auth/loopback/callback_server.py`) | Warm authority; kills cold-start + install/PYTHONPATH drift; one source of truth across harnesses | Daemon lifecycle (start/stop/ports); staleness on charter change (needs reload/invalidation); availability dependency; real-port tests must run serially |
+| **Local daemon + API** (precedent: the retired sync daemon, `core/loopback_http.py`, `auth/loopback/callback_server.py`) | Warm authority; kills cold-start + install/PYTHONPATH drift; one source of truth across harnesses | Daemon lifecycle (start/stop/ports); staleness on charter change (needs reload/invalidation); availability dependency; real-port tests must run serially |
 | **MCP endpoint** | Directly serves shell-less harnesses (tool result → context, no shell); uniform across MCP-capable agents | "Interactively-authenticated MCP servers may be absent in headless/cron" — trades the shell-less gap for an absent-in-headless gap |
 | **Remote service** | Remote compute; shared cache across machines/repos; centrally-refreshed doctrine for a multi-repo program | Network dependency; auth/tenancy; cache-coherence; larger security surface |
 
@@ -86,4 +87,4 @@ exposure as later transports over the same core — but this is open for design 
 - Not a replacement for the in-process CLI resolution path — that remains the default and
   the degradation target.
 - Not a prerequisite for fixing squad profile loading — the near-term design stands alone.
-- Not in 3.2.6.
+- Not scheduled for 4.0.0.

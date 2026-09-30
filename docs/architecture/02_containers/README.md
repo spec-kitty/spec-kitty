@@ -1,13 +1,16 @@
 ---
 title: 2.x Containers
 description: '2.x containers view (C4 level 2): the historical decomposition of Spec Kitty into deployable and runnable containers, preserved beneath the current living model.'
-doc_status: active
-updated: '2026-04-05'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/02_containers/runtime-execution-domain.md
 - docs/architecture/README.md
 ---
 # 2.x Containers
+
+> **Frozen 2.x snapshot.** Kept as a record and not refreshed. The current view is [Containers (living)](../diagrams/02_containers/README.md). This page uses 2.x-era wording (for example "feature" where current docs say "mission", and the retired sync transport).
 
 | Field | Value |
 |---|---|

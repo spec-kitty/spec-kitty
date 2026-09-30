@@ -1,12 +1,19 @@
 ---
 title: 'Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model'
 description: Draft gap analysis for migrating spec-kitty and spec-kitty-saas to the installation-link-mapping-override connector model, scoped against the separation ADR.
-doc_status: active
-updated: '2026-04-06'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
 ---
 # Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model
+
+> **Point-in-time record (2026-03-10).** Kept for history; not maintained. It measures
+> gaps against the pre-convergence code, including the `sync` tree that has since been
+> deleted. The decisions it fed are the two connector ADRs:
+> [auth/binding separation](../adr/3.x/2026-04-06-2-connector-auth-binding-separation.md)
+> and [GitHub App installation authority](../adr/3.x/2026-04-06-3-github-app-installation-authority.md).
 
 **Status**: Draft
 **Date**: 2026-03-10

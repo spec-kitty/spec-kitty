@@ -1,24 +1,25 @@
 ---
-title: 3.x System Context
-description: 'Living 3.x system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, part of the living C4 model atop architecture/.'
+title: System Context (living)
+description: 'Living system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, including Team Kitty and its Zeitgeist relay.'
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
 ---
-# 3.x System Context
+# System Context (living)
 
 | Field | Value |
 |---|---|
 | Status | Living |
-| Date | 2026-06-11 |
-| Scope | C4 Level 1 system boundary and external interactions (3.x) |
-| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-09-1`, `2026-04-09-2` |
+| Date | 2026-06-11 (hosted boundary refreshed 2026-09-30) |
+| Scope | C4 Level 1 system boundary and external interactions |
+| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-09-1`, `2026-04-09-2`, `2026-09-06-1`, `2026-09-26-3` |
 
 ## Purpose
 
-Clarify where Spec Kitty 3.x starts and ends, who interacts with it, and which
+Clarify where Spec Kitty starts and ends, who interacts with it, and which
 boundaries must remain explicit for safe operation.
 
 ## Scope Rules
@@ -44,17 +45,20 @@ flowchart LR
     hic["Human In Charge (operator)"]
     agent["Agent Tooling — Claude/Codex/Copilot/etc."]
     orch["External Orchestrator Provider"]
-    saas["Spec Kitty SaaS — hosted sync and dashboard"]
+    saas["Team Kitty SaaS — auth, capability mint, activity feed"]
+    relay["Zeitgeist relay — one volatile container per team"]
     tracker["External Tracker Systems"]
     repo["Project Repository Artifacts — kitty-specs, doctrine, glossary, architecture"]
-    sk["Spec Kitty 3.x Host (CLI)"]
+    sk["Spec Kitty Host (CLI)"]
 
     hic -->|runs commands, approves decisions| sk
     agent -->|executes prompts, skills, and Ops| sk
     orch -->|calls orchestrator-api contract| sk
-    sk <-->|browser-mediated OAuth, status projection| saas
-    saas -->|optional onward sync| tracker
-    sk -->|optional direct sync and status projection| tracker
+    sk -->|browser OAuth, admission check, capability mint| saas
+    sk -->|one moment per lane transition, when drain is on| relay
+    saas -->|Pulse: polls moments back| relay
+    sk -->|tracker commands: local provider or hosted routing| tracker
+    saas -->|hosted tracker connectors| tracker
     sk <-->|reads and writes canonical project state| repo
 ```
 
@@ -65,15 +69,16 @@ flowchart LR
 | Human In Charge | Command invocation and approval checkpoints | Final acceptance authority stays human-owned. |
 | Agent Tooling | Prompt-, skill-, and Op-driven workflow execution | Agents execute within host constraints and the resolved profile's governance scope. |
 | External Orchestrator Provider | Orchestrator API calls | Provider is adapter-only; host remains lifecycle authority. |
-| Spec Kitty SaaS | Browser-mediated OAuth auth + hosted status projection | Auth is browser-OAuth, not password (`2026-04-09-2`); the host remains the canonical state authority. |
-| External Tracker Systems | Status/event projection | Tracker sync is optional and discovered, not user-supplied (`2026-04-04-1`). |
+| Team Kitty SaaS | Browser-mediated OAuth, repository admission, capability mint; builds its activity feed by polling the relay | Auth is browser-OAuth, not password (`2026-04-09-2`); membership plus admission is the server-side gate. The host remains the canonical state authority. |
+| Zeitgeist relay | The CLI publishes one bounded moment per lane transition, no queue, no retry | Volatile and per team. Publishing is opt-in on the client (drain, `2026-09-26-3`); an unreachable relay never blocks local persistence. See [Team Kitty and Zeitgeist](../../../context/team-kitty.md). |
+| External Tracker Systems | Tracker commands (local provider, or routed through Team Kitty) | Tracker binding is optional and discovered, not user-supplied (`2026-04-04-1`). |
 | Project Repository Artifacts | Filesystem state read/write | Repository artifacts are canonical persistent state. |
 
 ## Domain Context Map
 
-The 3.x system is organized into **four bounded modules** that communicate only
+The system is organized into **four bounded modules** that communicate only
 through Open Host Service (OHS) facades
-([`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)).
+([`docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)).
 
 ```mermaid
 flowchart LR
@@ -114,7 +119,7 @@ flowchart LR
 
 ## Boundary and Trade-off Notes
 
-1. Host-owned authority is intentional: orchestration and SaaS are pluggable,
+1. Host-owned authority is intentional: orchestration and Team Kitty are pluggable,
    state-mutation authority is not.
 2. External integrations are optional by design to preserve local-first operation.
 3. The model favors traceability and deterministic behavior over implicit
@@ -128,8 +133,9 @@ flowchart LR
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
-- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
+- Domain model ADR: [`docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
 - Container view: [`../02_containers/README.md`](../02_containers/README.md)
 - Component view: [`../03_components/README.md`](../03_components/README.md)
+- Hosted boundary: [Team Kitty and Zeitgeist](../../../context/team-kitty.md), ADR [`2026-09-26-3`](../../../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)

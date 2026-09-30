@@ -2,7 +2,8 @@
 title: Post-Merge Partition Authority
 description: One model for post-merge partition authority — the write half (which bytes win per artifact) and the read half (which surface a reader trusts).
 doc_status: active
-updated: '2026-09-14'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/artifact-placement-seam.md
 - docs/architecture/status-model.md
@@ -12,10 +13,10 @@ related:
 ---
 # Post-Merge Partition Authority
 
-This page is the FR-009 cross-track synthesis for mission
-`post-merge-partition-integrity-01M2FQ80`. It maps the two tracks the mission
-delivered onto **one** question and records the epic-owner notes and the
-shared-vs-disjoint verdict the squad reached.
+After lane consolidation, two things have to be settled for every mission artifact:
+**which bytes win** when copies diverge, and **which surface a reader trusts** for the
+result. This page gives the one model that answers both. Where it came from is in
+[Provenance](#provenance) at the end.
 
 > **Terminology (per the `primary`/`merge` footgun canon).** "PRIMARY-partition"
 > below is the **partition sense** — the stable planning artifacts (`spec.md`,
@@ -168,6 +169,13 @@ doctrinal**, not a shared runtime seam. Calling the tracks "the same bug" would
 overclaim; calling them unrelated would miss that a single partition authority
 governs both. They are **genuinely disjoint-but-thematically-shared**, unified by
 the classifier + partition doctrine rather than by code.
+
+## Provenance
+
+This page is the cross-track synthesis (FR-009) for mission
+`post-merge-partition-integrity-01M2FQ80`: it maps the two tracks the mission delivered
+(Track A, #3942, and Track B, #4090) onto one question and records the epic-owner notes and
+the shared-vs-disjoint verdict the review squad reached.
 
 ## Traceability
 

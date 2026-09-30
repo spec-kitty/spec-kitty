@@ -2,7 +2,8 @@
 title: 'Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net'
 description: Why `charter pack apply` alone does not deliver working governance, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation.
 doc_status: active
-updated: '2026-08-02'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md

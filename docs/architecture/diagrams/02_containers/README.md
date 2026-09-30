@@ -1,25 +1,26 @@
 ---
-title: 3.x Containers
-description: 'Living 3.x containers view (C4 level 2): the current decomposition of Spec Kitty into deployable and runnable containers, part of the living C4 model.'
+title: Containers (living)
+description: 'Living containers view (C4 level 2): the current decomposition of Spec Kitty into logical containers, including the Zeitgeist moment publisher.'
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/runtime-execution-domain.md
 - docs/architecture/diagrams/03_components/README.md
 ---
-# 3.x Containers
+# Containers (living)
 
 | Field | Value |
 |---|---|
 | Status | Living |
 | Date | 2026-06-11 |
-| Scope | C4 Level 2 container model (3.x) — four bounded modules + Op tier |
+| Scope | C4 Level 2 container model — four bounded modules + Op tier |
 | Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-25-1`, `2026-05-16-1` |
 
 ## Purpose
 
-Show the major logical containers in Spec Kitty 3.x and define how they
+Show the major logical containers in Spec Kitty and define how they
 collaborate to enforce governance, mission lifecycle, execution-state
 resolution, and the single commit-protection decision.
 
@@ -36,7 +37,7 @@ resolution, and the single commit-protection decision.
 
 The four bounded modules are the top-level containers. They communicate through
 **Open Host Service (OHS) facades** only
-([`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)).
+([`docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)).
 
 ```mermaid
 flowchart TB
@@ -68,7 +69,9 @@ flowchart TB
 
     op["Op Tier — dispatch + pre/post-mission lifecycle"]
     orchestrator["External Orchestrator"] --> cli
-    extTracker["External Tracker / SaaS"]
+    moments["Zeitgeist moment publisher — status/zeitgeist_bridge + zeitgeist_client"]
+    relay["Team's Zeitgeist relay (external)"]
+    extTracker["External Tracker (local provider or via Team Kitty)"]
 
     cli --> op
     op -->|action-scoped context| charter
@@ -79,7 +82,9 @@ flowchart TB
     cli --> missionLifecycle
     missionLifecycle --> statusFacade
     missionLifecycle --> planning
-    statusFacade -->|projects selected events| extTracker
+    statusFacade -->|after local persistence, when drain is on| moments
+    moments -->|one bounded moment, no queue, no retry| relay
+    cli -->|tracker commands| extTracker
 
     missionLifecycle -->|resolve_action_context| missionRuntime
     planning -->|resolve_placement_only| placement
@@ -111,8 +116,9 @@ flowchart TB
 | `resolve_status_surface_with_anchor` | Single-pass status-surface + primary-anchor resolution | The one status-surface authority; fails closed rather than handing back a primary surface (kills the split-brain class) |
 | `CommitTarget(ref, kind)` | The one ref artifacts and status events resolve to | Self-validating value object pairing the destination `ref` with its topology `kind` |
 | `commit_guard.evaluate` + `GuardCapability` | The ONE commit-protection decision | Pure function: echoes `CommitTarget.ref` as the resolved destination; capability is asserted at the call site, never derived |
+| Zeitgeist moment publisher | Publishes a lane-transition moment to the team's relay | Runs only after the event is persisted locally and only when drain is on; fails open on availability, closed on identity ([Team Kitty and Zeitgeist](../../../context/team-kitty.md)) |
 
-## Canonical-shape notes (3.x — what these containers are NOT)
+## Canonical-shape notes (what these containers are NOT)
 
 - The execution-state surface is the top-level `mission_runtime` package. The
   retired `specify_cli/core/execution_context.py` home is **gone** and is
@@ -120,17 +126,19 @@ flowchart TB
 - `CommitTarget` is `(ref, kind)` — a destination ref paired with its topology
   classification. The earlier sketch of `(worktree_root, destination_ref)` is
   superseded and **not** depicted (see the 2026-06-10 addendum to
-  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)).
+  [`docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)).
 - Commit protection is one pure decision (`commit_guard.evaluate`) parameterized
   by an explicit `GuardCapability`; the five legacy privilege channels were
   folded into that capability and are not depicted.
+- The retired sync transport (daemon, offline queue, batch ingress) is gone and
+  is not depicted; the only hosted outbound path is the Zeitgeist moment.
 
 ## Domain-to-Container Allocation
 
 | Domain (bounded module) | Primary Containers | Secondary Containers |
 |---|---|---|
 | Governance | Charter Engine, Doctrine Catalog + DRG, Glossary Corpus | CLI Command Surface, Op Tier |
-| Mission Management | Mission + WP lifecycle, `status/` OHS facade, Planning artifacts | CLI Command Surface |
+| Mission Management | Mission + WP lifecycle, `status/` OHS facade, Planning artifacts | CLI Command Surface, Zeitgeist moment publisher |
 | Execution / Runtime | `mission_runtime`, `resolve_placement_only`, `resolve_status_surface_with_anchor`, Workspace lifecycle | Mission + WP lifecycle |
 | Shared Kernel | `CommitTarget(ref, kind)`, `commit_guard.evaluate` + `GuardCapability` | — |
 | Op Tier (cross-module) | Op Tier | Charter Engine, Mission + WP lifecycle |
@@ -169,13 +177,14 @@ execution/routing invariants.
 
 ## Interaction Constraints
 
-1. State transitions are host-authoritative; orchestrator, SaaS, and trackers use
-   contract surfaces only.
+1. State transitions are host-authoritative; orchestrator, Team Kitty, the relay,
+   and trackers use contract surfaces only.
 2. Modules communicate through OHS facades; `status` internals are import-forbidden
    outside Mission Management.
 3. There is exactly one execution-state surface (`mission_runtime`) and one
    commit-protection decision (`commit_guard.evaluate`).
-4. Tracker/SaaS integrations are optional and boundary-scoped.
+4. Hosted and tracker integrations are optional and boundary-scoped; hosted
+   moments are opt-in on the client (drain) and never block local persistence.
 
 ## Decision Traceability
 
@@ -185,10 +194,10 @@ execution/routing invariants.
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
-- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
-- Shared package boundary ADR: [`../../3.x/adr/2026-04-25-1-shared-package-boundary.md`](../../../adr/3.x/2026-04-25-1-shared-package-boundary.md)
+- Domain model ADR: [`docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
+- Shared package boundary ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](../../../adr/3.x/2026-04-25-1-shared-package-boundary.md)
 - Runtime/execution detail: [`runtime-execution-domain.md`](runtime-execution-domain.md)
 - Context view: [`../01_context/README.md`](../01_context/README.md)
 - Component view: [`../03_components/README.md`](../03_components/README.md)

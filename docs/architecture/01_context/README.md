@@ -1,12 +1,15 @@
 ---
 title: 2.x System Context
 description: "2.x system context (C4 level 1): the historical record of Spec Kitty's external actors and system boundaries, preserved beneath the current living architecture."
-doc_status: active
-updated: '2026-03-10'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
 ---
 # 2.x System Context
+
+> **Frozen 2.x snapshot.** Kept as a record and not refreshed. The current view is [System Context (living)](../diagrams/01_context/README.md). This page uses 2.x-era wording (for example "feature" where current docs say "mission", and the retired sync transport).
 
 | Field | Value |
 |---|---|

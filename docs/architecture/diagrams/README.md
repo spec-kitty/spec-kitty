@@ -1,8 +1,9 @@
 ---
 title: Architecture Diagrams (living C4)
-description: The living C4 model for the current 3.x architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified 3.x domain model.
+description: The living C4 model for the current architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified domain model.
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
 - docs/architecture/diagrams/01_context/README.md
@@ -11,10 +12,10 @@ related:
 ---
 # Architecture Diagrams (living C4)
 
-This directory holds the **living C4 model** for the **current 3.x architecture**.
-It was carried forward from the 2.x snapshot and refreshed in place against the
-ratified 3.x domain model. It is part of the *living architecture at the top* of
-`architecture/` (see [`../README.md`](../README.md)).
+This directory holds the **living C4 model** for the **current architecture**.
+It is not era-stamped: it was carried forward from the 2.x snapshot and is refreshed
+in place against the ratified domain model. It is one of the living surfaces
+described in [`../README.md`](../README.md).
 
 The numbered C4 levels are kept stable so navigation and tooling stay predictable:
 
@@ -24,10 +25,10 @@ The numbered C4 levels are kept stable so navigation and tooling stay predictabl
 | C4 L2 — Containers | [`02_containers/`](02_containers/README.md) | The four bounded modules + the Op execution tier |
 | C4 L3 — Components | [`03_components/`](03_components/README.md) | Component-level behavior sequences |
 
-## The 3.x domain model these diagrams depict
+## The domain model these diagrams depict
 
 The model is the **four bounded modules** ratified in
-[`../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../adr/3.x/2026-06-03-1-execution-state-domain-model.md):
+[`docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md`](../../adr/3.x/2026-06-03-1-execution-state-domain-model.md):
 
 | Module | Domain responsibility |
 |---|---|
@@ -45,14 +46,32 @@ package. The **Op execution tier** (`spec-kitty dispatch` plus
 `profile-invocation complete` and the pre/post-mission lifecycle) sits across
 the modules as the shared Op shape.
 
+### How the modules map onto the enforced layer packages
+
+The four modules are *domain* boundaries. The *import* boundaries CI enforces are
+the wheel packages in `pyproject.toml` and the layer chain in
+`tests/architectural/test_layer_rules.py`:
+`kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`.
+The two views line up like this:
+
+| Module | Main packages |
+|---|---|
+| Shared Kernel | `src/kernel/` (root layer) |
+| Governance | `src/charter/` (including `charter/offering/`, the former doctrine package) and `src/glossary/` |
+| Execution / Runtime | `src/mission_runtime/` (execution-state surface) and `src/runtime/` (the `spec-kitty next` control loop); workspace resolution under `src/specify_cli/workspace/` |
+| Mission Management | `src/specify_cli/` (status, lanes, consolidation, coordination, the CLI) |
+
+When a diagram and the enforced pair disagree, the enforced pair wins and the
+diagram is the thing to fix.
+
 ## Convention
 
 - **Hand-authored Markdown + Mermaid** (renders on GitHub, no build tooling) — R-04.
 - Each level uses a single canonical `README.md` entrypoint; additional detail
   pages may live beside it.
-- The 2.x snapshot under `architecture/2.x/{01_context,02_containers,03_components}/`
+- The 2.x snapshot under `docs/architecture/{01_context,02_containers,03_components}/`
   is frozen as history; this living copy is the one refreshed against the
-  current 3.x domain model.
+  current domain model.
 
 > Deterministic diagram **generation** (Structurizr/PlantUML) is deliberately out
 > of scope here — see upstream `#1839` (deduped vs `#1812`). This living C4 stays

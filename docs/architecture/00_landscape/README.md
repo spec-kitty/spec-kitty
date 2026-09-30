@@ -1,21 +1,22 @@
 ---
-title: 2.x System Landscape
-description: "2.x system landscape snapshot (C4 level 0): the historical bird's-eye view of Spec Kitty's external actors and surrounding systems, preserved beneath the living model."
+title: System Landscape (living)
+description: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
 doc_status: active
-updated: '2026-04-05'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
-# 2.x System Landscape
+# System Landscape (living)
 
 | Field | Value |
 |---|---|
-| Status | Draft |
-| Date | 2026-03-04 |
+| Status | Living (derived view; the enforced pair wins on conflict) |
+| Date | 2026-03-04 (package layout refreshed 2026-09-06) |
 | Scope | C4 Level 0 — system landscape and domain container boundaries |
 | Related ADRs | `2026-02-09-1..4`, `2026-02-17-1..3`, `2026-02-23-1..3`, `2026-02-27-1..3` |
 
 ## Purpose
 
-Establish the canonical top-level framing for Spec Kitty 2.x: the domain
+Establish the top-level framing for Spec Kitty: the domain
 containers, their allowed interaction directions, and the interface contracts
 between them. This is the north star that all lower-level C4 views (context,
 container, component) must align to.
@@ -80,7 +81,7 @@ lifecycle guards.
 
 ### 4. Local-First Operation
 
-All external integrations (tracker sync, orchestrator APIs) are **optional
+All external integrations (trackers, Team Kitty moments, orchestrator APIs) are **optional
 and feature-gated**. The system must function fully with filesystem-only
 persistence and no network connectivity. This ensures that the core
 planning → execution → review workflow is never blocked by external
@@ -125,7 +126,7 @@ process) and the **concrete mission** (the user's requirements applied to that
 template). Writes planning events to the Event Store.
 
 > **Note:** "Mission" replaces "Feature" as the canonical term for a concrete
-> unit of planned work. See [issue #241](https://github.com/Priivacy-ai/spec-kitty/issues/241).
+> unit of planned work. See [issue #241](https://github.com/spec-kitty/spec-kitty/issues/241).
 
 ### Event Store
 
@@ -321,10 +322,9 @@ successor subsystems (the API is authored/published upstream). See ADR
 
 ## Traceability
 
-- System context (C4 Level 1): `../01_context/README.md`
-- Container view (C4 Level 2): `../02_containers/README.md`
-- Component view (C4 Level 3): `../03_components/README.md`
-- Domain breakdown: `../README.md#domain-breakdown`
-- Usage flow: `../README.md#usage-flow-high-level-user-journey`
-- Doctrine governance ADR: `../adr/2026-02-23-1-doctrine-artifact-governance-model.md`
-- Mission rename: [issue #241](https://github.com/Priivacy-ai/spec-kitty/issues/241)
+- System context (C4 Level 1, living): [`../diagrams/01_context/README.md`](../diagrams/01_context/README.md)
+- Container view (C4 Level 2, living): [`../diagrams/02_containers/README.md`](../diagrams/02_containers/README.md)
+- Component view (C4 Level 3, living): [`../diagrams/03_components/README.md`](../diagrams/03_components/README.md)
+- Frozen 2.x C4 snapshot: `../01_context/`, `../02_containers/`, `../03_components/`
+- Doctrine governance ADR: [`docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`](../../adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md)
+- Mission rename: [issue #241](https://github.com/spec-kitty/spec-kitty/issues/241)

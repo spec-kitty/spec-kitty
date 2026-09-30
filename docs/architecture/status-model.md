@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-09-30'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -10,32 +10,30 @@ related:
 ---
 # Status Model: Operator Documentation
 
-**Feature**: 034-feature-status-state-model-remediation
-**Since**: 2.x (3.0 cleanup: feature 060)
+**Mission of record**: `034-feature-status-state-model-remediation` (legacy slug)
 
 **Terminology note**
-- Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
-- Status commands now use `--mission` as the canonical tracked-mission selector.
-  As of 3.2.x (#1060-A), `spec-kitty agent status ...` no longer accepts the
-  legacy `--feature` alias. As of this release (#1060), the `--feature` alias
-  has been hard-removed from all user-facing commands; passing `--feature` yields
-  exit code 2. Use `--mission` on all commands.
-- As of mission `083-mission-id-canonical-identity-migration`, a mission's canonical machine identity is `mission_id` (a ULID). The `--mission` flag accepts `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`. The numeric prefix in slug examples below (e.g. `034-feature-name`) is display-only metadata — the event log's aggregate key is `mission_id`, not the prefix. See the [mission identity migration runbook](../migrations/mission-id-canonical-identity.md).
+- Domain model: `Mission Type -> Mission -> Mission Run`.
+- `--mission` is the only tracked-mission selector. The old `--feature` alias has been
+  removed from every user-facing command (#1060, the selector hard-removal); passing
+  `--feature` exits with code 2.
+- A mission's canonical machine identity is `mission_id` (a ULID, since mission
+  `083-mission-id-canonical-identity-migration`). The `--mission` flag accepts `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`. The numeric prefix in slug examples below (e.g. `034-feature-name`) is display-only metadata — the event log's aggregate key is `mission_id`, not the prefix. See the [mission identity migration runbook](../migrations/mission-id-canonical-identity.md).
 
 ## Overview
 
 The status model uses a single canonical append-only event log per mission as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
 
-> **Reducer determinism is Lamport-primary; a wall-clock LWW sibling still ships (`#4990` closed 2026-09-25 for the rejection-after-approval case; residual ordering bug tracked by `#4941`).** "Deterministic reducer" refers to the **Lamport** reduction wrapper (`status.reducer.materialize` / `reduce_shared_state`) that honors ADR [`2026-02-09-3`](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md) — causal ordering, reviewer-rollback precedence. A **second** reducer also ships, the wall-clock last-writer-wins `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`), which does **not** honor that ADR. The merge/terminus reconciliation gate deliberately sources its WP-membership claim through the Lamport wrapper so its own verdict is causally sound. The rejection-after-approval case was closed via `#4990` (spec_kitty_events 10.4.0); the general LWW split-brain in `reduce_parsed` remains a **separate, open** sibling issue, **#4941** (a `spec_kitty_events`-side fix), and is **not** resolved by the *terminus-merge-integrity* mission. Read "deterministic reducer" as Lamport-primary, not as a claim that a single reducer ships or that #4941 is resolved.
+> **Which reducer is deterministic?** The Lamport wrapper (`status.reducer.materialize`). A second, wall-clock reducer also ships; see [Known limitations](#known-limitations).
 
-**Key principles (3.0)**:
+**Key principles**:
 - `status.events.jsonl` is the **sole source of truth** for WP lane state
 - `status.json` is a **derived** materialized snapshot (regenerable)
 - WP frontmatter is for **static definition only** (title, dependencies, subtasks) -- the `lane` field is no longer written or read by active runtime code
 - `finalize-tasks` is the **canonical bootstrap point** -- it creates initial WP definitions; status transitions are tracked exclusively in the event log
 - Frontmatter `lane` is a **historical/migration-only** concept retained in migration code paths for backward compatibility
 
-**3.1.0 addition**: Read-only status commands (including `materialize()` and `spec-kitty agent status materialize`) no longer dirty the git working tree. `status.json` is only written when there is a new event to materialize. The `materialized_at` field in `status.json` reflects the timestamp of the last event in the log, not the wall clock at the time the command was run.
+**Read-only commands stay read-only**: status commands (including `materialize()` and `spec-kitty agent status materialize`) no longer dirty the git working tree. `status.json` is only written when there is a new event to materialize. The `materialized_at` field in `status.json` reflects the timestamp of the last event in the log, not the wall clock at the time the command was run.
 
 > **Forward-looking (Proposed):** the "frontmatter is static-only" principle above
 > is only half-delivered today — `lane` was evicted, but `shell_pid`,
@@ -48,6 +46,16 @@ The status model uses a single canonical append-only event log per mission as th
 > and hashes stably across every runtime mutation. See
 > [ADR 2026-07-16-1](../adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md)
 > and the [eviction design](wp-runtime-state-eviction.md).
+
+## Known limitations
+
+- **Two reducers ship.** "Deterministic reducer" means the **Lamport** wrapper
+  (`status.reducer.materialize` / `reduce_shared_state`), which honors ADR
+  [`2026-02-09-3`](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md) (causal order,
+  reviewer-rollback precedence); the consolidation reconciliation gate reads through it.
+  The wall-clock last-writer-wins `reduce_parsed` (`spec_kitty_events.diary`) also ships
+  and does not honor that ADR: its rejection-after-approval case was fixed in #4990
+  (spec_kitty_events 10.4.0), and the remaining ordering bug is open as #4941.
 
 ## CLI Commands
 
@@ -202,7 +210,7 @@ spec-kitty agent status migrate --all
 spec-kitty agent status migrate --all --dry-run
 ```
 
-**Migration behavior** (for pre-3.0 features):
+**Migration behavior** (for pre-3.0 missions):
 - Reads current frontmatter `lane` values from all WP files in the feature
 - Resolves aliases (`doing` -> `in_progress`) before creating events
 - Generates one bootstrap event per WP: `from_lane=planned, to_lane=<current_lane>`
@@ -210,7 +218,7 @@ spec-kitty agent status migrate --all --dry-run
 - Idempotent: features with existing non-empty `status.events.jsonl` are skipped
 - Verification: reads back persisted events and confirms count matches
 
-**For new features (3.0+)**: `finalize-tasks` bootstraps WP definitions. All subsequent status transitions are validated once in the status-owned `transition_pipeline` and appended to the event log by one of its two shells — the flat/primary `emit_status_transition()` or the transactional shell in `coordination/status_transition.py`. No frontmatter lane is written.
+**For new missions (3.0+)**: `finalize-tasks` bootstraps WP definitions. All subsequent status transitions are validated once in the status-owned `transition_pipeline` and appended to the event log by one of its two shells — the flat/primary `emit_status_transition()` or the transactional shell in `coordination/status_transition.py`. No frontmatter lane is written.
 
 ### Legacy Compatibility
 
@@ -305,13 +313,13 @@ blocked     -> canceled
 
 ## Migration Phases
 
-The status model used a phased rollout. As of 3.0, **Phase 2 is the active and only supported model**. Phases 0 and 1 are historical and no longer apply to new features.
+The status model used a phased rollout. As of 3.0, **Phase 2 is the active and only supported model**. Phases 0 and 1 are historical and no longer apply to new missions.
 
 | Phase | Name | Behavior | Status |
 |-------|------|----------|--------|
 | 0 | Hardening | Transition matrix enforced, no event log. Frontmatter was sole authority. | **Historical** |
 | 1 | Dual-write | Events AND frontmatter updated on every transition. Reads came from frontmatter. | **Historical** |
-| 2 | Read-cutover | `status.events.jsonl` is sole authority. `status.json` is derived snapshot. | **Active (3.0)** |
+| 2 | Read-cutover | `status.events.jsonl` is sole authority. `status.json` is derived snapshot. | **Active** |
 
 **Default**: Phase 2 (event-log authority). Frontmatter lane is no longer written or read by active runtime commands.
 
@@ -470,14 +478,14 @@ never entered implementation.
 kitty-specs/<feature>/
   status.events.jsonl    # CANONICAL: append-only event log
   status.json            # DERIVED: materialized snapshot (regenerable)
-  meta.json              # Feature metadata (includes optional status_phase)
+  meta.json              # Mission metadata (includes optional status_phase)
   tasks/
     WP01-name.md         # DERIVED: frontmatter lane is compatibility view
     WP02-name.md
   tasks.md               # DERIVED: status sections from snapshot
 ```
 
-**Authority hierarchy** (3.0):
+**Authority hierarchy**:
 1. `status.events.jsonl` -- canonical truth (append-only, immutable events)
 2. `status.json` -- derived snapshot (regenerable via `status materialize`)
 3. WP frontmatter -- static definition only (title, dependencies, subtasks); `lane` field is historical/migration-only
