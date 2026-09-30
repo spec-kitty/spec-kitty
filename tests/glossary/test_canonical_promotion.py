@@ -234,7 +234,33 @@ def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str])
             "paradigm/directive/tactic/procedure/styleguide layers plus specific directives",
             "its `directive-references` name specific directives",
         )
+        # Catalog-languages ADR (#5284, 2026-09-29): a related: edge to the new
+        # ADR and the reserved-language-token note. Additive prose; no
+        # path-token or term content changes.
+        text = text.replace(
+            "- docs/guides/how-to/governance/setup-governance.md\n---\n",
+            "- docs/guides/how-to/governance/setup-governance.md\n"
+            f"- {_CATALOG_LANGUAGES_ADR}\n---\n",
+        )
+        text = text.replace(
+            "\n\n> **A note on `template`, `asset`, and `anti_pattern`",
+            f"\n\n{_RESERVED_LANGUAGE_TOKENS_NOTE}\n\n> **A note on `template`, `asset`, and `anti_pattern`",
+        )
     return text.splitlines()
+
+
+_CATALOG_LANGUAGES_ADR = "docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md"
+_RESERVED_LANGUAGE_TOKENS_NOTE = """\
+**Reserved language tokens in `applies_to_languages`.** The `applies_to_languages` field scopes an
+artifact to project languages. Three tokens are reserved and never name a real language:
+
+- `any` and `all` are rejected when you author an artifact (`spec-kitty charter validate`). If one
+  reaches runtime anyway, the artifact is treated as unscoped and loads for every project.
+- `unknown` is rejected at authoring time as well. At runtime it is ignored on both sides of the
+  match, so an artifact scoped only to `unknown` never loads. Spec Kitty itself writes `unknown`
+  into a project's active languages when the project declares a language that no installed doctrine
+  recognises (see the
+  [catalog-languages ADR](../adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md))."""
 
 
 def _flip_path_token(line: str, *, allow_source_topology: bool) -> str:
@@ -259,6 +285,17 @@ _LATER_WAVE_DOC_REPLACEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "docs/development/how-to/create-a-doctrine-artifact.md": (
         ("src/doctrine/", "src/charter/offering/"),
         ("src/charter/activation_engine", "src/charter/activation/activation_engine"),
+    ),
+    # Doctrine single-owner wave (#5218, 2026-09-28): the generated Ivan
+    # profile page now cites the test-first-bug-fixing procedure instead of the
+    # bug-fixing-checklist tactic; the reflow moves "production" to the next
+    # line. Both substitutions are anchored on the whole old phrase.
+    "docs/api/agent_profiles/implementer-ivan.md": (
+        (
+            "(Ivan applies the bug-fixing-checklist tactic: failing test before production",
+            "(Ivan applies the test-first-bug-fixing procedure: failing test before",
+        ),
+        ("  code changes).", "  production code changes)."),
     ),
 }
 
