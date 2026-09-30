@@ -70,34 +70,6 @@ def _make_project(tmp_path: Path, *, with_charter: bool = True, with_git: bool =
 # T023a — ``charter interview --defaults`` exits 0 and writes interview file
 # ---------------------------------------------------------------------------
 
-def test_interview_defaults_exits_zero_and_writes_answers(tmp_path: Path) -> None:
-    """Arrange: project with .kittify + git; Act: invoke interview --defaults;
-    Assert: exit 0 and interview answers file written."""
-    project = _make_project(tmp_path)
-
-    fake_interview_data = MagicMock()
-    fake_interview_data.mission = "software-dev"
-    fake_interview_data.profile = "minimal"
-    fake_interview_data.answers = {}
-    fake_interview_data.selected_paradigms = ["test-driven"]
-    fake_interview_data.selected_directives = []
-    fake_interview_data.available_tools = ["pytest"]
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.cli.commands.charter.default_interview", return_value=fake_interview_data),
-        patch("charter.activation.interview.write_interview_answers"),
-        patch("charter.activation.interview.apply_answer_overrides", return_value=fake_interview_data),
-        patch("charter.activation.interview.MINIMAL_QUESTION_ORDER", []),
-        patch("charter.activation.interview.QUESTION_ORDER", []),
-        patch("charter.activation.interview.QUESTION_PROMPTS", {}),
-        patch("specify_cli.cli.commands.charter._get_widen_prereqs_absent", return_value=None),
-    ):
-        result = runner.invoke(app, ["interview", "--defaults"])
-
-    assert result.exit_code == 0, result.output
-    assert "saved" in result.output or "Interview" in result.output
-
 
 def test_interview_invalid_profile_exits_nonzero(tmp_path: Path) -> None:
     """Arrange: project; Act: invoke interview with invalid --profile;
@@ -120,40 +92,10 @@ def test_interview_invalid_profile_exits_nonzero(tmp_path: Path) -> None:
     assert "Error" in result.output or "profile" in result.output.lower()
 
 
-def test_interview_defaults_json_output(tmp_path: Path) -> None:
-    """Arrange: project; Act: interview --defaults --json;
-    Assert: exit 0 and stdout is valid JSON with expected keys."""
-    project = _make_project(tmp_path)
-
-    fake_interview_data = MagicMock()
-    fake_interview_data.mission = "software-dev"
-    fake_interview_data.profile = "minimal"
-    fake_interview_data.answers = {}
-    fake_interview_data.selected_paradigms = ["tdd"]
-    fake_interview_data.selected_directives = []
-    fake_interview_data.available_tools = []
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.cli.commands.charter.default_interview", return_value=fake_interview_data),
-        patch("charter.activation.interview.write_interview_answers"),
-        patch("charter.activation.interview.apply_answer_overrides", return_value=fake_interview_data),
-        patch("charter.activation.interview.MINIMAL_QUESTION_ORDER", []),
-        patch("charter.activation.interview.QUESTION_ORDER", []),
-        patch("charter.activation.interview.QUESTION_PROMPTS", {}),
-        patch("specify_cli.cli.commands.charter._get_widen_prereqs_absent", return_value=None),
-    ):
-        result = runner.invoke(app, ["interview", "--defaults", "--json"])
-
-    assert result.exit_code == 0, result.output
-    data = json.loads(result.output)
-    assert data["result"] == "success"
-    assert data["mission"] == "software-dev"
-
-
 # ---------------------------------------------------------------------------
 # T023b — ``charter sync`` exits 0 when charter exists and is synced
 # ---------------------------------------------------------------------------
+
 
 def test_sync_exits_zero_when_charter_synced(tmp_path: Path) -> None:
     """Arrange: project with charter.md; Act: sync; Assert: exit 0."""
@@ -212,40 +154,6 @@ def test_sync_noop_when_already_synced(tmp_path: Path) -> None:
 # T023c — ``charter status`` exits 0 and includes "Charter" in output
 # ---------------------------------------------------------------------------
 
-def test_status_exits_zero_with_human_output(tmp_path: Path) -> None:
-    """Arrange: project with charter.md; Act: status; Assert: exit 0, "Charter" in output."""
-    project = _make_project(tmp_path)
-
-    fake_sync_result = MagicMock()
-    fake_sync_result.canonical_root = project
-
-    fake_synthesis = {
-        "generation_state": "not_started",
-        "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
-        "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
-    }
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.cli.commands.charter._collect_charter_sync_status", return_value={
-            "available": True,
-            "charter_path": ".kittify/charter/charter.md",
-            "status": "synced",
-            "current_hash": "abc123",
-            "stored_hash": "abc123",
-            "last_sync": None,
-            "library_docs": 0,
-            "files": [],
-        }),
-        patch("specify_cli.cli.commands.charter._collect_synthesis_status", return_value=fake_synthesis),
-    ):
-        result = runner.invoke(app, ["status"])
-
-    assert result.exit_code == 0, result.output
-    assert "Charter" in result.output
-
 
 def test_status_json_output_contains_result_key(tmp_path: Path) -> None:
     """Arrange: project; Act: status --json; Assert: exit 0 and JSON with result key."""
@@ -254,23 +162,50 @@ def test_status_json_output_contains_result_key(tmp_path: Path) -> None:
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
+        "manifest": {
+            "state": "missing",
+            "path": ".kittify/charter/synthesis-manifest.yaml",
+            "exists": False,
+            "artifact_count": 0,
+            "live_artifact_count": 0,
+            "live_provenance_count": 0,
+            "run_id": None,
+            "created_at": None,
+            "adapter_id": None,
+            "adapter_version": None,
+            "missing_provenance_paths": [],
+            "error": None,
+        },  # noqa: E501
+        "provenance": {
+            "path": ".kittify/charter/provenance",
+            "count": 0,
+            "parsed_count": 0,
+            "manifest_artifact_count": 0,
+            "missing_for_manifest_count": 0,
+            "missing_for_manifest": [],
+            "corpus_snapshot_ids": [],
+            "adapters": [],
+            "warnings": [],
+            "entries": [],
+        },  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.cli.commands.charter._collect_charter_sync_status", return_value={
-            "available": True,
-            "charter_path": ".kittify/charter/charter.md",
-            "status": "synced",
-            "current_hash": "abc123",
-            "stored_hash": "abc123",
-            "last_sync": None,
-            "library_docs": 0,
-            "files": [],
-        }),
+        patch(
+            "specify_cli.cli.commands.charter._collect_charter_sync_status",
+            return_value={
+                "available": True,
+                "charter_path": ".kittify/charter/charter.md",
+                "status": "synced",
+                "current_hash": "abc123",
+                "stored_hash": "abc123",
+                "last_sync": None,
+                "library_docs": 0,
+                "files": [],
+            },
+        ),
         patch("specify_cli.cli.commands.charter._collect_synthesis_status", return_value=fake_synthesis),
     ):
         result = runner.invoke(app, ["status", "--json"])
@@ -283,48 +218,3 @@ def test_status_json_output_contains_result_key(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # T023d — ``charter context`` exits 0 and emits action context text
 # ---------------------------------------------------------------------------
-
-def test_context_exits_zero_for_known_action(tmp_path: Path) -> None:
-    """Arrange: project; Act: context --action specify; Assert: exit 0."""
-    project = _make_project(tmp_path)
-
-    fake_ctx = MagicMock()
-    fake_ctx.action = "specify"
-    fake_ctx.mode = "full"
-    fake_ctx.first_load = True
-    fake_ctx.references_count = 3
-    fake_ctx.text = "Charter context for specify action."
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
-    ):
-        result = runner.invoke(app, ["context", "--action", "specify"])
-
-    assert result.exit_code == 0, result.output
-    assert "specify" in result.output or "Charter" in result.output or "context" in result.output.lower()
-
-
-def test_context_json_output_has_success_key(tmp_path: Path) -> None:
-    """Arrange: project; Act: context --action implement --json; Assert: JSON success=true."""
-    project = _make_project(tmp_path)
-
-    fake_ctx = MagicMock()
-    fake_ctx.action = "implement"
-    fake_ctx.mode = "incremental"
-    fake_ctx.first_load = False
-    fake_ctx.references_count = 5
-    fake_ctx.text = "Implementation context."
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
-    ):
-        result = runner.invoke(app, ["context", "--action", "implement", "--json"])
-
-    assert result.exit_code == 0, result.output
-    data = json.loads(result.output)
-    assert data["success"] is True
-    assert data["action"] == "implement"

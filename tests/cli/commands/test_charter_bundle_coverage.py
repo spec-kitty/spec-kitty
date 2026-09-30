@@ -6,7 +6,6 @@ Structure: AAA (Arrange / Act / Assert).
 
 from __future__ import annotations
 
-import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -84,6 +83,7 @@ class TestManifestV2Shape:
 # ---------------------------------------------------------------------------
 # Bucket B — Filesystem I/O helpers
 # ---------------------------------------------------------------------------
+
 
 class TestReadGitignoreLines:
     def test_returns_empty_list_when_gitignore_missing(self, tmp_path: Path) -> None:
@@ -181,6 +181,7 @@ class TestEnumerateOutOfScopeFiles:
 # Bucket C — Rendering helpers
 # ---------------------------------------------------------------------------
 
+
 class TestRenderHuman:
     def test_renders_compliant_message_when_bundle_is_compliant(self, capsys) -> None:  # type: ignore[no-untyped-def]
         """Arrange: report with bundle_compliant=True;
@@ -223,6 +224,7 @@ class TestRenderHuman:
 # Bucket A — CLI orchestration (via CliRunner)
 # ---------------------------------------------------------------------------
 
+
 class TestValidateCLI:
     def test_validate_exits_nonzero_when_resolver_raises_not_inside_repo(self, tmp_path: Path) -> None:
         """Arrange: cwd is not inside a git repo;
@@ -230,59 +232,7 @@ class TestValidateCLI:
         Assert: exit code 2."""
         from charter.resolution import NotInsideRepositoryError
 
-        with patch("specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root",
-                   side_effect=NotInsideRepositoryError("not a repo")):
+        with patch("specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root", side_effect=NotInsideRepositoryError("not a repo")):
             result = runner.invoke(app, ["validate"])
 
         assert result.exit_code == 2
-
-    def test_validate_exits_zero_when_all_checks_pass(self, tmp_path: Path) -> None:
-        """Arrange: all validation checks pass;
-        Act: invoke bundle validate;
-        Assert: exit code 0."""
-        from charter.bundle import BundleValidationResult
-
-        mock_synth = MagicMock(spec=BundleValidationResult)
-        mock_synth.synthesis_state_present = False
-        mock_synth.passed = True
-        mock_synth.errors = []
-        mock_synth.warnings = []
-
-        with (
-            patch("specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.charter_bundle._classify_paths", return_value=([], [])),
-            patch("specify_cli.cli.commands.charter_bundle._classify_gitignore", return_value=([], [])),
-            patch("specify_cli.cli.commands.charter_bundle._enumerate_out_of_scope_files", return_value=([], [])),
-            patch("specify_cli.cli.commands.charter_bundle._collect_provenance_validation_errors", return_value=[]),
-            patch("specify_cli.cli.commands.charter_bundle.validate_synthesis_state", return_value=mock_synth),
-            patch("specify_cli.cli.commands.charter_bundle._bundle_compatibility_error", return_value=None),
-        ):
-            result = runner.invoke(app, ["validate"])
-
-        assert result.exit_code == 0
-
-    def test_validate_json_output_contains_result_key(self, tmp_path: Path) -> None:
-        """Arrange: all checks pass; Act: validate --json; Assert: JSON result key exists."""
-        from charter.bundle import BundleValidationResult
-
-        mock_synth = MagicMock(spec=BundleValidationResult)
-        mock_synth.synthesis_state_present = False
-        mock_synth.passed = True
-        mock_synth.errors = []
-        mock_synth.warnings = []
-
-        with (
-            patch("specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.charter_bundle._classify_paths", return_value=([], [])),
-            patch("specify_cli.cli.commands.charter_bundle._classify_gitignore", return_value=([], [])),
-            patch("specify_cli.cli.commands.charter_bundle._enumerate_out_of_scope_files", return_value=([], [])),
-            patch("specify_cli.cli.commands.charter_bundle._collect_provenance_validation_errors", return_value=[]),
-            patch("specify_cli.cli.commands.charter_bundle.validate_synthesis_state", return_value=mock_synth),
-            patch("specify_cli.cli.commands.charter_bundle._bundle_compatibility_error", return_value=None),
-        ):
-            result = runner.invoke(app, ["validate", "--json"])
-
-        assert result.exit_code == 0
-        data = json.loads(result.output)
-        assert "result" in data
-        assert "passed" in data

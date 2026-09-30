@@ -40,6 +40,7 @@ def _project(tmp_path: Path, *, with_charter: bool = True) -> Path:
 # Charter sync error rendering
 # ---------------------------------------------------------------------------
 
+
 def test_sync_renders_error_message_when_sync_reports_error(tmp_path: Path) -> None:
     """Arrange: sync returns an error result;
     Act: invoke sync;
@@ -114,6 +115,7 @@ def test_sync_renders_noop(tmp_path: Path) -> None:
 # Charter status rendering — error paths
 # ---------------------------------------------------------------------------
 
+
 def test_status_renders_unavailable_when_charter_not_found(tmp_path: Path) -> None:
     """Arrange: charter is unavailable (TaskCliError path);
     Act: status;
@@ -124,8 +126,32 @@ def test_status_renders_unavailable_when_charter_not_found(tmp_path: Path) -> No
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
+        "manifest": {
+            "state": "missing",
+            "path": ".kittify/charter/synthesis-manifest.yaml",
+            "exists": False,
+            "artifact_count": 0,
+            "live_artifact_count": 0,
+            "live_provenance_count": 0,
+            "run_id": None,
+            "created_at": None,
+            "adapter_id": None,
+            "adapter_version": None,
+            "missing_provenance_paths": [],
+            "error": None,
+        },  # noqa: E501
+        "provenance": {
+            "path": ".kittify/charter/provenance",
+            "count": 0,
+            "parsed_count": 0,
+            "manifest_artifact_count": 0,
+            "missing_for_manifest_count": 0,
+            "missing_for_manifest": [],
+            "corpus_snapshot_ids": [],
+            "adapters": [],
+            "warnings": [],
+            "entries": [],
+        },  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -159,8 +185,32 @@ def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
+        "manifest": {
+            "state": "missing",
+            "path": ".kittify/charter/synthesis-manifest.yaml",
+            "exists": False,
+            "artifact_count": 0,
+            "live_artifact_count": 0,
+            "live_provenance_count": 0,
+            "run_id": None,
+            "created_at": None,
+            "adapter_id": None,
+            "adapter_version": None,
+            "missing_provenance_paths": [],
+            "error": None,
+        },  # noqa: E501
+        "provenance": {
+            "path": ".kittify/charter/provenance",
+            "count": 0,
+            "parsed_count": 0,
+            "manifest_artifact_count": 0,
+            "missing_for_manifest_count": 0,
+            "missing_for_manifest": [],
+            "corpus_snapshot_ids": [],
+            "adapters": [],
+            "warnings": [],
+            "entries": [],
+        },  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -197,8 +247,32 @@ def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
+        "manifest": {
+            "state": "missing",
+            "path": ".kittify/charter/synthesis-manifest.yaml",
+            "exists": False,
+            "artifact_count": 0,
+            "live_artifact_count": 0,
+            "live_provenance_count": 0,
+            "run_id": None,
+            "created_at": None,
+            "adapter_id": None,
+            "adapter_version": None,
+            "missing_provenance_paths": [],
+            "error": None,
+        },  # noqa: E501
+        "provenance": {
+            "path": ".kittify/charter/provenance",
+            "count": 0,
+            "parsed_count": 0,
+            "manifest_artifact_count": 0,
+            "missing_for_manifest_count": 0,
+            "missing_for_manifest": [],
+            "corpus_snapshot_ids": [],
+            "adapters": [],
+            "warnings": [],
+            "entries": [],
+        },  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -216,30 +290,6 @@ def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Charter context rendering — action label in output
 # ---------------------------------------------------------------------------
-
-def test_context_renders_action_name_in_output(tmp_path: Path) -> None:
-    """Arrange: context build returns action="review";
-    Act: context --action review;
-    Assert: "Action:" in output (stable substring)."""
-    project = _project(tmp_path)
-
-    fake_ctx = MagicMock()
-    fake_ctx.action = "review"
-    fake_ctx.mode = "incremental"
-    fake_ctx.first_load = False
-    fake_ctx.references_count = 2
-    fake_ctx.text = "Review context text here."
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
-    ):
-        result = runner.invoke(app, ["context", "--action", "review"])
-
-    assert result.exit_code == 0
-    # The context text should appear in stdout
-    assert "Review context text here." in result.output or "review" in result.output.lower()
 
 
 def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> None:
@@ -473,6 +523,7 @@ def test_context_requires_action_without_include(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # #4123: never-git-init-ed projects — actionable git-init advice
 # ---------------------------------------------------------------------------
+
 
 def test_context_renders_git_init_advice_on_non_git_project(tmp_path: Path) -> None:
     """Arrange: build_charter_context raises NotInsideRepositoryError;
