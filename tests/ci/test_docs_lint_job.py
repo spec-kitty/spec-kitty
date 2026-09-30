@@ -51,8 +51,21 @@ def _run_text(job: dict[str, Any]) -> str:
     return "\n".join(str(step["run"]) for step in job.get("steps", []) if "run" in step)
 
 
+# The repository fork guard (#5454). It is true on the core repository and on
+# every `pull_request` / `workflow_dispatch`, so it never skips a PR or the
+# merge path — it only spares a fork's own push/schedule runs. It is the ONLY
+# `if:` docs-lint may carry: absence trips #5454's fork-guard gate, and any
+# other `if:` (e.g. a path filter) could skip the job and defeat FR-013.
+_FORK_GUARD_IF = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
+
+
 def check_job_unconditional(job: dict[str, Any]) -> list[str]:
-    return ["job carries an `if:` key"] if "if" in job else []
+    raw = job.get("if")
+    if raw is None:
+        return ["job is missing the required fork-guard `if:` (#5454)"]
+    if str(raw).strip() != _FORK_GUARD_IF:
+        return [f"job carries a non-fork-guard `if:` (would be skippable): {raw!r}"]
+    return []
 
 
 def check_required_commands(job: dict[str, Any]) -> list[str]:

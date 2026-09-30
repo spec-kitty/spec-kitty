@@ -491,6 +491,7 @@ jobs:
   # docs/**, README.md, packs/built-in/**/*.md, pyproject.toml and uv.lock,
   # which no single path group covers. Runs no pytest (duplicate-suite ledger).
   docs-lint:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: docs lint (spelling + changelog style, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
