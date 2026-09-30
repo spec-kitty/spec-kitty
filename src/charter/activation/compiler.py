@@ -9,7 +9,7 @@ from io import StringIO
 import logging
 from pathlib import Path
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -1238,6 +1238,8 @@ def _classify_and_placeholder_reference(
 #: "Round-5 addition").
 _MALFORMED_URN_KIND_LABEL = "_unattributed"
 _MALFORMED_URN_CAUSE = "malformed_urn"
+_MALFORMED_URN_NO_KIND_DETAIL = "malformed URN, no kind prefix"
+_MALFORMED_URN_NO_ID_DETAIL = "malformed URN, no artifact id"
 _UNATTRIBUTED_KIND_CAUSE = "unattributed_kind"
 
 #: Single source of truth for the six DRG-backed kinds
@@ -1273,6 +1275,51 @@ _TRACKED_KIND_TO_GRAPH_ATTR: dict[str, str] = {
 }
 
 
+class _ReferenceFields(NamedTuple):
+    """How to read a :class:`CharterReference`'s id/title/summary off one kind's repository model."""
+
+    id_of: Callable[[Any], str]
+    title_of: Callable[[Any], str]
+    summary_of: Callable[[Any], str]
+
+
+#: Per tracked kind, the model-attribute readers shared by the per-kind render
+#: loop and the ``graph.unresolved`` routing, so both build an identical
+#: reference for the same artifact.
+_REFERENCE_FIELDS: dict[str, _ReferenceFields] = {
+    "directive": _ReferenceFields(
+        id_of=lambda d: str(d.id),
+        title_of=lambda d: str(d.title),
+        summary_of=lambda d: str(d.intent),
+    ),
+    "tactic": _ReferenceFields(
+        id_of=lambda t: str(t.id),
+        title_of=lambda t: str(t.name),
+        summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
+    ),
+    "styleguide": _ReferenceFields(
+        id_of=lambda sg: str(sg.id),
+        title_of=lambda sg: str(sg.title),
+        summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
+    ),
+    "toolguide": _ReferenceFields(
+        id_of=lambda tg: str(tg.id),
+        title_of=lambda tg: str(tg.title),
+        summary_of=lambda tg: str(tg.summary),
+    ),
+    "procedure": _ReferenceFields(
+        id_of=lambda proc: str(proc.id),
+        title_of=lambda proc: str(proc.name),
+        summary_of=lambda proc: str(proc.purpose),
+    ),
+    "agent_profile": _ReferenceFields(
+        id_of=lambda ap: str(ap.profile_id),
+        title_of=lambda ap: str(ap.name),
+        summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
+    ),
+}
+
+
 def _tracked_reference_kind_plurals() -> frozenset[str]:
     """Derive the tracked plural-kind set from :data:`_TRACKED_KIND_TO_GRAPH_ATTR`.
 
@@ -1289,6 +1336,16 @@ def _tracked_reference_kind_plurals() -> frozenset[str]:
     for this call would not move).
     """
     return frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values())
+
+
+def _model_reference(kind: str, model: Any, fields: _ReferenceFields) -> CharterReference:
+    """Build the :class:`CharterReference` for a repository *model* of *kind*."""
+    return _doctrine_model_reference(
+        kind=kind,
+        raw_id=fields.id_of(model),
+        title=fields.title_of(model),
+        summary=fields.summary_of(model),
+    )
 
 
 def _route_unresolved_urn(
@@ -1313,7 +1370,7 @@ def _route_unresolved_urn(
     invented mapping (operator ruling, round 4).
 
     A URN that cannot be attributed to one of the six tracked kinds (no
-    ``":"``; an unrecognized kind prefix; a valid kind whose repository is
+    ``":"`` or nothing after it; an unrecognized kind prefix; a valid kind whose repository is
     genuinely ``None``; a valid, real-repository kind outside the six
     tracked kinds) is NEVER silently dropped: it gets one of the four
     unattributable-URN structured shapes
@@ -1327,18 +1384,18 @@ def _route_unresolved_urn(
     is the built :class:`CharterReference` for a ``SCOPE_FILTERED`` cause,
     or ``None`` otherwise.
     """
-    if ":" not in urn:
+    kind_prefix, separator, bare_id = urn.partition(":")
+    if not separator or not bare_id:
         _record_unresolved_reference(
             kind=_MALFORMED_URN_KIND_LABEL,
             raw_id=urn,
             cause=_MALFORMED_URN_CAUSE,
-            detail="malformed URN, no kind prefix",
+            detail=_MALFORMED_URN_NO_ID_DETAIL if separator else _MALFORMED_URN_NO_KIND_DETAIL,
             diagnostics=diagnostics,
             unresolved_records=unresolved_records,
         )
         return None, None
 
-    kind_prefix, _, bare_id = urn.partition(":")
     try:
         artifact_kind = ArtifactKind(kind_prefix)
     except ValueError:
@@ -1370,6 +1427,12 @@ def _route_unresolved_urn(
         )
         return None, None
 
+    # The DRG can list an id as unresolved while the raw repository has it (an
+    # org pack the graph does not know about): render it like the per-kind path.
+    model = repository.get(bare_id) if repository is not None else None
+    if model is not None:
+        return artifact_kind.value, _model_reference(artifact_kind.value, model, _REFERENCE_FIELDS[artifact_kind.value])
+
     placeholder = _classify_and_placeholder_reference(
         kind=artifact_kind.value,
         raw_id=bare_id,
@@ -1386,9 +1449,7 @@ def _render_kind_references(
     *,
     kind: str,
     repository: Any,
-    id_of: Callable[[Any], str],
-    title_of: Callable[[Any], str],
-    summary_of: Callable[[Any], str],
+    fields: _ReferenceFields,
     diagnostics: list[str],
     unresolved_records: list[dict[str, str]] | None = None,
     project_root: Path | None = None,
@@ -1420,14 +1481,7 @@ def _render_kind_references(
     for raw_id in ids:
         model = repository.get(raw_id)
         if model is not None:
-            references.append(
-                _doctrine_model_reference(
-                    kind=kind,
-                    raw_id=id_of(model),
-                    title=title_of(model),
-                    summary=summary_of(model),
-                )
-            )
+            references.append(_model_reference(kind, model, fields))
             continue
         placeholder = _classify_and_placeholder_reference(
             kind=kind,
@@ -1550,9 +1604,7 @@ def _build_references_from_service(
         graph.directives,
         kind="directive",
         repository=_raw_kind_repository(doctrine_service, "directives"),
-        id_of=lambda d: str(d.id),
-        title_of=lambda d: str(d.title),
-        summary_of=lambda d: str(d.intent),
+        fields=_REFERENCE_FIELDS["directive"],
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
         project_root=repo_root,
@@ -1564,9 +1616,7 @@ def _build_references_from_service(
         graph.tactics,
         kind="tactic",
         repository=_raw_kind_repository(doctrine_service, "tactics"),
-        id_of=lambda t: str(t.id),
-        title_of=lambda t: str(t.name),
-        summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
+        fields=_REFERENCE_FIELDS["tactic"],
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
         project_root=repo_root,
@@ -1578,9 +1628,7 @@ def _build_references_from_service(
         graph.styleguides,
         kind="styleguide",
         repository=_raw_kind_repository(doctrine_service, "styleguides"),
-        id_of=lambda sg: str(sg.id),
-        title_of=lambda sg: str(sg.title),
-        summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
+        fields=_REFERENCE_FIELDS["styleguide"],
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
         project_root=repo_root,
@@ -1592,9 +1640,7 @@ def _build_references_from_service(
         graph.toolguides,
         kind="toolguide",
         repository=_raw_kind_repository(doctrine_service, "toolguides"),
-        id_of=lambda tg: str(tg.id),
-        title_of=lambda tg: str(tg.title),
-        summary_of=lambda tg: str(tg.summary),
+        fields=_REFERENCE_FIELDS["toolguide"],
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
         project_root=repo_root,
@@ -1606,9 +1652,7 @@ def _build_references_from_service(
         graph.procedures,
         kind="procedure",
         repository=_raw_kind_repository(doctrine_service, "procedures"),
-        id_of=lambda proc: str(proc.id),
-        title_of=lambda proc: str(proc.name),
-        summary_of=lambda proc: str(proc.purpose),
+        fields=_REFERENCE_FIELDS["procedure"],
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
         project_root=repo_root,
@@ -1620,9 +1664,7 @@ def _build_references_from_service(
         graph.agent_profiles,
         kind="agent_profile",
         repository=_raw_kind_repository(doctrine_service, "agent_profiles"),
-        id_of=lambda ap: str(ap.profile_id),
-        title_of=lambda ap: str(ap.name),
-        summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
+        fields=_REFERENCE_FIELDS["agent_profile"],
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
         project_root=repo_root,

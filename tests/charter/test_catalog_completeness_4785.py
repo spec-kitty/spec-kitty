@@ -36,7 +36,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.compiler import _render_kind_references, compile_charter, write_compiled_charter
+from charter.activation.compiler import _ReferenceFields, _render_kind_references, compile_charter, write_compiled_charter
 from charter.activation.interview import default_interview
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
@@ -206,9 +206,7 @@ def test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placehold
         ["BOGUS_DIRECTIVE_NOT_IN_BUNDLED_DOCTRINE"],
         kind="directive",
         repository=_EmptyRepository(),
-        id_of=lambda model: str(model),
-        title_of=lambda model: str(model),
-        summary_of=lambda model: str(model),
+        fields=_ReferenceFields(id_of=str, title_of=str, summary_of=str),
         diagnostics=diagnostics,
     )
 

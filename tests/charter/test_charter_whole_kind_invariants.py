@@ -64,6 +64,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import types
 from typing import Any
 
 import pytest
@@ -356,6 +357,14 @@ _UNATTRIBUTABLE_URN_CASES: tuple[tuple[str, str, str, str, str, str], ...] = (
         "malformed URN, no kind prefix",
     ),
     (
+        "malformed-empty-id",
+        "tactic:",
+        "malformed_urn",
+        "_unattributed",
+        "tactic:",
+        "malformed URN, no artifact id",
+    ),
+    (
         "unrecognized-kind-prefix",
         "action:some-action-id",
         "unattributed_kind",
@@ -434,6 +443,29 @@ def test_unattributable_graph_unresolved_urn_gets_a_shaped_diagnostic(
         "cause": expected_cause,
         "detail": expected_detail,
     }, f"[{case_label}] structured record shape mismatch: {matching_records[0]!r}"
+
+
+def test_graph_unresolved_urn_the_raw_repository_can_resolve_renders_a_real_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The DRG can list a URN as unresolved while the raw repository does have
+    the artifact (DRG/repository disagreement, e.g. an org pack): it must render
+    a real reference, as the per-kind path does, not be reported as a miss -- and
+    it counts as the kind's reference, so the whole-kind check does not trip."""
+    urn = "styleguide:repo-only-id"
+    model = types.SimpleNamespace(id="repo-only-id", title="Repo Only", principles=["Resolve me"])
+    graph = ResolveTransitiveRefsResult(unresolved=[(urn, urn)])
+
+    references, diagnostics, unresolved_records = _call_build_references(
+        monkeypatch, graph, repositories={"styleguides": _StubRepository(known={"repo-only-id": model})}
+    )
+
+    matching = [ref for ref in references if ref.id == "STYLEGUIDE:repo-only-id"]
+    assert len(matching) == 1, references
+    assert matching[0].title == "Repo Only"
+    assert matching[0].summary == "Resolve me"
+    assert unresolved_records == []
+    assert diagnostics == []
 
 
 # ---------------------------------------------------------------------------

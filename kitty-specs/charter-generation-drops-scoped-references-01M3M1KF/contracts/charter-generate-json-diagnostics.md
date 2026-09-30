@@ -152,10 +152,12 @@ styleguide/toolguide/procedure/agent_profile). Per plan.md's invariant I3 ("ever
 diagnostic record carries a defined `kind`, `id` and `cause`"), each of these still gets a real
 entry — never silently dropped:
 
-1. **No `":"` in the URN (malformed — no kind prefix at all).**
+1. **No `":"` in the URN, or nothing after it (malformed).**
    ```json
    {"kind": "_unattributed", "id": "<the full URN string>", "cause": "malformed_urn", "detail": "malformed URN, no kind prefix"}
    ```
+   `detail` is `"malformed URN, no artifact id"` instead when the `":"` is present but the bare id after
+   it is empty (e.g. `tactic:`).
    `kind: "_unattributed"` is a reserved sentinel (same leading-underscore convention as `_graph`/
    `_load_failure` above), used only when no kind could be parsed from the URN at all. (Items 2-4
    below carry a real or raw kind, not this sentinel.)
