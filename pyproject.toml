@@ -534,7 +534,6 @@ exclude = [
     "src/specify_cli/cli/commands/lint.py",
     "src/specify_cli/cli/commands/materialize.py",
     "src/specify_cli/cli/commands/migrate/backfill_provenance.py",
-    "src/specify_cli/cli/commands/ops.py",
     "src/specify_cli/cli/commands/plugin.py",
     "src/specify_cli/cli/commands/profile_invocation.py",
     "src/specify_cli/cli/commands/profiles_cmd.py",
