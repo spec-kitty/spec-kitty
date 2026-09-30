@@ -1151,41 +1151,65 @@ class TestCheckMissionCompleted:
 class TestMaybeAutoCommit:
     """Tests for _maybe_auto_commit helper."""
 
-    def test_auto_commit_disabled(self, tmp_path: Path) -> None:
-        """When auto_commit is False, subprocess is not called."""
+    @staticmethod
+    def _committed_repo(tmp_path: Path, *, auto_commit: bool) -> tuple[Path, str]:
+        """A real git repo with one commit and the given auto-commit setting; returns (repo, HEAD)."""
+        repo = tmp_path / "repo"
+        _init_git_repo(repo, auto_commit=auto_commit)
+        (repo / "README.md").write_text("init\n", encoding="utf-8")
+        _git(repo, "add", "--", "README.md", ".kittify")
+        _git(repo, "commit", "-q", "-m", "init")
+        return repo, _git(repo, "rev-parse", "HEAD")
+
+    def test_auto_commit_disabled_in_config_commits_nothing(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.cli.commands.retrospect import _maybe_auto_commit
 
-        with (
-            patch("specify_cli.cli.commands.retrospect.get_auto_commit_default", return_value=False),
-            patch("subprocess.run") as mock_subprocess,
-        ):
-            _maybe_auto_commit(tmp_path, [tmp_path / "file.yaml"], "test commit")
+        repo, head_before = self._committed_repo(tmp_path, auto_commit=False)
+        record = repo / "kitty-specs" / MISSION_SLUG_COMPLETED / "retrospective.yaml"
+        record.parent.mkdir(parents=True)
+        record.write_text("schema_version: 1\n", encoding="utf-8")
 
-        mock_subprocess.assert_not_called()
+        _maybe_auto_commit(repo, [record], "chore(retrospective): must not land")
 
-    def test_auto_commit_enabled_calls_git(self, tmp_path: Path) -> None:
-        """When auto_commit is True, subprocess git add and commit are called."""
+        assert _git(repo, "rev-parse", "HEAD") == head_before
+        assert _git(repo, "status", "--porcelain", "--untracked-files=all") == f"?? kitty-specs/{MISSION_SLUG_COMPLETED}/retrospective.yaml"
+        assert capsys.readouterr().err == ""
+
+    def test_auto_commit_enabled_commits_exactly_the_files_with_the_message(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.cli.commands.retrospect import _maybe_auto_commit
 
-        test_file = tmp_path / "file.yaml"
-        test_file.write_text("content\n", encoding="utf-8")
+        repo, head_before = self._committed_repo(tmp_path, auto_commit=True)
+        feature_dir = repo / "kitty-specs" / MISSION_SLUG_COMPLETED
+        feature_dir.mkdir(parents=True)
+        record = feature_dir / "retrospective.yaml"
+        record.write_text("schema_version: 1\n", encoding="utf-8")
+        bystander = repo / "unrelated.txt"
+        bystander.write_text("not part of the retrospective\n", encoding="utf-8")
 
-        with (
-            patch("specify_cli.cli.commands.retrospect.get_auto_commit_default", return_value=True),
-            patch("subprocess.run") as mock_subprocess,
-        ):
-            mock_subprocess.return_value = MagicMock(returncode=0)
-            _maybe_auto_commit(tmp_path, [test_file], "test commit message")
+        _maybe_auto_commit(repo, [record], "chore(retrospective): author retrospective")
 
-        assert mock_subprocess.call_count == 2
-        # First call: git add
-        first_args = mock_subprocess.call_args_list[0][0][0]
-        assert "git" in first_args
-        assert "add" in first_args
-        # Second call: git commit
-        second_args = mock_subprocess.call_args_list[1][0][0]
-        assert "git" in second_args
-        assert "commit" in second_args
+        # Exactly one new commit, on top of the previous HEAD, carrying the message.
+        assert _git(repo, "log", "--format=%s") == "chore(retrospective): author retrospective\ninit"
+        assert _git(repo, "rev-parse", "HEAD~1") == head_before
+        assert _git(repo, "show", "--name-only", "--format=", "HEAD") == f"kitty-specs/{MISSION_SLUG_COMPLETED}/retrospective.yaml"
+        assert _git(repo, "status", "--porcelain", "--untracked-files=all") == "?? unrelated.txt"
+        assert capsys.readouterr().err == ""
+
+    def test_auto_commit_of_file_outside_repo_root_warns_and_commits_nothing(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """git refuses a path outside the work tree; the helper must not raise, commit, or stay silent."""
+        from specify_cli.cli.commands.retrospect import _maybe_auto_commit
+
+        repo, head_before = self._committed_repo(tmp_path, auto_commit=True)
+        outside = tmp_path / "outside.yaml"
+        outside.write_text("schema_version: 1\n", encoding="utf-8")
+
+        _maybe_auto_commit(repo, [outside], "chore(retrospective): must not land")
+
+        assert _git(repo, "rev-parse", "HEAD") == head_before
+        warning = strip_ansi(capsys.readouterr().err)
+        assert "auto-commit failed" in warning
+        assert "outside repository" in warning
+        assert str(outside) in warning
 
     def test_auto_commit_failure_is_nonfatal(self, tmp_path: Path) -> None:
         """Subprocess failure does not propagate; _maybe_auto_commit returns None."""
@@ -1210,19 +1234,6 @@ class TestMaybeAutoCommit:
         ):
             # Should not raise
             _maybe_auto_commit(tmp_path, [], "test")
-
-    def test_auto_commit_file_outside_repo_root(self, tmp_path: Path) -> None:
-        """Files not relative to repo_root still work (fallback to str)."""
-        from specify_cli.cli.commands.retrospect import _maybe_auto_commit
-
-        outside_file = Path("/nonexistent/nonexistent_file.yaml")
-
-        with (
-            patch("specify_cli.cli.commands.retrospect.get_auto_commit_default", return_value=True),
-            patch("subprocess.run") as mock_subprocess,
-        ):
-            mock_subprocess.return_value = MagicMock(returncode=0)
-            _maybe_auto_commit(tmp_path, [outside_file], "test")
 
 
 # ---------------------------------------------------------------------------
@@ -1538,19 +1549,25 @@ class TestBackfillDiscovery:
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
-    def test_discover_missions_skips_non_dirs(self, tmp_path: Path) -> None:
-        """Skips files in missions directory."""
+    def test_discover_missions_skips_a_file_and_keeps_discovering_later_missions(self, tmp_path: Path) -> None:
+        """A stray file is skipped without dropping a mission dir that sorts after it."""
         from specify_cli.cli.commands.retrospect import _discover_missions_for_backfill
 
         missions_root = tmp_path / ".kittify" / "missions"
         missions_root.mkdir(parents=True)
-        # Create a file (not a directory)
-        (missions_root / "not-a-dir.txt").write_text("file", encoding="utf-8")
+        # "0-" sorts before the ULID-named mission dir below.
+        (missions_root / "0-not-a-dir.txt").write_text("file", encoding="utf-8")
+        mission_dir = missions_root / MISSION_ID_COMPLETED
+        mission_dir.mkdir()
+        (mission_dir / "meta.json").write_text(
+            json.dumps({"mission_id": MISSION_ID_COMPLETED, "mission_slug": MISSION_SLUG_COMPLETED}),
+            encoding="utf-8",
+        )
 
         now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
-        # Should not crash; file is silently skipped
-        assert isinstance(result, list)
+
+        assert [(c["mission_id"], c.get("skip_reason")) for c in result] == [(MISSION_ID_COMPLETED, "not_completed")]
 
     def test_discover_missions_unstattable_entry_is_not_silently_skipped(
         self, tmp_path: Path
