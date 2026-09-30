@@ -27,6 +27,7 @@ Pins two of WP02's binding design decisions (plan.md "WP-CORE reconciliation"):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -143,13 +144,15 @@ def test_missing_artifact_cause_stays_diagnostics_only_no_placeholder() -> None:
     )
 
     assert placeholder is None
-    assert diagnostics == ["Unresolved reference: styleguide/genuinely-nonexistent-id (missing_artifact): "]
+    detail = unresolved_records[0]["detail"]
+    assert detail.startswith("no artifact with this id in any doctrine layer"), detail
+    assert diagnostics == [f"Unresolved reference: styleguide/genuinely-nonexistent-id (missing_artifact): {detail}"]
     assert unresolved_records == [
         {
             "kind": "styleguide",
             "id": "genuinely-nonexistent-id",
             "cause": "missing_artifact",
-            "detail": "",
+            "detail": detail,
         }
     ]
 
@@ -268,3 +271,58 @@ def test_graph_unresolved_urn_with_scope_filtered_cause_gets_a_real_placeholder(
     assert len(matching) == 1, f"expected exactly one placeholder for the graph.unresolved SCOPE_FILTERED id, got references: {references!r}"
     assert matching[0].summary.startswith("Definition unavailable in bundled doctrine."), matching[0].summary
     assert "Reason: scope_filtered" in matching[0].summary, matching[0].summary
+
+
+def test_typo_suspected_detail_names_the_suggested_id_readably() -> None:
+    """The classifier's TYPO_SUSPECTED suggestion is a bare id; the recorded
+    detail must read as a sentence, not as a stray id after the colon."""
+
+    @dataclass
+    class _ListingRepository:
+        scope_filtered_ids: frozenset[str] = frozenset()
+        _items: dict[str, object] = field(default_factory=lambda: {"java-conventions": object()})
+
+        def get(self, _artifact_id: str) -> Any | None:
+            return None
+
+    diagnostics: list[str] = []
+    unresolved_records: list[dict[str, str]] = []
+
+    placeholder = _classify_and_placeholder_reference(
+        kind="styleguide",
+        raw_id="java-convention",
+        repository=_ListingRepository(),
+        diagnostics=diagnostics,
+        unresolved_records=unresolved_records,
+    )
+
+    assert placeholder is None
+    assert unresolved_records[0]["cause"] == "typo_suspected"
+    assert unresolved_records[0]["detail"] == "did you mean 'java-conventions'?"
+    assert diagnostics == ["Unresolved reference: styleguide/java-convention (typo_suspected): did you mean 'java-conventions'?"]
+
+
+def test_classification_uses_the_project_root_like_charter_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``charter context`` passes ``repo_root`` to the diagnosis gate; generate
+    must too, or the two report different advice for the same miss."""
+    from charter.activation import compiler as compiler_module
+    from charter.activation._catalog_miss import CatalogMissCause, CatalogMissDiagnosis
+
+    seen: dict[str, object] = {}
+
+    def _spy(missing_id: str, repository: object, *, repo_root: Path | None = None) -> CatalogMissDiagnosis:
+        seen["repo_root"] = repo_root
+        return CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+
+    monkeypatch.setattr(compiler_module, "_diagnose_catalog_miss", _spy)
+
+    _classify_and_placeholder_reference(
+        kind="styleguide",
+        raw_id="whatever",
+        repository=_ScopeFilteredRepository(scope_filtered_ids=frozenset()),
+        diagnostics=[],
+        unresolved_records=[],
+        project_root=tmp_path,
+    )
+
+    assert seen["repo_root"] == tmp_path

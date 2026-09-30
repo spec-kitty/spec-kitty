@@ -64,10 +64,12 @@ detail, but the field's own type and key name never change.
   ground-truth loader-drop knowledge, which this call site does not have — see `_catalog_miss.py`'s own
   docstring — so it does not appear here.) The sentinel entries below add three plain-string causes of
   their own: `graph_load_failed`, `malformed_urn`, `unattributed_kind`.
-- `detail` is the human-readable classifier suggestion text `classify_catalog_miss`/
-  `classify_scope_filtered_miss` already produce (unchanged text from those existing, already-tested
-  primitives — this contract does not introduce a new message format, only surfaces the existing one
-  structurally).
+- `detail` is never empty. For `scope_filtered` it is the suggestion text `classify_scope_filtered_miss`
+  already produces (unchanged). The other causes have no suggestion text of their own, so `detail` is
+  readable default advice matching what `charter context` prints for the same miss:
+  `missing_artifact` → "no artifact with this id in any doctrine layer (project, org, built-in); run
+  `spec-kitty doctrine validate` to rule out a silent schema-validation drop"; `typo_suspected` →
+  "did you mean '<closest id>'?".
 
 ## Fail-closed error payload
 

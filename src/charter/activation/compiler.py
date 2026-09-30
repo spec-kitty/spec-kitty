@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation._catalog_miss import CatalogMissCause
+from charter.activation._catalog_miss import CatalogMissCause, CatalogMissDiagnosis
 from charter.activation._io import load_charter_file
 from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.activation.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
@@ -1186,6 +1186,36 @@ def _record_unresolved_reference(
     unresolved_records.append({"kind": kind, "id": raw_id, "cause": cause, "detail": detail})
 
 
+#: Readable ``detail`` for a cause whose classifier carries no suggestion text of
+#: its own (only ``SCOPE_FILTERED`` always does), worded to match the advice
+#: ``charter context`` gives for the same miss.
+_MISSING_ARTIFACT_DETAIL = (
+    "no artifact with this id in any doctrine layer (project, org, built-in); run `spec-kitty doctrine validate` to rule out a silent schema-validation drop"
+)
+_SCHEMA_DROP_DETAIL = "the artifact failed schema validation and was dropped by the loader; run `spec-kitty doctrine validate` to see why"
+_SCOPE_FILTERED_DETAIL = "the artifact exists but its applies_to_languages scope excludes the active language set"
+_TYPO_DETAIL_TEMPLATE = "did you mean '{suggestion}'?"
+_DEFAULT_DETAIL_BY_CAUSE: dict[CatalogMissCause, str] = {
+    CatalogMissCause.MISSING_ARTIFACT: _MISSING_ARTIFACT_DETAIL,
+    CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED: _SCHEMA_DROP_DETAIL,
+    CatalogMissCause.SCOPE_FILTERED: _SCOPE_FILTERED_DETAIL,
+    CatalogMissCause.TYPO_SUSPECTED: "a similarly named artifact exists",
+}
+
+
+def _unresolved_detail(diagnosis: CatalogMissDiagnosis) -> str:
+    """Human-readable ``detail`` for one classified miss (never empty).
+
+    A ``TYPO_SUSPECTED`` suggestion is a bare id, so it is phrased as a question;
+    every other cause uses the classifier's own suggestion text when it has one,
+    else the cause's default.
+    """
+    suggestion = diagnosis.suggestion
+    if diagnosis.cause is CatalogMissCause.TYPO_SUSPECTED and suggestion:
+        return _TYPO_DETAIL_TEMPLATE.format(suggestion=suggestion)
+    return suggestion or _DEFAULT_DETAIL_BY_CAUSE[diagnosis.cause]
+
+
 def _classify_and_placeholder_reference(
     *,
     kind: str,
@@ -1214,8 +1244,8 @@ def _classify_and_placeholder_reference(
     :func:`_record_unresolved_reference`, so a diagnostics-only miss is
     still machine-readable.
     """
-    diagnosis = _diagnose_catalog_miss(raw_id, repository)
-    detail = diagnosis.suggestion or ""
+    diagnosis = _diagnose_catalog_miss(raw_id, repository, repo_root=project_root)
+    detail = _unresolved_detail(diagnosis)
     _record_unresolved_reference(
         kind=kind,
         raw_id=raw_id,
