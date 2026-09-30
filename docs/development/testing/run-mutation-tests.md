@@ -1,8 +1,8 @@
 ---
 title: Run Mutation Tests Locally
-description: 'How to run mutation tests locally with Spec Kitty 3.2: Mutation testing answers the question "if I introduced a bug here, would my tests fail?". Line and.'
+description: 'How to run mutation tests locally with mutmut: mutation testing answers "if I introduced a bug here, would my tests fail?" where line coverage cannot.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 ---

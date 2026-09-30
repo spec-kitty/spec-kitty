@@ -2,7 +2,7 @@
 title: 'Deviation: inline-meta-read allow-list governed without a count baseline'
 description: 'Why the inline-meta-read allow-list is governed by equality + shrink-only controls rather than a _baselines.yaml count baseline (C-006 deviation; #3240).'
 doc_status: active
-updated: '2026-08-11'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: explanation
 related:
@@ -12,7 +12,7 @@ related:
 # Deviation: inline-meta-read allow-list governed without a `_baselines.yaml` count baseline
 
 **Status:** Accepted deviation (operator-confirmed).
-**Tracker:** [#3240](https://github.com/Priivacy-ai/spec-kitty/issues/3240).
+**Tracker:** [#3240](https://github.com/spec-kitty/spec-kitty/issues/3240).
 **Governing constraint:** C-006 (ratchet-baseline governance).
 **Recorded by:** mission `meta-json-fail-closed-routing-01KZPJ1F`, WP05 / T025.
 **Governed surface:** `tests/architectural/inline_meta_read_allowlist.yaml`

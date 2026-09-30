@@ -1,8 +1,8 @@
 ---
 title: Agent-Memory Migration Manifest
 description: Audit manifest mapping every migrated agent-memory entry to its repo-native home, tracker issue, or retirement, with the completeness test that enforces it.
-doc_status: active
-updated: '2026-08-15'
+doc_status: deprecated
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -14,6 +14,8 @@ related:
 ---
 
 # Agent-Memory Migration Manifest
+
+> **Historical record (2026-08 memory-migration audit).** Kept as a record of a one-off audit; not current guidance. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../plans/4-0-0-milestone-roadmap.md).
 
 Mission `self-documenting-repo-01M0287X` audited the operator's local
 agent-memory file (`~/.claude/projects/.../memory/MEMORY.md`) — a personal,

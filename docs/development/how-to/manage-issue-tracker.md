@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -146,7 +146,9 @@ Modularity SSOT.
 ### Native type is the kind carrier
 
 Set the GitHub **native issue type** — `Task`, `Bug`, or `Feature` (the tokens
-are case-sensitive: `gh issue edit <N> --type Bug`). The type is the *sole* kind
+are case-sensitive: `gh issue edit <N> --type Bug`). `Feature` here is GitHub's
+native issue-type name, not Spec Kitty terminology; the domain object is always
+a Mission. The type is the *sole* kind
 carrier; the old `bug` label was retired repo-wide and must not be reintroduced.
 A capability request wearing a bug title is a `Feature` (retype it, don't leave
 it as a `Bug`). `enhancement` is a Feature, not a separate kind.
@@ -231,6 +233,26 @@ peripheral or tooling surface rather than a load-bearing one. One guardrail: if 
 carry real blast radius despite being a good entry point), require maintainer
 concurrence on the chosen approach **before** implementation — normal PR review
 then covers the rest.
+
+## Milestones and release cycles
+
+Milestones carry release scope; labels carry kind, priority, and domain. The
+active cycle is **4.0.0**, currently at the release-candidate stage on `main`.
+The [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md) is the
+authority for what each milestone means. In short:
+
+- **4.0.0 release scope** — the GA gate: issues that must close before a non-rc
+  `4.0.0` ships. Put an issue here only if it truly blocks GA.
+- **CLI 4.x stable** — stable 4.x work after the 4.0.0 launch. Post-4.0.0
+  deferrals go here.
+- **4.x Work** — the former `4.0.0` milestone; now hosted-collaboration and
+  product work beyond the stabilization release. Being on it does not make an
+  issue a GA blocker.
+
+The 3.x milestones are closed: 3.2.7 was the last 3.x release, and the 3.3.x
+milestone was retired on 2026-08-23 without shipping. An issue whose text says
+"deferred to 3.3.x" needs re-triage onto one of the milestones above; do not
+reopen or reuse the 3.x milestones.
 
 ## Label taxonomy
 
@@ -384,11 +406,14 @@ handshake; the rest are workflow state.
   before it can merge.
 - `pr:kept-for-reference` — Kept open for reference/history; not intended to merge
   as-is.
-- `pr:deferred` — Held under the 3.2.x doctrine-surface freeze; CI is skipped
-  until unblocked.
+- `pr:deferred` — Held under a declared freeze; the label-gated CI jobs
+  (`ci-windows.yml`, `check-spec-kitty-events-alignment.yml`,
+  `release-readiness.yml`) are skipped until it is removed. (The GitHub label
+  description may still name the old 3.2.x doctrine-surface freeze; that cycle
+  is closed.)
 - `pr:skip-ci` — Intentionally skip CI for this PR (docs / manual review only).
-- `ci:full` — Run the full CI suite on a draft PR (overrides `ci-quality`'s draft
-  exemption).
+- `ci:full` — Legacy: forced the full suite on a draft PR under the old draft
+  exemption. No current workflow reads it, and CI no longer exempts drafts.
 
 ### Lifecycle & community labels
 
@@ -399,7 +424,9 @@ handshake; the rest are workflow state.
   [What "good first issue" means here](#what-good-first-issue-means-here)); not a
   difficulty signal.
 - `help wanted` — Extra attention is needed.
-- `mvp` — Required for the current Private Teamspace MVP.
+- `mvp` — Required for the Team Kitty private team workspace MVP (the label
+  description still says "Private Teamspace"; `teamspace` is the old
+  identifier, see [Team Kitty](../../context/team-kitty.md)).
 - `release` — Release tracking and coordination.
 - `documentation` — Improvements or additions to documentation.
 - `enhancement` — GitHub's built-in label; treat it as a `Feature` synonym only.

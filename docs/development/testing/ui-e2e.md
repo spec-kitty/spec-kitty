@@ -2,7 +2,7 @@
 title: UI End-to-End Tests (Playwright)
 description: How to boot the synthetic dashboard fixture and write a Playwright e2e test that regression-guards Mission dashboard UI rendering.
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -16,7 +16,7 @@ related:
 `tests/ui/` is the framework-bootstrap home for browser-driven regression
 guards against the dashboard's rendered DOM (mission
 `playwright-ui-e2e-bootstrap-01KWX72W`, issue
-[#1008](https://github.com/Priivacy-ai/spec-kitty/issues/1008)). It exists
+[#1008](https://github.com/spec-kitty/spec-kitty/issues/1008)). It exists
 because backend and API tests cannot catch a bug where the server responds
 correctly but the browser renders it wrong — exactly what shipped in PR #970:
 338 backend tests and every architectural test passed while the dashboard's
@@ -106,13 +106,14 @@ tool for a hermetic, parallel-safe test.
 
 ## CI
 
-`.github/workflows/ui-e2e.yml` used to run this suite headless in its own
-scoped job: install (frozen), cache + install the Chromium binary, then
-`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q`. That workflow (and
-every other pre-programme GitHub Actions workflow) was deleted per
-PROGRAM.md §2 / planning#57 — this repo runs no GitHub Actions. Run the
-`PWHEADLESS=1` command above locally instead; the deliberate
-one-test-one-browser-install boundedness rationale (NFR-001) — a dedicated
-workflow file rather than a job inside `ci-quality.yml`, so this suite is not
-a dependency every unrelated CI shard has to wait on — is retained here as
-historical context for a future re-wiring.
+`tests/ui` is **nightly-only**. `.github/ci-module-registry.yml` records it as
+deliberately excluded from the per-PR module shards, because no per-PR job
+installs a browser. `ci-nightly.yml` collects it (the interpreter sweep and the
+`-m e2e` lane, both with `PWHEADLESS=1`), but no workflow currently runs
+`playwright install chromium`, so the browser-backed tests skip there rather
+than run.
+
+In practice, the proof for a UI change is a local run:
+`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q`. Record the command and
+its result in the PR. The old dedicated `ui-e2e.yml` workflow no longer
+exists.

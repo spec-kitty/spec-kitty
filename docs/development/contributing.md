@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-09-15'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -62,15 +62,13 @@ it is idempotent, so running it multiple times is safe.
 
 This repository uses [All Contributors](https://allcontributors.org/) to recognize project contributions beyond code.
 
-Code contributions are synced automatically by the scheduled GitHub workflow in
-`.github/workflows/all-contributors-sync.yml`, which updates `.all-contributorsrc`
-and `README.md` from repository activity without requiring PR comments.
-
-Non-code recognition remains maintainer-driven. That includes both new
-contributions and retroactive backfill for earlier docs, design, bug reports,
+Recognition is recorded in `.all-contributorsrc` and rendered into `README.md`.
+There is currently no scheduled sync workflow in `.github/workflows/`, so
+recognition is maintainer-driven. That includes both new
+contributions and retroactive backfill for earlier code, docs, design, bug reports,
 feature requests, mentoring, or other project help that deserves recognition.
 
-For non-code contributions or manual corrections, maintainers can still add recognition from an issue or PR comment:
+Maintainers can add recognition from an issue or PR comment:
 
 ```text
 @all-contributors please add @github-username for doc,design,ideas,bug
@@ -80,23 +78,18 @@ Supported contribution types are listed in the [emoji key](https://allcontributo
 
 ## Supported AI Agents
 
-Spec Kitty supports **13 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:
+Spec Kitty supports **17 AI coding agents**: 13 slash-command agents (Claude Code,
+GitHub Copilot, Gemini, Cursor, Qwen Code, OpenCode, Windsurf, Kilocode, Augment
+Code, Amazon Q, Kiro, Google Antigravity, LLxprt Code) and 4 Agent Skills agents
+(Codex CLI, Mistral Vibe, Pi, Letta Code) that share `.agents/skills/`. When a
+change affects slash commands, migrations, or templates, make sure it applies to
+every configured agent.
 
-- **Claude Code** (`.claude/commands/`)
-- **GitHub Copilot** (`.github/prompts/`)
-- **GitHub Codex** (`.codex/prompts/`)
-- **OpenCode** (`.opencode/command/`)
-- **Google Gemini** (`.gemini/commands/`)
-- **LLxprt Code** (`.llxprt/commands/`)
-- **Cursor** (`.cursor/commands/`)
-- **Windsurf** (`.windsurf/workflows/`)
-- **Qwen Code** (`.qwen/commands/`)
-- **Kilocode** (`.kilocode/workflows/`)
-- **Augment Code** (`.augment/commands/`)
-- **Roo Cline** (`.roo/commands/`)
-- **Amazon Q** (`.amazonq/prompts/`)
-
-**For contributors**: Use the `AGENT_DIRS` constant from `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` when writing migrations or features that affect slash commands.
+The directory table lives in the "Supported AI Agents" section of
+[`AGENTS.md`](../../AGENTS.md); the code source of truth is `AGENT_DIRS` /
+`AGENT_DIR_TO_KEY` in `src/specify_cli/agent_utils/directories.py`. Migrations
+should call `get_agent_dirs_for_project()` so they only touch agents configured
+in `.kittify/config.yaml`.
 
 ## Prerequisites for running and testing code
 
@@ -188,21 +181,23 @@ Spec Kitty's test suite is designed to run against source code, not installed pa
 ### Quick Start
 
 ```bash
-# Install dependencies (one time)
-uv sync
+# Install dependencies and the dev tooling (one time, and after pulling)
+make dev-setup
 
-# Run all tests
-pytest
+# Shared fast baseline for an ordinary change
+make test-fast
 
-# Run specific test categories
-pytest tests/integration/        # Integration tests
-pytest tests/unit/               # Unit tests
-pytest tests/integration/test_version_isolation.py  # Isolation tests
+# Plus the tests that cover what you changed, for example
+uv run pytest tests/status/                       # a module's own tests
+uv run pytest tests/architectural/test_no_legacy_terminology.py  # a specific gate
 ```
 
-To run the suite in parallel (typically ≥2× faster on a ≥4-core machine), plus
-the serial marker passes and the coverage-neutrality gates, see
-[Running the test suite in parallel](testing/testing-parallel.md).
+Do not run the whole suite (`pytest` with no path, `pytest tests/`, or
+`make test-full`) for an ordinary change — CI owns the full run. Run
+`make test-fast`, the tests of every module your diff touches, and the specific
+architectural gate files your change implicates. The blast-radius rule is spelled
+out under "Test policy" in [`AGENTS.md`](../../AGENTS.md); how the parallel run
+works is in [Running the test suite in parallel](testing/testing-parallel.md).
 
 ### Testing Unreleased Main or a Pull Request
 
@@ -262,8 +257,9 @@ rm -rf "$tmp"
 
 If you are testing a fork branch or an exact commit, replace the URL/ref with
 `git+https://github.com/<OWNER>/spec-kitty.git@<BRANCH_OR_SHA>`. Hosted
-tracker and sync flows are opt-in; set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` only
-when the scenario explicitly exercises those flows.
+Team Kitty behaviour is gated by team membership and repository admission on
+the SaaS side, not by a local sync switch; `SPEC_KITTY_ENABLE_SAAS_SYNC` is
+leftover naming and gates nothing. See [Team Kitty](../context/team-kitty.md).
 
 ### Test Isolation
 
@@ -276,40 +272,6 @@ Tests use several mechanisms to ensure they run against source code:
 
 All integration tests use the `run_cli` fixture which handles this automatically.
 
-### Pytest collection fails with "cannot import name 'normalize_event_id' from 'spec_kitty_events'"
-
-**Symptom**: Pytest collection fails before any tests run with:
-
-```
-ImportError: cannot import name 'normalize_event_id' from 'spec_kitty_events' (unknown location)
-```
-
-**Cause**: Local PEP 420 namespace-package corruption from a partial `pip uninstall`. The wheel
-is fine; CI is unaffected. This is **NOT** a Spec Kitty bug — it is a Python install integrity
-issue.
-
-**Diagnostic**:
-
-```bash
-python -c "import spec_kitty_events; print(repr(spec_kitty_events.__file__), spec_kitty_events.__path__)"
-# Healthy:   prints a path ending in __init__.py
-# Corrupt:   prints None followed by _NamespacePath([...])  ← this is the bad state
-```
-
-**Fix**:
-
-```bash
-uv sync --reinstall-package spec-kitty-events
-```
-
-Per the closing comment on [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137), the
-Spec Kitty code path deliberately does NOT fall back to importing from
-`spec_kitty_events.models.*` — that would violate the FR-024 frozen public-surface architectural
-contract (enforced by `tests/architectural/test_events_tracker_public_imports.py`) and mask local
-environment corruption that future contributors should still encounter visibly.
-
----
-
 ### Troubleshooting Version Issues
 
 If you see errors like "Version Mismatch Detected", it means you have a pip-installed version of spec-kitty-cli that doesn't match your source code version.
@@ -321,7 +283,7 @@ If you see errors like "Version Mismatch Detected", it means you have a pip-inst
 pip uninstall spec-kitty-cli -y
 
 # Run tests again
-pytest
+make test-fast
 ```
 
 This is the most common test issue and is easy to fix. The test isolation system will detect mismatches automatically.
@@ -389,14 +351,14 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 - Follow the project's coding conventions.
 - Write tests for new functionality.
-- Update documentation (`README.md`, `spec-driven.md`) if your changes affect user-facing features.
+- Update documentation (`README.md`, [`docs/context/spec-driven.md`](../context/spec-driven.md)) if your changes affect user-facing features.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html), and keep your history clean but not over-squashed: compress your own bookkeeping commits (fixups, "wip", formatting-only) into the related work, but keep genuinely separate logical/code changes as separate commits — each commit should be one coherent, reviewable change.
 - If a scoped change also carries incidental formatting-only diffs, call that out explicitly in the PR body so reviewers can distinguish behavior changes from formatting churn.
 - Write a PR body that leads with **impact** — what changes for a user or operator, in plain language, before any architecture or test-strategy detail. See [Review gates: PR body style](how-to/review-gates.md#pr-body-style-consumer-focused-bluf).
 - If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
-- Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
+- Don't request review while your PR title is prefixed `WIP` / `[WIP]`. Keep the PR in draft until it is ready, then drop the prefix. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
 
 ## Label-driven fleet workflow
 
@@ -430,7 +392,7 @@ For the roles behind the queue, see [The SkyKitty agent fleet](agent-fleet.md).
 - [Landing contributor PRs](how-to/pr-landing.md) — the maintainer runbook for taking a contributor PR from "open with red CI" to "merge-ready, evidence posted, operator merges": claim, isolated worktree, rebase, red classification, folds, red-first verification, push discipline, and hand-off.
 - [Managing the issue tracker](how-to/manage-issue-tracker.md) — epics vs. meta-trackers,
   native sub-issue parenting, and triage conventions, including how issue kind (`Task` /
-  `Bug` / `Feature`) is set and tracked.
+  `Bug` / `Feature`, which are GitHub's native issue types) is set and tracked.
 - [Create a doctrine artifact](how-to/create-a-doctrine-artifact.md) — includes how to model
   relationships between doctrine artifacts, including
   [design-opposing tension](how-to/create-a-doctrine-artifact.md#modeling-relationships-between-artifacts-including-tension)
@@ -441,7 +403,7 @@ For the roles behind the queue, see [The SkyKitty agent fleet](agent-fleet.md).
 When working on spec-kitty:
 
 1. Test changes with the `spec-kitty` CLI commands (`/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`) in your coding agent of choice
-2. Verify templates are working correctly in `templates/` directory
+2. Verify mission templates are working correctly; the source templates live in `packs/built-in/missions/` (never edit the generated agent copies)
 3. Test script functionality in the `scripts/` directory
 4. Ensure the project charter (`.kittify/charter/charter.md`) is updated if major process changes are made
 
@@ -454,7 +416,30 @@ The repository-root [Release Checklist](../../RELEASE_CHECKLIST.md) is the canon
 Spec Kitty's active release line is:
 
 - **`main`** — The release branch. All tags MUST be created from `main`.
-- **`1.x-maintenance`** — Deprecated, critical-maintenance-only line; no new 3.x work or PyPI releases.
+- **`1.x-maintenance`** — Deprecated, critical-maintenance-only line; no new work or PyPI releases.
+
+The active cycle is **4.0.0**, currently at the release-candidate stage on `main`
+(`4.0.0rc5` open; rc1–rc4 shipped). Scope and the path to stable are tracked in
+the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadmap.md); work deferred
+past 4.0.0 goes to the GitHub milestone "CLI 4.x stable". The 3.x line is closed:
+its last release was 3.2.7.
+
+### Release candidates (X.Y.ZrcN)
+
+A release candidate follows the same steps as a patch release, with three
+differences. The [Release Checklist](../../RELEASE_CHECKLIST.md) has the full
+detail, including the release-candidate hygiene runs that must be recorded
+before the tag.
+
+- Use a Python prerelease version and tag: `version = "4.0.0rc5"`, tag
+  `v4.0.0rc5`, and a matching `## [4.0.0rc5] - YYYY-MM-DD` changelog heading.
+- `release.yml` detects the `aN` / `bN` / `rcN` suffix and marks the GitHub
+  release as a **Pre-release**.
+- pip and uv skip prereleases unless asked. Verify with an exact pin
+  (`pip install "spec-kitty-cli==4.0.0rc5"`) or `--pre`.
+
+After the tag, open the next candidate on `main` (for example `4.0.0rc5` →
+`4.0.0rc6`) exactly as in step 9 below.
 
 ### Quick Release (Patch)
 
@@ -569,17 +554,16 @@ For larger releases with multiple changes:
 
 Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which:
 
-1. Checks out the tagged commit
-2. Installs dependencies (including private `spec-kitty-events` via SSH deploy key)
-3. Verifies no version mismatch between source and installed package
-4. Runs release-specific tests; the broad module matrix remains owned by main CI
+1. Requires a green nightly run for the exact tagged commit (fail-closed; no green nightly, no publish)
+2. Installs dependencies with `uv sync --frozen` (the shared packages come from PyPI; no SSH key is involved)
+3. Verifies test isolation (no version mismatch between source and installed package)
+4. Runs the release-specific tests (`tests/release`); the broad module matrix stays owned by main CI
 5. Validates release metadata (`scripts/release/validate_release.py --mode tag`)
-6. Validates repository URLs match `pyproject.toml`
-7. Builds wheel and source distributions
-8. Verifies wheel contains all migration files
-9. Extracts changelog for release notes
-10. Publishes to PyPI
-11. Creates a GitHub Release with artifacts
+6. Classifies the release channel (a prerelease suffix marks the GitHub release as Pre-release)
+7. Builds wheel and source distributions, checks shared-package drift, and verifies the wheel installs and contains every migration file
+8. Generates an SBOM and records artifact checksums
+9. Extracts the changelog section for the release notes, creates the GitHub Release, and publishes to PyPI
+10. Verifies the exact version installs from PyPI
 
 ### Release Checklist
 
@@ -588,7 +572,7 @@ Before tagging a release, ensure:
 - [ ] You are on the `main` branch
 - [ ] Version number follows semantic versioning
 - [ ] CHANGELOG.md is updated with emoji category headings
-- [ ] Tests pass locally: `pytest tests/`
+- [ ] The release-candidate hygiene runs in the [Release Checklist](../../RELEASE_CHECKLIST.md) are recorded
 - [ ] Broad CI, release readiness, and shared-package drift checks are green
 
 After tagging, open the next development cycle on `main` (Full Release step 9).

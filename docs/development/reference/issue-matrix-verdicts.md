@@ -2,8 +2,9 @@
 title: Issue-Matrix Verdict Reference
 description: The five issue-matrix verdict values, which transitions each one gates, the reference-classification model that decides whether a row is required, and the evidence-token rule.
 doc_status: active
+audience: docs/context/audience/internal/maintainer.md
 type: reference
-updated: '2026-09-20'
+updated: '2026-09-30'
 related:
 - docs/api/cli-commands.md
 - docs/api/agent-subcommands.md
@@ -116,4 +117,4 @@ at the first blocked approval.
 
 - [`spec-kitty agent tasks move-task` and `spec-kitty agent issue-verdict`](../../api/agent-subcommands.md) — the generated CLI reference for the commands that read and write issue-matrix rows, including `move-task`'s `--actor`/`--reason` aliases and `issue-verdict`'s full `--help` text.
 - [CLI Command Reference](../../api/cli-commands.md)
-- ADR `2026-09-20-1-issue-matrix-not-applicable-verdict` (`docs/adr/3.x/`) — the design record for the `not-applicable` verdict, the classification narrowing, and how it supersedes the never-implemented WP09 `not_applicable` Gate-4 intent noted in `merge_gates.py`. *(Landed on this mission's WP02 lane; not yet present in this checkout — reconcile at mission consolidation once the lane branches merge.)*
+- [ADR 2026-09-20-1](../../adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md) — the design record for the `not-applicable` verdict, the classification narrowing, and how it supersedes the never-implemented WP09 `not_applicable` Gate-4 intent noted in `merge_gates.py`.

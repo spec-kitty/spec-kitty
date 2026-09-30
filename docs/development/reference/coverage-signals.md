@@ -2,7 +2,7 @@
 title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
-updated: '2026-09-14'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -227,10 +227,6 @@ the PR so the next reader does not re-litigate it.
   single-sourced as `CRITICAL_PATHS` in
   [`scripts/ci/aggregate_source.py`](../../../scripts/ci/aggregate_source.py),
   which materialises the diff the gate scores.
-  *(An earlier revision of this page said this job "used to live in
-  ci-quality.yml … this repo runs no GitHub Actions". That was wrong on both
-  counts and is what spec-kitty#4011 was filed for: the repository runs the lean
-  modular CI reinstated in spec-kitty#3995.)*
 - **Per-change SonarCloud report** — the `sonar-pr` job in the same file,
   driven by `scripts/ci/sonar_pr_analysis.py`. Informational only.
 - **Nightly SonarCloud analysis** —
@@ -265,9 +261,6 @@ the PR so the next reader does not re-litigate it.
   action inside the vendor's interface; until it is taken, **do not read a green
   CI run as evidence that a report was published**. Any fix also takes effect on
   the **next analysis after it merges**, not on merge itself.
-  *(An earlier revision said this wiring "has been retired"; it had not — it was
-  reinstated by spec-kitty#3993, and spec-kitty#4334 moved its caller from the
-  retired `sonarcloud` job to `sonar-pr`.)*
 - **Internal allowlist entry repointed.** The critical-path `--include` list
   references `src/specify_cli/lanes/branch_naming.py`
   (`parse_mission_slug_from_branch`) — the real defining home of the

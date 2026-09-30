@@ -2,7 +2,7 @@
 title: Local Overrides for Cross-Package Development
 description: Dev-only patterns for editable cross-package installs of spec-kitty-events and -tracker, and why committing [tool.uv.sources] path overrides in pyproject.toml is prohibited.
 doc_status: active
-updated: '2026-04-25'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 ---
@@ -15,7 +15,7 @@ publishing intermediate releases.
 
 > **Do NOT commit `[tool.uv.sources]` editable / path entries for these
 > packages in `pyproject.toml`.** That committed override is exactly what
-> got [PR #779](https://github.com/Priivacy-ai/spec-kitty/pull/779)
+> got [PR #779](https://github.com/spec-kitty/spec-kitty/pull/779)
 > rejected: it masked a missing dependency in CI's clean-install
 > environment and re-imposed cross-package release lockstep.
 
@@ -43,8 +43,10 @@ uv sync
 
 ## Pattern B — a personal `pyproject.local.toml`
 
-Some `uv` and `hatch` workflows honor a local override file alongside
-`pyproject.toml`. Convention here is `pyproject.local.toml`, gitignored.
+Neither `uv` nor `hatch` reads a `pyproject.local.toml`; it is only a
+personal, gitignored scratch file where you keep your override set so you
+don't retype it. Apply it through Pattern A (or copy the entries into a
+throwaway, uncommitted edit of `pyproject.toml` and revert before you commit).
 
 ```toml
 # pyproject.local.toml — gitignored
@@ -53,8 +55,8 @@ spec-kitty-events = { path = "../spec-kitty-events", editable = true }
 spec-kitty-tracker = { path = "../spec-kitty-tracker", editable = true }
 ```
 
-`.gitignore` already excludes `pyproject.local.toml`. If your `uv` /
-`hatch` version doesn't honor the file natively, fall back to Pattern A.
+`.gitignore` already excludes `pyproject.local.toml`, so the file itself can
+never be committed.
 
 ## CI guard
 

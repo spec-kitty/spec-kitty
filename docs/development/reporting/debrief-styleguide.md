@@ -1,15 +1,15 @@
 ---
 title: 'Executive Debrief House Style'
-description: 'House style for Spec Kitty executive debriefs (WTF-happened one-pagers): the layout grammar, pill vocabulary, brand palette, and light-chrome print treatment.'
+description: 'House style for Spec Kitty executive debriefs (what-happened one-pagers): the layout grammar, pill vocabulary, brand palette, and light-chrome print treatment.'
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
 - docs/development/how-to/pr-landing.md
 - docs/changelog/index.md
 ---
-# Debrief house style — "WTF happened" executive one-pagers
+# Debrief house style — executive one-pagers ("what happened")
 
 **Status:** the design system's house style, now shipped as the internal
 doctrine styleguide

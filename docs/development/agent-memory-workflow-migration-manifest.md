@@ -1,8 +1,8 @@
 ---
 title: Agent-Memory Workflow Migration Manifest (Bucket 2)
 description: Audit manifest mapping 49 workflow/CI/git/status-and-sync mechanics memory entries to their repo-native home, an echo, a learned fact, or a private disposition.
-doc_status: active
-updated: '2026-08-15'
+doc_status: deprecated
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -14,6 +14,8 @@ related:
 ---
 
 # Agent-Memory Workflow Migration Manifest (Bucket 2)
+
+> **Historical record (2026-08 memory-migration audit).** Kept as a record of a one-off audit; not current guidance. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../plans/4-0-0-milestone-roadmap.md).
 
 Mission `workflow-mechanics-self-doc-01M02SF1` is the "Bucket 2" follow-up to
 `self-documenting-repo-01M0287X` (Bucket 1, see

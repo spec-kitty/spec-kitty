@@ -2,7 +2,7 @@
 title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate'
 description: Review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and issue-matrix discovery, so review focuses on substance.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -17,12 +17,12 @@ run locally before requesting review or opening a PR, so the actual review
 focuses on the substance of the change and not on confusing failures
 unrelated to it; and (2) the mechanics of the review-cycle artifact / consolidation
 gate and the issue-matrix discovery surface that a WP actually has to
-satisfy to reach `approved`/`done`. The verdict vocabulary, JSON schema, and
-`in-mission` semantics for the issue matrix are **already documented** in
-[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
-and
-[`spec-kitty-mission-review/SKILL.md`](../../../src/charter/offering/skills/spec-kitty-mission-review/SKILL.md) —
-this page cites them rather than restating them.
+satisfy to reach `approved`/`done`. The issue-matrix verdict vocabulary and
+the rule for which references need a row are owned by the
+[Issue-Matrix Verdict Reference](../reference/issue-matrix-verdicts.md); review
+error codes live in
+[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md).
+This page cites them rather than restating them.
 
 ## Environment hygiene before review/PR
 
@@ -289,15 +289,16 @@ recording a verdict.
 ## PR draft and WIP-title conventions
 
 A `WIP` or `[WIP]` prefix on your PR title marks the PR as author-declared
-not-ready. The two draft-gated CI suites (`integration-tests-core-misc`,
-`e2e-cross-cutting`) **skip** on a WIP-titled PR, but the `quality-gate`
-aggregator's exemption is draft-*flag*-only -- not title-based -- so a
-**non-draft** PR that still carries a WIP prefix is a contradiction the gate
-rejects by design: requesting review while WIP-titled must not pass. To land,
-either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
-until it is ready. (See the `DRAFT_GATED_JOBS` note that used to live in
-`.github/workflows/ci-quality.yml`, deleted per PROGRAM.md §2 / planning#57 —
-this repo runs no GitHub Actions.)
+not-ready. Use the GitHub **draft** flag for the same purpose: keep the PR in
+draft until it is ready, and drop any `WIP` / `[WIP]` prefix before you mark it
+ready for review. A non-draft PR that still carries a WIP prefix is a
+contradiction — reviewers will send it back.
+
+No CI job currently gates on the draft flag or the WIP title: the modular CI
+(`ci-router.yml`, `ci-modules.yml`, `ci-aggregate.yml`) and `ci-quality.yml`'s
+`quality-gate` run the same way on draft and ready PRs. The earlier
+draft-gated suites (`integration-tests-core-misc`, `e2e-cross-cutting`) no
+longer exist.
 
 ## PR body style: consumer-focused BLUF
 
@@ -316,8 +317,9 @@ This is checked again at landing time; see
 Every user-facing change updates `docs/changelog/CHANGELOG.md` (the root
 `CHANGELOG.md` is a symlink to it — there is one canonical file). The entry
 mirrors the PR body's style: consumer-focused, impact-first, one line a user
-understands — e.g. "Fixed: sync could deliver one project's events to
-another project's workspace" — not an internal-mechanism summary. Add it
+understands — e.g. "`spec-kitty research` now finds its templates through
+the same resolver as every other mission template" — not an
+internal-mechanism summary. Add it
 under the relevant `[Unreleased]` category in
 [`docs/changelog/CHANGELOG.md`](../../changelog/CHANGELOG.md).
 

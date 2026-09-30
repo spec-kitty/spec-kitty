@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -25,7 +25,7 @@ related:
 > [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
 > and the issue tracker.
 
-**Snapshot date: 2026-09-27 · Spec Kitty 3.2.x.** Proof that this list drifts:
+**Snapshot date: 2026-09-30 · Spec Kitty 4.0.0rc5 (4.x cycle).** Proof that this list drifts:
 `#2772` was a known-red P0 when this note was first drafted and has since been
 closed — so the "known reds" below are already a different set than a month ago.
 
@@ -48,19 +48,15 @@ closed — so the "known reds" below are already a different set than a month ag
   declared and pinned usually means the `.venv` was never (re)synced, not a
   real regression — run `uv sync --frozen --all-extras` before recording it
   as pre-existing (#648).
-- **The `pr:deferred` / `pr:skip-ci` labels skip nearly every required PR
-  workflow — a green check can mean "not run," not "passed."** Most
-  `.github/workflows/*.yml` job `if:` conditions include
-  `!contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
-  !contains(..., 'pr:skip-ci')` (`ci-quality.yml`,
-  `doctrine-charter-tests.yml`, `ci-windows.yml`, `docs-freshness.yml`,
-  `ui-e2e.yml`, `canonical-producer-lint.yml`, `plugin-validate.yml`,
-  `orchestrator-boundary.yml`, `drift-detector.yml`,
-  `check-spec-kitty-events-alignment.yml`, and more). Either label makes those
-  jobs report **skipped**, not passed. Check the PR's label list before
-  treating an all-green run as evidence the change is safe; a skipped job is
-  unverified, not clean. (See [pr-landing.md §4](../how-to/pr-landing.md) for
-  how to classify checks once you *do* have real CI results to read.)
+- **The `pr:deferred` / `pr:skip-ci` labels skip some PR workflows — a green
+  check can mean "not run," not "passed."** Jobs in `ci-windows.yml`,
+  `check-spec-kitty-events-alignment.yml` and `release-readiness.yml` carry
+  `if: !contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
+  !contains(..., 'pr:skip-ci')`, so either label makes them report
+  **skipped**. Check the PR's label list before treating an all-green run as
+  evidence the change is safe; a skipped job is unverified, not clean. (See
+  [pr-landing.md §4](../how-to/pr-landing.md) for how to classify checks once
+  you *do* have real CI results to read.)
 - **`charter lint`'s project-DRG input (`.kittify/doctrine/graph.yaml`) looks
   gitignored but is deliberately un-ignored — confirm it is tracked and
   in-diff before filing a lint finding.** `.gitignore` blanket-excludes
@@ -74,39 +70,35 @@ closed — so the "known reds" below are already a different set than a month ag
   authoritative, confirm `git ls-files .kittify/doctrine/graph.yaml` shows it
   tracked and that `spec-kitty charter synthesize` regenerated it in your
   diff if doctrine artifacts changed.
-- **Real-port / daemon tests are not HOME-isolated** (ports 9400–9449). Run them
-  serially with `-n0`. Leaked daemons from a prior run squat those ports and fail
-  singleton/reaping tests (`test_issue_1071_*`) with a "got 2 ports" assertion —
-  that is environmental, not your change. Check `ss -ltnp | grep 94` if a daemon
-  test flaps.
 - **In a lane or clone, a bare `python` / `pytest` imports the PRIMARY `src`, not
   your lane.** Always `uv run <cmd>`.
-- **CI-only gates that pass locally then fail ~40 minutes later:** the
-  terminology guard, the architectural shards
-  (`integration-tests-core-misc (architectural)`, `arch-adversarial`),
-  `canonical-producer-lint` (CP001 fires on a hand-rolled event dict with
-  `event_type`+`payload` keys — build via `spec_kitty_events.lifecycle.*`
-  instead), and `docs-freshness`. Run `tests/architectural/`, the terminology
-  guard, and `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci`
-  locally on the **rebased** tip before declaring a branch green.
-- **The status daemon can auto-commit your staged files** with the *previous*
-  mission's commit message. Commit promptly; do not leave a dirty index while it
-  runs.
+- **CI gates that pass locally, then fail on the PR:** the terminology guard
+  (`terminology` job in `ci-router.yml`), the code-scoped
+  `architectural-heavy` battery, the canonical-producer lint (CP001 fires on a
+  hand-rolled event dict with `event_type`+`payload` keys — build via
+  `spec_kitty_events.lifecycle.*` instead; `scripts/lint_canonical_producers.py`),
+  and the docs tests (`tests-docs` job). On the **rebased** tip, run the
+  terminology guard, the specific `tests/architectural/` gate files your diff
+  implicates (not the whole directory — see
+  [`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml);
+  CI owns the full sweep), and
+  `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci` for docs
+  changes before declaring a branch green.
 - **No `git stash` in lane worktrees** — the stash stack is shared across
   worktrees, so a `pop` can steal a sibling lane's work-in-progress.
 - **`move-task` can hang on fan-out.** Background it and set
-  `SPEC_KITTY_NO_MOMENT_HANDLERS=1` (the deprecated alias
-  `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` still works, #3980).
+  `SPEC_KITTY_NO_MOMENT_HANDLERS=1` (the old `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1`
+  spelling is still accepted as an alias, #3980).
 - **After `finalize-tasks`, verify the issue-matrix / coordination state.** 3.2.6
-  made the PRIMARY scaffolder idempotent; the coord/merge reset path is not fully
-  verified.
+  made the PRIMARY scaffolder idempotent; the coordination/consolidate reset
+  path is not fully verified (not re-checked on 4.0.0rc5).
 - **Docs scripts need `PYTHONPATH=.`**, and `build_cli_reference.py` defaults to
   the *wrong* output path — pass `--output docs/api/cli-commands.md
   --agent-output docs/api/agent-subcommands.md` explicitly.
 - **Shared-package boundary:** anchor new runtime code in
-  `src/runtime/next/_internal_runtime/`; `src/specify_cli/next/` is a shim
-  removed in 3.3.0. Consume events / tracker only via `spec_kitty_events.*` /
-  `spec_kitty_tracker.*`.
+  `src/runtime/next/_internal_runtime/`; the old `src/specify_cli/next/` shim
+  was removed on 2026-07-03 — do not recreate it. Consume events / tracker
+  only via `spec_kitty_events.*` / `spec_kitty_tracker.*`.
 - **A pyenv-scoped editable `spec-kitty-cli` install shadows a pipx install.**
   Recurring: if `pyenv` manages the Python version active for this repo (a
   `.python-version` file, or `pyenv local`), an editable install left in that
@@ -131,31 +123,13 @@ closed — so the "known reds" below are already a different set than a month ag
   checkout itself moved, delete `.git/hooks/pre-commit` and re-run
   `spec-kitty implement <any-WP>` (or any path that allocates a lane
   worktree) to regenerate the hook pinned to the new location.
-- **Any test-count change in a pinned module reds a per-PR gate that only a
-  full ~18-min shard-timings recapture clears.**
-  `tests/architectural/test_module_length_agreement.py` runs per-PR (in the
-  architectural-battery shard) and fails when a pinned module's committed count
-  in `.github/ci-shard-timings.json` != the live collected count; `charter` is a
-  hard exact-count invariant, so adding/removing even one charter test reds it.
-  The only remedy in-tree is `python scripts/ci/capture_shard_timings.py
-  --module charter --write` — a real, serial, full-module *measured* run
-  (~18 min locally) that also churns ~5–6k lines of JSON, as mandatory landing
-  work (the nightly recapture does **not** absorb it). Bit #5164 and #5175
-  consecutively (tracked in #5189).
-  **Superseded by spec-kitty#5189 (`per-pr-shard-timings-recapture-friction`).**
-  The bullet above is still historically accurate about the friction that
-  existed; it is no longer open. The per-PR assertion is now non-blocking (a
-  `ShardTimingsDriftWarning`, restorable to a hard failure via
-  `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`), and a scheduled workflow
-  (`.github/workflows/ci-charter-shard-recapture.yml`) keeps `charter`'s
-  shard timings converging automatically, so a landing agent no longer needs
-  to run the manual ~18-minute recapture as mandatory landing work.
 
 ## Maintaining this page
 
 When you hit a new mid-mission friction point — or when one above stops being
 true (a known-red P0 closes, a toggle is retired, a version gate passes) —
-update this page and bump the snapshot date in the same change. Keep entries
+update this page and bump the snapshot date **and the version tag** in the same
+change. Keep entries
 short and actionable; deep rationale belongs in the linked runbooks, not here.
 
 ## See also

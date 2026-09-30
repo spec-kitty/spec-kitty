@@ -2,7 +2,7 @@
 title: Contract pinning workflow (`spec-kitty-events`)
 description: 'The contract-pinning workflow for spec-kitty-events: how tests/contract pin a resolved package version, why it exists, and the ADR and mission authority behind it.'
 doc_status: active
-updated: '2026-05-28'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 ---
@@ -38,7 +38,7 @@ When you need to bump `spec-kitty-events`:
    [project]
    dependencies = [
        # ...
-       "spec-kitty-events>=4.0.0,<5.0.0",
+       "spec-kitty-events>=X.Y.0,<X+1",  # today: >=10.4.0,<11
        # ...
    ]
    ```

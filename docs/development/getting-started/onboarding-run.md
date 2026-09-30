@@ -2,7 +2,7 @@
 title: 'Onboarding Run: Priming a Co-Maintainer Mission Session'
 description: 'A reusable priming prompt and 12-step cadence for running a full Spec-Driven Development mission the way this team runs them — for onboarding prospective co-maintainers.'
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -49,23 +49,24 @@ origin/main — you never do.
 ## 0. Orient before you touch anything (non-negotiable)
 - Read the project charter FIRST: `.kittify/charter/charter.md`, then load
   action-scoped doctrine as you go via `spec-kitty charter context --action <name>`.
-- Read `CLAUDE.md`, `docs/development/pr-landing.md` (maintainer runbook),
-  `docs/development/known-friction-points.md` (REQUIRED — the current gotchas),
+- Read `CLAUDE.md`, `docs/development/how-to/pr-landing.md` (maintainer runbook),
+  `docs/development/reference/known-friction-points.md` (REQUIRED — the current
+  gotchas),
   `CONTRIBUTING.md`, `docs/development/testing/testing-parallel.md`, and
   `docs/development/testing/testing-flakiness.md`.
 - Terminology canon: it's a **Mission**, never a "feature". Run the terminology
   guard before pushing any prose/doctrine:
   `pytest tests/architectural/test_no_legacy_terminology.py`.
-- Git law: `origin` = your fork, `upstream` = Priivacy-ai. NEVER `git push origin
-  main`. All shared changes go through a draft PR. `spec-kitty merge` is LOCAL only;
-  the operator merges to origin/main.
+- Git law: `origin` = your fork, `upstream` = `spec-kitty/spec-kitty`. NEVER push
+  to `main`. All shared changes go through a draft PR. `spec-kitty consolidate`
+  consolidates lanes into your LOCAL main only; the operator merges to upstream main.
 
 ## Known current friction points
-Read `docs/development/known-friction-points.md` BEFORE you start — it is the
-fast-drifting list of current repo/tooling gotchas you WILL hit: red-main
-attribution, CI-environment false reds, stale-install reds, real-port/daemon
-leakage (`-n0`), `uv run` in lanes, the CI-only gates that fail ~40 min late, the
-status-daemon auto-commit, no `git stash` in lane worktrees, and more. Treat it as
+Read `docs/development/reference/known-friction-points.md` BEFORE you start — it
+is the fast-drifting list of current repo/tooling gotchas you WILL hit: red-main
+attribution, CI-environment false reds, stale-install reds, `uv run` in lanes, the
+CI gates that pass locally but fail on the PR, no `git stash` in lane worktrees,
+and more. Treat it as
 required pre-reading and re-verify anything version- or issue-specific against the
 tracker.
 
@@ -131,11 +132,12 @@ UNLOCKED — it is decided WITH the operator in step 2, not asserted here.>
     attack-vectors in touched files, per-WP campsite scope. Verify the issue-matrix
     after finalize (see the friction-points page).
 
-11. **Full e2e run.** Full suite green on the rebased tip — this is where CI-only
-    arch gates surface locally. Run `PWHEADLESS=1 pytest tests/ -n auto --dist
-    loadfile` (daemon/real-port tests separately with `-n0`), plus
-    `tests/architectural/`, `ruff check .`, `mypy`, the terminology guard, and
-    docs-freshness. Any UI claim needs Playwright proof, never API-response
+11. **Blast-radius run.** On the rebased tip, run `make test-fast`, the tests of
+    every module your diff touches, and the SPECIFIC `tests/architectural/` gate
+    files your diff implicates (never the whole directory or a whole-repo suite —
+    `NO_FULL_HEAVY_SUITES_IN_MISSION`; CI owns the full run). Add `ruff check .`,
+    `ruff format --check .`, `mypy`, the terminology guard, and docs-freshness
+    for prose changes. Any UI claim needs Playwright proof, never API-response
     inference. Classify every red into PR-defect / contract-crossed /
     pre-existing-main / flake — never retry-to-green.
 

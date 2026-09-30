@@ -2,7 +2,7 @@
 title: 'Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over'
 description: What `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
 doc_status: active
-updated: '2026-07-27'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 ---
@@ -70,18 +70,15 @@ Exactly one of `--base-ref` / `--paths-from` is required.
 
 ## How it triggers in CI (the corpus-only-PR requirement)
 
-The guard was wired into `.github/workflows/release-readiness.yml`
-as the `cutover-guard` job, **not** into `ci-quality.yml`. (Both workflow
-files were deleted per PROGRAM.md §2 / planning#57 — this repo runs no
-GitHub Actions; the placement rationale below is retained as historical
-context for a future re-wiring.) This placement was deliberate:
+The guard runs as the `cutover-guard` job in
+`.github/workflows/release-readiness.yml`, **not** in `ci-quality.yml` or the
+modular CI. This placement is deliberate:
 
-- `ci-quality.yml`'s job graph is dominated by a `dorny/paths-filter`
-  `changes` gate that decides which fast/integration-test jobs run based on
-  which *source* areas a diff touches. A diff that touches **only**
-  `kitty-specs/**` does not set the `src`-family outputs that gate, so a
-  guard job hosted there and gated the same way would never execute on a
-  corpus-only PR — exactly the leak this WP exists to close (risk R1, and
+- The test workflows decide which jobs run from a paths filter over the
+  *source* areas a diff touches (today `ci-router.yml`'s `changes` job). A
+  diff that touches **only** `kitty-specs/**` does not set the `src`-family
+  outputs, so a guard job hosted there and gated the same way would never
+  execute on a corpus-only PR — exactly the leak this WP exists to close (risk R1, and
   the general "a required check that is `if:`-skipped reports neutral and
   does not block merge" footgun).
 - `release-readiness.yml` is a small, `pull_request`-scoped workflow with no
@@ -94,9 +91,8 @@ context for a future re-wiring.) This placement was deliberate:
 - The `cutover-guard` job itself carries **no** `changes`/`dorny` step gate.
   It has exactly one conditional: the standard repo-wide
   `pr:deferred` / `pr:skip-ci` label skip (the same explicit,
-  operator-visible opt-out every other required check in this repo uses —
-  see `deferral-consistency-check` in `ci-quality.yml` for the same
-  pattern). Beyond that label check, the job runs unconditionally whenever
+  operator-visible opt-out also used in `ci-windows.yml` and
+  `check-spec-kitty-events-alignment.yml`). Beyond that label check, the job runs unconditionally whenever
   the workflow runs — it does not sit behind any src-changes-shaped filter
   that a corpus-only diff could fail to satisfy.
 
@@ -107,8 +103,8 @@ branch protection only blocks a merge on checks that are explicitly
 registered as required. The operator must:
 
 1. Open the repository's branch protection settings for the target branch
-   (`main`, and any other protected branch this workflow runs against, e.g.
-   `2.x`).
+   (`main`; the workflow's `pull_request.branches` list also still names the
+   legacy `2.x` branch).
 2. Under "Require status checks to pass before merging", add
    **`cutover-guard`** (the job name from `release-readiness.yml`) to the
    required-checks list.

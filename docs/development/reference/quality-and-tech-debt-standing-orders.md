@@ -2,9 +2,9 @@
 title: Quality & Tech-Debt Standing Orders
 description: "Eight-section standing orders for spec-driven missions: adversarial squads, campsite cleaning, test discipline, architectural gates, sources, git workflow, and mission hygiene."
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
+type: explanation
 related:
 - docs/development/index.md
 - docs/development/testing/testing-flakiness.md
@@ -13,9 +13,14 @@ related:
 
 # Quality & Tech-Debt Standing Orders
 
+> The binding text is the charter's
+> [Quality & Tech-Debt Standing Orders](../../../.kittify/charter/charter.md)
+> section. This page is the explained companion; if the two disagree, the
+> charter wins.
+
 A working set of standing practices for keeping quality high and paying tech debt
 back incrementally, applied across spec-driven missions (spec → plan → tasks →
-implement → review → merge).
+implement → review → consolidate).
 
 **The throughline:** never trust a green check, a clean diff, or a confident
 summary. Verify against live code, witness the bug in a real run, and let
@@ -143,10 +148,11 @@ and make recurring tool/process gaps visible instead of re-discovered.
   *after* the merge, so it cannot catch offenders within its own merge. Pair
   every un-mask with a **pre-merge full-gate dry-run**; never ship a
   mission-diff-scoped assertion to the main branch.
-- **Post-merge arch-gate adjudication.** Run the **full** architectural-gate
-  sweep on the merged branch before opening the PR. Verify any "pre-existing"
-  failure via a **cross-base diff** (the lane base is not the mission base). Run
-  the CI-only shards (integration/git) locally too — some gates only run in CI.
+- **Post-consolidation arch-gate adjudication.** On the consolidated branch,
+  before opening the PR, run the specific `tests/architectural/` gate files the
+  change implicates — not the whole directory ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml); CI's cross-cutting lane
+  runs the full sweep). Verify any "pre-existing" failure via a **cross-base
+  diff** (the lane base is not the mission base).
 - **Keep the new code clean.** Lint/type checks pass on new and boy-scout-touched
   code; fix failing tests rather than rationalizing them.
 

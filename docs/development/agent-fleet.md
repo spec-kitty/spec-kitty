@@ -2,7 +2,7 @@
 title: The SkyKitty Agent Fleet
 description: 'SkyKitty, the Spec Kitty company agent fleet: its roles and the ready-for-squad handshake that hands a PR from the implementer to the review squad and CI.'
 doc_status: active
-updated: '2026-09-11'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: explanation
 related:
@@ -62,7 +62,7 @@ Two invariants bind every role:
   term `merge` has three senses (see the
   [orchestration glossary](../context/orchestration.md#lane-consolidation)); keep them
   apart here. The fleet owns CI, squad review, and the merge *mechanics* — the merge agent
-  runs **lane consolidation** (`spec-kitty merge` → **local** `main` only, never origin).
+  runs **lane consolidation** (`spec-kitty consolidate` → **local** `main` only, never origin).
   The **operator, not an agent, performs the mainline merge** — in the glossary's terms the
   **publish to origin/`main`** (directive `045-prs-only-and-read-intent`).
 - **Reviewer ≠ implementer.** Squad review is independent of the agent that wrote the code.

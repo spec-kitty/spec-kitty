@@ -2,6 +2,8 @@
   href: index.md
 - name: Contributing to Spec Kitty
   href: contributing.md
+- name: The SkyKitty agent fleet
+  href: agent-fleet.md
 - name: Getting started
   href: getting-started/index.md
   items:
@@ -28,6 +30,8 @@
       href: how-to/create-a-doctrine-artifact.md
     - name: Add an exemption to an architectural gate
       href: how-to/add-architectural-gate-exemption.md
+    - name: Compress mission history
+      href: how-to/compress-mission-history.md
 - name: Reference
   href: reference/index.md
   items:
@@ -35,8 +39,6 @@
       href: reference/known-friction-points.md
     - name: Coverage signals
       href: reference/coverage-signals.md
-    - name: 'tests/sync/ process-global and thread-seam inventory (#3115)'
-      href: reference/process-global-inventory-3115.md
     - name: Quality & Tech-Debt Standing Orders
       href: reference/quality-and-tech-debt-standing-orders.md
     - name: Read-side placement-seam classification ledger
@@ -45,6 +47,14 @@
       href: reference/red-main-and-release-readiness.md
     - name: Terminology guard exemption policy
       href: reference/terminology-exemptions.md
+    - name: CI and architectural gate mechanics
+      href: reference/ci-gate-mechanics.md
+    - name: Issue-matrix verdict reference
+      href: reference/issue-matrix-verdicts.md
+    - name: Analysis report transactions
+      href: analysis-report-transactions.md
+    - name: 'Deviation: inline-meta-read allow-list baseline'
+      href: inline-meta-read-allowlist-baseline-deviation.md
 - name: Testing
   href: testing/index.md
   items:
@@ -58,3 +68,15 @@
       href: testing/ui-e2e.md
     - name: Write time-dependent tests
       href: testing/write-time-dependent-tests.md
+- name: Reporting
+  items:
+    - name: Executive debrief house style
+      href: reporting/debrief-styleguide.md
+- name: Historical / prior cycle
+  items:
+    - name: 'tests/sync/ process-global and thread-seam inventory (#3115)'
+      href: reference/process-global-inventory-3115.md
+    - name: Agent-memory migration manifest
+      href: agent-memory-migration-manifest.md
+    - name: Agent-memory workflow migration manifest
+      href: agent-memory-workflow-migration-manifest.md

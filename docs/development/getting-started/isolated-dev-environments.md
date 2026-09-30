@@ -2,7 +2,7 @@
 title: Isolated Dev Environments (Shadow Clones)
 description: 'Run several standalone spec-kitty checkouts on one machine without cross-mission pollution: a clone-local venv plus a clone-local runtime-state root, machine-global CLI intact.'
 doc_status: active
-updated: '2026-08-05'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -33,7 +33,7 @@ entangled.
 | Axis | What leaks if unisolated | The lever |
 |------|--------------------------|-----------|
 | **Code** — which `spec-kitty` runs | `spec-kitty` on your `PATH` resolves to the *machine-global* binary, so it runs global code against the clone's files. Edits to the clone's `src/` have no effect until the global install is rebuilt. | A clone-local `.venv` (editable install) placed **first** on `PATH`. |
-| **State** — where the CLI reads/writes | With `SPEC_KITTY_HOME` unset, every clone shares one runtime-state root at `~/.spec-kitty` — the offline queue (`queue.db`), the sync daemon, the event journal, auth tokens, gate-locks, and trackers. One clone's daemon and queue then act on another clone's work. | Point `SPEC_KITTY_HOME` at a clone-local directory. |
+| **State** — where the CLI reads/writes | With `SPEC_KITTY_HOME` unset, every clone shares one runtime-state root at `~/.spec-kitty` — auth tokens (`auth/`), `config.toml`, tracker credentials and stores, and the pre-review gate locks (`gate-locks/`). One clone's gate lock or tracker state then affects another clone's work. | Point `SPEC_KITTY_HOME` at a clone-local directory. |
 
 `SPEC_KITTY_HOME` is the single environment variable that redirects the runtime
 state. When set, it is used **verbatim** as the state root (it is *not* suffixed
@@ -183,7 +183,7 @@ With the environment active:
 command -v spec-kitty          # -> <clone-root>/.venv/bin/spec-kitty
 echo "$SPEC_KITTY_HOME"        # -> <clone-root>/.spec-kitty-home
 spec-kitty agent tasks status  # any command now writes only under .spec-kitty-home/
-ls .spec-kitty-home            # clone-local queue.db / sync / journal appear here
+ls .spec-kitty-home            # clone-local runtime state (auth/, gate-locks/, ...) appears here
 ```
 
 Confirm the machine-global root is untouched — nothing new should appear under
@@ -210,14 +210,15 @@ works in any clone.
 **Isolated per clone once activated:**
 
 - Which `spec-kitty` binary runs (clone `.venv`, editable → live `src/`).
-- Runtime state under `SPEC_KITTY_HOME`: offline queue, sync daemon, event
-  journal, auth, gate-locks, trackers, config.
+- Runtime state under `SPEC_KITTY_HOME`: auth, config, tracker credentials
+  and stores, and gate-locks. (A `queue.db` or `sync-daemon` file under an old
+  `~/.spec-kitty` is inert residue from the retired sync transport.)
 
 **Deliberately *not* isolated:**
 
 - The machine-global `spec-kitty` — it stays your default everywhere outside an
   activated Shadow Clone. Setting up a Shadow Clone never rewrites it.
-- Anything a command reaches over the network (a hosted SaaS/tracker backend is
+- Anything a command reaches over the network (a hosted Team Kitty or tracker backend is
   shared infrastructure regardless of local state). Isolation here is about
   *local* runtime state, not remote services.
 
@@ -228,7 +229,7 @@ works in any clone.
 | `spec-kitty` still resolves to `~/.local/bin/...` after activating | The helper was executed, not sourced, so the exports never reached your shell. | `source scripts/dev/activate-isolated-env.sh` (note the leading `source`). |
 | `no .venv found at <root>` | The clone-local virtualenv was not created yet. | Run step 1 (create `.venv` + `pip install -e .`). |
 | Edits to the clone's `src/` have no effect | The active CLI is the machine-global one, or the `.venv` install is not editable. | Activate the env; reinstall with `pip install -e .`. |
-| A sync daemon or queue seems to act on another clone's work | `SPEC_KITTY_HOME` was unset, so the shared `~/.spec-kitty` was in play. | Activate the env; confirm `echo "$SPEC_KITTY_HOME"` points inside the clone. |
+| A gate lock, tracker binding, or login seems to come from another clone | `SPEC_KITTY_HOME` was unset, so the shared `~/.spec-kitty` was in play. | Activate the env; confirm `echo "$SPEC_KITTY_HOME"` points inside the clone. |
 | State appeared under `~/.spec-kitty` while working in a clone | A command ran before activation. | Deactivate/reactivate; run clone commands only inside an activated session. |
 
 ## Related

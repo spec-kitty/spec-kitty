@@ -1,8 +1,8 @@
 ---
 title: 'CI and Architectural Gate Mechanics'
-description: 'What trips each spec-kitty CI gate — testing and marker gates, the architectural battery, docs-freshness registration, and accept-to-merge close-out — with symptom and repro.'
+description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -41,10 +41,10 @@ Two habits defuse most of this class:
   e.g. a marker-scoped shard runs `-m "fast and not windows_ci"`, so a test
   missing the `fast` marker is silently deselected there even though it passes
   when you name it directly.
-- Before declaring a branch green, run the relevant architectural tests over the
-  **rebased tip**. The `tests/architectural/` suite is the whole safety net;
-  running the targeted gate file first is faster, and the full suite is the final
-  check.
+- Before declaring a branch green, run the architectural gate files your change
+  implicates over the **rebased tip**. Do not sweep the whole
+  `tests/architectural/` directory in mission work ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml)); CI's
+  `architectural-heavy` job runs the full battery on code PRs.
 
 The rest of this page groups gates by the change that trips them.
 
@@ -302,6 +302,15 @@ from separate committed catalogs; fixing one leaves the others red.
   then fix perf flakes at the root with warm-run discipline (discard the cold
   pass, assert the fastest of several warm runs); never retry-to-green.
 
+### Where the docs site deploys from
+
+`docs.spec-kitty.ai` is deployed by `.github/workflows/docs-pages.yml` from
+this repository's `main`. The workflow runs on pushes to `main` that touch
+`docs/**` (and a few docs-tooling paths) or on manual dispatch. It first probes
+whether GitHub Pages is configured and skips cleanly if not; the deploy job
+itself runs only for `spec-kitty/spec-kitty` on `refs/heads/main`. A
+`workflow_dispatch` on another branch builds but does not deploy.
+
 ### The GitHub Pages docsite build needs `PYTHONPATH`
 
 - **Trips it:** the docsite deploy (`docs-pages.yml`) runs Python post-processing
@@ -318,34 +327,25 @@ from separate committed catalogs; fixing one leaves the others red.
   `workflow_dispatch` on the branch, where the build runs and the deploy stays
   skipped off `main`.
 
-## Accept-to-merge consolidation gates
+## Accept-to-consolidate gates
 
-The `accept` → `merge` close-out has several gates that block silently until fed
+The `accept` → `consolidate` close-out has several gates that block silently until fed
 exactly what they expect.
 
-### The issue-matrix verdict gate fires on every WP approval
+### The issue-matrix verdict gate blocks WP approval
 
-- **Trips it:** `move-task <WP> --to approved` — on *every* WP, including one with
-  no issue references — requires a verdict for **every `#NNN`** referenced
-  anywhere in the mission's `spec.md` **and** `research.md` (including
-  out-of-scope, deferred, and already-closed references).
+- **Trips it:** `move-task <WP> --to approved` when a gating `#NNN` reference in
+  the mission's artifacts has no verdict row in `issue-matrix.json`. Not every
+  reference gates: context-only and PR/commit references are recorded but do
+  not block.
 - **Symptom:** the approval is blocked, and the error lists the missing rows.
-- **Fix:** this is orchestrator-level bookkeeping — seed the whole matrix up
-  front. Set verdicts with `spec-kitty agent issue-verdict --mission <m> --issue
-  "#NNN" --verdict <v> --actor <a> [--wp WP##] --evidence-ref "..."`. Verdict
-  values:
-  - `in-mission` — the issue is owned and being fixed by a WP in this mission
-    (the honest interim state while WPs are in progress; not fabrication).
-  - `deferred-with-followup` — out of scope; the evidence-ref **must** contain a
-    `#NNN` or `Follow-up:` handle or the gate rejects it.
-  - `verified-already-fixed` — a closed root-cause issue the mission relies on.
-  - `fixed` — completed in-mission, set at accept once the WP is done.
-
-  The per-WP reviewer should **refuse to fabricate** verdicts for unfixed issues
-  — that is correct behavior, not a blocker; the orchestrator fills them honestly.
-  At accept, flip the `in-mission` rows to `fixed` / `verified-already-fixed`. The
-  matrix is a dict keyed by `#NNN` under `rows` in `issue-matrix.json` on the
-  coordination partition (the `.md` form is legacy — do not create it).
+- **Fix:** seed the matrix up front with `spec-kitty agent issue-verdict`. The
+  verdict values, which references gate, and the evidence-token rule for
+  `deferred-with-followup` are documented once, in the
+  [Issue-Matrix Verdict Reference](issue-matrix-verdicts.md). The per-WP
+  reviewer should **refuse to fabricate** verdicts for unfixed issues; the
+  orchestrator fills them honestly and flips `in-mission` rows to a terminal
+  verdict at accept.
 
 ### The other close-out gates
 
@@ -358,7 +358,7 @@ exactly what they expect.
   `verified_by`, and `verified_at`, and set `overall_verdict` to `"pass"`.
   `accept` also fails on a dirty tree, so commit or clean the dossier state
   first.
-- **`spec-kitty merge` refuses a dirty coordination worktree** — commit the
+- **`spec-kitty consolidate` refuses a dirty coordination worktree** — commit the
   status files and clear ignored `.kittify/` state in the coordination worktree,
   then `--resume`.
 - **The graph-manifest check verifies the pack manifest, not just the graph

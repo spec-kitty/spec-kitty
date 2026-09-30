@@ -18,7 +18,7 @@ related:
 
 **Audience**: Maintainers taking contributor PRs from "open with red CI" to
 "merge-ready, evidence posted, operator merges".
-**Issue**: [Priivacy-ai/spec-kitty#2341](https://github.com/Priivacy-ai/spec-kitty/issues/2341)
+**Issue**: [#2341](https://github.com/spec-kitty/spec-kitty/issues/2341)
 **Origin**: The 2026-07-04 landing pass (#2332, #2336, #2338, #2239, #2238),
 where this workflow was run end-to-end and its friction points were logged.
 
@@ -632,11 +632,12 @@ been fixed, the end-state is stated instead of the trap.
   correct place to overturn a frozen snapshot's stale claims. Reproduce the gate
   locally before pushing any fold that touches `kitty-specs/**`.
 
-## PR-body contract (PROGRAM.md §5)
+## PR-body contract
 
 Spec Kitty PRs use a fixed body shape; an ad-hoc body (Summary/Changes/Why/…) draws a
-squad **MAJOR** and blocks merge even when the diff is perfect. The fleet squad validates
-the body with `bin/validate-pr-body.py`. Exactly five sections, in order:
+squad **MAJOR** and blocks merge even when the diff is perfect. The shape is the one in
+[`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md); start from
+that template. Exactly five sections, in order:
 
 - `## Issue` — must carry a `closes #<n>` link. If no tracking issue exists, **file/claim
   one first** (a docs-gap issue counts), name the branch `issue-<n>-<slug>` (not a bare
@@ -650,8 +651,9 @@ the body with `bin/validate-pr-body.py`. Exactly five sections, in order:
   re-derived from a fresh run of it).
 - `## Deferred` — anything intentionally left for follow-up.
 
-Validate locally before opening: `bin/validate-pr-body.py` must exit 0 (also with
-`--verify-discovery --expected-head <sha>`). Note the description-length SEO gate
+The fleet squad checks the body with a validator script (`validate-pr-body.py`) that lives
+in the fleet tooling, not in this repository; if you have that tooling, run it before
+opening. Otherwise, check the body against the template by hand. Note the description-length SEO gate
 (50–180 chars) is **CI-only** — run `scripts/docs/description_length_check.py` (or the
 docs SEO tests) as part of any docs blast radius.
 

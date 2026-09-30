@@ -2,10 +2,20 @@
 title: Analysis report transactions
 description: Record an analysis report while preserving unrelated work and checking the report commit against its material governance inputs.
 doc_status: draft
-updated: 2026-09-24
+updated: '2026-09-30'
+audience: docs/context/audience/internal/ai-collaboration-agent.md
+type: reference
+related:
+- docs/api/agent-subcommands.md
+- docs/development/reference/issue-matrix-verdicts.md
 ---
 
 # Analysis report transactions
+
+Use `--report-only` when you need to record a mission analysis report while
+your checkout has other, unrelated uncommitted work. Without it,
+`record-analysis` refuses on any dirty worktree. With it, the command commits
+only the report and leaves your other changes exactly as they were.
 
 `spec-kitty agent mission record-analysis --mission <handle> --input-file <report> --report-only --json`
 opts into a report-only transaction. The ordinary command retains its broad

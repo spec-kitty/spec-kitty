@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -82,7 +82,7 @@ not reuse stale state. The regression guard
 `tests/test_worker_home_isolation.py` prove this invariant.
 
 Because the real `~/.spec-kitty` is never bound, you do not need to back it up or
-worry about a parallel run truncating your real `queue.db`.
+worry about a parallel run overwriting your real auth tokens or config.
 
 ## Per-run pytest temp root
 

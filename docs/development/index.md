@@ -2,7 +2,7 @@
 title: Development
 description: The contributor/maintainer zone for Spec Kitty — subdivided into getting-started, how-to runbooks, reference policy, and testing — kept separate from end-user guides.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/getting-started/index.md
@@ -16,15 +16,28 @@ related:
 
 Runbooks and policy for people **contributing to or maintaining the Spec Kitty
 project itself** — as opposed to [`../guides/`](../guides/index.md), which
-documents *using* Spec Kitty in your own project. This strict split is FR-003:
-no contributor-only page is reachable from end-user navigation.
+documents *using* Spec Kitty in your own project. The split is strict: no
+contributor-only page is reachable from end-user navigation.
+
+The active release cycle is **4.0.0** (release candidates on `main`); see the
+[4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadmap.md). The 3.x line is
+closed.
 
 This zone is subdivided by concern:
 
 - **[Getting started](getting-started/index.md)** — [onboarding a co-maintainer](getting-started/onboarding-run.md) and [isolated dev environments](getting-started/isolated-dev-environments.md).
-- **[How-to](how-to/index.md)** — task runbooks: [landing PRs](how-to/pr-landing.md), [review gates](how-to/review-gates.md), [local overrides](how-to/local-overrides.md), [the issue tracker](how-to/manage-issue-tracker.md), [contract pinning](how-to/contract-pinning.md), [the cut-over guard](how-to/cutover-guard.md), and [creating a doctrine artifact](how-to/create-a-doctrine-artifact.md).
-- **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [the #3115 seam inventory](reference/process-global-inventory-3115.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), and [terminology exemptions](reference/terminology-exemptions.md).
+- **[How-to](how-to/index.md)** — task runbooks: [landing PRs](how-to/pr-landing.md), [review gates](how-to/review-gates.md), [local overrides](how-to/local-overrides.md), [the issue tracker](how-to/manage-issue-tracker.md), [contract pinning](how-to/contract-pinning.md), [the cut-over guard](how-to/cutover-guard.md), [creating a doctrine artifact](how-to/create-a-doctrine-artifact.md), [architectural-gate exemptions](how-to/add-architectural-gate-exemption.md), and [compressing mission history](how-to/compress-mission-history.md).
+- **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [CI and architectural gate mechanics](reference/ci-gate-mechanics.md), [issue-matrix verdicts](reference/issue-matrix-verdicts.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), and [terminology exemptions](reference/terminology-exemptions.md).
 - **[Testing](testing/index.md)** — [flakiness policy](testing/testing-flakiness.md), [parallel runs](testing/testing-parallel.md), [mutation tests](testing/run-mutation-tests.md), [UI e2e](testing/ui-e2e.md), and [time-dependent tests](testing/write-time-dependent-tests.md).
+- **Reporting** — the [executive debrief styleguide](reporting/debrief-styleguide.md).
+- **Other records** — [analysis-report transactions (`record-analysis --report-only`)](analysis-report-transactions.md) and the [inline meta-read allowlist baseline deviation](inline-meta-read-allowlist-baseline-deviation.md).
+
+### Historical / prior cycle
+
+Kept as records; not current guidance.
+
+- [`tests/sync/` process-global and thread-seam inventory (#3115)](reference/process-global-inventory-3115.md) — deprecated; the `tests/sync/` cone it maps was deleted with the sync transport.
+- [Agent-memory migration manifest](agent-memory-migration-manifest.md) and [agent-memory workflow migration manifest](agent-memory-workflow-migration-manifest.md) — one-off audit records of a migration of operator memory into doctrine.
 
 ## Start here
 
@@ -33,17 +46,23 @@ This zone is subdivided by concern:
 
 ## Non-page artifacts
 
+The `3-2-` prefix on both files below is a frozen historical filename, not a
+version scope: they cover every current doc, and are regenerated for 4.x
+changes.
+
 - **`3-2-page-inventory.yaml`** — the page-inventory tooling artifact. It STAYS
   PUT by operator directive; the freshness/lockfile tooling
   (`scripts/docs/inventory_lockfile.py`, `check_docs_freshness.py`,
   `version_leakage_check.py`, `_inventory.py`) reads it at this stable path.
   A regression guard (`tests/docs/test_inventory_path_stable.py`) asserts the
   path cannot silently move.
+- **`3-2-docs-retrieval-index.yaml`** — the docs retrieval index, regenerated
+  by `scripts/docs/docs_index.py` (see below).
 
 ## Repo-owned workflow commands
 
 Two commands a mission session runs directly, not through a `spec-kitty` CLI
-subcommand — plus one not-yet-available regen path:
+subcommand — plus the regen command for generated agent copies:
 
 - **Freshen the docs-inventory rollups.** After adding or refrontmattering any
   page under `docs/**`, regenerate both generated rollups and verify no drift
@@ -75,7 +94,7 @@ subcommand — plus one not-yet-available regen path:
 - **Mission wrap-up sequence.** The standing close-out procedure a mission
   runs between "all work packages approved" and "draft PR handed to the
   operator": accept → retire/split dev-assist tests → resolve issue verdicts
-  → independent aggregate-diff review → local merge → compact history →
+  → independent aggregate-diff review → local consolidation → compact history →
   rebase onto upstream → draft PR + pre-merge squad → hand off. Canonical
   source: the
   [`mission-wrap-up-sequence` procedure](../../packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml).
@@ -85,11 +104,13 @@ subcommand — plus one not-yet-available regen path:
   ("Readable and Consistent Pull Requests"). Referenced from the
   [onboarding-run cadence](getting-started/onboarding-run.md), step 12.
 
-- **Regenerating generated agent-command copies / prompt snapshots.** Not yet
-  a standalone entrypoint — tracked in
-  [#3447](https://github.com/Priivacy-ai/spec-kitty/issues/3447) (modular
-  per-package CI plus automated asset/prompt regeneration). Do not hand-roll a
-  substitute regen path; file against or watch that issue instead.
+- **Regenerating generated agent-command copies / skill fixtures.** Run
+  `spec-kitty regen` to rewrite the committed generated fixtures from source,
+  and `spec-kitty regen --check` to verify them without writing (it exits 1
+  and prints the diff when they are stale). CI runs the same check as the
+  `regen-check` job in `ci-router.yml`. Added under
+  [#3447](https://github.com/spec-kitty/spec-kitty/issues/3447) (automated
+  asset/prompt regeneration). Do not hand-roll a substitute regen path.
 
 ## See also
 
