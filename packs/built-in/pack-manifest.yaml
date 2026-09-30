@@ -365,7 +365,7 @@ constituents:
   kind: paradigm
   path: paradigms/behaviour-driven-development.paradigm.yaml
   provenance_path:
-- content_hash: d7001632c05f3a373c6a698c4590a6256cca213c09b61de3de8269dde5618b0b
+- content_hash: 7b1965f7b4a35bafd91650a7e25d129d7cfd44da558d68b0bad1ceda65ee1498
   id: brownfield-onboarding
   kind: paradigm
   path: paradigms/brownfield-onboarding.paradigm.yaml
@@ -550,7 +550,7 @@ constituents:
   kind: styleguide
   path: styleguides/boring-code-review.styleguide.yaml
   provenance_path:
-- content_hash: f565303cda6a046696ecb6d1ad17afec31597a6dd1ea5744c4a3528a47189180
+- content_hash: 4eb1265b0f0d79cbad187acd6e25b50509eb755a9c83252a732f897581af8bf4
   id: common-docs
   kind: styleguide
   path: styleguides/common-docs.styleguide.yaml
@@ -800,7 +800,7 @@ constituents:
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
   provenance_path:
-- content_hash: 7f3e2872084ff5e68783837dd3903aaefd7afa0cd92c09ffa4c6a3a7359e8cd1
+- content_hash: c195ff5b98ccaef3b335a808b2df7252331443141af410d7803f2eab759f34f0
   id: common-docs-scaffold
   kind: tactic
   path: tactics/common-docs-scaffold.tactic.yaml
@@ -835,7 +835,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/cross-cutting-state-via-store.tactic.yaml
   provenance_path:
-- content_hash: 82dfd9474dd841fbe37244cf4d6a162753373e3214ca1900168ce6d2ac2ba2a2
+- content_hash: ee40f1bcc8fd79361eee8a166e6f380dc464bff69ebcbc1597f875dd61810c6d
   id: decision-marker-capture
   kind: tactic
   path: tactics/communication/decision-marker-capture.tactic.yaml
@@ -925,7 +925,7 @@ constituents:
   kind: tactic
   path: tactics/generated-code-stewardship.tactic.yaml
   provenance_path:
-- content_hash: f59cb7296f1c15bbf96fcd370ca621a419bca035a4927764e5ef7c72135209f9
+- content_hash: 815accc87252981f28eb63734cf9dbcacf36345c892112f5d7715b419719a6e2
   id: glossary-curation-interview
   kind: tactic
   path: tactics/communication/glossary-curation-interview.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 6a7b13918cbdb65d79ed73e3633d4c53d9dd330aa051624b4fc7cef5ce1e8041
+manifest_hash: 8d4a3372c2b86403adbc21b5a63f341eafe5cd6101ae8ebfb8224a2a10b39d7f
 schema_version: '1'
 source_type: built-in
 source_url:
