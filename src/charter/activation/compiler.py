@@ -9,7 +9,7 @@ from io import StringIO
 import logging
 from pathlib import Path
 import re
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, TypedDict
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -69,6 +69,31 @@ __all__ = [
 #: ``mission-type`` charter kind is the documented outlier that does not follow
 #: the ``activated_<plural>`` pattern (see ``pack_manager.YAML_KEY_MAP``).
 _MISSION_TYPE_ACTIVATIONS_KEY = "mission_type_activations"
+#: Every ``cause`` an unresolved-reference record can carry: the four
+#: :class:`~charter.activation._catalog_miss.CatalogMissCause` values (mapped by
+#: :data:`_CAUSE_BY_CATALOG_MISS`) plus the three compiler-owned causes for
+#: entries that are not a per-artifact classification. ``_catalog_miss.py``
+#: stays untouched, which is why these are not members of that enum.
+UnresolvedCause = Literal[
+    "missing_artifact",
+    "typo_suspected",
+    "schema_validation_suspected",
+    "scope_filtered",
+    "graph_load_failed",
+    "malformed_urn",
+    "unattributed_kind",
+]
+
+
+class UnresolvedReferenceRecord(TypedDict):
+    """Structured form of one unresolved-reference diagnostic (``--json`` ``unresolved_references``)."""
+
+    kind: str
+    id: str
+    cause: UnresolvedCause
+    detail: str
+
+
 # NOTE: ``ConfigActivatedRoots`` is intentionally NOT public API -- it is the
 # return type of ``resolve_config_activated_roots`` but every real caller
 # (e.g. ``specify_cli.cli.commands.charter._synthesis``) consumes the
@@ -376,7 +401,7 @@ class CompiledCharter:
     #: and :func:`_resolve_transitive_reference_graph`'s graph-load-failure
     #: branch all append to. Additive: existing callers that only read
     #: ``diagnostics`` are unaffected.
-    unresolved_reference_records: list[dict[str, str]] = field(default_factory=list)
+    unresolved_reference_records: list[UnresolvedReferenceRecord] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -446,7 +471,7 @@ def compile_charter(
     active_languages = infer_repo_languages(repo_root, interview=interview, prefer_interview=rederive_languages)
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
-    unresolved_reference_records: list[dict[str, str]] = []
+    unresolved_reference_records: list[UnresolvedReferenceRecord] = []
 
     if doctrine_service is None:
         doctrine_service = _default_doctrine_service(repo_root)
@@ -1095,7 +1120,7 @@ def _build_references(
     doctrine_service: DoctrineService,
     repo_root: Path | None = None,
     diagnostics: list[str] | None = None,
-    unresolved_reference_records: list[dict[str, str]] | None = None,
+    unresolved_reference_records: list[UnresolvedReferenceRecord] | None = None,
 ) -> list[CharterReference]:
     doctrine_root = resolve_doctrine_root()
 
@@ -1168,21 +1193,24 @@ def _record_unresolved_reference(
     *,
     kind: str,
     raw_id: str,
-    cause: str,
+    cause: UnresolvedCause,
     detail: str,
     diagnostics: list[str],
-    unresolved_records: list[dict[str, str]],
+    unresolved_records: list[UnresolvedReferenceRecord],
+    diagnostic: str | None = None,
 ) -> None:
     """Append the reason-bearing diagnostic string AND the structured record
     for one unresolved reference.
 
-    Shared by the per-id classify-and-placeholder path
-    (:func:`_classify_and_placeholder_reference`) and every unattributable
-    ``graph.unresolved`` URN class (:func:`_route_unresolved_urn`), so both
-    stay in the identical free-text + structured-record shape (FR-002/
-    FR-004/NFR-002) rather than two near-duplicate append call sites.
+    The single writer for both lists: the per-id classify-and-placeholder path
+    (:func:`_classify_and_placeholder_reference`), every unattributable
+    ``graph.unresolved`` URN class (:func:`_route_unresolved_urn`) and the
+    graph-load failure all go through it, so the free-text line and the
+    structured record cannot drift (FR-002/FR-004/NFR-002). *diagnostic*
+    overrides the templated free-text line for the one entry whose established
+    wording is not ``Unresolved reference: ...``.
     """
-    diagnostics.append(_UNRESOLVED_DIAGNOSTIC_TEMPLATE.format(kind=kind, artifact_id=raw_id, cause=cause, detail=detail))
+    diagnostics.append(diagnostic or _UNRESOLVED_DIAGNOSTIC_TEMPLATE.format(kind=kind, artifact_id=raw_id, cause=cause, detail=detail))
     unresolved_records.append({"kind": kind, "id": raw_id, "cause": cause, "detail": detail})
 
 
@@ -1195,6 +1223,12 @@ _MISSING_ARTIFACT_DETAIL = (
 _SCHEMA_DROP_DETAIL = "the artifact failed schema validation and was dropped by the loader; run `spec-kitty doctrine validate` to see why"
 _SCOPE_FILTERED_DETAIL = "the artifact exists but its applies_to_languages scope excludes the active language set"
 _TYPO_DETAIL_TEMPLATE = "did you mean '{suggestion}'?"
+_CAUSE_BY_CATALOG_MISS: dict[CatalogMissCause, UnresolvedCause] = {
+    CatalogMissCause.MISSING_ARTIFACT: "missing_artifact",
+    CatalogMissCause.TYPO_SUSPECTED: "typo_suspected",
+    CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED: "schema_validation_suspected",
+    CatalogMissCause.SCOPE_FILTERED: "scope_filtered",
+}
 _DEFAULT_DETAIL_BY_CAUSE: dict[CatalogMissCause, str] = {
     CatalogMissCause.MISSING_ARTIFACT: _MISSING_ARTIFACT_DETAIL,
     CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED: _SCHEMA_DROP_DETAIL,
@@ -1222,7 +1256,7 @@ def _classify_and_placeholder_reference(
     raw_id: str,
     repository: Any,
     diagnostics: list[str],
-    unresolved_records: list[dict[str, str]],
+    unresolved_records: list[UnresolvedReferenceRecord],
     project_root: Path | None = None,
 ) -> CharterReference | None:
     """Classify one raw-repository miss and, for a ``SCOPE_FILTERED`` cause
@@ -1249,7 +1283,7 @@ def _classify_and_placeholder_reference(
     _record_unresolved_reference(
         kind=kind,
         raw_id=raw_id,
-        cause=diagnosis.cause.value,
+        cause=_CAUSE_BY_CATALOG_MISS[diagnosis.cause],
         detail=detail,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
@@ -1267,10 +1301,10 @@ def _classify_and_placeholder_reference(
 #: real DRG-backed kind (contracts/charter-generate-json-diagnostics.md's
 #: "Round-5 addition").
 _MALFORMED_URN_KIND_LABEL = "_unattributed"
-_MALFORMED_URN_CAUSE = "malformed_urn"
+_MALFORMED_URN_CAUSE: Final[UnresolvedCause] = "malformed_urn"
 _MALFORMED_URN_NO_KIND_DETAIL = "malformed URN, no kind prefix"
 _MALFORMED_URN_NO_ID_DETAIL = "malformed URN, no artifact id"
-_UNATTRIBUTED_KIND_CAUSE = "unattributed_kind"
+_UNATTRIBUTED_KIND_CAUSE: Final[UnresolvedCause] = "unattributed_kind"
 
 #: Single source of truth for the six DRG-backed kinds
 #: :func:`_build_references_from_service` tracks (directive, tactic,
@@ -1383,7 +1417,7 @@ def _route_unresolved_urn(
     *,
     doctrine_service: DoctrineService,
     diagnostics: list[str],
-    unresolved_records: list[dict[str, str]],
+    unresolved_records: list[UnresolvedReferenceRecord],
     project_root: Path | None,
 ) -> tuple[str | None, CharterReference | None]:
     """Route one ``graph.unresolved`` URN through the shared classify-and-
@@ -1481,7 +1515,7 @@ def _render_kind_references(
     repository: Any,
     fields: _ReferenceFields,
     diagnostics: list[str],
-    unresolved_records: list[dict[str, str]] | None = None,
+    unresolved_records: list[UnresolvedReferenceRecord] | None = None,
     project_root: Path | None = None,
 ) -> list[CharterReference]:
     """Render one :class:`CharterReference` per id, via a typed repository lookup.
@@ -1543,7 +1577,7 @@ class WholeKindUnresolvedError(RuntimeError):
     so a caller can surface it without re-deriving anything.
     """
 
-    def __init__(self, kind: str, unresolved_records: list[dict[str, str]]) -> None:
+    def __init__(self, kind: str, unresolved_records: list[UnresolvedReferenceRecord]) -> None:
         self.kind = kind
         self.unresolved_records = list(unresolved_records)
         unresolved_ids = [record["id"] for record in self.unresolved_records if record.get("kind") == kind]
@@ -1559,7 +1593,7 @@ def _check_whole_kind_unresolved(
     graph: Any,
     kind_reference_counts: dict[str, int],
     activated_via_unresolved: set[str],
-    unresolved_records: list[dict[str, str]],
+    unresolved_records: list[UnresolvedReferenceRecord],
 ) -> None:
     """Fail closed when a tracked kind was activated but produced zero
     references (issue #5257 T011 -- I1/I2's aggregate, cause-agnostic
@@ -1594,7 +1628,7 @@ def _build_references_from_service(
     doctrine_service: DoctrineService,
     repo_root: Path | None,
     diagnostics: list[str],
-    unresolved_records: list[dict[str, str]] | None = None,
+    unresolved_records: list[UnresolvedReferenceRecord] | None = None,
 ) -> list[CharterReference]:
     """Load references via typed repository queries and DRG-backed transitive resolution."""
     if unresolved_records is None:
@@ -1750,7 +1784,7 @@ def _build_references_from_service(
 #: ``CatalogMissCause`` -- ``_catalog_miss.py`` stays REUSED, NOT MODIFIED.
 _GRAPH_LOAD_FAILURE_KIND = "_graph"
 _GRAPH_LOAD_FAILURE_ID = "_load_failure"
-_GRAPH_LOAD_FAILURE_CAUSE = "graph_load_failed"
+_GRAPH_LOAD_FAILURE_CAUSE: Final[UnresolvedCause] = "graph_load_failed"
 
 
 def _resolve_transitive_reference_graph(
@@ -1761,7 +1795,7 @@ def _resolve_transitive_reference_graph(
     direct_root_urns: frozenset[str] = frozenset(),
     pack_context: Any = None,
     diagnostics: list[str] | None = None,
-    unresolved_records: list[dict[str, str]] | None = None,
+    unresolved_records: list[UnresolvedReferenceRecord] | None = None,
 ) -> Any:
     """Resolve the transitive closure from built-in/project DRG layers.
 
@@ -1821,14 +1855,14 @@ def _resolve_transitive_reference_graph(
             assert_valid(merged)
     except Exception as exc:  # noqa: BLE001 -- I4: loud, not fail-closed
         summary = f"{exc.__class__.__name__}: {exc}"
-        diagnostics.append(f"Graph load failed: {summary}. Transitive closure not resolved; direct-root ids only.")
-        unresolved_records.append(
-            {
-                "kind": _GRAPH_LOAD_FAILURE_KIND,
-                "id": _GRAPH_LOAD_FAILURE_ID,
-                "cause": _GRAPH_LOAD_FAILURE_CAUSE,
-                "detail": summary,
-            }
+        _record_unresolved_reference(
+            kind=_GRAPH_LOAD_FAILURE_KIND,
+            raw_id=_GRAPH_LOAD_FAILURE_ID,
+            cause=_GRAPH_LOAD_FAILURE_CAUSE,
+            detail=summary,
+            diagnostics=diagnostics,
+            unresolved_records=unresolved_records,
+            diagnostic=f"Graph load failed: {summary}. Transitive closure not resolved; direct-root ids only.",
         )
         return fallback
 

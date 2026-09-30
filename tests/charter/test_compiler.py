@@ -791,6 +791,54 @@ def test_added_tracked_kind_is_honoured_by_the_whole_kind_check(
         )
 
 
+def test_unresolved_cause_vocabulary_is_one_closed_set() -> None:
+    """The record ``cause`` vocabulary is a single ``Literal`` alias: every
+    ``CatalogMissCause`` maps onto a member with the SAME string value (the
+    ``--json`` output is unchanged), and the compiler-owned causes are members
+    too -- adding a cause in one place without the other fails here."""
+    import typing
+
+    import charter.activation.compiler as compiler_module
+    from charter.activation._catalog_miss import CatalogMissCause
+
+    declared = set(typing.get_args(compiler_module.UnresolvedCause))
+    mapping = compiler_module._CAUSE_BY_CATALOG_MISS
+    compiler_owned = {
+        compiler_module._MALFORMED_URN_CAUSE,
+        compiler_module._UNATTRIBUTED_KIND_CAUSE,
+        compiler_module._GRAPH_LOAD_FAILURE_CAUSE,
+    }
+
+    assert set(mapping) == set(CatalogMissCause)
+    assert {cause: value for cause, value in mapping.items() if cause.value != value} == {}
+    assert declared == set(mapping.values()) | compiler_owned
+
+
+def test_record_unresolved_reference_writes_both_lists_and_honours_a_diagnostic_override() -> None:
+    import charter.activation.compiler as compiler_module
+
+    diagnostics: list[str] = []
+    records: list[compiler_module.UnresolvedReferenceRecord] = []
+    compiler_module._record_unresolved_reference(
+        kind="tactic", raw_id="x", cause="missing_artifact", detail="d", diagnostics=diagnostics, unresolved_records=records
+    )
+    compiler_module._record_unresolved_reference(
+        kind="_graph",
+        raw_id="_load_failure",
+        cause="graph_load_failed",
+        detail="Boom: bad",
+        diagnostics=diagnostics,
+        unresolved_records=records,
+        diagnostic="Graph load failed: Boom: bad.",
+    )
+
+    assert diagnostics == ["Unresolved reference: tactic/x (missing_artifact): d", "Graph load failed: Boom: bad."]
+    assert records == [
+        {"kind": "tactic", "id": "x", "cause": "missing_artifact", "detail": "d"},
+        {"kind": "_graph", "id": "_load_failure", "cause": "graph_load_failed", "detail": "Boom: bad"},
+    ]
+
+
 # ---------------------------------------------------------------------------
 # #4614 / FR-013: label-specific diagnostic for unregistered tool ids
 # ---------------------------------------------------------------------------
