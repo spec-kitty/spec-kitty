@@ -1,13 +1,16 @@
 ---
 title: WP Prompt & Ops Debrief — Model / Schema Proposal
 description: 'Model+schema proposal for a YAML-authoritative WP prompt (markdown derived) and a required-on-close structured Ops debrief, including the adversarial squad pressure-test (REWORK).'
-doc_status: proposal
-updated: '2026-07-16'
+doc_status: draft
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/investigations/wp-op-schema-model.md
 - docs/plans/investigations/wp-op-schema-related-tickets.md
 ---
 # WP Prompt & Ops Debrief — Model / Schema Proposal
+
+> **Status update (2026-09-30).** Parked idea, written against the 3.2.x milestone. The 3.x line has closed and 3.3.x was retired, so any "deferred to 3.3.x" routing below needs re-triage. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 First-cut concrete schema suggestion, following the grounded idea note
 ([wp-op-schema-model.md](wp-op-schema-model.md)) and the ticket map

@@ -1,8 +1,8 @@
 ---
 title: 'User Journey: Formalization at Session End (Experiment → Repeatable Approach)'
 description: Draft user journey for formalizing an experiment into a repeatable approach at session end, captured 2026-02-17 for the architecture-discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # User Journey: Formalization at Session End (Experiment → Repeatable Approach)
 

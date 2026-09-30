@@ -1,10 +1,12 @@
 ---
 title: 'Initiative: 2026-03 Doctrine-to-Execution Integration'
 description: Initiative capturing the assessment and roadmap for wiring the feature-046 doctrine repository layer into the charter resolver and execution path.
-doc_status: draft
-updated: '2026-04-05'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Initiative: 2026-03 Doctrine-to-Execution Integration
+
+> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 This initiative captures the assessment and roadmap for wiring the doctrine
 repository layer (delivered in feature 046) into the charter resolver,

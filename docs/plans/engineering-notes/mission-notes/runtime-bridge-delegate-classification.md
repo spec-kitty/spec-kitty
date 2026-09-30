@@ -1,12 +1,15 @@
 ---
 title: 'runtime_bridge compat-delegate classification'
 description: 'Forwarding-vs-real-seam classification of the 45 runtime_bridge compat-delegate candidates driving the Lane-0 deshim chain (classify → repoint → delete).'
-doc_status: active
-updated: '2026-07-13'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/mission-notes/index.md
 ---
 # runtime_bridge Compat-Delegate Classification (WP02 — FR-003 / #2561)
+
+> **Historical (mission closed).** The owning mission, `test-suite-friction-remediation-01KXDKBX`, has closed (see its `retrospective.yaml` under `kitty-specs/`). Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 **Status:** authoritative classification for the Lane-0 deshim chain
 (WP02 classify → WP03/WP04 repoint → **WP18** delete). WP02 makes **zero src edits**; this artifact +

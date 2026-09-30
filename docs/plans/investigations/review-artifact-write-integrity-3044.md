@@ -1,8 +1,9 @@
 ---
 title: 'Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer'
 description: 'Pre-spec research testing whether #3044''s review-artifact-integrity cluster (#2275, #2996, #990) is a topology-seam defect; code-verified answer plus a scoped remediation seed.'
-doc_status: draft
-updated: '2026-08-02'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/investigations/write-path-topology-root-cause.md
 - docs/development/reference/read-side-seam-classification.md
@@ -11,6 +12,8 @@ related:
 ---
 
 # Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer
+
+> **Historical (writer shipped).** The missing approved-verdict writer this note identified shipped with the verdict-seam rebuild (PR #3211, hardened in #3267). The wider verdict-integrity epic #3044 stays open on the *CLI 4.x stable* milestone and tracks its remaining children there. Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 **Scope:** pre-spec research. Corroborate or disprove the hypothesis that GH issue
 [#3044](https://github.com/Priivacy-ai/spec-kitty/issues/3044)'s review-artifact-integrity cluster

@@ -2,7 +2,8 @@
 title: 'Field report: a doctrine-driven P0 remediation, end to end'
 description: 'Field report: remediating the merge-core P0 pair #2709/#2711 under Spec Kitty''s own doctrine — process, operator decisions, and doctrine effects.'
 doc_status: draft
-updated: '2026-07-18'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/how-to/manage-issue-tracker.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
@@ -14,9 +15,9 @@ related:
 
 **Date:** 2026-07-18 · **Agent run:** single long session (Claude Code, Opus) ·
 **Human-in-command:** maintainer (operator) · **Outcome:** PR
-[#2785](https://github.com/Priivacy-ai/spec-kitty/pull/2785) — merge-core P0 pair
+[#2785](https://github.com/spec-kitty/spec-kitty/pull/2785) — merge-core P0 pair
 **#2709** (squash clobbers target-newer provenance) + **#2711** (rollback/resume
-incoherence) fixed, plus fast-follow P0 [#2786](https://github.com/Priivacy-ai/spec-kitty/issues/2786).
+incoherence) fixed, plus fast-follow P0 [#2786](https://github.com/spec-kitty/spec-kitty/issues/2786).
 
 This note is for maintainers and contributors weighing *what the doctrine/docs actually
 buy you* on a real remediation. It is a reflection, not an ADR: it records the process, the

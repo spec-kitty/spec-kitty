@@ -2,7 +2,8 @@
 title: 'Research Notes: Session Presence — Harness Capability Gaps'
 description: Open research notes by Architect Alphonso on session-presence harness capability gaps that require investigation before implementation.
 doc_status: draft
-updated: '2026-06-07'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # Research Notes: Session Presence — Harness Capability Gaps
 
@@ -10,7 +11,7 @@ updated: '2026-06-07'
 **Owner:** Architect Alphonso  
 **Last updated:** 2026-06-07  
 **Related ADR:** `adr/2026-06-07-1-session-presence-multi-harness-architecture.md`  
-**Related issue:** https://github.com/Priivacy-ai/spec-kitty/issues/1760
+**Related issue:** https://github.com/spec-kitty/spec-kitty/issues/1760
 
 ---
 

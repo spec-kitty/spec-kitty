@@ -2,7 +2,8 @@
 title: FoundationalValues/creed program — delivery sequence
 description: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, superseding-ADR scope, park register, and effort envelope."
 doc_status: draft
-updated: '2026-07-26'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
 - docs/plans/doctrine/squad-reports/index.md
@@ -12,6 +13,12 @@ related:
 
 > **Tier: AUTHORITY** for sequencing. The design authority is
 > [`foundational-values-and-creed.md`](foundational-values-and-creed.md).
+
+> **Status (checked 2026-09-30).** Only Mission A (`doctrine-silence-guards-01KYFV7Q`) has
+> landed. Missions B1, B2, C and D never got past specify. Milestone references below are as
+> of 2026-07-26: the 3.2.x line has since closed (last release 3.2.7), #2934 closed on
+> 2026-07-26, and the 3.3.x milestone was retired on 2026-08-23 (#2538 is now in Product
+> backlog). See the [doctrine index](index.md#programme-realization-2026-07-26-operator-ruling).
 
 **Date:** 2026-07-26 · **Base:** `0fcb4b3d2` + the review-round-2 fix commit, branch `docs/manifesto-tier-analysis`
 **Role:** sequencing only. No architectural decision is taken here; **D-2 is escalated, not
@@ -192,7 +199,7 @@ drift, `RECONCILE_CHANGE_SCOPE_TENSIONS` delete-or-wire) · `#2468`/`#2847`/`#28
 | C2 | **Four all-surface sweeps, not two:** `#2591` component-type · I1c `costs:` · I14 value fields · **I12 `impacts` across 774 edges** | **Do not batch any pair.** Each needs its own occurrence map. Order: `#2591` → I12 → I1c → I14 |
 | C3 | Artefact-count divergence: 260 vs ~310 vs 41–59 | Use **260** for authoring burden, **41–59 files** for code surface. They measure different things |
 | C4 | Lens disagreement on `toolguide` / `agent_profile` (design D-1) | Must be resolved before any WP touches the 12 model/schema files. Behind G3, so not urgent — but must not be discovered mid-mission |
-| C5 | `#2934` P0 data-loss + 14 open P0s are the 3.2.x blocker | Constrains *when* anything lands. `#2538` is 3.3.x, so G3 is not on the 3.2.x path either way |
+| C5 | `#2934` P0 data-loss + 14 open P0s are the 3.2.x blocker *(as of 2026-07-26; #2934 closed that day)* | Constrains *when* anything lands. `#2538` was on 3.3.x (retired; now Product backlog), so G3 is not on the release path either way |
 
 ## 5. Explicitly parked
 
@@ -318,7 +325,7 @@ mechanically prevents a fourth inert register. Then run **rank 5, the four-site 
 closure**, as the first real mission: four verified-OPEN issues wait on it, and it must land before
 `impacts` touches an edge or the extractor deletes the field at regeneration. **The gate that
 actually decides this program's shape is not `#2538` — it is D-2, inside the superseding ADR.**
-`#2538` gates only the numeric branch, is milestone 3.3.x, and prior art predicts it reads null; D-2
+`#2538` gates only the numeric branch, was on milestone 3.3.x (now Product backlog), and prior art predicts it reads null; D-2
 gates a 45-to-60-file mission on the near path, is a one-document decision, and is the one question
 that cannot be discovered during implementation. **Write the ADR in parallel with ranks 1–5 and
 answer D-2 in it before anyone opens `extractor.py` with intent to add a field.**
@@ -365,7 +372,7 @@ branch or any other (checked via `git log --all -S` over the rig's distinctive p
 export to a reporting module", "Reproduction threshold" — the only hits are the commits that added
 the *design* documents referencing the rig; nothing rig-specific was ever committed or deleted).
 Issue #2538 itself confirms this: it says "Rig is standing. Run and results pending," is labeled
-`priority:P2`, and sits in milestone 3.3.x — not release-critical.
+`priority:P2`, and sat in milestone 3.3.x (now Product backlog) — not release-critical.
 
 **Consequence:** § 1's gate **G3 is unreachable**. Ranks **20 (I14) and 22 (I17) are CLOSED, not
 deferred** — this removes the programme's entire unquantified authoring tail (~1,372–1,596 cells).

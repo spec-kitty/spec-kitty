@@ -2,9 +2,11 @@
 title: 'API & Dashboard — Domain Plan'
 description: 'Durable domain plan for the application/mission-data API surface (#645) and dashboard/UX (#650): stable data API, dashboard consumers, retiring the Feature-labelled UI drift.'
 doc_status: durable
-updated: '2026-09-06'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
+- docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
@@ -32,8 +34,7 @@ related:
 **Purpose.** Give the **application/mission-data API and the dashboard** a single durable
 home that states the *invariants* the surface must hold, groups the domain's lasting
 sub-areas, and points at the epics and design records that carry the work. Before this
-plan, this surface had no standalone throughline — the [plans index](../index.md) listed
-"API & dashboard" only as a *planned* domain plan. This plan makes the throughline
+plan, this surface had no standalone throughline. This plan makes the throughline
 explicit and becomes the domain's index. It is a sibling to the [Doctrine & Charter
 Domain Plan](doctrine-charter-domain-plan.md), the [Packs Extraction Domain
 Plan](packs-extraction-domain-plan.md), and (until its 2026-09-06 retirement,
@@ -88,25 +89,26 @@ invariants — an application consumer binds to a documented, versioned data con
 to internal reducers or file shapes; the dashboard never asserts UI behaviour it cannot
 prove (frontend can fail silently); and the UI speaks the Mission canon, never re-drifting
 to a `Feature` label. Those invariants outlive any one tag; the experience-shaped delivery
-(deferred to 3.3.x, see §5) churns beneath them.
+(deferred to the 4.x line, see §5) churns beneath them.
 
 ---
 
 ## 2. Where API/dashboard planning lives today (honest inventory)
 
 There has been **no standalone API/dashboard throughline** before this document. The
-surface was distributed across three surfaces:
+surface was distributed across two surfaces:
 
-1. **The [plans index](../index.md)** — lists "API & dashboard" only as a *planned* domain
-   plan; a placeholder, not a map.
-2. **[Status model architecture](../../architecture/status-model.md)** — the append-only
+1. **[Status model architecture](../../architecture/status-model.md)** — the append-only
    `status.events.jsonl` event log and its `reduce()` projection that any mission-data API
    must expose. It is the data source of record, not an API/dashboard plan.
-3. **The epics themselves** — **#645** (Epic: Stable Application API Surface) and **#650**
+2. **The epics themselves** — **#645** (Epic: Stable Application API Surface) and **#650**
    (dashboard/UX, including the `Feature`-label drift retirement). Issue-tracker groupings
-   with scope bullets, **not written plans.** Experience-shaped delivery is deferred to
-   3.3.x by the [milestone roadmap](../3-2-x-milestone-roadmap.md) ("everything
-   experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x").
+   with scope bullets, **not written plans.** Experience-shaped delivery was deferred to
+   3.3.x by the [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md); 3.3.x was retired
+   on 2026-08-23 without shipping. #645 is now on the **4.x Work** milestone and #650 in
+   **Product backlog** (checked 2026-09-30), and the
+   [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) (Theme 3) places #645 on the
+   post-rc structural tail.
 
 **This plan now becomes the domain's index.** It ties #645 and #650 together under one set
 of invariants and surfaces the gaps they leave open (§4), and it draws the boundary with
@@ -149,7 +151,7 @@ from an API response. The localhost daemon surface stays loopback-only.
 discipline recorded in the repository guidelines (the WP-modal Playwright guard is the
 standing example — API responses do not prove the UI works).
 
-**Open work.** The experience-shaped dashboard delivery deferred to 3.3.x (§5): the
+**Open work.** The experience-shaped dashboard delivery deferred beyond 4.0.0 (§5): the
 WP-lane board, mission/WP views, and their browser-verified regressions.
 
 ### 3.3 Terminology fidelity in the UI (retiring the `Feature` drift)
@@ -166,7 +168,7 @@ never "feature") is the standard the retirement restores; here it is a
 label surface.
 
 **Open work.** Complete the #650 label-retirement sweep so no dashboard view renders the
-legacy `Feature` label, and keep it retired as the dashboard delivery lands in 3.3.x.
+legacy `Feature` label, and keep it retired as the dashboard delivery lands in the 4.x line.
 
 ---
 
@@ -181,7 +183,7 @@ legacy `Feature` label, and keep it retired as the dashboard delivery lands in 3
    data contract, but no contract or contract test exists yet — the dashboard binds to the
    projection directly today. This is the domain's key structural gap, gated behind #645.
 3. **Dashboard delivery is deferred, its invariants are not.** The experience-shaped
-   delivery is a 3.3.x concern (§5), but the invariants (contract-bound consumers,
+   delivery is a post-4.0.0 concern (§5), but the invariants (contract-bound consumers,
    browser-proven UI, Mission-canon labels) are in force now and must not regress as the
    surface is built.
 
@@ -193,11 +195,11 @@ This plan tracks the **why** (the API/dashboard invariants and sub-areas); the e
 the **what-ships-when**. The table below is a snapshot for orientation, not a schedule.
 Verify live state via `gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
-| Work | Sub-area (§3) | Owning epic | Milestone |
+| Work | Sub-area (§3) | Owning epic | Milestone (epic, checked 2026-09-30) |
 |---|---|---|---|
-| Enumerate + version the mission-data API contract | Data API contract (3.1) | #645 (application-data facet) | 3.3.x (experience-shaped) |
-| Dashboard WP-lane board + mission/WP views | Dashboard/UX (3.2) | #650 | 3.3.x |
-| Retire the legacy `Feature`-labelled UI drift | Terminology fidelity (3.3) | #650 | 3.3.x |
+| Enumerate + version the mission-data API contract | Data API contract (3.1) | #645 (application-data facet) | 4.x Work |
+| Dashboard WP-lane board + mission/WP views | Dashboard/UX (3.2) | #650 | Product backlog |
+| Retire the legacy `Feature`-labelled UI drift | Terminology fidelity (3.3) | #650 | Product backlog |
 
 *Read the WHY in §3; the epic tracks the WHAT-ships-when. The `Feature`-label row is the
 drift being killed — not a live UI label.*
@@ -227,8 +229,11 @@ drift being killed — not a live UI label.*
 
 - [Status model architecture](../../architecture/status-model.md) — the
   `status.events.jsonl` event log and `reduce()` projection the mission-data API exposes.
-- [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) — records the deferral of
-  experience-shaped (UX/dashboard) work to 3.3.x.
+- [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) — the active cycle; Theme 3
+  holds #645 on the post-rc structural tail.
+- [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) — *superseded, prior cycle.*
+  Recorded the original deferral of experience-shaped (UX/dashboard) work to the retired
+  3.3.x milestone.
 
 **Epics:** #645 (Stable Application API Surface — application-data facet here; the #3179
 doctrine-import facet is doctrine-charter §3.6), #650 (dashboard/UX + `Feature`-drift

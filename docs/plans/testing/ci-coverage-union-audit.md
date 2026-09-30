@@ -1,8 +1,9 @@
 ---
 title: Cross-cutting coverage-union audit — ci-test-topology-performance-01KXBJRT (T026)
 description: Committed per-job GC-2b coverage evidence for the CI test-topology performance mission, plus cross-job disjointness and fail-fast/dist-lint verification (GC-2/GC-3/GC-4).
-doc_status: active
-updated: '2026-07-12'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/testing/ci-job-timings.md
 - docs/development/testing/testing-parallel.md
@@ -10,6 +11,8 @@ related:
 ---
 
 # Cross-cutting coverage-union audit (T026)
+
+> **Superseded.** Coverage evidence for the retired `ci-quality.yml` shard topology of mission `01KXBJRT`; the modular CI from #3995 (the lean CI reinstatement) replaced those jobs. See [CI gate mechanics](../../development/reference/ci-gate-mechanics.md). Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 This is the mission's committed evidence for T026 ("verify the executed-test
 union is unchanged across all re-topologized jobs, GC-2b") plus the review's
@@ -89,19 +92,19 @@ tests/architectural/test_gate_coverage.py:754: in test_gc2b_current_selection_ma
 E   AssertionError: GC-2b baseline drift for 'fast-tests-core-misc': 6 dropped
     (in baseline, no longer selected), 6 added (selected but not in baseline).
 E   dropped (first 20):
-    ['tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]']
+    ['tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-f/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]']
 E   added (first 20):
-    ['tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
-     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]']
+    ['tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_documents_create_intent_with_required_ownership_fields[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_explains_create_intent_for_planned_new_owned_files[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/.kittify/overrides/missions/software-dev/command-templates/tasks.md]',
+     'tests/prompts/test_tasks_prompt_ownership_metadata.py::test_tasks_prompt_prevents_duplicate_create_intent_stubs[<repo-root>/.worktrees/ci-test-topology-performance-01KXBJRT-lane-i/src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md]']
 =========================== short test summary info ============================
 FAILED tests/architectural/test_gate_coverage.py::test_gc2b_current_selection_matches_baseline[fast-tests-core-misc]
 1 failed, 28 passed in 331.84s (0:05:31)

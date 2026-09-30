@@ -2,12 +2,20 @@
 title: Targeted Cleanup Scoping — sync.py and walker.py
 description: 'Line-level scoping of the two highest-signal code-quality cleanup targets: the calibration/walker.py duplicated-literal cluster and the cli/commands/sync.py complexity god-module.'
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/code-quality/index.md
 - docs/plans/refactor/degod-unshim-roadmap.md
 ---
 # Targeted Cleanup Scoping — `sync.py` and `walker.py`
+
+> **Status (2026-09-30).** The `sync.py` half of this page is void:
+> `src/specify_cli/cli/commands/sync.py` was removed with the sync transport (the
+> Convergence, #3881). The `walker.py` half still applies (`src/specify_cli/calibration/walker.py`
+> exists). `merge/bookkeeping_projection.py` is now
+> `consolidation/bookkeeping_projection.py`. Current Sonar priorities are the 4.0.0 series in
+> the [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md).
 
 Line-level scoping of the two highest-signal cleanup targets surfaced by the
 2026-08-12 SonarCloud snapshot (see [Code Quality index](index.md) for the full
@@ -121,4 +129,4 @@ The 10 `sync.py` complexity findings ride **Wave 4**. (A prior 11th target,
 GitVCS/VCSProtocol.sync_workspace" — and dropped from this inventory so future
 cleanup planning does not chase a non-existent function.) The 3 `S2083` BLOCKER
 vulnerabilities in `merge/bookkeeping_projection.py` and `skills/verifier.py` are a
-separate ~90-min targeted fix (not on a wave) and should land before the final 3.2.6 tag.
+separate ~90-min targeted fix (not on a wave) and should land before the final 3.2.6 tag (3.2.6 shipped 2026-09-03; the S2083 BLOCKERs are now tracked as #2970).

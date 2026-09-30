@@ -1,10 +1,13 @@
 ---
 title: Degod / Unshim — 3-Lens Inventory
 description: 'The detailed research catalogs behind the degod/unshim roadmap: the shim/dead-code inventory, the god-object decomposition map, and the #1868 seams-in-name-only catalog.'
-doc_status: active
-updated: '2026-07-03'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Degod / Unshim — 3-Lens Inventory (research findings)
+
+> **Historical (3.2.x cycle; status checked 2026-09-30).** Kept as a record. The waves this program tracked have executed: the `specify_cli.next` and `specify_cli.glossary` shims were deleted by #2291 (the 3.3.0 shim removals, closed 2026-07-04 via PR #2328), and the dead-symbol burn-down #2293 closed on 2026-09-25. The 3.3.x milestone was retired on 2026-08-23. The follow-on Mission Clarity Layer (#1746) is now milestoned *CLI 4.x stable*. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 *The detailed catalogs behind [the roadmap](degod-unshim-roadmap.md). Produced 2026-07-01 by a 3-lens research pass (shim/dead-code inventory · god-object decomposition map · #1868 seams-in-name-only) against `upstream/main` @ `b5ff365ce`. This is the durable evidence base; the roadmap is the sequenced plan.*
 

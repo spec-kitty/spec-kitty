@@ -1,10 +1,13 @@
 ---
 title: Test-Suite Friction Audit — "Tests as scaffold, not friction"
 description: 'The test-suite friction audit (2026-06-22, epic #2071) under the tests-as-scaffold-not-friction lens: the four-lens findings and remediation candidates.'
-doc_status: draft
-updated: '2026-06-22'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Test-Suite Friction Audit — "Tests as scaffold, not friction"
+
+> **Historical (3.2.x cycle).** Kept as a record. The test-friction epics this note served, #2071 (tests as scaffold, not friction) and its parent #1931, are closed. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 **Date**: 2026-06-22
 **Epic**: [#2071](https://github.com/Priivacy-ai/spec-kitty/issues/2071)

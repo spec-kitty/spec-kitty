@@ -1,10 +1,12 @@
 ---
 title: Test Improvement Initiative
 description: 'The test-improvement initiative (2.x-scoped): encoding and plan-validation guardrails, marked complete and pending merge to the 2.x branch.'
-doc_status: draft
-updated: '2026-04-05'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Test Improvement Initiative
+
+> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > **Status:** Complete — pending merge to `2.x`
 > **Branch scope:** 2.x only

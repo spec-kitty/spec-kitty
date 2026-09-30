@@ -2,7 +2,8 @@
 title: 'Packs Extraction — Domain Plan'
 description: 'Durable domain plan for physically extracting the doctrine layer into the standalone spec-kitty-doctrine module: boundary, import-cycle break, strangler cutover, repo split.'
 doc_status: durable
-updated: '2026-08-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
@@ -13,6 +14,27 @@ related:
 ---
 
 # Packs Extraction — Domain Plan
+
+> **Status banner (2026-09-30): the premise below has changed. The plan text is kept as
+> written (2026-08-12) and has not been re-baselined.**
+>
+> - **`src/doctrine/` no longer exists.** The doctrine package was absorbed into
+>   `src/charter/offering/`, and the built-in packs now live at the repository root under
+>   `packs/built-in/`. The enforced module chain is
+>   `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`
+>   (`tests/architectural/test_layer_rules.py`).
+> - **The standalone `spec-kitty-doctrine` wheel groundwork was deleted**, not kept dormant
+>   (mission `charter-code-topology-01M152G1`; see the comment in `pyproject.toml`
+>   `[tool.hatch.build.targets.wheel]`). So the "core artefact" in §1 — a buildable
+>   `src/doctrine/pyproject.toml` — and the charter↔doctrine import-cycle break are moot in
+>   their original form.
+> - **The epics are still open** (checked 2026-09-30): #3101 (split doctrine into its own
+>   wheel), #3022 (extract built-in packs into `spec-kitty-open-packs`) and #2539 (verified
+>   distribution, now on the **4.x Work** milestone; the 3.3.x milestone was retired on
+>   2026-08-23 and never shipped).
+> - **Open decision:** restate this throughline as a re-extraction from
+>   `src/charter/offering/` (and/or `packs/built-in/`), or retire it. Until then, read §1–§3
+>   as history, not as a description of the current tree.
 
 **Audience:** the project maintainer — technical, time-pressed, wants signal over ritual.
 
@@ -169,10 +191,11 @@ they bind to, because they already consume across the module boundary.
 **Design of record.** ADR [2026-08-02-1 charter-wheel-assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md)
 (#3101 wheel split); epics #3091 / #3022 (built-in pack extraction) and the
 physical-packaging facet of #2466 / #2216, with **#2539 (verified distribution)**
-deferred to 3.3.x as the distribution-integrity half of the split.
+deferred (then to 3.3.x, a milestone since retired; now on 4.x Work) as the
+distribution-integrity half of the split.
 
 **Open work.** Land the wheel split (#3101), complete the built-in pack extraction
-(#3091/#3022), and carry #2539 verified-distribution into 3.3.x so the repo split, when
+(#3091/#3022), and carry #2539 verified-distribution into the 4.x line so the repo split, when
 it lands, ships with provenance guarantees rather than a bare code move.
 
 ---
@@ -209,7 +232,7 @@ will turn over as milestones close. Verify live state via
 | Charter↔doctrine import-cycle break | Module boundary (3.1) | #3091 / #3022 | Open — the blocker (§4.1) |
 | Wheel split (`kernel → doctrine → charter`) | Wheel/repo split (3.3) | #3101 | Design of record (ADR 2026-08-02-1) |
 | Built-in pack extraction | Wheel/repo split (3.3) | #3091 / #3022 | Sequenced |
-| Verified distribution | Wheel/repo split (3.3) | #2539 | Deferred to 3.3.x |
+| Verified distribution | Wheel/repo split (3.3) | #2539 | Deferred to 4.x Work (3.3.x retired) |
 
 *Read the WHY in §3; the epic tracks the WHAT-ships-when.*
 
@@ -238,7 +261,7 @@ will turn over as milestones close. Verify live state via
 - ADR [2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md) — referenced for the §3.2 authoring seam this plan non-goals against (the merge semantics live there, not here).
 
 **Epics:** #3101 (wheel split), #3091 / #3022 (built-in pack extraction), #2539 (verified
-distribution, 3.3.x); physical-packaging facet of #2466 / #2216 (authoring facet is
+distribution, 4.x Work); physical-packaging facet of #2466 / #2216 (authoring facet is
 doctrine-charter §3.2).
 
 **Plans index:** [docs/plans/index.md](../index.md).

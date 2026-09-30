@@ -1,10 +1,13 @@
 ---
 title: Degod / Unshim Program — Roadmap
 description: 'Sequenced roadmap for degodding and unshimming the codebase — the structural cure for the measured test-friction: the waves, the epic frame, and the invariants.'
-doc_status: active
-updated: '2026-07-04'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Degod / Unshim Program — Roadmap
+
+> **Historical (3.2.x cycle; status checked 2026-09-30).** Kept as a record. The waves this program tracked have executed: the `specify_cli.next` and `specify_cli.glossary` shims were deleted by #2291 (the 3.3.0 shim removals, closed 2026-07-04 via PR #2328), and the dead-symbol burn-down #2293 closed on 2026-09-25. The 3.3.x milestone was retired on 2026-08-23. The follow-on Mission Clarity Layer (#1746) is now milestoned *CLI 4.x stable*. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 *Synthesis of a 3-lens inventory pass (2026-07-01), grounding the structural cure for the measured test-friction (HIGH & accelerating; regression-reintroduction SEVERE). Read against `upstream/main` @ `b5ff365ce`.*
 

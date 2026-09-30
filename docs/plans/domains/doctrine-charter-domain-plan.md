@@ -2,10 +2,13 @@
 title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
-updated: '2026-09-04'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
+- docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
+- docs/plans/domains/packs-extraction-domain-plan.md
 - docs/plans/glossary-doctrine-overhaul-program.md
 - docs/changelog/4.0.0.md
 - docs/plans/doctrine/charter-sole-door-deferred-issues.md
@@ -42,17 +45,21 @@ unchanged**; only the release-scoped "what ships when" moved. See the roadmap's
 [2026-09-04 re-anchor](../3-2-x-milestone-roadmap.md#addendum-2026-09-04--milestone-taxonomy-re-anchor-the-delayed-action-r)
 and the [4.0.0 declaration](../../changelog/4.0.0.md).*
 
-**Taxonomy change.** The **3.3.x** milestone was **retired** (closed 2026-08-23) and
-milestone #4 repurposed into **Product backlog**. Read every "3.3.x" label below as
-**4.0.0** unless the issue is closed; the structural/extensibility epics that were implicitly
-"3.2.x-cycle work" now sit in **Product backlog** — validated but on no committed release.
+**Taxonomy change.** The **3.3.x** milestone was **retired** (closed 2026-08-23, never
+shipped) and milestone #4 repurposed into **Product backlog**. The in-text "3.3.x" labels in
+§3 have been corrected in place (2026-09-30).
 
-**Owning epic re-milestoned 3.2.x → 4.0.0:** **#2519** (charter authoring & lifecycle
-robustness — §3.1 design-of-record and the §5 owning epic for the now-closed #3282). The
-extensibility/spine epics **#2466 / #2467 / #2468 / #2216** (§3.2), **#2652** (§3.3),
-**#645 / #3179** (§3.6), and **#2539** (deferred verified distribution) are all in **Product
-backlog** — none is committed to 3.2.7 or 4.0.0; they need an explicit release-milestone
-decision (see the roadmap addendum's disposition note).
+**Milestones re-checked 2026-09-30.** Since 2026-09-14 the 4.x line uses three milestones:
+**4.0.0 release scope** (the GA gate), **CLI 4.x stable** (stable 4.x after launch) and
+**4.x Work** (planned beyond the stabilization release); see the
+[4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md). Where this plan's epics sit now:
+
+- **#2519** (charter authoring & lifecycle robustness, §3.1): open, on **CLI 4.x stable**.
+- **#2467 / #2468** (pack-split keystone, mission types as doctrine, §3.2) and **#2539**
+  (verified distribution): open, on **4.x Work**.
+- **#645** (stable application API, §3.6): open, on **4.x Work**. **#3179** (doctrine/charter
+  public API surface): **closed** 2026-09-26.
+- **#2216** (§3.2 governance tiers) and **#2652** (§3.3): open, still in **Product backlog**.
 
 **§3.5 (meta.json fail-closed read routing) is DONE — strike the whole sub-area's open list.**
 Epic **#3259 is CLOSED**, and every child listed open — **#3230 / #3229 / #3228 / #3240** —
@@ -62,7 +69,7 @@ are resolved; the invariant now holds as shipped state, not pending work.
 **Other resolved-but-unstruck items (verified 2026-09-04):**
 
 - **#3282 CLOSED** — the §3.1 load-bearing P0 (pointer-based charters lack mission-type
-  activations on upgrade) shipped under **3.2.6**; the §5 table carries it as open 3.2.x.
+  activations on upgrade) shipped under **3.2.6** (the §5 table now shows it closed).
 - **#3176 CLOSED** — the §3.1 / §5 "last builder-unreachable site" P1 residual is discharged.
 - **#3183 CLOSED** and **#2657 CLOSED** — §3.3 lists both as open (#3183 the
   activation-vs-loadability collision; #2657 the external blocker on #2659's provisioned
@@ -72,8 +79,8 @@ are resolved; the invariant now holds as shipped state, not pending work.
 **Still-live gaps (unchanged by the reconciliation):** §4 gap 1 (doctrine content-QA has no
 owning workstream — **#3275** still P3/no-milestone/no-epic) and §4 gap 4 (activation
 reachability R1/R2, unspecced and blast-radius-bearing) remain the domain's largest
-declared-vs-in-force gaps. Treat the §5 table's `Milestone` column as superseded by this
-addendum until it is next revised in place.
+declared-vs-in-force gaps. The §5 table was revised in place on 2026-09-30 to show live
+state.
 
 ---
 
@@ -127,10 +134,11 @@ governance layer and the seam through which it reaches the runtime:
   layer, not the hosted product.)
 - **Not the wheel/packaging cutover as a build task.** The `kernel → doctrine → charter`
   wheel split (#3101, ADR 2026-08-02-1) and the built-in pack extraction (#3091/#3022)
-  are a *packs-extraction* concern — a planned sibling throughline. This plan owns the
+  are a *packs-extraction* concern — the sibling
+  [Packs Extraction throughline](packs-extraction-domain-plan.md). This plan owns the
   charter/doctrine *access boundary and public surface* those cutovers depend on, and
   cross-references the packaging track rather than owning it.
-- **Not release scheduling.** Which fix ships in 3.2.6 vs 3.3.x is the milestone
+- **Not release scheduling.** Which fix ships in which release is the milestone
   roadmap's and the epic's job (§5).
 
 **Why a durable domain plan and not a release plan.** Doctrine/charter is a standing
@@ -149,7 +157,9 @@ cross-references the release-scoped docs rather than duplicating their tables.
 There has been **no standalone doctrine/charter throughline** before this document.
 The planning was distributed across four surfaces, none of which is the domain's index:
 
-1. **[3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)** — the closest
+1. **[3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)** (superseded,
+   prior cycle; the active release companion is the
+   [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md)) — the closest
    thing to a doctrine/charter strategy, but framed as a *release-window* delivery plan,
    not a durable domain map. Its organizing principle is the "last permitted
    breaking-change window" for the doctrine/charter seam: charter-as-sole-door (its §1.1
@@ -213,11 +223,11 @@ this plan's invariants and §4 gaps.
 
 **Open issues.**
 
-- **#3282 (P0, 3.2.x, → #2519)** — upgrade leaves pointer-based charters without
+- **#3282 (P0, → #2519; closed 2026-08-27)** — upgrade leaves pointer-based charters without
   mission-type activations on 3.2.6. A direct lifecycle/reconciliation failure: the
   activation state a charter should carry after upgrade is not derived. The load-bearing
   P0 of this sub-area.
-- **#3176 (P1, 3.2.x, → #2466)** — `build_activation_aware_doctrine_service` cannot
+- **#3176 (P1, → #2466; closed 2026-08-20)** — `build_activation_aware_doctrine_service` cannot
   reach `.kittify/agent_profiles`, blocking `projection.py`'s FR-001 migration onto the
   unified builder. The last named, composite-key-excluded call site keeping the
   sole-door from being one builder / one entry point (see the Open-Core §1.1 residual).
@@ -248,7 +258,7 @@ backward-compatible.
 
 **Design of record.** Epic **#2466** (doctrine/charter extensibility & pack ecosystem —
 pack-split keystone #2467, mission-types-as-doctrine #2468, assets kind, shortcodes,
-pack validator; verified-distribution #2539 deferred to 3.3.x); epic **#2216**
+pack validator; verified-distribution #2539 deferred, now on 4.x Work); epic **#2216**
 (governance tiers — the owner-declared `component-type` immutability model folding in
 the consumer-declared `replaceable-builtins.yaml` #2082) under parent epic **#1799**
 (charter/doctrine governance configuration & docs); the pack/DRG merge semantics in ADR
@@ -375,7 +385,7 @@ external contract, not a parallel effort.
 
 **Open issues.**
 
-- **#3179 (P2, 3.2.x, epic home to reconcile — see §4)** — the public-API thread. Its
+- **#3179 (P2, closed 2026-09-26; parented under #645)** — the public-API thread. Its
   own body cites the #645/#460 precedent (Refs #3101, #645, #460, #2787, #3176); the
   next-slice research recorded it as parented under #2466. §4 recommends the plan text
   reconcile its epic home to **#645** (Epic: Stable Application API Surface), whose
@@ -461,27 +471,25 @@ This plan tracks the **why** (invariants and sub-areas); the epic tracks the
 will turn over as milestones close. Verify live state via
 `gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
-| Issue | Pri | Sub-area (§3) | Milestone | Owning epic | Notes |
+| Issue | Pri | Sub-area (§3) | State (2026-09-30) | Owning epic | Notes |
 |---|---|---|---|---|---|
-| #3282 | P0 | Charter lifecycle (3.1) | 3.2.x | #2519 | Pointer-based charters lack mission-type activations on upgrade |
-| #3176 | P1 | Charter lifecycle / sole-door (3.1) | 3.2.x | #2466 | Last builder-unreachable `.kittify/agent_profiles` site blocking `projection.py` FR-001 |
-| #3261 | P3 | Charter lifecycle (3.1) | — | #2519 | `charter context --include` multi-selector mishandling |
-| #2467 | P1 | Extensibility (3.2) | 3.2.x | #2466 | Pack-split keystone — foundational schema everything builds on |
-| #2468 | P1 | Extensibility (3.2) | 3.2.x | #2466 | Mission-types-as-doctrine (sizing L); reverses a tested no-silent-fallback contract — needs a decision record |
-| #2216 | — | Extensibility / gov tiers (3.2) | — | #1799 | Owner-declared `component-type` immutability, folds in #2082 |
-| #3251 | — | Activation-driven availability (3.3) | — | #2652 | rc35 migration seeds from disk-scan, not `default.yaml` — second-authority drift |
-| #3183 | — | Activation-driven availability (3.3) | — | #2652 | `UnknownMissionTypeError` conflates activation with loadability |
-| #3275 | P3 | Doctrine content quality (3.4) | — | *(none — see §4)* | Supply-chain directive JS/TS-only vs multi-ecosystem scope; tactic duplication |
-| #3230 | — | meta.json fail-closed (3.5) | — | #3259 | Route the 4 residual bypass reads |
-| #3229 | — | meta.json fail-closed (3.5) | — | #3259 | L1 pure-decode primitive (`text\|bytes → dict\|None`) |
-| #3228 | — | meta.json fail-closed (3.5) | — | #3259 | Duplicated VCS-lock comparator — collapse to one |
-| #3240 | — | meta.json fail-closed (3.5) | — | #3259 | Register `inline_meta_read` allow-list in `_baselines.yaml` |
-| #3179 | P2 | Public API surface (3.6) | 3.2.x | #645 *(recommended; tracker shows #2466 — see §4)* | Stable public surface; #645/#460 pattern |
-| #1418 | — | Glossary-as-doctrine (3.7) | — | (glossary program) | `GLOSSARY_PACK` keystone; program mission A |
-| #2599 | — | Glossary-as-doctrine (3.7) | — | #2535 | Executable ASSET-kind gate; program mission D |
+| #3282 | P0 | Charter lifecycle (3.1) | Closed 2026-08-27 (shipped in 3.2.6) | #2519 | Pointer-based charters lack mission-type activations on upgrade |
+| #3176 | P1 | Charter lifecycle / sole-door (3.1) | Closed 2026-08-20 | #2466 | Last builder-unreachable `.kittify/agent_profiles` site blocking `projection.py` FR-001 |
+| #3261 | P3 | Charter lifecycle (3.1) | Open, Product backlog | #2519 | `charter context --include` multi-selector mishandling |
+| #2467 | P2 | Extensibility (3.2) | Open, 4.x Work | #2466 | Pack-split keystone — foundational schema everything builds on |
+| #2468 | P2 | Extensibility (3.2) | Open, 4.x Work | #2466 | Mission-types-as-doctrine (sizing L); reverses a tested no-silent-fallback contract — needs a decision record |
+| #2216 | P2 | Extensibility / gov tiers (3.2) | Open, Product backlog | #2466 | Owner-declared `component-type` immutability, folds in #2082 |
+| #3251 | P3 | Activation-driven availability (3.3) | Open, Product backlog | #2652 | rc35 migration seeds from disk-scan, not `default.yaml` — second-authority drift |
+| #3183 | P2 | Activation-driven availability (3.3) | Closed 2026-08-05 | #2652 | `UnknownMissionTypeError` conflates activation with loadability |
+| #3275 | P3 | Doctrine content quality (3.4) | Open, Product backlog | #2466 *(assigned since; see §4)* | Supply-chain directive JS/TS-only vs multi-ecosystem scope; tactic duplication |
+| #3230 / #3229 / #3228 / #3240 | — | meta.json fail-closed (3.5) | Closed 2026-08-11 (per the 2026-09-04 addendum) | #3259 | Residual bypass reads, pure-decode primitive, VCS-lock comparator, allow-list registration |
+| #3179 | P2 | Public API surface (3.6) | Closed 2026-09-26 | #645 | Stable public surface; #645/#460 pattern |
+| #1418 | P1 | Glossary-as-doctrine (3.7) | Closed 2026-07-22 (PR #2852) | (glossary program) | `GLOSSARY_PACK` keystone; program mission A |
+| #2599 | P2 | Glossary-as-doctrine (3.7) | Open, Product backlog | #2535 | Executable ASSET-kind gate; program mission D |
 
-*Read the WHY in §3; the epic tracks the WHAT-ships-when. Rows with no priority/milestone
-are open but unscheduled; #3275 has no owning epic at all — the §4 content-QA gap.*
+*Read the WHY in §3; the epic tracks the WHAT-ships-when. "Product backlog" means validated
+but on no committed release. #3275 has since been parented under #2466, but the §4
+content-QA gap (no owning workstream) stands.*
 
 ---
 
@@ -489,12 +497,14 @@ are open but unscheduled; #3275 has no owning epic at all — the §4 content-QA
 
 **Sibling domain throughlines (the durable spine of `docs/plans/`):**
 
-- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881; surface re-homed upstream).
-  The **non-goal boundary** for this plan (§1): sync, consent/identity egress, auth, and
-  rollout gating are its domain, not this one. Note the crossing thread — charter domain
-  events (#2520) are emitted on *this* domain's activation seam and consumed by *that*
-  domain's hosted projection.
-- **Packs extraction** — *(planned sibling domain plan; not yet written.)* Will own the
+- **Team Kitty / hosted collaboration** — the former SaaS & hosted sync domain plan was
+  retired 2026-09-06 (Convergence #3881; surface re-homed upstream, see
+  [Team Kitty context](../../context/team-kitty.md)). It remains the **non-goal boundary**
+  for this plan (§1): consent/identity egress, auth and rollout gating are not this domain.
+  The planned crossing thread, charter domain events (#2520), was closed as not planned when
+  the sync transport was removed; no charter event is emitted today.
+- **Packs extraction** — [Packs Extraction — Domain Plan](packs-extraction-domain-plan.md)
+  (its `src/doctrine/` premise has since changed; see its status banner). Owns the
   `kernel → doctrine → charter` wheel cutover (#3101, ADR 2026-08-02-1, Option B,
   no-partial) and the built-in pack extraction (#3091 missions/ relocation, #3022
   `spec-kitty-packs-open`). This plan owns the access boundary and public surface (§3.6)
@@ -502,7 +512,10 @@ are open but unscheduled; #3275 has no owning epic at all — the §4 content-QA
 
 **Release-scoped doctrine/charter docs (the "what ships"):**
 
-- [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md) — the release-window
+- [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) — the active-cycle release
+  companion.
+- [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md) — *superseded, prior
+  cycle.* The release-window
   delivery strategy: charter-as-sole-door done-bar (§1.1/§2.2), built-in → module
   extraction (§2.2), Creed/Values schema (§3 item 4). The `what-ships-in-3.2.x` view of
   §3.1/§3.2 here.

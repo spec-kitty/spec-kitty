@@ -1,10 +1,13 @@
 ---
 title: F1 Knowledge-Capture Plan
 description: 'Proposed knowledge-capture plan anchored in CaaCS Finding F1 (bus factor of 1 across src/ hotspots), honoring DM-D: document and transfer before refactoring.'
-doc_status: active
-updated: '2026-05-11'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # F1 Knowledge-Capture Plan
+
+> **Historical (May 2026 architecture-audit snapshot, 3.2.x cycle).** Kept as a record; issue states and milestones below are as of May 2026, and any reference to a 3.3 milestone is void (3.3.x was retired on 2026-08-23). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > Anchored in the CaaCS audit's Finding F1 (bus factor = 1 across 14/15 src/ hotspots).
 > Honors decision moment **DM-D**: *document/transfer first, then refactor*.

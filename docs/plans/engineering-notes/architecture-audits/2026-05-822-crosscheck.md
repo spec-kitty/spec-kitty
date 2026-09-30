@@ -1,14 +1,17 @@
 ---
 title: 'CaaCS findings ↔ #822 open sub-issues cross-check'
 description: 'Cross-check mapping the 2026-05 CaaCS audit findings onto the open sub-issues of epic #822 (3.2.0 stabilization and release readiness), with per-issue state.'
-doc_status: active
-updated: '2026-05-11'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # CaaCS findings ↔ #822 open sub-issues cross-check
 
+> **Historical (May 2026 architecture-audit snapshot, 3.2.x cycle).** Kept as a record; issue states and milestones below are as of May 2026, and any reference to a 3.3 milestone is void (3.3.x was retired on 2026-08-23). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
+
 ## Inputs
 
-- **Audit**: `/home/stijn/Documents/_code/SDD/fork/spec-kitty/docs/architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08).
+- **Audit**: `<repo-root>/docs/architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08).
 - **Epic**: [Priivacy-ai/spec-kitty#822](https://github.com/Priivacy-ai/spec-kitty/issues/822) — "Epic: 3.2.0 stabilization and release readiness", state OPEN.
 - **Issues read** (state captured 2026-05-08/09 via `gh issue view`):
 

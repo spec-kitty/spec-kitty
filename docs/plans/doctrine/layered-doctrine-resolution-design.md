@@ -2,7 +2,8 @@
 title: Layered Doctrine Resolution — Design Blueprint
 description: 'Design blueprint (approved 2026-05-15) for layered doctrine resolution across issues #832/#883/#1013: how doctrine layers compose and resolve.'
 doc_status: durable
-updated: '2026-08-13'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # Layered Doctrine Resolution — Design Blueprint
 
@@ -14,7 +15,11 @@ Depends on: Phase 7 schema versioning (#469), landed in 3.2.x
 
 ## Problem
 
-The spec-kitty doctrine resolution stack currently has two layers: **shipped** (bundled with the
+*Written 2026-05-15. The org layer this blueprint proposes has since shipped (the three-layer
+built-in → org → project model; see the retired [#391 doctrine usage test](391-doctrine-usage-test.md)),
+so read this section as the problem as it stood then.*
+
+The spec-kitty doctrine resolution stack had two layers at the time: **shipped** (bundled with the
 CLI) and **project** (`.kittify/doctrine/`). This is sufficient for individual project governance,
 but it leaves a structural gap for organisations that adopt spec-kitty across multiple teams.
 
@@ -51,7 +56,7 @@ They are ordered from authoring (upstream) to consumption (downstream).
 > available in every project that uses spec-kitty — without asking project teams to copy anything."
 
 **Actors:** Security Policy Lead (doctrine author), spec-kitty CLI  
-**Preconditions:** spec-kitty ≥ 3.3.x installed; org has adopted spec-kitty for project workflow
+**Preconditions:** a spec-kitty release with org-layer support installed (org packs shipped during 3.2.x; the 3.3.x line named here originally was retired and never shipped); org has adopted spec-kitty for project workflow
 
 1. The lead initialises a new git repository: `security-policies-doctrine`.
 2. She authors directives, tactics, and toolguides in spec-kitty YAML schema under the pack
@@ -124,7 +129,7 @@ their packs independently; the maintainer cuts new distributable releases on the
    install:
    ```bash
    # company install script (conceptual)
-   pipx install spec-kitty-cli==3.3.x
+   pipx install spec-kitty-cli  # any release with org-layer support
    spec-kitty doctrine fetch \
      --source git \
      --url git@internal.example.com:platform/org-doctrine-distributable.git \

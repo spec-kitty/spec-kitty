@@ -1,8 +1,9 @@
 ---
 title: 'Consumer-repo layout portability: disposition and sequencing'
 description: 'Planner disposition for the consumer-repo layout blind spot (#3016/#2330): a bounded 3.2.x correctness down-payment now, broad portability deferred to mission-types-as-doctrine.'
-doc_status: proposed
-updated: '2026-08-15'
+doc_status: draft
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/3-2-x-open-core-delivery-plan.md
@@ -12,7 +13,9 @@ related:
 
 # Consumer-repo layout portability: disposition and sequencing
 
-**Scope:** a `proposed` investigation on the distil-then-retire working surface —
+> **Status update (2026-09-30).** The bounded down-payment shipped: #3016 (accept hard-codes `src/`) closed on 2026-08-29 via PR #3790. The broader portability work, #2330, is open on the *CLI 4.x stable* milestone. The "3.3.x line" named below was retired on 2026-08-23. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
+
+**Scope:** a draft investigation on the distil-then-retire working surface —
 **not** a canonical ADR. It records a planner disposition (roadmap-line vs de-scope
 vs fold vs minimal-fix) and sequencing for the consumer-repo layout blind spot. The
 override-*mechanism* choice (config key vs resolver deep-merge) is a real

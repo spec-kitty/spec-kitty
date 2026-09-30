@@ -1,8 +1,9 @@
 ---
 title: 'Retrospective-learning surface: disposition and sequencing'
 description: 'Planner disposition for the retrospect-surface blind spot (#1239/#2267/#3072): milestone the two orphans now, then mint one lightweight epic on the dual-schema reconciliation.'
-doc_status: proposed
-updated: '2026-08-15'
+doc_status: draft
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/architecture/status-model.md
@@ -11,7 +12,9 @@ related:
 
 # Retrospective-learning surface: disposition and sequencing
 
-**Scope:** a `proposed` investigation on the distil-then-retire working surface —
+> **Status update (2026-09-30).** The two orphans are now milestoned: #2267 on *CLI 4.x stable* and #3072 on *Product backlog*, not 3.2.x as proposed below (the 3.x line closed with 3.2.7). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
+
+**Scope:** a draft investigation on the distil-then-retire working surface —
 **not** a canonical ADR. It records a planner disposition decision (roadmap-line vs
 de-scope vs fold vs minimal-fix) plus sequencing for the retrospective-learning
 blind spot. The one genuinely architectural call inside it — which record contract

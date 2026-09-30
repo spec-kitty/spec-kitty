@@ -2,9 +2,11 @@
 title: Code Quality — Working Collection
 description: 'Standing code-quality surface: the SonarCloud baseline, quality-metric evolution, the smell/vulnerability cluster taxonomy, and how the debt maps onto the degod/unshim waves.'
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
+- docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/refactor/degod-unshim-roadmap.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
@@ -12,18 +14,29 @@ related:
 ---
 # Code Quality — Working Collection
 
+> **Status (2026-09-30).** The metrics and cluster tables below are the **2026-08-12**
+> snapshot, kept as a record. Two things have changed since. First, the live Sonar backlog is
+> now tracked as the 4.0.0 series under #1928 (the Sonar/quality debt parent): #4299–#4305
+> plus #2969 and #2970; see the "Cross-cutting — Sonar / quality debt" section of the
+> [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md). Second, several files named
+> below are gone: `cli/commands/sync.py` was removed with the sync transport, and the
+> `merge/` package became `consolidation/`. Those rows are struck through.
+
 The standing code-quality surface for Spec Kitty: what the SonarCloud analysis of
 `main` actually says, how the metrics have moved, where the debt clusters, and how
 that debt lines up with work the roadmap has already scoped. This is a
 **distil-then-retire** working collection (see [Plans](../index.md)) — the durable
 "why" lives in the [degod/unshim roadmap](../refactor/degod-unshim-roadmap.md) and the
-[3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md); this collection holds the
-measurement and the targeted cleanup scoping.
+[4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) (the
+[3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) is the prior-cycle record); this
+collection holds the measurement and the targeted cleanup scoping.
 
-Analysis source: SonarCloud project `Priivacy-ai_spec-kitty`, branch `main`, snapshot
-of the 2026-08-12 CI Quality run on `f6b90d34e`. Sonar runs only on
-`workflow_dispatch`/`schedule` (nightly); PRs and normal main pushes skip it, so the
-gate reflects the accumulated project-wide backlog rather than any single change.
+Analysis source: the 2026-08-12 CI Quality run on `f6b90d34e`, branch `main`, then under
+the SonarCloud project key `Priivacy-ai_spec-kitty` (now `spec-kitty_spec-kitty`, see
+`sonar-project.properties`). At the time Sonar ran only on the nightly/manual schedule.
+Today it runs on two surfaces: the per-PR `sonar-pr` job in `ci-aggregate.yml` (reported,
+not required) and the nightly/manual `sonar.yml` scan of `main`. The `main` quality gate
+still reflects the accumulated project-wide backlog rather than any single change.
 
 ## Snapshot (`main`, 2026-08-12)
 
@@ -55,7 +68,7 @@ date          ncloc   cov%   dup%   cognitive  smells  vulns  bugs
 2026-08-02   204754   69.9   0.5     36247     1865     21    33
 2026-08-06   204161   73.8   0.5     36508     1903     21    34
 2026-08-11   204992   83.7   0.5     36470     1935     21     0   <- bugs cleared
-2026-08-12   205734   84.1   0.5     36285     1807     21     0   <- current
+2026-08-12   205734   84.1   0.5     36285     1807     21     0   <- last snapshot recorded here
 ```
 
 Reading the trends:
@@ -151,22 +164,26 @@ exactly when the lanes/`next` execution-model merge landed.
 
 | Sonar cluster | Files | Cleanup owner | Wave status |
 |---|---|---|---|
-| S6350 subprocess vulns (17, -> security E) | `lanes/_git`, `lanes/recovery`, `worktree_allocator`, `coordination/surface_resolver`, `core/git_ops`, `merge/push_preflight`, `git/ref_advance` | Wave 2 (coord-authority) + Wave 4 (sync adapters) | QUEUED |
-| S3776 complexity (339) | `cli/commands/sync.py`, `agent/mission_finalize`, `glossary`, `migrate_cmd` | `sync.py` -> Wave 4; coord trio -> Wave 2 | QUEUED |
-| S2083 path-traversal (3, BLOCKER) | `merge/bookkeeping_projection` x2, `skills/verifier` | targeted fix (not on a wave) | open |
-| S1192 dup literals (117) | `calibration/walker` (14), `decision`, `migrate_cmd` | campsite | ongoing |
+| S6350 subprocess vulns (17, -> security E) | `lanes/_git`, `lanes/recovery`, `worktree_allocator`, `coordination/surface_resolver`, `core/git_ops`, ~~`merge/push_preflight`~~ (`merge/` renamed to `consolidation/`), `git/ref_advance` | Wave 2 (coord-authority); ~~Wave 4 (sync adapters)~~ removed with sync | Now #4304 |
+| S3776 complexity (339) | ~~`cli/commands/sync.py`~~ (removed with sync), `agent/mission_finalize`, `glossary`, `migrate_cmd` | coord trio -> Wave 2 | Now #4299 |
+| S2083 path-traversal (3, BLOCKER) | `merge/bookkeeping_projection` x2 (now `consolidation/bookkeeping_projection`), `skills/verifier` | targeted fix (not on a wave) | Now #2970 |
+| S1192 dup literals (117) | `calibration/walker` (14), `decision`, `migrate_cmd` | campsite | Now #4300 |
 
 ## Recommended sequence
+
+*As written on 2026-08-12. Items 2 and 4 are void: `sync.py` was removed with the sync
+transport. For current priorities, use the 4.0.0 Sonar series in the
+[4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md).*
 
 1. **`calibration/walker.py`** dup-literal cleanup — fully safe, ~2h, immediate
    campsite PR. Clears 14 smells and improves URN-constant consistency. See
    [targeted cleanup scoping](targeted-cleanup-scoping.md).
-2. **`cli/commands/sync.py` cheap wins** — the 15 mechanical findings (~1h,
-   behavior-preserving), dropping the file 26 -> 11 smells.
-3. **The 3 S2083 BLOCKERs** — targeted ~90-min fix; not on a degod wave, so schedule
-   before the final 3.2.6 tag.
-4. **`sync.py` complexity monsters** (`status()` CC 90, `doctor()` CC 73) and the
-   S6350 subprocess-hardening — ride the **Wave 2 / Wave 4** degod slices with
+2. ~~**`cli/commands/sync.py` cheap wins** — the 15 mechanical findings (~1h,
+   behavior-preserving), dropping the file 26 -> 11 smells.~~ *Void: file removed.*
+3. **The 3 S2083 BLOCKERs** — targeted ~90-min fix; not on a degod wave. (Originally
+   scheduled before the 3.2.6 tag, which shipped 2026-09-03; now tracked as #2970.)
+4. ~~**`sync.py` complexity monsters** (`status()` CC 90, `doctor()` CC 73)~~ *(void: file
+   removed)* and the S6350 subprocess-hardening (now #4304) — ride the degod slices with
    golden-CLI-characterization tests first, per the degod invariant. Not a cosmetic
    Sonar pass.
 

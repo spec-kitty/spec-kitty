@@ -2,9 +2,17 @@
 title: 3.2 Version Taxonomy
 description: Source of truth for how every page under docs/, architecture/, and root README.md is classified by version relevance for the 3.2 documentation refresh.
 doc_status: active
-updated: '2026-08-13'
+updated: '2026-09-30'
 ---
 # 3.2 Version Taxonomy
+
+> **Status note (2026-09-30): pending an operator ruling.** This taxonomy is anchored to 3.2:
+> it defines `current` as "pages that describe 3.2 behaviour", while the active cycle is now
+> 4.0.0. The generated inventory (`docs/development/3-2-page-inventory.yaml`) still emits a
+> `tag` per page from these definitions. The open decision is whether to make this page
+> version-neutral (for example, `current` = the latest released line) or to retire it along
+> with the `tag` field. Until then, read "3.2" below as "the release line this taxonomy was
+> written for".
 
 > Source of truth for how every page under `docs/`, `architecture/`, and the
 > root `README.md` is classified for the 3.2 documentation refresh.

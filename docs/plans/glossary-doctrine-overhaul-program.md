@@ -2,7 +2,8 @@
 title: 'Glossary Doctrine Overhaul — Program Plan'
 description: 'Program plan: promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, wire terminology enforcement, and build the ASSET gate.'
 doc_status: draft
-updated: '2026-07-21'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
@@ -11,8 +12,14 @@ related:
 
 # Glossary Doctrine Overhaul — Program Plan
 
-> **Status: pre-spec planning.** This is the operator-facing cross-mission sequencing
-> intent, produced from a 4-lens pre-spec research squad (2026-07-21, branch
+> **Status (checked 2026-09-30).** Mission A landed: #1418 (the `GLOSSARY_PACK` kind) closed
+> on 2026-07-22 via PR #2852, and `ArtifactKind.GLOSSARY_PACK` exists in
+> `src/charter/offering/artifact_kinds.py`. Mission D has not shipped: #2599 (executable
+> ASSET-kind gate) is open in Product backlog. Mission C has not happened: `src/glossary/` is
+> still present. Mission B (#2822, #2830, #2823) was not re-checked.
+>
+> *Original status (2026-07-21): pre-spec planning.* This is the operator-facing cross-mission
+> sequencing intent, produced from a 4-lens pre-spec research squad (branch
 > `research/glossary-doctrine-artefact`). It precedes the per-mission specs
 > (`/spec-kitty.specify`) and follows the distil-then-retire lifecycle of `docs/plans/`.
 

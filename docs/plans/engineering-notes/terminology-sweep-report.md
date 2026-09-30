@@ -1,8 +1,9 @@
 ---
 title: Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report
 description: 'Closing terminology/glossary check status and Divio frontmatter coverage record for the docs IA overhaul mission.'
-doc_status: active
-updated: '2026-07-20'
+doc_status: closeout
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 type: explanation
 related:
 - kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md

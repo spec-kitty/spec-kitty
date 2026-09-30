@@ -2,7 +2,7 @@
 title: CaaCS DELTA — Did v3.1.10→v3.2.0 Move the Forensic Needle? (researcher-robbie)
 description: "Researcher Robbie's CaaCS DELTA analysis: did v3.1.10 to v3.2.0 move the forensic needle? A quantitative before-after read, read-only."
 doc_status: deprecated
-updated: '2026-06-16'
+updated: '2026-09-30'
 ---
 # CaaCS DELTA — Did v3.1.10→v3.2.0 Move the Forensic Needle? (researcher-robbie)
 
@@ -192,7 +192,7 @@ of "extract authority → route consumers, even if adoption lags," not drift.
 ## Reproduction (every command, per DIRECTIVE_003)
 
 ```bash
-RADON=/home/stijn/.pyenv/versions/3.13.12/bin/radon
+RADON=<path-to-radon>
 # complexity+SLOC at a tag:
 git show v3.1.10:src/specify_cli/cli/commands/merge.py | $RADON cc -s -a -   # avg + per-block CC
 git show v3.1.10:src/specify_cli/cli/commands/merge.py | wc -l               # SLOC

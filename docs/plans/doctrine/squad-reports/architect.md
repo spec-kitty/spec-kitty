@@ -22,7 +22,7 @@ I have the full picture. Here is the hardening.
 # Hardening: creed / FoundationalValues / `impacts`
 
 **Profile directives applied:** 001, 003, 031, 032, 041, 043, 044 + tactic `development-bdd` (stated above).
-All paths relative to `/home/stijn/Documents/_code/SDD/fork/spec-kitty/.worktrees/docs-manifesto-tier`. Read-only; no git run, no file edited.
+All paths relative to the repository root (the `docs-manifesto-tier` worktree at the time). Read-only; no git run, no file edited.
 
 ---
 

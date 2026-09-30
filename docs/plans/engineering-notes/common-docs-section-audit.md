@@ -2,7 +2,8 @@
 title: Common-Docs section audit (docs-wide structural concern baseline)
 description: 'Post-#2851 concern-bucket audit of every docs/ section: misfiled files, redistribution tally, follow-up proposals, and the durable ratchet-replacement recommendation (#2302).'
 doc_status: draft
-updated: '2026-07-22'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
 - docs/development/index.md
@@ -12,7 +13,7 @@ related:
 
 ## Purpose
 
-Issue [#2851](https://github.com/Priivacy-ai/spec-kitty/issues/2851) disambiguated
+Issue [#2851](https://github.com/spec-kitty/spec-kitty/issues/2851) disambiguated
 `docs/development/` by **concern bucket** and redistributed the misfiled subset to each
 file's canonical home. That same PR (`758c2bd45`) **retired the anti-sprawl ratchet**
 (`scripts/docs/anti_sprawl_ratchet.py`) — the only mechanical guard for canonical sections
@@ -22,9 +23,9 @@ cleaned tree from re-drifting.
 
 This note is the **docs-wide baseline** that closes that gap: it applies #2851's method to the
 rest of the tree, records the misfiled subset, proposes section-clustered follow-up tickets
-under [#2314](https://github.com/Priivacy-ai/spec-kitty/issues/2314) bucket **C**, and
+under [#2314](https://github.com/spec-kitty/spec-kitty/issues/2314) bucket **C**, and
 recommends the durable concern taxonomy that
-[#2302](https://github.com/Priivacy-ai/spec-kitty/issues/2302) should codify as the ratchet's
+[#2302](https://github.com/spec-kitty/spec-kitty/issues/2302) should codify as the ratchet's
 replacement.
 
 **Method (per #2851).** Each non-trivial file is assigned a concern bucket —

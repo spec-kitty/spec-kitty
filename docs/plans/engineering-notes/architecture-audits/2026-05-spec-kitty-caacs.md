@@ -1,14 +1,17 @@
 ---
 title: spec-kitty CaaCS Audit — 2026-05
 description: 'The full 2026-05 Code-as-a-Crime-Scene forensic audit of the spec-kitty repository: metadata, hotspot findings, and the bus-factor and complexity observations.'
-doc_status: active
-updated: '2026-05-19'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # spec-kitty CaaCS Audit — 2026-05
 
+> **Historical (May 2026 architecture-audit snapshot, 3.2.x cycle).** Kept as a record; issue states and milestones below are as of May 2026, and any reference to a 3.3 milestone is void (3.3.x was retired on 2026-08-23). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
+
 ## Audit metadata
 
-- **Repository**: `spec-kitty` (fork at `/home/stijn/Documents/_code/SDD/fork/spec-kitty`)
+- **Repository**: `spec-kitty` (fork at `<repo-root>`)
 - **Branch**: `feat/caacs-doctrine`
 - **Commit SHA at audit time**: `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`
 - **Audit date**: 2026-05-08

@@ -1,12 +1,15 @@
 ---
 title: 'Issue #797 Analysis: Events and Tracker Fork Census'
 description: Read-only census of the EXPERIMENTAL events and tracker lines against their public/PyPI predecessors, with the D6 publication recommendation.
-doc_status: active
-updated: '2026-08-30'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/investigations/index.md
 ---
 # Issue #797 Analysis: Events and Tracker Fork Census
+
+> **Historical (decided).** The D6 publication question this census informed is settled: the CLI now pins `spec-kitty-events>=10.4.0,<11` (see `pyproject.toml`). Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 This is the read-only evidence record for issue #797. It makes no ports and changes no
 dependency pins. All commit counts include merge commits unless explicitly labelled

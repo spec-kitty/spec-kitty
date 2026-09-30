@@ -1,10 +1,12 @@
 ---
 title: 'Initiative: 2026-02 Brainstorm Capture'
 description: Initiative preserving and evaluating the 2026-02 brainstorm corpus originally captured under tmp/doc_brainstorm/, with its structure and evaluation.
-doc_status: draft
-updated: '2026-03-10'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Initiative: 2026-02 Brainstorm Capture
+
+> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 This initiative preserves and evaluates the brainstorm corpus that was originally captured under `tmp/doc_brainstorm/`.
 

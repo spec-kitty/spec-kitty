@@ -1,19 +1,17 @@
 ---
 title: Agent moment delivery policy
 description: 'Agent moment delivery for #4216: team-scoped default for unfamiliar peer activity, identity-scoped receipts as the novelty policy, bounded catch-up shared by CLI and MCP.'
-doc_status: draft
-updated: '2026-09-15'
+doc_status: active
+updated: '2026-09-30'
 type: explanation
-audience: automation-agent
+audience: docs/context/audience/internal/ai-collaboration-agent.md
 ---
 
 # Agent moment delivery policy
 
-Issue: #4216. Governed Op: `01M2808ND3ATY3DGYTG470R04A`.
-Draft delivery: [PR #4224](https://github.com/spec-kitty/spec-kitty/pull/4224).
-The original Op closed with outcome `failed` while the relay contract was pending.
-The continuation integrates relay #295 using the merged #4217 issuer identity
-contract; the original Op log remains unchanged.
+This page describes shipped behaviour: how an agent receives Team Kitty moments (#4216),
+delivered in [PR #4224](https://github.com/spec-kitty/spec-kitty/pull/4224) (merged
+2026-09-16). Provenance is in the footnote at the end.
 
 An agent should discover unfamiliar missions and mission-less activity in the
 single repository it requested. `team` changes admission within that scope; it
@@ -72,7 +70,7 @@ receipts intentionally, but still respects settings and context bounds.
 
 | Issue | Claim | Delivery |
 |---|---|---|
-| spec-kitty/spec-kitty#4216 | Assigned and `status:claimed`; Op above | Client defaults/policy/receipts/catch-up and relay-backed own-identity integration |
+| spec-kitty/spec-kitty#4216 | Assigned and `status:claimed`; Op in the provenance footnote | Client defaults/policy/receipts/catch-up and relay-backed own-identity integration |
 | spec-kitty/spec-kitty-zeitgeist#295 | External dependency | Verified publisher/subscriber identity and relay own-event suppression |
 | spec-kitty/spec-kitty-zeitgeist#296 | External dependency | Initial snapshot and race-safe history/live handoff |
 
@@ -87,3 +85,10 @@ the Op and loaded governance; no mission or fabricated workflow state was create
 The installed `profile-invocation complete --artifact` coerced the PR URL to a
 filesystem path (`https:/...`). The canonical Op log is preserved verbatim;
 its evidence document is this file, which carries the correct PR link above.
+
+---
+
+*Provenance.* Governed Op `01M2808ND3ATY3DGYTG470R04A` (a spec-kitty invocation record). The
+original Op closed with outcome `failed` while the relay contract was pending. The continuation
+integrated relay #295 (`spec-kitty/spec-kitty-zeitgeist#295`, the upstream relay) using the merged
+#4217 issuer identity contract; the original Op log remains unchanged.

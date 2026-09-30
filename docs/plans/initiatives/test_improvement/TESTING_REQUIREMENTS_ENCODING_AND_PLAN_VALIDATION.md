@@ -1,8 +1,8 @@
 ---
 title: 'Functional Testing Requirements: Encoding & Plan Validation Guardrails'
 description: Functional testing requirements specifying the tests needed to lock in the encoding-validation and plan-validation guardrails from the related PR.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Functional Testing Requirements: Encoding & Plan Validation Guardrails
 

@@ -1,8 +1,9 @@
 ---
 title: Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict
 description: What the Common Docs standard mandates, how spec-kitty adopts it fully, and the verdict that in-file frontmatter becomes the metadata SSOT with a regenerated inventory lockfile.
-doc_status: active
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/3-2-page-inventory.yaml
 - docs/docfx.json
@@ -10,6 +11,8 @@ related:
 - docs/plans/engineering-notes/651-docs-consolidation/index.md
 ---
 # Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict
+
+> **Historical (delivered).** The Common Docs consolidation described here shipped: see [ADR 2026-06-27-1](../../../adr/3.x/2026-06-27-1-common-docs-reconciliation.md) and the per-section `index.md` / frontmatter now used across `docs/`. Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > Research capture (paula-patterns, 2026-06-27) of the **actual** Common Docs standard
 > (<https://github.com/velvet-tiger/common-docs>) for the #2165/#651 full-consolidation

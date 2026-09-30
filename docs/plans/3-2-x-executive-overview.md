@@ -1,8 +1,9 @@
 ---
 title: '3.2.x Executive Overview'
 description: 'Executive/stakeholder synthesis of 3.2.x goals and progress since the 3.2.4 release — from a PO, C-suite, and customer point of view.'
-doc_status: active
-updated: '2026-09-04'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/external/product-manager-evaluator.md
 related:
 - docs/changelog/3.2.x.md
 - docs/plans/3-2-x-milestone-roadmap.md
@@ -12,6 +13,11 @@ related:
 ---
 
 # 3.2.x Executive Overview
+
+> **Prior cycle (3.2.x), kept as a record.** This is a stakeholder snapshot written
+> 2026-07-30 to 2026-09-04. The 3.2.x line closed with 3.2.7 (2026-09-10), and the active cycle
+> is 4.0.0; see the [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md). Present-tense
+> statements below ("in flight", decisions pending) describe that time, not today.
 
 > **Related domain plans (durable throughlines):** SaaS & Hosted Sync (domain plan retired 2026-09-06, Convergence #3881 — surface re-homed upstream) · [Doctrine & Charter](domains/doctrine-charter-domain-plan.md). This overview is release-scoped; the domain plans hold the version-spanning strategy and the standing P0/reliability picture behind these outcomes.
 

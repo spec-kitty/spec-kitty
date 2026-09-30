@@ -1,8 +1,9 @@
 ---
 title: QA Mission — Tidy-First Sequencing (does degod-before-test-QA pay off?)
 description: 'Which degod/deshim/dead-code cleanup makes the #2071 test-QA mission cheaper, driven by the CaaCS co-change data — and which does not.'
-doc_status: active
-updated: '2026-07-13'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/testing/test-suite-friction-audit.md
 - docs/plans/testing/test-change-coupling-caacs.md
@@ -10,6 +11,8 @@ related:
 - docs/plans/3-2-x-milestone-roadmap.md
 ---
 # QA Mission — Tidy-First Sequencing
+
+> **Historical (3.2.x cycle).** Kept as a record. The test-friction epics this note served, #2071 (tests as scaffold, not friction) and its parent #1931, are closed. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 *Sequencing note, 2026-07-13. Written while planning the second of the "two
 missions, perf first" pair (the CI test-topology-performance mission shipped as

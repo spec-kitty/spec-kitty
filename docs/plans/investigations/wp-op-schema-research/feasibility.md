@@ -1,13 +1,16 @@
 ---
 title: 'WP & Op Schema Research — Feasibility & Whack-a-Field (paula-patterns)'
 description: 'Verbatim research report: architectural feasibility, ownership/boundary patterns, and smallest de-risking slice for the WP & Op schema-model idea.'
-doc_status: reference
-updated: '2026-07-16'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/investigations/wp-op-schema-research/README.md
 - docs/plans/investigations/wp-op-schema-model.md
 ---
 # Paula Patterns — Feasibility & Whack-a-Field Review: WP/Op Schema Model
+
+> **Historical (verbatim research report, 2026-07-16).** Archived input to the [WP & Op schema model](../wp-op-schema-model.md) idea note; milestone references are to the closed 3.2.x cycle and the retired 3.3.x line. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 **Scope reviewed:** `wp-op-schema-model.md` idea note against the code as-is on clean `main`. Read-only.
 

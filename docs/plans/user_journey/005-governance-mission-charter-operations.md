@@ -1,10 +1,13 @@
 ---
 title: 'User Journey: Governance Mission Creation and Charter Operations'
 description: 'User journey for governance mission creation and charter operations: how charters are interviewed, compiled, and operated, in a field-table record.'
-doc_status: draft
-updated: '2026-03-10'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # User Journey: Governance Mission Creation and Charter Operations
+
+> **Historical (2.x-era vision snapshot).** Written in early 2026 and not re-validated against the 4.x CLI. `spec-kitty charter interview` and `charter generate` now exist, while `spec-kitty charter sync` is a no-op kept for compatibility (governance is hand-authored in `charter.yaml`), so the sync steps below no longer apply. Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 | Field | Value |
 |---|---|

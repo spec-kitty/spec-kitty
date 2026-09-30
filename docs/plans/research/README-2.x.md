@@ -1,10 +1,13 @@
 ---
 title: 2.x — research (history slot)
 description: Per-era research (spike/exploration) record for the 2.x architecture track, part of the versioned history beneath the living architecture.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # 2.x — research (history slot)
+
+> **Retired (empty slot).** No research artifact was ever filed here; kept only so existing links resolve. Per-era history now lives under [architecture](../../architecture/README.md).
 
 Per-era **research** (spike/exploration) record for the 2.x architecture track.
 This is part of the **versioned history beneath** the living architecture (see

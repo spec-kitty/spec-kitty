@@ -1,10 +1,13 @@
 ---
 title: Mutation Testing Findings (WP05)
 description: 'Findings from the WP05 mutation-testing baseline run across the status/, glossary/, merge/, and core/ priority modules: surviving mutants and gaps.'
-doc_status: draft
-updated: '2026-04-25'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Mutation Testing Findings (WP05)
+
+> **Historical (March 2026 baseline).** Kept as a record; mutation scores below are as of that run. For how to run mutation tests today, see [Run mutation tests](../../development/testing/run-mutation-tests.md). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 This document captures findings from the WP05 mutation testing baseline run against all four priority modules:
 `status/`, `glossary/`, `merge/`, `core/`.

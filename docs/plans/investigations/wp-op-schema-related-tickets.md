@@ -1,13 +1,16 @@
 ---
 title: WP & Op Schema Model — Related Open Tracker Tickets
 description: 'Deduped map of open tracker issues covering WP-metadata rework, ops/WP-template moves, model-first formalization, and WP prompt/template friction, from a three-lens sweep.'
-doc_status: reference
-updated: '2026-07-16'
+doc_status: draft
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/investigations/wp-op-schema-model.md
 - docs/plans/investigations/wp-op-schema-research/README.md
 ---
 # WP & Op Schema Model — Related Open Tracker Tickets
+
+> **Status update (2026-09-30).** Parked idea, written against the 3.2.x milestone. The 3.x line has closed and 3.3.x was retired, so any "deferred to 3.3.x" routing below needs re-triage. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 Deduped synthesis of a three-lens tracker sweep (WP-metadata/hash · ops/invocation ·
 template-moves/format) over `Priivacy-ai/spec-kitty` (371 open issues), grounded

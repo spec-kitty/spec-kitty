@@ -1,10 +1,13 @@
 ---
 title: CI Quality Workflow Structure
 description: Visual overview of the CI Quality workflow structure, showing how linting checks were converted from blocking to informational, with a solution summary.
-doc_status: draft
-updated: '2026-02-25'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # CI Quality Workflow Structure
+
+> **Superseded.** Describes the February 2026 `ci-quality.yml` layout, before the modular CI from #3995 (the lean CI reinstatement). See [CI gate mechanics](../../development/reference/ci-gate-mechanics.md). Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 This document provides a visual overview of the CI Quality workflow structure, showing how linting checks were converted from blocking to informational warnings.
 

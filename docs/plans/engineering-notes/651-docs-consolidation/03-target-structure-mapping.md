@@ -1,13 +1,16 @@
 ---
 title: 'Target structure & tree mapping — #651 docs consolidation'
 description: The canonical Common Docs top-level structure for spec-kitty and the per-tree mapping decisions, including the glossary/dashboard constraint and engineering_notes location.
-doc_status: active
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/651-docs-consolidation/02-common-docs-standard.md
 - docs/plans/engineering-notes/651-docs-consolidation/index.md
 ---
 # Target structure & tree mapping (#651 docs consolidation)
+
+> **Historical (delivered).** The Common Docs consolidation described here shipped: see [ADR 2026-06-27-1](../../../adr/3.x/2026-06-27-1-common-docs-reconciliation.md) and the per-section `index.md` / frontmatter now used across `docs/`. Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > Operator-directed target structure and mapping decisions (2026-06-27). Companion to
 > [the four-lens review](./index.md) and [the standard analysis](./02-common-docs-standard.md).

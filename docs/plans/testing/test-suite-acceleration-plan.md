@@ -1,8 +1,9 @@
 ---
 title: Test Suite Acceleration — Final Remediation Plan
 description: Final remediation plan for accelerating the test suite, including the HOME-isolation hazard (Path.home()/.spec-kitty in an autouse conftest) and its fixes.
-doc_status: draft
-updated: '2026-07-12'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/testing/testing-parallel.md
 - docs/plans/testing/ci-job-timings.md
@@ -64,6 +65,8 @@ a dedicated follow-up if this plan's own currency needs a complete pass.
 All load-bearing facts are confirmed. The HOME hazard is real (`Path.home() / ".spec-kitty"` at conftest.py:119, autouse in agent conftest with no HOME monkeypatch), the FSM parametrize is exactly as described, and the CI critical-path chain is verified. I have sufficient verified ground truth to produce the final synthesis report.
 
 # Test Suite Acceleration — Final Remediation Plan
+
+> **Historical (3.2.x cycle).** Kept as a record. The shard layout it analyses was replaced by the modular CI from #3995, and parallel local runs with per-worker HOME isolation are now standard (see [parallel testing](../../development/testing/testing-parallel.md)). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 ## 1. Executive Summary
 

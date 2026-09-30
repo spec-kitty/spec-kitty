@@ -2,12 +2,15 @@
 title: 'Research: the declared-but-inert doctrine/DRG seam family (#3608, #3530, #3629)'
 description: 'Research brief for the declared-but-inert doctrine/DRG seam family: the shared declaration-vs-consumption root cause and per-issue accuracy verdicts (#3608, #3530, #3629).'
 doc_status: deprecated
-updated: '2026-08-24'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 ---
 # Research: the "declared-but-inert" doctrine/DRG seam family (#3608, #3530, #3514, #3511, #3629)
+
+> **Historical (3.2.x cycle).** Kept as a record; the "3.2.x" milestone below is the closed prior cycle. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 **Date:** 2026-08-23
 **Branch:** `research/issues-3608-3530-3514-3511-3629`

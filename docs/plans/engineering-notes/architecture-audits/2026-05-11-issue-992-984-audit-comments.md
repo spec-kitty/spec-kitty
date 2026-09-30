@@ -1,10 +1,13 @@
 ---
 title: 'Audit relationship to #992 and #984 — deep read'
 description: 'Deep read relating the 2026-05 CaaCS audit to issues #992 and #984, classifying their strength on the findings under the brownfield-investigation paradigm.'
-doc_status: active
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # Audit relationship to #992 and #984 — deep read
+
+> **Historical (May 2026 architecture-audit snapshot, 3.2.x cycle).** Kept as a record; issue states and milestones below are as of May 2026, and any reference to a 3.3 milestone is void (3.3.x was retired on 2026-08-23). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 ## Inputs
 

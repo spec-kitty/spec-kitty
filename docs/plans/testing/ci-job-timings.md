@@ -1,8 +1,9 @@
 ---
 title: CI Job Timings — ci-test-topology-performance-01KXBJRT
 description: Committed E4 timings artifact for the CI test-topology performance mission — pre-mission baseline, post-change budgets, and real per-leg wall-clock from a CI run.
-doc_status: active
-updated: '2026-07-12'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/testing/testing-parallel.md
 - docs/plans/testing/test-suite-acceleration-plan.md
@@ -11,6 +12,8 @@ related:
 ---
 
 # CI Job Timings — `ci-test-topology-performance-01KXBJRT`
+
+> **Superseded.** Timings for the retired `ci-quality.yml` shard topology of mission `01KXBJRT`; the modular CI from #3995 (the lean CI reinstatement) replaced those jobs. See [CI gate mechanics](../../development/reference/ci-gate-mechanics.md). Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 This is the mission's **E4 timings artifact** (`data-model.md` E4, mirroring
 `tests/architectural/_gate_coverage.py`'s `_TIMINGS_BASELINE` shape). Per

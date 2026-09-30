@@ -1,8 +1,8 @@
 ---
 title: 1. Specialist Handoff as a First-Class Mechanism
 description: Raw lineage dump of a 2026-02-17 deep architectural-synthesis brainstorm step, preserved as provenance for the architecture-discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 > I was also thinking we can have the specialist agents suggest follow-ups / handoffs to other specialists and guide the user forwards, keeping the human in charge. I see this as a powerfull approach to maintain consistency in doctrine between both modes, and a way to enable "quick tasks", such as bugfixing, questions, brainstorming, ci updates, small refactors. An additional use case would be "process refinement", where a user interactively guides the kitty agent crew through a novel approach, then wraps up with "now, formalize this approach, so it is repeatable"
 

@@ -1,26 +1,34 @@
 ---
 title: Research
-description: Landing page for the plans research artifacts — per-era research history slots and standalone research syntheses.
+description: Landing page for the plans research artifacts — live research notes, superseded syntheses, and the retired per-era history slots.
 doc_status: draft
-updated: '2026-08-11'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 ---
 # Research
 
-Landing page for the plans research artifacts: per-era research (spike/exploration)
-history slots and standalone research syntheses.
+Standalone research notes and syntheses that sit outside a single mission.
 
-## Per-era history slots
+These notes follow the distil-then-retire lifecycle described in the
+[plans index](../index.md): pages retire once their question is answered or their
+subject ships. The active cycle is 4.0.0 — see the
+[4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
-- [1.x — research (history slot)](README-1.x.md) — per-era research record for the 1.x architecture track.
-- [2.x — research (history slot)](README-2.x.md) — per-era research record for the 2.x architecture track.
+## Live
 
-## Standalone research
+- [Session-presence harness gaps](session-presence-harness-gaps.md) — open questions on how each
+  agent harness reads a persistent instruction file, before a session-presence writer can be built for it.
 
-- [Event-sync retention & delivery — synthesis](2026-06-25-event-sync-retention-delivery-synthesis.md)
-- [Session-presence harness gaps](session-presence-harness-gaps.md)
+## Historical
+
+- [Event-sync retention & delivery — synthesis](2026-06-25-event-sync-retention-delivery-synthesis.md) —
+  **superseded**; the sync transport it analysed was removed. Hosted status now runs through
+  Team Kitty over Zeitgeist (see [Team Kitty](../../context/team-kitty.md)).
+- [1.x — research (history slot)](README-1.x.md) and [2.x — research (history slot)](README-2.x.md) —
+  **retired**; empty per-era slots that never received content.
 
 ## See also
 
-- [Plans home](../index.md)
+- [Plans index](../index.md)

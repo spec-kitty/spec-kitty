@@ -1,12 +1,15 @@
 ---
 title: 'Tracking Issue: `documentation` Mission `next` Mapping'
-description: Open tracking issue for the documentation mission's spec-kitty next mapping/template gap, owned by the spec-kitty team.
-doc_status: draft
-updated: '2026-02-17'
+description: Closed tracking issue for the documentation mission's spec-kitty next mapping/template gap, owned by the spec-kitty team.
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Tracking Issue: `documentation` Mission `next` Mapping
 
-Status: OPEN
+> **Historical (closed).** The gap is closed and the guard test is no longer `xfail`; kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
+
+Status: CLOSED (verified 2026-09-30: `test_documentation_mission_should_return_runnable_step_when_mapped` in `tests/next/test_next_command_integration.py` is a hard regression check, not `xfail`)
 Owner: spec-kitty team
 Created: 2026-02-17
 
@@ -16,7 +19,7 @@ Created: 2026-02-17
 
 ## Desired Behavior
 
-For a feature using mission `documentation`, first `next` call returns:
+For a mission of type `documentation`, first `next` call returns:
 
 1. `kind=step`
 2. non-null `action`

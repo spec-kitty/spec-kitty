@@ -1,13 +1,16 @@
 ---
 title: 'CaaCS: test↔production change-coupling analysis'
 description: 'Change-coupling-as-a-code-smell mining of the architectural + core test suites to rank refactor-fragile tests for revision/rewrite/deletion.'
-doc_status: active
-updated: '2026-07-21'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/testing/test-suite-friction-audit.md
 - docs/development/testing/testing-flakiness.md
 ---
 # CaaCS: test↔production change-coupling analysis
+
+> **Historical (3.2.x cycle).** Kept as a record. The test-friction epics this note served, #2071 (tests as scaffold, not friction) and its parent #1931, are closed. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 **Question.** Which test files change *because production code merely moved*,
 rather than because behaviour changed? Those are the refactor-fragile,

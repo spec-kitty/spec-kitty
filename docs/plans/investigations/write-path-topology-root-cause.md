@@ -1,8 +1,9 @@
 ---
 title: 'Write-path topology: ambient-location root cause and remediation options'
 description: 'Root-cause analysis of the ambient-location write-target defect class (#3129, 14 issues), squad-corroborated, with a scoped remediation seed for a future mission.'
-doc_status: draft
-updated: '2026-08-01'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/changelog/3.2.x.md
@@ -12,6 +13,8 @@ related:
 ---
 
 # Write-path topology: ambient-location root cause and remediation options
+
+> **Historical (delivered in 3.2.6).** The remediation this note scoped shipped in the 3.2.6 line: a checkout-identity guard now refuses foreign-checkout writes (#3128) across the #3129 command family, via mission `write-path-integrity-01KZZD69` and the 3.2.6rc2 fixes (see `CHANGELOG.md`). References below to "the current 3.2.x milestone" are prior-cycle. Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 **Scope:** pre-spec research. Corroborate or disprove GH issue
 [#3129](https://github.com/Priivacy-ai/spec-kitty/issues/3129)'s diagnosis before any mission is

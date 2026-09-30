@@ -2,7 +2,8 @@
 title: Doctrine
 description: Doctrine layering, charter boundary, and artifact-selection planning — architecture reviews, gap analyses, and mission scope notes.
 doc_status: draft
-updated: '2026-07-26'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 ---
@@ -12,7 +13,7 @@ Design and review artifacts for the doctrine layering system: charter/runtime
 boundary audits, layered resolution design, org-doctrine-layer reviews, and
 related mission scope notes.
 
-> **Reconciliation note (IC-02).** Most working-notes below have been **retired
+> **Reconciliation note.** Most working-notes below have been **retired
 > (`doc_status: deprecated`)** — their designs shipped or were superseded; each
 > retired page carries an evidence banner and is preserved as a historical
 > record. The **AUTHORITY** creed docs, the **Layered Doctrine Resolution** design
@@ -25,7 +26,13 @@ related mission scope notes.
 - [Pre-flight investigation — user-authored doctrine artifact selection](doctrine-artifact-selection-preflight.md) — **retired (deprecated)**
 - [Doctrine Inclusion Assessment](doctrine-inclusion-assessment.md) — **retired (deprecated)**
 - [Doctrine Migration: Architecture Alignment Review](doctrine-migration-architecture-review.md) — **retired (deprecated)**
-- [Layered Doctrine Resolution — Design Blueprint](layered-doctrine-resolution-design.md) — *live (HOLD — operator durable-vs-retire ruling pending)*
+- [Layered Doctrine Resolution — Design Blueprint](layered-doctrine-resolution-design.md) — *durable in its frontmatter; the durable-vs-retire operator ruling is still pending*
+- [Repo-Coupling Audit of Built-In Doctrine](built-in-doctrine-repo-coupling-audit.md) — **retired (deprecated)**
+- [Charter Activation vs DRG Reachability](charter-activation-reachability-assessment.md) — **retired (deprecated)**
+- [Delivery-reachability wiring table (FR-015)](delivery-reachability-wiring-table.md) — **retired (deprecated)**
+- [Cross-Layer missions/ Reader Inventory (WP03)](missions-reader-inventory-01KZ6G6H.md) — **retired (deprecated)**
+- [Charter-Resolution Program](../charter-resolution/README.md) — sibling folder; *parked since 2026-08-19*
+
 *Tiering: **AUTHORITY** docs are the only citable design/sequence statements; **RECORD** docs are superseded inputs and verdicts kept for provenance; **EVIDENCE** docs are raw squad reports and measurements.*
 
 - [The Manifesto Tier — doctrine's missing primary-driver layer](manifesto-tier-primary-drivers.md) — RECORD; **retired (deprecated)**; *superseded in part; read the verdict first*
@@ -59,11 +66,16 @@ specced, then split, and does **not** itself implement (its `tasks/` carries no 
 | C | `test-quality-doctrine-series-01KYFV8H` | The original #2935 deliverable: paradigm, DIRECTIVE_047, procedure, anti-patterns, assets, DIRECTIVE_041 intent split, CLI/CI validator parity |
 | D | `foundational-values-creed-band-01KYFV8N` | Reachable creed band: I5, I9, I6, I13, I8, I1a, I16, I4-WP01–03, I10 |
 
-**Mandatory order: A → B1 → B2 → C; D gates on A only.** The order is load-bearing (C-009/C-010),
-not preference. Full increment→mission mapping, the two measurements that amended the ranked list,
+**Mandatory order: A → B1 → B2 → C; D gates on A only.** The order is load-bearing (the
+programme's sequencing constraints), not preference.
+
+**Status (checked 2026-09-30): stalled after Mission A.** Mission A landed (consolidated as
+mission 186). Missions B1, B2, C and D were created on 2026-07-26 but never got past
+specify: their only status event is `SpecifyStarted` and they have no mission number.
+Re-confirm the programme before resuming it. Full increment→mission mapping, the two measurements that amended the ranked list,
 and the D-2/D-3 rulings are recorded in
 [`manifesto-program-delivery-sequence.md` § 10](manifesto-program-delivery-sequence.md#10-realization-amendment-2026-07-26).
 
 ## See also
 
-- [Plans home](../../index.md)
+- [Plans home](../index.md)

@@ -2,10 +2,31 @@
 title: 'zeitgeist_client WP01 — remaining scope'
 description: 'Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed.'
 doc_status: active
-updated: '2026-08-22'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 
 # zeitgeist_client WP01 — remaining scope
+
+> **Reading this page.** The codes are work-item handles from the Zeitgeist programme plan,
+> kept so the page lines up with commit messages and module docstrings. `Z<n>` items are
+> Zeitgeist client/relay work items and `-T1`/`-C` mark the task or client slice (for
+> example `Z1-T1` is this WP01, `Z7-C` the CLI/MCP subscription slice). `F<n>` items are
+> producer-side schema work in other repos (`spec-kitty-events`, `zeitgeist`). `O1-C` is the
+> client operability slice. `FIX-M2-15` is a numbered fix from the M2 integration review.
+>
+> **Status (re-checked against the code 2026-09-30).** Still open: item 1 (there is no
+> `validator.py`), item 2 (`ZeitgeistClient.status()`/`.watch()` in `transport.py` still raise
+> `NotImplementedError` and point here) and item 7 (no `docs/zeitgeist-client.md`). Largely
+> overtaken: item 5. `zeitgeist_client/resolution.py` now resolves and stores a checkout's relay
+> credential automatically (cached credential, else mint from Team Kitty), and
+> `spec-kitty zeitgeist status` derives `repo` from the checkout's origin remote. There is
+> still no explicit `checkout` command. Later work, including the #4216 moment delivery, added
+> modules and commands not listed below (for example `agent_delivery.py`, `moments.py`,
+> `own_filter.py`, `receipts.py`, `history.py`, `session_identity.py`, and the `activity`,
+> `send`, `reply`, `read` and `inbox` commands); see
+> [Agent moment delivery policy](agent-moment-delivery-4216.md). Item 6 was not re-checked.
+> The body below is the 2026-08-22 text.
 
 Status note for `src/specify_cli/zeitgeist_client/` (Bead `Z1-T1`). This is the
 committed source of truth that in-code comments and error messages point to

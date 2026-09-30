@@ -1,8 +1,9 @@
 ---
 title: "Flippable-oracle proof (#2342)"
 description: "Flippable-oracle proof for spec-kitty #2342: the raw 5.0s budget oracle cannot flip on this hardware, so a calibrated relative-delta oracle was used for the bisection."
-doc_status: draft
-updated: '2026-07-05'
+doc_status: closeout
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 
 # Flippable-oracle proof — retro-summary NFR investigation (#2342)

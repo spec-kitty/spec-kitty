@@ -1,10 +1,13 @@
 ---
 title: CI Coverage Gate — Tuning Notes
 description: 'Tuning notes for the split CI coverage gate introduced by mission 062 (WP07): how the project-wide and new-code coverage thresholds were calibrated.'
-doc_status: draft
-updated: '2026-04-04'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 # CI Coverage Gate — Tuning Notes
+
+> **Superseded.** Tuning notes for the mission-062 coverage gate in the old `ci-quality.yml`. Per-PR coverage is now the diff-cover ≥90% gate in `ci-aggregate.yml`; see [CI gate mechanics](../../development/reference/ci-gate-mechanics.md). Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 ## Context
 

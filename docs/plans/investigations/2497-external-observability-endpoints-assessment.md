@@ -1,14 +1,17 @@
 ---
 title: 'RFC #2497 — External Observability Endpoints: Squad Assessment'
 description: "Squad assessment of RFC #2497's five proposed external-observability CLI endpoints across architecture, duplication, and doctrine lenses, with retain/create/decline calls."
-doc_status: active
-updated: '2026-07-18'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/index.md
 - docs/api/cli-commands.md
 ---
 
 # RFC #2497 — External Observability Endpoints: Squad Assessment
+
+> **Superseded.** RFC #2497 was closed on 2026-08-02, and the event-journal and sync modules this assessment builds on (`src/specify_cli/event_journal/`, `src/specify_cli/sync/`) no longer exist. Hosted observability now runs through Team Kitty over Zeitgeist — see [Team Kitty](../../context/team-kitty.md). Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 *Assessment synthesis, 2026-07-09 (design-alignment corrections applied 2026-07-18). Three profile-loaded lenses — architecture (architect-alphonso), duplication/consolidation (paula-patterns), doctrine/governance (doctrine-daphne) — evaluated the five endpoints proposed in [RFC #2497](https://github.com/Priivacy-ai/spec-kitty/issues/2497) (author: @OriPekelman) against the current codebase; a second scrutiny pass re-verified every claim against `main` and the [#645 Stable Application API Surface](https://github.com/Priivacy-ai/spec-kitty/issues/645) epic's scope; and a second-opinion pass re-checked the recommendations against the architectural direction refined since 2026-07-09 — the formalized doctrine→charter→runtime authority layering (ADR [2026-07-15-1](../../adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md)), the WP-runtime-state / event-log-eviction model (ADR [2026-07-16-1](../../adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md)), and the landed `MissionResolver` port (#2173). No endpoint verdict changed across the passes; the refinements below are precision, routing, and new governance guards.*
 

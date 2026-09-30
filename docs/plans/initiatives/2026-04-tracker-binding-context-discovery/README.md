@@ -1,10 +1,12 @@
 ---
 title: 'Initiative: Tracker Binding Context Discovery'
 description: Initiative packaging the follow-on implementation prompts for the three repositories affected by the tracker-binding-context-discovery ADR.
-doc_status: draft
-updated: '2026-04-04'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Initiative: Tracker Binding Context Discovery
+
+> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 This directory packages the follow-on implementation prompts for the three
 repositories affected by ADR

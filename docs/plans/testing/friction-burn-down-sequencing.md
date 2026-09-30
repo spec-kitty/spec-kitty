@@ -1,8 +1,9 @@
 ---
 title: Friction Burn-Down Sequencing — false-red / manual-toll engines
 description: 'Sequencing note for the 3.2.x dev-friction burn-down: what already landed, the narrow toll that actually remains, and which gates look like friction but must NOT be touched.'
-doc_status: draft
-updated: '2026-08-17'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/testing/test-suite-friction-audit.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
@@ -12,6 +13,8 @@ related:
 ---
 
 # Friction Burn-Down Sequencing — false-red / manual-toll engines
+
+> **Historical (3.2.x cycle).** Kept as a record. The test-friction epics this note served, #2071 (tests as scaffold, not friction) and its parent #1931, are closed, and the residual tolls listed below (#3458, #2625) closed in September 2026. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 Companion sequencing note to the [test-suite friction audit](test-suite-friction-audit.md)
 (epic [#2071](https://github.com/Priivacy-ai/spec-kitty/issues/2071) / [#1931](https://github.com/Priivacy-ai/spec-kitty/issues/1931)).

@@ -1,8 +1,9 @@
 ---
 title: 'Docs Consolidation (#2165 / #651) — four-lens review and direction'
 description: Adversarial four-lens review of Common Docs adoption for spec-kitty, the premise corrections, and the operator's full-consolidation direction (era-split ADRs, living design).
-doc_status: active
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/3.x/README.md
 - docs/development/3-2-page-inventory.yaml
@@ -10,6 +11,8 @@ related:
 - docs/llms.txt
 ---
 # Docs Consolidation (#2165 / #651) — four-lens review and direction
+
+> **Historical (delivered).** The Common Docs consolidation described here shipped: see [ADR 2026-06-27-1](../../../adr/3.x/2026-06-27-1-common-docs-reconciliation.md) and the per-section `index.md` / frontmatter now used across `docs/`. Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > Engineering note capturing the 2026-06-27 adversarial review of GitHub issue
 > [#2165](https://github.com/Priivacy-ai/spec-kitty/issues/2165) (partial adoption of

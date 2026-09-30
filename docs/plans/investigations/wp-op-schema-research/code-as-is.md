@@ -1,13 +1,16 @@
 ---
 title: 'WP & Op Schema Research — Code As-Is (architect-alphonso)'
 description: 'Verbatim research report: current reality of WP and Op records and the content-address machinery, grounding the WP & Op schema-model idea.'
-doc_status: reference
-updated: '2026-07-16'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/investigations/wp-op-schema-research/README.md
 - docs/plans/investigations/wp-op-schema-model.md
 ---
 # Code-As-Is Map: WP & Op Lifecycle and Content-Address Machinery
+
+> **Historical (verbatim research report, 2026-07-16).** Archived input to the [WP & Op schema model](../wp-op-schema-model.md) idea note; milestone references are to the closed 3.2.x cycle and the retired 3.3.x line. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 Lens: the current reality of Work-Package and Op records, so the schema-model idea can be judged. All paths relative to the repo root.
 

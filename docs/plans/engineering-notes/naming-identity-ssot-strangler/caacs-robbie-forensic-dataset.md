@@ -2,7 +2,7 @@
 title: CaaCS — Robbie's Forensic Dataset (Quantitative Evidence Base)
 description: "Researcher Robbie's CaaCS forensic dataset: the quantitative evidence base for the naming/identity SSOT strangler, read-only at 3.2.0."
 doc_status: deprecated
-updated: '2026-06-16'
+updated: '2026-09-30'
 ---
 # CaaCS — Robbie's Forensic Dataset (Quantitative Evidence Base)
 
@@ -35,7 +35,7 @@ agent CLI orchestration files (`agent/mission.py`, `agent/workflow.py`, `agent/s
 generated agent dirs (`.claude/` etc., naturally outside `src/`), mission-state JSONL/JSON. The
 surface is hand-curated Python source, so vanity-file dominance is not a risk here.
 
-**Tooling:** `git` 2.x; `radon` 6.x via `/home/stijn/.pyenv/versions/3.13.12/bin/radon`
+**Tooling:** `git` 2.x; `radon` 6.x via `<path-to-radon>`
 (complexity overlay); `wc -l` for SLOC (`cloc` not installed — acceptable for Python-only scope).
 
 ### Data caveats — these materially shape every table below
@@ -317,9 +317,9 @@ git log --no-merges --numstat --format='' -- <file> \
   | awk '$3!=""{a+=$1;d+=$2} END{print a, d}'
 
 # Complexity overlay
-/home/stijn/.pyenv/versions/3.13.12/bin/radon cc -a <file>          # avgCC, blocks
-/home/stijn/.pyenv/versions/3.13.12/bin/radon cc -j <file>          # max-block CC (parsed)
-/home/stijn/.pyenv/versions/3.13.12/bin/radon mi -s <file>          # MI
+<path-to-radon> cc -a <file>          # avgCC, blocks
+<path-to-radon> cc -j <file>          # max-block CC (parsed)
+<path-to-radon> mi -s <file>          # MI
 
 # Defect density (raw) + naming-class (discriminating)
 git log --no-merges -i -E --grep='fix|bug|broken|regress|hotfix|revert' --format='%H' -- <file> | wc -l

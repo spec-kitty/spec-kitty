@@ -1,12 +1,15 @@
 ---
 title: 'User Journey: System Design & Shared Understanding'
 description: 'User journey for system design and shared understanding: how a team builds shared design context through Spec Kitty, in a field-table record.'
-doc_status: draft
-updated: '2026-04-05'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/user_journey/001-project-onboarding-bootstrap.md
 ---
 # User Journey: System Design & Shared Understanding
+
+> **Historical (2.x-era vision snapshot).** Written in early 2026 and not re-validated against the 4.x CLI; some steps have since shipped in a different form, and older "feature" wording means *mission*. Kept as a record. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 | Field | Value |
 |---|---|

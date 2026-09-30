@@ -1,8 +1,8 @@
 ---
 title: Index of brainstorm
 description: 'Timeline index of the 2026-02 repository-structuring brainstorm session: the transcriptions produced and the new user journeys they generated.'
-doc_status: draft
-updated: '2026-03-10'
+doc_status: deprecated
+updated: '2026-09-30'
 related:
 - docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/dialectics/dialectic-structured-vs-adhoc.md
 - docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_start.dump.md

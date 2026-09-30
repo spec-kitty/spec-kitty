@@ -4,7 +4,7 @@ description: 'Roadmap for the active 4.0.0 cycle: four goal themes, the epic dep
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-09-14'
+updated: '2026-09-30'
 related:
 - docs/changelog/4.0.0.md
 - docs/changelog/index.md
@@ -16,8 +16,9 @@ related:
 ---
 # 4.0.0 Milestone — Roadmap
 
-*Planner synthesis (planner-priti), 2026-09-14. Sources: the live milestone
-[`4.0.0`](https://github.com/spec-kitty/spec-kitty/milestone/8) census read on 2026-09-14
+*Planner synthesis (planner-priti), 2026-09-14; release posture and milestone routing
+refreshed 2026-09-30 (see "Release posture" below). Sources: the then-`4.0.0` milestone
+(GitHub milestone 8, since renamed **4.x Work**) census read on 2026-09-14
 (`gh issue list --repo spec-kitty/spec-kitty --milestone 4.0.0 --state all` — 88 issues
 milestoned, 66 closed / 22 open, ~75% burn), the durable declaration of intent in
 [`4.0.0.md`](../changelog/4.0.0.md), the operator-stated goal themes for the cycle, and the
@@ -25,7 +26,7 @@ convergence-retirement / client-repo-inversion ADR
 [`2026-09-06-1`](../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
 This roadmap is the authority for the **active** 4.0.0 cycle; the prior
 [3.2.x milestone roadmap](3-2-x-milestone-roadmap.md) is re-anchored to point here (see its
-[Addendum 2026-09-14](3-2-x-milestone-roadmap.md#addendum-2026-09-14--40x-is-now-the-active-cycle-authority-moved)).*
+[Addendum 2026-09-14](3-2-x-milestone-roadmap.md#addendum-2026-09-14--4x-is-now-the-active-cycle-authority-moved)).*
 
 ## Intent of 4.0.0
 
@@ -48,22 +49,43 @@ roadmap executes that declaration against the **live** tracker, organised around
 Same discipline as the prior cycles: **no new shadow paths** — route or extract onto an
 existing authority, never build a parallel one.
 
-## Release posture (2026-09-14)
+## Release posture
 
-**4.0.0 is near release.** The cycle is at **rc-stage** — rc2 and rc3 are tagged, and the
-`4.0.0rc3` development cycle is open on `main` (commit
-[`7e28431798`](https://github.com/spec-kitty/spec-kitty/commit/7e28431798), #4313). The
-milestone is **~76% burned** (66 closed / 22 open of 88 milestoned). The **hosted-collaboration
-and reliability body has substantially landed** — the bulk of the closed book is the
-sync/auth/event reliability cluster (see per-theme progress below).
+**4.0.0 is at rc-stage.** Release candidates rc1–rc4 are tagged (rc1 2026-09-13, rc2 09-14,
+rc3 09-15, rc4 09-21), and the next rc is open on `main`: see the `[Unreleased]` heading in
+[`CHANGELOG.md`](../../CHANGELOG.md) and `version` in `pyproject.toml` for the open rc rather
+than trusting a number written here.
 
-What remains open splits cleanly into two lanes:
+**Milestone routing changed after this roadmap was written (read 2026-09-30).** The tracker
+now separates the GA gate from the wider 4.x line:
+
+- [**4.0.0 release scope**](https://github.com/spec-kitty/spec-kitty/milestone/11) is the GA
+  gate: the issues that must close before a non-rc `4.0.0` ships.
+- [**CLI 4.x stable**](https://github.com/spec-kitty/spec-kitty/milestone/12) is stable 4.x
+  work after the 4.0.0 launch walkthroughs pass. Post-4.0.0 deferrals land here.
+- [**4.x Work**](https://github.com/spec-kitty/spec-kitty/milestone/8) (the former `4.0.0`
+  milestone this roadmap was built from) now holds hosted-collaboration and product work
+  planned beyond the stabilization release. Being on it does not make an issue a GA blocker.
+
+Two consequences for the rest of this page. First, **#3892 and #3893 are on 4.x Work**, so they
+no longer gate GA as the "release-blocking tail" below assumed. Second, the burn-down counts
+below are the **2026-09-14** census of the old milestone and are kept as a record; use the live
+milestone pages above for current counts. A full re-synthesis against milestone 11 is still
+owed (see "Immediate next steps", item 5).
+
+**Snapshot as of 2026-09-14 (kept as a record).** At that point the old milestone was ~76%
+burned (66 closed / 22 open of 88 milestoned), and the hosted-collaboration and reliability
+body had substantially landed: the bulk of the closed book was the (now-retired)
+sync-transport, auth and event reliability cluster (see per-theme progress below).
+
+As of 2026-09-14, what remained open split into two lanes:
 
 - **Release-blocking tail** — a small set of P1 correctness residuals on the hosted/auth
   paths (#3178, #3233, #2941, #3279) plus the two open post-convergence integrity epics
   (#3893, #3892). These gate the rc→GA decision.
-- **Post-rc structural / debt tail** — the extensibility epics (#901, #645) and the Sonar /
-  quality debt series (#1928 → #4299–#4305, plus #2969, #2970). This is the **structural-finish
+- **Post-rc structural / debt tail** — the extensibility epics (#901 governed front door,
+  #645 stable application API) and the Sonar / quality debt series (parent #1928; children
+  #4299–#4305 plus #2969 and #2970, one per Sonar finding class, listed in the table below). This is the **structural-finish
   half** that rides *behind* the release candidates: it improves the foundation for the 4.x line
   without gating the 4.0.0 GA tag. Frame it as a post-rc tail, not a pre-rc blocker.
 
@@ -82,14 +104,14 @@ consume upstream client repos
 Several declared advances have since moved. Read the declaration for the durable "why"; read
 this table for the live "what carries the cycle":
 
-| Declared advance (2026-09-04) | Live state (2026-09-14) | Note |
+| Declared advance (2026-09-04) | State (2026-09-14; rows re-checked 2026-09-30) | Note |
 |---|---|---|
 | **#1800** SaaS sync & event-envelope hardening | **CLOSED**, de-milestoned | Delivered; the reliability cluster it parented is closed. |
-| **#1091** Team Kitty launch gate | **CLOSED**, moved to **3.2.7** | Launch-gate work landed and re-milestoned to the stabilization tail. |
+| **#1091** Team Kitty launch gate | **CLOSED** 2026-09-13 | Launch-gate work landed, milestoned to `3.2.7` (released 2026-09-10, the last 3.x release). |
 | **#3322** CLI auth & token-lifecycle reliability | **CLOSED** under 4.0.0 | Superseded client-side by **#3892** (zeitgeist-client auth). |
 | **#3549** event-log integrity | **CLOSED** under 4.0.0 | Superseded client-side by **#3893** (local event-log integrity). |
-| **#2519** charter authoring & lifecycle | **OPEN**, moved to **3.2.7** | No longer a 4.0.0-milestoned advance; tracked on the stabilization tail. |
-| **#2173** infra-to-logic ports | **OPEN**, moved to **3.2.7** | Same — the ports work re-homed off 4.0.0. |
+| **#2519** charter authoring & lifecycle | **OPEN**, on **CLI 4.x stable** | Not a GA blocker; stable-4.x work. |
+| **#2173** infra-to-logic ports | **CLOSED** 2026-09-27 under **4.0.0 release scope** | All six children closed. |
 
 **The pattern is client-repo inversion.** The original hosted epics (#1800/#1091/#3322/#3549)
 were authored when this repo *owned* the sync transport. Post-convergence, this repo is a
@@ -142,16 +164,18 @@ listed under its primary theme.
 
 ### Theme 1 — Stability (reliability, honest reporting)
 
-**The largest closed cluster of the cycle.** The sync/auth reliability book has substantially
-burned down.
+**The largest closed cluster of the cycle.** The reliability book for auth, events and the
+(now-retired) sync transport has substantially burned down.
 
-- **Closed (representative):** #3723 (every status line names its failure instead of reporting
-  success while failing), #3700 (gate-blocked sync no longer exits 0), #3699 (sync-share first
+- **Closed (representative; many concern the since-retired sync transport):** #3723 (every
+  status line names its failure instead of reporting success while failing), #3700
+  (gate-blocked sync no longer exits 0), #3699 (sync-share first
   invocation traceback), #2736 (one invalid event no longer poisons its whole batch), #2665
   (silent daemon death → weeks of halted auto-sync), #2264 (status must not report success blind
   to remote), #3018 (protocol-version handshake), #3714/#3582/#3581/#3329 (import-history
   diagnostics + preflight honesty), #3001/#3000/#2999 (historical-event rejection classes).
-- **Open (release-blocking tail):** **#3178** (P1 — decision-widen resolves the destination
+- **Open (release-blocking tail, as of 2026-09-14; re-checked 2026-09-30: #3178 closed as
+  completed, #3279 closed as not planned, #2941 still open, #3233 to verify):** **#3178** (P1 — decision-widen resolves the destination
   team from env before the per-project auth file; FR-007 not discharged by FR-002),
   **#3233** (token refresh reports "you sent no credential" as an unexplained failure),
   **#2941** (widen bypasses renewable CLI auth), **#3279** (P1 — device authorization gets 401
@@ -187,18 +211,21 @@ convergence-settle lane.
   decision resolution).
 
 **Progress:** early — both epics are open and both are **post-rc structural tail**, not GA
-blockers. They are the 4.x-line foundation. (The former extensibility-adjacent epics #2519
-charter-authoring and #2173 infra-ports have re-homed to the **3.2.7** stabilization tail and no
-longer carry 4.0.0 — see "Drift since the declaration".)
+blockers. They are the 4.x-line foundation; #645 is now on the **4.x Work** milestone. (Of the
+former extensibility-adjacent epics, #2519 charter-authoring is on **CLI 4.x stable** and #2173
+infra-ports closed on 2026-09-27; see "Drift since the declaration".)
 
 ### Theme 4 — Team Kitty enablers (auth, launch, consent/identity)
 
-- **Closed:** **#1091** (Team Kitty launch gate — re-milestoned to 3.2.7), **#3322** (CLI auth &
+- **Closed:** **#1091** (Team Kitty launch gate, closed 2026-09-13), **#3322** (CLI auth &
   token-lifecycle reliability epic), #3980 (launch defaults: flip
   `SPEC_KITTY_ENABLE_SAAS_SYNC` / `SPEC_KITTY_SAAS_URL`), #3277 (non-interactive machine
-  authentication for hosted sync/CI), #1621 (flip CLI workspace launch defaults), #2520 (charter
-  domain events `CharterCreated`/`CharterUpdated` to SaaS), #3196/#3197/#3198 (consent + identity
-  resolution: consent writes, envelope→project_uuid resolvers, withheld-events bug).
+  authentication for hosted CI, originally filed against the sync transport), #1621 (flip CLI
+  workspace launch defaults), #3196/#3197/#3198 (consent + identity resolution: consent writes,
+  envelope→project_uuid resolvers, withheld-events bug).
+- **Closed as not planned:** #2520 (charter domain events `CharterCreated`/`CharterUpdated` to
+  SaaS). It was dropped when the sync transport was torn down, and no charter event is emitted
+  today; a hosted charter signal would need a new issue built on Zeitgeist (see #2519).
 - **Open:** **#3892** (Epic: zeitgeist-client auth & token-lifecycle reliability — CLI stays
   authenticated, fails legibly), **#4195** (review the #4121 charter/doctrine forward-port for
   convergence fit). The auth P1 residuals #3233/#2941/#3279 (listed under Stability) are also
@@ -258,8 +285,8 @@ structural criteria (5–6) may land in a post-rc emergent patch.
 
 - **Declaration ↔ tracker drift is real, not hypothetical.** The
   [4.0.0 declaration](../changelog/4.0.0.md) predates the Convergence by two days and still
-  names #1800/#1091/#3322/#3549/#2519/#2173 as live advances; four are closed and two moved to
-  3.2.7 (see "Drift since the declaration"). Anchor every status claim to the **live** milestone
+  names #1800/#1091/#3322/#3549/#2519/#2173 as live advances; as of 2026-09-30 five are closed
+  and #2519 is on CLI 4.x stable (see "Drift since the declaration"). Anchor every status claim to the **live** milestone
   read and the client-side successor epics (#3892, #3893), never to the declaration's committed-
   scope table.
 - **Client-repo inversion changes where auth/event work lands.** Post-convergence this repo is a
@@ -298,12 +325,16 @@ structural criteria (5–6) may land in a post-rc emergent patch.
 4. **Hold #645 / #901 and the #1928 debt series on the post-rc tail** — do not let them gate the
    rc→GA decision; disposition them into a 4.0.0 emergent patch or re-milestone to the 4.x line
    with rationale (exit criteria 5–6).
-5. **Re-run this synthesis at each rc bump** — milestone numbers move between rcs; verify the
-   open book against a fresh `gh issue list --milestone 4.0.0 --state all` before acting.
+5. **Re-run this synthesis at each rc bump** — milestone contents move between rcs; verify the
+   open book against a fresh
+   `gh issue list --repo spec-kitty/spec-kitty --milestone "4.0.0 release scope" --state all`
+   before acting. (Owed since rc4: this page's theme lists still reflect the 2026-09-14 census.)
 
 ## Links
 
-- Milestone: https://github.com/spec-kitty/spec-kitty/milestone/8 ·
+- Milestones: [4.0.0 release scope](https://github.com/spec-kitty/spec-kitty/milestone/11) (GA
+  gate) · [CLI 4.x stable](https://github.com/spec-kitty/spec-kitty/milestone/12) ·
+  [4.x Work](https://github.com/spec-kitty/spec-kitty/milestone/8) ·
   Declaration of intent: [`4.0.0.md`](../changelog/4.0.0.md) · Convention:
   [`release-goals.md`](../changelog/release-goals.md)
 - Prior cycle roadmap (re-anchored here): [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md)

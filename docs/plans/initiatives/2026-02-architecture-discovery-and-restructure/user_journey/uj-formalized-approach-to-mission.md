@@ -1,8 +1,8 @@
 ---
 title: 'User Journey: Formalized Approach → Mission Recipe'
 description: Draft user journey turning a formalized approach into a mission recipe, captured 2026-02-17 for the architecture-discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # User Journey: Formalized Approach → Mission Recipe
 

@@ -1,8 +1,8 @@
 ---
 title: architecture/README.md
 description: Raw proposal dump from a 2026-02-17 architecture-documentation-drafting session suggesting a repository structure, preserved for the discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 2026-02-17:13:31
 

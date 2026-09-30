@@ -1,12 +1,15 @@
 ---
 title: Test-suite parallelization — CI shard topology status
 description: 'Point-in-time mission-status snapshot of the CI shard-topology re-flip and stability-ratchet confirmation state, carved out of the durable parallel-run how-to.'
-doc_status: active
-updated: '2026-07-22'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/testing/testing-parallel.md
 ---
 # Test-suite parallelization — CI shard topology status
+
+> **Superseded.** The `fast-tests-*` shards, `PENDING-CI` markers and `ci-quality.yml` Sonar job described here no longer exist; the modular CI from #3995 (the lean CI reinstatement: `ci-router.yml` → `ci-modules.yml` → `ci-aggregate.yml`) replaced them. See [CI gate mechanics](../../development/reference/ci-gate-mechanics.md). Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 This note carries the point-in-time mission-status snapshots (named mission IDs, PENDING
 wall-clock records, and per-job CI-confirmation state) that used to live at the bottom of

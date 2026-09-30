@@ -1,10 +1,12 @@
 ---
 title: 'Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap'
 description: 'Post-implementation review of feature 054 (charter interview compiler and bootstrap): what shipped, what went well, and the follow-ups, in a field table.'
-doc_status: draft
-updated: '2026-04-05'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap
+
+> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 | Field | Value |
 |---|---|

@@ -1,8 +1,9 @@
 ---
-title: 3.2.x Milestone — Roadmap
-description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
-doc_status: active
-updated: '2026-09-14'
+title: 3.2.x Milestone — Roadmap (prior cycle)
+description: 'Prior-cycle record: the operator roadmap for the 3.2.x milestone, with its epic spine, degod/unshim waves, census and exit criteria.'
+doc_status: superseded
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/4-0-0-milestone-roadmap.md
 - docs/changelog/index.md
@@ -13,7 +14,12 @@ related:
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/changelog/release-goals.md
 ---
-# 3.2.x Milestone — Roadmap
+# 3.2.x Milestone — Roadmap (prior cycle)
+
+> **Superseded (prior cycle).** The 3.2.x line closed with 3.2.7 (2026-09-10), the last 3.x
+> release. The active-cycle plan of record is the
+> [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md). Everything below, including the
+> "Immediate next steps", is a historical record; do not act on it.
 
 *Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md). Addendum, 2026-07-26: doctrine canonical-structure remediation programme recorded — one mission specced then split into five sequenced missions (#2948–#2952) by operator ruling; see the dedicated section below.* **Addendum, 2026-07-30: verified status re-read + spine re-anchoring — the body below (2026-07-04 vintage) predates the work that delivered the milestone's goals and mis-reads it as idle; see [Addendum 2026-07-30](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring) immediately below, and the PO-facing [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) which supersedes the "G2-is-the-blocking-spine / G1-is-off-spine" framing.**
 
@@ -21,7 +27,7 @@ related:
 
 3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the SaaS & Hosted Sync domain plan was the domain's canonical map of that split (retired 2026-09-06 (Convergence #3881): the hosted-sync surface re-homed to the authoritative upstream repos; see the convergence-retirement ADR).
 
-## Addendum 2026-09-14 — 4.0.x is now the active cycle (authority moved)
+## Addendum 2026-09-14 — 4.x is now the active cycle (authority moved)
 
 *Read-only reconciliation against live GitHub milestone/issue state on 2026-09-14
 (`gh issue list --repo spec-kitty/spec-kitty --milestone 4.0.0 --state all`, `GITHUB_TOKEN`
@@ -577,7 +583,7 @@ Derived from the epics' own done-conditions; the milestone closes when all hold:
 - **Runtime-state eviction ↔ #2160 `shell_pid` writer collision (new, 2026-07-16).** #2400's new build mission **#2684** (runtime-state eviction) moves the `shell_pid` claim off `WP##.md` into the event log, but that claim is written at **4 sites** that overlap #2160's Wave-2 `implement.py`/`workflow.py` degod — `implement.py:1730`, `workflow_executor.py:669` (implement) & `:1337` (review), and `tasks_move_task.py:1638` (**`move-task`**, the primary lane-transition writer, initially undersized out of the eviction's scope). The eviction's `shell_pid` move must **co-sequence with (or land behind) the Wave-2 trio degod**, not race it; a native `blocked_by` edge #2684 → #2160 records the ordering. Also load-bearing in #2684: the ADR must pin whether runtime state that mutates **off the transition axis** (resume `shell_pid` refresh, mid-work subtask marks, activity-log notes) gets a non-transition self-edge event class, or folds onto existing transitions with a documented staleness-fallback behavior change. Scope + the authoritative squad corrections live in `wp-op-schema-design/docs/plans/investigations/wp-runtime-state-eviction-scope.md`.
 - **Contract-ownership + doctrine-phantom residue (newly filed 2026-07-07, both OPEN).** Two tickets surfaced while landing the DevEx/CI-hygiene batch above. **#2441** — *contract-ownership boundary*: shared contracts and their retirement are not a modeled, owned artifact, so a WP can break a contract pinned by a test outside its `owned_files`; #2438's `pre_review_gate` catches the *dynamic* symptom at review time but the *static* ownership half is still unmodeled — needs a scheduling/scope decision (likely under #1868's seam-binding). **#2447** — *doctrine phantom*: the removed `core/mission_detection.py::_detect_from_branch()` is still referenced in shipped doctrine (`git-operations-matrix.md`), the prose sibling of the #2443 coverage-allowlist repoint (which fixed only the CI-config reference). Small, self-contained doc fix; fold into the next #1931/doc-hygiene slice rather than tracking standalone.
 
-## Immediate next steps
+## Immediate next steps (historical, 2026-07 — do not act on)
 
 1. **Wave 0 — ✅ done**: PR #2368 shipped (`ci-suite-map-bind-01KWNPMP`), closing #2034, #2333 (folded in-mission), and #2283 factor (a) — factors (b)/(c) remain under CT7 (#2077).
 2. **Post-mission op — ✅ done**: P0 #2346 fixed (CLOSED 2026-07-04).

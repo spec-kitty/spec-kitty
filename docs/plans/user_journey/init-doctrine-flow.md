@@ -2,7 +2,8 @@
 title: Init and Project Charter — User Journey
 description: 'How spec-kitty init sets up a project and how you author your project charter afterward with the charter commands; charter.yaml is the authoritative governance file.'
 doc_status: active
-updated: '2026-07-19'
+updated: '2026-09-30'
+audience: docs/context/audience/external/project-owner.md
 ---
 # Init and Project Charter — User Journey
 

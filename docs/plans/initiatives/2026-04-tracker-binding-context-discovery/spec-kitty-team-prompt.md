@@ -1,8 +1,8 @@
 ---
 title: 'Prompt: `spec-kitty` Team'
 description: Ready-to-run /spec-kitty.specify input prompt for the spec-kitty team's slice of the tracker-binding-context-discovery work.
-doc_status: draft
-updated: '2026-04-04'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Prompt: `spec-kitty` Team
 

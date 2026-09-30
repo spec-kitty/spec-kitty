@@ -2,13 +2,16 @@
 title: 'Issue #1040 — ADRs as First-Class Primitive: Scope Inclusion Assessment'
 description: "Architect Alphonso's scope-inclusion assessment for issue #1040 (ADRs as a first-class primitive): whether and how to fold it into the mission (2026-05-18)."
 doc_status: draft
-updated: '2026-05-19'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # Issue #1040 — ADRs as First-Class Primitive: Scope Inclusion Assessment
 
+> **Status update (2026-09-30).** The 3.3.x milestone this assessment targets was retired on 2026-08-23 without shipping. #1040 is still open and sits on the *Product backlog* milestone. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
+
 **Author:** Architect Alphonso (ad-hoc profile session)  
 **Date:** 2026-05-18  
-**Issue:** [Priivacy-ai/spec-kitty#1040](https://github.com/Priivacy-ai/spec-kitty/issues/1040) — *Feature request: make ADRs a first-class Spec Kitty primitive*  
+**Issue:** [Priivacy-ai/spec-kitty#1040](https://github.com/spec-kitty/spec-kitty/issues/1040) — *Feature request: make ADRs a first-class Spec Kitty primitive*  
 **Context:** Evaluating whether to pull #1040 into the 3.2.0 epic (#1111) given the charter/doctrine
 enhancements landing on `feat/org-doctrine-layer`.  
 **Related documents:**  

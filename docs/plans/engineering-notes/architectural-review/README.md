@@ -2,7 +2,7 @@
 title: Engineering notes — Architectural reviews
 description: 'Landing page for the architectural-reviews engineering notes: on-demand deep-dive reviews of the spec-kitty codebase by architect-profile agents.'
 doc_status: draft
-updated: '2026-09-27'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
@@ -25,7 +25,7 @@ It is the third sibling of [`reflections/`](../reflections/) and [`finding/`](..
 
 ## What does NOT belong here
 
-- Per-mission ADRs — those go to `docs/adr/3.x/`.
+- Per-mission ADRs — those go to the current-era ADR folder (see the [ADR index](../../../adr/index.md)).
 - Operator-side process notes — those go to `finding/`.
 - Orchestrator self-corrections — those go to `reflections/`.
 - Ad-hoc code reviews of a single PR — use `code-review` skill output.

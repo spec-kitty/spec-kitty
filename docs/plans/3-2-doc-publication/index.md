@@ -2,7 +2,7 @@
 title: 3.2 doc publication
 description: Planning and audit trail for the 3.2 documentation publication effort — IA, navigation, methodology, and checklist.
 doc_status: deprecated
-updated: '2026-08-12'
+updated: '2026-09-30'
 related:
 - docs/plans/index.md
 ---
@@ -31,4 +31,4 @@ operator ruling on its source-of-truth status.
 
 ## See also
 
-- [Plans home](../../index.md)
+- [Plans home](../index.md)

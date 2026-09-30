@@ -2,7 +2,8 @@
 title: Charter-Resolution Program Brief
 description: 'Investigation-grounded brief for the charter-resolution program: root causes, mission decomposition, sequencing, risks and spec-time operator decisions.'
 doc_status: active
-updated: '2026-08-19'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 ---
 
 # Mission Brief — Doctrine Reach & Resolution Honesty
@@ -14,7 +15,7 @@ updated: '2026-08-19'
 
 ## 1. Problem statement (BLUF)
 
-Authored governance — org-pack and project-tier doctrine — **silently fails to reach the dispatched agent.** Content loads, validates, reports healthy, then drops somewhere between authoring and consumption. The operator sees green checks and empty results. Concretely today, on `main`: activating any built-in mission type cascades to **0** kinds; org packs authored in the canonical `drg/fragment.yaml` shape contribute **nothing** to cascade; org/project doctrine of a given kind is under-loaded relative to built-in (measured **71% tactic undercount**); glossary packs and 3 of 5 profile reference channels reach no agent; and several canonical facts are hand-restated in 5 places, two already drifted and failing open.
+Authored governance — org-pack and project-tier doctrine — **silently fails to reach the dispatched agent.** Content loads, validates, reports healthy, then drops somewhere between authoring and consumption. The operator sees green checks and empty results. Concretely, on `main` as of 2026-08-19: activating any built-in mission type cascades to **0** kinds; org packs authored in the canonical `drg/fragment.yaml` shape contribute **nothing** to cascade; org/project doctrine of a given kind is under-loaded relative to built-in (measured **71% tactic undercount**); glossary packs and 3 of 5 profile reference channels reach no agent; and several canonical facts are hand-restated in 5 places, two already drifted and failing open.
 
 ## 2. Root causes (one disease, six faces)
 

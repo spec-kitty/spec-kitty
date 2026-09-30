@@ -2,7 +2,8 @@
 title: 'Agent knowledge: canonical homes for rules, practices, reference, and learned facts'
 description: "Where durable agent knowledge belongs — charter, doctrine, Common Docs, and the orphaned .kittify/memory store — and how to stop a per-agent memory duplicating the repo."
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/index.md
 - docs/context/orchestration.md
@@ -50,7 +51,7 @@ copying repo-tracked facts into a per-agent duplicate.
 - The directory is **still git-tracked and still worktree-broadcast**: `src/specify_cli/core/worktree.py`
   symlinks each worktree's `.kittify/memory` to the main repo's (file-copy fallback on Windows) and
   excludes it from the worktree's git, so every Mission branch shares one `.kittify/memory`.
-  `src/doctrine/templates/AGENTS.md` still documents it as a single source of truth for project
+  `src/charter/offering/templates/AGENTS.md` still documents it as a single source of truth for project
   principles — and the `worktree.py` rationale comment still says "share the same charter", which is
   now stale (the charter moved to `.kittify/charter/`).
 - It today holds an **uncurated grab-bag** (a session tooling record, an architect-review artifact,
@@ -97,7 +98,7 @@ its existing canonical home, and add one modest CLI build to close the Common Do
 ## Key evidence paths
 
 `src/specify_cli/core/worktree.py`, `src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py`,
-`src/doctrine/templates/AGENTS.md`, `.kittify/memory/`, `src/charter/context.py`,
-`src/doctrine/service.py`, `src/doctrine/drg/query.py`, `scripts/docs/inventory_lockfile.py`,
+`src/charter/offering/templates/AGENTS.md`, `.kittify/memory/`, `src/charter/activation/context.py`,
+`src/charter/offering/service.py`, `src/charter/offering/drg/query.py`, `scripts/docs/inventory_lockfile.py`,
 `docs/development/3-2-page-inventory.yaml`, `src/glossary/store.py`,
 `src/specify_cli/dossier/api.py`, `src/specify_cli/dashboard/server.py`.

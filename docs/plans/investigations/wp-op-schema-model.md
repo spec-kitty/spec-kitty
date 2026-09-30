@@ -1,10 +1,13 @@
 ---
 title: WP & Op Schema Model — Formalising Work-Package and Op Records
 description: 'Idea + grounding to formalise WP files and the Op record via code-owned models/schemas; the model is ~60-70% already shipped, so the win is a narrow hash/field-eviction fix.'
-doc_status: grounded
-updated: '2026-07-16'
+doc_status: draft
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # WP & Op Schema Model
+
+> **Status update (2026-09-30).** Parked idea, written against the 3.2.x milestone. The 3.x line has closed and 3.3.x was retired, so any "deferred to 3.3.x" routing below needs re-triage. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../4-0-0-milestone-roadmap.md).
 
 | Field | Value |
 |---|---|

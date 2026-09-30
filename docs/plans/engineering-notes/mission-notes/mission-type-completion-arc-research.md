@@ -1,8 +1,9 @@
 ---
 title: 'Mission-type completion arc — pre-spec research (#2652 / S0–S4)'
 description: 'Pre-spec research for the mission-type completion arc (#2677 DRG edges, #2657 default-charter, #2659 enumeration): ADR slice mapping, DRG-edge design, 3-track decomposition.'
-doc_status: active
-updated: '2026-07-16'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/mission-notes/index.md
 - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
@@ -11,6 +12,8 @@ related:
 ---
 
 # Mission-Type Completion Arc — Pre-Spec Research
+
+> **Historical (mission closed).** The mission this research grounded, `mission-type-drg-edges-01KXKY2N`, has closed (see its `retrospective.yaml` under `kitty-specs/`). Kept as a record; the active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 **Scope.** Research supporting three sibling missions under epic **#2652**, produced by a 3-lens pre-spec
 squad (architect-alphonso, python-pedro, paula-patterns) verified against `main` HEAD `e162a8900`

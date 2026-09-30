@@ -1,8 +1,8 @@
 ---
 title: 'Testing Progress: Encoding & Plan Validation Guardrails'
 description: 'Progress log (2025-11-13) for the encoding and plan-validation guardrail tests: 48 tests across four of six suites passing, core marked complete.'
-doc_status: draft
-updated: '2026-06-12'
+doc_status: deprecated
+updated: '2026-09-30'
 ---
 # Testing Progress: Encoding & Plan Validation Guardrails
 

@@ -2,7 +2,8 @@
 title: '3.2.x Open-Core Delivery Plan'
 description: 'PO-facing 3.2.x synthesis: a verified status re-read, the open-core breaking-change delivery strategy, and the bounded remaining-work sequence.'
 doc_status: superseded
-updated: '2026-09-06'
+updated: '2026-09-30'
+audience: docs/context/audience/external/product-manager-evaluator.md
 related:
 - docs/plans/3-2-x-approach.md
 - docs/plans/3-2-x-milestone-roadmap.md
@@ -14,8 +15,9 @@ related:
 
 > **Superseded (2026-09-06, Convergence #3881).** This plan describes the pre-convergence
 > line, including the since-removed local sync daemon / delivery / import-history surface.
-> It is kept as a historical record; the current plan of record is the
-> [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md).
+> It is kept as a historical record. The active-cycle plan of record is the
+> [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md); the
+> [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md) is the prior-cycle record.
 
 # 3.2.x Open-Core Delivery Plan
 

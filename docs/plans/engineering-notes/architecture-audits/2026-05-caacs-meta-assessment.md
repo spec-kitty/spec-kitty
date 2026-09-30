@@ -1,10 +1,13 @@
 ---
 title: 'CaaCS Meta-Assessment & Input for #666 Spike'
 description: 'Reflective meta-assessment of the 2026-05 ad-hoc CaaCS run on spec-kitty: synthesis for adoption stakeholders (DM-C) and input to the #666 skill-design spike.'
-doc_status: active
-updated: '2026-05-11'
+doc_status: deprecated
+updated: '2026-09-30'
+audience: docs/context/audience/internal/system-architect.md
 ---
 # CaaCS Meta-Assessment & Input for #666 Spike
+
+> **Historical (May 2026 architecture-audit snapshot, 3.2.x cycle).** Kept as a record; issue states and milestones below are as of May 2026, and any reference to a 3.3 milestone is void (3.3.x was retired on 2026-08-23). The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
 
 > Reflective synthesis of the 2026-05 ad-hoc Code-as-a-Crime-Scene (CaaCS) run on spec-kitty.
 > Audiences: (1) stakeholders weighing adoption (DM-C, see §6); (2) participants in the #666 brownfield-investigation skill design spike.
