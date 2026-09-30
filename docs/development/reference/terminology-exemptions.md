@@ -2,7 +2,7 @@
 title: Terminology Guard Exemption Policy
 description: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related: []
@@ -170,6 +170,9 @@ All files under `docs/reports/` are excluded from:
 - the non-canonical decision-command-shape scan in
   `tests/specify_cli/cli/test_decision_command_shape_consistency.py`
   (`REPORT_SNAPSHOT_PREFIX`)
+- the retired doctrine-profile-directory path scan in
+  `tests/audit/test_no_legacy_agent_profiles_path.py`
+  (`_SNAPSHOT_EXCLUDED_DIRS`; #5474)
 
 ### Why it is exempt
 
@@ -200,10 +203,13 @@ scanned. This narrowness is pinned by `test_docs_adr_exemption_is_narrow` in
 root are still being scanned.
 
 Because a "point-in-time snapshot" exemption is only safe as long as those
-snapshots are never *published* as live docs, both guard files also carry a
-`test_docs_reports_exemption_is_not_published_as_live_docs`-style guard that
-asserts `docs/docfx.json`'s `build.content` globs never include a `reports`
-pattern. If that guard ever fails, `docs/reports/` has started being
+snapshots are never *published* as live docs, every guard file listed under
+"What is excluded" also carries a
+`test_docs_reports_exemption_is_not_published_as_live_docs` guard. Each one
+calls the shared `assert_docfx_does_not_publish_reports` in
+`tests/_support/docfx_reports_guard.py`, which fails when any
+`docs/docfx.json` `build.content` or `build.resource` entry would publish a
+`docs/reports/` path. If that guard ever fails, `docs/reports/` has started being
 published as live documentation and this exemption must be reconsidered, not
 silently kept.
 

@@ -127,7 +127,7 @@ def test_passes_for_no_content_entries() -> None:
 
 
 # ---------------------------------------------------------------------------
-# The shared assertion wrapper both guard tests call.
+# The shared assertion wrapper every guard test calls.
 # ---------------------------------------------------------------------------
 
 
