@@ -171,16 +171,6 @@ class ReviewCycleArtifact:
     override_actor: str | None = None
     override_reason: str | None = None
 
-    @property
-    def has_complete_override(self) -> bool:
-        """True iff a complete approval override (actor + reason) is stamped on."""
-        return bool(
-            self.override_actor
-            and self.override_actor.strip()
-            and self.override_reason
-            and self.override_reason.strip()
-        )
-
     def to_dict(self) -> dict[str, Any]:
         """Serialize frontmatter fields to dict with sorted keys."""
         d: dict[str, Any] = {

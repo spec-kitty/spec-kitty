@@ -111,13 +111,10 @@ def test_write_and_from_file_preserves_complete_override(tmp_path: Path) -> None
         override_actor="operator",
         override_reason="Arbiter approved despite the rejected latest cycle.",
     )
-    assert artifact.has_complete_override is True
-
     dest = tmp_path / "review-cycle-1.md"
     artifact.write(dest)
     restored = ReviewCycleArtifact.from_file(dest)
 
-    assert restored.has_complete_override is True
     assert restored.override_actor == artifact.override_actor
     assert restored.override_reason == artifact.override_reason
 

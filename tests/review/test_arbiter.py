@@ -21,7 +21,6 @@ its site.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -35,7 +34,6 @@ from specify_cli.review.arbiter import (
     get_arbiter_overrides_for_wp,
     parse_category_from_note,
     persist_arbiter_decision,
-    prompt_arbiter_checklist,
 )
 from specify_cli.status import ReviewOverride, WPInnerStateDelta, emit_inner_state_changed
 from specify_cli.status.models import Lane, StatusEvent
@@ -744,66 +742,6 @@ def test_get_arbiter_overrides_skips_an_incomplete_override(tmp_path: Path) -> N
 
     result = get_arbiter_overrides_for_wp(feature_dir, "WP01")
     assert result == []
-
-
-# ---------------------------------------------------------------------------
-# prompt_arbiter_checklist — mocked console (lines 260-322)
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_console(answers: list[str]) -> MagicMock:
-    """Return a mock Rich Console whose .input() returns answers in sequence."""
-    console = MagicMock()
-    console.input.side_effect = answers
-    return console
-
-
-def test_prompt_arbiter_checklist_pre_existing_category() -> None:
-    """Q1=y → PRE_EXISTING_FAILURE; explanation taken from input."""
-    # Q1=y, Q2=y, Q3=y, Q4=n, Q5=n → category=PRE_EXISTING_FAILURE
-    # Explanation prompt: "some explanation"
-    console = _make_mock_console(["y", "y", "y", "n", "n", "some explanation"])
-    decision = prompt_arbiter_checklist("WP01", "robert", console)
-
-    assert decision.category == ArbiterCategory.PRE_EXISTING_FAILURE
-    assert decision.arbiter == "robert"
-    assert decision.explanation == "some explanation"
-    assert decision.checklist.is_pre_existing is True
-
-
-def test_prompt_arbiter_checklist_custom_requires_non_empty_explanation() -> None:
-    """CUSTOM category loops until non-empty explanation is given."""
-    # All defaults → CUSTOM category
-    # First explanation attempt is empty (loops), second is non-empty
-    console = _make_mock_console(["n", "y", "y", "n", "n", "", "my custom reason"])
-    decision = prompt_arbiter_checklist("WP01", "operator", console)
-
-    assert decision.category == ArbiterCategory.CUSTOM
-    assert decision.explanation == "my custom reason"
-
-
-def test_prompt_arbiter_checklist_wrong_context_category() -> None:
-    """Q1=n, Q2=n → WRONG_CONTEXT; default explanation accepted on empty input."""
-    # Q1=n, Q2=n → WRONG_CONTEXT
-    # Explanation prompt: empty string → uses default
-    console = _make_mock_console(["n", "n", "y", "n", "n", ""])
-    decision = prompt_arbiter_checklist("WP01", "claude", console)
-
-    assert decision.category == ArbiterCategory.WRONG_CONTEXT
-    assert decision.explanation  # non-empty default
-    assert decision.arbiter == "claude"
-
-
-def test_prompt_arbiter_checklist_accepts_default_answers() -> None:
-    """Empty Y/N answers use the per-question default."""
-    # All empty answers: defaults are Q1=N, Q2=Y, Q3=Y, Q4=N, Q5=N → CUSTOM
-    # Then provide a non-empty explanation
-    console = _make_mock_console(["", "", "", "", "", "follow-on required"])
-    decision = prompt_arbiter_checklist("WP01", "operator", console)
-
-    # All defaults → CUSTOM
-    assert decision.category == ArbiterCategory.CUSTOM
-    assert decision.explanation == "follow-on required"
 
 
 # ---------------------------------------------------------------------------

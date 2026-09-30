@@ -371,10 +371,6 @@ class ResolvedReviewCyclePointer:
     kind: Literal["canonical", "legacy", "sentinel", "path"]
     warnings: tuple[str, ...] = ()
 
-    @property
-    def is_resolved(self) -> bool:
-        return self.path is not None
-
 
 @dataclass(frozen=True)
 class CreatedRejectedReviewCycle:

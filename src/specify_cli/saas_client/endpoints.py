@@ -54,12 +54,6 @@ class DiscussionData(TypedDict):
     message_count: int
 
 
-class AdmissionMetadata(TypedDict, total=False):
-    """Display-only PUT body; never part of identity or authority."""
-
-    project_slug: str
-
-
 class AdmissionAnswer(TypedDict, total=False):
     """Shape of GET /api/v1/sync/repo-admission/ (TEAM-ADMIT-M2-07/08).
 

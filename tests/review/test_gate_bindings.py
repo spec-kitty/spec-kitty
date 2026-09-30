@@ -47,7 +47,6 @@ from specify_cli.mission_step_contracts.executor import StepContractExecutor
 from specify_cli.review import gate_bindings
 from specify_cli.review.gate_bindings import (
     GateCoverage,
-    load_gate_bindings,
     resolve_active_gate_bindings,
     resolve_gate_bindings_for_transition,
     resolve_mission_type,
@@ -148,28 +147,6 @@ def _contract(gates: list[GateBinding], *, mission: str = _SOFTWARE_DEV) -> Miss
         steps=[MissionStepContractStep(id="s1", description="d")],
         gates=gates,
     )
-
-
-# ---------------------------------------------------------------------------
-# T026 — load_gate_bindings (mission param mandatory)
-# ---------------------------------------------------------------------------
-
-
-def test_load_gate_bindings_software_dev_review_returns_binding(tmp_path: Path) -> None:
-    bindings = load_gate_bindings(tmp_path, _SOFTWARE_DEV, _REVIEW)
-    assert bindings, "built-in software-dev review contract must ship a gate binding"
-    assert any(b.on_transition == _EDGE and b.handler == _HANDLER for b in bindings)
-
-
-def test_load_gate_bindings_research_review_is_empty(tmp_path: Path) -> None:
-    # research ships no review action contract -> empty (mission param is load-bearing).
-    assert load_gate_bindings(tmp_path, "research", _REVIEW) == []
-
-
-def test_load_gate_bindings_requires_mission_param() -> None:
-    # The mission param has no default: a mission-blind call is a TypeError.
-    with pytest.raises(TypeError):
-        load_gate_bindings(Path("."), _REVIEW)  # type: ignore[call-arg]
 
 
 # ---------------------------------------------------------------------------
@@ -367,13 +344,15 @@ def test_bounded_loads_single_graph_and_binding_load(tmp_path: Path, monkeypatch
 # ---------------------------------------------------------------------------
 
 
-def test_load_gate_bindings_resolves_org_only_step_contract_gates(tmp_path: Path) -> None:
+def test_review_contract_resolves_org_only_step_contract_gates(tmp_path: Path) -> None:
     """FR-005 (User Story 3): an org-tier step contract's ``gates:`` block
     fires with no project-tier duplicate present.
 
     Red-first: on the pre-fix commit, ``_build_repository`` constructs a
-    project-dir-only repository, so ``load_gate_bindings`` returns ``[]``
-    for this org-only contract instead of its declared gate.
+    project-dir-only repository, so the org-only contract resolves to no
+    gates instead of its declared gate. (Retargeted from the deleted
+    ``load_gate_bindings`` wrapper onto ``_load_review_contract``, the loader
+    the live ``resolve_gate_bindings_for_transition`` join uses.)
     """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -381,7 +360,8 @@ def test_load_gate_bindings_resolves_org_only_step_contract_gates(tmp_path: Path
     write_org_tier_step_contract_fixture(org_root)
     write_org_pack_config(repo_root, org_root)
 
-    bindings = load_gate_bindings(repo_root, ORG_FIXTURE_MISSION, ORG_FIXTURE_ACTION)
+    contract = gate_bindings._load_review_contract(repo_root, ORG_FIXTURE_MISSION, ORG_FIXTURE_ACTION)
+    bindings = list(contract.gates) if contract is not None else []
 
     assert bindings, "org-tier contract's gates: block must resolve with no project-tier duplicate"
     assert any(b.on_transition == ORG_FIXTURE_GATE_EDGE for b in bindings)

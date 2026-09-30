@@ -270,28 +270,6 @@ class CoverageMatrix:
     # Maps (area, type) to doc file path (None if missing)
     cells: dict[tuple[str, str], Path | None] = field(default_factory=dict)
 
-    def get_coverage_for_area(self, area: str) -> dict[str, Path | None]:
-        """Get all Divio type coverage for one project area.
-
-        Args:
-            area: Project area name
-
-        Returns:
-            Dict mapping Divio type to doc file path (or None if missing)
-        """
-        return {dtype: self.cells.get((area, dtype)) for dtype in self.divio_types}
-
-    def get_coverage_for_type(self, divio_type: str) -> dict[str, Path | None]:
-        """Get all project area coverage for one Divio type.
-
-        Args:
-            divio_type: Divio type name
-
-        Returns:
-            Dict mapping project area to doc file path (or None if missing)
-        """
-        return {area: self.cells.get((area, divio_type)) for area in self.project_areas}
-
     def get_gaps(self) -> list[tuple[str, str]]:
         """Return list of (area, type) tuples with missing documentation.
 
@@ -447,92 +425,6 @@ def prioritize_gaps(
     prioritized.sort(key=lambda gap: priority_order[gap.priority])
 
     return prioritized
-
-
-def extract_public_api_from_python(source_dir: Path) -> list[str]:
-    """Extract public API elements from Python source.
-
-    Finds:
-    - Public functions (not starting with _)
-    - Public classes (not starting with _)
-
-    Args:
-        source_dir: Directory containing Python source
-
-    Returns:
-        List of API element names (e.g., ["ClassName", "function_name"])
-    """
-    import ast
-
-    api_elements = []
-
-    for py_file in source_dir.rglob("*.py"):
-        try:
-            source = py_file.read_text(encoding="utf-8")
-            tree = ast.parse(source)
-
-            for node in ast.walk(tree):
-                # Extract public functions
-                if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and not node.name.startswith("_"):
-                    api_elements.append(node.name)
-
-        except Exception:  # noqa: S112
-            # Skip files that can't be parsed
-            continue
-
-    return sorted(set(api_elements))  # Unique, sorted
-
-
-def extract_documented_api_from_sphinx(docs_dir: Path) -> list[str]:
-    """Extract documented API elements from Sphinx documentation.
-
-    Parses generated Sphinx HTML or source .rst files for documented APIs.
-
-    Args:
-        docs_dir: Directory containing Sphinx documentation
-
-    Returns:
-        List of documented API element names
-    """
-    # Look for autodoc-generated files or .rst source
-    documented = []
-
-    # Check Sphinx build output
-    build_dir = docs_dir / "_build" / "html"
-    if build_dir.exists():
-        # Parse HTML for documented classes/functions
-        for html_file in build_dir.rglob("*.html"):
-            content = html_file.read_text(encoding="utf-8")
-            # Simple heuristic: look for Sphinx autodoc class/function markers
-            # Example: <dt class="sig sig-object py" id="ClassName">
-            import re
-
-            matches = re.findall(r'id="([a-zA-Z_][a-zA-Z0-9_]*)"', content)
-            documented.extend(matches)
-
-    return sorted(set(documented))  # Unique, sorted
-
-
-def detect_version_mismatch(code_dir: Path, docs_dir: Path, language: str = "python") -> list[str]:
-    """Detect API elements in code that are missing from documentation.
-
-    Args:
-        code_dir: Directory containing source code
-        docs_dir: Directory containing documentation
-        language: Programming language (currently only "python" supported)
-
-    Returns:
-        List of API element names present in code but missing from docs
-    """
-    if language == "python":
-        code_api = extract_public_api_from_python(code_dir)
-        docs_api = extract_documented_api_from_sphinx(docs_dir)
-    else:
-        # Other languages not yet supported
-        return []
-
-    missing = set(code_api) - set(docs_api)
-    return sorted(missing)
 
 
 @dataclass
@@ -880,29 +772,3 @@ def generate_gap_analysis_report(docs_dir: Path, output_file: Path, project_root
     output_file.write_text(report_content, encoding="utf-8")
 
     return analysis
-
-
-def run_gap_analysis_for_feature(feature_dir: Path) -> GapAnalysis:
-    """Run gap analysis for a documentation mission feature.
-
-    Assumes standard paths:
-    - Documentation: {project_root}/docs/
-    - Output: {feature_dir}/gap-analysis.md
-
-    Args:
-        feature_dir: Feature directory (kitty-specs/###-doc-feature/)
-
-    Returns:
-        GapAnalysis results
-    """
-    # Find project root (walk up from feature_dir to find docs/)
-    project_root = feature_dir
-    while project_root != project_root.parent:
-        if (project_root / "docs").exists():
-            break
-        project_root = project_root.parent
-
-    docs_dir = project_root / "docs"
-    output_file = feature_dir / "gap-analysis.md"
-
-    return generate_gap_analysis_report(docs_dir, output_file, project_root)

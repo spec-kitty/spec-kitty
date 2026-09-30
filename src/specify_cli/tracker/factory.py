@@ -22,13 +22,6 @@ def normalize_provider(provider: str) -> str:
     return provider.strip().lower()
 
 
-def _require(values: Mapping[str, Any], key: str, provider: str) -> str:
-    value = values.get(key)
-    if value is None or not str(value).strip():
-        raise TrackerFactoryError(f"Missing required credential '{key}' for provider '{provider}'")
-    return str(value).strip()
-
-
 def build_connector(
     *,
     provider: str,

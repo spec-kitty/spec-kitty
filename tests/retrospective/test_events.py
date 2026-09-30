@@ -977,21 +977,6 @@ class TestSummaryHelperEdgeCases:
         result = _mission_is_in_flight(mission_dir)
         assert result is True
 
-    def test_read_slug_from_meta_no_meta_json(self, tmp_path: Path) -> None:
-        """_read_slug_from_meta returns None when meta.json doesn't exist."""
-        from specify_cli.retrospective.summary import _read_slug_from_meta
-        result = _read_slug_from_meta(tmp_path / "no-such-dir")
-        assert result is None
-
-    def test_read_slug_from_meta_missing_slug_key(self, tmp_path: Path) -> None:
-        """_read_slug_from_meta returns None when meta.json has no slug field."""
-        from specify_cli.retrospective.summary import _read_slug_from_meta
-        mission_dir = tmp_path / "mission"
-        mission_dir.mkdir()
-        (mission_dir / "meta.json").write_text('{"status": "done"}', encoding="utf-8")
-        result = _read_slug_from_meta(mission_dir)
-        assert result is None
-
     def test_most_recent_gen_event_skips_blank_and_bad_json(self, tmp_path: Path) -> None:
         """_most_recent_gen_event handles blank lines and JSONDecodeError gracefully."""
         from specify_cli.retrospective.summary import _most_recent_gen_event
@@ -1019,17 +1004,6 @@ class TestSummaryHelperEdgeCases:
         (mission_dir / "meta.json").write_text("not valid json !!!", encoding="utf-8")
         result = _mission_is_in_flight(mission_dir)
         assert result is False
-
-    def test_read_slug_from_meta_exception_returns_none(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """_read_slug_from_meta returns None on any exception (e.g. bad JSON)."""
-        from specify_cli.retrospective.summary import _read_slug_from_meta
-        mission_dir = tmp_path / "bad-json-slug"
-        mission_dir.mkdir()
-        (mission_dir / "meta.json").write_text("not valid json !!!", encoding="utf-8")
-        result = _read_slug_from_meta(mission_dir)
-        assert result is None
 
     def test_read_proposal_events_empty_slug_returns_zeros(self, tmp_path: Path) -> None:
         """_read_proposal_events with empty mission_slug returns (0, 0, 0)."""

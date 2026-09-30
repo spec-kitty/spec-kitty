@@ -15,7 +15,6 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from kernel.clock import now_utc_iso, date
 import json
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +27,6 @@ from specify_cli.cli.console import console as _console
 from specify_cli.cli.console import err_console as _err_console
 
 from specify_cli.retrospective.summary import (
-    MalformedSummaryEntry,
     SummarySnapshot,
     build_summary,
 )

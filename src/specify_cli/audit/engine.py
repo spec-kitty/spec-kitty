@@ -363,65 +363,6 @@ def _slug_to_finding_severity(code: str) -> Any:
     return _MAP.get(code, Severity.WARNING)
 
 
-def _compute_repo_findings(
-    repo_root: Path,
-    identity_states: list[IdentityState],
-    mission_results: list[MissionAuditResult],
-) -> list[MissionFinding]:
-    """Compute cross-mission (repo-level) findings as a flat list.
-
-    This thin wrapper calls ``_compute_repo_findings_by_slug`` and flattens
-    the result.  Used in the public API signature described in the WP spec.
-    """
-    by_slug = _compute_repo_findings_by_slug(repo_root, identity_states, mission_results)
-    return [f for findings in by_slug.values() for f in findings]
-
-
-def _merge_repo_findings(
-    mission_results: list[MissionAuditResult],
-    repo_findings: list[MissionFinding],
-) -> list[MissionAuditResult]:
-    """Attach repo-level findings to the appropriate per-mission result.
-
-    NOTE: This function exists to satisfy the WP spec API contract.  The
-    actual attribution is performed inside ``run_audit()`` via
-    ``_compute_repo_findings_by_slug()``, which returns slug-keyed findings.
-    When called from ``run_audit()`` the ``repo_findings`` list passed here
-    will be empty (findings are merged directly).  When called externally
-    with a non-empty list, findings are distributed using a slug-match
-    heuristic against the finding ``detail`` field.
-
-    Args:
-        mission_results: Per-mission results.
-        repo_findings: Flat list of repo-level findings to distribute.
-
-    Returns:
-        The same list of ``MissionAuditResult`` objects, modified in place.
-    """
-    # When called from run_audit(), repo_findings is always empty because
-    # attribution is already handled by _compute_repo_findings_by_slug().
-    # This function is kept for API contract compliance and external use.
-    if not repo_findings:
-        return mission_results
-
-    by_slug = {r.mission_slug: r for r in mission_results}
-    for finding in repo_findings:
-        detail = finding.detail or ""
-        matched = False
-        for slug, result in by_slug.items():
-            if slug in detail:
-                result.findings.append(finding)
-                result.findings.sort(key=lambda f: (f.artifact_path, f.code))
-                matched = True
-                break
-        if not matched:
-            for result in by_slug.values():
-                result.findings.append(finding)
-                result.findings.sort(key=lambda f: (f.artifact_path, f.code))
-
-    return mission_results
-
-
 # ---------------------------------------------------------------------------
 # Private: report assembly
 # ---------------------------------------------------------------------------

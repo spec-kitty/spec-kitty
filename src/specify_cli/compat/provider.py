@@ -165,17 +165,10 @@ class PyPIProvider:
 
     Args:
         timeout_s: Seconds to wait before declaring a timeout (default 2.0).
-        package_name_default: Ignored by ``get_latest`` — present for callers
-            that want to record the intended package at construction time.
     """
 
-    def __init__(
-        self,
-        timeout_s: float = 2.0,
-        package_name_default: str = "spec-kitty-cli",
-    ) -> None:
+    def __init__(self, timeout_s: float = 2.0) -> None:
         self._timeout_s = timeout_s
-        self._package_name_default = package_name_default
 
     def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:
         """Query ``https://pypi.org/pypi/{package}/json`` and return the version.

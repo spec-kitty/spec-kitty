@@ -14,7 +14,6 @@ All public methods:
 from __future__ import annotations
 
 import json as json_module
-import logging
 import secrets
 from pathlib import Path
 from typing import Any, cast
@@ -35,7 +34,6 @@ from specify_cli.saas_client.errors import (
 )
 from specify_cli.saas_client.project_authority import resolve_project_team_slug
 
-logger = logging.getLogger(__name__)
 
 # Timeout constants (seconds)
 _TIMEOUT_DEFAULT = 5.0

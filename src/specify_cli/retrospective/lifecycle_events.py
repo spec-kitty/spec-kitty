@@ -299,10 +299,6 @@ class RetrospectiveSkipped:
         }
 
 
-# Union type for consumers that handle all three.
-RetroLifecycleEvent = RetrospectiveCaptured | RetrospectiveCaptureFailed | RetrospectiveSkipped
-
-
 # ---------------------------------------------------------------------------
 # Internal JSONL append helper
 # ---------------------------------------------------------------------------

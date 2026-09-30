@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from charter.mission_steps import GateBinding
 
 # Only names consumed cross-module (the transition-gate hook) are exported; the
-# resolution primitives (``resolve_active_gate_bindings``, ``load_gate_bindings``,
+# resolution primitives (``resolve_active_gate_bindings``,
 # ``owning_contract_urn``, ``OWNING_ACTION_FOR_EDGE``, ``GateCoverage``) stay
 # module-internal — they are composed by ``resolve_gate_bindings_for_transition``
 # and exercised directly by unit tests, which do not need ``__all__`` membership.
@@ -110,11 +110,6 @@ class GateBindingResolution:
     owning_contract_urn: str
     reason: str
     active: tuple[GateBinding, ...] = field(default_factory=tuple)
-
-    @property
-    def is_no_coverage(self) -> bool:
-        """True for the two mission-type-axis ``NO_COVERAGE`` outcomes."""
-        return self.coverage in (GateCoverage.NO_CONTRACT, GateCoverage.NO_BINDING)
 
 
 class _ContractSource(Protocol):
@@ -190,22 +185,6 @@ def _load_review_contract(
 ) -> MissionStepContract | None:
     repo = repository or _build_repository(repo_root)
     return repo.get_by_action(mission, action)
-
-
-def load_gate_bindings(repo_root: Path, mission: str, action: str) -> list[GateBinding]:
-    """Load a contract's ``gates`` off the runtime-wired contract model (FR-007).
-
-    Delegates to :meth:`MissionStepContractRepository.get_by_action` — the same
-    repository the executor uses — and returns that contract's ``gates`` (WP05's
-    additive field). The ``mission`` param is **mandatory and load-bearing**:
-    ``get_by_action`` keys on ``(mission, action)`` and only ``software-dev``
-    ships a ``review`` contract, so a mission-blind call is exactly the blocker
-    this WP exists to prevent. Returns ``[]`` when no such contract exists (the
-    caller distinguishes no-contract from no-binding — see
-    :func:`resolve_gate_bindings_for_transition`).
-    """
-    contract = _load_review_contract(repo_root, mission, action)
-    return list(contract.gates) if contract is not None else []
 
 
 # ---------------------------------------------------------------------------

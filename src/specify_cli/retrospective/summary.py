@@ -26,7 +26,6 @@ from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import META_FILENAME, load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
-import logging
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Generator, Literal, cast
@@ -41,7 +40,6 @@ from specify_cli.retrospective.reader import (
 )
 from specify_cli.retrospective.schema import Finding, MissionId
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Helper count shapes
@@ -190,13 +188,6 @@ def _mission_is_in_flight(mission_dir: Path) -> bool:
     terminal = {"done", "canceled", "failed", "completed"}
     # If status is explicitly non-terminal (planned, in_progress, claimed …)
     return bool(status) and status not in terminal
-
-
-def _read_slug_from_meta(mission_dir: Path) -> str | None:
-    """Return mission_slug from meta.json, or None on any error."""
-    meta = load_meta_or_empty(mission_dir)
-    slug = meta.get("mission_slug") or meta.get("feature_slug")
-    return str(slug) if slug else None
 
 
 # ---------------------------------------------------------------------------

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -174,14 +173,6 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
         return None
 
     return _expected_content_hash(source_path, entry.skill_name, entry.source_file)
-
-
-def _project_managed_path(project_path: Path, installed_path: str) -> Path:
-    """Normalize a managed project path without resolving symlink targets."""
-    normalized = Path(os.path.normpath(str(project_path / installed_path)))
-    if not normalized.is_absolute():
-        normalized = (project_path / normalized).absolute()
-    return normalized
 
 
 def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> str:

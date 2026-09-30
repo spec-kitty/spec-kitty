@@ -89,15 +89,6 @@ def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path
     return roots
 
 
-def _retired_skill_cleanup_needed() -> bool:
-    for root in _unique_global_roots():
-        for skill_name in RETIRED_CANONICAL_SKILL_NAMES:
-            dest = root / skill_name
-            if dest.exists() or dest.is_symlink():
-                return True
-    return False
-
-
 def _prepare_skill_tree(
     prepared: AssetPreparation,
     source: Path,

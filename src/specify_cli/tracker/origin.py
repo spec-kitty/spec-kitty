@@ -1,11 +1,8 @@
 """Service-layer orchestration for ticket-first mission origin binding.
 
-Provides three public entry points consumed by ``/spec-kitty.specify``
-and agent workflows:
-
-* :func:`search_origin_candidates` -- search for candidate external issues
-* :func:`bind_mission_origin` -- persist origin binding (SaaS-first, local-second)
-* :func:`start_mission_from_ticket` -- create a mission from a confirmed ticket
+Provides :func:`bind_mission_origin`, which persists an origin binding
+(SaaS-first, local-second). It is consumed by ``tracker/origin_consumer.py``
+after ``spec-kitty mission create --from-ticket`` fetches the ticket.
 
 All errors surface as :class:`OriginBindingError`.
 """
@@ -13,190 +10,26 @@ All errors surface as :class:`OriginBindingError`.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import logging
-import re
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed, locate_project_root
 from specify_cli.mission_metadata import set_origin_ticket
 from specify_cli.tracker.config import TrackerProjectConfig, load_tracker_config
-from specify_cli.tracker.origin_models import (
-    MissionFromTicketResult,
-    OriginCandidate,
-    SearchOriginResult,
-)
+from specify_cli.tracker.origin_models import OriginCandidate
 from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
 
-logger = logging.getLogger(__name__)
 
 # Re-export dataclasses for public API surface
 __all__ = [
-    "MissionFromTicketResult",
     "OriginBindingError",
     "OriginCandidate",
-    "SearchOriginResult",
     "bind_mission_origin",
-    "search_origin_candidates",
-    "start_mission_from_ticket",
 ]
-
-# Providers that support origin binding (C-001: only Jira and Linear in v1)
-_ORIGIN_PROVIDERS: frozenset[str] = frozenset({"jira", "linear"})
 
 
 class OriginBindingError(RuntimeError):
     """Raised when origin binding operations fail."""
-
-
-# ---------------------------------------------------------------------------
-# Slug derivation
-# ---------------------------------------------------------------------------
-
-_SLUG_SANITIZE_RE = re.compile(r"[^a-z0-9]+")
-_WHITESPACE_RE = re.compile(r"\s+")
-
-
-def _derive_slug_from_ticket(candidate: OriginCandidate) -> str:
-    """Derive a kebab-case feature slug from the ticket key.
-
-    Rules (per research R5):
-    - Use ``external_issue_key`` lowercased as the slug base
-    - Sanitize to kebab-case: replace non-alphanumeric with hyphens,
-      collapse consecutive hyphens, strip leading/trailing hyphens
-    - Fall back to sanitized title (first 5 words) if key sanitizes empty
-    """
-    raw = candidate.external_issue_key.lower()
-    slug = _SLUG_SANITIZE_RE.sub("-", raw).strip("-")
-
-    if not slug:
-        # Fall back to sanitized title (first 5 words)
-        words = candidate.title.lower().split()[:5]
-        raw_title = " ".join(words)
-        slug = _SLUG_SANITIZE_RE.sub("-", raw_title).strip("-")
-
-    if not slug:
-        slug = "untitled"
-
-    return slug
-
-
-def _normalize_summary_text(value: str) -> str:
-    """Collapse whitespace into a stable single-paragraph representation."""
-    return _WHITESPACE_RE.sub(" ", value or "").strip()
-
-
-def _derive_ticket_summary(candidate: OriginCandidate) -> tuple[str, str, str]:
-    """Return mission presentation fields derived deterministically from a ticket."""
-    friendly_name = _normalize_summary_text(candidate.title)
-    if not friendly_name:
-        raise OriginBindingError("Ticket-first mission creation requires a non-empty ticket title.")
-
-    purpose_tldr = friendly_name
-
-    body = candidate.body or ""
-    paragraphs = [
-        _normalize_summary_text(chunk)
-        for chunk in re.split(r"\n\s*\n", body)
-        if _normalize_summary_text(chunk)
-    ]
-    purpose_context = next((paragraph for paragraph in paragraphs if len(paragraph) >= 24), "")
-    if not purpose_context:
-        raise OriginBindingError(
-            "Ticket-first mission creation requires ticket body text with at least one non-empty explanatory paragraph."
-        )
-
-    return friendly_name, purpose_tldr, purpose_context
-
-
-# ---------------------------------------------------------------------------
-# search_origin_candidates
-# ---------------------------------------------------------------------------
-
-
-def search_origin_candidates(
-    repo_root: Path,
-    query_text: str | None = None,
-    query_key: str | None = None,
-    limit: int = 10,
-    *,
-    client: SaaSTrackerClient | None = None,
-) -> SearchOriginResult:
-    """Search for candidate external issues to use as mission origin.
-
-    Parameters
-    ----------
-    repo_root:
-        Project root containing ``.kittify/config.yaml``.
-    query_text:
-        Free-text search query.
-    query_key:
-        Explicit ticket key (e.g. ``"WEB-123"``).  Takes precedence
-        over *query_text* when both are provided.
-    limit:
-        Maximum number of candidates to return.
-    client:
-        Optional injected client for testability.  Defaults to a new
-        ``SaaSTrackerClient()``.
-
-    Returns
-    -------
-    SearchOriginResult
-        Structured search result with candidates and routing context.
-
-    Raises
-    ------
-    OriginBindingError
-        On any configuration, transport, or authorization failure.
-    """
-    # 1. Load tracker config
-    tracker_config = load_tracker_config(repo_root)
-    if not tracker_config.provider or not tracker_config.project_slug:
-        raise OriginBindingError("No tracker bound. Run `spec-kitty tracker bind` first.")
-
-    provider = tracker_config.provider
-    project_slug = tracker_config.project_slug
-
-    # 2. Validate provider is jira or linear (C-001)
-    if provider not in _ORIGIN_PROVIDERS:
-        raise OriginBindingError(f"Only Jira and Linear providers support origin binding. Current provider: {provider}")
-
-    # 3. Call SaaS — gated on the consent of the project being searched (FR-029).
-    actual_client = client or SaaSTrackerClient(project_root=repo_root)
-    try:
-        response = actual_client.search_issues(
-            provider,
-            project_slug,
-            query_text=query_text,
-            query_key=query_key,
-            limit=limit,
-        )
-    except SaaSTrackerClientError as exc:
-        raise OriginBindingError(str(exc)) from exc
-
-    # 4. Convert response to SearchOriginResult
-    candidates = [
-        OriginCandidate(
-            external_issue_id=c["external_issue_id"],
-            external_issue_key=c["external_issue_key"],
-            title=c["title"],
-            status=c["status"],
-            url=c["url"],
-            match_type=c.get("match_type", "text"),
-            body=c.get("body"),
-        )
-        for c in response.get("candidates", [])
-    ]
-
-    query_used = query_key or query_text or ""
-
-    return SearchOriginResult(
-        candidates=candidates,
-        provider=provider,
-        resource_type=response.get("resource_type", ""),
-        resource_id=response.get("resource_id", ""),
-        query_used=query_used,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -314,97 +147,6 @@ def bind_mission_origin(
     # 6. Return the updated meta dict (the MissionOriginBound SaaS emission
     # was removed with the sync transport, issue #5).
     return updated_meta, False
-
-
-# ---------------------------------------------------------------------------
-# start_mission_from_ticket
-# ---------------------------------------------------------------------------
-
-
-def start_mission_from_ticket(
-    repo_root: Path,
-    candidate: OriginCandidate,
-    provider: str,
-    resource_type: str,
-    resource_id: str,
-    mission_type: str = "software-dev",
-    *,
-    client: SaaSTrackerClient | None = None,
-) -> MissionFromTicketResult:
-    """Create a mission from a confirmed external ticket.
-
-    Parameters
-    ----------
-    repo_root:
-        Project root.
-    candidate:
-        Confirmed origin candidate.
-    provider:
-        Tracker provider.
-    resource_type:
-        Resource type.
-    resource_id:
-        Resource identifier.
-    mission_type:
-        Mission key (default ``"software-dev"``).
-    client:
-        Optional injected client for testability.
-
-    Returns
-    -------
-    MissionFromTicketResult
-        Structured result with feature_dir, slug, origin metadata,
-        and event emission status.
-
-    Raises
-    ------
-    OriginBindingError
-        On creation or binding failure.
-    """
-    from specify_cli.core.mission_creation import (
-        MissionCreationError,
-        create_mission_core,
-    )
-
-    # 1. Derive slug from candidate
-    slug = _derive_slug_from_ticket(candidate)
-    friendly_name, purpose_tldr, purpose_context = _derive_ticket_summary(candidate)
-
-    # 2. Create feature
-    try:
-        creation_result = create_mission_core(
-            repo_root,
-            slug,
-            mission=mission_type,
-            target_branch=None,
-            friendly_name=friendly_name,
-            purpose_tldr=purpose_tldr,
-            purpose_context=purpose_context,
-        )
-    except MissionCreationError as exc:
-        raise OriginBindingError(str(exc)) from exc
-
-    # 3. Bind origin (SaaS-first, local-second)
-    try:
-        updated_meta, _ = bind_mission_origin(
-            creation_result.feature_dir,
-            candidate,
-            provider,
-            resource_type,
-            resource_id,
-            client=client,
-        )
-        origin_ticket: dict[str, str] = updated_meta.get("origin_ticket", {})
-    except OriginBindingError:
-        # Feature exists but has no origin. Acceptable -- agent can retry
-        # the bind separately. Re-raise so caller knows.
-        raise
-
-    return MissionFromTicketResult(
-        feature_dir=creation_result.feature_dir,
-        mission_slug=creation_result.mission_slug,
-        origin_ticket=origin_ticket,
-    )
 
 
 # ---------------------------------------------------------------------------

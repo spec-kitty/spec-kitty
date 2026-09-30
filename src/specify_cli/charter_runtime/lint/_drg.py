@@ -113,23 +113,6 @@ def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
     return None, GraphState.MISSING
 
 
-def get_nodes_by_kind(drg: Any, kind_str: str) -> list[Any]:
-    """Return all nodes whose ``kind`` value equals *kind_str*.
-
-    Works with both enum-valued and string-valued ``kind`` attributes.
-    Returns ``[]`` when *drg* is ``None`` or has no ``nodes`` attribute.
-    """
-    if drg is None:
-        return []
-    result: list[Any] = []
-    for node in getattr(drg, "nodes", []):
-        kind = getattr(node, "kind", None)
-        kind_val = getattr(kind, "value", str(kind) if kind else "")
-        if kind_val == kind_str:
-            result.append(node)
-    return result
-
-
 def get_incoming_edges(drg: Any, node_urn: str, relation_strs: set[str]) -> list[Any]:
     """Return edges that point *to* ``node_urn`` with a relation in ``relation_strs``.
 

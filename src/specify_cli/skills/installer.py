@@ -308,49 +308,6 @@ def _project_skill_files(
     return entries
 
 
-def _make_entries_for_existing(
-    skill: CanonicalSkill,
-    target_skill_dir: Path,
-    project_path: Path,
-    installation_class: str,
-    agent_key: str,
-) -> list[ManagedFileEntry]:
-    """Create manifest entries pointing to already-projected files."""
-    entries: list[ManagedFileEntry] = []
-    now = now_utc_iso()
-    previous = load_manifest(project_path, strict=True)
-
-    for source_file in skill.all_files:
-        rel_within_skill = source_file.relative_to(skill.skill_dir)
-        dest = target_skill_dir / rel_within_skill
-        observations = skill_path_observations(project_path, dest)
-        expected = source_file.read_bytes()
-        if rel_within_skill == Path("SKILL.md"):
-            expected = ensure_skill_frontmatter(expected.decode("utf-8"), skill.name).encode("utf-8")
-        current = observations[-1].state
-        if current.kind != "file" or dest.read_bytes() != expected:
-            if previous is not None:
-                entries.extend(
-                    entry for entry in previous.entries if entry.installed_path == dest.relative_to(project_path).as_posix() and entry.agent_key == agent_key
-                )
-            continue
-        recheck_skill_paths(observations)
-        entries.append(
-            ManagedFileEntry(
-                skill_name=skill.name,
-                source_file=str(rel_within_skill),
-                installed_path=str(dest.relative_to(project_path)),
-                installation_class=installation_class,
-                agent_key=agent_key,
-                content_hash=compute_content_hash(dest),
-                installed_at=now,
-                delivery_mode=DELIVERY_COPY,
-            )
-        )
-
-    return entries
-
-
 def install_skills_for_agent(
     project_path: Path,
     agent_key: str,

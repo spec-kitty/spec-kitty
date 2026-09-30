@@ -170,11 +170,6 @@ class PackManifest(BaseModel):
             schema.pop("serialization", None)
         return handler(schema)
 
-    def sorted_constituents(self) -> list[Constituent]:
-        """Return the constituents in canonical ``(kind, id)`` order."""
-        return sort_constituents(self.constituents or ())
-
-
 # ---------------------------------------------------------------------------
 # Determinism + hashing
 # ---------------------------------------------------------------------------

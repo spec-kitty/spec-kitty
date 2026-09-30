@@ -368,21 +368,6 @@ def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
     return normalized == old.render().rstrip("\n")
 
 
-def _replace_section(text: str, replacement: str) -> str:
-    """Replace the block from ``SECTION_OPEN`` to ``SECTION_CLOSE`` (inclusive).
-
-    Falls back to appending *replacement* if either marker is not found.
-    """
-    start = text.find(SECTION_OPEN)
-    end = text.find(SECTION_CLOSE, start)
-    if start == -1 or end == -1:
-        return text + "\n\n" + replacement
-    end += len(SECTION_CLOSE)
-    if text[end : end + 1] == "\n":
-        end += 1
-    return text[:start] + replacement + text[end:]
-
-
 def _remove_section(text: str) -> str:
     """Remove the block from ``SECTION_OPEN`` to ``SECTION_CLOSE`` (inclusive).
 

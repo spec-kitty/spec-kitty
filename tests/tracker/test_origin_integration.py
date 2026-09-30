@@ -6,8 +6,9 @@ boundary.  Real config loading, real metadata writes, real event
 emission, and the real ``SaaSTrackerClient`` transport are exercised.
 
 Covers:
-- T031: End-to-end search -> confirm -> bind flow
-- T032: start_mission_from_ticket full flow
+- T031: End-to-end confirm -> bind flow (the search step and T032's
+  ``start_mission_from_ticket`` were deleted as never-wired; dead-code review
+  2026-09-30)
 - T033: Error propagation across layers
 - T034: SaaS-first write ordering invariant (MOST CRITICAL)
 - T035: Offline event queuing
@@ -26,13 +27,8 @@ import pytest
 from specify_cli.tracker.origin import (
     OriginBindingError,
     bind_mission_origin,
-    search_origin_candidates,
-    start_mission_from_ticket,
 )
-from specify_cli.tracker.origin_models import (
-    MissionFromTicketResult,
-    OriginCandidate,
-)
+from specify_cli.tracker.origin_models import OriginCandidate
 from specify_cli.tracker.saas_client import SaaSTrackerClient
 
 
@@ -155,7 +151,7 @@ def mock_client() -> SaaSTrackerClient:
 
 
 # ===========================================================================
-# T031: End-to-end search -> confirm -> bind flow
+# T031: End-to-end confirm -> bind flow
 # ===========================================================================
 
 
@@ -163,90 +159,34 @@ class TestSearchConfirmBindFlow:
     """Integration test wiring real service functions with httpx mock only."""
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_search_returns_candidates(
-        self,
-        mock_http_cls: MagicMock,
-        repo_with_tracker: Path,
-        mock_client: SaaSTrackerClient,
-    ) -> None:
-        """Search via real config loading + real SaaSTrackerClient transport."""
-        mock_http = _setup_mock_http(mock_http_cls)
-        mock_http.request.return_value = _make_response(
-            200,
-            {
-                "candidates": [
-                    {
-                        "external_issue_id": "id-1",
-                        "external_issue_key": "WEB-123",
-                        "title": "Add Clerk auth",
-                        "status": "In Progress",
-                        "url": "https://linear.app/acme/WEB-123",
-                        "match_type": "text",
-                    },
-                ],
-                "resource_type": "linear_team",
-                "resource_id": "team-uuid",
-            },
-        )
-
-        result = search_origin_candidates(
-            repo_with_tracker,
-            query_text="Clerk auth",
-            client=mock_client,
-        )
-
-        assert len(result.candidates) == 1
-        assert result.candidates[0].external_issue_key == "WEB-123"
-        assert result.provider == "linear"
-        assert result.resource_type == "linear_team"
-
-    @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_search_confirm_bind_full_flow(
+    def test_confirm_bind_full_flow(
         self,
         mock_http_cls: MagicMock,
         repo_with_tracker: Path,
         feature_dir_with_meta: Path,
         mock_client: SaaSTrackerClient,
     ) -> None:
-        """Full happy path: search -> pick candidate -> bind -> verify meta."""
+        """Full happy path: confirmed candidate -> bind -> verify meta."""
         mock_http = _setup_mock_http(mock_http_cls)
 
-        # Search returns candidates
-        search_response = _make_response(
-            200,
-            {
-                "candidates": [
-                    {
-                        "external_issue_id": "id-1",
-                        "external_issue_key": "WEB-123",
-                        "title": "Add Clerk auth",
-                        "status": "In Progress",
-                        "url": "https://linear.app/acme/WEB-123",
-                        "match_type": "text",
-                    },
-                ],
-                "resource_type": "linear_team",
-                "resource_id": "team-uuid",
-            },
+        # Step 1: the confirmed candidate (ticket fetch happens in
+        # ``mission create --from-ticket``, not in this service).
+        candidate = OriginCandidate(
+            external_issue_id="id-1",
+            external_issue_key="WEB-123",
+            title="Add Clerk auth",
+            status="In Progress",
+            url="https://linear.app/acme/WEB-123",
+            match_type="text",
         )
 
         # Bind returns success
-        bind_response = _make_response(
-            200,
-            {"origin_link_id": "link-1", "bound_at": "2026-04-01T00:00:00Z"},
-        )
-
-        # First call is search, second is bind
-        mock_http.request.side_effect = [search_response, bind_response]
-
-        # Step 1: Search
-        result = search_origin_candidates(
-            repo_with_tracker,
-            query_text="Clerk auth",
-            client=mock_client,
-        )
-        assert len(result.candidates) == 1
-        candidate = result.candidates[0]
+        mock_http.request.side_effect = [
+            _make_response(
+                200,
+                {"origin_link_id": "link-1", "bound_at": "2026-04-01T00:00:00Z"},
+            )
+        ]
 
         # Step 2: Bind
         meta, emitted = bind_mission_origin(
@@ -279,73 +219,6 @@ class TestSearchConfirmBindFlow:
 
 
 # ===========================================================================
-# T032: start_mission_from_ticket full flow
-# ===========================================================================
-
-
-class TestStartMissionFromTicket:
-    """Integration test for the full orchestration function."""
-
-    @patch("specify_cli.core.mission_creation.create_mission_core")
-    @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_full_flow_returns_result(
-        self,
-        mock_http_cls: MagicMock,
-        mock_create: MagicMock,
-        repo_with_tracker: Path,
-        feature_dir_with_meta: Path,
-        mock_client: SaaSTrackerClient,
-    ) -> None:
-        """Mock create_mission_core + httpx -> real bind -> result."""
-        mock_http = _setup_mock_http(mock_http_cls)
-
-        # create_mission_core returns a result pointing at our feature dir
-        mock_create.return_value = MagicMock(
-            feature_dir=feature_dir_with_meta,
-            mission_slug="061-test-feature",
-        )
-
-        # Bind succeeds via httpx
-        mock_http.request.return_value = _make_response(
-            200,
-            {"origin_link_id": "link-1", "bound_at": "2026-04-01T00:00:00Z"},
-        )
-
-        candidate = _make_candidate()
-
-        result = start_mission_from_ticket(
-            repo_with_tracker,
-            candidate,
-            "linear",
-            "linear_team",
-            "team-uuid",
-            client=mock_client,
-        )
-
-        assert isinstance(result, MissionFromTicketResult)
-        assert result.mission_slug == "061-test-feature"
-        assert result.origin_ticket["provider"] == "linear"
-        assert result.origin_ticket["external_issue_key"] == "WEB-123"
-
-        # Verify meta.json on disk has origin_ticket
-        disk_meta = json.loads(
-            (feature_dir_with_meta / "meta.json").read_text(encoding="utf-8"),
-        )
-        assert "origin_ticket" in disk_meta
-
-        # Verify create_mission_core was called with derived slug
-        mock_create.assert_called_once_with(
-            repo_with_tracker,
-            "web-123",
-            mission="software-dev",
-            target_branch=None,
-            friendly_name="Add Clerk auth",
-            purpose_tldr="Add Clerk auth",
-            purpose_context="Make authentication consistent across the product so teams can launch a reliable sign-in flow without patchwork fixes.",
-        )
-
-
-# ===========================================================================
 # T033: Error propagation across layers
 # ===========================================================================
 
@@ -353,32 +226,6 @@ class TestStartMissionFromTicket:
 class TestErrorPropagation:
     """Verify errors from httpx propagate as OriginBindingError with
     user-actionable messages (not raw HTTP details)."""
-
-    @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_401_search_propagates_as_origin_error(
-        self,
-        mock_http_cls: MagicMock,
-        repo_with_tracker: Path,
-        mock_client: SaaSTrackerClient,
-    ) -> None:
-        """HTTP 401 -> SaaSTrackerClientError -> OriginBindingError."""
-        mock_http = _setup_mock_http(mock_http_cls)
-
-        # Both attempts return 401 (after refresh)
-        mock_http.request.side_effect = [
-            _make_response(401, {"message": "Unauthorized"}),
-            _make_response(401, {"message": "Unauthorized"}),
-        ]
-
-        with (
-            patch("specify_cli.tracker.saas_client._force_refresh_sync"),
-            pytest.raises(OriginBindingError, match="Session expired|login"),
-        ):
-            search_origin_candidates(
-                repo_with_tracker,
-                query_text="test",
-                client=mock_client,
-            )
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_409_bind_propagates_as_origin_error(
@@ -410,50 +257,6 @@ class TestErrorPropagation:
                 "linear_team",
                 "team-uuid",
                 client=mock_client,
-            )
-
-    @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_404_search_propagates_as_origin_error(
-        self,
-        mock_http_cls: MagicMock,
-        repo_with_tracker: Path,
-        mock_client: SaaSTrackerClient,
-    ) -> None:
-        """HTTP 404 -> SaaSTrackerClientError -> OriginBindingError."""
-        mock_http = _setup_mock_http(mock_http_cls)
-        mock_http.request.return_value = _make_response(
-            404,
-            {"message": "No mapping found for provider", "code": "no_mapping"},
-        )
-
-        with pytest.raises(OriginBindingError, match="No mapping found"):
-            search_origin_candidates(
-                repo_with_tracker,
-                query_text="test",
-                client=mock_client,
-            )
-
-    @patch("specify_cli.core.mission_creation.create_mission_core")
-    def test_creation_failure_propagates(
-        self,
-        mock_create: MagicMock,
-        repo_with_tracker: Path,
-    ) -> None:
-        """MissionCreationError -> OriginBindingError."""
-        from specify_cli.core.mission_creation import MissionCreationError
-
-        mock_create.side_effect = MissionCreationError(
-            "Feature slug 'web-123' already exists",
-        )
-        candidate = _make_candidate()
-
-        with pytest.raises(OriginBindingError, match="already exists"):
-            start_mission_from_ticket(
-                repo_with_tracker,
-                candidate,
-                "linear",
-                "linear_team",
-                "team-uuid",
             )
 
 

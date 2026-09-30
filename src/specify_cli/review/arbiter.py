@@ -32,8 +32,6 @@ from specify_cli.review.cycle import _review_cycle_wp_dir
 from specify_cli.status import Lane, read_events
 
 if TYPE_CHECKING:
-    from rich.console import Console
-
     from specify_cli.status.models import StatusEvent
 
 
@@ -246,89 +244,6 @@ def _synthetic_checklist(category: ArbiterCategory) -> ArbiterChecklist:
         is_in_scope=(category != ArbiterCategory.CROSS_SCOPE),
         is_environmental=(category == ArbiterCategory.INFRA_ENVIRONMENTAL),
         should_follow_on=False,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Interactive checklist prompt
-# ---------------------------------------------------------------------------
-
-
-def prompt_arbiter_checklist(
-    wp_id: str,
-    arbiter_name: str,
-    console: Console,
-) -> ArbiterDecision:
-    """Present the arbiter checklist interactively and return a structured decision.
-
-    Args:
-        wp_id: Work package ID being overridden (e.g. ``"WP06"``).
-        arbiter_name: Name of the human/agent acting as arbiter.
-        console: Rich Console instance for I/O.
-
-    Returns:
-        A populated :class:`ArbiterDecision` with derived category.
-    """
-    console.print()
-    console.print(f"[bold yellow]Arbiter Override Checklist for {wp_id}[/bold yellow]")
-    console.print()
-    console.print("Answer each question to classify this override:")
-    console.print()
-
-    def _ask_yn(question: str, default: bool) -> bool:
-        hint = "[Y/n]" if default else "[y/N]"
-        answer = console.input(f"  {question} {hint} ").strip().lower()
-        if answer in ("y", "yes"):
-            return True
-        if answer in ("n", "no"):
-            return False
-        return default
-
-    is_pre_existing = _ask_yn("Q1. Is this failure pre-existing on the base branch?", default=False)
-    is_correct_context = _ask_yn("Q2. Is the reviewer talking about the correct feature/WP?", default=True)
-    is_in_scope = _ask_yn("Q3. Is the finding within this WP's scope?", default=True)
-    is_environmental = _ask_yn("Q4. Is the failure environmental or infrastructure-related?", default=False)
-    should_follow_on = _ask_yn(
-        "Q5. Should this become a follow-on issue instead of blocking this WP?",
-        default=False,
-    )
-
-    checklist = ArbiterChecklist(
-        is_pre_existing=is_pre_existing,
-        is_correct_context=is_correct_context,
-        is_in_scope=is_in_scope,
-        is_environmental=is_environmental,
-        should_follow_on=should_follow_on,
-    )
-
-    category = _derive_category(checklist)
-    default_explanation = _CATEGORY_DEFAULTS.get(category, "")
-
-    console.print()
-    console.print(f"  Derived category: [bold cyan]{category}[/bold cyan]")
-    console.print()
-
-    if category == ArbiterCategory.CUSTOM:
-        # CUSTOM requires a non-empty explanation
-        while True:
-            explanation = console.input("  Explanation (required for CUSTOM): ").strip()
-            if explanation:
-                break
-            console.print("  [red]Explanation is required for CUSTOM category.[/red]")
-    else:
-        prompt_text = f"  Explanation [{default_explanation}]: "
-        explanation = console.input(prompt_text).strip()
-        if not explanation:
-            explanation = default_explanation
-
-    console.print()
-
-    return ArbiterDecision(
-        arbiter=arbiter_name or "operator",
-        category=category,
-        explanation=explanation,
-        checklist=checklist,
-        decided_at=now_utc_iso(),
     )
 
 

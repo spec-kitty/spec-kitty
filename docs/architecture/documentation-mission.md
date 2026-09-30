@@ -612,7 +612,7 @@ rustdoc-args = ["--document-private-items"]  # Optional: include private APIs
 
 ### Generator Not Found
 
-**Error**: `GeneratorError: sphinx-build not found - install Sphinx to use this generator`
+**Error**: `sphinx-build: command not found` (or the equivalent for `npx jsdoc` / `cargo doc`)
 
 **Solution**: Install the required generator tool:
 ```bash
@@ -628,7 +628,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ### Configuration File Not Found
 
-**Error**: `conf.py not found - run configure() first`
+**Error**: the generator (for example `sphinx-build`) reports that `conf.py` is missing
 
 **Solution**: The generator configuration step failed. Manually run:
 ```bash
@@ -898,7 +898,7 @@ For contributors interested in the implementation:
 
 - **Mission configuration**: `src/specify_cli/missions/documentation/mission.yaml`
 - **Gap analysis**: `src/specify_cli/doc_analysis/gap_analysis.py`
-- **Generator implementations**: `src/specify_cli/doc_analysis/doc_generators.py`
+- **Generator detection**: `src/specify_cli/doc_analysis/doc_generators.py`
 - **State management**: `src/specify_cli/doc_analysis/doc_state.py`
 
 These files are in the Spec Kitty source repository.

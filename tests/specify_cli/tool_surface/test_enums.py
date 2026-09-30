@@ -6,9 +6,7 @@ from enum import StrEnum
 
 from specify_cli.tool_surface.enums import (
     ActivationMode,
-    CommandSurfaceCapability,
     InstallScope,
-    MutabilityPolicy,
     RequiredPolicy,
     SourceKind,
     ToolSurfaceKind,
@@ -23,8 +21,6 @@ ALL_ENUMS = [
     SourceKind,
     InstallScope,
     ActivationMode,
-    CommandSurfaceCapability,
-    MutabilityPolicy,
     RequiredPolicy,
 ]
 

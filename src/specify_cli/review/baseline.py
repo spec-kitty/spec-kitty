@@ -653,11 +653,6 @@ def _capture_baseline_via_scope_source(
     return result
 
 
-def load_baseline(path: Path) -> BaselineTestResult | None:
-    """Convenience wrapper — delegates to BaselineTestResult.load()."""
-    return BaselineTestResult.load(path)
-
-
 def diff_baseline(
     baseline: BaselineTestResult,
     current_failures: list[BaselineFailure],

@@ -61,23 +61,6 @@ class ActivationMode(StrEnum):
     DISABLED = "disabled"
 
 
-class CommandSurfaceCapability(StrEnum):
-    """Capability of a tool's command surface."""
-
-    ADAPTER = "adapter"
-    SKILLS_INVOKABLE = "skills_invocable"
-    NONE = "none"
-
-
-class MutabilityPolicy(StrEnum):
-    """How a surface file may be mutated during repair."""
-
-    GENERATED_OVERWRITE_IF_HASH_MATCHES = "generated_overwrite_if_hash_matches"
-    PRESERVE_USER_EDITS = "preserve_user_edits"
-    USER_EDITABLE = "user_editable"
-    READ_ONLY_PACKAGE = "read_only_package"
-
-
 class RequiredPolicy(StrEnum):
     """Whether a surface is required, repairable, optional, or a research gap."""
 

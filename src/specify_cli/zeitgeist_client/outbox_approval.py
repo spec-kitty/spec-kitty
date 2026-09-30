@@ -426,23 +426,6 @@ def show(item_id: str) -> PendingItem:
     return _item_from_row(item_id, row)
 
 
-def get_receipt(item_id: str) -> Receipt | None:
-    """The receipt recording ``item_id``'s current decision, if any."""
-    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
-    with lock:
-        data = _read_all()
-        row = data["items"].get(item_id)
-        if row is None:
-            raise NotFound(item_id)
-        status = row["status"]
-        if status not in _TERMINAL_DECISIONS:
-            return None
-        receipt_id = _find_receipt_id(data, item_id=item_id, decision=status)
-        if receipt_id is None:
-            return None
-        return _receipt_from_row(receipt_id, data["receipts"][receipt_id])
-
-
 # --- the human-gesture seam ---------------------------------------------------
 
 

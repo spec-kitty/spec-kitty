@@ -15,7 +15,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _EXPECTED_CODES = {
     "GENERATED_SURFACE_MISSING": "generated-surface-missing",
     "MANAGED_FILE_DRIFT": "managed-file-drift",
-    "MANAGED_FILE_MODIFIED": "managed-file-modified",
     "STALE_GENERATED_SURFACE": "stale-generated-surface",
     "UNSAFE_MANAGED_PATH": "unsafe-managed-path",
     "UNMANAGED_SPEC_KITTY_SURFACE": "unmanaged-spec-kitty-surface",
@@ -23,14 +22,12 @@ _EXPECTED_CODES = {
     "CONTEXT_FILE_MISSING": "context-file-missing",
     "SESSION_PRESENCE_INCOMPLETE": "session-presence-incomplete",
     "NATIVE_CONFIG_MISSING": "native-config-missing",
-    "NATIVE_CONFIG_DRIFT": "native-config-drift",
     "NATIVE_AGENT_PROFILE_MISSING": "native-agent-profile-missing",
     "NATIVE_AGENT_PROFILE_DRIFT": "native-agent-profile-drift",
     "PROFILE_PROJECTION_UNSUPPORTED": "profile-projection-unsupported",
     "RESEARCH_GAP_SURFACE": "research-gap-surface",
     "BUNDLE_COMPONENT_MISSING": "bundle-component-missing",
     "PLUGIN_MANIFEST_STALE_PATH": "plugin-manifest-stale-path",
-    "DOCS_REF_STALE": "docs-ref-stale",
 }
 
 

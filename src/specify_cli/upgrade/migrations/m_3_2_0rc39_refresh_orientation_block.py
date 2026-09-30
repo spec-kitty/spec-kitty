@@ -9,8 +9,8 @@ with the current rendering.
 orientation block whose content differs from the freshly-rendered block.
 
 ``apply()`` calls ``writer.write()`` for each stale harness.  Because
-``MarkdownRulesWriter.write()`` already performs an in-place replace (via
-``_replace_section``), calling it on an already-current block is a safe no-op.
+``MarkdownRulesWriter.write()`` already performs an in-place replace of the
+managed section, calling it on an already-current block is a safe no-op.
 
 This migration purposefully does NOT install absent blocks — that is the
 responsibility of the Phase 1/2 install migrations.

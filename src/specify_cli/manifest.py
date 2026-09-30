@@ -7,7 +7,7 @@ from kernel.paths import is_windows
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, List, Optional
+from typing import Any
 import subprocess
 
 

@@ -27,7 +27,6 @@ SEVERITY_INFO = "info"
 # --- Command skills / command files -----------------------------------------
 GENERATED_SURFACE_MISSING = "generated-surface-missing"
 MANAGED_FILE_DRIFT = "managed-file-drift"
-MANAGED_FILE_MODIFIED = "managed-file-modified"
 STALE_GENERATED_SURFACE = "stale-generated-surface"
 UNSAFE_MANAGED_PATH = "unsafe-managed-path"
 UNMANAGED_SPEC_KITTY_SURFACE = "unmanaged-spec-kitty-surface"
@@ -37,7 +36,6 @@ CONFIGURED_TOOL_SURFACE_UNINSTALLED = "configured-tool-surface-uninstalled"
 CONTEXT_FILE_MISSING = "context-file-missing"
 SESSION_PRESENCE_INCOMPLETE = "session-presence-incomplete"
 NATIVE_CONFIG_MISSING = "native-config-missing"
-NATIVE_CONFIG_DRIFT = "native-config-drift"
 # .claude/settings.json bytes cannot be provably decoded (#4940): the
 # probe reports this truthfully instead of raising SettingsNotDecodableError.
 SESSION_PRESENCE_UNDECODABLE = "session-presence-undecodable"
@@ -60,9 +58,6 @@ PROFILE_SENTINEL_SKIPPED = "profile-sentinel-skipped"
 # --- Plugin bundles (placeholders, populated in WP09) -----------------------
 BUNDLE_COMPONENT_MISSING = "bundle-component-missing"
 PLUGIN_MANIFEST_STALE_PATH = "plugin-manifest-stale-path"
-
-# --- Docs (placeholder, populated in WP08) ----------------------------------
-DOCS_REF_STALE = "docs-ref-stale"
 
 
 @dataclass(frozen=True)

@@ -118,15 +118,6 @@ def populate_from_package(
     return None
 
 
-def _cleanup_orphaned_update_dirs(parent: Path) -> None:
-    """Report legacy staging candidates; their names do not prove ownership."""
-    if not parent.is_dir():
-        return
-    for entry in parent.iterdir():
-        if entry.is_dir() and entry.name.startswith(".kittify_update_"):
-            logger.warning("Preserving unproven orphan staging directory: %s", entry)
-
-
 def assess_runtime(*, consent: ApplyConsent = ApplyConsent(), _batch: _GlobalAssetPreparation | None = None) -> OwnerAssessment:
     """Prepare managed package assets directly, without staging or bootstrap."""
     from specify_cli.runtime.asset_preparation import AssetPreparation, build_serialized, global_asset_root, incomplete

@@ -891,26 +891,6 @@ def apply_org_charter_to_interview(
 # ---------------------------------------------------------------------------
 
 
-def org_charter_to_json_block(policy: OrgCharterPolicy) -> dict[str, Any]:
-    """Return the ``{"present": ..., "packs": [...]}`` block for one policy.
-
-    This mirrors the shape produced by
-    :func:`specify_cli.doctrine.org_charter_loader.load_org_charter_json_block`
-    for a single pack.  Callers that need cross-pack aggregation should
-    use the loader directly.
-    """
-    governance_dump: list[dict[str, Any]] = []
-    for gp in policy.governance_policies:
-        entry = gp.model_dump()
-        entry["source"] = "org"
-        governance_dump.append(entry)
-    return {
-        "pack_name": policy.org_name or "",
-        "governance_policies": governance_dump,
-        "required_directives": list(policy.required_directives),
-    }
-
-
 def validate_org_required_directive_stems(repo_root: Path) -> None:
     """Reject ambiguous mandatory directives before charter/config writes.
 

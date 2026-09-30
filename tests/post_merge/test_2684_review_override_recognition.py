@@ -159,7 +159,7 @@ def test_event_sourced_complete_override_does_not_block_merge(tmp_path: Path) ->
     assert artifact_path.read_bytes() == before_bytes, (
         "The write half must NOT stamp review_artifact_override_* frontmatter"
     )
-    assert not ReviewCycleArtifact.from_file(artifact_path).has_complete_override, (
+    assert ReviewCycleArtifact.from_file(artifact_path).override_actor is None, (
         "Artifact frontmatter must carry no override — recognition is snapshot-only"
     )
 

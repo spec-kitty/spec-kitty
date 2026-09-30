@@ -42,10 +42,6 @@ class EventLogUnreadable(GateError):
     """Raised when status.events.jsonl cannot be read or parsed."""
 
 
-class ModeResolutionError(GateError):
-    """Re-exported from gate for callers that only import from gate."""
-
-
 # ---------------------------------------------------------------------------
 # GateReason / GateDecision — data model per data-model.md
 # ---------------------------------------------------------------------------

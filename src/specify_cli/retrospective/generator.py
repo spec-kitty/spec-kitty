@@ -302,10 +302,6 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
 # ---------------------------------------------------------------------------
 
 
-def _make_evidence_counter() -> list[int]:
-    return [0]
-
-
 def _next_evidence_id(counter: list[int]) -> str:
     counter[0] += 1
     return f"e-{counter[0]:03d}"

@@ -13,7 +13,6 @@ step with the published schema — there is no second source of truth to drift.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from functools import cache
 from importlib.resources import files
@@ -25,7 +24,6 @@ from ruamel.yaml import YAML
 from kernel.schema_utils import SchemaUtilities
 from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Schema + template accessors

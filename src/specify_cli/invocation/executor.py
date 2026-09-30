@@ -15,7 +15,7 @@ import json as _json_mod
 import logging
 import subprocess as _subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from charter.activation.context import CharterContextResult
@@ -128,12 +128,6 @@ def _new_ulid() -> str:
         pass
     # Fallback: construct ULID directly
     return str(_ulid_mod.ULID())
-
-
-class ActionRouterPlugin(Protocol):
-    """No-op protocol stub — reserved for future hybrid routing extension (WP02)."""
-
-    # No methods in v1. Fill in WP02's ActionRouterPlugin slot here.
 
 
 @dataclasses.dataclass(frozen=True)

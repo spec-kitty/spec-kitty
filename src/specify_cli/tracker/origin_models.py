@@ -1,15 +1,12 @@
 """Data models for ticket-first mission origin binding.
 
-Provides three frozen/mutable dataclasses that represent external issue
-candidates, search results, and the outcome of creating a mission from
-an external ticket.  These models form the data foundation that downstream
-work packages (WP02-WP05) depend on.
+Provides :class:`OriginCandidate`, the external issue a mission's origin is
+bound to.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,31 +25,3 @@ class OriginCandidate:
     url: str
     match_type: str  # "exact" or "text"
     body: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class SearchOriginResult:
-    """Result of an origin candidate search.
-
-    Bundles the list of :class:`OriginCandidate` objects together with the
-    routing context (provider, resource, query) that produced them.
-    """
-
-    candidates: list[OriginCandidate]
-    provider: str  # "jira" or "linear"
-    resource_type: str  # e.g., "linear_team", "jira_project"
-    resource_id: str
-    query_used: str
-
-
-@dataclass(slots=True)
-class MissionFromTicketResult:
-    """Result of creating a mission from an external ticket.
-
-    Not frozen because ``Path`` objects and the mutable nature of the
-    result dict make immutability impractical.
-    """
-
-    feature_dir: Path
-    mission_slug: str
-    origin_ticket: dict[str, str]

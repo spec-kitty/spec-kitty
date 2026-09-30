@@ -8,7 +8,6 @@ structured report.
 
 from __future__ import annotations
 
-import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,7 +22,6 @@ from specify_cli.state.contract import (
     StateSurface,
 )
 
-logger = logging.getLogger(__name__)
 
 # Documentation-only prefix carried by the declarative GLOBAL_SYNC surface
 # patterns (e.g. ``~/.spec-kitty/config.toml``). The authoritative root is
