@@ -13148,6 +13148,17 @@ pages:
     - {slug: "risks-watch-items", text: "Risks / watch items", level: 2}
     - {slug: "immediate-next-steps", text: "Immediate next steps", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/plans/4-x-executive-overview.md"
+    title: "4.x Executive Overview"
+    divio_type: "none"
+    abstract: "Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make."
+    anchors:
+    - {slug: "bottom-line", text: "Bottom line", level: 2}
+    - {slug: "where-4-0-0-stands", text: "Where 4.0.0 stands", level: 2}
+    - {slug: "what-the-release-candidates-delivered", text: "What the release candidates delivered", level: 2}
+    - {slug: "what-still-gates-ga", text: "What still gates GA", level: 2}
+    - {slug: "what-moved-out-of-4-0-0", text: "What moved out of 4.0.0", level: 2}
+    - {slug: "calls-that-need-product-ownership", text: "Calls that need product ownership", level: 2}
   - path: "docs/plans/agent-moment-delivery-4216.md"
     title: "Agent moment delivery policy"
     divio_type: "explanation"

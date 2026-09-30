@@ -64,8 +64,10 @@ domain throughline it serves.
 - [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md) — the operator-facing execution
   roadmap for 4.0.0 (rc-stage): the four goal themes (stability, maturity, extensibility,
   Team Kitty enablers), the epic dependency spine, per-theme progress, exit criteria, and
-  watch items. Its declaration of intent is [`4.0.0.md`](../changelog/4.0.0.md). There is no
-  4.x stakeholder (PO / C-suite) overview yet.
+  watch items. Its declaration of intent is [`4.0.0.md`](../changelog/4.0.0.md).
+- [4.x Executive Overview](4-x-executive-overview.md) — the stakeholder summary for
+  decision owners (CEO, CPO, CTO, PO): where 4.0.0 stands, what the release candidates
+  delivered, what still gates GA, and the calls that need product ownership.
 
 ### Prior cycle (3.2.x) — historical
 
@@ -91,7 +93,7 @@ Standalone plans and status notes that sit at the top of `plans/` or in their ow
 - [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) —
   *draft.* Promote the glossary to a first-order doctrine artefact; see its status line for
   which missions landed.
-- [Charter-Resolution Program](charter-resolution/README.md) — *parked.* Mission map (M1–M6)
+- [Charter-Resolution Program](charter-resolution/README.md) — *resumed for 4.x (#5431).* Mission map (M1–M6)
   for org/project doctrine that loads healthy but reaches no consumer.
 - [zeitgeist_client WP01 — remaining scope](zeitgeist-client-wp01-remaining.md) — status
   note for the bundled Zeitgeist client; error messages in
