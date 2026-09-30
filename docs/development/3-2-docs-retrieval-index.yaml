@@ -14184,6 +14184,185 @@ pages:
     abstract: "Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed."
     anchors:
     - {slug: "not-yet-implemented", text: "Not yet implemented", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/README.md"
+    title: "Dead-code review (2026-09-30)"
+    divio_type: "none"
+    abstract: "A read-only research pass over `src/` of the core CLI. It looked for dead code, then took a second, deeper look at every symbol that only tests still reach. No code was changed. What to clean up, and in which order, is an owner decision; this report is the input for it."
+    anchors:
+    - {slug: "contents", text: "Contents", level: 2}
+    - {slug: "1-bug-candidates-read-these-first", text: "1. Bug candidates (read these first)", level: 2}
+    - {slug: "2-what-is-dead-by-kind", text: "2. What is dead, by kind", level: 2}
+    - {slug: "2-1-whole-packages-and-modules", text: "2.1 Whole packages and modules", level: 3}
+    - {slug: "2-2-sync-transport-residue-the-august-2026-deletion-left-these-behind", text: "2.2 Sync-transport residue (the August 2026 deletion left these behind)", level: 3}
+    - {slug: "2-3-re-export-tails-from-god-module-splits", text: "2.3 Re-export tails from god-module splits", level: 3}
+    - {slug: "2-4-dead-twins-kept-alive-by-their-tests", text: "2.4 Dead twins kept alive by their tests", level: 3}
+    - {slug: "2-5-forward-apis-that-never-got-a-consumer", text: "2.5 Forward APIs that never got a consumer", level: 3}
+    - {slug: "2-6-tests-that-cannot-fail", text: "2.6 Tests that cannot fail", level: 3}
+    - {slug: "3-blind-spots-in-the-repo-s-own-dead-code-gates", text: "3. Blind spots in the repo's own dead-code gates", level: 2}
+    - {slug: "4-recommended-cleanup-order", text: "4. Recommended cleanup order", level: 2}
+    - {slug: "5-owner-decisions", text: "5. Owner decisions", level: 2}
+    - {slug: "6-method-and-reproduction", text: "6. Method and reproduction", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/first-pass/domain-a-charter-runtime.md"
+    title: "Dead-code review, first pass — Domain A: charter, glossary, kernel, mission_runtime, runtime"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "domain-summary", text: "Domain summary", level: 2}
+    - {slug: "findings-by-module", text: "Findings by module", level: 2}
+    - {slug: "charter-activation-charter-top-level", text: "charter.activation (+ charter top-level)", level: 3}
+    - {slug: "charter-offering", text: "charter.offering", level: 3}
+    - {slug: "glossary", text: "glossary", level: 3}
+    - {slug: "kernel", text: "kernel", level: 3}
+    - {slug: "mission-runtime", text: "mission_runtime", level: 3}
+    - {slug: "runtime-next-internal-runtime", text: "runtime.next (+ `_internal_runtime`)", level: 3}
+    - {slug: "doctrine-py", text: "doctrine.py", level: 3}
+    - {slug: "stale-allowlist-rationales", text: "Stale allowlist rationales", level: 2}
+    - {slug: "notable-patterns", text: "Notable patterns", level: 2}
+    - {slug: "false-positives-compact", text: "False positives (compact)", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/first-pass/domain-b-cli-surface.md"
+    title: "Dead-code review, first pass — Domain B: CLI surface"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "domain-summary", text: "Domain summary", level: 2}
+    - {slug: "findings-by-module", text: "Findings by module", level: 2}
+    - {slug: "cli-commands-agent-workflow-py-f401-re-export-block-lines-58-161", text: "cli/commands/agent/workflow.py (F401 re-export block, lines 58-161)", level: 3}
+    - {slug: "cli-commands-agent-retrospect-py", text: "cli/commands/agent_retrospect.py", level: 3}
+    - {slug: "cli-commands-agent-other", text: "cli/commands/agent/* (other)", level: 3}
+    - {slug: "cli-commands-implement-py-and-implement-cores-py", text: "cli/commands/implement.py and implement_cores.py", level: 3}
+    - {slug: "cli-commands-accept-py-init-py-invocations-cmd-py-intake-py-helpers-py-misc", text: "cli/commands/accept.py, init.py, invocations_cmd.py, intake.py, helpers.py, misc", level: 3}
+    - {slug: "orchestrator-api-commands-py", text: "orchestrator_api/commands.py", level: 3}
+    - {slug: "dashboard", text: "dashboard/*", level: 3}
+    - {slug: "shims", text: "shims/*", level: 3}
+    - {slug: "stale-allowlist-rationales", text: "Stale allowlist rationales", level: 2}
+    - {slug: "notable-patterns", text: "Notable patterns", level: 2}
+    - {slug: "false-positives-compact", text: "False positives (compact)", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/first-pass/domain-c-workflow-core.md"
+    title: "Dead-code review, first pass — Domain C: workflow core"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "domain-summary", text: "Domain summary", level: 2}
+    - {slug: "findings-by-module", text: "Findings by module", level: 2}
+    - {slug: "status", text: "status/", level: 3}
+    - {slug: "consolidation", text: "consolidation/", level: 3}
+    - {slug: "coordination", text: "coordination/", level: 3}
+    - {slug: "core", text: "core/", level: 3}
+    - {slug: "git-gitignore-manager", text: "git/, gitignore_manager", level: 3}
+    - {slug: "lanes-workspace", text: "lanes/, workspace/", level: 3}
+    - {slug: "migration", text: "migration/", level: 3}
+    - {slug: "mission-py-mission-metadata-py-missions-mission-brief-py", text: "mission.py, mission_metadata.py, missions/, mission_brief.py", level: 3}
+    - {slug: "policy-post-merge-acceptance", text: "policy/, post_merge/, acceptance/", level: 3}
+    - {slug: "upgrade", text: "upgrade/", level: 3}
+    - {slug: "task-utils", text: "task_utils/", level: 3}
+    - {slug: "stale-allowlist-rationales", text: "Stale allowlist rationales", level: 2}
+    - {slug: "notable-patterns", text: "Notable patterns", level: 2}
+    - {slug: "false-positives-compact", text: "False positives (compact)", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/first-pass/domain-d-integrations-rest.md"
+    title: "Dead-code review, first pass — Domain D: integrations and the rest"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "domain-summary", text: "Domain summary", level: 2}
+    - {slug: "findings-by-module", text: "Findings by module", level: 2}
+    - {slug: "auth", text: "auth", level: 3}
+    - {slug: "audit", text: "audit", level: 3}
+    - {slug: "events-sync-era-residue", text: "events (sync-era residue)", level: 3}
+    - {slug: "doc-analysis-documentation-mission", text: "doc_analysis (documentation mission)", level: 3}
+    - {slug: "doctrine-charter-runtime", text: "doctrine / charter_runtime", level: 3}
+    - {slug: "skills", text: "skills", level: 3}
+    - {slug: "runtime-specify-cli-runtime", text: "runtime (specify_cli.runtime)", level: 3}
+    - {slug: "review-retrospective", text: "review / retrospective", level: 3}
+    - {slug: "tracker-saas-client-zeitgeist-client", text: "tracker / saas_client / zeitgeist_client", level: 3}
+    - {slug: "paths-sync-era-residue", text: "paths (sync-era residue)", level: 3}
+    - {slug: "validators-text-misc", text: "validators / text / misc", level: 3}
+    - {slug: "api-dynamic-keep-with-note", text: "API / DYNAMIC (keep-with-note)", level: 3}
+    - {slug: "stale-allowlist-rationales", text: "Stale allowlist rationales", level: 2}
+    - {slug: "notable-patterns", text: "Notable patterns", level: 2}
+    - {slug: "false-positives-compact", text: "False positives (compact)", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-a-charter-runtime.md"
+    title: "Test-only deep dive — Domain A: charter, glossary, kernel, mission_runtime, runtime"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "slice-1-default-pack-merge-writer-pack-manager-merge-defaults", text: "Slice 1: Default-pack merge writer (`pack_manager.merge_defaults`)", level: 2}
+    - {slug: "slice-2-charter-activation-compat-wrappers", text: "Slice 2: charter.activation compat wrappers", level: 2}
+    - {slug: "slice-3-resolvedmissiontype-lazy-slots-wp10-wp11", text: "Slice 3: `ResolvedMissionType` lazy slots (WP10/WP11)", level: 2}
+    - {slug: "slice-4-delivery-rail-measurement-helpers-3063", text: "Slice 4: Delivery-rail measurement helpers (#3063)", level: 2}
+    - {slug: "slice-5-misc-small-helpers-charter-activation-kernel", text: "Slice 5: Misc small helpers (charter.activation + kernel)", level: 2}
+    - {slug: "slice-6-per-kind-json-schema-validators", text: "Slice 6: Per-kind JSON-schema validators", level: 2}
+    - {slug: "slice-7-offering-repository-query-helpers", text: "Slice 7: Offering repository query helpers", level: 2}
+    - {slug: "slice-8-org-pack-topology-enhances-merge-fr-029", text: "Slice 8: Org-pack topology `enhances` merge (FR-029)", level: 2}
+    - {slug: "slice-9-pack-identity-relation-docs", text: "Slice 9: Pack identity + relation docs", level: 2}
+    - {slug: "slice-10-glossary-in-drg-entity-pages-phase-5-wp5-1-wp5-5", text: "Slice 10: Glossary-in-DRG + entity pages (Phase 5 WP5.1/WP5.5)", level: 2}
+    - {slug: "slice-11-glossary-scope-activation-scope-helpers", text: "Slice 11: Glossary scope activation + scope helpers", level: 2}
+    - {slug: "slice-12-glossary-wp03-scaffolding", text: "Slice 12: Glossary WP03 scaffolding", level: 2}
+    - {slug: "slice-13-over-internalized-upstream-runtime-internal-runtime", text: "Slice 13: Over-internalized upstream runtime (`_internal_runtime`)", level: 2}
+    - {slug: "slice-14-workflow-sequence-next-action-resolver-slice-f-wp11", text: "Slice 14: Workflow-sequence next-action resolver (Slice F WP11)", level: 2}
+    - {slug: "slice-15-runtime-thin-wrappers", text: "Slice 15: Runtime thin wrappers", level: 2}
+    - {slug: "corrections-to-the-first-pass", text: "Corrections to the first pass", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-b-cli-surface.md"
+    title: "Test-only deep dive — Domain B: CLI surface"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "slice-1-workflow-py-shim-re-exports-8-names", text: "Slice 1: workflow.py shim re-exports (8 names)", level: 2}
+    - {slug: "slice-2-render-charter-context-workflow-py-896", text: "Slice 2: `_render_charter_context` (workflow.py:896)", level: 2}
+    - {slug: "slice-3-validate-base-ref-implement-py-346", text: "Slice 3: `_validate_base_ref` (implement.py:346)", level: 2}
+    - {slug: "slice-4-feature-dir-status-paths-implement-py-375", text: "Slice 4: `_feature_dir_status_paths` (implement.py:375)", level: 2}
+    - {slug: "slice-5-resolve-claim-commit-target-implement-cores-py-716-re-imported-at-implement-py-85", text: "Slice 5: `_resolve_claim_commit_target` (implement_cores.py:716, re-imported at implement.py:85)", level: 2}
+    - {slug: "slice-6-spec-artifact-dirty-paths-accept-py-243", text: "Slice 6: `_spec_artifact_dirty_paths` (accept.py:243)", level: 2}
+    - {slug: "slice-7-resolve-history-commit-args-orchestrator-api-commands-py-2065", text: "Slice 7: `_resolve_history_commit_args` (orchestrator_api/commands.py:2065)", level: 2}
+    - {slug: "slice-8-tasks-seam-residue-tasks-materialization-tasks-outline-mission-parsing", text: "Slice 8: tasks seam residue (tasks_materialization / tasks_outline / mission_parsing)", level: 2}
+    - {slug: "slice-9-persist-pr-bound-phase-read-meta-for-pr-bound", text: "Slice 9: `_persist_pr_bound_phase` + `_read_meta_for_pr_bound`", level: 2}
+    - {slug: "slice-10-invalid-wp-owned-files-kitty-specs-agent-mission-py-346", text: "Slice 10: `INVALID_WP_OWNED_FILES_KITTY_SPECS` (agent/mission.py:346)", level: 2}
+    - {slug: "slice-11-invocations-cmd-append-to-index-read-last-line", text: "Slice 11: invocations_cmd `append_to_index` + `_read_last_line`", level: 2}
+    - {slug: "slice-12-max-brief-file-size-bytes-intake-py-43", text: "Slice 12: `MAX_BRIEF_FILE_SIZE_BYTES` (intake.py:43)", level: 2}
+    - {slug: "slice-13-resolve-mission-command-templates-dir-init-py-630", text: "Slice 13: `_resolve_mission_command_templates_dir` (init.py:630)", level: 2}
+    - {slug: "slice-14-get-dashboard-html-mission-context-dashboard-templates-init-py-30", text: "Slice 14: `get_dashboard_html(mission_context=…)` (dashboard/templates/__init__.py:30)", level: 2}
+    - {slug: "slice-15-shims-registry-accessors", text: "Slice 15: shims.registry accessors", level: 2}
+    - {slug: "corrections-to-the-first-pass", text: "Corrections to the first pass", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-c-workflow-core.md"
+    title: "Test-only deep dive — Domain C: workflow core"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "slice-1-core-worktree-py-legacy-workspace-creation-fr-016", text: "Slice 1: core/worktree.py legacy workspace creation (FR-016)", level: 2}
+    - {slug: "slice-2-core-vcs-gitvcs-vcsprotocol", text: "Slice 2: core/vcs `GitVCS` / `VCSProtocol`", level: 2}
+    - {slug: "slice-3-subtask-checkbox-writers-core-subtask-rows-py", text: "Slice 3: subtask checkbox writers (core/subtask_rows.py)", level: 2}
+    - {slug: "slice-4-context-validation-leftovers", text: "Slice 4: context_validation leftovers", level: 2}
+    - {slug: "slice-5-core-path-topology-git-ops-helpers", text: "Slice 5: core path/topology/git_ops helpers", level: 2}
+    - {slug: "slice-6-status-write-door-residue", text: "Slice 6: status write-door residue", level: 2}
+    - {slug: "slice-7-status-fsm-and-helper-leftovers", text: "Slice 7: status FSM and helper leftovers", level: 2}
+    - {slug: "slice-8-consolidation-leftovers", text: "Slice 8: consolidation leftovers", level: 2}
+    - {slug: "slice-9-coordination-surface-authority-forward-api-2160", text: "Slice 9: coordination/surface_authority forward API (#2160)", level: 2}
+    - {slug: "slice-10-git-gitignore-lanes-helpers", text: "Slice 10: git/gitignore/lanes helpers", level: 2}
+    - {slug: "slice-11-runtime-state-backfill-utilities-migration-backfill-runtime-state-py", text: "Slice 11: runtime-state backfill utilities (migration/backfill_runtime_state.py)", level: 2}
+    - {slug: "slice-12-mission-metadata-missions-surface", text: "Slice 12: mission / metadata / missions surface", level: 2}
+    - {slug: "slice-13-forward-contracts-that-were-never-wired", text: "Slice 13: forward contracts that were never wired", level: 2}
+    - {slug: "slice-14-upgrade-task-utils-residue", text: "Slice 14: upgrade / task_utils residue", level: 2}
+    - {slug: "corrections-to-the-first-pass", text: "Corrections to the first pass", level: 2}
+  - path: "docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-d-integrations-rest.md"
+    title: "Test-only deep dive — Domain D: integrations and the rest"
+    divio_type: "none"
+    abstract: "Part of the [dead-code review of 2026-09-30](../README.md). Analysed at `origin/main` `bd1577a3`."
+    anchors:
+    - {slug: "slice-1-doc-generators-configure-generate", text: "Slice 1: Doc generators `configure`/`generate`", level: 2}
+    - {slug: "slice-2-doc-state-setter-api-documentation-mission", text: "Slice 2: `doc_state` setter API (documentation mission)", level: 2}
+    - {slug: "slice-3-research-citation-validators", text: "Slice 3: Research citation validators", level: 2}
+    - {slug: "slice-4-tracker-ticket-first-origin-gateway-authority-report", text: "Slice 4: Tracker ticket-first origin + gateway authority report", level: 2}
+    - {slug: "slice-5-skills-installer-legacy-projection-chain-manifest-query-api", text: "Slice 5: Skills installer legacy projection chain + manifest query API", level: 2}
+    - {slug: "slice-6-specify-cli-calibration-walker-inequality", text: "Slice 6: `specify_cli.calibration` (walker + inequality)", level: 2}
+    - {slug: "slice-7-specify-cli-proof", text: "Slice 7: `specify_cli.proof`", level: 2}
+    - {slug: "slice-8-auth-websocket-auth-test-only-helpers", text: "Slice 8: `auth.websocket` + auth test-only helpers", level: 2}
+    - {slug: "slice-9-audit-repo-level-converters-dead-twin-of-an-uncovered-live-path", text: "Slice 9: Audit repo-level converters (dead twin of an uncovered live path)", level: 2}
+    - {slug: "slice-10-runtime-leftovers", text: "Slice 10: Runtime leftovers", level: 2}
+    - {slug: "slice-11-review-retrospective-residue", text: "Slice 11: Review / retrospective residue", level: 2}
+    - {slug: "slice-12-zeitgeist-focus-lifecycle", text: "Slice 12: Zeitgeist focus lifecycle", level: 2}
+    - {slug: "slice-13-tool-surface-vocabulary-and-docs-linter", text: "Slice 13: `tool_surface` vocabulary and docs linter", level: 2}
+    - {slug: "slice-14-doctrine-pack-lineage-pack-descriptor-manifest-loaders", text: "Slice 14: `doctrine.pack_lineage` / `pack_descriptor` / manifest loaders", level: 2}
+    - {slug: "slice-15-misc-small-helpers", text: "Slice 15: Misc small helpers", level: 2}
+    - {slug: "corrections-to-the-first-pass", text: "Corrections to the first pass", level: 2}
   - path: "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md"
     title: "Assertive Test-Suite Sanitation — Final Report"
     divio_type: "none"

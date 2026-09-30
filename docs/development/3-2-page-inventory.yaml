@@ -4928,6 +4928,60 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/reports/dead-code-review/2026-09-30/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/first-pass/domain-a-charter-runtime.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/first-pass/domain-b-cli-surface.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/first-pass/domain-c-workflow-core.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/first-pass/domain-d-integrations-rest.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-a-charter-runtime.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-b-cli-surface.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-c-workflow-core.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/dead-code-review/2026-09-30/test-only-deep-dive/domain-d-integrations-rest.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md
   tag: current
   divio_type: none
