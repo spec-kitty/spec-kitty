@@ -2829,7 +2829,17 @@ dev = [
     # (#5160 friction 2). Keep the pin equal to the `test` extra to avoid uv.lock
     # drift.
     "pytestarch>=4.0.0",
+    # Docs spelling check (`python -m scripts.docs.check_spelling`, issue #5426). The pin is
+    # exact on purpose: dictionary content is behavior, so a new codespell release must not
+    # be able to turn CI red. Bump it deliberately, together with the docs it newly flags.
+    "codespell==2.4.3",
 ]
+
+[tool.codespell]
+# Scope roots and pass-specific flags live in scripts/docs/check_spelling.py;
+# this table owns only the dictionary behavior shared by every pass.
+skip = "*docs/archive,*docs/archive/*,*docs/reports,*docs/reports/*,*docs/plans,*docs/plans/*,*docs/api/cli-commands.md,*.yaml,*.yml,*.json,*.jsonl,*.pdf,*.png,*.webp,*.jpeg,*.jpg,*.svg,*.css,*.js,*.html"
+ignore-words-list = "accreting,disjointness,pre-empt,pre-empts,pre-emptively,re-declared,trough,unparseable"
 
 [tool.mutmut]
 paths_to_mutate = [
