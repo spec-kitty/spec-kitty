@@ -12,7 +12,10 @@ This guard keeps that baseline honest in both directions, the same way
 ``test_ruff_format_exclude_ratchet.py`` guards the formatter-debt list:
 
 * it cannot grow without a visible bump of ``_BASELINE_PT_PAIRS``;
-* an entry whose file no longer trips the listed code must be removed; and
+* an entry whose file no longer trips the listed code must be removed;
+* an inline ``# noqa: PT0xx`` (or a file-level ``# ruff: noqa: PT0xx``) is the
+  same exemption written somewhere else, so those are counted against their
+  own shrink-only high-water mark; and
 * the rules are really live: a planted weak oracle in a fresh test file is
   flagged under the repository's own ruff config.
 """
@@ -22,6 +25,9 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import io
+import re
+import tokenize
 import tomllib
 from pathlib import Path
 
@@ -40,6 +46,43 @@ _WEAK_ORACLE_RULES = ("PT010", "PT011", "PT012", "PT015", "PT016", "PT017", "PT0
 # 2026-09-29 enablement (123 files). Lower it when you clean a file; raising it
 # needs a reviewed reason the new test cannot simply name its expected failure.
 _BASELINE_PT_PAIRS = 125
+
+
+# Shrink-only high-water mark of inline PT suppressions ((file, line, code)
+# triples from line-level or file-level ruff suppression comments) under the
+# scanned roots, as of 2026-09-30: nine PT011, each with an inline rationale.
+# Lower it when you remove one; raising it needs the same reviewed reason as
+# the ruff.toml baseline.
+_INLINE_PT_NOQA_HIGH_WATER = 9
+_INLINE_SCAN_ROOTS = ("src", "tests")
+_NOQA_PT_CODE = re.compile(r"\bPT0\d\d\b")
+
+
+def _inline_pt_noqa_codes(source: str) -> list[tuple[int, str]]:
+    """(line, code) for each PT code named in a ``noqa`` comment of ``source``.
+
+    Reads real comment tokens, so a ``# noqa: PT011`` inside a string literal
+    (a planted snippet, a docstring example) is not counted.
+    """
+    found: list[tuple[int, str]] = []
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type != tokenize.COMMENT or "noqa" not in token.string:
+            continue
+        directive = token.string[token.string.index("noqa") :]
+        found.extend((token.start[0], code) for code in _NOQA_PT_CODE.findall(directive))
+    return found
+
+
+def _inline_pt_noqa() -> list[tuple[str, int, str]]:
+    hits: list[tuple[str, int, str]] = []
+    for root in _INLINE_SCAN_ROOTS:
+        for path in sorted((_REPO_ROOT / root).rglob("*.py")):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if "noqa" not in text or "PT0" not in text:
+                continue
+            rel = str(path.relative_to(_REPO_ROOT))
+            hits.extend((rel, line, code) for line, code in _inline_pt_noqa_codes(text))
+    return hits
 
 
 def _pt_baseline() -> dict[str, list[str]]:
@@ -76,6 +119,32 @@ def test_pt_baseline_does_not_exceed_high_water_mark() -> None:
         f"The ruff.toml PT baseline grew to {pairs} (file, code) pairs, above {_BASELINE_PT_PAIRS}. "
         "Give the new pytest.raises/warns a match= or a single statement instead of baselining it."
     )
+
+
+def test_inline_pt_noqa_does_not_exceed_high_water_mark() -> None:
+    """An inline PT suppression bypasses the ruff.toml baseline, so it is counted too."""
+    hits = _inline_pt_noqa()
+    assert len(hits) <= _INLINE_PT_NOQA_HIGH_WATER, (
+        f"{len(hits)} inline PT noqa suppressions, above {_INLINE_PT_NOQA_HIGH_WATER}. "
+        "Give the pytest.raises/warns a match= instead of suppressing it: " + ", ".join(f"{path}:{line} {code}" for path, line, code in hits)
+    )
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("x = 1  # noqa: PT011 - reason\n", [(1, "PT011")]),
+        ("x = 1  # noqa: B017, PT011, PT012\n", [(1, "PT011"), (1, "PT012")]),
+        ("# ruff: noqa: PT017\nx = 1\n", [(1, "PT017")]),
+        ("x = 1  # noqa: E501\n", []),
+        ('x = "# noqa: PT011"\n', []),
+        ("x = 1  # see PT011 docs, noqa: E501\n", []),
+    ],
+    ids=["single", "mixed-list", "file-level", "other-code", "in-string", "pt-before-noqa"],
+)
+def test_inline_pt_noqa_counter_reads_comment_directives(source: str, expected: list[tuple[int, str]]) -> None:
+    """Non-vacuity for the counter: it sees each PT code a noqa directive names, and nothing else."""
+    assert _inline_pt_noqa_codes(source) == expected
 
 
 def test_pt_baseline_has_no_glob_entries() -> None:
