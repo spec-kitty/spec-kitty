@@ -3,7 +3,7 @@ title: 'ADR: one requirement-ID grammar, one authority'
 description: 'Accepted: every requirement-ID surface reads FR/NFR/C/SC IDs through one shared grammar module, replacing six divergent parsers.'
 status: Accepted
 date: '2026-09-29'
-updated: '2026-09-29'
+updated: '2026-09-30'
 ---
 
 **Status:** Accepted
@@ -26,9 +26,11 @@ coverage failure) — Mission `requirement-id-grammar-01M3NRCA`.
 Before this Mission, a requirement ID — `FR-###`, `NFR-###`, `C-###`, `SC-###`, each with
 an optional letter suffix and an optional `<mission-slug>#` qualifier — had no single
 authority. `spec.md`'s SC-006 measured six separate definitions, four of them in scope for
-this Mission's consumers; the other two are the frozen divergences this ADR records below
-(HiC ruling, Decision Moment `01M3P2HXKASQY2ZKSEY3MAWA9H`, superseding
-`01M3P07HV88QNVVKP3E2W28VB6`). Each definition tokenised, canonicalised, or matched IDs on
+this Mission's consumers; the other two were deferred out of this Mission's scope as frozen
+divergences (orchestrator auto-mode scope deferral, Decision Moment
+`01M3P07HV88QNVVKP3E2W28VB6`) and have since been migrated onto the grammar by
+[#5387](https://github.com/spec-kitty/spec-kitty/issues/5387) and
+[#5388](https://github.com/spec-kitty/spec-kitty/issues/5388) (see the amendment below). Each definition tokenised, canonicalised, or matched IDs on
 its own regular expression, and they disagreed on kind coverage, digit width, suffix
 handling, and qualifier syntax.
 
@@ -274,24 +276,44 @@ The single-source architectural gate
 (`tests/architectural/test_requirement_id_grammar_single_source.py`) AST-scans `src/` for a
 second requirement-ID kind-alternation literal, against a shrink-only allowlist
 (`tests/architectural/requirement_id_pattern_allowlist.yaml`) whose `baseline` is checked
-two-sided against the file's own entry count. At head, `baseline: 2`, exactly the two
-frozen divergences below (HiC ruling, Decision Moment `01M3P2HXKASQY2ZKSEY3MAWA9H`,
-superseding `01M3P07HV88QNVVKP3E2W28VB6`); an earlier transitional third entry
+two-sided against the file's own entry count. At this Mission's tip, `baseline: 2`, exactly
+the two frozen divergences below; an earlier transitional third entry
 (`runtime_bridge_cores.py`'s own local pattern) was removed by WP04 once the cores took the
 grammar as an injected, required argument, lowering the baseline from 3 to 2 in that same
 edit.
 
 - `src/specify_cli/missions/_substantive.py`, constant `_FR_TABLE_ROW` — the setup-plan
   substantive-spec gate's own functional-requirement table-row pattern, a cheap structural
-  heuristic independent of the grammar's full ID space (SC, suffixes, qualifiers), by
-  design (HiC ruling). Follow-up ticket: [#5387](https://github.com/spec-kitty/spec-kitty/issues/5387).
+  heuristic independent of the grammar's full ID space (SC, suffixes, qualifiers). Follow-up ticket: [#5387](https://github.com/spec-kitty/spec-kitty/issues/5387).
 - `src/specify_cli/retrospective/generator.py`, constant `_FR_REF_RE` — the retrospective
   generator's narrower, retrospective-specific FR-only scan (3+ digit FRs, no NFR/C/SC, no
   suffix or qualifier), predating this Mission. Follow-up ticket: [#5388](https://github.com/spec-kitty/spec-kitty/issues/5388).
 
+**Provenance correction (2026-09-30).** An earlier revision of this ADR attributed both
+frozen divergences to a HiC ruling. That was wrong. They came from a scope deferral the
+orchestrator made in auto mode (Decision Moment `01M3P07HV88QNVVKP3E2W28VB6`: "outside
+every issue's scope and locality forbids migrating it in-mission"). The only HiC ruling
+(Decision Moment `01M3P2HXKASQY2ZKSEY3MAWA9H`) decided one thing: migrate
+`consolidation/retention.py` in-mission rather than freeze it. No human ruled that the two
+remaining patterns must stay separate by design.
+
 `src/specify_cli/consolidation/retention.py` is **not** a divergence: WP01 migrated its
 constraint-row check onto `grammar.parse` in this Mission
-(`consolidation/retention.py:10,70`), per the same HiC ruling.
+(`consolidation/retention.py:10,70`), per that HiC ruling.
+
+**Amendment 2026-09-30 (#5387, #5388): both divergences drained, `baseline: 0`.**
+
+- The setup-plan substantive-spec gate (`missions/_substantive.py`) now counts a
+  functional-requirement row only when its lead is a local FR id in a grammar-declared shape
+  (`grammar.DECLARED_TABLE_ROW` / `grammar.DECLARED_LIST_ITEM`, both named out of
+  `DECLARED_SHAPE_PATTERNS`), with HTML comments blanked as the declared-id scan does. A
+  spec whose FRs are all letter-suffixed (`FR-006a`) or wider than three digits (`FR-1001`)
+  is no longer judged "not substantive".
+- The retrospective generator (`retrospective/generator.py`) takes this spec's FRs from
+  `parse_requirement_ids_from_spec_md(...)["functional"]` and judges every WP-file citation
+  with `grammar.classify` against that set. A prose citation of another mission's FR is no
+  longer reported as an uncovered requirement, a suffixed FR is no longer invisible, and a
+  foreign-qualified citation (`other-mission#FR-001`) no longer covers a local FR.
 
 ### Known residuals
 
@@ -400,7 +422,7 @@ unrelated hits, none of which document this discard rule), so no other ADR needs
 ### Confirmation
 
 - The C-001 architectural gate (`tests/architectural/test_requirement_id_grammar_single_source.py`)
-  stays green with exactly the two frozen divergences above.
+  stays green with an empty allow-list (`baseline: 0`) since the 2026-09-30 amendment.
 - The cross-command parity test (`tests/specify_cli/test_requirement_reason_parity.py`, WP06
   T038) proves `finalize-tasks`, `map-requirements` and the runtime readiness check agree on
   both the pass/fail verdict and the per-ref reason, through production entry points only.

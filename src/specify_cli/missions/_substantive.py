@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Final, Literal
 
 from kernel.paths import repo_tree_path
+from specify_cli.requirement_mapping import grammar
 
 Kind = Literal["spec", "plan"]
 
@@ -103,11 +104,26 @@ def _strip_placeholders(s: str) -> str:
 # - Bulleted list:   - **FR-001**: <description>
 # Either qualifies as long as the description is non-empty after placeholder
 # stripping AND is not the literal "As a [role], I want [goal]..." scaffold.
-_FR_TABLE_ROW = re.compile(
-    r"^\s*\|\s*\*{0,2}FR-\d{3}\*{0,2}\s*\|(?P<rest>[^\n]+)$",
-    re.MULTILINE,
-)
-_FR_BULLET_PREFIXES: Final[tuple[str, ...]] = ("FR-", "**FR-")
+#
+# #5387: which lines count as FR rows is the requirement-ID grammar's call
+# (ADR 2026-09-29-1), not a pattern of this module's own. A row qualifies
+# when its lead is a local functional id the grammar declares in that shape
+# (``grammar.DECLARED_TABLE_ROW`` / ``grammar.DECLARED_LIST_ITEM``), so a
+# letter-suffixed (``FR-006a``) or wider (``FR-1001``) id counts, while a
+# commented-out row, a dotted or compound tail, or a non-FR kind does not.
+
+
+def _row_cells_have_substantive_content(
+    rest: str,
+    *,
+    skip_leading_columns: int = 0,
+    take_columns: int | None = None,
+) -> bool:
+    """Return True iff the pipe-delimited cells in ``rest`` carry real content."""
+    columns = [c.strip() for c in rest.rstrip("|").split("|")]
+    columns = columns[skip_leading_columns:]
+    descriptive_cols = columns if take_columns is None else columns[:take_columns]
+    return any(_is_substantive_text(c) for c in descriptive_cols)
 
 
 def _table_rows_have_substantive_content(
@@ -119,83 +135,87 @@ def _table_rows_have_substantive_content(
 ) -> bool:
     """Return True iff any row matched by ``row_pattern`` has real content.
 
-    Shared table-row-scanning/placeholder-checking core for BOTH the
-    ``FR-###``-anchored spec check (unchanged behaviour, Decision 5's
-    ``kind="spec"`` non-extension) and the #3832 template-derived plan-table
-    detector (Decision 3(b)) — only the row-selection ``row_pattern`` and
-    which columns count as "descriptive" ever differ; the scan/placeholder
-    logic itself is one implementation.
+    Table-row-scanning core for the #3832 template-derived plan-table
+    detector (Decision 3(b)); the spec check's FR rows go through
+    :func:`_fr_table_row_cells` instead, with the same per-row cell check
+    (:func:`_row_cells_have_substantive_content`).
 
     ``row_pattern`` must expose a named group ``rest`` capturing the
     pipe-delimited remainder of a row after whatever anchor prefix the
-    pattern itself consumes (e.g. the ``FR-###`` id column, already excluded
-    from ``rest`` by ``_FR_TABLE_ROW``). ``skip_leading_columns`` additionally
+    pattern itself consumes. ``skip_leading_columns`` additionally
     drops that many leading cells from ``rest`` before descriptiveness is
     checked (used to drop a table's own id/order column when the pattern
     could not exclude it up front); ``take_columns`` then caps how many of
     the remaining cells are checked (``None`` means "all of them").
     """
-    for m in row_pattern.finditer(body):
-        rest = m.group("rest").rstrip("|")
-        columns = [c.strip() for c in rest.split("|")]
-        columns = columns[skip_leading_columns:]
-        descriptive_cols = columns if take_columns is None else columns[:take_columns]
-        if any(_is_substantive_text(c) for c in descriptive_cols):
-            return True
-    return False
+    return any(
+        _row_cells_have_substantive_content(
+            m.group("rest"),
+            skip_leading_columns=skip_leading_columns,
+            take_columns=take_columns,
+        )
+        for m in row_pattern.finditer(body)
+    )
+
+
+def _is_local_fr(token: str) -> bool:
+    """True when the grammar reads ``token`` as a local functional requirement id."""
+    requirement_id = grammar.parse(token)
+    return requirement_id is not None and requirement_id.is_functional and not requirement_id.is_foreign
+
+
+def _fr_table_row_cells(line: str) -> str | None:
+    """The cells after the id cell when ``line`` is a declared FR table row."""
+    match = grammar.DECLARED_TABLE_ROW.match(line)
+    if match is None or not _is_local_fr(match.group(1)):
+        return None
+    return line[match.end() :]
 
 
 def _has_substantive_fr_row(body: str) -> bool:
-    """Return True iff the body contains at least one populated FR-### row.
+    """Return True iff the body contains at least one populated FR row.
 
     Substantive means: one of the descriptive columns (Title or Description in
     a Markdown table; the single description segment in a bullet) has
     non-placeholder content. Priority / Status columns (`High`, `Open`, etc.)
     do **not** qualify a row on their own — those values are present in the
-    raw scaffold rows.
+    raw scaffold rows. HTML comments are blanked first, as the grammar's own
+    declared-id scan does, so a commented-out example row never counts.
 
-    Decision 5 (#3832): this remains the SOLE ``kind="spec"`` detector and is
-    behaviourally unchanged by WP03 — ``mission_check_prerequisites.py``'s
-    guard keeps calling this function exactly as before.
+    Decision 5 (#3832): this remains the SOLE ``kind="spec"`` detector —
+    ``mission_check_prerequisites.py``'s guard keeps calling this function
+    exactly as before.
     """
-    # Table-form rows: FR-### | <title> | <description> | <priority> | <status> |
-    if _table_rows_have_substantive_content(body, _FR_TABLE_ROW, take_columns=2):
-        return True
-
-    # Bullet-form rows: - **FR-###**: <description>
-    return any(
-        _is_substantive_text(desc)
-        for line in body.splitlines()
-        if (desc := _extract_fr_bullet_description(line)) is not None
-    )
+    lines = grammar.blank_html_comments(body).splitlines()
+    for line in lines:
+        # Table-form rows: FR-### | <title> | <description> | <priority> | <status> |
+        cells = _fr_table_row_cells(line)
+        if cells is not None and _row_cells_have_substantive_content(cells, take_columns=2):
+            return True
+        # Bullet-form rows: - **FR-###**: <description>
+        desc = _extract_fr_bullet_description(line)
+        if desc is not None and _is_substantive_text(desc):
+            return True
+    return False
 
 
 def _extract_fr_bullet_description(line: str) -> str | None:
-    """Return a bullet FR description when ``line`` matches the scaffold shape."""
-    stripped = line.lstrip()
-    if not stripped or stripped[0] not in "-*":
+    """Return a bullet FR description when ``line`` is a declared FR list item."""
+    match = grammar.DECLARED_LIST_ITEM.match(line)
+    if match is None or not _is_local_fr(match.group(1)):
         return None
-    remainder = stripped[1:].lstrip()
-
-    for prefix in _FR_BULLET_PREFIXES:
-        if not remainder.startswith(prefix):
-            continue
-        if len(remainder) < len(prefix) + 3:
+    if grammar.is_compound_tail(line, match.end(1)):
+        return None
+    suffix = line[match.end(1) :]
+    if line[: match.start(1)].endswith("**"):
+        if not suffix.startswith("**"):
             return None
-        digits = remainder[len(prefix) : len(prefix) + 3]
-        if not digits.isdigit():
-            return None
-        suffix = remainder[len(prefix) + 3 :]
-        if prefix.startswith("**"):
-            if not suffix.startswith("**"):
-                return None
-            suffix = suffix[2:]
-        suffix = suffix.lstrip()
-        if not suffix or suffix[0] not in ":-":
-            return None
-        desc = suffix[1:].strip()
-        return desc or None
-    return None
+        suffix = suffix[2:]
+    suffix = suffix.lstrip()
+    if not suffix or suffix[0] not in ":-":
+        return None
+    desc = suffix[1:].strip()
+    return desc or None
 
 
 # Recognises the empty user-story scaffold ("As a , I want  so that .") that

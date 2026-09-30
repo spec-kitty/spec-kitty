@@ -1156,3 +1156,68 @@ class TestMissionResolution:
         clean_helped = [h for h in record.helped if "WP01" in h.summary]
         assert len(clean_helped) == 1
         assert len(clean_helped[0].evidence_refs) >= 1  # uses events file as fallback
+
+
+class TestFrCoverageReadsTheRequirementIdGrammar:
+    """#5388: retrospective FR coverage reads ids through the shared grammar.
+
+    Before this fix the generator scanned both spec.md and the WP files with
+    its own ``\\bFR-\\d{3,}\\b`` pattern. It missed letter-suffixed FRs
+    (``FR-006a``), treated a prose citation of another mission's FR as one of
+    this spec's requirements, and let a foreign-qualified WP citation
+    (``other-mission#FR-001``) cover this mission's ``FR-001``. Its gap list
+    could therefore disagree with finalize-tasks' coverage for the same
+    mission. It now uses the declared functional ids
+    (``parse_requirement_ids_from_spec_md``) and ``grammar.classify``.
+    """
+
+    @staticmethod
+    def _unmapped(tmp_path: Path, spec_body: str, wp_bodies: dict[str, str]) -> set[str]:
+        slug = "fr-coverage-grammar"
+        feature_dir = tmp_path / "kitty-specs" / slug
+        feature_dir.mkdir(parents=True)
+        meta = {
+            "mission_id": "01EEEEEEEEEEEEEEEEEEEEEEE5",
+            "mission_slug": slug,
+            "friendly_name": "FR coverage grammar",
+            "mission_type": "software-dev",
+            "target_branch": "main",
+        }
+        (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        (feature_dir / "spec.md").write_text(f"# Spec\n\n{spec_body}\n", encoding="utf-8")
+        (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        for name, body in wp_bodies.items():
+            (tasks_dir / name).write_text(body, encoding="utf-8")
+        (feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+        record = generate_retrospective(slug, make_policy(), tmp_path)
+        return {g.summary.split()[0] for g in record.gaps if "no WP coverage" in g.summary}
+
+    def test_unmapped_letter_suffixed_fr_is_reported(self, tmp_path: Path) -> None:
+        spec = "| ID | Title |\n|----|-------|\n| FR-006 | Base |\n| FR-006a | Variant |"
+        wp = {"WP01.md": "---\nwork_package_id: WP01\nrequirement_refs:\n- FR-006\n---\n"}
+        assert self._unmapped(tmp_path, spec, wp) == {"FR-006a"}
+
+    def test_prose_citation_of_another_missions_fr_is_not_a_gap(self, tmp_path: Path) -> None:
+        spec = "### FR-001\nExport the ledger.\n\nBackground: see FR-021's default-pack materialization."
+        wp = {"WP01.md": "---\nwork_package_id: WP01\nrequirement_refs:\n- FR-001\n---\n"}
+        assert self._unmapped(tmp_path, spec, wp) == set()
+
+    def test_foreign_qualified_wp_citation_does_not_cover_a_local_fr(self, tmp_path: Path) -> None:
+        spec = "### FR-001\nExport the ledger.\n\n### FR-002\nImport the ledger."
+        wp = {
+            "WP01.md": "---\nwork_package_id: WP01\nrequirement_refs:\n- FR-002\n---\nBuilds on other-mission#FR-001.\n",
+        }
+        assert self._unmapped(tmp_path, spec, wp) == {"FR-001"}
+
+    def test_uppercase_suffix_wp_ref_covers_the_canonical_fr(self, tmp_path: Path) -> None:
+        spec = "- **FR-006a**: Variant export."
+        wp = {"WP01.md": "---\nwork_package_id: WP01\nrequirement_refs:\n- FR-006A\n---\n"}
+        assert self._unmapped(tmp_path, spec, wp) == set()
+
+    def test_four_digit_fr_still_counted(self, tmp_path: Path) -> None:
+        spec = "### FR-1001\nWide id.\n\n### FR-1002\nAnother wide id."
+        wp = {"WP01.md": "---\nwork_package_id: WP01\nrequirement_refs:\n- FR-1001\n---\n"}
+        assert self._unmapped(tmp_path, spec, wp) == {"FR-1002"}

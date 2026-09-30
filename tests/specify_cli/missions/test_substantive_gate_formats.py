@@ -837,3 +837,65 @@ class TestSpecTemplateDeliveryLabels:
         assert "| NFR-001 | [Short title] | [Measurable threshold, e.g., p95 latency under 300ms] | Performance | High | Open |" in text
         assert "| ID | Title | Constraint | Category | Priority | Status |" in text
         assert "| C-001 | [Short title] | [Required boundary or limitation] | Technical | High | Open |" in text
+
+
+class TestSpecGateReadsTheRequirementIdGrammar:
+    """#5387: the setup-plan spec gate reads FR ids through the shared grammar.
+
+    Before this fix the gate carried its own ``FR-\\d{3}`` row pattern, so a
+    spec whose functional requirements were all letter-suffixed (``FR-006a``)
+    or wider than three digits (``FR-1001``) -- both declared ids under the
+    grammar, accepted by ``finalize-tasks`` and ``map-requirements`` -- was
+    judged "not substantive" at ``setup-plan``. The gate now counts a row only
+    when its lead is a local functional id the grammar declares.
+    """
+
+    @staticmethod
+    def _spec(tmp_path: Path, body: str) -> Path:
+        path = tmp_path / "spec.md"
+        path.write_text(f"# Spec\n\n## Functional Requirements\n\n{body}\n", encoding="utf-8")
+        return path
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "| ID | Title | Description |\n|----|-------|-------------|\n| FR-006a | Export | Operators can export the ledger as CSV. |",
+            "| ID | Title | Description |\n|----|-------|-------------|\n| FR-1001 | Export | Operators can export the ledger as CSV. |",
+            "| **FR-006a** | Export | Operators can export the ledger as CSV. |",
+            "- **FR-006a**: Operators can export the ledger as CSV.",
+            "- FR-1001: Operators can export the ledger as CSV.",
+            "1. **FR-006a**: Operators can export the ledger as CSV.",
+        ],
+        ids=["table-suffixed", "table-four-digit", "table-bold-suffixed", "bullet-bold-suffixed", "bullet-four-digit", "numbered-suffixed"],
+    )
+    def test_grammar_valid_functional_ids_are_substantive(self, tmp_path: Path, body: str) -> None:
+        spec = self._spec(tmp_path, body)
+        # Positive control: the grammar authority declares a functional id here.
+        assert parse_requirement_ids_from_spec_md(spec.read_text(encoding="utf-8"))["functional"]
+        assert is_substantive(spec, "spec") is True
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "| NFR-001 | Latency | p95 under 300ms. |",
+            "| SC-001 | Adoption | Ten teams use it. |",
+            "| other-mission#FR-001 | Export | Operators can export the ledger as CSV. |",
+            "| FR-001.1 | Export | Operators can export the ledger as CSV. |",
+            "| FR-006A | Export | Operators can export the ledger as CSV. |",
+            "<!--\n| FR-001 | Export | Operators can export the ledger as CSV. |\n-->",
+            "- **FR-001-mandated**: Operators can export the ledger as CSV.",
+        ],
+        ids=["nfr-only", "sc-only", "foreign-qualified", "dotted-tail", "uppercase-suffix", "html-commented", "compound-tail"],
+    )
+    def test_rows_the_grammar_does_not_declare_as_local_frs_are_not_substantive(self, tmp_path: Path, body: str) -> None:
+        spec = self._spec(tmp_path, body)
+        assert parse_requirement_ids_from_spec_md(spec.read_text(encoding="utf-8"))["functional"] == []
+        assert is_substantive(spec, "spec") is False
+
+    def test_suffixed_placeholder_row_stays_non_substantive(self, tmp_path: Path) -> None:
+        spec = self._spec(tmp_path, "| FR-006a | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open |")
+        assert is_substantive(spec, "spec") is False
+
+    def test_bullet_separator_hyphen_still_accepted(self, tmp_path: Path) -> None:
+        spec = self._spec(tmp_path, "- **FR-001** - Operators can export the ledger as CSV.")
+        assert is_substantive(spec, "spec") is True

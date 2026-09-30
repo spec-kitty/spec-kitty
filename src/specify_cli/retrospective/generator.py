@@ -35,6 +35,7 @@ from ruamel.yaml.error import YAMLError as _YAMLError
 
 from specify_cli.analysis_report import VERDICT_UNKNOWN as _ANALYSIS_VERDICT_UNKNOWN
 from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.requirement_mapping import grammar, parse_requirement_ids_from_spec_md
 from specify_cli.retrospective.schema import (
     FindingsStatus,
     GenActor,
@@ -76,8 +77,6 @@ LOW_RISK_PROPOSAL_KINDS: frozenset[str] = frozenset({"flag_not_helpful"})
 # Regex to detect open clarification markers in spec.md
 _NEEDS_CLARIFICATION_RE = re.compile(r"\[NEEDS CLARIFICATION:", re.IGNORECASE)
 
-# Regex to detect FR references in WP task files
-_FR_REF_RE = re.compile(r"\b(FR-\d{3,})\b")
 
 _WP_ID_RE = re.compile(r"^\w{2,5}\d{2,3}$")
 
@@ -598,21 +597,28 @@ def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int
     return {wp: n for wp, n in counts.items() if n > 1}
 
 
-def _collect_fr_references(wp_files: list[tuple[str, str]]) -> dict[str, set[str]]:
-    """Return mapping of FR-id -> set of WP filenames that reference it."""
+def _collect_fr_references(wp_files: list[tuple[str, str]], declared_frs: set[str]) -> dict[str, set[str]]:
+    """Return mapping of declared FR id -> set of WP filenames that cite it.
+
+    Every requirement-ID token in a WP file is read through the shared
+    grammar (#5388, ADR 2026-09-29-1) and judged by ``grammar.classify``
+    against this spec's declared functional ids: only an accepted, local
+    citation counts. A foreign-qualified citation (``other-mission#FR-001``)
+    covers nothing here, and a suffix spelled in either case maps to its
+    canonical id.
+    """
     fr_to_wps: dict[str, set[str]] = {}
     for filename, content in wp_files:
-        for fr_id in _FR_REF_RE.findall(content):
-            if fr_id not in fr_to_wps:
-                fr_to_wps[fr_id] = set()
-            fr_to_wps[fr_id].add(filename)
+        for requirement_id in grammar.find_all(content, spec_scan=False):
+            verdict = grammar.classify(str(requirement_id), declared_frs)
+            if isinstance(verdict, grammar.Accepted):
+                fr_to_wps.setdefault(verdict.requirement_id.canonical, set()).add(filename)
     return fr_to_wps
 
 
-def _find_unmapped_frs(spec_text: str, fr_to_wps: dict[str, set[str]]) -> list[str]:
-    """Find FR ids mentioned in spec.md but not referenced in any WP task file."""
-    spec_frs = set(_FR_REF_RE.findall(spec_text))
-    return sorted(fr for fr in spec_frs if fr not in fr_to_wps)
+def _find_unmapped_frs(declared_frs: set[str], fr_to_wps: dict[str, set[str]]) -> list[str]:
+    """Declared FR ids of spec.md that no WP task file cites."""
+    return sorted(fr for fr in declared_frs if fr not in fr_to_wps)
 
 
 def _classify_risk(suggested_action: str) -> tuple[str, bool]:
@@ -1293,8 +1299,9 @@ def _build_findings(
 
     # --- Gaps: FRs in spec.md with no WP coverage
     if spec_text and wp_files:
-        fr_to_wps_map = _collect_fr_references(wp_files)
-        for fr_id in _find_unmapped_frs(spec_text, fr_to_wps_map):
+        declared_frs = set(parse_requirement_ids_from_spec_md(spec_text)["functional"])
+        fr_to_wps_map = _collect_fr_references(wp_files, declared_frs)
+        for fr_id in _find_unmapped_frs(declared_frs, fr_to_wps_map):
             spec_ev_id = ev_reg.add_file(spec_rel)
             gaps.append(
                 GenFinding(

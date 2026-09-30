@@ -53,6 +53,8 @@ __all__ = [
     "blank_html_comments",
     "classify",
     "DECLARED_SHAPE_PATTERNS",
+    "DECLARED_TABLE_ROW",
+    "DECLARED_LIST_ITEM",
     "MALFORMED_DECLARED_LEAD",
     "MALFORMED",
     "UNKNOWN_SPEC_ID",
@@ -309,13 +311,20 @@ def tokenize_refs(value: object) -> list[str]:
 # Declared shapes + the malformed-declared-lead locator.
 # --------------------------------------------------------------------------- #
 
+#: Declared shape: a table row whose id cell (optional **bold**/~~strike~~
+#: wrapper, either side) is group 1. The match ends after the id cell's
+#: closing ``|``, so ``line[match.end():]`` is the row's remaining cells.
+DECLARED_TABLE_ROW: Pattern[str] = re.compile(rf"^\s*\|\s*(?:\*\*|~~){{0,2}}({_DECLARED_CORE})(?:\*\*|~~){{0,2}}\s*\|")
+
+#: Declared shape: a bulleted / numbered list item whose lead (bold
+#: optional) is the id, group 1.
+DECLARED_LIST_ITEM: Pattern[str] = re.compile(rf"^\s*(?:[-*]|\d+\.)\s*\*{{0,2}}({_DECLARED_CORE})\b")
+
 DECLARED_SHAPE_PATTERNS: tuple[Pattern[str], ...] = (
-    # Table row: id cell, optional **bold**/~~strike~~ wrapper, either side.
-    re.compile(rf"^\s*\|\s*(?:\*\*|~~){{0,2}}({_DECLARED_CORE})(?:\*\*|~~){{0,2}}\s*\|"),
+    DECLARED_TABLE_ROW,
     # Heading naming the id (``### FR-001`` / ``### FR-001: Title``).
     re.compile(rf"^#{{1,6}}\s*({_DECLARED_CORE})\b"),
-    # Bulleted / numbered list item lead, bold optional.
-    re.compile(rf"^\s*(?:[-*]|\d+\.)\s*\*{{0,2}}({_DECLARED_CORE})\b"),
+    DECLARED_LIST_ITEM,
     # Bold id leading a bare paragraph.
     re.compile(rf"^\s*\*\*({_DECLARED_CORE})\b"),
 )

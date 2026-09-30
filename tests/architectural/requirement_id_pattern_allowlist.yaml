@@ -7,41 +7,15 @@
 # same edit. Entries are frozen (permanent, C-008 divergence, names a
 # follow-up ticket) or transitional (a named WP removes it).
 #
-# WP01 (requirement-id-grammar-01M3NRCA) landed this allowlist with 3
-# entries / baseline: 3 -- the 2 frozen divergences (HiC ruling, Decision
-# Moment 01M3P2HXKASQY2ZKSEY3MAWA9H, superseding
-# 01M3P07HV88QNVVKP3E2W28VB6) plus 1 transitional entry. WP04 has now
-# removed that transitional entry (the cores take the grammar as an
-# injected, required argument, C-002 -- no local pattern remains) and
-# lowered baseline to 2 in this same edit -- the 2 frozen divergences
-# are all that remain.
-baseline: 2
+# History: WP01 (requirement-id-grammar-01M3NRCA) landed this allowlist with
+# 3 entries / baseline: 3 -- 2 frozen divergences plus 1 transitional entry,
+# which WP04 removed (baseline 2). The 2 frozen divergences
+# (missions/_substantive.py `_FR_TABLE_ROW`, retrospective/generator.py
+# `_FR_REF_RE`) were a scope deferral made by the orchestrator in auto mode
+# (Decision Moment 01M3P07HV88QNVVKP3E2W28VB6), not a HiC ruling; the one HiC
+# ruling (01M3P2HXKASQY2ZKSEY3MAWA9H) only migrated consolidation/retention.py.
+# #5387 and #5388 routed both call sites through the grammar and drained the
+# list to 0 in the same edit. Any new entry must raise `baseline` with it.
+baseline: 0
 
-requirement_id_pattern_literals:
-  - file: src/specify_cli/missions/_substantive.py
-    qualname: "<module>"
-    constant: _FR_TABLE_ROW
-    literal: '^\s*\|\s*\*{0,2}FR-\d{3}\*{0,2}\s*\|(?P<rest>[^\n]+)$'
-    frozen: true
-    followup: "#5387"
-    rationale: >
-      The setup-plan substantive-spec gate's own functional-requirement
-      table-row pattern diverges from C-001 by design (HiC ruling): it
-      checks structural row shape as an early, cheap substantive-content
-      heuristic independent of the grammar's full id space (SC, suffixes,
-      qualifiers), and folding it onto grammar.py would couple that
-      cheap check to the full requirement-ID parser. Frozen divergence
-      per C-008.
-
-  - file: src/specify_cli/retrospective/generator.py
-    qualname: "<module>"
-    constant: _FR_REF_RE
-    literal: '\b(FR-\d{3,})\b'
-    frozen: true
-    followup: "#5388"
-    rationale: >
-      The retrospective generator's functional-requirement reference
-      pattern is a narrower, retrospective-specific scan (3+ digit FRs
-      only, no NFR/C/SC, no suffix or qualifier support) predating this
-      mission; folding it onto grammar.py is out of scope here per C-008.
-      Frozen divergence.
+requirement_id_pattern_literals: []
