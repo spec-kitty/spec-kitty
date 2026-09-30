@@ -35,7 +35,7 @@ python -m scripts.docs.freshen_adr_inventory docs/adr/<era>/<your-adr>.md
 ```
 
 This freshens **both** indexes the `docs-freshness` CI gate enforces — the
-generated page-inventory lockfile (`docs/development/3-2-page-inventory.yaml`)
+generated page-inventory lockfile (`docs/development/page-inventory.yaml`)
 and the era `README.md` index table — in one idempotent, date-ordered pass.
 Use `--all` to back-fill every missing row, or `--check` to verify without
 writing.
