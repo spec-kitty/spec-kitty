@@ -24,6 +24,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from charter.activation.compiler import _SCOPE_FILTERED_PLACEHOLDER_SUMMARY_TEMPLATE
 from charter.activation.interview import (
     apply_answer_overrides,
     default_interview,
@@ -39,6 +40,12 @@ _LANGUAGES_KEY = "languages_frameworks"
 _PYTHON_STYLEGUIDE_ID = "STYLEGUIDE:python-conventions"
 _BASELINE_DIRECTIVE_STEM = "001-architectural-integrity-standard"
 _ACTIVATED_DIRECTIVE_STEM = "025-boy-scout-rule"
+
+#: Stable prefix of every ``SCOPE_FILTERED`` placeholder summary, derived
+#: from the compiler's own template rather than a hand-copied sentence
+#: (#5257 landing fold, 2026-09-30) -- so this test tracks the compiler's
+#: actual emitted text and cannot silently drift from it.
+_SCOPE_FILTERED_PLACEHOLDER_PREFIX = _SCOPE_FILTERED_PLACEHOLDER_SUMMARY_TEMPLATE.split("{suggestion}")[0]
 
 
 def _git_init(repo: Path) -> None:
@@ -86,8 +93,18 @@ def _catalog(repo: Path) -> dict:
     return document["catalog"]
 
 
+def _references(repo: Path) -> list[dict]:
+    """Full ``catalog.references`` records (id/kind/title/summary/source_path/...).
+
+    Extends the pre-existing id-only ``_reference_ids`` accessor (#5257
+    landing fold, 2026-09-30) rather than duplicating the YAML-loading
+    ``_catalog`` call at a new call site.
+    """
+    return list(_catalog(repo)["references"])
+
+
 def _reference_ids(repo: Path) -> list[str]:
-    return [str(reference["id"]) for reference in _catalog(repo)["references"]]
+    return [str(reference["id"]) for reference in _references(repo)]
 
 
 @pytest.mark.parametrize(
@@ -148,31 +165,89 @@ def test_no_from_interview_compile_agrees_with_runtime_for_on_disk_zig_answers(t
 
 
 def test_zig_regenerate_resolves_references_under_rederived_languages(tmp_path: Path) -> None:
-    """RED (pins the fix): no ``python-*`` reference survives a Zig regenerate (split-brain).
+    """RED (pins the fix): no ``python-*`` reference is RESOLVED after a Zig regenerate (split-brain).
 
-    Reads ``charter.yaml`` (the source of truth), and compares against the
-    Python positive control below so the assertion is non-vacuous.
+    Re-pinned 2026-09-30 (#5257 landing fold, PR #5429; re-pins #4614's
+    intent). #4614's module docstring states the property this test guards:
+    after a regenerate, doctrine references must not be resolved under the
+    stale ``python`` language. This was originally pinned as "no
+    ``python-*`` id survives the compile at all" (``not any(id startswith
+    python-)``), which happened to coincide with "not resolved" on main
+    because a scope-filtered id was silently DROPPED from
+    ``catalog.references``. #5257 (FR-001/FR-002) changed that silent drop
+    into a reason-bearing PLACEHOLDER record: an activated -- including
+    DRG-transitively reached -- ``python-*`` id that is out of the
+    rederived (Zig) language scope now stays in ``catalog.references`` as
+    an ``unresolved``/``scope_filtered`` placeholder (empty
+    ``source_path``, a summary that says definition-unavailable) instead of
+    disappearing. The old assertion is over-broad relative to #4614's
+    intent and goes red on this legitimate placeholder shape; it is
+    re-pinned here to the real property -- "not resolved", not "absent" --
+    by asserting every ``python-*`` catalog entry is a scope-filtered
+    placeholder (never a real, resolved definition) AND that the CLI's
+    structured ``unresolved_references`` diagnostics agree. Zero
+    ``python-*`` ids would also satisfy "not resolved"; this scenario is
+    expected to produce at least one (the DRG-reachable
+    ``python-conventions`` styleguide), so the non-vacuity guard is kept.
+    Reads ``charter.yaml`` (the source of truth) plus the ``--json``
+    diagnostics payload, and compares against the Python positive control
+    below so the assertion is non-vacuous.
     """
     _git_init(tmp_path)
     _seed_charter_yaml(tmp_path, ["python"])
     _write_answers(tmp_path, language_answer="Zig with the zig build system")
 
-    _generate(tmp_path, "--from-interview")
+    payload = _generate(tmp_path, "--from-interview")
 
-    ids = _reference_ids(tmp_path)
-    assert ids, "compile produced no references; the assertion below would be vacuous"
-    assert not any(i.split(":", 1)[-1].startswith("python-") for i in ids)
+    assert _catalog(tmp_path).get("languages") == ["unknown"]
+
+    python_references = [reference for reference in _references(tmp_path) if str(reference["id"]).split(":", 1)[-1].startswith("python-")]
+    assert python_references, "compile produced no python-* references; the assertion below would be vacuous"
+    for reference in python_references:
+        assert reference["summary"].startswith(_SCOPE_FILTERED_PLACEHOLDER_PREFIX), (
+            f"python-* reference {reference['id']!r} must be a scope_filtered placeholder, not a resolved "
+            f"definition, under the rederived Zig scope; got summary={reference['summary']!r}"
+        )
+        assert reference["title"] == str(reference["id"]).split(":", 1)[-1], (
+            f"python-* reference {reference['id']!r} must carry the bare-id placeholder title, got {reference['title']!r}"
+        )
+        assert not reference["source_path"], (
+            f"python-* reference {reference['id']!r} must carry no real source_path (placeholder-only), got source_path={reference['source_path']!r}"
+        )
+
+    python_unresolved = [record for record in payload["unresolved_references"] if str(record["id"]).split(":", 1)[-1].startswith("python-")]
+    assert python_unresolved, "the --json unresolved_references diagnostics must record the filtered python-* ids"
+    assert all(record["cause"] == "scope_filtered" for record in python_unresolved)
 
 
 def test_python_regenerate_still_includes_python_conventions(tmp_path: Path) -> None:
-    """GREEN control (pins unchanged behaviour): a Python answer resolves the Python styleguide."""
+    """GREEN control (pins unchanged behaviour): a Python answer RESOLVES the Python styleguide.
+
+    Strengthened 2026-09-30 alongside the Zig test's re-pin (same fold):
+    the pre-existing assertion only checked that
+    ``STYLEGUIDE:python-conventions`` appears among the reference ids --
+    which a scope-filtered PLACEHOLDER record (#5257) would also satisfy,
+    so it would not actually distinguish "resolved" from "placeholdered".
+    Now also asserts the record carries a real title (a placeholder's title
+    is the bare id) and a summary that is NOT the scope-filtered
+    placeholder text (``source_path`` is empty for resolved DRG-rendered
+    records too, so it cannot discriminate), proving this
+    positive control genuinely resolves a real definition -- the exact
+    contrast the Zig test above depends on for non-vacuity.
+    """
     _git_init(tmp_path)
     _seed_charter_yaml(tmp_path, ["python"])
     _write_answers(tmp_path, language_answer="Python backend with pytest checks")
 
     _generate(tmp_path, "--from-interview")
 
-    assert _PYTHON_STYLEGUIDE_ID in _reference_ids(tmp_path)
+    references = {str(reference["id"]): reference for reference in _references(tmp_path)}
+    assert _PYTHON_STYLEGUIDE_ID in references
+    styleguide = references[_PYTHON_STYLEGUIDE_ID]
+    assert styleguide["title"] != _PYTHON_STYLEGUIDE_ID.split(":", 1)[-1], "a placeholder's title is the bare id; a resolved definition has its own title"
+    assert not styleguide["summary"].startswith(_SCOPE_FILTERED_PLACEHOLDER_PREFIX), (
+        f"the Python styleguide must be genuinely resolved, not scope-filtered; got summary={styleguide['summary']!r}"
+    )
 
 
 def test_activate_preserves_recorded_languages(tmp_path: Path) -> None:

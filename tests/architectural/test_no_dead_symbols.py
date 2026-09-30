@@ -210,9 +210,11 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and calls
         # it directly. MigrationAction/MigrationManifest/MigrationRowResult above stay
         # allowlisted -- the wrapper only names the function, never those three types.
-        SymbolKey(
-            "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter.activation._catalog_miss"
-        ),  # charter.activation._catalog_miss::CatalogMissCause
+        # charter.activation._catalog_miss::CatalogMissCause -- REMOVED (WP02,
+        # mission charter-generation-drops-scoped-references-01M3M1KF, issue #5257):
+        # now has a real src/ caller, charter.activation.compiler's
+        # _classify_and_placeholder_reference(), which imports it directly to gate
+        # the SCOPE_FILTERED-vs-diagnostics-only branch.
         SymbolKey(
             "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter.activation._catalog_miss"
         ),  # charter.activation._catalog_miss::CharterCatalogMissError

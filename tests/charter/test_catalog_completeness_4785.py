@@ -213,7 +213,17 @@ def test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placehold
     )
 
     assert references == [], f"a genuine miss must not produce a placeholder catalog.references row; got {references}"
-    assert diagnostics == ["Unresolved reference: directive/BOGUS_DIRECTIVE_NOT_IN_BUNDLED_DOCTRINE"], diagnostics
+    # WP02 (#5257) extends -- never replaces -- this diagnostic string with a
+    # reason category + detail (FR-002/NFR-002: every unresolved reference
+    # now names WHY, not just THAT); the "no placeholder for a genuine miss"
+    # contract this test pins is the ``references == []`` assertion above,
+    # unaffected by that extension. Assert the byte-for-byte prefix survives
+    # (Contract C4's own format is preserved as a stable prefix, mirroring
+    # the SCOPE_FILTERED placeholder's own prefix-preservation convention)
+    # plus the new reason category, rather than the old, now-stale exact-match.
+    assert len(diagnostics) == 1, diagnostics
+    assert diagnostics[0].startswith("Unresolved reference: directive/BOGUS_DIRECTIVE_NOT_IN_BUNDLED_DOCTRINE"), diagnostics
+    assert "(missing_artifact)" in diagnostics[0], diagnostics
 
 
 def test_build_references_from_yaml_dead_builder_removed() -> None:

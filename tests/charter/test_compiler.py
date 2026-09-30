@@ -1,6 +1,7 @@
 """Scope: mock-boundary tests for charter compiler bundle generation -- no real git."""
 
 import dataclasses
+import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -732,6 +733,62 @@ def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> No
     # Only charter.yaml should be written (WP03: charter.md clobber removed,
     # references.yaml writer retired -- data-model.md Landmine 3).
     assert set(result.files_written) == {"charter.yaml"}
+
+
+def test_tracked_reference_kind_plurals_reflects_a_monkeypatched_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PR-FRESH2-001 (#5257, HALT round-3 operator ruling): there is no
+    module-level ``_TRACKED_REFERENCE_KIND_PLURALS`` constant to
+    independently drift from ``_TRACKED_KIND_TO_GRAPH_ATTR`` -- the round-2
+    replacement test was algebraically vacuous because both of its
+    assertions compared the SAME constant's current value against itself
+    (a hand-reverted independent literal would have passed identically).
+    This test instead monkeypatches ``_TRACKED_KIND_TO_GRAPH_ATTR`` itself
+    -- the one thing a cached constant could never observe -- and asserts
+    that ``_tracked_reference_kind_plurals()`` reflects the mutation on its
+    very next call. A cached module-level constant (or a
+    ``functools.lru_cache``-wrapped derivation) would keep returning the
+    pre-mutation value here and this test would fail.
+    """
+    import charter.activation.compiler as compiler_module
+
+    baseline = compiler_module._tracked_reference_kind_plurals()
+    assert baseline == frozenset(compiler_module._TRACKED_KIND_TO_GRAPH_ATTR.values())
+
+    mutated_mapping = {**compiler_module._TRACKED_KIND_TO_GRAPH_ATTR, "extra_kind": "extra_kinds"}
+    monkeypatch.setattr(compiler_module, "_TRACKED_KIND_TO_GRAPH_ATTR", mutated_mapping)
+
+    assert compiler_module._tracked_reference_kind_plurals() == baseline | {"extra_kinds"}
+
+
+def test_added_tracked_kind_is_honoured_by_the_whole_kind_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Public-ish-path companion to the test above: mutating
+    ``_TRACKED_KIND_TO_GRAPH_ATTR`` also changes what
+    ``_check_whole_kind_unresolved`` evaluates, because both consumers key
+    off the SAME single mapping (PR-BOUNDARY-001's "single source of truth"
+    claim) rather than a private constant only one of them sees. Adding
+    ``extra_kind`` with an activated (non-empty ``graph.extra_kinds``) but
+    zero-reference bucket must trip the whole-kind fail-closed check that
+    guards every activated tracked kind.
+    """
+    import charter.activation.compiler as compiler_module
+
+    mutated_mapping = {**compiler_module._TRACKED_KIND_TO_GRAPH_ATTR, "extra_kind": "extra_kinds"}
+    monkeypatch.setattr(compiler_module, "_TRACKED_KIND_TO_GRAPH_ATTR", mutated_mapping)
+
+    graph = types.SimpleNamespace(**{attr: [] for attr in mutated_mapping.values()})
+    graph.extra_kinds = ["some-unresolved-id"]
+
+    with pytest.raises(RuntimeError, match="extra_kind"):
+        compiler_module._check_whole_kind_unresolved(
+            graph=graph,
+            kind_reference_counts={},
+            activated_via_unresolved=set(),
+            unresolved_records=[],
+        )
 
 
 # ---------------------------------------------------------------------------
