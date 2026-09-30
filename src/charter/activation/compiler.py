@@ -1306,38 +1306,6 @@ _MALFORMED_URN_NO_KIND_DETAIL = "malformed URN, no kind prefix"
 _MALFORMED_URN_NO_ID_DETAIL = "malformed URN, no artifact id"
 _UNATTRIBUTED_KIND_CAUSE: Final[UnresolvedCause] = "unattributed_kind"
 
-#: Single source of truth for the six DRG-backed kinds
-#: :func:`_build_references_from_service` tracks (directive, tactic,
-#: styleguide, toolguide, procedure, agent_profile), mapping each singular
-#: kind to the :class:`~charter.offering.drg.query.ResolveTransitiveRefsResult`
-#: attribute name that carries its direct-source bucket -- consumed by
-#: :func:`_check_whole_kind_unresolved` (I2's "graph.<kind> non-empty" half
-#: of the OR condition). Distinct from the nine-kind gated
-#: ``_RAW_REPOSITORY_KINDS`` set in ``charter.activation.resolver``, which
-#: additionally includes ``paradigms``, ``mission_step_contracts`` and
-#: ``glossary_packs`` (valid, real repositories, but not one of the six this
-#: function renders per-id references for).
-#:
-#: PR-BOUNDARY-001 fix: this dict is the ONLY hand-written declaration of the
-#: six-kind set; every other view of it (the plural set
-#: :func:`_tracked_reference_kind_plurals` derives, and any future consumer)
-#: derives from it, so the two can never silently drift.
-#:
-#: PR-FRESH2-001 fix (#5257, HALT round-3 operator ruling): there is
-#: deliberately no cached module-level plural-keys constant alongside this
-#: mapping -- a prior round's ``_TRACKED_REFERENCE_KIND_PLURALS`` constant
-#: was computed once at import and could (in principle, and provably under
-#: a monkeypatch) go stale relative to this mapping. Callers instead compute
-#: the plural set on demand via :func:`_tracked_reference_kind_plurals`.
-_TRACKED_KIND_TO_GRAPH_ATTR: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "procedure": "procedures",
-    "agent_profile": "agent_profiles",
-}
-
 
 class _ReferenceFields(NamedTuple):
     """How to read a :class:`CharterReference`'s id/title/summary off one kind's repository model."""
@@ -1347,59 +1315,74 @@ class _ReferenceFields(NamedTuple):
     summary_of: Callable[[Any], str]
 
 
-#: Per tracked kind, the model-attribute readers shared by the per-kind render
-#: loop and the ``graph.unresolved`` routing, so both build an identical
-#: reference for the same artifact.
-_REFERENCE_FIELDS: dict[str, _ReferenceFields] = {
-    "directive": _ReferenceFields(
-        id_of=lambda d: str(d.id),
-        title_of=lambda d: str(d.title),
-        summary_of=lambda d: str(d.intent),
+class _TrackedKind(NamedTuple):
+    """One DRG-backed kind whose references :func:`_build_references_from_service` renders."""
+
+    #: Plural name shared by the :class:`~charter.offering.drg.query.ResolveTransitiveRefsResult`
+    #: bucket (``graph.<plural>``) and the raw-repository accessor
+    #: (``_raw_kind_repository(service, <plural>)``).
+    plural: str
+    fields: _ReferenceFields
+
+
+#: Single source of truth for the six DRG-backed kinds the compiler renders
+#: per-id references for, in catalog order. The render loop, the
+#: ``graph.unresolved`` routing and the whole-kind fail-closed check all read
+#: this table, so a kind added here is honoured by all three. It is narrower
+#: than the nine-kind ``_RAW_REPOSITORY_KINDS`` gate in
+#: ``charter.activation.resolver``, which also covers ``paradigms``,
+#: ``mission_step_contracts`` and ``glossary_packs`` (real repositories, but
+#: not rendered per id here).
+_TRACKED_KINDS: dict[str, _TrackedKind] = {
+    "directive": _TrackedKind(
+        "directives",
+        _ReferenceFields(
+            id_of=lambda d: str(d.id),
+            title_of=lambda d: str(d.title),
+            summary_of=lambda d: str(d.intent),
+        ),
     ),
-    "tactic": _ReferenceFields(
-        id_of=lambda t: str(t.id),
-        title_of=lambda t: str(t.name),
-        summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
+    "tactic": _TrackedKind(
+        "tactics",
+        _ReferenceFields(
+            id_of=lambda t: str(t.id),
+            title_of=lambda t: str(t.name),
+            summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
+        ),
     ),
-    "styleguide": _ReferenceFields(
-        id_of=lambda sg: str(sg.id),
-        title_of=lambda sg: str(sg.title),
-        summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
+    "styleguide": _TrackedKind(
+        "styleguides",
+        _ReferenceFields(
+            id_of=lambda sg: str(sg.id),
+            title_of=lambda sg: str(sg.title),
+            summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
+        ),
     ),
-    "toolguide": _ReferenceFields(
-        id_of=lambda tg: str(tg.id),
-        title_of=lambda tg: str(tg.title),
-        summary_of=lambda tg: str(tg.summary),
+    "toolguide": _TrackedKind(
+        "toolguides",
+        _ReferenceFields(
+            id_of=lambda tg: str(tg.id),
+            title_of=lambda tg: str(tg.title),
+            summary_of=lambda tg: str(tg.summary),
+        ),
     ),
-    "procedure": _ReferenceFields(
-        id_of=lambda proc: str(proc.id),
-        title_of=lambda proc: str(proc.name),
-        summary_of=lambda proc: str(proc.purpose),
+    "procedure": _TrackedKind(
+        "procedures",
+        _ReferenceFields(
+            id_of=lambda proc: str(proc.id),
+            title_of=lambda proc: str(proc.name),
+            summary_of=lambda proc: str(proc.purpose),
+        ),
     ),
-    "agent_profile": _ReferenceFields(
-        id_of=lambda ap: str(ap.profile_id),
-        title_of=lambda ap: str(ap.name),
-        summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
+    "agent_profile": _TrackedKind(
+        "agent_profiles",
+        _ReferenceFields(
+            id_of=lambda ap: str(ap.profile_id),
+            title_of=lambda ap: str(ap.name),
+            summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
+        ),
     ),
 }
-
-
-def _tracked_reference_kind_plurals() -> frozenset[str]:
-    """Derive the tracked plural-kind set from :data:`_TRACKED_KIND_TO_GRAPH_ATTR`.
-
-    Recomputed on EVERY call (PR-FRESH2-001, #5257) by reading the module
-    global at call time -- never a default argument snapshotted at import,
-    never ``functools.lru_cache``, and never mirrored into a second
-    module-level constant. This is the ONLY place ``.values()`` is taken
-    over :data:`_TRACKED_KIND_TO_GRAPH_ATTR` for this purpose, so a future
-    kind added to the mapping is reflected here automatically -- there is
-    exactly one hand-written six-member set, not two that could drift
-    apart. A test that monkeypatches ``_TRACKED_KIND_TO_GRAPH_ATTR`` on this
-    module and then calls this function observes the mutation immediately,
-    which proves the call-time derivation (a cached constant standing in
-    for this call would not move).
-    """
-    return frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values())
 
 
 def _model_reference(kind: str, model: Any, fields: _ReferenceFields) -> CharterReference:
@@ -1475,7 +1458,7 @@ def _route_unresolved_urn(
 
     plural = artifact_kind.plural
     repository = _raw_kind_repository(doctrine_service, plural)
-    if plural not in _tracked_reference_kind_plurals():
+    if artifact_kind.value not in _TRACKED_KINDS:
         detail = (
             f"no repository for kind: {kind_prefix}"
             if repository is None
@@ -1495,7 +1478,7 @@ def _route_unresolved_urn(
     # org pack the graph does not know about): render it like the per-kind path.
     model = repository.get(bare_id) if repository is not None else None
     if model is not None:
-        return artifact_kind.value, _model_reference(artifact_kind.value, model, _REFERENCE_FIELDS[artifact_kind.value])
+        return artifact_kind.value, _model_reference(artifact_kind.value, model, _TRACKED_KINDS[artifact_kind.value].fields)
 
     placeholder = _classify_and_placeholder_reference(
         kind=artifact_kind.value,
@@ -1612,8 +1595,8 @@ def _check_whole_kind_unresolved(
     unresolved ids; it propagates out of ``compile_charter`` and no catalog is
     written for this run.
     """
-    for kind, graph_attr in _TRACKED_KIND_TO_GRAPH_ATTR.items():
-        activated = bool(getattr(graph, graph_attr)) or kind in activated_via_unresolved
+    for kind, tracked in _TRACKED_KINDS.items():
+        activated = bool(getattr(graph, tracked.plural)) or kind in activated_via_unresolved
         if not activated or kind_reference_counts.get(kind, 0) > 0:
             continue
         raise WholeKindUnresolvedError(kind, unresolved_records)
@@ -1664,77 +1647,18 @@ def _build_references_from_service(
 
     kind_reference_counts: dict[str, int] = {}
 
-    directive_references = _render_kind_references(
-        graph.directives,
-        kind="directive",
-        repository=_raw_kind_repository(doctrine_service, "directives"),
-        fields=_REFERENCE_FIELDS["directive"],
-        diagnostics=diagnostics,
-        unresolved_records=unresolved_records,
-        project_root=repo_root,
-    )
-    references.extend(directive_references)
-    kind_reference_counts["directive"] = len(directive_references)
-
-    tactic_references = _render_kind_references(
-        graph.tactics,
-        kind="tactic",
-        repository=_raw_kind_repository(doctrine_service, "tactics"),
-        fields=_REFERENCE_FIELDS["tactic"],
-        diagnostics=diagnostics,
-        unresolved_records=unresolved_records,
-        project_root=repo_root,
-    )
-    references.extend(tactic_references)
-    kind_reference_counts["tactic"] = len(tactic_references)
-
-    styleguide_references = _render_kind_references(
-        graph.styleguides,
-        kind="styleguide",
-        repository=_raw_kind_repository(doctrine_service, "styleguides"),
-        fields=_REFERENCE_FIELDS["styleguide"],
-        diagnostics=diagnostics,
-        unresolved_records=unresolved_records,
-        project_root=repo_root,
-    )
-    references.extend(styleguide_references)
-    kind_reference_counts["styleguide"] = len(styleguide_references)
-
-    toolguide_references = _render_kind_references(
-        graph.toolguides,
-        kind="toolguide",
-        repository=_raw_kind_repository(doctrine_service, "toolguides"),
-        fields=_REFERENCE_FIELDS["toolguide"],
-        diagnostics=diagnostics,
-        unresolved_records=unresolved_records,
-        project_root=repo_root,
-    )
-    references.extend(toolguide_references)
-    kind_reference_counts["toolguide"] = len(toolguide_references)
-
-    procedure_references = _render_kind_references(
-        graph.procedures,
-        kind="procedure",
-        repository=_raw_kind_repository(doctrine_service, "procedures"),
-        fields=_REFERENCE_FIELDS["procedure"],
-        diagnostics=diagnostics,
-        unresolved_records=unresolved_records,
-        project_root=repo_root,
-    )
-    references.extend(procedure_references)
-    kind_reference_counts["procedure"] = len(procedure_references)
-
-    agent_profile_references = _render_kind_references(
-        graph.agent_profiles,
-        kind="agent_profile",
-        repository=_raw_kind_repository(doctrine_service, "agent_profiles"),
-        fields=_REFERENCE_FIELDS["agent_profile"],
-        diagnostics=diagnostics,
-        unresolved_records=unresolved_records,
-        project_root=repo_root,
-    )
-    references.extend(agent_profile_references)
-    kind_reference_counts["agent_profile"] = len(agent_profile_references)
+    for kind, tracked in _TRACKED_KINDS.items():
+        kind_references = _render_kind_references(
+            getattr(graph, tracked.plural),
+            kind=kind,
+            repository=_raw_kind_repository(doctrine_service, tracked.plural),
+            fields=tracked.fields,
+            diagnostics=diagnostics,
+            unresolved_records=unresolved_records,
+            project_root=repo_root,
+        )
+        references.extend(kind_references)
+        kind_reference_counts[kind] = len(kind_references)
 
     # T009 (#5257): route every graph.unresolved URN through the SAME
     # shared classify-and-placeholder helper the six per-kind loops above

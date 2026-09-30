@@ -3,6 +3,7 @@
 import dataclasses
 import types
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -735,60 +736,72 @@ def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> No
     assert set(result.files_written) == {"charter.yaml"}
 
 
-def test_tracked_reference_kind_plurals_reflects_a_monkeypatched_mapping(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """PR-FRESH2-001 (#5257, HALT round-3 operator ruling): there is no
-    module-level ``_TRACKED_REFERENCE_KIND_PLURALS`` constant to
-    independently drift from ``_TRACKED_KIND_TO_GRAPH_ATTR`` -- the round-2
-    replacement test was algebraically vacuous because both of its
-    assertions compared the SAME constant's current value against itself
-    (a hand-reverted independent literal would have passed identically).
-    This test instead monkeypatches ``_TRACKED_KIND_TO_GRAPH_ATTR`` itself
-    -- the one thing a cached constant could never observe -- and asserts
-    that ``_tracked_reference_kind_plurals()`` reflects the mutation on its
-    very next call. A cached module-level constant (or a
-    ``functools.lru_cache``-wrapped derivation) would keep returning the
-    pre-mutation value here and this test would fail.
-    """
+def test_tracked_kinds_table_matches_the_artifact_kind_vocabulary() -> None:
+    """Each tracked kind is a real ``ArtifactKind`` whose plural is the graph
+    bucket / raw-repository key the table records."""
     import charter.activation.compiler as compiler_module
+    from charter.activation.kind_vocabulary import ArtifactKind
 
-    baseline = compiler_module._tracked_reference_kind_plurals()
-    assert baseline == frozenset(compiler_module._TRACKED_KIND_TO_GRAPH_ATTR.values())
-
-    mutated_mapping = {**compiler_module._TRACKED_KIND_TO_GRAPH_ATTR, "extra_kind": "extra_kinds"}
-    monkeypatch.setattr(compiler_module, "_TRACKED_KIND_TO_GRAPH_ATTR", mutated_mapping)
-
-    assert compiler_module._tracked_reference_kind_plurals() == baseline | {"extra_kinds"}
+    assert list(compiler_module._TRACKED_KINDS) == ["directive", "tactic", "styleguide", "toolguide", "procedure", "agent_profile"]
+    for kind, tracked in compiler_module._TRACKED_KINDS.items():
+        assert ArtifactKind(kind).plural == tracked.plural
 
 
 def test_added_tracked_kind_is_honoured_by_the_whole_kind_check(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Public-ish-path companion to the test above: mutating
-    ``_TRACKED_KIND_TO_GRAPH_ATTR`` also changes what
-    ``_check_whole_kind_unresolved`` evaluates, because both consumers key
-    off the SAME single mapping (PR-BOUNDARY-001's "single source of truth"
-    claim) rather than a private constant only one of them sees. Adding
-    ``extra_kind`` with an activated (non-empty ``graph.extra_kinds``) but
-    zero-reference bucket must trip the whole-kind fail-closed check that
-    guards every activated tracked kind.
-    """
+    """The whole-kind fail-closed check reads the tracked-kinds table at call
+    time: a kind added to it, with an activated (non-empty ``graph.<plural>``)
+    but zero-reference bucket, trips the check."""
     import charter.activation.compiler as compiler_module
 
-    mutated_mapping = {**compiler_module._TRACKED_KIND_TO_GRAPH_ATTR, "extra_kind": "extra_kinds"}
-    monkeypatch.setattr(compiler_module, "_TRACKED_KIND_TO_GRAPH_ATTR", mutated_mapping)
+    extra = compiler_module._TrackedKind("extra_kinds", compiler_module._TRACKED_KINDS["directive"].fields)
+    mutated = {**compiler_module._TRACKED_KINDS, "extra_kind": extra}
+    monkeypatch.setattr(compiler_module, "_TRACKED_KINDS", mutated)
 
-    graph = types.SimpleNamespace(**{attr: [] for attr in mutated_mapping.values()})
+    graph = types.SimpleNamespace(**{tracked.plural: [] for tracked in mutated.values()})
     graph.extra_kinds = ["some-unresolved-id"]
 
-    with pytest.raises(RuntimeError, match="extra_kind"):
+    with pytest.raises(compiler_module.WholeKindUnresolvedError, match="extra_kind"):
         compiler_module._check_whole_kind_unresolved(
             graph=graph,
             kind_reference_counts={},
             activated_via_unresolved=set(),
             unresolved_records=[],
         )
+
+
+def test_route_unresolved_urn_reads_the_tracked_kinds_table_at_call_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The ``graph.unresolved`` routing attributes a URN to a kind only while
+    that kind is in the table: dropping ``toolguide`` from it makes the same URN
+    unattributable -- one table drives routing and the whole-kind check alike."""
+    import charter.activation.compiler as compiler_module
+
+    class _Service:
+        def raw_repository(self, _kind: str) -> Any:
+            class _Repo:
+                def get(self, _id: str) -> None:
+                    return None
+
+            return _Repo()
+
+    def route() -> tuple[str | None, list[Any]]:
+        records: list[Any] = []
+        kind, _placeholder = compiler_module._route_unresolved_urn(
+            "toolguide:some-id", doctrine_service=_Service(), diagnostics=[], unresolved_records=records, project_root=None
+        )
+        return kind, records
+
+    attributed, _ = route()
+    assert attributed == "toolguide"
+
+    reduced = {k: v for k, v in compiler_module._TRACKED_KINDS.items() if k != "toolguide"}
+    monkeypatch.setattr(compiler_module, "_TRACKED_KINDS", reduced)
+    attributed, records = route()
+    assert attributed is None
+    assert [record["cause"] for record in records] == ["unattributed_kind"]
 
 
 def test_unresolved_cause_vocabulary_is_one_closed_set() -> None:
