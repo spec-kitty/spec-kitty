@@ -4,7 +4,8 @@
 (:func:`attestation_stamps`), the request validation, and the shape of
 the forced ``canceled -> canceled`` transition written through the canonical
 transactional seam (seam call captured; its own persistence is covered by the
-coordination suite and end to end by ``tests/terminus/test_repro_5046_recovery.py``).
+coordination suite and end to end by
+``tests/terminus/test_mixed_lane_fail_recovery_and_attestation.py``).
 """
 
 from __future__ import annotations

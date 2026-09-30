@@ -2091,7 +2091,7 @@ def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> 
 # constructs ``ApprovedWpCommitSet`` by keyword) so each contract C3 row is a
 # small, fast, isolated git shape -- the mixed-lane WIRING through
 # ``build_approved_wp_set`` (T022/T023) is covered separately below, and the
-# full end-to-end real-CLI proof lives in ``tests/terminus/test_repro_5046*.py``.
+# full end-to-end real-CLI proof lives in ``tests/terminus/test_mixed_lane_*.py``.
 # --------------------------------------------------------------------------- #
 
 _CANCELED_WP = "WP02"

@@ -238,10 +238,11 @@ def _describe_canceled_content(entry: CanceledPathState) -> str:
 
     Exactly one internal ``;`` — a situation clause naming the path (in single
     quotes) together with its wording, then a recovery clause — matching the
-    binding rendering contract with WP02 (``tests/terminus/test_repro_5046.py``
-    extracts the verdict block, splits it on ``;``, and matches each path to
-    its own clause; the recovery clause coming AFTER never shadows the
-    situation clause a path-substring search finds first).
+    binding rendering contract with the real-CLI suite
+    (``tests/terminus/test_mixed_lane_canceled_content_verdicts.py`` extracts
+    the verdict block, splits it on ``;``, and matches each path to its own
+    clause; the recovery clause coming AFTER never shadows the situation
+    clause a path-substring search finds first).
     """
     who = f"canceled {entry.wp_id}"
     recovery = f"revert {entry.wp_id}'s change to '{entry.path}' on the lane through a surviving WP's governed work, {_RECOVERY_TAIL}"

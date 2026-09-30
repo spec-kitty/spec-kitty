@@ -25,7 +25,7 @@ _ISSUE_NAMED = re.compile(r"^test_(?:issue|repro)_\d{3,}")
 
 # Shrink-only high-water mark of issue-named test files under tests/, as of
 # 2026-09-30 after the fold-or-keep pass on the 2026-09-29 slices.
-_HIGH_WATER = 96
+_HIGH_WATER = 90
 
 
 def _is_issue_named(filename: str) -> bool:
