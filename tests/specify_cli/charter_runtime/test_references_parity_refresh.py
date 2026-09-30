@@ -30,7 +30,9 @@ extension point WP04 installed at ``preflight.runner.refresh_references_if_neede
 from __future__ import annotations
 
 import contextlib
+import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -624,3 +626,82 @@ def test_refresh_outcome_bool_raises_type_error() -> None:
 
     with pytest.raises(TypeError, match="no truth value"):
         bool(outcome)
+
+
+# ---------------------------------------------------------------------------
+# #5257 landing fold: the failure detail must be the real error, not a wrapped
+# fragment. `charter generate` prints errors through rich, which hard-wraps at
+# 80 columns when stdout is not a TTY, and a stray stderr warning must not
+# outrank the real error. The refresh therefore asks for `--json` and reads
+# the `error` field, falling back to an unwrapped tail for non-JSON output.
+# ---------------------------------------------------------------------------
+
+_LONG_ERROR = "Refusing to overwrite symlinked charter at /work/repo/.kittify/charter/charter.md. Remove the symlink."
+
+
+def _completed(*, returncode: int = 1, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=list(_GENERATE_CMD_PREFIX), returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+def test_build_generate_command_requests_json_output(tmp_path: Path) -> None:
+    cmd = references_refresh._build_generate_command(tmp_path)
+
+    assert "--json" in cmd
+
+
+def test_extract_failure_detail_reads_the_json_error_field() -> None:
+    payload = json.dumps({"result": "error", "success": False, "error": _LONG_ERROR})
+
+    detail = references_refresh._extract_failure_detail(_completed(stdout=payload + "\n"))
+
+    assert detail == _LONG_ERROR
+
+
+def test_extract_failure_detail_prefers_json_error_over_a_stray_stderr_warning() -> None:
+    payload = json.dumps({"result": "error", "success": False, "error": _LONG_ERROR})
+
+    detail = references_refresh._extract_failure_detail(_completed(stdout=payload + "\n", stderr="DeprecationWarning: something unrelated\n"))
+
+    assert detail == _LONG_ERROR
+
+
+def test_extract_failure_detail_unwraps_a_hard_wrapped_rich_error() -> None:
+    """RED before the fold: the last stdout line alone was a wrapped fragment
+    (``"...er.yaml."``), so ``blocked_reason`` read as noise."""
+    wrapped = "Error: generate could not write the compiled charter because the target\nfile /work/repo/.kittify/charter/charter.yaml is read-only.\n"
+
+    detail = references_refresh._extract_failure_detail(_completed(stdout=wrapped))
+
+    assert detail == "Error: generate could not write the compiled charter because the target file /work/repo/.kittify/charter/charter.yaml is read-only."
+
+
+def test_extract_failure_detail_wrapped_stdout_error_beats_a_stray_stderr_warning() -> None:
+    """RED before the fold: the stderr-first rule let an unrelated warning win."""
+    wrapped = "Error: generate could not write the compiled charter because the target\nfile is read-only.\n"
+
+    detail = references_refresh._extract_failure_detail(_completed(stdout=wrapped, stderr="UserWarning: cache miss\n"))
+
+    assert detail == "Error: generate could not write the compiled charter because the target file is read-only."
+
+
+def test_extract_failure_detail_ignores_non_error_json_and_falls_back_to_tail() -> None:
+    detail = references_refresh._extract_failure_detail(_completed(stdout='{"result": "success"}\n', stderr="boom\n"))
+
+    assert detail == "boom"
+
+
+def test_generate_output_with_invalid_utf8_never_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """RED before the fold: ``subprocess.run(text=True)`` raised an uncaught
+    ``UnicodeDecodeError`` on non-UTF-8 child output, breaking the package's
+    "MUST NOT raise on subprocess errors" contract. Real subprocess, no fake."""
+    script = "import sys; sys.stdout.buffer.write(b'Error: bad byte \\xff\\xfe here\\n'); sys.exit(1)"
+    monkeypatch.setattr(references_refresh, "_GENERATE_CMD_PREFIX", (sys.executable, "-c", script))
+    monkeypatch.setattr(references_refresh, "_read_catalog_mission_and_template_set", lambda _repo_root: (None, None))
+
+    outcome = references_refresh.refresh_references_if_needed(tmp_path, cause="synthesized_drg")
+
+    assert outcome.attempted is True
+    assert outcome.succeeded is False
+    assert outcome.detail is not None
+    assert outcome.detail.startswith("Error: bad byte")
+    assert "here" in outcome.detail

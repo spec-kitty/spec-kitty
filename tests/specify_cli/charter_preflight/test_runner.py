@@ -612,7 +612,7 @@ def test_auto_refresh_clean_worktree_runs_sequence(tmp_path: Path, monkeypatch: 
     # extension-point side effect, not one of the primary steps
     # `_attempt_auto_refresh` itself tracks — so it is intentionally absent
     # from `auto_refresh_actions`.
-    assert "spec-kitty charter generate --no-from-interview" in cmds_as_strs
+    assert "spec-kitty charter generate --no-from-interview --json" in cmds_as_strs
     assert result.auto_refresh_actions == [
         "spec-kitty upgrade --yes",
         "spec-kitty charter synthesize",

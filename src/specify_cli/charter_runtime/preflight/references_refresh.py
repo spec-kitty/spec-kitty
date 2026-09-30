@@ -53,7 +53,9 @@ contract structurally.
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,6 +84,9 @@ _REFERENCES_PARITY_CAUSE_NAME = SYNTHESIZED_DRG_LAYER
 _GENERATE_TIMEOUT_SECS = 30.0
 
 _GENERATE_CMD_PREFIX: tuple[str, ...] = ("spec-kitty", "charter", "generate")
+
+#: The label ``charter``'s ``_emit_error`` prefixes to a non-JSON error line.
+_RICH_ERROR_LINE = re.compile(r"^(?:Unexpected error|Error):")
 
 
 @dataclass(frozen=True)
@@ -173,10 +178,12 @@ def _build_generate_command(repo_root: Path) -> list[str]:
     background heal while not losing any activation fidelity. The existing
     mission/template_set are threaded through explicitly (when readable) so
     a project on a non-default mission type is not silently recompiled
-    against ``generate``'s ``"software-dev"`` fallback.
+    against ``generate``'s ``"software-dev"`` fallback. ``--json`` makes a
+    failure carry its message in a machine-readable ``error`` field instead
+    of rich-wrapped prose (see :func:`_extract_failure_detail`).
     """
     mission, template_set = _read_catalog_mission_and_template_set(repo_root)
-    cmd = [*_GENERATE_CMD_PREFIX, "--no-from-interview"]
+    cmd = [*_GENERATE_CMD_PREFIX, "--no-from-interview", "--json"]
     if mission:
         cmd.extend(["--mission-type", mission])
     if template_set:
@@ -184,18 +191,48 @@ def _build_generate_command(repo_root: Path) -> list[str]:
     return cmd
 
 
+def _json_error_field(stdout: str) -> str | None:
+    """The ``error`` string of ``generate --json``'s failure payload, if any."""
+    for candidate in (stdout, *reversed(stdout.splitlines())):
+        try:
+            payload = json.loads(candidate)
+        except ValueError:
+            continue
+        error = payload.get("error") if isinstance(payload, dict) else None
+        if isinstance(error, str) and error.strip():
+            return error.strip()
+    return None
+
+
+def _unwrapped_error_paragraph(stream: str) -> str | None:
+    """The last ``Error: ...`` paragraph of *stream*, re-joined onto one line.
+
+    rich hard-wraps at 80 columns when stdout is not a TTY, so the message
+    continues on the following lines; the last physical line alone is a
+    fragment.
+    """
+    lines = [line.strip() for line in stream.splitlines() if line.strip()]
+    starts = [i for i, line in enumerate(lines) if _RICH_ERROR_LINE.match(line)]
+    return " ".join(lines[starts[-1] :]) if starts else None
+
+
 def _extract_failure_detail(completed: subprocess.CompletedProcess[str]) -> str:
     """Short excerpt naming why the targeted ``generate`` failed.
 
-    The last non-empty ``stderr`` line, or the last non-empty ``stdout``
-    line when ``stderr`` is empty -- mirrors
-    ``preflight.runner._run_refresh_step``'s existing stderr-first/stdout-
-    fallback extraction for the OTHER refresh-sequence steps, so this
-    step's failure detail reads the same way in ``blocked_reason``.
+    Preference order: the ``error`` field of ``generate --json``'s payload;
+    an unwrapped ``Error: ...`` paragraph (either stream, stdout first, so a
+    stray stderr warning cannot outrank the real error); the last non-empty
+    ``stderr`` line, else the last non-empty ``stdout`` line.
     """
-    for stream in (completed.stderr, completed.stdout):
-        if not stream:
-            continue
+    stdout, stderr = completed.stdout or "", completed.stderr or ""
+    json_error = _json_error_field(stdout)
+    if json_error:
+        return json_error
+    for stream in (stdout, stderr):
+        paragraph = _unwrapped_error_paragraph(stream)
+        if paragraph:
+            return paragraph
+    for stream in (stderr, stdout):
         lines = [line for line in stream.splitlines() if line.strip()]
         if lines:
             return lines[-1]
@@ -241,6 +278,8 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> ReferencesRefre
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=_GENERATE_TIMEOUT_SECS,
             check=False,
         )
