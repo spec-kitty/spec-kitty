@@ -1,28 +1,18 @@
-"""Tests for WP02 merge strategy wiring (FR-005, FR-006, FR-007, FR-008, FR-009, NFR-003).
+"""Merge strategy contracts for ``spec-kitty consolidate``.
 
 Covers:
-- test_strategy_flag_flows_through (FR-005)
-- test_default_strategy_is_squash (FR-006)
-- test_lane_to_mission_uses_merge_commit (FR-007)
-- test_config_yaml_strategy_honored (FR-008)
-- test_invalid_config_strategy_raises (FR-008)
-- test_push_rejection_emits_hint_for_known_tokens (FR-009)
-- test_push_rejection_fails_open_for_unknown (FR-009)
-- test_protected_linear_history_succeeds_default (NFR-003)
-
-Note on patching: consolidate_lane_into_mission/integrate_mission_into_target are imported locally inside
-_run_lane_based_consolidation, so they must be patched at the source module level
-(specify_cli.lanes.consolidation.*) not at specify_cli.cli.commands.consolidate.*.
-Similarly, evaluate_merge_gates and load_policy_config are patched at their source paths.
+- ``merge.strategy`` config parsing and validation.
+- ``consolidate --strategy`` end to end (real CLI subprocess on a real coord
+  mission): the flag > config > squash precedence, what each strategy leaves
+  in the target's history, and lane -> mission staying a true merge.
+- Linear-history push-rejection detection and its remediation hint.
+- Squash avoiding a linear-history rejection on a protected remote.
 """
 
 from __future__ import annotations
 
-from contextlib import ExitStack, contextmanager
-import json
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -30,9 +20,9 @@ from specify_cli.cli.commands.consolidate import (
     LINEAR_HISTORY_REJECTION_TOKENS,
     _emit_remediation_hint,
     _is_linear_history_rejection,
-    _run_lane_based_consolidation,
 )
 from specify_cli.consolidation.config import ConfigError, MergeStrategy, load_merge_config
+from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, run_terminus, sha_reachable
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -144,239 +134,76 @@ class TestEmitRemediationHint:
 
 
 # ---------------------------------------------------------------------------
-# FR-005 / FR-006 — strategy wiring through _run_lane_based_consolidation
+# FR-005 / FR-006 / FR-007 / FR-008 — the real `consolidate --strategy`
 # ---------------------------------------------------------------------------
 
-
-def _make_mock_lanes_manifest(mission_slug: str) -> MagicMock:
-    """Return a mock LanesManifest for a 2-lane, 2-WP mission."""
-    manifest = MagicMock()
-    # Lane naming is keyed
-    # on ``lanes_manifest.mission_slug`` alone, so it must match the real
-    # slug ``run.mission_slug`` carries, or ``_phase_merge_lanes``'s
-    # invariant assertion refuses this mock as internally inconsistent.
-    manifest.mission_slug = mission_slug
-    manifest.target_branch = "main"
-    manifest.mission_branch = f"kitty/mission-{mission_slug}"
-
-    lane_a = MagicMock()
-    lane_a.lane_id = "lane-a"
-    lane_a.wp_ids = ["WP01"]
-
-    lane_b = MagicMock()
-    lane_b.lane_id = "lane-b"
-    lane_b.wp_ids = ["WP02"]
-
-    manifest.lanes = [lane_a, lane_b]
-    return manifest
+_SQUASH = "squash"
+_MERGE = "merge"
 
 
-def _write_meta(feature_dir: Path, mission_slug: str) -> None:
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_slug": mission_slug}),
-        encoding="utf-8",
+def _commit_merge_config(mission: CoordMission, strategy: str) -> None:
+    """Commit ``merge.strategy`` to the target branch's ``.kittify/config.yaml``."""
+    kittify = mission.repo / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    (kittify / "config.yaml").write_text(f"merge:\n  strategy: {strategy}\n", encoding="utf-8")
+    subprocess.run(["git", "add", "--", ".kittify/config.yaml"], cwd=mission.repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "chore: set merge strategy"], cwd=mission.repo, check=True, capture_output=True)
+
+
+def _merge_commits_between(mission: CoordMission, base: str, tip: str) -> list[str]:
+    completed = subprocess.run(
+        ["git", "rev-list", "--min-parents=2", f"{base}..{tip}"],
+        cwd=mission.repo,
+        check=True,
+        capture_output=True,
+        text=True,
     )
+    return completed.stdout.split()
 
 
-def _seed_wp_done_events(feature_dir: Path, mission_slug: str, wp_ids: list[str]) -> None:
-    """Seed every ``wp_ids`` entry as ``done`` on the real event log (#4764/T007).
+@pytest.mark.slow  # one real `spec-kitty consolidate` per case on a real 2-lane coord mission
+@pytest.mark.parametrize(
+    ("config_strategy", "cli_args", "expected"),
+    [
+        (None, [], _SQUASH),
+        (None, ["--strategy", "squash"], _SQUASH),
+        (None, ["--strategy", "merge"], _MERGE),
+        ("merge", [], _MERGE),
+        ("merge", ["--strategy", "squash"], _SQUASH),
+    ],
+    ids=["default-is-squash", "flag-squash", "flag-merge", "config-merge", "flag-beats-config"],
+)
+def test_consolidate_strategy_decides_whether_lane_history_reaches_the_target(
+    tmp_path: Path, config_strategy: str | None, cli_args: list[str], expected: str
+) -> None:
+    """Drive the real CLI; the strategy is observable only in the target's git history.
 
-    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
-    (via ``read_events``/``reduce``), not through the ``get_wp_lane`` mock
-    these fixtures already patch elsewhere -- so a mission with no real event
-    log is reported as having every WP missing review approval and the merge
-    now refuses before mutation. These tests exercise strategy wiring, not
-    readiness, so seed every WP as done to let the merge proceed.
+    - squash: every WP's content lands on the target, but no lane commit is
+      reachable from it and the target gains no merge commit.
+    - merge: every lane tip is an ancestor of the target.
+    - either way (FR-007), lane -> mission stays a true merge: every lane tip is
+      an ancestor of the retained mission (coordination) branch.
+    Precedence (FR-005/006/008): ``--strategy`` > ``merge.strategy`` config > squash.
     """
-    jsonl_path = feature_dir / "status.events.jsonl"
-    with jsonl_path.open("a", encoding="utf-8") as handle:
-        for index, wp_id in enumerate(wp_ids):
-            event = {
-                "actor": "test",
-                "at": "2026-04-07T00:00:00+00:00",
-                "event_id": f"TESTSTRAT{wp_id}{index:03d}",
-                "evidence": None,
-                "execution_mode": "direct_repo",
-                "feature_slug": mission_slug,
-                "force": True,
-                "from_lane": "planned",
-                "reason": "test seed",
-                "review_ref": None,
-                "to_lane": "done",
-                "wp_id": wp_id,
-            }
-            handle.write(json.dumps(event, sort_keys=True) + "\n")
-    from specify_cli.status.reducer import materialize
+    wps = ("WP01", "WP02")
+    mission = build_coord_mission(tmp_path, wps=wps, mid8="01M3RBFC")
+    if config_strategy is not None:
+        _commit_merge_config(mission, config_strategy)
+    lane_tips = {wp: mission.rev(mission.lane_branch(wp)) for wp in wps}
+    target_before = mission.rev(mission.target_branch)
 
-    materialize(feature_dir)
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes", "--keep-branch", *cli_args])
 
-
-@contextmanager
-def _patched_lane_based_merge_dependencies(
-    tmp_path: Path,
-    manifest: MagicMock,
-    lane_result: MagicMock,
-    mission_result: MagicMock,
-):
-    """Patch heavy merge dependencies while preserving strategy call assertions."""
-    with ExitStack() as stack:
-        stack.enter_context(patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest))
-        stack.enter_context(patch("specify_cli.consolidation.resolve.load_state", return_value=None))
-        stack.enter_context(patch("specify_cli.consolidation.done_bookkeeping.save_state"))
-        stack.enter_context(patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path))
-        stack.enter_context(patch("specify_cli.consolidation.executor._enforce_target_branch_sync_preflight"))
-        stack.enter_context(patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)))
-        stack.enter_context(patch("specify_cli.consolidation.executor._pre_mutation_safety_preflight"))
-        # #5001: the reconciliation-claim phase (terminus/merge-coord integrity
-        # spine) needs real lane manifest data (string lane_id/wp_ids/slug) to
-        # compute lane branch names via lane_branch_name. These tests mock the
-        # lanes manifest with MagicMock, so stub the reconciliation phase here;
-        # reconciliation itself is covered by tests/terminus + tests/merge/test_reconciliation.
-        stack.enter_context(patch("specify_cli.consolidation.executor._capture_reconciliation_claim"))
-        stack.enter_context(patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"))
-        stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
-        mock_lane_merge = stack.enter_context(patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result))
-        mock_mission_merge = stack.enter_context(patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result))
-        stack.enter_context(patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"))
-        stack.enter_context(patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", return_value=True))
-        mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
-        mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
-        mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
-        stack.enter_context(patch("specify_cli.consolidation.executor.run_command", return_value=(0, "abc123", "")))
-        stack.enter_context(patch("specify_cli.consolidation.executor.has_remote", return_value=False))
-        stack.enter_context(patch("specify_cli.consolidation.executor.cleanup_merge_workspace"))
-        stack.enter_context(patch("specify_cli.consolidation.executor.clear_state"))
-        stack.enter_context(patch("specify_cli.consolidation.state.ConsolidationState"))
-
-        stale_report = MagicMock()
-        stale_report.findings = []
-        mock_run_check.return_value = stale_report
-
-        gate_eval = MagicMock()
-        gate_eval.overall_pass = True
-        gate_eval.gates = []
-        mock_gates.return_value = gate_eval
-
-        policy = MagicMock()
-        policy.merge_gates = []
-        mock_policy.return_value = policy
-
-        yield mock_lane_merge, mock_mission_merge
-
-
-class TestStrategyFlagFlowsThrough:
-    """FR-005: --strategy squash reaches _run_lane_based_consolidation and is honored."""
-
-    def test_strategy_squash_passed_to_integrate_mission_into_target(self, tmp_path: Path) -> None:
-        """FR-005: strategy parameter is passed down to integrate_mission_into_target."""
-        mission_slug = "068-test"
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _write_meta(feature_dir, mission_slug)
-        _seed_wp_done_events(feature_dir, mission_slug, ["WP01", "WP02"])
-
-        manifest = _make_mock_lanes_manifest(mission_slug)
-
-        lane_result = MagicMock()
-        lane_result.success = True
-        lane_result.errors = []
-
-        mission_result = MagicMock()
-        mission_result.success = True
-        mission_result.commit = "abc1234"
-        mission_result.errors = []
-
-        with _patched_lane_based_merge_dependencies(tmp_path, manifest, lane_result, mission_result) as (_mock_lane_merge, mock_mission_merge):
-            _run_lane_based_consolidation(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
-
-            # Verify strategy was passed to integrate_mission_into_target
-            mock_mission_merge.assert_called_once()
-            call_kwargs = mock_mission_merge.call_args.kwargs
-            assert call_kwargs.get("strategy") == MergeStrategy.SQUASH
-
-    def test_default_strategy_is_squash(self, tmp_path: Path) -> None:
-        """FR-006: when no strategy is specified, SQUASH is the default."""
-        mission_slug = "068-test2"
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _write_meta(feature_dir, mission_slug)
-        _seed_wp_done_events(feature_dir, mission_slug, ["WP01", "WP02"])
-
-        manifest = _make_mock_lanes_manifest(mission_slug)
-
-        lane_result = MagicMock()
-        lane_result.success = True
-        lane_result.errors = []
-
-        mission_result = MagicMock()
-        mission_result.success = True
-        mission_result.commit = "abc1234"
-        mission_result.errors = []
-
-        with _patched_lane_based_merge_dependencies(tmp_path, manifest, lane_result, mission_result) as (_mock_lane_merge, mock_mission_merge):
-            # Call WITHOUT specifying strategy → should default to SQUASH
-            _run_lane_based_consolidation(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-            )
-
-            mock_mission_merge.assert_called_once()
-            call_kwargs = mock_mission_merge.call_args.kwargs
-            assert call_kwargs.get("strategy") == MergeStrategy.SQUASH
-
-
-# ---------------------------------------------------------------------------
-# FR-007 — lane→mission uses merge commit regardless of strategy
-# ---------------------------------------------------------------------------
-
-
-class TestLaneToMissionUsesMergeCommit:
-    """FR-007: lane→mission keeps merge-commit semantics regardless of strategy."""
-
-    def test_lane_to_mission_does_not_receive_strategy(self, tmp_path: Path) -> None:
-        """Verify consolidate_lane_into_mission is called WITHOUT a strategy parameter."""
-        mission_slug = "068-test3"
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _write_meta(feature_dir, mission_slug)
-        _seed_wp_done_events(feature_dir, mission_slug, ["WP01", "WP02"])
-
-        manifest = _make_mock_lanes_manifest(mission_slug)
-
-        lane_result = MagicMock()
-        lane_result.success = True
-        lane_result.errors = []
-
-        mission_result = MagicMock()
-        mission_result.success = True
-        mission_result.commit = "abc1234"
-        mission_result.errors = []
-
-        with _patched_lane_based_merge_dependencies(tmp_path, manifest, lane_result, mission_result) as (mock_lane_merge, _mock_mission_merge):
-            # Use squash strategy — lane→mission should NOT be affected
-            _run_lane_based_consolidation(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
-
-            # consolidate_lane_into_mission must NOT receive a strategy parameter
-            for call in mock_lane_merge.call_args_list:
-                assert "strategy" not in call.kwargs, "lane→mission merge must not receive a strategy parameter (FR-007: always uses merge commit)"
+    assert result.returncode == 0, f"stdout={result.stdout}\nstderr={result.stderr}"
+    target = mission.target_branch
+    assert all(blob_present_at(mission.repo, target, f"src/pkg/{wp.lower()}.py") for wp in wps)
+    lane_tips_on_target = {wp: sha_reachable(mission.repo, tip, target) for wp, tip in lane_tips.items()}
+    if expected == _SQUASH:
+        assert lane_tips_on_target == dict.fromkeys(wps, False)
+        assert _merge_commits_between(mission, target_before, target) == []
+    else:
+        assert lane_tips_on_target == dict.fromkeys(wps, True)
+    assert {wp: sha_reachable(mission.repo, tip, mission.coord_branch) for wp, tip in lane_tips.items()} == dict.fromkeys(wps, True)
 
 
 # ---------------------------------------------------------------------------
