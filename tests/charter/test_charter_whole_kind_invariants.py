@@ -72,6 +72,7 @@ from ruamel.yaml import YAML
 from charter.activation import compiler as compiler_module
 from charter.activation.compiler import (
     ConfigActivatedRoots,
+    WholeKindUnresolvedError,
     _raw_kind_repository,
 )
 from charter.offering.drg.query import ResolveTransitiveRefsResult
@@ -247,6 +248,21 @@ def test_whole_kind_graph_unresolved_routing_fails_closed(monkeypatch: pytest.Mo
 
     with pytest.raises(RuntimeError, match="agent_profile"):
         _call_build_references(monkeypatch, graph)
+
+
+def test_whole_kind_fail_closed_raises_typed_error_carrying_the_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fail-closed exit is a typed, still-``RuntimeError`` exception that
+    carries the kind and the run's structured records, so each CLI can translate
+    it (notice / clean error / ``--json`` payload) without parsing a message."""
+    graph = ResolveTransitiveRefsResult(styleguides=["misconfigured-pack-root-id"])
+
+    with pytest.raises(WholeKindUnresolvedError) as raised:
+        _call_build_references(monkeypatch, graph, repositories={"styleguides": _StubRepository(known={})})
+
+    assert isinstance(raised.value, RuntimeError)
+    assert raised.value.kind == "styleguide"
+    assert [(r["kind"], r["id"]) for r in raised.value.unresolved_records] == [("styleguide", "misconfigured-pack-root-id")]
+    assert "misconfigured-pack-root-id" in str(raised.value)
 
 
 def test_whole_kind_missing_artifact_fails_closed_is_deterministic_across_repeat_invocations(

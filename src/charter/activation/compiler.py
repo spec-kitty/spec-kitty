@@ -56,6 +56,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "CharterReference",
     "CompiledCharter",
+    "WholeKindUnresolvedError",
     "WriteBundleResult",
     "compile_charter",
     "provision_mission_type_activations",
@@ -1441,6 +1442,34 @@ def _render_kind_references(
     return references
 
 
+class WholeKindUnresolvedError(RuntimeError):
+    """Every activated reference of one tracked kind is unresolvable.
+
+    Raised by :func:`compile_charter` instead of writing a catalog whose section
+    for that kind would be silently empty. It stays a :class:`RuntimeError` so a
+    caller that predates it keeps failing closed, but each command that reaches
+    the compiler translates it deliberately: ``charter generate`` and
+    ``charter pack apply --compile`` report it and exit non-zero, while
+    ``charter activate``/``deactivate`` (whose config write already succeeded)
+    downgrade it to a "catalog not recompiled" notice.
+
+    *kind* is the singular tracked kind that tripped the check and
+    *unresolved_records* is the compile run's whole structured unresolved list
+    (what ``CompiledCharter.unresolved_reference_records`` would have carried),
+    so a caller can surface it without re-deriving anything.
+    """
+
+    def __init__(self, kind: str, unresolved_records: list[dict[str, str]]) -> None:
+        self.kind = kind
+        self.unresolved_records = list(unresolved_records)
+        unresolved_ids = [record["id"] for record in self.unresolved_records if record.get("kind") == kind]
+        super().__init__(
+            f"every activated '{kind}' reference is unresolvable "
+            f"({', '.join(unresolved_ids) or 'no ids captured'}); refusing to write "
+            "a silently-empty catalog section."
+        )
+
+
 def _check_whole_kind_unresolved(
     *,
     graph: Any,
@@ -1461,21 +1490,15 @@ def _check_whole_kind_unresolved(
     otherwise-unresolved ids does NOT trip this check -- its reference
     count is non-zero (the negative control this invariant table pins).
 
-    Raises :class:`RuntimeError` naming the kind and its unresolved ids,
-    which propagates up through ``compile_charter`` to ``generate.py``'s
-    EXISTING ``RuntimeError`` handler -- no new CLI-layer error handling is
-    needed, and no catalog is written for this run.
+    Raises :class:`WholeKindUnresolvedError` naming the kind and its
+    unresolved ids; it propagates out of ``compile_charter`` and no catalog is
+    written for this run.
     """
     for kind, graph_attr in _TRACKED_KIND_TO_GRAPH_ATTR.items():
         activated = bool(getattr(graph, graph_attr)) or kind in activated_via_unresolved
         if not activated or kind_reference_counts.get(kind, 0) > 0:
             continue
-        unresolved_ids = [record["id"] for record in unresolved_records if record.get("kind") == kind]
-        raise RuntimeError(
-            f"charter generate: every activated '{kind}' reference is unresolvable "
-            f"({', '.join(unresolved_ids) or 'no ids captured'}); refusing to write "
-            "a silently-empty catalog section."
-        )
+        raise WholeKindUnresolvedError(kind, unresolved_records)
 
 
 def _build_references_from_service(

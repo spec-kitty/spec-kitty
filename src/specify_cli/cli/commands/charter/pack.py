@@ -225,25 +225,38 @@ def _compile_bundle_after_merge(repo_root: Path, *, pack_name: str) -> list[str]
     return list(bundle_result.files_written)
 
 
+def _compile_failure_exit(payload: dict[str, object], *, json_output: bool) -> typer.Exit:
+    """Report a ``--compile`` failure (JSON or text) and return the exit to raise."""
+    if json_output:
+        typer.echo(json.dumps(payload))
+    else:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+    return typer.Exit(1)
+
+
 def _apply_compile_bridge(
     repo_root: Path, compile_bundle: bool, *, json_output: bool, pack_name: str
 ) -> list[str]:
     """Run the ``--compile`` bridge when requested, else return no files.
 
-    Isolates the ``--compile`` branch (including its git-worktree error
-    reporting) out of ``apply_cmd`` so adding the flag does not grow that
-    command's own cyclomatic complexity (campsite, T011).
+    Isolates the ``--compile`` branch (including its error reporting) out of
+    ``apply_cmd`` so adding the flag does not grow that command's own
+    cyclomatic complexity (campsite, T011). ``--compile`` was asked for
+    explicitly, so every failure is a clean error and exit 1 -- the config
+    merge that already ran stays applied.
     """
     if not compile_bundle:
         return []
+    from charter.activation.compiler import WholeKindUnresolvedError  # noqa: PLC0415
+
     try:
         return _compile_bundle_after_merge(repo_root, pack_name=pack_name)
     except _ApplyCompileGitWorktreeError as exc:
-        if json_output:
-            typer.echo(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
+        raise _compile_failure_exit({"error": str(exc)}, json_output=json_output) from exc
+    except WholeKindUnresolvedError as exc:
+        message = f"charter pack apply --compile could not build the catalog: {exc}"
+        payload: dict[str, object] = {"error": message, "unresolved_references": exc.unresolved_records}
+        raise _compile_failure_exit(payload, json_output=json_output) from exc
 
 
 @charter_pack_app.command("path")
