@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
@@ -610,3 +611,204 @@ def test_generate_from_interview_reports_malformed_answers_distinctly(
         "malformed" in payload["error"].lower()
         or "not a mapping" in payload["error"].lower()
     )
+
+
+# ---------------------------------------------------------------------------
+# WP03 T016 (#5257) — `unresolved_references` machine-readable in `--json`
+# ---------------------------------------------------------------------------
+#
+# spec.md User Story 1 Acceptance Scenario 2: the JSON output's diagnostics
+# must carry the same reference id and reason machine-readably -- so CI and
+# readiness probes consuming `--json` can detect the condition without
+# parsing prose. WP02 already exposes the structured records on
+# `CompiledCharter.unresolved_reference_records`
+# (`src/charter/activation/compiler.py`); this WP threads that field through
+# `generate.py`'s `--json` emit block as a new, always-present
+# `unresolved_references` key
+# (contracts/charter-generate-json-diagnostics.md).
+
+
+def _write_single_scope_filtered_styleguide_activation(repo: Path) -> None:
+    """Activate ``styleguide/java-conventions`` directly via ``.kittify/config.yaml``.
+
+    Legacy/unmigrated shape (no ``charter:`` pointer key) -- same convention
+    ``tests/charter/test_charter_generate_scoped_reference_parity.py``'s
+    ``_write_activation_config`` uses: an absent pointer means activation is
+    read directly from ``config.yaml``'s own top-level ``activated_*`` keys.
+    """
+    config_path = repo / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    payload = {
+        "vcs": {"type": "git"},
+        "activated_styleguides": ["java-conventions"],
+    }
+    with config_path.open("w", encoding="utf-8") as handle:
+        yaml.dump(payload, handle)
+
+
+def _write_python_only_interview_answers(repo: Path) -> None:
+    """Persist an interview transcript naming ONLY Python.
+
+    ``infer_repo_languages`` then resolves a real, non-empty active-language
+    set (``["python"]``) that excludes java -- the actual #5257 defect
+    condition (a present-on-disk id excluded solely by language scope).
+    """
+    answers_path = repo / ".kittify" / "charter" / "interview" / "answers.yaml"
+    answers_path.parent.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    payload = {
+        "schema_version": "1.0.0",
+        "mission": "software-dev",
+        "profile": "minimal",
+        "answers": {"languages_frameworks": "Python services with pytest and ruff tooling"},
+        "selected_paradigms": [],
+        "selected_directives": [],
+        "selected_tactics": [],
+        "available_tools": [],
+    }
+    with answers_path.open("w", encoding="utf-8") as handle:
+        yaml.dump(payload, handle)
+
+
+def test_generate_json_reports_unresolved_references_for_scope_filtered_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-004 / spec.md User Story 1 Acceptance Scenario 2 (WP03 T016).
+
+    ``charter generate --force --json`` must carry the unresolved
+    reference's id and reason machine-readably in a new, always-present
+    ``unresolved_references`` field -- not only as free-text in
+    ``diagnostics`` -- so CI and readiness probes consuming ``--json`` can
+    detect the condition without parsing prose
+    (contracts/charter-generate-json-diagnostics.md).
+
+    RED pre-T014: WP02's compiler fix already exposes
+    ``compiled.unresolved_reference_records``, but ``generate.py``'s
+    ``--json`` emit block does not yet thread it through at all, so this
+    key is entirely absent from the payload.
+    """
+    _git_init(tmp_path)
+    _write_curated_charter_md(tmp_path)
+    _write_single_scope_filtered_styleguide_activation(tmp_path)
+    _write_python_only_interview_answers(tmp_path)
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--force", "--json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, f"generate failed: {result.stdout!r}"
+    payload = json.loads(result.stdout)
+
+    assert "unresolved_references" in payload, (
+        "'unresolved_references' key missing from --json output entirely -- "
+        f"payload keys: {sorted(payload)!r}"
+    )
+    unresolved = payload["unresolved_references"]
+    assert isinstance(unresolved, list)
+
+    matches = [
+        entry
+        for entry in unresolved
+        if entry.get("kind") == "styleguide" and entry.get("id") == "java-conventions"
+    ]
+    assert len(matches) == 1, (
+        f"expected exactly one unresolved_references entry for "
+        f"styleguide/java-conventions, got {matches!r} (full list: {unresolved!r})"
+    )
+    entry = matches[0]
+    assert entry["cause"] == "scope_filtered"
+    assert entry["detail"], "detail must be a non-empty, human-readable string"
+    assert "python" in entry["detail"].lower(), (
+        f"detail must name the active language set that excluded this id, "
+        f"got: {entry['detail']!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# WP03 T015 (#5257) — `diagnostics` field shape unchanged by the new key
+# ---------------------------------------------------------------------------
+
+
+def test_generate_json_diagnostics_field_shape_unchanged_by_unresolved_references(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The additive-alongside design (contracts/charter-generate-json-
+    diagnostics.md) must not widen or restructure the existing
+    ``diagnostics`` field: it stays a flat ``list[str]`` -- every element a
+    ``str``, never a ``dict`` -- both before and after this WP's
+    ``unresolved_references`` addition. Uses the same scope-filtered
+    fixture as T016, which is guaranteed to populate ``diagnostics`` with at
+    least one unresolved-reference line.
+    """
+    _git_init(tmp_path)
+    _write_curated_charter_md(tmp_path)
+    _write_single_scope_filtered_styleguide_activation(tmp_path)
+    _write_python_only_interview_answers(tmp_path)
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--force", "--json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, f"generate failed: {result.stdout!r}"
+    payload = json.loads(result.stdout)
+
+    diagnostics = payload["diagnostics"]
+    assert isinstance(diagnostics, list)
+    assert diagnostics, "expected at least one diagnostics line for the scope-filtered fixture"
+    assert all(isinstance(line, str) for line in diagnostics), (
+        f"diagnostics must remain a flat list[str] -- found a non-str element: {diagnostics!r}"
+    )
+    # The unresolved-reference condition is still ALSO reported as free text
+    # in diagnostics -- the new key is additive, not a replacement.
+    assert any("java-conventions" in line for line in diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Additional `unresolved_references` shape coverage (contract completeness,
+# beyond T016's single red-first scenario): the always-present empty-list
+# case. (A "genuine missing id" CLI-level case was deliberately NOT added
+# here: an id in `activated_styleguides` that fails `resolve_config_id`
+# during `_resolve_config_activated_roots` -- src/charter/activation/
+# kind_vocabulary.py's `UnknownArtifactIdError` -- hard-fails generate
+# BEFORE `compile_charter`'s soft classify-and-placeholder path runs at
+# all, a pre-existing, unrelated-to-#5257 validation layer. The
+# `missing_artifact`/`typo_suspected` CatalogMissCause classification this
+# WP's new JSON key surfaces is already unit-tested at the compiler layer
+# by WP01/WP02 -- see tests/charter/test_compiler_scope_filtered_placeholder.py,
+# test_catalog_completeness_4785.py, test_charter_whole_kind_invariants.py --
+# and WP03's own dict-shape pass-through (`list(compiled.
+# unresolved_reference_records)`, identical for every cause value) is
+# already exercised end-to-end by the scope_filtered fixture above.)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_json_unresolved_references_empty_list_when_nothing_unresolved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When there is nothing unresolved, ``unresolved_references`` must
+    still be present as ``[]`` -- never omitted, never ``null`` -- matching
+    ``diagnostics``'s own always-present convention so a consumer can rely
+    on key presence rather than ``.get()`` with a default.
+    """
+    _git_init(tmp_path)
+    _write_minimal_interview(tmp_path)
+    _write_curated_charter_md(tmp_path)
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app, ["generate", "--from-interview", "--force", "--json"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, f"generate failed: {result.stdout!r}"
+    payload = json.loads(result.stdout)
+
+    assert "unresolved_references" in payload
+    assert payload["unresolved_references"] == []

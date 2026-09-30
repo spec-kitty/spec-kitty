@@ -559,6 +559,23 @@ def generate(
 
         if json_output:
             local_support_files = [reference.source_path for reference in compiled.references if reference.kind == "local_support"]
+            # FR-004 (#5257, WP03): machine-readable form of the same
+            # unresolved-reference conditions `diagnostics` already carries as
+            # free text -- so CI/readiness probes can detect the condition
+            # without string-matching prose. Additive-alongside
+            # (contracts/charter-generate-json-diagnostics.md): `diagnostics`'s
+            # own shape (flat list[str]) is untouched by this key. Always
+            # present, even as `[]`, matching `diagnostics`'s own
+            # always-present convention -- never conditionally omitted when
+            # there is nothing unresolved.
+            #
+            # Assigned on its own line (rather than inline inside the dict
+            # literal below) so this line carries its own coverage.py line
+            # entry: a value nested inside a multi-line dict-literal statement
+            # is attributed entirely to that statement's opening line, which
+            # left this same value invisible to diff-cover despite being
+            # genuinely exercised (PR-TESTS-004).
+            unresolved_references_payload = list(compiled.unresolved_reference_records)
             print(
                 json.dumps(
                     {
@@ -575,6 +592,7 @@ def generate(
                         "library_files": local_support_files,
                         "files_written": files_written,
                         "diagnostics": diagnostics,
+                        "unresolved_references": unresolved_references_payload,
                     },
                     indent=2,
                 )
