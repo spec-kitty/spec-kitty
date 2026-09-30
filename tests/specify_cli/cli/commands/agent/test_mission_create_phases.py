@@ -368,9 +368,11 @@ def test_mint_owned_create_root_fails_closed_when_no_repo_root(tmp_path: Path, c
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_agent_mission_create_owned_checkout_repository_root_refused_via_cli(tmp_path: Path) -> None:
+def test_agent_mission_create_owned_checkout_repository_root_refused_via_cli(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import json
-    import os
     import subprocess
 
     from typer.testing import CliRunner
@@ -390,15 +392,11 @@ def test_agent_mission_create_owned_checkout_repository_root_refused_via_cli(tmp
     subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True, capture_output=True)
 
     runner = CliRunner()
-    old_cwd = os.getcwd()
-    os.chdir(repo_root)
-    try:
-        result = runner.invoke(
-            app,
-            ["create", "repo-root-refused", "--owned-checkout", str(repo_root), "--json"],
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(repo_root)
+    result = runner.invoke(
+        app,
+        ["create", "repo-root-refused", "--owned-checkout", str(repo_root), "--json"],
+    )
 
     assert result.exit_code == 1
     payload = json.loads(result.output.strip().splitlines()[-1])
@@ -435,7 +433,6 @@ def test_create_mission_never_switches_start_branch_before_owned_claim_is_valida
     expected_error_code: str,
 ) -> None:
     import json
-    import os
     import subprocess
 
     from typer.testing import CliRunner
@@ -480,25 +477,21 @@ def test_create_mission_never_switches_start_branch_before_owned_claim_is_valida
     monkeypatch.setattr(mission_module, "_switch_to_start_branch", lambda *args: switch_calls.append(args))
 
     runner = CliRunner()
-    old_cwd = os.getcwd()
-    os.chdir(repository_root)
-    try:
-        result = runner.invoke(
-            app,
-            [
-                "create",
-                "probe",
-                "--owned-checkout",
-                str(claim),
-                "--start-branch",
-                "side",
-                "--target-branch",
-                "side",
-                "--json",
-            ],
-        )
-    finally:
-        os.chdir(old_cwd)
+    monkeypatch.chdir(repository_root)
+    result = runner.invoke(
+        app,
+        [
+            "create",
+            "probe",
+            "--owned-checkout",
+            str(claim),
+            "--start-branch",
+            "side",
+            "--target-branch",
+            "side",
+            "--json",
+        ],
+    )
 
     # The core assertion: the CLI never switched a branch in the claimed
     # checkout before the claim was validated -- regardless of whether that
