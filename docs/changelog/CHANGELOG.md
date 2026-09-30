@@ -313,6 +313,7 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 - Architectural checks now fail on any unguarded destructive removal or overwrite in `research`, the mission-brief writers, `init.py`, migrations, the `.kittify/` migration, the git pack fetch and `agent config` (#4901, #4859, #4861, #4862, #4961, #4960, #4989, #4915).
 - The "do not overwrite an existing mission brief" rule now lives in the brief writer itself, and the `intake` paths delegate to it (#4921, #4910, #4918).
 - The project's configured mission type is now read through one shared parser instead of two (#4993).
+- Docs prose is now spell-checked in CI (typos, and US spelling in the guides, context pages and this section), and a style guard keeps Unreleased entries in the Breaking to Internal shape (#5426).
 - Mission-step guidelines are loaded only from `mission-steps/<type>/<action>/guidelines.md`, and the duplicate copies under `missions/<type>/actions/` are removed (#5202).
 - The `spec-kitty-mission-review` skill's Gate 3 floor no longer lists the retired `saas_sync_enabled.py` scenario or the inert `SPEC_KITTY_ENABLE_SAAS_SYNC=1` pin (#5136, #5003, #4949).
 

@@ -79,6 +79,7 @@ MUST_RUN_ALWAYS_ON_GATES = frozenset(
         "terminology",
         "layer-rules",
         "archive-freeze",
+        "docs-lint",
     },
 )
 

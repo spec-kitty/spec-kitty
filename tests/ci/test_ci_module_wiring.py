@@ -326,6 +326,7 @@ _ALWAYS_ON_JOB_NAMES = (
     "terminology",
     "layer-rules",
     "archive-freeze",
+    "docs-lint",
 )
 
 _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
