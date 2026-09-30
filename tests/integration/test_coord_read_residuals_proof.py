@@ -505,12 +505,18 @@ def test_flat_topology_materialize_is_noop(
 def test_flat_topology_forecast_is_noop(
     flat_topology_mission: FlatTopologyContext,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """On a flat mission the dry-run forecast reads the single-surface lanes.json."""
     from specify_cli.consolidation import forecast
     from specify_cli.consolidation.config import MergeStrategy
 
     ctx = flat_topology_mission
+    # #5385: a flat (coordination-less) mission's done bookkeeping lands on its
+    # target, and this fixture's target is the protected ``main``, so the dry-run
+    # now reports PROTECTED_BRANCH_REFUSED up front. This test is about which
+    # surface lanes.json is read from, so declare ``main`` unprotected.
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     # See test_dry_run_forecast_returns_primary_wp_set: empty the (single-surface)
     # event log so the review-artifact preflight materialises cleanly.
     (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")

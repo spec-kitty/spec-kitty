@@ -40,6 +40,15 @@ for the mark call. Two complementary halves close the whole defect class:
   coord-reachable-and-routed — the live same-shape site the original six-site
   enumeration missed.
 
+**#5385 re-pin (single rollback door).** The driver now wraps the whole
+post-mutation span in one rollback door that CAS-restores the coordination
+branch after the phase's own byte restore + mark, so a strand no longer survives
+the run. T015's falsifiers therefore evaluate the invariant at the bake PHASE's
+exit (``on_phase_failure``: the real phase runs, the observation is taken, then
+the original error propagates into the door) -- the strand-marking guard is
+still exercised exactly where it runs. One driver-level case pins the door's own
+outcome: coordination branch at its pre-run tip, no strand, marker cleared.
+
 Behavioral harnesses (fixture bootstrap + bake-mid-write-set failure injection +
 git-reducible committed/working readers) are REUSED verbatim from the WP01
 red-first repro and the WP03 executor integration tests; this module never
@@ -50,6 +59,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -71,7 +81,9 @@ from tests.consolidation.test_issue_2367_bake_strand import (
     MISSION_SLUG,
     STRANDED_WP,
     _bootstrap_two_wp_coord_mission,
+    _git,
     _run_bake_failing_merge,
+    on_phase_failure,
 )
 
 # ``_init_git_repo`` is DEFINED in the #2711 harness and only re-exported by the
@@ -141,13 +153,16 @@ def _coord_rollback_violation(repo: Path) -> set[str]:
 
 
 def _assert_coord_rollback_invariant(repo: Path) -> None:
-    """FR-008 behavioral guard: no rollback may strand a committed ``done`` unmarked.
+    """FR-008 behavioral guard: no rollback may strand a committed ``done`` unmarked."""
+    _assert_no_violation(_coord_rollback_violation(repo))
 
-    This is the SINGLE assertion T015 drives both ways: GREEN with the real mark,
+
+def _assert_no_violation(unreconciled: set[str]) -> None:
+    """The SINGLE assertion T015 drives both ways: GREEN with the real mark,
     RED (``AssertionError`` carrying ``INV-COORD-ROLLBACK``) when the mark is
-    stubbed to a runtime no-op.
+    stubbed to a runtime no-op. Takes a violation set so it can judge the state
+    observed at the bake phase's exit, before the #5385 rollback door runs.
     """
-    unreconciled = _coord_rollback_violation(repo)
     assert not unreconciled, (
         "INV-COORD-ROLLBACK violated (FR-008): the committed coordination ref "
         f"strands {sorted(unreconciled)} at ``done`` while the working tree rolled "
@@ -162,32 +177,52 @@ def _assert_coord_rollback_invariant(repo: Path) -> None:
 # ===========================================================================
 
 
+def _bake_failure_observed_at_phase_exit(repo: Path) -> dict[str, object]:
+    """Drive a REAL #2367-B bake failure; observe the invariant at the bake phase's exit.
+
+    The observation is taken after the phase's own byte restore + mark and before
+    the driver's single rollback door (#5385) restores the coordination branch.
+    """
+    observed: dict[str, object] = {}
+
+    def observe() -> None:
+        observed["stranded"] = coord_incoherent_done_wps(
+            COORD_BRANCH, _WRITE_SET, repo_root=repo, feature_dir=_feature_dir(repo)
+        )
+        observed["marker"] = _marker_stranded_wps(repo)
+        observed["violation"] = _coord_rollback_violation(repo)
+
+    with on_phase_failure("_phase_bake_and_pre_target_done", observe):
+        exc, _calls = _run_bake_failing_merge(repo)
+    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+    assert observed, "precondition: the bake phase must have failed (observation taken)"
+    return observed
+
+
 def test_guard_is_green_with_the_real_mark(tmp_path: Path) -> None:
     """With the real mark, a bake-path strand is recorded → the invariant holds.
 
-    Drives a REAL #2367-B bake-mid-write-set failure. The leg-b byte-restore rolls
-    the working tree back to ``approved`` while ``STRANDED_WP``'s committed coord
-    ``done`` survives — a strand — but ``_persist_coord_reconcile_marker`` records
-    it, so ``strand ∧ marked`` ⇒ recoverable ⇒ INV-COORD-ROLLBACK holds.
+    Drives a REAL #2367-B bake-mid-write-set failure. At the bake phase's exit the
+    leg-b byte-restore has rolled the working tree back to ``approved`` while
+    ``STRANDED_WP``'s committed coord ``done`` survives — a strand — but
+    ``_persist_coord_reconcile_marker`` records it, so ``strand ∧ marked`` ⇒
+    recoverable ⇒ INV-COORD-ROLLBACK holds.
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     _bootstrap_two_wp_coord_mission(repo)
 
-    exc, _calls = _run_bake_failing_merge(repo)
-    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+    observed = _bake_failure_observed_at_phase_exit(repo)
 
     # Precondition: the strand genuinely exists (else the guard would be vacuously
     # green — nothing to reconcile). The real mark then names it.
-    assert coord_incoherent_done_wps(
-        COORD_BRANCH, _WRITE_SET, repo_root=repo, feature_dir=_feature_dir(repo)
-    ) == [STRANDED_WP], "precondition: the bake path must strand exactly STRANDED_WP"
-    assert _marker_stranded_wps(repo) == {STRANDED_WP}, (
+    assert observed["stranded"] == [STRANDED_WP], "precondition: the bake path must strand exactly STRANDED_WP"
+    assert observed["marker"] == {STRANDED_WP}, (
         "the real mark must record the stranded WP in pending_coord_reconcile"
     )
 
     # The behavioral guard is GREEN: strand present, but marked → recoverable.
-    _assert_coord_rollback_invariant(repo)
+    _assert_no_violation(cast("set[str]", observed["violation"]))
 
 
 def test_guard_reds_when_persist_marker_is_stubbed_to_noop(
@@ -196,11 +231,11 @@ def test_guard_reds_when_persist_marker_is_stubbed_to_noop(
     """Non-vacuity (FR-008 / SC-005): stub the marker-persist → the guard REDS.
 
     ``_persist_coord_reconcile_marker`` is monkeypatched to a runtime no-op and the
-    SAME real bake strand is re-driven. The leg-b byte-restore still runs (working
-    → ``approved``) and ``STRANDED_WP``'s committed ``done`` still survives, but now
-    NO marker names it → ``strand-on-committed-ref ∧ marker-absent``. The behavioral
-    guard must raise ``AssertionError`` — proving it is not a tautology that stays
-    green regardless of whether the mark actually fires.
+    SAME real bake strand is re-driven. At the phase's exit the leg-b byte-restore
+    still ran (working → ``approved``) and ``STRANDED_WP``'s committed ``done``
+    still survives, but NO marker names it → ``strand-on-committed-ref ∧
+    marker-absent``. The behavioral guard must raise ``AssertionError`` — proving
+    it is not a tautology that stays green regardless of whether the mark fires.
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
@@ -209,22 +244,19 @@ def test_guard_reds_when_persist_marker_is_stubbed_to_noop(
     monkeypatch.setattr(
         ex, "_persist_coord_reconcile_marker", lambda run, error: None
     )
-    exc, _calls = _run_bake_failing_merge(repo)
-    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+    observed = _bake_failure_observed_at_phase_exit(repo)
 
     # The strand is real (leg-b restore ran; committed ``done`` survives) …
-    assert coord_incoherent_done_wps(
-        COORD_BRANCH, _WRITE_SET, repo_root=repo, feature_dir=_feature_dir(repo)
-    ) == [STRANDED_WP], "precondition: the strand must exist even with the mark stubbed"
+    assert observed["stranded"] == [STRANDED_WP], "precondition: the strand must exist even with the mark stubbed"
     # … and, with the mark stubbed, unrecorded.
-    assert _marker_stranded_wps(repo) == set(), (
+    assert observed["marker"] == set(), (
         "precondition: the stubbed mark must leave pending_coord_reconcile absent"
     )
 
     # The falsifier: the SAME guard that was green above now REDS.
     with pytest.raises(AssertionError, match="INV-COORD-ROLLBACK"):
-        _assert_coord_rollback_invariant(repo)
-    assert _coord_rollback_violation(repo) == {STRANDED_WP}
+        _assert_no_violation(cast("set[str]", observed["violation"]))
+    assert observed["violation"] == {STRANDED_WP}
 
 
 def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
@@ -235,9 +267,9 @@ def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
     ``executor.coord_incoherent_done_wps`` is monkeypatched to always return ``[]``.
     ``_persist_coord_reconcile_marker`` then derives an empty strand and writes no
     marker, while the leg-b byte-restore still strands ``STRANDED_WP``'s committed
-    ``done``. The checker's OWN (unpatched) strand read still sees the strand, so
-    the behavioral guard REDS — falsifying the mark at the derivation seam as well
-    as the persist seam.
+    ``done``. The checker's OWN (unpatched) strand read still sees the strand at
+    the phase's exit, so the behavioral guard REDS — falsifying the mark at the
+    derivation seam as well as the persist seam.
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
@@ -246,15 +278,30 @@ def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
     monkeypatch.setattr(
         ex, "coord_incoherent_done_wps", lambda *args, **kwargs: []
     )
-    exc, _calls = _run_bake_failing_merge(repo)
-    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+    observed = _bake_failure_observed_at_phase_exit(repo)
 
-    assert _marker_stranded_wps(repo) == set(), (
+    assert observed["marker"] == set(), (
         "precondition: a no-op strand authority must leave the marker absent"
     )
     with pytest.raises(AssertionError, match="INV-COORD-ROLLBACK"):
-        _assert_coord_rollback_invariant(repo)
-    assert _coord_rollback_violation(repo) == {STRANDED_WP}
+        _assert_no_violation(cast("set[str]", observed["violation"]))
+    assert observed["violation"] == {STRANDED_WP}
+
+
+def test_rollback_door_restores_the_coordination_branch_and_clears_the_marker(tmp_path: Path) -> None:
+    """#5385 driver level: after the door, no strand survives and no marker is left behind."""
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    _bootstrap_two_wp_coord_mission(repo)
+    pre_run_coord = _git(repo, "rev-parse", COORD_BRANCH).stdout.strip()
+
+    exc, _calls = _run_bake_failing_merge(repo)
+
+    assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
+    assert _git(repo, "rev-parse", COORD_BRANCH).stdout.strip() == pre_run_coord, "the door must restore the coordination branch"
+    assert coord_incoherent_done_wps(COORD_BRANCH, _WRITE_SET, repo_root=repo, feature_dir=_feature_dir(repo)) == []
+    assert _marker_stranded_wps(repo) == set(), "a full restore clears pending_coord_reconcile"
+    _assert_coord_rollback_invariant(repo)
 
 
 # ===========================================================================

@@ -5,13 +5,18 @@ Contract (FR-005/FR-007/FR-011, SC-005/SC-006, ``contracts/rollback-authority.md
 authority FIRST, and clears the record only after a full restore. Without that,
 the NEXT fresh run would capture the ADVANCED base as its own "pre-run" state.
 
-Trigger (all REAL, nothing mocked): a LANES mission whose target is the protected
-``main`` raises an uncaught ``BookkeepingPolicyRefused`` in
-``_phase_record_done_and_project`` AFTER the squash advanced the target and AFTER the
-post-mutation tips were recorded for the ``_phase_mission_to_target`` phase. That exit
-is OUTSIDE the reconciliation gate, so the in-process rollback does not run and the
-run leaves a genuine crash residue (advanced ``main`` + advanced mission branch + a
-resumable ``state.json``) for ``--abort`` to deal with.
+Trigger: the #5385 shape. A LANES mission whose target is the protected ``main``
+raises ``BookkeepingPolicyRefused`` in ``_phase_record_done_and_project`` AFTER the
+squash advanced the target and AFTER the post-mutation tips were recorded for the
+``_phase_mission_to_target`` phase. Since #5385 the driver's rollback door restores
+that crash in-process, so a real run only leaves crash residue (advanced ``main`` +
+advanced mission branch + a resumable ``state.json``) when the process dies between
+the failure and the in-process rollback. :func:`_run_hard_killed` models exactly that
+hard kill: it runs the REAL CLI in a subprocess whose ``_report_rollback`` prints the
+original traceback and calls ``os._exit(137)`` -- everything before it (git, the
+policy refusal, the recorded tips) is real. The same wrapper disables the up-front
+protected-target preflight (#5385 WP02), which would otherwise refuse this shape
+before any branch moves.
 
 Cases that a real CLI run cannot produce say so in their docstring:
 
@@ -26,14 +31,31 @@ Provenance: #5318 (abort), #5338 (abort after a deleted lane branch), #5385 (cra
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
 from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
-from specify_cli.consolidation.state import ConsolidationState, acquire_merge_lock, get_state_path, save_state
-from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, plant_canceled_commit, run_terminus
+from specify_cli.consolidation.state import (
+    ConsolidationState,
+    acquire_merge_lock,
+    get_state_path,
+    read_merge_lock_owner,
+    release_merge_lock,
+    save_state,
+)
+from tests.terminus.conftest import (
+    _SRC,
+    CoordMission,
+    blob_present_at,
+    build_coord_mission,
+    plant_canceled_commit,
+    run_terminus,
+)
 from tests.terminus.conftest import _git as git
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.rollback_harness import (
@@ -65,11 +87,41 @@ def _read_state(mission: CoordMission) -> dict[str, object]:
     return json.loads(_state_path(mission).read_text(encoding="utf-8"))
 
 
+# Replaces the in-process rollback with a hard kill: print the original failure (the
+# traceback the operator would see), flush, and die before any ref is restored.
+_HARD_KILL = """
+import os, sys, traceback
+import specify_cli
+from specify_cli.consolidation import executor
+
+def _killed_before_rollback(*_args, **_kwargs):
+    traceback.print_exc()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(137)
+
+executor._report_rollback = _killed_before_rollback
+executor._refuse_protected_status_target_or_continue = lambda *_a, **_k: None  # WP02 (#5385): let the protected shape reach the post-squash crash
+sys.argv = ["spec-kitty", *sys.argv[1:]]
+specify_cli.main()
+"""
+
+
+def _run_hard_killed(mission: CoordMission, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    """Run the REAL CLI like :func:`run_terminus`, but kill the process at the rollback door (models a SIGKILL)."""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(_SRC)
+    env["HOME"] = str(mission.home)
+    env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
+    env.pop("VIRTUAL_ENV", None)
+    return subprocess.run([sys.executable, "-c", _HARD_KILL, *args], cwd=str(mission.repo), env=env, capture_output=True, text=True, check=False)
+
+
 def _crashed_lanes_run(tmp_path: Path, mid8: str) -> tuple[CoordMission, dict[str, str]]:
-    """LANES mission on protected ``main``: a real post-squash crash (#5385), refs advanced."""
+    """LANES mission on protected ``main``: a post-squash crash (#5385) hard-killed before the rollback, refs advanced."""
     mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch="main", mid8=mid8)
     before = ref_shas(mission)
-    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
+    result = _run_hard_killed(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     output = flat(result)
     assert result.returncode != 0, f"fixture precondition: the run must crash. output={output}"
     assert "PROTECTED_BRANCH_REFUSED" in output, f"fixture precondition: the crash must be the #5385 policy refusal. output={output}"
@@ -219,6 +271,10 @@ def test_abort_of_a_pre_fix_record_keeps_todays_behaviour_with_a_notice(tmp_path
 def test_abort_refuses_while_another_missions_merge_is_live(tmp_path: Path) -> None:
     mission, _before = _crashed_lanes_run(tmp_path, "01M5318F")
     advanced = ref_shas(mission)
+    # The hard kill skipped the crashed run's own lock release; hand the global lock
+    # to the other mission's live merge (the scenario under test) instead.
+    assert read_merge_lock_owner(_GLOBAL_LOCK, mission.repo) == mission.mission_id, "precondition: the killed run left its own global lock"
+    release_merge_lock(_GLOBAL_LOCK, mission.repo)
     other_id = "01M5318ZZZ" + "0" * 16
     save_state(ConsolidationState(mission_id=other_id, mission_slug="other-mission", target_branch="main", wp_order=["WP01"]), mission.repo)
     assert acquire_merge_lock(_GLOBAL_LOCK, mission.repo, owner_token=other_id)
@@ -235,14 +291,14 @@ def test_abort_refuses_while_another_missions_merge_is_live(tmp_path: Path) -> N
 def test_abort_after_a_crashed_resume_still_restores(tmp_path: Path) -> None:
     """A resumed attempt that re-moves nothing must not orphan attempt 1's post tips.
 
-    Real #5385 crash, then ``--resume`` (crashes the same way: lanes already
+    Hard-killed #5385 crash, then a hard-killed ``--resume`` (crashes the same way: lanes already
     consolidated, target already squashed, so no phase re-moves a branch), then
     ``--abort``. The post tips attempt 1 recorded are still the CAS expectation for
     every branch sitting at them, so the abort restores instead of wedging on
     "no post-mutation tip was recorded".
     """
     mission, before = _crashed_lanes_run(tmp_path, "01M5318R")
-    resumed = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
+    resumed = _run_hard_killed(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
     assert resumed.returncode != 0, f"precondition: the resume crashes the same way. output={flat(resumed)}"
     assert ref_shas(mission)["target"] != before["target"], "precondition: the target is still advanced"
 

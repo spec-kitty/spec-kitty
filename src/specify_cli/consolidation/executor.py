@@ -24,7 +24,6 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable, Iterator
 import functools
-import subprocess
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -144,6 +143,7 @@ from specify_cli.consolidation.preflight import (
     _enforce_planning_artifact_target_branch,
     _enforce_review_artifact_consistency,
     _warn_or_confirm_hollow_reviews,
+    refuse_protected_status_target,
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.push_preflight import _enforce_target_branch_sync_preflight
@@ -175,6 +175,7 @@ from specify_cli.consolidation.state import (
 from specify_cli.consolidation.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
 from mission_runtime import (
+    ActionContextError,
     MissionArtifactKind,
     MissionTopology,
     placement_seam,
@@ -363,24 +364,6 @@ class _MergeRunState:
     # claim-time refusal text.
     recorded_attestations: tuple[str, ...] = ()
     target_baseline_sha: str = "HEAD~1"
-    # #4764 FOLD-F1 (primary-tree bake defeats the pre-target rollback guard):
-    # the TRUE pre-merge target-branch tip. ``target_baseline_sha`` above is
-    # re-anchored to the post-bake target tip in
-    # ``_reanchor_baseline_past_primary_tree_bake`` whenever the coord-topology
-    # ``_bake_mission_number_on_primary_tree`` fallback (meta.json absent on
-    # the mission-branch tree) lands a bookkeeping commit directly on
-    # ``target_branch`` -- the main repo's checkout never leaves it during a
-    # merge (see ``lanes.consolidation._merge_branch_into``'s "the main repo's
-    # checkout is never changed"). That re-anchoring keeps
-    # ``_target_branch_still_at_baseline`` measuring the mission→target
-    # step's OWN progress instead of this bookkeeping commit. This field
-    # retains the ORIGINAL pre-bake tip so
-    # ``_restore_pre_target_if_at_baseline``/``_revert_orphan_target_bake_commit``
-    # can undo the orphan bake commit too when the rollback fires (US3-1).
-    # ``None`` on every path that never advances target during the bake (the
-    # common mission-branch write, or no bake at all) -- a proven no-op
-    # everywhere it's consumed.
-    pre_bake_target_baseline_sha: str | None = None
     baseline_mission_id: str | None = None
     done_marked_before_target: bool = False
     mission_already_applied: bool = False
@@ -419,24 +402,12 @@ class _MergeRunState:
     pre_target_gate_artifact_snapshots: dict[Path, bytes | None] = field(default_factory=dict)
     gate_artifact_restored_paths: list[Path] = field(default_factory=list)
 
-    # #2711 FR-006 (Option A): the coordination-branch ref + tip SHA captured
-    # BEFORE the pre-target ``done`` emit. On a target-advance rollback the
-    # committed ``done`` is reverted back to this tip in lockstep with the
-    # working-byte restore, so the committed reduction never strands ``done``
-    # while the working tree rolls back to ``approved`` (the split-brain).
+    # #2711 FR-006: the coordination-branch ref + tip SHA captured BEFORE the
+    # pre-target ``done`` emit. The strand marker (``_persist_coord_reconcile_marker``)
+    # and the ``done`` write-set derivation read the committed coordination state
+    # relative to this tip; the ref undo itself is the driver's single rollback door.
     pre_target_coord_ref: str | None = None
     pre_target_coord_sha: str | None = None
-
-    # T008 (terminus-safety-invariant, FR-007/008): the coordination-branch
-    # checkpoint captured BEFORE ``_phase_merge_lanes`` runs ANY consolidation
-    # — the "pre-mutation" NAMED checkpoint the unified primitive resets to on
-    # a post-mutation failure, undoing lane consolidation + the mission_number
-    # bake + the pre-target ``done`` write together (never just the narrower
-    # pre-``done`` span the pre-existing ``pre_target_coord_ref``/``_sha``
-    # pair above covers). ``None`` for a non-coord topology / legacy mission —
-    # a proven no-op everywhere it's consumed.
-    pre_mutation_coord_ref: str | None = None
-    pre_mutation_coord_sha: str | None = None
 
     # T021 (FR-012, FOLD 1): the executor capability behind ``merge
     # --skip-lanes``/``--no-lanes`` — tolerate an absent lanes.json for a
@@ -899,21 +870,9 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
                 all_wp_ids=run.all_wp_ids,
             )
         except Exception as exc:
+            # Working-tree bytes + strand marker only; an orphan primary-tree bake
+            # commit on the target is undone by the driver's rollback door (#5385).
             _restore_and_guard_coord_coherence(run, run.pre_target_bookkeeping_snapshots, error=exc)
-            # #4764/FOLD-A (sibling of FOLD-F1): a primary-tree
-            # ``mission_number`` bake may have just committed directly on
-            # ``target_branch`` (the ``_reanchor_baseline_past_primary_tree_bake``
-            # call above). This failure is strictly BEFORE the mission→target
-            # step, so ``_restore_pre_target_if_at_baseline`` never runs for
-            # it -- without this guard the orphan bake commit is permanently
-            # stranded on an unmerged mission's target branch. Uses the SAME
-            # still-at-baseline guard that function uses.
-            if _target_branch_still_at_baseline(
-                run.main_repo,
-                run.lanes_manifest.target_branch,
-                run.target_baseline_sha,
-            ):
-                _revert_orphan_target_bake_commit(run)
             raise
 
 
@@ -929,12 +888,10 @@ def _reanchor_baseline_past_primary_tree_bake(run: _MergeRunState) -> None:
     detects exactly that case -- the mission-branch write path (the common
     case) never touches ``target_branch``, so this is a proven no-op there.
 
-    When the tip moved, the ORIGINAL pre-bake tip is retained in
-    ``run.pre_bake_target_baseline_sha`` (the later rollback's revert anchor
-    -- see :func:`_revert_orphan_target_bake_commit`) and
-    ``run.target_baseline_sha`` is re-anchored to the new tip so
-    ``_target_branch_still_at_baseline`` keeps measuring the mission→target
-    step's OWN progress, not this bookkeeping commit.
+    When the tip moved, ``run.target_baseline_sha`` is re-anchored to the new
+    tip so ``_target_branch_still_at_baseline`` keeps measuring the
+    mission→target step's OWN progress, not this bookkeeping commit. Undoing
+    the bake commit itself on a failure is the driver's rollback door (#5385).
     """
     ret, current_tip, _err = run_command(
         ["git", "rev-parse", run.lanes_manifest.target_branch],
@@ -946,90 +903,20 @@ def _reanchor_baseline_past_primary_tree_bake(run: _MergeRunState) -> None:
         return
     current_tip = current_tip.strip()
     if current_tip and current_tip != run.target_baseline_sha:
-        run.pre_bake_target_baseline_sha = run.target_baseline_sha
         run.target_baseline_sha = current_tip
-
-
-def _revert_orphan_target_bake_commit(run: _MergeRunState) -> None:
-    """#4764 FOLD-F1: undo an orphan primary-tree ``mission_number`` bake commit.
-
-    Fires from :func:`_restore_pre_target_if_at_baseline` once the (re-
-    anchored) baseline guard confirms the mission→target step made no
-    progress -- i.e. the bake commit is an orphan on ``target_branch`` for a
-    mission that never merged and must be undone too (US3-1), not just
-    halted.
-
-    Mirrors :func:`_reset_coord_to_checkpoint`'s forward-reversing ``git
-    revert`` discipline (never a raw ``update-ref``/hard reset -- AC-B3),
-    applied directly to ``run.main_repo`` since the primary-tree bake
-    committed there and the main repo's checkout never leaves
-    ``target_branch`` during a merge. No-op when no primary-tree bake landed
-    on target this run (``pre_bake_target_baseline_sha`` is ``None``).
-
-    Also clears the persisted ``mission_number_baked`` flag (set the moment
-    the primary-tree write succeeded, before this later-phase failure was
-    even known) so a subsequent ``--resume`` re-attempts the bake instead of
-    short-circuiting on a flag that no longer matches the reverted git state
-    (FR-008 resume coherence).
-    """
-    pre_bake_sha = run.pre_bake_target_baseline_sha
-    if pre_bake_sha is None:
-        return
-    from specify_cli.lanes.consolidation import _make_merge_env
-
-    env = _make_merge_env()
-    head = subprocess.run(
-        ["git", "-C", str(run.main_repo), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
-    if head.returncode != 0 or head.stdout.strip() == pre_bake_sha:
-        run.pre_bake_target_baseline_sha = None
-        return  # already at (or before) the pre-bake tip -- no-op
-    revert = subprocess.run(
-        ["git", "-C", str(run.main_repo), "revert", "--no-edit", f"{pre_bake_sha}..HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
-    if revert.returncode != 0:
-        subprocess.run(
-            ["git", "-C", str(run.main_repo), "revert", "--abort"],
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
-        )
-        logger.warning(
-            "#4764/FOLD-F1: could not revert the orphan mission_number bake commit on %s (%s..HEAD); target may still carry an unmerged bake commit: %s",
-            run.lanes_manifest.target_branch,
-            pre_bake_sha[:12],
-            (revert.stderr or revert.stdout or "").strip(),
-        )
-        return
-    run.pre_bake_target_baseline_sha = None
-    if run.state is not None and run.state.mission_number_baked:
-        run.state.mission_number_baked = False
-        save_state(run.state, run.main_repo)
 
 
 @dataclass(frozen=True)
 class _CoordCheckpoint:
     """T008: a NAMED, resolved coordination-branch checkpoint (ref + tip SHA).
 
-    The one shape unifying what were three fragmentary capture/revert/
-    coherence-guard functions (``_capture_pre_target_coord_ref_sha``,
-    ``_restore_and_guard_coord_coherence``, ``_revert_coord_done_commit``,
-    pre-T008). A checkpoint is captured via :func:`_capture_coord_checkpoint`
-    and consumed by :func:`_reset_coord_to_checkpoint`. Two named checkpoints
-    are captured over a merge run: ``pre_mutation`` (before
-    ``_phase_merge_lanes`` — see ``run.pre_mutation_coord_ref``/``_sha``) and
-    ``pre_done`` (before the pre-target ``done`` emit — ``run.pre_target_coord_ref``/
-    ``_sha``, the pre-existing #2711 checkpoint, kept under its historical
-    field names so existing callers/tests are unaffected).
+    Captured via :func:`_capture_coord_checkpoint`. Consumers: the
+    transaction-start ``run.coord_checkpoint`` (the reconciliation claim's base
+    and the projection window), the persisted pre-mutation anchor
+    (:func:`_resolve_pre_mutation_coord_sha`, which seeds the rollback
+    snapshot), and the pre-``done`` tip (``run.pre_target_coord_ref``/``_sha``)
+    the strand marker reads. None of them is a revert anchor: undoing a
+    consolidation's ref moves is the single rollback door's job (#5385).
     """
 
     ref: str
@@ -1062,34 +949,15 @@ def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:
     return None
 
 
-def _capture_pre_mutation_coord_checkpoint(run: _MergeRunState) -> None:
-    """T008 (FR-007/008): capture the coordination checkpoint BEFORE ANY
-    mutation begins — called right before ``_phase_merge_lanes``, the first
-    mutating phase. On a coord-topology mission (``lanes_manifest.mission_branch
-    == coordination_branch`` — the 083+ layout) lane consolidation commits
-    land on this SAME branch, so this checkpoint is strictly earlier than (and
-    on a mission with real lane commits, distinct from) the pre-``done``
-    checkpoint captured later in ``_phase_bake_and_pre_target_done``. Resetting
-    to THIS checkpoint on a post-mutation failure undoes consolidation AND the
-    bake AND the pre-target ``done`` write together (see
-    :func:`_rollback_to_pre_mutation_checkpoint`).
-    """
-    checkpoint = _capture_coord_checkpoint(run)
-    if checkpoint is not None:
-        run.pre_mutation_coord_ref = checkpoint.ref
-        run.pre_mutation_coord_sha = checkpoint.sha
-
-
 def _capture_pre_target_coord_ref_sha(run: _MergeRunState) -> None:
     """Capture the coordination-branch ref + tip SHA BEFORE the pre-target
     ``done`` emit (#2711 / FR-006).
 
-    The captured tip is the coherent rollback anchor consumed by
-    :func:`_revert_coord_done_commit`. A placement that cannot be resolved (a
-    non-coord topology, or a legacy mission) leaves both fields ``None`` so the
-    rollback revert is a proven no-op. T008: delegates checkpoint resolution to
-    the shared :func:`_capture_coord_checkpoint` primitive; field names/external
-    behavior preserved verbatim for existing callers.
+    The captured tip anchors the strand marker
+    (:func:`_persist_coord_reconcile_marker`) and the ``done`` write-set. A
+    placement that cannot be resolved (a non-coord topology, or a legacy
+    mission) leaves both fields ``None``, which makes both a proven no-op.
+    Delegates checkpoint resolution to :func:`_capture_coord_checkpoint`.
     """
     checkpoint = _capture_coord_checkpoint(run)
     if checkpoint is not None:
@@ -1153,109 +1021,6 @@ def _coord_worktree_root(run: _MergeRunState) -> Path | None:
     if not is_under_worktrees_segment(worktree_root):
         return None
     return worktree_root
-
-
-def _reset_coord_to_checkpoint(run: _MergeRunState, checkpoint: _CoordCheckpoint | None) -> None:
-    """T008: the ONE reset primitive — revert the coordination branch back to
-    ``checkpoint`` via a forward-reversing ``git revert`` (never a raw
-    ``git update-ref``/hard reset — AC-B3; ``advance_branch_ref`` cannot serve
-    here because moving the ref back to the captured tip is the non-fast-forward
-    move it refuses by design). Reverses every commit made since the checkpoint
-    tip — on the pre-mutation checkpoint this undoes lane consolidation, the
-    mission_number bake, AND the pre-target ``done`` write together, since a
-    coord-topology mission's ``lanes_manifest.mission_branch`` IS the
-    coordination branch (the 083+ layout) — consolidation commits land on the
-    SAME branch this resets. Idempotent: a HEAD already at (or before) the
-    checkpoint is a proven no-op, so calling this after a narrower rollback
-    already ran (e.g. :func:`_revert_coord_done_commit`) safely extends the
-    revert range rather than double-reverting.
-
-    Subprocess env routes through ``_make_merge_env`` (AC-F1). This is the
-    #2711 in-merge lockstep revert on the (still-clean) pre-restore worktree —
-    kept in its canonical raw form (its no-op / success / abort branches are
-    pinned by ``test_executor_option_a_revert_helpers_2711.py``).
-
-    Fail-closed detection (T008 edge case — "rollback attempted after the
-    coordination worktree has already been torn down"): logs a loud warning
-    when a checkpoint reset was due on a mission that had already reached the
-    coord-topology ``done``-marking point (``run.done_marked_before_target``)
-    but the coordination worktree cannot be resolved — the structural ordering
-    guarantee is that this function is only ever invoked before
-    ``_phase_cleanup_worktrees_and_branches`` tears that worktree down, so this
-    branch should be unreachable; the warning surfaces a genuine ordering bug
-    rather than silently no-op-ing.
-    """
-    if checkpoint is None:
-        return
-    coord_worktree = _coord_worktree_root(run)
-    if coord_worktree is None:
-        if getattr(run, "done_marked_before_target", False):
-            logger.warning(
-                "T008: a coordination checkpoint reset to %s (%s) was due, but "
-                "the coordination worktree is unresolved. If teardown already "
-                "ran, this reset was ordered too late (a bug); otherwise this "
-                "is a legitimate no-op (nothing was mutated on the coordination "
-                "branch yet).",
-                checkpoint.ref,
-                checkpoint.sha[:12],
-            )
-        return
-    from specify_cli.lanes.consolidation import _make_merge_env
-
-    env = _make_merge_env()
-    head = subprocess.run(
-        ["git", "-C", str(coord_worktree), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
-    if head.returncode != 0 or head.stdout.strip() == checkpoint.sha:
-        return  # nothing committed on the coordination branch since capture — no-op
-    revert = subprocess.run(
-        ["git", "-C", str(coord_worktree), "revert", "--no-edit", f"{checkpoint.sha}..HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
-    if revert.returncode != 0:
-        subprocess.run(
-            ["git", "-C", str(coord_worktree), "revert", "--abort"],
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
-        )
-        logger.warning(
-            "#2711/T008: could not revert coordination commit(s) on %s (%s..HEAD); committed/working coherence may be degraded: %s",
-            checkpoint.ref,
-            checkpoint.sha[:12],
-            (revert.stderr or revert.stdout or "").strip(),
-        )
-
-
-def _revert_coord_done_commit(run: _MergeRunState) -> None:
-    """Revert the pre-target ``done`` commit on the coordination branch (#2711 / FR-006).
-
-    On a target-advance rollback the committed coordination ``done`` must be
-    reversed in lockstep with the working-tree byte restore, or the committed
-    reduction (``done``) diverges from the rolled-back working tree (``approved``)
-    — the #2711 split-brain, which also breaks resume dedup / idempotency.
-
-    T008: thin wrapper delegating to the unified :func:`_reset_coord_to_checkpoint`
-    primitive with the pre-``done`` checkpoint (``run.pre_target_coord_ref``/
-    ``_sha``) — external behavior/signature preserved verbatim for existing
-    callers. The NEW #2786 / #2367-B reconciliation authority is the
-    resume/doctor heal, which routes through the shared coordination primitive
-    ``repair_coord_strand`` (see :func:`_heal_pending_coord_reconcile`); this
-    leg stays orthogonal.
-    """
-    coord_ref = run.pre_target_coord_ref
-    captured_sha = run.pre_target_coord_sha
-    if not coord_ref or not captured_sha:
-        return  # no coordination ref captured (non-coord topology) — no-op
-    _reset_coord_to_checkpoint(run, _CoordCheckpoint(ref=coord_ref, sha=captured_sha))
 
 
 def _persist_coord_reconcile_marker(run: _MergeRunState, error: BaseException | None) -> None:
@@ -1348,73 +1113,31 @@ def _restore_and_guard_coord_coherence(
     routes through here (the primary marking mechanism; the hand-picked marks are
     reached THROUGH it, no double-mark). Inner-only (not the INV-5 phase-driver
     wrapper): leg-b byte-restore always runs first and is preserved verbatim. On a
-    coord-topology rollback it records any residual strand (mark-not-raise) and, on
-    a resume, heals it via the strand-gated coordination primitive. Off the coord
-    path (``done_marked_before_target`` False) it is a pure byte-restore.
+    coord-topology rollback it records any residual strand (mark-not-raise). Off the
+    coord path (``done_marked_before_target`` False) it is a pure byte-restore.
+
+    It never heals: the heal is a forward ``git revert`` and would commit inside the
+    rollback span (#5385). The driver's rollback door restores the coordination
+    branch (and clears the marker after a full restore); the resume-start heal in the
+    driver is the only heal caller. The recorder decorator stays because the byte
+    restore can rewrite ``state.json``; the recorder re-saves the in-memory record.
     """
     restore_generated_artifact_snapshots(snapshots)
     if not run.done_marked_before_target:
         return
     _persist_coord_reconcile_marker(run, error)
-    if run.is_resume:
-        _heal_pending_coord_reconcile(run)
 
 
-@_records_post_mutation_tips
-def _rollback_to_pre_mutation_checkpoint(run: _MergeRunState, *, error: BaseException | None) -> None:
-    """T008 (FR-007/008): the pre-mutation-checkpoint backstop.
-
-    Wraps ONLY ``_phase_merge_lanes`` in ``_run_lane_based_consolidation_locked`` (see
-    the scope note at that call site): on an exception from lane
-    consolidation, resets the coordination ref + worktree back to the
-    checkpoint captured strictly before it began (see
-    :func:`_capture_pre_mutation_coord_checkpoint`) via
-    :func:`_reset_coord_to_checkpoint`, and marks/heals any residual strand
-    through the SAME coordination-reconcile primitive the later, denser
-    granular rollback sites use (``_phase_capture_and_baseline``,
-    ``_phase_record_done_and_project``, ``_phase_porcelain_invariant``,
-    ``_phase_mission_to_target``) — those cover every later mutating phase
-    with their own (git-safe, never spanning a lane-consolidation merge
-    commit) pre-``done`` checkpoint; this function closes the one remaining
-    gap, a failure DURING consolidation itself, which had no rollback
-    coverage at all before T008. MUST run before
-    ``_phase_cleanup_worktrees_and_branches`` tears the coordination worktree
-    down — this function is only ever invoked from the driver's wrapper,
-    which sits strictly before that phase in the linear call order.
-    """
-    checkpoint = (
-        _CoordCheckpoint(ref=run.pre_mutation_coord_ref, sha=run.pre_mutation_coord_sha) if run.pre_mutation_coord_ref and run.pre_mutation_coord_sha else None
-    )
-    _reset_coord_to_checkpoint(run, checkpoint)
-    if run.pre_target_bookkeeping_snapshots:
-        restore_generated_artifact_snapshots(run.pre_target_bookkeeping_snapshots)
-    _persist_coord_reconcile_marker(run, error)
-    if run.is_resume:
-        _heal_pending_coord_reconcile(run)
-
-
-@_records_post_mutation_tips
 def _restore_pre_target_if_at_baseline(run: _MergeRunState) -> None:
-    """Roll back the pre-target state iff the target never advanced (INV-6).
+    """Restore the pre-target working-tree bookkeeping iff the target never advanced (INV-6).
 
-    Behavior-preserving extraction of the repeated mission-to-target rollback
-    guard (identical at every failure exit). Restores ONLY when done events were
-    recorded pre-target AND the target branch still points at the pre-merge
-    baseline — i.e. the mission→target merge made no progress.
-
-    #2711 FR-006 (Option A): the coherent revert of the committed coordination
-    ``done`` runs BEFORE the working-byte restore so both legs converge on the
-    pre-emit (``approved``) reduction — the committed ref no longer strands a
-    ``done`` the working tree has rolled back.
-
-    #4764 FOLD-F1: ``run.target_baseline_sha`` is the RE-ANCHORED baseline
-    (post-bake tip, see :func:`_reanchor_baseline_past_primary_tree_bake`), so
-    this guard measures the mission→target step's own progress even when a
-    primary-tree bake commit landed on ``target_branch`` first. When the
-    guard fires, :func:`_revert_orphan_target_bake_commit` additionally undoes
-    that orphan bake commit — evaluated independently of
-    ``done_marked_before_target`` since the primary-tree bake is orthogonal
-    to whether a coordination ``done`` was recorded.
+    Restores ONLY when done events were recorded pre-target AND the target branch
+    still points at the pre-merge baseline -- i.e. the mission→target merge made
+    no progress. Byte restore + strand marker only: every ref undo (the committed
+    coordination ``done``, an orphan primary-tree bake commit on the target) is
+    the driver's single rollback door (#5385). ``run.target_baseline_sha`` is the
+    re-anchored baseline (:func:`_reanchor_baseline_past_primary_tree_bake`), so
+    this guard measures the mission→target step's own progress.
     """
     still_at_baseline = _target_branch_still_at_baseline(
         run.main_repo,
@@ -1422,10 +1145,7 @@ def _restore_pre_target_if_at_baseline(run: _MergeRunState) -> None:
         run.target_baseline_sha,
     )
     if run.done_marked_before_target and still_at_baseline:
-        _revert_coord_done_commit(run)
         _restore_and_guard_coord_coherence(run, run.pre_target_bookkeeping_snapshots)
-    if still_at_baseline:
-        _revert_orphan_target_bake_commit(run)
 
 
 def _reject_zero_diff_noop_integration(run: _MergeRunState) -> None:
@@ -1855,8 +1575,8 @@ def _refuse_unreadable_projection_window(exc: GitCommandError) -> NoReturn:
 
     The post-checkpoint projection runs AFTER ``_phase_mission_to_target``
     advanced the target, so a failed ``rev-list``/diff over the coordination
-    window must not escape as a traceback: it exits non-zero so the driver's
-    :func:`_phase_record_done_and_project_or_roll_back` rolls the target back
+    window must not escape as a traceback: it exits non-zero so the merge
+    driver's single post-mutation rollback door (#5385) rolls the target back
     through the single rollback authority, the same shape as
     :func:`_squash_projected_paths_or_refuse`.
     """
@@ -1866,23 +1586,6 @@ def _refuse_unreadable_projection_window(exc: GitCommandError) -> NoReturn:
         f"{_NOTHING_TORN_DOWN}; re-run `spec-kitty consolidate --resume`."
     )
     raise typer.Exit(1) from exc
-
-
-def _phase_record_done_and_project_or_roll_back(run: _MergeRunState) -> None:
-    """Run :func:`_phase_record_done_and_project`; roll back on a refusal.
-
-    The target already advanced when this phase runs, so a non-zero
-    ``typer.Exit`` (an unreadable projection window) restores every snapshotted
-    branch through :func:`_report_rollback` — the same door the reconciliation
-    gate uses — instead of leaving the target advanced past a failed projection.
-    """
-    anchor_before = run.state.reconciliation_passed_target_sha
-    try:
-        _phase_record_done_and_project(run)
-    except typer.Exit as exc:
-        if exc.exit_code:
-            _report_rollback(run, anchor_before=anchor_before)
-        raise
 
 
 def _run_birth_cutover(run: _MergeRunState) -> None:
@@ -3782,35 +3485,6 @@ def _run_lane_based_consolidation_locked(
         # clears that record too instead of leaving a zero-progress resume behind.
         _persist_executed_strategy(run.state, run.strategy, is_resume=run.is_resume, main_repo=run.main_repo)
         _phase_gates_and_state(run)
-        # T008 (FR-007/008): capture the pre-mutation checkpoint strictly before the
-        # first mutating phase. Consumed by the narrow backstop immediately below
-        # AND left available for the resume/doctor heal machinery.
-        #
-        # Scope note (git-level constraint, verified live): on a coord-topology
-        # mission whose lanes.json has MULTIPLE lanes, ``_phase_merge_lanes``
-        # produces MERGE commits on the coordination/mission branch (one per
-        # consolidated lane). ``git revert <sha>..HEAD`` cannot auto-revert a
-        # range that contains a merge commit without an explicit ``-m`` mainline
-        # per merge commit — attempting the WIDER revert (back through
-        # consolidation) for every later-phase failure corrupted two proven
-        # multi-lane coord-topology tests
-        # (``tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py``)
-        # during this WP's development, so the backstop below is deliberately
-        # scoped to ONLY ``_phase_merge_lanes`` itself — the one phase with no
-        # PRE-EXISTING rollback coverage at all, and the only span where the
-        # pre-mutation checkpoint is guaranteed not to already contain a
-        # just-created merge commit from a SUCCESSFUL prior lane in this same
-        # call. Every later phase (baseline/bake through commit-and-assert)
-        # keeps its dense pre-existing granular rollback (``_restore_and_guard_
-        # coord_coherence`` / ``_restore_pre_target_if_at_baseline``), which
-        # never needs to cross a lane-consolidation merge commit because its own
-        # checkpoint is captured AFTER consolidation. A residual strand from a
-        # PARTIAL multi-lane consolidation failure (lane A ok, lane B fails) is
-        # not silently dropped either way: :func:`_reset_coord_to_checkpoint`
-        # degrades gracefully (abort + warn) rather than corrupting the branch,
-        # and :func:`_rollback_to_pre_mutation_checkpoint` still marks/heals via
-        # the SEPARATE, proven coordination-reconcile primitive.
-        _capture_pre_mutation_coord_checkpoint(run)
         # terminus-merge-integrity WP06 (T027/T029): capture the fail-closed,
         # Lamport-sourced reconciliation claim + the transaction-start target tip
         # (CAS anchor / excluded-window base) NOW — before any mutation — and refuse
@@ -3831,44 +3505,53 @@ def _run_lane_based_consolidation_locked(
     # "complete teardown instead of re-running [already-verified work]" means.
     # A genuinely incomplete resume (no PASS recorded, or the target moved
     # since) takes the full phase list unchanged — the R2 guard.
-    if not _resume_reconciliation_already_passed(run):
-        try:
-            _phase_merge_lanes(run)
-        except Exception as exc:
-            _rollback_to_pre_mutation_checkpoint(run, error=exc)
-            raise
-        _phase_baseline_and_surface(run)
-        _phase_bake_and_pre_target_done(run)
-        _capture_pre_target_gate_artifacts(run)
-        _phase_mission_to_target(run)
-        _switch_write_checkout_after_single_branch_landing(run)
-        _phase_capture_and_baseline(run)
-        _phase_record_done_and_project_or_roll_back(run)
-        _phase_porcelain_invariant(run)
-        _phase_commit_and_assert(run)
-    else:
-        # Skipped ``_phase_baseline_and_surface`` above never set
-        # ``run.target_baseline_sha`` (default ``"HEAD~1"``, a stale window for
-        # a target that has not moved in THIS run) — ``_phase_dossier_and_stale``
-        # still runs unconditionally below and would otherwise scan an
-        # arbitrary/wrong window. Nothing new landed in this run, so the correct
-        # stale-assertion baseline IS the target's current tip (an empty window).
-        run.target_baseline_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch) or run.target_baseline_sha
-    # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
-    # gate runs strictly BEFORE any teardown/push — on FAIL/REFUSE it refuses
-    # (non-zero), restores the target ref, and tears down nothing (ordering
-    # guarantee: teardown executes only after verify == PASS). On a non-zero
-    # exit every other snapshotted branch is rolled back too (#5318 / #5332);
-    # the target the gate already restored reports ALREADY_AT_SNAPSHOT. The post
-    # tips are the ones each ref-moving phase recorded for the branches it moved
-    # (slice-10 F2): no blanket re-record here, which would attribute a foreign
-    # commit that landed between phases to this run.
+    # #5385 (ADR 2026-09-19-1 A3): ONE rollback door for the whole post-mutation
+    # span, from the first mutation (``_phase_merge_lanes``) through the gate. A
+    # non-zero ``typer.Exit``, any other exception or an interrupt restores every
+    # snapshotted branch through ``rollback_to_snapshot`` (``_report_rollback``) and
+    # re-raises the original; ``typer.Exit(0)`` passes through untouched
+    # (``typer.Exit`` subclasses ``RuntimeError``, so its clause comes first).
+    # ``anchor_before`` lets ``_report_rollback`` undo THIS run's own PASS anchor
+    # (BLOCKER 1) while an EARLIER attempt's anchor keeps its verified landing.
+    # The phase calls stay inline: the phase-boundary pins index them here.
+    #
+    # Landing reconciliation (#5444): main independently added the narrower,
+    # phase-local ``_phase_record_done_and_project_or_roll_back`` (it caught only a
+    # ``typer.Exit`` from the done-and-project phase). This single door subsumes it
+    # with the identical ``anchor_before`` + ``_report_rollback`` mechanism over the
+    # whole span, so the interim variant is removed and the done-and-project phase
+    # calls the base ``_phase_record_done_and_project`` inside this try.
     anchor_before = run.state.reconciliation_passed_target_sha
     try:
+        if not _resume_reconciliation_already_passed(run):
+            _phase_merge_lanes(run)
+            _phase_baseline_and_surface(run)
+            _phase_bake_and_pre_target_done(run)
+            _capture_pre_target_gate_artifacts(run)
+            _phase_mission_to_target(run)
+            _switch_write_checkout_after_single_branch_landing(run)
+            _phase_capture_and_baseline(run)
+            _phase_record_done_and_project(run)
+            _phase_porcelain_invariant(run)
+            _phase_commit_and_assert(run)
+        else:
+            # Skipped ``_phase_baseline_and_surface`` above never set
+            # ``run.target_baseline_sha`` (default ``"HEAD~1"``, a stale window for
+            # a target that has not moved in THIS run) — ``_phase_dossier_and_stale``
+            # still runs unconditionally below and would otherwise scan an
+            # arbitrary/wrong window. Nothing new landed in this run, so the correct
+            # stale-assertion baseline IS the target's current tip (an empty window).
+            run.target_baseline_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch) or run.target_baseline_sha
+        # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
+        # gate runs strictly BEFORE any teardown/push; teardown executes only after
+        # verify == PASS.
         _phase_reconcile_before_teardown(run)
     except typer.Exit as exc:
         if exc.exit_code:
             _report_rollback(run, anchor_before=anchor_before)
+        raise
+    except BaseException:
+        _report_rollback(run, anchor_before=anchor_before)
         raise
     _phase_dossier_and_stale(run)
     _phase_push(run)
@@ -3877,24 +3560,31 @@ def _run_lane_based_consolidation_locked(
 
 
 def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
-    """Roll every snapshotted branch back after a gate/projection refusal and print the report (#5318 / #5332).
+    """Roll every snapshotted branch back after a post-mutation failure and print the report (#5318 / #5385).
+
+    The single rollback door's body: the driver calls it for a non-zero exit, an
+    exception or an interrupt anywhere from ``_phase_merge_lanes`` through the gate.
 
     ``anchor_before`` is ``reconciliation_passed_target_sha`` as it stood BEFORE
-    the gate phase ran. On a fresh PASS the gate persists THIS run's own PASS
-    anchor before the projection proof refuses; left in place, the authority
-    would read it as a landing verified by an EARLIER reconciliation (FR-011) and
-    refuse to roll back. Restore the pre-gate value first; an anchor from an
-    earlier attempt is unchanged by the gate and therefore still keeps that
-    verified landing.
+    the span ran. On a fresh PASS the gate persists THIS run's own PASS anchor
+    before the projection proof refuses; left in place, the authority would read
+    it as a landing verified by an EARLIER reconciliation (FR-011) and refuse to
+    roll back. Restore the pre-span value first; an anchor from an earlier attempt
+    is unchanged by the span and therefore still keeps that verified landing.
+
+    Never raises: the caller re-raises the ORIGINAL error, so a failing anchor
+    reset or rollback prints one line naming the branches to inspect instead of
+    replacing that error with its own traceback, and never implies success.
+    ``BaseException`` on purpose: a second Ctrl-C (or ``SystemExit``) during the
+    rollback must not replace the original error either; the caller's bare
+    ``raise`` still propagates that original.
     """
-    if run.state.reconciliation_passed_target_sha != anchor_before:
-        run.state.reconciliation_passed_target_sha = anchor_before
-        save_state(run.state, run.main_repo)
     try:
+        if run.state.reconciliation_passed_target_sha != anchor_before:
+            run.state.reconciliation_passed_target_sha = anchor_before
+            save_state(run.state, run.main_repo)
         report = rollback.rollback_to_snapshot(run.main_repo, run.state, target_branch=run.lanes_manifest.target_branch)
-    except Exception as exc:
-        # The caller re-raises the gate's own ``typer.Exit``; never let a failing
-        # rollback replace it with a traceback, and never imply it succeeded.
+    except BaseException as exc:
         branches = ", ".join(sorted(run.state.pre_mutation_refs)) or "the mission branches"
         console.print(f"Rollback could not complete: {exc}; inspect {branches} before re-running.", markup=False)
         return
@@ -4089,6 +3779,42 @@ def _recover_behind_head_primary_on_resume(
         return False
     console.print("[yellow]Recovered a behind-own-HEAD primary checkout (git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]")
     return True
+
+
+def _refuse_protected_status_target_or_continue(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str) -> None:
+    """#5385: refuse, before any branch moves, a consolidation whose ``done`` bookkeeping the policy refuses.
+
+    Pre-lock, so a refusal writes no merge record (NFR-001). The verdict is the
+    workflow mutation policy's own (``refuse_protected_status_target``), rendered
+    with its ``error_code``, message and ``next_step``.
+
+    When a merge record for this mission already exists (a ``--resume``, or a
+    re-run after a crash), THIS run moved nothing, but an earlier attempt may
+    have: the refusal then points at ``consolidate --abort`` (which restores the
+    recorded snapshot) instead of claiming no branch moved.
+    """
+    try:
+        verdict = refuse_protected_status_target(main_repo, mission_slug, lanes_manifest)
+    except (ActionContextError, MissionMetaReadError) as exc:
+        console.print(f"[red]Error:[/red] Cannot probe the done bookkeeping policy: {exc}. Fix the mission's meta.json / status surface before merging.")
+        raise typer.Exit(1) from exc
+    if verdict is None:
+        return
+    console.print(f"[red]Error:[/red] {verdict.error_code}: {verdict.message}")
+    console.print(f"  Next step: {verdict.next_step}")
+    console.print(_protected_refusal_footer(get_state_path(main_repo, canonical_id).exists()), markup=False)
+    raise typer.Exit(1)
+
+
+_REFUSED_BEFORE_ANY_MOVE = "Consolidation refused before any branch moved."
+_REFUSED_WITH_EARLIER_RECORD = (
+    "Consolidation refused; this run moved no branch, but an earlier attempt may have. Run `spec-kitty consolidate --abort` to restore the branches it recorded."
+)
+
+
+def _protected_refusal_footer(merge_record_exists: bool) -> str:
+    """The last line of an up-front protected-target refusal (#5385)."""
+    return _REFUSED_WITH_EARLIER_RECORD if merge_record_exists else _REFUSED_BEFORE_ANY_MOVE
 
 
 def _pre_mutation_safety_preflight_with_recovery(
@@ -4367,6 +4093,7 @@ def _run_lane_based_consolidation(
     # below (a provably-non-destructive ``git reset --hard HEAD`` over phantom
     # staged deletions); every other outcome remains refuse (byte-identical) or
     # proceed.
+    _refuse_protected_status_target_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id)
     _pre_mutation_safety_preflight_with_recovery(
         main_repo,
         mission_slug,

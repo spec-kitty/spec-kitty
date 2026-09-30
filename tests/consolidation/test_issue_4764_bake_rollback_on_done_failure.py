@@ -16,16 +16,18 @@ never checking whether a primary-tree bake had just committed directly on
 ``target_branch``. That orphan bake commit was left permanently stranded on
 an unmerged mission's target branch.
 
-The fix threads the SAME still-at-baseline guard
-(``_target_branch_still_at_baseline``) that
-``_restore_pre_target_if_at_baseline`` uses into this earlier handler, and
-calls ``_revert_orphan_target_bake_commit`` when it fires.
+The original fix threaded a still-at-baseline guard into this handler and
+reverted the orphan bake commit with ``git revert``
+(``_revert_orphan_target_bake_commit``). Since #5385 that helper is retired:
+the driver's single rollback door CAS-restores ``target_branch`` to its
+pre-run snapshot, and the authority's ``_clear_bookkeeping`` clears
+``mission_number_baked`` after the full restore.
 
-RED before the fix: ``target_branch`` tip has advanced past the pre-merge
+RED before FOLD-A: ``target_branch`` tip has advanced past the pre-merge
 baseline (the orphan bake commit is still there) and the persisted
-``mission_number_baked`` flag is still ``True``. GREEN after: the bake commit
-is reverted (target tip == pre-merge baseline) and the flag is cleared so a
-subsequent ``--resume`` re-attempts the bake.
+``mission_number_baked`` flag is still ``True``. GREEN now: the target is back
+at its pre-run tip (same SHA, not only the same tree) and the flag is cleared
+so a subsequent ``--resume`` re-attempts the bake.
 
 This module duplicates the F1 primary-tree-bake fixture from
 ``tests/merge/test_merge_rollback_resume_coherence.py`` rather than importing
@@ -122,9 +124,9 @@ def _branch_tip(repo: Path, branch: str) -> str:
 def _branch_tree(repo: Path, branch: str) -> str:
     """Resolve a branch's TREE object hash (content, not commit identity).
 
-    The revert path corrects the orphan bake commit forward with ``git
-    revert`` (never a hard reset — AC-B3), so a reverted tip is a NEW commit
-    whose TREE matches the pre-bake tree, not the pre-bake commit SHA itself.
+    Kept from the pre-#5385 ``git revert`` contract (a reverted tip was a NEW
+    commit whose TREE matched the pre-bake tree); the rollback door now also
+    restores the commit SHA itself, which the test asserts separately.
     """
     result = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", f"{branch}^{{tree}}"],
@@ -315,6 +317,7 @@ def test_done_bookkeeping_failure_after_primary_tree_bake_reverts_orphan_commit(
     _init_git_repo(repo)
     feature_dir = _bootstrap_primary_tree_bake_mission(repo)
     pre_merge_main_tree = _branch_tree(repo, "main")
+    pre_merge_main_tip = _branch_tip(repo, "main")
 
     with (
         _external_mocks(),
@@ -334,14 +337,14 @@ def test_done_bookkeeping_failure_after_primary_tree_bake_reverts_orphan_commit(
             assume_yes=True,
         )
 
-    # (a) target_branch TREE must be back at the pre-merge baseline content --
-    #     the orphan primary-tree bake commit must be reverted (its net effect
-    #     undone), not stranded. Tree equality, not commit-SHA equality: the
-    #     revert path corrects forward with ``git revert`` (AC-B3), so the
-    #     reverted tip is a NEW commit whose tree matches the pre-bake tree.
+    # (a) target_branch must be back at the pre-merge baseline -- the orphan
+    #     primary-tree bake commit must be undone, not stranded. #5385: the
+    #     single rollback door CAS-restores the pre-run tip itself (no forward
+    #     ``git revert`` commit), so both the tree and the SHA match.
     assert _branch_tree(repo, "main") == pre_merge_main_tree, (
-        "the orphan primary-tree mission_number bake commit must be reverted when the later done-bookkeeping step fails"
+        "the orphan primary-tree mission_number bake commit must be undone when the later done-bookkeeping step fails"
     )
+    assert _branch_tip(repo, "main") == pre_merge_main_tip, "#5385: the rollback door restores the pre-run target tip"
 
     # (b) primary meta.json must show NO mission_number for the un-merged
     #     mission (HEAD stays on 'main' throughout).
@@ -350,10 +353,12 @@ def test_done_bookkeeping_failure_after_primary_tree_bake_reverts_orphan_commit(
 
     # (c) the persisted mission_number_baked flag must be cleared so a
     #     subsequent --resume re-attempts the bake instead of short-circuiting
-    #     on a flag that no longer matches the reverted git state.
+    #     on a flag that no longer matches the restored git state. #5385: the
+    #     rollback authority's ``_clear_bookkeeping`` clears it after the full
+    #     restore (formerly the orphan-bake revert did).
     state = load_state(repo, mission_id=MISSION_ID)
     assert state is not None, "merge state must have been created for this run"
-    assert state.mission_number_baked is False, "mission_number_baked must be cleared once the orphan bake commit is reverted"
+    assert state.mission_number_baked is False, "mission_number_baked must be cleared once the orphan bake commit is undone"
 
     # (d) the coordination WP must remain reviewable/resumable -- no 'done'
     #     was ever recorded on this failure path (it failed BEFORE the done

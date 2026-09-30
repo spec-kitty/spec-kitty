@@ -3,11 +3,15 @@
 * T013: the snapshot is captured once at the end of the claim and every attempt
   begins with ``begin_attempt``; a missing lane branch is warned about.
 * T014: post-mutation tips are recorded by every mutating phase (before ANY exit,
-  early return or exception) and by the in-phase rollbacks.
+  early return or exception) and by the in-phase byte-restore primitive.
 * T015: ``_report_rollback`` resets THIS call's own PASS anchor before invoking
   the authority (post-tasks BLOCKER 1) while an EARLIER attempt's anchor still
   keeps a verified landing (FR-011); the resume short-circuit predicate is the
   single ``reconciliation_passed_for_tip``.
+* #5385 (single rollback door): the driver wraps the whole post-mutation span; a
+  non-zero ``typer.Exit``, any exception and an interrupt each call
+  ``_report_rollback`` exactly once and propagate unchanged, ``typer.Exit(0)``
+  passes through, and a failing rollback never replaces the original error.
 
 Real temp git repos; nothing about git is mocked (only ``console`` output capture).
 """
@@ -21,12 +25,13 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+import typer
 
 from specify_cli.consolidation import executor
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.rollback import record_post_mutation_tips
 from specify_cli.git.ref_advance import RefAdvanceError, RefRestoreError
-from specify_cli.consolidation.state import load_state
+from specify_cli.consolidation.state import get_state_path, load_state, save_state
 from tests.consolidation.test_rollback_authority import _MISSION_BRANCH, _TARGET, Env, _advance_run, _commit_on, _git, _rev, make_env
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.fast]
@@ -287,7 +292,6 @@ def _advance_run_target_only(env: Env) -> None:
         "_phase_mission_to_target",
         "_phase_record_done_and_project",
         "_phase_commit_and_assert",
-        "_rollback_to_pre_mutation_checkpoint",
         "_restore_and_guard_coord_coherence",
     ],
 )
@@ -296,16 +300,43 @@ def test_mutating_phases_and_in_phase_rollbacks_are_recorders(name: str) -> None
     assert getattr(fn, "__wrapped__", None) is not None, f"{name} must be wrapped by _records_post_mutation_tips"
 
 
-def test_restore_pre_target_if_at_baseline_records(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_restore_pre_target_if_at_baseline_moves_no_ref(tmp_path: Path) -> None:
+    """#5385: the in-phase restore is working-tree bytes + marker only; the ref undo is the door's job."""
     env = make_env(tmp_path)
     run = _begin(env)
-    run.done_marked_before_target = False
+    run.done_marked_before_target = True
     run.target_baseline_sha = _rev(env.repo, _TARGET)
-    monkeypatch.setattr(executor, "_revert_orphan_target_bake_commit", lambda r: _advance_run_target_only(env))
+    bookkeeping = env.repo / "bookkeeping.json"
+    bookkeeping.write_text("mutated\n")
+    run.pre_target_bookkeeping_snapshots = {bookkeeping: b"original\n"}
+    run.pre_target_coord_ref = None  # no coordination topology: the strand marker is a no-op
+    run.pre_target_coord_sha = None
+    tips = _live(env)
 
     executor._restore_pre_target_if_at_baseline(run)
 
-    assert env.state.post_mutation_refs == {_TARGET: _rev(env.repo, _TARGET)}
+    assert getattr(executor._restore_pre_target_if_at_baseline, "__wrapped__", None) is None, "it moves no ref, so it records none"
+    assert _live(env) == tips, "no branch may move"
+    assert bookkeeping.read_bytes() == b"original\n", "the working-tree bytes are restored"
+    assert env.state.post_mutation_refs == {}
+
+
+def test_byte_restore_of_state_json_keeps_the_recorded_post_tips_on_disk(tmp_path: Path) -> None:
+    """Post-spec squad H4: a byte restore that rewrites state.json must not erase the recorded post tips."""
+    env = make_env(tmp_path)
+    run = _begin(env)
+    run.done_marked_before_target = False
+    save_state(env.state, env.repo)
+    state_path = get_state_path(env.repo, env.state.mission_id)
+    stale_bytes = state_path.read_bytes()  # captured before this attempt recorded any post tip
+    posts = _advance_run(env)
+    recorded = load_state(env.repo, env.state.mission_id)
+    assert posts and recorded is not None and recorded.post_mutation_refs == posts
+
+    executor._restore_and_guard_coord_coherence(run, {state_path: stale_bytes})
+
+    persisted = load_state(env.repo, env.state.mission_id)
+    assert persisted is not None and persisted.post_mutation_refs == posts, "the recorder re-saves the in-memory record after the byte restore"
 
 
 # ------------------------------------------------------------------- T015
@@ -428,3 +459,155 @@ def _resolves(repo: Path, branch: str) -> bool:
 
 def test_record_post_mutation_tips_import_is_the_authority_function() -> None:
     assert executor.rollback.record_post_mutation_tips is record_post_mutation_tips
+
+
+# ------------------------------------------------------------ #5385 rollback door
+
+
+def _door_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mid8: str) -> Any:
+    from tests.terminus.lanes_fixture import build_lanes_mission
+
+    mission = build_lanes_mission(tmp_path, wps=("WP01",), target_branch="develop", mid8=mid8)
+    monkeypatch.setenv("HOME", str(mission.home))
+    monkeypatch.chdir(mission.repo)
+    return mission
+
+
+def _consolidate(mission: Any) -> None:
+    executor._run_lane_based_consolidation(mission.repo, mission.slug, push=False, delete_branch=None, remove_worktree=None, assume_yes=True)
+
+
+def _raise_after(monkeypatch: pytest.MonkeyPatch, phase: str, error: BaseException) -> None:
+    real = getattr(executor, phase)
+
+    def failing(run: Any) -> None:
+        real(run)
+        raise error
+
+    monkeypatch.setattr(executor, phase, failing)
+
+
+def _spy_report(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
+    calls: list[Any] = []
+    real = executor._report_rollback
+
+    def spy(run: Any, *, anchor_before: str | None) -> None:
+        calls.append(run)
+        real(run, anchor_before=anchor_before)
+
+    monkeypatch.setattr(executor, "_report_rollback", spy)
+    return calls
+
+
+def test_door_lets_a_zero_exit_through_without_rolling_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mission = _door_mission(tmp_path, monkeypatch, "01M5385Z")
+    target_before = _rev(mission.repo, mission.target_branch)
+    calls = _spy_report(monkeypatch)
+    zero = typer.Exit(0)
+    _raise_after(monkeypatch, "_phase_porcelain_invariant", zero)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _consolidate(mission)
+
+    assert excinfo.value is zero
+    assert calls == [], "typer.Exit(0) is not a failure: no rollback"
+    assert _rev(mission.repo, mission.target_branch) != target_before, "a zero exit keeps the landing in place"
+
+
+@pytest.mark.parametrize(
+    "make_error",
+    [lambda: typer.Exit(1), lambda: RuntimeError("planted"), lambda: KeyboardInterrupt()],
+    ids=["exit1", "runtime", "interrupt"],
+)
+def test_door_rolls_back_once_and_propagates_the_original(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, make_error: Any) -> None:
+    mission = _door_mission(tmp_path, monkeypatch, "01M5385W")
+    target_before = _rev(mission.repo, mission.target_branch)
+    calls = _spy_report(monkeypatch)
+    error = make_error()
+    _raise_after(monkeypatch, "_phase_mission_to_target", error)
+
+    with pytest.raises(type(error)) as excinfo:
+        _consolidate(mission)
+
+    assert excinfo.value is error, "the ORIGINAL exception must propagate unchanged"
+    assert len(calls) == 1, "exactly one rollback per failed attempt"
+    assert _rev(mission.repo, mission.target_branch) == target_before
+
+
+def test_door_keeps_the_original_error_when_the_authority_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    mission = _door_mission(tmp_path, monkeypatch, "01M5385A")
+    _raise_after(monkeypatch, "_phase_mission_to_target", RuntimeError("planted"))
+
+    def _boom(*_a: Any, **_k: Any) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(rollback, "rollback_to_snapshot", _boom)
+
+    with pytest.raises(RuntimeError, match="planted"):
+        _consolidate(mission)
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert "Rollback could not complete: disk full" in out
+
+
+def test_report_rollback_survives_a_failing_anchor_reset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``save_state`` failure while undoing this run's own anchor never escapes ``_report_rollback``."""
+    env = make_env(tmp_path)
+    run = _report_run(env)
+    run.state.reconciliation_passed_target_sha = "b" * 40  # differs from anchor_before -> save_state runs
+    console = MagicMock()
+    monkeypatch.setattr(executor, "console", console)
+    authority = MagicMock()
+    monkeypatch.setattr(rollback, "rollback_to_snapshot", authority)
+
+    def _unwritable(*_a: Any, **_k: Any) -> None:
+        raise OSError("read-only state dir")
+
+    monkeypatch.setattr(executor, "save_state", _unwritable)
+
+    executor._report_rollback(run, anchor_before=None)  # must not raise
+
+    printed = str(console.print.call_args_list[-1].args[0])
+    assert "Rollback could not complete" in printed and "read-only state dir" in printed
+    authority.assert_not_called()
+
+
+def test_report_rollback_survives_a_second_interrupt_during_the_rollback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A Ctrl-C while the rollback runs is reported, never raised in place of the original error."""
+    env = make_env(tmp_path)
+    run = _report_run(env)
+    console = MagicMock()
+    monkeypatch.setattr(executor, "console", console)
+
+    def _interrupted(*_a: Any, **_k: Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(rollback, "rollback_to_snapshot", _interrupted)
+
+    try:
+        executor._report_rollback(run, anchor_before=None)
+    except KeyboardInterrupt:
+        pytest.fail("a second interrupt during the rollback escaped _report_rollback and would replace the original error")
+
+    printed = str(console.print.call_args_list[-1].args[0])
+    assert "Rollback could not complete" in printed and _TARGET in printed
+
+
+def test_door_keeps_the_original_error_when_the_rollback_is_interrupted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mission = _door_mission(tmp_path, monkeypatch, "01M5385I")
+    _raise_after(monkeypatch, "_phase_mission_to_target", RuntimeError("planted"))
+
+    def _interrupted(*_a: Any, **_k: Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(rollback, "rollback_to_snapshot", _interrupted)
+
+    try:
+        with pytest.raises(RuntimeError, match="planted"):
+            _consolidate(mission)
+    except KeyboardInterrupt:
+        pytest.fail("the interrupt during the rollback replaced the original error")
+
+    assert "Rollback could not complete" in " ".join(capsys.readouterr().out.split())

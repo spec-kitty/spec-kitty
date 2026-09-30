@@ -992,6 +992,23 @@ def _apply_lane_merge_cleanup(
         )
 
 
+def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#5385: refuse, before any branch moves, a consolidation whose ``done`` bookkeeping the policy refuses.
+
+    The same up-front preflight the CLI consolidation runs
+    (:func:`~specify_cli.consolidation.preflight.refuse_protected_status_target`),
+    raised as the ``RuntimeError`` this path reports as a failure envelope. It
+    covers both the code-lane path (which would otherwise squash onto the target
+    and only then fail the ``done`` write) and the planning-artifact-only
+    closeout (whose console is captured, so its own refusal line is not seen).
+    """
+    from specify_cli.consolidation.preflight import refuse_protected_status_target
+
+    verdict = refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
+    if verdict is not None:
+        raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
+
+
 def _execute_lane_merge(
     main_repo_root: Path,
     mission_dir: Path,
@@ -1018,6 +1035,7 @@ def _execute_lane_merge(
     lanes_manifest = require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
+    _refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
 
     if is_planning_artifact_only(lanes_manifest):
         _execute_planning_only_merge(

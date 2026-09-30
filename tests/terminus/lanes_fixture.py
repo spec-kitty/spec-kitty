@@ -12,10 +12,11 @@ work unchanged.
 Two live-verified traps:
 
 * **Protected target (#5385).** A LANES ``consolidate`` whose target is a
-  protected branch such as ``main`` crashes after the squash with an uncaught
-  ``BookkeepingPolicyRefused``, leaving the target advanced. The builder
-  therefore defaults to ``develop`` but does NOT forbid ``main`` (WP05's
-  protected-``main`` claim case needs it).
+  protected branch such as ``main`` is refused up front with the policy's
+  ``PROTECTED_BRANCH_REFUSED`` before any branch moves (its ``done`` bookkeeping
+  would land on ``main``). The builder therefore defaults to ``develop`` but does
+  NOT forbid ``main`` (the #5385 repros and WP05's protected-``main`` claim case
+  need it).
 * **No ``agent:`` frontmatter (asserted).** A WP carrying ``agent:`` makes
   ``_run_birth_cutover`` seed claim events onto the target log after ``done``.
 """

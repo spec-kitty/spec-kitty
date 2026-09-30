@@ -21,6 +21,14 @@ primitives:
   resume is a strand-gated no-op leaving the committed ``status.events.jsonl``
   byte-stable (NFR-002).
 
+Re-pinned for #5385 (single rollback door): the driver now restores the
+coordination branch after the phase-level byte restore + mark, so a strand only
+survives the run when the door CANNOT restore that branch. The phase-level
+marker is observed at the failing phase's exit (``on_phase_failure``); the
+heal cases make another actor move the coordination branch before the door
+runs (``foreign_coord_commit``), the successor of the retired forced
+``git revert`` failure.
+
 The heavy coord-topology full-merge harnesses (fixture bootstrap + failure
 injection + git-reducible committed/working readers) are REUSED verbatim from
 the WP01 red-first repros so this module never re-authors them.
@@ -57,13 +65,18 @@ from tests.consolidation.test_issue_2367_bake_strand import (
     _lane_on,
     _run_bake_failing_merge,
     _working_coord_events,
+    foreign_coord_commit,
+    marker_wps,
+    on_phase_failure,
 )
+from tests.consolidation.test_issue_2367_bake_strand import MID8
+from specify_cli.consolidation import done_bookkeeping
 
 # --- Reused revert-failure (#2786) harness ----------------------------------
 # (relocated from tests/regression/ in the same landing fold)
 from tests.consolidation.test_issue_2786_revert_failure_split_brain import (
     _reduce_coord_lanes,
-    _run_merge_with_target_and_revert_failing,
+    _run_merge_with_target_failing,
 )
 from tests.consolidation.test_issue_2711_merge_rollback_resume_coherence import (
     MISSION_ID as REVERT_MISSION_ID,
@@ -105,19 +118,26 @@ def test_bake_strand_marks_specific_wp_and_excludes_coherent(tmp_path: Path) -> 
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     _bootstrap_two_wp_coord_mission(repo)
+    at_phase_exit: dict[str, dict[str, object] | None] = {}
 
-    exc, _calls = _run_bake_failing_merge(repo)
+    def observe() -> None:
+        at_phase_exit["marker"] = _marker(repo, MISSION_ID)
+
+    with on_phase_failure("_phase_bake_and_pre_target_done", observe):
+        exc, _calls = _run_bake_failing_merge(repo)
 
     # Mark-not-raise: the ORIGINAL bake fault propagated (the mark did not swallow
     # it nor raise a different error).
     assert isinstance(exc, RuntimeError), f"expected the injected bake fault; got {exc!r}"
 
-    marker = _marker(repo, MISSION_ID)
+    # #5385: observed at the bake phase's exit, before the driver's rollback door.
+    marker = at_phase_exit["marker"]
     assert marker is not None, "the bake strand must write a pending_coord_reconcile marker"
     assert marker["stranded_wp_ids"] == [STRANDED_WP], marker["stranded_wp_ids"]
     assert COHERENT_WP not in marker["stranded_wp_ids"]  # type: ignore[operator]
     assert marker["revert_error"], "the marker should carry the swallowed fault text"
     assert marker["captured_sha"], "the marker must carry the pre-bake coord tip"
+    assert marker_wps(repo) is None, "#5385: the door restored the coordination branch and cleared the marker"
 
 
 def test_bake_strand_leg_b_byte_restore_still_runs(tmp_path: Path) -> None:
@@ -130,13 +150,22 @@ def test_bake_strand_leg_b_byte_restore_still_runs(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     _bootstrap_two_wp_coord_mission(repo)
+    feature_dir = repo / "kitty-specs" / MISSION_SLUG
+    at_phase_exit: dict[str, Lane] = {}
 
-    _run_bake_failing_merge(repo)
+    def observe() -> None:
+        at_phase_exit["working"] = _lane_on(_working_coord_events(repo), STRANDED_WP)
+        at_phase_exit["committed"] = _lane_on(_committed_coord_events(repo, feature_dir), STRANDED_WP)
 
-    working_events = _working_coord_events(repo)
-    committed_events = _committed_coord_events(repo, repo / "kitty-specs" / MISSION_SLUG)
-    assert _lane_on(working_events, STRANDED_WP) == Lane.APPROVED, "leg-b restore must run"
-    assert _lane_on(committed_events, STRANDED_WP) == Lane.DONE, "the strand must exist pre-heal"
+    with on_phase_failure("_phase_bake_and_pre_target_done", observe):
+        _run_bake_failing_merge(repo)
+
+    # #5385: observed at the bake phase's exit, before the driver's rollback door.
+    assert at_phase_exit["working"] == Lane.APPROVED, "leg-b restore must run"
+    assert at_phase_exit["committed"] == Lane.DONE, "the strand must exist before the door"
+    # After the door: the coordination branch is restored, both legs agree.
+    assert _lane_on(_committed_coord_events(repo, feature_dir), STRANDED_WP) == Lane.APPROVED
+    assert _lane_on(_working_coord_events(repo), STRANDED_WP) == Lane.APPROVED
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +186,10 @@ def test_write_set_excludes_pre_existing_done_wp(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     _bootstrap_two_wp_coord_mission(repo)
-    _run_bake_failing_merge(repo)  # leaves STRANDED_WP committed done on the coord ref
+    # #5385: a failed merge no longer leaves a committed ``done`` behind (the door
+    # restores the coordination branch), so commit STRANDED_WP's ``done`` through
+    # the REAL per-WP done emit (a legitimately-done WP from an earlier merge).
+    done_bookkeeping._mark_wp_merged_done(repo, MISSION_SLUG, STRANDED_WP, "main")
 
     # STRANDED_WP is now durably done on the committed coord ref (pre-existing for
     # any subsequent merge). Build a minimal run over [STRANDED_WP, WPZZ].
@@ -220,7 +252,10 @@ def test_bake_strand_resume_heals_and_clears(tmp_path: Path) -> None:
     _init_git_repo(repo)
     _bootstrap_two_wp_coord_mission(repo)
 
-    _run_bake_failing_merge(repo)
+    # #5385: another actor moves the coordination branch before the door runs, so
+    # the door cannot restore it and the strand + marker survive for the heal.
+    with on_phase_failure("_phase_bake_and_pre_target_done", lambda: foreign_coord_commit(repo, MISSION_SLUG, MID8)):
+        _run_bake_failing_merge(repo)
     assert _marker(repo, MISSION_ID) is not None, "pass 1 must strand + mark"
 
     # Resume: the same injected fault re-raises, but the heal reconciles the strand.
@@ -246,7 +281,10 @@ def test_resume_twice_is_byte_stable(tmp_path: Path) -> None:
     _init_git_repo(repo)
     _bootstrap_two_wp_coord_mission(repo)
 
-    _run_bake_failing_merge(repo)  # pass 1: strand
+    # #5385: pass 1 strands only when the door cannot restore the coordination branch.
+    with on_phase_failure("_phase_bake_and_pre_target_done", lambda: foreign_coord_commit(repo, MISSION_SLUG, MID8)):
+        _run_bake_failing_merge(repo)  # pass 1: strand
+    assert _marker(repo, MISSION_ID) is not None, "pass 1 must strand + mark"
     _run_bake_failing_merge(repo)  # pass 2: heal
     blob_after_first_resume = _committed_status_events_blob(repo)
 
@@ -264,42 +302,32 @@ def test_resume_twice_is_byte_stable(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_revert_failure_strand_marks_and_resume_reconciles(tmp_path: Path) -> None:
-    """A #2786 swallowed-revert failure marks the strand; a resume reconciles it.
+def test_unrestorable_coordination_strand_marks_and_resume_reconciles(tmp_path: Path) -> None:
+    """The #2786 strand site's successor: the door cannot restore the coordination branch.
 
-    Exercises the OTHER strand site (the target-advance rollback whose coord
-    ``git revert`` is forced to fail), driven through the same restore primitive.
-
-    The reproduction harness forces EVERY ``git revert`` to fail — including the
-    resume heal's forward revert — so this pins the coherence CONTRACT
-    (``committed == working``: no split-brain) that survives even a permanently
-    broken revert, rather than the ``approved``-specific outcome. In production the
-    resume heal's revert runs on the cleaned worktree and lands BOTH surfaces on
-    ``approved`` (the ``approved``-clears path is pinned by the bake-strand heal
-    test above, where the revert is NOT forced to fail). Because the revert here
-    cannot apply, the marker is deliberately NOT cleared (left for the next
-    resume / ``doctor --fix``), per the strand-gated atomic-clear contract.
+    Exercises the OTHER strand site (the target-advance failure after the pre-target
+    ``done`` commit), driven through the same restore primitive. Pre-#5385 the
+    trigger was a forced ``git revert`` failure; that revert no longer exists. Now
+    another actor moves the coordination branch before the door runs, so the door
+    reports it NOT restored, the marker stays, and the resume-start heal reconciles
+    the strand (``committed == working``) and clears the marker.
     """
     repo = tmp_path / "repo"
     _init_revert_repo(repo)
     feature_dir = _bootstrap_revert_mission(repo)
 
-    _run_merge_with_target_and_revert_failing(repo)  # pass 1: swallowed revert -> strand
+    _run_merge_with_target_failing(repo, coord_moved_by_another_actor=True)  # pass 1: strand
     marker = _marker(repo, REVERT_MISSION_ID)
-    assert marker is not None, "the swallowed-revert failure must write a marker"
+    assert marker is not None, "an unrestorable coordination branch must keep the marker"
     assert marker["stranded_wp_ids"] == [REVERT_WP_ID], marker["stranded_wp_ids"]
 
-    _run_merge_with_target_and_revert_failing(repo)  # pass 2: resume heal
+    _run_merge_with_target_failing(repo, coord_moved_by_another_actor=False)  # pass 2: resume heal
     committed_lane, working_lane = _reduce_coord_lanes(repo, feature_dir)
-    assert committed_lane == working_lane, (
-        "resume must reconcile the revert-failure strand to a coherent "
-        f"committed==working; got committed={committed_lane} working={working_lane}"
+    assert committed_lane == working_lane == Lane.APPROVED, (
+        "resume must reconcile the strand to a coherent committed==working; "
+        f"got committed={committed_lane} working={working_lane}"
     )
-    # A permanently-failing revert cannot clear the strand: the marker persists so
-    # a later resume / doctor can still repair it (atomic-clear only on heal).
-    assert _marker(repo, REVERT_MISSION_ID) is not None, (
-        "a revert that could not apply must leave the marker for the next pass"
-    )
+    assert _marker(repo, REVERT_MISSION_ID) is None, "the heal clears the marker once the strand is reconciled"
 
 
 def test_resume_preserves_marker_when_coord_worktree_pruned(tmp_path: Path) -> None:

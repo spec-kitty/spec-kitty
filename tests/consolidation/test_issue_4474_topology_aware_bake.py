@@ -6,8 +6,8 @@ Defect
 composes the ``meta.json`` path *inside the detached mission-branch worktree*
 (``compose_meta_json_path(mission_tmp_path, mission_slug)``). On a coord-topology
 mission (the "083+ layout", where ``lanes_manifest.mission_branch ==
-coordination_branch`` — see ``merge/executor.py``'s
-``_capture_pre_mutation_coord_checkpoint`` docstring), that coordination branch
+coordination_branch`` — see ``consolidation/executor.py``'s
+``_CoordCheckpoint`` docstring), that coordination branch
 carries only lifecycle surfaces (status/notes/trace) — the mission's
 ``meta.json`` is a PRIMARY-partition artifact that instead lives on the
 PRIMARY checkout (``main_repo``'s own on-disk working tree; see

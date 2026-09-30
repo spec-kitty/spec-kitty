@@ -39,6 +39,7 @@ from specify_cli.coordination.status_service import (
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
+    PolicyVerdict,
     DESTINATION_REF_NOT_FOUND,
     GitChangeSet,
     PendingEventHandle,
@@ -152,6 +153,97 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Transaction
 # ---------------------------------------------------------------------------
+
+
+def _status_paths(worktree_root: Path, mission_slug: str, mid8: str) -> tuple[Path, Path, Path]:
+    """``(feature_dir, events_path, snapshot_path)`` of the mission's status files inside ``worktree_root``."""
+    feature_dir = worktree_root / KITTY_SPECS_DIR / _mission_specs_dir_name(mission_slug, mid8)
+    return feature_dir, feature_dir / _EVENTS_FILENAME, feature_dir / _SNAPSHOT_FILENAME
+
+
+def _caller_ref_refusal(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+    destination_ref: str,
+    operation: str,
+    capability: GuardCapability,
+    owned: OwnedCheckout | None = None,
+) -> Refused | None:
+    """The coordination arm's caller-ref verdict: the ``Refused`` acquire raises, else ``None``.
+
+    ``None`` when the caller's ref is allowed OR the refusal is recoverable: a
+    protected caller ref of a mission whose meta declares this coordination branch
+    is redirected there, and a missing caller ref that IS the coordination branch
+    is left for coordination-worktree resolution to report.
+    """
+    coord_branch = CoordinationWorkspace.branch_name(mission_slug, mid8)
+    caller_change_set = GitChangeSet(
+        destination_ref=destination_ref,
+        repo_root=repo_root,
+        worktree_root=repo_root,
+        paths=(),
+        message=f"<pending: {operation}>",
+        operation=operation,
+        capability=capability,
+        mission_slug=mission_slug,
+    )
+    caller_verdict = WorkflowMutationPolicy.assert_allowed(
+        caller_change_set,
+        coord_available=True,
+        owned=owned,
+    )
+    if not isinstance(caller_verdict, Refused):
+        return None
+    explicit_coord_branch = _coordination_branch_from_meta(repo_root, mission_slug, mid8)
+    can_recover_to_coord_branch = (
+        caller_verdict.error_code == PROTECTED_BRANCH_REFUSED
+        and explicit_coord_branch == coord_branch
+    )
+    allow_coord_resolution_to_report_missing_branch = (
+        caller_verdict.error_code == DESTINATION_REF_NOT_FOUND
+        and destination_ref == coord_branch
+    )
+    if can_recover_to_coord_branch or allow_coord_resolution_to_report_missing_branch:
+        return None
+    return caller_verdict
+
+
+def _preflight_policy_verdict(
+    *,
+    repo_root: Path,
+    primary_root: Path | None,
+    worktree_root: Path,
+    mission_slug: str,
+    destination_ref: str,
+    status_paths: tuple[Path, Path],
+    operation: str,
+    capability: GuardCapability,
+    owned: OwnedCheckout | None = None,
+) -> PolicyVerdict:
+    """Step 4 of acquire: the pre-flight policy gate over the would-be status commit.
+
+    The ONE implementation shared by :meth:`BookkeepingTransaction._acquire_locked`
+    and the lock-free :meth:`BookkeepingTransaction.preflight_refusal` (#5385, C-001).
+    Pure apart from the policy's read-only git/config probes.
+    """
+    from specify_cli.coordination.commit_router import (
+        mission_has_coordination_branch,
+    )
+
+    change_set = GitChangeSet(
+        destination_ref=destination_ref,
+        repo_root=owned.repository_root if owned is not None else (primary_root or repo_root),
+        worktree_root=worktree_root,
+        paths=status_paths,
+        message=f"<pending: {operation}>",
+        operation=operation,
+        capability=capability,
+        mission_slug=mission_slug,
+    )
+    coord_available = mission_has_coordination_branch(repo_root, mission_slug)
+    return WorkflowMutationPolicy.assert_allowed(change_set, coord_available=coord_available, owned=owned)
 
 
 class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
@@ -312,6 +404,82 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             raise
 
     @classmethod
+    def preflight_refusal(
+        cls,
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
+        destination_ref: str,
+        operation: str,
+        capability: GuardCapability = GuardCapability.STANDARD,
+        effective_root: Path | None = None,
+    ) -> Refused | None:
+        """The ``Refused`` :meth:`acquire` would raise as ``BookkeepingPolicyRefused``, else ``None``.
+
+        A lock-free probe (#5385): no feature-status lock, no coordination worktree
+        creation, no writes. It selects the write arm with the SAME classifiers
+        ``_acquire_locked`` uses and runs the SAME policy gate
+        (:func:`_preflight_policy_verdict`), so a caller can refuse up front
+        exactly what the real write would refuse later (C-001: no second rule).
+        ``repo_root`` / ``effective_root`` mean what they mean for :meth:`acquire`.
+
+        * coordination arm: the caller-ref verdict (:func:`_caller_ref_refusal`),
+          then the gate against the redirected coordination branch. A missing
+          coordination branch is not a POLICY refusal: :meth:`acquire` does not
+          create it, it fails closed with ``BookkeepingWorktreeMissing`` when
+          resolving the coordination worktree, before its gate runs -- so the
+          probe returns ``None`` and leaves that failure to the real write;
+        * genuinely-legacy arm: ``None`` -- its destination is the operator's
+          lane HEAD, which is not knowable before the run;
+        * modern coordination-less arm: the gate against ``destination_ref`` on
+          the primary checkout.
+        """
+        arm_root = effective_root or repo_root
+        safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
+        safe_mid8 = _validate_safe_segment("mid8", mid8)
+        effective_destination_ref = destination_ref
+        coordination_arm = not _is_legacy_mission(arm_root, safe_mission_slug, safe_mid8)
+        if not coordination_arm:
+            if _warrants_legacy_warning(arm_root, safe_mission_slug, safe_mid8):
+                return None
+            worktree_root = arm_root
+        else:
+            caller_refusal = _caller_ref_refusal(
+                repo_root=arm_root,
+                mission_slug=safe_mission_slug,
+                mid8=safe_mid8,
+                destination_ref=destination_ref,
+                operation=operation,
+                capability=capability,
+            )
+            if caller_refusal is not None:
+                return caller_refusal
+            worktree_root = CoordinationWorkspace.worktree_path(arm_root, safe_mission_slug, safe_mid8)
+            effective_destination_ref = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
+        _feature_dir, events_path, snapshot_path = _status_paths(worktree_root, safe_mission_slug, safe_mid8)
+        verdict = _preflight_policy_verdict(
+            repo_root=arm_root,
+            primary_root=repo_root if effective_root is not None else None,
+            worktree_root=worktree_root,
+            mission_slug=safe_mission_slug,
+            destination_ref=effective_destination_ref,
+            status_paths=(events_path, snapshot_path),
+            operation=operation,
+            capability=capability,
+        )
+        if not isinstance(verdict, Refused):
+            return None
+        if coordination_arm and verdict.error_code == DESTINATION_REF_NOT_FOUND:
+            # Coordination arm: ``acquire`` resolves the coordination worktree BEFORE
+            # this gate runs and, when the coordination branch is missing, fails
+            # closed there with ``BookkeepingWorktreeMissing`` (it never creates the
+            # branch). The real write never reaches a policy refusal for it, so
+            # this is not a ``Refused`` the probe may report.
+            return None
+        return verdict
+
+    @classmethod
     def _acquire_locked(
         cls,
         *,
@@ -413,33 +581,17 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 worktree_root = repo_root
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
-            caller_change_set = GitChangeSet(
-                destination_ref=effective_destination_ref,
+            caller_refusal = _caller_ref_refusal(
                 repo_root=repo_root,
-                worktree_root=repo_root,
-                paths=(),
-                message=f"<pending: {operation}>",
+                mission_slug=safe_mission_slug,
+                mid8=safe_mid8,
+                destination_ref=effective_destination_ref,
                 operation=operation,
                 capability=capability,
-                mission_slug=safe_mission_slug,
-            )
-            caller_verdict = WorkflowMutationPolicy.assert_allowed(
-                caller_change_set,
-                coord_available=True,
                 owned=owned,
             )
-            if isinstance(caller_verdict, Refused):
-                explicit_coord_branch = _coordination_branch_from_meta(
-                    repo_root,
-                    safe_mission_slug,
-                    safe_mid8,
-                )
-                can_recover_to_coord_branch = caller_verdict.error_code == PROTECTED_BRANCH_REFUSED and explicit_coord_branch == coord_branch
-                allow_coord_resolution_to_report_missing_branch = (
-                    caller_verdict.error_code == DESTINATION_REF_NOT_FOUND and effective_destination_ref == coord_branch
-                )
-                if not (can_recover_to_coord_branch or allow_coord_resolution_to_report_missing_branch):
-                    raise BookkeepingPolicyRefused(caller_verdict)
+            if caller_refusal is not None:
+                raise BookkeepingPolicyRefused(caller_refusal)
             if commit_to_primary_target:
                 # write-path-integrity WP02 / FR-001: the caller is committing a
                 # PRIMARY-partition planning artifact that MUST land on the
@@ -478,35 +630,22 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # there is no sparse-checkout policy on the lane, so the files
         # are physically present and the surgical truncate rollback
         # works against the lane worktree without modification.
-        kitty_dir_name = _mission_specs_dir_name(safe_mission_slug, safe_mid8)
-        feature_dir = worktree_root / KITTY_SPECS_DIR / kitty_dir_name
-        events_path = feature_dir / _EVENTS_FILENAME
-        snapshot_path = feature_dir / _SNAPSHOT_FILENAME
+        feature_dir, events_path, snapshot_path = _status_paths(
+            worktree_root, safe_mission_slug, safe_mid8,
+        )
 
         # 4. Build the change set and run the pre-flight policy gate.
         # This still happens before any bookkeeping write; the lock is
         # already held only to serialize first-time coord worktree setup.
-        change_set = GitChangeSet(
-            destination_ref=effective_destination_ref,
-            repo_root=owned.repository_root if owned is not None else repo_root,
+        verdict = _preflight_policy_verdict(
+            repo_root=repo_root,
+            primary_root=None,
             worktree_root=worktree_root,
-            paths=(events_path, snapshot_path),
-            message=f"<pending: {operation}>",
+            mission_slug=safe_mission_slug,
+            destination_ref=effective_destination_ref,
+            status_paths=(events_path, snapshot_path),
             operation=operation,
             capability=capability,
-            mission_slug=safe_mission_slug,
-        )
-        from specify_cli.coordination.commit_router import (
-            mission_has_coordination_branch,
-        )
-
-        coord_available = mission_has_coordination_branch(
-            repo_root,
-            safe_mission_slug,
-        )
-        verdict = WorkflowMutationPolicy.assert_allowed(
-            change_set,
-            coord_available=coord_available,
             owned=owned,
         )
         if isinstance(verdict, Refused):

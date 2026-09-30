@@ -652,10 +652,26 @@ def test_unassignable_mission_number_exits_nonzero(tmp_path: Path, capsys: pytes
 # ---------------------------------------------------------------------------
 
 
+def _main_sha(repo: Path) -> str:
+    return subprocess.run(["git", "rev-parse", "main"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _assert_restored_to_pre_run(repo: Path, meta_path: Path, pre_run_meta: bytes, pre_run_main: str) -> None:
+    """The rollback door restored ``main`` and its meta.json to the pre-run state -- never a stub."""
+    restored = meta_path.read_bytes()
+    assert restored == pre_run_meta, f"meta.json must be restored to its pre-run bytes; got {restored!r}"
+    assert len(json.loads(restored)) > 1, "a one-key stub meta.json was fabricated"
+    assert _main_sha(repo) == pre_run_main, "main must be rolled back to its pre-run tip"
+
+
 def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """If the target meta.json is absent when the number is written onto
-    the target tree, refuse (``Error:`` + exit 1) and restore the snapshots --
-    never write a one-key ``{"mission_number": N}`` stub meta.json."""
+    the target tree, refuse (``Error:`` + exit 1) and never write a one-key
+    ``{"mission_number": N}`` stub meta.json.
+
+    The refusal is a post-mutation exit, so the single rollback door (#5385)
+    restores the target to its pre-run tip: meta.json is back to its pre-run
+    bytes (not the pre-phase bytes, which already carry the baked number)."""
     from specify_cli.consolidation import executor as ex
 
     slug = "mission-4900-absent-target-meta"
@@ -666,6 +682,7 @@ def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsy
     _cut_mission_and_lane_branches(tmp_path, slug, code_relpath="src/absent_meta.py")
 
     meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
+    pre_run_meta, pre_run_main = meta_path.read_bytes(), _main_sha(tmp_path)
     real_read = ex._read_target_tree_mission_number
 
     def _delete_then_read(target_feature_dir: Path) -> int | None:
@@ -693,14 +710,15 @@ def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsy
     output = capsys.readouterr().out
     assert "Error:" in output
     assert "Assigned" not in output
-    # The restore-then-exit handler put the pre-phase bytes back: no stub.
-    assert meta_path.read_bytes() == original_bytes[0]
+    assert original_bytes, "the injected target-tree read must have run"
+    _assert_restored_to_pre_run(tmp_path, meta_path, pre_run_meta, pre_run_main)
 
 
 def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """A corrupt target meta.json surfacing ``MissionMetaReadError`` from the
-    target-tree mission_number read takes the SAME restore-then-``Exit(1)``
-    handling as the baseline record, not a raw traceback."""
+    target-tree mission_number read exits 1 with ``Error:``, not a raw traceback,
+    and the single rollback door (#5385) restores the target to its pre-run tip:
+    meta.json is back to its pre-run bytes."""
     from specify_cli.consolidation import executor as ex
 
     slug = "mission-4900-corrupt-target-meta"
@@ -711,6 +729,7 @@ def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: 
     _cut_mission_and_lane_branches(tmp_path, slug, code_relpath="src/corrupt_meta.py")
 
     meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
+    pre_run_meta, pre_run_main = meta_path.read_bytes(), _main_sha(tmp_path)
     real_read = ex._read_target_tree_mission_number
     original_bytes: list[bytes] = []
 
@@ -738,7 +757,8 @@ def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: 
     output = capsys.readouterr().out
     assert "Error:" in output
     assert "Assigned" not in output
-    assert meta_path.read_bytes() == original_bytes[0]
+    assert original_bytes, "the injected target-tree read must have run"
+    _assert_restored_to_pre_run(tmp_path, meta_path, pre_run_meta, pre_run_main)
 
 
 # ---------------------------------------------------------------------------

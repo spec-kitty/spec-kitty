@@ -51,6 +51,7 @@ from specify_cli.coordination.transaction import (
     BookkeepingTransaction,
     BookkeepingWorktreeMissing,
 )
+from specify_cli.coordination.types import Refused
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
@@ -1539,6 +1540,38 @@ def _tombstone_lane_workspace_context_on_cancel(
 
     workspace_name = worktree_dir_name(mission_slug, lane_id=lane.lane_id)
     delete_context(repo_root, workspace_name)
+
+
+def status_write_refusal(
+    request: TransitionRequest,
+    *,
+    capability: GuardCapability = GuardCapability.STANDARD,
+    operation: str | None = None,
+) -> Refused | None:
+    """The policy ``Refused`` the transactional door would raise for ``request``, else ``None``.
+
+    A pure probe (#5385): it takes the door's own entry
+    (:func:`_resolve_transaction_entry` -- identity, write target and topology
+    decision) and asks :meth:`BookkeepingTransaction.preflight_refusal` with the
+    exact acquire shape :func:`_acquire_status_transaction` uses. The
+    non-transactional fallback never consults the policy, so it yields ``None``.
+    No lock, no worktree creation, no writes.
+    """
+    mission_slug = request.mission_slug or request._legacy_mission_slug
+    if mission_slug is None or request.wp_id is None:
+        raise TypeError("status write refusal probe requires mission_slug and wp_id")
+    identity, topology_available = _resolve_transaction_entry(request, mission_slug)
+    if not topology_available:
+        return None
+    return BookkeepingTransaction.preflight_refusal(
+        repo_root=identity.primary_root or identity.repo_root,
+        mission_slug=mission_slug,
+        mid8=identity.mid8,
+        destination_ref=identity.destination_ref,
+        operation=operation or f"status transition {request.wp_id}",
+        capability=capability,
+        effective_root=identity.repo_root if identity.primary_root is not None else None,
+    )
 
 
 def emit_status_transition_transactional(

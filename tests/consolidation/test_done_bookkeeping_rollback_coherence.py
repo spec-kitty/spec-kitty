@@ -3,9 +3,10 @@
 Coherence pin (NOT red-first — see module docstring below for why): the
 post-merge backstop's durable-done reader
 (``done_bookkeeping._durable_done_wps_on_coordination_ref``) must observe
-the coordination ref AFTER WP02's pre-mutation rollback
-(``executor._rollback_to_pre_mutation_checkpoint`` /
-``_reset_coord_to_checkpoint``) has reset it — so a subsequent
+the coordination ref AFTER the rollback has reset it (since #5385 the
+driver's single rollback door, ``executor._report_rollback`` ->
+``rollback.rollback_to_snapshot``; formerly WP02's retired
+``_rollback_to_pre_mutation_checkpoint`` / ``_reset_coord_to_checkpoint``) — so a subsequent
 ``spec-kitty merge --resume`` reads committed coordination ``done`` markers
 that agree with the (rolled-back) worktree bytes, never a stranded/split
 ``done`` marker.
@@ -15,11 +16,10 @@ that agree with the (rolled-back) worktree bytes, never a stranded/split
 no cache: every call re-resolves ``resolve_placement_only(...).ref`` and
 shells out ``git show <ref>:kitty-specs/<slug>/status.events.jsonl`` fresh
 (``coordination/status_service.py::read_event_log`` /
-``EventLogReadContract.COORDINATION_BRANCH_REF``). WP02's
-``_reset_coord_to_checkpoint`` performs a **forward-reversing** ``git
-revert`` directly in the coordination worktree — which, by how ``git
-revert`` works, updates the coordination branch ref AND the coordination
-worktree's checked-out bytes in the SAME commit/lockstep. Because the
+``EventLogReadContract.COORDINATION_BRANCH_REF``). The rollback moves the
+coordination branch ref and resyncs the coordination worktree's checked-out
+bytes in lockstep (a compare-and-swap ``update-ref`` plus checkout resync
+since #5385; a forward ``git revert`` in the retired WP02 helper). Because the
 durable-done reader has no independent cache and always re-resolves the
 live ref, it structurally CANNOT observe stale post-rollback state: the very
 next call after the reset reads whatever the reset left behind. There is no

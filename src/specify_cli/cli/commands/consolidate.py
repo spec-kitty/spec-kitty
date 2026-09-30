@@ -237,6 +237,7 @@ from specify_cli.consolidation.state import (
     release_merge_lock_if_owned,
 )
 from specify_cli.consolidation.workspace import get_merge_workspace_path
+from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -704,6 +705,13 @@ def _run_real_merge(
         raise typer.Exit(1) from exc
     except (MissingLanesError, CorruptLanesError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except BookkeepingPolicyRefused as exc:
+        # #5385: a policy refusal that escapes the executor (the rollback door has
+        # already restored what the run moved) is an operator-facing refusal, not
+        # a crash -- render the policy's own code, message and remedy.
+        console.print(f"[red]Error:[/red] Bookkeeping policy refused consolidation: {exc.verdict.error_code}: {exc.verdict.message}")
+        console.print(f"  Next step: {exc.verdict.next_step}")
         raise typer.Exit(1) from exc
     except CoordinationTeardownError as exc:
         # #3926: the merge itself landed; only the coord triple did not come

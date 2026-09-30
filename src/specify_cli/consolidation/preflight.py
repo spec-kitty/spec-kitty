@@ -42,9 +42,13 @@ from specify_cli.status import REVIEWER_SELF_APPROVAL
 
 if TYPE_CHECKING:
     from specify_cli.consolidation.push_preflight import TargetBranchSyncStatus
+    from specify_cli.coordination.types import Refused
+    from specify_cli.lanes.models import LanesManifest
     from specify_cli.post_merge.review_artifact_consistency import (
         ReviewArtifactFinding,
     )
+
+_DONE_LANE = "done"
 
 _PUSH_PREFLIGHT_EXPORTS = {
     "TargetBranchRefreshStatus",
@@ -863,3 +867,78 @@ def is_pure_behind_head_lag(
     if index_ret != 0:
         return False
     return not reset_would_obstruct_untracked(repo_root, "HEAD")
+
+
+def _current_lanes_or_empty(main_repo: Path, mission_slug: str) -> dict[str, str]:
+    """``{wp_id: lane}`` reduced from the mission's status surface; ``{}`` when unreadable.
+
+    The same surface/reader the done bookkeeping and ``acceptably_canceled_wp_ids``
+    use. An unreadable surface proves no WP ``done``, so every WP counts as pending
+    (the preflight then still asks the policy -- fail toward probing, never skip).
+    """
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+    from specify_cli.status import StoreError, read_events, reduce
+
+    try:
+        snapshot = reduce(read_events(resolve_status_surface(main_repo, mission_slug).parent))
+    except (FileNotFoundError, StoreError):
+        return {}
+    return {wp_id: str(wp.get("lane", "")) for wp_id, wp in snapshot.work_packages.items() if isinstance(wp, dict)}
+
+
+def pending_done_wp_ids(
+    main_repo: Path,
+    mission_slug: str,
+    lanes_manifest: LanesManifest,
+    *,
+    excluded_canceled_wp_ids: frozenset[str],
+) -> list[str]:
+    """The lane WPs the done bookkeeping would still write, in manifest order.
+
+    Mirrors ``_record_merged_wps_done_for_merge``: canceled-with-provenance WPs are
+    skipped, and a WP whose current lane is already ``done`` writes nothing.
+    """
+    lanes = _current_lanes_or_empty(main_repo, mission_slug)
+    return [wp_id for lane in lanes_manifest.lanes for wp_id in lane.wp_ids if wp_id not in excluded_canceled_wp_ids and lanes.get(wp_id) != _DONE_LANE]
+
+
+def refuse_protected_status_target(
+    main_repo: Path,
+    mission_slug: str,
+    lanes_manifest: LanesManifest,
+    *,
+    excluded_canceled_wp_ids: frozenset[str] | None = None,
+) -> Refused | None:
+    """The workflow-policy refusal the consolidation's ``done`` bookkeeping would hit, else ``None``.
+
+    #5385: a LANES (or mission-branch-less single_branch) mission whose recorded
+    target is protected used to squash onto the target and only then fail its
+    ``done`` write. This probes that write BEFORE anything moves, through the
+    transactional status door's own entry and the transaction's own policy gate
+    (:func:`~specify_cli.coordination.status_transition.status_write_refusal`,
+    C-001: no second protection rule). The request has the shape
+    ``done_bookkeeping._mark_wp_merged_done`` builds; the write target is the
+    mission's RECORDED target (meta), never ``--target``.
+
+    ``None`` when no ``done`` write is pending (an all-done resume writes nothing).
+    ``excluded_canceled_wp_ids`` defaults to ``acceptably_canceled_wp_ids``.
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
+    from specify_cli.coordination.status_transition import status_write_refusal
+    from specify_cli.status import TransitionRequest
+
+    if excluded_canceled_wp_ids is None:
+        excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo, mission_slug))
+    pending = pending_done_wp_ids(main_repo, mission_slug, lanes_manifest, excluded_canceled_wp_ids=excluded_canceled_wp_ids)
+    if not pending:
+        return None
+    request = TransitionRequest(
+        feature_dir=placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK),
+        mission_slug=mission_slug,
+        wp_id=pending[0],
+        to_lane="done",
+        actor="merge",
+        repo_root=main_repo,
+    )
+    return status_write_refusal(request)

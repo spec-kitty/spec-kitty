@@ -429,66 +429,83 @@ def test_merge_with_coord_worktree_completes_unattended(tmp_path: Path) -> None:
     assert baked["mission_number"] == 1, "mission-number baking did not land on target"
 
 
-def test_final_bookkeeping_commit_failure_restores_uncommitted_surfaces(
+def _pre_run_tips(repo: Path) -> dict[str, str]:
+    return {"main": _rev_parse(repo, "main"), COORD_BRANCH: _rev_parse(repo, COORD_BRANCH)}
+
+
+def _assert_failed_run_restored_the_snapshot(repo: Path, feature_dir: Path, pre_run: dict[str, str]) -> None:
+    """#5385 contract after a post-mutation failure: every movable branch is back at its pre-run tip."""
+    assert _pre_run_tips(repo) == pre_run, "the single rollback door must restore main and the coordination branch"
+
+    committed_events = _git(repo, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.events.jsonl").stdout.encode()
+    assert (feature_dir / "status.events.jsonl").read_bytes() == committed_events
+    # The pre-run snapshot never committed a primary status.json, and none is left behind.
+    assert not _file_on_branch(repo, "HEAD", f"kitty-specs/{MISSION_SLUG}/status.json")
+    assert not (feature_dir / "status.json").exists()
+    committed_meta = json.loads(_git(repo, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/meta.json").stdout)
+    assert json.loads((feature_dir / "meta.json").read_text(encoding="utf-8")) == committed_meta
+    assert "baseline_merge_commit" not in committed_meta
+    assert _git(repo, "status", "--porcelain", "--", f"kitty-specs/{MISSION_SLUG}").stdout == ""
+
+    coord_committed = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_SLUG}/status.events.jsonl").stdout
+    assert '"to_lane": "done"' not in coord_committed, "no committed coordination done may survive the rollback"
+    assert _porcelain(_coord_worktree(repo)) == "", "the restored coordination worktree is resynced clean"
+
+    from specify_cli.consolidation.state import load_state
+
+    state = load_state(repo, MISSION_ID)
+    assert state is not None, "a rolled-back run keeps its record for the resume"
+    assert state.completed_wps == [], "the kept record claims no completed WP"
+
+
+def _assert_rerun_reaches_done(repo: Path) -> None:
+    """After removing the cause, the kept record resumes from the snapshot and reaches ``done``."""
+    with _merge_external_mocks():
+        _run_merge(repo)
+    for relpath in _LANE_FILES.values():
+        assert _file_on_branch(repo, "main", relpath), f"lane code {relpath} did not reach the target branch"
+    coord_committed = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_SLUG}/status.events.jsonl").stdout
+    for wp_id in _WP_IDS:
+        assert any(
+            json.loads(line).get("wp_id") == wp_id and json.loads(line).get("to_lane") == "done" for line in coord_committed.splitlines() if line.strip()
+        ), f"{wp_id} must reach done on the coordination branch after the re-run"
+
+
+def test_final_bookkeeping_commit_failure_rolls_back_to_the_snapshot_and_resumes(
     tmp_path: Path,
 ) -> None:
-    """Final target bookkeeping failure must not leave dirty done/baseline state."""
+    """A final bookkeeping commit failure restores every movable branch; a re-run reaches done.
+
+    History: the pre-#5385 contract kept the committed coordination ``done`` and
+    ``completed_wps`` after this failure; the single rollback door now restores
+    the snapshot (DM-01M3RCRDBS2RKWVVZH07AZ1B4M) and a resume re-runs from it.
+    """
     _init_git_repo(tmp_path)
     feature_dir = _bootstrap_coord_mission(tmp_path)
-    coord_feature_dir = _coord_worktree(tmp_path) / "kitty-specs" / MISSION_SLUG
-
-    primary_events = feature_dir / "status.events.jsonl"
-    primary_status = feature_dir / "status.json"
-    primary_meta = feature_dir / "meta.json"
-    coord_events = coord_feature_dir / "status.events.jsonl"
-    coord_status = coord_feature_dir / "status.json"
+    pre_run = _pre_run_tips(tmp_path)
 
     with _merge_external_mocks() as mocks:
         mocks["safe_commit"].side_effect = RuntimeError("final bookkeeping refused")
         with pytest.raises(RuntimeError, match="final bookkeeping refused"):
             _run_merge(tmp_path)
 
-    committed_events = _git(
-        tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.events.jsonl"
-    ).stdout.encode()
-    committed_status = _git(
-        tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.json"
-    ).stdout.encode()
-    committed_meta = json.loads(
-        _git(tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/meta.json").stdout
-    )
-
-    assert primary_events.read_bytes() == committed_events
-    assert primary_status.read_bytes() == committed_status
-    assert json.loads(primary_meta.read_text(encoding="utf-8")) == committed_meta
-    assert "baseline_merge_commit" not in committed_meta
-    assert b'"to_lane": "done"' in coord_events.read_bytes()
-    assert coord_status.exists()
-    assert _git(_coord_worktree(tmp_path), "status", "--porcelain").stdout == ""
-
-    from specify_cli.consolidation.state import load_state
-
-    state = load_state(tmp_path, MISSION_ID)
-    assert state is not None
-    assert state.completed_wps == list(_WP_IDS)
-    assert _git(
-        tmp_path, "status", "--porcelain", "--", f"kitty-specs/{MISSION_SLUG}"
-    ).stdout == ""
+    _assert_failed_run_restored_the_snapshot(tmp_path, feature_dir, pre_run)
+    _assert_rerun_reaches_done(tmp_path)
 
 
-def test_post_target_invariant_failure_keeps_coord_resume_state_truthful(
+def test_post_target_invariant_failure_rolls_back_to_the_snapshot_and_resumes(
     tmp_path: Path,
 ) -> None:
-    """After target advances, rollback must not rewind committed coord done state."""
+    """A post-merge invariant failure restores every movable branch; a re-run reaches done.
+
+    History: the pre-#5385 contract kept the committed coordination ``done`` so the
+    resume stayed truthful; the single rollback door now restores the snapshot
+    (DM-01M3RCRDBS2RKWVVZH07AZ1B4M), the record claims nothing, and a resume
+    re-runs from the snapshot.
+    """
     _init_git_repo(tmp_path)
     feature_dir = _bootstrap_coord_mission(tmp_path)
-    coord_feature_dir = _coord_worktree(tmp_path) / "kitty-specs" / MISSION_SLUG
-
-    primary_events = feature_dir / "status.events.jsonl"
-    primary_status = feature_dir / "status.json"
-    primary_meta = feature_dir / "meta.json"
-    coord_events = coord_feature_dir / "status.events.jsonl"
-    coord_status = coord_feature_dir / "status.json"
+    pre_run = _pre_run_tips(tmp_path)
 
     with _merge_external_mocks() as mocks:
         mocks["porcelain"].return_value = ([StatusEntry(xy=" M", path=GitPath.parse("src/unexpected.py"))], 0)
@@ -496,29 +513,8 @@ def test_post_target_invariant_failure_keeps_coord_resume_state_truthful(
             _run_merge(tmp_path)
         mocks["safe_commit"].assert_not_called()
 
-    committed_events = _git(
-        tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.events.jsonl"
-    ).stdout.encode()
-    committed_status = _git(
-        tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/status.json"
-    ).stdout.encode()
-    committed_meta = json.loads(
-        _git(tmp_path, "show", f"HEAD:kitty-specs/{MISSION_SLUG}/meta.json").stdout
-    )
-
-    assert primary_events.read_bytes() == committed_events
-    assert primary_status.read_bytes() == committed_status
-    assert json.loads(primary_meta.read_text(encoding="utf-8")) == committed_meta
-    assert "baseline_merge_commit" not in committed_meta
-    assert b'"to_lane": "done"' in coord_events.read_bytes()
-    assert coord_status.exists()
-    assert _git(_coord_worktree(tmp_path), "status", "--porcelain").stdout == ""
-
-    from specify_cli.consolidation.state import load_state
-
-    state = load_state(tmp_path, MISSION_ID)
-    assert state is not None
-    assert state.completed_wps == list(_WP_IDS)
+    _assert_failed_run_restored_the_snapshot(tmp_path, feature_dir, pre_run)
+    _assert_rerun_reaches_done(tmp_path)
 
 
 # ---------------------------------------------------------------------------

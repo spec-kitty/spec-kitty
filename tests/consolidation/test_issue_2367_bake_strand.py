@@ -1,5 +1,13 @@
 """Scope: #2367 Mechanism B — the merge coord write-set is not atomic (permanent guard; #2367-B FIXED).
 
+**Contract since #5385 (single rollback door).** A bake-mid-write-set failure
+still byte-restores the coordination worktree and writes the strand marker
+INSIDE the phase (observed here at the phase's exit, before the driver's door
+runs); the door then CAS-restores the coordination branch to its pre-run
+snapshot, so no strand survives the run and the marker is cleared. The pre-#5385
+contract left the committed ``done`` stranded for a ``--resume`` heal; the
+history below describes that earlier contract.
+
 **Landing note (2026-08, `tests/regression/` campsite clean).** Relocated
 from `tests/regression/` to `tests/merge/` — its functional home alongside
 the other merge-executor / coordination-rollback tests — now that Mechanism B
@@ -82,7 +90,7 @@ from __future__ import annotations
 
 import contextlib
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import cast
@@ -95,6 +103,8 @@ import pytest
 import specify_cli.status  # noqa: F401  # import-order guard
 
 import specify_cli.consolidation.done_bookkeeping as done_bookkeeping
+from specify_cli.consolidation import executor
+from specify_cli.consolidation.state import load_state
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.coordination.status_service import (
     EventLogReadContract,
@@ -334,6 +344,49 @@ def _run_bake_failing_merge(repo: Path) -> tuple[BaseException, list[str]]:
     )
 
 
+@contextlib.contextmanager
+def on_phase_failure(phase_name: str, action: Callable[[], object]) -> Iterator[None]:
+    """Run *action* when the REAL executor phase raises, before the driver's rollback door runs.
+
+    #5385: the driver wraps the whole post-mutation span in one rollback door, so
+    the phase-level outcome (byte restore + strand marker) is only observable at
+    the phase's own exit. The wrapper calls the real phase unchanged and re-raises
+    its original exception after *action*.
+    """
+    real = getattr(executor, phase_name)
+
+    def observed(run: object) -> None:
+        try:
+            real(run)
+        except BaseException:
+            action()
+            raise
+
+    with patch.object(executor, phase_name, observed):
+        yield
+
+
+def foreign_coord_commit(repo: Path, mission_slug: str, mid8: str) -> str:
+    """Another actor commits an unrelated file on the coordination branch (through its worktree).
+
+    The rollback authority never restores over a commit it did not record, so the
+    coordination branch is then reported NOT restored and the strand marker stays
+    for the resume-start heal (the #5385 successor of a failing ``git revert``).
+    """
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)
+    (coord_worktree / "FOREIGN.md").write_text("another actor\n", encoding="utf-8")
+    _git(coord_worktree, "add", "FOREIGN.md")
+    _git(coord_worktree, "commit", "-m", "another actor's commit")
+    return _git(coord_worktree, "rev-parse", "HEAD").stdout.strip()
+
+
+def marker_wps(repo: Path) -> list[str] | None:
+    """``stranded_wp_ids`` of the persisted ``pending_coord_reconcile`` marker (``None`` if absent)."""
+    state = load_state(repo, MISSION_ID)
+    marker = state.pending_coord_reconcile if state is not None else None
+    return [str(wp) for wp in marker["stranded_wp_ids"]] if marker else None
+
+
 def _committed_coord_events(repo: Path, feature_dir: Path) -> list[StatusEvent]:
     """Reduce the events COMMITTED to the coordination branch (contract-routed).
 
@@ -374,115 +427,58 @@ def _lane_on(events: list[StatusEvent], wp_id: str) -> Lane:
 
 
 # ---------------------------------------------------------------------------
-# US1-S3 / US3-S1 / FR-002 / FR-003 / SC-001 / SC-007 — bake-mid-write-set strand
-# (RED on the mission base)
+# #2367-B under the #5385 single rollback door
 # ---------------------------------------------------------------------------
 
 
-def test_bake_mid_write_set_failure_strands_committed_done(tmp_path: Path) -> None:
-    """#2367 Mechanism B / FR-003 (RED): a failure INSIDE
-    ``_record_merged_wps_done_for_merge`` after ≥1 committed ``done`` strands that
-    WP's committed coordination ``done`` against the byte-restored working
-    ``approved`` (the ``executor.py:406-408`` byte-restore-without-revert branch),
-    and a ``spec-kitty merge --resume`` heal does NOT reconcile it.
+def test_bake_mid_write_set_failure_is_restored_by_the_rollback_door(tmp_path: Path) -> None:
+    """#2367-B / #5385: the phase strands + marks, the door restores; no strand survives.
 
-    Committed-ref split-brain contract (FR-002 / SC-007). The stranded set is
-    reduced from the COMMITTED coordination ref via
-    ``_durable_done_wps_on_coordination_ref`` over THIS merge's write-set — it must
-    name EXACTLY the stranded WP (the coherent, only-ever-``approved`` WP
-    excluded), falsifying both a hardcoded ``["WP01"]`` and an over-broad
-    ``all_wp_ids``. After the heal, ``committed_lane == working_lane`` for the
-    stranded WP is RED on the mission base because the resume no-ops the strand;
-    the unified #2786/#2367-B fix (mark-not-raise at ≈406-408 + strand-gated
-    ``git revert`` heal on ``--resume``) flips it GREEN.
+    History: pre-#5385 this test pinned the strand SURVIVING the run and a
+    ``--resume`` heal reconciling it. The single rollback door now restores the
+    coordination branch to its pre-run snapshot, so the contract is:
 
-    Git-reducible reds only: no ``pending_coord_reconcile`` / doctor surface is
-    referenced (they do not exist on the base — asserting them reds with
-    ``AttributeError`` = forbidden setup-red per ADR 2026-07-17-1).
+    * at the bake phase's exit (before the door) the committed coordination ref
+      strands EXACTLY the WP whose ``done`` committed before the abort, the working
+      tree is byte-restored to ``approved`` and the marker names that WP (the
+      phase-level guard still runs -- non-vacuity);
+    * after the run the coordination branch is back at its pre-run SHA, nothing is
+      stranded, the marker and ``completed_wps`` are cleared;
+    * a later resume is coherent (``committed == working == approved``).
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     feature_dir = _bootstrap_two_wp_coord_mission(repo)
+    pre_run_coord = _git(repo, "rev-parse", COORD_BRANCH).stdout.strip()
+    at_phase_exit: dict[str, object] = {}
 
-    exc, calls = _run_bake_failing_merge(repo)
+    def observe() -> None:
+        at_phase_exit["stranded"] = _durable_done_wps_on_coordination_ref(
+            repo_root=repo, mission_slug=MISSION_SLUG, candidate_wps=[STRANDED_WP, COHERENT_WP]
+        )
+        at_phase_exit["working"] = _lane_on(_working_coord_events(repo), STRANDED_WP)
+        at_phase_exit["marker"] = marker_wps(repo)
 
-    # Non-vacuity witness A: the failure fired INSIDE the bake loop (the 2nd WP
-    # emit), AFTER the 1st WP's ``done`` was marked — i.e. the ``executor.py:406-408``
-    # byte-restore-without-revert branch, NOT a target-advance/squash-conflict
-    # rollback (those are revert-covered and would repro vacuously green).
-    assert isinstance(exc, RuntimeError) and _INJECTED_BAKE_FAILURE in str(exc), (
-        "precondition: the merge must fail via the injected bake-mid-write-set "
-        f"fault (RuntimeError, inside _record_merged_wps_done_for_merge); got {exc!r}"
-    )
-    assert calls == [STRANDED_WP, COHERENT_WP], (
-        "precondition: the bake loop must mark the stranded WP (committing its "
-        "``done``) BEFORE the injected failure on the coherent WP — proving ≥1 "
-        f"committed ``done`` preceded the abort; got mark order {calls}"
-    )
+    with on_phase_failure("_phase_bake_and_pre_target_done", observe):
+        exc, calls = _run_bake_failing_merge(repo)
 
-    committed_events = _committed_coord_events(repo, feature_dir)
-    working_events = _working_coord_events(repo)
-
-    # Preconditions: the working tree byte-restored BOTH WPs to ``approved`` (the
-    # byte-restore leg runs), and the coherent WP was never marked anywhere.
-    assert _lane_on(working_events, STRANDED_WP) == Lane.APPROVED, (
-        "precondition: the byte-restored working tree should reduce the stranded "
-        f"WP to ``approved``; got {_lane_on(working_events, STRANDED_WP)}"
-    )
-    assert _lane_on(committed_events, COHERENT_WP) == Lane.APPROVED, (
-        "precondition: the coherent WP is only ever ``approved`` (never marked), "
-        f"so it is NOT stranded; got committed {_lane_on(committed_events, COHERENT_WP)}"
+    assert isinstance(exc, RuntimeError) and _INJECTED_BAKE_FAILURE in str(exc), f"the ORIGINAL bake fault must propagate; got {exc!r}"
+    assert calls == [STRANDED_WP, COHERENT_WP], f"the failure must fire mid write-set; got mark order {calls}"
+    assert at_phase_exit == {"stranded": {STRANDED_WP}, "working": Lane.APPROVED, "marker": [STRANDED_WP]}, (
+        f"phase-level guard (before the door): strand of exactly the stranded WP, byte-restored working tree, marker; got {at_phase_exit}"
     )
 
-    # Pre-heal WITNESS (the strand exists + names exactly the stranded WP): the
-    # committed coordination ref carries the 1st WP's ``done`` while the working
-    # tree rolled back to ``approved``. Reduced from the COMMITTED ref (git-
-    # reducible authority; NOT a worktree diff — empty at the mark point per
-    # data-model D7). GREEN on base AND after mark-not-raise (deliberate pre-repair
-    # strand); the coherent WP is EXCLUDED (SC-007 non-fakeability).
-    stranded = _durable_done_wps_on_coordination_ref(
-        repo_root=repo,
-        mission_slug=MISSION_SLUG,
-        candidate_wps=[STRANDED_WP, COHERENT_WP],
-    )
-    assert stranded == {STRANDED_WP}, (
-        "precondition: the committed coordination ref must strand EXACTLY the WP "
-        "whose ``done`` committed before the abort (the coherent, only-ever-"
-        "``approved`` WP excluded) — this is the contract the fix's marker "
-        f"``stranded_wp_ids`` must satisfy; got {stranded}"
-    )
+    assert _git(repo, "rev-parse", COORD_BRANCH).stdout.strip() == pre_run_coord, "#5385: the door must restore the coordination branch"
+    assert _durable_done_wps_on_coordination_ref(repo_root=repo, mission_slug=MISSION_SLUG, candidate_wps=[STRANDED_WP, COHERENT_WP]) == set()
+    assert _lane_on(_committed_coord_events(repo, feature_dir), STRANDED_WP) == Lane.APPROVED
+    assert _lane_on(_working_coord_events(repo), STRANDED_WP) == Lane.APPROVED
+    assert marker_wps(repo) is None, "a full restore clears the strand marker"
+    state = load_state(repo, MISSION_ID)
+    assert state is not None and state.completed_wps == [], "the kept record claims nothing after a full restore"
 
-    # Heal step — ``spec-kitty merge --resume``. On the mission base no coherence
-    # repair entry exists (it lands in WP03), so the resume re-drives the same
-    # failing bake loop: the injected fault re-raises and is caught, proving the
-    # resume RAN into the bake write-set (not an AttributeError/infra early-abort).
-    # The strand is left in place — the heal no-ops today.
     resume_exc, _resume_calls = _run_bake_failing_merge(repo)
-    assert isinstance(resume_exc, RuntimeError) and _INJECTED_BAKE_FAILURE in str(
-        resume_exc
-    ), (
-        "the ``merge --resume`` heal step must RUN through to the injected "
-        "bake-mid-write-set fault (proving the resume reached the coord write-set, "
-        f"not an infra/AttributeError early-abort); got {resume_exc!r}"
-    )
-
+    assert isinstance(resume_exc, RuntimeError) and _INJECTED_BAKE_FAILURE in str(resume_exc), f"the resume must reach the bake again; got {resume_exc!r}"
     committed_lane = _lane_on(_committed_coord_events(repo, feature_dir), STRANDED_WP)
     working_lane = _lane_on(_working_coord_events(repo), STRANDED_WP)
-
-    # Coherence CONTRACT (RED on base, SC-001/US1-S3): after the heal the committed
-    # coordination reduction and the working-tree reduction of the stranded WP must
-    # AGREE. On the mission base they disagree because the bake failure branch
-    # byte-restored working bytes WITHOUT reverting the committed ``done``, and
-    # ``merge --resume`` did not reconcile it. The unified #2786/#2367-B fix
-    # (mark-not-raise + strand-gated ``git revert`` heal) flips this GREEN.
-    assert committed_lane == working_lane, (
-        "#2367-B bake-mid-write-set split-brain (post-heal): a failure inside "
-        "_record_merged_wps_done_for_merge left the 1st WP's committed "
-        "coordination ``done`` stranded (executor.py:406-408 byte-restore-without-"
-        "revert) and ``merge --resume`` did NOT reconcile it.\n"
-        f"  committed coord ref (git-tracked): {committed_lane}\n"
-        f"  byte-restored working tree:        {working_lane}\n"
-        "The merge coord write-set must roll back atomically (revert or "
-        "mark-and-heal) so an aborted multi-WP bake leaves no committed/working "
-        "split-brain (#2367 Mechanism B)."
-    )
+    assert committed_lane == working_lane == Lane.APPROVED, f"a later resume must stay coherent; committed={committed_lane} working={working_lane}"
+    assert _git(repo, "rev-parse", COORD_BRANCH).stdout.strip() == pre_run_coord
