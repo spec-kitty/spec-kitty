@@ -89,10 +89,15 @@ For non-obvious runtime behaviour an operator may encounter:
 │                                                        validating.           │
 │                                                        [default:             │
 │                                                        no-normalize-encodin… │
-│ --owned-checkout                                 PATH  Explicit owned        │
-│                                                        checkout for a        │
-│                                                        single-branch         │
-│                                                        mission.              │
+│ --owned-checkout                                 PATH  Run against an owned  │
+│                                                        checkout: a linked    │
+│                                                        checkout that owns    │
+│                                                        this mission. Refuses │
+│                                                        the repository root   │
+│                                                        checkout, lane        │
+│                                                        worktrees and         │
+│                                                        coordination          │
+│                                                        worktrees.            │
 │ --merge-commit                                   SHA   With --mode pr:       │
 │                                                        record this PR merge  │
 │                                                        commit as the         │
@@ -1329,6 +1334,32 @@ _Charter pack management commands._
 │                                                            mission still     │
 │                                                            refuses before    │
 │                                                            any mutation.     │
+│ --attest-cancele…                         TEXT             Operator          │
+│                                                            attestation       │
+│                                                            (repeatable, one  │
+│                                                            WP id each): the  │
+│                                                            named canceled    │
+│                                                            WP's content is   │
+│                                                            absent or         │
+│                                                            superseded,       │
+│                                                            verified by hand. │
+│                                                            Lifts a           │
+│                                                            mixed-lane REFUSE │
+│                                                            whose attribution │
+│                                                            evidence can      │
+│                                                            never appear      │
+│                                                            later; never      │
+│                                                            lifts a FAIL.     │
+│                                                            Requires          │
+│                                                            --attest-reason;  │
+│                                                            recorded durably  │
+│                                                            in the status     │
+│                                                            event log.        │
+│ --attest-reason                           TEXT             What you checked, │
+│                                                            recorded with     │
+│                                                            --attest-cancele… │
+│                                                            (required with    │
+│                                                            it).              │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1643,7 +1674,7 @@ _Project health diagnostics_
 │                         authoritative                                        │
 │                         ``DecisionPointOpened``/``DecisionPointResolved``    │
 │                         event log                                            │
-│                         (FR-004/FR-005).                                     │
+│                         (#4919).                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1837,13 +1868,13 @@ _Project health diagnostics_
 
  Diagnose or repair divergence between ``decisions/index.json`` and the
  authoritative ``DecisionPointOpened``/``DecisionPointResolved`` event log
- (FR-004/FR-005; #4919 FR-001—FR-004).
+ (#4919).
 
  Diagnose (default): read-only; reports decisions present in the event
  log but missing from the index, index entries with no backing event, a
  decision_id whose event group cannot be folded at all (e.g. an
  ``open -> open`` corruption), and an index entry whose status disagrees
- with the folded log (a stale entry). Always exits 0 (report only) — C-007.
+ with the folded log (a stale entry). Always exits 0 (report only).
 
  ``--repair``: rebuilds ``index.json`` from the log via the single
  canonical ``event -> IndexEntry`` fold
@@ -1856,7 +1887,7 @@ _Project health diagnostics_
  of which one the (git-merge-driver-resorted) log lists first (#4919).
  When a decision cannot be reconciled, ``--repair`` leaves it unchanged
  (never drops it), names it in the report, and the command then exits
- **1** — C-007. It exits 0 only when every decision the repair touched
+ **1**. It exits 0 only when every decision the repair touched
  folds cleanly.
 
  Run ``--repair`` as an offline maintenance step, not concurrently with
@@ -4593,8 +4624,10 @@ _Turn live drain ON for one scope. Live drain (moments/presence/capability/relay
 │ --json                          Output JSON decision only                    │
 │ --answer                  TEXT  Answer to a pending decision                 │
 │ --decision-id             TEXT  Decision ID (required if multiple pending)   │
-│ --owned-checkout          PATH  Explicit checkout root owned by this         │
-│                                 invocation                                   │
+│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
+│                                 checkout that owns this mission. Refuses the │
+│                                 repository root checkout, lane worktrees and │
+│                                 coordination worktrees.                      │
 │ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -5307,8 +5340,8 @@ _Manage invocation records._
 │ *  --invocation-id  -i      TEXT  Invocation ULID to close [required]        │
 │ *  --outcome                TEXT  done | failed | abandoned [required]       │
 │    --evidence               TEXT  Path to evidence file (Tier 2 promotion)   │
-│    --artifact               TEXT  Path (repo-relative or absolute) of an     │
-│                                   artifact produced by this invocation.      │
+│    --artifact               TEXT  Path (repo-relative or absolute) or URL of │
+│                                   an artifact produced by this invocation.   │
 │                                   Repeatable.                                │
 │    --commit                 TEXT  Git commit SHA most directly produced by   │
 │                                   this invocation. Singular.                 │
@@ -5673,7 +5706,10 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │                                    post-commit ff-advance (WP09 / FR-010).   │
 │                                    Optional.                                 │
 │    --json                          Output JSON.                              │
-│    --owned-checkout          PATH  Explicit single-branch checkout root.     │
+│    --owned-checkout          PATH  Run against an owned checkout: a linked   │
+│                                    checkout that owns this mission. Refuses  │
+│                                    the repository root checkout, lane        │
+│                                    worktrees and coordination worktrees.     │
 │    --help            -h            Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
