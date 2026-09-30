@@ -55,7 +55,9 @@ from __future__ import annotations
 
 import logging
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
 
 from charter.activation.charter_yaml_io import read_catalog_field
 
@@ -80,6 +82,46 @@ _REFERENCES_PARITY_CAUSE_NAME = SYNTHESIZED_DRG_LAYER
 _GENERATE_TIMEOUT_SECS = 30.0
 
 _GENERATE_CMD_PREFIX: tuple[str, ...] = ("spec-kitty", "charter", "generate")
+
+
+@dataclass(frozen=True)
+class ReferencesRefreshOutcome:
+    """Outcome of one targeted ``generate`` invocation (T017, WP04 auto-refresh
+    swallow fold-in, #5257).
+
+    Replaces the bare ``bool`` :func:`refresh_references_if_needed` used to
+    return -- that shape could only say "was a targeted generate attempted",
+    never "did it actually succeed", which is exactly what let a genuine
+    ``generate`` failure at this call site be logged-and-swallowed into an
+    unconditional success report. This is an internal signature widening
+    confined to this module and its one in-repo caller
+    (``preflight.runner``) -- not a change to any documented/public contract.
+
+    Attributes:
+        attempted: ``True`` iff *cause* named the references-parity layer
+            and a targeted ``generate`` subprocess was actually spawned.
+            ``False`` for a true no-op (non-references-parity cause).
+        succeeded: ``True`` iff the subprocess exited 0. Always ``False``
+            when ``attempted`` is ``False``.
+        detail: A short excerpt naming why the targeted ``generate`` failed
+            (see :func:`_extract_failure_detail`) when ``attempted and not
+            succeeded``; ``None`` otherwise.
+
+    A plain object is always truthy, so a caller that wrote ``if
+    refresh_references_if_needed(...):`` instead of checking ``.attempted``/
+    ``.succeeded`` explicitly would silently read a not-attempted (or even a
+    failed) outcome as success -- precisely the silent-success defect class
+    this fold-in exists to close. ``__bool__`` refuses that coercion outright
+    rather than relying on every present and future caller remembering to
+    check the named fields.
+    """
+
+    attempted: bool
+    succeeded: bool
+    detail: str | None
+
+    def __bool__(self) -> NoReturn:
+        raise TypeError("ReferencesRefreshOutcome has no truth value -- check .attempted/.succeeded explicitly")
 
 
 def is_references_parity_cause(cause: str) -> bool:
@@ -142,37 +184,59 @@ def _build_generate_command(repo_root: Path) -> list[str]:
     return cmd
 
 
-def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
+def _extract_failure_detail(completed: subprocess.CompletedProcess[str]) -> str:
+    """Short excerpt naming why the targeted ``generate`` failed.
+
+    The last non-empty ``stderr`` line, or the last non-empty ``stdout``
+    line when ``stderr`` is empty -- mirrors
+    ``preflight.runner._run_refresh_step``'s existing stderr-first/stdout-
+    fallback extraction for the OTHER refresh-sequence steps, so this
+    step's failure detail reads the same way in ``blocked_reason``.
+    """
+    for stream in (completed.stderr, completed.stdout):
+        if not stream:
+            continue
+        lines = [line for line in stream.splitlines() if line.strip()]
+        if lines:
+            return lines[-1]
+    return f"generate exited {completed.returncode} with no captured output"
+
+
+def refresh_references_if_needed(repo_root: Path, cause: str) -> ReferencesRefreshOutcome:
     """Recompile ``charter.yaml``'s references catalog for references-parity drift.
 
-    No-op (returns ``False``, no subprocess spawned) unless
+    True no-op (``ReferencesRefreshOutcome(attempted=False, succeeded=False,
+    detail=None)``, no subprocess spawned) unless
     :func:`is_references_parity_cause` accepts *cause*. When it does, runs a
-    targeted ``spec-kitty charter generate`` against *repo_root* and returns
-    ``True`` regardless of the subprocess's outcome.
+    targeted ``spec-kitty charter generate`` against *repo_root* and reports
+    the subprocess's actual outcome -- this is the T017 fix (WP04
+    auto-refresh swallow fold-in, #5257): the previous ``bool`` return only
+    ever reported ``True`` ("attempted"), discarding the subprocess's
+    ``CompletedProcess`` entirely and letting a genuine ``generate`` failure
+    sail through as an unqualified success.
 
-    Never raises. This hook fires AFTER the boundary heal's own
-    sync/synthesize/validate sequence has already succeeded (see
-    ``preflight.runner._attempt_auto_refresh``); the runner's own
-    post-refresh freshness recompute is what determines the reported
-    ``passed`` outcome, so a failed ``generate`` here is logged and
-    swallowed rather than escalated — matching this whole package's "MUST
-    NOT raise on filesystem or subprocess errors" contract
-    (``preflight.runner`` module docstring).
+    Never raises: an ``OSError``/``TimeoutExpired`` spawning the subprocess
+    is reported as ``attempted=True, succeeded=False`` (the same failure
+    shape as a non-zero exit) rather than propagated — matching this whole
+    package's "MUST NOT raise on filesystem or subprocess errors" contract
+    (``preflight.runner`` module docstring). Callers (``preflight.runner
+    ._attempt_auto_refresh``) decide what a failed attempt means for the
+    overall preflight result; this function only reports the outcome.
 
     Args:
         repo_root: Repository root the boundary heal ran against.
         cause: Comma-joined freshness-check names that triggered the heal.
 
     Returns:
-        ``True`` iff the targeted generate was attempted; ``False`` for a
-        non-references-parity cause.
+        A :class:`ReferencesRefreshOutcome` describing whether a targeted generate was
+        attempted and, if so, whether it succeeded.
     """
     if not is_references_parity_cause(cause):
-        return False
+        return ReferencesRefreshOutcome(attempted=False, succeeded=False, detail=None)
 
     cmd = _build_generate_command(repo_root)
     try:
-        subprocess.run(
+        completed = subprocess.run(
             cmd,
             cwd=repo_root,
             capture_output=True,
@@ -180,10 +244,22 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
             timeout=_GENERATE_TIMEOUT_SECS,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired) as exc:
         _logger.debug(
             "references-parity refresh: `%s` invocation failed",
             " ".join(cmd),
             exc_info=True,
         )
-    return True
+        return ReferencesRefreshOutcome(
+            attempted=True,
+            succeeded=False,
+            detail=f"`{' '.join(cmd)}` invocation failed: {exc}",
+        )
+
+    if completed.returncode == 0:
+        return ReferencesRefreshOutcome(attempted=True, succeeded=True, detail=None)
+    return ReferencesRefreshOutcome(
+        attempted=True,
+        succeeded=False,
+        detail=_extract_failure_detail(completed),
+    )

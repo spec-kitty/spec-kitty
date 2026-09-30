@@ -1809,7 +1809,6 @@ exclude = [
     "tests/specify_cli/charter_runtime/test_freshness_activation_visibility.py",
     "tests/specify_cli/charter_runtime/test_preflight_noop_stability.py",
     "tests/specify_cli/charter_runtime/test_preflight_one_pass.py",
-    "tests/specify_cli/charter_runtime/test_references_parity_refresh.py",
     "tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py",
     "tests/specify_cli/cli/commands/agent/test_2959_override_partition.py",
     "tests/specify_cli/cli/commands/agent/test_check_unchecked_subtasks_snapshot_source.py",

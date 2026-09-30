@@ -61,6 +61,7 @@ from .result import CharterPreflightCheck, CharterPreflightResult, CheckState
 
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
+    from specify_cli.charter_runtime.preflight.references_refresh import ReferencesRefreshOutcome
 
 __all__ = ["SYNTHESIZED_DRG_LAYER", "run_charter_preflight"]
 
@@ -550,7 +551,7 @@ def _refresh_timeout_secs() -> float:
     return value
 
 
-def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
+def refresh_references_if_needed(repo_root: Path, cause: str) -> ReferencesRefreshOutcome:
     """References-parity extension point (T019 install / WP06 implement, #2777).
 
     Delegates to :func:`specify_cli.charter_runtime.preflight.
@@ -569,17 +570,18 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
             references-parity signal.
 
     Returns:
-        ``True`` iff a targeted ``generate`` was attempted (i.e. *cause*
-        named the references-parity layer) — the caller uses this to decide
-        whether ``charter.yaml``'s derived catalog may have just changed and
-        the synthesis manifest needs re-stamping (MAJOR-1, WP06 rejection
-        cycle 1) before the post-refresh freshness recompute. ``False`` for
-        a non-references-parity cause (true no-op, nothing to re-stamp).
+        A :class:`~specify_cli.charter_runtime.preflight.references_refresh.
+        ReferencesRefreshOutcome` (T017, WP04 auto-refresh swallow fold-in, #5257):
+        ``attempted`` iff *cause* named the references-parity layer;
+        ``succeeded``/``detail`` report the targeted ``generate``
+        subprocess's actual outcome — this widening is what lets
+        :func:`_attempt_auto_refresh` distinguish "nothing to re-stamp"
+        from "generate ran and failed" instead of collapsing both into a
+        bare ``True``.
     """
     from .references_refresh import refresh_references_if_needed as _refresh_references
 
-    result: bool = _refresh_references(repo_root, cause)
-    return result
+    return _refresh_references(repo_root, cause)
 
 
 def _attempt_auto_refresh(
@@ -620,14 +622,19 @@ def _attempt_auto_refresh(
        this branch.
     4. ``refresh_references_if_needed`` (WP06, #2777) — a targeted
        ``spec-kitty charter generate``, gated on the references-parity
-       cause. When it fires, step 5 (below) re-runs ``synthesize`` once
-       more to re-stamp the manifest against generate's rewritten
-       ``charter.yaml`` — see that step's own comment for why.
+       cause. When it fires and succeeds, step 5 (below) re-runs
+       ``synthesize`` once more to re-stamp the manifest against
+       generate's rewritten ``charter.yaml`` — see that step's own comment
+       for why. When it fires and FAILS, we stop immediately (T018, WP04
+       auto-refresh swallow fold-in, #5257) — the manifest restamp is
+       skipped entirely rather than run over content ``generate`` failed
+       to actually reconcile.
 
-    On any non-zero exit, we stop, surface the failing command's first
-    stderr line via ``blocked_reason``, and mark
-    ``auto_refresh_applied=True`` so callers know an attempt was made
-    even when it failed.
+    On any non-zero exit — including the targeted generate above — we
+    stop, surface the failing command's first stderr line (or, for the
+    generate step, :func:`references_refresh._extract_failure_detail`'s
+    excerpt) via ``blocked_reason``, and mark ``auto_refresh_applied=True``
+    so callers know an attempt was made even when it failed.
     """
     is_dirty, dirty_paths, dirty_error = _detect_dirty_artifacts(repo_root)
 
@@ -730,9 +737,26 @@ def _attempt_auto_refresh(
     # only fires when the ORIGINAL stale-cause set actually named that
     # layer.
     stale_cause = ",".join(sorted({c.name for c in initial_checks if c.state not in _PASS_STATES}))
-    references_refreshed = refresh_references_if_needed(repo_root, cause=stale_cause)
+    refresh_outcome = refresh_references_if_needed(repo_root, cause=stale_cause)
 
-    if references_refreshed:
+    if refresh_outcome.attempted and not refresh_outcome.succeeded:
+        # T018 (WP04 auto-refresh swallow fold-in, #5257): a failed targeted
+        # `generate` must never be masked behind an unconditional manifest
+        # restamp — fail closed immediately, skipping the restamp entirely,
+        # exactly like every OTHER step in this sequence already does on
+        # its own failure (lines ~686-692, ~704-709 above return
+        # `blocked_reason=reason` with `auto_refresh_applied=True` the same
+        # way). Restamping over content `generate` failed to actually
+        # reconcile is precisely the masking mechanism being removed.
+        return CharterPreflightResult(
+            passed=False,
+            checks=initial_checks,
+            auto_refresh_applied=True,
+            auto_refresh_actions=actions,
+            blocked_reason=f"references-parity refresh failed: {refresh_outcome.detail}",
+        )
+
+    if refresh_outcome.attempted and refresh_outcome.succeeded:
         # MAJOR-1 (WP06 rejection cycle 1): `generate` rewrites
         # `charter.yaml`'s derived catalog but — unlike `synthesize` — never
         # re-stamps the synthesis manifest's `bundle_content_hash` itself.
