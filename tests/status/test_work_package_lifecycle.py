@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from kernel.clock import now_utc_iso
+from kernel.clock import now_utc, now_utc_iso, timedelta
 from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize_snapshot, reduce
@@ -777,7 +776,7 @@ def _rel_event(
         wp_id="WP01",
         from_lane=from_lane,
         to_lane=to_lane,
-        at=(datetime.now(UTC) - timedelta(minutes=minutes_ago)).isoformat(),
+        at=(now_utc() - timedelta(minutes=minutes_ago)).isoformat(),
         actor=actor,
         force=False,
         execution_mode="worktree",
