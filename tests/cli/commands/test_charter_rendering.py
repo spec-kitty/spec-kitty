@@ -139,7 +139,7 @@ def test_status_renders_unavailable_when_charter_not_found(tmp_path: Path) -> No
             "adapter_version": None,
             "missing_provenance_paths": [],
             "error": None,
-        },  # noqa: E501
+        },
         "provenance": {
             "path": ".kittify/charter/provenance",
             "count": 0,
@@ -151,7 +151,7 @@ def test_status_renders_unavailable_when_charter_not_found(tmp_path: Path) -> No
             "adapters": [],
             "warnings": [],
             "entries": [],
-        },  # noqa: E501
+        },
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -198,7 +198,7 @@ def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
             "adapter_version": None,
             "missing_provenance_paths": [],
             "error": None,
-        },  # noqa: E501
+        },
         "provenance": {
             "path": ".kittify/charter/provenance",
             "count": 0,
@@ -210,7 +210,7 @@ def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
             "adapters": [],
             "warnings": [],
             "entries": [],
-        },  # noqa: E501
+        },
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -260,7 +260,7 @@ def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:
             "adapter_version": None,
             "missing_provenance_paths": [],
             "error": None,
-        },  # noqa: E501
+        },
         "provenance": {
             "path": ".kittify/charter/provenance",
             "count": 0,
@@ -272,7 +272,7 @@ def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:
             "adapters": [],
             "warnings": [],
             "entries": [],
-        },  # noqa: E501
+        },
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 

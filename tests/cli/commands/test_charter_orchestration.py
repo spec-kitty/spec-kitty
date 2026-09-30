@@ -175,7 +175,7 @@ def test_status_json_output_contains_result_key(tmp_path: Path) -> None:
             "adapter_version": None,
             "missing_provenance_paths": [],
             "error": None,
-        },  # noqa: E501
+        },
         "provenance": {
             "path": ".kittify/charter/provenance",
             "count": 0,
@@ -187,7 +187,7 @@ def test_status_json_output_contains_result_key(tmp_path: Path) -> None:
             "adapters": [],
             "warnings": [],
             "entries": [],
-        },  # noqa: E501
+        },
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
