@@ -988,8 +988,6 @@ exclude = [
     "tests/auth/concurrency/test_single_flight_refresh.py",
     "tests/auth/concurrency/test_stale_grant_preservation.py",
     "tests/auth/integration/test_audit_clirunner.py",
-    "tests/auth/integration/test_browser_login_e2e.py",
-    "tests/auth/integration/test_headless_login_e2e.py",
     "tests/auth/integration/test_logout_e2e.py",
     "tests/auth/integration/test_transport_rewired.py",
     "tests/auth/secure_storage/test_file_fallback_windows_root.py",

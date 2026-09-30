@@ -20,6 +20,11 @@ from typing import Any
 import pytest
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.flows.client_credentials import (
+    CLIENT_ID_ENV_VAR,
+    CLIENT_SECRET_ENV_VAR,
+    CLIENT_SECRET_FILE_ENV_VAR,
+)
 from specify_cli.auth.secure_storage.abstract import SecureStorage
 from specify_cli.auth.session import StoredSession
 
@@ -70,8 +75,13 @@ def _isolate_auth_env(monkeypatch: pytest.MonkeyPatch) -> Any:
 
     - Sets ``SPEC_KITTY_SAAS_URL`` to a sentinel value that cannot resolve.
     - Resets the process-wide ``TokenManager`` before and after the test.
+    - Clears the machine-credential variables, so a mis-dispatch into the
+      client-credentials flow on a runner that exports them cannot reach the
+      network with real credentials.
     """
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", _TEST_SAAS_URL)
+    for name in (CLIENT_ID_ENV_VAR, CLIENT_SECRET_ENV_VAR, CLIENT_SECRET_FILE_ENV_VAR):
+        monkeypatch.delenv(name, raising=False)
     reset_token_manager()
     yield
     reset_token_manager()

@@ -81,15 +81,32 @@ def _me_response() -> dict[str, Any]:
     }
 
 
-def _mock_httpx_response(
-    status_code: int, json_body: dict[str, Any]
-) -> MagicMock:
+def _mock_httpx_response(status_code: int, json_body: dict[str, Any]) -> MagicMock:
     """Build an httpx.Response-compatible MagicMock."""
     response = MagicMock(spec=httpx.Response)
     response.status_code = status_code
     response.text = str(json_body)
     response.json = MagicMock(return_value=json_body)
     return response
+
+
+@pytest.fixture(autouse=True)
+def _device_flow_edge_faked() -> Any:
+    """Fake the device-flow edge so a mis-dispatch can never reach the network.
+
+    Plain ``login`` must run the browser flow. If dispatch breaks and the
+    device flow runs instead, the real ``DeviceCodeFlow`` would open an
+    ``httpx`` connection (answered 403 by a proxy, or worse, a live host).
+    Replacing ``DeviceCodeFlow.login`` turns that into an immediate,
+    clearly-worded assertion failure with no network traffic (#5353 slice 3).
+    """
+    with patch(
+        "specify_cli.auth.flows.device_code.DeviceCodeFlow.login",
+        new_callable=AsyncMock,
+        side_effect=AssertionError("login dispatched to the device flow instead of the browser flow"),
+    ) as mock_login:
+        yield mock_login
+    mock_login.assert_not_called()
 
 
 @pytest.fixture
@@ -110,9 +127,7 @@ def patched_state_manager() -> Any:
         created_at=now_utc(),
         expires_at=now_utc() + timedelta(minutes=5),
     )
-    with patch(
-        "specify_cli.auth.flows.authorization_code.StateManager"
-    ) as mock_sm_cls:
+    with patch("specify_cli.auth.flows.authorization_code.StateManager") as mock_sm_cls:
         instance = mock_sm_cls.return_value
         instance.generate = MagicMock(return_value=fixed_state)
         instance.validate_not_expired = MagicMock()
@@ -127,13 +142,9 @@ def mocked_loopback() -> Any:
     ``wait_for_callback`` returns a dict with the fixed state nonce so the
     real :class:`CallbackHandler.validate` accepts it.
     """
-    with patch(
-        "specify_cli.auth.flows.authorization_code.CallbackServer"
-    ) as mock_cs_cls:
+    with patch("specify_cli.auth.flows.authorization_code.CallbackServer") as mock_cs_cls:
         instance = mock_cs_cls.return_value
-        instance.start = MagicMock(
-            return_value="http://127.0.0.1:28888/callback"
-        )
+        instance.start = MagicMock(return_value="http://127.0.0.1:28888/callback")
         instance.stop = MagicMock()
         instance.wait_for_callback = AsyncMock(
             return_value={
@@ -202,10 +213,7 @@ class TestBrowserLoginE2E:
 
             result = runner.invoke(app, ["login"])
 
-        assert result.exit_code == 0, (
-            f"login failed: stdout={result.stdout!r} "
-            f"exception={result.exception!r}"
-        )
+        assert result.exit_code == 0, f"login failed: stdout={result.stdout!r} exception={result.exception!r}"
         assert "Authenticated" in result.stdout
         assert "alice@example.com" in result.stdout
 
@@ -218,9 +226,7 @@ class TestBrowserLoginE2E:
         assert stored.email == "alice@example.com"
         assert stored.auth_method == "authorization_code"
         assert stored.default_team_id == "tm_acme"
-        assert frozenset(team.id for team in stored.teams) == frozenset(
-            {"tm_acme", "tm_beta"}
-        )
+        assert frozenset(team.id for team in stored.teams) == frozenset({"tm_acme", "tm_beta"})
         # Storage backend matches the fake backend we injected.
         assert stored.storage_backend == "file"
 
@@ -306,9 +312,7 @@ class TestBrowserLoginE2E:
                 "specify_cli.cli.commands._auth_login._run_browser_flow",
                 side_effect=_fake_browser_flow,
             ) as mock_browser_flow,
-            patch(
-                "specify_cli.cli.commands._auth_login.get_token_manager"
-            ) as tm_cls,
+            patch("specify_cli.cli.commands._auth_login.get_token_manager") as tm_cls,
         ):
             tm_cls.return_value.is_authenticated = False
             result = runner.invoke(app, ["login"])
