@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - 2.x
     paths:
       - pyproject.toml
       - .kittify/metadata.yaml

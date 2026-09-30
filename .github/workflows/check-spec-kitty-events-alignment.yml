@@ -2,7 +2,7 @@ name: Check Shared Package Drift
 
 on:
   pull_request:
-    branches: [main, develop, "2.x"]
+    branches: [main]
     paths:
       - 'pyproject.toml'
       - 'uv.lock'
@@ -10,7 +10,7 @@ on:
       - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   push:
-    branches: [main, develop, "2.x"]
+    branches: [main]
     paths:
       - 'pyproject.toml'
       - 'uv.lock'
