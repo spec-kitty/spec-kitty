@@ -1,0 +1,22 @@
+{
+  "baseline_merge_commit": "755633197a56e1cefca3c51f7628ed6d47321fa3",
+  "created_at": "2026-09-30T05:30:37.425674+00:00",
+  "flattened": false,
+  "friendly_name": "Every post-mutation consolidate exit rolls back through one authority",
+  "merged_at": "2026-09-30T09:26:09.517247+00:00",
+  "merged_commit": "1c89ac7579e73026ced50b98910acc680f96024f",
+  "mid8": "01M3RCP4",
+  "mission_id": "01M3RCP4YT7WGBH3CEB5Q7BYZ1",
+  "mission_number": 210,
+  "mission_slug": "single-rollback-authority-01M3RCP4",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today spec-kitty consolidate can fail between its first branch move and its reconciliation gate and leave the target advanced (in one live case with canceled work on it) because only some failure paths use the single rollback authority. This mission routes every such failure through that authority, retires the older revert-based rollbacks, and refuses up front a consolidation that would crash on a protected target.",
+  "purpose_tldr": "A consolidate that fails after it starts moving branches puts every branch back, and a protected-target LANES mission is refused before anything moves.",
+  "slug": "single-rollback-authority-01M3RCP4",
+  "status_phase": "1",
+  "target_branch": "claude/5385-single-rollback-authority-qqt180",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-30T05:55:52.430642+00:00"
+}

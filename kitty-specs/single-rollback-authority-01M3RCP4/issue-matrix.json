@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#1826": {
+      "evidence_ref": "Closed earlier; its guard tests re-pinned to the snapshot-restore contract in WP01 (DM-01M3RCRDBS2RKWVVZH07AZ1B4M) and pass on lane-c",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2367": {
+      "evidence_ref": "Closed earlier; its guard tests re-pinned to the snapshot-restore contract in WP01 (DM-01M3RCRDBS2RKWVVZH07AZ1B4M) and pass on lane-c",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2711": {
+      "evidence_ref": "Closed earlier; its guard tests re-pinned to the snapshot-restore contract in WP01 (DM-01M3RCRDBS2RKWVVZH07AZ1B4M) and pass on lane-c",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2786": {
+      "evidence_ref": "Closed earlier; its guard tests re-pinned to the snapshot-restore contract in WP01 (DM-01M3RCRDBS2RKWVVZH07AZ1B4M) and pass on lane-c",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3536": {
+      "evidence_ref": "spec.md C-003 out of scope; follow-up is the open issue #3536 itself",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4764": {
+      "evidence_ref": "Closed earlier; its guard tests re-pinned to the snapshot-restore contract in WP01 (DM-01M3RCRDBS2RKWVVZH07AZ1B4M) and pass on lane-c",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#5001": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5371": {
+      "evidence_ref": "spec.md C-003 out of scope; follow-up is the open issue #5371 itself",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5372": {
+      "evidence_ref": "spec.md C-003 out of scope; follow-up is the open issue #5372 itself",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5385": {
+      "evidence_ref": "WP01 lane-a 843bd6a7..3bf48d09 (tests/terminus/test_rollback_door.py, red 18/18 on base); WP02 lane-b 9cd74a08..36faed73 (tests/terminus/test_protected_target_preflight.py); pre-PR folds: tests/orchestrator_api/test_consolidate_mission_protected_target.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

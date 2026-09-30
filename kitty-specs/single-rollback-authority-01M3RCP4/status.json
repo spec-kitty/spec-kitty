@@ -1,0 +1,119 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M3RT5TP8JA73CVDNJZ35N550",
+  "materialized_at": "2026-09-30T09:26:21.129000+00:00",
+  "mission_number": "210",
+  "mission_slug": "single-rollback-authority-01M3RCP4",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3RT5H2V7AACWHSRHCRK0NSA",
+      "last_transition_at": "2026-09-30T09:26:11.291607+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: one BaseException door wraps _phase_merge_lanes..gate (Exit(0) passes through); 4 revert helpers + pre_bake_target_baseline_sha gone, AST pin grown and non-vacuous; T001 repro 18/18 red on base e0235952, green on lane; re-pins assert the snapshot-restore contract with real SHAs; ruff/C901/mypy no new issues. Non-blocking: pin does not check re-raise/Exit(0) guard (covered behaviourally by wiring tests); heal self-mutation case is weak; _report_rollback catches Exception only. test_merge_resume.py 3 reds pre-existing on base (claim-time refusal). Shared-file note: WP02 adds a preflight line to the test_repro_5318_abort.py hard-kill wrapper."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 8588,
+      "shell_pid_created_at": "1790752700.59",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T013": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3RT5NYQQ84Z69METH22CKZ5",
+      "last_transition_at": "2026-09-30T09:26:16.279190+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: up-front protected-target preflight via the transaction's own policy gate, dry-run parity, readable command-layer refusal",
+        "Review passed: preflight reuses the transaction's own policy gate via lock-free preflight_refusal/status_write_refusal (C-001, no second rule); arm selection, meta target (not --target), hatch and effective_root mirror acquire; NFR-001 asserted (tips, reflogs, 0 merge records); T007 red on 3bf48d09 (3 refusal cases fail, 6 controls pass, T008 import error), 381/381 targeted green on lane-b; ruff/C901 clean, mypy 13=13 vs base. Non-blocking: preflight_refusal docstring + test docstring wrongly claim acquire materializes a missing coord branch (it raises BookkeepingWorktreeMissing); new _caller_ref_refusal lines not ruff-formatted in already-dirty files. executor.py shared with WP01 (one out-of-map pre-lock call, WP01 approved). #3536 stays deferred-with-followup."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 32450,
+      "shell_pid_created_at": "1790756794.31",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3RT5TP8JA73CVDNJZ35N550",
+      "last_transition_at": "2026-09-30T09:26:21.129000+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: ADR follow-up, AGENTS.md (CLAUDE.md symlink) and CHANGELOG match the shipped WP01/WP02 code; docs freshness 0 errors; terminology 96 passed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 29094,
+      "shell_pid_created_at": "1790757989.02",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    }
+  }
+}

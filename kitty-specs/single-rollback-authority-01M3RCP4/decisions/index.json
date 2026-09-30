@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-30T05:30:53.388740Z",
+      "decision_id": "01M3RCPP2CR19QH3GZVPJT52BH",
+      "final_answer": "All in-phase exits from first mutation to the gate, plus the preflight, one mission (Stijn's triage ruling on #5385, comment 5904427409, 2026-09-30; confirmed in project thread 2026-09-30T05:25Z)",
+      "input_key": "mission_boundary",
+      "mission_id": "01M3RCP4YT7WGBH3CEB5Q7BYZ1",
+      "mission_slug": "single-rollback-authority-01M3RCP4",
+      "opened_by": "cli",
+      "options": [
+        "All in-phase exits from first mutation to the gate, plus the preflight, one mission",
+        "Rollback routing only; preflight separately",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which consolidate failure paths are in scope, and does the protected-target preflight ship in the same mission?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T05:30:59.606296Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.mission-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T05:31:50.009814Z",
+      "decision_id": "01M3RCRDBS2RKWVVZH07AZ1B4M",
+      "final_answer": "Roll everything back to the snapshot; re-pin the #1826 keep-done tests. Follows Stijn's ruling on #5385 (route every non-zero exit through rollback_to_snapshot) and ADR 2026-09-19-1 Amendment A3; a resume then re-runs from the snapshot. Default picked by the orchestrator and flagged in the PR.",
+      "input_key": "committed_bookkeeping_on_failure",
+      "mission_id": "01M3RCP4YT7WGBH3CEB5Q7BYZ1",
+      "mission_slug": "single-rollback-authority-01M3RCP4",
+      "opened_by": "cli",
+      "options": [
+        "Roll everything back to the snapshot; re-pin the #1826 keep-done tests",
+        "Keep committed done state for those phases (carve-out from the authority)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a consolidate step after the squash fails (bookkeeping commit, working-tree invariant), should the committed coordination done events and completed_wps survive for resume (today's #1826 contract) or be rolled back with every other branch to the pre-run snapshot?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T05:32:06.836059Z",
+      "resolved_by": null,
+      "slot_key": "specify.rules.committed-bookkeeping-on-failure",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3RCP4YT7WGBH3CEB5Q7BYZ1",
+  "version": 1
+}

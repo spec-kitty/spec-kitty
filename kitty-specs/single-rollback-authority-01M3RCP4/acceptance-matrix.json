@@ -1,0 +1,99 @@
+{
+  "mission_slug": "single-rollback-authority-01M3RCP4",
+  "mission_number": "210",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_rollback_door.py (non-zero exit per phase, real git; red 18/18 on base); tests/consolidation/test_executor_rollback_wiring.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T10:06:26.554362+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_rollback_door.py (RuntimeError/BookkeepingPolicyRefused/KeyboardInterrupt cases); test_executor_rollback_wiring.py (incl. an interrupt during the rollback)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T10:06:33.583999+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_preflight_seam.py + tests/terminus/test_protected_target_preflight.py (readable PROTECTED_BRANCH_REFUSED, exit 1, no traceback); tests/orchestrator_api/test_consolidate_mission_protected_target.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T10:06:40.596979+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_single_rollback_authority.py retired-name denylist + no revert argv in executor.py (self-mutation cases)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T08:49:52.513564+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_single_rollback_authority.py denylist; tests/consolidation/test_issue_2367_bake_strand.py + test_issue_4764_bake_rollback_on_done_failure.py re-pinned",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T08:49:59.592302+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_protected_target_preflight.py (protected main refused pre-mutation, 0 tips/0 records; controls pass; --resume points at --abort); tests/specify_cli/coordination/test_transaction_preflight_refusal.py; tests/orchestrator_api/test_consolidate_mission_protected_target.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T10:06:47.153152+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_protected_target_preflight.py dry-run case (exit 1, PROTECTED_BRANCH_REFUSED)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T10:06:53.842455+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_single_rollback_authority.py span rule (11 phase calls inside the door) with self-mutation proofs",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T08:50:20.421022+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_rollback_door.py asserts completed_wps == [] and no bake after rollback, re-run reaches done",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T10:07:00.435859+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
