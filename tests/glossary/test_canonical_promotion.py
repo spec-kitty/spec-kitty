@@ -144,12 +144,19 @@ WP02_RELATED_FRONTMATTER_REFERRERS: tuple[str, ...] = (
 #: which reformat the whole file rather than flip a token in place -- T010 --
 #: and minus this test file itself, which gains real new coverage here, not
 #: just a path-token flip). Used by the diff-shape / no-double-funding check.
+#:
+#: Two docs are deliberately NOT frozen here any more: since the WP02 flip they
+#: took sanctioned later content edits unrelated to the glossary->charter path
+#: token (the 4.0.0-cycle re-anchoring in 56ae5ce88a, "make 4.0.0 the visible
+#: active cycle and label spent notes"), so their diff against the pre-flip base
+#: is legitimately no longer path-token-only. The invariant is a WP02-time
+#: regression guard on the flip's cleanliness, not a permanent freeze against
+#: every later edit -- pinning a moved-on doc here would red main on accurate
+#: content (drg-completeness-2843-research.md, mission-nomenclature-reconciliation/README.md).
 WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md",
     *WP02_RELATED_FRONTMATTER_REFERRERS,
     "docs/plans/doctrine/org-doctrine-layer-architecture-review.md",
-    "docs/plans/engineering-notes/drg-completeness-2843-research.md",
-    "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
     "docs/plans/refactor/slice-f-mission-debrief.md",
     "src/charter/offering/README.md",
     "src/charter/offering/directives/README.md",
