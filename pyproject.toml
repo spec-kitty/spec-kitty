@@ -1587,7 +1587,6 @@ exclude = [
     "tests/consolidation/test_merge_target_resolution.py",
     "tests/consolidation/test_merge_time_number_assignment.py",
     "tests/consolidation/test_merge_workspace_unit.py",
-    "tests/consolidation/test_preflight_seam.py",
     "tests/consolidation/test_profile_charter_e2e.py",
     "tests/consolidation/test_push_preflight.py",
     "tests/consolidation/test_resolve_seam.py",

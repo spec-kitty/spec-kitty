@@ -155,10 +155,9 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def _status_paths(worktree_root: Path, mission_slug: str, mid8: str) -> tuple[Path, Path, Path]:
-    """``(feature_dir, events_path, snapshot_path)`` of the mission's status files inside ``worktree_root``."""
-    feature_dir = worktree_root / KITTY_SPECS_DIR / _mission_specs_dir_name(mission_slug, mid8)
-    return feature_dir, feature_dir / _EVENTS_FILENAME, feature_dir / _SNAPSHOT_FILENAME
+def _feature_dir(worktree_root: Path, mission_slug: str, mid8: str) -> Path:
+    """The mission's ``kitty-specs/<slug>-<mid8>/`` directory inside ``worktree_root``."""
+    return Path(worktree_root, KITTY_SPECS_DIR, _mission_specs_dir_name(mission_slug, mid8))
 
 
 def _caller_ref_refusal(
@@ -457,7 +456,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 return caller_refusal
             worktree_root = CoordinationWorkspace.worktree_path(arm_root, safe_mission_slug, safe_mid8)
             effective_destination_ref = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
-        _feature_dir, events_path, snapshot_path = _status_paths(worktree_root, safe_mission_slug, safe_mid8)
+        feature_dir = _feature_dir(worktree_root, safe_mission_slug, safe_mid8)
+        events_path = feature_dir / _EVENTS_FILENAME
+        snapshot_path = feature_dir / _SNAPSHOT_FILENAME
         verdict = _preflight_policy_verdict(
             repo_root=arm_root,
             primary_root=repo_root if effective_root is not None else None,
@@ -630,9 +631,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # there is no sparse-checkout policy on the lane, so the files
         # are physically present and the surgical truncate rollback
         # works against the lane worktree without modification.
-        feature_dir, events_path, snapshot_path = _status_paths(
-            worktree_root, safe_mission_slug, safe_mid8,
-        )
+        feature_dir = _feature_dir(worktree_root, safe_mission_slug, safe_mid8)
+        events_path = feature_dir / _EVENTS_FILENAME
+        snapshot_path = feature_dir / _SNAPSHOT_FILENAME
 
         # 4. Build the change set and run the pre-flight policy gate.
         # This still happens before any bookkeeping write; the lock is
