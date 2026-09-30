@@ -55,6 +55,7 @@ _PLANTED: list[tuple[str, str]] = [
     ("wallclock", "def test_stamp():\n    assert stamp() <= time.time()\n"),
     ("skip-or-xfail", "@pytest.mark.xfail(reason='later')\ndef test_future():\n    assert future() == 1\n"),
     ("vague-name", "def test_basic():\n    assert total([1]) == 1\n"),
+    ("no-assertion", "def _build():\n    return 1\n\n\ndef test_calls_a_helper_that_checks_nothing():\n    _build()\n"),
     ("provenance-tokens", 'def test_wp03_gate():\n    """T012: pins FR-004."""\n    assert gate() == 1\n'),
 ]
 
@@ -64,11 +65,17 @@ _NOT_FLAGGED: list[tuple[str, str]] = [
     ("fake-short-ulid", "def test_real2():\n    assert load(mission_id='01K3N7ZQ8X1V2B3C4D5E6F7G8H').ok\n"),
     ("line-number-pin", 'def test_doc():\n    """Regression for emit.py:42."""\n    assert run() == 1\n'),
     ("line-number-pin", "def test_msg():\n    assert run() == 1, 'see emit.py:42'\n"),
+    # The oracle lives in a module helper the test calls.
+    ("no-assertion", "def _refused(result):\n    assert result.exit_code == 2\n\n\ndef test_rejects_bad_input():\n    _refused(run('x'))\n"),
+    ("no-assertion", "def _validate(doc):\n    with pytest.raises(ValueError, match='x'):\n        load(doc)\n\n\ndef test_rejects_doc():\n    _validate('x')\n"),
+    # The contract is that the call does not raise, stated in the name or docstring.
+    ("no-assertion", "def test_empty_log_does_not_raise():\n    reduce([])\n"),
+    ("no-assertion", 'def test_refusing_shape_state():\n    """Must not raise on a refusing-shape state."""\n    reduce([])\n'),
 ]
 
 
 def _planted_name(source: str) -> str:
-    return next(line.split("(")[0].removeprefix("def ") for line in source.splitlines() if line.startswith("def "))
+    return next(line.split("(")[0].removeprefix("def ") for line in source.splitlines() if line.startswith("def test"))
 
 
 @pytest.fixture(scope="module")
