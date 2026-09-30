@@ -1,0 +1,38 @@
+{
+  "accept_commit": "950bf66e98c7277c255b41f798f3aa8d0edcec8b",
+  "acceptance_history": [
+    {
+      "accept_commit": "950bf66e98c7277c255b41f798f3aa8d0edcec8b",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-09-30T05:38:08.892287+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "e33e1782215ae8b8e603f00827588101760c3aa6"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-09-30T05:38:08.892287+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "e33e1782215ae8b8e603f00827588101760c3aa6",
+  "baseline_merge_commit": "162c82b5677e5a0e7d4e0ebdb54c5df18e2a873f",
+  "change_mode": "bulk_edit",
+  "coordination_branch": "kitty/mission-owned-checkout-lifecycle-authority-01M3M2ZB",
+  "created_at": "2026-09-28T13:23:55.151276+00:00",
+  "flattened": false,
+  "friendly_name": "Owned-checkout lifecycle authority",
+  "merged_at": "2026-09-30T05:56:21.314408+00:00",
+  "merged_commit": "eb938e33094470532962c32c2b7f31dabc389e79",
+  "mid8": "01M3M2ZB",
+  "mission_id": "01M3M2ZB5D4A33B8070F97DKW7",
+  "mission_number": 206,
+  "mission_slug": "owned-checkout-lifecycle-authority-01M3M2ZB",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators and agent harnesses isolate mission work in a linked, explicitly owned checkout. Today creation works but status, planning, work-package context, runtime next, task finalization and review silently resolve against the primary checkout, fail, or return wrong results. This mission makes the validated owned checkout the single authority for every lifecycle read (issues #3449, #5026, #4252, #4867, #5277).",
+  "purpose_tldr": "Make a mission created in an explicitly owned checkout runnable end to end without any read or write leaking to the primary checkout.",
+  "slug": "owned-checkout-lifecycle-authority-01M3M2ZB",
+  "status_phase": "1",
+  "target_branch": "claude/sleepy-hamilton-5lelee",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T16:23:45.965238+00:00"
+}

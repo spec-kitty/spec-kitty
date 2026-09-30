@@ -1,0 +1,269 @@
+{
+  "mission_slug": "owned-checkout-lifecycle-authority-01M3M2ZB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP01,WP15,WP17,WP18 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:34:43.245669+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP02,WP19 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:34:50.582107+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP07,WP14,WP16 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:34:58.671412+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP09 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:06.251687+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP09 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:13.241594+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04,WP05,WP08 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:20.732375+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04,WP08,WP09,WP11,WP13,WP19 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:28.413073+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP11,WP12,WP19 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:35.046741+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP11,WP12 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:42.384360+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP12 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:49.317644+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP04,WP05 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:35:56.313677+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP11 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:03.994767+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP06,WP13 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:10.548322+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP06 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:18.844804+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP13 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:26.266344+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP10 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:33.808392+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP10 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:40.299698+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP09 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:47.369134+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP05 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:36:54.378278+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP02,WP08,WP09 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:01.911370+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP02,WP08,WP19 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:09.699692+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "Verify FR-022 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP14,WP15,WP16,WP17,WP19 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:16.714396+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "Verify FR-023 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP02,WP04,WP11,WP19 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:24.068705+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "Verify FR-024 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP03 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:30.907790+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-025",
+      "description": "Verify FR-025 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP12 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:38.356588+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-026",
+      "description": "Verify FR-026 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning WPs WP10,WP14 approved after review (red-first + mutation-checked pins). Mission-tip run on lane-q 331523289: tests/integration/test_owned_lifecycle_acceptance_*.py + test_explicit_checkout_commands.py + architectural gates test_owned_checkout_single_authority/gate_selftest/no_dead_symbols -> 432 passed, 0 failed (-m 'not performance').",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T05:37:45.504785+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

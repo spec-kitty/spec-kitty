@@ -1,0 +1,50 @@
+# Occurrence map for mission owned-checkout-lifecycle-authority-01M3M2ZB (DIRECTIVE_035).
+#
+# Rename: the value object `OwnedMission` (specify_cli.core.owned_mission) becomes
+# `OwnedCheckout` (mission_runtime.owned_checkout), with canonical field names
+# (primary -> repository_root, root -> owned_root, directory -> mission_dir,
+# slug -> mission_slug, target -> target_branch). The same mission converts every
+# bare `effective_root: Path | None` owned-root parameter to `owned: OwnedCheckout | None`
+# (operator decision 01M3M65D...). That conversion is a structural signature
+# migration rather than a string replacement, so reviewers classify it under
+# code_symbols/tests_fixtures by the same rules.
+#
+# Schema: src/charter/offering/schemas/occurrence-map.schema.yaml
+
+target:
+  term: OwnedMission
+  replacement: OwnedCheckout
+  operation: rename
+
+categories:
+  code_symbols:         { action: rename }                 # class, fields, parameters, imports in src/
+  import_paths:         { action: rename }                 # from specify_cli.core.owned_mission import OwnedMission -> from mission_runtime import OwnedCheckout
+  filesystem_paths:     { action: do_not_change }          # no on-disk path literal changes; kitty-specs/ and .worktrees/ layouts are untouched
+  serialized_keys:      { action: do_not_change }          # JSON payload keys, meta.json/status event fields, config keys are contracts; new keys are additive only
+  cli_commands:         { action: manual_review }          # cli/commands/** files are rewired internally and gain --owned-checkout; no existing subcommand or flag is renamed or removed
+  user_facing_strings:  { action: rename_if_user_visible } # help text, error messages, ADR/glossary prose use "owned checkout" / "repository root checkout"
+  tests_fixtures:       { action: rename }                 # tests move to OwnedCheckout and the owned= call shape
+  logs_telemetry:       { action: do_not_change }          # log keys and error codes: existing OWNED_* codes keep their exact strings
+
+exceptions:
+  - path: "kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/**"
+    action: manual_review
+    reason: "This mission's own planning artifacts discuss both names by design."
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Historical mission records are immutable snapshots; they keep the OwnedMission name."
+  - path: "docs/changelog/**"
+    action: manual_review
+    reason: "Only a new [Unreleased] entry is added; historical entries keep their wording."
+  - path: "CHANGELOG.md"
+    action: do_not_change
+    reason: "Legacy root changelog is historical."
+  - path: "docs/adr/2.x/**"
+    action: do_not_change
+    reason: "Superseded ADR generation; immutable."
+  - path: "pyproject.toml"
+    action: manual_review
+    reason: "Only formatter-exclude housekeeping (e.g. #5009 22f380055) may change; no key renames."
+  - path: "tests/architectural/_baselines.yaml"
+    action: manual_review
+    reason: "Architectural baselines may only shrink or gain the new gate's zero cap; never loosen."
