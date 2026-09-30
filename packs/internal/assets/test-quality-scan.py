@@ -11,7 +11,8 @@ The flags are heuristics, not verdicts. A flagged test is a candidate for a
 human or agent read against the Test Desiderata; an unflagged test is not
 proven good. Codes map to the review rubric in the procedure:
 
-    no-assertion         R1 vacuous: no assert, no raises, no assert-like call
+    no-assertion         R1 vacuous: no assert, no raises, no assert-like call, no
+                         call to an asserting helper, no stated does-not-raise contract
     weak-only-assert     R1 vacuous: the only assert is ``True`` or ``x is not None``
     type-only-assert     R1 vacuous: the only assert is isinstance/callable/hasattr
     broad-raises         R1 vacuous: ``pytest.raises(Exception)``
@@ -87,6 +88,7 @@ WEIGHTS: dict[str, int] = {
 DEEP_DOMAINS = frozenset({"specify_cli"})
 
 _ASSERT_LIKE_CALL = re.compile(r"assert_|\.assert|expect|check_|_assert|verify")
+_NO_RAISE_CONTRACT = re.compile(r"\b(does|do|must|should|will)\s*n[o']?t\s+raise\b|\bno\s+(exception|error)\s+(is\s+)?raised\b", re.IGNORECASE)
 _MOCK_CALL = re.compile(r"(^|\.)(patch|patch\.object|MagicMock|Mock|AsyncMock|create_autospec)$")
 _INTERNAL_TARGET = re.compile(r"(specify_cli|charter|runtime|mission_runtime|kernel|glossary)\.")
 _INTERACTION = re.compile(
@@ -161,11 +163,38 @@ def iter_tests(tree: ast.Module) -> list[tuple[str, ast.FunctionDef | ast.AsyncF
     return found
 
 
-def _oracle_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, call_names: list[str]) -> list[str]:
+def _has_oracle(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Whether ``fn`` asserts, or checks with ``pytest.raises`` / ``pytest.fail``, anywhere in its body."""
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Assert):
+            return True
+        if isinstance(node, ast.Call) and re.search(r"(^|\.)(raises|fail)$", ast.unparse(node.func)):
+            return True
+    return False
+
+
+def asserting_helpers(tree: ast.Module) -> frozenset[str]:
+    """Names of non-test functions and methods in ``tree`` that carry an oracle of their own.
+
+    A test whose only check is a call to one of these is not vacuous: the
+    helper asserts on its behalf.
+    """
+    return frozenset(
+        node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and not node.name.startswith("test") and _has_oracle(node)
+    )
+
+
+def _states_no_raise_contract(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """The test says its contract is that the call does not raise."""
+    return bool(_NO_RAISE_CONTRACT.search(f"{fn.name.replace('_', ' ')}\n{ast.get_docstring(fn) or ''}"))
+
+
+def _oracle_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, call_names: list[str], helpers: frozenset[str] = frozenset()) -> list[str]:
     """Flags about whether the test can fail at all (R1)."""
     asserts = [n for n in ast.walk(fn) if isinstance(n, ast.Assert)]
     raises = [n for n in ast.walk(fn) if isinstance(n, ast.With | ast.AsyncWith) and any("raises" in ast.unparse(i.context_expr) for i in n.items)]
-    if not asserts and not raises and not any(_ASSERT_LIKE_CALL.search(c) for c in call_names):
+    checked_by_call = any(_ASSERT_LIKE_CALL.search(c) or c.rsplit(".", 1)[-1] in helpers for c in call_names)
+    if not asserts and not raises and not checked_by_call and not _states_no_raise_contract(fn):
         return ["no-assertion"]
     if len(asserts) != 1 or raises:
         return []
@@ -309,13 +338,16 @@ def _shape_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     return flags
 
 
-def flags_for(fn: ast.FunctionDef | ast.AsyncFunctionDef, lines: list[str]) -> list[str]:
-    """Return every flag code the test function trips, in rubric order."""
+def flags_for(fn: ast.FunctionDef | ast.AsyncFunctionDef, lines: list[str], helpers: frozenset[str] = frozenset()) -> list[str]:
+    """Return every flag code the test function trips, in rubric order.
+
+    ``helpers`` names the module's own asserting helpers (see :func:`asserting_helpers`).
+    """
     seg = "\n".join(lines[fn.lineno - 1 : fn.end_lineno])
     calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)]
     call_names = [ast.unparse(c.func) for c in calls]
     return [
-        *_oracle_flags(fn, call_names),
+        *_oracle_flags(fn, call_names, helpers),
         *_coupling_flags(fn, calls, seg),
         *_text_flags(fn, seg),
         *_shape_flags(fn),
@@ -336,13 +368,14 @@ def scan_file(repo: Path, rel: str, only: set[str] | None) -> tuple[FileRow, lis
         row.flags = {"unparseable": 1}
         return row, []
     lines = source.splitlines()
+    helpers = asserting_helpers(tree)
     counts: Counter[str] = Counter()
     rows: list[TestRow] = []
     for name, fn in iter_tests(tree):
         if only is not None and name not in only:
             continue
         row.tests += 1
-        flags = flags_for(fn, lines)
+        flags = flags_for(fn, lines, helpers)
         if flags:
             rows.append(TestRow(file=rel, line=fn.lineno, test=name, flags=flags, score=score(flags)))
             counts.update(flags)
