@@ -53,6 +53,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 RUNNER = CliRunner()
 
 _RETRO_MODULE = "specify_cli.cli.commands.retrospect"
+_FANOUT_EDGE = "specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"
 
 
 def _legacy_record_with_gap() -> GenRetrospectiveRecord:
@@ -69,9 +70,12 @@ def _legacy_record_with_gap() -> GenRetrospectiveRecord:
 
 
 def _seed_and_invoke_update(
-    tmp_path: Path, *, emit_captured_replacement: MagicMock
+    tmp_path: Path, *, emit_captured_replacement: MagicMock | None
 ) -> tuple[Path, Result]:
     """Seed an on-disk has_findings+1-gap record, then invoke `create --update`.
+
+    ``emit_captured_replacement=None`` runs the REAL emitter (appending to the
+    mission's event log) with only the Zeitgeist fan-out edge patched.
 
     Runs the REAL ``write_gen_record`` merge (not mocked); only mission
     resolution and generation collaborators are stubbed. The generator is
@@ -96,13 +100,14 @@ def _seed_and_invoke_update(
         MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir
     )
 
+    emit_patch = patch(_FANOUT_EDGE) if emit_captured_replacement is None else patch(f"{_RETRO_MODULE}.emit_captured", emit_captured_replacement)
     with (
         patch(f"{_RETRO_MODULE}.locate_project_root", return_value=repo_root),
         patch(f"{_RETRO_MODULE}._resolve_handle", return_value=resolved),
         patch(f"{_RETRO_MODULE}._check_mission_completed", return_value=[]),
         patch(f"{_RETRO_MODULE}.resolve_policy", return_value=(MagicMock(), {})),
         patch(f"{_RETRO_MODULE}.generate_retrospective", return_value=generated),
-        patch(f"{_RETRO_MODULE}.emit_captured", emit_captured_replacement),
+        emit_patch,
         patch(f"{_RETRO_MODULE}._maybe_auto_commit"),
     ):
         # NOTE: write_gen_record is intentionally NOT mocked — the real merge runs.
@@ -144,44 +149,32 @@ def test_update_result_and_event_agree_with_persisted_record(tmp_path: Path) -> 
     )
 
 
-def test_emit_captured_spy_matches_persisted_record_on_disk(tmp_path: Path) -> None:
-    """emit_captured must receive the PERSISTED record, not the pre-merge one.
+def test_captured_event_row_matches_persisted_record_and_report(tmp_path: Path) -> None:
+    """The ``RetrospectiveCaptured`` row in the event log carries the PERSISTED record.
 
-    Non-fakeable guard (T002): a spy captures the exact record object passed
-    to ``emit_captured`` (not the reported JSON — both could be
-    wrong-and-equal). Its ``findings_status``/gap-count are asserted directly
-    against the on-disk YAML at ``record_path``, independent of what the CLI
-    reports.
+    Drives the real emitter (only the Zeitgeist fan-out edge is patched) and
+    reads the row back from the mission's ``status.events.jsonl``, so the
+    oracle is the durable event, not the argument handed to a spy. Its
+    ``findings_status``/counts/record path must equal the on-disk YAML and
+    the reported JSON (report == event == disk).
     """
-    spy = MagicMock(return_value=None)
-    record_path, result = _seed_and_invoke_update(
-        tmp_path, emit_captured_replacement=spy
-    )
+    record_path, result = _seed_and_invoke_update(tmp_path, emit_captured_replacement=None)
 
     assert result.exit_code == 0, result.output
-    reported = json.loads(result.output)
+    reported = json.loads(result.stdout)
 
     on_disk = yaml.safe_load(record_path.read_text(encoding="utf-8"))
-    on_disk_status = on_disk["findings_status"]
-    on_disk_gap_count = len(on_disk.get("gaps", []))
-    assert on_disk_status == "has_findings"
-    assert on_disk_gap_count == 1
+    assert on_disk["findings_status"] == "has_findings"
+    assert len(on_disk.get("gaps", [])) == 1
 
-    # The spy must have been invoked exactly once, with the persisted record
-    # as its first positional argument.
-    spy.assert_called_once()
-    emitted_record = spy.call_args.args[0]
-    assert isinstance(emitted_record, GenRetrospectiveRecord)
+    events_path = record_path.parent / "status.events.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    captured = [row for row in rows if row.get("type") == "RetrospectiveCaptured"]
+    assert len(captured) == 1, captured
+    event = captured[0]
 
-    assert emitted_record.findings_status == on_disk_status, (
-        "emit_captured must receive the persisted (merged) findings_status; "
-        f"emitted={emitted_record.findings_status!r} on_disk={on_disk_status!r}"
-    )
-    assert len(emitted_record.gaps) == on_disk_gap_count, (
-        "emit_captured must receive the persisted (merged) gap list; "
-        f"emitted={len(emitted_record.gaps)} on_disk={on_disk_gap_count}"
-    )
-
-    # Also assert the reported JSON matches disk (report == event == disk).
-    assert reported["findings_status"] == on_disk_status
-    assert reported.get("counts", {}).get("gaps") == on_disk_gap_count
+    assert event["mission_id"] == MISSION_ID_COMPLETED
+    assert event["record_path"] == str(record_path)
+    assert event["findings_status"] == on_disk["findings_status"] == reported["findings_status"]
+    assert event["proposal_count"] == len(on_disk.get("proposals", [])) == reported["counts"]["proposals"]
+    assert event["evidence_ref_count"] == len(on_disk.get("evidence_refs", [])) == reported["counts"]["evidence_refs"]
