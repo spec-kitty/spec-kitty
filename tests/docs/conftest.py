@@ -93,3 +93,22 @@ def commit_all_changes(root: Path, message: str) -> None:
     """Stage and commit every current change under *root* (the diff's "head")."""
     _run_git(root, "add", "-A")
     _run_git(root, "commit", "-q", "-m", message, "--allow-empty")
+
+
+@pytest.fixture()
+def release_cut_changelog(tmp_path: Path) -> Path:
+    """A copy of the live changelog as it looks right after a release cut (#5426).
+
+    The current ``## [Unreleased] - <version>`` heading becomes a dated release heading and a fresh,
+    empty ``## [Unreleased]`` sits above it. Live-file tests must keep passing on this tree, so they
+    can never pin the Unreleased section's current size or content.
+    """
+    live = Path(__file__).resolve().parents[2] / "docs" / "changelog" / "CHANGELOG.md"
+    text = live.read_text(encoding="utf-8")
+    heading = next(line for line in text.splitlines() if line.startswith("## [Unreleased]"))
+    version = heading.removeprefix("## [Unreleased]").strip(" -") or "0.0.0"
+    cut = text.replace(f"{heading}\n", f"## [Unreleased]\n\n## [{version}] - 2026-10-01\n", 1)
+    assert cut != text, "the live changelog has no Unreleased heading to cut"
+    target = tmp_path / "CHANGELOG.md"
+    target.write_text(cut, encoding="utf-8")
+    return target
