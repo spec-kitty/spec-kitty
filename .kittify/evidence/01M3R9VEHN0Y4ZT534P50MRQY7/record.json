@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M3R9VEHN0Y4ZT534P50MRQY7",
+  "completed_at": "2026-09-30T07:48:30.663131+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "work/test-quality/2026-09-30/cli/ledger-cli.md"
+}
