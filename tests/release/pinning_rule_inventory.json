@@ -78,21 +78,6 @@
       "reason": "Declares 'the sonarcloud job in .github/workflows/ci-quality.yml calls this module'. After the retirement the callers are ci-aggregate.yml's sonar-pr job and sonar.yml. A module docstring naming a deleted caller is a justification describing something no longer true (C-005)."
     },
     {
-      "rule": "tests/agent/test_context_validation_unit.py::test_no_context_env_vars_leak_out_of_this_class",
-      "file": "tests/agent/test_context_validation_unit.py",
-      "scope": "test_no_context_env_vars_leak_out_of_this_class",
-      "subjects": [
-        "retiring-step"
-      ],
-      "form": "docstring-or-comment",
-      "lines": [
-        553
-      ],
-      "dependency": false,
-      "disposition": "none",
-      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
-    },
-    {
       "rule": "tests/architectural/_fast_tier_gate.py::<module-docstring>",
       "file": "tests/architectural/_fast_tier_gate.py",
       "scope": "<module-docstring>",
@@ -246,7 +231,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        198
+        197
       ],
       "dependency": true,
       "disposition": "rewrite",
