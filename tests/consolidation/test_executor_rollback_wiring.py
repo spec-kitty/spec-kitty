@@ -64,7 +64,7 @@ def test_snapshot_is_captured_once_and_reused_by_a_resume(tmp_path: Path) -> Non
     assert env.state.restore_targets[_TARGET] == first[_TARGET], "consolidation's own advance is undone to the snapshot"
     # Re-pinned 2026-09-29 (slice-10 pre-PR verification): a resume carries forward the
     # previous post tip of every branch still sitting at it; resetting them wedged
-    # `--abort` after a crashed resume (tests/terminus/test_repro_5318_abort.py).
+    # `--abort` after a crashed resume (tests/terminus/test_abort_restores_snapshot.py).
     assert env.state.post_mutation_refs == {b: posts[b] for b in posts}, "tips still at the previous post tip are carried"
 
 

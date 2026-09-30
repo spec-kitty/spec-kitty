@@ -1,4 +1,4 @@
-"""#5111 — a fresh consolidate that fails at a merge gate must not wedge the re-run.
+"""A fresh consolidate that exits before mutating clears its own record, so the re-run is not wedged.
 
 A fresh ``spec-kitty consolidate`` persists ``state.json`` in
 ``_load_or_create_merge_state`` (``consolidation/resolve.py``) BEFORE
@@ -15,6 +15,8 @@ merge-gate *verdict* is patched (failing on the first run, passing on the
 re-run); the state/marker ordering under test runs unpatched. The downstream
 mutating phases are isolated by the shared #4764 harness mocks, and reaching
 the (mocked) bake proves the re-run went through the full gate path.
+
+Provenance: #5111.
 """
 
 from __future__ import annotations
@@ -99,7 +101,7 @@ def _marker_path(repo: Path) -> Path:
     return post_fix_marker_path(MISSION_ID, repo)
 
 
-def test_5111_fresh_gate_failure_then_plain_rerun_runs_full_gate_path(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fresh_gate_failure_then_plain_rerun_runs_full_gate_path(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Acceptance (1): fail at a gate, re-run plainly -> full gate path, no pre-fix refusal."""
     code1, out1, _ = _consolidate(approved_repo, monkeypatch, gates_pass=False)
     assert code1 == 1, out1
@@ -114,7 +116,7 @@ def test_5111_fresh_gate_failure_then_plain_rerun_runs_full_gate_path(approved_r
     assert code2 == 0, out2
 
 
-def test_5111_fresh_gate_failure_leaves_no_transaction_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fresh_gate_failure_leaves_no_transaction_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A pre-mutation exit clears the fresh run's own state AND marker ("the mission is unchanged")."""
     code, out, _ = _consolidate(approved_repo, monkeypatch, gates_pass=False)
     assert code == 1, out
@@ -123,7 +125,7 @@ def test_5111_fresh_gate_failure_leaves_no_transaction_record(approved_repo: Pat
     assert not _marker_path(approved_repo).exists(), "a gate failure left an orphan reconciliation marker behind"
 
 
-def test_5111_interrupt_before_mutation_also_clears_the_fresh_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_interrupt_before_mutation_also_clears_the_fresh_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Not only gate failures: Ctrl-C (or a declined prompt) inside the pre-mutation window clears too."""
     code, out, _ = _consolidate(approved_repo, monkeypatch, gates_pass=True, gates_raise=KeyboardInterrupt())
     assert code != 0, out
@@ -132,7 +134,7 @@ def test_5111_interrupt_before_mutation_also_clears_the_fresh_record(approved_re
     assert not _marker_path(approved_repo).exists(), "an interrupt left an orphan reconciliation marker behind"
 
 
-def test_5111_gate_failure_on_resume_preserves_the_resume_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gate_failure_on_resume_preserves_the_resume_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Only a FRESH run's own record is cleared; a pre-existing resume record survives a gate failure."""
     resume_state = ConsolidationState(mission_id=MISSION_ID, mission_slug=MISSION_SLUG, target_branch="main", wp_order=["WP01"])
     resume_state.current_wp = "WP01"
@@ -147,7 +149,7 @@ def test_5111_gate_failure_on_resume_preserves_the_resume_record(approved_repo: 
     assert _marker_path(approved_repo).exists(), "a gate failure destroyed a pre-existing resume record's marker"
 
 
-def test_5111_rerun_after_gate_failure_honours_its_own_strategy(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rerun_after_gate_failure_honours_its_own_strategy(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The re-run is fresh, so the strategy it runs is the one it persists (no F14-class split).
 
     Attempt 1 persists ``squash`` and fails at a gate; attempt 2 passes ``--strategy merge``.
@@ -169,7 +171,7 @@ def test_5111_rerun_after_gate_failure_honours_its_own_strategy(approved_repo: P
     assert persisted_at_bake == ["merge"], persisted_at_bake
 
 
-def test_5111_fresh_state_is_never_on_disk_without_its_marker(tmp_path: Path) -> None:
+def test_fresh_state_is_never_on_disk_without_its_marker(tmp_path: Path) -> None:
     """The crash-proof ordering invariant: a fresh transaction record is created marker-first."""
     state, is_resume = _load_or_create_merge_state(
         main_repo=tmp_path,
@@ -186,7 +188,7 @@ def test_5111_fresh_state_is_never_on_disk_without_its_marker(tmp_path: Path) ->
     assert detect_legacy_in_flight_state(tmp_path, MISSION_ID, is_resume=True) is None
 
 
-def test_5111_genuinely_pre_fix_state_is_still_refused(tmp_path: Path) -> None:
+def test_genuinely_pre_fix_state_is_still_refused(tmp_path: Path) -> None:
     """FR-003: a LOADED marker-less state is never stamped by the loader; FR-012 still refuses it."""
     save_state(ConsolidationState(mission_id=MISSION_ID, mission_slug=MISSION_SLUG, target_branch="main", wp_order=["WP01"]), tmp_path)
 
@@ -204,13 +206,13 @@ def test_5111_genuinely_pre_fix_state_is_still_refused(tmp_path: Path) -> None:
     assert detect_legacy_in_flight_state(tmp_path, MISSION_ID, is_resume=True) is not None
 
 
-def test_5111_legacy_migration_drops_an_orphan_canonical_marker(tmp_path: Path) -> None:
+def test_legacy_migration_drops_an_orphan_canonical_marker(tmp_path: Path) -> None:
     """A migrated (pre-fix) state must not inherit a stale marker sitting in the canonical dir."""
     legacy_key = MISSION_SLUG
     save_state(ConsolidationState(mission_id=legacy_key, mission_slug=MISSION_SLUG, target_branch="main", wp_order=["WP01"]), tmp_path)
     orphan = _marker_path(tmp_path)
     orphan.parent.mkdir(parents=True, exist_ok=True)
-    orphan.write_text("left behind by a pre-#5111 --abort\n", encoding="utf-8")
+    orphan.write_text("left behind by an older --abort\n", encoding="utf-8")
 
     state, is_resume = _load_or_create_merge_state(
         main_repo=tmp_path,
@@ -227,7 +229,7 @@ def test_5111_legacy_migration_drops_an_orphan_canonical_marker(tmp_path: Path) 
     assert detect_legacy_in_flight_state(tmp_path, MISSION_ID, is_resume=True) is not None
 
 
-def test_5111_abort_clears_state_and_marker(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_abort_clears_state_and_marker(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``--abort`` drops the marker together with the state (e.g. residue of a hard-killed run)."""
     _load_or_create_merge_state(
         main_repo=approved_repo,
@@ -249,7 +251,7 @@ def test_5111_abort_clears_state_and_marker(approved_repo: Path, monkeypatch: py
     )
 
 
-def test_5111_clear_state_removes_the_marker_with_the_state(tmp_path: Path) -> None:
+def test_clear_state_removes_the_marker_with_the_state(tmp_path: Path) -> None:
     """Unit pin: ``clear_state(repo, mission_id)`` is the single transaction-record clear."""
     runtime_dir = get_merge_runtime_dir(MISSION_ID, tmp_path)
     runtime_dir.mkdir(parents=True)
@@ -261,7 +263,7 @@ def test_5111_clear_state_removes_the_marker_with_the_state(tmp_path: Path) -> N
     assert not (runtime_dir / _MARKER_FILENAME).exists()
 
 
-def test_5111_clear_state_without_state_still_removes_an_orphan_marker(tmp_path: Path) -> None:
+def test_clear_state_without_state_still_removes_an_orphan_marker(tmp_path: Path) -> None:
     """An orphan marker (no state) is dropped too, but the return value stays 'no state cleared'."""
     runtime_dir = get_merge_runtime_dir(MISSION_ID, tmp_path)
     runtime_dir.mkdir(parents=True)
@@ -271,7 +273,7 @@ def test_5111_clear_state_without_state_still_removes_an_orphan_marker(tmp_path:
     assert not (runtime_dir / _MARKER_FILENAME).exists()
 
 
-def test_5111_clear_state_deletes_state_before_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_clear_state_deletes_state_before_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Deletion mirrors creation (marker, then state): a kill mid-clear leaves an orphan marker, never a marker-less state."""
     runtime_dir = get_merge_runtime_dir(MISSION_ID, tmp_path)
     runtime_dir.mkdir(parents=True)
@@ -291,7 +293,7 @@ def test_5111_clear_state_deletes_state_before_marker(tmp_path: Path, monkeypatc
     assert unlinked == ["state.json", _MARKER_FILENAME]
 
 
-def test_5111_stateless_abort_drops_an_orphan_marker(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stateless_abort_drops_an_orphan_marker(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A marker with no state (e.g. a kill between the two creation writes) is cleared by ``--abort`` too."""
     write_post_fix_marker(approved_repo, MISSION_ID)
     assert not get_state_path(approved_repo, MISSION_ID).exists()
@@ -303,7 +305,7 @@ def test_5111_stateless_abort_drops_an_orphan_marker(approved_repo: Path, monkey
     assert not _marker_path(approved_repo).exists(), "a state-less --abort left the orphan marker behind"
 
 
-def test_5111_strategy_persist_failure_clears_the_fresh_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_strategy_persist_failure_clears_the_fresh_record(approved_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The first write after record creation is inside the guard: its failure clears the record too."""
     from specify_cli.consolidation import executor
 
@@ -318,7 +320,7 @@ def test_5111_strategy_persist_failure_clears_the_fresh_record(approved_repo: Pa
     assert not _marker_path(approved_repo).exists()
 
 
-def test_5111_failed_record_clear_never_masks_the_original_exit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_failed_record_clear_never_masks_the_original_exit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A cleanup OSError inside the guard must not replace the real exit (e.g. a gate's typer.Exit)."""
     import typer
 

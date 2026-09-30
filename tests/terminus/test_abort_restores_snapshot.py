@@ -1,18 +1,15 @@
-"""Repro #5318 (``--abort``) -- abort must restore the pre-mutation snapshot before it clears the record.
-
-Pre-fix, ``consolidate --abort`` cleared ``state.json`` and tore down coordination
-without restoring a single ref. That discarded the only snapshot, so the NEXT fresh
-run captured the ADVANCED base as its own "pre-run" state (#5318).
+"""``consolidate --abort`` restores the pre-mutation snapshot before it clears the record.
 
 Contract (FR-005/FR-007/FR-011, SC-005/SC-006, ``contracts/rollback-authority.md``):
 ``--abort`` restores every snapshotted branch through the single CAS rollback
-authority FIRST, and clears the record only after a full restore.
+authority FIRST, and clears the record only after a full restore. Without that,
+the NEXT fresh run would capture the ADVANCED base as its own "pre-run" state.
 
-Trigger (all REAL, nothing mocked): the #5385 shape. A LANES mission whose target is
-the protected ``main`` raises an uncaught ``BookkeepingPolicyRefused`` in
+Trigger (all REAL, nothing mocked): a LANES mission whose target is the protected
+``main`` raises an uncaught ``BookkeepingPolicyRefused`` in
 ``_phase_record_done_and_project`` AFTER the squash advanced the target and AFTER the
 post-mutation tips were recorded for the ``_phase_mission_to_target`` phase. That exit
-is OUTSIDE the reconciliation gate, so WP03's in-process rollback does not run and the
+is OUTSIDE the reconciliation gate, so the in-process rollback does not run and the
 run leaves a genuine crash residue (advanced ``main`` + advanced mission branch + a
 resumable ``state.json``) for ``--abort`` to deal with.
 
@@ -22,6 +19,8 @@ Cases that a real CLI run cannot produce say so in their docstring:
   written by the previous release -- there is no other way to obtain one);
 * the FR-011 verified landing reuses ``test_repro_5021``'s real mid-teardown fixture and
   adds the real pre-run tips as ``pre_mutation_refs`` (that fixture predates the snapshot).
+
+Provenance: #5318 (abort), #5338 (abort after a deleted lane branch), #5385 (crash trigger).
 """
 
 from __future__ import annotations
@@ -34,11 +33,19 @@ import pytest
 
 from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
 from specify_cli.consolidation.state import ConsolidationState, acquire_merge_lock, get_state_path, save_state
-from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, run_terminus
+from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, plant_canceled_commit, run_terminus
 from tests.terminus.conftest import _git as git
 from tests.terminus.lanes_fixture import build_lanes_mission
+from tests.terminus.rollback_harness import (
+    delete_lane_branch,
+    failing_gate_run,
+    flat,
+    full_snapshot,
+    ref_shas,
+    remove_carrier_cause,
+    restored_pairs,
+)
 from tests.terminus.test_repro_5021 import _complete_squash_then_recreate_mid_teardown_state
-from tests.terminus.test_repro_5318 import _failing_run, flat, ref_shas, remove_carrier_cause, restored_pairs
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -73,7 +80,7 @@ def _crashed_lanes_run(tmp_path: Path, mid8: str) -> tuple[CoordMission, dict[st
     return mission, before
 
 
-def test_5318_abort_restores_every_snapshotted_branch(tmp_path: Path) -> None:
+def test_abort_restores_every_snapshotted_branch(tmp_path: Path) -> None:
     mission, before = _crashed_lanes_run(tmp_path, "01M5318A")
 
     result = _abort(mission)
@@ -81,8 +88,8 @@ def test_5318_abort_restores_every_snapshotted_branch(tmp_path: Path) -> None:
     after = ref_shas(mission)
 
     assert result.returncode == 0, f"a fully restored abort exits 0. output={output}"
-    assert after["target"] == before["target"], f"#5318: --abort left the target advanced ({before['target']} -> {after['target']}). output={output}"
-    assert after["coord"] == before["coord"], f"#5318: --abort left the mission branch advanced. output={output}"
+    assert after["target"] == before["target"], f"--abort left the target advanced ({before['target']} -> {after['target']}). output={output}"
+    assert after["coord"] == before["coord"], f"--abort left the mission branch advanced. output={output}"
     assert {k: v for k, v in after.items() if k.startswith("lane:")} == {k: v for k, v in before.items() if k.startswith("lane:")}
     assert not blob_present_at(mission.repo, mission.target_branch, "src/pkg/wp01.py"), "the squashed content must be gone from the target"
     assert not _state_path(mission).exists(), "the record is cleared only after the restore"
@@ -90,7 +97,7 @@ def test_5318_abort_restores_every_snapshotted_branch(tmp_path: Path) -> None:
     assert restored_pairs(output, mission.coord_branch), f"the report must name the mission-branch restore. output={output}"
 
 
-def test_5318_abort_refuses_to_destroy_another_actors_commit(tmp_path: Path) -> None:
+def test_abort_refuses_to_destroy_another_actors_commit(tmp_path: Path) -> None:
     """SC-005: a branch moved by someone else after the crash keeps its commit; the record stays; exit 1."""
     mission, _before = _crashed_lanes_run(tmp_path, "01M5318B")
     recorded_post = _read_state(mission)["post_mutation_refs"]
@@ -112,8 +119,8 @@ def test_5318_abort_refuses_to_destroy_another_actors_commit(tmp_path: Path) -> 
     assert "Kept the consolidation record" in output, f"the operator must be told the record was kept. output={output}"
 
 
-def test_5318_abort_after_a_kill_before_post_tips_were_recorded_keeps_the_record(tmp_path: Path) -> None:
-    """Slice-10 F1 (kill window): an advanced branch with no recorded post tip is never reported restored.
+def test_abort_after_a_kill_before_post_tips_were_recorded_keeps_the_record(tmp_path: Path) -> None:
+    """Kill window (slice-10 F1): an advanced branch with no recorded post tip is never reported restored.
 
     A SIGKILL inside a ref-moving phase, before its recorder ran, cannot be produced by a
     real CLI run on demand. It is modelled on the crashed run's REAL ``state.json``: the
@@ -140,13 +147,13 @@ def test_5318_abort_after_a_kill_before_post_tips_were_recorded_keeps_the_record
     assert "Kept the consolidation record" in output, f"the operator must be told the record was kept. output={output}"
 
 
-def test_5318_abort_keeps_the_operators_fix_and_a_fresh_run_succeeds(tmp_path: Path) -> None:
+def test_abort_keeps_the_operators_fix_and_a_fresh_run_succeeds(tmp_path: Path) -> None:
     """The gate FAIL restored in-process; the operator then fixes the carrier lane; ``--abort`` must keep that fix.
 
     Regression guard (green before AND after the fix): the danger is an authority that "restores"
     the lane to its snapshot and destroys the operator's commit (post-tasks BLOCKER 2).
     """
-    mission, planted, before, _reflog, _result = _failing_run(tmp_path, "01M5318C")
+    mission, planted, before, _reflog, _result = failing_gate_run(tmp_path, "01M5318C")
     remove_carrier_cause(mission, "WP02")
     fixed_lane_tip = ref_shas(mission)["lane:WP02"]
     assert fixed_lane_tip != before["lane:WP02"], "fixture precondition: the operator's rewrite moved the lane"
@@ -167,7 +174,7 @@ def test_5318_abort_keeps_the_operators_fix_and_a_fresh_run_succeeds(tmp_path: P
     assert not blob_present_at(mission.repo, mission.target_branch, planted)
 
 
-def test_5318_abort_keeps_a_verified_landing(tmp_path: Path) -> None:
+def test_abort_keeps_a_verified_landing(tmp_path: Path) -> None:
     """FR-011 / SC-006: a record whose PASS anchor equals the target tip is never rolled back by ``--abort``."""
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5318D")
     pre_run = ref_shas(mission)
@@ -187,7 +194,7 @@ def test_5318_abort_keeps_a_verified_landing(tmp_path: Path) -> None:
     assert _state_path(mission).exists(), "the record is kept"
 
 
-def test_5318_abort_of_a_pre_fix_record_keeps_todays_behaviour_with_a_notice(tmp_path: Path) -> None:
+def test_abort_of_a_pre_fix_record_keeps_todays_behaviour_with_a_notice(tmp_path: Path) -> None:
     """A record without a snapshot (older release): abort clears it as before, and says nothing was restored.
 
     A real older-shape record cannot be produced by the current release, so the new keys are
@@ -209,7 +216,7 @@ def test_5318_abort_of_a_pre_fix_record_keeps_todays_behaviour_with_a_notice(tmp
     assert ref_shas(mission) == advanced != before, "without a snapshot no branch is moved"
 
 
-def test_5318_abort_refuses_while_another_missions_merge_is_live(tmp_path: Path) -> None:
+def test_abort_refuses_while_another_missions_merge_is_live(tmp_path: Path) -> None:
     mission, _before = _crashed_lanes_run(tmp_path, "01M5318F")
     advanced = ref_shas(mission)
     other_id = "01M5318ZZZ" + "0" * 16
@@ -225,7 +232,7 @@ def test_5318_abort_refuses_while_another_missions_merge_is_live(tmp_path: Path)
     assert "another mission" in output, f"the refusal must say why. output={output}"
 
 
-def test_5318_abort_after_a_crashed_resume_still_restores(tmp_path: Path) -> None:
+def test_abort_after_a_crashed_resume_still_restores(tmp_path: Path) -> None:
     """A resumed attempt that re-moves nothing must not orphan attempt 1's post tips.
 
     Real #5385 crash, then ``--resume`` (crashes the same way: lanes already
@@ -248,3 +255,36 @@ def test_5318_abort_after_a_crashed_resume_still_restores(tmp_path: Path) -> Non
     assert after["coord"] == before["coord"], f"mission branch left advanced. output={output}"
     assert not _state_path(mission).exists(), "the record is cleared after a full restore"
     assert "no post-mutation tip was recorded" not in output, output
+
+
+def test_abort_after_a_lane_branch_was_deleted_is_not_wedged(tmp_path: Path) -> None:
+    """A vanished snapshotted LANE branch is reported with a recreate hint, never a wedge (slice-10 F3).
+
+    Recovery path: gate FAIL (restored in-process), the operator deletes an approved lane
+    branch, ``--resume`` refuses at claim time, then ``--abort``. Everything else is already
+    at its snapshot, so the abort must succeed and tell the operator how to recreate the lane.
+    """
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M9WEDG")
+    plant_canceled_commit(mission, canceled_wp="WP03", carrier_wp="WP02")
+    first = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
+    assert first.returncode != 0, f"fixture precondition: the fresh run must gate-FAIL. stdout={first.stdout}\nstderr={first.stderr}"
+    lane = mission.lane_branches["WP01"]
+    assert _state_path(mission).exists(), "fixture precondition: the failed run leaves a resumable record"
+    pre_refs = _read_state(mission)["pre_mutation_refs"]
+    assert isinstance(pre_refs, dict) and lane in pre_refs, f"fixture precondition: the lane is snapshotted: {pre_refs}"
+    lane_snapshot = pre_refs[lane]
+    delete_lane_branch(mission, "WP01")
+    resumed = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--resume", "--yes"])
+    assert resumed.returncode != 0, "fixture precondition: the resume refuses at claim time"
+    before = full_snapshot(mission)
+
+    aborted = _abort(mission)
+    output = flat(aborted)
+
+    assert aborted.returncode == 0, f"a missing lane branch must not wedge --abort. output={output}"
+    assert not _state_path(mission).exists(), f"the record is cleared after the (otherwise full) restore. output={output}"
+    after = full_snapshot(mission)
+    assert (after["target"], after["coord"]) == (before["target"], before["coord"]), f"nothing needed restoring. output={output}"
+    assert f"lane branch {lane} no longer exists" in output, f"the report must name the vanished lane. output={output}"
+    assert f"git branch {lane} {lane_snapshot}" in output, f"the report must give the recreate command. output={output}"
+    assert "nothing was rolled back" not in output.lower(), f"no blanket refusal. output={output}"

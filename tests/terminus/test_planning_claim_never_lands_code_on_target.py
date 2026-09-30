@@ -1,15 +1,19 @@
-"""Repro #5296 -- a planning-lane claim must never merge code lanes onto the target.
+"""A planning-lane claim never merges code lanes onto the mission's target branch.
 
 Claiming a ``planning_artifact`` WP (``lane-planning``) that depends on an
-approved code WP runs the dependency self-heal, which merges every approved code
-dependency lane into the planning lane's workspace -- the REPOSITORY ROOT
-checkout, sitting on the mission's target branch -- so code lands on the target
-before ``spec-kitty consolidate`` (bypassing its attribution window). On a
-protected target the same self-heal dies with ``ProtectedBranchCommitError``.
+approved code WP runs the dependency self-heal. The planning lane's workspace is
+the REPOSITORY ROOT checkout, sitting on the target branch, so merging code
+dependency lanes there would land code on the target before
+``spec-kitty consolidate`` (bypassing its attribution window).
 
-Operator decision (DM 01M3PJWGGKTRT9W03MJHFV44Q2): skip the merge and waive
-code-lane ancestry for exactly that placement; code reaches the target only
-through ``consolidate``. Driven through the REAL CLI (no mocking).
+Contract (operator decision DM 01M3PJWGGKTRT9W03MJHFV44Q2): the claim skips the
+merge and waives code-lane ancestry for exactly that placement; only the claim's
+status bookkeeping lands on the target, and code reaches the target only through
+``consolidate``. Driven through the REAL CLI (no mocking). The protected-target
+variant is pinned at the resolver seam by
+``tests/lanes/test_planning_claim_self_heal.py::test_planning_claim_on_protected_target_checkout_does_not_raise``.
+
+Provenance: #5296.
 """
 
 from __future__ import annotations
@@ -75,7 +79,7 @@ def _root_files(m: CoordMission) -> set[str]:
     return set(git_out(m.repo, "ls-files").split())
 
 
-def test_5296_planning_claim_does_not_merge_code_lanes_onto_target(tmp_path: Path) -> None:
+def test_planning_claim_does_not_merge_code_lanes_onto_target(tmp_path: Path) -> None:
     m = build_lanes_mission(tmp_path, with_planning_lane_wp=True, planning_depends_on_code=True, approve_planning_wp=False)
     _wire_planning_dependency(m)
     target_before = git_rev(m.repo, m.target_branch)
@@ -108,24 +112,3 @@ def test_5296_planning_claim_does_not_merge_code_lanes_onto_target(tmp_path: Pat
     out = result.stdout + result.stderr
     assert result.returncode == 0, out
     assert blob_present_at(m.repo, m.target_branch, _CODE_FILE), out
-
-
-def test_5296_protected_target_claim_does_not_raise_or_commit(tmp_path: Path) -> None:
-    m = build_lanes_mission(tmp_path, mid8="01M5296P", target_branch="main", with_planning_lane_wp=True, planning_depends_on_code=True, approve_planning_wp=False)
-    _wire_planning_dependency(m)
-    target_before = git_rev(m.repo, "main")
-
-    _rc, out = _claim(m)
-
-    # Contract of THIS fix: the claim never commits on the protected target and never lands the
-    # code lane there; the load-bearing assertions are the unchanged `main` SHA and the absent code
-    # file. (The exit code is deliberately not asserted: a LANES mission's claim status bookkeeping
-    # onto a protected `main` is refused separately -- the #5385 protected-target trap, outside
-    # #5296 -- and that refusal happens before any commit lands.) This fixture carries no
-    # `.kittify/config.yaml`, so `assert_not_protected_branch` does not run here and the
-    # `ProtectedBranchCommitError` check below is only a smoke check; the raise itself is pinned by
-    # tests/lanes/test_planning_claim_self_heal.py::test_planning_claim_on_protected_target_checkout_does_not_raise.
-    assert "ProtectedBranchCommitError" not in out, out
-    assert _NOTICE in out, out
-    assert git_rev(m.repo, "main") == target_before, "claim committed on the protected target"
-    assert not (m.repo / _CODE_FILE).exists()

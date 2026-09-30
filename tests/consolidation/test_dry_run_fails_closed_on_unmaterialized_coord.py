@@ -1,4 +1,4 @@
-"""#5110 — ``consolidate --dry-run`` must fail closed on an unmaterialized coord worktree.
+"""``consolidate --dry-run`` fails closed on an unmaterialized coordination worktree.
 
 ``CoordinationWorktreeUnmaterialized`` (#4959) derives from
 ``StatusReadPathNotFound(Exception)``, so it escaped the dry-run forecast's
@@ -10,6 +10,8 @@ the dry run must do the same and keep ``--json`` output valid.
 Driven through the real ``spec-kitty consolidate --dry-run`` typer command on a
 coord-topology mission whose coordination branch exists but whose coordination
 worktree has been removed from disk (the fresh-clone / CI window).
+
+Provenance: #5110.
 """
 
 from __future__ import annotations
@@ -53,7 +55,7 @@ def _dry_run(*extra: str) -> tuple[int, str, BaseException | None]:
     return result.exit_code, result.output, result.exception
 
 
-def test_5110_dry_run_on_unmaterialized_coord_exits_1_with_readable_message(unmaterialized_repo: Path) -> None:
+def test_dry_run_on_unmaterialized_coord_exits_1_with_readable_message(unmaterialized_repo: Path) -> None:
     code, output, exc = _dry_run()
 
     assert code == 1, f"expected a handled exit 1, got {code} ({exc!r}):\n{output}"
@@ -63,7 +65,7 @@ def test_5110_dry_run_on_unmaterialized_coord_exits_1_with_readable_message(unma
     assert "Dry run aborted" in output, output
 
 
-def test_5110_dry_run_json_on_unmaterialized_coord_emits_valid_json_error(unmaterialized_repo: Path) -> None:
+def test_dry_run_json_on_unmaterialized_coord_emits_valid_json_error(unmaterialized_repo: Path) -> None:
     code, output, exc = _dry_run("--json")
 
     assert code == 1, f"expected a handled exit 1, got {code} ({exc!r}):\n{output}"
