@@ -144,7 +144,16 @@ def _refresh_safety_violations(finalize_source: str, router_source: str) -> list
         def is_exact_lanes_tuple(node: ast.expr | None) -> bool:
             if isinstance(node, ast.IfExp):
                 return is_exact_lanes_tuple(node.body) and is_exact_lanes_tuple(node.orelse)
-            if isinstance(node, ast.Tuple):
+            # #5445: ``OwnedCheckout.files(paths: list[Path])`` is list-typed
+            # (mypy --strict invariance forbids passing a tuple there), so the
+            # owned branch of the ternary is now a single-element LIST literal
+            # (``owned.files([lanes_path])``) while the non-owned branch stays
+            # a tuple (``(lanes_path,)``). Both carry the identical containment
+            # guarantee this check polices -- exactly one element, the
+            # ``lanes_path`` name -- so a List is accepted on the same terms
+            # as a Tuple; only the element shape is asserted, never the
+            # container type.
+            if isinstance(node, (ast.Tuple, ast.List)):
                 return len(node.elts) == 1 and isinstance(node.elts[0], ast.Name) and node.elts[0].id == "lanes_path"
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "tuple" and len(node.args) == 1:
                 return is_exact_lanes_tuple(node.args[0])

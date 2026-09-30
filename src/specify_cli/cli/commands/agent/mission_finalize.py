@@ -4384,63 +4384,45 @@ def _resolve_finalize_context(
     )
 
 
-@dataclass(frozen=True)
-class _FinalizeRefreshPreflight:
-    """The --refresh-planning-commit decision and its read-only preflight results."""
-
-    planning_sha: PlanningCommitResolution | None = None
-    bootstrap_result: BootstrapResult | None = None
-    status_findings: list[str] = field(default_factory=list)
-
-
-def _run_refresh_planning_preflight(
-    ctx: _FinalizeContext,
-    target_branch: str,
+def _require_refresh_pin_decision(
+    planning_sha: PlanningCommitResolution | None,
+    refresh_bootstrap_result: BootstrapResult | None,
     *,
-    target_branch_override: str | None,
-    validate_only: bool,
     json_output: bool,
-    allow_orphaned: bool,
-) -> _FinalizeRefreshPreflight:
-    """Phase: capture the refresh pin decision and run its read-only guards.
+) -> None:
+    """Fail closed when the mutating refresh's own read-only preflight didn't run.
 
-    Runs before finalize can write files or lifecycle events: a mutating
-    refresh fails closed on a branch-contract change, pending partition
-    status, or canonical status that would need bootstrap writes; a
-    ``--validate-only`` refresh only collects the status findings.
+    Extracted (#5445 landing fix) to keep ``finalize_tasks``'s own cyclomatic
+    complexity under the C901 ceiling; both checks are defensive
+    (``refresh_bootstrap_result is None`` is unreachable in the normal flow --
+    the non-validate-only refresh preflight above always computes this
+    dry-run plan -- fail closed rather than re-planning a second time, mirrors
+    ``planning_sha``).
     """
-    owned = ctx.owned
-    planning_sha = _preserve_or_capture_planning_commit_sha(
-        ctx.planning_dir,
-        ctx.repo_root,
-        ctx.mission_slug,
-        target_branch,
-        json_output=json_output,
-        owned=owned,
-        refresh_planning_commit=True,
-        allow_orphaned=allow_orphaned,
-    )
-    if validate_only:
-        return _FinalizeRefreshPreflight(
-            planning_sha=planning_sha,
-            status_findings=_refresh_worktree_status_findings(
-                owned.repository_root if owned else ctx.repo_root,
-                owned.owned_root if owned else ctx.repo_root,
-                ctx.mission_slug,
-            ),
-        )
-    _preflight_refresh_planning_commit(
-        ctx.repo_root,
-        ctx.planning_dir,
-        ctx.mission_slug,
-        target_branch,
-        target_branch_override=target_branch_override,
-        owned=owned,
-        json_output=json_output,
-    )
+    if planning_sha is None:
+        _refuse_planning_pin_refresh("the planning pin decision is missing", json_output=json_output)
+    if refresh_bootstrap_result is None:
+        _refuse_planning_pin_refresh("the canonical bootstrap plan is missing", json_output=json_output)
+
+
+def _refresh_bootstrap_dry_run_or_refuse(
+    planning_dir: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None,
+    json_output: bool,
+) -> BootstrapResult:
+    """Dry-run the canonical bootstrap for a mutating refresh, refusing a would-write result.
+
+    Extracted (#5445 landing fix) purely to keep ``finalize_tasks``'s own
+    cyclomatic complexity under the C901 ceiling -- the caller still makes the
+    ``_preflight_refresh_planning_commit`` guard call directly (the
+    architecturally-significant one), this helper only wraps the read-only
+    dry-run + its refusal, which the guard does not need to inspect.
+    """
     bootstrap_result = _bootstrap_canonical_state_via_mission(
-        ctx.planning_dir,
-        ctx.mission_slug,
+        planning_dir,
+        mission_slug,
         dry_run=True,
         owned=owned,
     )
@@ -4449,7 +4431,7 @@ def _run_refresh_planning_preflight(
             "canonical coordination status would need bootstrap writes",
             json_output=json_output,
         )
-    return _FinalizeRefreshPreflight(planning_sha=planning_sha, bootstrap_result=bootstrap_result)
+    return bootstrap_result
 
 
 @dataclass(frozen=True)
@@ -4467,7 +4449,6 @@ class _FinalizeBranchSetup:
     owned_head_before: str | None
     owned_derived_dir: Path | None
     owned_derived_snapshot: dict[Path, bytes]
-    refresh: _FinalizeRefreshPreflight = field(default_factory=_FinalizeRefreshPreflight)
 
 
 def _run_finalize_branch_setup(
@@ -4477,7 +4458,6 @@ def _run_finalize_branch_setup(
     validate_only: bool,
     json_output: bool,
     refresh_planning_commit: bool = False,
-    allow_orphaned: bool = False,
 ) -> _FinalizeBranchSetup:
     """Phase: occurrence-map/target-branch/preflight gates, then the meta.json persist (T071).
 
@@ -4505,16 +4485,19 @@ def _run_finalize_branch_setup(
         planning_branch=target_branch,
         json_output=json_output,
     )
-    refresh = _FinalizeRefreshPreflight()
-    if refresh_planning_commit:
-        refresh = _run_refresh_planning_preflight(
-            ctx,
-            target_branch,
-            target_branch_override=target_branch_override,
-            validate_only=validate_only,
-            json_output=json_output,
-            allow_orphaned=allow_orphaned,
-        )
+    # #5445 landing fix: the --refresh-planning-commit preflight (the read-only
+    # planning-pin decision + branch-contract/bootstrap guards) is NOT run here
+    # any more -- it is called directly from ``finalize_tasks`` itself, right
+    # after this phase returns, so the canonical
+    # ``_preserve_or_capture_planning_commit_sha`` authority and its
+    # ``_preflight_refresh_planning_commit`` guard stay visible as direct calls
+    # in the entrypoint's own body (see
+    # ``tests/architectural/test_finalize_refresh_pin_authority.py``). Nothing
+    # written above this point depends on the refresh decision, and the
+    # meta.json snapshot/persist below is unconditionally skipped for a
+    # refresh run (``not refresh_planning_commit`` guard), so moving the
+    # refresh preflight to run immediately after this function returns is a
+    # pure reordering against the read-only checks above (behavior-preserving).
     if not json_output:
         console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
 
@@ -4567,7 +4550,6 @@ def _run_finalize_branch_setup(
         meta_original_text=meta_original_text,
         target_branch_persist=target_branch_persist,
         meta_json_persisted=target_branch_persist.persisted,
-        refresh=refresh,
     )
 
 
@@ -4931,7 +4913,6 @@ def finalize_tasks(
             validate_only=validate_only,
             json_output=json_output,
             refresh_planning_commit=refresh_planning_commit,
-            allow_orphaned=allow_orphaned,
         )
         target_branch = branch_setup.target_branch
         merge_target_branch = branch_setup.merge_target_branch
@@ -4944,9 +4925,50 @@ def finalize_tasks(
         meta_original_text = branch_setup.meta_original_text
         target_branch_persist = branch_setup.target_branch_persist
         meta_json_persisted = branch_setup.meta_json_persisted
-        planning_sha = branch_setup.refresh.planning_sha
-        refresh_bootstrap_result = branch_setup.refresh.bootstrap_result
-        refresh_status_findings = branch_setup.refresh.status_findings
+
+        # #5445 landing fix: the single canonical planning-pin authority
+        # (``_preserve_or_capture_planning_commit_sha``) and its read-only
+        # branch-contract/bootstrap guard (``_preflight_refresh_planning_commit``)
+        # are called directly here -- not nested inside a helper -- so both
+        # stay visible as one-shot calls in this entrypoint's own body
+        # (tests/architectural/test_finalize_refresh_pin_authority.py). Runs
+        # before every finalize writer/event-emitter below.
+        planning_sha: PlanningCommitResolution | None = None
+        refresh_bootstrap_result: BootstrapResult | None = None
+        refresh_status_findings: list[str] = []
+        if refresh_planning_commit:
+            planning_sha = _preserve_or_capture_planning_commit_sha(
+                planning_dir,
+                repo_root,
+                mission_slug,
+                target_branch,
+                json_output=json_output,
+                owned=owned,
+                refresh_planning_commit=True,
+                allow_orphaned=allow_orphaned,
+            )
+            if not validate_only:
+                _preflight_refresh_planning_commit(
+                    repo_root,
+                    planning_dir,
+                    mission_slug,
+                    target_branch,
+                    target_branch_override=target_branch_override,
+                    owned=owned,
+                    json_output=json_output,
+                )
+                refresh_bootstrap_result = _refresh_bootstrap_dry_run_or_refuse(
+                    planning_dir,
+                    mission_slug,
+                    owned=owned,
+                    json_output=json_output,
+                )
+            else:
+                refresh_status_findings = _refresh_worktree_status_findings(
+                    owned.repository_root if owned else repo_root,
+                    owned.owned_root if owned else repo_root,
+                    mission_slug,
+                )
 
         req_gates = _run_finalize_validation_gates(
             ctx,
@@ -5002,13 +5024,12 @@ def finalize_tasks(
             return
 
         if refresh_planning_commit:
-            if planning_sha is None:
-                _refuse_planning_pin_refresh("the planning pin decision is missing", json_output=json_output)
-            if refresh_bootstrap_result is None:
-                # Unreachable in the normal flow: the non-validate-only refresh
-                # preflight above always computes this dry-run plan. Fail closed
-                # rather than re-planning a second time (mirrors planning_sha).
-                _refuse_planning_pin_refresh("the canonical bootstrap plan is missing", json_output=json_output)
+            _require_refresh_pin_decision(planning_sha, refresh_bootstrap_result, json_output=json_output)
+            # _require_refresh_pin_decision raises (NoReturn) on either None --
+            # mypy cannot see that across the function boundary, so narrow
+            # explicitly for the calls below (behavior unchanged).
+            assert planning_sha is not None
+            assert refresh_bootstrap_result is not None
             _commit_planning_pin_refresh(
                 planning_dir,
                 repo_root,
