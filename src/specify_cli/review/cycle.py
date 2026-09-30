@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, now_utc
 from kernel.git_topology import GitTopologyError
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CoordCommitRouter,
@@ -176,7 +176,7 @@ def _review_cycle_wp_dir(
     wp_slug: str,
     *,
     kind: MissionArtifactKind = MissionArtifactKind.WORK_PACKAGE_TASK,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Return the ``tasks/<wp>`` dir a review-cycle artifact reads/writes,
     on disk.
@@ -277,8 +277,12 @@ def _review_cycle_wp_dir(
     resolved the coord worktree for a coord-topology mission —
     #2646/#2697/#2275). ``MissionSelectorAmbiguous`` propagates unchanged (no
     silent pick — C-009).
+
+    ``owned`` is the validated owned checkout, when the command runs against
+    one: the directory is then resolved from the fact and never from the
+    repository root checkout.
     """
-    seam = placement_seam(repo_root, mission_slug, effective_root=effective_root)
+    seam = placement_seam(repo_root, mission_slug, owned=owned)
     if kind is MissionArtifactKind.REVIEW_CYCLE:
         # Function-local import: avoids a module-load cycle between
         # review/cycle.py and the coordination/missions modules (the same
@@ -680,7 +684,7 @@ def _commit_review_cycle_artifact(
     artifact_path: Path,
     cycle_number: int,
     verdict: str,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> VerdictPersistenceOutcome:
     """Persist evidence through the existing router and verify its Git ref.
 
@@ -691,6 +695,9 @@ def _commit_review_cycle_artifact(
     short retry on a corroborated Git-operation marker is preserved, entirely
     outside ``feature_status_lock``; checkout-wide queue ownership belongs to
     WP04 and is intentionally absent from this function.
+
+    ``owned`` (the validated owned checkout, when present) supplies the
+    mission handle and the operation root the evidence path is relative to.
     """
     message = (
         f"chore: Record review-cycle-{cycle_number} ({verdict}) for {wp_id} on "
@@ -699,10 +706,10 @@ def _commit_review_cycle_artifact(
     mission = MissionHandle(
         repo_root=main_repo_root,
         mission_slug=mission_slug,
-        effective_root=effective_root,
+        owned=owned,
     )
     policy = ProtectionPolicy.resolve(main_repo_root)
-    operation_root = effective_root or main_repo_root
+    operation_root = _operation_root(main_repo_root, owned)
 
     attempt = 1
     while True:
@@ -715,7 +722,7 @@ def _commit_review_cycle_artifact(
         )
         evidence_ref = _evidence_ref(operation_root, artifact_path)
         destination_ref = result.placement_ref or placement_seam(
-            main_repo_root, mission_slug, effective_root=effective_root
+            main_repo_root, mission_slug, owned=owned
         ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
         if result.status == "committed":
             destination_bytes = _read_artifact_at_ref(
@@ -786,6 +793,15 @@ def _commit_review_cycle_artifact(
             )
         time.sleep(_COMMIT_CONTENTION_RETRY_SLEEP_SECONDS)
         attempt += 1
+
+
+def _operation_root(main_repo_root: Path, owned: OwnedCheckout | None) -> Path:
+    """Return the checkout root a review-cycle operation reads and commits in.
+
+    The one place the "owned checkout, else the caller's root" choice is made;
+    evidence paths and ``git show`` read-backs are relative to it.
+    """
+    return owned.owned_root if owned is not None else main_repo_root
 
 
 def _evidence_ref(main_repo_root: Path, artifact_path: Path) -> str:
@@ -998,7 +1014,7 @@ def _adopt_or_allocate_review_cycle_locked(
     affected_files: list[AffectedFile],
     body: str,
     reproduction_command: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str, bool]:
     """Adopt identical retained evidence or allocate a new record.
 
@@ -1006,10 +1022,12 @@ def _adopt_or_allocate_review_cycle_locked(
     short mission status lock. Placement and ``git show`` execute between
     those critical sections, never inside either one. WP04 owns the one
     checkout-wide verdict queue lease around this non-acquiring operation.
+    ``owned`` (the validated owned checkout, when present) supplies the
+    placement seam and the operation root.
     """
-    operation_root = effective_root or main_repo_root
+    operation_root = _operation_root(main_repo_root, owned)
     destination_ref = placement_seam(
-        main_repo_root, mission_slug, effective_root=effective_root
+        main_repo_root, mission_slug, owned=owned
     ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     with feature_status_lock(
         main_repo_root,
@@ -1109,6 +1127,79 @@ def _adopt_or_allocate_review_cycle_locked(
     )
 
 
+def _resolve_review_body(
+    *,
+    feedback_source: Path | None,
+    body: str | None,
+    sub_artifact_dir: Path,
+) -> str:
+    """Return the review-cycle body from exactly one of ``feedback_source`` / ``body``.
+
+    A ``feedback_source`` file is validated (exists, is a file, non-empty) and
+    then routed through :func:`_guard_feedback_source_provenance`; a
+    caller-generated ``body`` bypasses that guard (see
+    :func:`create_rejected_review_cycle`).
+    """
+    if feedback_source is None:
+        assert body is not None
+        if not body.strip():
+            raise ReviewCycleError("Review feedback body is empty")
+        return body
+    if not feedback_source.exists():
+        raise ReviewCycleError(f"Review feedback file not found: {feedback_source}")
+    if not feedback_source.is_file():
+        raise ReviewCycleError(f"Review feedback path is not a file: {feedback_source}")
+    resolved_body = feedback_source.read_text(encoding="utf-8")
+    if not resolved_body.strip():
+        raise ReviewCycleError(f"Review feedback file is empty: {feedback_source}")
+    _guard_feedback_source_provenance(
+        feedback_source=feedback_source,
+        sub_artifact_dir=sub_artifact_dir,
+    )
+    return resolved_body
+
+
+def _persistence_after_commit_exception(
+    exc: Exception,
+    *,
+    operation_root: Path,
+    artifact_path: Path,
+    evidence_ref: str,
+    destination_ref: str,
+) -> VerdictPersistenceOutcome:
+    """Classify a commit that raised: durable when the exact bytes are already at the destination.
+
+    A commit can raise after the router already persisted the artifact; the
+    read-back at ``destination_ref`` is the only proof, so the outcome is
+    ``durable`` when the bytes match and ``persistence_failed`` otherwise.
+    """
+    destination_bytes = _read_artifact_at_ref(operation_root, destination_ref, evidence_ref)
+    if destination_bytes == artifact_path.read_bytes():
+        return VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref=evidence_ref,
+            destination_ref=destination_ref,
+            reason=None,
+            message=(
+                "Commit raised after persistence, but exact evidence was "
+                f"verified at {destination_ref}."
+            ),
+        )
+    reason = "commit_timeout" if isinstance(exc, TimeoutError) else "commit_exception"
+    return VerdictPersistenceOutcome(
+        classification="persistence_failed",
+        verdict_durably_persisted=False,
+        evidence_ref=evidence_ref,
+        destination_ref=destination_ref,
+        reason=reason,
+        message=(
+            f"Review-cycle commit raised {type(exc).__name__}: {exc}. "
+            f"Evidence is retained at {evidence_ref}."
+        ),
+    )
+
+
 def create_rejected_review_cycle(
     *,
     main_repo_root: Path,
@@ -1122,7 +1213,7 @@ def create_rejected_review_cycle(
     verdict: Literal["approved", "rejected"] = "rejected",
     commit_router: CoordCommitRouter | None = None,
     reproduction_command: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> CreatedRejectedReviewCycle:
     """Create or adopt evidence and return a typed persistence outcome.
 
@@ -1158,6 +1249,10 @@ def create_rejected_review_cycle(
       cycles (M1 — adversarial squad finding on PR #3156). There is no
       on-disk file to path-check either, so the path-identity arm is moot
       for this leg.
+
+    ``owned`` is the validated owned checkout, when the command runs against
+    one. Every directory, placement ref and evidence path is then derived from
+    the fact (``owned.owned_root``), never from ``main_repo_root``.
     """
     if (feedback_source is None) == (body is None):
         raise ReviewCycleError(
@@ -1176,33 +1271,19 @@ def create_rejected_review_cycle(
     # caller-derived, kind-blind join. This fixes both this direct
     # site AND the move-task ``--review-feedback-file`` caller (which passes
     # no pre-resolved dir), from this one edit.
-    operation_root = effective_root or main_repo_root
+    operation_root = _operation_root(main_repo_root, owned)
     sub_artifact_dir = _review_cycle_wp_dir(
         main_repo_root,
         safe_mission_slug,
         safe_wp_slug,
-        effective_root=effective_root,
+        owned=owned,
     )
 
-    if feedback_source is not None:
-        if not feedback_source.exists():
-            raise ReviewCycleError(f"Review feedback file not found: {feedback_source}")
-        if not feedback_source.is_file():
-            raise ReviewCycleError(
-                f"Review feedback path is not a file: {feedback_source}"
-            )
-        resolved_body = feedback_source.read_text(encoding="utf-8")
-        if not resolved_body.strip():
-            raise ReviewCycleError(f"Review feedback file is empty: {feedback_source}")
-        _guard_feedback_source_provenance(
-            feedback_source=feedback_source,
-            sub_artifact_dir=sub_artifact_dir,
-        )
-    else:
-        assert body is not None
-        if not body.strip():
-            raise ReviewCycleError("Review feedback body is empty")
-        resolved_body = body
+    resolved_body = _resolve_review_body(
+        feedback_source=feedback_source,
+        body=body,
+        sub_artifact_dir=sub_artifact_dir,
+    )
 
     parsed_affected: list[AffectedFile] = [
         AffectedFile(path=affected["path"], line_range=affected.get("line_range"))
@@ -1237,14 +1318,14 @@ def create_rejected_review_cycle(
                 affected_files=parsed_affected,
                 body=resolved_body,
                 reproduction_command=reproduction_command,
-                effective_root=effective_root,
+                owned=owned,
             )
         )
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)
 
     evidence_ref = _evidence_ref(operation_root, artifact_path)
     governed_destination_ref = placement_seam(
-        main_repo_root, safe_mission_slug, effective_root=effective_root
+        main_repo_root, safe_mission_slug, owned=owned
     ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     if commit_router is None:
         persistence = VerdictPersistenceOutcome(
@@ -1277,37 +1358,16 @@ def create_rejected_review_cycle(
                 artifact_path=artifact_path,
                 cycle_number=artifact.cycle_number,
                 verdict=verdict,
-                effective_root=effective_root,
+                owned=owned,
             )
         except Exception as exc:
-            destination_bytes = _read_artifact_at_ref(
-                operation_root, governed_destination_ref, evidence_ref
+            persistence = _persistence_after_commit_exception(
+                exc,
+                operation_root=operation_root,
+                artifact_path=artifact_path,
+                evidence_ref=evidence_ref,
+                destination_ref=governed_destination_ref,
             )
-            if destination_bytes == artifact_path.read_bytes():
-                persistence = VerdictPersistenceOutcome(
-                    classification="durable",
-                    verdict_durably_persisted=True,
-                    evidence_ref=evidence_ref,
-                    destination_ref=governed_destination_ref,
-                    reason=None,
-                    message=(
-                        "Commit raised after persistence, but exact evidence was "
-                        f"verified at {governed_destination_ref}."
-                    ),
-                )
-            else:
-                reason = "commit_timeout" if isinstance(exc, TimeoutError) else "commit_exception"
-                persistence = VerdictPersistenceOutcome(
-                    classification="persistence_failed",
-                    verdict_durably_persisted=False,
-                    evidence_ref=evidence_ref,
-                    destination_ref=governed_destination_ref,
-                    reason=reason,
-                    message=(
-                        f"Review-cycle commit raised {type(exc).__name__}: {exc}. "
-                        f"Evidence is retained at {evidence_ref}."
-                    ),
-                )
 
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,

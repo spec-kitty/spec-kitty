@@ -181,7 +181,12 @@ def test_next_and_live_work_hook_fast_paths_are_unchanged() -> None:
     names.
     """
     next_mods = _run_register_commands(["next", "--help"])
-    assert next_mods == {"specify_cli.cli.commands.next_cmd"}, sorted(next_mods)
+    # owned-checkout-lifecycle-authority WP19: ``next_cmd`` declares ``--owned-checkout``
+    # with the shared ``OwnedCheckoutOption`` alias (gate G5's CLI_CLAIM_INPUT_RULE),
+    # which typer resolves from module globals at registration, so the one shared
+    # owned-checkout CLI surface loads with it. It is not a command module and pulls
+    # in no other command.
+    assert next_mods == {"specify_cli.cli.commands.next_cmd", "specify_cli.cli.commands._owned_checkout"}, sorted(next_mods)
 
     live_work_mods = _run_register_commands(["live-work", "hook", "claude"])
     assert live_work_mods == {"specify_cli.cli.commands.live_work"}, sorted(live_work_mods)

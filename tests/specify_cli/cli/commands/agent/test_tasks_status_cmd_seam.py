@@ -45,6 +45,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from mission_runtime import MissionTopology, OwnedCheckout
 from specify_cli.cli.commands.agent import tasks, tasks_status_cmd
 from specify_cli.cli.commands.agent.tasks_status_cmd import _StatusState
 from specify_cli.cli.commands.agent.tasks_status_view import StatusView
@@ -73,6 +74,29 @@ def _make_state(**overrides: Any) -> _StatusState:
         if key not in field_overrides:
             setattr(st, key, value)
     return st
+
+
+def _mint_owned(tmp_path: Path, *, slug: str = "034-feature") -> OwnedCheckout:
+    """Mint a real ``OwnedCheckout`` fact over ``tmp_path`` (owned-checkout-lifecycle-authority WP09).
+
+    Mirrors ``tests/status/test_transition_request_owned.py::_mint``:
+    ``OwnedCheckout._mint`` is the one test-visible construction door (bare
+    construction raises ``TypeError``), and its invariants only check path
+    relationships, so no real git repo is needed for these pure unit tests.
+    """
+    repo = tmp_path / "repo"
+    owned_root = tmp_path / "owned"
+    mission_dir = owned_root / "kitty-specs" / slug
+    repo.mkdir(parents=True, exist_ok=True)
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    return OwnedCheckout._mint(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=mission_dir,
+        mission_slug=slug,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch="codex/owned",
+    )
 
 
 def _empty_lanes() -> dict[Lane | str, list[dict[str, object]]]:
@@ -118,18 +142,14 @@ def test_patched_resolution_seams_intercept_resolve_dirs(tmp_path: Path) -> None
             f"{_TASKS}._ensure_target_branch_checked_out",
             return_value=(tmp_path, "main"),
         ) as branch_mock,
-        patch(
-            f"{_TASKS}.get_status_read_root", return_value=missing_root
-        ) as read_root_mock,
+        patch(f"{_TASKS}.get_status_read_root", return_value=missing_root) as read_root_mock,
         patch(f"{_TASKS}.console") as console_mock,
         pytest.raises(typer.Exit) as exc_info,
     ):
         tasks_status_cmd._st_resolve_dirs(st)
     assert exc_info.value.exit_code == 1
     locate_mock.assert_called_once()
-    slug_mock.assert_called_once_with(
-        explicit_mission="034-feature", json_output=True, repo_root=tmp_path, error_handler=tasks_status_cmd._status_selector_error
-    )
+    slug_mock.assert_called_once_with(explicit_mission="034-feature", json_output=True, repo_root=tmp_path, error_handler=tasks_status_cmd._status_selector_error)
     branch_mock.assert_called_once_with(tmp_path, "034-feature", True)
     read_root_mock.assert_called_once_with(st.cwd)
     payload = console_mock.emit_json.call_args.args[0]
@@ -143,14 +163,109 @@ def test_patched_workspace_resolver_intercepts_resolve_execution_mode(
     """``tasks.resolve_workspace_for_wp`` (D7 ×3, the mocked-env fixture seam)
     bites through ``_st_resolve_execution_mode``'s primary arm."""
     workspace = SimpleNamespace(execution_mode="worktree", resolution_kind="lane_workspace")
-    with patch(
-        f"{_TASKS}.resolve_workspace_for_wp", return_value=workspace
-    ) as resolver_mock:
-        result = tasks_status_cmd._st_resolve_execution_mode(
-            "execution_mode: ignored", tmp_path, "034-feature", "WP01"
-        )
-    resolver_mock.assert_called_once_with(tmp_path, "034-feature", "WP01")
+    with patch(f"{_TASKS}.resolve_workspace_for_wp", return_value=workspace) as resolver_mock:
+        result = tasks_status_cmd._st_resolve_execution_mode("execution_mode: ignored", tmp_path, "034-feature", "WP01")
+    # owned-checkout-lifecycle-authority WP09: the caller now forwards
+    # ``owned=`` (``None`` for every non-owned call, as here) so an owned
+    # mission's staleness/workspace resolution reads the owned checkout.
+    resolver_mock.assert_called_once_with(tmp_path, "034-feature", "WP01", owned=None)
     assert result == ("worktree", "lane_workspace")
+
+
+def test_patched_workspace_resolver_forwards_owned_fact(tmp_path: Path) -> None:
+    """Owned counterpart (review cycle 1 issue 2): a real ``OwnedCheckout``
+    fact is forwarded verbatim to ``resolve_workspace_for_wp``, proving an
+    owned mission's workspace/staleness resolution reads the owned checkout,
+    never a repository-root-side lane worktree."""
+    fact = _mint_owned(tmp_path)
+    workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="owned_checkout")
+    with patch(f"{_TASKS}.resolve_workspace_for_wp", return_value=workspace) as resolver_mock:
+        result = tasks_status_cmd._st_resolve_execution_mode("execution_mode: ignored", tmp_path, "034-feature", "WP01", owned=fact)
+    resolver_mock.assert_called_once_with(tmp_path, "034-feature", "WP01", owned=fact)
+    assert result == ("code_change", "owned_checkout")
+
+
+def test_st_status_read_dir_owned_arm_never_calls_committed_status_dir(tmp_path: Path) -> None:
+    """``_st_status_read_dir``'s owned arm (review cycle 1 issue 2): returns
+    ``owned.mission_dir`` and never calls ``committed_status_dir`` -- pinned
+    with a raising monkeypatch so a regression that re-introduces the R-side
+    committed-authority read for an owned run fails loudly."""
+    fact = _mint_owned(tmp_path)
+    st = _make_state()
+    st.owned = fact
+    st.feature_dir = tmp_path / "unrelated-coord-dir"
+
+    def _raise(*args: object, **kwargs: object) -> None:
+        raise AssertionError("owned arm must not call committed_status_dir")
+
+    with patch("runtime.next.committed_authority.committed_status_dir", side_effect=_raise):
+        result = tasks_status_cmd._st_status_read_dir(st)
+    assert result == fact.mission_dir
+    assert result is not st.feature_dir
+
+
+def test_st_status_read_dir_non_owned_arm_still_calls_committed_status_dir(tmp_path: Path) -> None:
+    """Non-owned arm: unchanged behaviour -- ``committed_status_dir`` still
+    governs the committed-vs-coordination read-dir decision."""
+    st = _make_state()
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.feature_dir = tmp_path / "coord-dir"
+    committed_dir = tmp_path / "primary-committed-dir"
+    with patch(
+        "runtime.next.committed_authority.committed_status_dir",
+        return_value=committed_dir,
+    ) as committed_mock:
+        result = tasks_status_cmd._st_status_read_dir(st)
+    committed_mock.assert_called_once_with(tmp_path, "034-feature")
+    assert result == committed_dir
+
+
+def test_st_resolve_dirs_owned_arm_never_calls_non_owned_resolution_seams(tmp_path: Path) -> None:
+    """Owned arm (review cycle 1 issue 3): once ``_st_resolve_owned`` resolves
+    a fact, ``_st_resolve_dirs`` returns immediately and never reaches the
+    non-owned resolution seams -- ``_find_mission_slug``,
+    ``_ensure_target_branch_checked_out``, ``resolve_handle_to_read_path``,
+    ``candidate_feature_dir_for_mission`` and ``get_status_read_root`` --
+    pinned with raising monkeypatches so a regression that lets an owned run
+    fall through to R-side resolution fails loudly.
+    """
+    fact = _mint_owned(tmp_path)
+    st = _make_state()
+
+    def _raise(name: str) -> Any:
+        def _inner(*args: object, **kwargs: object) -> None:
+            raise AssertionError(f"owned arm must not call {name}")
+
+        return _inner
+
+    with (
+        patch(f"{_TASKS}.locate_project_root", return_value=tmp_path),
+        patch(
+            "specify_cli.cli.commands._owned_checkout.resolve_owned_or_adopt",
+            return_value=fact,
+        ),
+        patch(f"{_TASKS}._find_mission_slug", side_effect=_raise("_find_mission_slug")),
+        patch(
+            f"{_TASKS}._ensure_target_branch_checked_out",
+            side_effect=_raise("_ensure_target_branch_checked_out"),
+        ),
+        patch(
+            "specify_cli.missions._read_path_resolver.resolve_handle_to_read_path",
+            side_effect=_raise("resolve_handle_to_read_path"),
+        ),
+        patch(
+            "specify_cli.missions._read_path_resolver.candidate_feature_dir_for_mission",
+            side_effect=_raise("candidate_feature_dir_for_mission"),
+        ),
+        patch(f"{_TASKS}.get_status_read_root", side_effect=_raise("get_status_read_root")),
+    ):
+        tasks_status_cmd._st_resolve_dirs(st)
+
+    assert st.owned is fact
+    assert st.mission_slug == fact.mission_slug
+    assert st.main_repo_root == fact.repository_root
+    assert st.feature_dir == fact.mission_dir
 
 
 def test_patched_console_intercepts_load_work_packages_empty_leg(
@@ -176,9 +291,7 @@ def test_patched_stall_threshold_intercepts_apply_review_flags(
     st.main_repo_root = tmp_path
     st.tasks_dir = tmp_path
     st.work_packages = []
-    with patch(
-        f"{_TASKS}._review_stall_threshold_minutes", return_value=77
-    ) as threshold_mock:
+    with patch(f"{_TASKS}._review_stall_threshold_minutes", return_value=77) as threshold_mock:
         tasks_status_cmd._st_apply_review_flags(st)
     threshold_mock.assert_called_once_with(tmp_path)
     assert st.review_stall_threshold == 77
@@ -240,18 +353,12 @@ def test_patched_stale_label_intercepts_render_active(tmp_path: Path) -> None:
     ports = MagicMock()
     with (
         patch(f"{_TASKS}._get_hic_marker", return_value="") as marker_mock,
-        patch(
-            f"{_TASKS}._render_stale_status", return_value="stale: 42m"
-        ) as label_mock,
+        patch(f"{_TASKS}._render_stale_status", return_value="stale: 42m") as label_mock,
     ):
         tasks_status_cmd._st_render_active(ports, st, view, {}, None)
     marker_mock.assert_called_once()
     label_mock.assert_called_once_with(None)
-    rendered = [
-        call.args[0]
-        for call in ports.render.human.call_args_list
-        if isinstance(call.args[0], str)
-    ]
+    rendered = [call.args[0] for call in ports.render.human.call_args_list if isinstance(call.args[0], str)]
     assert any("stale: 42m" in line for line in rendered)
 
 
@@ -262,9 +369,7 @@ def test_patched_auto_commit_intercepts_render_summary(tmp_path: Path) -> None:
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
     ports = MagicMock()
-    with patch(
-        f"{_TASKS}.get_auto_commit_default", return_value=False
-    ) as auto_mock:
+    with patch(f"{_TASKS}.get_auto_commit_default", return_value=False) as auto_mock:
         tasks_status_cmd._st_render_summary(ports, st, _view())
     auto_mock.assert_called_once_with(tmp_path)
     assert ports.render.human.call_count >= 4
@@ -293,6 +398,67 @@ def test_patched_sentinel_view_drives_render_human(tmp_path: Path) -> None:
     view_mock.assert_called_once()
     stale_fields_mock.assert_not_called()
     assert ports.render.human.call_count > 5
+
+
+def test_patched_staleness_forwards_owned_fact_in_render_human(tmp_path: Path) -> None:
+    """Owned counterpart (review cycle 1 issue 2): ``_st_render_human``
+    forwards ``owned=st.owned`` (a real fact) to
+    ``check_doing_wps_for_staleness``."""
+    fact = _mint_owned(tmp_path)
+    st = _make_state(json_output=False)
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.owned = fact
+    ports = MagicMock()
+    with (
+        patch(f"{_TASKS}.build_status_view", return_value=_view()),
+        patch(
+            "specify_cli.core.stale_detection.check_doing_wps_for_staleness",
+            return_value={},
+        ) as staleness_mock,
+        patch(f"{_TASKS}.get_auto_commit_default", return_value=False),
+    ):
+        tasks_status_cmd._st_render_human(st, ports)
+    staleness_mock.assert_called_once_with(
+        main_repo_root=tmp_path,
+        mission_slug="034-feature",
+        doing_wps=[],
+        threshold_minutes=st.stale_threshold,
+        owned=fact,
+    )
+
+
+def test_patched_staleness_forwards_owned_fact_in_emit_json(tmp_path: Path) -> None:
+    """Owned counterpart (review cycle 1 issue 2): ``_st_emit_json``
+    forwards ``owned=st.owned`` (a real fact) to
+    ``check_doing_wps_for_staleness``, and merges ``stale_repository_root_copy``
+    into the payload."""
+    fact = _mint_owned(tmp_path)
+    st = _make_state(json_output=True)
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.feature_dir = tmp_path
+    st.owned = fact
+    ports = MagicMock()
+    with (
+        patch(f"{_TASKS}.build_status_view", return_value=_view()),
+        patch(
+            "specify_cli.core.stale_detection.check_doing_wps_for_staleness",
+            return_value={},
+        ) as staleness_mock,
+        patch(f"{_TASKS}.get_auto_commit_default", return_value=False),
+        patch(f"{_TASKS}._mission_identity_payload", return_value={}),
+    ):
+        tasks_status_cmd._st_emit_json(st, ports)
+    staleness_mock.assert_called_once_with(
+        main_repo_root=tmp_path,
+        mission_slug="034-feature",
+        doing_wps=[],
+        threshold_minutes=st.stale_threshold,
+        owned=fact,
+    )
+    payload = ports.render.json_envelope.call_args.args[0]
+    assert "stale_repository_root_copy" in payload
 
 
 def test_patched_output_error_intercepts_do_status_exception_arm() -> None:

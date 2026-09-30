@@ -16,9 +16,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from mission_runtime import OwnedCheckout
+
 from specify_cli.cli.commands.agent import tasks_mark_status as ms
 from specify_cli.cli.commands.agent.tasks_mark_status import _reconstruct_applied_events
-from specify_cli.core.owned_mission import OwnedMission
+from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -35,21 +37,20 @@ class _RecoveryFailure(RuntimeError):
 
 
 @pytest.fixture
-def owned(tmp_path: Path) -> OwnedMission:
-    mission = tmp_path / "kitty-specs" / "demo"
+def owned(tmp_path: Path) -> OwnedCheckout:
+    # Owned checkout must be a distinct root from the repository root
+    # (OwnedCheckout.__post_init__ invariant); the mission dir stays under
+    # root/kitty-specs/<slug> as before.
+    primary = tmp_path / "primary"
+    root = tmp_path / "owned"
+    mission = root / "kitty-specs" / "demo"
     mission.mkdir(parents=True)
-    return OwnedMission(
-        primary=tmp_path,
-        root=tmp_path,
-        directory=mission,
-        slug="demo",
-        target="kitty/demo",
-    )
+    return mint_test_fact(repository_root=primary, owned_root=root, mission_dir=mission, mission_slug="demo", write_branch="kitty/demo")
 
 
 @pytest.fixture
-def events_path(owned: OwnedMission) -> Path:
-    return owned.directory / "status.events.jsonl"
+def events_path(owned: OwnedCheckout) -> Path:
+    return owned.mission_dir / "status.events.jsonl"
 
 
 def _event(event_id: str, wp_id: str = "WP01") -> str:
@@ -77,7 +78,7 @@ def _fake_git(
 
 def test_no_commit_sha_on_chain_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     calls = _fake_git(monkeypatch, {})
@@ -91,7 +92,7 @@ def test_no_commit_sha_on_chain_returns_empty(
 @pytest.mark.parametrize("commit_sha", [None, ""])
 def test_empty_commit_sha_is_ignored(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
     commit_sha: str | None,
 ) -> None:
@@ -105,7 +106,7 @@ def test_empty_commit_sha_is_ignored(
 
 def test_non_string_commit_sha_is_ignored(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     class NonStringSha(RuntimeError):
@@ -121,7 +122,7 @@ def test_non_string_commit_sha_is_ignored(
 
 def test_diff_reports_only_rows_new_in_the_recovery_commit(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     committed = f"{_event('ev-parent')}\n{_event('ev-recovery', wp_id='WP02')}\n"
@@ -137,12 +138,12 @@ def test_diff_reports_only_rows_new_in_the_recovery_commit(
         ["git", "show", f"{_RECOVERY_SHA}:{_REL_EVENTS}"],
         ["git", "show", f"{_RECOVERY_SHA}^:{_REL_EVENTS}"],
     ]
-    assert all(kwargs["cwd"] == owned.root for _, kwargs in calls)
+    assert all(kwargs["cwd"] == owned.owned_root for _, kwargs in calls)
 
 
 def test_sha_on_explicit_cause_is_found(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     outer = RuntimeError("wrapped the stamped failure")
@@ -156,7 +157,7 @@ def test_sha_on_explicit_cause_is_found(
 
 def test_sha_on_implicit_context_is_found(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     outer = RuntimeError("handled the stamped failure during unwinding")
@@ -170,7 +171,7 @@ def test_sha_on_implicit_context_is_found(
 
 def test_cycle_in_cause_chain_terminates_without_sha(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     first = RuntimeError("first")
@@ -187,7 +188,7 @@ def test_cycle_in_cause_chain_terminates_without_sha(
 
 def test_parent_without_events_blob_reports_all_committed_rows(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     committed = f"{_event('ev-first')}\n{_event('ev-second')}\n"
@@ -204,7 +205,7 @@ def test_parent_without_events_blob_reports_all_committed_rows(
 
 def test_missing_committed_blob_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
 ) -> None:
     _fake_git(
@@ -221,7 +222,7 @@ def test_missing_committed_blob_returns_empty(
 @pytest.mark.parametrize("side", ["committed", "parent"])
 def test_malformed_log_row_suppresses_detection(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
     side: str,
 ) -> None:
@@ -242,7 +243,7 @@ def test_malformed_log_row_suppresses_detection(
 @pytest.mark.parametrize("side", ["committed", "parent"])
 def test_log_row_missing_event_id_suppresses_detection(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     events_path: Path,
     side: str,
 ) -> None:
@@ -263,7 +264,7 @@ def test_log_row_missing_event_id_suppresses_detection(
 
 def test_unknown_events_path_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
 ) -> None:
     calls = _fake_git(monkeypatch, {})
 
@@ -275,7 +276,7 @@ def test_unknown_events_path_returns_empty(
 
 def test_events_path_outside_owned_root_propagates(
     monkeypatch: pytest.MonkeyPatch,
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     tmp_path: Path,
 ) -> None:
     _fake_git(monkeypatch, {})

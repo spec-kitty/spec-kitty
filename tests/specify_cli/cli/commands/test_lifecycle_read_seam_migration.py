@@ -278,7 +278,7 @@ def test_stamp_birth_cutover_resolves_primary_dir_regardless_of_coord_state(
     fixture = builder(tmp_path)
     captured: dict[str, object] = {}
 
-    def _fake_stamp(feature_dir: Path, *, status_feature_dir: Path | None) -> object:
+    def _fake_stamp(feature_dir: Path, *, status_feature_dir: Path | None, owned: object | None = None) -> object:
         captured["feature_dir"] = feature_dir
 
         class _Result:

@@ -9,13 +9,12 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from kernel.clock import now_utc_stamp
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from charter.encoding_recovery import recover as _recover_encoding
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
@@ -59,6 +58,9 @@ from .summary_core import (
     build_work_package_state,
     evaluate_path_conventions,
 )
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
 logger = logging.getLogger(__name__)
@@ -226,7 +228,7 @@ def _encoding_backup_scope_prefix(
     repo_root: Path,
     feature: str,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str | None:
     """The posix-relative ``<primary-feature-dir>/`` prefix a backup must fall under.
 
@@ -249,7 +251,7 @@ def _encoding_backup_scope_prefix(
     an unexpected shape for the PRIMARY anchor this seam returns, but never
     silently treated as a match.
     """
-    feature_dir = _planning_read_dir(repo_root, feature, effective_root=effective_root)
+    feature_dir = _planning_read_dir(repo_root, feature, owned=owned)
     try:
         relative = feature_dir.relative_to(repo_root)
     except ValueError:
@@ -295,7 +297,7 @@ def _is_own_encoding_backup_write(path: str, *, feature_dir_prefix: str | None) 
     return normalized.endswith(_ENCODING_BACKUP_SUFFIX)
 
 
-def _mission_routes_through_coordination(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> bool:
+def _mission_routes_through_coordination(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> bool:
     """True when ``feature`` routes through coordination under its STORED topology.
 
     FR-008 / FR-005: the accept dirty-tree gate is topology-aware. Read the WP02
@@ -321,7 +323,7 @@ def _mission_routes_through_coordination(repo_root: Path, feature: str, *, effec
         routes_through_coordination,
     )
 
-    if effective_root is None:
+    if owned is None:
         return routes_through_coordination(resolve_topology(repo_root, feature))
 
     from specify_cli.acceptance.execution_context import declared_home_surface
@@ -331,7 +333,7 @@ def _mission_routes_through_coordination(repo_root: Path, feature: str, *, effec
             repo_root,
             feature,
             MissionArtifactKind.ACCEPTANCE_MATRIX,
-            effective_root=effective_root,
+            owned=owned,
         )
         is TopologySurface.COORD
     )
@@ -342,7 +344,7 @@ def _accept_dirty_gate(
     *,
     repo_root: Path,
     feature: str,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Compute the accept dirty set: accept-owned exclusion + FR-008 coord residue.
 
@@ -389,7 +391,7 @@ def _accept_dirty_gate(
     """
     from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 
-    encoding_backup_prefix = _encoding_backup_scope_prefix(repo_root, feature, effective_root=effective_root)
+    encoding_backup_prefix = _encoding_backup_scope_prefix(repo_root, feature, owned=owned)
 
     git_dirty = [
         line
@@ -402,7 +404,7 @@ def _accept_dirty_gate(
         git_dirty,
         repo_root=repo_root,
         feature=feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
 
 
@@ -411,7 +413,7 @@ def _filter_coordination_residue(
     *,
     repo_root: Path,
     feature: str,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Drop coordination-residue dirty lines when the mission routes through coord.
 
@@ -432,7 +434,7 @@ def _filter_coordination_residue(
     if not _mission_routes_through_coordination(
         repo_root,
         feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     ):
         return dirty_lines
     return [line for line in dirty_lines if not is_coord_residue_churn(_porcelain_dirty_path(line), mission_slug=feature)]
@@ -738,7 +740,7 @@ class AcceptanceResult:
         }
 
 
-def _iter_work_packages(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> Iterable[WorkPackage]:
+def _iter_work_packages(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> Iterable[WorkPackage]:
     """Iterate over work packages in flat tasks/ directory layout.
 
     Pre-3.0 missions (lane-directory layout) are hard-rejected with
@@ -752,7 +754,7 @@ def _iter_work_packages(repo_root: Path, feature: str, *, effective_root: Path |
     feature_path = _wp_tasks_read_dir(
         repo_root,
         feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
     tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
@@ -1034,7 +1036,7 @@ def _write_recovered_artifact(path: Path, text: str) -> Path:
     return backup_path
 
 
-def normalize_feature_encoding(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> list[Path]:
+def normalize_feature_encoding(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> list[Path]:
     """Recover mission-artifact encoding to UTF-8 via the canonical detector.
 
     Every rewritten artifact is backed up (original bytes, ``<name>.bak``)
@@ -1057,7 +1059,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str, *, effective_root:
     feature_dir = _planning_read_dir(
         repo_root,
         feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
     if not feature_dir.exists():
         return []
@@ -1141,7 +1143,7 @@ def _status_read_feature_dir(
     feature: str,
     feature_dir: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Return canonical status read path for acceptance lane validation.
 
@@ -1160,10 +1162,10 @@ def _status_read_feature_dir(
     """
     from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
 
-    if effective_root is not None:
+    if owned is not None:
         from mission_runtime import MissionArtifactKind, placement_seam
 
-        owned_status: Path = placement_seam(repo_root, feature, effective_root=effective_root).read_dir(MissionArtifactKind.STATUS_STATE)
+        owned_status: Path = placement_seam(repo_root, feature, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
         return owned_status
     status_dir = resolve_handle_to_read_path(repo_root, feature)
     return status_dir if status_dir.exists() else feature_dir
@@ -1188,7 +1190,7 @@ def _accept_planning_artifact_kinds() -> dict[str, Any]:
     }
 
 
-def _planning_read_dir(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> Path:
+def _planning_read_dir(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the PRIMARY mission dir the accept gate reads planning artifacts from.
 
     FR-002 (#2085): the accept gate's PLANNING reads (spec/plan/tasks/research/
@@ -1232,12 +1234,12 @@ def _planning_read_dir(repo_root: Path, feature: str, *, effective_root: Path | 
     read_dir: Path = placement_seam(
         repo_root,
         feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     ).read_dir(kinds[_spec_file()])
     return read_dir
 
 
-def _wp_tasks_read_dir(repo_root: Path, feature: str, *, effective_root: Path | None = None) -> Path:
+def _wp_tasks_read_dir(repo_root: Path, feature: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the PRIMARY mission dir the accept gate reads WP tasks from.
 
     Closeout N+1 (debbie §3): the accept gate's WP-task iteration
@@ -1277,7 +1279,7 @@ def _wp_tasks_read_dir(repo_root: Path, feature: str, *, effective_root: Path | 
     read_dir: Path = placement_seam(
         repo_root,
         feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return read_dir
 
@@ -1287,7 +1289,7 @@ def _primary_anchor_feature_dir(
     feature: str,
     read_dir: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Return the primary-checkout mission dir anchoring ``AcceptanceSummary``.
 
@@ -1325,7 +1327,7 @@ def _primary_anchor_feature_dir(
     primary_candidate: Path = placement_seam(
         repo_root,
         feature,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if primary_candidate.exists():
         return primary_candidate
@@ -1337,7 +1339,7 @@ def _primary_anchor_feature_dir(
     )
 
     try:
-        resolved = resolve_mission(feature, effective_root or repo_root)
+        resolved = resolve_mission(feature, owned.owned_root if owned is not None else repo_root)
     except (AmbiguousHandleError, MissionNotFoundError):
         return read_dir
     resolved_primary: Path = resolved.feature_dir
@@ -1391,7 +1393,7 @@ def collect_feature_summary(
     *,
     strict_metadata: bool = True,
     mutate_matrix: bool = True,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> AcceptanceSummary:
     # WP09/FR-001 (kind-correct): ``_primary_anchor_feature_dir`` only needs
     # the coord-aware existence/identity read described in its own docstring
@@ -1399,9 +1401,8 @@ def collect_feature_summary(
     # the ``PRIMARY_METADATA`` home, not a specific artifact's content.
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    scope = effective_root_kwargs(effective_root)
-    read_feature_dir = placement_seam(repo_root, feature, **scope).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    feature_dir = _primary_anchor_feature_dir(repo_root, feature, read_feature_dir, **scope)
+    read_feature_dir = placement_seam(repo_root, feature, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    feature_dir = _primary_anchor_feature_dir(repo_root, feature, read_feature_dir, owned=owned)
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
         raise AcceptanceError(f"Mission directory not found: {feature_dir}")
@@ -1417,12 +1418,12 @@ def collect_feature_summary(
 
     branch, worktree_root, primary_repo_root, git_dirty_raw = _resolve_git_context(repo_root)
 
-    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir, **scope)
+    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir, owned=owned)
     git_dirty = _accept_dirty_gate(
         git_dirty_raw,
         repo_root=repo_root,
         feature=feature,
-        **scope,
+        owned=owned,
     )
 
     lanes: dict[str, list[str]] = {lane: [] for lane in LANES}
@@ -1445,7 +1446,7 @@ def collect_feature_summary(
 
     expected_wp_ids: list[str] = []
     canceled_wps: list[dict[str, str]] = []
-    for wp in _iter_work_packages(repo_root, primary_slug, **scope):
+    for wp in _iter_work_packages(repo_root, primary_slug, owned=owned):
         wp_id = wp.work_package_id or wp.path.stem
         expected_wp_ids.append(wp_id)
 
@@ -1487,7 +1488,7 @@ def collect_feature_summary(
     # (status.events.jsonl) and below (acceptance-matrix via _check_lane_gates) stay on
     # the coord-aware status_feature_dir (C-002). The single status_feature_dir variable
     # is split per-partition WITHOUT renaming it (additive: a new planning_read_dir).
-    planning_read_dir = _planning_read_dir(repo_root, primary_slug, **scope)
+    planning_read_dir = _planning_read_dir(repo_root, primary_slug, owned=owned)
 
     unchecked_tasks = _find_unchecked_tasks(planning_read_dir / _tasks_file())
     needs_clarification = _check_needs_clarification(
@@ -1549,7 +1550,7 @@ def collect_feature_summary(
         skipped_checks,
         blocked_checks,
         mutate_matrix=mutate_matrix,
-        **scope,
+        owned=owned,
     )
     normalized_unchecked_tasks = _normalized_unchecked_tasks(unchecked_tasks, lanes, all_packages_acceptable=all_packages_acceptable)
     recommended_fix_order = _build_recommended_fix_order(

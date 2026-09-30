@@ -133,12 +133,15 @@ _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
     "_mark_status_json_payload",
 )
 
-_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +gated runtime seam, +reconstruct-reader row)
+_TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) -- 23 (#2816); +3 WP09 (_st_status_read_dir, _st_resolve_owned, _st_config_root) = 26
     "_default_status_ports",
     "_StatusState",
     "_status_error",
     "_status_selector_error",
     "_st_resolve_dirs",
+    "_st_status_read_dir",
+    "_st_resolve_owned",
+    "_st_config_root",
     "_st_gated_runtime_fields",
     "_st_runtime_row",
     "_st_resolve_execution_mode",
@@ -180,6 +183,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_PostTransitionSideEffectFailure",
     "_mt_warn_worktree_kitty_specs",
     "_mt_preflight_owned_request",
+    # owned-checkout-lifecycle-authority WP16: the owned arm of target
+    # resolution, extracted so ``_mt_resolve_targets`` stays at cc 13.
+    "_mt_apply_owned_targets",
     "_mt_resolve_targets",
     "_mt_resolve_feedback",
     "_mt_build_request",
@@ -338,6 +344,10 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/f
     "_ms_commit",
     "_ms_apply_updates",
     "_ms_emit_subtask_state",
+    # owned-checkout-lifecycle-authority WP16: the owned failure envelope
+    # builder (also the Typer-edge refusal envelope) and its reporter.
+    "_ms_failure_payload",
+    "_ms_report_owned_failure",
     "_ms_output",
     "_do_mark_status",
     "_resolve_inline_subtasks",
@@ -622,4 +632,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 190  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 196  # golden-count: cardinality-is-contract; WP09 +3, WP16 +3 (_mt_apply_owned_targets, _ms_*); #5100 +4

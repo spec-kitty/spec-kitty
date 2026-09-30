@@ -225,9 +225,7 @@ def _create_lane_feature(
     return feature_dir
 
 
-def test_accept_leaves_clean_tree_with_materialized_matrix(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_accept_leaves_clean_tree_with_materialized_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The acceptance matrix is rewritten during checks -- accept must clean up.
 
     Before the fix the acceptance commit only captured meta.json, leaving
@@ -242,7 +240,6 @@ def test_accept_leaves_clean_tree_with_materialized_matrix(
     # Successful (non-json) accept returns normally; no Exit is raised.
     accept(
         mission=_SLUG,
-
         mode="auto",
         actor="tester",
         test=[],
@@ -254,9 +251,7 @@ def test_accept_leaves_clean_tree_with_materialized_matrix(
     )
 
     porcelain = _porcelain(repo_root)
-    assert porcelain == "", (
-        f"accept left a dirty working tree:\n{porcelain}"
-    )
+    assert porcelain == "", f"accept left a dirty working tree:\n{porcelain}"
 
     # The materialized matrix must be tracked in HEAD, not floating in the tree.
     show = subprocess.run(
@@ -271,9 +266,7 @@ def test_accept_leaves_clean_tree_with_materialized_matrix(
     assert matrix["negative_invariants"][0]["result"] == "confirmed_absent"
 
 
-def test_accept_clean_tree_without_negative_invariant(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_accept_clean_tree_without_negative_invariant(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Even with no matrix rewrite, accept must leave a clean tree."""
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
@@ -283,7 +276,6 @@ def test_accept_clean_tree_without_negative_invariant(
 
     accept(
         mission=_SLUG,
-
         mode="auto",
         actor="tester",
         test=[],
@@ -298,9 +290,7 @@ def test_accept_clean_tree_without_negative_invariant(
     assert porcelain == "", f"accept left a dirty working tree:\n{porcelain}"
 
 
-def test_accept_fails_when_residual_commit_fails_after_success(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_accept_fails_when_residual_commit_fails_after_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A successful accept must not hide residual commit failure."""
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
@@ -308,7 +298,7 @@ def test_accept_fails_when_residual_commit_fails_after_success(
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
-    def fail_residual_commit(_repo_root: Path, _mission_slug: str) -> bool:
+    def fail_residual_commit(_repo_root: Path, _mission_slug: str, *, owned: object | None = None) -> bool:
         raise RuntimeError("forced residual failure")
 
     monkeypatch.setattr(
@@ -319,7 +309,6 @@ def test_accept_fails_when_residual_commit_fails_after_success(
     with pytest.raises(typer.Exit) as exc_info:
         accept(
             mission=_SLUG,
-
             mode="auto",
             actor="tester",
             test=[],
@@ -388,9 +377,7 @@ def test_residual_acceptance_commit_is_scoped_to_mission_paths(
         capture_output=True,
         text=True,
     )
-    assert unrelated_show.returncode != 0, (
-        "residual commit swept an unrelated pre-staged file into mission history"
-    )
+    assert unrelated_show.returncode != 0, "residual commit swept an unrelated pre-staged file into mission history"
 
     # The operator's staged work is preserved (still staged, uncommitted).
     assert "unrelated.txt" in _porcelain(repo_root)

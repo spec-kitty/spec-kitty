@@ -1008,6 +1008,160 @@ def test_build_result_is_side_effect_free(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert outcome.payload["mission_dir"] == outcome.payload["feature_dir"]
 
 
+# ---------------------------------------------------------------------------
+# _emit_spec_plan_phase_events: the R-touching residue (review cycle 1
+# issue 3). ``resolve_canonical_root``/``get_main_repo_root`` must never be
+# consulted on the owned arm -- the lock root resolves from the fact
+# (owned.repository_root) directly.
+# ---------------------------------------------------------------------------
+
+
+def _mint_owned_for_setup_plan(tmp_path: Path, *, slug: str = "001-docs") -> Any:
+    from mission_runtime import MissionTopology, OwnedCheckout
+
+    repo = tmp_path / "repo"
+    owned_root = tmp_path / "owned"
+    mission_dir = owned_root / "kitty-specs" / slug
+    repo.mkdir(parents=True, exist_ok=True)
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    return OwnedCheckout._mint(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=mission_dir,
+        mission_slug=slug,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch="codex/owned",
+    )
+
+
+def test_emit_spec_plan_phase_events_owned_arm_never_touches_r(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Owned arm: no lifecycle-event emission call ever resolves a repo root
+    via ``get_main_repo_root`` -- pinned with a raising monkeypatch. Confirms
+    the review-cycle-1 issue-3 residue (``status/lifecycle_events.py:340``,
+    ``_repo_root_for_lifecycle_log`` -> ``resolve_canonical_root``) is closed
+    for the owned path.
+    """
+    import specify_cli.core.paths as paths_module
+
+    fact = _mint_owned_for_setup_plan(tmp_path)
+    spec_file = fact.mission_dir / "spec.md"
+    spec_file.parent.mkdir(parents=True, exist_ok=True)
+    spec_file.write_text("# Spec\n", encoding="utf-8")
+
+    debug_calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(seam.logger, "debug", lambda *a, **k: debug_calls.append(a))
+    monkeypatch.setattr(
+        paths_module,
+        "get_main_repo_root",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("owned arm must never call get_main_repo_root")),
+    )
+
+    seam._emit_spec_plan_phase_events(fact.mission_dir, "001-docs", spec_file, fact.owned_root, owned=fact)
+
+    assert not debug_calls, f"a lifecycle emission swallowed an exception (get_main_repo_root was reached): {debug_calls}"
+
+
+# ---------------------------------------------------------------------------
+# _resolve_setup_plan_scope: focused tests for the T046 campsite extraction
+# (review cycle 1 issue 7) -- non-owned arm, owned arm, refusal, no-root exit.
+# ---------------------------------------------------------------------------
+
+_OWNED_CHECKOUT_MODULE = "specify_cli.cli.commands._owned_checkout.resolve_owned_or_adopt"
+
+
+def _patch_scope_environment(monkeypatch: pytest.MonkeyPatch, project_root: Path | None) -> list[Path]:
+    """Patch the ``mission`` shim seams the scope resolver reads; return the preflight-root log."""
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    preflight_roots: list[Path] = []
+    monkeypatch.setattr(_mission, "locate_project_root", lambda *a, **k: project_root)
+    monkeypatch.setattr(_mission, "_enforce_git_preflight", lambda root, **k: preflight_roots.append(root))
+    return preflight_roots
+
+
+def test_resolve_setup_plan_scope_non_owned_arm(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    preflight_roots = _patch_scope_environment(monkeypatch, tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / "001-plain"
+    monkeypatch.setattr("specify_cli.cli.commands._owned_checkout.resolve_owned_or_adopt", lambda *a, **k: None)
+    monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda root, feature, *, json_output: feature_dir)
+    monkeypatch.setattr(_mission, "_show_branch_context", lambda root, slug, json_output: ("main", "release"))
+
+    scope = seam._resolve_setup_plan_scope("001-plain", True)
+
+    assert scope.owned is None
+    assert scope.repo_root == tmp_path
+    assert scope.feature_dir == feature_dir
+    assert scope.mission_slug == "001-plain"
+    assert scope.target_branch == "release"
+    assert scope.git_root == tmp_path
+    assert preflight_roots == [tmp_path]
+
+
+def test_resolve_setup_plan_scope_owned_arm_uses_the_fact(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    fact = _mint_owned_for_setup_plan(tmp_path)
+    # The fact's write branch differs from the mission's landing branch (a #5100 protected-target mint).
+    (fact.mission_dir / "meta.json").write_text('{"target_branch": "main", "mission_branch": "codex/owned"}', encoding="utf-8")
+    preflight_roots = _patch_scope_environment(monkeypatch, fact.repository_root)
+    monkeypatch.setattr("specify_cli.cli.commands._owned_checkout.resolve_owned_or_adopt", lambda *a, **k: fact)
+
+    def _forbidden(*_a: object, **_k: object) -> None:
+        raise AssertionError("owned arm must not use the repository-root resolvers")
+
+    monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", _forbidden)
+    monkeypatch.setattr(_mission, "_show_branch_context", _forbidden)
+
+    scope = seam._resolve_setup_plan_scope("001-docs", True, owned_claim=fact.owned_root)
+
+    assert scope.owned is fact
+    assert scope.repo_root == fact.repository_root
+    assert scope.feature_dir == fact.mission_dir
+    assert scope.mission_slug == fact.mission_slug
+    assert scope.target_branch == "main"  # the landing branch, read from the fact's own mission meta
+    assert fact.write_branch == "codex/owned"
+    assert scope.git_root == fact.owned_root
+    assert preflight_roots == [fact.owned_root]
+
+
+def test_resolve_setup_plan_scope_refusal_renders_result_error_envelope(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json
+
+    from mission_runtime import ActionContextError, OwnedRefusalCode
+
+    _patch_scope_environment(monkeypatch, tmp_path)
+
+    def _refuse(*_a: object, **_k: object) -> None:
+        raise ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "wrong branch")
+
+    monkeypatch.setattr("specify_cli.cli.commands._owned_checkout.resolve_owned_or_adopt", _refuse)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        seam._resolve_setup_plan_scope("001-docs", True, owned_claim=tmp_path / "p")
+
+    assert exc_info.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["result"] == "error"
+    assert payload["phase_complete"] is False
+    assert payload["error_code"] == OwnedRefusalCode.OWNED_BRANCH_REFUSED.value
+    assert payload["error"] == "wrong branch"
+
+
+@pytest.mark.parametrize("json_output", [True, False])
+def test_resolve_setup_plan_scope_missing_project_root_exits(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], json_output: bool) -> None:
+    _patch_scope_environment(monkeypatch, None)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        seam._resolve_setup_plan_scope(None, json_output)
+
+    assert exc_info.value.exit_code == 1
+    assert seam.PROJECT_ROOT_NOT_FOUND_MESSAGE in capsys.readouterr().out
+
+
 def test_warn_commit_failed_recipe_names_to_branch(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     """The manual-fallback recipe printed when an
     auto-commit fails must name --to-branch with the real destination

@@ -163,7 +163,7 @@ def test_run_create_core_phase_returns_result(monkeypatch: pytest.MonkeyPatch, t
         purpose_context=None,
         pr_bound=False,
         force_recreate_coordination_branch=False,
-        owned_checkout=None,
+        owned_create_root=None,
         json_output=True,
     )
     assert out is result
@@ -187,7 +187,7 @@ def test_run_create_core_phase_handles_creation_error(monkeypatch: pytest.Monkey
             purpose_context=None,
             pr_bound=False,
             force_recreate_coordination_branch=False,
-            owned_checkout=None,
+            owned_create_root=None,
             json_output=True,
         )
 
@@ -218,7 +218,7 @@ def test_run_create_core_phase_carries_typed_error_code_into_json(monkeypatch: p
             purpose_context=None,
             pr_bound=False,
             force_recreate_coordination_branch=False,
-            owned_checkout=None,
+            owned_create_root=None,
             json_output=True,
         )
 
@@ -252,7 +252,7 @@ def test_run_create_core_phase_generic_error_omits_error_code(monkeypatch: pytes
             purpose_context=None,
             pr_bound=False,
             force_recreate_coordination_branch=False,
-            owned_checkout=None,
+            owned_create_root=None,
             json_output=True,
         )
 
@@ -332,3 +332,181 @@ def test_emit_create_result_human(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     seam._emit_create_result_phase(_mk_result(tmp_path), resolved_mission_type="software-dev", json_output=False)
     out = capsys.readouterr().out
     assert "Mission created: 001-demo" in out
+
+
+# ---------------------------------------------------------------------------
+# WP10 fix-cycle-1, HIGH-3 (declared out-of-map: this file is not WP10-owned,
+# but is the pre-existing test home for `_run_create_core_phase`, and WP10's
+# own T055 already re-pointed two of its calls). An explicit --owned-checkout
+# claim with no locatable project root must fail closed with the SAME typed
+# `MissionCreationError` the function's own funnel already classifies --
+# never silently degrade to an unowned create.
+# ---------------------------------------------------------------------------
+
+
+def test_mint_owned_create_root_fails_closed_when_no_repo_root(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """HIGH-3 fix-cycle-1, re-pointed in fix-cycle-2: the guard now lives in
+    ``_mint_owned_create_root`` (called from ``create_mission`` itself,
+    before any git operation -- fix-cycle-2 HIGH), not in
+    ``_run_create_core_phase``."""
+    import json
+
+    with pytest.raises(typer.Exit):
+        seam._mint_owned_create_root(None, tmp_path, mission_slug="001-demo", json_output=True)
+
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert "Could not locate project root" in payload["error"]
+
+
+# ---------------------------------------------------------------------------
+# WP10 fix-cycle-1, MEDIUM-7 (declared out-of-map, same rationale as HIGH-3
+# above). The Risks section requires a one-line CLI pin of
+# OWNED_CHECKOUT_IS_REPOSITORY_ROOT; this also covers the ActionContextError
+# branch of _emit_create_core_error_and_exit, which otherwise has no test.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_agent_mission_create_owned_checkout_repository_root_refused_via_cli(tmp_path: Path) -> None:
+    import json
+    import os
+    import subprocess
+
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.mission import app
+    from tests._factories import provision_test_charter
+
+    repo_root = tmp_path / "repository_root"
+    repo_root.mkdir()
+    (repo_root / ".kittify").mkdir()
+    provision_test_charter(repo_root)
+    (repo_root / "kitty-specs").mkdir()
+    subprocess.run(["git", "init", "-b", "work"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True, capture_output=True)
+
+    runner = CliRunner()
+    old_cwd = os.getcwd()
+    os.chdir(repo_root)
+    try:
+        result = runner.invoke(
+            app,
+            ["create", "repo-root-refused", "--owned-checkout", str(repo_root), "--json"],
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["success"] is False
+    assert payload["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
+    assert "error" in payload
+    assert not (repo_root / "kitty-specs" / "repo-root-refused").exists()
+
+
+# ---------------------------------------------------------------------------
+# WP10 fix-cycle-2, HIGH (formerly ADVISORY-13, now in scope; declared
+# out-of-map, same rationale as the tests above). Pre-fix, `create_mission`
+# computed `command_checkout = owned_checkout.resolve()` from the RAW,
+# UNVALIDATED --owned-checkout claim and ran the start-branch switch, the
+# current-branch read and the topology derivation against it BEFORE
+# `resolve_owned_create_root` ever validated it -- a real git mutation of a
+# checkout the validator goes on to refuse.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+@pytest.mark.parametrize(
+    ("claim_kind", "expected_error_code"),
+    [
+        ("repository_root", "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"),
+        ("foreign_repository", "OWNERSHIP_FOREIGN"),
+    ],
+)
+def test_create_mission_never_switches_start_branch_before_owned_claim_is_validated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    claim_kind: str,
+    expected_error_code: str,
+) -> None:
+    import json
+    import os
+    import subprocess
+
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent import mission as mission_module
+    from specify_cli.cli.commands.agent.mission import app
+    from tests._factories import provision_test_charter
+
+    def _init_repo(root: Path, branch: str) -> None:
+        root.mkdir()
+        (root / ".kittify").mkdir()
+        provision_test_charter(root)
+        (root / "kitty-specs").mkdir()
+        subprocess.run(["git", "init", "-b", branch], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=root, check=True, capture_output=True)
+
+    def _current_branch(root: Path) -> str:
+        return subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        ).stdout.strip()
+
+    repository_root = tmp_path / "repository_root"
+    _init_repo(repository_root, "work")
+
+    if claim_kind == "repository_root":
+        claim = repository_root
+    else:
+        claim = tmp_path / "foreign_repository"
+        _init_repo(claim, "work")
+
+    claim_branch_before = _current_branch(claim)
+
+    switch_calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(mission_module, "_switch_to_start_branch", lambda *args: switch_calls.append(args))
+
+    runner = CliRunner()
+    old_cwd = os.getcwd()
+    os.chdir(repository_root)
+    try:
+        result = runner.invoke(
+            app,
+            [
+                "create",
+                "probe",
+                "--owned-checkout",
+                str(claim),
+                "--start-branch",
+                "side",
+                "--target-branch",
+                "side",
+                "--json",
+            ],
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    # The core assertion: the CLI never switched a branch in the claimed
+    # checkout before the claim was validated -- regardless of whether that
+    # checkout is R itself or an unrelated foreign repository.
+    assert switch_calls == []
+    assert _current_branch(claim) == claim_branch_before
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert payload["error_code"] == expected_error_code
+    assert not (repository_root / "kitty-specs" / "probe").exists()

@@ -680,7 +680,7 @@ def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
     monkeypatch.setattr(
         runtime_state_cutover,
         "_resolve_primary_home_or_degrade",
-        lambda _feature_dir: feature_dir,
+        lambda _feature_dir, **_owned: feature_dir,
     )
     expected_lanes = {
         "WP01": "done",

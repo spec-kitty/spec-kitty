@@ -754,7 +754,7 @@ class TestCreateFeatureCommand:
         assert str(primary.resolve()) in payload["error"]
         assert not any((primary / "kitty-specs").glob("foreign-feature-*"))
         # Shared ownership refusal contract: same core JSON shape as
-        # next_cmd._emit_checkout_ownership_error — success/error_code/error
+        # _owned_checkout.emit_owned_refusal — success/error_code/error
         # present, and no redundant `message` key from the previous
         # `**exc.to_dict()` spread (StructuredError.to_dict() would add it).
         assert payload["success"] is False

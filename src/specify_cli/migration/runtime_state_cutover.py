@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from specify_cli.core.owned_mission import OwnedMission
+    from mission_runtime import OwnedCheckout
 
 from specify_cli.core.checkout_identity import Intent
 from specify_cli.core.paths import assert_safe_path_segment
@@ -125,8 +125,11 @@ class CutoverResult:
 
 
 def _seed_phase(
-    feature_dir: Path, *, read_dir: Path | None = None, dry_run: bool,
-    owned: OwnedMission | None = None,
+    feature_dir: Path,
+    *,
+    read_dir: Path | None = None,
+    dry_run: bool,
+    owned: OwnedCheckout | None = None,
 ) -> BackfillResult:
     """Phase 1 — idempotently seed the mission's legacy runtime state as events.
 
@@ -136,8 +139,10 @@ def _seed_phase(
     see :func:`backfill_runtime_state`'s docstring).
     """
     return backfill_runtime_state(
-        feature_dir, read_dir=read_dir, dry_run=dry_run,
-        **({"owned": owned} if owned is not None else {}),
+        feature_dir,
+        read_dir=read_dir,
+        dry_run=dry_run,
+        owned=owned,
     )
 
 
@@ -146,7 +151,7 @@ def _verify_phase(
     *,
     read_dir: Path | None = None,
     intent: Intent = Intent.WRITE,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> VerifyResult:
     """Phase 2 — fail-closed count+value parity of the snapshot vs the OLD reader.
 
@@ -162,8 +167,10 @@ def _verify_phase(
     target is unchanged — only the guard becomes invoking-checkout-aware.
     """
     return verify_backfill(
-        feature_dir, read_dir=read_dir, intent=intent,
-        **({"owned": owned} if owned is not None else {}),
+        feature_dir,
+        read_dir=read_dir,
+        intent=intent,
+        owned=owned,
     )
 
 
@@ -196,7 +203,7 @@ class PlacementMismatchError(RuntimeError):
         self.seeded_count = seeded_count
 
 
-def _resolve_primary_home_or_degrade(feature_dir: Path, *, owned: OwnedMission | None = None) -> Path | None:
+def _resolve_primary_home_or_degrade(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Path | None:
     """Resolve the placement port's PRIMARY home for *feature_dir*, or ``None``.
 
     ``None`` is the DEGRADE signal: a resolver raise on an otherwise
@@ -226,15 +233,15 @@ def _resolve_primary_home_or_degrade(feature_dir: Path, *, owned: OwnedMission |
     if owned is not None:
         _runtime_feature_dir(feature_dir, owned)
         return resolve_artifact_surface(
-            owned.primary, owned.slug, MissionArtifactKind.PRIMARY_METADATA,
-            effective_root=owned.root,
+            owned.repository_root,
+            owned.mission_slug,
+            MissionArtifactKind.PRIMARY_METADATA,
+            owned=owned,
         ).path
 
     try:
         repo_root = resolve_canonical_root(feature_dir)
-        return resolve_artifact_surface(
-            repo_root, feature_dir.name, MissionArtifactKind.PRIMARY_METADATA
-        ).path
+        return resolve_artifact_surface(repo_root, feature_dir.name, MissionArtifactKind.PRIMARY_METADATA).path
     except (
         WorkspaceRootNotFound,
         MissionSelectorAmbiguous,
@@ -242,21 +249,20 @@ def _resolve_primary_home_or_degrade(feature_dir: Path, *, owned: OwnedMission |
         ActionContextError,
     ) as exc:
         logger.debug(
-            "Placement-port resolution degraded for %s (%s); falling back to "
-            "the canonicalized write target.",
+            "Placement-port resolution degraded for %s (%s); falling back to the canonicalized write target.",
             feature_dir,
             exc,
         )
         return None
 
 
-def _flip_target(feature_dir: Path, *, owned: OwnedMission | None = None) -> Path:
+def _flip_target(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Path:
     """Resolve the ONE ``status_phase`` write target (INV-5 / C-003).
 
     Never ``Path.cwd()`` and never a raw worktree/root alias: the unowned leg
     canonicalizes (so a worktree-rooted mission dir rewrites to the canonical
-    repo's copy) and the owned leg re-resolves through the owned-mission
-    runtime dir. Shared by :func:`_flip_phase` (the write) and
+    repo's copy) and the owned leg takes the ``OwnedCheckout`` fact's
+    mission directory. Shared by :func:`_flip_phase` (the write) and
     :func:`_already_at_snapshot_authority` (the read-only probe) so the two
     can never drift to different targets.
     """
@@ -267,9 +273,7 @@ def _flip_target(feature_dir: Path, *, owned: OwnedMission | None = None) -> Pat
     return resolved
 
 
-def _already_at_snapshot_authority(
-    feature_dir: Path, *, owned: OwnedMission | None = None
-) -> bool:
+def _already_at_snapshot_authority(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> bool:
     """Read-only probe: is the flip target's ``meta.json`` already authoritative?
 
     Answers, BEFORE any write, exactly the question :func:`_flip_phase`'s own
@@ -282,13 +286,11 @@ def _already_at_snapshot_authority(
     seams. ``False`` on a missing/malformed meta is "not yet migrated", which
     is the truthful pre-write answer.
     """
-    meta = load_meta(
-        _flip_target(feature_dir, owned=owned), allow_missing=True, on_malformed="none"
-    )
+    meta = load_meta(_flip_target(feature_dir, owned=owned), allow_missing=True, on_malformed="none")
     return _is_snapshot_authority(meta or {})
 
 
-def _flip_phase(feature_dir: Path, *, owned: OwnedMission | None = None) -> None:
+def _flip_phase(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> None:
     """Phase 3 — the SOLE ``status_phase`` writer; only reached on an ``ok`` verify.
 
     Resolves the write target via :func:`canonicalize_feature_dir` (never
@@ -313,9 +315,7 @@ def _flip_phase(feature_dir: Path, *, owned: OwnedMission | None = None) -> None
             disagrees with the write target (fail-closed, FR-001).
     """
     target = _flip_target(feature_dir, owned=owned)
-    resolved_home = _resolve_primary_home_or_degrade(
-        feature_dir, **({"owned": owned} if owned is not None else {}),
-    )
+    resolved_home = _resolve_primary_home_or_degrade(feature_dir, owned=owned)
     if resolved_home is not None and resolved_home != target:
         raise PlacementMismatchError(
             f"_flip_phase refuses to write status_phase for {feature_dir.name!r}: "
@@ -323,6 +323,7 @@ def _flip_phase(feature_dir: Path, *, owned: OwnedMission | None = None) -> None
             f"which does not match the write target {target} (fail-closed, FR-001)."
         )
     from specify_cli.core.paths import load_meta_fail_closed
+
     meta = load_meta_fail_closed(target) or {}
     if _is_snapshot_authority(meta):
         return
@@ -344,7 +345,7 @@ def cutover_mission(
     *,
     status_feature_dir: Path | None = None,
     dry_run: bool = False,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> CutoverResult:
     """Seed -> fail-closed verify -> atomic ``status_phase`` flip for one mission.
 
@@ -403,14 +404,13 @@ def cutover_mission(
         A :class:`CutoverResult` describing the outcome.
     """
     status_dir = status_feature_dir if status_feature_dir is not None else feature_dir
-    scope = {"owned": owned} if owned is not None else {}
     if owned is not None:
         # Validate both legs before seed can perform its first write.
         feature_dir = _runtime_feature_dir(feature_dir, owned)
         status_dir = _runtime_feature_dir(status_dir, owned)
     slug = feature_dir.name
     try:
-        seed = _seed_phase(status_dir, read_dir=feature_dir, dry_run=dry_run, **scope)
+        seed = _seed_phase(status_dir, read_dir=feature_dir, dry_run=dry_run, owned=owned)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, error=str(exc))
     slug = seed.slug
@@ -418,7 +418,7 @@ def cutover_mission(
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=seed.reason)
 
     try:
-        verify = _verify_phase(status_dir, read_dir=feature_dir, **scope)
+        verify = _verify_phase(status_dir, read_dir=feature_dir, owned=owned)
     except MigrationOrderingError as exc:
         return CutoverResult(slug=slug, flipped=False, seeded_count=seed.seeded_count, error=str(exc))
 
@@ -432,7 +432,7 @@ def cutover_mission(
     # counters key on it, never on `seeded_count` (seeding and flipping are
     # independent — a mission with no legacy frontmatter state to seed still
     # flips).
-    already_migrated = _already_at_snapshot_authority(feature_dir, **scope)
+    already_migrated = _already_at_snapshot_authority(feature_dir, owned=owned)
 
     if dry_run:
         return CutoverResult(
@@ -445,7 +445,7 @@ def cutover_mission(
         )
 
     try:
-        _flip_phase(feature_dir, **scope)
+        _flip_phase(feature_dir, owned=owned)
     except PlacementMismatchError as exc:
         # FR-015 (#3390): the seed phase above already wrote real events to
         # disk (a live run) before the flip aborted. Stamp the true count onto
@@ -482,8 +482,10 @@ class MissingMissionIdError(RuntimeError):
 
 
 def stamp_accept_cutover(
-    feature_dir: Path, *, status_feature_dir: Path | None = None,
-    owned: OwnedMission | None = None,
+    feature_dir: Path,
+    *,
+    status_feature_dir: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> CutoverResult:
     """Terminal-lifecycle accept-time stamp (IC-01 / contracts/stamp-seam.md).
 
@@ -521,8 +523,10 @@ def stamp_accept_cutover(
             "slug-namespaced seed fallback)."
         )
     return cutover_mission(
-        feature_dir, status_feature_dir=status_feature_dir, dry_run=False,
-        **({"owned": owned} if owned is not None else {}),
+        feature_dir,
+        status_feature_dir=status_feature_dir,
+        dry_run=False,
+        owned=owned,
     )
 
 
@@ -570,9 +574,7 @@ def cutover_repo(
         try:
             candidates = [ensure_within_any(candidate, roots=[kitty_specs])]
         except ValueError as exc:
-            raise ValueError(
-                f"Mission directory resolves outside kitty-specs: {candidate}"
-            ) from exc
+            raise ValueError(f"Mission directory resolves outside kitty-specs: {candidate}") from exc
     else:
         candidates = []
         for entry in sorted(kitty_specs.iterdir()):

@@ -14,12 +14,17 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
+from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.cli.commands.accept import accept
 from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
+from specify_cli.workspace.context import clear_workspace_resolution_caches
+from tests.status.test_transition_request_owned import claim_counter
+
+__all__ = ["claim_counter"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 runner = CliRunner()
 commit_app = typer.Typer()
@@ -122,6 +127,13 @@ def invoke(command: str, owned: Path, *extra: str, opt_in: bool = True):
     return runner.invoke(mission_app, [command, *args, *extra])
 
 
+def mint_fact(primary: Path, owned: Path):
+    """Mint the ownership fact through the REAL validator (never construct ``OwnedCheckout`` directly)."""
+    from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
+
+    return resolve_owned_mission(primary, owned, SLUG, allowed_topologies=NEXT_OWNED_TOPOLOGIES)
+
+
 def test_check_reads_owned_documents(checkouts):
     primary, owned, sibling = checkouts
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
@@ -132,11 +144,27 @@ def test_check_reads_owned_documents(checkouts):
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
-def test_no_opt_in_keeps_primary_resolution(checkouts):
-    _primary, owned, _sibling = checkouts
+def test_no_opt_in_keeps_primary_resolution(checkouts, monkeypatch):
+    """FR-022 control: flagless from the repository root checkout has nothing to adopt."""
+    primary, owned, _sibling = checkouts
+    monkeypatch.chdir(primary)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
     result = invoke("check-prerequisites", owned, opt_in=False)
     assert result.exit_code == 1
     assert "FEATURE_CONTEXT_UNRESOLVED" in result.output
+
+
+def test_flagless_check_prerequisites_from_inside_owned_checkout_adopts(checkouts, claim_counter):
+    """FR-021 adoption row: flagless from inside the owned checkout reads the owned mission."""
+    primary, owned, sibling = checkouts
+    before = snapshot(primary), snapshot(owned), snapshot(sibling)
+    clear_workspace_resolution_caches()
+    claim_counter.clear()
+    result = invoke("check-prerequisites", owned, "--include-tasks", opt_in=False)
+    assert result.exit_code == 0, result.output
+    assert len(claim_counter) == 1, claim_counter
+    assert Path(json.loads(result.output)["paths"]["feature_dir"]) == owned / "kitty-specs" / SLUG
+    assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
 def test_validate_only_is_readonly(checkouts):
@@ -194,6 +222,163 @@ def test_finalize_seeds_owned_status_only(checkouts):
     assert (snapshot(primary), snapshot(sibling)) == before
 
 
+def test_finalized_owned_tasks_resolve_for_next_implementation(checkouts):
+    from runtime.next import runtime_bridge
+    from runtime.next.decision import _state_to_action
+
+    primary, owned, sibling = checkouts
+    before = snapshot(primary), snapshot(sibling)
+    result = invoke("finalize-tasks", owned)
+    assert result.exit_code == 0, result.output
+    fact = mint_fact(primary, owned)
+    action, wp_id, workspace = _state_to_action(
+        "implement",
+        SLUG,
+        owned / "kitty-specs" / SLUG,
+        primary,
+        "software-dev",
+        owned=fact,
+    )
+    assert (action, wp_id, workspace) == ("implement", "WP01", str(fact.owned_root))
+    # The board authority (the single WP-iteration resolver) agrees.
+    board_action, board_wp, board_workspace, blocked_reason, _state = runtime_bridge._wp_iteration_action_and_state(
+        "implement",
+        SLUG,
+        "software-dev",
+        owned / "kitty-specs" / SLUG,
+        primary,
+        owned=fact,
+    )
+    assert blocked_reason is None, blocked_reason
+    assert (board_action, board_wp) == ("implement", "WP01")
+    assert board_workspace is not None and Path(board_workspace).resolve() == fact.owned_root.resolve()
+    assert (snapshot(primary), snapshot(sibling)) == before
+
+
+def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
+    from specify_cli.workspace.context import get_normalized_wp
+
+    primary, owned, _sibling = checkouts
+    source = owned / "kitty-specs" / SLUG
+    shutil.copytree(source, primary / "kitty-specs" / SLUG)
+    wp = primary / "kitty-specs" / SLUG / "tasks/WP01-test.md"
+    wp.write_text(wp.read_text().replace("title: Local task", "title: Primary task"))
+    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
+    fact = mint_fact(primary, owned)
+    assert get_normalized_wp(primary, SLUG, "WP01", owned=fact).metadata.title == "Local task"
+    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
+    # An ambient linked-checkout call without opt-in still reads primary,
+    # even when equal timestamps would otherwise make snapshots look alike.
+    owned_wp = source / "tasks/WP01-test.md"
+    os.utime(wp, ns=(owned_wp.stat().st_atime_ns, owned_wp.stat().st_mtime_ns))
+    assert get_normalized_wp(owned, SLUG, "WP01", owned=fact).metadata.title == "Local task"
+    assert get_normalized_wp(owned, SLUG, "WP01").metadata.title == "Primary task"
+
+
+def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, monkeypatch):
+    from types import SimpleNamespace
+    from runtime.next import runtime_bridge as rb
+    from tests._factories import provision_test_charter
+
+    primary, owned, _sibling = checkouts
+    fact = mint_fact(primary, owned)
+    provision_test_charter(owned)
+    (primary / ".kittify/config.yaml").write_text("mission_type_activations: []\n")
+    run_dir = owned / ".kittify/test-run"
+    assert rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=owned)
+    assert not rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=primary)
+    executed = []
+    original_inputs = rb._composition._composition_dispatch_inputs
+
+    def inputs(**kwargs):
+        assert kwargs["repo_root"] == fact.owned_root
+        return original_inputs(**kwargs)
+
+    def execute(**kwargs):
+        assert kwargs["repo_root"] == fact.owned_root
+        executed.append(kwargs["action"])
+        return []
+
+    def advance(**kwargs):
+        assert executed == ["tasks"]
+        assert kwargs["repo_root"] == primary
+        assert kwargs["owned"] is fact
+        return "advanced"
+
+    monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", inputs)
+    monkeypatch.setattr(rb, "_dispatch_via_composition", execute)
+    monkeypatch.setattr(rb, "_advance_run_state_after_composition", advance)
+    # The plan step (post-WP11) needs a live run; the composition-policy contract under test is the
+    # root handed to the executor and the fact handed to the advance, so stub the pure planner.
+    monkeypatch.setattr(rb, "_dn_plan_composition_advance", lambda _ctx, _action: (None, None))
+    context = SimpleNamespace(
+        agent="codex",
+        mission_slug=SLUG,
+        mission_type="software-dev",
+        feature_dir=owned / "kitty-specs" / SLUG,
+        repo_root=primary,
+        owned=fact,
+        now="2026-09-24T00:00:00Z",
+        progress=None,
+        origin={},
+        run_ref=None,
+        run_dir=run_dir,
+        current_step_id="tasks",
+        result="success",
+        emitter_for_engine=None,
+    )
+    assert rb._dn_composition_dispatch(context) == "advanced"
+
+
+def test_owned_review_prompt_uses_owned_target_branch(checkouts):
+    """#5009's review-prompt test, re-expressed for the claim-commit contract (FR-025).
+
+    The review base is the WP's claim commit (the commit that introduced its last
+    ``claimed`` event id), scoped to the WP's ``owned_files`` -- not the mission's
+    target branch, and never anything read from the stale repository-root copy.
+    """
+    from runtime.next.prompt_builder import build_prompt
+    from tests._factories import provision_test_charter
+
+    primary, owned, _sibling = checkouts
+    (owned / ".gitignore").write_text(".kittify/derived/\n", encoding="utf-8")
+    git(owned, "add", ".gitignore")
+    git(owned, "commit", "-qm", "ignore derived views")
+    result = invoke("finalize-tasks", owned)
+    assert result.exit_code == 0, result.output
+    provision_test_charter(owned)
+    claimed = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "claimed", "--mission", SLUG, "--owned-checkout", str(owned), "--agent", "codex", "--json"],
+    )
+    assert claimed.exit_code == 0, claimed.output
+    (owned / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+    git(owned, "add", "app.py")
+    git(owned, "commit", "-qm", "implement app")
+    shutil.copytree(owned / "kitty-specs" / SLUG, primary / "kitty-specs" / SLUG)
+    meta = primary / "kitty-specs" / SLUG / "meta.json"
+    data = json.loads(meta.read_text())
+    data["target_branch"] = "wrong-repository-root-base"
+    meta.write_text(json.dumps(data))
+    events = (owned / "kitty-specs" / SLUG / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    event_id = [json.loads(line)["event_id"] for line in events if json.loads(line).get("to_lane") == "claimed"][-1]
+    claim = git(owned, "log", "--format=%H", f"-S{event_id}", "HEAD", "--", f"kitty-specs/{SLUG}/status.events.jsonl")
+
+    prompt, _ = build_prompt(
+        "review",
+        owned / "kitty-specs" / SLUG,
+        SLUG,
+        "WP01",
+        "codex",
+        primary,
+        "software-dev",
+        owned=mint_fact(primary, owned),
+    )
+
+    assert f"git diff {claim}..HEAD --stat -- app.py" in prompt
+    assert "wrong-repository-root-base" not in prompt
+
+
 def test_finalize_refresh_reports_owned_checkout_commit_success(checkouts):
     primary, owned, sibling = checkouts
     before_other_checkouts = snapshot(primary), snapshot(sibling)
@@ -248,102 +433,6 @@ def test_finalize_refresh_reports_owned_checkout_commit_success(checkouts):
     assert git(primary, "rev-parse", "HEAD") != commit_sha
     assert git(owned, "status", "--porcelain=v1", "--untracked-files=all") == ""
     assert (snapshot(primary), snapshot(sibling)) == before_other_checkouts
-def test_finalized_owned_tasks_resolve_for_next_implementation(checkouts):
-    from runtime.next.decision import _state_to_action
-
-    primary, owned, sibling = checkouts
-    before = snapshot(primary), snapshot(sibling)
-    result = invoke("finalize-tasks", owned)
-    assert result.exit_code == 0, result.output
-    action, wp_id, workspace = _state_to_action(
-        "implement", SLUG, owned / "kitty-specs" / SLUG, primary,
-        "software-dev", effective_root=owned,
-    )
-    assert (action, wp_id) == ("implement", "WP01")
-    assert workspace is not None
-    assert (snapshot(primary), snapshot(sibling)) == before
-
-
-def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
-    from specify_cli.workspace.context import get_normalized_wp
-
-    primary, owned, _sibling = checkouts
-    source = owned / "kitty-specs" / SLUG
-    shutil.copytree(source, primary / "kitty-specs" / SLUG)
-    wp = primary / "kitty-specs" / SLUG / "tasks/WP01-test.md"
-    wp.write_text(wp.read_text().replace("title: Local task", "title: Primary task"))
-    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
-    assert get_normalized_wp(primary, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
-    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
-    # An ambient linked-checkout call without opt-in still reads primary,
-    # even when equal timestamps would otherwise make snapshots look alike.
-    owned_wp = source / "tasks/WP01-test.md"
-    os.utime(wp, ns=(owned_wp.stat().st_atime_ns, owned_wp.stat().st_mtime_ns))
-    assert get_normalized_wp(owned, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
-    assert get_normalized_wp(owned, SLUG, "WP01").metadata.title == "Primary task"
-
-
-def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, monkeypatch):
-    from types import SimpleNamespace
-    from runtime.next import runtime_bridge as rb
-    from tests._factories import provision_test_charter
-
-    primary, owned, _sibling = checkouts
-    provision_test_charter(owned)
-    (primary / ".kittify/config.yaml").write_text("mission_type_activations: []\n")
-    run_dir = owned / ".kittify/test-run"
-    assert rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=owned)
-    assert not rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=primary)
-    executed = []
-    original_inputs = rb._composition._composition_dispatch_inputs
-
-    def inputs(**kwargs):
-        assert kwargs["repo_root"] == owned
-        return original_inputs(**kwargs)
-
-    def execute(**kwargs):
-        assert kwargs["repo_root"] == owned
-        executed.append(kwargs["action"])
-        return []
-
-    def advance(**kwargs):
-        assert executed == ["tasks"]
-        assert kwargs["repo_root"] == primary
-        assert kwargs["effective_root"] == owned
-        return "advanced"
-
-    monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", inputs)
-    monkeypatch.setattr(rb, "_dispatch_via_composition", execute)
-    monkeypatch.setattr(rb, "_advance_run_state_after_composition", advance)
-    context = SimpleNamespace(
-        agent="codex", mission_slug=SLUG, mission_type="software-dev",
-        feature_dir=owned / "kitty-specs" / SLUG, repo_root=primary,
-        effective_root=owned, now="2026-09-24T00:00:00Z", progress=None,
-        origin={}, run_ref=None, run_dir=run_dir, current_step_id="tasks",
-        result="success", emitter_for_engine=None,
-    )
-    assert rb._dn_composition_dispatch(context) == "advanced"
-
-
-def test_owned_review_prompt_uses_owned_target_branch(checkouts):
-    from runtime.next.prompt_builder import build_prompt
-    from tests._factories import provision_test_charter
-
-    primary, owned, _sibling = checkouts
-    result = invoke("finalize-tasks", owned)
-    assert result.exit_code == 0, result.output
-    provision_test_charter(owned)
-    shutil.copytree(owned / "kitty-specs" / SLUG, primary / "kitty-specs" / SLUG)
-    meta = primary / "kitty-specs" / SLUG / "meta.json"
-    data = json.loads(meta.read_text())
-    data["target_branch"] = "wrong-primary-base"
-    meta.write_text(json.dumps(data))
-    prompt, _ = build_prompt(
-        "review", owned / "kitty-specs" / SLUG, SLUG, "WP01", "codex",
-        primary, "software-dev", effective_root=owned,
-    )
-    assert f"git diff {TARGET}..HEAD --stat" in prompt
-    assert "wrong-primary-base" not in prompt
 
 
 COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]
@@ -540,8 +629,11 @@ def test_symlink_escape_is_refused_before_effects(checkouts, command):
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
-def test_accept_without_opt_in_keeps_primary_resolution(checkouts):
+def test_accept_flagless_from_the_repository_root_checkout_keeps_primary_resolution(checkouts, monkeypatch):
+    """FR-022 control: from R there is nothing to adopt, so R's behaviour is unchanged."""
     primary, owned, sibling = checkouts
+    monkeypatch.chdir(primary)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("accept", owned, opt_in=False)
     assert result.exit_code == 1, result.output
@@ -549,6 +641,31 @@ def test_accept_without_opt_in_keeps_primary_resolution(checkouts):
     assert payload["error_code"] == "MISSION_NOT_FOUND"
     assert payload["handle"] == SLUG
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
+
+
+def test_accept_flagless_from_inside_the_owned_checkout_adopts_it_once(checkouts, monkeypatch):
+    """FR-021: a flagless run inside P adopts P after exactly one ownership validation."""
+    from specify_cli.core import checkout_ownership
+    from specify_cli.workspace.context import clear_workspace_resolution_caches
+
+    primary, owned, sibling = checkouts
+    clear_workspace_resolution_caches()
+    real_claim = checkout_ownership.resolve_ownership_claim
+    claims = []
+
+    def counting(*args, **kwargs):
+        claims.append(args)
+        return real_claim(*args, **kwargs)
+
+    monkeypatch.setattr(checkout_ownership, "resolve_ownership_claim", counting)
+    before = snapshot(primary), snapshot(sibling)
+    result = invoke("accept", owned, opt_in=False)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["diagnose"] is True
+    assert Path(payload["feature_dir"]) == owned / "kitty-specs" / SLUG
+    assert len(claims) == 1
+    assert (snapshot(primary), snapshot(sibling)) == before
 
 
 def test_accept_diagnosis_reads_owned_documents_without_writes(checkouts):
@@ -706,7 +823,7 @@ def test_owned_cutover_refuses_foreign_anchor_before_seed(ready_accept_checkouts
 
     primary, owned, sibling, slug = ready_accept_checkouts
     context = resolve_owned_mission(primary, owned, slug)
-    own_dir = context.directory
+    own_dir = context.mission_dir
     foreign = primary / "kitty-specs" / slug
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     with pytest.raises(ActionContextError) as refused:
@@ -775,7 +892,7 @@ def test_nested_symlink_escape_is_refused_at_write_time_not_resolve(checkouts):
     The resolve-time validation is a top-level boundary tripwire only, so a
     symlink nested deeper than the mission root no longer fails the resolve
     (the old O(tree) scan's only unique catch) — it is refused by
-    ``OwnedMission.files`` at write time, which re-validates the actual
+    ``OwnedCheckout.files`` at write time, which re-validates the actual
     written paths.
     """
     from mission_runtime import ActionContextError
@@ -789,7 +906,7 @@ def test_nested_symlink_escape_is_refused_at_write_time_not_resolve(checkouts):
         pytest.skip(f"File symlinks unavailable on this host: {exc}")
 
     context = resolve_owned_mission(primary, owned, SLUG)
-    assert context.directory == owned / "kitty-specs" / SLUG
+    assert context.mission_dir == owned / "kitty-specs" / SLUG
 
     with pytest.raises(ActionContextError) as refused:
         context.files([Path("tasks") / "escaped.txt"])

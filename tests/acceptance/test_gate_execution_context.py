@@ -22,13 +22,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from typer.testing import CliRunner
 
 from mission_runtime import MissionArtifactKind, TopologySurface
-from specify_cli.acceptance import _resolve_git_context
+from specify_cli.acceptance import _resolve_git_context, _status_read_feature_dir, collect_feature_summary, normalize_feature_encoding
 from specify_cli import app as cli_app
 from specify_cli.acceptance.execution_context import (
     _DETACHED_HEAD_SENTINEL,
@@ -50,14 +50,31 @@ from specify_cli.acceptance.gates_core import (
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
+    scaffold_acceptance_matrix,
     write_acceptance_matrix,
 )
+from specify_cli.coordination.write_seam import WriteSeamResult
+from specify_cli.core.owned_mission import resolve_owned_mission
 from tests.integration import coord_topology_fixture as ctf
+
+# The WP02 owned-checkout fixtures live in ``tests/integration/conftest.py``, which
+# pytest applies only under ``tests/integration/``; import them explicitly and
+# re-export for pytest discovery (same pattern as
+# ``tests/specify_cli/coordination/test_owned_status_read_contract.py``).
+from tests.integration.conftest import make_owned_checkouts, make_r_snapshot, owned_checkouts, r_snapshot, stale_root_copy
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from mission_runtime import OwnedCheckout
+    from tests._owned_fixtures import RSnapshotter
+    from tests.integration.conftest import OwnedCheckouts
 
 # The ``coord_topology_mission`` / ``flat_topology_mission`` fixtures are injected
 # by name via ``tests/acceptance/conftest.py`` (re-exported there to avoid the
 # import-shadows-parameter F811), so they are NOT imported into this module.
 
+__all__ = ["make_owned_checkouts", "make_r_snapshot", "owned_checkouts", "r_snapshot", "stale_root_copy"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
@@ -809,3 +826,230 @@ def test_fixture_smoke_no_resolver_patched(
     # meta.json on primary declares coord topology (drives the real resolver).
     meta = json.loads((coord_topology_mission.primary_feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["topology"] == "coord"
+
+
+# --- owned checkout (WP15) ---------------------------------------------------
+#
+# The acceptance package takes the validated ``OwnedCheckout`` fact directly. Each
+# case mints a REAL fact through the sanctioned minter (``resolve_owned_mission``,
+# never ``OwnedCheckout._mint``), seeds a decoy copy in the repository root checkout
+# where it matters, and asserts the repository root checkout is untouched (NFR-001).
+
+
+@pytest.fixture
+def owned_fact(owned_checkouts: OwnedCheckouts) -> OwnedCheckout:
+    return resolve_owned_mission(owned_checkouts.repository_root, owned_checkouts.owned_root, owned_checkouts.mission_slug)
+
+
+@pytest.fixture
+def no_root_or_handle_walk(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The owned arm makes no ``get_main_repo_root`` call and no handle walk."""
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("owned arm must not consult get_main_repo_root / the handle walk")
+
+    monkeypatch.setattr("specify_cli.core.paths.get_main_repo_root", _boom)
+    monkeypatch.setattr("specify_cli.missions._read_path_resolver.resolve_handle_to_read_path", _boom)
+
+
+def test_owned_build_context_stamps_owned_checkout_not_repository_root(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    stale_root_copy: Callable[..., Path],
+    r_snapshot: RSnapshotter,
+    no_root_or_handle_walk: None,
+) -> None:
+    """GEC-1: the gate judges the owned checkout it was handed, never a stale R copy."""
+    stale_root_copy()
+    before = r_snapshot.take()
+    ctx = build_gate_execution_context(
+        owned_checkouts.repository_root,
+        owned_checkouts.mission_slug,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+        phase=LifecyclePhase.ACCEPT,
+        ref="main",
+        owned=owned_fact,
+    )
+    assert ctx.surface_kind is TopologySurface.PRIMARY
+    assert ctx.surface == owned_fact.mission_dir
+    assert owned_checkouts.repository_root not in ctx.surface.parents
+    r_snapshot.assert_unchanged(before, r_snapshot.take())
+
+
+def test_owned_declared_home_surface_single_branch_is_primary(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    no_root_or_handle_walk: None,
+) -> None:
+    surface = declared_home_surface(
+        owned_checkouts.repository_root,
+        owned_checkouts.mission_slug,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+        owned=owned_fact,
+    )
+    assert surface is TopologySurface.PRIMARY
+
+
+def test_owned_status_read_feature_dir_returns_owned_status_dir_without_fallback(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    no_root_or_handle_walk: None,
+) -> None:
+    """The owned arm returns the seam dir unconditionally, even when it does not exist yet."""
+    fallback = owned_checkouts.mission_dir / "fallback-feature-dir"
+    result = _status_read_feature_dir(
+        owned_checkouts.repository_root,
+        owned_checkouts.mission_slug,
+        fallback,
+        owned=owned_fact,
+    )
+    assert result != fallback
+    assert owned_fact.mission_dir in (result, *result.parents)
+
+
+def test_owned_collect_feature_summary_reads_work_packages_from_owned_mission_dir(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    stale_root_copy: Callable[..., Path],
+    r_snapshot: RSnapshotter,
+) -> None:
+    """The owned accept read sees P's two WPs, not R's stale five-WP copy."""
+    stale_root_copy()
+    before = r_snapshot.take()
+    # The accept CLI hands the owned checkout root as ``repo_root`` alongside the fact.
+    summary = collect_feature_summary(
+        owned_fact.owned_root,
+        owned_checkouts.mission_slug,
+        strict_metadata=False,
+        mutate_matrix=False,
+        owned=owned_fact,
+    )
+    assert summary.feature_dir == owned_fact.mission_dir
+    assert sorted(wp.work_package_id for wp in summary.work_packages) == ["WP01", "WP02"]
+    r_snapshot.assert_unchanged(before, r_snapshot.take(), tolerate_status_mutex_for=owned_checkouts.mission_slug)
+
+
+def test_owned_scaffold_acceptance_matrix_raises_when_write_seam_refuses(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Owned writes are fatal on failure: no silent fallback to a bare write."""
+    import specify_cli.acceptance.matrix as matrix_module
+
+    seen: dict[str, object] = {}
+
+    def _refuse(*_args: object, **kwargs: object) -> WriteSeamResult:
+        seen.update(kwargs)
+        return WriteSeamResult(status="refused", entry_id="finalize-scaffold", destination_surface=None, diagnostic=None)
+
+    monkeypatch.setattr(matrix_module, "write_and_commit_acceptance_matrix", _refuse)
+    with pytest.raises(RuntimeError, match="Owned acceptance matrix write failed."):
+        scaffold_acceptance_matrix(
+            owned_fact.mission_dir,
+            owned_checkouts.mission_slug,
+            repo_root=owned_checkouts.repository_root,
+            owned=owned_fact,
+        )
+    assert seen["owned"] is owned_fact
+
+
+def test_owned_scaffold_acceptance_matrix_committed_returns_matrix_path(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import specify_cli.acceptance.matrix as matrix_module
+
+    def _committed(*_args: object, **_kwargs: object) -> WriteSeamResult:
+        return WriteSeamResult(status="unchanged", entry_id="finalize-scaffold", destination_surface="primary")
+
+    monkeypatch.setattr(matrix_module, "write_and_commit_acceptance_matrix", _committed)
+    path = scaffold_acceptance_matrix(
+        owned_fact.mission_dir,
+        owned_checkouts.mission_slug,
+        repo_root=owned_checkouts.repository_root,
+        owned=owned_fact,
+    )
+    assert path == owned_fact.mission_dir / "acceptance-matrix.json"
+
+
+def test_owned_normalize_feature_encoding_touches_only_owned_mission_dir(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    stale_root_copy: Callable[..., Path],
+    r_snapshot: RSnapshotter,
+    no_root_or_handle_walk: None,
+) -> None:
+    legacy = "Caf\u00e9 \u201cquoted\u201d na\u00efve r\u00e9sum\u00e9 \u2014 owned checkout notes.\n".encode("cp1252")
+    stale_copy = stale_root_copy()
+    (stale_copy / "plan.md").write_bytes(legacy)
+    owned_plan = owned_fact.mission_dir / "plan.md"
+    owned_plan.write_bytes(legacy)
+    before = r_snapshot.take()
+    rewritten = normalize_feature_encoding(owned_checkouts.repository_root, owned_checkouts.mission_slug, owned=owned_fact)
+    assert owned_plan in rewritten
+    assert all(owned_fact.mission_dir in path.parents for path in rewritten)
+    assert (stale_copy / "plan.md").read_bytes() == legacy
+    r_snapshot.assert_unchanged(before, r_snapshot.take())
+
+
+def test_owned_check_lane_gates_forwards_the_fact_to_every_gate_seam(
+    owned_checkouts: OwnedCheckouts,
+    owned_fact: OwnedCheckout,
+    stale_root_copy: Callable[..., Path],
+    r_snapshot: RSnapshotter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """C1 / GEC-1: the fact reaches every gates_core seam, so the matrix is judged on P.
+
+    R holds a stale copy of the mission with a DIFFERENT (failing) matrix; P holds the
+    passing one. Dropping ``owned=owned`` at any of the four forwards
+    (``_check_lane_gates`` -> ``_evaluate_acceptance_matrix``, ``_evaluate_acceptance_matrix``
+    -> ``_acceptance_gate_context`` / ``_matrix_surface_cannot_hold``,
+    ``_matrix_surface_cannot_hold`` -> ``declared_home_surface``) either hands a spy
+    ``owned=None`` or judges the stale R matrix, and this test goes red.
+    """
+    import specify_cli.acceptance.execution_context as ec
+
+    stale_dir = stale_root_copy()
+    _seed_matrix(stale_dir, verdict="fail", marker="STALE-ROOT-MATRIX")
+    _seed_matrix(owned_fact.mission_dir, verdict="pass", marker="OWNED-MATRIX")
+    before = r_snapshot.take()
+
+    seen_build: list[object] = []
+    seen_home: list[object] = []
+    real_build = ec.build_gate_execution_context
+    real_home = ec.declared_home_surface
+
+    def _spy_build(*args: Any, **kwargs: Any) -> Any:
+        seen_build.append(kwargs.get("owned"))
+        return real_build(*args, **kwargs)
+
+    def _spy_home(*args: Any, **kwargs: Any) -> Any:
+        seen_home.append(kwargs.get("owned"))
+        return real_home(*args, **kwargs)
+
+    monkeypatch.setattr(ec, "build_gate_execution_context", _spy_build)
+    monkeypatch.setattr(ec, "declared_home_surface", _spy_home)
+
+    activity_issues: list[str] = []
+    skipped: list[AcceptanceCheckDiagnostic] = []
+    blocked: list[AcceptanceCheckDiagnostic] = []
+    outcome = _check_lane_gates(
+        owned_checkouts.repository_root,
+        owned_fact.mission_dir,
+        owned_checkouts.target_branch,
+        activity_issues,
+        skipped,
+        blocked,
+        mutate_matrix=False,
+        owned=owned_fact,
+    )
+
+    assert seen_build == [owned_fact]
+    assert seen_home == [owned_fact]
+    assert outcome.matrix_dir == owned_fact.mission_dir
+    assert not any("STALE-ROOT-MATRIX" in issue for issue in activity_issues), activity_issues
+    assert not any("verdict is 'fail'" in issue for issue in activity_issues), activity_issues
+    r_snapshot.assert_unchanged(before, r_snapshot.take())

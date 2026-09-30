@@ -76,7 +76,7 @@ if TYPE_CHECKING:
     from charter.offering.missions.step_contracts import GateBinding
     from specify_cli.workspace.context import ResolvedWorkspace
 
-from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedRefusalCode, placement_seam
 from specify_cli.agent_tasks_ports import (
     MissionHandle,
     TasksPorts,
@@ -121,11 +121,8 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import pre_review_gate_skip_reason
 from specify_cli.core.paths import assert_safe_path_segment, is_worktree_context
-from specify_cli.core.owned_mission import (
-    OwnedMission,
-    require_unstaged_index,
-    resolve_owned_mission,
-)
+from mission_runtime import OwnedCheckout
+from specify_cli.core.owned_mission import require_unstaged_index
 from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
@@ -245,8 +242,7 @@ class _MoveTaskState:
     model: str | None = None
     profile: str | None = None
     invocation_id: str | None = None
-    owned_checkout: Path | None = None
-    owned: OwnedMission | None = None
+    owned: OwnedCheckout | None = None
     # --- phase A: resolved targets ---
     target_lane: Lane = Lane.PLANNED
     repo_root: Path = field(default_factory=Path)
@@ -406,7 +402,7 @@ def _mt_preflight_owned_request(st: _MoveTaskState) -> None:
         or st.done_override_reason
     ):
         raise ActionContextError(
-            "OWNED_OPTION_UNSUPPORTED",
+            OwnedRefusalCode.OWNED_OPTION_UNSUPPORTED,
             "Review overrides are not supported with --owned-checkout.",
         )
 
@@ -448,40 +444,50 @@ def _mt_guard_planned_boundary_lanes(st: _MoveTaskState) -> None:
     raise typer.Exit(1)
 
 
+def _mt_apply_owned_targets(st: _MoveTaskState, owned: OwnedCheckout) -> None:
+    """Owned arm of target resolution: every branch and slug comes off the validated fact.
+
+    No project-root probe, no ``get_main_repo_root`` and no mission-handle
+    walk -- ownership was validated exactly once at the Typer edge
+    (``tasks._resolve_task_owned``).
+    """
+    if not st.resolved_auto_commit:
+        raise ActionContextError(OwnedRefusalCode.OWNED_OPTION_UNSUPPORTED, "Owned status changes require auto-commit.")
+    try:
+        WPInnerStateDelta(
+            agent=st.agent,
+            assignee=st.assignee,
+            note=st.note,
+            shell_pid=int(st.shell_pid) if st.shell_pid else None,
+            tracker_refs=st.tracker_ref,
+        )
+    except (ValueError, TypeError) as exc:
+        raise ActionContextError(OwnedRefusalCode.OWNED_INPUT_INVALID, str(exc)) from exc
+    st.mission_slug = owned.mission_slug
+    st.main_repo_root, st.target_branch = owned.repository_root, owned.write_branch
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     st.target_lane = Lane(ensure_lane(st.to))
-    repo_root = _tasks.locate_project_root()
-    if repo_root is None:
-        _tasks._output_error(st.json_output, "Could not locate project root")
-        raise typer.Exit(1)
-    if st.owned_checkout is not None:
-        from specify_cli.core.paths import get_main_repo_root
-
-        st.owned = resolve_owned_mission(get_main_repo_root(repo_root), st.owned_checkout, st.mission)
+    owned = st.owned
+    if owned is not None:
         _mt_preflight_owned_request(st)
-        repo_root = st.owned.root
+        repo_root = owned.owned_root
+    else:
+        located_root = _tasks.locate_project_root()
+        if located_root is None:
+            _tasks._output_error(st.json_output, "Could not locate project root")
+            raise typer.Exit(1)
+        repo_root = located_root
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout warning before any read/mutate.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
     st.resolved_auto_commit = _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
-    if st.owned is not None:
-        if not st.resolved_auto_commit:
-            raise ActionContextError("OWNED_OPTION_UNSUPPORTED", "Owned status changes require auto-commit.")
-        try:
-            WPInnerStateDelta(
-                agent=st.agent,
-                assignee=st.assignee,
-                note=st.note,
-                shell_pid=int(st.shell_pid) if st.shell_pid else None,
-                tracker_refs=st.tracker_ref,
-            )
-        except (ValueError, TypeError) as exc:
-            raise ActionContextError("OWNED_INPUT_INVALID", str(exc)) from exc
-        st.mission_slug = st.owned.slug
-        st.main_repo_root, st.target_branch = st.owned.primary, st.owned.target
+    if owned is not None:
+        _mt_apply_owned_targets(st, owned)
     else:
         st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
         st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
@@ -498,14 +504,14 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         primary_feature_dir = placement_seam(
             st.main_repo_root,
             st.mission_slug,
-            **({"effective_root": st.owned.root} if st.owned else {}),
+            owned=st.owned,
         ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
     st.resolved_binding = _resolve_dispatch_binding(
         model=st.model,
         profile=st.profile,
         invocation_id=st.invocation_id,
-        repo_root=st.owned.root if st.owned else st.main_repo_root,
+        repo_root=st.owned.owned_root if st.owned else st.main_repo_root,
         mission_id=claim_mission_id,
         wp_id=st.task_id,
         # FR-006 (IC-04): APPROVED/DONE are reviewer-role decisions, not
@@ -547,11 +553,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # and the coord override persist. It is NEVER repointed to a primary kind — that
     # would move the event-log read off the coord husk and reintroduce the split-brain
     # FR-010 closes.
-    handle = MissionHandle(
-        repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        effective_root=st.owned.root if st.owned else None,
-    )
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=st.owned)
     st.mt_feature_dir = ports.coord.feature_write_dir(handle)
     try:
         check_pre30_layout(st.mt_feature_dir)
@@ -562,7 +564,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         repo_root,
         st.mission_slug,
         st.task_id,
-        **({"effective_root": st.owned.root} if st.owned else {}),
+        owned=st.owned,
     )
     # Lane is event-log-only; read from the canonical coord-husk event log.
     st.old_lane = _read_transactional_wp_lane(
@@ -570,7 +572,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         mission_slug=st.mission_slug,
         wp_id=st.task_id,
         repo_root=st.main_repo_root,
-        **({"effective_root": st.owned.root} if st.owned else {}),
+        owned=st.owned,
     )
     if st.owned is not None and st.old_lane not in (
         Lane.PLANNED,
@@ -713,7 +715,7 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
     # garbage-collected), so a bare presence check would silently compute the
     # review diff against a DEAD base (invariant-lens Finding 2). Classify
     # against the TARGET-BRANCH tip -- captured from `st.main_repo_root`
-    # (== `owned.primary`), NOT `owned.root` (the selected, possibly-stale
+    # (== `owned.repository_root`), NOT `owned.owned_root` (the selected, possibly-stale
     # checkout being reviewed) -- and fail closed before any diff is
     # computed. Reconciled to the same classification the allocator's merge
     # helper and `check_claim_ancestry` use (research.md D5).
@@ -725,7 +727,7 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
     # would point at a fix that cannot work -- the existing "must resolve to
     # commits" refusal is already the correct, unrecoverable-data diagnosis.
     target_tip = capture_branch_tip(st.main_repo_root, st.target_branch)
-    pin_class = classify_recorded_pin(owned.root, declared, target_tip)
+    pin_class = classify_recorded_pin(owned.owned_root, declared, target_tip)
     if pin_class is PinClass.ORPHANED:
         raise ActionContextError(
             "OWNED_REVIEW_BASE_ORPHANED",
@@ -737,7 +739,7 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
     def resolve_commit(ref: str) -> str | None:
         result = _tasks.subprocess.run(
             ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
-            cwd=str(owned.root),
+            cwd=str(owned.owned_root),
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -761,7 +763,7 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
             "OWNED_REVIEW_BASE_INVALID",
             "Owned review base must differ from HEAD.",
         )
-    if git_merge_base(owned.root, head_commit, base_commit) != base_commit:
+    if git_merge_base(owned.owned_root, head_commit, base_commit) != base_commit:
         raise ActionContextError(
             "OWNED_REVIEW_BASE_INVALID",
             "Owned review base must be an ancestor of HEAD in the selected checkout.",
@@ -770,29 +772,20 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
 
 
 def _mt_owned_workspace(st: _MoveTaskState) -> ResolvedWorkspace:
-    """Represent the selected single-branch checkout as a checked workspace."""
-    from specify_cli.workspace.context import ResolvedWorkspace
+    """The owned single-branch checkout as the WP's workspace.
+
+    Routed through the ONE owned-workspace constructor,
+    :func:`specify_cli.workspace.context.resolve_workspace_for_wp` with the
+    fact (architecture review item 5): move-task never hand-builds a second
+    owned ``ResolvedWorkspace`` shape. That arm yields the owned-checkout
+    resolution kind (#5100 R-10: a checkout-root kind, so the status stamp
+    reads ``direct_repo``), the fact's checkout as ``worktree_path`` and its
+    ``write_branch`` as ``branch_name``.
+    """
+    from specify_cli.workspace.context import resolve_workspace_for_wp
 
     assert st.owned is not None
-    assert st.wp is not None
-    return ResolvedWorkspace(
-        mission_slug=st.mission_slug,
-        wp_id=st.task_id,
-        execution_mode=extract_scalar(st.wp.frontmatter, "execution_mode") or "code_change",
-        mode_source="owned_checkout",
-        # #5100 R-10: the owned single-branch checkout IS the repository-root
-        # checkout, not a `.worktrees/` lane worktree -- `resolution_kind`
-        # drives `status_execution_mode`, so this must be `repo_root` for the
-        # stamp to read `direct_repo` here (it was mis-stamped
-        # `lane_workspace` before this WP, which the `ResolvedWorkspace.exists`
-        # husk-check also silently tolerated -- see the class docstring).
-        resolution_kind="repo_root",
-        workspace_name=st.owned.root.name,
-        worktree_path=st.owned.root,
-        branch_name=st.target_branch,
-        lane_id=None,
-        lane_wp_ids=[st.task_id],
-    )
+    return resolve_workspace_for_wp(st.owned.repository_root, st.mission_slug, st.task_id, owned=st.owned)
 
 
 def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tuple[Path, ...]:
@@ -858,7 +851,7 @@ def _mt_require_owned_implementation(st: _MoveTaskState) -> None:
     assert st.review_base_ref is not None
     patterns = _mt_owned_file_patterns(st)
     changed = merge_base_changed_files(
-        st.owned.root,
+        st.owned.owned_root,
         st.review_base_ref,
         diff_filter="ACDMRTUXB",
     )
@@ -896,8 +889,8 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     # to auto-commit; a planning-artifact WP has no lane branch at all
     # (branch_name is None) — nothing to do. #5100 WP04: ``branch_name`` is
     # the actual discriminator, not ``resolution_kind`` -- an owned checkout
-    # and a single_branch repo-root code WP are BOTH honestly ``repo_root``
-    # (never ``lane_workspace``) yet each has a real branch (the owned
+    # (``owned_checkout``) and a single_branch repo-root code WP (``repo_root``)
+    # are both checkout roots (never ``lane_workspace``) yet each has a real branch (the owned
     # target branch, or the mission/target branch) with genuine deliverables
     # to auto-commit, same as an isolated lane worktree.
     if workspace.branch_name is None:
@@ -963,6 +956,7 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
             target=CommitTarget(ref=workspace.branch_name),
             message=f"chore({st.task_id}): commit lane deliverables for review",
             paths=paths,
+            owned=st.owned,
         )
         # #5115/WP07 (FR-018): spec-kitty's own for_review auto-commit is a
         # lane advance -- record the tip explicitly (defense in depth
@@ -1001,7 +995,7 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
                 st.mission_slug,
                 st.task_id,
                 st.force,
-                **({"effective_root": st.owned.root} if st.owned else {}),
+                owned=st.owned,
             )
         )
     review_ready = True
@@ -1018,7 +1012,7 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
             if st.owned is not None:
                 assert st.review_base_ref is not None
                 validation_options = {
-                    "effective_root": st.owned.root,
+                    "owned": st.owned,
                     "workspace_override": _mt_owned_workspace(st),
                     "review_base_ref": st.review_base_ref,
                     "check_kitty_specs": False,
@@ -1043,7 +1037,7 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
                 feature_dir=st.feature_dir,
                 mission_slug=st.mission_slug,
                 repo_root=st.main_repo_root,
-                **({"effective_root": st.owned.root} if st.owned else {}),
+                owned=st.owned,
             ),
             st.task_id,
         )
@@ -1070,23 +1064,27 @@ def _mt_complete_deferred_for_review_readiness(st: _MoveTaskState) -> None:
         return
     assert st.request is not None
     _mt_commit_lane_deliverables(st)
-    validation_options = {}
+    owned: OwnedCheckout | None = None
+    workspace_override: object | None = None
+    review_base_ref: str | None = None
+    check_kitty_specs = True
     if st.owned is not None:
         assert st.review_base_ref is not None
         _mt_require_owned_implementation(st)
-        validation_options = {
-            "effective_root": st.owned.root,
-            "workspace_override": _mt_owned_workspace(st),
-            "review_base_ref": st.review_base_ref,
-            "check_kitty_specs": False,
-        }
+        owned = st.owned
+        workspace_override = _mt_owned_workspace(st)
+        review_base_ref = st.review_base_ref
+        check_kitty_specs = False
     is_valid, guidance = _tasks._validate_ready_for_review(
         st.repo_root,
         st.mission_slug,
         st.task_id,
         st.force,
         target_lane=str(st.target_lane),
-        **validation_options,
+        owned=owned,
+        workspace_override=workspace_override,
+        review_base_ref=review_base_ref,
+        check_kitty_specs=check_kitty_specs,
     )
     st.request = replace(
         st.request,
@@ -1165,7 +1163,7 @@ def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
         primary_feature_dir=placement_seam(
             st.main_repo_root,
             st.mission_slug,
-            effective_root=st.owned.root if st.owned else None,
+            owned=st.owned,
         ).read_dir(MissionArtifactKind.SPEC),
     )
     return blocker
@@ -1449,10 +1447,10 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
     from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
 
     if st.owned is not None:
-        # ``st.owned.root`` surfaces as ``Any`` under this quarantined module's
+        # ``st.owned.owned_root`` surfaces as ``Any`` under this quarantined module's
         # ``follow_imports = "skip"``; pin it to the concrete ``Path`` via an
         # annotated local (same idiom as the ``workspace.worktree_path`` return).
-        owned_root: Path = st.owned.root
+        owned_root: Path = st.owned.owned_root
         return owned_root
     try:
         workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
@@ -1860,10 +1858,10 @@ def _mt_resolve_active_gate_bindings(st: _MoveTaskState) -> GateBindingResolutio
     identity_dir = placement_seam(
         st.main_repo_root,
         st.mission_slug,
-        **({"effective_root": st.owned.root} if st.owned else {}),
+        owned=st.owned,
     ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     mission = resolve_mission_type(st, feature_dir=identity_dir)
-    operation_root = st.owned.root if st.owned is not None else st.main_repo_root
+    operation_root = st.owned.owned_root if st.owned is not None else st.main_repo_root
     return resolve_gate_bindings_for_transition(operation_root, mission, edge_key)
 
 
@@ -2511,7 +2509,7 @@ def _mt_resolve_active_reviewer_identity(st: _MoveTaskState) -> str | None:
         feature_dir=st.feature_dir,
         mission_slug=st.mission_slug,
         repo_root=st.main_repo_root,
-        **({"effective_root": st.owned.root} if st.owned else {}),
+        owned=st.owned,
     )
     for existing_event in reversed(events):
         if existing_event.wp_id == st.task_id and existing_event.to_lane == Lane.IN_REVIEW:
@@ -2577,7 +2575,7 @@ def _mt_current_event_lane(st: _MoveTaskState) -> str:
             feature_dir=st.feature_dir,
             mission_slug=st.mission_slug,
             repo_root=st.main_repo_root,
-            **({"effective_root": st.owned.root} if st.owned else {}),
+            owned=st.owned,
         )
     ):
         if existing_event.wp_id == st.task_id:
@@ -2893,10 +2891,9 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 execution_mode=emit_execution_mode,
                 repo_root=st.main_repo_root,
-                effective_root=st.owned.root if st.owned else None,
-                # #3866: thread the validated value object so the per-hop
-                # identity derivation does not re-run resolve_owned_mission.
-                owned_mission=st.owned,
+                # #3866: thread the validated fact so the per-hop identity
+                # derivation does not re-run the ownership validation.
+                owned=st.owned,
                 review_result=hop_review_result,
                 annotation_delta=annotation_delta,
             ),
@@ -2955,12 +2952,7 @@ def _mt_build_rollback_summary(st: _MoveTaskState, ports: TasksPorts, reset: Map
     previously_completed: tuple[str, ...] = ()
     never_completed: tuple[str, ...] = ()
     if roster:
-        owned = getattr(st, "owned", None)
-        handle = MissionHandle(
-            repo_root=st.main_repo_root,
-            mission_slug=st.mission_slug,
-            effective_root=owned.root if owned is not None else None,
-        )
+        handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=getattr(st, "owned", None))
         feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
         not_done = set(unchecked_subtask_ids_from_snapshot(feature_dir, st.task_id, roster))
         previously_completed = tuple(tid for tid in roster if tid not in not_done)
@@ -2992,12 +2984,7 @@ def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[s
     """
     from specify_cli.core.subtask_rows import authored_subtask_roster
 
-    owned = getattr(st, "owned", None)
-    handle = MissionHandle(
-        repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        effective_root=owned.root if owned is not None else None,
-    )
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=getattr(st, "owned", None))
     feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
     roster = authored_subtask_roster(feature_dir, st.task_id)
     return dict.fromkeys(roster, Lane.PLANNED)
@@ -3187,31 +3174,30 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if delta.is_empty():
         return
     owned = getattr(st, "owned", None)
-    emitter = emit_inner_state_changed_transactional if st.resolved_auto_commit else emit_inner_state_changed
     if owned is not None:
-        emitter(
+        # An owned run is always auto-commit (refused otherwise while resolving
+        # targets), so the commit-durable sibling is the only emitter here.
+        # #3866: thread the validated fact so the annotation's identity
+        # derivation does not re-run the ownership validation.
+        emit_inner_state_changed_transactional(
             st.feature_dir,
             st.task_id,
             delta,
             actor=st.final_hop_actor or st.actor,
             mission_slug=st.mission_slug,
             repo_root=st.main_repo_root,
-            effective_root=owned.root,
-            # #3866: thread the validated value object so the annotation's
-            # identity derivation does not re-run resolve_owned_mission. Only
-            # the transactional sibling consumes it (the flat emitter shares
-            # this call shape but not the field).
-            **({"owned_mission": owned} if emitter is emit_inner_state_changed_transactional else {}),
+            owned=owned,
         )
-    else:
-        emitter(
-            st.feature_dir,
-            st.task_id,
-            delta,
-            actor=st.final_hop_actor or st.actor,
-            mission_slug=st.mission_slug,
-            repo_root=st.main_repo_root,
-        )
+        return
+    emitter = emit_inner_state_changed_transactional if st.resolved_auto_commit else emit_inner_state_changed
+    emitter(
+        st.feature_dir,
+        st.task_id,
+        delta,
+        actor=st.final_hop_actor or st.actor,
+        mission_slug=st.mission_slug,
+        repo_root=st.main_repo_root,
+    )
 
 
 def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
@@ -3272,7 +3258,7 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit the transition(s) + persist the WP file under the status lock."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    status_lock_root = st.owned.root if st.owned is not None else st.main_repo_root
+    status_lock_root = st.owned.owned_root if st.owned is not None else st.main_repo_root
     with _tasks.feature_status_lock(status_lock_root, st.mission_slug):
         _mt_emit_transitions(st, ports)
         if st.self_review_fallback:
@@ -3448,7 +3434,7 @@ class _MoveTaskArgs:
     model: str | None = None
     profile: str | None = None
     invocation_id: str | None = None
-    owned_checkout: Path | None = None
+    owned: OwnedCheckout | None = None
 
 
 def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
@@ -3507,7 +3493,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         auto_commit=args.auto_commit,
         json_output=args.json_output,
         skip_pre_review_gate=args.skip_pre_review_gate,
-        owned_checkout=args.owned_checkout,
+        owned=args.owned,
     )
     try:
         _mt_resolve_targets(st, ports)
@@ -3549,7 +3535,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
     except typer.Exit:
         raise
     except Exception as e:
-        if args.owned_checkout is not None and isinstance(e, ActionContextError):
+        if args.owned is not None and isinstance(e, ActionContextError):
             if args.json_output:
                 print(json.dumps({"error_code": e.code, "error": str(e)}))
             else:

@@ -12,6 +12,6 @@ add-history Append history entry to task activity log.
 finalize-tasks Parse tasks.md and inject dependencies into WP frontmatter.
 map-requirements Register requirement-to-WP mappings with immediate validation.
 validate-workflow Validate task metadata structure and workflow consistency.
-status Display kanban status board for all work packages in a feature.
+status Display kanban status board for all work packages in a mission.
 list-dependents Find all WPs that depend on a given WP (downstream dependents).
 check-terminability Advisory scan for work packages that can only be terminated post-integration.

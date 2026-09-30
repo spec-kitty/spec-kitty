@@ -195,9 +195,7 @@ def test_protected_primary_refusal_names_mission_create_for_pre_tasks_kind(tmp_p
     assert result.status == "no_op_wrong_surface"
     assert result.placement_ref == _PRIMARY_BRANCH
     assert result.diagnostic is not None
-    assert (
-        f"spec-kitty agent mission create {mission_slug} --start-branch <feature-branch>" in result.diagnostic
-    )
+    assert f"spec-kitty agent mission create {mission_slug} --start-branch <feature-branch>" in result.diagnostic
     assert "spec-kitty mission create --start-branch" not in result.diagnostic
     assert "finalize-tasks --mission" not in result.diagnostic
     safe_commit.assert_not_called()
@@ -244,10 +242,7 @@ def test_protected_primary_refusal_names_real_finalize_tasks_command(tmp_path: P
     assert result.status == "no_op_wrong_surface"
     assert result.placement_ref == _PRIMARY_BRANCH
     assert result.diagnostic is not None
-    assert (
-        f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --target-branch <feature-branch>"
-        in result.diagnostic
-    )
+    assert f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --target-branch <feature-branch>" in result.diagnostic
     assert "spec-kitty mission create --start-branch" not in result.diagnostic
     assert "agent mission create" not in result.diagnostic
     safe_commit.assert_not_called()
@@ -480,10 +475,7 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
     # on the PRIMARY checkout — this is the bug this test must catch.
     assert len(safe_commit_calls) == 1
     wrong_surface_root = safe_commit_calls[0]["worktree_root"]
-    assert wrong_surface_root == tmp_path, (
-        "Expected stub-materialiser to route to primary (tmp_path); "
-        f"got {wrong_surface_root!r} instead."
-    )
+    assert wrong_surface_root == tmp_path, f"Expected stub-materialiser to route to primary (tmp_path); got {wrong_surface_root!r} instead."
 
     # --- Scenario B: materialiser returns COORD path (correct behaviour) ---
     # safe_commit must NOT receive tmp_path as worktree_root.
@@ -516,9 +508,7 @@ def test_negative_stubbed_materialiser_causes_wrong_result(tmp_path: Path) -> No
     assert len(safe_commit_calls) == 1
     correct_surface_root = safe_commit_calls[0]["worktree_root"]
     # The commit MUST land on the coord worktree, not on the primary checkout.
-    assert correct_surface_root != tmp_path, (
-        "Correct materialiser should route to coord worktree, not primary (tmp_path)."
-    )
+    assert correct_surface_root != tmp_path, "Correct materialiser should route to coord worktree, not primary (tmp_path)."
     assert correct_surface_root == coord_worktree
 
 
@@ -591,13 +581,10 @@ def test_primary_kind_under_coord_topology_does_not_route_to_coord(tmp_path: Pat
 
     # The materialiser MUST NOT have been called — no planning→coord route.
     assert len(materialise_calls) == 0, (
-        "SPEC (primary kind) under coord topology materialised the coordination "
-        "worktree — the planning→coord route was not removed (write-surface-coherence WP02)."
+        "SPEC (primary kind) under coord topology materialised the coordination worktree — the planning→coord route was not removed (write-surface-coherence WP02)."
     )
     assert len(safe_commit_calls) == 1
-    assert safe_commit_calls[0]["worktree_root"] == tmp_path, (
-        "SPEC commit did not land on the primary checkout."
-    )
+    assert safe_commit_calls[0]["worktree_root"] == tmp_path, "SPEC commit did not land on the primary checkout."
     assert result.status == "committed"
     assert result.placement_ref == _PRIMARY_BRANCH
 
@@ -664,13 +651,10 @@ def test_analysis_report_under_coord_topology_routes_to_primary(tmp_path: Path) 
 
     # The re-homed PRIMARY kind MUST NOT materialise the coord worktree.
     assert len(materialise_calls) == 0, (
-        "ANALYSIS_REPORT (re-homed PRIMARY) materialised the coordination worktree "
-        "— the re-home did not remove its coord transit (FR-003)."
+        "ANALYSIS_REPORT (re-homed PRIMARY) materialised the coordination worktree — the re-home did not remove its coord transit (FR-003)."
     )
     assert len(safe_commit_calls) == 1
-    assert safe_commit_calls[0]["worktree_root"] == tmp_path, (
-        "ANALYSIS_REPORT commit did not land on the primary checkout."
-    )
+    assert safe_commit_calls[0]["worktree_root"] == tmp_path, "ANALYSIS_REPORT commit did not land on the primary checkout."
     assert result.status == "committed"
     assert result.placement_ref == _PRIMARY_BRANCH
 
@@ -751,9 +735,7 @@ def test_materialise_coord_worktree_allows_coord_kind(tmp_path: Path) -> None:
             "specify_cli.coordination.workspace.CoordinationWorkspace.resolve",
             return_value=coord_worktree,
         ),
-        patch.object(
-            commit_router, "_stage_artifacts_in_coord_worktree", return_value=[staged]
-        ),
+        patch.object(commit_router, "_stage_artifacts_in_coord_worktree", return_value=[staged]),
     ):
         worktree_root, paths = _materialise_coord_worktree(
             tmp_path,
@@ -801,9 +783,7 @@ def test_coord_staging_keeps_matrices_but_skips_rehomed_analysis_report(
     analysis = specs / "analysis-report.md"
     analysis.write_text("# analysis\n", encoding="utf-8")
 
-    coord_files = _stage_artifacts_in_coord_worktree(
-        [acceptance, issue, analysis], coord_worktree, repo_root
-    )
+    coord_files = _stage_artifacts_in_coord_worktree([acceptance, issue, analysis], coord_worktree, repo_root)
 
     coord_specs = coord_worktree / "kitty-specs" / "001-demo"
     acc_dst = coord_specs / "acceptance-matrix.json"
@@ -820,3 +800,80 @@ def test_coord_staging_keeps_matrices_but_skips_rehomed_analysis_report(
     assert not ana_dst.exists(), "analysis-report.md was copied to coord — copy-drop failed"
     assert ana_dst not in coord_files
     assert analysis not in coord_files
+
+
+# ---------------------------------------------------------------------------
+# Owned arm (owned-checkout-lifecycle-authority WP09, review cycle 1 issue 3b):
+# ``_resolve_group_placement`` must use ``owned.topology`` directly when a fact
+# is present, never calling ``resolve_topology`` (which walks
+# ``get_main_repo_root(repo_root)`` back to R — the exact R-touching residue
+# "the fact is the single representation" forbids).
+# ---------------------------------------------------------------------------
+
+
+def _mint_owned_for_commit_router(tmp_path: Path, *, mission_slug: str = "001-my-mission") -> object:
+    from mission_runtime import MissionTopology, OwnedCheckout
+
+    repo = tmp_path / "repo"
+    owned_root = tmp_path / "owned"
+    mission_dir = owned_root / "kitty-specs" / mission_slug
+    repo.mkdir(parents=True, exist_ok=True)
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    return OwnedCheckout._mint(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=mission_dir,
+        mission_slug=mission_slug,
+        topology=MissionTopology.SINGLE_BRANCH,
+        write_branch=_PRIMARY_BRANCH,
+    )
+
+
+def test_owned_arm_never_calls_resolve_topology(tmp_path: Path) -> None:
+    """Owned arm: ``resolve_topology`` (an R-touching read) must never be
+    reached. Pinned with a raising monkeypatch — the routing decision must
+    come from ``owned.topology`` directly instead.
+    """
+    owned = _mint_owned_for_commit_router(tmp_path)
+    # The owned arm folds protection through ProtectionPolicy.resolve_for_owned
+    # (the fact's two roots' configs), not the injected policy: declare "nothing
+    # protected" in both roots, which is what the unprotected policy stands for.
+    for root in (owned.repository_root, owned.owned_root):
+        (root / ".kittify").mkdir(parents=True, exist_ok=True)
+        (root / ".kittify" / "config.yaml").write_text("protection:\n  protected_branches: []\n", encoding="utf-8")
+    primary_target = _make_primary_target()
+    policy = _make_policy(protected=False)
+    artifact = owned.repository_root / "spec.md"
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_text("# Spec\n", encoding="utf-8")
+
+    def _raise_resolve_topology(*_a: object, **_kw: object) -> object:
+        raise AssertionError("owned arm must never call resolve_topology")
+
+    with (
+        patch(
+            "specify_cli.coordination.commit_router.resolve_topology",
+            side_effect=_raise_resolve_topology,
+        ),
+        patch(
+            "specify_cli.coordination.commit_router.resolve_placement_only",
+            return_value=primary_target,
+        ),
+        patch(
+            "specify_cli.coordination.commit_router.safe_commit",
+            return_value=_FakeCommitResult(),
+        ),
+    ):
+        from specify_cli.coordination.commit_router import commit_for_mission
+
+        result = commit_for_mission(
+            repo_root=owned.repository_root,
+            mission_slug=owned.mission_slug,
+            files=(artifact,),
+            message="Add spec",
+            policy=policy,
+            kind=MissionArtifactKind.SPEC,
+            owned=owned,
+        )
+
+    assert result.status == "committed"

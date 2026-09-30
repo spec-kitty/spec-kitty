@@ -106,7 +106,7 @@
        "deprecated": false
       },
       "setup-plan": {
-       "help": "Scaffold implementation plan template in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\n------------------------------------------------------------------\nThe SaaS-sync boundary gates this command used to enforce (FR-011 auth\nrefusal, boundary preflight, dossier push) were removed with the sync\ntransport (issue #5); only local planning artifacts are produced here.\n------------------------------------------------------------------",
+       "help": "Scaffold an implementation plan template in the repository root checkout or an owned checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\n------------------------------------------------------------------\nThe SaaS-sync boundary gates this command used to enforce (FR-011 auth\nrefusal, boundary preflight, dossier push) were removed with the sync\ntransport (issue #5); only local planning artifacts are produced here.\n------------------------------------------------------------------",
        "hidden": false,
        "deprecated": false
       },
@@ -173,7 +173,7 @@
        "deprecated": false
       },
       "status": {
-       "help": "Display kanban status board for all work packages in a feature.\n\nShows a beautiful overview of work package statuses, progress metrics,\nand next steps based on dependencies.\n\nWPs in \"doing\" with no commits for --stale-threshold minutes are flagged\nas potentially stale (agent may have stopped).\n\nExample:\n    spec-kitty agent tasks status                  # the sole active mission\n    spec-kitty agent tasks status --mission 012-documentation-mission\n    spec-kitty agent tasks status --json\n    spec-kitty agent tasks status --stale-threshold 15",
+       "help": "Display kanban status board for all work packages in a mission.\n\nShows a beautiful overview of work package statuses, progress metrics,\nand next steps based on dependencies.\n\nWPs in \"doing\" with no commits for --stale-threshold minutes are flagged\nas potentially stale (agent may have stopped).\n\nExample:\n    spec-kitty agent tasks status                  # the sole active mission\n    spec-kitty agent tasks status --mission 012-documentation-mission\n    spec-kitty agent tasks status --json\n    spec-kitty agent tasks status --stale-threshold 15",
        "hidden": false,
        "deprecated": false
       },

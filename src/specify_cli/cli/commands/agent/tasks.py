@@ -31,6 +31,7 @@ from specify_cli.core.constants import (
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
 import logging
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -75,6 +76,7 @@ from specify_cli.core.paths import get_status_read_root as get_status_read_root
 from specify_cli.mission import get_mission_type as get_mission_type
 from mission_runtime import (
     MissionArtifactKind,
+    OwnedCheckout,
     # Explicit ``as`` re-export: no direct call site remains in this module
     # after WP02 (tasks-py-degod-wave2-01KWH9EQ), but the module binding is a
     # live patch seam (``@patch("...agent.tasks.resolve_placement_only")``)
@@ -481,6 +483,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_resolve_current_agent as _mt_resolve_current_agent,
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_owned_workspace as _mt_owned_workspace,
+    _mt_apply_owned_targets as _mt_apply_owned_targets,
     _mt_preflight_owned_request as _mt_preflight_owned_request,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_owned_review_base as _mt_resolve_owned_review_base,
@@ -639,6 +642,12 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
 # to the registration shim. Per-symbol evidence:
 # kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md.
 # ===========================================================================
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    flat_error_envelope,
+    owned_checkout_option,
+    resolve_owned_or_refuse,
+)
 from specify_cli.cli.commands.agent.tasks_status_cmd import (
     _StatusState as _StatusState,
     # WP09 (FR-008, IC-07): the four family stragglers that stayed behind at
@@ -670,8 +679,45 @@ from specify_cli.cli.commands.agent.tasks_status_cmd import (
     _status_error as _status_error,
     _status_selector_error as _status_selector_error,
     _st_resolve_dirs as _st_resolve_dirs,
+    _st_status_read_dir as _st_status_read_dir,
+    _st_resolve_owned as _st_resolve_owned,
+    _st_config_root as _st_config_root,
     _st_resolve_execution_mode as _st_resolve_execution_mode,
 )
+
+
+def _resolve_task_owned(
+    owned_claim: Path | None,
+    mission: str | None,
+    *,
+    json_output: bool,
+    envelope: Callable[[str, str], dict[str, object]],
+) -> OwnedCheckout | None:
+    """Validate ``--owned-checkout`` (or adopt the caller's checkout) once, at the Typer edge.
+
+    owned-checkout-lifecycle-authority WP16 / G5: ``move-task`` and
+    ``mark-status`` call this from their wrappers, so the raw option value is
+    handed straight to the shared minter and only the validated
+    :class:`~mission_runtime.OwnedCheckout` travels into the command internals.
+    ``None`` when neither the flag nor adoption applies, and also when no
+    project root can be located (the command body then reports "Could not
+    locate project root" exactly as before). A refusal prints ``envelope`` and
+    exits 1.
+    """
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        return None
+    return resolve_owned_or_refuse(
+        repo_root,
+        owned_claim,
+        mission,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=json_output,
+        envelope=envelope,
+    )
 
 
 @app.command(name="move-task")
@@ -794,8 +840,7 @@ def move_task(
     ] = False,
     owned_checkout: Annotated[
         Path | None,
-        typer.Option(
-            "--owned-checkout",
+        owned_checkout_option(
             help=(
                 "Use an owned single_branch checkout for the local review lifecycle "
                 "(force/skip, done, and arbiter modes unsupported)."
@@ -836,6 +881,7 @@ def move_task(
     # WP03 decision core and executes it through the WP02 coord READ/WRITE ports.
     # WP07 (T033, #2649): the 19 raw inputs collapse into ONE ``_MoveTaskArgs``
     # parameter object (``_do_move_task``'s ≤13-param ceiling).
+    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, envelope=flat_error_envelope)
     _do_move_task(
         _MoveTaskArgs(
             task_id=task_id,
@@ -861,7 +907,7 @@ def move_task(
             auto_commit=auto_commit,
             json_output=json_output,
             skip_pre_review_gate=skip_pre_review_gate,
-            owned_checkout=owned_checkout,
+            owned=owned,
         )
     )
 
@@ -891,8 +937,10 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _ms_apply_updates as _ms_apply_updates,
     _ms_commit as _ms_commit,
     _ms_emit_subtask_state as _ms_emit_subtask_state,
+    _ms_failure_payload as _ms_failure_payload,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
+    _ms_report_owned_failure as _ms_report_owned_failure,
     _ms_resolve_context as _ms_resolve_context,
     _ms_resolve_read_dir as _ms_resolve_read_dir,
     _ms_validate_inputs as _ms_validate_inputs,
@@ -928,7 +976,7 @@ def mark_status(
 
     owned_checkout: Annotated[
         Path | None,
-        typer.Option("--owned-checkout", help="Explicit single-branch checkout root."),
+        owned_checkout_option(help="Explicit single-branch checkout root."),
     ] = None,
 
     auto_commit: Annotated[
@@ -958,13 +1006,14 @@ def mark_status(
     # (WP01 golden byte-identity) and delegates to the CORELESS ``_do_mark_status``,
     # which resolves/writes/commits through the WP02 ports + existing resolver
     # helpers — with NO borrowed transition core (deferred #2300).
+    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, envelope=_ms_failure_payload)
     _do_mark_status(
         task_ids=task_ids,
         status=status,
         mission=mission,
         auto_commit=auto_commit,
         json_output=json_output,
-        owned_checkout=owned_checkout,
+        owned=owned,
     )
 
 
@@ -1377,8 +1426,9 @@ def status(
 
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     stale_threshold: Annotated[int, typer.Option("--stale-threshold", help="Minutes of inactivity before a WP is considered stale")] = 10,
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
-    """Display kanban status board for all work packages in a feature.
+    """Display kanban status board for all work packages in a mission.
 
     Shows a beautiful overview of work package statuses, progress metrics,
     and next steps based on dependencies.
@@ -1395,7 +1445,7 @@ def status(
     # WP07 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to ``_do_status``, which runs the
     # WP05 ``build_status_view`` core and renders through the WP02 Render port.
-    _do_status(mission=mission, json_output=json_output, stale_threshold=stale_threshold)
+    _do_status(mission=mission, json_output=json_output, stale_threshold=stale_threshold, owned_claim=owned_checkout)
 
 
 @app.command(name="list-dependents")

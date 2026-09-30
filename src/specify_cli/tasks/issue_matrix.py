@@ -48,7 +48,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from kernel.atomic import atomic_write
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.tasks.issue_reference_discovery import (
     GatingClass,
     Occurrence,
@@ -57,6 +56,7 @@ from specify_cli.tasks.issue_reference_discovery import (
 )
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
 ISSUE_MATRIX_JSON_FILENAME = "issue-matrix.json"
@@ -346,6 +346,18 @@ def parse_issue_matrix_document(data: Mapping[str, Any]) -> dict[str, IssueMatri
     return {str(issue_ref): IssueMatrixEntry.from_dict(entry) for issue_ref, entry in raw_rows.items() if isinstance(entry, Mapping)}
 
 
+def _atomic_write_issue_matrix(path: Path, rows: Mapping[str, IssueMatrixEntry]) -> None:
+    """Serialize ``rows`` and write ``path`` atomically (the one serialize-and-write step).
+
+    Shared by :func:`write_issue_matrix`'s ``stage`` thunk and
+    :func:`scaffold_issue_matrix`'s bare-write branch so the two can never
+    diverge on formatting. #4884 (mirrors #4858's ``write_acceptance_matrix``):
+    routed through ``kernel.atomic.atomic_write`` (tempfile-write + rename in
+    the target directory) so no reader can observe a torn file.
+    """
+    atomic_write(path, json.dumps(build_issue_matrix_document(rows), indent=2, sort_keys=True) + "\n")
+
+
 def write_issue_matrix(
     *,
     repo_root: Path,
@@ -355,7 +367,7 @@ def write_issue_matrix(
     policy: ProtectionPolicyLike,
     actor: str = "system",
     target_branch: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> WriteSeamResult:
     """The ONE canonical ``issue-matrix.json`` writer (T020).
 
@@ -373,21 +385,20 @@ def write_issue_matrix(
     materialises a coord copy and cleans up the primary residue for coord
     topologies -- see ``commit_router._stage_artifacts_in_coord_worktree``
     R6).
+
+    ``owned`` (the validated owned checkout, when the command runs against
+    one) is forwarded to the write seam, which then writes and commits inside
+    the owned checkout only.
     """
     from specify_cli.coordination.write_seam import write_artifact
     from mission_runtime import MissionArtifactKind
 
     path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
-    document = build_issue_matrix_document(rows)
 
     def _stage() -> tuple[Path, ...]:
         # T029 (#3073): the write moves INTO the thunk so a refused write
         # never materializes ``issue-matrix.json`` on disk (no residue).
-        # #4884 (mirrors #4858's ``write_acceptance_matrix``): routed through
-        # ``kernel.atomic.atomic_write`` (tempfile-write + rename in
-        # ``feature_dir``) instead of a bare ``path.write_text`` -- no reader
-        # can ever observe a torn/partial file.
-        atomic_write(path, json.dumps(document, indent=2, sort_keys=True) + "\n")
+        _atomic_write_issue_matrix(path, rows)
         return (path,)
 
     return write_artifact(
@@ -400,7 +411,7 @@ def write_issue_matrix(
         entry_id=actor,
         target_branch=target_branch,
         primary_paths_created_this_invocation=frozenset({path}),
-        effective_root=effective_root,
+        owned=owned,
     )
 
 
@@ -442,7 +453,8 @@ def scaffold_issue_matrix(
     mission_slug: str,
     policy: ProtectionPolicyLike,
     target_branch: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
+    fold_into_caller_commit: bool = False,
 ) -> Path | None:
     """Author ``issue-matrix.json`` from detected GH issue refs (B3).
 
@@ -467,6 +479,16 @@ def scaffold_issue_matrix(
         mission_slug: Mission handle.
         policy: A duck-typed ``is_protected(ref) -> bool`` protection policy.
         target_branch: Optional short primary branch name (ff-advance).
+        owned: The validated owned checkout, when the command runs against
+            one. The matrix is then read from and written to the owned
+            checkout's placement, never the repository root checkout; an
+            owned write failure raises instead of degrading to ``None``.
+        fold_into_caller_commit: WP13 (FR-015/NFR-001). When ``True`` AND the
+            matrix's declared home IS ``feature_dir`` (no separate coordination
+            surface), author the file with a bare atomic write and NO commit of
+            its own -- the caller's single later commit carries it (the same
+            treatment the acceptance-matrix scaffold gets). A coord-routed home
+            keeps the write-seam commit unchanged.
 
     Returns:
         Path to the scaffolded (or pre-existing) ``issue-matrix.json``, or
@@ -475,10 +497,10 @@ def scaffold_issue_matrix(
     """
     from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
-    if effective_root is not None:
+    if owned is not None:
         from mission_runtime import placement_seam
 
-        issue_matrix_dir = placement_seam(repo_root, mission_slug, effective_root=effective_root).read_dir(MissionArtifactKind.ISSUE_MATRIX)
+        issue_matrix_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.ISSUE_MATRIX)
     else:
         issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
     json_path = issue_matrix_dir / ISSUE_MATRIX_JSON_FILENAME
@@ -492,6 +514,9 @@ def scaffold_issue_matrix(
         return None
 
     rows = {f"#{ref.number}": _scaffold_entry_for(ref) for ref in refs}
+    if fold_into_caller_commit and issue_matrix_dir.resolve() == feature_dir.resolve():
+        _atomic_write_issue_matrix(json_path, rows)
+        return json_path
     result = write_issue_matrix(
         repo_root=repo_root,
         mission_slug=mission_slug,
@@ -500,7 +525,7 @@ def scaffold_issue_matrix(
         policy=policy,
         actor="finalize-scaffold",
         target_branch=target_branch,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
     if result.status in ("committed", "unchanged"):
         # ``issue_matrix_dir`` was resolved BEFORE the write and is unaffected
@@ -508,6 +533,6 @@ def scaffold_issue_matrix(
         # reuse it rather than ``feature_dir``, which write-seam residue
         # cleanup (R6) may already have unlinked for a coord-routed mission.
         return json_path
-    if effective_root is not None:
+    if owned is not None:
         raise RuntimeError(result.diagnostic or "Owned issue matrix write failed.")
     return None

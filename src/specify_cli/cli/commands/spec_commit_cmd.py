@@ -22,15 +22,15 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Annotated
 
 import typer
 from specify_cli.cli.console import console
 
-from mission_runtime import ActionContextError, MissionArtifactKind
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
+from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES, require_unstaged_index
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.task_utils import find_repo_root
 
@@ -101,18 +101,34 @@ def _payload(
 
 
 def _resolve_commit_inputs(
-    repo_root: Path, files: list[Path], mission: str | None,
-    owned_checkout: Path | None, target_branch: str | None,
-) -> tuple[str | None, list[Path], OwnedMission | None]:
-    """Resolve and validate the complete commit batch before any mutation."""
-    mission_slug = _derive_mission_slug(str(files[0]) if files else None, mission)
-    if owned_checkout is not None:
-        owned = resolve_owned_mission(repo_root, owned_checkout, mission_slug, target_override=target_branch)
+    repo_root: Path,
+    files: list[Path],
+    mission_slug: str | None,
+    owned: OwnedCheckout | None,
+) -> tuple[str | None, list[Path]]:
+    """Resolve and validate the complete commit batch before any mutation.
+
+    An owned run reads its slug and every path off the validated fact:
+    ``owned.files`` (whose ``OwnedCheckoutPathRefused`` maps to
+    ``OWNED_MISSION_PATH_REFUSED`` at the CLI edge) runs first, then
+    ``require_unstaged_index``, so the whole batch is refused before staging.
+    """
+    if owned is not None:
         abs_files = owned.files(files)
         require_unstaged_index(owned)
-        return owned.slug, abs_files, owned
+        return owned.mission_slug, abs_files
     abs_files = [(repo_root / path).resolve() if not path.is_absolute() else path.resolve() for path in files]
-    return mission_slug, abs_files, None
+    return mission_slug, abs_files
+
+
+def _refusal_envelope(code: str, message: str) -> dict[str, object]:
+    """This command's failure payload plus the owned refusal's ``error_code``."""
+    return {**_payload(success=False, error=message), "error_code": code}
+
+
+def _mission_slug_from_args(files: list[Path], mission: str | None) -> str | None:
+    """The mission handle this invocation names: ``--mission``, else the first file's ``kitty-specs/<slug>/``."""
+    return _derive_mission_slug(str(files[0]) if files else None, mission)
 
 
 def _reject_directory_args(abs_files: list[Path], json_output: bool) -> None:
@@ -139,31 +155,21 @@ def _reject_directory_args(abs_files: list[Path], json_output: bool) -> None:
 def spec_commit_command(
     files: list[Path] = typer.Argument(
         ...,
-        help=(
-            "Spec artifacts to commit (absolute or relative paths). "
-            "Must belong to the mission resolved via --mission or the "
-            "kitty-specs/<slug>/ path."
-        ),
+        help=("Spec artifacts to commit (absolute or relative paths). Must belong to the mission resolved via --mission or the kitty-specs/<slug>/ path."),
     ),
     message: str = typer.Option(..., "--message", "-m", help="Commit message."),
     mission: str | None = typer.Option(
         None,
         "--mission",
-        help=(
-            "Mission slug (e.g. '001-my-mission'). When omitted, the slug is "
-            "derived from the first file argument's kitty-specs/<slug>/ path."
-        ),
+        help=("Mission slug (e.g. '001-my-mission'). When omitted, the slug is derived from the first file argument's kitty-specs/<slug>/ path."),
     ),
     target_branch: str | None = typer.Option(
         None,
         "--target-branch",
-        help=(
-            "Short primary branch name used for the post-commit ff-advance "
-            "(WP09 / FR-010). Optional."
-        ),
+        help=("Short primary branch name used for the post-commit ff-advance (WP09 / FR-010). Optional."),
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON."),
-    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit single-branch checkout root.")] = None,
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Commit spec artifacts to the mission's resolved placement.
 
@@ -179,13 +185,26 @@ def spec_commit_command(
     """
     try:
         repo_root = _current_repo_root()
-        mission_slug, abs_files, owned = _resolve_commit_inputs(repo_root, files, mission, owned_checkout, target_branch)
+        derived_slug = _mission_slug_from_args(files, mission)
+        # Validate --owned-checkout (or adopt the caller's checkout) exactly once. A
+        # refusal renders through emit_owned_refusal with this command's failure
+        # envelope; the raw option value goes straight into the shared helper.
+        owned = resolve_owned_or_refuse(
+            repo_root,
+            owned_checkout,
+            derived_slug,
+            cwd=Path.cwd(),
+            allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+            json_output=json_output,
+            envelope=_refusal_envelope,
+            target_override=target_branch,
+        )
+        mission_slug, abs_files = _resolve_commit_inputs(repo_root, files, derived_slug, owned)
         _reject_directory_args(abs_files, json_output)
         if not mission_slug:
             _err(
                 json_output,
-                "Cannot resolve mission slug. Pass --mission <slug> or provide a "
-                "kitty-specs/<slug>/ path as the first argument.",
+                "Cannot resolve mission slug. Pass --mission <slug> or provide a kitty-specs/<slug>/ path as the first argument.",
             )
             raise typer.Exit(1)
 
@@ -204,7 +223,7 @@ def spec_commit_command(
             # topology — no planning→coord transit.
             kind=MissionArtifactKind.SPEC,
             target_branch=target_branch,
-            effective_root=owned.root if owned else None,
+            owned=owned,
         )
 
         if result.status == "committed":
@@ -217,9 +236,7 @@ def spec_commit_command(
             if json_output:
                 print(json.dumps(payload, indent=2))
             else:
-                console.print(
-                    f"[green]✓[/green] Spec artifact(s) committed to {result.placement_ref}"
-                )
+                console.print(f"[green]✓[/green] Spec artifact(s) committed to {result.placement_ref}")
                 if result.commit_hash:
                     console.print(f"[dim]Commit: {result.commit_hash[:7]}[/dim]")
 

@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
 from kernel.clock import now_utc_stamp
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
@@ -21,6 +20,7 @@ from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 from specify_cli.status_lanes import CANONICAL_LANES
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.status import EventStream
     from specify_cli.status.wp_view import WPView
 
@@ -41,6 +41,7 @@ LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 
 class TaskCliError(RuntimeError):
     """Raised when task operations cannot be completed safely."""
+
 
 
 def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Path:
@@ -561,38 +562,54 @@ class WorkPackage:
 
 
 def locate_work_package(
-    repo_root: Path, feature: str, wp_id: str, *, effective_root: Path | None = None,
+    repo_root: Path,
+    feature: str,
+    wp_id: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
-    Uses the canonical planning partition unless an owned effective_root is
-    supplied. Explicit placement keeps both documents and status in that checkout.
+    Uses the canonical planning partition unless an owned checkout is
+    supplied (``owned``). Explicit placement keeps both documents and status
+    in that checkout.
 
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
     from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.coordination import resolve_status_surface
-    from specify_cli.core.paths import get_main_repo_root
     from specify_cli.status import reconstruct_wp_view
 
-    # Always use main repo's kitty-specs - it's the source of truth.
-    # Route through the seam (WORK_PACKAGE_TASK) so tasks/ reads resolve to the
-    # primary checkout under coord topology (coord husk carries STATUS only).
-    # read-side-placement-seam-migration WP07: routed through
-    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
-    # instead of the kind-blind ``resolve_planning_read_dir``.
-    main_root = get_main_repo_root(repo_root)
-    placement = placement_seam(
-        main_root, feature, **effective_root_kwargs(effective_root),
-    )
-    feature_path = placement.read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
-    status_dir = (
-        placement.read_dir(MissionArtifactKind.STATUS_STATE)
-        if effective_root is not None else resolve_status_surface(main_root, feature).parent
-    )
+    if owned is not None:
+        # F4: refuse a real mismatch with the TaskCliError T020 specifies,
+        # naming both slugs -- before ever constructing the seam (whose own
+        # ``ActionContextError`` refusal is for other, non-task callers).
+        # ``handle_names_mission`` is the ONE canonical handle-canonicalisation
+        # authority (review cycle 2, R3) -- no private copy in this module.
+        from mission_runtime import handle_names_mission
+
+        if not handle_names_mission(feature, owned.mission_slug):
+            raise TaskCliError(f"owned fact is for mission {owned.mission_slug!r} but was called with mission {feature!r}; refusing to guess which one is correct.")
+        # owned-checkout-lifecycle-authority WP04 (T020, FR-006/FR-007): read
+        # straight off the validated fact -- no ``get_main_repo_root`` fold on
+        # this arm (NFR-002: zero additional per-read git subprocess calls).
+        placement = placement_seam(repo_root, feature, owned=owned)
+        feature_path = owned.mission_dir
+        status_dir = placement.read_dir(MissionArtifactKind.STATUS_STATE)
+        display_root = owned.owned_root
+    else:
+        # Always use main repo's kitty-specs - it's the source of truth.
+        # Route through the seam (WORK_PACKAGE_TASK) so tasks/ reads resolve to
+        # the primary checkout under coord topology (coord husk carries STATUS
+        # only). read-side-placement-seam-migration WP07: routed through
+        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+        # instead of the kind-blind ``resolve_planning_read_dir``.
+        main_root = get_main_repo_root(repo_root)
+        placement = placement_seam(main_root, feature)
+        feature_path = placement.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        status_dir = resolve_status_surface(main_root, feature).parent
+        display_root = repo_root
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
@@ -617,9 +634,13 @@ def locate_work_package(
             candidates.append((lane, path, tasks_root))
 
     if not candidates:
-        raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
+        # T020 step5: name the resolved owned/legacy root, not only the
+        # display-facing ``kitty-specs/<feature>/tasks`` shorthand, so a stale
+        # repository-root copy that also has the file cannot be confused with
+        # the checkout actually searched.
+        raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks (resolved: {tasks_root} under {display_root}).")
     if len(candidates) > 1:
-        joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
+        joined = "\n".join(str(item[1].relative_to(display_root)) for item in candidates)
         raise TaskCliError(f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}")
 
     lane, path, base_dir = candidates[0]

@@ -25,6 +25,8 @@ from pathlib import Path
 
 import pytest
 import typer
+
+from specify_cli import __version__ as SPEC_KITTY_VERSION
 from rich.console import Console
 
 from specify_cli.cli.commands.agent import mission_finalize as seam
@@ -1469,3 +1471,37 @@ def test_preserve_or_capture_refresh_refused_when_recorded_not_ancestor(monkeypa
     with pytest.raises(typer.Exit):
         _preserve_or_capture(monkeypatch, tmp_path, execution_begun=True, recorded_sha="a" * 40, tip="b" * 40, ancestor=False, refresh=True)
     assert any("not an ancestor" in str(e.get("error", "")) for e in emitted)
+
+
+# ---------------------------------------------------------------------------
+# _resolve_finalize_context (WP13, T074 step 2)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_finalize_context_renders_a_refused_claim_via_emit_owned_refusal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A refused claim exits through ``emit_owned_refusal`` with finalize's ``error`` + ``error_code`` keys."""
+    from mission_runtime import ActionContextError, OwnedRefusalCode
+
+    printed: list[str] = []
+    monkeypatch.setattr(seam, "resolve_checkout_identity", lambda *a, **k: object())
+    monkeypatch.setattr(seam, "_resolve_repo_root", lambda *a, **k: tmp_path)
+
+    def _refuse(*_args: object, **_kwargs: object) -> None:
+        raise ActionContextError(OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT, "names the repository root")
+
+    monkeypatch.setattr(seam, "resolve_owned_or_adopt", _refuse)
+    monkeypatch.setattr("builtins.print", lambda text, *a, **k: printed.append(str(text)))
+
+    with pytest.raises(typer.Exit):
+        seam._resolve_finalize_context("some-mission", tmp_path / "owned", None, validate_only=False, json_output=True)
+
+    envelope = json.loads(printed[0])
+    assert envelope == {
+        "error": "names the repository root",
+        "error_code": OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT,
+        "spec_kitty_version": SPEC_KITTY_VERSION,
+    }
+
+
+def test_finalize_refusal_envelope_shape() -> None:
+    assert seam._finalize_refusal_envelope("CODE", "message") == {"error": "message", "error_code": "CODE", "spec_kitty_version": SPEC_KITTY_VERSION}

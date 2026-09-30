@@ -75,7 +75,7 @@ def _pin_synthetic_primary(
     monkeypatch.setattr(
         runtime_state_cutover,
         "_resolve_primary_home_or_degrade",
-        lambda feature_dir: feature_dir,
+        lambda feature_dir, **_owned: feature_dir,
     )
 
 

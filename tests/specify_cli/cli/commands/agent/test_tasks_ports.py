@@ -466,7 +466,10 @@ def test_primary_anchor_dir_has_no_separate_canonicalizer_fold() -> None:
         "primary_anchor_dir should no longer pre-fold the handle -- the seam's "
         "PRIMARY leg already does so internally (WP08 T036)"
     )
-    assert "placement_seam" in source
+    # T036: the per-call inline ``placement_seam(...)`` was folded into the
+    # shared ``_placement_for(mission)`` helper (G4 -- one call site instead of
+    # three repeated inline seam constructions); the seam call now lives there.
+    assert "_placement_for(mission)" in source
     assert "MissionArtifactKind.PRIMARY_METADATA" in source
 
 

@@ -35,7 +35,7 @@ from typing import Any, NoReturn
 
 import typer
 
-from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
+from mission_runtime import MissionArtifactKind, MissionTopology, OwnedCheckout, placement_seam
 from specify_cli.agent_tasks_ports import Render
 from specify_cli.coordination.surface_authority import (
     Refuse,
@@ -504,7 +504,7 @@ def _check_unchecked_subtasks(
     wp_id: str,
     _force: bool,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Return *wp_id*'s incomplete subtask ids, read from the reduced snapshot.
 
@@ -542,15 +542,13 @@ def _check_unchecked_subtasks(
 
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
-    main_repo_root = _tasks.get_main_repo_root(repo_root)
+    # An owned run reads the repository root off the validated fact instead
+    # (WP16: no resolver consultation on the owned arm).
+    main_repo_root = owned.repository_root if owned is not None else _tasks.get_main_repo_root(repo_root)
     # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
     # on the primary partition. Dynamic completion is STATUS_STATE and follows
     # the topology-routed status surface instead.
-    feature_dir = placement_seam(
-        main_repo_root, mission_slug, effective_root=effective_root
-    ).read_dir(
-        MissionArtifactKind.TASKS_INDEX
-    )
+    feature_dir = placement_seam(main_repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.TASKS_INDEX)
     if not (feature_dir / "tasks").is_dir():
         return []
     from specify_cli.core.subtask_rows import (
@@ -561,10 +559,8 @@ def _check_unchecked_subtasks(
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:
         return []
-    if effective_root is not None:
-        status_dir = placement_seam(
-            main_repo_root, mission_slug, effective_root=effective_root
-        ).read_dir(MissionArtifactKind.STATUS_STATE)
+    if owned is not None:
+        status_dir = placement_seam(main_repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
     else:
         from specify_cli.coordination import resolve_status_surface
 
@@ -579,7 +575,7 @@ def _validate_ready_for_review(
     force: bool,
     target_lane: str = "for_review",
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     workspace_override: object | None = None,
     review_base_ref: str | None = None,
     check_kitty_specs: bool = True,
@@ -604,7 +600,7 @@ def _validate_ready_for_review(
         wp_id,
         force,
         target_lane=target_lane,
-        effective_root=effective_root,
+        owned=owned,
         workspace_override=workspace_override,
         review_base_ref=review_base_ref,
         check_kitty_specs=check_kitty_specs,

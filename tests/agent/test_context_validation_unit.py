@@ -9,6 +9,7 @@ Verifies Phase 3 implementation:
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -65,8 +66,33 @@ def _real_primary_and_linked_checkout(tmp_path: Path, *, under_dot_worktrees: bo
     return primary.resolve(), linked.resolve()
 
 
+def _write_owned_mission(linked: Path, *, slug: str = "owned-mission", target_branch: str = "owned-lane") -> None:
+    """Commit a valid single_branch mission into the linked checkout (the validator reads it)."""
+    mission_dir = linked / "kitty-specs" / slug
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01M3WP19000000000000000001",
+                "mission_slug": slug,
+                "slug": slug,
+                "mission_type": "software-dev",
+                "topology": "single_branch",
+                "target_branch": target_branch,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    _git(linked, "add", "-A")
+    _git(linked, "commit", "-m", "owned mission")
+
+
 def _capture_next_query_root(monkeypatch: pytest.MonkeyPatch, primary: Path) -> list[Path]:
-    """Patch mutation-free next internals and capture their effective root."""
+    """Patch mutation-free next internals and capture the root the runtime would be handed.
+
+    For an owned run that is ``owned.owned_root`` (the fact), otherwise the ambient root.
+    """
     from specify_cli.cli.commands import next_cmd
 
     captured: list[Path] = []
@@ -76,14 +102,14 @@ def _capture_next_query_root(monkeypatch: pytest.MonkeyPatch, primary: Path) -> 
     monkeypatch.setattr(
         next_cmd,
         "_resolve_mission_slug",
-        lambda mission, _root, *, effective_root=None: mission,
+        lambda mission, _root, *, owned=None: owned.mission_slug if owned is not None else mission,
     )
     monkeypatch.setattr(next_cmd, "_validate_result_and_answer", lambda *_a, **_k: None)
     monkeypatch.setattr(next_cmd, "_maybe_handle_answer", lambda *_a, **_k: None)
     monkeypatch.setattr(
         next_cmd,
         "_run_query_mode",
-        lambda _agent, _mission, repo_root, *_a, effective_root=None: captured.append(effective_root or repo_root),
+        lambda _agent, _mission, repo_root, *_a, owned=None: captured.append(owned.owned_root if owned is not None else repo_root),
     )
     return captured
 
@@ -117,6 +143,7 @@ def test_next_explicit_owned_checkout_bypasses_literal_guard_and_routes_state(tm
     from specify_cli.cli.commands import next_cmd
 
     primary, linked = _real_primary_and_linked_checkout(tmp_path, under_dot_worktrees=True)
+    _write_owned_mission(linked)
     captured = _capture_next_query_root(monkeypatch, primary)
     monkeypatch.chdir(linked)
 

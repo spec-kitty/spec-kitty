@@ -1,5 +1,5 @@
 Usage: tasks status [OPTIONS]
-Display kanban status board for all work packages in a feature.
+Display kanban status board for all work packages in a mission.
 Shows a beautiful overview of work package statuses, progress metrics,
 and next steps based on dependencies.
 WPs in "doing" with no commits for --stale-threshold minutes are flagged
@@ -13,4 +13,5 @@ Options
 --mission TEXT Mission slug (optional when exactly one active mission exists)
 --json Output as JSON
 --stale-threshold INTEGER Minutes of inactivity before a WP is considered stale [default: 10]
+--owned-checkout PATH Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees.
 --help -h Show this message and exit.

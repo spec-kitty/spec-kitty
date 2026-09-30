@@ -34,12 +34,12 @@ from typing import TYPE_CHECKING, Any
 
 from mission_runtime import TopologySurface
 from specify_cli.acceptance.execution_context import GateSurfaceRefMismatch
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
 from specify_cli.status_lanes import is_acceptable_ending
 from specify_cli.task_utils import run_git
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.acceptance.execution_context import (
         CannotEvaluate,
         GateExecutionContext,
@@ -343,7 +343,7 @@ def _acceptance_gate_context(
     feature_dir: Path,
     *,
     branch: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> GateExecutionContext:
     """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
 
@@ -373,14 +373,13 @@ def _acceptance_gate_context(
     )
 
     ref = _acceptance_gate_ref(feature_dir, branch)
-    scope: dict[str, Any] = effective_root_kwargs(effective_root)
     return build_gate_execution_context(
         repo_root,
         feature_dir.name,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
         phase=LifecyclePhase.ACCEPT,
         ref=ref,
-        **scope,
+        owned=owned,
     )
 
 
@@ -521,7 +520,7 @@ def _matrix_surface_cannot_hold(
     repo_root: Path,
     feature_dir: Path,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> CannotEvaluate | None:
     """GEC-5 / C2: refuse when the coord-homed matrix is judged on a PRIMARY stamp.
 
@@ -547,12 +546,11 @@ def _matrix_surface_cannot_hold(
 
     from mission_runtime import MissionArtifactKind
 
-    scope: dict[str, Any] = effective_root_kwargs(effective_root)
     home = declared_home_surface(
         repo_root,
         feature_dir.name,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
-        **scope,
+        owned=owned,
     )
     return context.surface_cannot_hold(home)
 
@@ -708,7 +706,7 @@ def _evaluate_acceptance_matrix(
     *,
     mutate_matrix: bool,
     branch: str | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path | None:
     """Read/enforce/validate the acceptance matrix once the branch gate passed.
 
@@ -740,9 +738,8 @@ def _evaluate_acceptance_matrix(
     from specify_cli.acceptance.matrix import read_acceptance_matrix
     from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 
-    scope = effective_root_kwargs(effective_root)
     try:
-        context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
+        context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, owned=owned)
     except CoordinationWorktreeUnmaterialized as exc:
         # #5399: keep #4959's raise at the context build; the gate refuses cleanly.
         unmaterialized = _unmaterialized_coord_cannot_evaluate(exc, _acceptance_gate_ref(feature_dir, branch))
@@ -753,7 +750,7 @@ def _evaluate_acceptance_matrix(
         _record_ref_mismatch_cannot_evaluate(ref_mismatch, activity_issues, skipped_checks, blocked_checks)
         return None
 
-    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir, **scope)
+    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir, owned=owned)
     if cannot is not None:
         _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
         return None
@@ -818,7 +815,7 @@ def _check_lane_gates(
     blocked_checks: list[AcceptanceCheckDiagnostic],
     *,
     mutate_matrix: bool = True,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> LaneGateOutcome:
     """Enforce lane-based acceptance gates and acceptance matrix.
 
@@ -864,7 +861,7 @@ def _check_lane_gates(
         blocked_checks,
         mutate_matrix=mutate_matrix,
         branch=branch,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
     return LaneGateOutcome(matrix_dir=matrix_dir)
 

@@ -581,9 +581,9 @@ class TestResolveReviewContext:
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
 
+        monkeypatch.setattr("mission_runtime.claim_commit_for_wp", lambda _mission_dir, _wp_id: "abc1234def")
+
         def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
-            if args[1] == "log":
-                return _cp(0, "abc1234def\x00Move WP01 to in_progress\n")
             if args[1] == "rev-list":
                 return _cp(0, "3")
             raise AssertionError(f"unexpected git invocation: {args}")
@@ -604,7 +604,12 @@ class TestResolveReviewContext:
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
-        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(0, ""))
+        from mission_runtime import ClaimCommitUnresolved
+
+        def _unresolved(_mission_dir: Path, wp_id: str) -> str:
+            raise ClaimCommitUnresolved(wp_id, "no_claim_event")
+
+        monkeypatch.setattr("mission_runtime.claim_commit_for_wp", _unresolved)
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
 
@@ -618,12 +623,8 @@ class TestResolveReviewContext:
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
 
-        def _fake_run(args: list[str], **_kw: Any) -> SimpleNamespace:
-            if args[1] == "log":
-                return _cp(0, "abc1234def\x00Start WP01 implementation\n")
-            return _cp(1, "")
-
-        monkeypatch.setattr(workflow_module.subprocess, "run", _fake_run)
+        monkeypatch.setattr("mission_runtime.claim_commit_for_wp", lambda _mission_dir, _wp_id: "abc1234def")
+        monkeypatch.setattr(workflow_module.subprocess, "run", lambda *_a, **_k: _cp(1, ""))
 
         ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP01", "")
 

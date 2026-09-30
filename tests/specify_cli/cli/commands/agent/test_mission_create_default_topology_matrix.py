@@ -41,7 +41,8 @@ from specify_cli.cli.commands.agent.mission_create import (
 _PRIMARY_BRANCH = "main"
 _FEATURE_BRANCH = "feature/x"
 _REPO_ROOT = Path("/repo")
-_OWNED_CHECKOUT = Path("/repo/.worktrees/owned")
+# Presence-only stand-in for the validated ``OwnedCreateRoot`` fact.
+_OWNED_CREATE_ROOT = object()
 
 _RESOLVE_PRIMARY_BRANCH = "specify_cli.core.git_ops.resolve_primary_branch"
 _PROTECTION_POLICY_RESOLVE = "specify_cli.git.protection_policy.ProtectionPolicy.resolve"
@@ -64,7 +65,7 @@ def _resolve(
     repo_root: Path | None = _REPO_ROOT,
     current_branch: str | None = _FEATURE_BRANCH,
     pr_bound: bool = False,
-    owned_checkout: Path | None = None,
+    owned_create_root: object | None = None,
     primary_protected: bool = False,
     reachable: bool = False,
 ) -> MissionTopology:
@@ -74,11 +75,13 @@ def _resolve(
         "current_branch": current_branch,
         "pr_bound": pr_bound,
     }
-    # ``owned_checkout`` is only passed when exercised (T025 adds the
+    # ``owned_create_root`` is only passed when exercised (T025 adds the
     # parameter): omitting it for every other row lets those rows run — and
     # go red on an assertion, not a TypeError — against the pre-T025 base.
-    if owned_checkout is not None:
-        call_kwargs["owned_checkout"] = owned_checkout
+    # It is the already-validated owned-create fact (minted once, before any
+    # phase runs); the phase only asks whether one is present.
+    if owned_create_root is not None:
+        call_kwargs["owned_create_root"] = owned_create_root
     with (
         patch(_RESOLVE_PRIMARY_BRANCH, return_value=_PRIMARY_BRANCH),
         patch(
@@ -130,7 +133,7 @@ def _resolve(
         ),
         (
             "owned_checkout_no_topology",
-            {"owned_checkout": _OWNED_CHECKOUT},
+            {"owned_create_root": _OWNED_CREATE_ROOT},
             MissionTopology.SINGLE_BRANCH,
         ),
     ],

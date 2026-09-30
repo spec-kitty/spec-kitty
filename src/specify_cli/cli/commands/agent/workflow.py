@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from specify_cli.invocation.record import OpStartedEvent
 
 from charter.activation.context import build_charter_context
+from specify_cli.cli.commands._owned_checkout import owned_checkout_option
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -883,6 +884,35 @@ def _render_charter_context(
 app = typer.Typer(name="action", help="Mission action commands that display prompts and instructions for agents", no_args_is_help=True)
 
 
+def _refuse_owned_action(owned_claim: Path, mission: str | None, *, action: str) -> None:
+    """Refuse ``agent action implement`` / ``review`` under ``--owned-checkout`` (FR-018, US6).
+
+    WP08 owns :func:`refuse_owned_action` and its validation order (a
+    ``--mission`` handle runs full ownership validation first, so an invalid
+    path gets its own FR-020 code before the unconditional
+    ``OWNED_ACTION_UNSUPPORTED`` refusal below it). This helper only locates
+    the repository root, delegates, and renders the typed refusal on stderr
+    -- there is no ``--json`` flag on these commands (NFR-004 carve-out), so
+    ``json_output`` is always ``False``.
+
+    Refused: owned checkouts use ``spec-kitty next --owned-checkout`` and
+    ``spec-kitty agent tasks move-task --owned-checkout`` instead.
+    """
+    from mission_runtime import ActionContextError
+
+    from specify_cli.cli.commands._owned_checkout import emit_owned_refusal, refuse_owned_action, success_false_envelope
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        print("Error: Could not locate project root")
+        raise typer.Exit(1)
+    repo_root = get_main_repo_root(repo_root)
+    try:
+        refuse_owned_action(repo_root, owned_claim, mission, action=action)
+    except ActionContextError as exc:
+        emit_owned_refusal(exc, json_output=False, envelope=success_false_envelope)
+
+
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
 
@@ -1328,6 +1358,15 @@ def implement(
             help="Suppress the bulk-edit inference warning when spec language resembles a bulk edit but the mission is not one.",
         ),
     ] = False,
+    owned_checkout: Annotated[
+        Path | None,
+        owned_checkout_option(
+            help=(
+                "Not yet supported. Refused: owned checkouts use 'spec-kitty next "
+                "--owned-checkout' and 'spec-kitty agent tasks move-task --owned-checkout' instead."
+            )
+        ),
+    ] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -1342,6 +1381,11 @@ def implement(
         spec-kitty agent action implement wp01 --agent codex
         spec-kitty agent action implement --agent gemini  # auto-detects first planned WP
     """
+    # WP09 T047 (FR-018, US6): refuse before ANY side effect -- must precede
+    # even the receipt reset and the sparse-checkout preflight below.
+    if owned_checkout is not None:
+        _refuse_owned_action(owned_checkout, mission, action="implement")
+
     # T009: the raw CLI-option surface, unresolved -- threaded through the
     # early preflight phases below instead of five separate positional args.
     request = ImplementRequest(
@@ -1838,6 +1882,15 @@ def review(
     model: Annotated[str | None, typer.Option("--model", help=_MODEL_OPT_HELP)] = None,
     profile: Annotated[str | None, typer.Option("--profile", help=_PROFILE_OPT_HELP)] = None,
     invocation_id: Annotated[str | None, typer.Option("--invocation-id", help=_INVOCATION_ID_OPT_HELP)] = None,
+    owned_checkout: Annotated[
+        Path | None,
+        owned_checkout_option(
+            help=(
+                "Not yet supported. Refused: owned checkouts use 'spec-kitty next "
+                "--owned-checkout' and 'spec-kitty agent tasks move-task --owned-checkout' instead."
+            )
+        ),
+    ] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -1851,6 +1904,11 @@ def review(
         spec-kitty agent action review wp02 --agent codex
         spec-kitty agent action review --agent gemini  # auto-detects first for_review WP
     """
+    # WP09 T047 (FR-018, US6): refuse before ANY side effect -- must precede
+    # even the receipt reset below.
+    if owned_checkout is not None:
+        _refuse_owned_action(owned_checkout, mission, action="review")
+
     # T010: the raw CLI-option surface, unresolved.
     request = ReviewRequest(wp_id=wp_id, mission=mission, agent=agent)
 

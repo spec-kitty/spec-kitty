@@ -215,7 +215,7 @@ def test_owned_review_base_refuses_on_none_and_succeeds_on_captured_sha(tmp_path
     stand-in for ``_MoveTaskState`` (that test's
     ``test_owned_gate_baseline_reads_selected_mission_directory`` does the
     same for ``_mt_resolve_gate_baseline``) -- ``_mt_resolve_owned_review_base``
-    only reads ``st.owned.root`` and ``st.feature_dir``.
+    only reads ``st.owned.owned_root`` and ``st.feature_dir``.
     """
     from types import SimpleNamespace
 
@@ -244,11 +244,11 @@ def test_owned_review_base_refuses_on_none_and_succeeds_on_captured_sha(tmp_path
 
     # #4827/WP03/T015: `_mt_resolve_owned_review_base` now also classifies
     # the recorded pin against the TARGET-BRANCH tip, captured from
-    # `st.main_repo_root` (mirroring `owned.primary`), never `owned.root`
+    # `st.main_repo_root` (mirroring `owned.repository_root`), never `owned.owned_root`
     # (see that function's docstring). This single-checkout fixture has no
     # separate primary/owned split, so `repo` stands in for both.
     st = SimpleNamespace(
-        owned=SimpleNamespace(root=repo),
+        owned=SimpleNamespace(owned_root=repo),
         feature_dir=feature_dir,
         main_repo_root=repo,
         target_branch="main",
@@ -338,7 +338,7 @@ def test_owned_review_base_refuses_on_orphaned_pin(tmp_path: Path) -> None:
     write_lanes_json(feature_dir, lanes)
 
     st = SimpleNamespace(
-        owned=SimpleNamespace(root=repo),
+        owned=SimpleNamespace(owned_root=repo),
         feature_dir=feature_dir,
         main_repo_root=repo,
         target_branch="main",

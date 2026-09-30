@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from kernel.clock import now_utc_iso
 from kernel._safe_re import re
@@ -28,6 +29,9 @@ from specify_cli.core.paths import (
     read_target_branch_from_meta,
 )
 from specify_cli.mission_metadata import write_meta
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 
 logger = logging.getLogger(__name__)
 
@@ -520,7 +524,7 @@ def _resolve_pr_target_ref(
     mission_slug: str,
     target_ref: str | None,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str:
     """Resolve the branch the PR merged INTO, for the landing check.
 
@@ -532,14 +536,14 @@ def _resolve_pr_target_ref(
     standing on a mission branch must never be mistaken for the landing
     target.
 
-    *effective_root* is threaded straight through to
+    *owned* (the validated owned checkout) is threaded straight through to
     :func:`resolve_primary_meta_dir` so this declared-target READ resolves the
-    SAME ``meta.json`` the caller's WRITE leg targets. Without it, an
-    owned-mission checkout that is itself a git worktree resolves via
-    ``get_main_repo_root(repo_root)`` back to the PRIMARY repo root instead of
-    the owned checkout — a genuinely different ``meta.json`` than the one
+    SAME ``meta.json`` the caller's WRITE leg targets: the owned checkout's own
+    ``meta.json``. Without it, an owned-mission checkout that is itself a git
+    worktree resolves via ``get_main_repo_root(repo_root)`` back to the PRIMARY
+    repo root instead — a genuinely different ``meta.json`` than the one
     :func:`record_pr_merge_baseline_for_mission` writes when it is called with
-    an explicit ``effective_root``.
+    ``owned``.
     """
     if target_ref is not None:
         supplied = target_ref.strip()
@@ -549,7 +553,7 @@ def _resolve_pr_target_ref(
             raise PrMergeEvidenceError(f"{supplied!r} is not a branch name (it looks like a git option)")
         return supplied
     try:
-        declared = read_target_branch_from_meta(resolve_primary_meta_dir(repo_root, mission_slug, effective_root=effective_root))
+        declared = read_target_branch_from_meta(resolve_primary_meta_dir(repo_root, mission_slug, owned=owned))
     except MissionMetaReadError as exc:
         raise PrMergeEvidenceError(f"cannot read mission {mission_slug}'s declared target branch to verify the PR landing ({exc}).") from exc
     if declared:
@@ -570,7 +574,7 @@ def verify_pr_merge_evidence(
     *,
     target_ref: str | None = None,
     attest_first_landing: bool = False,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> PrMergeEvidence:
     """Verify a supplied commit is the genuine PR landing commit for one mission.
 
@@ -607,10 +611,11 @@ def verify_pr_merge_evidence(
     *target_ref* names the branch the PR merged INTO for check 6: an explicit
     value wins (``main``, ``origin/main``, ``refs/heads/main`` — anything
     rev-parse resolves), else the mission's declared ``target_branch``, else
-    the repository's primary branch. *effective_root* is passed straight
-    through to that declared-``target_branch`` read (see
-    :func:`_resolve_pr_target_ref`) so it resolves the SAME ``meta.json`` an
-    owned-mission caller's write leg targets, not the primary repo's copy.
+    the repository's primary branch. *owned* (the validated owned
+    checkout) is passed straight through to that declared-``target_branch``
+    read (see :func:`_resolve_pr_target_ref`) so it resolves the owned
+    checkout's own ``meta.json``, the SAME one an owned caller's write leg
+    targets, not the primary repo's copy.
 
     **What the evidence proves, and what it does not.** Checks 1–6 prove the
     commit landed on the target branch and introduced the mission corpus.
@@ -690,7 +695,7 @@ def verify_pr_merge_evidence(
             "commit that introduced the mission corpus"
         )
 
-    resolved_target = _resolve_pr_target_ref(repo_root, mission_slug, target_ref, effective_root=effective_root)
+    resolved_target = _resolve_pr_target_ref(repo_root, mission_slug, target_ref, owned=owned)
     _rev_verify(repo_root, f"{resolved_target}^{{commit}}")  # a missing/unfetched target branch is its own clean refusal
     if not _commit_is_on_target(repo_root, pr_merge_commit, resolved_target):
         raise PrMergeEvidenceError(
@@ -797,7 +802,7 @@ def _record_pr_merge_baseline(
     *,
     target_ref: str | None = None,
     attest_first_landing: bool = False,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> PrMergeEvidence:
     """Record a verified PR merge as the mission's post-consolidation review baseline.
 
@@ -826,11 +831,12 @@ def _record_pr_merge_baseline(
     time, since git alone cannot recover the true merge timestamp (tracked in
     #4277).
 
-    *effective_root* is threaded straight through to the verification's
-    declared-``target_branch`` read (:func:`verify_pr_merge_evidence`) so that
-    read resolves the SAME ``meta.json`` as *feature_dir* — the write target —
-    instead of, for an owned-mission worktree checkout, silently falling back
-    to the primary repo's copy of the mission.
+    *owned* (the validated owned checkout) is threaded straight through to the
+    verification's declared-``target_branch`` read
+    (:func:`verify_pr_merge_evidence`) so that read resolves the SAME
+    ``meta.json`` as *feature_dir* — the write target — instead of, for an
+    owned-mission worktree checkout, silently falling back to the primary
+    repo's copy of the mission.
     """
     evidence = verify_pr_merge_evidence(
         repo_root,
@@ -838,7 +844,7 @@ def _record_pr_merge_baseline(
         merge_commit,
         target_ref=target_ref,
         attest_first_landing=attest_first_landing,
-        effective_root=effective_root,
+        owned=owned,
     )
 
     try:
@@ -865,7 +871,7 @@ def resolve_primary_meta_dir(
     repo_root: Path,
     mission_slug: str,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Resolve the mission's PRIMARY-partition ``meta.json`` directory.
 
@@ -874,12 +880,12 @@ def resolve_primary_meta_dir(
     ``baseline_merge_commit`` read or write lands on the primary partition's
     ``meta.json`` — the same leg the birth-cutover stamp and the acceptance
     recording write — rather than whatever directory a kind-blind handle
-    resolution happened to hand the caller.
+    resolution happened to hand the caller. With *owned* it is the owned
+    checkout's own ``meta.json``.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
-    from specify_cli.core.owned_mission import effective_root_kwargs
 
-    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    return placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA)
 
 
 def record_pr_merge_baseline_for_mission(
@@ -887,7 +893,7 @@ def record_pr_merge_baseline_for_mission(
     mission_slug: str,
     merge_commit: str,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     target_ref: str | None = None,
     attest_first_landing: bool = False,
 ) -> PrMergeEvidence:
@@ -901,12 +907,12 @@ def record_pr_merge_baseline_for_mission(
     parent is the pre-landing target tip (for a two-parent landing: the merge
     was performed on the target branch; for a single-parent one: it was the
     first commit of the landing) — see :func:`verify_pr_merge_evidence`.
-    *effective_root* resolves both the write leg's ``feature_dir`` AND (via
+    *owned* (the validated owned checkout) resolves both the write leg's ``feature_dir`` AND (via
     :func:`_record_pr_merge_baseline`) the declared-``target_branch`` read the
     verification falls back to when *target_ref* is omitted, so the two never
     resolve different ``meta.json`` files for an owned-mission checkout.
     """
-    feature_dir = resolve_primary_meta_dir(repo_root, mission_slug, effective_root=effective_root)
+    feature_dir = resolve_primary_meta_dir(repo_root, mission_slug, owned=owned)
     return _record_pr_merge_baseline(
         feature_dir,
         repo_root,
@@ -914,7 +920,7 @@ def record_pr_merge_baseline_for_mission(
         merge_commit,
         target_ref=target_ref,
         attest_first_landing=attest_first_landing,
-        effective_root=effective_root,
+        owned=owned,
     )
 
 

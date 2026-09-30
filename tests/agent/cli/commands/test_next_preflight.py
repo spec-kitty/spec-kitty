@@ -216,15 +216,16 @@ def test_hook_aborts_with_exit_1_when_preflight_fails(
 
 
 def _call_next_step_unwrapped(**kwargs) -> None:
-    """Invoke ``next_step`` bypassing the ``@require_main_repo`` decorator.
+    """Invoke ``next_step`` directly.
 
-    The decorator inspects the test environment's git context; tests for
-    the preflight gate are about the gate itself, so we unwrap.
+    The syntactic ``.worktrees`` guard is no longer a decorator (WP19 T103 step 4:
+    it is the fall-through of the single ownership-resolution call inside the
+    body), and the suite's autouse fixture neutralises worktree detection, so the
+    preflight-gate tests need no unwrapping any more.
     """
     from specify_cli.cli.commands import next_cmd
 
-    underlying = next_cmd.next_step.__wrapped__  # type: ignore[attr-defined]
-    return underlying(**kwargs)
+    return next_cmd.next_step(**kwargs)
 
 
 def test_next_command_aborts_before_decide_next_on_failure(

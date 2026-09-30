@@ -177,7 +177,7 @@ def test_recycled_pid_caught_through_check_doing_wps(tmp_path: Path, monkeypatch
     """
     monkeypatch.setattr(
         "specify_cli.core.stale_detection.resolve_workspace_for_wp",
-        lambda root, slug, wp_id: _lane_workspace(tmp_path),
+        lambda root, slug, wp_id, **_kw: _lane_workspace(tmp_path),
     )
 
     # Snapshot is the authority (#2816): a live PID + MISMATCHED snapshot baseline.
@@ -222,7 +222,7 @@ def test_matching_baseline_still_trusts_live_pid_through_check_doing_wps(
 
     monkeypatch.setattr(
         "specify_cli.core.stale_detection.resolve_workspace_for_wp",
-        lambda root, slug, wp_id: _lane_workspace(tmp_path),
+        lambda root, slug, wp_id, **_kw: _lane_workspace(tmp_path),
     )
 
     own_pid = os.getpid()

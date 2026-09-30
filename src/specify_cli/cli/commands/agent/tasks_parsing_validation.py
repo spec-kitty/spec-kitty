@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.workspace.context import ResolvedWorkspace
 
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
@@ -898,7 +899,7 @@ def _validate_ready_for_review(
     force: bool,
     target_lane: str = "for_review",
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     workspace_override: ResolvedWorkspace | None = None,
     review_base_ref: str | None = None,
     check_kitty_specs: bool = True,
@@ -942,7 +943,8 @@ def _validate_ready_for_review(
 
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
-    main_repo_root = get_main_repo_root(repo_root)
+    # An owned run reads the repository root off the validated fact (WP16).
+    main_repo_root = owned.repository_root if owned is not None else get_main_repo_root(repo_root)
     # WP06 / FR-006 / T027: route research-artifact read to PRIMARY-partition seam.
     # research.md / meta.json / spec.md all live on PRIMARY (not the coord husk).
     # resolve_feature_dir_for_mission (coord-aware) would return the STATUS-only
@@ -952,7 +954,7 @@ def _validate_ready_for_review(
         placement_seam,
     )
 
-    feature_dir = placement_seam(main_repo_root, mission_slug, effective_root=effective_root).read_dir(MissionArtifactKind.RESEARCH)
+    feature_dir = placement_seam(main_repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.RESEARCH)
 
     # Detect mission type from feature's meta.json
     mission_type = get_mission_type(feature_dir)
@@ -960,7 +962,7 @@ def _validate_ready_for_review(
     # Check 1: Uncommitted research artifacts in planning repo (applies to ALL missions)
     # Research artifacts live in kitty-specs/ which is in the planning repo, not worktrees
     research_guidance = _validate_research_artifacts(
-        main_repo_root=effective_root or main_repo_root,
+        main_repo_root=owned.owned_root if owned is not None else main_repo_root,
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id=wp_id,

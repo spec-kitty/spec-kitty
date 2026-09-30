@@ -34,14 +34,19 @@ are NOT relocated here — WP08 moves them to ``commit_router``.
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, NoReturn, cast
+from typing import TYPE_CHECKING, Annotated, NoReturn, cast
 
 import typer
+
+if TYPE_CHECKING:
+    from specify_cli.coordination.commit_router import CommitRouterResult
+    from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
 
@@ -58,7 +63,15 @@ from specify_cli.core.paths import (
     get_status_read_root,
     load_meta_fail_closed,
 )
-from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
+from mission_runtime import OwnedCheckout
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    emit_owned_refusal,
+    owned_checkout_option,
+    resolve_owned_or_adopt,
+    stale_copy_payload,
+)
+from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES, require_unstaged_index
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
 from specify_cli.lanes.models import LanesManifest
@@ -103,6 +116,7 @@ from specify_cli.cli.commands.agent.finalization_eligibility import (
     project_finalization_eligibility,
 )
 from specify_cli.cli.commands.agent.mission_parsing import (
+    _with_cli_version,
     _extract_wp_ids_from_task_files,
     _find_undeclared_requirement_citations,
     _invalid_mission_specs_owned_files,
@@ -143,6 +157,25 @@ FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch", "merge_target_br
 globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = _invalid_mission_specs_owned_files
 
 
+# FR-007/R-12 (WP13 T074): the additive ``stale_repository_root_copy`` envelope
+# key for the CURRENT owned invocation, or ``None`` (non-owned / not yet
+# resolved). Bound by ``finalize_tasks`` after the owned fact resolves and
+# merged into EVERY payload ``_emit_json`` prints -- success, validate-only, the
+# generic error envelope AND the many gate-specific ``typer.Exit`` refusals that
+# emit their own JSON -- so no emitter has to remember it. An explicitly
+# supplied key in a payload stays authoritative.
+#
+# Why a scoped ContextVar and not threading ``owned`` through the emitters:
+# roughly 30 gate helpers (dependency graph, requirement mapping, ownership,
+# lane compute, ...) emit their own refusal JSON and have no other reason to
+# know about an owned checkout; adding an ``owned`` parameter to each would
+# widen ~30 signatures and let one forgotten call site silently drop the key
+# again (the FR-007 defect this replaced). The binding is invocation-scoped:
+# ``finalize_tasks`` sets it under a ``token`` and ``reset``s it in a
+# ``finally``, so it can never outlive the owned run that bound it.
+_OWNED_ENVELOPE_EXTRAS: contextvars.ContextVar[dict[str, object] | None] = contextvars.ContextVar("finalize_owned_envelope_extras", default=None)
+
+
 def _emit_json(payload: dict[str, object]) -> None:
     """Emit ``payload`` as JSON via the ``mission`` module's ``_emit_json``.
 
@@ -153,6 +186,9 @@ def _emit_json(payload: dict[str, object]) -> None:
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
+    extras = _OWNED_ENVELOPE_EXTRAS.get()
+    if extras:
+        payload = {**{key: value for key, value in extras.items() if key not in payload}, **payload}
     _mission._emit_json(payload)
 
 
@@ -189,22 +225,22 @@ def _bootstrap_canonical_state_via_mission(
     *,
     dry_run: bool,
     capability: GuardCapability | None = None,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> BootstrapResult:
     """Route ``bootstrap_canonical_state`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
     if owned is not None:
+        # T073 (WP13): threads the ``owned=`` fact -- the same value object
+        # every per-WP seed in the loop below reuses instead of re-running the
+        # ownership claim (#3866).
         return _mission.bootstrap_canonical_state(
             planning_dir,
             mission_slug,
             dry_run=dry_run,
             capability=capability or GuardCapability.STANDARD,
-            repo_root=owned.primary,
-            effective_root=owned.root,
-            # #3866: thread the validated value object so the per-WP seed
-            # loop does not re-run resolve_owned_mission for every WP.
-            owned_mission=owned,
+            repo_root=owned.repository_root,
+            owned=owned,
         )
     if capability is None:
         return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run)
@@ -898,6 +934,21 @@ def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tupl
     )
 
 
+def _mission_protection_policy(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> ProtectionPolicy:
+    """The #5100 FR-008 mission-scoped protection policy for this finalize run.
+
+    Non-owned: :meth:`ProtectionPolicy.resolve_for_mission` (the mission's
+    primary ``meta.json``). Owned: the ONE owned authority,
+    :meth:`ProtectionPolicy.resolve_for_owned`, folds the mission from the fact
+    rather than re-deriving the repository root from the slug.
+    """
+    from specify_cli.git.protection_policy import ProtectionPolicy as _Policy
+
+    if owned is None:
+        return _Policy.resolve_for_mission(repo_root, mission_slug)
+    return _Policy.resolve_for_owned(owned, mission_slug)
+
+
 def _scaffold_issue_matrix_if_present(
     planning_dir: Path,
     repo_root: Path,
@@ -906,7 +957,7 @@ def _scaffold_issue_matrix_if_present(
     target_branch: str | None,
     validate_only: bool,
     json_output: bool,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Phase: B3 / T021 issue-matrix.json scaffold (idempotent), routed COORD.
 
@@ -919,18 +970,22 @@ def _scaffold_issue_matrix_if_present(
     if validate_only:
         return
     try:
-        from specify_cli.git.protection_policy import ProtectionPolicy
         from specify_cli.tasks.issue_matrix import scaffold_issue_matrix
 
         spec_md = planning_dir / "spec.md"
         issue_matrix_path = scaffold_issue_matrix(
             planning_dir,
             spec_md,
-            repo_root=owned.primary if owned else repo_root,
+            repo_root=owned.repository_root if owned else repo_root,
             mission_slug=mission_slug,
-            policy=ProtectionPolicy.resolve_for_mission(owned.primary if owned else repo_root, mission_slug),
+            policy=_mission_protection_policy(repo_root, mission_slug, owned),
             target_branch=target_branch,
-            **({"effective_root": owned.root} if owned else {}),
+            # FR-015/NFR-001 (review cycle 1, HIGH-2): when the matrix's declared
+            # home is planning_dir the scaffold is a bare write that rides the
+            # single final commit (``issue-matrix.json`` is a collected
+            # candidate) -- it must not commit before the refusal gates ran.
+            fold_into_caller_commit=True,
+            owned=owned,
         )
     except Exception as issue_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
         if owned:
@@ -1661,6 +1716,105 @@ def _apply_ownership_inference(
     return changed, infer_warnings, None
 
 
+def _bootstrap_one_wp(
+    wp_file: Path,
+    state: _BootstrapState,
+    wp_dependencies: dict[str, list[str]],
+    wp_requirement_refs: dict[str, list[str]],
+    wps_manifest: WpsManifest | None,
+    mission_slug: str,
+    repo_root: Path,
+    target_branch: str,
+    *,
+    merge_target_branch: str | None,
+    validate_only: bool,
+    json_output: bool,
+) -> str | None:
+    """Phase: bootstrap ONE WP's 8-field inference in memory, mutating ``state`` (T071).
+
+    Extracted from :func:`_run_bootstrap_loop`'s per-file body, unchanged
+    behaviourally: writes are still only queued (``state.pending_writes``),
+    never performed here (INV-6).
+
+    Returns:
+        The WP id when an ownership contradiction was recorded for it (the
+        caller collects these across the whole scan and raises once,
+        :func:`_raise_ownership_contradictions_if_any`); ``None`` otherwise,
+        including when the filename does not match a WP id or the file is
+        unreadable (both skip silently, as before).
+    """
+    wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
+    if not wp_id_match:
+        return None
+    wp_id: str = wp_id_match.group(1)
+
+    raw_content = wp_file.read_text(encoding="utf-8")
+    has_dependencies_line = _raw_frontmatter_has_field(raw_content, "dependencies")
+    # #3941: a legacy string-form dependencies value ("[]", "WP01, WP02",
+    # bare WP01) parses to the same list WPMetadata would write, so the
+    # value comparison alone never flags it — normalize it to the
+    # canonical list form on this run's write.
+    dependencies_string_form = has_dependencies_line and _raw_frontmatter_dependencies_is_string_form(wp_file)
+    try:
+        wp_meta, body = _read_wp_frontmatter(wp_file)
+    except Exception as e:  # noqa: BLE001 — surface but skip unreadable WPs
+        if not json_output:
+            console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
+        return None
+
+    _enforce_charter_activation_gate(wp_meta, wp_id, repo_root)
+
+    parsed_deps = wp_dependencies.get(wp_id, [])
+    existing_deps = list(wp_meta.dependencies)
+    if wps_manifest is None and not parsed_deps and existing_deps:
+        deps = existing_deps
+        state.preserved_wps.append(wp_id)
+    else:
+        deps = parsed_deps
+
+    requirement_refs = wp_requirement_refs.get(wp_id, [])
+    state.work_packages.append({"id": wp_id, "title": wp_meta.display_title, "dependencies": deps, "requirement_refs": requirement_refs})
+
+    bld = wp_meta.builder()
+    frontmatter_changed, changed_fields = _apply_bootstrap_fields(
+        bld,
+        wp_meta,
+        deps=deps,
+        has_dependencies_line=has_dependencies_line,
+        requirement_refs=requirement_refs,
+        target_branch=target_branch,
+        merge_target_branch=merge_target_branch,
+        dependencies_string_form=dependencies_string_form,
+    )
+    own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
+        bld, wp_meta, wp_file.read_text(encoding="utf-8"), mission_slug, changed_fields
+    )
+    if ownership_contradiction is not None:
+        state.ownership_contradictions.append(ownership_contradiction)
+        return wp_id
+    state.ownership_warnings.extend(infer_warnings)
+    frontmatter_changed = frontmatter_changed or own_changed
+
+    updated_meta = bld.build() if frontmatter_changed else wp_meta
+    state.inmemory_frontmatter[wp_id] = updated_meta
+    state.inmemory_bodies[wp_id] = body
+
+    for warning in detect_post_integration_acceptance(raw_content, list(updated_meta.owned_files)):
+        state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
+
+    if frontmatter_changed:
+        if not validate_only:
+            state.pending_writes.append((wp_file, updated_meta, body))
+        else:
+            state.would_modify.append({"wp_id": wp_id, "changes": changed_fields})
+        state.updated_count += 1
+        if wp_id not in state.preserved_wps:
+            state.modified_wps.append(wp_id)
+    elif wp_id not in state.preserved_wps:
+        state.unchanged_wps.append(wp_id)
+    return None
+
+
 def _run_bootstrap_loop(
     wp_files: list[Path],
     dep_resolution: _DependencyResolution,
@@ -1691,76 +1845,21 @@ def _run_bootstrap_loop(
     contradicting_wp_ids: list[str] = []
 
     for wp_file in wp_files:
-        wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
-        if not wp_id_match:
-            continue
-        wp_id = wp_id_match.group(1)
-
-        raw_content = wp_file.read_text(encoding="utf-8")
-        has_dependencies_line = _raw_frontmatter_has_field(raw_content, "dependencies")
-        # #3941: a legacy string-form dependencies value ("[]", "WP01, WP02",
-        # bare WP01) parses to the same list WPMetadata would write, so the
-        # value comparison alone never flags it — normalize it to the
-        # canonical list form on this run's write.
-        dependencies_string_form = has_dependencies_line and _raw_frontmatter_dependencies_is_string_form(wp_file)
-        try:
-            wp_meta, body = _read_wp_frontmatter(wp_file)
-        except Exception as e:  # noqa: BLE001 — surface but skip unreadable WPs
-            if not json_output:
-                console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
-            continue
-
-        _enforce_charter_activation_gate(wp_meta, wp_id, repo_root)
-
-        parsed_deps = wp_dependencies.get(wp_id, [])
-        existing_deps = list(wp_meta.dependencies)
-        if wps_manifest is None and not parsed_deps and existing_deps:
-            deps = existing_deps
-            state.preserved_wps.append(wp_id)
-        else:
-            deps = parsed_deps
-
-        requirement_refs = wp_requirement_refs.get(wp_id, [])
-        state.work_packages.append({"id": wp_id, "title": wp_meta.display_title, "dependencies": deps, "requirement_refs": requirement_refs})
-
-        bld = wp_meta.builder()
-        frontmatter_changed, changed_fields = _apply_bootstrap_fields(
-            bld,
-            wp_meta,
-            deps=deps,
-            has_dependencies_line=has_dependencies_line,
-            requirement_refs=requirement_refs,
-            target_branch=target_branch,
+        contradicting_wp_id = _bootstrap_one_wp(
+            wp_file,
+            state,
+            wp_dependencies,
+            wp_requirement_refs,
+            wps_manifest,
+            mission_slug,
+            repo_root,
+            target_branch,
             merge_target_branch=merge_target_branch,
-            dependencies_string_form=dependencies_string_form,
+            validate_only=validate_only,
+            json_output=json_output,
         )
-        own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
-            bld, wp_meta, wp_file.read_text(encoding="utf-8"), mission_slug, changed_fields
-        )
-        if ownership_contradiction is not None:
-            state.ownership_contradictions.append(ownership_contradiction)
-            contradicting_wp_ids.append(wp_id)
-            continue
-        state.ownership_warnings.extend(infer_warnings)
-        frontmatter_changed = frontmatter_changed or own_changed
-
-        updated_meta = bld.build() if frontmatter_changed else wp_meta
-        state.inmemory_frontmatter[wp_id] = updated_meta
-        state.inmemory_bodies[wp_id] = body
-
-        for warning in detect_post_integration_acceptance(raw_content, list(updated_meta.owned_files)):
-            state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
-
-        if frontmatter_changed:
-            if not validate_only:
-                state.pending_writes.append((wp_file, updated_meta, body))
-            else:
-                state.would_modify.append({"wp_id": wp_id, "changes": changed_fields})
-            state.updated_count += 1
-            if wp_id not in state.preserved_wps:
-                state.modified_wps.append(wp_id)
-        elif wp_id not in state.preserved_wps:
-            state.unchanged_wps.append(wp_id)
+        if contradicting_wp_id is not None:
+            contradicting_wp_ids.append(contradicting_wp_id)
     _raise_ownership_contradictions_if_any(state, contradicting_wp_ids, json_output=json_output)
     return state
 
@@ -2055,7 +2154,7 @@ def _emit_validate_only_report(
     all_canceled: bool = False,
     tasks_md_stale: bool = False,
     json_output: bool,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
     planning_sha: PlanningCommitResolution | None = None,
     refresh_status_findings: list[str] | None = None,
 ) -> None:
@@ -2171,8 +2270,14 @@ def _emit_local_canonical_events(
     work_packages: list[dict[str, object]],
     *,
     json_output: bool,
+    owned: OwnedCheckout | None = None,
 ) -> None:
-    """Phase: persist local WPCreated + TasksCompleted before bootstrap seeding."""
+    """Phase: persist local WPCreated + TasksCompleted before bootstrap seeding.
+
+    ``owned`` (item 6): when a fact is held, WPCreated and TasksCompleted are written against
+    ``owned.repository_root`` directly instead of re-deriving R from the log
+    path (``get_main_repo_root`` walk) after the fact was minted.
+    """
     try:
         from specify_cli.status import TASKS_COMPLETED, emit_artifact_phase, emit_wp_created_local
 
@@ -2193,6 +2298,7 @@ def _emit_local_canonical_events(
                 wp_path=wp_path,
                 depends_on=list(cast(list[str], wp.get("dependencies") or [])),
                 actor=FINALIZE_TASKS_COMMAND_NAME,
+                repo_root=owned.repository_root if owned else None,
             )
 
         tasks_artifact = planning_dir / TASKS_MD_FILENAME
@@ -2209,6 +2315,7 @@ def _emit_local_canonical_events(
             actor=FINALIZE_TASKS_COMMAND_NAME,
             artifact_path=tasks_artifact_rel or TASKS_MD_FILENAME,
             wp_count=len(work_packages),
+            repo_root=owned.repository_root if owned else None,
         )
     except Exception as local_wp_exc:  # noqa: BLE001 — non-blocking emission
         if not json_output:
@@ -2219,7 +2326,7 @@ def _execution_has_begun(
     repo_root: Path,
     mission_slug: str,
     *,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> bool:
     """#3311 T014: read-only "has execution begun" signal for the finalize gate.
 
@@ -2259,9 +2366,9 @@ def _execution_has_begun(
             from mission_runtime import placement_seam
 
             read_dir = placement_seam(
-                owned.primary,
+                owned.repository_root,
                 mission_slug,
-                effective_root=owned.root,
+                owned=owned,
             ).read_dir(MissionArtifactKind.STATUS_STATE)
         else:
             read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
@@ -2321,7 +2428,8 @@ class _PrimaryPinRefreshCommit:
     """Preflighted inputs for one primary-only planning-pin commit."""
 
     primary_root: Path
-    effective_root: Path | None
+    worktree_root: Path
+    owned: OwnedCheckout | None
     lanes_path: Path
     files: tuple[Path, ...]
     message: str
@@ -2578,15 +2686,15 @@ def _preflight_refresh_planning_commit(
     target_branch: str,
     *,
     target_branch_override: str | None,
-    owned: OwnedMission | None,
+    owned: OwnedCheckout | None,
     json_output: bool,
 ) -> None:
     """Read-only guard run before finalize can write files or lifecycle events."""
     contract_error = _refresh_branch_contract_error(planning_dir, target_branch, target_branch_override)
     if contract_error is not None:
         _refuse_planning_pin_refresh(contract_error, json_output=json_output)
-    primary_root = owned.primary if owned else repo_root
-    primary_worktree = owned.root if owned else repo_root
+    primary_root = owned.repository_root if owned else repo_root
+    primary_worktree = owned.owned_root if owned else repo_root
     surface_error = _refresh_worktree_status_error(primary_root, primary_worktree, mission_slug)
     if surface_error is not None:
         _refuse_planning_pin_refresh(surface_error, json_output=json_output)
@@ -2601,25 +2709,24 @@ def _prepare_primary_pin_refresh_commit(
     new_sha: str,
     *,
     json_output: bool,
-    owned: OwnedMission | None,
+    owned: OwnedCheckout | None,
 ) -> _PrimaryPinRefreshCommit:
     """Resolve, preflight, and tip-check the one primary candidate commit."""
     from mission_runtime import is_primary_artifact_kind, placement_seam
     from specify_cli.git.commit_helpers import preflight_commit
 
-    primary_root = owned.primary if owned else repo_root
-    worktree_root = owned.root if owned else repo_root
-    effective_root = owned.root if owned else None
+    primary_root = owned.repository_root if owned else repo_root
+    worktree_root = owned.owned_root if owned else repo_root
     lanes_path = planning_dir / "lanes.json"
     destination = placement_seam(
         primary_root,
         mission_slug,
-        **({"effective_root": effective_root} if effective_root else {}),
+        owned=owned,
     ).write_target(MissionArtifactKind.LANE_STATE)
     if not is_primary_artifact_kind(MissionArtifactKind.LANE_STATE) or destination.ref != target_branch:
         _refuse_planning_pin_refresh("lanes.json does not resolve to the planning target branch", json_output=json_output)
 
-    files = tuple(owned.files((lanes_path,))) if owned else (lanes_path,)
+    files = tuple(owned.files([lanes_path])) if owned else (lanes_path,)
     message = _finalize_bookkeeping_commit_message(mission_slug)
     surface_error = _refresh_worktree_status_error(primary_root, worktree_root, mission_slug)
     if surface_error is not None:
@@ -2631,6 +2738,7 @@ def _prepare_primary_pin_refresh_commit(
             target=destination,
             message=message,
             paths=files,
+            owned=owned,
         )
     except Exception as exc:  # noqa: BLE001 — fail before the lanes manifest write
         _refuse_planning_pin_refresh(f"primary lanes.json commit preflight failed: {exc}", json_output=json_output)
@@ -2647,7 +2755,8 @@ def _prepare_primary_pin_refresh_commit(
 
     return _PrimaryPinRefreshCommit(
         primary_root=primary_root,
-        effective_root=effective_root,
+        worktree_root=worktree_root,
+        owned=owned,
         lanes_path=lanes_path,
         files=files,
         message=message,
@@ -2668,7 +2777,7 @@ def _commit_planning_pin_refresh(
     *,
     tasks_md_stale: bool,
     json_output: bool,
-    owned: OwnedMission | None,
+    owned: OwnedCheckout | None,
 ) -> None:
     """Commit a clean refresh as a single primary lanes.json write."""
     if state.would_modify:
@@ -2706,7 +2815,7 @@ def _commit_planning_pin_refresh_locked(
     bootstrap_result: BootstrapResult,
     *,
     json_output: bool,
-    owned: OwnedMission | None,
+    owned: OwnedCheckout | None,
 ) -> None:
     """Validate byte identity and commit while holding the lanes writer lock."""
     from specify_cli.coordination.commit_router import commit_for_mission
@@ -2770,7 +2879,7 @@ def _commit_planning_pin_refresh_locked(
             policy=ProtectionPolicy.resolve(plan.primary_root),
             kind=MissionArtifactKind.LANE_STATE,
             target_branch=target_branch,
-            effective_root=plan.effective_root,
+            owned=plan.owned,
             expected_parent_sha=plan.expected_parent_sha,
             expected_path_bytes={plan.lanes_path: candidate_lanes_bytes},
         )
@@ -2787,7 +2896,7 @@ def _commit_planning_pin_refresh_locked(
         commit_outcome.commit_hash = result.commit_hash
         commit_outcome.commit_hashes = [{"branch": ref, "hash": sha} for ref, sha in result.commit_hashes]
         commit_outcome.diagnostic = result.diagnostic
-        committed_root = plan.effective_root or plan.primary_root
+        committed_root = plan.worktree_root
         commit_outcome.files_committed = [str(path.relative_to(committed_root)) for path in plan.files]
         if result.diagnostic is not None and not json_output:
             console.print(f"[yellow]Warning:[/yellow] {result.diagnostic}")
@@ -2912,7 +3021,7 @@ def _preserve_or_capture_planning_commit_sha(
     target_branch: str,
     *,
     json_output: bool,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
 ) -> PlanningCommitResolution:
@@ -3156,7 +3265,7 @@ def _compute_and_write_lanes(
     *,
     all_canceled: bool = False,
     json_output: bool,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
     planning_sha: PlanningCommitResolution | None = None,
@@ -3307,7 +3416,7 @@ def _report_parallelization_risk(repo_root: Path, lanes_manifest: LanesManifest,
         raise typer.Exit(1)
 
 
-def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, *, owned: OwnedMission | None = None) -> Path:
+def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, *, owned: OwnedCheckout | None = None) -> Path:
     """Resolve the acceptance matrix's declared home dir (FR-010 / C8 single-home).
 
     Reuses the gate's canonical read-dir resolver so the scaffolder's single-home
@@ -3322,7 +3431,7 @@ def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, *, owne
     if owned:
         from mission_runtime import placement_seam
 
-        return placement_seam(owned.primary, owned.slug, effective_root=owned.root).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
+        return placement_seam(owned.repository_root, owned.mission_slug, owned=owned).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
     try:
         read_dir: Path = _acceptance_matrix_read_dir(repo_root, planning_dir)
     except CoordinationBranchDeleted:
@@ -3339,14 +3448,13 @@ def _scaffold_acceptance_matrix_if_lane_based(
     *,
     validate_only: bool,
     json_output: bool,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Phase: Finding 6 — scaffold acceptance-matrix.json for lane-based missions."""
     if lanes_manifest is None or validate_only:
         return
     try:
         from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
-        from specify_cli.git.protection_policy import ProtectionPolicy
 
         # FR-010 / C8: resolve the matrix's DECLARED HOME through the same surface
         # resolver the accept gate reads from, so the scaffolder's idempotency check
@@ -3358,14 +3466,33 @@ def _scaffold_acceptance_matrix_if_lane_based(
         # ``repo_root`` so the WRITE (not just the idempotency check) routes
         # through the coord-aware write-seam — never a stray PRIMARY husk
         # under coord topology, mirroring the sibling issue-matrix scaffold.
+        #
+        # FR-015/NFR-001 (WP13 T072/T073): when the declared home IS
+        # ``planning_dir`` -- every topology this mission's atomic-finalize
+        # mandate covers (``LIFECYCLE_OWNED_TOPOLOGIES`` is single_branch-only,
+        # and a flat/non-coord repository-root mission resolves here too) --
+        # there is no separate coordination surface for a write-seam commit to
+        # route to. Omitting ``repo_root`` takes ``scaffold_acceptance_
+        # matrix``'s bare-write branch (``write_acceptance_matrix``, no
+        # commit): `_collect_finalize_artifacts` already lists
+        # ``acceptance-matrix.json`` as a TASKS_INDEX candidate, so the write
+        # rides the SAME single combined commit ``_commit_finalize_
+        # artifacts`` makes for frontmatter/tasks.md/lanes.json below --
+        # closing the separate-commit atomicity gap T070 pinned (a failure
+        # inside that later, single commit now leaves NO acceptance-matrix
+        # commit stranded, because none was ever made separately). A
+        # genuinely coord-routed home (a LANES/coord-topology repository-root
+        # mission, outside this WP's single_branch-owned mandate) keeps
+        # today's write-seam-routed, separately-committed scaffold unchanged.
+        writes_to_planning_dir = home_dir.resolve() == planning_dir.resolve()
         acceptance_matrix_path = scaffold_acceptance_matrix(
             planning_dir,
             mission_slug,
             requirement_ids=sorted(functional_spec_requirement_ids),
             home_dir=home_dir,
-            repo_root=owned.primary if owned else repo_root,
-            policy=ProtectionPolicy.resolve_for_mission(owned.primary if owned else repo_root, mission_slug),
-            **({"effective_root": owned.root} if owned else {}),
+            repo_root=None if writes_to_planning_dir else (owned.repository_root if owned else repo_root),
+            policy=_mission_protection_policy(repo_root, mission_slug, owned),
+            owned=owned,
         )
     except Exception as acc_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
         if owned:
@@ -3403,6 +3530,91 @@ class _CommitOutcome:
     diagnostic: str | None = None
 
 
+@dataclass(frozen=True)
+class _FinalizeCommitCandidates:
+    """T071 campsite: the resolved commit-candidate file list plus whether any are dirty."""
+
+    files_to_commit: list[Path]
+    files_to_commit_rel: list[str]
+    has_relevant_changes: bool
+
+
+def _resolve_finalize_commit_candidates(
+    planning_dir: Path,
+    tasks_dir: Path,
+    repo_root: Path,
+    lanes_path: Path | None,
+) -> _FinalizeCommitCandidates:
+    """Phase: collect and porcelain-check the finalize commit-candidate file list (T071).
+
+    meta.json (#3466 / SK3466-RR-001) needs no special-cased ``extra_paths``
+    threading here: :func:`_collect_finalize_artifacts` already includes it as
+    a candidate, so a ``--target-branch`` correction rides the same ``git
+    status --porcelain`` gate as every other tracked artifact. But unlike
+    those other artifacts, meta.json can ALSO carry a pending edit
+    finalize-tasks did not make (SK3466-REV-001, e.g. ``implement
+    --no-auto-commit``'s ``vcs``/``vcs_locked_at`` write) — so it is
+    additionally checked with :func:`_meta_json_delta_is_finalize_attributable`
+    and dropped entirely when the pending delta is not confined to the
+    fields finalize-tasks itself owns.
+    """
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
+    meta_json_path = planning_dir / META_JSON_FILENAME
+    if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(meta_json_path, repo_root):
+        files_to_commit = [path for path in files_to_commit if path != meta_json_path]
+    files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
+
+    has_relevant_changes = False
+    if files_to_commit_rel:
+        _rc, status_out, _status_err = _mission.run_command(
+            ["git", "status", "--porcelain", "--", *files_to_commit_rel],
+            check_return=True,
+            capture=True,
+            cwd=repo_root,
+        )
+        has_relevant_changes = bool(status_out.strip())
+    return _FinalizeCommitCandidates(
+        files_to_commit=files_to_commit,
+        files_to_commit_rel=files_to_commit_rel,
+        has_relevant_changes=has_relevant_changes,
+    )
+
+
+def _apply_finalize_commit_router_result(
+    router_result: CommitRouterResult,
+    outcome: _CommitOutcome,
+    files_to_commit_rel: list[str],
+    *,
+    json_output: bool,
+    updated_count: int,
+) -> None:
+    """Phase: fold ``commit_for_mission``'s result into ``outcome``, or refuse (T071)."""
+    if router_result.status == "committed":
+        outcome.commit_hash = router_result.commit_hash
+        outcome.commit_created = True
+        # WP06 (#2937 / FR-009): only now is the committed set real.
+        outcome.files_committed = list(files_to_commit_rel)
+        outcome.commit_hashes = [{"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes]
+        if not json_output:
+            console.print(f"[green]✓[/green] Tasks committed to {router_result.placement_ref}")
+            if outcome.commit_hash:
+                console.print(f"[dim]Commit: {outcome.commit_hash[:7]}[/dim]")
+            console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
+    elif router_result.status == "unchanged":
+        outcome.commit_created = False
+        if not json_output:
+            console.print("[dim]Tasks unchanged, no commit needed[/dim]")
+    else:
+        error_output = router_result.diagnostic or "Failed to commit tasks updates"
+        if json_output:
+            print(json.dumps({"error": f"Git commit failed: {error_output}"}))
+        else:
+            console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
+        raise typer.Exit(1)
+
+
 def _commit_finalize_artifacts(
     planning_dir: Path,
     tasks_dir: Path,
@@ -3414,7 +3626,7 @@ def _commit_finalize_artifacts(
     *,
     json_output: bool,
     updated_count: int,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> _CommitOutcome:
     """Phase: commit finalize artifacts through commit_for_mission.
 
@@ -3422,59 +3634,30 @@ def _commit_finalize_artifacts(
     ``mission.run_command`` patch seam. T027 / WP02: collapsed to the
     ``commit_for_mission`` entry point (TASKS_INDEX → primary target branch for
     every topology).
-
-    meta.json (#3466 / SK3466-RR-001) needs no special-cased ``extra_paths``
-    threading here: :func:`_collect_finalize_artifacts` already includes it as
-    a candidate, so a ``--target-branch`` correction rides the same ``git
-    status --porcelain`` gate below as every other tracked artifact. But
-    unlike those other artifacts, meta.json can ALSO carry a pending edit
-    finalize-tasks did not make (SK3466-REV-001, e.g. ``implement
-    --no-auto-commit``'s ``vcs``/``vcs_locked_at`` write) — so, before
-    computing the commit set, a meta.json candidate is additionally checked
-    with :func:`_meta_json_delta_is_finalize_attributable` and dropped
-    entirely when the pending delta is not confined to the fields
-    finalize-tasks itself owns.
     """
-    from specify_cli.cli.commands.agent import mission as _mission
-
     outcome = _CommitOutcome()
     try:
-        files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
-        meta_json_path = planning_dir / META_JSON_FILENAME
-        if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(meta_json_path, repo_root):
-            files_to_commit = [path for path in files_to_commit if path != meta_json_path]
-        files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
+        candidates = _resolve_finalize_commit_candidates(planning_dir, tasks_dir, repo_root, lanes_path)
         # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): report the
         # TRUE committed set — ``files_committed`` is populated ONLY once the router
         # actually lands a commit (below), never up front. Reporting the full
         # candidate set here regardless of outcome misled automated callers on the
         # no-change / "unchanged" paths (nothing was committed, yet every candidate
         # was named as committed).
-
-        has_relevant_changes = False
-        if files_to_commit_rel:
-            _rc, status_out, _status_err = _mission.run_command(
-                ["git", "status", "--porcelain", "--", *files_to_commit_rel],
-                check_return=True,
-                capture=True,
-                cwd=repo_root,
-            )
-            has_relevant_changes = bool(status_out.strip())
-
-        if not has_relevant_changes:
+        if not candidates.has_relevant_changes:
             if not json_output:
                 console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             return outcome
 
         from specify_cli.coordination.commit_router import commit_for_mission
-        from specify_cli.git.protection_policy import ProtectionPolicy
 
-        tasks_policy = ProtectionPolicy.resolve_for_mission(owned.primary if owned else repo_root, mission_slug)
+        files_to_commit = candidates.files_to_commit
+        tasks_policy = _mission_protection_policy(repo_root, mission_slug, owned)
         if owned:
             files_to_commit = owned.files(files_to_commit)
         primary_created = frozenset(path for path in files_to_commit if path not in preexisting_primary_files)
         router_result = commit_for_mission(
-            repo_root=owned.primary if owned else repo_root,
+            repo_root=owned.repository_root if owned else repo_root,
             mission_slug=mission_slug,
             files=tuple(files_to_commit),
             message=_finalize_bookkeeping_commit_message(mission_slug),
@@ -3482,31 +3665,15 @@ def _commit_finalize_artifacts(
             kind=MissionArtifactKind.TASKS_INDEX,
             primary_paths_created_this_invocation=primary_created,
             target_branch=target_branch,
-            **({"effective_root": owned.root} if owned else {}),
+            owned=owned,
         )
-
-        if router_result.status == "committed":
-            outcome.commit_hash = router_result.commit_hash
-            outcome.commit_created = True
-            # WP06 (#2937 / FR-009): only now is the committed set real.
-            outcome.files_committed = list(files_to_commit_rel)
-            outcome.commit_hashes = [{"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes]
-            if not json_output:
-                console.print(f"[green]✓[/green] Tasks committed to {router_result.placement_ref}")
-                if outcome.commit_hash:
-                    console.print(f"[dim]Commit: {outcome.commit_hash[:7]}[/dim]")
-                console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
-        elif router_result.status == "unchanged":
-            outcome.commit_created = False
-            if not json_output:
-                console.print("[dim]Tasks unchanged, no commit needed[/dim]")
-        else:
-            error_output = router_result.diagnostic or "Failed to commit tasks updates"
-            if json_output:
-                print(json.dumps({"error": f"Git commit failed: {error_output}"}))
-            else:
-                console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
-            raise typer.Exit(1)
+        _apply_finalize_commit_router_result(
+            router_result,
+            outcome,
+            candidates.files_to_commit_rel,
+            json_output=json_output,
+            updated_count=updated_count,
+        )
     except typer.Exit:
         raise
     except Exception as e:
@@ -3625,8 +3792,19 @@ def _warn_missing_meta(planning_dir: Path, meta: dict[str, object] | None, *, js
         console.print("[yellow]Warning:[/yellow] meta.json missing; skipping MissionCreated emission")
 
 
-def _emit_tasks_started(planning_dir: Path, mission_slug: str, state: _BootstrapState, *, validate_only: bool) -> None:
-    """Phase: local canonical TasksStarted (idempotent; skipped in validate-only)."""
+def _emit_tasks_started(
+    planning_dir: Path,
+    mission_slug: str,
+    state: _BootstrapState,
+    *,
+    validate_only: bool,
+    owned: OwnedCheckout | None = None,
+) -> None:
+    """Phase: local canonical TasksStarted (idempotent; skipped in validate-only).
+
+    ``owned`` (item 6): passes ``owned.repository_root`` so the event is written
+    against the fact's repository root, never re-derived via ``get_main_repo_root``.
+    """
     if validate_only:
         return
     try:
@@ -3638,6 +3816,7 @@ def _emit_tasks_started(planning_dir: Path, mission_slug: str, state: _Bootstrap
             mission_slug=mission_slug,
             actor=FINALIZE_TASKS_COMMAND_NAME,
             wp_count=len(state.work_packages),
+            repo_root=owned.repository_root if owned else None,
         )
     except Exception as tasks_started_exc:  # noqa: BLE001 — non-blocking
         logger.debug("TasksStarted emission skipped: %s", tasks_started_exc)
@@ -3663,9 +3842,10 @@ def _run_commit_pipeline(
     target_branch_override: str | None = None,
     target_branch_persist: TargetBranchPersistOutcome | None = None,
     meta_commit_progress: _MetaBranchOverrideProgress | None = None,
+    commit_landed: _FinalizeCommitLanded | None = None,
     lane_wp_dependencies: dict[str, list[str]] | None = None,
     all_canceled: bool = False,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
     planning_sha: PlanningCommitResolution | None = None,
@@ -3706,8 +3886,13 @@ def _run_commit_pipeline(
     raise, leaving a permanently dangling meta.json write. Reading
     ``commit_outcome.files_committed`` -- a value ``_commit_finalize_
     artifacts`` already computes -- needs no new state to close this.
+
+    ``commit_landed`` (review cycle 1, HIGH-1): flipped the moment
+    ``_commit_finalize_artifacts`` returns with a real commit, regardless of
+    whether meta.json rode it. The FR-015/NFR-001 atomicity guards in
+    ``finalize_tasks`` key off this marker, NOT ``meta_commit_progress``.
     """
-    _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output)
+    _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output, owned=owned)
 
     bootstrap_result = _bootstrap_canonical_state_via_mission(
         planning_dir,
@@ -3767,6 +3952,10 @@ def _run_commit_pipeline(
     # revert-safety marker and the terminal report, so the two call sites
     # this Op's round 3 left behind learn about the same third outcome state
     # from a single source rather than two independent guesses.
+    if commit_landed is not None:
+        # Independent of meta.json attribution: the atomicity guards must see
+        # a landed commit even when meta.json was excluded from it.
+        commit_landed.landed = commit_outcome.commit_created
     meta_json_rel = str((planning_dir / META_JSON_FILENAME).relative_to(repo_root))
     meta_committed_this_run = meta_json_rel in commit_outcome.files_committed
     if meta_commit_progress is not None:
@@ -3802,6 +3991,23 @@ def _run_commit_pipeline(
             meta_committed_this_run=meta_committed_this_run,
             planning_sha=planning_sha,
         )
+
+
+@dataclass
+class _FinalizeCommitLanded:
+    """Mutable marker: the single final finalize commit has landed (FR-015/NFR-001).
+
+    Deliberately SEPARATE from :attr:`_MetaBranchOverrideProgress.committed`,
+    which only says "meta.json's delta rode the commit" (SK3466 attribution).
+    When a foreign field (e.g. ``implement --no-auto-commit``'s ``vcs``) is
+    pending in meta.json, that file is excluded from the commit, so that flag
+    stays ``False`` although the commit DID land. The mission-directory /
+    derived-cache / HEAD atomicity guards must key off THIS marker: a later
+    failure after a durable commit must never unwind it. Mutated in place from
+    ``_run_commit_pipeline`` for the same reason the sibling marker is.
+    """
+
+    landed: bool = False
 
 
 @dataclass
@@ -3945,7 +4151,629 @@ def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | 
         console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
 
 
-def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checkout routing
+def _mission_write_scope_files(mission_dir: Path) -> set[Path]:
+    """Every file under ``mission_dir`` this guard tracks, excluding ``meta.json``.
+
+    ``meta.json`` is excluded deliberately: it already has its own
+    byte-exact, single-writer-gated revert path
+    (:func:`_revert_unpersisted_target_branch_override`, routed through
+    ``mission_metadata.restore_meta_text``), and a second writer here would
+    contradict that primitive's single-writer guarantee (T025).
+    """
+    if not mission_dir.exists():
+        return set()
+    return {path for path in mission_dir.rglob("*") if path.is_file() and path.name != META_JSON_FILENAME}
+
+
+def _snapshot_mission_write_scope(mission_dir: Path) -> dict[Path, bytes]:
+    """Byte-snapshot every tracked file under ``mission_dir`` (FR-015/NFR-001).
+
+    Read by :func:`_restore_mission_write_scope` so a failed
+    ``finalize_tasks`` run leaves the mission directory exactly as it found
+    it, even though several writes (WP frontmatter, ``tasks.md``, the issue
+    matrix, canonical status events) land on disk before every ordered
+    fail-closed gate has run (R-07). A not-yet-existing ``mission_dir``
+    snapshots as empty rather than raising.
+    """
+    return {path: path.read_bytes() for path in _mission_write_scope_files(mission_dir)}
+
+
+def _restore_mission_write_scope(before: dict[Path, bytes], mission_dir: Path) -> None:
+    """Undo every tracked write under ``mission_dir`` since the matching snapshot (FR-015/NFR-001).
+
+    A file present in ``before`` is rewritten to its original bytes; a file
+    that now exists under ``mission_dir`` but was absent from ``before``
+    (created by the failed attempt) is deleted. Each path is restored
+    independently and a failure is logged, never raised -- this is
+    best-effort cleanup alongside the ORIGINAL exception that triggered it,
+    never a replacement diagnostic for it.
+    """
+    current = _mission_write_scope_files(mission_dir)
+    for path, original in before.items():
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(original)
+        except OSError as exc:
+            logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
+    for path in current - before.keys():
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("finalize atomicity: failed to remove %s: %s", path, exc)
+
+
+def _capture_owned_head(owned: OwnedCheckout | None) -> str | None:
+    """Snapshot P's current HEAD sha, for owned runs only (FR-015/NFR-001).
+
+    Closes a gap the byte-level write-scope guard alone cannot: an owned
+    checkout's real (non-dry-run) ``bootstrap_canonical_state`` call --
+    inside ``_run_commit_pipeline``, BEFORE the lane computation that can
+    still refuse with ``LANE_DEPENDENCY_CYCLE`` -- commits one canonical
+    status transition PER newly-seeded WP directly to P's own branch
+    (verified empirically: 4 separate ``chore(spec-kitty): status
+    transition WP0n`` commits land before a lane-cycle refusal fires). Those
+    commits move P's HEAD, not just its working tree, so reverting file
+    bytes alone leaves P's branch permanently ahead of where this
+    invocation found it. The equivalent NON-owned (repository-root) path
+    was verified NOT to exhibit this (its per-WP status write is the
+    "primary-uncommitted" path, never committed separately) -- this capture
+    is owned-only by design, not a general git-commit guard.
+
+    Returns ``None`` for a non-owned run (nothing to capture) or if HEAD
+    cannot be read (a fresh/unborn branch -- fails open, matching
+    ``_snapshot_mission_write_scope``'s "empty snapshot" default; the
+    restore side below is then also inert for the same reason).
+    """
+    if owned is None:
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=owned.owned_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        logger.warning("finalize atomicity: failed to capture P's HEAD for %s: %s", owned.owned_root, exc)
+        return None
+    return result.stdout.strip() or None
+
+
+def _restore_owned_head(owned: OwnedCheckout | None, before_sha: str | None) -> None:
+    """Undo any commit(s) P's HEAD gained since :func:`_capture_owned_head` (FR-015/NFR-001).
+
+    ``git reset <sha>`` (mixed -- the default, never ``--hard``): moves the
+    branch ref and the index back to ``before_sha`` WITHOUT touching the
+    working tree. The working tree is deliberately left to
+    :func:`_restore_mission_write_scope`, which already restores every
+    file this invocation could have written; a plain ``reset`` cannot
+    discard an unrelated pre-existing unstaged edit outside that scope the
+    way ``reset --hard`` could (``require_unstaged_index`` only guarantees
+    P's INDEX was clean at invocation start, never its full working tree).
+    Best-effort: logs and returns on failure, never raises, matching this
+    module's other atomicity-guard restore functions.
+    """
+    if owned is None or before_sha is None:
+        return
+    try:
+        current = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=owned.owned_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        logger.warning("finalize atomicity: failed to read P's HEAD before reset: %s", exc)
+        return
+    if current == before_sha:
+        return
+    try:
+        subprocess.run(
+            ["git", "reset", before_sha],
+            cwd=owned.owned_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        logger.warning("finalize atomicity: failed to reset P's HEAD %s -> %s: %s", current, before_sha, exc)
+
+
+def _finalize_refusal_envelope(code: str, message: str) -> dict[str, object]:
+    """finalize-tasks' own error envelope shape for an owned refusal.
+
+    ``error`` + ``error_code``, plus ``spec_kitty_version`` -- the key every
+    other finalize JSON payload carries (``mission._emit_json`` attaches it via
+    ``_with_cli_version``), which ``emit_owned_refusal`` bypasses by printing
+    directly.
+    """
+    envelope: dict[str, object] = _with_cli_version({"error": message, "error_code": code})
+    return envelope
+
+
+@dataclass(frozen=True)
+class _FinalizeContext:
+    """T071 campsite: identity, repo root, owned resolution and mission dirs."""
+
+    invocation_identity: CheckoutIdentity
+    repo_root: Path
+    owned: OwnedCheckout | None
+    mission_slug: str
+    primary_dir: Path
+    planning_dir: Path
+
+
+def _resolve_finalize_context(
+    mission_handle: str | None,
+    owned_checkout: OwnedCheckoutOption,
+    target_branch_override: str | None,
+    *,
+    validate_only: bool,
+    json_output: bool,
+) -> _FinalizeContext:
+    """Phase: resolve identity, repo root, owned checkout and mission dirs (T071)."""
+    # #3786: the ONE ambient identity read for this command — resolved here,
+    # at the entrypoint boundary, and injected into the write-ownership
+    # guard below. Nothing below this point reads ``Path.cwd()`` for
+    # identity: ``_enforce_branch_contract_write_ownership`` consumes the
+    # injected value object instead of re-reading the ambient checkout.
+    invocation_identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
+    repo_root = _resolve_repo_root(json_output)
+    # G2 (WP13): the direct ``resolve_owned_mission`` call is retired in
+    # favour of WP08's single shared validation surface
+    # (``resolve_owned_or_adopt``), which performs exactly the same
+    # explicit-checkout resolution here (``target_override`` forwarded,
+    # ``LIFECYCLE_OWNED_TOPOLOGIES`` enforced) while remaining the one CLI
+    # caller other owned-capable commands also route through. Called
+    # unconditionally -- not gated on ``owned_checkout is not None`` -- so
+    # flagless adoption (FR-021) applies here too: running from inside a
+    # valid owned checkout P without ``--owned-checkout`` adopts P, while a
+    # lane or coordination worktree, or a plain repository-root checkout,
+    # keeps today's repository-root behaviour (``adopt_owned_checkout``
+    # returns ``None`` for both). Without a ``--mission`` handle,
+    # ``adopt_owned_checkout`` returns ``None`` immediately -- a cheap no-op
+    # that never touches disk or git, so this call is inert for every
+    # ordinary, non-owned finalize invocation. A refused claim renders through
+    # ``emit_owned_refusal`` (registry-validated code, ``Error: [<code>]``
+    # human line); the JSON envelope keeps finalize's ``error`` +
+    # ``error_code`` keys.
+    try:
+        owned = resolve_owned_or_adopt(
+            repo_root,
+            owned_checkout,
+            mission_handle or "",
+            cwd=Path.cwd(),
+            allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+            target_override=target_branch_override,
+        )
+    except ActionContextError as refusal:
+        emit_owned_refusal(refusal, json_output=json_output, envelope=_finalize_refusal_envelope)
+    if owned is not None:
+        if not validate_only:
+            require_unstaged_index(owned)
+        repo_root = owned.owned_root
+    mission_slug = owned.mission_slug if owned else _resolve_mission_slug(repo_root, mission_handle, json_output=json_output)
+
+    from mission_runtime import placement_seam
+
+    # WP05/FR-005: _resolve_mission_slug may return a raw operator-supplied
+    # handle (the raw_handle fast-path in _resolve_mission_dir_name_primary_anchored
+    # at line 258). The seam folds every handle form to the composed primary
+    # dir internally (WP08 T036: the caller no longer pre-canonicalizes with
+    # _canonicalize_primary_read_handle — redundant with that internal fold).
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — WORK_PACKAGE_TASK, since this finalize-tasks flow reads/writes
+    # the ``tasks/`` WP files, ``wps.yaml``, and ``tasks.md`` under this dir.
+    primary_dir = placement_seam(
+        owned.repository_root if owned else repo_root,
+        mission_slug,
+        owned=owned,
+    ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    return _FinalizeContext(
+        invocation_identity=invocation_identity,
+        repo_root=repo_root,
+        owned=owned,
+        # The seam folds every handle form to the composed primary dir, so its
+        # name is the canonical slug every later phase keys on.
+        mission_slug=primary_dir.name,
+        primary_dir=primary_dir,
+        planning_dir=primary_dir,
+    )
+
+
+@dataclass(frozen=True)
+class _FinalizeRefreshPreflight:
+    """The --refresh-planning-commit decision and its read-only preflight results."""
+
+    planning_sha: PlanningCommitResolution | None = None
+    bootstrap_result: BootstrapResult | None = None
+    status_findings: list[str] = field(default_factory=list)
+
+
+def _run_refresh_planning_preflight(
+    ctx: _FinalizeContext,
+    target_branch: str,
+    *,
+    target_branch_override: str | None,
+    validate_only: bool,
+    json_output: bool,
+    allow_orphaned: bool,
+) -> _FinalizeRefreshPreflight:
+    """Phase: capture the refresh pin decision and run its read-only guards.
+
+    Runs before finalize can write files or lifecycle events: a mutating
+    refresh fails closed on a branch-contract change, pending partition
+    status, or canonical status that would need bootstrap writes; a
+    ``--validate-only`` refresh only collects the status findings.
+    """
+    owned = ctx.owned
+    planning_sha = _preserve_or_capture_planning_commit_sha(
+        ctx.planning_dir,
+        ctx.repo_root,
+        ctx.mission_slug,
+        target_branch,
+        json_output=json_output,
+        owned=owned,
+        refresh_planning_commit=True,
+        allow_orphaned=allow_orphaned,
+    )
+    if validate_only:
+        return _FinalizeRefreshPreflight(
+            planning_sha=planning_sha,
+            status_findings=_refresh_worktree_status_findings(
+                owned.repository_root if owned else ctx.repo_root,
+                owned.owned_root if owned else ctx.repo_root,
+                ctx.mission_slug,
+            ),
+        )
+    _preflight_refresh_planning_commit(
+        ctx.repo_root,
+        ctx.planning_dir,
+        ctx.mission_slug,
+        target_branch,
+        target_branch_override=target_branch_override,
+        owned=owned,
+        json_output=json_output,
+    )
+    bootstrap_result = _bootstrap_canonical_state_via_mission(
+        ctx.planning_dir,
+        ctx.mission_slug,
+        dry_run=True,
+        owned=owned,
+    )
+    if bootstrap_result.newly_seeded:
+        _refuse_planning_pin_refresh(
+            "canonical coordination status would need bootstrap writes",
+            json_output=json_output,
+        )
+    return _FinalizeRefreshPreflight(planning_sha=planning_sha, bootstrap_result=bootstrap_result)
+
+
+@dataclass(frozen=True)
+class _FinalizeBranchSetup:
+    """T071 campsite: the branch-contract gate plus the pre-write snapshot/persist step."""
+
+    target_branch: str
+    merge_target_branch: str
+    mission_write_scope_snapshot: dict[Path, bytes]
+    mission_write_scope_dir: Path | None
+    meta_path_for_revert: Path | None
+    meta_original_text: str | None
+    target_branch_persist: TargetBranchPersistOutcome
+    meta_json_persisted: bool
+    owned_head_before: str | None
+    owned_derived_dir: Path | None
+    owned_derived_snapshot: dict[Path, bytes]
+    refresh: _FinalizeRefreshPreflight = field(default_factory=_FinalizeRefreshPreflight)
+
+
+def _run_finalize_branch_setup(
+    ctx: _FinalizeContext,
+    *,
+    target_branch_override: str | None,
+    validate_only: bool,
+    json_output: bool,
+    refresh_planning_commit: bool = False,
+    allow_orphaned: bool = False,
+) -> _FinalizeBranchSetup:
+    """Phase: occurrence-map/target-branch/preflight gates, then the meta.json persist (T071).
+
+    The write-scope snapshot is taken here too, immediately before the
+    meta.json persist -- the first write ``finalize_tasks`` can make -- so
+    it covers every subsequent write this invocation performs (FR-015/
+    NFR-001, T070/T073).
+    """
+    # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
+    # the (potentially expensive) requirement-mapping/dependency-graph
+    # validators, and before the `if validate_only:` split so it fires in
+    # both normal and --validate-only modes (C-005/IC-01).
+    _validate_occurrence_map_ready(ctx.planning_dir, json_output=json_output)
+
+    target_branch = _resolve_target_branch(
+        ctx.repo_root,
+        ctx.primary_dir,
+        target_branch_override=target_branch_override,
+        json_output=json_output,
+    )
+    merge_target_branch = _resolve_merge_target_branch(ctx.primary_dir, target_branch)
+    _preflight_recovered_pr_bound_contract(
+        ctx.repo_root,
+        ctx.primary_dir,
+        planning_branch=target_branch,
+        json_output=json_output,
+    )
+    refresh = _FinalizeRefreshPreflight()
+    if refresh_planning_commit:
+        refresh = _run_refresh_planning_preflight(
+            ctx,
+            target_branch,
+            target_branch_override=target_branch_override,
+            validate_only=validate_only,
+            json_output=json_output,
+            allow_orphaned=allow_orphaned,
+        )
+    if not json_output:
+        console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
+
+    mission_write_scope_snapshot: dict[Path, bytes] = {}
+    mission_write_scope_dir: Path | None = None
+    meta_path_for_revert: Path | None = None
+    meta_original_text: str | None = None
+    target_branch_persist = TargetBranchPersistOutcome(persisted=False)
+    owned_head_before: str | None = None
+    owned_derived_dir: Path | None = None
+    owned_derived_snapshot: dict[Path, bytes] = {}
+    # A --refresh-planning-commit run writes only lanes.json, through its own
+    # compare-and-swap restore (``_restore_planning_pin_candidate``), and never
+    # persists meta.json -- so neither the snapshot nor the persist applies.
+    if not validate_only and not refresh_planning_commit:
+        # Snapshot before ANY write below (INV-6 already guarantees
+        # ``--validate-only`` performs none, so this is skipped there).
+        mission_write_scope_dir = ctx.planning_dir
+        mission_write_scope_snapshot = _snapshot_mission_write_scope(ctx.planning_dir)
+        owned_head_before = _capture_owned_head(ctx.owned)
+        if ctx.owned is not None:
+            # FR-015/NFR-001 (T070): the ignored, non-authoritative status
+            # derived-cache view (``.kittify/derived/<slug>/``,
+            # ``status/views.py``'s ``materialize()`` output) lives OUTSIDE
+            # planning_dir -- at the owned checkout's OWN root, not under
+            # ``kitty-specs/`` -- so it needs its own snapshot/restore pass;
+            # reuses the same generic byte-guard primitives (harmless: no
+            # ``meta.json`` ever lives here).
+            owned_derived_dir = ctx.owned.owned_root / ".kittify" / "derived" / ctx.mission_slug
+            owned_derived_snapshot = _snapshot_mission_write_scope(owned_derived_dir)
+        meta_path_for_revert = ctx.primary_dir / META_JSON_FILENAME
+        meta_original_text = meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
+        target_branch_persist = _persist_branch_contract_for_finalize(
+            ctx.primary_dir,
+            planning_branch=target_branch,
+            merge_target_branch=merge_target_branch,
+            target_branch_override=target_branch_override,
+            invocation_identity=ctx.invocation_identity,
+            json_output=json_output,
+        )
+    return _FinalizeBranchSetup(
+        target_branch=target_branch,
+        merge_target_branch=merge_target_branch,
+        mission_write_scope_snapshot=mission_write_scope_snapshot,
+        mission_write_scope_dir=mission_write_scope_dir,
+        owned_head_before=owned_head_before,
+        owned_derived_dir=owned_derived_dir,
+        owned_derived_snapshot=owned_derived_snapshot,
+        meta_path_for_revert=meta_path_for_revert,
+        meta_original_text=meta_original_text,
+        target_branch_persist=target_branch_persist,
+        meta_json_persisted=target_branch_persist.persisted,
+        refresh=refresh,
+    )
+
+
+@dataclass(frozen=True)
+class _FinalizeRequirementGates:
+    """T071 campsite: the requirement/dependency-graph validation gates."""
+
+    tasks_dir: Path
+    wp_files: list[Path]
+    expected_wp_ids: list[str]
+    all_spec_requirement_ids: set[str]
+    functional_spec_requirement_ids: set[str]
+    requirement_extraction_warnings: list[str]
+    spec_content: str
+    preexisting_primary_files: set[Path]
+    wps_manifest: WpsManifest | None
+    concern_coverage_warnings: list[str]
+    dep_resolution: _DependencyResolution
+
+
+def _run_finalize_validation_gates(
+    ctx: _FinalizeContext,
+    target_branch: str,
+    *,
+    validate_only: bool,
+    json_output: bool,
+    refresh_planning_commit: bool = False,
+) -> _FinalizeRequirementGates:
+    """Phase: requirement/dependency-graph validation gates (T071).
+
+    Every gate here can still refuse (missing ``tasks_dir``, a dependency
+    cycle, a requirement-mapping gap, a dependency conflict); none of them
+    write anything themselves other than the issue-matrix scaffold, which is
+    itself INV-6-guarded (skipped under ``--validate-only``).
+    """
+    planning_dir = ctx.planning_dir
+    tasks_dir = planning_dir / "tasks"
+    if not tasks_dir.exists():
+        error_msg = f"Tasks directory not found: {tasks_dir}"
+        if json_output:
+            _emit_json({"error": error_msg})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+    wp_files = list(tasks_dir.glob("WP*.md"))
+    expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
+
+    (
+        all_spec_requirement_ids,
+        functional_spec_requirement_ids,
+        requirement_extraction_warnings,
+        spec_content,
+    ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
+
+    # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
+    # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
+    preexisting_primary_files: set[Path] = {p for p in planning_dir.rglob("*") if p.is_file()}
+
+    if not refresh_planning_commit:
+        _scaffold_issue_matrix_if_present(
+            planning_dir,
+            ctx.repo_root,
+            ctx.mission_slug,
+            target_branch=target_branch,
+            validate_only=validate_only,
+            json_output=json_output,
+            owned=ctx.owned,
+        )
+    _advisory_issue_matrix_lint(planning_dir, json_output=json_output)
+
+    wps_manifest = _load_manifest(planning_dir, json_output=json_output)
+    concern_coverage_warnings = check_concern_refs_coverage(wps_manifest) if wps_manifest is not None else []
+
+    dep_resolution = _resolve_dependencies_and_refs(planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output)
+    _validate_dependency_graph(dep_resolution.wp_dependencies, json_output=json_output)
+
+    wp_files = list(tasks_dir.glob("WP*.md"))
+    wp_ids = _extract_wp_ids_from_task_files(wp_files)
+    dep_resolution.requirement_diagnostics = _validate_requirement_mapping(
+        wp_ids,
+        dep_resolution.wp_requirement_refs,
+        all_spec_requirement_ids,
+        functional_spec_requirement_ids,
+        dep_resolution.wp_dependencies,
+        spec_content,
+        json_output=json_output,
+    )
+
+    _detect_dependency_conflicts(wp_files, dep_resolution.wp_dependencies, json_output=json_output)
+
+    if concern_coverage_warnings and not json_output:
+        for warning in concern_coverage_warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+
+    if requirement_extraction_warnings and not json_output:
+        for warning in requirement_extraction_warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+
+    return _FinalizeRequirementGates(
+        tasks_dir=tasks_dir,
+        wp_files=wp_files,
+        expected_wp_ids=expected_wp_ids,
+        all_spec_requirement_ids=all_spec_requirement_ids,
+        functional_spec_requirement_ids=functional_spec_requirement_ids,
+        requirement_extraction_warnings=requirement_extraction_warnings,
+        spec_content=spec_content,
+        preexisting_primary_files=preexisting_primary_files,
+        wps_manifest=wps_manifest,
+        concern_coverage_warnings=concern_coverage_warnings,
+        dep_resolution=dep_resolution,
+    )
+
+
+@dataclass(frozen=True)
+class _FinalizeOwnershipGates:
+    """T071 campsite: the bootstrap loop plus the ownership/lane-eligibility gates."""
+
+    state: _BootstrapState
+    tasks_md_stale: bool
+    wp_frontmatters: dict[str, WPMetadata]
+    wp_bodies: dict[str, str]
+    wp_manifests: dict[str, OwnershipManifest]
+    eligibility: FinalizationEligibility
+    lane_wp_manifests: dict[str, OwnershipManifest]
+    lane_wp_dependencies: dict[str, list[str]]
+    lane_wp_bodies: dict[str, str]
+
+
+def _run_finalize_ownership_gates(
+    ctx: _FinalizeContext,
+    gates: _FinalizeRequirementGates,
+    target_branch: str,
+    merge_target_branch: str,
+    *,
+    validate_only: bool,
+    json_output: bool,
+) -> _FinalizeOwnershipGates:
+    """Phase: the 8-field bootstrap loop, frontmatter/tasks.md writes, and the ownership gates (T071).
+
+    ``_flush_frontmatter_writes`` and ``_regenerate_or_report_tasks_md`` are
+    the first WRITES after :func:`_run_finalize_branch_setup`'s meta.json
+    persist -- both INV-6-guarded (skipped under ``--validate-only``) and
+    covered by that same function's write-scope snapshot.
+    """
+    state = _run_bootstrap_loop(
+        gates.wp_files,
+        gates.dep_resolution,
+        gates.wps_manifest,
+        ctx.mission_slug,
+        ctx.repo_root,
+        target_branch,
+        gates.concern_coverage_warnings,
+        gates.requirement_extraction_warnings,
+        merge_target_branch=merge_target_branch,
+        validate_only=validate_only,
+        json_output=json_output,
+    )
+    _assert_no_write_in_validate_only(state, validate_only=validate_only)
+    _surface_post_integration_acceptance_warnings(state, json_output=json_output)
+
+    _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
+    _flush_frontmatter_writes(state, validate_only=validate_only)
+
+    # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
+    # #3221: the regeneration is a write to a tracked file, so in
+    # --validate-only mode it is skipped and staleness is reported
+    # instead (INV-6: zero mutation) — never silently repaired.
+    tasks_md_stale = _regenerate_or_report_tasks_md(
+        ctx.planning_dir,
+        gates.wps_manifest,
+        ctx.mission_slug,
+        validate_only=validate_only,
+        json_output=json_output,
+    )
+
+    wp_frontmatters, wp_bodies = _gather_validation_frontmatter(gates.wp_files, state)
+    ownership_source = FinalizeFrontmatterSource(wp_files=list(gates.wp_files), inmemory=state.inmemory_frontmatter)
+    wp_manifests = resolve_wp_manifests(ownership_source)
+    _validate_ownership_manifests(wp_manifests, wp_frontmatters, ctx.repo_root, state, json_output=json_output)
+    (
+        eligibility,
+        lane_wp_manifests,
+        lane_wp_dependencies,
+        lane_wp_bodies,
+    ) = _project_lane_inputs(
+        wp_manifests,
+        gates.dep_resolution.wp_dependencies,
+        wp_frontmatters,
+        wp_bodies,
+    )
+    _raise_stale_canceled_dependencies_if_any(eligibility, json_output=json_output)
+
+    return _FinalizeOwnershipGates(
+        state=state,
+        tasks_md_stale=tasks_md_stale,
+        wp_frontmatters=wp_frontmatters,
+        wp_bodies=wp_bodies,
+        wp_manifests=wp_manifests,
+        eligibility=eligibility,
+        lane_wp_manifests=lane_wp_manifests,
+        lane_wp_dependencies=lane_wp_dependencies,
+        lane_wp_bodies=lane_wp_bodies,
+    )
+
+
+def finalize_tasks(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[
@@ -3965,7 +4793,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             ),
         ),
     ] = None,
-    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
+    owned_checkout: Annotated[Path | None, owned_checkout_option(help="Explicit owned checkout for a single-branch mission.")] = None,
     refresh_planning_commit: Annotated[
         bool,
         typer.Option(
@@ -4043,239 +4871,116 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
     # these names bound.
     meta_json_persisted = False
     meta_commit_progress = _MetaBranchOverrideProgress()
+    commit_landed = _FinalizeCommitLanded()
     meta_path_for_revert: Path | None = None
     meta_original_text: str | None = None
+    # FR-015/NFR-001: the write-then-restore atomicity guard (T070/T073;
+    # operator decision on T072/T073, follow-up: #5343 -- a true plan/apply
+    # split is NOT implemented). What a refused run is guaranteed to leave
+    # behind, exactly:
+    #   * COVERED: the mission directory (bytes restored, new files removed;
+    #     meta.json via the SK3466 single-writer revert), and -- owned runs
+    #     only -- P's HEAD (a mixed ``git reset`` undoing the per-WP status
+    #     commits the bootstrap makes) and P's ``.kittify/derived/<slug>``.
+    #   * NOT COVERED (pre-existing, tracked in #5343): under a NON-owned
+    #     ``coord`` / ``lanes_with_coord`` topology, commits on the
+    #     coordination branch made by the transactional status emitter, the
+    #     materialized coordination worktree, and the non-owned
+    #     ``R/.kittify/derived/<slug>`` view. A refusal there restores the
+    #     mission directory but is not a whole-checkout no-op.
+    #   * Like any restore-on-failure guard it does not survive a hard process
+    #     kill mid-run (nor would a literal plan/apply without git-object
+    #     staging); it also never runs once ``commit_landed`` is set.
+    # Populated just before the first write below and restored from every
+    # terminal ``except`` handler, in addition to (not instead of) the
+    # pre-existing meta.json-only SK3466 guard above.
+    mission_write_scope_snapshot: dict[Path, bytes] = {}
+    mission_write_scope_dir: Path | None = None
+    # FR-015/NFR-001 (owned-only, T072/T073): P's HEAD sha before any write,
+    # so the except handlers can undo any commit(s) an owned run's real
+    # bootstrap made on P's own branch before a later gate (the lane-cycle
+    # check chief among them) refuses -- see _capture_owned_head's docstring.
+    owned_head_before: str | None = None
+    owned_derived_dir: Path | None = None
+    owned_derived_snapshot: dict[Path, bytes] = {}
+    # FR-007 (WP13 T074): bound before ``try`` so the except handlers below
+    # can thread it into the refusal envelope's ``stale_repository_root_copy``
+    # even when the exception fires before ``_resolve_finalize_context``
+    # itself returns (nothing resolved yet -- stays ``None``, so the refusal
+    # envelope omits the key exactly as a non-owned run's does).
+    owned: OwnedCheckout | None = None
+    envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
     try:
-        # #3786: the ONE ambient identity read for this command — resolved here,
-        # at the entrypoint boundary, and injected into the write-ownership
-        # guard below. Nothing below this point reads ``Path.cwd()`` for
-        # identity: ``_enforce_branch_contract_write_ownership`` consumes the
-        # injected value object instead of re-reading the ambient checkout.
-        invocation_identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
-        repo_root = _resolve_repo_root(json_output)
-        owned = None
-        if owned_checkout is not None:
-            owned = resolve_owned_mission(
-                repo_root,
-                owned_checkout,
-                feature or "",
-                target_override=target_branch_override,
-            )
-            if not validate_only:
-                require_unstaged_index(owned)
-            repo_root = owned.root
-        mission_slug = owned.slug if owned else _resolve_mission_slug(repo_root, feature, json_output=json_output)
+        ctx = _resolve_finalize_context(
+            feature,
+            owned_checkout,
+            target_branch_override,
+            validate_only=validate_only,
+            json_output=json_output,
+        )
+        owned = ctx.owned
+        if owned is not None:
+            _OWNED_ENVELOPE_EXTRAS.set(stale_copy_payload(owned))
+        repo_root = ctx.repo_root
+        mission_slug = ctx.mission_slug
+        planning_dir = ctx.planning_dir
 
-        from mission_runtime import placement_seam
-
-        # WP05/FR-005: _resolve_mission_slug may return a raw operator-supplied
-        # handle (the raw_handle fast-path in _resolve_mission_dir_name_primary_anchored
-        # at line 258). The seam folds every handle form to the composed primary
-        # dir internally (WP08 T036: the caller no longer pre-canonicalizes with
-        # _canonicalize_primary_read_handle — redundant with that internal fold).
-        # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
-        # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
-        # directly — WORK_PACKAGE_TASK, since this finalize-tasks flow reads/writes
-        # the ``tasks/`` WP files, ``wps.yaml``, and ``tasks.md`` under this dir.
-        primary_dir = placement_seam(
-            owned.primary if owned else repo_root,
-            mission_slug,
-            **({"effective_root": owned.root} if owned else {}),
-        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
-        planning_dir = primary_dir
-        mission_slug = planning_dir.name
-
-        # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
-        # the (potentially expensive) requirement-mapping/dependency-graph
-        # validators, and before the `if validate_only:` split so it fires in
-        # both normal and --validate-only modes (C-005/IC-01).
-        _validate_occurrence_map_ready(planning_dir, json_output=json_output)
-
-        target_branch = _resolve_target_branch(
-            repo_root,
-            primary_dir,
+        branch_setup = _run_finalize_branch_setup(
+            ctx,
             target_branch_override=target_branch_override,
+            validate_only=validate_only,
             json_output=json_output,
+            refresh_planning_commit=refresh_planning_commit,
+            allow_orphaned=allow_orphaned,
         )
-        merge_target_branch = _resolve_merge_target_branch(primary_dir, target_branch)
-        _preflight_recovered_pr_bound_contract(
-            repo_root,
-            primary_dir,
-            planning_branch=target_branch,
-            json_output=json_output,
-        )
-        planning_sha: PlanningCommitResolution | None = None
-        refresh_bootstrap_result: BootstrapResult | None = None
-        refresh_status_findings: list[str] = []
-        if refresh_planning_commit:
-            planning_sha = _preserve_or_capture_planning_commit_sha(
-                planning_dir,
-                repo_root,
-                mission_slug,
-                target_branch,
-                json_output=json_output,
-                owned=owned,
-                refresh_planning_commit=True,
-                allow_orphaned=allow_orphaned,
-            )
-            primary_root = owned.primary if owned else repo_root
-            primary_worktree = owned.root if owned else repo_root
-            if not validate_only:
-                _preflight_refresh_planning_commit(
-                    repo_root,
-                    planning_dir,
-                    mission_slug,
-                    target_branch,
-                    target_branch_override=target_branch_override,
-                    owned=owned,
-                    json_output=json_output,
-                )
-                refresh_bootstrap_result = _bootstrap_canonical_state_via_mission(
-                    planning_dir,
-                    mission_slug,
-                    dry_run=True,
-                    **({"owned": owned} if owned else {}),
-                )
-                if refresh_bootstrap_result.newly_seeded:
-                    _refuse_planning_pin_refresh(
-                        "canonical coordination status would need bootstrap writes",
-                        json_output=json_output,
-                    )
-            else:
-                refresh_status_findings = _refresh_worktree_status_findings(
-                    primary_root,
-                    primary_worktree,
-                    mission_slug,
-                )
-        if not json_output:
-            console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
-        target_branch_persist = TargetBranchPersistOutcome(persisted=False)
-        if not validate_only and not refresh_planning_commit:
-            meta_path_for_revert = primary_dir / META_JSON_FILENAME
-            meta_original_text = meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
-            target_branch_persist = _persist_branch_contract_for_finalize(
-                primary_dir,
-                planning_branch=target_branch,
-                merge_target_branch=merge_target_branch,
-                target_branch_override=target_branch_override,
-                invocation_identity=invocation_identity,
-                json_output=json_output,
-            )
-        meta_json_persisted = target_branch_persist.persisted
+        target_branch = branch_setup.target_branch
+        merge_target_branch = branch_setup.merge_target_branch
+        mission_write_scope_snapshot = branch_setup.mission_write_scope_snapshot
+        mission_write_scope_dir = branch_setup.mission_write_scope_dir
+        owned_head_before = branch_setup.owned_head_before
+        owned_derived_dir = branch_setup.owned_derived_dir
+        owned_derived_snapshot = branch_setup.owned_derived_snapshot
+        meta_path_for_revert = branch_setup.meta_path_for_revert
+        meta_original_text = branch_setup.meta_original_text
+        target_branch_persist = branch_setup.target_branch_persist
+        meta_json_persisted = branch_setup.meta_json_persisted
+        planning_sha = branch_setup.refresh.planning_sha
+        refresh_bootstrap_result = branch_setup.refresh.bootstrap_result
+        refresh_status_findings = branch_setup.refresh.status_findings
 
-        tasks_dir = planning_dir / "tasks"
-        if not tasks_dir.exists():
-            error_msg = f"Tasks directory not found: {tasks_dir}"
-            if json_output:
-                _emit_json({"error": error_msg})
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-        wp_files = list(tasks_dir.glob("WP*.md"))
-        expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
-
-        (
-            all_spec_requirement_ids,
-            functional_spec_requirement_ids,
-            requirement_extraction_warnings,
-            spec_content,
-        ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
-
-        # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
-        # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
-        preexisting_primary_files: set[Path] = {p for p in planning_dir.rglob("*") if p.is_file()}
-
-        if not refresh_planning_commit:
-            _scaffold_issue_matrix_if_present(
-                planning_dir,
-                repo_root,
-                mission_slug,
-                target_branch=target_branch,
-                validate_only=validate_only,
-                json_output=json_output,
-            )
-        _advisory_issue_matrix_lint(planning_dir, json_output=json_output)
-
-        wps_manifest = _load_manifest(planning_dir, json_output=json_output)
-        concern_coverage_warnings = check_concern_refs_coverage(wps_manifest) if wps_manifest is not None else []
-
-        dep_resolution = _resolve_dependencies_and_refs(planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output)
-        _validate_dependency_graph(dep_resolution.wp_dependencies, json_output=json_output)
-
-        wp_files = list(tasks_dir.glob("WP*.md"))
-        wp_ids = _extract_wp_ids_from_task_files(wp_files)
-        dep_resolution.requirement_diagnostics = _validate_requirement_mapping(
-            wp_ids,
-            dep_resolution.wp_requirement_refs,
-            all_spec_requirement_ids,
-            functional_spec_requirement_ids,
-            dep_resolution.wp_dependencies,
-            spec_content,
-            json_output=json_output,
-        )
-
-        _detect_dependency_conflicts(wp_files, dep_resolution.wp_dependencies, json_output=json_output)
-
-        if concern_coverage_warnings and not json_output:
-            for warning in concern_coverage_warnings:
-                console.print(f"[yellow]Warning:[/yellow] {warning}")
-
-        if requirement_extraction_warnings and not json_output:
-            for warning in requirement_extraction_warnings:
-                console.print(f"[yellow]Warning:[/yellow] {warning}")
-
-        state = _run_bootstrap_loop(
-            wp_files,
-            dep_resolution,
-            wps_manifest,
-            mission_slug,
-            repo_root,
+        req_gates = _run_finalize_validation_gates(
+            ctx,
             target_branch,
-            concern_coverage_warnings,
-            requirement_extraction_warnings,
-            merge_target_branch=merge_target_branch,
+            validate_only=validate_only,
+            json_output=json_output,
+            refresh_planning_commit=refresh_planning_commit,
+        )
+        tasks_dir = req_gates.tasks_dir
+        functional_spec_requirement_ids = req_gates.functional_spec_requirement_ids
+        preexisting_primary_files = req_gates.preexisting_primary_files
+
+        # #5100 / planning-refresh: a --refresh-planning-commit run is a
+        # primary-only lanes.json pin write, so every frontmatter/tasks.md
+        # writer below runs in its INV-6 zero-mutation mode.
+        own_gates = _run_finalize_ownership_gates(
+            ctx,
+            req_gates,
+            target_branch,
+            merge_target_branch,
             validate_only=validate_only or refresh_planning_commit,
             json_output=json_output,
         )
-        _assert_no_write_in_validate_only(state, validate_only=validate_only or refresh_planning_commit)
-        _surface_post_integration_acceptance_warnings(state, json_output=json_output)
-
-        _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
-        _flush_frontmatter_writes(state, validate_only=validate_only or refresh_planning_commit)
-
-        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
-        # #3221: the regeneration is a write to a tracked file, so in
-        # --validate-only mode it is skipped and staleness is reported
-        # instead (INV-6: zero mutation) — never silently repaired.
-        tasks_md_stale = _regenerate_or_report_tasks_md(
-            planning_dir,
-            wps_manifest,
-            mission_slug,
-            validate_only=validate_only or refresh_planning_commit,
-            json_output=json_output,
-        )
-
-        wp_frontmatters, wp_bodies = _gather_validation_frontmatter(wp_files, state)
-        ownership_source = FinalizeFrontmatterSource(wp_files=list(wp_files), inmemory=state.inmemory_frontmatter)
-        wp_manifests = resolve_wp_manifests(ownership_source)
-        _validate_ownership_manifests(wp_manifests, wp_frontmatters, repo_root, state, json_output=json_output)
-        (
-            eligibility,
-            lane_wp_manifests,
-            lane_wp_dependencies,
-            lane_wp_bodies,
-        ) = _project_lane_inputs(
-            wp_manifests,
-            dep_resolution.wp_dependencies,
-            wp_frontmatters,
-            wp_bodies,
-        )
-        _raise_stale_canceled_dependencies_if_any(eligibility, json_output=json_output)
+        state = own_gates.state
+        wp_frontmatters = own_gates.wp_frontmatters
+        eligibility = own_gates.eligibility
+        lane_wp_manifests = own_gates.lane_wp_manifests
+        lane_wp_dependencies = own_gates.lane_wp_dependencies
+        lane_wp_bodies = own_gates.lane_wp_bodies
 
         meta = _read_meta_for_emission(planning_dir)
         _warn_missing_meta(planning_dir, meta, json_output=json_output)
         if not refresh_planning_commit:
-            _emit_tasks_started(planning_dir, mission_slug, state, validate_only=validate_only)
+            _emit_tasks_started(planning_dir, mission_slug, state, validate_only=validate_only, owned=owned)
 
         if validate_only:
             _emit_validate_only_report(
@@ -4288,7 +4993,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
                 lane_wp_bodies,
                 target_branch,
                 all_canceled=eligibility.all_canceled,
-                tasks_md_stale=tasks_md_stale,
+                tasks_md_stale=own_gates.tasks_md_stale,
                 json_output=json_output,
                 **({"owned": owned} if owned else {}),
                 planning_sha=planning_sha,
@@ -4311,9 +5016,9 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
                 target_branch,
                 planning_sha,
                 state,
-                dep_resolution,
+                req_gates.dep_resolution,
                 refresh_bootstrap_result,
-                tasks_md_stale=tasks_md_stale,
+                tasks_md_stale=own_gates.tasks_md_stale,
                 json_output=json_output,
                 owned=owned,
             )
@@ -4329,7 +5034,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             mission_slug,
             target_branch,
             state,
-            dep_resolution,
+            req_gates.dep_resolution,
             lane_wp_manifests,
             wp_frontmatters,
             lane_wp_bodies,
@@ -4343,6 +5048,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             target_branch_override=target_branch_override,
             target_branch_persist=target_branch_persist,
             meta_commit_progress=meta_commit_progress,
+            commit_landed=commit_landed,
             refresh_planning_commit=refresh_planning_commit,
             allow_orphaned=allow_orphaned,
             planning_sha=planning_sha,
@@ -4356,6 +5062,18 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
         )
+        # FR-015/NFR-001: only undo the mission-directory writes when the
+        # finalize commit never landed. ``commit_landed`` (set inside
+        # ``_run_commit_pipeline`` the instant the commit succeeds) is the
+        # guards' OWN marker; ``meta_commit_progress.committed`` only means
+        # "meta.json rode the commit" and stays False when a foreign meta.json
+        # field excludes it. A LATER, unrelated failure after a real commit
+        # must never unwind an already-durable finalize.
+        if mission_write_scope_dir is not None and not commit_landed.landed:
+            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir)
+            if owned_derived_dir is not None:
+                _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
+            _restore_owned_head(owned, owned_head_before)
         # SK3466-RR-003: the ORIGINAL error already emitted its own
         # diagnostic before raising typer.Exit above; this is a best-effort,
         # ADDITIONAL note if the meta.json revert itself also failed.
@@ -4368,5 +5086,12 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
         )
+        if mission_write_scope_dir is not None and not commit_landed.landed:
+            _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir)
+            if owned_derived_dir is not None:
+                _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
+            _restore_owned_head(owned, owned_head_before)
         _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output)
         raise typer.Exit(1) from None
+    finally:
+        _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)

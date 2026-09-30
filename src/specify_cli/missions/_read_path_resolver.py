@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING
 from mission_runtime import MissionArtifactKind
 
 if TYPE_CHECKING:
-    from mission_runtime import MissionResolver, MissionTopology
+    from mission_runtime import MissionResolver, MissionTopology, OwnedCheckout
 
 
 STATUS_READ_PATH_NOT_FOUND_CODE = "STATUS_READ_PATH_NOT_FOUND"
@@ -1476,7 +1476,7 @@ def resolve_subtasks_gate_dir(
     repo_root: Path | None,
     mission_slug: str,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Resolve the PRIMARY mission dir the subtask-completeness gate reads ``tasks.md`` from.
 
@@ -1504,6 +1504,9 @@ def resolve_subtasks_gate_dir(
     3. When neither yields a root (``WorkspaceRootNotFound`` — e.g. a bare
        ``tmp_path`` fixture with no git ancestry), ``feature_dir`` is returned
        unchanged, preserving pre-existing non-repo test behavior.
+
+    ``owned`` (the validated owned checkout, when present) makes the answer
+    the owned checkout's own ``TASKS_INDEX`` directory.
     """
     primary_root = repo_root
     if primary_root is None:
@@ -1511,12 +1514,12 @@ def resolve_subtasks_gate_dir(
             primary_root = resolve_canonical_root(feature_dir)
         except WorkspaceRootNotFound:
             return feature_dir
-    if effective_root is not None:
+    if owned is not None:
         from mission_runtime import placement_seam
 
-        return placement_seam(
-            primary_root, mission_slug, effective_root=effective_root
-        ).read_dir(MissionArtifactKind.TASKS_INDEX)
+        return placement_seam(primary_root, mission_slug, owned=owned).read_dir(
+            MissionArtifactKind.TASKS_INDEX
+        )
     # resolve_planning_read_dir is defined in this same module, so its
     # declared `-> Path` return type is visible to mypy directly (no
     # follow_imports=skip boundary crossed here) — a cast was redundant

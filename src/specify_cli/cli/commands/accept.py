@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 import typer
 from rich.table import Table
-from mission_runtime import ActionContextError
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode, TopologySurface
 
 from specify_cli.acceptance import (
     AcceptanceError,
@@ -26,12 +27,7 @@ from specify_cli.acceptance import (
 from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.config.path_conventions import PathConventionsConfigError
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.core.owned_mission import (
-    OwnedMission,
-    effective_root_kwargs,
-    require_unstaged_index,
-    resolve_owned_mission,
-)
+from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES, require_unstaged_index
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
 from specify_cli.consolidation.baseline import (
@@ -41,6 +37,7 @@ from specify_cli.consolidation.baseline import (
 )
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, emit_owned_refusal, resolve_owned_or_adopt
 from specify_cli.cli.selector_resolution import resolve_mission_dir_with_bare_modern_fold
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
@@ -117,7 +114,7 @@ def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return _dirty_paths_with_prefix(git_status_lines(repo_root), prefix)
 
 
-def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> Path | None:
+def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
     """Resolve the mission's materialised coordination worktree root, if any.
 
     Returns ``None`` when the mission's stored topology does not route
@@ -138,19 +135,9 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: 
     accept-time carries unmerged status — accept must refuse, not silently scan a
     stale primary.
     """
-    from mission_runtime import (
-        MissionArtifactKind,
-        TopologySurface,
-        resolve_artifact_surface,
-    )
+    from mission_runtime import resolve_artifact_surface
 
-    scope: dict[str, Any] = effective_root_kwargs(effective_root)
-    resolved = resolve_artifact_surface(
-        repo_root,
-        mission_slug,
-        MissionArtifactKind.ACCEPTANCE_MATRIX,
-        **scope,
-    )
+    resolved = resolve_artifact_surface(repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX, owned=owned)
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
 
@@ -164,7 +151,7 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: 
     return worktree_root
 
 
-def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> Path | None:
+def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
     """Resolve the COORD-partition mission dir the birth-cutover seeds into.
 
     ``cutover_mission``'s ``status_feature_dir`` argument IS the ``STATUS_STATE``
@@ -193,31 +180,20 @@ def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, effective_r
     stale primary (the same C3 "fail loud" posture as :func:`_coord_worktree_root`,
     which the accept flow already hits earlier via :func:`_coord_dirty_paths`).
     """
-    from mission_runtime import (
-        MissionArtifactKind,
-        TopologySurface,
-        placement_seam,
-        resolve_artifact_surface,
-    )
+    from mission_runtime import placement_seam, resolve_artifact_surface
 
     # Guard the handle before it reaches the seam so both legs of the stamp carry
     # the same traversal check (the PRIMARY leg gets it from
     # ``primary_feature_dir_for_mission``).
     assert_safe_path_segment(mission_slug)
 
-    scope: dict[str, Any] = effective_root_kwargs(effective_root)
-    resolved = resolve_artifact_surface(
-        repo_root,
-        mission_slug,
-        MissionArtifactKind.STATUS_STATE,
-        **scope,
-    )
+    resolved = resolve_artifact_surface(repo_root, mission_slug, MissionArtifactKind.STATUS_STATE, owned=owned)
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
-    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(MissionArtifactKind.STATUS_STATE)
+    return placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
 
 
-def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> list[str]:
+def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> list[str]:
     """Return tracked-but-uncommitted acceptance artifacts in the COORD worktree.
 
     M2 (#read-surface-ssot-closeout FR-008): ``write_acceptance_matrix`` writes
@@ -229,11 +205,7 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Pa
     a completely separate git worktree. This mirrors :func:`_primary_dirty_paths`
     against that surface instead.
     """
-    worktree_root = _coord_worktree_root(
-        repo_root,
-        mission_slug,
-        **effective_root_kwargs(effective_root),
-    )
+    worktree_root = _coord_worktree_root(repo_root, mission_slug, owned=owned)
     if worktree_root is None:
         return []
     prefix = f"kitty-specs/{mission_slug}/"
@@ -267,8 +239,7 @@ def _stamp_birth_cutover_for_accept(
     repo_root: Path,
     mission_slug: str,
     *,
-    effective_root: Path | None = None,
-    owned: OwnedMission | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Auto-stamp the birth-cutover into the mission branch at the terminal
     ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
@@ -315,10 +286,9 @@ def _stamp_birth_cutover_for_accept(
     # the seam's own internal fold for a PRIMARY-partition kind (the SAME
     # ``_canonicalize_primary_read_handle`` primitive
     # ``resolve_planning_read_dir``'s PRIMARY leg applies before composing).
-    from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime import placement_seam
 
-    scope = effective_root_kwargs(effective_root)
-    feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    feature_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if not feature_dir.is_dir():
         return  # nothing to stamp
 
@@ -331,22 +301,14 @@ def _stamp_birth_cutover_for_accept(
     # ``get_main_repo_root``) and collapse the very partition split this
     # function exists to preserve, while a raw mission-spec-dir join re-derives
     # placement the seam already owns.
-    status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, **scope)
-    # #3866: the accept flow already validated ownership (``_validate_owned_
-    # mode``); thread that value object instead of re-running the full
-    # ``resolve_owned_mission`` here. The resolve stays as the fallback for
-    # any caller that only holds an ``effective_root``.
-    if owned is None and effective_root is not None:
-        from specify_cli.core.paths import resolve_canonical_root
-
-        owned = resolve_owned_mission(resolve_canonical_root(effective_root), effective_root, mission_slug)
+    #
+    # FR-003: ``owned`` is the fact the CLI edge validated, exactly once. This
+    # function never re-validates from a bare root; a run with no fact is a
+    # non-owned run and keeps the best-effort semantics below.
+    status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, owned=owned)
 
     try:
-        result = stamp_accept_cutover(
-            feature_dir,
-            status_feature_dir=status_feature_dir,
-            **({"owned": owned} if owned is not None else {}),
-        )
+        result = stamp_accept_cutover(feature_dir, status_feature_dir=status_feature_dir, owned=owned)
     except MissingMissionIdError:
         raise
     except Exception as exc:  # noqa: BLE001 — best-effort, mirrors _run_birth_cutover
@@ -367,7 +329,7 @@ def _record_pr_merge_for_accept(
     mission_slug: str,
     merge_commit: str,
     *,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     target_ref: str | None = None,
     attest_first_landing: bool = False,
 ) -> PrMergeEvidence:
@@ -399,7 +361,7 @@ def _record_pr_merge_for_accept(
         repo_root,
         mission_slug,
         merge_commit,
-        effective_root=effective_root,
+        owned=owned,
         target_ref=target_ref,
         attest_first_landing=attest_first_landing,
     )
@@ -480,7 +442,7 @@ def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]
     return bool(result.status == "committed")
 
 
-def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> bool:
+def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> bool:
     """Stage and commit any leftover acceptance artifacts so the tree is clean.
 
     Returns True when a follow-up commit was created. This preserves the
@@ -495,11 +457,7 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *,
     the historical direct commit. A batch mixing both commits to each surface
     independently (never a single cross-worktree commit, which git cannot do).
     """
-    coord_dirty = _coord_dirty_paths(
-        repo_root,
-        mission_slug,
-        **effective_root_kwargs(effective_root),
-    )
+    coord_dirty = _coord_dirty_paths(repo_root, mission_slug, owned=owned)
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     if not coord_dirty and not primary_dirty:
         return False
@@ -662,7 +620,7 @@ def _collect_summary_with_optional_repair(
     strict_metadata: bool,
     mutate_matrix: bool,
     normalize_encoding: bool,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> AcceptanceSummary:
     """Collect the acceptance summary, optionally repairing artifact encoding.
 
@@ -674,14 +632,13 @@ def _collect_summary_with_optional_repair(
     the flag is off, the error propagates unchanged so the pre-existing default
     error path is preserved untouched.
     """
-    scope = effective_root_kwargs(effective_root)
     try:
         return collect_feature_summary(
             repo_root,
             mission_slug,
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
-            **scope,
+            owned=owned,
         )
     except PathConventionsConfigError as exc:
         # A malformed ``project.path_conventions`` section is a fail-closed operator
@@ -692,7 +649,11 @@ def _collect_summary_with_optional_repair(
     except ArtifactEncodingError:
         if not normalize_encoding:
             raise
-        repaired = normalize_feature_encoding(repo_root, mission_slug, **scope)
+        repaired = normalize_feature_encoding(
+            repo_root,
+            mission_slug,
+            owned=owned,
+        )
         _report_encoding_repair(repo_root, repaired)
         # Re-collect exactly once; a second encoding failure means the canonical
         # detector refused the file (its code page is genuinely ambiguous — e.g. a
@@ -705,7 +666,7 @@ def _collect_summary_with_optional_repair(
                 mission_slug,
                 strict_metadata=strict_metadata,
                 mutate_matrix=mutate_matrix,
-                **scope,
+                owned=owned,
             )
         except ArtifactEncodingError as exc:
             raise AcceptanceError(
@@ -719,22 +680,489 @@ def _collect_summary_with_optional_repair(
 
 
 def _owned_accept_context(
-    primary: Path,
+    repo_root: Path,
     checkout: Path | None,
     mission: str | None,
     *,
     diagnose: bool,
     normalize_encoding: bool,
-) -> OwnedMission | None:
-    """Validate opt-in ownership and mode before any acceptance reads or writes."""
-    if checkout is None:
+) -> OwnedCheckout | None:
+    """Validate ownership once (explicit ``--owned-checkout`` or flagless adoption) before any acceptance read or write.
+
+    Returns the validated fact, or ``None`` when the run stays on the
+    repository root checkout. Every later phase consumes this one fact.
+    """
+    owned = resolve_owned_or_adopt(
+        repo_root,
+        checkout,
+        mission,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+    )
+    if owned is None:
         return None
-    owned = resolve_owned_mission(primary, checkout, mission)
     if diagnose and normalize_encoding:
-        raise ActionContextError("OWNED_OPTION_UNSUPPORTED", "--diagnose cannot repair encoding in an owned checkout.")
+        raise ActionContextError(OwnedRefusalCode.OWNED_OPTION_UNSUPPORTED, "--diagnose cannot repair encoding in an owned checkout.")
     if not diagnose:
         require_unstaged_index(owned)
     return owned
+
+
+# ---------------------------------------------------------------------------
+# accept() phases (FR-026 / IC-14a): one small helper per phase so the command
+# body is a linear sequence and stays under the complexity ceiling. Behaviour is
+# pinned by tests/specify_cli/cli/commands/test_accept_decomposition.py.
+# ---------------------------------------------------------------------------
+
+_REQUIRED_MISSION_MESSAGE = "--mission <slug> is required"
+
+
+@dataclass(frozen=True)
+class _AcceptRun:
+    """The resolved, read-only facts every phase of one ``accept`` run shares."""
+
+    json_output: bool
+    tracker: StepTracker
+    repo_root: Path
+    mission_slug: str
+    mission_dir: Path
+    owned: OwnedCheckout | None
+    actual_mode: str
+    commit_required: bool
+    provenance_note: str | None
+
+
+@dataclass(frozen=True)
+class _PrMergeRequest:
+    """A ``--merge-commit`` whose evidence was verified before any acceptance write."""
+
+    evidence: PrMergeEvidence
+    merge_commit: str
+    target_ref: str | None
+    attest_first_landing: bool
+
+
+@dataclass
+class _FinalizeOutcome:
+    """What the perform / stamp / PR-merge / residual-commit sequence produced."""
+
+    result: AcceptanceResult | None = None
+    accept_exc: AcceptanceError | None = None
+    stamp_exc: Exception | None = None
+    pr_merge_exc: Exception | None = None
+    residue_exc: Exception | None = None
+    pr_merge_recorded: bool = False
+
+
+def _report_error(json_output: bool, message: str, *, tracker: StepTracker | None = None, step: str | None = None) -> None:
+    """Emit one error on the active output lane (JSON envelope or console).
+
+    When ``tracker`` and ``step`` are given, the human lane also marks that
+    step failed and renders the tracker first.
+    """
+    if json_output:
+        print(json.dumps({"error": message}))
+        return
+    if tracker is not None and step is not None:
+        tracker.error(step, message)
+        console.print(tracker.render())
+    console.print(f"[red]Error:[/red] {message}")
+
+
+def _fail(
+    json_output: bool,
+    message: str,
+    *,
+    code: int = 1,
+    tracker: StepTracker | None = None,
+    step: str | None = None,
+) -> NoReturn:
+    """Emit one error and exit with ``code``."""
+    _report_error(json_output, message, tracker=tracker, step=step)
+    raise typer.Exit(code)
+
+
+def _refusal_envelope(code: str, message: str) -> dict[str, object]:
+    """Accept's owned-refusal JSON envelope: ``{"error_code", "error"}``."""
+    return {"error_code": code, "error": message}
+
+
+def _resolve_accept_entry(
+    json_output: bool,
+    checkout: Path | None,
+    mission: str | None,
+    *,
+    diagnose: bool,
+    normalize_encoding: bool,
+) -> tuple[Path, OwnedCheckout | None]:
+    """Find the repository root and validate opt-in ownership before any read or write."""
+    try:
+        repo_root = find_repo_root()
+        owned = _owned_accept_context(
+            repo_root,
+            checkout,
+            mission,
+            diagnose=diagnose,
+            normalize_encoding=normalize_encoding,
+        )
+    except ActionContextError as exc:
+        emit_owned_refusal(exc, json_output=json_output, envelope=_refusal_envelope)
+    except TaskCliError as exc:
+        _fail(json_output, str(exc))
+    return (owned.owned_root if owned is not None else repo_root), owned
+
+
+def _start_tracker(json_output: bool) -> StepTracker:
+    tracker = StepTracker("Mission Acceptance")
+    if not json_output:
+        tracker.add("detect", "Identify mission slug")
+        tracker.add("verify", "Run readiness checks")
+        console.print()
+        tracker.start("detect")
+    return tracker
+
+
+def _resolve_mission_identity(
+    raw_handle: str | None,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+    json_output: bool,
+    tracker: StepTracker,
+) -> tuple[str, Path]:
+    """Resolve the mission slug and directory, or exit 2 when no handle was given.
+
+    Supports slug, numeric prefix, mid8, full ULID, or a bare human slug naming
+    a composed ``<slug>-<mid8>`` primary dir (#4723).
+    ``resolve_mission_dir_with_bare_modern_fold()`` tries the shared
+    bare-modern-slug primitive first (so an ambiguous bare slug raises the
+    structured ambiguity error instead of a misleading MISSION_NOT_FOUND), then
+    falls back to ``resolve_mission_handle()`` for every other form; both legs
+    call ``sys.exit()`` on failure, so no try/except is needed here.
+    """
+    if raw_handle is None:
+        _fail(json_output, _REQUIRED_MISSION_MESSAGE, code=2, tracker=tracker, step="detect")
+    if owned is not None:
+        return owned.mission_slug, owned.mission_dir
+    mission_dir = resolve_mission_dir_with_bare_modern_fold(raw_handle, repo_root, json_mode=json_output)
+    return mission_dir.name, mission_dir
+
+
+def _plan_run(
+    *,
+    json_output: bool,
+    tracker: StepTracker,
+    repo_root: Path,
+    mission_slug: str,
+    mission_dir: Path,
+    owned: OwnedCheckout | None,
+    requested_mode: str,
+    no_commit: bool,
+    diagnose: bool,
+) -> _AcceptRun:
+    """Announce the mission, pick the acceptance mode and register the remaining steps."""
+    # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
+    # BOTH the human console (non-JSON branch below) and every non-error
+    # `--json` payload via `_with_advisories` — it was previously gated
+    # behind `if not json_output`, so JSON automation never saw it.
+    provenance_note = _stranded_verdict_provenance_note(mission_dir)
+    if not json_output:
+        tracker.complete("detect", mission_slug)
+        if provenance_note is not None:
+            console.print(f"[yellow]⚠ {provenance_note}[/yellow]")
+
+    actual_mode = choose_mode((requested_mode or "auto").lower(), repo_root)
+    commit_required = actual_mode != "checklist" and not no_commit and not diagnose
+    if not json_output:
+        if commit_required:
+            tracker.add("commit", "Record acceptance metadata")
+        tracker.add("guide", "Report diagnostics" if diagnose else "Share next steps")
+    return _AcceptRun(
+        json_output=json_output,
+        tracker=tracker,
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        mission_dir=mission_dir,
+        owned=owned,
+        actual_mode=actual_mode,
+        commit_required=commit_required,
+        provenance_note=provenance_note,
+    )
+
+
+def _verify_merge_commit(
+    run: _AcceptRun,
+    merge_commit: str | None,
+    target_branch: str | None,
+    attest_first_landing: bool,
+) -> _PrMergeRequest | None:
+    """Validate ``--merge-commit`` BEFORE any acceptance write (#4231).
+
+    A bad or unverifiable SHA fails with nothing mutated. Verification is
+    read-only git, so ``--diagnose`` / ``--no-commit`` may carry it too.
+    """
+    if merge_commit is None:
+        return None
+    if run.actual_mode != "pr":
+        _fail(
+            run.json_output,
+            f"--merge-commit is only valid with --mode pr (resolved mode: "
+            f"{run.actual_mode}). A {run.actual_mode} acceptance records its "
+            "baseline_merge_commit through `spec-kitty consolidate`, not here.",
+            code=2,
+        )
+    try:
+        evidence = verify_pr_merge_evidence(
+            run.repo_root,
+            run.mission_slug,
+            merge_commit,
+            target_ref=target_branch,
+            attest_first_landing=attest_first_landing,
+            owned=run.owned,
+        )
+    except PrMergeEvidenceError as exc:
+        _fail(run.json_output, f"Cannot record PR merge for {run.mission_slug}: {exc}")
+    return _PrMergeRequest(evidence, merge_commit, target_branch, attest_first_landing)
+
+
+def _collect_summary_or_exit(
+    run: _AcceptRun,
+    *,
+    lenient: bool,
+    diagnose: bool,
+    normalize_encoding: bool,
+) -> AcceptanceSummary:
+    """Collect the acceptance summary; a blocking collection error exits 1 with nothing written."""
+    if not run.json_output:
+        run.tracker.start("verify")
+    try:
+        summary = _collect_summary_with_optional_repair(
+            run.repo_root,
+            run.mission_slug,
+            strict_metadata=not lenient,
+            # --no-commit must still resolve the acceptance matrix (run negative
+            # invariants, refresh verdict); otherwise the verdict stays 'pending'
+            # and the gate can never pass in --no-commit mode. The matrix write
+            # is accept-owned and excluded from the dirty-tree gate (#1883), so
+            # mutating without committing is safe and converges. Only diagnose
+            # (read-only) leaves the matrix untouched.
+            mutate_matrix=not diagnose,
+            # FR-005: opt-in repair of mojibake acceptance artifacts via the
+            # canonical normalize_feature_encoding before validating (default off).
+            normalize_encoding=normalize_encoding,
+            owned=run.owned,
+        )
+    except (Pre30LayoutError, AcceptanceError, AcceptanceMatrixParseError) as exc:
+        # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject
+        # with the `spec-kitty upgrade` instruction and write NOTHING — never fall
+        # through to a vacuous all-done summary that auto-commits an unmigrated
+        # mission.
+        # T021 (mgifford, #2318): a malformed acceptance-matrix.json item
+        # (a bad negative_invariants/criteria entry) is REPORTED here —
+        # which item, why — instead of crashing with an unhandled TypeError
+        # at load. Catching it here (rather than inside
+        # AcceptanceMatrix.from_dict) also fixes every OTHER accept mode that
+        # hits the same load path, without weakening gates_core.py's /
+        # post_consolidation.py's own loud-crash contract on malformed input.
+        _fail(run.json_output, str(exc), tracker=run.tracker, step="verify")
+    if not run.json_output:
+        run.tracker.complete("verify", "ready" if summary.ok else "issues found")
+    return summary
+
+
+def _exit_early_for_report_modes(run: _AcceptRun, summary: AcceptanceSummary, *, diagnose: bool, allow_fail: bool) -> None:
+    """Exit for ``--diagnose``, checklist mode and a not-ready summary; return when acceptance may proceed."""
+    if diagnose:
+        _report_diagnosis(run, summary)
+        raise typer.Exit(0)
+    if run.actual_mode == "checklist":
+        _report_summary(run, summary)
+        raise typer.Exit(0 if summary.ok else 1)
+    if not summary.ok:
+        _report_summary(run, summary, raw=True)
+        if not allow_fail and not run.json_output:
+            console.print(
+                "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
+            )
+        raise typer.Exit(1)
+
+
+def _report_diagnosis(run: _AcceptRun, summary: AcceptanceSummary) -> None:
+    if run.json_output:
+        payload = _summary_payload(summary)
+        payload["diagnose"] = True
+        print(json.dumps(_with_advisories(payload, [run.provenance_note]), indent=2))
+        return
+    run.tracker.start("guide")
+    run.tracker.complete("guide", "diagnostics ready")
+    console.print(run.tracker.render())
+    _print_acceptance_diagnosis(summary)
+
+
+def _report_summary(run: _AcceptRun, summary: AcceptanceSummary, *, raw: bool = False) -> None:
+    """Print the readiness summary; ``raw`` selects the bare ``summary.to_dict()`` JSON shape."""
+    if run.json_output:
+        payload = summary.to_dict() if raw else _summary_payload(summary)
+        print(json.dumps(_with_advisories(payload, [run.provenance_note]), indent=2))
+    else:
+        _print_acceptance_summary(summary)
+
+
+def _perform_and_finalize(
+    run: _AcceptRun,
+    summary: AcceptanceSummary,
+    *,
+    actor: str | None,
+    tests: list[str],
+    pr_merge: _PrMergeRequest | None,
+) -> _FinalizeOutcome:
+    """Perform acceptance, then always run the post-acceptance steps in their fixed order.
+
+    The residual-artifacts commit runs after an ``AcceptanceError`` too, and an
+    unexpected exception from ``perform_acceptance`` still propagates once the
+    ``finally`` block has run.
+    """
+    acceptance_tests = list(tests)
+    actor_name = resolve_acceptance_actor(actor)
+
+    # T015 / WP04 / FR-001: the protected-primary guard is no longer a hard
+    # reject here.  ``_commit_acceptance_meta`` routes every commit through
+    # ``commit_for_mission``, which materialises the coordination worktree on
+    # demand when the primary is protected (C-001 / FR-003).  A pre-flight
+    # raise-and-exit deadlock is therefore unnecessary and has been removed.
+    outcome = _FinalizeOutcome()
+    try:
+        _perform_acceptance_step(run, summary, actor_name, acceptance_tests, outcome)
+    finally:
+        _run_post_acceptance_steps(run, outcome, pr_merge)
+    return outcome
+
+
+def _perform_acceptance_step(
+    run: _AcceptRun,
+    summary: AcceptanceSummary,
+    actor_name: str,
+    acceptance_tests: list[str],
+    outcome: _FinalizeOutcome,
+) -> None:
+    try:
+        if run.commit_required and not run.json_output:
+            run.tracker.start("commit")
+        result = perform_acceptance(
+            summary,
+            mode=run.actual_mode,
+            actor=actor_name,
+            tests=acceptance_tests,
+            auto_commit=run.commit_required,
+        )
+        outcome.result = result
+        if run.commit_required and not run.json_output:
+            run.tracker.complete("commit", "commit created" if result.commit_created else "no changes")
+    except AcceptanceError as exc:
+        outcome.accept_exc = exc
+        _report_error(run.json_output, str(exc), tracker=run.tracker if run.commit_required else None, step="commit")
+
+
+def _run_post_acceptance_steps(run: _AcceptRun, outcome: _FinalizeOutcome, pr_merge: _PrMergeRequest | None) -> None:
+    if not run.commit_required:
+        return
+    if outcome.accept_exc is None:
+        _stamp_step(run, outcome)
+        if pr_merge is not None:
+            _record_pr_merge_step(run, outcome, pr_merge)
+    # The acceptance commit (inside perform_acceptance) only captures
+    # meta.json. Derived artifacts materialized during readiness checks
+    # (e.g. acceptance-matrix.json, status views) are written after the
+    # git-cleanliness snapshot and would otherwise be left dirty. Fold
+    # them into a follow-up commit so all writing exit paths (including
+    # error paths and accept_commit == None) leave a clean working tree.
+    try:
+        _commit_residual_acceptance_artifacts(run.repo_root, run.mission_slug, owned=run.owned)
+    except Exception as residue_exc:
+        outcome.residue_exc = residue_exc
+
+
+def _stamp_step(run: _AcceptRun, outcome: _FinalizeOutcome) -> None:
+    # WP02 (FR-001/FR-004/FR-005): stamp the birth-cutover ONLY on the
+    # real-commit, acceptance-succeeded path -- runtime state is
+    # already final (summary.ok gated all WPs approved/done above).
+    # Deliberately BEFORE the residual-artifacts commit so its
+    # writes (meta.json status_phase, COORD seed events) are swept
+    # into that SAME partition-aware commit rather than needing a
+    # second committer.
+    try:
+        # #3866 / FR-003: hand the stamp the fact the CLI edge validated; it
+        # never re-validates ownership.
+        _stamp_birth_cutover_for_accept(run.repo_root, run.mission_slug, owned=run.owned)
+    except (MissingMissionIdError, AcceptanceError, ActionContextError) as stamp_exc:
+        outcome.stamp_exc = stamp_exc
+
+
+def _record_pr_merge_step(run: _AcceptRun, outcome: _FinalizeOutcome, pr_merge: _PrMergeRequest) -> None:
+    # #4231: record the verified PR merge as the review baseline on the
+    # same real-commit, acceptance-succeeded path as the birth-cutover
+    # stamp, BEFORE the residual-artifacts commit so this meta.json
+    # write is swept into that same partition-aware commit. Unlike the
+    # stamp this is explicit operator intent, so a failure propagates
+    # to the command's exit path instead of degrading to a warning.
+    try:
+        _record_pr_merge_for_accept(
+            run.repo_root,
+            run.mission_slug,
+            pr_merge.merge_commit,
+            target_ref=pr_merge.target_ref,
+            attest_first_landing=pr_merge.attest_first_landing,
+            owned=run.owned,
+        )
+        outcome.pr_merge_recorded = True
+    except Exception as pr_merge_error:  # noqa: BLE001 — reported on the command's own error lane below
+        outcome.pr_merge_exc = pr_merge_error
+
+
+def _raise_on_finalize_errors(run: _AcceptRun, outcome: _FinalizeOutcome) -> AcceptanceResult:
+    """Exit 1 on the first finalize failure (acceptance, stamp, PR merge, residual, in that order)."""
+    result = outcome.result
+    if outcome.accept_exc is not None or result is None:
+        raise typer.Exit(1)
+    if outcome.stamp_exc is not None:
+        _fail(run.json_output, f"Birth-cutover stamp refused: {outcome.stamp_exc}")
+    if outcome.pr_merge_exc is not None:
+        _fail(run.json_output, f"PR merge recording failed: {outcome.pr_merge_exc}")
+    if outcome.residue_exc is not None:
+        _fail(
+            run.json_output,
+            f"Residual artifact commit failed: {outcome.residue_exc}",
+            tracker=run.tracker if run.commit_required else None,
+            step="commit",
+        )
+    return result
+
+
+def _note_pr_merge_outcome(result: AcceptanceResult, pr_merge: _PrMergeRequest | None, *, recorded: bool) -> None:
+    """Surface the PR-merge recording outcome on both output lanes (#4231)."""
+    if pr_merge is None:
+        return
+    if recorded:
+        evidence = pr_merge.evidence
+        result.notes.append(
+            "PR merge recorded: baseline_merge_commit "
+            f"{evidence.baseline_merge_commit} "
+            f"(PR merge commit {evidence.pr_merge_commit}; "
+            f"anchor evidence {evidence.anchor_evidence})"
+        )
+    else:
+        result.notes.append("--merge-commit verified against this repository; re-run without --no-commit to record it as the review baseline")
+
+
+def _render_accept_result(run: _AcceptRun, result: AcceptanceResult) -> None:
+    if run.json_output:
+        print(json.dumps(_with_advisories(result.to_dict(), [run.provenance_note]), indent=2))
+        return
+    run.tracker.start("guide")
+    run.tracker.complete("guide", "instructions ready")
+    console.print(run.tracker.render())
+
+    _print_acceptance_summary(result.summary)
+    _print_acceptance_result(result)
 
 
 def accept(
@@ -760,7 +1188,7 @@ def accept(
         "--normalize-encoding/--no-normalize-encoding",
         help="Repair acceptance-artifact encoding (Windows-1252/Latin-1 -> UTF-8) before validating.",
     ),
-    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
+    owned_checkout: OwnedCheckoutOption = None,
     merge_commit: Annotated[
         str | None,
         typer.Option(
@@ -812,351 +1240,33 @@ def accept(
     if not json_output:
         show_banner()
 
-    try:
-        repo_root = find_repo_root()
-        owned = _owned_accept_context(
-            repo_root,
-            owned_checkout,
-            mission,
-            diagnose=diagnose,
-            normalize_encoding=normalize_encoding,
-        )
-        if owned is not None:
-            repo_root = owned.root
-    except ActionContextError as exc:
-        if json_output:
-            print(json.dumps({"error_code": exc.code, "error": str(exc)}))
-        else:
-            console.print(f"[red]{exc.code}: {exc}[/red]")
-        raise typer.Exit(1) from exc
-    except TaskCliError as exc:
-        if json_output:
-            print(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
-
-    tracker = StepTracker("Mission Acceptance")
-    if not json_output:
-        tracker.add("detect", "Identify mission slug")
-        tracker.add("verify", "Run readiness checks")
-        console.print()
-        tracker.start("detect")
-
-    # Resolve mission handle — supports slug, numeric prefix, mid8, full ULID,
-    # or a bare human slug naming a composed ``<slug>-<mid8>`` primary dir
-    # (#4723). resolve_mission_dir_with_bare_modern_fold() tries the shared
-    # bare-modern-slug primitive first (so an ambiguous bare slug raises the
-    # structured ambiguity error instead of a misleading MISSION_NOT_FOUND),
-    # then falls back to resolve_mission_handle() for every other form; both
-    # legs call sys.exit() on failure, so no try/except is needed here.
-    raw_handle = mission
-    if raw_handle is None:
-        if json_output:
-            print(json.dumps({"error": "--mission <slug> is required"}))
-        else:
-            tracker.error("detect", "--mission <slug> is required")
-            console.print(tracker.render())
-            console.print("[red]Error:[/red] --mission <slug> is required")
-        raise typer.Exit(2)
-
-    if owned is not None:
-        mission_slug, mission_dir = owned.slug, owned.directory
-    else:
-        mission_dir = resolve_mission_dir_with_bare_modern_fold(raw_handle, repo_root, json_mode=json_output)
-        mission_slug = mission_dir.name
-    scope = {"effective_root": owned.root} if owned is not None else {}
-
-    # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
-    # BOTH the human console (non-JSON branch below) and every non-error
-    # `--json` payload via `_with_advisories` — it was previously gated
-    # behind `if not json_output`, so JSON automation never saw it.
-    provenance_note = _stranded_verdict_provenance_note(mission_dir)
-
-    if not json_output:
-        tracker.complete("detect", mission_slug)
-        if provenance_note is not None:
-            console.print(f"[yellow]⚠ {provenance_note}[/yellow]")
-
-    requested_mode = (mode or "auto").lower()
-    actual_mode = choose_mode(requested_mode, repo_root)
-    commit_required = actual_mode != "checklist" and not no_commit and not diagnose
-    if commit_required and not json_output:
-        tracker.add("commit", "Record acceptance metadata")
-    if not json_output:
-        tracker.add("guide", "Share next steps" if not diagnose else "Report diagnostics")
-
-    # #4231: validate --merge-commit BEFORE any acceptance write, so a bad or
-    # unverifiable SHA fails with nothing mutated. Verification is read-only
-    # git, so --diagnose / --no-commit may carry it too.
-    pr_merge_evidence: PrMergeEvidence | None = None
-    if merge_commit is not None:
-        if actual_mode != "pr":
-            error_msg = (
-                f"--merge-commit is only valid with --mode pr (resolved mode: "
-                f"{actual_mode}). A {actual_mode} acceptance records its "
-                "baseline_merge_commit through `spec-kitty consolidate`, not here."
-            )
-            if json_output:
-                print(json.dumps({"error": error_msg}))
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(2)
-        try:
-            pr_merge_evidence = verify_pr_merge_evidence(
-                repo_root,
-                mission_slug,
-                merge_commit,
-                target_ref=target_branch,
-                attest_first_landing=attest_first_landing,
-                **scope,
-            )
-        except PrMergeEvidenceError as exc:
-            error_msg = f"Cannot record PR merge for {mission_slug}: {exc}"
-            if json_output:
-                print(json.dumps({"error": error_msg}))
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-    if not json_output:
-        tracker.start("verify")
-    try:
-        summary = _collect_summary_with_optional_repair(
-            repo_root,
-            mission_slug,
-            strict_metadata=not lenient,
-            # --no-commit must still resolve the acceptance matrix (run negative
-            # invariants, refresh verdict); otherwise the verdict stays 'pending'
-            # and the gate can never pass in --no-commit mode. The matrix write
-            # is accept-owned and excluded from the dirty-tree gate (#1883), so
-            # mutating without committing is safe and converges. Only diagnose
-            # (read-only) leaves the matrix untouched.
-            mutate_matrix=not diagnose,
-            # FR-005: opt-in repair of mojibake acceptance artifacts via the
-            # canonical normalize_feature_encoding before validating (default off).
-            normalize_encoding=normalize_encoding,
-            **scope,
-        )
-    except Pre30LayoutError as exc:
-        # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject
-        # with the `spec-kitty upgrade` instruction and write NOTHING — never fall
-        # through to a vacuous all-done summary that auto-commits an unmigrated
-        # mission.
-        if json_output:
-            print(json.dumps({"error": str(exc)}))
-        else:
-            tracker.error("verify", str(exc))
-            console.print(tracker.render())
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
-    except AcceptanceError as exc:
-        if json_output:
-            print(json.dumps({"error": str(exc)}))
-        else:
-            tracker.error("verify", str(exc))
-            console.print(tracker.render())
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
-    except AcceptanceMatrixParseError as exc:
-        # T021 (mgifford, #2318): a malformed acceptance-matrix.json item
-        # (a bad negative_invariants/criteria entry) is REPORTED here —
-        # which item, why — instead of crashing with an unhandled TypeError
-        # at load. This is the actual accept --diagnose defect; catching it
-        # here (rather than inside AcceptanceMatrix.from_dict) also fixes
-        # every OTHER accept mode that hits the same load path, without
-        # weakening gates_core.py's / post_consolidation.py's own loud-crash
-        # contract on malformed input (they still let it propagate).
-        if json_output:
-            print(json.dumps({"error": str(exc)}))
-        else:
-            tracker.error("verify", str(exc))
-            console.print(tracker.render())
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
-    if not json_output:
-        tracker.complete("verify", "ready" if summary.ok else "issues found")
-
-    if diagnose:
-        if json_output:
-            payload = _summary_payload(summary)
-            payload["diagnose"] = True
-            print(json.dumps(_with_advisories(payload, [provenance_note]), indent=2))
-        else:
-            tracker.start("guide")
-            tracker.complete("guide", "diagnostics ready")
-            console.print(tracker.render())
-            _print_acceptance_diagnosis(summary)
-        raise typer.Exit(0)
-
-    if actual_mode == "checklist":
-        if json_output:
-            print(
-                json.dumps(
-                    _with_advisories(_summary_payload(summary), [provenance_note]),
-                    indent=2,
-                )
-            )
-        else:
-            _print_acceptance_summary(summary)
-        raise typer.Exit(0 if summary.ok else 1)
-
-    if not summary.ok:
-        if json_output:
-            print(json.dumps(_with_advisories(summary.to_dict(), [provenance_note]), indent=2))
-        else:
-            _print_acceptance_summary(summary)
-        if not allow_fail:
-            if not json_output:
-                console.print(
-                    "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
-                )
-            raise typer.Exit(1)
-        raise typer.Exit(1)
-
-    acceptance_tests = list(test)
-    actor_name = resolve_acceptance_actor(actor)
-
-    # T015 / WP04 / FR-001: the protected-primary guard is no longer a hard
-    # reject here.  ``_commit_acceptance_meta`` routes every commit through
-    # ``commit_for_mission``, which materialises the coordination worktree on
-    # demand when the primary is protected (C-001 / FR-003).  A pre-flight
-    # raise-and-exit deadlock is therefore unnecessary and has been removed.
-
-    result: AcceptanceResult | None = None
-    _accept_exc: AcceptanceError | None = None
-    _residue_exc: Exception | None = None
-    _stamp_exc: Exception | None = None
-    _pr_merge_exc: Exception | None = None
-    pr_merge_recorded = False
-    try:
-        if commit_required and not json_output:
-            tracker.start("commit")
-        if no_commit:
-            result = perform_acceptance(
-                summary,
-                mode=actual_mode,
-                actor=actor_name,
-                tests=acceptance_tests,
-                auto_commit=False,
-            )
-        else:
-            result = perform_acceptance(
-                summary,
-                mode=actual_mode,
-                actor=actor_name,
-                tests=acceptance_tests,
-                auto_commit=commit_required,
-            )
-        if commit_required and not json_output:
-            detail = "commit created" if result.commit_created else "no changes"
-            tracker.complete("commit", detail)
-    except AcceptanceError as exc:
-        _accept_exc = exc
-        if json_output:
-            print(json.dumps({"error": str(exc)}))
-        else:
-            if commit_required:
-                tracker.error("commit", str(exc))
-                console.print(tracker.render())
-            console.print(f"[red]Error:[/red] {exc}")
-    finally:
-        if commit_required and _accept_exc is None:
-            # WP02 (FR-001/FR-004/FR-005): stamp the birth-cutover ONLY on the
-            # real-commit, acceptance-succeeded path -- runtime state is
-            # already final (summary.ok gated all WPs approved/done above).
-            # Deliberately BEFORE the residual-artifacts commit below so its
-            # writes (meta.json status_phase, COORD seed events) are swept
-            # into that SAME partition-aware commit rather than needing a
-            # second committer.
-            try:
-                # #3866: pass the already-validated ``owned`` value object so
-                # the stamp does not re-run ``resolve_owned_mission``.
-                _stamp_birth_cutover_for_accept(repo_root, mission_slug, **scope, owned=owned)
-            except (MissingMissionIdError, AcceptanceError, ActionContextError) as stamp_exc:
-                _stamp_exc = stamp_exc
-        if commit_required and _accept_exc is None and pr_merge_evidence is not None:
-            # #4231: record the verified PR merge as the review baseline on the
-            # same real-commit, acceptance-succeeded path as the birth-cutover
-            # stamp, BEFORE the residual-artifacts commit so this meta.json
-            # write is swept into that same partition-aware commit. Unlike the
-            # stamp this is explicit operator intent, so a failure propagates
-            # to the command's exit path instead of degrading to a warning.
-            try:
-                _record_pr_merge_for_accept(
-                    repo_root,
-                    mission_slug,
-                    merge_commit or "",
-                    target_ref=target_branch,
-                    attest_first_landing=attest_first_landing,
-                    **scope,
-                )
-                pr_merge_recorded = True
-            except Exception as pr_merge_error:  # noqa: BLE001 — reported on the command's own error lane below
-                _pr_merge_exc = pr_merge_error
-        if commit_required:
-            # The acceptance commit (inside perform_acceptance) only captures
-            # meta.json. Derived artifacts materialized during readiness checks
-            # (e.g. acceptance-matrix.json, status views) are written after the
-            # git-cleanliness snapshot and would otherwise be left dirty. Fold
-            # them into a follow-up commit so all writing exit paths (including
-            # error paths and accept_commit == None) leave a clean working tree.
-            try:
-                _commit_residual_acceptance_artifacts(repo_root, mission_slug, **scope)
-            except Exception as residue_exc:
-                _residue_exc = residue_exc
-    if _accept_exc is not None:
-        raise typer.Exit(1)
-    if _stamp_exc is not None:
-        error_msg = f"Birth-cutover stamp refused: {_stamp_exc}"
-        if json_output:
-            print(json.dumps({"error": error_msg}))
-        else:
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1)
-    if _pr_merge_exc is not None:
-        error_msg = f"PR merge recording failed: {_pr_merge_exc}"
-        if json_output:
-            print(json.dumps({"error": error_msg}))
-        else:
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1)
-    if _residue_exc is not None:
-        error_msg = f"Residual artifact commit failed: {_residue_exc}"
-        if json_output:
-            print(json.dumps({"error": error_msg}))
-        else:
-            if commit_required:
-                tracker.error("commit", error_msg)
-                console.print(tracker.render())
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1)
-
-    assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded
-
-    if pr_merge_evidence is not None:
-        # #4231: surface the PR-merge recording outcome on both output lanes
-        # (human notes and the --json payload via result.to_dict()).
-        if pr_merge_recorded:
-            result.notes.append(
-                "PR merge recorded: baseline_merge_commit "
-                f"{pr_merge_evidence.baseline_merge_commit} "
-                f"(PR merge commit {pr_merge_evidence.pr_merge_commit}; "
-                f"anchor evidence {pr_merge_evidence.anchor_evidence})"
-            )
-        else:
-            result.notes.append("--merge-commit verified against this repository; re-run without --no-commit to record it as the review baseline")
-
-    if json_output:
-        print(json.dumps(_with_advisories(result.to_dict(), [provenance_note]), indent=2))
-        return
-
-    tracker.start("guide")
-    tracker.complete("guide", "instructions ready")
-    console.print(tracker.render())
-
-    _print_acceptance_summary(result.summary)
-    _print_acceptance_result(result)
+    repo_root, owned = _resolve_accept_entry(
+        json_output,
+        owned_checkout,
+        mission,
+        diagnose=diagnose,
+        normalize_encoding=normalize_encoding,
+    )
+    tracker = _start_tracker(json_output)
+    mission_slug, mission_dir = _resolve_mission_identity(mission, repo_root, owned, json_output, tracker)
+    run = _plan_run(
+        json_output=json_output,
+        tracker=tracker,
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        mission_dir=mission_dir,
+        owned=owned,
+        requested_mode=mode,
+        no_commit=no_commit,
+        diagnose=diagnose,
+    )
+    pr_merge = _verify_merge_commit(run, merge_commit, target_branch, attest_first_landing)
+    summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
+    _exit_early_for_report_modes(run, summary, diagnose=diagnose, allow_fail=allow_fail)
+    outcome = _perform_and_finalize(run, summary, actor=actor, tests=test, pr_merge=pr_merge)
+    result = _raise_on_finalize_errors(run, outcome)
+    _note_pr_merge_outcome(result, pr_merge, recorded=outcome.pr_merge_recorded)
+    _render_accept_result(run, result)
 
 
 __all__ = ["accept"]

@@ -45,7 +45,7 @@ def _force_mismatch(monkeypatch: pytest.MonkeyPatch, elsewhere: Path) -> None:
     monkeypatch.setattr(
         cutover_module,
         "_resolve_primary_home_or_degrade",
-        lambda feature_dir: elsewhere,  # noqa: ARG005
+        lambda _feature_dir, **_owned: elsewhere,
     )
 
 

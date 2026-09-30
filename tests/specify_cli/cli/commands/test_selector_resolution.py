@@ -518,7 +518,7 @@ def test_next_step_canonical_selector_passes_mission_slug(
     # the one production code resolves (spec-kitty#89).
     monkeypatch.setitem(sys.modules, "runtime.next.runtime_bridge", fake_runtime_bridge)
     with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path):
-        next_step.__wrapped__(
+        next_step(
             agent="codex",
             mission="077-demo-mission",
             json_output=True,
@@ -570,7 +570,7 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
     # sys.modules (spec-kitty#89).
     monkeypatch.setitem(sys.modules, "runtime.next.runtime_bridge", fake_runtime_bridge)
     with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path):
-        next_step.__wrapped__(
+        next_step(
             agent="codex",
             mission="077-demo-mission",
             json_output=True,

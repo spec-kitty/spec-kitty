@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, TypeAlias
 
 import typer
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.agent_tasks_ports import TasksPorts
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _apply_review_status_flags,
@@ -132,9 +132,15 @@ class _StatusState:
     mission: str | None
     json_output: bool
     stale_threshold: int
+    owned_claim: Path | None = None
     # --- phase A: resolved dirs ---
     cwd: Path = field(default_factory=Path)
     repo_root: Path = field(default_factory=Path)
+    # The validated ownership fact (owned-checkout-lifecycle-authority WP09).
+    # Owned reads carry this and use ONLY its fields (``owned_root`` /
+    # ``mission_dir`` / ``target_branch``) -- never a bare Path derived from
+    # it (G4/G5). ``None`` for every non-owned run.
+    owned: OwnedCheckout | None = None
     mission_slug: str = ""
     main_repo_root: Path = field(default_factory=Path)
     feature_dir: Path = field(default_factory=Path)
@@ -170,6 +176,49 @@ def _status_selector_error(code: str, message: str, exit_code: int, details: dic
     raise typer.Exit(exit_code)
 
 
+def _st_resolve_owned(st: _StatusState, repo_root: Path, explicit_mission: str | None) -> bool:
+    """Resolve the owned-checkout fact (owned-checkout-lifecycle-authority WP09, FR-004).
+
+    Returns ``True`` when the caller holds (or was adopted into) an owned
+    checkout and ``st``'s dir fields are fully populated from the fact --
+    the caller must return immediately, skipping
+    ``_ensure_target_branch_checked_out`` (R's branch is irrelevant to an
+    owned run) and the ``get_status_read_root`` fallback below it entirely.
+    Returns ``False`` for the ordinary (non-owned, non-adopted) path, which
+    proceeds exactly as before this WP (G2: no direct
+    ``resolve_owned_mission`` / ``adopt_owned_checkout`` call here -- only
+    the shared ``resolve_owned_or_adopt`` seam).
+    """
+    from mission_runtime import ActionContextError
+    from specify_cli.cli.commands._owned_checkout import (
+        emit_owned_refusal,
+        json_error_envelope,
+        resolve_owned_or_adopt,
+    )
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    try:
+        owned = resolve_owned_or_adopt(
+            repo_root,
+            st.owned_claim,
+            explicit_mission,
+            cwd=st.cwd,
+            allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        )
+    except ActionContextError as exc:
+        emit_owned_refusal(exc, json_output=st.json_output, envelope=json_error_envelope)
+
+    if owned is None:
+        return False
+
+    st.owned = owned
+    st.mission_slug = owned.mission_slug
+    st.main_repo_root = owned.repository_root
+    st.feature_dir = owned.mission_dir
+    st.tasks_dir = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
+    return True
+
+
 def _st_resolve_dirs(st: _StatusState) -> None:
     """Phase A: repo/mission resolution + the CWD-independent read-dir resolution.
 
@@ -186,14 +235,38 @@ def _st_resolve_dirs(st: _StatusState) -> None:
         raise typer.Exit(1)
     st.repo_root = repo_root
 
+    # owned-checkout-lifecycle-authority WP09 review cycle 1 issue 4: owned
+    # resolution runs on the RAW (possibly ``None``) ``--mission`` value,
+    # before the #4677 R-scoped sole-active-mission default below ever
+    # computes anything. Two failure modes this closes:
+    #   - ``--owned-checkout P`` without ``--mission`` used to have R's sole
+    #     active mission silently substituted in, then resolved against P --
+    #     it must instead reach ``resolve_owned_mission``'s own
+    #     "--owned-checkout requires an explicit --mission" refusal.
+    #   - flagless adoption (no ``--owned-checkout``) from a foreign checkout
+    #     without ``--mission`` used to fall through to R's default and
+    #     render R's UNRELATED mission -- adoption needs a handle
+    #     (``adopt_owned_checkout`` returns ``None`` without one), so it is
+    #     never triggered by this reordering alone.
+    if _st_resolve_owned(st, repo_root, st.mission):
+        return
+
     # #4677: an omitted --mission defaults to the sole active mission (maintainer
     # decision on the issue); zero or several active missions fall through to
     # the existing "--mission <slug> is required" error in ``_find_mission_slug``.
+    # Issue 4 (cycle 3): the default is skipped ONLY when the invoking
+    # checkout would be adopted as an owned checkout -- asked of the single
+    # adoption authority (``invoking_checkout_would_adopt``), over the
+    # checkout's own missions. R, lane/coordination worktrees (listed or
+    # stale) and plain linked checkouts adopt nothing and keep #4677's behaviour.
     explicit_mission = st.mission
     if not (explicit_mission and explicit_mission.strip()):
         from specify_cli.cli.commands.agent.mission_feature_resolution import _sole_active_mission_slug_or_none
+        from specify_cli.core.owned_mission import invoking_checkout_would_adopt
 
-        explicit_mission = _sole_active_mission_slug_or_none(repo_root)
+        candidate = _sole_active_mission_slug_or_none(repo_root)
+        if candidate is not None and not invoking_checkout_would_adopt(repo_root, st.cwd):
+            explicit_mission = candidate
 
     st.mission_slug = _tasks._find_mission_slug(
         explicit_mission=explicit_mission,
@@ -299,7 +372,7 @@ def _st_gated_runtime_fields(feature_dir: Path, wp_id: str | None) -> tuple[str,
     return str(row["agent"]), str(row["shell_pid"])
 
 
-def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None) -> tuple[str, str]:
+def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None, *, owned: OwnedCheckout | None = None) -> tuple[str, str]:
     """Resolve ``(execution_mode, workspace_kind)`` for one WP row (verbatim fallbacks)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -309,7 +382,10 @@ def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: s
         # default path as the "resolver could not classify" arm below.
         return extract_scalar(front, "execution_mode") or "code_change", "unknown"
     try:
-        workspace = _tasks.resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        # Keep the ``_tasks.`` attribute route (module docstring): historical
+        # ``@patch("...agent.tasks.resolve_workspace_for_wp")`` seams must
+        # keep intercepting.
+        workspace = _tasks.resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id, owned=owned)
         return workspace.execution_mode, workspace.resolution_kind
     except MissingLanesError:
         # Without lanes.json the resolver cannot return a workspace, but we still
@@ -327,6 +403,46 @@ def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: s
     except (ValueError, FileNotFoundError):
         # Resolver could not classify; fall back to frontmatter and default.
         return extract_scalar(front, "execution_mode") or "code_change", "unknown"
+
+
+def _st_status_read_dir(st: _StatusState) -> Path:
+    """The one committed-vs-coordination read-dir decision for the status board (#3829 item 3).
+
+    Campsite extraction ahead of the owned-checkout wiring (WP09 T045):
+    behaviour-preserving today. The caller derives "is the committed surface
+    authoritative" via ``status_read_dir is not st.feature_dir`` (object
+    identity, not value equality) rather than re-deriving
+    ``committed_dir is not None`` from a second call here -- this returns
+    ``st.feature_dir`` itself (the SAME object) only in the non-committed
+    case, so identity exactly reconstructs the original boolean with no
+    behaviour change, even in the edge case where a committed dir would
+    coincidentally equal ``feature_dir`` by value.
+
+    Owned runs (WP09, FR-004/FR-007) return ``st.owned.mission_dir`` (the
+    SAME object already stored on ``st.feature_dir`` by
+    :func:`_st_resolve_owned`) and never call ``committed_status_dir`` --
+    R's merged-or-committed copy is exactly the stale copy that must never
+    win.
+    """
+    if st.owned is not None:
+        return st.owned.mission_dir
+
+    from runtime.next.committed_authority import committed_status_dir
+
+    committed_dir = committed_status_dir(st.main_repo_root, st.mission_slug)
+    return committed_dir if committed_dir is not None else st.feature_dir
+
+
+def _st_config_root(st: _StatusState) -> Path:
+    """The checkout every configuration/doctrine read resolves from (WP09, FR-004).
+
+    ``st.owned.owned_root`` (P) for an owned run, ``st.main_repo_root`` (R)
+    otherwise. A derived helper, not a new ``Path`` field on
+    :class:`_StatusState` -- gate G5 bans a bare owned root stored
+    independently of the fact, and this is the honest form: every owned
+    config/doctrine read resolves from P.
+    """
+    return st.owned.owned_root if st.owned is not None else st.main_repo_root
 
 
 def _st_load_work_packages(st: _StatusState) -> None:
@@ -350,10 +466,8 @@ def _st_load_work_packages(st: _StatusState) -> None:
     ``status_read_dir`` IS ``st.feature_dir`` and every read is
     byte-identical to the coordination-aware board of before.
     """
-    from runtime.next.committed_authority import committed_status_dir
-
-    committed_dir = committed_status_dir(st.main_repo_root, st.mission_slug)
-    status_read_dir = committed_dir if committed_dir is not None else st.feature_dir
+    status_read_dir = _st_status_read_dir(st)
+    committed_authoritative = status_read_dir is not st.feature_dir
 
     def _read_events_and_snapshot(read_dir: Path) -> None:
         from specify_cli.status import read_events as _st_read_events
@@ -391,7 +505,7 @@ def _st_load_work_packages(st: _StatusState) -> None:
         else:
             wp_deps = []
         st.wp_dependencies[wp_id or wp_file.stem] = wp_deps
-        execution_mode, workspace_kind = _st_resolve_execution_mode(front, st.main_repo_root, st.mission_slug, wp_id)
+        execution_mode, workspace_kind = _st_resolve_execution_mode(front, st.main_repo_root, st.mission_slug, wp_id, owned=st.owned)
         # Route agent/shell_pid + the resolved-binding actuals through the ONE
         # reconstruction reader (SC-007). The authored ``agent_profile`` stays
         # frontmatter-canonical (design intent for the HiC marker) and DISTINCT
@@ -410,14 +524,11 @@ def _st_load_work_packages(st: _StatusState) -> None:
                 raise
             _st_row = _st_runtime_row(st.feature_dir, wp_id)
         row_lane = str(_st_row["lane"] or "")
-        if committed_dir is not None:
-            # The whole row is committed-sourced: a WP absent from the
-            # committed snapshot renders genesis — never the stale
-            # coordination lane beside committed companions, and never the
-            # non-display ``uninitialized`` sentinel.
-            lane_source = row_lane if row_lane and row_lane != Lane.UNINITIALIZED else str(Lane.GENESIS)
-        else:
-            lane_source = row_lane or str(Lane.GENESIS)
+        # The whole row is committed-sourced when authoritative: a WP absent
+        # from the committed snapshot renders genesis — never the stale
+        # coordination lane beside committed companions, and never the
+        # non-display ``uninitialized`` sentinel.
+        lane_source = (row_lane if row_lane and row_lane != Lane.UNINITIALIZED else str(Lane.GENESIS)) if committed_authoritative else row_lane or str(Lane.GENESIS)
         lane = resolve_lane_alias(lane_source)
         st.work_packages.append(
             {
@@ -453,7 +564,7 @@ def _st_apply_review_flags(st: _StatusState) -> None:
     """Phase C: annotate rows with stale-verdict + stalled-review warnings."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    st.review_stall_threshold = _tasks._review_stall_threshold_minutes(st.main_repo_root)
+    st.review_stall_threshold = _tasks._review_stall_threshold_minutes(_st_config_root(st))
     st.stale_verdicts, st.stalled_wps = _apply_review_status_flags(
         st.work_packages,
         feature_dir=st.feature_dir,
@@ -479,6 +590,7 @@ def _st_emit_json(st: _StatusState, ports: TasksPorts) -> None:
             mission_slug=st.mission_slug,
             doing_wps=doing_wps,
             threshold_minutes=st.stale_threshold,
+            owned=st.owned,
         )
     except MissingLanesError as exc:
         stale_results = build_stale_fallback_results(doing_wps, exc)
@@ -487,7 +599,7 @@ def _st_emit_json(st: _StatusState, ports: TasksPorts) -> None:
         if wp["lane"] == Lane.IN_PROGRESS and wp["id"] in stale_results:
             _tasks._apply_stale_status_fields(wp, stale_results[wp["id"]])
 
-    auto_commit_enabled = _tasks.get_auto_commit_default(st.main_repo_root)
+    auto_commit_enabled = _tasks.get_auto_commit_default(_st_config_root(st))
     # WP05: the pure aggregation core owns the kanban rollup + counts + percentages.
     view = _tasks.build_status_view(
         StatusRequest(
@@ -511,6 +623,12 @@ def _st_emit_json(st: _StatusState, ports: TasksPorts) -> None:
         "stalled_wps": st.stalled_wps,
         "auto_commit": auto_commit_enabled,
     }
+    if st.owned is not None:
+        # FR-007: additive-only in owned runs; non-owned payloads never carry
+        # this key (WP08's envelope rule).
+        from specify_cli.cli.commands._owned_checkout import stale_copy_payload
+
+        result.update(stale_copy_payload(st.owned))
     print(ports.render.json_envelope(result))
 
 
@@ -758,7 +876,7 @@ def _st_render_summary(ports: TasksPorts, st: _StatusState, view: StatusView) ->
     summary.add_row("In Progress:", f"[blue]{view.in_progress_count}[/blue]")
     summary.add_row("Planned:", f"[yellow]{view.planned_count}[/yellow]")
 
-    auto_commit_enabled = _tasks.get_auto_commit_default(st.main_repo_root)
+    auto_commit_enabled = _tasks.get_auto_commit_default(_st_config_root(st))
     auto_commit_label = "[green]enabled[/green]" if auto_commit_enabled else "[yellow]disabled[/yellow]"
     summary.add_row("Auto-commit:", auto_commit_label)
 
@@ -781,6 +899,13 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.core.stale_detection import check_doing_wps_for_staleness
 
+    if st.owned is not None:
+        # FR-007: human mode's stale-copy warning goes to stderr; non-owned
+        # runs never call this (WP08's envelope rule).
+        from specify_cli.cli.commands._owned_checkout import echo_stale_copy_warning
+
+        echo_stale_copy_warning(st.owned)
+
     view = _tasks.build_status_view(
         StatusRequest(
             work_packages=st.work_packages,
@@ -796,6 +921,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             mission_slug=st.mission_slug,
             doing_wps=by_lane[Lane.IN_PROGRESS],
             threshold_minutes=st.stale_threshold,
+            owned=st.owned,
         )
     except MissingLanesError as exc:
         stale_results = build_stale_fallback_results(by_lane[Lane.IN_PROGRESS], exc)
@@ -838,7 +964,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
                 build_activation_aware_doctrine_service,
             )
 
-            profile_repo = build_activation_aware_doctrine_service(st.main_repo_root).agent_profile_repository
+            profile_repo = build_activation_aware_doctrine_service(_st_config_root(st)).agent_profile_repository
         except ImportError:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
@@ -873,6 +999,7 @@ def _do_status(
     stale_threshold: int,
     *,
     ports: TasksPorts | None = None,
+    owned_claim: Path | None = None,
 ) -> None:
     """Orchestrate ``status`` over the WP05 ``build_status_view`` core + the Render port.
 
@@ -884,7 +1011,7 @@ def _do_status(
     """
 
     ports = ports or _default_status_ports()
-    st = _StatusState(mission=mission, json_output=json_output, stale_threshold=stale_threshold)
+    st = _StatusState(mission=mission, json_output=json_output, stale_threshold=stale_threshold, owned_claim=owned_claim)
     try:
         _st_resolve_dirs(st)
         _st_load_work_packages(st)

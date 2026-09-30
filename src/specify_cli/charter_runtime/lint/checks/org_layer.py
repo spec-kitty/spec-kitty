@@ -325,9 +325,9 @@ def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
     construction this returns.
     """
     org_roots = [
-        effective_root
+        pack_root
         for pack in registry.packs
-        if (effective_root := pack.effective_root(repo_root)).exists()
+        if (pack_root := pack.effective_root(repo_root)).exists()
     ]
     if not org_roots:
         return None

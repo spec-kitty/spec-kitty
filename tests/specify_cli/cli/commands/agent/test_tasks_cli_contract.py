@@ -145,7 +145,9 @@ CONTRACT_FLAGS: dict[str, tuple[str, ...]] = {
         "--auto-commit",
     ),
     "validate-workflow": ("--mission", "--json"),
-    "status": ("--mission", "--json", "--stale-threshold"),
+    # owned-checkout-lifecycle-authority WP09 (2026-09-29, FR-004): status
+    # gains --owned-checkout so an owned mission can be checked from P.
+    "status": ("--mission", "--json", "--stale-threshold", "--owned-checkout"),
     "list-dependents": ("--mission", "--json"),
     "check-terminability": ("--mission", "--json"),
 }

@@ -21,8 +21,10 @@ from tests.integration.test_explicit_checkout_commands import (
     invoke,
     snapshot,
 )
+from tests.status.test_transition_request_owned import claim_counter
+from specify_cli.workspace.context import clear_workspace_resolution_caches
 
-__all__ = ["checkouts"]
+__all__ = ["checkouts", "claim_counter"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
@@ -36,7 +38,7 @@ def test_owned_gate_baseline_reads_selected_mission_directory(tmp_path: Path, mo
         lambda path: captured.append(path),
     )
     state = SimpleNamespace(
-        owned=SimpleNamespace(root=tmp_path),
+        owned=SimpleNamespace(owned_root=tmp_path),
         wp=SimpleNamespace(path=wp),
         feature_dir=mission,
     )
@@ -77,7 +79,10 @@ def test_finalized_work_is_readable_in_selected_checkout(finalized_checkouts):
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
 
 
-def test_flagless_move_task_preserves_primary_lookup(finalized_checkouts):
+def test_flagless_move_task_preserves_primary_lookup(finalized_checkouts, monkeypatch):
+    """FR-022 control: flagless from the repository root checkout has nothing to adopt."""
+    monkeypatch.chdir(finalized_checkouts[0])
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(finalized_checkouts[0]))
     before = tuple(snapshot(root) for root in finalized_checkouts)
     result = CliRunner().invoke(
         tasks_app,
@@ -88,6 +93,21 @@ def test_flagless_move_task_preserves_primary_lookup(finalized_checkouts):
     assert payload["error_code"] == "MISSION_NOT_FOUND"
     assert payload["handle"] == SLUG
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
+
+
+def test_flagless_move_task_from_inside_owned_checkout_adopts_with_one_validation(finalized_checkouts, claim_counter):
+    """FR-021 adoption row: flagless from inside the owned checkout adopts it, validating once."""
+    _primary, owned, _sibling = finalized_checkouts
+    clear_workspace_resolution_caches()
+    claim_counter.clear()
+    result = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "doing", "--agent", "codex", "--mission", SLUG, "--json"],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(claim_counter) == 1, claim_counter
+    events = [json.loads(line) for line in (owned / "kitty-specs" / SLUG / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [row["to_lane"] for row in events if row.get("wp_id") == "WP01" and "to_lane" in row][-1] == "in_progress"
 
 
 @pytest.mark.parametrize("caller", ["owned", "primary", "sibling"])
@@ -273,7 +293,10 @@ def test_context_error_envelope_is_opt_in(checkouts, monkeypatch, explicit):
     monkeypatch.setattr(tasks_move_task, "_mt_resolve_targets", fail_context)
     args = ["move-task", "WP01", "--to", "doing", "--json"]
     if explicit:
-        args += ["--owned-checkout", str(checkouts[1])]
+        # WP16: ownership is validated at the Typer edge before the command body
+        # runs, so an explicit opt-in must name its mission (the body is what the
+        # patched ``_mt_resolve_targets`` replaces).
+        args += ["--mission", SLUG, "--owned-checkout", str(checkouts[1])]
     before = tuple(snapshot(root) for root in checkouts)
     result = CliRunner().invoke(tasks_app, args)
     assert result.exit_code == 1, result.output
@@ -1001,11 +1024,12 @@ def test_owned_rejection_annotation_failure_retains_durable_evidence(finalized_c
 def test_owned_ports_read_and_commit_only_selected_mission(checkouts):
     from mission_runtime import MissionArtifactKind
     from specify_cli.agent_tasks_ports import MissionHandle, RealCoordCommitRouter, RealFsReader
+    from specify_cli.core.owned_mission import resolve_owned_mission
     from specify_cli.git.protection_policy import ProtectionPolicy
 
     primary, owned, sibling = checkouts
     mission = owned / "kitty-specs" / SLUG
-    handle = MissionHandle(primary, SLUG, effective_root=owned)
+    handle = MissionHandle(primary, SLUG, owned=resolve_owned_mission(primary, owned, SLUG))
     reader = RealFsReader()
     before = snapshot(primary), snapshot(sibling)
     assert reader.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX) == mission
@@ -1024,3 +1048,106 @@ def test_owned_ports_read_and_commit_only_selected_mission(checkouts):
     assert result.placement_ref == TARGET
     assert "Owned port edit." in git(owned, "show", f"HEAD:kitty-specs/{SLUG}/spec.md")
     assert (snapshot(primary), snapshot(sibling)) == before
+
+
+# ---------------------------------------------------------------------------
+# WP16/T089 (FR-003 / NFR-002): exactly one ownership validation per owned
+# ``move-task`` invocation, counted at the ownership-claim primitive so a
+# re-introduced local validator call (the #3866 class) goes red.
+# ---------------------------------------------------------------------------
+
+
+def _counted_move_task(claim_counter: list[Path | None], *args: str):
+    """Run ``move-task`` after clearing the process-global resolution caches and the counter."""
+    clear_workspace_resolution_caches()
+    claim_counter.clear()
+    return CliRunner().invoke(tasks_app, ["move-task", "WP01", *args, "--mission", SLUG, "--json"])
+
+
+def test_move_task_claim_validates_ownership_exactly_once(finalized_checkouts, claim_counter):
+    _primary, owned, _sibling = finalized_checkouts
+
+    result = _counted_move_task(claim_counter, "--to", "claimed", "--agent", "codex", "--owned-checkout", str(owned))
+
+    assert result.exit_code == 0, result.output
+    assert len(claim_counter) == 1, claim_counter
+
+
+def test_move_task_for_review_validates_ownership_exactly_once(finalized_checkouts, claim_counter):
+    """The review hop triggers the most readers (workspace, verdict, readiness); still one validation."""
+    _primary, owned, _sibling = finalized_checkouts
+    started = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "doing", "--agent", "implementer", "--mission", SLUG, "--owned-checkout", str(owned), "--json"],
+    )
+    assert started.exit_code == 0, started.output
+    (owned / "app.py").write_text("VALUE = 4\n", encoding="utf-8")
+
+    result = _counted_move_task(claim_counter, "--to", "for_review", "--agent", "implementer", "--owned-checkout", str(owned))
+
+    assert result.exit_code == 0, result.output
+    assert len(claim_counter) == 1, claim_counter
+
+
+def test_move_task_refusal_still_validates_exactly_once(checkouts, claim_counter):
+    _primary, owned, _sibling = checkouts
+
+    result = _counted_move_task(claim_counter, "--to", "doing", "--owned-checkout", str(owned / "kitty-specs"))
+
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["error_code"] == "OWNERSHIP_NESTED"
+    assert len(claim_counter) == 1, claim_counter
+
+
+def test_flagless_move_task_from_repository_root_checkout_validates_nothing(finalized_checkouts, claim_counter, monkeypatch):
+    primary, _owned, _sibling = finalized_checkouts
+    monkeypatch.chdir(primary)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
+
+    result = _counted_move_task(claim_counter, "--to", "claimed", "--agent", "codex")
+
+    assert result.exit_code == 1, result.output
+    assert claim_counter == []
+
+
+def test_owned_move_task_threads_the_fact_and_never_consults_get_main_repo_root(finalized_checkouts, monkeypatch):
+    """The owned arm reads the validated fact directly: the annotation emitter receives
+    ``owned=`` (never a bare root), and the ``tasks`` namespace's ``get_main_repo_root``
+    seam is never consulted for the whole review hop (WP16)."""
+    from mission_runtime import OwnedCheckout
+    from specify_cli.cli.commands.agent import tasks
+    from specify_cli.coordination import status_transition
+
+    _primary, owned, _sibling = finalized_checkouts
+    started = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "doing", "--agent", "implementer", "--mission", SLUG, "--owned-checkout", str(owned), "--json"],
+    )
+    assert started.exit_code == 0, started.output
+    (owned / "app.py").write_text("VALUE = 4\n", encoding="utf-8")
+
+    seen: list[dict[str, object]] = []
+    real_emit = status_transition.emit_inner_state_changed_transactional
+
+    def _recording(*args, **kwargs):
+        seen.append(kwargs)
+        return real_emit(*args, **kwargs)
+
+    def _forbidden(*_args, **_kwargs):
+        raise AssertionError("an owned run must not consult get_main_repo_root")
+
+    monkeypatch.setattr(status_transition, "emit_inner_state_changed_transactional", _recording)
+    monkeypatch.setattr(tasks, "get_main_repo_root", _forbidden)
+    clear_workspace_resolution_caches()
+
+    result = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "for_review", "--agent", "implementer", "--shell-pid", "4242", "--mission", SLUG, "--owned-checkout", str(owned), "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert seen, "the runtime-state annotation was never emitted"
+    for kwargs in seen:
+        assert isinstance(kwargs["owned"], OwnedCheckout)
+        assert kwargs["owned"].owned_root == owned.resolve()
+        assert "effective_root" not in kwargs

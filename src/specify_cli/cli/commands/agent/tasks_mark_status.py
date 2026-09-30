@@ -60,10 +60,11 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 
-from mission_runtime import ActionContextError, MissionArtifactKind
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _resolve_checkbox,
@@ -83,11 +84,7 @@ from specify_cli.core.subtask_rows import (
     SubtaskRosterResolutionError,
     authored_subtask_roster,
 )
-from specify_cli.core.owned_mission import (
-    OwnedMission,
-    require_unstaged_index,
-    resolve_owned_mission,
-)
+from specify_cli.core.owned_mission import require_unstaged_index
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: WP prompt directories carry a README that is not a work package.
@@ -110,7 +107,6 @@ class _MarkStatusState:
     mission: str | None
     auto_commit: bool | None
     json_output: bool
-    owned_checkout: Path | None = None
     # --- phase A/B: resolved context ---
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
@@ -120,7 +116,7 @@ class _MarkStatusState:
     feature_dir: Path = field(default_factory=Path)
     status_dir: Path = field(default_factory=Path)
     tasks_md: Path = field(default_factory=Path)
-    owned: OwnedMission | None = None
+    owned: OwnedCheckout | None = None
     applied_event_ids: list[str] = field(default_factory=list)
     applied_wps: list[str] = field(default_factory=list)
     # --- phase C: apply results ---
@@ -134,6 +130,7 @@ class _MarkStatusState:
 def _default_mark_status_ports() -> TasksPorts:
     """Production port bundle for ``mark_status`` (coord router bound to tasks.py)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     return TasksPorts(
         fs=_tasks.RealFsReader(),
         # mark_status routes only the commit seam through ``tasks`` and commits
@@ -148,6 +145,7 @@ def _default_mark_status_ports() -> TasksPorts:
 def _ms_validate_inputs(st: _MarkStatusState) -> None:
     """Phase A: validate ``--status`` + non-empty task IDs, then normalize IDs."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if st.status not in ("done", "pending"):
         _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done' or 'pending'.")
         raise typer.Exit(1)
@@ -170,51 +168,42 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
     commit refusal does not apply.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    repo_root = _tasks.locate_project_root()
-    if repo_root is None:
-        _tasks._output_error(st.json_output, "Could not locate project root")
-        raise typer.Exit(1)
-    if st.owned_checkout is not None:
-        primary = _tasks.get_main_repo_root(repo_root)
-        st.owned = resolve_owned_mission(primary, st.owned_checkout, st.mission)
-        require_unstaged_index(st.owned)
+
+    owned = st.owned
+    if owned is not None:
+        # Owned arm: every root, branch and slug comes off the validated fact
+        # (no project-root probe, no ``get_main_repo_root``, no mission-handle
+        # walk) -- ownership was validated exactly once at the Typer edge.
+        require_unstaged_index(owned)
         # #3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal died with the launch
         # flip — owned checkouts publish moments like any checkout. The
         # fan-out handlers on the status emit seam are individually bounded
         # and non-raising, and the Zeitgeist moment handler no-ops without a
         # session/team, so an owned mark-status under active sync completes
         # with at worst a skipped fan-out warning.
-        st.repo_root = st.owned.root
-        _tasks._emit_sparse_session_warning(
-            st.repo_root, command="spec-kitty agent tasks mark-status"
-        )
-        st.resolved_auto_commit = (
-            _tasks.get_auto_commit_default(st.repo_root)
-            if st.auto_commit is None
-            else st.auto_commit
-        )
+        st.repo_root = owned.owned_root
+        _tasks._emit_sparse_session_warning(st.repo_root, command="spec-kitty agent tasks mark-status")
+        st.resolved_auto_commit = _tasks.get_auto_commit_default(st.repo_root) if st.auto_commit is None else st.auto_commit
         if not st.resolved_auto_commit:
             raise ActionContextError(
-                "OWNED_OPTION_UNSUPPORTED",
+                OwnedRefusalCode.OWNED_OPTION_UNSUPPORTED,
                 "Owned mark-status requires auto-commit.",
             )
-        st.main_repo_root = st.owned.primary
-        st.target_branch = st.owned.target
-        st.mission_slug = st.owned.slug
+        st.main_repo_root = owned.repository_root
+        st.target_branch = owned.write_branch
+        st.mission_slug = owned.mission_slug
         return
 
+    repo_root = _tasks.locate_project_root()
+    if repo_root is None:
+        _tasks._output_error(st.json_output, "Could not locate project root")
+        raise typer.Exit(1)
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout session warning.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks mark-status")
-    st.resolved_auto_commit = (
-        _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
-    )
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
-    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
-        repo_root, st.mission_slug, st.json_output
-    )
+    st.resolved_auto_commit = _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
+    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
 
 
 def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -228,11 +217,8 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     husk under coord topology, so the write and the validation read would diverge.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    handle = MissionHandle(
-        repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        effective_root=st.owned.root if st.owned is not None else None,
-    )
+
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=st.owned)
     st.feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
     # #3027: this TASKS_INDEX-resolved dir is also handed to
     # owning_wp_from_authored_roster, which reads WORK_PACKAGE_TASK-kinded
@@ -255,6 +241,7 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
 def _ms_report_none_resolved(st: _MarkStatusState) -> None:
     """Emit the contracted 'no task IDs resolved' error and exit 1."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if st.json_output:
         render = _tasks.RealRender()
         print(render.json_envelope(_tasks._mark_status_json_payload(st.results)))
@@ -280,6 +267,7 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
     point). The router owns placement resolution AND the protected-primary refusal.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     # Extract spec number from mission_slug (e.g., "014" from "014-feature-name").
     spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
     if len(st.updated_tasks) == 1:
@@ -320,12 +308,9 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
     reference material only; neither is persisted by ``mark-status``.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     del ports  # Stable phase signature; event-only apply has no commit port.
-    lock = (
-        contextlib.nullcontext()
-        if st.owned is not None
-        else _tasks.feature_status_lock(st.main_repo_root, st.mission_slug)
-    )
+    lock = contextlib.nullcontext() if st.owned is not None else _tasks.feature_status_lock(st.main_repo_root, st.mission_slug)
     with lock:
         if not st.tasks_md.exists():
             _tasks._output_error(st.json_output, f"tasks.md not found: {st.tasks_md}")
@@ -371,6 +356,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
         # lock between read/resolve and append would reintroduce a TOCTOU race.
         _ms_emit_subtask_state(st)
 
+
 def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     """Emit the ``InnerStateChanged`` subtask-completion delta (T015, FR-003).
 
@@ -395,9 +381,7 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     resolved_tasks_by_wp: dict[str, list[str]] = {}
     unresolved_tasks: list[str] = []
     for task_id in st.updated_tasks:
-        history_wp_id = _resolve_history_wp_id(
-            tasks_content, task_id
-        ) or owning_wp_from_authored_roster(st.feature_dir, task_id)
+        history_wp_id = _resolve_history_wp_id(tasks_content, task_id) or owning_wp_from_authored_roster(st.feature_dir, task_id)
         if history_wp_id is None:
             unresolved_tasks.append(task_id)
         else:
@@ -419,10 +403,9 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
                 mission_slug=st.mission_slug,
                 repo_root=st.main_repo_root,
                 operation=f"mark-status {wp_id}",
-                effective_root=st.owned.root,
-                # #3866: thread the validated value object so the per-WP
-                # annotation identity does not re-run resolve_owned_mission.
-                owned_mission=st.owned,
+                # #3866: thread the validated fact so the per-WP annotation
+                # identity does not re-run the ownership validation.
+                owned=st.owned,
             )
             st.applied_event_ids.append(event.event_id)
             st.applied_wps.append(wp_id)
@@ -440,11 +423,12 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
 def _ms_output(st: _MarkStatusState) -> None:
     """Emit the mark-status success envelope + not-found warnings."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     result = _tasks._mark_status_json_payload(st.results)
     if st.owned is not None:
         head = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=st.owned.root,
+            cwd=st.owned.owned_root,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -452,8 +436,8 @@ def _ms_output(st: _MarkStatusState) -> None:
         )
         result.update(
             {
-                "owned_checkout": str(st.owned.root),
-                "destination_ref": st.owned.target,
+                "owned_checkout": str(st.owned.owned_root),
+                "destination_ref": st.owned.write_branch,
                 "commit_sha": head.stdout.strip() if head.returncode == 0 else None,
                 "status_events_path": str(st.status_dir / "status.events.jsonl"),
                 "status_snapshot_path": str(st.status_dir / "status.json"),
@@ -494,7 +478,7 @@ def _recovery_commit_sha(error: BaseException) -> str | None:
 
 
 def _reconstruct_applied_events(
-    owned: OwnedMission,
+    owned: OwnedCheckout,
     error: BaseException,
     events_path: Path | None,
 ) -> list[dict[str, object]]:
@@ -510,10 +494,10 @@ def _reconstruct_applied_events(
     recovery_commit_sha = _recovery_commit_sha(error)
     if recovery_commit_sha is None or events_path is None:
         return []
-    relative_events = events_path.relative_to(owned.root).as_posix()
+    relative_events = events_path.relative_to(owned.owned_root).as_posix()
     committed_log = subprocess.run(
         ["git", "show", f"{recovery_commit_sha}:{relative_events}"],
-        cwd=owned.root,
+        cwd=owned.owned_root,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -521,19 +505,14 @@ def _reconstruct_applied_events(
     )
     parent_log = subprocess.run(
         ["git", "show", f"{recovery_commit_sha}^:{relative_events}"],
-        cwd=owned.root,
+        cwd=owned.owned_root,
         capture_output=True,
         text=True,
         encoding="utf-8",
         check=False,
     )
     with contextlib.suppress(ValueError, KeyError):
-        parent_ids = {
-            str(row["event_id"])
-            for line in parent_log.stdout.splitlines()
-            if parent_log.returncode == 0 and line.strip()
-            for row in (json.loads(line),)
-        }
+        parent_ids = {str(row["event_id"]) for line in parent_log.stdout.splitlines() if parent_log.returncode == 0 and line.strip() for row in (json.loads(line),)}
         return [
             row
             for line in committed_log.stdout.splitlines()
@@ -544,13 +523,81 @@ def _reconstruct_applied_events(
     return []
 
 
+def _ms_failure_payload(
+    error_code: str,
+    error: str,
+    *,
+    event_ids: list[str] | None = None,
+    applied_wps: list[str] | None = None,
+    destination_ref: str | None = None,
+    status_events_path: Path | None = None,
+    status_snapshot_path: Path | None = None,
+    dirty: bool | None = None,
+) -> dict[str, object]:
+    """The owned ``mark-status`` failure envelope (#3865): the ONE builder of its key set.
+
+    Both the in-command recovery path (real applied state) and the Typer-edge
+    ownership refusal (called positionally as an ``emit_owned_refusal``
+    envelope, so nothing applied) render through it, so the two cannot drift
+    key-for-key.
+    """
+    event_ids = event_ids or []
+    return {
+        "result": "error",
+        "error_code": error_code,
+        "error": error,
+        "state_applied": bool(event_ids),
+        "event_ids": event_ids,
+        "applied_wps": applied_wps or [],
+        "destination_ref": destination_ref,
+        "status_events_path": str(status_events_path) if status_events_path is not None else None,
+        "status_snapshot_path": str(status_snapshot_path) if status_snapshot_path is not None else None,
+        "dirty": dirty,
+    }
+
+
+def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: Exception) -> NoReturn:
+    """Render the owned failure envelope (which events landed, dirty tree) and exit 1 (#3865)."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    status_dir = st.status_dir if st.status_dir != Path() else owned.mission_dir
+    events_path = status_dir / "status.events.jsonl"
+    detected = _reconstruct_applied_events(owned, error, events_path)
+    event_ids = list(dict.fromkeys([*st.applied_event_ids, *(str(row["event_id"]) for row in detected)]))
+    applied_wps = list(dict.fromkeys([*st.applied_wps, *(str(row["wp_id"]) for row in detected if row.get("wp_id"))]))
+    git_status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=owned.owned_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    error_code = getattr(error, "code", None) or getattr(error, "error_code", None) or "MARK_STATUS_FAILED"
+    payload = _ms_failure_payload(
+        error_code,
+        str(error),
+        event_ids=event_ids,
+        applied_wps=applied_wps,
+        destination_ref=owned.write_branch,
+        status_events_path=events_path,
+        status_snapshot_path=st.status_dir / "status.json" if st.status_dir != Path() else None,
+        dirty=bool(git_status.stdout.strip()) if git_status.returncode == 0 else None,
+    )
+    if st.json_output:
+        print(json.dumps(payload))
+    else:
+        _tasks.console.print(f"[red]{error_code}: {error}[/red]")
+    raise typer.Exit(1) from error
+
+
 def _do_mark_status(
     task_ids: list[str],
     status: str,
     mission: str | None,
     auto_commit: bool | None,
     json_output: bool,
-    owned_checkout: Path | None = None,
+    owned: OwnedCheckout | None = None,
     *,
     ports: TasksPorts | None = None,
 ) -> None:
@@ -563,15 +610,19 @@ def _do_mark_status(
     builds the production bundle (coord router bound to this module's patchable
     ``commit_for_mission``). The phase helpers run in the SAME order as the original
     single body: validate → resolve → apply → history → dossier → output.
+
+    ``owned`` is the validated ownership fact (``None`` for an ordinary run),
+    minted exactly once at the Typer edge by :func:`tasks._resolve_task_owned`.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     st = _MarkStatusState(
         task_ids=list(task_ids),
         status=status,
         mission=mission,
         auto_commit=auto_commit,
         json_output=json_output,
-        owned_checkout=owned_checkout,
+        owned=owned,
     )
     try:
         _ms_validate_inputs(st)
@@ -583,60 +634,8 @@ def _do_mark_status(
     except typer.Exit:
         raise
     except Exception as e:
-        if st.owned_checkout is not None:
-            events_path = (
-                st.status_dir / "status.events.jsonl"
-                if st.status_dir != Path()
-                else st.owned.directory / "status.events.jsonl"
-                if st.owned is not None
-                else None
-            )
-            detected: list[dict[str, object]] = []
-            if st.owned is not None and events_path is not None:
-                detected = _reconstruct_applied_events(st.owned, e, events_path)
-            event_ids = list(dict.fromkeys([
-                *st.applied_event_ids,
-                *(str(row["event_id"]) for row in detected),
-            ]))
-            applied_wps = list(dict.fromkeys([
-                *st.applied_wps,
-                *(str(row["wp_id"]) for row in detected if row.get("wp_id")),
-            ]))
-            dirty = None
-            if st.owned is not None:
-                git_status = subprocess.run(
-                    ["git", "status", "--porcelain"],
-                    cwd=st.owned.root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    check=False,
-                )
-                dirty = (
-                    bool(git_status.stdout.strip())
-                    if git_status.returncode == 0
-                    else None
-                )
-            error_code = getattr(e, "code", None) or getattr(e, "error_code", None) or "MARK_STATUS_FAILED"
-            payload = {
-                "result": "error",
-                "error_code": error_code,
-                "error": str(e),
-                "state_applied": bool(event_ids),
-                "event_ids": event_ids,
-                "applied_wps": applied_wps,
-                "destination_ref": st.owned.target if st.owned is not None else None,
-                "status_events_path": str(events_path) if events_path is not None else None,
-                "status_snapshot_path": (
-                    str(st.status_dir / "status.json") if st.status_dir != Path() else None
-                ),
-                "dirty": dirty,
-            }
-            if st.json_output:
-                print(json.dumps(payload))
-            else:
-                _tasks.console.print(f"[red]{error_code}: {e}[/red]")
-            raise typer.Exit(1) from e
+        if owned is not None:
+            _ms_report_owned_failure(st, owned, e)
         _tasks._output_error(json_output, str(e))
         raise typer.Exit(1) from None
 
@@ -654,7 +653,6 @@ def _do_mark_status(
 # test_tasks_mark_status_seam.py) keeps INTERCEPTING; ``tasks.py`` re-imports
 # the name in the explicit ``as`` re-export form (NFR-002).
 # ===========================================================================
-
 
 
 def _resolve_authored_roster(task_id: str, feature_dir: Path) -> TaskIdResult | None:

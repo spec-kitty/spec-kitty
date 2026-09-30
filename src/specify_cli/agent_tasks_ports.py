@@ -39,13 +39,17 @@ import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypedDict, runtime_checkable
 
 from rich.console import Console
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import (
+    MissionArtifactKind,
+    OwnedCheckout,
+    PlacementSeam,
+    placement_seam,
+)
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import locate_project_root
 from specify_cli.coordination.commit_router import (
     CommitRouterResult,
@@ -76,7 +80,7 @@ class MissionHandle:
 
     repo_root: Path
     mission_slug: str
-    effective_root: Path | None = None
+    owned: OwnedCheckout | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -233,6 +237,28 @@ class Render(Protocol):
 # ---------------------------------------------------------------------------
 
 
+class _OwnedKwargs(TypedDict, total=False):
+    owned: OwnedCheckout
+
+
+def _owned_kwargs(mission: MissionHandle) -> _OwnedKwargs:
+    """``{"owned": mission.owned}`` or ``{}`` (C-001 byte-parity).
+
+    A non-owned handle must produce NO extra keyword on the injected
+    ``commit_fn`` (several tests assert the exact mock call shape).
+    """
+    return {"owned": mission.owned} if mission.owned is not None else {}
+
+
+def _placement_for(mission: MissionHandle) -> PlacementSeam:
+    """Resolve one shared :class:`PlacementSeam` for ``mission`` (T036).
+
+    Routes through the fact when the handle holds one; otherwise the
+    non-owned seam.
+    """
+    return placement_seam(mission.repo_root, mission.mission_slug, owned=mission.owned)
+
+
 class RealFsReader:
     """Real :class:`FsReader` over the canonical read-path resolvers."""
 
@@ -246,17 +272,11 @@ class RealFsReader:
         # Annotated local: the project runs mypy with ``follow_imports = "skip"``,
         # so the imported (typed ``-> Path``) resolver surfaces as ``Any`` here;
         # the annotation re-pins the known concrete type without a suppression.
-        read_dir: Path = placement_seam(
-            mission.repo_root, mission.mission_slug,
-            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
-        ).read_dir(kind)
+        read_dir: Path = _placement_for(mission).read_dir(kind)
         return read_dir
 
     def wp_tasks_dir(self, mission: MissionHandle) -> Path:
-        feature_dir: Path = placement_seam(
-            mission.repo_root, mission.mission_slug,
-            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
-        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        feature_dir: Path = _placement_for(mission).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         return feature_dir / "tasks"
 
     def primary_anchor_dir(self, mission: MissionHandle) -> Path:
@@ -275,10 +295,7 @@ class RealFsReader:
         # seam does not already do — folding twice is idempotent, not merely
         # equivalent (the fold's own no-op leg for an unresolvable handle
         # returns it unchanged either way).
-        anchor: Path = placement_seam(
-            mission.repo_root, mission.mission_slug,
-            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        anchor: Path = _placement_for(mission).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return anchor
 
 
@@ -335,11 +352,10 @@ class RealCoordCommitRouter:
         self._emit_fn = emit_fn or emit_status_transition_transactional
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
-        if mission.effective_root is not None:
-            write_dir: Path = placement_seam(
-                mission.repo_root, mission.mission_slug, effective_root=mission.effective_root,
-            ).read_dir(MissionArtifactKind.STATUS_STATE)
+        if mission.owned is not None:
+            write_dir: Path = _placement_for(mission).read_dir(MissionArtifactKind.STATUS_STATE)
             return write_dir
+        # Non-owned handles keep calling this resolver, byte-identical.
         write_dir = resolve_feature_dir_for_mission(
             mission.repo_root, mission.mission_slug
         )
@@ -366,6 +382,9 @@ class RealCoordCommitRouter:
         # C-001 byte-parity: thread ``target_branch`` ONLY when the family opted
         # in (map_requirements). The others omit the kwarg entirely so the mock
         # call shape stays identical to the pre-collapse inline call.
+        # Owned kwargs (T036): pass ``owned=`` only when the handle holds a fact
+        # (C-001 byte-parity).
+        owned_kwargs = _owned_kwargs(mission)
         if self._thread_target_branch:
             result = self._commit_fn(
                 mission.repo_root,
@@ -375,7 +394,7 @@ class RealCoordCommitRouter:
                 policy,
                 kind=kind,
                 target_branch=self._target_branch,
-                **effective_root_kwargs(mission.effective_root),
+                **owned_kwargs,
             )
         else:
             result = self._commit_fn(
@@ -385,7 +404,7 @@ class RealCoordCommitRouter:
                 message,
                 policy,
                 kind=kind,
-                **effective_root_kwargs(mission.effective_root),
+                **owned_kwargs,
             )
         return CommitArtifactResult(
             status=result.status,

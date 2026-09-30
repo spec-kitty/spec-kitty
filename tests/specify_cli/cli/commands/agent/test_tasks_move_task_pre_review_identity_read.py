@@ -13,7 +13,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskState,
     _mt_resolve_active_gate_bindings,
 )
-from specify_cli.core.owned_mission import OwnedMission
+from tests._owned_fixtures import mint_test_fact
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.review.gate_bindings import GateCoverage, resolve_gate_bindings_for_transition
@@ -179,7 +179,7 @@ def test_owned_identity_and_activation_stay_on_selected_root(tmp_path: Path, own
     owned_root = tmp_path / "owned"
     primary, status = _mission(owned_root, coord=False)
     st = _state(root, status)
-    st.owned = OwnedMission(root, owned_root, primary, _MISSION, "topic")
+    st.owned = mint_test_fact(repository_root=root, owned_root=owned_root, mission_dir=primary, mission_slug=_MISSION, write_branch="topic")
     if owned_state == "unactivated":
         (owned_root / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
     elif owned_state == "missing":

@@ -247,3 +247,43 @@ def test_scaffold_does_not_match_section_anchor_links(
     assert out_path is None
     assert not (feature_dir / "issue-matrix.json").exists()
     assert not calls
+
+
+def test_fold_into_caller_commit_writes_bare_when_home_is_feature_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP13 (FR-015/NFR-001): the flat-home scaffold is a bare write -- no write-seam commit."""
+    _stub_flat_topology(monkeypatch)
+    calls = _stub_write_artifact_committed(monkeypatch)
+    feature_dir, spec_md = _write_spec(tmp_path, "Tracks #4242 for this mission.\n")
+
+    result = scaffold_issue_matrix(
+        feature_dir,
+        spec_md,
+        repo_root=tmp_path,
+        mission_slug="099-demo",
+        policy=_Policy(),
+        fold_into_caller_commit=True,
+    )
+
+    assert result == feature_dir / "issue-matrix.json"
+    assert "#4242" in json.loads(result.read_text(encoding="utf-8"))["rows"]
+    assert calls == [], "the bare write must not route through the commit-making write seam"
+
+
+def test_fold_into_caller_commit_keeps_the_coord_routed_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A declared home OTHER than feature_dir keeps the write-seam commit unchanged."""
+    coord_dir = tmp_path / "coord"
+    coord_dir.mkdir()
+    monkeypatch.setattr(mission_runtime, "coord_read_dir_for", lambda *a, **k: coord_dir)
+    calls = _stub_write_artifact_committed(monkeypatch)
+    feature_dir, spec_md = _write_spec(tmp_path, "Tracks #4242 for this mission.\n")
+
+    scaffold_issue_matrix(
+        feature_dir,
+        spec_md,
+        repo_root=tmp_path,
+        mission_slug="099-demo",
+        policy=_Policy(),
+        fold_into_caller_commit=True,
+    )
+
+    assert len(calls) == 1

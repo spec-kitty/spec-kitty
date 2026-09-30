@@ -53,11 +53,11 @@ from pathlib import Path
 from mission_runtime import (
     MissionArtifactKind,
     MissionResolver,
+    OwnedCheckout,
     TopologySurface,
     declared_read_surface,
     resolve_artifact_surface,
 )
-from specify_cli.core.owned_mission import effective_root_kwargs
 
 
 class LifecyclePhase(enum.IntEnum):
@@ -235,7 +235,7 @@ def declared_home_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> TopologySurface:
     """The surface a ``kind`` authoritatively belongs to under the STORED topology.
 
@@ -266,7 +266,7 @@ def declared_home_surface(
     """
     return declared_read_surface(
         repo_root, mission_slug, kind, resolver=resolver,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
 
 
@@ -316,7 +316,7 @@ def build_gate_execution_context(
     phase: LifecyclePhase,
     ref: str,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> GateExecutionContext:
     """The ONE construction door for a :class:`GateExecutionContext` (GEC-1).
 
@@ -337,7 +337,7 @@ def build_gate_execution_context(
     """
     resolved = resolve_artifact_surface(
         repo_root, mission_slug, kind, resolver=resolver,
-        **effective_root_kwargs(effective_root),
+        owned=owned,
     )
     return GateExecutionContext(
         surface=resolved.path,

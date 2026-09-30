@@ -18,8 +18,10 @@ from tests.integration.test_explicit_checkout_commands import (
     invoke,
     snapshot,
 )
+from tests.status.test_transition_request_owned import claim_counter
+from specify_cli.workspace.context import clear_workspace_resolution_caches
 
-__all__ = ["checkouts"]
+__all__ = ["checkouts", "claim_counter"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
@@ -110,7 +112,14 @@ def test_mark_status_updates_only_selected_checkout(
 
 def test_flagless_mark_status_preserves_primary_lookup(
     finalized_checkouts: tuple[Path, Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """FR-022 control: flagless from the repository root checkout has nothing to adopt.
+
+    The FR-021 adoption row is ``test_mark_status_validates_ownership_exactly_once[flagless_from_inside_owned]``.
+    """
+    monkeypatch.chdir(finalized_checkouts[0])
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(finalized_checkouts[0]))
     before = tuple(snapshot(root) for root in finalized_checkouts)
 
     result = CliRunner().invoke(
@@ -418,3 +427,106 @@ def test_post_commit_recovery_reports_only_exact_commit_events(
     assert payload["event_ids"] == committed_event_ids
     assert git(owned, "status", "--porcelain") == ""
     assert (snapshot(primary), snapshot(sibling)) == others_before
+
+
+# ---------------------------------------------------------------------------
+# WP16/T089 (FR-003 / NFR-002): exactly one ownership validation per owned
+# task-family command invocation, counted at the ownership-claim primitive so a
+# re-introduced local validator call (the #3866 class) goes red.
+# ---------------------------------------------------------------------------
+
+
+def _reset_counting(claim_counter: list[Path | None]) -> None:
+    """Clear the process-global resolution caches and the counter before a counted run."""
+    clear_workspace_resolution_caches()
+    claim_counter.clear()
+
+
+@pytest.mark.parametrize("flagged", [True, False], ids=["flag_given", "flagless_from_inside_owned"])
+def test_mark_status_validates_ownership_exactly_once(
+    finalized_checkouts: tuple[Path, Path, Path],
+    claim_counter: list[Path | None],
+    flagged: bool,
+) -> None:
+    _primary, owned, _sibling = finalized_checkouts
+    args = ["mark-status", "T001", "--status", "done", "--mission", SLUG, "--json"]
+    if flagged:
+        args += ["--owned-checkout", str(owned)]
+    _reset_counting(claim_counter)
+
+    result = CliRunner().invoke(tasks_app, args)
+
+    assert result.exit_code == 0, result.output
+    assert len(claim_counter) == 1, claim_counter
+
+
+def test_flagless_mark_status_from_repository_root_checkout_validates_nothing(
+    finalized_checkouts: tuple[Path, Path, Path],
+    claim_counter: list[Path | None],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary, _owned, _sibling = finalized_checkouts
+    monkeypatch.chdir(primary)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
+    _reset_counting(claim_counter)
+
+    result = CliRunner().invoke(tasks_app, ["mark-status", "T001", "--status", "done", "--mission", SLUG, "--json"])
+
+    assert result.exit_code == 1, result.output
+    assert claim_counter == []
+
+
+@pytest.mark.parametrize("command", ["spec-commit", "check-prerequisites"])
+def test_owned_authoring_command_validates_ownership_exactly_once(
+    checkouts: tuple[Path, Path, Path],
+    claim_counter: list[Path | None],
+    command: str,
+) -> None:
+    _primary, owned, _sibling = checkouts
+    if command == "spec-commit":
+        spec = owned / "kitty-specs" / SLUG / "spec.md"
+        spec.write_text(spec.read_text(encoding="utf-8") + "\nCounted edit.\n", encoding="utf-8")
+    _reset_counting(claim_counter)
+
+    result = invoke(command, owned)
+
+    assert result.exit_code == 0, result.output
+    assert len(claim_counter) == 1, claim_counter
+
+
+def test_owned_mark_status_threads_the_fact_and_never_consults_get_main_repo_root(
+    finalized_checkouts: tuple[Path, Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The owned arm reads the validated fact directly: the annotation emitter receives
+    ``owned=`` (never a bare root), and the ``tasks`` namespace's ``get_main_repo_root``
+    seam is never consulted (WP16)."""
+    from mission_runtime import OwnedCheckout
+    from specify_cli.cli.commands.agent import tasks
+    from specify_cli.coordination import status_transition
+
+    _primary, owned, _sibling = finalized_checkouts
+    seen: list[dict[str, object]] = []
+    real_emit = status_transition.emit_inner_state_changed_transactional
+
+    def _recording(*args: object, **kwargs: object) -> object:
+        seen.append(kwargs)
+        return real_emit(*args, **kwargs)
+
+    def _forbidden(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("an owned run must not consult get_main_repo_root")
+
+    monkeypatch.setattr(status_transition, "emit_inner_state_changed_transactional", _recording)
+    monkeypatch.setattr(tasks, "get_main_repo_root", _forbidden)
+
+    result = CliRunner().invoke(
+        tasks_app,
+        ["mark-status", "T001", "--status", "done", "--mission", SLUG, "--owned-checkout", str(owned), "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert len(seen) == 1
+    fact = seen[0]["owned"]
+    assert isinstance(fact, OwnedCheckout)
+    assert fact.owned_root == owned.resolve()
+    assert "effective_root" not in seen[0]

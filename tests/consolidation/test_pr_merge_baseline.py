@@ -47,6 +47,7 @@ from specify_cli.consolidation.baseline import (
     PrMergeEvidenceError,
     verify_pr_merge_evidence,
 )
+from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [
     pytest.mark.integration,
@@ -880,6 +881,13 @@ def test_verify_effective_root_resolves_declared_target_from_owned_checkout(
     worktree_meta["topology"] = "single_branch"
     worktree_meta_path.write_text(json.dumps(worktree_meta) + "\n", encoding="utf-8")
 
+    # The validated fact for the worktree. The worktree is a bare
+    # ``git worktree add`` without an ownership claim, so the production
+    # validator would refuse it; the WP02 test helper mints the fact directly.
+    owned = mint_test_fact(
+        repository_root=repo_root, owned_root=worktree_root, mission_dir=worktree_root / "kitty-specs" / _SLUG, mission_slug=_SLUG, write_branch="main"
+    )
+
     # Bare call (no effective_root): falls back to the PRIMARY repo's bogus
     # declared target and refuses — the divergence this fold closes.
     with pytest.raises(PrMergeEvidenceError, match="not on target branch 'bogus-unreachable-target'"):
@@ -893,7 +901,7 @@ def test_verify_effective_root_resolves_declared_target_from_owned_checkout(
         _SLUG,
         merge_commit,
         attest_first_landing=True,
-        effective_root=worktree_root,
+        owned=owned,
     )
     assert evidence.pr_merge_commit == merge_commit
 

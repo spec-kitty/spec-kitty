@@ -111,7 +111,7 @@ def test_read_dir_for_primary_metadata_anchors_on_primary_root(
 ) -> None:
     """``read_dir_for`` composes the PRIMARY-metadata dir against ``primary_root``.
 
-    The ``effective_root is None`` (default) arm composes against the passed
+    The default (no ``owned`` fact) arm composes against the passed
     ``primary_root`` regardless of any worktree ``cwd`` — the #3328 / C-002
     anchor. We assert the composed dir lives under the primary tree.
     """
@@ -119,7 +119,6 @@ def test_read_dir_for_primary_metadata_anchors_on_primary_root(
     from mission_runtime.resolution import read_dir_for
 
     read_dir = read_dir_for(
-        None,
         primary_with_mission,
         _MISSION_SLUG,
         kind=MissionArtifactKind.PRIMARY_METADATA,

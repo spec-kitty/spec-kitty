@@ -2279,25 +2279,13 @@ def review_context_for_repo_root_workspace(
     ``HEAD`` and the "base" is the WP's own claim commit."""
     import subprocess
 
-    wp_paths = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
-    claim = subprocess.run(
-        ["git", "log", "--format=%H%x00%s", "--", *(str(path) for path in wp_paths)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    claim_commit: str | None = None
-    for raw in claim.stdout.splitlines():
-        commit_hash, _, subject = raw.partition("\x00")
-        if not commit_hash:
-            continue
-        if f"Move {wp_id} to in_progress" in subject or f"{wp_id} claimed for implementation" in subject or f"Start {wp_id} implementation" in subject:
-            claim_commit = commit_hash.strip()
-            break
-    if claim_commit is None:
+    from mission_runtime import ClaimCommitUnresolved, claim_commit_for_wp
+
+    # FR-025: the claim commit is the unique commit that introduced the WP's last
+    # ``claimed`` event id -- never a commit-subject match. Unresolvable => no base.
+    try:
+        claim_commit = claim_commit_for_wp(feature_dir, wp_id)
+    except ClaimCommitUnresolved:
         return ctx
     count = subprocess.run(
         ["git", "rev-list", "--count", f"{claim_commit}..HEAD"],
