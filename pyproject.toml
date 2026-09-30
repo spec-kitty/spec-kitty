@@ -1152,7 +1152,6 @@ exclude = [
     "tests/cli/commands/test_intake.py",
     "tests/cli/commands/test_render_fold_not_repairable_3115.py",
     "tests/cli/commands/test_resolve_lanes_dir.py",
-    "tests/cli/commands/test_retrospect.py",
     "tests/cli/commands/test_retrospect_update_persisted.py",
     "tests/cli/test_agent_retrospect_synthesize.py",
     "tests/cli/test_agent_status_messaging.py",
