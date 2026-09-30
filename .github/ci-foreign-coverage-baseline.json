@@ -13,7 +13,8 @@
       "in_matrix_dark_packages is 22 after WP02 remediation (was 27): reachable by some out-of-matrix / nightly test but by no per-PR (in-matrix) test.",
       "WP02 (FR-005/FR-009) shrank in_matrix_dark 27->22 by enrolling five out-of-matrix test trees into existing in-matrix module rows: tests/specify_cli/live_work + tests/calibration + tests/specify_cli/config + tests/specify_cli/tasks_authoring + tests/specify_cli/bootstrap into core_misc (cov_target specify_cli), removing {specify_cli.live_work.adapters, specify_cli.calibration, specify_cli.config, specify_cli.tasks_authoring, specify_cli.bootstrap} from this set. live_work was enrolled into core_misc rather than minting a dedicated row (a new row needs a scrub-group + ci-router filter guarded by bijection/transcription -- deferred follow-up #4732/#5037). specify_cli.diagnostics is deliberately KEPT: it is imported only by path-routed tests/e2e (per-PR covered, not a module shard), recorded honest debt. WP02 also ratcheted the agent own_root_ratio 0.012821->0.025316 by promoting tests/specify_cli/agent_utils into the agent row (FR-004). This baseline sidecar is WP01-owned; WP02's edit is an intentional sequential out-of-map edit (WP02 depends on WP01), permitted because all registry remediation lives in one owner to avoid parallel collisions.",
       "2026-09-26 landing recapture (PR #5040, terminus-reconciliation-attribution-integrity): merge own_root_ratio 0.715909 -> 0.695652 (64/92). The merge row resolves tests/terminus (registry #5001); this PR adds four charter-mandated real-CLI mock-free reconciliation repros (test_repro_5018/5021/5022/5038.py), three of which drive `spec-kitty merge` through the CLI entry point rather than importing specify_cli.merge -- the higher-fidelity test style ADR 2026-07-17-1 requires for merge-integrity P0s. The merge src root stays imported (dark-root floor still passes); only the own-root *proportion* dipped as legitimate integration repros joined the denominator. Recaptured to the MEASURED value rather than forcing a cosmetic import into integration tests. dark_roots / truly_dark_packages / in_matrix_dark_packages all unchanged (the PR added symbols to existing merge modules, no new package).",
-      "mission consolidate-canonical-terminology-01M3GSSV WP01 (#3080): the `merge` row/key renamed to `consolidation` (src/specify_cli/merge -> src/specify_cli/consolidation; the CLI command spec-kitty merge -> spec-kitty consolidate). Recaptured to the freshly MEASURED value 0.6875 (same source/test population, only the module name moved) rather than carrying the stale 0.695652 figure under a dead key."
+      "mission consolidate-canonical-terminology-01M3GSSV WP01 (#3080): the `merge` row/key renamed to `consolidation` (src/specify_cli/merge -> src/specify_cli/consolidation; the CLI command spec-kitty merge -> spec-kitty consolidate). Recaptured to the freshly MEASURED value 0.6875 (same source/test population, only the module name moved) rather than carrying the stale 0.695652 figure under a dead key.",
+      "2026-09-30 landing recapture (PR #5445, owned-checkout-lifecycle-authority): truly_dark_packages recaptured to the MEASURED 18. This PR adds mission_runtime.claim_commit (the fail-closed claim-commit authority): its dedicated test tests/mission_runtime/test_claim_commit.py imports claim_commit_for_wp through the mission_runtime package facade (the repo import-boundary convention), so the submodule path registers no direct test import and is honest truly-dark debt, alongside its already-baselined siblings mission_runtime.identity / mission_resolver_port / read_dir_degrade. The same MEASURED recapture drops three now-covered entries that gained test imports on main since the 2026-09-25 measurement (charter.model_routing, charter.pack_paths, mission_runtime.checkout_identity) -- a shrink, not this PR's doing. dark_roots / in_matrix_dark_packages / own_root_ratios left at their committed floors: they still pass (no new members; ratios within the shrink-only tolerance), and lowering the ratio floor to the drifted MEASURED value would violate the ratchet-up discipline."
     ]
   },
   "dark_roots": [
@@ -40,9 +41,7 @@
   "truly_dark_packages": [
     "charter.assets",
     "charter.glossary_packs",
-    "charter.model_routing",
     "charter.offering.import_candidates",
-    "charter.pack_paths",
     "charter.primitives",
     "charter.provenance",
     "charter.spdd_reasons",
@@ -50,7 +49,7 @@
     "charter.versioning",
     "glossary.semantic_events",
     "kernel.schema_utils",
-    "mission_runtime.checkout_identity",
+    "mission_runtime.claim_commit",
     "mission_runtime.identity",
     "mission_runtime.mission_resolver_port",
     "mission_runtime.read_dir_degrade",
