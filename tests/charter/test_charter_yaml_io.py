@@ -12,12 +12,14 @@ untouched.
 from __future__ import annotations
 
 from pathlib import Path
+import types
 
 import pytest
 
 from charter.activation.charter_yaml_io import (
     OWNED_SECTIONS,
     UnknownCharterYamlSectionError,
+    catalog_field_from_document,
     load_charter_yaml,
     save_charter_yaml,
     update_charter_yaml_section,
@@ -719,3 +721,45 @@ def test_failed_yaml_creation_does_not_mint_receipt(tmp_path: Path, monkeypatch:
         apply_yaml_write(prepared)
     with pytest.raises(ValueError, match="no completion receipt"):
         prepared.recheck_applied()
+
+
+def test_catalog_field_from_document_accepts_a_mappingproxytype_document() -> None:
+    """PR-FRESH2-002 (#5257, HALT round-3 operator ruling):
+    ``catalog_field_from_document`` must gate on ``collections.abc.Mapping``,
+    not the narrower ``dict``.
+
+    RED pre-fix: a ``types.MappingProxyType`` document -- Mapping-like but
+    not a ``dict`` subclass -- failed ``isinstance(document, dict)`` and
+    ``catalog_field_from_document`` returned ``None`` even though
+    ``catalog.mission`` was genuinely present and valid. GREEN post-fix:
+    the same document's mission is read through.
+    """
+    document = types.MappingProxyType(
+        {
+            "catalog": types.MappingProxyType(
+                {
+                    "mission": "software-dev",
+                    "template_set": "software-dev-default",
+                }
+            )
+        }
+    )
+
+    assert catalog_field_from_document(document, "mission") == "software-dev"
+    assert catalog_field_from_document(document, "template_set") == "software-dev-default"
+
+
+def test_catalog_field_from_document_rejects_a_plain_get_only_object() -> None:
+    """A plain object exposing only a ``.get`` method (not a real
+    ``collections.abc.Mapping``) is NOT treated as a document -- the fix
+    widens the predicate from ``dict`` to ``Mapping``, it does not widen it
+    to "anything duck-typed with ``.get``". This pins that the tightened
+    predicate is still a real ``isinstance`` check, not a ``hasattr``
+    duck-type check in disguise.
+    """
+
+    class GetOnly:
+        def get(self, key: str, default: object = None) -> object:
+            return {"mission": "software-dev"}.get(key, default)
+
+    assert catalog_field_from_document(GetOnly(), "mission") is None

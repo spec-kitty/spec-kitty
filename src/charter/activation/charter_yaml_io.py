@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import copy
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 import hashlib
 from io import StringIO
@@ -535,6 +536,39 @@ def save_charter_yaml(path: Path, document: Any) -> None:
     apply_yaml_write(prepare_yaml_write(path, desired, section="document", inputs=(before,)))
 
 
+def catalog_field_from_document(document: Any, field: str) -> Any | None:
+    """Extract ``catalog.<field>`` from an already-loaded ``charter.yaml`` document.
+
+    Pure, in-memory extraction -- no disk I/O of any kind. This is the ONE
+    canonical extraction rule (DIRECTIVE_044) behind both
+    :func:`read_catalog_field` (which loads *document* from disk itself,
+    fail-open) and any caller that already holds a loaded document/mapping
+    (e.g. a migration that must not perform a second, independent disk read
+    -- PR-FRESH-001, #5257). The caller owns *document*'s own load path and
+    its failure semantics (fail-open or fail-closed); this function never
+    touches disk and never swallows an I/O error, so it cannot silently
+    change a fail-closed caller's failure behaviour into a fail-open one.
+
+    Returns ``None`` when *document* is not a mapping, its ``catalog``
+    section is absent or not a mapping, or ``field`` itself is absent from
+    that section.
+
+    Gates on ``collections.abc.Mapping`` (PR-FRESH2-002, #5257 HALT
+    round-3 operator ruling), not the narrower ``dict`` -- a prior fix
+    round's ``isinstance(document, dict)`` rejected any Mapping-like
+    document that is not literally a ``dict``/``CommentedMap`` (e.g. a
+    ``types.MappingProxyType``), even though such a document already
+    satisfies every real caller's own "document-like" gate elsewhere
+    (``hasattr(document, "get")``). Both ``dict`` and ruamel's
+    ``CommentedMap`` are themselves ``Mapping`` instances, so this widening
+    changes no existing caller's behaviour.
+    """
+    catalog = document.get("catalog") if isinstance(document, Mapping) else None
+    if not isinstance(catalog, Mapping):
+        return None
+    return catalog.get(field)
+
+
 def read_catalog_field(repo_root: Path, field: str) -> Any | None:
     """Read a single ``catalog.<field>`` value from ``charter.yaml`` (Finding B, #4993).
 
@@ -551,6 +585,10 @@ def read_catalog_field(repo_root: Path, field: str) -> Any | None:
     that section -- a uniform "no signal here" result for every caller.
     Mirrors the fail-open shape ``charter.activation.language_scope.
     _read_compiled_languages`` already used for this same file/section.
+
+    Loads the document, then delegates the actual field extraction to
+    :func:`catalog_field_from_document` -- the disk-read/fail-open policy
+    lives here; the extraction rule itself lives in exactly one place.
     """
     charter_yaml_path = repo_root / CHARTER_YAML
     if not charter_yaml_path.exists():
@@ -562,21 +600,6 @@ def read_catalog_field(repo_root: Path, field: str) -> Any | None:
         return None
 
     return catalog_field_from_document(document, field)
-
-
-def catalog_field_from_document(document: Any, field: str) -> Any | None:
-    """Read ``catalog.<field>`` from an already-loaded ``charter.yaml`` document.
-
-    The document-level half of :func:`read_catalog_field`, for callers that
-    must load the file themselves (for example to fail closed on an unreadable
-    charter, where :func:`read_catalog_field` fails open). Returns ``None``
-    when ``catalog`` is absent or not a mapping, or ``field`` is absent.
-    """
-    catalog = document.get("catalog") if isinstance(document, dict) else None
-    if not isinstance(catalog, dict):
-        return None
-
-    return catalog.get(field)
 
 
 def read_catalog_mission(repo_root: Path) -> Any | None:

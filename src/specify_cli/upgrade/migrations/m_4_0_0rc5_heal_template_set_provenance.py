@@ -14,6 +14,7 @@ paths without checkout evidence stay unchanged and are reported by the doctor.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import stat
 import tomllib
@@ -240,18 +241,36 @@ def _load_charter_document(charter_path: Path) -> Any:
         raise MigrationStateUnreadableError(f"{charter_path} could not be read ({type(exc).__name__}); provenance was not evaluated") from exc
 
 
-def _healable_references(charter_path: Path, document: Any | None = None) -> list[tuple[dict[str, Any], str]]:
+def _healable_references(project_path: Path, document: Any | None = None) -> list[tuple[dict[str, Any], str]]:
     from charter.activation.charter_yaml_io import catalog_field_from_document  # noqa: PLC0415
 
+    charter_path = _charter_path(project_path)
     if not charter_path.is_file():
         return []
 
     if document is None:
         document = _load_charter_document(charter_path)
-    catalog = document.get("catalog") if hasattr(document, "get") else None
-    if not isinstance(catalog, dict):
+    # PR-FRESH2-002 fix (#5257, HALT round-3 operator ruling): the same
+    # `collections.abc.Mapping` predicate the shared accessor
+    # (charter_yaml_io.catalog_field_from_document) now uses, replacing the
+    # permissive `hasattr(document, "get")` gate this function used to carry
+    # locally -- a mismatched pair of "is this document-like" checks on the
+    # same `document` value let a Mapping-like-but-not-`dict` document (e.g.
+    # `types.MappingProxyType`) pass this local gate while
+    # `catalog_field_from_document` below silently returned `None` for it.
+    catalog = document.get("catalog") if isinstance(document, Mapping) else None
+    if not isinstance(catalog, Mapping):
         return []
 
+    # PR-FRESH-001 fix (#5257): read `catalog.mission` from the ALREADY-LOADED
+    # `document` via the shared, pure, in-memory accessor
+    # (charter.activation.charter_yaml_io.catalog_field_from_document) --
+    # never a second, independent disk read. The prior fold-in called
+    # `read_catalog_mission(project_path)` here, which re-opens and
+    # re-parses charter.yaml from disk with a DIFFERENT (fail-open) failure
+    # philosophy than this function's own fail-closed `_load_charter_document`
+    # load path; this now uses exactly one read, honouring a caller-supplied
+    # `document` instead of silently re-reading past it.
     mission = catalog_field_from_document(document, "mission")
     template_set = catalog.get("template_set")
     if not isinstance(template_set, str) or not template_set:
@@ -279,9 +298,8 @@ def _healable_references(charter_path: Path, document: Any | None = None) -> lis
 
 def describe_template_set_leaks(project_path: Path) -> list[str]:
     """Return stale built-in template-set source paths without changing files."""
-    charter_path = _charter_path(project_path)
     return [
-        f"charter.yaml catalog[{reference.get('id', '?')}].source_path={reference.get('source_path')!r}" for reference, _token in _healable_references(charter_path)
+        f"charter.yaml catalog[{reference.get('id', '?')}].source_path={reference.get('source_path')!r}" for reference, _token in _healable_references(project_path)
     ]
 
 
@@ -294,9 +312,20 @@ def describe_template_set_ambiguities(project_path: Path) -> list[str]:
         return []
 
     document = _load_charter_document(charter_path)
-    catalog = document.get("catalog") if hasattr(document, "get") else None
-    if not isinstance(catalog, dict):
+    # PR-FRESH2-002 fix (#5257, HALT round-3 operator ruling): the same
+    # `collections.abc.Mapping` predicate the shared accessor
+    # (charter_yaml_io.catalog_field_from_document) now uses, replacing the
+    # permissive `hasattr(document, "get")` gate this function used to carry
+    # locally -- a mismatched pair of "is this document-like" checks on the
+    # same `document` value let a Mapping-like-but-not-`dict` document (e.g.
+    # `types.MappingProxyType`) pass this local gate while
+    # `catalog_field_from_document` below silently returned `None` for it.
+    catalog = document.get("catalog") if isinstance(document, Mapping) else None
+    if not isinstance(catalog, Mapping):
         return []
+    # PR-FRESH-001 fix (#5257): read the mission from the document this
+    # function just loaded -- shared pure accessor, no second disk read --
+    # see the matching comment in `_healable_references` above.
     suffix = _expected_mission_suffix(catalog_field_from_document(document, "mission"))
     if suffix is None:
         return []
@@ -339,7 +368,7 @@ class HealTemplateSetProvenanceMigration(BaseMigration):
     runs_on_worktrees = False
 
     def detect(self, project_path: Path) -> bool:
-        return bool(_healable_references(_charter_path(project_path)))
+        return bool(_healable_references(project_path))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if self.detect(project_path):
@@ -354,7 +383,7 @@ class HealTemplateSetProvenanceMigration(BaseMigration):
         from charter.activation.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415
 
         document = _load_charter_document(charter_path)
-        healable = _healable_references(charter_path, document)
+        healable = _healable_references(project_path, document)
         if not healable:
             return MigrationResult(success=True)
 
