@@ -34,7 +34,7 @@ from specify_cli.cli.commands.consolidate import (
 )
 from specify_cli.consolidation.config import MergeStrategy
 from tests.terminus.conftest import build_coord_mission, run_terminus
-from tests.terminus.conftest import _git_out as git_out
+from tests._support.git_cli import git_out
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]

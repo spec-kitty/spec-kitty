@@ -15,10 +15,13 @@ small ``pre-merge-target..post-merge-target`` window, never a full history walk.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,6 +30,7 @@ from typing import Literal
 import pytest
 
 from kernel.clock import now_utc_iso
+from tests._support.git_cli import git_out
 
 
 def _now_iso() -> str:
@@ -83,7 +87,7 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _git_out(repo: Path, *args: str) -> str:
-    return _git(repo, *args).stdout.strip()
+    return git_out(repo, *args)
 
 
 def git_rev(repo: Path, ref: str) -> str:
@@ -392,7 +396,7 @@ def _init_fixture_repo(
     mission_id = (mid8 + "0" * 26)[:26]
     repo = tmp_path / "repo"
     home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(_bootstrapped_home_template(), home, dirs_exist_ok=True)
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
     coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
@@ -1269,6 +1273,44 @@ def plant_canceled_deletion(
 # ---------------------------------------------------------------------------
 
 
+_HOME_TEMPLATE: Path | None = None
+
+
+def _cli_env(home: Path) -> dict[str, str]:
+    process_env = os.environ.copy()
+    process_env["PYTHONPATH"] = str(_SRC)
+    process_env["HOME"] = str(home)
+    process_env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
+    process_env.pop("VIRTUAL_ENV", None)
+    return process_env
+
+
+def _bootstrapped_home_template() -> Path:
+    """A HOME the CLI has already bootstrapped, built once per test process.
+
+    The first CLI command in an empty HOME installs the global runtime, agent
+    commands and skills, which costs about 25s; a copy of an already
+    bootstrapped HOME costs well under a second and is still one HOME per
+    mission, so nothing is shared between tests. ``consolidate --help`` from
+    outside any repository runs exactly that bootstrap and nothing else.
+    """
+    global _HOME_TEMPLATE
+    if _HOME_TEMPLATE is None:
+        template = Path(tempfile.mkdtemp(prefix="terminus-home-"))
+        atexit.register(shutil.rmtree, template, ignore_errors=True)
+        subprocess.run(
+            [sys.executable, "-m", "specify_cli", "consolidate", "--help"],
+            cwd=str(template),
+            env=_cli_env(template),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=180,
+        )
+        _HOME_TEMPLATE = template
+    return _HOME_TEMPLATE
+
+
 def run_terminus(
     mission: CoordMission,
     args: Sequence[str],
@@ -1286,11 +1328,7 @@ def run_terminus(
     override any of the defaults above (including ``HOME``) as well as add
     new ones.
     """
-    process_env = os.environ.copy()
-    process_env["PYTHONPATH"] = str(_SRC)
-    process_env["HOME"] = str(mission.home)
-    process_env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
-    process_env.pop("VIRTUAL_ENV", None)
+    process_env = _cli_env(mission.home)
     if env is not None:
         process_env.update(env)
     return subprocess.run(
