@@ -1,5 +1,9 @@
-"""#5100 red-first acceptance: single_branch topology executes in the write
-checkout (spec.md US2, "A single_branch mission runs in its write checkout").
+"""End to end: a single_branch mission executes in its write checkout.
+
+A finalize-produced single_branch manifest drives implement, the for_review
+commit gate, occupancy and dirty-tree refusals, resume and the protected-branch
+mint in the repository root checkout. Originally the #5100 acceptance suite
+(spec.md US2, "A single_branch mission runs in its write checkout").
 
 Committed FIRST, alone (charter C-011 / ATDD-First Discipline), before any
 WP05 implementation commit. On the mission's ``planning_base_branch``

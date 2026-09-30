@@ -28,7 +28,10 @@ exit_condition: >
   moved or deleted test file is re-pointed. When the same spent pattern is
   copy-pasted across sibling files beyond this mission's diff, a suite-wide audit is
   filed as a tracked follow-up rather than swept inside the landing PR. The hand-off
-  summary records which tests were retired / split / kept-and-renamed.
+  summary records which tests were retired / split / kept-and-renamed. Every
+  issue-named test file the mission added (test_issue_NNNN*, test_repro_NNNN*)
+  carries a recorded fold-or-keep verdict in that summary; this is required, not
+  advisory, and the mission is not ready to hand off without it.
 steps:
   - title: Identify — list the tests this mission added to assist development
     description: >
@@ -40,7 +43,10 @@ steps:
       snapshot compared against the working tree; a one-shot metric/LOC "recorder";
       a per-WP `__module__` / re-export / delegate-shape assertion. Do not touch
       tests that predate the mission — those are governed by DIRECTIVE_025 (tidy the
-      campsite) and DIRECTIVE_041, not by this procedure.
+      campsite) and DIRECTIVE_041, not by this procedure. Every test file the
+      mission added that is named after an issue (test_issue_NNNN*,
+      test_repro_NNNN*) is always on the list, whatever its content: an issue
+      number names the slice that produced the test, not the contract it guards.
     actor: agent
   - title: Judge — assign each a keep / retire / split verdict against the rubric
     description: >
@@ -58,7 +64,13 @@ steps:
       knowledge has one source of truth), or (iii) pinning transient code-shape that
       will fight the next behavior-preserving refactor rather than protect real
       behavior. SPLIT-BY-KIND — a mission mega-file that mixes the two; do not delete
-      it wholesale.
+      it wholesale. For an issue-named file the verdict is fold-or-keep and it is
+      required: FOLD moves its cases into the purpose-named suite that owns the
+      contract (retiring any case that suite already asserts), KEEP renames the
+      file after the contract it guards and records a one-line reason why it
+      stands alone. A standing census guard
+      (tests/architectural/test_issue_named_test_census.py) holds the count of
+      issue-named test files shrink-only, so an unjudged one shows up at review.
     actor: agent
   - title: Execute — retire, split, and re-home per the verdicts
     description: >

@@ -1,4 +1,6 @@
-"""#5115 review cycles 1-2: the explicit ``record_tip`` record points.
+"""Every explicit ``record_tip`` record point records the lane work tip.
+
+Originally from the #5115 review cycles.
 
 Each of these calls is the ONLY tip-recording path when the post-commit
 recorder hook is not installed -- a foreign hook occupies the slot (C-010
@@ -413,7 +415,7 @@ def test_crash_recovery_records_tip_despite_foreign_hook(tmp_path: Path) -> None
 # Neither surface always auto-commits (unlike move-task's M2), so under a
 # foreign hook they are the only chance to record a lane's tip before some
 # later touch. Both share the same non-coord LANES mission fixture
-# (``_build_lanes_mission``) that ``test_issue_5115_destroyed_lane_non_coord``
+# (``_build_lanes_mission``) that ``test_destroyed_lane_guard_lanes_topology``
 # uses for the guard itself, seeded to ``in_progress`` and driven through the
 # REAL for_review transition entry point (real committed work satisfies the
 # commit-beyond-base gate honestly -- ``--subtasks-complete`` /
@@ -429,7 +431,7 @@ def _seed_for_review_ready_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     Returns ``(repo_root, mission_dirname, branch_name, head_sha)``.
     """
     from tests.lanes.test_issue_4889_destroyed_lane_guard import _ids
-    from tests.lanes.test_issue_5115_destroyed_lane_non_coord import _build_lanes_mission
+    from tests.lanes.test_destroyed_lane_guard_lanes_topology import _build_lanes_mission
     from tests.lanes.test_lane_allocation_integrity_e2e import _commit_real_work, _run_cli_implement, _wp_context
     from tests.utils import _seed_canonical_wp_state
 

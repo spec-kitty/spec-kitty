@@ -365,7 +365,7 @@ constituents:
   kind: paradigm
   path: paradigms/behaviour-driven-development.paradigm.yaml
   provenance_path:
-- content_hash: 7b1965f7b4a35bafd91650a7e25d129d7cfd44da558d68b0bad1ceda65ee1498
+- content_hash: d7001632c05f3a373c6a698c4590a6256cca213c09b61de3de8269dde5618b0b
   id: brownfield-onboarding
   kind: paradigm
   path: paradigms/brownfield-onboarding.paradigm.yaml
@@ -435,7 +435,7 @@ constituents:
   kind: procedure
   path: procedures/bdd-scenario-lifecycle.procedure.yaml
   provenance_path:
-- content_hash: 1949c7887c31db5d300a800cd1e98e6c948f2abdc7016cc5f15f21ac53a7b1f8
+- content_hash: f07787f89767e1666c1051dc76d02cbeb3d998f78869cf837f6a5499e9de22c7
   id: development-assist-test-cleanup
   kind: procedure
   path: procedures/development-assist-test-cleanup.procedure.yaml
@@ -500,7 +500,7 @@ constituents:
   kind: procedure
   path: procedures/mission-tracer-files.procedure.yaml
   provenance_path:
-- content_hash: e35fecdfaf07654d1b1ca306e733eca3be71dea5cddf534cd64353dbc6aad508
+- content_hash: 75a4476636febad738e811ca1f3f8ef89ffb6f6efec1120f82d36aa1ff307d6d
   id: mission-wrap-up-sequence
   kind: procedure
   path: procedures/mission-wrap-up-sequence.procedure.yaml
@@ -550,7 +550,7 @@ constituents:
   kind: styleguide
   path: styleguides/boring-code-review.styleguide.yaml
   provenance_path:
-- content_hash: 4eb1265b0f0d79cbad187acd6e25b50509eb755a9c83252a732f897581af8bf4
+- content_hash: f565303cda6a046696ecb6d1ad17afec31597a6dd1ea5744c4a3528a47189180
   id: common-docs
   kind: styleguide
   path: styleguides/common-docs.styleguide.yaml
@@ -800,7 +800,7 @@ constituents:
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
   provenance_path:
-- content_hash: c195ff5b98ccaef3b335a808b2df7252331443141af410d7803f2eab759f34f0
+- content_hash: 7f3e2872084ff5e68783837dd3903aaefd7afa0cd92c09ffa4c6a3a7359e8cd1
   id: common-docs-scaffold
   kind: tactic
   path: tactics/common-docs-scaffold.tactic.yaml
@@ -835,7 +835,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/cross-cutting-state-via-store.tactic.yaml
   provenance_path:
-- content_hash: ee40f1bcc8fd79361eee8a166e6f380dc464bff69ebcbc1597f875dd61810c6d
+- content_hash: 82dfd9474dd841fbe37244cf4d6a162753373e3214ca1900168ce6d2ac2ba2a2
   id: decision-marker-capture
   kind: tactic
   path: tactics/communication/decision-marker-capture.tactic.yaml
@@ -925,7 +925,7 @@ constituents:
   kind: tactic
   path: tactics/generated-code-stewardship.tactic.yaml
   provenance_path:
-- content_hash: 815accc87252981f28eb63734cf9dbcacf36345c892112f5d7715b419719a6e2
+- content_hash: f59cb7296f1c15bbf96fcd370ca621a419bca035a4927764e5ef7c72135209f9
   id: glossary-curation-interview
   kind: tactic
   path: tactics/communication/glossary-curation-interview.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: ccaa87ad4af2bb0e183264e7cefb881e2142cce9626090ca9f7abcdb0ddbfaff
+manifest_hash: 8e478c4c1604c58e49bc2102a21a229c8d3c96ab711d7b02189cac0bf8bac7ee
 schema_version: '1'
 source_type: built-in
 source_url:

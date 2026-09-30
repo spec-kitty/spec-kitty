@@ -1,4 +1,6 @@
-"""Red-first regression: #5100 planning-lane ref facet (FR-001, FR-002, WP02).
+"""A planning lane resolves to the mission's target branch, never a silent ``main``.
+
+Originally the #5100 planning-lane ref regression (FR-001, FR-002).
 
 Pre-fix, ``lane_branch_name(slug, "lane-planning")`` silently returns
 ``"main"`` when no target branch is supplied, and the ``for_review`` gate
@@ -46,7 +48,6 @@ from pathlib import Path
 import pytest
 
 import specify_cli.lanes.worktree_allocator as worktree_allocator_module
-from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -260,10 +261,3 @@ def test_dependent_lane_merges_target_branch_not_main(tmp_path: Path, capsys: py
 
     assert "WARNING" not in captured.out, captured.out
     assert (worktree_path / "src" / "planning_output.py").exists()
-
-
-def test_lane_branch_name_requires_target_branch_keyword() -> None:
-    """Scenario 5: the planning lane's branch cannot be resolved without
-    naming the target branch -- the keyword is required, not defaulted."""
-    with pytest.raises(TypeError):
-        lane_branch_name("some-mission", PLANNING_LANE_ID)  # type: ignore[call-arg]

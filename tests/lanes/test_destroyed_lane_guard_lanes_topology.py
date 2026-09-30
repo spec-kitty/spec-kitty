@@ -1,4 +1,6 @@
-"""#5115 (P0), red-first: the destroyed-lane guard for LANES/flat (non-coord) missions.
+"""The destroyed-lane guard on LANES/flat (non-coord) missions, through the implement CLI.
+
+Originally the #5115 (P0) red-first repro.
 
 Today (before this WP), the guard's base-reachability check
 (``_lane_base_reachable_from_target``) compares a lane's creation base

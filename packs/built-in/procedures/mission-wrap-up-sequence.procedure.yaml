@@ -43,7 +43,10 @@ steps:
       off promoted tests, re-point named docstrings), and file the suite-wide audit for
       the copy-pasted residue rather than sweeping it into the landing PR. This governs
       only debt the mission itself created; pre-existing debt in touched areas is
-      DIRECTIVE_025.
+      DIRECTIVE_025. Every issue-named test file the mission added
+      (test_issue_NNNN*, test_repro_NNNN*) must get a recorded fold-or-keep verdict
+      before hand-off: fold it into the suite that owns the contract, or keep it
+      renamed after that contract with a one-line reason.
     actor: agent
   - title: Resolve every tracked-issue verdict to terminal
     description: >
