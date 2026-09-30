@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
+from typing import Any
 
+from specify_cli.lanes.compute import is_planning_lane, lane_created_branch
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
@@ -111,3 +114,30 @@ def lane_worktree_path(repo_root: Path, mission_slug: str, lane_id: str = "lane-
 def lane_branch_name(mission_slug: str, lane_id: str = "lane-a") -> str:
     """Return the lane branch name for a feature."""
     return f"kitty/mission-{mission_slug}-{lane_id}"
+
+
+def create_lane_branches(repo_root: Path, lanes_manifest: Any, *, start_point: str = "HEAD") -> list[str]:
+    """Create each non-planning lane's CREATED branch in git, as ``implement`` would.
+
+    The claim-time integrity refusal (#5338, ``claim_integrity_refusal``) refuses a
+    consolidation whose approved lane has no created branch. Fixtures that drive a
+    real ``_run_lane_based_consolidation`` must therefore allocate the lane
+    branches instead of relying on the refusal being ignored (#5417). The name
+    comes from the canonical ``lane_created_branch`` so fixtures cannot drift from
+    what the allocator creates. Accepts a real ``LanesManifest`` or a mock with
+    ``mission_slug``/``target_branch``/``lanes``. Fails if a lane branch already
+    exists, so it can never silently reset real lane work. Returns the created names.
+    """
+    created: list[str] = []
+    for lane in lanes_manifest.lanes:
+        if is_planning_lane(lane):
+            continue
+        branch = lane_created_branch(lanes_manifest, lane.lane_id)
+        subprocess.run(
+            ["git", "-C", str(repo_root), "branch", branch, start_point],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        created.append(branch)
+    return created

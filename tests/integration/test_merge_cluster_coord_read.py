@@ -426,6 +426,12 @@ def test_executor_baseline_identity_reads_primary_mission_id(
         executor, "_enforce_review_artifact_consistency", lambda **kwargs: None
     )
     monkeypatch.setattr(executor, "_phase_gates_and_state", lambda run: None)
+    # #5417: the pre-mutation reconciliation claim is also a phase this probe
+    # skips. The shared fixture's husk seeds WP01 only as ``claimed`` (no
+    # approved WP, no lane branch), so since #5338 the claim-time integrity
+    # refusal correctly stops the run before the baseline phase under test.
+    # The claim/refusal contract is covered by tests/consolidation/.
+    monkeypatch.setattr(executor, "_capture_reconciliation_claim", lambda run: None)
     monkeypatch.setattr(executor, "_phase_merge_lanes", lambda run: None)
 
     def _capture_after_baseline(run: Any) -> NoReturn:

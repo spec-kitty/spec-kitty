@@ -39,7 +39,7 @@ from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from tests._perf_helpers import assert_timing_budget
-from tests.lane_test_utils import write_mission_meta
+from tests.lane_test_utils import create_lane_branches, write_mission_meta
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -167,6 +167,9 @@ def _patches(
     from specify_cli.consolidation.reconciliation import write_post_fix_marker
     _meta = json.loads((tmp_path / "kitty-specs" / manifest.mission_slug / "meta.json").read_text(encoding="utf-8"))
     write_post_fix_marker(tmp_path, _meta["mission_id"])
+    # #5417: approved lanes must have their created branches, or the #5338
+    # claim-time integrity refusal stops the run before the resume logic.
+    create_lane_branches(tmp_path, manifest)
     if initial_state is not None:
         # Post-fix attempt-1 persists these BEFORE consolidating any lane
         # (persist-before-mutate); anchor them to a real commit object.

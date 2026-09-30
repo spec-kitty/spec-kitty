@@ -25,6 +25,7 @@ import pytest
 
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
+from tests.lane_test_utils import create_lane_branches
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -99,6 +100,9 @@ def _seed_wp01_done(feature_dir: Path, mission_slug: str) -> None:
 
 def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     manifest = _make_manifest(slug)
+    # #5417: the approved lane needs its created branch, or the #5338
+    # claim-time integrity refusal stops the merge before the refresh.
+    create_lane_branches(tmp_path, manifest)
     feature_dir = tmp_path / "kitty-specs" / slug
     feature_dir.mkdir(parents=True, exist_ok=True)
     _seed_wp01_done(feature_dir, slug)

@@ -42,6 +42,7 @@ from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
+from tests.lane_test_utils import create_lane_branches
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -143,6 +144,9 @@ class TestMergeIncludesPlanningLane:
         _seed_wp_done_raw(feature_dir, slug, ["WP01", "WP02", "WP03", "WP04"])
 
         manifest = _make_manifest_with_planning_and_code(slug)
+        # #5417: code lanes need their created branches (#5338 claim-time
+        # refusal); lane-planning is exempt and resolves to the target.
+        create_lane_branches(tmp_path, manifest)
 
         captured_states: list[list[str]] = []
 

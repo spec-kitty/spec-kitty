@@ -278,6 +278,7 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 - `release.yml` now blocks `build-release` and `publish-pypi` unless the `ci-nightly` run for the exact release SHA is green (#5034). Maintainer action: create the repository secret `RELEASE_NIGHTLY_DISPATCH_TOKEN` (see `RELEASE_CHECKLIST.md`).
 - Nightly CI timeout caps for interpreter shards 1-3 and 5 and the out-of-matrix leg are re-derived from five measured runs, so a slow runner no longer ends in `cancelled` (#5378).
 - Nightly `tests/integration` fixtures now match five earlier product changes, so 22 red tests are green again (#5044, #5045, #5049, #4959, #5001, #4764, #4758, #4990).
+- The nightly integration and performance suites are green again: their fixtures now create the real lane branches an approved lane needs, which `consolidate` has required at claim time since #5338, through a shared `create_lane_branches` helper; the claim-time refusal is unchanged (#5417).
 - The three `*-supply-chain` toolguides drop inert inline `references`; the doctrine graph is unchanged and the nightly raw-material census is re-pinned from 19 to 20 (#5367).
 - The test suite no longer leaks working directory, environment, import path, loaded modules or argv between tests, and a new architectural gate blocks new manual global-state changes (#5118).
 - The merge-driver code moved out of the CLI command module into the merge domain, so git's driver and the consolidation integrity check replay run the same code; behavior is unchanged (#5119).

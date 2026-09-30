@@ -28,6 +28,7 @@ import typer
 
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
+from tests.lane_test_utils import create_lane_branches
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -112,6 +113,8 @@ class TestPostMergeRefreshAndInvariant:
         _seed_wp_done(feature_dir, slug, ["WP01"])
 
         manifest = self._make_manifest(slug)
+        # #5417: the approved lane needs its created branch (#5338 claim-time refusal).
+        create_lane_branches(tmp_path, manifest)
 
         lane_result = MagicMock()
         lane_result.success = True
@@ -228,6 +231,8 @@ class TestPostMergeRefreshAndInvariant:
         _seed_wp_done(feature_dir, slug, ["WP01"])
 
         manifest = self._make_manifest(slug)
+        # #5417: the approved lane needs its created branch (#5338 claim-time refusal).
+        create_lane_branches(tmp_path, manifest)
 
         lane_result = MagicMock()
         lane_result.success = True
