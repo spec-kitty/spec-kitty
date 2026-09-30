@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-from kernel._safe_re import is_re2_active
 from specify_cli.requirement_mapping import grammar, parse_requirement_ids_from_spec_md
 from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
 
@@ -21,8 +20,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # --------------------------------------------------------------------------- #
 
 
-def test_re2_is_active_and_every_exported_pattern_compiles() -> None:
-    assert is_re2_active() is True
+def test_every_exported_pattern_compiles() -> None:
     # Every module-level compiled Pattern object in grammar.py -- discovered
     # dynamically so this stays complete as patterns are added or renamed,
     # rather than a hand-maintained list that silently omits a new one.

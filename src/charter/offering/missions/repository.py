@@ -544,8 +544,3 @@ class MissionTemplateRepository:
         """
         path = self._root / mission / "expected-artifacts.yaml"
         return path if path.is_file() else None
-
-
-# Backward-compat alias so ``from charter.offering.missions.repository import MissionRepository``
-# works the same as ``from charter.offering.missions import MissionRepository``.
-MissionRepository = MissionTemplateRepository

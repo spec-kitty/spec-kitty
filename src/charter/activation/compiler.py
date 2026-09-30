@@ -76,14 +76,6 @@ _MISSION_TYPE_ACTIVATIONS_KEY = "mission_type_activations"
 
 
 @dataclass(frozen=True)
-class _SelectionBundle:
-    """Bundled paradigm + directive selections passed to service-based reference builders."""
-
-    paradigms: list[str]
-    directives: list[str]
-
-
-@dataclass(frozen=True)
 class ConfigActivatedRoots:
     """Config-sourced activation roots (FR-001/FR-002), resolved to bare DRG ids.
 
@@ -1527,8 +1519,8 @@ def _doctrine_yaml_reference(
     token, an in-tree path becomes repo-relative, and anything else stays
     absolute. This is one of three normalizer call sites
     (contracts/provenance-and-channel.md C-PRV-6, extended by issue #5253).
-    The local-support declaration reference remains excluded and keeps using
-    :func:`_trim_source_path`.
+    The local-support declaration reference remains excluded from this
+    normalizer.
     """
     source = source or {"id": raw_id, "title": raw_id, "summary": "Definition unavailable in bundled doctrine."}
 
@@ -1773,15 +1765,6 @@ def _dump_yaml(data: dict[str, object]) -> str:
     buffer = StringIO()
     yaml.dump(cleaned, buffer)
     return buffer.getvalue()
-
-
-def _trim_source_path(source_path: str) -> str:
-    if not source_path:
-        return ""
-    marker = "src/charter/offering/"
-    if marker in source_path:
-        return source_path[source_path.index(marker) :]
-    return source_path
 
 
 def _yaml_inline_list(values: list[str]) -> str:

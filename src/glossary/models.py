@@ -110,22 +110,6 @@ def term_surface_to_dict(ts: TermSurface) -> dict[str, Any]:
     return {"surface_text": ts.surface_text}
 
 
-def term_sense_to_dict(ts: TermSense) -> dict[str, Any]:
-    """Serialize TermSense to dict."""
-    return {
-        "surface": term_surface_to_dict(ts.surface),
-        "scope": ts.scope,
-        "definition": ts.definition,
-        "provenance": {
-            "actor_id": ts.provenance.actor_id,
-            "timestamp": ts.provenance.timestamp.isoformat(),
-            "source": ts.provenance.source,
-        },
-        "confidence": ts.confidence,
-        "status": ts.status.value,
-    }
-
-
 def semantic_conflict_to_dict(sc: SemanticConflict) -> dict[str, Any]:
     """Serialize SemanticConflict to dict."""
     return {

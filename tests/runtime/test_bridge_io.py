@@ -138,9 +138,8 @@ def test_runtime_bridge_no_longer_owns_feature_runs_file_constants() -> None:
     assert not hasattr(rb, "MISSION_RUNTIME_YAML")
     assert not hasattr(rb, "MISSION_YAML")
     assert not hasattr(rb, "_FEATURE_RUNS_FILE")
-    # KITTIFY_DIR is still used by unmoved residual code (e.g. bulk_edit gate
-    # path composition), so it legitimately stays defined on both modules.
-    assert hasattr(rb, "KITTIFY_DIR")
+    # KITTIFY_DIR lives on the I/O seam; the residual no longer defines it.
+    assert not hasattr(rb, "KITTIFY_DIR")
     assert hasattr(io_seam, "KITTIFY_DIR")
 
 

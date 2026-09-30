@@ -149,8 +149,6 @@ _SRC_ROOT = _REPO_ROOT / "src"
 # carried over from earlier missions. A future mission MUST either wire each
 # from a runtime caller, remove it from ``__all__``, or delete the symbol
 # entirely. Target = 0 by Slice G.
-# ``is_re2_active`` -- rescued by detector (a) -- add_typer/app.command
-# patterns now capture module-attr accesses (WP01 harden-dead-symbol-gate).
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
@@ -229,7 +227,7 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         ),  # charter.activation.activations::REGISTERED_TRIGGERS
         # charter.activation.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
         SymbolKey(
-            "CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9", source_module="charter.activation.compact"
+            "CompactView", "b20a97386ed26dc023bb577348d02567ef21d682914a8135be3f06344a1bc4af", source_module="charter.activation.compact"
         ),  # charter.activation.compact::CompactView
         SymbolKey(
             "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.activation.compact"
@@ -237,9 +235,6 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.activation.synthesizer.write_pipeline"
         ),  # charter.activation.synthesizer.write_pipeline::StagedArtifact
-        SymbolKey(
-            "is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9", source_module="kernel._safe_re"
-        ),  # kernel._safe_re::is_re2_active
         # pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the
         # unified pack-manifest schema/lineage/hash public API, declared now but not
         # wired to production callers until the deferred integration WP (#3518).
@@ -332,45 +327,25 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
     {
-        # charter.offering.directives::ArtifactKind (escalated: live collision)
-        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="charter.offering.directives"),
         SymbolKey(
             "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
         ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
         SymbolKey(
             "Mission", "36ecefcd078e89a856885fef32b1690315ca257cdf4cb90ff03ee2994e275fa8", source_module="charter.offering.missions.models"
         ),  # charter.offering.missions.models::Mission
-        SymbolKey(
-            "MissionRepository", "87721dffc175e1e94aa69dc020df1effd47b986d66e538eef4c49df962d684f9", source_module="charter.offering.missions"
-        ),  # charter.offering.missions::MissionRepository
-        # charter.offering.procedures::ArtifactKind (escalated: live collision)
-        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="charter.offering.procedures"),
         # charter.offering.shared::ConflictType (escalated: live collision)
         SymbolKey("ConflictType", "34ff96f6eabe70e229d72efc5674d6050bb7291c458ee30394ebc1d629bf566e", module_path="charter.offering.shared"),
-        # charter.offering.shared::ExtractedTerm (escalated: live collision)
-        SymbolKey("ExtractedTerm", "6a7ebe24a2cc047a13b893af65d33944f51293abbd976de963a6585ef032f0ce", module_path="charter.offering.shared"),
         # charter.offering.shared::GlossaryScope (escalated: live collision)
         SymbolKey("GlossaryScope", "e433a93e6f5df50065e49747d40c3be1bd0957989e424a8b47ed2d75a5da4ba7", module_path="charter.offering.shared"),
-        # charter.offering.shared::ScopeRef (escalated: live collision)
-        SymbolKey("ScopeRef", "6edbfc7de81b473814e0582739ad128906a23b95ee2fed75d471b6de77860e83", module_path="charter.offering.shared"),
-        # charter.offering.shared::SemanticConflict (escalated: live collision)
-        SymbolKey("SemanticConflict", "03a7b588ce09a403baa5d3c6130231131ed3e7eb824ec18448215061a85ccd00", module_path="charter.offering.shared"),
         # charter.offering.shared::SenseRef (escalated: live collision)
         SymbolKey("SenseRef", "80a18c5b75e03f2202466dbc52090000b2819302b89ae90048f98125d4b89b43", module_path="charter.offering.shared"),
         # charter.offering.shared::Severity (escalated: live collision)
         SymbolKey("Severity", "5e9f98120dbe568255ee059f39671686982b113d4e917b6d6faf149918c81709", module_path="charter.offering.shared"),
-        # charter.offering.shared::Strictness (escalated: live collision)
-        SymbolKey("Strictness", "bf6124f24491be137dec5c0a209e381046bc032dfeea16723b313a5014d2d6af", module_path="charter.offering.shared"),
         # charter.offering.shared::TermSurface (escalated: live collision)
         SymbolKey("TermSurface", "92ae59dd08020d0481eb46aac5aae4d296803b7647f1c97cfd63cb157da9ed81", module_path="charter.offering.shared"),
-        # charter.offering.tactics::ArtifactKind (escalated: live collision)
-        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="charter.offering.tactics"),
         SymbolKey(
             "SemanticConflictRecord", "a8ede16418bd45b1fefb48097ef7bfc5c27d9b90ba68906f3ee7124a3c1a11dd", source_module="glossary.semantic_events"
         ),  # glossary.semantic_events::SemanticConflictRecord
-        SymbolKey(
-            "JsonlEventLog", "34ec3df04b36a1751a8bc959f38bc68af652b974deaa35224cc3eb86822821db", source_module="runtime.next._internal_runtime.events"
-        ),  # runtime.next._internal_runtime.events::JsonlEventLog
         SymbolKey(
             "ClaimablePreview", "fb24f6e5c378dfe6485d21ca6f2a9167ec885d688bc34eb53f3e3dfe7a23683a", source_module="runtime.next.discovery"
         ),  # runtime.next.discovery::ClaimablePreview
@@ -3655,45 +3630,36 @@ def _compute_dangling(
 _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
     {
         "charter.activation._io::load_charter_bytes",
-        "charter.bundle::DIRECTIVES_YAML",
-        "charter.bundle::GOVERNANCE_YAML",
-        "charter.bundle::METADATA_YAML",
-        "charter.activation.catalog::DEFAULT_TEMPLATE_SET",
-        "charter.activation.context::NONE_LABEL",
         "charter.activation.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS",
-        "charter.activation.evidence.code_reader::LANGUAGE_EXTENSIONS",
         "charter.activation.synthesizer.adapter::BatchCapableSynthesisAdapter",
-        "charter.activation.synthesizer.synthesize_pipeline::run",
         "charter.offering.agent_profiles.schema_models::AgentProfileSchema",
         "charter.offering.agent_profiles.validation::is_agent_profile_file",
         "charter.offering.directives.validation::validate_directive",
-        "charter.offering.drg.migration.hand_authored_overlay::hand_authored_edge_keys",
-        "charter.offering.drg.migration.hand_authored_overlay::hand_authored_node_urns",
         "charter.offering.drg.models::RELATION_DESCRIPTIONS",
         "charter.offering.import_candidates.models::CurationImportCandidate",
         "charter.offering.import_candidates.models::LegacyImportCandidate",
-        "charter.offering.missions.repository::MissionRepository",
         "charter.offering.paradigms.validation::validate_paradigm",
         "charter.offering.styleguides.validation::validate_styleguide",
         "charter.offering.tactics.validation::validate_tactic",
         "charter.offering.toolguides.validation::validate_toolguide",
         "glossary.drg_builder::build_glossary_drg_layer",
-        "glossary.extraction::score_confidence",
         "glossary.middleware::MockContext",
-        "glossary.models::term_sense_to_dict",
         "glossary.scope::activate_scope",
-        "glossary.scope::get_scope_precedence",
-        "glossary.scope::should_use_scope",
-        "glossary.scope::validate_seed_file",
-        "glossary.semantic_events::is_high_severity",
         "kernel.glossary_runner::clear_registry",
-        "runtime.next._internal_runtime.discovery::diagnose_shadowing",
-        "runtime.next._internal_runtime.engine::TransitionGate",
-        "runtime.next._internal_runtime.engine::notify_decision_timeout",
         "runtime.next._internal_runtime.planner::resolve_next_workflow_action",
-        "runtime.next._internal_runtime.planner::serialize_decision",
-        "runtime.next._internal_runtime.schema::CommitContext",
-        "runtime.next.runtime_bridge::KITTIFY_DIR",
+        # runtime.next._internal_runtime.events::reset_runtime_emitter_factory --
+        # test-reset hook for the emitter-factory registry (used by
+        # tests/specify_cli/events + tests/next). Its only src/ importer was the
+        # deleted ``_internal_runtime.emitter`` re-export module (dead-code sweep
+        # 2026-09-30); kept as an intentional test seam, like clear_registry.
+        "runtime.next._internal_runtime.events::reset_runtime_emitter_factory",
+        # runtime.next._internal_runtime.schema::StepContextContract -- became
+        # test-only when the dead TransitionGate/resolve_context chain (its only
+        # src/ consumer) was deleted in the dead-code sweep 2026-09-30 (review
+        # slice 13 predicted this). The remaining context-contract cluster
+        # (StepContextContract / ContextTypeRegistry / ContextType /
+        # engine.validate_binding) needs its own delete-or-keep call.
+        "runtime.next._internal_runtime.schema::StepContextContract",
         "runtime.next.runtime_bridge_cores::evaluate_guards",
         "specify_cli.agent_tasks_ports::default_ports",
         "specify_cli.ast_analysis.imports::extract_static_all",

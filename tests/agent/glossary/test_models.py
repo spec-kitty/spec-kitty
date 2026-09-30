@@ -1,11 +1,11 @@
 """Scope: models unit tests — no real git or subprocesses."""
 
 import pytest
-from kernel.clock import datetime, now_utc
+from kernel.clock import now_utc
 from glossary.models import (
     TermSurface, TermSense, SemanticConflict, Provenance,
-    SenseStatus, ConflictType, Severity, SenseRef,
-    term_surface_to_dict, term_sense_to_dict, semantic_conflict_to_dict,
+    ConflictType, Severity, SenseRef,
+    term_surface_to_dict, semantic_conflict_to_dict,
 )
 
 pytestmark = pytest.mark.fast
@@ -100,46 +100,6 @@ def test_term_surface_to_dict():
 
     assert result == {"surface_text": "workspace"}
     assert isinstance(result, dict)
-
-
-def test_term_sense_to_dict():
-    """term_sense_to_dict serializes TermSense with enum values and ISO timestamp."""
-    prov = Provenance(
-        actor_id="user:alice",
-        timestamp=datetime(2026, 2, 16, 12, 0, 0),
-        source="user_clarification"
-    )
-
-    ts = TermSense(
-        surface=TermSurface("workspace"),
-        scope="team_domain",
-        definition="Git worktree directory",
-        provenance=prov,
-        confidence=0.9,
-        status=SenseStatus.ACTIVE,
-    )
-
-    result = term_sense_to_dict(ts)
-
-    # Check structure
-    assert "surface" in result
-    assert "scope" in result
-    assert "definition" in result
-    assert "provenance" in result
-    assert "confidence" in result
-    assert "status" in result
-
-    # Check values
-    assert result["surface"] == {"surface_text": "workspace"}
-    assert result["scope"] == "team_domain"
-    assert result["definition"] == "Git worktree directory"
-    assert result["confidence"] == 0.9
-    assert result["status"] == "active"  # Enum value, not enum object
-
-    # Check provenance structure
-    assert result["provenance"]["actor_id"] == "user:alice"
-    assert result["provenance"]["timestamp"] == "2026-02-16T12:00:00"  # ISO format
-    assert result["provenance"]["source"] == "user_clarification"
 
 
 def test_semantic_conflict_to_dict():

@@ -57,7 +57,6 @@ __all__ = [
 ]
 
 
-
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
@@ -312,17 +311,6 @@ def _section_answer_with_source(
             if answer:
                 return answer, key
     return "", section_label
-
-
-def _section_answer(snapshot: dict[str, Any], section_label: str) -> str:
-    """Extract a scalar answer string from the interview snapshot."""
-    answer, _source_key = _section_answer_with_source(snapshot, section_label)
-    return answer
-
-
-def _section_is_nonempty(snapshot: dict[str, Any], section_label: str) -> bool:
-    """Return True if the section has a non-blank scalar answer."""
-    return bool(_section_answer(snapshot, section_label))
 
 
 def mission_type_urn_candidate(answer: str) -> str | None:

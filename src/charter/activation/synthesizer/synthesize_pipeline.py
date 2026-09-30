@@ -1,7 +1,7 @@
 """End-to-end synthesis pipeline: interview → targets → adapter → provenance.
 
-This module owns the ``run()`` entry point consumed by
-``orchestrator.synthesize()``. It wires together:
+This module owns the ``run_all()`` entry point consumed by
+``resynthesize_pipeline`` and ``write_pipeline``. It wires together:
 
 1. ``interview_mapping.resolve_sections()``  — interview answers → sections
 2. ``targets.build_targets()``               — sections → SynthesisTarget list
@@ -23,7 +23,7 @@ the hash is byte-identical to what WP03 writes to disk.
 Determinism guarantee (FR-014 / NFR-006)
 -----------------------------------------
 For identical (interview_snapshot, doctrine_snapshot, drg_snapshot,
-adapter_hints) inputs and the same FixtureAdapter version, ``run()`` produces
+adapter_hints) inputs and the same FixtureAdapter version, ``run_all()`` produces
 byte-identical ``(body, ProvenanceEntry)`` tuples. This is possible because:
 - Target ordering is deterministic (``order_targets()``).
 - The fixture adapter is deterministic by design (fixed generated_at from hash).
@@ -46,7 +46,6 @@ from kernel.clock import now_utc_iso
 from .adapter import AdapterOutput, SynthesisAdapter
 from .errors import SynthesisSchemaError
 from .interview_mapping import normalize_interview_snapshot, resolve_sections
-from .orchestrator import SynthesisResult
 from .request import SynthesisRequest, SynthesisTarget, compute_inputs_hash, _evidence_to_jsonable
 from .targets import build_targets, detect_duplicates, order_targets
 
@@ -63,7 +62,6 @@ __all__ = [
 # construction — the single spelling here (reused by the field annotation and
 # both ``cast`` sites below) is the by-test SSOT for this module.
 _ArtifactKind = Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
-
 
 
 def _get_synthesizer_version() -> str:
@@ -326,178 +324,6 @@ def _dispatch_batch(
 # ---------------------------------------------------------------------------
 
 
-def run(
-    request: SynthesisRequest,
-    adapter: SynthesisAdapter | None = None,
-) -> SynthesisResult:
-    """Run the full interview-driven synthesis pipeline.
-
-    This function is the implementation of ``orchestrator.synthesize()``.
-    ``orchestrator.py`` imports it lazily so that WP01 tests remain independent
-    of this module.
-
-    Pipeline stages
-    ---------------
-    1. Resolve sections from ``request.interview_snapshot``.
-    2. Build ``SynthesisTarget`` list using the DRG snapshot for URN validation.
-    3. Order targets deterministically; detect duplicates.
-    4. Construct a per-target ``SynthesisRequest`` (cloning shared snapshots).
-    5. Dispatch adapter (batch-capable if available; else sequential).
-    6. Validate each ``AdapterOutput.body`` against the built-in Pydantic schema.
-    7. Assemble ``ProvenanceEntry`` objects in memory.
-    8. Return a ``SynthesisResult`` for the **first** target (the orchestrator
-       entry point is per-request; multi-target flows use ``run_all()``).
-
-    Parameters
-    ----------
-    request:
-        The ``SynthesisRequest`` whose ``interview_snapshot`` drives target
-        selection and whose ``drg_snapshot`` validates source URNs.
-    adapter:
-        The adapter to use. When ``None``, raises ``NotImplementedError``
-        (production adapter wiring is WP05's responsibility).
-
-    Returns
-    -------
-    SynthesisResult
-        Result for the **primary** target (``request.target``).
-
-    Raises
-    ------
-    SynthesisSchemaError
-        If any adapter output fails schema validation.
-    DuplicateTargetError
-        If two targets share (kind, slug).
-    ProjectDRGValidationError
-        If any source URN does not resolve in ``request.drg_snapshot``.
-    """
-    if adapter is None:
-        raise NotImplementedError(
-            "Production adapter wiring is not yet implemented (WP05). "
-            "Pass a FixtureAdapter instance explicitly."
-        )
-
-    # Stage 1: resolve sections from the synthesis-canonical interview snapshot
-    interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
-    sections = resolve_sections(interview_snapshot)
-
-    # Stage 2: build targets (validates source URNs against drg_snapshot)
-    all_targets = build_targets(
-        interview_snapshot=interview_snapshot,
-        mappings=sections,
-        drg_snapshot=dict(request.drg_snapshot),
-    )
-
-    # Stage 3: order + duplicate check
-    all_targets = order_targets(all_targets)
-    detect_duplicates(all_targets)
-
-    # If no targets were produced from the interview, fall back to the
-    # request's own target (e.g. when called directly by the orchestrator
-    # with a pre-built target for a specific artifact).
-    if not all_targets:
-        all_targets = [request.target]
-
-    # Stage 4: build per-target SynthesisRequest objects (clone shared state)
-    per_target_requests: list[SynthesisRequest] = []
-    for target in all_targets:
-        per_target_requests.append(
-            SynthesisRequest(
-                target=target,
-                interview_snapshot=interview_snapshot,
-                doctrine_snapshot=request.doctrine_snapshot,
-                drg_snapshot=request.drg_snapshot,
-                run_id=request.run_id,
-                adapter_hints=request.adapter_hints,
-                evidence=request.evidence,
-            )
-        )
-
-    # Compute evidence hashes once — reused for all targets (same request evidence).
-    evidence_hash, corpus_id = _compute_evidence_hashes(request)
-
-    # Stage 5: dispatch adapter
-    outputs: list[AdapterOutput] = _dispatch_batch(adapter, per_target_requests)
-
-    if len(outputs) != len(per_target_requests):
-        raise RuntimeError(
-            f"Adapter returned {len(outputs)} outputs for {len(per_target_requests)} "
-            "requests. Adapter must return element-aligned outputs."
-        )
-
-    # Stages 6 + 7: schema conformance + provenance assembly
-    results: list[tuple[Mapping[str, Any], ProvenanceEntry]] = []
-    for target, target_req, output in zip(all_targets, per_target_requests, outputs, strict=True):
-        # Stage 6: schema conformance gate (FR-019) — before any provenance
-        _assert_schema(target, output)
-
-        # Stage 7: assemble provenance in memory (T013)
-        effective_adapter_id = output.adapter_id_override or adapter.id
-        effective_adapter_version = output.adapter_version_override or adapter.version
-
-        inputs_hash = compute_inputs_hash(
-            target_req, effective_adapter_id, effective_adapter_version
-        )
-
-        yaml_bytes = canonical_yaml(output.body)
-        content_hash = _content_hash(yaml_bytes)
-
-        generated_at_str = output.generated_at.isoformat()
-        if not generated_at_str.endswith("Z") and "+" not in generated_at_str[-6:]:
-            # Ensure UTC offset is explicit — append +00:00 if only time is present
-            generated_at_str = generated_at_str + "+00:00"
-
-        provenance = ProvenanceEntry(
-            artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=cast(_ArtifactKind, target.kind),
-            artifact_slug=target.slug,
-            artifact_content_hash=content_hash,
-            inputs_hash=inputs_hash,
-            adapter_id=effective_adapter_id,
-            adapter_version=effective_adapter_version,
-            synthesizer_version=_get_synthesizer_version(),
-            source_section=target.source_section,
-            source_urns=list(target.source_urns),
-            source_input_ids=list(target.source_urns),
-            generated_at=generated_at_str,
-            produced_at=now_utc_iso(),
-            corpus_snapshot_id=corpus_id or "(none)",
-            synthesis_run_id=request.run_id,
-            evidence_bundle_hash=evidence_hash,
-            adapter_notes=output.notes,
-        )
-
-        results.append((output.body, provenance))
-
-    # Return SynthesisResult for the request's primary target.
-    # run_all() exposes the full list; the orchestrator single-target entry
-    # point returns only the first matching result.
-    primary_target = request.target
-    for (_body, prov), target in zip(results, all_targets, strict=True):
-        if target.kind == primary_target.kind and target.slug == primary_target.slug:
-            return SynthesisResult(
-                target_kind=target.kind,
-                target_slug=target.slug,
-                adapter_output=outputs[all_targets.index(target)],
-                inputs_hash=prov.inputs_hash,
-                effective_adapter_id=prov.adapter_id,
-                effective_adapter_version=prov.adapter_version,
-            )
-
-    # Fallback: return the first result if the primary target was not produced
-    # from the interview (direct target call).
-    _, first_prov = results[0]
-    first_target = all_targets[0]
-    return SynthesisResult(
-        target_kind=first_target.kind,
-        target_slug=first_target.slug,
-        adapter_output=outputs[0],
-        inputs_hash=first_prov.inputs_hash,
-        effective_adapter_id=first_prov.adapter_id,
-        effective_adapter_version=first_prov.adapter_version,
-    )
-
-
 def run_all(
     request: SynthesisRequest,
     adapter: SynthesisAdapter | None = None,
@@ -506,8 +332,7 @@ def run_all(
 
     This is the contract consumed by WP03's ``write_pipeline``.
 
-    The same pipeline stages as ``run()`` are executed, but ALL targets are
-    returned rather than just the primary target.
+    Every target is returned, not just the primary one.
 
     Parameters
     ----------

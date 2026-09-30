@@ -55,9 +55,9 @@ test_no_dead_modules:
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
   # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
-  # (src/doctrine.py) is an intentional deprecation shim for legacy external
-  # `import doctrine` callers during the CR-06 compatibility window.
-  category_4_backcompat_shims: 1
+  # (src/doctrine.py) CR-06 deprecation shim. 1 -> 0 SHRINK (dead-code sweep
+  # 2026-09-30, #805): shim deleted past its 3.3.0 removal release.
+  category_4_backcompat_shims: 0
   # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
   # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
@@ -70,9 +70,9 @@ test_no_dead_modules:
   # wired the real caller, so the allowlist entry is removed and this baseline
   # shrinks back -- the bidirectional-ratchet other half of WP02's justification above.
   category_5_wp_in_flight_adapters: 2  # justification: WP03+WP04 (charter-catalog-coherence-01M2XQQF, #4785) wired the real caller for _charter_write_root; the WP02 allowlist entry is removed, shrinking this category 3->2.
-  # justification: 3 frozen-contract internal re-exports under
-  # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
-  category_6_frozen_runtime_reexports: 3
+  # justification: 3 -> 0 SHRINK (dead-code sweep 2026-09-30): the
+  # _internal_runtime emitter/lifecycle/models re-export modules were deleted.
+  category_6_frozen_runtime_reexports: 0
   # Slice F WP01 T002 inherits 10 grandfathered orphans; T005-T007
   # delete 3 (doctrine.templates.repository,
   # glossary.prompts, glossary.rendering)

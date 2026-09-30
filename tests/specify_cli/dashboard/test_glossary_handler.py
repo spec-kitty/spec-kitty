@@ -565,8 +565,8 @@ class TestCollectAllSenses:
         a naive local ``datetime.now()``.
 
         A naive ``datetime.now()`` here has no UTC offset once serialized by
-        any downstream ``Provenance`` renderer (e.g.
-        ``glossary.models.term_sense_to_dict``'s ``.isoformat()`` call) --
+        any downstream ``Provenance`` renderer (e.g. an ``.isoformat()``
+        call) --
         this pins ``tzinfo``/the exact frozen instant so a reversion to the
         naive form is caught even though this handler's own JSON response
         does not itself render the timestamp.

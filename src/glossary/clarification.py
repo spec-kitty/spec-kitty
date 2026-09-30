@@ -160,15 +160,6 @@ class ClarificationMiddleware:
                 exc,
             )
 
-    def _emit_deferred(
-        self,
-        conflict: Any,
-        conflict_id: str,
-        context: Any,
-    ) -> None:
-        """Backward-compat alias for deferred request emission."""
-        self._emit_requested(conflict, conflict_id, context)
-
     def _handle_candidate_selection(
         self,
         conflict: Any,

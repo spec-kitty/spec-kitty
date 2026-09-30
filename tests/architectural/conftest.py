@@ -97,10 +97,9 @@ def landscape():
     ``doctrine`` layer was dropped. ``src/doctrine`` relocated to
     ``src/charter/offering`` (S2a), so the offering/activation split is now
     an intra-``charter`` sub-package boundary, not a separate landscape
-    layer/LayerRule. A single-file ``src/doctrine.py`` deprecation shim
-    (CR-06) still lets legacy ``import charter.offering`` callers resolve, but it is
-    compatibility surface, not an architectural layer — it is intentionally
-    left unmapped here so it does not resurrect a phantom "doctrine" layer.
+    layer/LayerRule. The single-file ``src/doctrine.py`` CR-06 deprecation
+    shim was deleted past its 3.3.0 removal release (#805); no "doctrine"
+    layer is mapped here.
     """
     return (
         LayeredArchitecture()

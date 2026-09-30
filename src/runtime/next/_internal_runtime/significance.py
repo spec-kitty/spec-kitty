@@ -8,7 +8,6 @@ Provides foundational frozen Pydantic models for significance scoring:
 - TimeoutPolicy: configuration governing timeout window for decisions
 - evaluate_significance(): pure function for deterministic significance evaluation
 - parse_band_cutoffs_from_policy(): extract band cutoffs from MissionPolicySnapshot
-- parse_timeout_from_policy(): extract timeout from MissionPolicySnapshot
 
 All models use ConfigDict(frozen=True, extra="forbid").
 All registries are fixed in V1 (no custom dimensions or triggers).
@@ -25,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from kernel.clock import datetime
-from runtime.next._internal_runtime.schema import RACIRoleBinding, ResolvedRACIBinding
+from runtime.next._internal_runtime.schema import RACIRoleBinding
 
 if TYPE_CHECKING:
     from runtime.next._internal_runtime.schema import MissionPolicySnapshot
@@ -480,32 +479,6 @@ def parse_band_cutoffs_from_policy(
 
 
 # ---------------------------------------------------------------------------
-# T010: parse_timeout_from_policy()
-# ---------------------------------------------------------------------------
-
-def parse_timeout_from_policy(
-    policy: MissionPolicySnapshot,
-) -> int:
-    """Extract default timeout from policy extras.
-
-    Returns 600 (10 minutes) if not configured.
-    Raises ValueError if configured but invalid.
-    """
-    timeout = policy.extras.get("significance_default_timeout_seconds")
-    if timeout is None:
-        return 600
-    if not isinstance(timeout, int):
-        raise ValueError(
-            f"significance_default_timeout_seconds must be int, got {type(timeout).__name__}"
-        )
-    if timeout <= 0:
-        raise ValueError(
-            f"significance_default_timeout_seconds must be > 0, got {timeout}"
-        )
-    return timeout
-
-
-# ---------------------------------------------------------------------------
 # T011: SignificanceEvaluatedPayload
 # ---------------------------------------------------------------------------
 
@@ -610,50 +583,6 @@ class DimensionScoreOverride(BaseModel):
         return self
 
 
-# ---------------------------------------------------------------------------
-# T017: compute_escalation_targets() pure function
-# ---------------------------------------------------------------------------
-
-def compute_escalation_targets(
-    raci_binding: ResolvedRACIBinding,
-    effective_band: Literal["medium", "high"],
-) -> tuple[RACIRoleBinding, ...]:
-    """Compute escalation targets for a timed-out decision.
-
-    Pure function: deterministic output from inputs.
-
-    Medium band: escalate to accountable (mission owner) only.
-    High band / hard-trigger: escalate to accountable + consulted actors.
-
-    Empty consulted set is allowed — escalation proceeds with accountable only.
-    """
-    if effective_band == "medium":
-        return (raci_binding.accountable,)
-
-    # high band (includes hard-trigger)
-    targets = [raci_binding.accountable]
-    targets.extend(raci_binding.consulted)
-    return tuple(targets)
-
-
-# ---------------------------------------------------------------------------
-# T018: TimeoutEscalationResult model
-# ---------------------------------------------------------------------------
-
-class TimeoutEscalationResult(BaseModel):
-    """Return type from notify_decision_timeout().
-
-    Provides the caller with escalation targets and the emitted event payload.
-    The caller (host process) uses escalation_targets to deliver notifications.
-    """
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    decision_id: str = Field(..., min_length=1)
-    escalation_targets: tuple[RACIRoleBinding, ...] = Field(default_factory=tuple)
-    band: Literal["medium", "high"]
-    timeout_expired_payload: TimeoutExpiredPayload
-
-
 __all__ = [
     # Constants
     # DIMENSION_NAMES: demoted — intra-module constant used in validators;
@@ -672,8 +601,6 @@ __all__ = [
     "TimeoutExpiredPayload",
     "SoftGateDecision",
     # DimensionScoreOverride: demoted — no cross-module src/ from-import callers (WP01).
-    # Models (WP04)
-    "TimeoutEscalationResult",
     # Functions (WP01)
     # make_routing_bands: demoted — no cross-module src/ from-import callers (WP01).
     # validate_band_cutoffs: demoted — no cross-module src/ from-import callers (WP01).
@@ -682,7 +609,4 @@ __all__ = [
     # Functions (WP02)
     "evaluate_significance",
     "parse_band_cutoffs_from_policy",
-    "parse_timeout_from_policy",
-    # Functions (WP04)
-    "compute_escalation_targets",
 ]

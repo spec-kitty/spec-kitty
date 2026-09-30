@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
-import json
 from pathlib import Path
 from typing import Any
 
@@ -332,16 +331,6 @@ def _check_template_drift(
     if live_hash != snapshot.template_hash:
         return "Template changed during active run. Migration required."
     return None
-
-
-def serialize_decision(decision: NextDecision) -> str:
-    """Canonical JSON serialization for determinism verification."""
-    return json.dumps(
-        decision.model_dump(mode="json"),
-        sort_keys=True,
-        separators=(",", ":"),
-        default=str,
-    )
 
 
 def plan_next(

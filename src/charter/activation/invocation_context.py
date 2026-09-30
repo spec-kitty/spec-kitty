@@ -140,14 +140,6 @@ class ProjectContext:
             )
         return self.pack_context
 
-    def require_org_root(self) -> Path:
-        """Return ``org_root`` or raise ``ContextPreconditionError``."""
-        if self.org_root is None:
-            raise ContextPreconditionError(
-                field="org_root", context_type="ProjectContext"
-            )
-        return self.org_root
-
 
 # ---------------------------------------------------------------------------
 # OperationalContext
@@ -177,24 +169,6 @@ class OperationalContext:
     # ------------------------------------------------------------------
     # Guard methods
     # ------------------------------------------------------------------
-
-    def require_active_profile(self) -> str:
-        """Return ``active_profile`` or raise ``ContextPreconditionError``.
-
-        When ``active_profile`` is absent the raised error explains how to
-        supply it: by passing ``active_profile=`` to
-        :func:`build_operational_context`.
-        """
-        if self.active_profile is None:
-            raise ContextPreconditionError(
-                field="active_profile",
-                context_type="OperationalContext",
-                hint=(
-                    "Resolve the active agent profile and pass it as "
-                    "build_operational_context(active_profile=<profile_id>)."
-                ),
-            )
-        return self.active_profile
 
     def require_active_role(self) -> str:
         """Return ``active_role`` or raise ``ContextPreconditionError``.

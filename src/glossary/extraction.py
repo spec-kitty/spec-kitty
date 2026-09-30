@@ -379,32 +379,6 @@ def is_likely_word(text: str) -> bool:
     return not original.endswith("os")
 
 
-def score_confidence(term: str, source: str) -> float:  # noqa: ARG001
-    """Score extraction confidence.
-
-    Args:
-        term: Extracted term (normalized)
-        source: Extraction source
-
-    Returns:
-        Confidence score (0.0-1.0)
-
-    Scoring:
-        - metadata_hint: 1.0
-        - quoted_phrase, acronym, casing_pattern: 0.8
-        - repeated_noun: 0.5
-        - default: 0.3
-    """
-    if source == "metadata_hint":
-        return 1.0
-    elif source in ["quoted_phrase", "acronym", "casing_pattern"]:
-        return 0.8
-    elif source == "repeated_noun":
-        return 0.5
-    else:
-        return 0.3  # Default low
-
-
 def extract_all_terms(
     text: str, metadata: dict[str, Any] | None = None, limit_words: int = 1000
 ) -> list[ExtractedTerm]:

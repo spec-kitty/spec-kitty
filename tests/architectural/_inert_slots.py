@@ -50,9 +50,8 @@ __all__ = [
 
 _SRC = "src"
 #: Relocated doctrine source root (mission ``charter-code-topology-01M152G1``):
-#: ``src/doctrine/`` moved to ``src/charter/offering/``; ``src/doctrine.py`` is
-#: a legacy-import compat shim (a module, not a package) and carries no
-#: schemas, models, or templates of its own.
+#: ``src/doctrine/`` moved to ``src/charter/offering/`` (the ``src/doctrine.py``
+#: compat shim has since been deleted, #805).
 _CHARTER = "charter"
 _OFFERING = "offering"
 _PACKS = "packs"

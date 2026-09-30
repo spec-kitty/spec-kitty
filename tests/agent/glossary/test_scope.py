@@ -7,11 +7,8 @@ from unittest.mock import patch
 from glossary.scope import (
     GlossaryScope,
     SCOPE_RESOLUTION_ORDER,
-    get_scope_precedence,
-    should_use_scope,
     load_seed_file,
     save_seed_file,
-    validate_seed_file,
     activate_scope,
 )
 from glossary.models import Provenance, SenseStatus, TermSense, TermSurface
@@ -38,38 +35,6 @@ def test_scope_resolution_order():
         GlossaryScope.SPEC_KITTY_CORE,
     ]
 
-def test_get_scope_precedence():
-    """get_scope_precedence returns correct precedence."""
-    assert get_scope_precedence(GlossaryScope.MISSION_LOCAL) == 0  # Highest
-    assert get_scope_precedence(GlossaryScope.TEAM_DOMAIN) == 1
-    assert get_scope_precedence(GlossaryScope.AUDIENCE_DOMAIN) == 2
-    assert get_scope_precedence(GlossaryScope.SPEC_KITTY_CORE) == 3  # Lowest
-
-def test_should_use_scope():
-    """should_use_scope checks if scope is configured."""
-    configured = [GlossaryScope.MISSION_LOCAL, GlossaryScope.SPEC_KITTY_CORE]
-
-    assert should_use_scope(GlossaryScope.MISSION_LOCAL, configured) is True
-    assert should_use_scope(GlossaryScope.SPEC_KITTY_CORE, configured) is True
-    assert should_use_scope(GlossaryScope.TEAM_DOMAIN, configured) is False
-    assert should_use_scope(GlossaryScope.AUDIENCE_DOMAIN, configured) is False
-
-def test_validate_seed_file():
-    """validate_seed_file checks schema."""
-    # Valid
-    validate_seed_file({"terms": [{"surface": "foo", "definition": "bar"}]})
-
-    # Missing terms key
-    with pytest.raises(ValueError, match="must have 'terms' key"):
-        validate_seed_file({})
-
-    # Missing surface
-    with pytest.raises(ValueError, match="must have 'surface' key"):
-        validate_seed_file({"terms": [{"definition": "bar"}]})
-
-    # Missing definition
-    with pytest.raises(ValueError, match="must have 'definition' key"):
-        validate_seed_file({"terms": [{"surface": "foo"}]})
 
 def test_load_seed_file(sample_seed_file, tmp_path):
     """Can load seed file and parse terms."""

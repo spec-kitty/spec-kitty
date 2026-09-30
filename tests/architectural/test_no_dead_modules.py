@@ -405,18 +405,10 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
 # onto ``specify_cli.task_utils`` and the module deleted, so this category is now
 # empty (baseline category_4_backcompat_shims: 0).
 #
-# 0 -> 1 (charter-code-topology-01M152G1 landing remediation, retire-doctrine-term
-# M2): ``doctrine`` (src/doctrine.py) is an intentional deprecation shim -- a single
-# MODULE file (not a package) kept only so pre-existing external/legacy callers that
-# still spell ``import doctrine`` / ``from doctrine import X`` keep working during the
-# CR-06 deprecation window, after the relocation of src/doctrine/ to
-# src/charter/offering/. Nothing under src/ imports it (that is the point of a
-# backcompat shim for EXTERNAL callers); it has zero src/ callers by design.
-_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
-    {
-        "doctrine",
-    }
-)
+# 0 -> 1 -> 0: ``doctrine`` (src/doctrine.py, the CR-06 deprecation shim added by
+# charter-code-topology-01M152G1) was deleted past its 3.3.0 removal release
+# (dead-code sweep 2026-09-30, #805). Category drained again.
+_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset()
 
 # ---------- 5. WP-in-flight slot-holder adapters ----------
 # Carry the `# adapter:no-logic` marker; reserved for the WP07
@@ -470,18 +462,11 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
 )
 
 # ---------- 6. Frozen-contract internal re-exports ----------
-# Internalized from spec-kitty-runtime under
-# shared-package-boundary-cutover-01KQ22DS. The CLI imports
-# the implementation files (engine.py, events.py); these three
-# exist as the per-task-layout public surface frozen in
-# kitty-specs/.../contracts/internal_runtime_surface.md.
-_CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
-    {
-        "runtime.next._internal_runtime.emitter",
-        "runtime.next._internal_runtime.lifecycle",
-        "runtime.next._internal_runtime.models",
-    }
-)
+# Drained (dead-code sweep 2026-09-30): the three per-task-layout re-export
+# modules ``runtime.next._internal_runtime.{emitter,lifecycle,models}`` were
+# deleted. contracts/internal_runtime_surface.md never named them and says
+# external importers MUST NOT reach into ``_internal_runtime``.
+_CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset()
 
 # ---------- 7. Grandfathered orphans (HiC triage queue) ----------
 # Modules that look like genuine "library written but never
@@ -880,12 +865,11 @@ _PACKAGE_CLOSURE_ALLOWLIST: frozenset[str] = frozenset(
         # completeness gates iterate (tests/specify_cli/drg_writers/,
         # tests/architectural/test_lifted_drg_writers_registry_completeness.py).
         "specify_cli.drg_writers",
-        # TODO(triage): no src/ importer outside the package. Slated for the
-        # dead-code deletion sweep (review 2026-09-30, README section 2.1);
-        # calibration's tests are a live FR-032 gate and move to tests/ rather
-        # than being deleted.
+        # TODO(triage): no src/ importer outside the package. Its tests are a
+        # live FR-032 gate, so the 2026-09-30 dead-code review recommends moving
+        # it into tests/ rather than deleting it; that move is an owner decision
+        # (review README section 5) and was left out of the deletion sweep.
         "specify_cli.calibration",
-        "specify_cli.charter_runtime.facade",
     }
 )
 

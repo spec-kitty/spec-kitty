@@ -25,9 +25,6 @@ __all__ = [
 _log = logging.getLogger(__name__)
 
 
-DEFAULT_TEMPLATE_SET = "software-dev-default"
-
-
 @dataclass(frozen=True)
 class DoctrineCatalog:
     """Deterministic doctrine catalog derived from on-disk doctrine assets.
@@ -204,11 +201,6 @@ def resolve_doctrine_root() -> Path:
     raise FileNotFoundError("Cannot locate doctrine root. Ensure doctrine assets are packaged.")
 
 
-# Backward-compatible alias for existing private callers.
-def _resolve_doctrine_root() -> Path:
-    return resolve_doctrine_root()
-
-
 def _load_yaml_id_catalog(
     directory: Path,
     pattern: str,
@@ -348,15 +340,6 @@ def _load_yaml_id_catalog_with_presence(
         active_languages,
     )
     return ids, present
-
-
-def _load_template_sets(doctrine_root: Path) -> set[str]:
-    """Load available template set IDs.
-
-    Template set IDs are derived from bundled missions as ``{mission}-default``.
-    """
-    template_sets, _ = _load_template_sets_with_presence(doctrine_root)
-    return template_sets
 
 
 def _load_template_sets_with_presence(_doctrine_root: Path) -> tuple[set[str], bool]:

@@ -36,53 +36,6 @@ SCOPE_RESOLUTION_ORDER: list[GlossaryScope] = [
 ]
 
 
-def get_scope_precedence(scope: GlossaryScope) -> int:
-    """
-    Get numeric precedence for a scope (lower number = higher precedence).
-
-    Args:
-        scope: GlossaryScope enum value
-
-    Returns:
-        Precedence integer (0 = highest precedence)
-    """
-    try:
-        return SCOPE_RESOLUTION_ORDER.index(scope)
-    except ValueError:
-        # Unknown scope defaults to lowest precedence
-        return len(SCOPE_RESOLUTION_ORDER)
-
-
-def should_use_scope(scope: GlossaryScope, configured_scopes: list[GlossaryScope]) -> bool:
-    """
-    Check if a scope should be used in resolution.
-
-    Args:
-        scope: Scope to check
-        configured_scopes: List of active scopes
-
-    Returns:
-        True if scope is configured and should be used
-    """
-    return scope in configured_scopes
-
-
-def validate_seed_file(data: dict[str, Any], file_path: Path | None = None) -> None:
-    """Validate seed file schema using Pydantic models.
-
-    Raises ``SeedFileValidationError`` on invalid data.
-
-    Args:
-        data: Parsed YAML data
-        file_path: Optional path for richer error context. When ``None``
-            a placeholder is used (backward compatibility).
-    """
-    from .seed_validation import validate_seed_file_data
-
-    effective_path = file_path or Path("<unknown>")
-    validate_seed_file_data(data, effective_path)
-
-
 _STATUS_MAP = {
     "active": SenseStatus.ACTIVE,
     "deprecated": SenseStatus.DEPRECATED,

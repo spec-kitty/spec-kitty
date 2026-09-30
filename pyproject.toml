@@ -203,7 +203,7 @@ artifacts = [
 # consumers. Other repo-local packs (e.g. `packs/internal/`, the maintainer-only
 # org-tier pack) must NOT be force-included into the wheel. Guarded by
 # tests/cross_cutting/packaging/test_packaging_safety.py.
-force-include = { "packs/built-in" = "packs/built-in", "src/doctrine.py" = "doctrine.py" }
+force-include = { "packs/built-in" = "packs/built-in" }
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -423,7 +423,6 @@ exclude = [
     "src/mission_runtime/lifecycle_phase.py",
     "src/mission_runtime/read_dir_degrade.py",
     "src/runtime/next/__init__.py",
-    "src/runtime/next/_internal_runtime/contracts.py",
     "src/runtime/next/_internal_runtime/discovery.py",
     "src/runtime/next/_internal_runtime/engine.py",
     "src/runtime/next/_internal_runtime/events.py",
@@ -1662,7 +1661,6 @@ exclude = [
     "tests/mocked_env.py",
     "tests/next/test_composition_gate_widening.py",
     "tests/next/test_internal_runtime_coverage.py",
-    "tests/next/test_internal_runtime_engine_coverage.py",
     "tests/next/test_mission_run_back_reference.py",
     "tests/next/test_next_command_integration.py",
     "tests/next/test_next_replay_parity_integration.py",

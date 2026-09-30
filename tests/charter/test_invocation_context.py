@@ -177,13 +177,6 @@ class TestProjectContextGuards:
         assert exc_info.value.field == "pack_context"
         assert exc_info.value.context_type == "ProjectContext"
 
-    def test_require_org_root_raises_when_none(self) -> None:
-        ctx = ProjectContext()
-        with pytest.raises(ContextPreconditionError) as exc_info:
-            ctx.require_org_root()
-        assert exc_info.value.field == "org_root"
-        assert exc_info.value.context_type == "ProjectContext"
-
 
 # ---------------------------------------------------------------------------
 # OperationalContext
@@ -198,17 +191,6 @@ class TestOperationalContext:
         assert ctx.active_role is None
         assert ctx.current_activity is None
         assert ctx.tech_stack == frozenset()
-
-    def test_require_active_profile_raises_when_none(self) -> None:
-        ctx = OperationalContext()
-        with pytest.raises(ContextPreconditionError) as exc_info:
-            ctx.require_active_profile()
-        assert exc_info.value.field == "active_profile"
-        assert exc_info.value.context_type == "OperationalContext"
-
-    def test_require_active_profile_returns_value(self) -> None:
-        ctx = OperationalContext(active_profile="python-pedro")
-        assert ctx.require_active_profile() == "python-pedro"
 
     def test_require_active_role_raises_when_none(self) -> None:
         ctx = OperationalContext()

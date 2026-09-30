@@ -64,7 +64,7 @@ modules within a single-process CLI application. The main ones map as follows.
 
 The governance layer lives in the **`charter` package** (`src/charter/`), which
 absorbed the former standalone `doctrine` package at `src/charter/offering/` in
-the convergence (`src/doctrine.py` remains only as a deprecation shim). The
+the convergence (the `src/doctrine.py` deprecation shim was removed, #805). The
 documented layer chain is
 **`kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`**:
 

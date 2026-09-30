@@ -13,7 +13,6 @@ from glossary.extraction import (
     extract_repeated_nouns,
     normalize_term,
     is_likely_word,
-    score_confidence,
     extract_all_terms,
 )
 
@@ -475,28 +474,6 @@ class TestIsLikelyWord:
         """Non-alphabetic strings return False."""
         assert is_likely_word("work123") is False
         assert is_likely_word("test-case") is False
-
-
-class TestConfidenceScoring:
-    """Tests for T013: Confidence scoring."""
-
-    def test_metadata_hint_confidence(self):
-        """Metadata hints have confidence 1.0."""
-        assert score_confidence("workspace", "metadata_hint") == 1.0
-
-    def test_explicit_pattern_confidence(self):
-        """Explicit patterns have confidence 0.8."""
-        assert score_confidence("workspace", "quoted_phrase") == 0.8
-        assert score_confidence("API", "acronym") == 0.8
-        assert score_confidence("work_package", "casing_pattern") == 0.8
-
-    def test_repeated_noun_confidence(self):
-        """Repeated nouns have confidence 0.5."""
-        assert score_confidence("workspace", "repeated_noun") == 0.5
-
-    def test_default_confidence(self):
-        """Unknown sources have default low confidence."""
-        assert score_confidence("workspace", "unknown") == 0.3
 
 
 class TestExtractAllTerms:

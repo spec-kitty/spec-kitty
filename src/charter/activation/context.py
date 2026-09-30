@@ -114,11 +114,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
-#: WP05 (IC-05, display prose-consumer re-point): the display call-sites
-#: consume the shared ``charter.bundle.CHARTER_MD`` constant rather than
-#: re-declaring the ``"charter.md"`` filename locally (Sonar S1192 pre-emption
-#: the earlier local ``CHARTER_FILENAME = "charter.md"`` duplicate is retired).
-NONE_LABEL = "(none)"
 
 
 def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:

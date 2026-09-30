@@ -52,14 +52,6 @@ class MissionTemplateHasNoStepsError(MissionRuntimeError):
 ActorIdentity = RuntimeActorIdentity
 
 
-class CommitContext(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    head_sha: str = Field(..., min_length=1)
-    branch: str = Field(..., min_length=1)
-    dirty: bool = False
-
-
 class DecisionRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -237,32 +229,6 @@ class StepContextContract(BaseModel):
                 )
         return v
 
-    def validate_contract(self, context_type_registry: ContextTypeRegistry | None = None) -> tuple[bool, list[str]]:
-        """Validate the contract structure and context type definitions.
-
-        Returns:
-            (is_valid, error_messages) tuple
-        """
-        errors: list[str] = []
-        registry = context_type_registry or ContextTypeRegistry()
-
-        # Validate all context types
-        for ctx_type in self.requires + self.optional + self.emits:
-            # Check if type is known (built-in or has resolver_ref)
-            if not registry.is_registered(ctx_type.type) and not ctx_type.resolver_ref:
-                errors.append(f"Unknown context type '{ctx_type.type}' without resolver_ref")
-
-        # Check for circular dependencies (simplified: A requires output from B, B requires A)
-        requires_names = {c.type for c in self.requires}
-        emits_names = {c.type for c in self.emits}
-
-        # A step cannot require what it emits (circular in same step)
-        overlap = requires_names & emits_names
-        if overlap:
-            errors.append(f"Step requires and emits same context(s): {overlap}")
-
-        return len(errors) == 0, errors
-
 
 # ---------------------------------------------------------------------------
 # Context Type Registry (V1 baseline)
@@ -327,27 +293,9 @@ class ContextTypeRegistry:
         if custom_types:
             self._types.update(custom_types)
 
-    def get_builtin_type(self, name: str) -> ContextType:
-        """Get a built-in context type by name.
-
-        Raises:
-            ValueError if type is unknown and has no custom resolver
-        """
-        if name not in self._types:
-            raise ValueError(f"Unknown context type: {name}")
-        return self._types[name]
-
     def is_registered(self, name: str) -> bool:
         """Check if a context type is registered."""
         return name in self._types
-
-    def register_custom_type(self, context_type: ContextType) -> None:
-        """Register a custom context type."""
-        self._types[context_type.type] = context_type
-
-    def get_all_types(self) -> dict[str, ContextType]:
-        """Get all registered types (builtin + custom)."""
-        return dict(self._types)
 
 
 # ---------------------------------------------------------------------------

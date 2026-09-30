@@ -9,7 +9,6 @@ Uses canonical event constants and payload models from spec-kitty-events v2.3.1.
 # public-API inventory.
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -64,11 +63,9 @@ __all__ = [
     "NextStepIssuedPayload",
     "RuntimeEventEmitter",
     "NullEmitter",
-    "JsonlEventLog",
     "seed_runtime_emitter",
     "runtime_emitter_for_mission",
     "register_runtime_emitter_factory",
-    "reset_runtime_emitter_factory",
 ]
 
 
@@ -335,41 +332,3 @@ def runtime_emitter_for_mission(
     return NullEmitter.for_mission(
         feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
     )
-
-
-# ---------------------------------------------------------------------------
-# JsonlEventLog (append-only JSONL persistence)
-# ---------------------------------------------------------------------------
-
-class JsonlEventLog:
-    """Append-only JSONL log. Writes dicts with sort_keys for determinism.
-
-    Runtime-local debug/audit log. Payload dicts match canonical payload
-    model shapes but do not use the full Event envelope (event_id,
-    lamport_clock, etc.) — that is a cross-repo concern for a later version.
-    """
-
-    def __init__(self, path: Path) -> None:
-        self._path = path
-
-    @property
-    def path(self) -> Path:
-        return self._path
-
-    def append(self, record: dict[str, Any]) -> None:
-        """Append a single record as a JSON line."""
-        line = json.dumps(record, sort_keys=True, separators=(",", ":"), default=str)
-        with open(self._path, "a", encoding="utf-8") as handle:
-            handle.write(line + "\n")
-
-    def read_all(self) -> list[dict[str, Any]]:
-        """Read all records from the log file."""
-        if not self._path.exists():
-            return []
-        records: list[dict[str, Any]] = []
-        with open(self._path, encoding="utf-8") as handle:
-            for line in handle:
-                stripped = line.strip()
-                if stripped:
-                    records.append(json.loads(stripped))
-        return records

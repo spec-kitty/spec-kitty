@@ -10,9 +10,6 @@ from .primitives import PrimitiveExecutionContext
 from .glossary_hook import execute_with_glossary
 from .repository import MissionTemplateRepository, TemplateResult, ConfigResult
 
-# Backward-compat alias for shipped migrations and existing imports
-MissionRepository = MissionTemplateRepository
-
 __all__ = [
     "ActionIndex",
     "ArtifactClassEnum",
@@ -22,7 +19,6 @@ __all__ = [
     "PrimitiveExecutionContext",
     "execute_with_glossary",
     "MissionTemplateRepository",
-    "MissionRepository",  # alias
     "TemplateResult",
     "ConfigResult",
 ]

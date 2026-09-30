@@ -65,24 +65,6 @@ class DiscoveryWarning(BaseModel):
     error: str
 
 
-class ShadowEntry(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    key: str
-    selected_path: str
-    selected_tier: str
-    selected_origin: str
-    shadowed: list[DiscoveredMission] = Field(default_factory=list)
-
-
-class ShadowingDiagnostics(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    entries: list[ShadowEntry] = Field(default_factory=list)
-    total_discovered: int
-    total_shadowed: int
-
-
 # ---------------------------------------------------------------------------
 # Discovery context
 # ---------------------------------------------------------------------------
@@ -334,41 +316,4 @@ def load_mission_template(path_or_key: str, context: DiscoveryContext | None = N
 
     raise MissionRuntimeError(
         f"Mission '{path_or_key}' not found. Checked discovery tiers via context={context.model_dump()}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Shadowing diagnostics
-# ---------------------------------------------------------------------------
-
-def diagnose_shadowing(context: DiscoveryContext) -> ShadowingDiagnostics:
-    """Run discover_missions() and structure results as a shadowing report."""
-    discovered = discover_missions(context)
-
-    # Group by key.
-    by_key: dict[str, list[DiscoveredMission]] = {}
-    for item in discovered:
-        by_key.setdefault(item.key, []).append(item)
-
-    entries: list[ShadowEntry] = []
-    total_shadowed = 0
-
-    for key, items in by_key.items():
-        selected_item = next((i for i in items if i.selected), items[0])
-        shadowed_items = [i for i in items if not i.selected]
-        total_shadowed += len(shadowed_items)
-        entries.append(
-            ShadowEntry(
-                key=key,
-                selected_path=selected_item.path,
-                selected_tier=selected_item.precedence_tier,
-                selected_origin=selected_item.origin,
-                shadowed=shadowed_items,
-            )
-        )
-
-    return ShadowingDiagnostics(
-        entries=entries,
-        total_discovered=len(discovered),
-        total_shadowed=total_shadowed,
     )

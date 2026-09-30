@@ -2163,16 +2163,6 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
 )
 
 
-def hand_authored_node_urns() -> frozenset[str]:
-    """URNs of every node that exists only because it was hand-authored."""
-    return frozenset(n.urn for n in HAND_AUTHORED_NODES)
-
-
-def hand_authored_edge_keys() -> frozenset[tuple[str, str, str]]:
-    """``(source, target, relation)`` triples for every hand-authored edge."""
-    return frozenset((e.source, e.target, e.relation.value) for e in HAND_AUTHORED_EDGES)
-
-
 def merge_hand_authored_overlay(graph: DRGGraph) -> DRGGraph:
     """Return a new graph = *graph* plus the enumerated hand-authored overlay.
 

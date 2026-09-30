@@ -201,11 +201,6 @@ class ReconciliationDelta:
     conflicts: tuple[ReconciliationConflict, ...] = ()
 
     @property
-    def has_backed_removals(self) -> bool:
-        """True when ``removable`` contains at least one still-backed entry."""
-        return any(ref.backing_artifact is not None for ref in self.removable)
-
-    @property
     def is_empty(self) -> bool:
         """True when this run reconciled against a clean/no-op baseline."""
         return not (self.retained or self.added or self.removable or self.conflicts)

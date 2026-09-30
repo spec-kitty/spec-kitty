@@ -89,8 +89,7 @@ def expected_coverage_targets() -> list[str]:
     """The full top-level coverage-target set, derived from ``src/``.
 
     A target is importable top-level *code*: a directory holding ``__init__.py``
-    (a package) or a public single-file module (``src/doctrine.py``, the
-    ``charter.offering`` compatibility shim). Both forms are measured by the step
+    (a package) or a public single-file module. Both forms are measured by the step
     this mission retires, so both must stay measured or a file loses coverage.
     """
     targets: set[str] = set()

@@ -1,7 +1,7 @@
 """End-to-end synthesis tests via orchestrator.synthesize() (T014).
 
 Verifies:
-- synthesize() delegates to synthesize_pipeline.run() after WP02 merges.
+- synthesize() delegates to the synthesis pipeline.
 - run_all() returns the full list of (body, ProvenanceEntry) tuples.
 - Tuple count matches expected targets for the minimal interview snapshot.
 - Idempotency: identical inputs produce byte-identical inputs_hash and
@@ -180,7 +180,7 @@ class TestRunAllTupleCount:
 
 
 class TestSynthesizeEntryPoint:
-    """orchestrator.synthesize() delegates to synthesize_pipeline.run()."""
+    """orchestrator.synthesize() delegates to the synthesis pipeline."""
 
     def test_synthesize_result_has_target_kind(
         self,

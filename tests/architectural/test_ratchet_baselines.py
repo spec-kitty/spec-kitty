@@ -650,10 +650,12 @@ def test_non_derived_category_shrink_still_records(
     below its YAML baseline IS recorded by the shrink arm.
     """
     nd_module = importlib.import_module(_NO_DEAD_MODULES_MODULE)
-    monkeypatch.setattr(nd_module, "_CATEGORY_6_FROZEN_RUNTIME_REEXPORTS", frozenset())
+    # Probe a category with a non-zero baseline (category 6 drained to 0 in the
+    # 2026-09-30 dead-code sweep, so it can no longer shrink).
+    monkeypatch.setattr(nd_module, "_CATEGORY_2_BUILD_SCHEMA_GENERATORS", frozenset())
     recorded: list[tuple[str, object]] = []
     test_growth_fails_shrinkage_warns(lambda name, value: recorded.append((name, value)))
-    assert any("category_6_frozen_runtime_reexports" in str(value) for _, value in recorded), recorded
+    assert any("category_2_build_schema_generators" in str(value) for _, value in recorded), recorded
 
 
 @pytest.mark.parametrize("package", ["runtime", "mission_runtime"])

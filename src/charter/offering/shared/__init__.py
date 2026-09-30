@@ -6,13 +6,17 @@ Provides cross-cutting concerns used by multiple artifact subpackages:
 - :exc:`~charter.offering.shared.exceptions.DoctrineArtifactLoadError` — load failure signal
 - :exc:`~charter.offering.shared.exceptions.DoctrineResolutionCycleError` — cycle detection signal
 
-Glossary primitive types (canonical definitions in kernel, re-exported here for convenience):
+Glossary primitive types (canonical definitions in kernel, re-exported here):
 
-- :class:`~kernel.glossary_types.Strictness`
-- :class:`~kernel.glossary_types.ExtractedTerm`
-- :class:`~kernel.glossary_types.SemanticConflict`
-- :class:`~kernel.glossary_types.ScopeRef`
+- :class:`~kernel.glossary_types.ConflictType`
 - :class:`~kernel.glossary_types.GlossaryScope`
+- :class:`~kernel.glossary_types.SenseRef`
+- :class:`~kernel.glossary_types.Severity`
+- :class:`~kernel.glossary_types.TermSurface`
+
+These five re-exports are the only src/ importers of their
+``kernel.glossary_types`` definitions; dropping them is a follow-up decision about
+those kernel duplicates (dead-code review 2026-09-30).
 """
 
 from __future__ import annotations
@@ -21,13 +25,9 @@ from .exceptions import DoctrineArtifactLoadError, DoctrineResolutionCycleError
 from .schema_utils import SchemaUtilities
 from kernel.glossary_types import (
     ConflictType,
-    ExtractedTerm,
     GlossaryScope,
-    SemanticConflict,
-    ScopeRef,
     SenseRef,
     Severity,
-    Strictness,
     TermSurface,
 )
 
@@ -35,13 +35,9 @@ __all__ = [
     "ConflictType",
     "DoctrineArtifactLoadError",
     "DoctrineResolutionCycleError",
-    "ExtractedTerm",
     "GlossaryScope",
     "SchemaUtilities",
-    "SemanticConflict",
-    "ScopeRef",
     "SenseRef",
     "Severity",
-    "Strictness",
     "TermSurface",
 ]

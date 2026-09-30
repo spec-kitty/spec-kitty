@@ -198,7 +198,6 @@ from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode,
 
 logger = logging.getLogger(__name__)
 
-KITTIFY_DIR = ".kittify"
 # MISSION_RUNTIME_YAML / MISSION_YAML moved to runtime_bridge_io.py (T017 —
 # their only residual users, the discovery cluster, moved with them).
 

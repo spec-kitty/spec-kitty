@@ -5,7 +5,6 @@ These tests verify:
 - All stdlib re attributes are present (Pattern, Match, RegexFlag, error, flags)
 - Core regex functions work correctly
 - Fallback to stdlib re when RE2 is unavailable
-- ``is_re2_active()`` returns bool
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ import types
 import pytest
 
 import kernel._safe_re as safe_re_mod
-from kernel._safe_re import is_re2_active, re
+from kernel._safe_re import re
 
 pytestmark = pytest.mark.fast
 
@@ -228,13 +227,6 @@ class TestPCREPatternsFail:
         """re.VERBOSE is not supported by RE2; raises re.error."""
         with pytest.raises(_stdlib_re.error):
             re.compile(r"\d+  # digits", re.VERBOSE)  # type: ignore[attr-defined]
-
-
-class TestIsRe2Active:
-    """is_re2_active() always returns True (google-re2 is a hard dependency)."""
-
-    def test_returns_true(self) -> None:
-        assert is_re2_active() is True
 
 
 class TestInstanceofPattern:

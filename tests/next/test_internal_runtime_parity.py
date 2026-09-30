@@ -32,7 +32,8 @@ FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "runtime_parity
 _RUNTIME_PACKAGE = Path(__file__).resolve().parents[2] / "src" / "runtime" / "next" / "_internal_runtime"
 # Planning-base count of ``.py`` files under ``_RUNTIME_PACKAGE`` (NFR-002 floor).
 # A deliberate shrink of the package is a one-line edit here.
-_RUNTIME_PACKAGE_FILE_FLOOR = 16
+# 2026-09-30 dead-code sweep: 16 -> 12 (emitter/lifecycle/models/contracts deleted).
+_RUNTIME_PACKAGE_FILE_FLOOR = 12
 _FORBIDDEN_IMPORT_ROOTS = frozenset({"rich", "typer"})
 
 

@@ -18,12 +18,6 @@ class GlossaryStore:
         # Create instance-specific cached lookup function
         self._lookup_cached = lru_cache(maxsize=10000)(self._lookup_impl)
 
-    def load_from_events(self) -> None:
-        """Rebuild glossary from event log."""
-        # Read GlossarySenseUpdated events from log
-        # Populate self._cache
-        pass  # WP08 will implement event reading
-
     def add_sense(self, sense: TermSense) -> None:
         """
         Add a sense to the store.

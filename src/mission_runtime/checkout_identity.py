@@ -93,11 +93,6 @@ class CheckoutIdentityError(Exception):
             )
 
 
-def _is_within(path: Path, ancestor: Path) -> bool:
-    """Return whether ``path`` is ``ancestor`` itself or nested beneath it."""
-    return path == ancestor or ancestor in path.parents
-
-
 def _checkout_root(path: Path, primary_root: Path) -> Path:
     """Classify which working-tree root owns ``path`` — pure path inspection.
 

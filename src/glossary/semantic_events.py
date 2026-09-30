@@ -33,7 +33,6 @@ EVT_GLOSSARY_CLARIFICATION_REQUESTED = "GlossaryClarificationRequested"
 EVT_GLOSSARY_CLARIFICATION_RESOLVED = "GlossaryClarificationResolved"
 
 _EVENTS_DIR = Path(".kittify") / "events" / "glossary"
-_HIGH_SEVERITIES = {"high", "critical"}
 
 
 @dataclass(frozen=True)
@@ -196,7 +195,3 @@ def iter_semantic_conflicts(
         except OSError:
             continue
     return records
-
-
-def is_high_severity(record: SemanticConflictRecord) -> bool:
-    return record.severity in _HIGH_SEVERITIES

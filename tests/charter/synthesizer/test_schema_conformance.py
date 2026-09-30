@@ -1,7 +1,7 @@
 """Schema conformance gate tests (T012, T014).
 
 Verifies FR-019 / NFR-005 — the schema conformance gate inside
-synthesize_pipeline.run() / run_all():
+synthesize_pipeline.run_all():
 
 1. An adapter returning an invalid body raises SynthesisSchemaError.
 2. SynthesisSchemaError carries artifact_kind, artifact_slug, validation_errors.

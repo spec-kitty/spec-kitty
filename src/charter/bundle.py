@@ -38,9 +38,6 @@ if TYPE_CHECKING:
 
 SCHEMA_VERSION: str = "2.0.0"
 CHARTER_MD = Path(".kittify/charter/charter.md")
-GOVERNANCE_YAML = Path(".kittify/charter/governance.yaml")
-DIRECTIVES_YAML = Path(".kittify/charter/directives.yaml")
-METADATA_YAML = Path(".kittify/charter/metadata.yaml")
 
 #: consolidate-charter-bundle (WP01 / T004): the ONE shared ``charter.yaml``
 #: filename constant. ``charter.yaml`` is the git-tracked, authorable

@@ -541,23 +541,6 @@ def test_reconciliation_delta_is_not_empty_with_retained_content() -> None:
     assert delta.is_empty is False
 
 
-def test_has_backed_removals_true_when_any_removable_is_backed() -> None:
-    delta = ReconciliationDelta(
-        removable=(
-            NodeOrEdgeRef(ref_kind="node", urn="tactic:orphan", backing_artifact=None),
-            NodeOrEdgeRef(ref_kind="node", urn="tactic:backed", backing_artifact=".kittify/doctrine/tactic/backed.tactic.yaml"),
-        )
-    )
-    assert delta.has_backed_removals is True
-
-
-def test_has_backed_removals_false_when_all_orphaned() -> None:
-    delta = ReconciliationDelta(
-        removable=(NodeOrEdgeRef(ref_kind="node", urn="tactic:orphan", backing_artifact=None),)
-    )
-    assert delta.has_backed_removals is False
-
-
 def test_manifest_delta_default_is_empty_tuples() -> None:
     delta = ManifestDelta()
     assert delta.retained == ()
@@ -656,7 +639,6 @@ def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> Non
     assert pruned_manifest_keys == {("tactic", "keep")}
     # apply_prune preserves the delta as-is (WP03 owns reporting the CLI diff).
     assert pruned.delta is delta
-
 
 
 # ---------------------------------------------------------------------------

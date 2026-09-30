@@ -173,25 +173,6 @@ class GlossaryCandidateExtractionMiddleware:
                 exc,
             )
 
-    def scan_fields(self, data: dict[str, Any]) -> str:
-        """Scan configured fields in a data dictionary.
-
-        Args:
-            data: Dictionary to scan
-
-        Returns:
-            Combined text from all matching fields
-        """
-        text_parts: list[str] = []
-
-        for field_name in self.glossary_fields:
-            if field_name in data:
-                value = data[field_name]
-                if isinstance(value, str):
-                    text_parts.append(value)
-
-        return "\n".join(text_parts)
-
 
 class SemanticCheckMiddleware:
     """Middleware that resolves extracted terms and detects semantic conflicts.

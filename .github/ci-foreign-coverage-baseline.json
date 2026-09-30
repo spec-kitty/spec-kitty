@@ -55,7 +55,6 @@
     "mission_runtime.read_dir_degrade",
     "specify_cli.__main__",
     "specify_cli.agent_upgrade_prompt",
-    "specify_cli.charter_runtime.facade",
     "specify_cli.encoding"
   ],
   "in_matrix_dark_packages": [

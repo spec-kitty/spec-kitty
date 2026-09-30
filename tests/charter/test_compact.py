@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from charter.activation.compact import (
-    CompactView,
     extract_section_anchors,
     render_compact_view,
 )
@@ -15,12 +14,6 @@ from charter.activation.resolver import GovernanceResolutionError
 
 
 pytestmark = pytest.mark.fast
-
-
-def test_compact_view_token_estimate_has_minimum() -> None:
-    view = CompactView(text="")
-
-    assert view.token_estimate == 1
 
 
 def test_extract_section_anchors_skips_empty_and_duplicates() -> None:

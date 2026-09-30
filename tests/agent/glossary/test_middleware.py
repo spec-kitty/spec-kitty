@@ -32,37 +32,6 @@ class TestMiddlewareBasics:
 
         assert middleware.glossary_fields == ["input", "result"]
 
-    def test_scan_fields_extracts_text(self):
-        """scan_fields extracts text from configured fields."""
-        middleware = GlossaryCandidateExtractionMiddleware(glossary_fields=["description", "prompt"])
-
-        data = {
-            "description": "First field",
-            "prompt": "Second field",
-            "other": "Ignored field",
-        }
-
-        text = middleware.scan_fields(data)
-
-        assert "First field" in text
-        assert "Second field" in text
-        assert "Ignored field" not in text
-
-    def test_scan_fields_ignores_non_string(self):
-        """scan_fields ignores non-string values."""
-        middleware = GlossaryCandidateExtractionMiddleware()
-
-        data = {
-            "description": "Valid text",
-            "prompt": 123,  # Integer
-            "output": ["list", "items"],  # List
-        }
-
-        text = middleware.scan_fields(data)
-
-        assert "Valid text" in text
-        assert "123" not in text
-
 
 class TestMiddlewareProcess:
     """Tests for middleware process() method (T014)."""

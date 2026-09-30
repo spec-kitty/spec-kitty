@@ -81,16 +81,6 @@ TEST_FRAMEWORK_INDICATORS: dict[str, str] = {
     "vitest.config.js": "vitest",
 }
 
-LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
-    "python": [".py"],
-    "typescript": [".ts", ".tsx"],
-    "javascript": [".js", ".jsx", ".mjs"],
-    "go": [".go"],
-    "rust": [".rs"],
-    "java": [".java"],
-    "ruby": [".rb"],
-    "php": [".php"],
-}
 
 # ---------------------------------------------------------------------------
 # Exceptions

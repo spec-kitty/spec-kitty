@@ -22,9 +22,9 @@ patches ``charter.activation.context.YAML`` directly.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import charter.offering.service as _doctrine_service_module
@@ -47,18 +47,6 @@ __all__ = [
     "_project_directive_entries",
     "_project_directive_entries_with_source",
 ]
-
-
-class _DirectiveLike(Protocol):
-    """Minimal directive shape used by project directive helpers."""
-
-    id: str
-
-
-class _DirectivesConfigLike(Protocol):
-    """Minimal directives config contract returned by charter.activation.sync."""
-
-    directives: Sequence[_DirectiveLike]
 
 
 def _bundle_root_for_json(repo_root: Path) -> Path:

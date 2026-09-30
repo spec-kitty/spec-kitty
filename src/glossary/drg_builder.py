@@ -154,8 +154,8 @@ def build_index(
     urn_to_canonical: dict[str, str] = {}  # for collision detection
 
     # GlossaryStore._cache is the internal dict[scope_str, dict[surface, list[TermSense]]].
-    # GlossaryStore.load_from_events() is currently a stub (WP08), so the only
-    # way to populate the store is via add_sense(). We access _cache directly
+    # GlossaryStore has no event-log loader, so the only way to populate the
+    # store is via add_sense(). We access _cache directly
     # here because no public iteration API exists yet. When GlossaryStore gains a
     # public iterator, replace this access. See RISK-2 in the mission-094 review.
     for scope_key, surfaces in store._cache.items():

@@ -25,42 +25,28 @@ from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
     MissionRunRef,
-    NextDecision,
     NullEmitter,
     next_step,
     provide_decision_answer,
     start_mission_run,
 )
-from runtime.next._internal_runtime import contracts as contracts_mod
 from runtime.next._internal_runtime import discovery as discovery_mod
-from runtime.next._internal_runtime import emitter as emitter_mod
 from runtime.next._internal_runtime import engine as engine_mod
 from runtime.next._internal_runtime import events as events_mod
-from runtime.next._internal_runtime import lifecycle as lifecycle_mod
-from runtime.next._internal_runtime import models as models_mod
 from runtime.next._internal_runtime import planner as planner_mod
 from runtime.next._internal_runtime import raci as raci_mod
-from runtime.next._internal_runtime import schema as schema_mod
 from runtime.next._internal_runtime import significance as sig_mod
-from runtime.next._internal_runtime.contracts import RemediationPayload
 from runtime.next._internal_runtime.discovery import (
     DiscoveryResult,
     DiscoveryWarning,
-    ShadowEntry,
-    ShadowingDiagnostics,
-    diagnose_shadowing,
     discover_missions,
     discover_missions_with_warnings,
     load_mission_template,
 )
 from runtime.next._internal_runtime.engine import (
-    TransitionGate,
-    notify_decision_timeout,
-    resolve_context,
     validate_binding,
 )
-from runtime.next._internal_runtime.events import JsonlEventLog
-from runtime.next._internal_runtime.planner import plan_next, serialize_decision
+from runtime.next._internal_runtime.planner import plan_next
 from runtime.next._internal_runtime.raci import (
     infer_raci,
     resolve_raci,
@@ -95,11 +81,9 @@ from runtime.next._internal_runtime.significance import (
     SignificanceScore,
     SoftGateDecision,
     TimeoutPolicy,
-    compute_escalation_targets,
     evaluate_significance,
     make_routing_bands,
     parse_band_cutoffs_from_policy,
-    parse_timeout_from_policy,
     resolve_hard_triggers,
     validate_band_cutoffs,
     validate_dimension_scores,
@@ -161,31 +145,6 @@ def _make_simple_template() -> MissionTemplate:
         ],
         audit_steps=[],
     )
-
-
-# ---------------------------------------------------------------------------
-# Re-export modules: emitter / lifecycle / models
-# ---------------------------------------------------------------------------
-
-
-def test_emitter_module_re_exports() -> None:
-    assert emitter_mod.NullEmitter is events_mod.NullEmitter
-    assert emitter_mod.RuntimeEventEmitter is events_mod.RuntimeEventEmitter
-    assert emitter_mod.runtime_emitter_for_mission is events_mod.runtime_emitter_for_mission
-    assert (
-        emitter_mod.register_runtime_emitter_factory
-        is events_mod.register_runtime_emitter_factory
-    )
-    assert emitter_mod.reset_runtime_emitter_factory is events_mod.reset_runtime_emitter_factory
-    assert set(emitter_mod.__all__) == {
-        "NullEmitter",
-        "RuntimeEventEmitter",
-        "runtime_emitter_for_mission",
-        "register_runtime_emitter_factory",
-        "reset_runtime_emitter_factory",
-    }
-    for name in emitter_mod.__all__:
-        assert name in events_mod.__all__, name
 
 
 # ---------------------------------------------------------------------------
@@ -484,75 +443,6 @@ def test_null_emitter_for_mission_not_on_protocol() -> None:
     assert classmethods == {"for_mission"}
 
 
-def test_lifecycle_module_re_exports() -> None:
-    assert lifecycle_mod.next_step is engine_mod.next_step
-    assert lifecycle_mod.provide_decision_answer is engine_mod.provide_decision_answer
-    assert lifecycle_mod.start_mission_run is engine_mod.start_mission_run
-
-
-def test_models_module_re_exports() -> None:
-    assert models_mod.DiscoveryContext is discovery_mod.DiscoveryContext
-    assert models_mod.MissionRunRef is engine_mod.MissionRunRef
-    assert models_mod.MissionPolicySnapshot is schema_mod.MissionPolicySnapshot
-    assert models_mod.NextDecision is schema_mod.NextDecision
-
-
-# ---------------------------------------------------------------------------
-# contracts.RemediationPayload
-# ---------------------------------------------------------------------------
-
-
-def test_remediation_missing_default_metadata() -> None:
-    payload = RemediationPayload.missing("feature_binding")
-    assert payload.error_code == "CONTEXT_MISSING"
-    assert payload.context_name == "feature_binding"
-    assert payload.candidates == []
-    assert "feature_binding" in payload.remediation_hint
-    assert payload.resolver_metadata == {}
-
-
-def test_remediation_missing_with_metadata() -> None:
-    payload = RemediationPayload.missing(
-        "feature_binding", resolver_metadata={"resolver": "explicit_inputs"}
-    )
-    assert payload.resolver_metadata == {"resolver": "explicit_inputs"}
-
-
-def test_remediation_ambiguous_with_candidates() -> None:
-    candidates = [
-        {"source": "ledger", "value": "x"},
-        {"source": "discovery", "value": "y"},
-    ]
-    payload = RemediationPayload.ambiguous("wp_binding", candidates)
-    assert payload.error_code == "CONTEXT_AMBIGUOUS"
-    assert "ledger" in payload.remediation_hint
-    assert "discovery" in payload.remediation_hint
-    assert payload.candidates == candidates
-
-
-def test_remediation_ambiguous_without_candidates() -> None:
-    payload = RemediationPayload.ambiguous("wp_binding", [])
-    assert "specify which source" in payload.remediation_hint
-
-
-def test_remediation_invalid_with_validation_failures() -> None:
-    payload = RemediationPayload.invalid(
-        "spec_artifact",
-        candidates=[{"source": "fs"}],
-        validation_failures=["artifact missing", "wrong format"],
-    )
-    assert payload.error_code == "CONTEXT_INVALID"
-    assert "artifact missing" in payload.remediation_hint
-    assert "wrong format" in payload.remediation_hint
-
-
-def test_remediation_invalid_without_validation_failures() -> None:
-    payload = RemediationPayload.invalid(
-        "spec_artifact", candidates=[{"source": "fs"}]
-    )
-    assert "failed validation against declared rules" in payload.remediation_hint
-
-
 # ---------------------------------------------------------------------------
 # discovery: full traversal of the precedence chain + warnings
 # ---------------------------------------------------------------------------
@@ -668,23 +558,6 @@ def test_discover_missions_marks_shadowed_entries(tmp_path: Path) -> None:
     shadowed = [d for d in discovered if not d.selected]
     assert len(selected) == 1
     assert len(shadowed) >= 1
-
-
-def test_discovery_diagnose_shadowing_returns_structured_report(tmp_path: Path) -> None:
-    a = tmp_path / "tier_a"
-    b = tmp_path / "tier_b"
-    _write_simple_mission(a, key="dup")
-    _write_simple_mission(b, key="dup")
-    ctx = DiscoveryContext(
-        explicit_paths=[a / "dup" / "mission.yaml"],
-        builtin_roots=[b / "dup" / "mission.yaml"],
-        user_home=tmp_path / "home",
-    )
-    diag = diagnose_shadowing(ctx)
-    assert isinstance(diag, ShadowingDiagnostics)
-    assert diag.total_discovered >= 2
-    assert diag.total_shadowed >= 1
-    assert all(isinstance(e, ShadowEntry) for e in diag.entries)
 
 
 def test_discovery_load_mission_template_by_path(tmp_path: Path) -> None:
@@ -848,30 +721,6 @@ def test_discover_missions_no_org_roots_configured_is_a_noop(tmp_path: Path) -> 
 # ---------------------------------------------------------------------------
 # events: JsonlEventLog
 # ---------------------------------------------------------------------------
-
-
-def test_jsonl_event_log_appends_and_reads(tmp_path: Path) -> None:
-    log = JsonlEventLog(tmp_path / "events.jsonl")
-    log.append({"event": "a", "n": 1})
-    log.append({"event": "b", "n": 2})
-    records = log.read_all()
-    assert len(records) == 2
-    assert records[0]["event"] == "a"
-    assert records[1]["n"] == 2
-    assert log.path == tmp_path / "events.jsonl"
-
-
-def test_jsonl_event_log_read_all_missing_returns_empty(tmp_path: Path) -> None:
-    log = JsonlEventLog(tmp_path / "missing.jsonl")
-    assert log.read_all() == []
-
-
-def test_jsonl_event_log_read_all_skips_blank_lines(tmp_path: Path) -> None:
-    path = tmp_path / "events.jsonl"
-    path.write_text('{"event":"a"}\n\n{"event":"b"}\n', encoding="utf-8")
-    log = JsonlEventLog(path)
-    records = log.read_all()
-    assert [r["event"] for r in records] == ["a", "b"]
 
 
 def test_null_emitter_methods_are_no_ops() -> None:
@@ -1142,15 +991,6 @@ def test_plan_next_step_default_prompt_falls_back() -> None:
     decision = plan_next(snap, template, MissionPolicySnapshot())
     assert decision.kind == "step"
     assert "Title" in (decision.prompt or "")
-
-
-def test_serialize_decision_is_canonical() -> None:
-    decision = NextDecision(
-        kind="terminal", run_id="r", mission_key="t", reason="done"
-    )
-    serialized = serialize_decision(decision)
-    assert '"kind":"terminal"' in serialized
-    assert '"run_id":"r"' in serialized
 
 
 # ---------------------------------------------------------------------------
@@ -1451,61 +1291,6 @@ def test_parse_band_cutoffs_from_policy_rejects_non_int_bounds() -> None:
         parse_band_cutoffs_from_policy(policy)
 
 
-def test_parse_timeout_from_policy_returns_default_when_absent() -> None:
-    assert parse_timeout_from_policy(MissionPolicySnapshot()) == 600
-
-
-def test_parse_timeout_from_policy_extracts_seconds() -> None:
-    policy = MissionPolicySnapshot(
-        extras={"significance_default_timeout_seconds": 120}
-    )
-    assert parse_timeout_from_policy(policy) == 120
-
-
-def test_parse_timeout_from_policy_rejects_non_int() -> None:
-    policy = MissionPolicySnapshot(
-        extras={"significance_default_timeout_seconds": "120"}
-    )
-    with pytest.raises(ValueError, match="must be int"):
-        parse_timeout_from_policy(policy)
-
-
-def test_parse_timeout_from_policy_rejects_non_positive() -> None:
-    policy = MissionPolicySnapshot(
-        extras={"significance_default_timeout_seconds": 0}
-    )
-    with pytest.raises(ValueError, match="> 0"):
-        parse_timeout_from_policy(policy)
-
-
-def test_compute_escalation_targets_medium_band_returns_accountable_only() -> None:
-    raci = ResolvedRACIBinding(
-        step_id="s1",
-        responsible=RACIRoleBinding(actor_type="llm", actor_id="claude"),
-        accountable=RACIRoleBinding(actor_type="human", actor_id="owner-42"),
-        consulted=[RACIRoleBinding(actor_type="service", actor_id="audit-bot")],
-        source="inferred",
-        inferred_rule="prompt_default",
-    )
-    targets = compute_escalation_targets(raci, "medium")
-    assert len(targets) == 1
-    assert targets[0].actor_id == "owner-42"
-
-
-def test_compute_escalation_targets_high_band_includes_consulted() -> None:
-    raci = ResolvedRACIBinding(
-        step_id="s1",
-        responsible=RACIRoleBinding(actor_type="llm", actor_id="claude"),
-        accountable=RACIRoleBinding(actor_type="human", actor_id="owner-42"),
-        consulted=[RACIRoleBinding(actor_type="service", actor_id="audit-bot")],
-        source="inferred",
-        inferred_rule="prompt_default",
-    )
-    targets = compute_escalation_targets(raci, "high")
-    actor_ids = {t.actor_id for t in targets}
-    assert {"owner-42", "audit-bot"}.issubset(actor_ids)
-
-
 # ---------------------------------------------------------------------------
 # schema: ContextType / ContextTypeRegistry / load_mission_template_file edges
 # ---------------------------------------------------------------------------
@@ -1522,16 +1307,6 @@ def test_step_context_contract_rejects_unknown_type_without_resolver() -> None:
         StepContextContract(
             requires=[ContextType(type="zzz_unknown_xyz")]
         )
-
-
-def test_step_context_contract_validate_contract_detects_overlap() -> None:
-    contract = StepContextContract(
-        requires=[ContextType(type="feature_binding")],
-        emits=[ContextType(type="feature_binding")],
-    )
-    ok, errors = contract.validate_contract()
-    assert not ok
-    assert any("requires and emits" in e for e in errors)
 
 
 def test_load_mission_template_file_missing(tmp_path: Path) -> None:
@@ -1819,35 +1594,6 @@ def test_next_step_blocked_result_blocks_run(tmp_path: Path) -> None:
     )
     assert decision.kind == "blocked"
     assert "blocked" in (decision.reason or "").lower()
-
-
-# ---------------------------------------------------------------------------
-# engine.notify_decision_timeout
-# ---------------------------------------------------------------------------
-
-
-def test_notify_decision_timeout_raises_for_unknown_decision(tmp_path: Path) -> None:
-    yaml_path = _write_simple_mission(tmp_path / "missions")
-    run_store = tmp_path / "runs"
-    ctx = DiscoveryContext(
-        explicit_paths=[yaml_path], builtin_roots=[yaml_path], user_home=tmp_path / "home"
-    )
-    run_ref = start_mission_run(
-        template_key=str(yaml_path),
-        inputs={"topic": "x", "mission_owner_id": "owner-9"},
-        policy_snapshot=MissionPolicySnapshot(),
-        context=ctx,
-        run_store=run_store,
-        emitter=NullEmitter(),
-    )
-    actor = RACIRoleBinding(actor_type="service", actor_id="runtime")
-    with pytest.raises(MissionRuntimeError, match="No RACI binding|No significance"):
-        notify_decision_timeout(
-            run_ref,
-            decision_id="audit:nonexistent",
-            actor=actor,
-            emitter=NullEmitter(),
-        )
 
 
 # ---------------------------------------------------------------------------

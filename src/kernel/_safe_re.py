@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-__all__ = ["re", "is_re2_active"]
+__all__ = ["re"]
 
 # ── RE2 import (hard dependency — fails loudly if google-re2 not installed) ──
 
@@ -212,8 +212,3 @@ sys.modules["kernel._safe_re.re"] = _mod
 #:
 #:     from kernel._safe_re import re
 re = _mod
-
-
-def is_re2_active() -> bool:
-    """Always returns True — google-re2 is a mandatory core dependency."""
-    return True

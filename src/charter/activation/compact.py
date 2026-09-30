@@ -41,9 +41,7 @@ class CompactView:
     """Structured payload for the compact charter view.
 
     Tests treat the ID/anchor sets as the contract surface. ``text`` is the
-    rendered string suitable for direct inclusion in agent context, and
-    ``token_estimate`` is a coarse character-based proxy used by smoke checks
-    to verify compact stays meaningfully smaller than bootstrap.
+    rendered string suitable for direct inclusion in agent context.
 
     WP11 (T061, FR-010) widens the steady-state rail: the compact view is the
     render an agent receives on *every load after the first*, so it must carry
@@ -60,11 +58,6 @@ class CompactView:
     procedure_ids: tuple[str, ...] = field(default_factory=tuple)
     asset_ids: tuple[str, ...] = field(default_factory=tuple)
     section_anchors: tuple[str, ...] = field(default_factory=tuple)
-
-    @property
-    def token_estimate(self) -> int:
-        """Rough proxy for token count (4 chars/token heuristic)."""
-        return max(1, len(self.text) // 4)
 
 
 def extract_section_anchors(charter_text: str) -> list[str]:

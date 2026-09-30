@@ -17,7 +17,6 @@ from glossary.scope import (
     GlossaryScope,
     load_seed_file,
     save_seed_file,
-    validate_seed_file,
 )
 
 from kernel.clock import UTC, now_utc
@@ -102,55 +101,6 @@ def _make_sense(
         confidence=confidence,
         status=status,
     )
-
-
-# ---------------------------------------------------------------------------
-# validate_seed_file (T011)
-# ---------------------------------------------------------------------------
-
-
-class TestValidateSeedFile:
-    """Test the updated validate_seed_file() delegation."""
-
-    def test_valid_data_passes(self) -> None:
-        data = {
-            "terms": [
-                {"surface": "workspace", "definition": "A container", "confidence": 1.0, "status": "active"},
-            ]
-        }
-        # Should not raise
-        validate_seed_file(data)
-
-    def test_invalid_data_raises_seed_file_validation_error(self) -> None:
-        data = {"terms": [{"surface": "Work Space", "definition": "A thing"}]}
-        with pytest.raises(SeedFileValidationError):
-            validate_seed_file(data)
-
-    def test_missing_terms_raises_seed_file_validation_error(self) -> None:
-        data = {"not_terms": []}
-        with pytest.raises(SeedFileValidationError):
-            validate_seed_file(data)
-
-    def test_file_path_param_backward_compat(self) -> None:
-        """Calling w/o file_path still works (uses placeholder)."""
-        data = {"terms": [{"surface": "Bad Surface", "definition": "x"}]}
-        with pytest.raises(SeedFileValidationError) as exc_info:
-            validate_seed_file(data)
-        assert "<unknown>" in str(exc_info.value.file_path)
-
-    def test_file_path_param_forwarded(self) -> None:
-        """Calling w/ file_path passes it through to error."""
-        data = {"terms": [{"surface": "Bad Surface", "definition": "x"}]}
-        p = Path("/my/seed.yaml")
-        with pytest.raises(SeedFileValidationError) as exc_info:
-            validate_seed_file(data, file_path=p)
-        assert exc_info.value.file_path == p
-
-    def test_is_glossary_error_subclass(self) -> None:
-        """SeedFileValidationError caught by except GlossaryError."""
-        data = {"terms": [{"surface": "Not Normalized", "definition": "x"}]}
-        with pytest.raises(GlossaryError):
-            validate_seed_file(data)
 
 
 # ---------------------------------------------------------------------------
