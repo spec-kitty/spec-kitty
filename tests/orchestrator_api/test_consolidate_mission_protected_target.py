@@ -24,7 +24,7 @@ import pytest
 
 from tests.terminus.conftest import CoordMission, blob_present_at, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.test_repro_5318 import flat, ref_shas
+from tests.terminus.rollback_harness import flat, ref_shas
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

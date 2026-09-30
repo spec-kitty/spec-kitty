@@ -37,7 +37,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from tests.terminus.conftest import CoordMission, _approve_events, _event, _now_iso, blob_present_at, build_coord_mission, run_terminus
 from tests.terminus.conftest import _git as git
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.test_repro_5318 import flat, ref_shas, reflog_shas
+from tests.terminus.rollback_harness import flat, ref_shas, reflog_shas
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -248,10 +248,10 @@ def test_resume_after_a_crash_points_at_abort_instead_of_claiming_nothing_moved(
     """A ``--resume`` refused up front must not claim no branch moved: an earlier attempt did.
 
     Crash residue (advanced ``main`` + mission branch + a resumable record) comes
-    from the hard-killed real run of ``test_repro_5318_abort``; the ``--resume``
+    from the hard-killed real run of ``test_abort_restores_snapshot``; the ``--resume``
     itself is the unpatched real CLI, so the up-front preflight refuses it.
     """
-    from tests.terminus.test_repro_5318_abort import _crashed_lanes_run
+    from tests.terminus.test_abort_restores_snapshot import _crashed_lanes_run
 
     mission, _before = _crashed_lanes_run(tmp_path, "01M5385R")
     crashed = ref_shas(mission)

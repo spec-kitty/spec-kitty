@@ -32,7 +32,7 @@ from specify_cli.consolidation import executor
 from specify_cli.consolidation.state import get_state_path
 from tests.terminus.conftest import CoordMission, blob_present_at, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.test_repro_5318 import flat, ref_shas, reflog_shas
+from tests.terminus.rollback_harness import flat, ref_shas, reflog_shas
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
