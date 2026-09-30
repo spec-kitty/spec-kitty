@@ -430,56 +430,94 @@ def test_events_tail_registered_on_the_real_top_level_app(
     assert "--once" in result.output
 
 
-def test_no_write_syscall_reachable_on_any_code_path(tmp_path: Path) -> None:
-    """T030 (FR-010): events tail is a pure reader. Spy on Path.open and assert
-    no call anywhere opens status.events.jsonl/status.json/any mission artifact
-    in a write mode ("w", "a", "x", or any "+" variant) -- across every code
-    path exercised by this WP's own tests, including the error/refusal paths
-    (usage error, mission-not-found, resume-refused), not just the happy path.
+def _snapshot_tree(root: Path) -> dict[str, tuple[str, int, int, bytes]]:
+    """Every entry under ``root`` as ``relpath -> (kind, size, mtime_ns, content)``.
+
+    Directories are recorded too (kind ``dir``, empty content) so a newly created
+    file, lock or temp artifact shows up as a changed key set.
     """
-    write_modes = {"w", "a", "x", "w+", "a+", "x+", "r+", "wb", "ab", "xb", "rb+", "wb+", "ab+", "xb+"}
-    opened_for_write: list[tuple[str, str]] = []
-    real_open = Path.open
+    snapshot: dict[str, tuple[str, int, int, bytes]] = {}
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root).as_posix()
+        if path.is_dir():
+            snapshot[rel] = ("dir", 0, 0, b"")
+        else:
+            content = path.read_bytes()
+            stat = path.stat()
+            snapshot[rel] = ("file", stat.st_size, stat.st_mtime_ns, content)
+    return snapshot
 
-    def spying_open(self: Path, mode: str = "r", *args: object, **kwargs: object) -> object:
-        if mode in write_modes:
-            opened_for_write.append((str(self), mode))
-        return real_open(self, mode, *args, **kwargs)
 
+def test_events_tail_leaves_mission_tree_byte_identical_on_every_code_path(tmp_path: Path) -> None:
+    """FR-010: ``events tail`` is a pure reader. Snapshot the whole tree (paths,
+    sizes, mtimes, bytes) before and after each code path -- happy path,
+    usage error, mission-not-found and resume-refused -- and require it unchanged.
+
+    The oracle is filesystem state, so it sees every write route (builtin
+    ``open``, ``os.open``, atomic replace, temp files) that a spy on one
+    ``Path.open`` mode set could not.
+    """
     feature_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     _write_events(feature_dir, [{"event_id": "evt-1"}])
+    (feature_dir / "status.json").write_text('{"work_packages": {}}\n', encoding="utf-8")
     resolved = _resolved(feature_dir)
+    before = _snapshot_tree(tmp_path)
+    assert f"kitty-specs/{MISSION_SLUG}/status.events.jsonl" in before
 
-    with patch.object(Path, "open", spying_open):
-        # Happy path.
-        with patch.object(events_cli, "resolve_mission_handle", return_value=resolved):
-            _invoke("tail", "--mission", MISSION_SLUG, "--json", "--once")
-        # Usage-error path (FR-004).
-        _invoke(
-            "tail",
-            "--mission",
-            MISSION_SLUG,
-            "--json",
-            "--once",
-            "--from-invariant",
-            "deadbeef",
-        )
-        # Mission-not-found path (FR-009), mocked resolution.
-        with patch.object(events_cli, "resolve_mission_handle", side_effect=SystemExit(2)):
-            _invoke("tail", "--mission", "whatever", "--json", "--once")
-        # Resume-refused path (FR-013, structural).
-        with patch.object(events_cli, "resolve_mission_handle", return_value=resolved):
-            _invoke(
-                "tail",
-                "--mission",
-                MISSION_SLUG,
-                "--json",
-                "--once",
-                "--from-offset",
-                "999999",
-            )
+    def _run_and_assert_untouched(label: str, *args: str, resolution: dict[str, object]) -> object:
+        with patch.object(events_cli, "resolve_mission_handle", **resolution):
+            result = _invoke(*args)
+        assert _snapshot_tree(tmp_path) == before, f"events tail modified the tree on the {label} path"
+        return result
 
-    assert opened_for_write == []
+    happy = _run_and_assert_untouched(
+        "happy",
+        "tail",
+        "--mission",
+        MISSION_SLUG,
+        "--json",
+        "--once",
+        resolution={"return_value": resolved},
+    )
+    assert happy.exit_code == 0, happy.output
+    assert [json.loads(line)["event_id"] for line in happy.stdout.splitlines() if line.strip()] == ["evt-1"]
+
+    usage = _run_and_assert_untouched(
+        "usage-error",
+        "tail",
+        "--mission",
+        MISSION_SLUG,
+        "--json",
+        "--once",
+        "--from-invariant",
+        "deadbeef",
+        resolution={"return_value": resolved},
+    )
+    assert usage.exit_code != 0
+
+    not_found = _run_and_assert_untouched(
+        "mission-not-found",
+        "tail",
+        "--mission",
+        "whatever",
+        "--json",
+        "--once",
+        resolution={"side_effect": SystemExit(2)},
+    )
+    assert not_found.exit_code == 2
+
+    refused = _run_and_assert_untouched(
+        "resume-refused",
+        "tail",
+        "--mission",
+        MISSION_SLUG,
+        "--json",
+        "--once",
+        "--from-offset",
+        "999999",
+        resolution={"return_value": resolved},
+    )
+    assert refused.exit_code != 0
 
 
 # NOTE: the real-fixture end-to-end test (real git repo, real meta.json, no
