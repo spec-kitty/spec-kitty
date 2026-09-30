@@ -1,0 +1,99 @@
+=== MISSION_TYPE_RESEARCH (0)
+=== re (0)
+=== _collect_status_artifacts (0)
+=== build_dependency_graph (0)
+=== dependency_readiness_for_wp (0)
+=== get_dependents (0)
+=== is_worktree_context (4)
+   tests/specify_cli/cli/commands/agent/test_wrapper_delegation.py:213: @patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False)
+   tests/specify_cli/cli/commands/agent/test_wrapper_delegation.py:265: @patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False)
+   tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py:153: monkeypatch.setattr(workflow, "is_worktree_context", lambda _cwd: False)
+   tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py:205: monkeypatch.setattr(workflow, "is_worktree_context", lambda _cwd: False)
+=== write_text_within_directory (0)
+=== get_deliverables_path (0)
+=== get_mission_type (4)
+   tests/specify_cli/cli/commands/agent/test_fixmode_ownership_4673.py:186: monkeypatch.setattr(tasks_module, "get_mission_type", lambda *_a, **_k: "software-dev")
+   tests/specify_cli/cli/commands/agent/_rework_loop_harness.py:107: monkeypatch.setattr(tasks_module, "get_mission_type", lambda *_a, **_k: "software-dev")
+   tests/specify_cli/cli/commands/agent/test_verdict_attribution_4670.py:95: monkeypatch.setattr(tasks_module, "get_mission_type", lambda *_a, **_k: "software-dev")
+   tests/next/test_runtime_bridge_unit.py:611: monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
+=== build_review_prompt_metadata (0)
+=== validate_review_prompt_metadata (0)
+=== write_review_prompt_with_metadata (0)
+=== render_wp_review_antipattern_checklist (0)
+=== resolve_review_cycle_pointer (0)
+=== feature_status_lock (2)
+   tests/status/test_emit_durability.py:335: monkeypatch.setattr(emit_module, "feature_status_lock", _instrumented_lock)
+   tests/git_ops/test_atomic_status_commits_unit.py:955: with patch("specify_cli.cli.commands.agent.workflow.feature_status_lock", tracking_lock):
+=== AgentAssignment (0)
+=== WorkPackageClaimConflict (0)
+=== WorkPackageStartRejected (0)
+=== start_implementation_status (0)
+=== start_review_status (0)
+=== append_activity_log (0)
+=== build_document (0)
+=== locate_work_package (5)
+   tests/specify_cli/test_charter_lifecycle_gates.py:162: "specify_cli.cli.commands.agent.workflow.locate_work_package",
+   tests/specify_cli/cli/commands/test_workspace_husk_resolution_1833.py:391: patch.object(workflow_module, "locate_work_package", return_value=SimpleNamespace(path=wp_path)),
+   tests/specify_cli/cli/commands/agent/test_wrapper_delegation.py:207: @patch("specify_cli.cli.commands.agent.workflow.locate_work_package")
+   tests/specify_cli/cli/commands/agent/test_wrapper_delegation.py:259: @patch("specify_cli.cli.commands.agent.workflow.locate_work_package")
+   src/specify_cli/cli/commands/agent/workflow_executor.py:119: """Typed accessor for ``workflow.locate_work_package`` (#2675 T054).
+=== set_scalar (0)
+=== _has_prior_rejection (11)
+   tests/integration/test_rejection_cycle.py:145: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:155: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:165: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:185: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:218: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:236: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:247: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:274: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:377: FROM-IMPORT
+   tests/integration/test_rejection_cycle.py:395: FROM-IMPORT
+   tests/characterization/test_trio_pure_cores.py:41: FROM-IMPORT
+=== _is_missing_canonical_status_error (0)
+=== _latest_review_feedback_reference (5)
+   tests/agent/test_workflow_review_cycle_pointer.py:137: ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+   tests/agent/test_workflow_review_cycle_pointer.py:222: ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+   tests/agent/test_workflow_review_cycle_pointer.py:355: ref, resolved_path, _ = workflow._latest_review_feedback_reference(ctx.primary_feature_dir, "WP01")
+   tests/agent/test_workflow_review_cycle_pointer.py:462: ref, resolved_path, _ = workflow._latest_review_feedback_reference(ctx.primary_feature_dir, "WP01")
+   tests/agent/test_workflow_review_cycle_pointer.py:497: ref, resolved_path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+=== _missing_canonical_status_message (0)
+=== _read_wp_events (0)
+=== _render_isolation_banner (1)
+   tests/specify_cli/cli/commands/agent/test_workflow_render_helpers.py:13: FROM-IMPORT
+=== _render_resolved_agent_identity (1)
+   tests/integration/test_agent_identity_prompt.py:17: FROM-IMPORT
+=== _render_wp_prompt_wrapper (1)
+   tests/specify_cli/cli/commands/agent/test_workflow_render_helpers.py:13: FROM-IMPORT
+=== _resolve_review_feedback_context (6)
+   tests/agent/test_workflow_review_cycle_pointer.py:88: has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+   tests/agent/test_workflow_review_cycle_pointer.py:171: has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+   tests/agent/test_workflow_review_cycle_pointer.py:389: has_feedback, ref, path, source = workflow._resolve_review_feedback_context(feature_dir, "WP01", "")
+   tests/integration/test_implement_review_retrospect_smoke.py:109: has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+   tests/characterization/test_trio_pure_cores.py:18: * ``workflow._resolve_review_feedback_context`` / ``_has_prior_rejection``
+   tests/characterization/test_trio_pure_cores.py:41: FROM-IMPORT
+=== _resolve_review_feedback_pointer (8)
+   tests/agent/test_review_feedback_pointer_2x_unit.py:21: FROM-IMPORT
+   tests/agent/test_workflow_feedback_pointer_2x_unit.py:182: assert workflow._resolve_review_feedback_pointer(repo, "   ") is None
+   tests/agent/test_workflow_feedback_pointer_2x_unit.py:185: workflow._resolve_review_feedback_pointer(
+   tests/agent/test_workflow_feedback_pointer_2x_unit.py:192: assert workflow._resolve_review_feedback_pointer(repo, "relative/path/that/does-not-exist.md") is None
+   tests/agent/test_workflow_review_cycle_pointer.py:237: resolved = workflow._resolve_review_feedback_pointer(
+   tests/review/test_artifacts.py:217: FROM-IMPORT
+   tests/review/test_artifacts.py:242: FROM-IMPORT
+   tests/review/test_artifacts.py:273: FROM-IMPORT
+=== _review_feedback_root (0)
+=== _shared_artifact_guidance (0)
+=== _workspace_contract_description (0)
+=== _commit_workflow_change (9)
+   tests/agent/test_workflow_review_lane_gate.py:405: monkeypatch.setattr(workflow, "_commit_workflow_change", lambda **_kwargs: None)
+   tests/agent/test_workflow_review_lane_gate.py:464: workflow._commit_workflow_change(
+   tests/agent/test_workflow_review_lane_gate.py:549: workflow._commit_workflow_change(
+   tests/specify_cli/cli/commands/agent/test_workflow.py:568: workflow._commit_workflow_change(
+   tests/specify_cli/cli/commands/agent/test_workflow_safe_commit_recovery.py:88: workflow._commit_workflow_change(
+   tests/specify_cli/cli/commands/agent/test_workflow_safe_commit_recovery.py:122: workflow._commit_workflow_change(
+   tests/specify_cli/cli/commands/agent/test_coord_commit_integrity_e2e.py:121: workflow._commit_workflow_change(
+   tests/specify_cli/cli/commands/agent/test_coord_commit_integrity_e2e.py:183: workflow._commit_workflow_change(
+   tests/integration/test_implement_review_flow.py:364: FROM-IMPORT
+=== _write_prompt_to_file (2)
+   tests/runtime/test_tmp_prompt_namespace.py:219: source = inspect.getsource(workflow_module._write_prompt_to_file)
+   tests/runtime/test_tmp_prompt_namespace.py:31: FROM-IMPORT

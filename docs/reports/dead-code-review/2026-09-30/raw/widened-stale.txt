@@ -1,0 +1,53 @@
+not declared	charter.offering.hatch_build::DoctrinePacksSiblingBuildHook
+has a caller	runtime.next.committed_authority::mission_terminal_verdict
+used in own module	specify_cli.acceptance::logger
+used in own module	specify_cli.git.commit_helpers::logger
+used in own module	specify_cli.git.protection_policy::logger
+in __all__	specify_cli.migration.mission_state::audit_invocation_disagreement
+has a caller	specify_cli.mission_metadata::load_meta_strict
+has a caller	specify_cli.ownership.frontmatter_source::InMemoryFrontmatterSource
+in __all__	specify_cli.runtime.resolver::required_artifacts_for
+used in own module	specify_cli.session_presence.upgrade_check::refresh_cache_once
+has a caller	specify_cli.skills.command_installer::prune_stale
+has a caller	specify_cli.skills.command_installer::remove
+has a caller	specify_cli.skills.command_installer::verify
+has a caller	specify_cli.tool_surface.bundles.claude_wrapper::wrapper_bash_content
+has a caller	specify_cli.tool_surface.bundles.claude_wrapper::wrapper_cmd_content
+has a caller	specify_cli.upgrade.autocommit::commit_touched_checkout
+has a caller	specify_cli.zeitgeist_client.budget::OFFER_BUDGET_S
+has a caller	specify_cli.zeitgeist_client.budget::bound_stdout
+has a caller	specify_cli.zeitgeist_client.budget::disarm
+has a caller	specify_cli.zeitgeist_client.budget::open_bounded
+has a caller	specify_cli.zeitgeist_client.budget::run_with_deadline
+has a caller	specify_cli.zeitgeist_client.credentials::load
+has a caller	specify_cli.zeitgeist_client.credentials::load_negative
+has a caller	specify_cli.zeitgeist_client.credentials::store
+has a caller	specify_cli.zeitgeist_client.credentials::store_focus_capability
+has a caller	specify_cli.zeitgeist_client.credentials::store_negative
+has a caller	specify_cli.zeitgeist_client.filtered_stream::FilteredStream
+has a caller	specify_cli.zeitgeist_client.grammar::ident
+has a caller	specify_cli.zeitgeist_client.mcp_stdio::run_stdio
+has a caller	specify_cli.zeitgeist_client.moments::MomentsDisabled
+has a caller	specify_cli.zeitgeist_client.moments::allows_repo
+has a caller	specify_cli.zeitgeist_client.moments::frame_predicate
+has a caller	specify_cli.zeitgeist_client.moments::load_settings
+has a caller	specify_cli.zeitgeist_client.moments::write_agents_mode
+has a caller	specify_cli.zeitgeist_client.operability::collect_report
+has a caller	specify_cli.zeitgeist_client.operability::rollback_drill
+has a caller	specify_cli.zeitgeist_client.operability::rotation_drill
+has a caller	specify_cli.zeitgeist_client.operability::timeout_drill
+has a caller	specify_cli.zeitgeist_client.outbox_approval::approve
+has a caller	specify_cli.zeitgeist_client.outbox_approval::list_pending
+has a caller	specify_cli.zeitgeist_client.outbox_approval::redacted_preview
+has a caller	specify_cli.zeitgeist_client.outbox_approval::reject
+has a caller	specify_cli.zeitgeist_client.outbox_approval::revoke
+has a caller	specify_cli.zeitgeist_client.outbox_approval::show
+has a caller	specify_cli.zeitgeist_client.outbox_approval::status_counts
+has a caller	specify_cli.zeitgeist_client.outbox_approval::submit
+has a caller	specify_cli.zeitgeist_client.repo_identity::identity
+has a caller	specify_cli.zeitgeist_client.repo_identity::origin_url
+has a caller	specify_cli.zeitgeist_client.sanitizer::assert_clean
+has a caller	specify_cli.zeitgeist_client.subscription::render_event
+has a caller	specify_cli.zeitgeist_client.subscription::status
+has a caller	specify_cli.zeitgeist_client.subscription::watch
+52 of 215 entries are stale
