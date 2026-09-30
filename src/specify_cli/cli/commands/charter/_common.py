@@ -110,12 +110,25 @@ def _display_path(path: Path, repo_root: Path) -> str:
         return str(path)
 
 
-def _emit_error(console: Any, *, json_output: bool, message: str, unexpected: bool = False) -> None:
-    """Emit a charter command error while preserving ``--json`` parseability."""
+def _emit_error(
+    console: Any,
+    *,
+    json_output: bool,
+    message: str,
+    unexpected: bool = False,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Emit a charter command error while preserving ``--json`` parseability.
+
+    *extra* adds machine-readable keys to the ``--json`` envelope only (the text
+    rendering already carries them in *message*); it can never replace the
+    ``result``/``success``/``error`` keys.
+    """
     if json_output:
         print(
             json.dumps(
                 {
+                    **(extra or {}),
                     "result": "error",
                     "success": False,
                     "error": message,

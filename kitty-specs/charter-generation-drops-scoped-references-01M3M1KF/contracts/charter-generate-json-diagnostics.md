@@ -48,22 +48,45 @@ detail, but the field's own type and key name never change.
 }
 ```
 
-- `unresolved_references` is **always present** when `diagnostics` would otherwise be produced by this
-  code path (empty list `[]` when there are no unresolved DRG-backed references) — matching
-  `diagnostics`'s own always-present convention, so a consumer can rely on key presence rather than
-  using `.get()` with a default.
-- `kind` is one of the DRG-backed kinds `_render_kind_references` covers: `directive`, `tactic`,
-  `styleguide`, `toolguide`, `procedure`, `agent_profile`.
+- `unresolved_references` is **always present** on the success payload (empty list `[]` when there are no
+  unresolved DRG-backed references) — matching `diagnostics`'s own always-present convention, so a
+  consumer can rely on key presence rather than using `.get()` with a default. It is **also present on
+  the whole-kind fail-closed error payload** (see below).
+- `kind` is, for a per-artifact miss, one of the DRG-backed kinds `_render_kind_references` covers:
+  `directive`, `tactic`, `styleguide`, `toolguide`, `procedure`, `agent_profile`. The unattributable and
+  graph-load entries below use a reserved `_`-prefixed sentinel, or (for an unrecognized `graph.unresolved`
+  prefix) the raw prefix verbatim; every other value is a singular `ArtifactKind` value.
 - `id` is the bare activated id (no `KIND:` prefix — matches the raw id as configured in
   `.kittify/config.yaml`, not the `CharterReference.id` field's `KIND:id` form).
-- `cause` is the `charter.activation._catalog_miss.CatalogMissCause` enum's `.value` string:
-  `"missing_artifact"`, `"typo_suspected"`, or `"scope_filtered"`. (`"schema_validation_suspected"` is
-  reserved for callers with ground-truth loader-drop knowledge, which this call site does not have —
-  see `_catalog_miss.py`'s own docstring — so it is not expected to appear here in practice.)
+- `cause` is, for a per-artifact miss, the `charter.activation._catalog_miss.CatalogMissCause` enum's
+  `.value` string. That enum has four members; this call site emits three of them: `"missing_artifact"`,
+  `"typo_suspected"`, or `"scope_filtered"`. (`"schema_validation_suspected"` is reserved for callers with
+  ground-truth loader-drop knowledge, which this call site does not have — see `_catalog_miss.py`'s own
+  docstring — so it does not appear here.) The sentinel entries below add three plain-string causes of
+  their own: `graph_load_failed`, `malformed_urn`, `unattributed_kind`.
 - `detail` is the human-readable classifier suggestion text `classify_catalog_miss`/
   `classify_scope_filtered_miss` already produce (unchanged text from those existing, already-tested
   primitives — this contract does not introduce a new message format, only surfaces the existing one
   structurally).
+
+## Fail-closed error payload
+
+When every activated reference of one tracked kind is unresolvable, `compile_charter` raises
+`WholeKindUnresolvedError` and `charter generate` exits non-zero without writing a catalog. With `--json`
+the payload is the command's existing error envelope plus the same structured records:
+
+```json
+{
+  "result": "error",
+  "success": false,
+  "error": "every activated 'toolguide' reference is unresolvable (<ids>); refusing to write a silently-empty catalog section.",
+  "unresolved_references": [{"kind": "toolguide", "id": "<id>", "cause": "missing_artifact", "detail": "..."}]
+}
+```
+
+`unresolved_references` on this path lists every record collected before the check ran (not only the
+tripping kind's), in the same entry shapes as the success payload. Other error exits (not a git
+repository, symlinked `charter.md`, …) do not carry the key.
 
 ## Why additive-alongside, not widening `diagnostics` entries into objects
 
@@ -96,9 +119,9 @@ pair:
   distinct from any real DRG-backed `kind`/`id` — no built-in kind or activated id is ever
   literally named `_graph`/`_load_failure`), so a consumer can specifically detect this entry (or
   filter it out) without confusing it for a per-artifact miss.
-- `cause: "graph_load_failed"` is a new value in this field, distinct from the three
-  `CatalogMissCause` values documented above (`missing_artifact`, `typo_suspected`,
-  `scope_filtered`) — this entry is not per-id classified via `classify_catalog_miss`/
+- `cause: "graph_load_failed"` is a new value in this field, distinct from the `CatalogMissCause`
+  values documented above (`missing_artifact`, `typo_suspected`, `scope_filtered`) — this entry is not
+  per-id classified via `classify_catalog_miss`/
   `classify_scope_filtered_miss` at all.
 - **Type: `cause` is a plain `str` on the compiler-internal structured record, NOT the
   `CatalogMissCause` enum type** (closes PLAN-FRESH3-004). `CatalogMissCause`
@@ -134,7 +157,8 @@ entry — never silently dropped:
    {"kind": "_unattributed", "id": "<the full URN string>", "cause": "malformed_urn", "detail": "malformed URN, no kind prefix"}
    ```
    `kind: "_unattributed"` is a reserved sentinel (same leading-underscore convention as `_graph`/
-   `_load_failure` above), used only when no kind could be parsed from the URN at all.
+   `_load_failure` above), used only when no kind could be parsed from the URN at all. (Items 2-4
+   below carry a real or raw kind, not this sentinel.)
 
 2. **`kind_prefix` has no `ArtifactKind` counterpart** (`ArtifactKind(kind_prefix)` raises
    `ValueError` — e.g. `action`, `glossary_scope`, `glossary`, `mission_type`, or any other
@@ -159,8 +183,8 @@ entry — never silently dropped:
    {"kind": "<the ArtifactKind's singular value, verbatim>", "id": "<the bare id>", "cause": "unattributed_kind", "detail": "kind '<kind_prefix>' is not one of the six DRG-backed kinds tracked for reference resolution"}
    ```
 
-Both new `cause` values are plain `str`, distinct from the four `CatalogMissCause` values and from
-`"graph_load_failed"` — same typing rule as the round-3 addition above (`_catalog_miss.py` stays
+Both new `cause` values (`malformed_urn`, `unattributed_kind`) are plain `str`, distinct from the
+`CatalogMissCause` values and from `"graph_load_failed"` — same typing rule as the round-3 addition above (`_catalog_miss.py` stays
 REUSED, NOT MODIFIED). `detail` in all four cases is a short human-readable string explaining why
 the entry could not be attributed (not a `_catalog_miss` classifier suggestion — there is nothing to
 classify); items 3 and 4 share the `cause` value `"unattributed_kind"` but carry distinct, accurate

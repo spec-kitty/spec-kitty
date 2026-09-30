@@ -374,6 +374,21 @@ def _load_interview_for_generate(
     return interview_data, "interview", resolved_mission_type or interview_data.mission
 
 
+def _structured_error_fields(error: Exception) -> dict[str, Any] | None:
+    """Machine-readable ``--json`` error keys carried by *error*, if it has any.
+
+    The whole-kind fail-closed exit (no catalog written) hands ``--json``
+    consumers the same ``unresolved_references`` records a successful run
+    reports, so a CI probe need not parse the message to learn which ids were
+    unresolved.
+    """
+    from charter.activation.compiler import WholeKindUnresolvedError
+
+    if isinstance(error, WholeKindUnresolvedError):
+        return {"unresolved_references": error.unresolved_records}
+    return None
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -622,7 +637,7 @@ def generate(
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
-        _emit_error(console, json_output=json_output, message=str(e))
+        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)

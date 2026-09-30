@@ -173,6 +173,10 @@ def test_generate_json_whole_kind_fail_closed_exits_non_zero_naming_the_kind(
     assert payload["result"] == "error"
     assert payload["success"] is False
     assert "toolguide" in payload["error"], f"error message must name the unresolvable kind, got: {payload['error']!r}"
+    # The machine-readable records ride along on the error path too, so a CI
+    # probe does not have to parse the prose to learn which ids were unresolved.
+    unresolved = payload["unresolved_references"]
+    assert [(e["kind"], e["id"]) for e in unresolved if e["kind"] == "toolguide"] == [("toolguide", ghost_id)], unresolved
 
     # No catalog must have been written for this run (fail-closed, not a
     # partial/silently-empty write).
