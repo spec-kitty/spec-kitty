@@ -242,6 +242,11 @@ line-length = 164
 # Formatter-debt ratchet for issue #473. These files were not formatted under
 # the live Ruff config on origin/main; remove entries as files are reformatted.
 # This is formatter-only so `ruff check .` still lints these files.
+# NOTE (#5301): this exclude list is honored only during directory discovery.
+# A path passed explicitly to `ruff format` / `ruff format --check` is still
+# checked/formatted unless `--force-exclude` is given — always use
+# `make format-check-files FILES=...` (or `--force-exclude`) for per-file
+# invocations so ratchet-listed files don't report false "would reformat" hits.
 # Shrink-only ratchet enforced by tests/architectural/test_ruff_format_exclude_ratchet.py
 # (issue #559): the entry count may not exceed the pinned baseline, every entry
 # must exist on disk, and every entry must still genuinely reformat under the
