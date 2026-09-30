@@ -585,7 +585,7 @@ def _glossary_proposal(proposal_id: str, term_key: str, status: str) -> Any:
             kind="add_glossary_term",
             term_key=term_key,
             definition=f"Definition of {term_key}.",
-            definition_hash="sha256:feedc0de",
+            definition_hash="sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
             related_terms=[],
         ),
         rationale=f"{status} proposal",

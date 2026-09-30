@@ -168,5 +168,5 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
         result = CliRunner().invoke(app, ["retrospect", "synthesize", "--mission", MISSION_ID[:8], "--json", "--fabricate-empty"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["outcome"] == "retrospective_record_created"
