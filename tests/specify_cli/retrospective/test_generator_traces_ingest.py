@@ -201,7 +201,7 @@ def _run_create(repo_root: Path, slug: str) -> dict[str, object]:
             retrospect_app, ["create", "--mission", slug, "--json"]
         )
     assert result.exit_code == 0, f"create failed (exit {result.exit_code}):\n{result.output}"
-    return json.loads(result.output)
+    return json.loads(result.stdout)
 
 
 def _all_findings(record: object) -> list[object]:

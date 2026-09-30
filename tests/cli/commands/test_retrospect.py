@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import subprocess
 from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
 from typing import Any, Literal
@@ -1222,6 +1223,113 @@ class TestMaybeAutoCommit:
         ):
             mock_subprocess.return_value = MagicMock(returncode=0)
             _maybe_auto_commit(tmp_path, [outside_file], "test")
+
+
+# ---------------------------------------------------------------------------
+# Real-git helpers (auto-commit contracts)
+# ---------------------------------------------------------------------------
+
+_FANOUT_EDGE = "specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"
+
+
+def _git(repo: Path, *args: str) -> str:
+    """Run real git in *repo* and return stripped stdout."""
+    completed = subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+    return completed.stdout.strip()
+
+
+def _init_git_repo(repo: Path, *, auto_commit: bool) -> None:
+    """``git init`` *repo* with a local identity, local hooks dir and the auto-commit setting."""
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "retrospect@test.invalid")
+    _git(repo, "config", "user.name", "Retrospect Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    # Pin the hooks dir locally so an operator's global core.hooksPath never leaks in.
+    _git(repo, "config", "core.hooksPath", ".git/hooks")
+    (repo / ".kittify").mkdir(exist_ok=True)
+    (repo / ".kittify" / "config.yaml").write_text(f"auto_commit: {str(auto_commit).lower()}\n", encoding="utf-8")
+
+
+def _seed_completed_mission_repo(repo: Path) -> Path:
+    """A real git repo holding one completed mission, committed; returns its feature dir."""
+    _init_git_repo(repo, auto_commit=True)
+    feature_dir = repo / "kitty-specs" / MISSION_SLUG_COMPLETED
+    _write_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
+    _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
+    _git(repo, "add", "--", ".kittify", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "init")
+    return feature_dir
+
+
+def _reject_every_commit(repo: Path) -> str:
+    """Install a pre-commit hook that rejects; returns the hook's stderr line."""
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\necho 'pre-commit: retrospective commits are frozen' >&2\nexit 1\n")
+    hook.chmod(0o755)
+    return "pre-commit: retrospective commits are frozen"
+
+
+def _lock_the_index(repo: Path) -> str:
+    """Hold ``index.lock`` as a concurrent git process would; returns git's error fragment."""
+    (repo / ".git" / "index.lock").write_text("", encoding="utf-8")
+    return "index.lock"
+
+
+class TestAutoCommitFailureIsSurfaced:
+    """A failed auto-commit is non-fatal but never silent (the operator must commit by hand)."""
+
+    @pytest.mark.parametrize(
+        "break_git",
+        [_reject_every_commit, _lock_the_index],
+        ids=["commit-rejected-by-hook", "add-blocked-by-index-lock"],
+    )
+    def test_create_warns_on_stderr_and_keeps_json_parseable_when_auto_commit_fails(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, break_git: Any) -> None:
+        repo = tmp_path / "repo"
+        feature_dir = _seed_completed_mission_repo(repo)
+        head_before = _git(repo, "rev-parse", "HEAD")
+        git_error = break_git(repo)
+        monkeypatch.chdir(repo)
+
+        with patch(_FANOUT_EDGE):
+            result = RUNNER.invoke(retrospect_app, ["create", "--mission", MISSION_SLUG_COMPLETED, "--json"])
+
+        # The record write succeeded, so the command still succeeds ...
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)
+        assert payload["result"] == "success"
+        assert (feature_dir / "retrospective.yaml").is_file()
+        # ... but nothing was committed, and stderr says so, naming git's own failure.
+        assert _git(repo, "rev-parse", "HEAD") == head_before
+        warning = strip_ansi(result.stderr)
+        assert "auto-commit failed" in warning
+        assert git_error in warning
+        assert "retrospective.yaml" in warning
+
+    @pytest.mark.parametrize(
+        ("exc", "expected"),
+        [
+            (
+                subprocess.CalledProcessError(1, ["git", "add"], stderr=b"fatal: 'x' is outside repository\n"),
+                "fatal: 'x' is outside repository",
+            ),
+            (
+                subprocess.CalledProcessError(1, ["git", "commit"], output=b"nothing to commit\n", stderr=b""),
+                "nothing to commit",
+            ),
+            (
+                subprocess.CalledProcessError(128, ["git", "commit", "-m", "m"]),
+                "`git commit -m m` exited 128",
+            ),
+            (OSError("config unreadable"), "config unreadable"),
+            (RuntimeError(), "RuntimeError"),
+        ],
+        ids=["git-stderr", "git-stdout-only", "git-silent", "other-error", "empty-message"],
+    )
+    def test_failure_detail_names_the_cause(self, exc: Exception, expected: str) -> None:
+        from specify_cli.cli.commands.retrospect import _auto_commit_failure_detail
+
+        assert _auto_commit_failure_detail(exc) == expected
 
 
 # ---------------------------------------------------------------------------

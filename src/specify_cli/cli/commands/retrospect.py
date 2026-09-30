@@ -28,6 +28,7 @@ from typing import Annotated, Literal
 import typer
 from specify_cli.cli.console import console as _console
 from specify_cli.cli.console import err_console as _err_console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -206,12 +207,50 @@ def _policy_source_dict(policy_source: dict[str, str]) -> dict[str, str]:
     }
 
 
+def _auto_commit_failure_detail(exc: Exception) -> str:
+    """Return the most useful one-line reason for a failed auto-commit.
+
+    A failed ``git`` call carries git's own message (e.g. ``fatal: ... is
+    outside repository``, a hook's rejection) on stderr, or on stdout for
+    ``git commit`` refusals such as "nothing to commit"; anything else falls
+    back to the exception text.
+    """
+    if isinstance(exc, subprocess.CalledProcessError):
+        for raw in (exc.stderr, exc.stdout):
+            text = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            if lines:
+                return " ".join(lines)
+        return f"`{' '.join(str(arg) for arg in exc.cmd)}` exited {exc.returncode}"
+    return str(exc) or type(exc).__name__
+
+
+def _warn_auto_commit_failed(files: list[Path], exc: Exception) -> None:
+    """Tell the operator, on stderr, that the auto-commit did not happen.
+
+    Non-fatal by design (the record write already succeeded), but never
+    silent: without this the record stays uncommitted and nothing says so.
+    Printed to stderr so ``--json`` stdout stays machine-parseable.
+    """
+    paths = " ".join(str(f) for f in files)
+    _err_console.print(
+        f"[yellow]Warning:[/yellow] retrospective auto-commit failed: "
+        f"{escape(_auto_commit_failure_detail(exc))}. "
+        f"The record is written but not committed; commit it by hand: {escape(paths)}",
+        soft_wrap=True,
+    )
+
+
 def _maybe_auto_commit(
     repo_root: Path,
     files: list[Path],
     message: str,
 ) -> None:
-    """Auto-commit files if auto_commit is enabled in config."""
+    """Auto-commit files if auto_commit is enabled in config.
+
+    A failure is non-fatal (the record is already on disk) but is surfaced as a
+    stderr warning naming the cause, so the operator can commit by hand.
+    """
     try:
         if not get_auto_commit_default(repo_root):
             return
@@ -235,9 +274,9 @@ def _maybe_auto_commit(
             check=True,
             capture_output=True,
         )
-    except Exception:
-        # Auto-commit failure is non-fatal
-        pass
+    except Exception as exc:
+        # Non-fatal (the record write already succeeded), but never silent.
+        _warn_auto_commit_failed(files, exc)
 
 
 # ---------------------------------------------------------------------------
