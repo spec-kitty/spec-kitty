@@ -1227,7 +1227,7 @@ def _classify_and_placeholder_reference(
         return None
 
     summary = _SCOPE_FILTERED_PLACEHOLDER_SUMMARY_TEMPLATE.format(suggestion=detail)
-    source = {"id": raw_id, "title": raw_id, "summary": summary}
+    source: dict[str, object] = {"id": raw_id, "title": raw_id, "summary": summary}
     return _doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=source, project_root=project_root)
 
 
