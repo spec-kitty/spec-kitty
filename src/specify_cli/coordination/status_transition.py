@@ -29,7 +29,8 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from kernel.clock import now_utc, now_utc_iso, timedelta
 from pathlib import Path
@@ -404,6 +405,27 @@ def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Pa
     return feature_dir
 
 
+@contextmanager
+def coord_status_lock(repo_root: Path, coord_feature_dir: Path) -> Iterator[Path]:
+    """Hold the mission status lock (L1) that guards a coord-resident status log.
+
+    The ONE definition of the lock the coord arm holds across emit -> commit
+    (:func:`_emit_on_coord_then_commit`): keyed on the coord feature dir's name
+    under *repo_root*'s git common dir, bounded by
+    ``BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS`` (read at call time). The commit
+    router takes it through this helper when it commits a coord-resident status
+    log, so it can never sweep a transition's appended-but-uncommitted row
+    (#5353). Re-entrant per thread. A timeout raises
+    :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError`.
+    """
+    with feature_status_lock(
+        repo_root,
+        coord_feature_dir.name,
+        timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    ) as held:
+        yield held
+
+
 def _capture_coord_tail(coord_feature_dir: Path, pre_emit_event_size: int) -> EventStream:
     """Read this operation's appended rows while its status lock is held."""
     events_path = coord_feature_dir / _EVENTS_FILENAME
@@ -480,11 +502,7 @@ def _emit_on_coord_then_commit(
     # kitty-specs/fsm-write-path-integrity-01M1TZV6/spec.md and
     # design-notes/WP01-lock-rules.md for why this L1-across-git take is
     # accepted (rollback-safety) and bounded instead of eliminated.
-    with feature_status_lock(
-        identity.repo_root,
-        coord_fd.name,
-        timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
-    ):
+    with coord_status_lock(identity.repo_root, coord_fd):
         pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
         committed = False
         try:

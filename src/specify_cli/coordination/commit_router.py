@@ -26,7 +26,8 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final, Literal, Protocol, runtime_checkable
@@ -44,6 +45,7 @@ from mission_runtime import (
 from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.coordination.surface_authority import Refuse, resolve_surface_authority
 from specify_cli.git import safe_commit
+from specify_cli.status import FeatureStatusLockTimeoutError
 
 
 class CoordWorktreeResolutionError(RuntimeError):
@@ -527,42 +529,19 @@ def _commit_partition_group(
             diagnostic=diagnostic,
         )
 
-    try:
-        commit_result = safe_commit(
-            repo_root=repo_root,
-            worktree_root=worktree_root,
-            target=placement,
-            message=message,
-            paths=commit_paths,
-            owned=owned,
-            **({"expected_parent_sha": expected_parent_sha} if expected_parent_sha is not None else {}),
-            **({"expected_path_bytes": expected_path_bytes} if expected_path_bytes is not None else {}),
-        )
-    except subprocess.CalledProcessError as exc:
-        stderr = getattr(exc, "stderr", "") or ""
-        if "nothing to commit" in stderr or "nothing added to commit" in stderr:
-            return CommitRouterResult(
-                status=_STATUS_UNCHANGED,
-                placement_ref=placement.ref,
-                reason=_REASON_NO_CHANGES,
-            )
-        return CommitRouterResult(
-            status=_STATUS_ERROR,
-            placement_ref=placement.ref,
-            diagnostic=str(exc),
-        )
-    except RuntimeError as exc:
-        if _is_empty_changeset_error(exc):
-            return CommitRouterResult(
-                status=_STATUS_UNCHANGED,
-                placement_ref=placement.ref,
-                reason=_REASON_NO_CHANGES,
-            )
-        return CommitRouterResult(
-            status=_STATUS_ERROR,
-            placement_ref=placement.ref,
-            diagnostic=str(exc),
-        )
+    commit_result = _safe_commit_group(
+        repo_root,
+        worktree_root,
+        placement,
+        message,
+        commit_paths,
+        use_coord=use_coord,
+        owned=owned,
+        expected_parent_sha=expected_parent_sha,
+        expected_path_bytes=expected_path_bytes,
+    )
+    if isinstance(commit_result, CommitRouterResult):
+        return commit_result
 
     commit_hash: str | None = None
     if commit_result is not None and hasattr(commit_result, "sha"):
@@ -588,6 +567,86 @@ def _commit_partition_group(
         commit_hashes=((placement.ref, commit_hash),) if commit_hash else (),
         diagnostic=getattr(commit_result, "diagnostic", None),
     )
+
+
+def _coord_status_dirs(worktree_root: Path, commit_paths: tuple[Path, ...]) -> list[Path]:
+    """The coord feature dirs of the STATUS_STATE files in a coord commit, sorted (stable lock order)."""
+    dirs: set[Path] = set()
+    for path in commit_paths:
+        try:
+            rel = path.relative_to(worktree_root)
+        except ValueError:
+            continue
+        if kind_for_mission_file(rel) is MissionArtifactKind.STATUS_STATE:
+            dirs.add(path.parent)
+    return sorted(dirs)
+
+
+@contextmanager
+def _coord_status_locks(repo_root: Path, worktree_root: Path, commit_paths: tuple[Path, ...], *, use_coord: bool) -> Iterator[None]:
+    """Hold the status lock (L1) of every coord-resident status log this commit carries.
+
+    A coord-resident ``status.events.jsonl`` / ``status.json`` is the log the
+    transactional status shell appends to and commits under L1
+    (``status_transition._emit_on_coord_then_commit``). Committing it outside
+    that lock sweeps a concurrent transition's appended-but-uncommitted row: the
+    transition's own commit then finds an empty changeset and its rollback
+    truncates a row that already landed (#5353). The lock is taken through the
+    shell's own :func:`~specify_cli.coordination.status_transition.coord_status_lock`
+    so both sides hold the identical lock; it is re-entrant, so a caller that
+    already holds it is not deadlocked.
+    """
+    if not use_coord:
+        yield
+        return
+    from specify_cli.coordination.status_transition import coord_status_lock
+
+    with ExitStack() as stack:
+        for status_dir in _coord_status_dirs(worktree_root, commit_paths):
+            stack.enter_context(coord_status_lock(repo_root, status_dir))
+        yield
+
+
+def _safe_commit_group(
+    repo_root: Path,
+    worktree_root: Path,
+    placement: CommitTarget,
+    message: str,
+    commit_paths: tuple[Path, ...],
+    *,
+    use_coord: bool,
+    owned: OwnedCheckout | None,
+    expected_parent_sha: str | None,
+    expected_path_bytes: Mapping[Path, bytes] | None,
+) -> object:
+    """Run ``safe_commit`` for one group; a failure or no-op comes back as a :class:`CommitRouterResult`.
+
+    A status-lock timeout is an ``error`` result naming the contended lock, so a
+    caller reports it like any other failed commit.
+    """
+    try:
+        with _coord_status_locks(repo_root, worktree_root, commit_paths, use_coord=use_coord):
+            return safe_commit(
+                repo_root=repo_root,
+                worktree_root=worktree_root,
+                target=placement,
+                message=message,
+                paths=commit_paths,
+                owned=owned,
+                **({"expected_parent_sha": expected_parent_sha} if expected_parent_sha is not None else {}),
+                **({"expected_path_bytes": expected_path_bytes} if expected_path_bytes is not None else {}),
+            )
+    except FeatureStatusLockTimeoutError as exc:
+        return CommitRouterResult(status=_STATUS_ERROR, placement_ref=placement.ref, diagnostic=str(exc))
+    except subprocess.CalledProcessError as exc:
+        stderr = getattr(exc, "stderr", "") or ""
+        if "nothing to commit" in stderr or "nothing added to commit" in stderr:
+            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref, reason=_REASON_NO_CHANGES)
+        return CommitRouterResult(status=_STATUS_ERROR, placement_ref=placement.ref, diagnostic=str(exc))
+    except RuntimeError as exc:
+        if _is_empty_changeset_error(exc):
+            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref, reason=_REASON_NO_CHANGES)
+        return CommitRouterResult(status=_STATUS_ERROR, placement_ref=placement.ref, diagnostic=str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -918,6 +977,17 @@ def _resolve_mid8(repo_root: Path, mission_slug: str) -> str | None:
         return None
 
 
+def _is_directly_in_worktree(path: Path, worktree: Path) -> bool:
+    """True when *path* lives in *worktree* itself, not in a worktree nested inside it."""
+    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
+
+    try:
+        rel = path.resolve().relative_to(worktree.resolve())
+    except ValueError:
+        return False
+    return not is_under_worktrees_segment(rel)
+
+
 def _stage_artifacts_in_coord_worktree(
     files: list[Path],
     coord_worktree: Path,
@@ -946,6 +1016,17 @@ def _stage_artifacts_in_coord_worktree(
 
     for src in files:
         rel = src.relative_to(repo_root)
+        # A path under ``.worktrees/`` is never copied: it is committed in place when
+        # it lives in THIS coordination worktree, and dropped otherwise. This runs
+        # before the STATUS_STATE skip below, whose purpose is to never copy a stale
+        # PRIMARY status log over the coord one; a log already authored in the coord
+        # worktree needs no copy, and dropping it reported ``no_op_already_committed``
+        # while the log stayed uncommitted there (#5353). The re-homed
+        # ``analysis-report.md`` stays skipped (FR-003, below).
+        if is_under_worktrees_segment(rel):
+            if src.name != _ANALYSIS_REPORT_FILENAME and _is_directly_in_worktree(src, coord_worktree):
+                coord_files.append(src)
+            continue
         # WP13 (IC-07c): single-source through the canonical file→kind classifier
         # instead of a locally-duplicated ``{"status.events.jsonl", "status.json"}``
         # literal. Narrow ON PURPOSE (STATUS_STATE only, not the full
@@ -977,15 +1058,6 @@ def _stage_artifacts_in_coord_worktree(
         # → coord staging (a separate finalize-flow change); until then this stays
         # the narrow, behaviour-correct analysis-report skip.
         if src.name == _ANALYSIS_REPORT_FILENAME:
-            continue
-        if is_under_worktrees_segment(rel):
-            try:
-                coord_rel = src.resolve().relative_to(coord_worktree.resolve())
-            except ValueError:
-                continue
-            if is_under_worktrees_segment(coord_rel):
-                continue
-            coord_files.append(src)
             continue
         dst = coord_worktree / rel
         if src.exists():

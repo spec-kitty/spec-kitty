@@ -26,10 +26,16 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.git.protection_policy import ProtectionPolicy
+
+if TYPE_CHECKING:
+    from specify_cli.coordination.commit_router import CommitRouterResult
+    from tests.terminus.conftest import CoordMission
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -802,6 +808,210 @@ def test_coord_staging_keeps_matrices_but_skips_rehomed_analysis_report(
     assert analysis not in coord_files
 
 
+def test_coord_staging_keeps_a_status_log_already_in_the_coord_worktree(tmp_path: Path) -> None:
+    """A STATUS_STATE path that already lives in the coord worktree is committed in place.
+
+    The STATUS_STATE skip exists so a stale PRIMARY copy of the status log is never
+    copied over the coord one (#1589). A log the caller hands over from the coord
+    worktree itself needs no copy: dropping it made ``commit_for_mission`` report
+    ``no_op_already_committed`` while the log stayed modified and uncommitted there.
+    The primary copy is still skipped, never copied.
+    """
+    from specify_cli.coordination.commit_router import (
+        _stage_artifacts_in_coord_worktree,
+    )
+
+    repo_root = tmp_path / "repo"
+    coord_worktree = repo_root / ".worktrees" / "001-demo-coord"
+    coord_log = coord_worktree / "kitty-specs" / "001-demo" / "status.events.jsonl"
+    coord_log.parent.mkdir(parents=True)
+    coord_log.write_text('{"coord": true}\n', encoding="utf-8")
+    primary_log = repo_root / "kitty-specs" / "001-demo" / "status.events.jsonl"
+    primary_log.parent.mkdir(parents=True)
+    primary_log.write_text('{"stale": true}\n', encoding="utf-8")
+
+    coord_files = _stage_artifacts_in_coord_worktree([coord_log, primary_log], coord_worktree, repo_root)
+
+    assert coord_files == [coord_log]
+    assert coord_log.read_text(encoding="utf-8") == '{"coord": true}\n', "the primary copy was copied over the coord log"
+
+
+@pytest.mark.parametrize(
+    "foreign_log",
+    [
+        pytest.param(
+            Path(".worktrees") / "002-other-coord" / "kitty-specs" / "002-other" / "status.events.jsonl",
+            id="sibling-mission-coord-worktree",
+        ),
+        pytest.param(
+            Path(".worktrees") / "001-demo-coord" / ".worktrees" / "x" / "kitty-specs" / "001-demo" / "status.events.jsonl",
+            id="nested-inside-this-coord-worktree",
+        ),
+    ],
+)
+def test_coord_staging_drops_a_status_log_from_another_worktree(tmp_path: Path, foreign_log: Path) -> None:
+    """Only a status log directly in THIS coordination worktree is kept (#5353).
+
+    A sibling Mission's coordination worktree, or a worktree nested inside this
+    one, holds a status log that is not this Mission's: it is neither committed
+    in place nor copied.
+    """
+    from specify_cli.coordination.commit_router import (
+        _stage_artifacts_in_coord_worktree,
+    )
+
+    repo_root = tmp_path / "repo"
+    coord_worktree = repo_root / ".worktrees" / "001-demo-coord"
+    own_log = coord_worktree / "kitty-specs" / "001-demo" / "status.events.jsonl"
+    other_log = repo_root / foreign_log
+    for log in (own_log, other_log):
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text('{"row": 1}\n', encoding="utf-8")
+
+    coord_files = _stage_artifacts_in_coord_worktree([own_log, other_log], coord_worktree, repo_root)
+
+    assert coord_files == [own_log]
+
+
+def test_coord_staging_keeps_its_own_status_log_through_a_symlinked_repo_root(tmp_path: Path) -> None:
+    """The in-worktree check compares resolved paths, so a symlinked ``repo_root`` still keeps the log."""
+    from specify_cli.coordination.commit_router import (
+        _stage_artifacts_in_coord_worktree,
+    )
+
+    real_root = tmp_path / "real-repo"
+    coord_worktree = real_root / ".worktrees" / "001-demo-coord"
+    real_log = coord_worktree / "kitty-specs" / "001-demo" / "status.events.jsonl"
+    real_log.parent.mkdir(parents=True)
+    real_log.write_text('{"row": 1}\n', encoding="utf-8")
+    linked_root = tmp_path / "linked-repo"
+    linked_root.symlink_to(real_root, target_is_directory=True)
+    linked_log = linked_root / real_log.relative_to(real_root)
+
+    coord_files = _stage_artifacts_in_coord_worktree([linked_log], coord_worktree, linked_root)
+
+    assert coord_files == [linked_log]
+
+
+# ---------------------------------------------------------------------------
+# #5353: the router commits a coord-resident status log under the SAME mission
+# status lock (L1) the transactional status shell holds across emit -> commit.
+# Without it a router commit sweeps a concurrent transition's appended-but-
+# uncommitted row; the transition's own commit then finds an empty changeset
+# (``SafeCommitStagedTreeUnchanged``) and its rollback truncates a row that
+# already landed on the coordination branch.
+# ---------------------------------------------------------------------------
+
+_PENDING_TRANSITION_ROW = '{"simulated": "transition row"}\n'
+
+
+def _coord_mission_with_clean_status_log(tmp_path: Path) -> tuple[CoordMission, Path, Path]:
+    """A real coord mission whose coord-resident status log is committed; returns (mission, log, coord worktree)."""
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from tests.terminus.conftest import build_coord_mission
+
+    mission = build_coord_mission(tmp_path, target_branch="feature/router-status-lock")
+    log = resolve_status_surface(mission.repo, mission.slug)
+    coord = CoordinationWorkspace.worktree_path(mission.repo, mission.slug, mission.mid8)
+    assert log.is_relative_to(coord), f"fixture must put the status log in the coord worktree: {log}"
+    subprocess.run(["git", "add", "--", str(log.relative_to(coord))], cwd=coord, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "baseline"], cwd=coord, check=False, capture_output=True)
+    return mission, log, coord
+
+
+def _coord_head(coord: Path) -> str:
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=coord, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _commit_log_via_router(mission: CoordMission, log: Path) -> CommitRouterResult:
+    from specify_cli.coordination.commit_router import commit_for_mission
+
+    return commit_for_mission(
+        mission.repo,
+        mission.slug,
+        (log,),
+        "chore(retrospective): retrospect-like router commit",
+        ProtectionPolicy.resolve(mission.repo),
+        kind=MissionArtifactKind.RETROSPECTIVE,
+    )
+
+
+@pytest.mark.git_repo
+def test_router_does_not_commit_a_status_row_while_a_transition_holds_the_status_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A transition holding L1 across emit -> commit keeps its row; the router refuses with an error result.
+
+    The holder takes the lock exactly as ``_emit_on_coord_then_commit`` does:
+    ``feature_status_lock(repo_root, <coord feature dir name>)``.
+    """
+    import threading
+
+    from specify_cli.coordination import status_transition as st
+    from specify_cli.status.locking import feature_status_lock
+
+    mission, log, coord = _coord_mission_with_clean_status_log(tmp_path)
+    coord_fd = st._coord_feature_dir(coord, mission.slug, mission.mid8)
+    assert coord_fd == log.parent
+    monkeypatch.setattr(st, "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", 0.2)
+    head_before = _coord_head(coord)
+    ready = threading.Event()
+    release = threading.Event()
+    outcome: dict[str, str] = {}
+
+    def _transition() -> None:
+        with feature_status_lock(mission.repo, coord_fd.name, timeout=5):
+            with log.open("a", encoding="utf-8") as fh:
+                fh.write(_PENDING_TRANSITION_ROW)
+            ready.set()
+            release.wait(timeout=10)
+            try:
+                st._commit_status_artifacts_to_coord(
+                    repo_root=mission.repo,
+                    mission_slug=mission.slug,
+                    coord_worktree=coord,
+                    coord_feature_dir=coord_fd,
+                )
+                outcome["transition"] = "committed"
+            except Exception as exc:  # recorded, asserted below
+                outcome["transition"] = type(exc).__name__
+
+    holder = threading.Thread(target=_transition, name="status-transition-holder")
+    holder.start()
+    try:
+        assert ready.wait(timeout=5), "the transition never took the status lock"
+        result = _commit_log_via_router(mission, log)
+        head_while_held = _coord_head(coord)
+    finally:
+        release.set()
+        holder.join(timeout=10)
+
+    assert not holder.is_alive()
+    assert result.status == "error"
+    assert ".status.lock" in (result.diagnostic or "")
+    assert head_while_held == head_before, "the router committed the transition's row while it held the lock"
+    assert outcome["transition"] == "committed"
+    committed_log = subprocess.run(["git", "show", f"HEAD:{log.relative_to(coord).as_posix()}"], cwd=coord, check=True, capture_output=True, text=True).stdout
+    assert committed_log.endswith(_PENDING_TRANSITION_ROW)
+
+
+@pytest.mark.git_repo
+def test_router_commits_a_status_row_when_its_own_thread_already_holds_the_status_lock(tmp_path: Path) -> None:
+    """The lock is re-entrant: a caller that already holds L1 is not deadlocked by the router."""
+    from specify_cli.coordination import status_transition as st
+    from specify_cli.status.locking import feature_status_lock
+
+    mission, log, coord = _coord_mission_with_clean_status_log(tmp_path)
+    head_before = _coord_head(coord)
+    with feature_status_lock(mission.repo, log.parent.name, timeout=5):
+        with log.open("a", encoding="utf-8") as fh:
+            fh.write(_PENDING_TRANSITION_ROW)
+        result = _commit_log_via_router(mission, log)
+
+    assert result.status == "committed"
+    assert _coord_head(coord) != head_before
+    assert st._coord_feature_dir(coord, mission.slug, mission.mid8) == log.parent
+
+
 # ---------------------------------------------------------------------------
 # Owned arm (owned-checkout-lifecycle-authority WP09, review cycle 1 issue 3b):
 # ``_resolve_group_placement`` must use ``owned.topology`` directly when a fact
@@ -877,3 +1087,21 @@ def test_owned_arm_never_calls_resolve_topology(tmp_path: Path) -> None:
         )
 
     assert result.status == "committed"
+
+
+def test_coord_status_dirs_names_only_status_files_inside_the_commit_worktree(tmp_path: Path) -> None:
+    """Only STATUS_STATE files in the commit worktree select a status lock; the dirs come back sorted."""
+    from specify_cli.coordination.commit_router import _coord_status_dirs
+
+    worktree = tmp_path / "coord"
+    b_dir = worktree / "kitty-specs" / "002-b-01M5001B"
+    a_dir = worktree / "kitty-specs" / "001-a-01M5001A"
+    paths = (
+        b_dir / "status.events.jsonl",
+        a_dir / "status.json",
+        a_dir / "status.events.jsonl",
+        a_dir / "acceptance-matrix.json",
+        tmp_path / "elsewhere" / "kitty-specs" / "003-c" / "status.events.jsonl",
+    )
+
+    assert _coord_status_dirs(worktree, paths) == [a_dir, b_dir]
