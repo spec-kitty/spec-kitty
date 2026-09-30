@@ -205,8 +205,7 @@ refresh/access token is sent to a server the session never authenticated
 against), the Zeitgeist `activity --person`/`--project` and `watch --seed`
 selectors (#4215), and a broad sweep of CLI, `doctor`, and `upgrade` fixes.
 
-Release and Kent's Windows 11 artifact smoke test remain subject to the gates
-in planning#1999.
+The final release remains subject to a Windows 11 artifact smoke test.
 
 ### Added
 
@@ -257,74 +256,10 @@ in planning#1999.
 - **The owner lock is acquired through a writable handle** (#4703 cross-OS family). **Before:** `recheck_assets` opened the lock read-only to lock it; POSIX `flock` allows that, but Windows `msvcrt.locking()` needs write access and is fragile on a read-only handle. **After:** the recheck opens the existing lock `r+`, aligning with the apply path's write handle.
 - **Cold installs serialize concurrent runs on Windows too** (#4703 cross-OS family). **Before:** the cold-install serializer flock'd the anchor directory, which is POSIX-only — a first-time Windows install had no cross-process guard, so two concurrent cold installs could race. **After:** on Windows a machine-temp sentinel keyed to the anchor (kept out of the managed asset tree) serializes cold installers; the exclusive owner-lock create remains the final arbiter. (A related symlink-creation fallback for Windows without developer-mode privilege is tracked as a follow-up: a naive symlink→copy in the managed-asset writer would make re-assessment see a file where it expects a symlink and re-apply forever, so it needs the assessor's cooperation.)
 - **The cross-OS lock, safe-delete, and OS-detection primitives now have one canonical owner each — the recurring Windows `PermissionError` class (root of #4703) is closed by construction** (#4714). #4703 kept recurring because file-locking, managed-asset deletion, and Windows detection were forked across the runtime with no canonical owner, so any site could reintroduce the mandatory-lock read crash or a boundary-leaking delete. **Before:** ~12 lock sites across three families (raw `msvcrt`/`fcntl`, the `filelock` library, a scoped `fcntl`); 3 duplicate safe-delete helpers with a silent contract split (one followed symlinks and cleared the *target's* write bit, a boundary leak); and 4 `is_windows`/`os.name`/`sys.platform` definitions. **After:** (1) one sync+async, sidecar-model lock primitive in `kernel/locks.py` that **structurally cannot expose a held lock for reading** — it yields only holder metadata, never a handle to the protected file, and derives/locks a dedicated `.lock` sidecar, so the #4703 read-your-own-held-lock shape is impossible by construction; (2) one `specify_cli/core/safe_delete.py` with the correct no-follow (`lstat` + `S_IMODE`, skip-symlink) contract; (3) one promoted `kernel/paths.py::is_windows()` seam that the routable OS-detection zoo now calls. Two non-vacuous DIRECTIVE_043 gates (`test_lock_primitive_ban.py`, `test_os_detection_ban.py`) ban raw locking and inline OS-detection outside their canonical modules and fail on any new site (empty allowlists). `filelock` is removed entirely — from runtime dependencies **and** the four test-infrastructure users, which migrated onto `kernel.locks` (closes #4719). Also folded: `tracker/credentials` now locks a sidecar instead of the credential payload (closing the #4703 shape there too); the kernel lock primitive hardens only lock directories it creates (never a shared cache dir); and the cold-install serializer uses one uniform machine-temp sentinel on both Windows and POSIX. Follow-up: #4727 (`windows_paths._current_platform` 3-way normalizer, gate-tracked fail-closed).
-- **Consistent mission-handle resolution across CLI commands** (#4631, #4682). A
-  nonexistent `--mission <handle>` now produces one clear `Mission not found:
-  <handle>` across `research`, `plan`, `tasks`, and `merge` (fresh and
-  `--resume`), matching the commands that were already correct. Previously
-  `plan`/`tasks` misreported it as a multi-mission "pass --mission to
-  disambiguate" ambiguity, `merge` blamed a missing `lanes.json`, and — most
-  seriously — `research` silently scaffolded a phantom `kitty-specs/<handle>/`
-  mission directory. `research` (and every in-scope command) now refuses before
-  writing anything; `merge --abort` stays tolerant of an unresolvable handle;
-  the identity-aware "run `spec-kitty migrate backfill-identity`" remediation and
-  `reconcile`'s distinct "dossier not found" wording are preserved. Bare
-  `spec-kitty next` (no `--mission`) now discovers missions — auto-selecting the
-  sole mission, listing available handles (`slug (mid8) — name`, legacy missions
-  included) when several exist, or pointing to `specify` when none do — instead
-  of dead-ending on a `--mission is required` usage error.
-- **An ambiguous `--mission <handle>` now says so instead of "not found"** (#4723).
-  When a bare human slug matches more than one mission (e.g. two `payment-*`
-  missions, both typed as `--mission payment`), every command **before** reported
-  `Mission not found: payment` — telling you nothing matched when in fact several
-  did, and pointing at a recovery command that could not reveal the collision.
-  **After:** the commands surface the ambiguity (`Mission handle 'payment' matches
-  multiple missions: … — re-run with a more specific handle`) and name the
-  colliding handles, matching how an ambiguous `mid8`/numeric handle already
-  behaved. The misleading not-found hint also changed from `spec-kitty mission
-  list` (which lists mission *types*) to `spec-kitty doctor topology` (which lists
-  real mission handles).
-- **`spec-kitty doctor mission-state` now repairs a legacy `change_mode` instead
-  of aborting, normalizing it to absent**; `--fix` and `--teamspace-dry-run`
-  report per-mission detail in the terminal and `--json` (dry-run parity), so
-  triage no longer requires reading a gitignored manifest; aligned the
-  bulk-edit-gate reader so normalization is behavior-preserving (#4778, #4780,
-  #4779).
-- **The issue-matrix approval gate no longer forces a false work-outcome verdict
-  on issues cited only for context or as PR references, and `move-task` now
-  accepts the natural `--actor`/`--reason` flag names** (#3469). **Before:**
-  every discovered `#NNNN` reference — including parent-epic citations, `see
-  #NNNN` context markers, and `PR #NNNN` links — scaffolded a **gating** row in
-  `issue-matrix.json`, and the four-value verdict vocabulary (`fixed`,
-  `verified-already-fixed`, `deferred-with-followup`, `in-mission`) had no
-  truthful value for "cited, no work owed" — forcing an operator to either
-  stall the mission or record a false verdict into the audit artifact;
-  separately, `move-task` accepted only `--agent`/`--note`, rejecting the
-  `--actor`/`--reason` names its sibling `issue-verdict` already uses, and its
-  `--assignee` help text still described a stale `doing`-only restriction.
-  **After:** a single shared classification function — consumed identically by
-  the approval blocker, `merge_gates`, `status/doctor`, and the post-merge
-  mission-review gate (one gating decision across every site, never re-derived
-  per-site) — demotes a reference to non-gating only on an explicit signal (a
-  `PR `/`pull` token, a cross-repo URL, or a context-label marker: `Follow-up:`,
-  `baseline-red`, a leading `see #`, or `parent`/`epic` used as a citation label
-  immediately before the reference) and defaults every
-  unmarked bare `#NNNN` to gating (fail-safe preserved; a line that merely
-  contains the ordinary word "parent"/"epic"/"see" around a real work target
-  still gates; classification
-  aggregates over all occurrences, so a reference cited once as context and
-  once as an implementation target still gates); a new **`not-applicable`**
-  verdict value (additive, zero migration for existing `issue-matrix.json`
-  files) records the truth for a non-gating row and is terminal — it passes
-  the `done`/merge boundary unchanged, unlike `in-mission`, which is still
-  rejected there; `move-task` now accepts `--actor` (alias of `--agent`) and
-  `--reason` (alias of `--note` — the last-given spelling wins when both are
-  passed), and its `--assignee` help text now describes the actual any-lane
-  behavior; `issue-verdict --help` documents both `not-applicable` and the
-  `deferred-with-followup` evidence-token rule (`#NNN` or a literal
-  `Follow-up:` token); and the specify/plan/tasks/analyze prompts now carry a
-  non-gating heads-up that approvals require issue-matrix verdicts for
-  referenced implementation issues. See the [issue-matrix verdict
-  reference](../development/reference/issue-matrix-verdicts.md).
+- **Consistent mission-handle resolution across CLI commands** (#4631, #4682). A nonexistent `--mission <handle>` now produces one clear `Mission not found: <handle>` across `research`, `plan`, `tasks`, and `merge` (fresh and `--resume`), matching the commands that were already correct. Previously `plan`/`tasks` misreported it as a multi-mission "pass --mission to disambiguate" ambiguity, `merge` blamed a missing `lanes.json`, and — most seriously — `research` silently scaffolded a phantom `kitty-specs/<handle>/` mission directory. `research` (and every in-scope command) now refuses before writing anything; `merge --abort` stays tolerant of an unresolvable handle; the identity-aware "run `spec-kitty migrate backfill-identity`" remediation and `reconcile`'s distinct "dossier not found" wording are preserved. Bare `spec-kitty next` (no `--mission`) now discovers missions — auto-selecting the sole mission, listing available handles (`slug (mid8) — name`, legacy missions included) when several exist, or pointing to `specify` when none do — instead of dead-ending on a `--mission is required` usage error.
+- **An ambiguous `--mission <handle>` now says so instead of "not found"** (#4723). When a bare human slug matches more than one mission (e.g. two `payment-*` missions, both typed as `--mission payment`), every command **before** reported `Mission not found: payment` — telling you nothing matched when in fact several did, and pointing at a recovery command that could not reveal the collision. **After:** the commands surface the ambiguity (`Mission handle 'payment' matches multiple missions: … — re-run with a more specific handle`) and name the colliding handles, matching how an ambiguous `mid8`/numeric handle already behaved. The misleading not-found hint also changed from `spec-kitty mission list` (which lists mission *types*) to `spec-kitty doctor topology` (which lists real mission handles).
+- **`spec-kitty doctor mission-state` now repairs a legacy `change_mode` instead of aborting, normalizing it to absent**; `--fix` and `--teamspace-dry-run` report per-mission detail in the terminal and `--json` (dry-run parity), so triage no longer requires reading a gitignored manifest; aligned the bulk-edit-gate reader so normalization is behavior-preserving (#4778, #4780, #4779).
+- **The issue-matrix approval gate no longer forces a false work-outcome verdict on issues cited only for context or as PR references, and `move-task` now accepts the natural `--actor`/`--reason` flag names** (#3469). **Before:** every discovered `#NNNN` reference — including parent-epic citations, `see #NNNN` context markers, and `PR #NNNN` links — scaffolded a **gating** row in `issue-matrix.json`, and the four-value verdict vocabulary (`fixed`, `verified-already-fixed`, `deferred-with-followup`, `in-mission`) had no truthful value for "cited, no work owed" — forcing an operator to either stall the mission or record a false verdict into the audit artifact; separately, `move-task` accepted only `--agent`/`--note`, rejecting the `--actor`/`--reason` names its sibling `issue-verdict` already uses, and its `--assignee` help text still described a stale `doing`-only restriction. **After:** a single shared classification function — consumed identically by the approval blocker, `merge_gates`, `status/doctor`, and the post-merge mission-review gate (one gating decision across every site, never re-derived per-site) — demotes a reference to non-gating only on an explicit signal (a `PR `/`pull` token, a cross-repo URL, or a context-label marker: `Follow-up:`, `baseline-red`, a leading `see #`, or `parent`/`epic` used as a citation label immediately before the reference) and defaults every unmarked bare `#NNNN` to gating (fail-safe preserved; a line that merely contains the ordinary word "parent"/"epic"/"see" around a real work target still gates; classification aggregates over all occurrences, so a reference cited once as context and once as an implementation target still gates); a new **`not-applicable`** verdict value (additive, zero migration for existing `issue-matrix.json` files) records the truth for a non-gating row and is terminal — it passes the `done`/merge boundary unchanged, unlike `in-mission`, which is still rejected there; `move-task` now accepts `--actor` (alias of `--agent`) and `--reason` (alias of `--note` — the last-given spelling wins when both are passed), and its `--assignee` help text now describes the actual any-lane behavior; `issue-verdict --help` documents both `not-applicable` and the `deferred-with-followup` evidence-token rule (`#NNN` or a literal `Follow-up:` token); and the specify/plan/tasks/analyze prompts now carry a non-gating heads-up that approvals require issue-matrix verdicts for referenced implementation issues. See the [issue-matrix verdict reference](../development/reference/issue-matrix-verdicts.md).
 
 ## [4.0.0rc3] - 2026-09-15
 
@@ -409,12 +344,6 @@ launch acceptance. Install explicitly with `uv tool install 'spec-kitty-cli==4.0
 
 - **The gate model could not see a suite invocation reached through a make target** (#4334). `tests/architectural/_gate_coverage.py` now resolves make targets by reading the Makefile, and a `uv run --frozen pytest` invocation is no longer parsed as "no pytest command here" — a defect that had been hiding every gate in `ci-router.yml` and `packs.yml`. Before this, an assertion that `ci-quality.yml` ran no test suite passed while a 22-minute duplicate tier ran inside it.
 
-### Known limitations
-
-- The per-change Sonar report is **wired but not yet publishing**. SonarCloud Automatic Analysis is enabled on the project and refuses every CI-side upload (#4350); the project currently holds no coverage metric at all. This change makes the suite run once and connects the report to the existing measurement — it does **not** restore a published report, and a green pipeline is not evidence of publication. See also #4367 (further gate-model indirection forms), #4368 (packages with no declared routing group), #4351 and #4365 (pre-existing test gaps surfaced during the work).
-
-### Fixed
-
 - **The issue-matrix approve gate now names the file it actually reads and shows the exact rule each row broke** (#4330). **Before:** every approve-blocker message hardcoded `ERROR: issue-matrix.md`, but the gate reads the matrix JSON-first — so an operator on a JSON-format mission (every scaffolded and migrated mission) was sent hunting for an `issue-matrix.md` their mission does not have; and an unknown-verdict row was flattened to a bare `Unknown: #NNN` id list that dropped the concrete rule it violated, findable only by reading the validator source. **After:** the header names the artifact the gate resolves (`issue-matrix.json`, or the legacy `issue-matrix.md` only for an `.md`-only mission), and each failing row is surfaced verbatim with the rule it broke (e.g. `verdict is 'deferred-with-followup' but evidence_ref contains no follow-up handle`). Diagnostics only — the conditions that block approval, the read surface, and every pass/fail outcome are unchanged.
 - **Built-in doctrine guidance no longer points at the retired `src/doctrine/<kind>.graph.yaml` fragment home** (#2715). The `common-docs-find` tactic and the `brownfield-onboarding` paradigm now name `packs/built-in/<kind>.graph.yaml`, and the agent-profile repository's lineage-graph docstring no longer describes a monolith that is gone. The dead-path architectural gate now also flags `doctrine/<kind>.graph.yaml` and `doctrine/*.graph.yaml` paths, not only the `doctrine/graph.yaml` monolith, and its failure message no longer recommends the dead path.
 - **`spec-kitty specify` / `agent mission create` now refuse a silent duplicate of a live mission instead of creating a second mission under a different slug (`#4033`).** **Before:** running create twice for the same intent (same `mission_slug` **and** `mission_type`) produced two missions, both `{"result":"success"}`, both exit 0 — a trainee following the docs silently ended up with a duplicate. **After:** `create_mission_core` fails closed with `MissionCreationError` *before* any scaffold or branch is written when a live same-key mission exists, naming the existing mission (slug + `mid8`) and the `--allow-duplicate` override. An abandoned prior mission — explicitly canceled, or *genesis*-abandoned (zero lifecycle events **and** a spec that was never committed) — does not block a fresh create, so a bare never-used scaffold re-creates cleanly with no flag. The legitimate high-volume factory case is served by an explicit `--allow-duplicate` / `--allow-dup` flag on both `agent mission create` and `/spec-kitty.specify`, threaded to `create_mission_core(allow_duplicate=True)`; abandonment detection fails closed, so an indeterminate prior mission is treated as live and refused.
@@ -422,6 +351,10 @@ launch acceptance. Install explicitly with `uv tool install 'spec-kitty-cli==4.0
 - **`spec-kitty merge` no longer lets an older mission-branch planning copy silently clobber a target-newer one during the squash** (#3942). The mission→target `git merge --squash -X theirs` step forces the source (mission branch) to win every add/add conflict, which is correct for source code and the driver-covered `kitty-specs/**` bookkeeping classes but false for PRIMARY-partition planning artifacts (`spec.md`, `plan.md`, `tasks/WP*.md`, `research/`, `data-model.md`) — those are authored on the primary/target surface, so the target can carry a legitimately newer copy. A merge driver cannot fix this (it sees only three blobs, no history), so target-newer recency is now resolved after the squash by a pure three-way rule (`src/specify_cli/merge/planning_recency.py`): a path is target-authoritative when the target diverged from the merge-base while the lane copy is base-or-ancestor, with committer-date (never mtime) as the tiebreak and the target winning on a tie. Preserved paths are amended into the single squash commit and reported to the operator, never silent (FR-002). Driver-covered reconcilers (#2709/#2804) are unchanged. Advances epic #2907.
 - **The post-merge `merged_at` completion marker has a production writer again, and the merged-state guard is reopen-aware** (#4090). The primary-wins guard that re-anchors post-merge reads to the PRIMARY surface (`is_mission_merged` → `meta["merged_at"]`) had been dormant since its writer was deleted in #2258, so retrospect and doctor could still read a stale diverged coordination husk. The writer is restored as a sibling of `record_baseline_merge_commit` (`src/specify_cli/merge/baseline.py`), the meta-write authority — the executor is untouched — and `is_mission_merged` (`src/specify_cli/status/lifecycle.py`) is now event-sourced: a mission is merged iff `merged_at` is present and no later `MissionReopened` event postdates it, so a reopened mission correctly reads as not-merged and a re-merge re-stamps a fresh marker. Advances epic #2160 (keeps the single canonical post-merge authority on PRIMARY, overriding the husk rather than freshening it).
 - **Characterization guard confirming post-merge `event_count` union consistency** (#4091, verified-already-fixed). `event_count` is by definition the count of unique `WPStatusChanged` transition events (annotations, lifecycle, and decision events are not transitions), and `_project_status_bookkeeping_to_target` already unions and re-reduces under a coordination husk. A red-first repro on a coord fixture confirmed the count is already correct on HEAD, so #4091 is closed with a regression-locking characterization test rather than a code change.
+
+### Known limitations
+
+- The per-change Sonar report is **wired but not yet publishing**. SonarCloud Automatic Analysis is enabled on the project and refuses every CI-side upload (#4350); the project currently holds no coverage metric at all. This change makes the suite run once and connects the report to the existing measurement — it does **not** restore a published report, and a green pipeline is not evidence of publication. See also #4367 (further gate-model indirection forms), #4368 (packages with no declared routing group), #4351 and #4365 (pre-existing test gaps surfaced during the work).
 
 ### Security
 
@@ -434,14 +367,12 @@ the Team Kitty launch walkthroughs. This is a testing prerelease, not stable lau
 acceptance. Install explicitly with `uv tool install 'spec-kitty-cli==4.0.0rc2'`.
 
 The CLI keeps the public shared-package targets: events 9.1.6 and tracker 0.5.2.
-Live Work is not included in this candidate. Stable 4.0.0 launch acceptance remains
-tracked in planning#1999.
+Live Work is not included in this candidate. Stable 4.0.0 launch acceptance is
+tracked separately.
 
 ### Added
 
 - **`spec-kitty auth login --machine` authenticates CI runners and other unattended environments for hosted operations with no browser, TTY or device-flow approval** (#3277; #4306). It exchanges a ServicePrincipal client ID and secret, read from `SPEC_KITTY_MACHINE_CLIENT_ID` plus `SPEC_KITTY_MACHINE_CLIENT_SECRET` or `SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE`, through the OAuth `client_credentials` grant. Missing or rejected credentials fail closed with one remediation message, never a prompt, and the secret is never printed. `--machine` cannot be combined with `--headless`. `auth status` labels the session `Machine / CI (Client Credentials Grant)`, and `auth doctor` (text and `--json`) reports the additive `session.auth_method` field. Browser and device-flow login remain the default for people; the runner setup and credential rotation runbook is `docs/operations/ci-machine-auth.md`.
-
-### Added
 
 - **`spec-kitty accept --mode pr --merge-commit <sha>` records the PR's real merge as the mission's post-merge review baseline** (#4231). A mission accepted through a GitHub PR never passes through `spec-kitty merge`, so its `meta.json` never carried `baseline_merge_commit` — leaving `spec-kitty review --mode post-merge` unreachable (`MISSION_REVIEW_MODE_MISMATCH`) and the lightweight dead-code gate failing a cleanly merged mission. The supplied commit is verified against git before anything is written (it must resolve, carry `kitty-specs/<slug>/meta.json`, its first parent must not, and it must have landed on the target branch — an unmerged mission-branch commit satisfies every first-introduction check, so only the target-branch membership check separates it from a real landing); `baseline_merge_commit` is then recorded as that first parent, with the provenance pair `pr_merge_commit` (the landing commit) and `pr_merge_evidence` (what the anchor's completeness rests on), through the same canonical seam `spec-kitty merge` uses. Also exposed as `spec-kitty agent mission accept --merge-commit`, and backfillable for missions whose PR already merged via the new `spec-kitty migrate backfill-merge-commit --mission <handle> --merge-commit <sha>` (idempotent; an already-recorded baseline is never overwritten). Both seams accept `--target-branch` for the PR's base branch, defaulting to the mission's declared `target_branch`, else the repository's primary branch.
 - **The PR-recorded anchor names its evidence class, and EVERY landing shape needs an explicit operator attestation** (#4231 fix rounds). Post-landing git history cannot prove a supplied landing commit's first parent is the pre-landing target tip for ANY shape: an internal merge (the corpus branch merged into the implementation branch, the target then fast-forwarded to the result) is graph-identical to a merge performed on the target branch and its first parent is an implementation commit, and a single-parent landing (squash, or a corpus-first stack) whose implementation commits preceded the corpus has an earlier same-PR commit there — graph-identical to pre-existing target work. Recording an unattested anchor in either shape would silently under-scan the dead-code gate while the command's reason string claimed git had proved the parent was the tip. Both shapes are therefore refused unless the operator passes `--attest-first-landing-commit` (for a two-parent merge: the merge was performed on the target branch; for a single-parent landing: the supplied commit was the first commit of the landing), and record as `pr_merge_evidence: merge-commit-parent-attested` / `corpus-parent-attested` respectively, so the anchor's completeness rests on a recorded operator attestation, never on a claim git did not make; `spec-kitty review --mode post-merge` honours the field, surfacing `MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE` instead of a green scan for any present value it does not recognize as complete. Full forge commit-list evidence, which would prove the tip outright, is tracked in #4277.
