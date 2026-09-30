@@ -74,12 +74,18 @@ test-full: ## Run everything: one parallel pass + serial marker passes
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
 	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || echo parallel >> $(TEST_FULL_STATUS)
 	# Serial passes: the two parallel-unsafe marker families run serially under
-	# -n0 (--timeout guards a hung fork/process from stalling the lane
-	# indefinitely).
+	# -n0. The per-test timeout that guards a hung fork/process from stalling a
+	# lane indefinitely is no longer passed here: since #3143 it is set once, in
+	# pytest.ini (`timeout = 240`, `timeout_method` unset -> signal on this POSIX
+	# runner). The previously explicit `--timeout=240 --timeout-method=signal`
+	# was byte-for-byte redundant with that default on Linux/macOS and actively
+	# Windows-hostile (forcing the SIGALRM-only signal method where no SIGALRM
+	# exists), so it was dropped in favour of the single authority. These passes
+	# stay serial (-n0) for the stress/timing reasons above, not for the timeout.
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
-	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q || echo stress >> $(TEST_FULL_STATUS)
+	  -m "stress and not windows_ci" -n0 -q || echo stress >> $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
-	  -m timing -n0 --timeout=240 --timeout-method=signal -q || echo timing >> $(TEST_FULL_STATUS)
+	  -m timing -n0 -q || echo timing >> $(TEST_FULL_STATUS)
 	@if [ -s $(TEST_FULL_STATUS) ]; then \
 	  echo "test-full: FAILED passes: $$(tr '\n' ' ' < $(TEST_FULL_STATUS))"; \
 	  rm -f $(TEST_FULL_STATUS); exit 1; fi

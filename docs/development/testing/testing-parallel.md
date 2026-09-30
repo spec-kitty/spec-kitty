@@ -149,14 +149,17 @@ own dedicated serial pass instead of running in the main parallel pool:
 and then runs each family on its own:
 
 ```bash
-PWHEADLESS=1 pytest tests/ -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q
-PWHEADLESS=1 pytest tests/ -m timing -n0 --timeout=240 --timeout-method=signal -q
+PWHEADLESS=1 pytest tests/ -m "stress and not windows_ci" -n0 -q
+PWHEADLESS=1 pytest tests/ -m timing -n0 -q
 ```
 
-`-n0` forces serial execution even when xdist is installed.
-`--timeout=240 --timeout-method=signal` guards against a hung fork/process
-stalling the pass indefinitely. These mirror the `Makefile`'s `test-full`
-target's serial marker passes.
+`-n0` forces serial execution even when xdist is installed. The per-test
+timeout that guards a hung fork/process from stalling the pass indefinitely is
+no longer passed on these commands: since #3143 it comes from the single
+per-test timeout authority in `pytest.ini` (`timeout = 240`), which applies to
+every pass — parallel and serial alike. See
+[The per-test timeout](#the-per-test-timeout) below. These mirror the
+`Makefile`'s `test-full` target's serial marker passes.
 
 (The former fourth pass ran the deleted sync daemon's fixed-port suites — five
 files bound to the reserved 9400–9449 port range, keyed off
@@ -164,6 +167,56 @@ files bound to the reserved 9400–9449 port range, keyed off
 workers never contended for the same fixed port. Both the registry and the
 sync daemon it protected died with the sync transport, issue #5; there is no
 fixed-daemon-port family left to isolate.)
+
+## The per-test timeout
+
+Every test has a **240-second per-test timeout**, set once in `pytest.ini`:
+
+```ini
+[pytest]
+timeout = 240
+```
+
+This is the single per-test timeout authority (#3143). Because it lives in
+`pytest.ini`, it applies uniformly wherever pytest reads that file — the Linux
+module shards, the Windows job (`ci-windows.yml`), a bare local `pytest`, and
+the `make test-fast` / `make test-full` targets — so no surface is left without
+one. Before #3143 the flags lived only in CI job definitions (and, briefly, only
+in the Makefile serial passes), so Windows CI and every local run had no
+per-test timeout at all.
+
+**What a hang looks like now.** When a test runs longer than 240s, pytest-timeout
+fails **that one test by name** and the run continues to its summary:
+
+```
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+...
+FAILED tests/some/module/test_thing.py::test_that_hung - Failed: Timeout >240.0s
+```
+
+Contrast the old failure mode: a hang was killed by a job-level
+`timeout-minutes`, ending the run with **no summary, no counter, and no named
+test** — you could not tell which test wedged.
+
+**Method is per platform, by design.** `pytest.ini` deliberately leaves
+`timeout_method` unset. pytest-timeout then uses:
+
+- **`signal`** (SIGALRM) on POSIX — the Linux shards and local macOS/Linux runs.
+  This interrupts the running test at the timeout and prints the counted,
+  test-named `Failed: Timeout >240.0s` line above.
+- **`thread`** on Windows, which has no SIGALRM. A hung `windows_ci` test still
+  fails by name with a thread-stack dump. The thread watchdog cannot interrupt a
+  wedged native (C) call, so a genuinely stuck native call may still fall through
+  to the job-level `timeout-minutes: 20`; re-run such a hang on Linux to get the
+  signal-method, counted failure. `ci-windows.yml` carries this note inline.
+
+**240s is a runaway backstop, not a budget.** It sits far above the longest
+observed test (~30s on recent shard timing). A legitimately long test should
+carry its own `@pytest.mark.timeout(<seconds>)` marker rather than raising this
+floor; that marker (and any explicit command-line `--timeout=`, e.g. the
+mutation-testing args) overrides the ini default. The default is pinned by
+`tests/architectural/test_pytest_ini_timeout_default.py` so it cannot silently
+drift back out.
 
 ## Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)
 
@@ -217,10 +270,8 @@ python -m tests._support.coverage_safety.ratchet -n 3 -- \
 # 4. Parallel-vs-serial timing: target ≥2× faster on a ≥4-core machine.
 time PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider \
   -m "not stress and not timing"
-time PWHEADLESS=1 .venv/bin/pytest tests/ -m "stress and not windows_ci" -n0 \
-  --timeout=240 --timeout-method=signal -q
-time PWHEADLESS=1 .venv/bin/pytest tests/ -m timing -n0 \
-  --timeout=240 --timeout-method=signal -q
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m "stress and not windows_ci" -n0 -q
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m timing -n0 -q
 
 # 5. Real home untouched: mtime/inode unchanged (or path still absent) after the run.
 ls -la ~/.spec-kitty 2>/dev/null

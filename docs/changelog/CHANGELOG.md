@@ -315,6 +315,7 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 - The project's configured mission type is now read through one shared parser instead of two (#4993).
 - Mission-step guidelines are loaded only from `mission-steps/<type>/<action>/guidelines.md`, and the duplicate copies under `missions/<type>/actions/` are removed (#5202).
 - The `spec-kitty-mission-review` skill's Gate 3 floor no longer lists the retired `saas_sync_enabled.py` scenario or the inert `SPEC_KITTY_ENABLE_SAAS_SYNC=1` pin (#5136, #5003, #4949).
+- Every test now has a 240-second per-test timeout, set once in `pytest.ini` (`timeout = 240`) so it applies uniformly to the Linux module shards, the Windows job, local `pytest` runs and the `make` targets (#3143, refs #3864). Previously a hanging test was only killed by a job-level `timeout-minutes`, ending the run with no summary, no counter and no named test; now pytest-timeout fails that one test by name (signal method on POSIX, thread fallback on Windows, where there is no SIGALRM) and the run continues. The redundant `--timeout=240 --timeout-method=signal` flags on the Makefile serial passes were dropped in favour of the ini default, and a new gate (`tests/architectural/test_pytest_ini_timeout_default.py`) pins the value so it cannot drift out again.
 
 ## [4.0.0rc4] - 2026-09-21
 

@@ -10983,6 +10983,7 @@ pages:
     - {slug: "per-run-pytest-temp-root", text: "Per-run pytest temp root", level: 2}
     - {slug: "tmp-path-retention-policy", text: "`tmp_path` retention policy", level: 2}
     - {slug: "the-serial-marker-passes", text: "The serial marker passes", level: 2}
+    - {slug: "the-per-test-timeout", text: "The per-test timeout", level: 2}
     - {slug: "volume-env-gates-spec-kitty-ulid-volume-full", text: "Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)", level: 2}
     - {slug: "running-the-stability-ratchet-locally", text: "Running the stability ratchet locally", level: 2}
     - {slug: "validate-the-acceleration-copy-pasteable", text: "Validate the acceleration (copy-pasteable)", level: 2}

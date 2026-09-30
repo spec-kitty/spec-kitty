@@ -147,4 +147,17 @@ jobs:
           # the real install topology users have (editable install via pipx +
           # injected pytest). Running `python -m pytest` from the host
           # setup-python interpreter would bypass the pipx venv entirely.
+          #
+          # Per-test timeout (#3143): this job inherits the single per-test
+          # timeout authority — `timeout = 240` in pytest.ini — with no flag
+          # passed here. Windows has no SIGALRM, so pytest-timeout falls back to
+          # its `thread` method (pytest.ini deliberately leaves `timeout_method`
+          # unset to allow exactly this per-platform choice). A hung windows_ci
+          # test therefore fails BY NAME with a pytest-timeout "Timeout" dump of
+          # every thread's stack after 240s, and the run continues to its
+          # summary — rather than being silently killed by the job-level
+          # `timeout-minutes: 20` above with no counter and no named test. The
+          # thread method cannot interrupt a stuck C call, so a genuinely wedged
+          # native call may still hit `timeout-minutes`; re-run such a hang on
+          # Linux (signal method) to get the counted, test-named failure.
           "$VENV_PYTHON" -m pytest -m windows_ci --maxfail=1 -v "${WINDOWS_TESTS[@]}"
