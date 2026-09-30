@@ -235,11 +235,19 @@ def _porcelain_path(line: str) -> str:
 
 
 def _path_obstructs_target_tree(path: str, target_paths: set[str]) -> bool:
-    """Return True when an untracked/ignored path may be clobbered by reset."""
+    """Return True when an untracked/ignored path may be clobbered by reset.
+
+    A reset clobbers *path* when the target tree has that exact path, a path
+    inside it, or a path that is one of its ancestors. The ancestor case is a
+    tracked directory replaced by a tracked file: ignored ``src/store/local.txt``
+    is destroyed when the incoming tree contains file ``src/store`` (#5400).
+    Matches use slash-delimited components, so ``store`` does not obstruct
+    ``storehouse``. An empty local path never obstructs.
+    """
     if not path:
         return False
-    prefix = f"{path}/"
-    return any(target == path or target.startswith(prefix) for target in target_paths)
+    as_directory = f"{path}/"
+    return any(target == path or target.startswith(as_directory) or path.startswith(f"{target}/") for target in target_paths)
 
 
 def _decode_meta_named(raw: str, *, source: str) -> dict[str, object]:
