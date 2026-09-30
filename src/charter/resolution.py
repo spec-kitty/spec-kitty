@@ -80,8 +80,13 @@ def resolve_canonical_repo_root(path: Path) -> Path:
     """Resolve ``path`` to the canonical (main-checkout) project root.
 
     See ``contracts/canonical-root-resolver.contract.md`` for the full
-    behavioral matrix and error surface. Its submodule row (``<repo>/.git/modules``)
-    is superseded by the submodule rule below (#5353). The function performs at most one
+    behavioral matrix and error surface. That contract is a frozen archived
+    mission dossier (immutable under the archive-freeze gate), so #5353's
+    changes are recorded here in live code rather than by editing it: both its
+    submodule row (``<repo>/.git/modules``) and its "not parsing ``.git/config``
+    for ``core.worktree``" non-goal are superseded by the submodule rule below
+    (#5353) — this facade now reads a non-``.git`` common dir's own
+    ``core.worktree`` to map a submodule back to its working tree. The function performs at most one
     ``git rev-parse --git-common-dir`` invocation per cold call and zero on
     warm (LRU-cached) calls. A common dir that is not named ``.git`` (a
     submodule's absorbed ``<super>/.git/modules/<name>``) costs one extra cold
