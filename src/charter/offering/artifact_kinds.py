@@ -3,12 +3,23 @@
 Single source of truth for artifact type names, plural forms, and glob patterns.
 Zero-dependency: no imports from specify_cli or other doctrine subpackages.
 
-Canonical charter kind universe (R-009)
----------------------------------------
-The charter command surfaces (``activate`` / ``deactivate`` / ``list`` /
-``context --include``) operate over the *charter kind universe*, which is::
+Two distinct concepts — do not conflate (#5409)
+------------------------------------------------
+* **Charter kind *token* universe** (:data:`CHARTER_KIND_TOKENS`) — the
+  hand-authorable operator tokens the charter command surfaces (``activate`` /
+  ``deactivate`` / ``list`` / ``context --include``) expose, which is::
 
-    the 9 activatable ``ArtifactKind`` kinds  +  ``mission-type``
+      the 9 hand-authorable ``ArtifactKind`` tokens  +  ``mission-type``
+
+  It excludes :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS` (``template``, ``asset``,
+  ``anti_pattern``): those are not hand-authored as standalone artifact files, so
+  an operator never names them here.
+* **Charter-*activatable* kinds** (:attr:`ArtifactKind.activatable` /
+  :data:`CHARTER_ACTIVATABLE_KINDS`) — whether a kind can be activated as a live
+  governance rule. This is **10 kinds**: every kind except ``template`` and
+  ``asset``. ``anti_pattern`` **IS** charter-activatable (issue #5409, ruling
+  2026-09-30) and the activation surfaces accept it end to end; it is merely
+  absent from the *token* universe above because it is not hand-authored.
 
 ``mission-type`` is **not** an :class:`ArtifactKind` member — it is a mission-tier
 concept handled separately (see FR-032 / WP04). Callers route a mission-type
@@ -17,15 +28,15 @@ documented :class:`MissionTypeNotAnArtifactKind` for it rather than silently
 mapping it to an artifact kind (R-009 / CL-1: no silent fallback).
 
 ``template`` *is* an :class:`ArtifactKind` member but is resolved specially
-(mission-tier, empty glob — see :attr:`ArtifactKind.glob_pattern`); it is not one
-of the 9 non-template artifact tokens enumerated in :data:`CHARTER_KIND_TOKENS`.
+(mission-tier, empty glob — see :attr:`ArtifactKind.glob_pattern`) and is not
+charter-activatable; it is not one of the 9 non-template artifact tokens
+enumerated in :data:`CHARTER_KIND_TOKENS`.
 
 ``anti_pattern`` *is* an :class:`ArtifactKind` member (mission
-``doctrine-tension-edges-01KY1WPC``, D2) but is also excluded from the charter
-kind universe via :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`: an anti-pattern
-node is never activated as a live rule and is never hand-authored as a
-standalone artifact file, so it is not one of the 9 charter-activatable
-artifact tokens either.
+``doctrine-tension-edges-01KY1WPC``, D2) and **is** charter-activatable, but it
+is excluded from the hand-authorable token universe
+(:data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`): an anti-pattern node is a re-kinded
+node inside another kind's graph fragment, never a standalone artifact file.
 
 Consumers must route every operator kind string through
 :meth:`ArtifactKind.from_operator_token` (CC-4) — no second kind enumeration
@@ -47,6 +58,7 @@ class MissionTypeNotAnArtifactKind(ValueError):
     :class:`ValueError` subclass) so callers can catch it specifically and
     branch, instead of treating mission-type as an unknown token.
     """
+
 
 _PLURALS: dict[str, str] = {
     "directive": "directives",
@@ -170,6 +182,22 @@ class ArtifactKind(StrEnum):
         return _HAS_BUILT_IN_CONTENT_DIR[self.value]
 
     @property
+    def activatable(self) -> bool:
+        """Whether this kind is charter-activatable (FR-004 / FR-005 / C-003).
+
+        ``True`` for every kind **except** ``TEMPLATE`` and ``ASSET`` — the two
+        that resolve specially and are never activated as a live governance
+        rule (``TEMPLATE`` is mission-tier with an empty glob; ``ASSET`` is a
+        loose-contract blob manifest). ``ANTI_PATTERN`` **is** activatable
+        (issue #5409 ruling, 2026-09-30): anti-patterns are first-class in the
+        4.x model and the activation surfaces must accept them end to end.
+
+        This is the single enum fact backing :data:`CHARTER_ACTIVATABLE_KINDS`;
+        no charter module hand-lists the activatable kinds.
+        """
+        return self not in (ArtifactKind.TEMPLATE, ArtifactKind.ASSET)
+
+    @property
     def operator_token(self) -> str:
         """Hyphenated operator token for this kind (CLI surface, help text).
 
@@ -221,17 +249,13 @@ class ArtifactKind(StrEnum):
         normalized = token.strip().lower().replace("-", "_")
         if normalized == MISSION_TYPE_TOKEN.replace("-", "_"):
             raise MissionTypeNotAnArtifactKind(
-                "'mission-type' is part of the charter kind universe but is not "
-                "an ArtifactKind; route it through the mission-tier handler."
+                "'mission-type' is part of the charter kind universe but is not an ArtifactKind; route it through the mission-tier handler."
             )
         for member in cls:
             if member.value == normalized:
                 return member
         valid = ", ".join(member.operator_token for member in cls)
-        raise ValueError(
-            f"Unknown artifact kind token {token!r}. "
-            f"Valid operator tokens: {valid}."
-        )
+        raise ValueError(f"Unknown artifact kind token {token!r}. Valid operator tokens: {valid}.")
 
 
 #: Canonical set of :class:`ArtifactKind` members that are never eligible for
@@ -245,20 +269,16 @@ class ArtifactKind(StrEnum):
 #: ``rejects`` edges. This is the **single** canonical exclusion set —
 #: downstream modules (``org_pack_loader.py``, the charter cascade) must
 #: import this rather than re-declaring their own exclusion list.
-_NON_AUGMENTATION_ELIGIBLE_KINDS: frozenset[ArtifactKind] = frozenset(
-    {ArtifactKind.TEMPLATE, ArtifactKind.ASSET, ArtifactKind.ANTI_PATTERN}
-)
+_NON_AUGMENTATION_ELIGIBLE_KINDS: frozenset[ArtifactKind] = frozenset({ArtifactKind.TEMPLATE, ArtifactKind.ASSET, ArtifactKind.ANTI_PATTERN})
 
 
 #: Charter kind universe: the non-excluded artifact operator tokens + the
 #: special ``mission-type`` token. Members of :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`
 #: (``template``, ``asset``, ``anti_pattern``) resolve specially and are *not*
 #: listed here.
-CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(
-    member.operator_token
-    for member in ArtifactKind
-    if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS
-) + (MISSION_TYPE_TOKEN,)
+CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(member.operator_token for member in ArtifactKind if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS) + (
+    MISSION_TYPE_TOKEN,
+)
 
 
 #: The runtime-managed kinds whose **project-tier overlay** directory is the
@@ -321,34 +341,30 @@ PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
 #: :data:`CHARTER_KIND_TOKENS` (9 tokens; also drops ``anti_pattern`` via
 #: :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`) and that exclusion set itself
 #: (which additionally drops ``anti_pattern``). C-003/FR-005 require the
-#: ``anti_pattern`` entry be preserved here, so this set uses its own two-kind
-#: exclusion rather than reusing ``_NON_AUGMENTATION_ELIGIBLE_KINDS``.
+#: ``anti_pattern`` entry be preserved here, which is why membership is keyed on
+#: the :attr:`ArtifactKind.activatable` fact (``True`` for all but
+#: ``TEMPLATE``/``ASSET``) rather than on ``_NON_AUGMENTATION_ELIGIBLE_KINDS``
+#: (which additionally excludes ``anti_pattern``).
 #:
 #: This is the single authority the charter activation-kind vocabulary
 #: (``charter.activation.activations`` plural↔singular maps,
 #: ``charter.activation._activation_render``
 #: render/inference maps) is derived from — no charter module re-declares a
 #: plural↔singular kind dict (FR-004).
-CHARTER_ACTIVATABLE_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind) - {
-    ArtifactKind.TEMPLATE,
-    ArtifactKind.ASSET,
-}
+#:
+#: Derived from the per-member :attr:`ArtifactKind.activatable` enum fact so the
+#: activatability predicate has exactly one home (the enum) — this set never
+#: hand-lists the exclusions.
+CHARTER_ACTIVATABLE_KINDS: frozenset[ArtifactKind] = frozenset(kind for kind in ArtifactKind if kind.activatable)
 
 #: Derived singular→plural map over the charter-activatable kinds (10 entries).
 #: Ordered by :class:`ArtifactKind` declaration so downstream first-match
 #: semantics (e.g. ``_infer_kind``) are stable.
-CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL: dict[str, str] = {
-    kind.value: kind.plural
-    for kind in ArtifactKind
-    if kind in CHARTER_ACTIVATABLE_KINDS
-}
+CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL: dict[str, str] = {kind.value: kind.plural for kind in ArtifactKind if kind in CHARTER_ACTIVATABLE_KINDS}
 
 #: Derived plural→singular inverse of
 #: :data:`CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
-CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {
-    plural: singular
-    for singular, plural in CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.items()
-}
+CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {plural: singular for singular, plural in CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.items()}
 
 #: **Canonical registration-writing (direct-write) kind set** (WP01 / NFR-002).
 #:

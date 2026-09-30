@@ -21,11 +21,12 @@ doctrine domain's responsibility and lives here.
 C-009 / kind universe
 ---------------------
 
-The 8-kind plural universe (``_ORG_DRG_CANONICAL_KINDS``) is declared here
-rather than imported from elsewhere so that any drift from
-``charter.activation.activations._ALLOWED_KINDS`` is surfaced by the contract test
-sweep (C-009 binding). Do not import this constant across the boundary;
-use the contract sweep to detect drift.
+The org-pack DRG node-declarable kind universe (``_ORG_DRG_CANONICAL_KINDS``)
+is *derived* from the single ``ArtifactKind`` authority (issue #5409) plus an
+explicit mission-tier extension (``mission_types`` and the ``mission_steps``
+rename), so it can never drift from the enum. The single-authority structural
+gate lives at
+``tests/architectural/test_charter_kind_vocabulary_single_authority.py``.
 """
 
 from __future__ import annotations
@@ -55,66 +56,75 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# C-009: 8-kind plural universe inherited from Mission B
+# C-009: the org-pack DRG node-declarable kind universe
 # ---------------------------------------------------------------------------
-# Byte-identical to ``charter.activation.activations._ALLOWED_KINDS``. We re-declare
-# rather than import to keep this module free of charter imports; the
-# contract test sweep enforces drift detection between the two declarations
-# (C-009 binding).
+# Derived from the single ``ArtifactKind`` authority (issue #5409): the file-
+# backed node-declarable kinds are the ArtifactKind members except
+# ``anti_pattern`` (which has no standalone artifact file — see
+# ``_ORG_DRG_NON_NODE_KINDS``), so the ArtifactKind portion of the alias map is a
+# comprehension over the enum and can never drift from it. Two mission-tier
+# extensions layer on top (they are NOT ArtifactKind members): the
+# ``mission_steps`` rename and the ``mission_types`` kind.
 #
 # Mission ``charter-doctrine-mission-type-configuration-01KSWJVX`` (WP01 + WP11)
 # renames ``mission_step_contracts`` → ``mission_steps`` as the canonical plural
 # kind, aligning the DRG with the runtime domain model in
-# ``charter.offering.missions.models.MissionStep``. The legacy plural is preserved as
-# an alias for one release so that org packs authored against the previous
-# universe continue to validate; the alias resolves to the same canonical
-# kind on parse, so downstream code only sees the canonical form.
+# ``charter.offering.missions.models.MissionStep``. The ArtifactKind plural is
+# preserved as an input alias so org packs authored against the previous
+# universe continue to validate; the alias resolves to the same canonical kind
+# on parse, so downstream code only sees the canonical form.
+#
+# The former hand-kept three-way lockstep drift guard (against
+# ``_ALLOWED_KINDS`` / ``_BUILTIN_ARTIFACT_KINDS``) is superseded by the
+# structural single-authority gate
+# ``tests/architectural/test_charter_kind_vocabulary_single_authority.py``:
+# every one of those mirrors now derives from ``ArtifactKind``, so drift is
+# impossible by construction rather than caught after the fact.
+
+#: Mission-tier kinds that are NOT :class:`ArtifactKind` members but ARE part of
+#: the canonical org-pack DRG universe (FR-032 / DIRECTIVE_003).
+_MISSION_TYPE_SINGULAR = "mission_type"
+_MISSION_TYPE_PLURAL = "mission_types"
+
+#: Org-pack canonical plural for the mission-step kind: the DRG renames the
+#: :attr:`ArtifactKind.MISSION_STEP_CONTRACT` plural ``mission_step_contracts``
+#: to ``mission_steps`` (WP01/WP11); the ArtifactKind plural stays an input alias.
+_MISSION_STEP_CANONICAL_PLURAL = "mission_steps"
+
+#: Kinds excluded from the file-backed org-pack node universe. ``ANTI_PATTERN``
+#: has no standalone artifact file (it is a re-kinded node authored inside
+#: another kind's graph fragment, never a scannable ``*.anti_pattern.yaml`` file
+#: — see the ``artifact_kinds`` module docstring), so an org pack cannot declare
+#: an anti-pattern *file-backed* node. It is still charter-activatable via the
+#: activation registry (#5409); the two concepts are distinct.
+_ORG_DRG_NON_NODE_KINDS: frozenset[ArtifactKind] = frozenset({ArtifactKind.ANTI_PATTERN})
 
 #: Canonical plural-kind alias map. Keys = forms accepted on input; values =
 #: canonical form retained on the validated node. Identity entries (canonical
 #: → canonical) keep ``_ORG_DRG_CANONICAL_KINDS`` semantics intact.
-# DIRECTIVE_003 (FR-032, decision locked): mission-type augmentation is
-# delivered by EXPANDING this canonical kind universe to include mission types,
-# NOT by a separate augmentation path. The plural ``mission_types`` is added to
-# the universe and to ``_ORG_DRG_KIND_ALIASES`` so an org-pack fragment may
-# author ``enhances`` / ``overrides`` / ``specializes_from`` edges against a
-# built-in mission type and have them validate. This is a binding change to the
-# (formerly 8-kind) universe; the lockstep drift guard against
-# ``charter.activation.activations._ALLOWED_KINDS`` lives in
-# ``tests/doctrine/test_org_pack_augmentation.py`` (it asserts the loader
-# universe equals ``_ALLOWED_KINDS`` plus the mission-type extension, so neither
-# side can drift silently and mission types are never silently dropped).
+#:
+#: DIRECTIVE_003 (FR-032, decision locked): mission-type augmentation is
+#: delivered by EXPANDING this canonical kind universe to include mission types,
+#: NOT by a separate augmentation path. FR-001/FR-007/FR-011: ``templates`` and
+#: ``assets`` are node-declarable here (an org pack may declare a template/asset
+#: node) but are excluded from augmentation via
+#: ``artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS`` (see
+#: :data:`AUGMENTATION_ELIGIBLE_KINDS` below). ``anti_patterns`` is NOT in this
+#: universe (:data:`_ORG_DRG_NON_NODE_KINDS`): it has no file-backed org-pack
+#: node form, even though it is charter-activatable (#5409).
 _ORG_DRG_KIND_ALIASES: dict[str, str] = {
-    "directives": "directives",
-    "tactics": "tactics",
-    "styleguides": "styleguides",
-    "toolguides": "toolguides",
-    "paradigms": "paradigms",
-    "procedures": "procedures",
-    "agent_profiles": "agent_profiles",
-    "mission_steps": "mission_steps",
-    # Backward-compat alias: pre-WP01 packs used `mission_step_contracts`.
-    "mission_step_contracts": "mission_steps",
-    # FR-032 (DIRECTIVE_003): mission types are now part of the canonical
-    # org-pack DRG kind universe so mission-type augmentation reuses the same
-    # fragment-edge auto-emit + validator-parity path as every other kind.
-    "mission_types": "mission_types",
-    # Singular spelling accepted on input for ergonomics; resolves to plural.
-    "mission_type": "mission_types",
-    # FR-001/FR-007/FR-011 (asset-kind mission): ``templates`` and ``assets``
-    # are node-declarable org-pack DRG kinds (an org pack may declare a
-    # template/asset node and reference it in edges) but are excluded from
-    # augmentation and the charter activation surfaces — see
-    # :data:`AUGMENTATION_ELIGIBLE_KINDS` / :data:`_AUGMENTATION_GLOBS` below,
-    # which derive their exclusion from ``artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``.
-    "templates": "templates",
-    "assets": "assets",
-    # FR-008/FR-009 (glossary-pack-doctrine-kind mission, WP04 T020): the
-    # glossary-pack kind joins the canonical org-pack DRG universe in
-    # lockstep with ``charter.activation.activations._ALLOWED_KINDS`` and
-    # ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` — see the three-way
-    # drift guard in ``tests/doctrine/test_org_pack_augmentation.py``.
-    "glossary_packs": "glossary_packs",
+    # ArtifactKind plurals are identity entries, derived from the authority so
+    # the universe tracks the enum; MISSION_STEP_CONTRACT is the one rename and
+    # ANTI_PATTERN is excluded (it has no file-backed org-pack node form).
+    **{kind.plural: kind.plural for kind in ArtifactKind if kind is not ArtifactKind.MISSION_STEP_CONTRACT and kind not in _ORG_DRG_NON_NODE_KINDS},
+    # Mission-step rename: canonical `mission_steps` + the ArtifactKind plural
+    # kept as a backward-compat input alias resolving to the same canonical kind.
+    _MISSION_STEP_CANONICAL_PLURAL: _MISSION_STEP_CANONICAL_PLURAL,
+    ArtifactKind.MISSION_STEP_CONTRACT.plural: _MISSION_STEP_CANONICAL_PLURAL,
+    # Mission types (mission-tier, not an ArtifactKind): plural canonical form +
+    # singular spelling accepted on input for ergonomics.
+    _MISSION_TYPE_PLURAL: _MISSION_TYPE_PLURAL,
+    _MISSION_TYPE_SINGULAR: _MISSION_TYPE_PLURAL,
 }
 
 #: Accepted input forms = every alias key (canonical forms + backward-compat
@@ -123,10 +133,10 @@ _ORG_DRG_KIND_ALIASES: dict[str, str] = {
 #: :data:`_ORG_DRG_KIND_ALIASES` after the membership check.
 _ORG_DRG_CANONICAL_KINDS: frozenset[str] = frozenset(_ORG_DRG_KIND_ALIASES.keys())
 
-#: The plural kind newly admitted to the universe by FR-032. Exposed so the
-#: lockstep drift guard can express the universe as
-#: ``_ALLOWED_KINDS | _MISSION_TYPE_UNIVERSE_EXTENSION`` without re-listing it.
-_MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({"mission_types"})
+#: The mission-tier plural admitted to the universe by FR-032. Exposed so tests
+#: can name the mission-type extension (the one universe member that is not an
+#: :class:`ArtifactKind` plural) without re-listing it.
+_MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({_MISSION_TYPE_PLURAL})
 
 
 # ---------------------------------------------------------------------------
@@ -149,11 +159,11 @@ _MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({"mission_types"})
 # module never re-declares its own "everything except template" list.
 
 #: The mission-tier "kind" that is not an :class:`ArtifactKind` member but is
-#: augmentation-eligible after the FR-032 universe expansion. Modelled here as a
-#: ``(singular_urn_kind, plural)`` pair so the eligible-kind set can carry it
-#: alongside the :class:`ArtifactKind`-derived entries.
-_MISSION_TYPE_SINGULAR = "mission_type"
-_MISSION_TYPE_PLURAL = "mission_types"
+#: augmentation-eligible after the FR-032 universe expansion. The
+#: ``(singular_urn_kind, plural)`` pair (``_MISSION_TYPE_SINGULAR`` /
+#: ``_MISSION_TYPE_PLURAL``) is declared above with the alias map so the
+#: eligible-kind set can carry it alongside the :class:`ArtifactKind`-derived
+#: entries.
 
 
 # ---------------------------------------------------------------------------
@@ -225,10 +235,7 @@ def _derive_plural_to_singular() -> dict[str, str]:
     node_kinds = {kind.value for kind in NodeKind}
     not_node_kinds = sorted(set(resolved.values()) - node_kinds)
     if not_node_kinds:
-        raise ValueError(
-            f"singular URN kind(s) {not_node_kinds} have no NodeKind member, "
-            "so the merge could never mint a valid node for them."
-        )
+        raise ValueError(f"singular URN kind(s) {not_node_kinds} have no NodeKind member, so the merge could never mint a valid node for them.")
     return resolved
 
 
@@ -243,11 +250,7 @@ ORG_PLURAL_TO_SINGULAR_KIND: dict[str, str] = _derive_plural_to_singular()
 #: ``template`` and ``asset``) plus the mission-type extension — no second
 #: kind enumeration is hand-maintained.
 AUGMENTATION_ELIGIBLE_KINDS: dict[str, str] = {
-    **{
-        kind.value: kind.plural
-        for kind in ArtifactKind
-        if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS
-    },
+    **{kind.value: kind.plural for kind in ArtifactKind if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS},
     _MISSION_TYPE_SINGULAR: _MISSION_TYPE_PLURAL,
 }
 
@@ -265,9 +268,7 @@ AUGMENTATION_RELATIONS: tuple[Relation, ...] = (
 #: The augmentation-eligible kinds that carry an internal action-sequence /
 #: step-I/O topology, whose ``enhances`` field-merge has extra ordering- and
 #: contract-preservation obligations (FR-029, T018, ADR 2026-05-16-1).
-TOPOLOGY_KINDS: frozenset[str] = frozenset(
-    {ArtifactKind.MISSION_STEP_CONTRACT.value, _MISSION_TYPE_SINGULAR}
-)
+TOPOLOGY_KINDS: frozenset[str] = frozenset({ArtifactKind.MISSION_STEP_CONTRACT.value, _MISSION_TYPE_SINGULAR})
 
 #: File-discovery globs per plural directory for the legacy field-projection
 #: emission path (see :func:`_collect_field_projection_edges`). Built from the
@@ -276,11 +277,7 @@ TOPOLOGY_KINDS: frozenset[str] = frozenset(
 #: authored as fragment edges only). Excludes the same
 #: :data:`charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS` set as
 #: :data:`AUGMENTATION_ELIGIBLE_KINDS` (``template``, ``asset``).
-_AUGMENTATION_GLOBS: dict[str, str] = {
-    kind.plural: kind.glob_pattern
-    for kind in ArtifactKind
-    if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS
-}
+_AUGMENTATION_GLOBS: dict[str, str] = {kind.plural: kind.glob_pattern for kind in ArtifactKind if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS}
 
 
 def augmentation_plural_kinds() -> frozenset[str]:
@@ -306,18 +303,12 @@ class OrgPackMissingError(Exception):
     with an operator-actionable error. No silent fallback.
     """
 
-    REMEDIATION: ClassVar[str] = (
-        "Either fetch the pack (`spec-kitty doctrine fetch --pack <name>`) "
-        "or remove the entry from `.kittify/config.yaml`."
-    )
+    REMEDIATION: ClassVar[str] = "Either fetch the pack (`spec-kitty doctrine fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`."
 
     def __init__(self, pack_name: str, configured_path: str | Path):
         self.pack_name = pack_name
         self.configured_path = str(configured_path)
-        super().__init__(
-            f"Org pack {pack_name!r} configured at {self.configured_path!r} "
-            f"not found. {self.REMEDIATION}"
-        )
+        super().__init__(f"Org pack {pack_name!r} configured at {self.configured_path!r} not found. {self.REMEDIATION}")
 
 
 class _OrgPackSourcedError(Exception):
@@ -608,11 +599,7 @@ def load_org_pack(
     # tell machine provenance from an author's ``reason:`` without matching on
     # the generated text — a string the emitter above owns and could reword.
     try:
-        fragment_data["edges"] = (
-            authored_edges
-            + _collect_augmentation_edges(pack_root)
-            + _collect_governance_scope_edges(pack_root)
-        )
+        fragment_data["edges"] = authored_edges + _collect_augmentation_edges(pack_root) + _collect_governance_scope_edges(pack_root)
         fragment = OrgDRGFragment.model_validate(fragment_data)
     except OrgPackSchemaError:
         # A sibling-source fault (a governance-profile selection) arrives
@@ -693,25 +680,17 @@ def _load_artifact_data(path: Path) -> dict[str, Any]:
 #: Map the projection field name -> its canonical relation, derived from the
 #: single relation source so adding a relation is a one-line change to
 #: :data:`AUGMENTATION_RELATIONS`.
-_PROJECTION_FIELD_TO_RELATION: dict[str, Relation] = {
-    relation.value: relation for relation in AUGMENTATION_RELATIONS
-}
+_PROJECTION_FIELD_TO_RELATION: dict[str, Relation] = {relation.value: relation for relation in AUGMENTATION_RELATIONS}
 
 
 def _augmentation_files(type_dir: Path, plural: str, glob: str) -> list[Path]:
     """Return augmentation-bearing files in *type_dir* (rglob for styleguides)."""
     if not type_dir.is_dir() or not glob:
         return []
-    return (
-        sorted(type_dir.rglob(glob))
-        if plural == "styleguides"
-        else sorted(type_dir.glob(glob))
-    )
+    return sorted(type_dir.rglob(glob)) if plural == "styleguides" else sorted(type_dir.glob(glob))
 
 
-def _projection_edges_for_file(
-    yaml_file: Path, urn_kind: str
-) -> list[_ProjectedOrgDRGEdge]:
+def _projection_edges_for_file(yaml_file: Path, urn_kind: str) -> list[_ProjectedOrgDRGEdge]:
     """Emit projection edges for one artifact file (best-effort).
 
     Reads the artifact's ``id`` and any augmentation/lineage field present,
@@ -850,10 +829,7 @@ def merge_topology_artifact(
     if mode is Relation.OVERRIDES:
         return deepcopy(dict(overlay))
     if mode is not Relation.ENHANCES:
-        raise ValueError(
-            f"merge_topology_artifact only supports ENHANCES / OVERRIDES, "
-            f"got {mode!r}"
-        )
+        raise ValueError(f"merge_topology_artifact only supports ENHANCES / OVERRIDES, got {mode!r}")
 
     merged: dict[str, Any] = {**deepcopy(dict(base)), **deepcopy(dict(overlay))}
 
@@ -870,10 +846,7 @@ def merge_topology_artifact(
             merged[seq_field] = deepcopy(base_seq)
             continue
         if not isinstance(overlay_seq, list):
-            raise TopologyMergeError(
-                f"enhances overlay set {seq_field!r} to a non-list; an "
-                f"action sequence must remain a list"
-            )
+            raise TopologyMergeError(f"enhances overlay set {seq_field!r} to a non-list; an action sequence must remain a list")
         merged[seq_field] = _merge_action_sequence(base_seq, overlay_seq, seq_field)
     return merged
 
@@ -906,9 +879,7 @@ def _merge_action_sequence(
     dropped = sorted(set(base_by_id) - overlay_ids)
     if dropped:
         raise TopologyMergeError(
-            f"enhances overlay silently drops {seq_field} step(s) {dropped} "
-            f"from the base action sequence; declare 'overrides' for a full "
-            f"replacement instead"
+            f"enhances overlay silently drops {seq_field} step(s) {dropped} from the base action sequence; declare 'overrides' for a full replacement instead"
         )
 
     return [_merge_action_sequence_step(step, base_by_id, seq_field) for step in overlay_seq]
@@ -938,9 +909,5 @@ def _merge_action_sequence_step(
         # omitting the field entirely preserves the base I/O (the merge
         # keeps the base value via the dict-merge above).
         if base_io and io_field in step and not step.get(io_field):
-            raise TopologyMergeError(
-                f"enhances overlay strips {io_field!r} from {seq_field} "
-                f"step {sid!r}; step input/output contracts must be "
-                f"preserved"
-            )
+            raise TopologyMergeError(f"enhances overlay strips {io_field!r} from {seq_field} step {sid!r}; step input/output contracts must be preserved")
     return merged_step

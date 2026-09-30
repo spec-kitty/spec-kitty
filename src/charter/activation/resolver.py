@@ -97,19 +97,13 @@ DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
 
 #: The nine gated-property kinds :meth:`DoctrineService.raw_repository`
 #: recognizes -- exactly the kinds with a gated ``dict`` property above.
-_RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(
-    {
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "mission_step_contracts",
-        "glossary_packs",
-    }
-)
+#: Derived from the single :class:`ArtifactKind` authority (issue #5409): the
+#: charter-activatable kinds that own a standalone repository. ``ANTI_PATTERN``
+#: is activatable but carries **no** gated repository property (it is a
+#: re-kinded node inside another kind's fragment, never a standalone
+#: ``*.anti_pattern.yaml`` repository), so it is excluded here — the one
+#: activatable kind without a raw repository.
+_RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(kind.plural for kind in ArtifactKind if kind.activatable and kind is not ArtifactKind.ANTI_PATTERN)
 
 # ---------------------------------------------------------------------------
 # FR-003 (WP05): the 6-tier resolution axis — shared vocabulary

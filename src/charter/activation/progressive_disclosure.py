@@ -15,11 +15,13 @@ so the delivery cadence is testable without loading the whole doctrine tree, and
 so ``charter.activation.context`` does not grow to carry them (context.py is single-owned by
 WP10 and held near-flat).
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.models import Relation
 
 if TYPE_CHECKING:
@@ -31,10 +33,7 @@ if TYPE_CHECKING:
 #: this text is still a link: the artefact is named and fetchable. The default
 #: makes the authoring gap **visible**, never blank (T081) — an empty string
 #: would read as "no guidance intended" rather than "guidance not yet written".
-STATED_DEFAULT_WHEN: str = (
-    "Fetch when this artefact's guidance applies to the work at hand "
-    "(no specific trigger authored yet)."
-)
+STATED_DEFAULT_WHEN: str = "Fetch when this artefact's guidance applies to the work at hand (no specific trigger authored yet)."
 
 #: Delivery cadence markers attached to each delivered artefact DTO (T082).
 DELIVERY_INLINE: str = "inline"
@@ -234,11 +233,7 @@ def artifact_to_dict(artifact: object, source: str) -> dict[str, object]:
 
 def reconstruct_urns(ids_by_kind: dict[str, Iterable[str]]) -> tuple[str, ...]:
     """Rebuild DRG URNs from a ``{kind: [id, ...]}`` mapping (delivered-set input)."""
-    return tuple(
-        f"{kind}:{artifact_id}"
-        for kind, ids in ids_by_kind.items()
-        for artifact_id in ids
-    )
+    return tuple(f"{kind}:{artifact_id}" for kind, ids in ids_by_kind.items() for artifact_id in ids)
 
 
 def _decorate_entry(
@@ -295,11 +290,7 @@ def collect_typed_artifacts(
             source = repository.get_provenance(artifact_id) or "builtin"
         except (AttributeError, KeyError):
             artifact, source = None, "builtin"
-        entry: dict[str, object] = (
-            {"id": artifact_id, "source": source}
-            if artifact is None
-            else artifact_to_dict(artifact, source)
-        )
+        entry: dict[str, object] = {"id": artifact_id, "source": source} if artifact is None else artifact_to_dict(artifact, source)
         _decorate_entry(
             entry,
             kind=kind,
@@ -317,12 +308,18 @@ def collect_typed_artifacts(
 #: is a first-class typed array (#3389); ``asset`` is deliberately absent — it
 #: stays reference-only (no resolution/install path — #3037), folded into the
 #: flat ``references[]`` via ``build_disclosure_payload``'s ``extra_delivered``.
+#: Curated membership (the kinds delivered as a typed JSON array) is named via
+#: :class:`ArtifactKind` members; the singular→plural mapping is derived from the
+#: authority so it can never drift from the enum (issue #5409).
 _ARRAY_BY_KIND: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "procedure": "procedures",
+    kind.value: kind.plural
+    for kind in (
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TOOLGUIDE,
+        ArtifactKind.PROCEDURE,
+    )
 }
 
 
@@ -354,9 +351,7 @@ def build_disclosure_payload(
     cannot widen the ``requires``-eager/inline set — to keep excluded-kind
     pass-through hops (e.g. ``paradigm``) usable as reference sources.
     """
-    inline_urns = (
-        frozenset(requires_closure(merged, roots)) if merged is not None else frozenset()
-    )
+    inline_urns = frozenset(requires_closure(merged, roots)) if merged is not None else frozenset()
     out: dict[str, object] = {}
     delivered: dict[str, Iterable[str]] = {}
     for kind, (repository, ids) in repos_by_kind.items():
@@ -371,13 +366,7 @@ def build_disclosure_payload(
         )
         delivered[kind] = ids
     delivered.update(extra_delivered)
-    out["references"] = (
-        link_references(
-            merged, roots, reconstruct_urns(delivered), bridge_urns=bridge_urns
-        )
-        if merged is not None
-        else []
-    )
+    out["references"] = link_references(merged, roots, reconstruct_urns(delivered), bridge_urns=bridge_urns) if merged is not None else []
     return out
 
 

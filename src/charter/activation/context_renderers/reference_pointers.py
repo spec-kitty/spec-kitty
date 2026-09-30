@@ -46,6 +46,7 @@ from pathlib import Path
 from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
+from charter.offering.artifact_kinds import ArtifactKind
 
 # ``_REFERENCE_POINTER_FLOOR`` / ``_REFERENCE_POINTER_LIMIT`` de-exported after
 # the context.py re-export shim retirement (doctrine-built-in-seam-consolidation
@@ -69,14 +70,20 @@ _REFERENCE_POINTER_FLOOR = 6
 # Reference ``kind`` -> doctrine-source subdirectory under the doctrine root.
 # ``user_profile`` / ``template_set`` are project-generated (no doctrine
 # source), so they carry no entry and are dropped when a pointer is resolved.
+#: Curated membership (the reference kinds that have a doctrine source dir) is
+#: named via :class:`ArtifactKind` members; the singular→plural mapping is
+#: derived from the authority so it can never drift from the enum (issue #5409).
 _REFERENCE_KIND_DIRS: dict[str, str] = {
-    "tactic": "tactics",
-    "directive": "directives",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "agent_profile": "agent_profiles",
+    kind.value: kind.plural
+    for kind in (
+        ArtifactKind.TACTIC,
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.PARADIGM,
+        ArtifactKind.PROCEDURE,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TOOLGUIDE,
+        ArtifactKind.AGENT_PROFILE,
+    )
 }
 
 # Process-wide cache of the ``kind -> {key -> source path}`` index, keyed by
@@ -142,9 +149,7 @@ def _reference_source_index(doctrine_root: Path) -> dict[str, dict[str, Path]]:
     return index
 
 
-def _resolve_reference_source(
-    ref: dict[str, str], index: dict[str, dict[str, Path]]
-) -> Path | None:
+def _resolve_reference_source(ref: dict[str, str], index: dict[str, dict[str, Path]]) -> Path | None:
     """Resolve *ref* to an existing doctrine-source path, or ``None``.
 
     Tries the catalog artifact id (the part after ``KIND:``) first, then the
@@ -178,9 +183,7 @@ def _action_offset(action: str) -> int:
     return sum((position + 1) * ord(char) for position, char in enumerate(action))
 
 
-def _distribute_references_across_kinds(
-    references: list[dict[str, str]], action: str
-) -> list[dict[str, str]]:
+def _distribute_references_across_kinds(references: list[dict[str, str]], action: str) -> list[dict[str, str]]:
     """Interleave *references* across their kinds (round-robin).
 
     Groups by ``kind`` (preserving first-seen kind order), rotates each kind's

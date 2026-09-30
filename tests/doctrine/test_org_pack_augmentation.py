@@ -9,18 +9,20 @@ Covers:
   mission-step-contract (mission-type handled by T017).
 * T016 — validator intent-aware parity for the newly-covered kinds via
   fragment edges.
-* T017 — mission-type universe expansion (FR-032, decision locked); lockstep
-  drift guard against ``charter.activation.activations._ALLOWED_KINDS``.
+* T017 — mission-type universe expansion (FR-032, decision locked). The former
+  hand-kept lockstep drift guard is superseded by the structural
+  single-authority gate (#5409,
+  ``tests/architectural/test_charter_kind_vocabulary_single_authority.py``); the
+  doctrine-local ``test_kind_vocabulary_mirrors_derive_from_one_authority``
+  keeps the by-construction relationships.
 * T018 — topology field-merge semantics for step contracts / mission types.
 
 Note: the T-numbers above are from the ``org-doctrine-profile-integrity-
 activation-closure`` mission that authored this file. Mission
-``glossary-pack-doctrine-kind-01KY30SW`` WP04/T022 later extended
-``test_lockstep_drift_guard_against_allowed_kinds`` to a genuine three-way
-equality (adding ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` as the
-third mirror) and added the sibling
-``test_glossary_packs_ship_active_by_default`` positive default-on
-assertion — see those tests' own docstrings for the RED-first rationale.
+``glossary-pack-doctrine-kind-01KY30SW`` WP04/T022 added the sibling
+``test_glossary_packs_ship_active_by_default`` positive default-on assertion —
+see its docstring for the RED-first rationale. Issue #5409 then collapsed the
+three drift mirrors onto the single ``ArtifactKind`` authority.
 """
 
 from __future__ import annotations
@@ -57,11 +59,7 @@ def _write_fragment(pack_root: Path, *, edges: str = "edges: []\n") -> Path:
     drg_dir.mkdir(parents=True, exist_ok=True)
     fragment = drg_dir / "fragment.yaml"
     fragment.write_text(
-        "pack_name: testpack\n"
-        "source_kind: local_path\n"
-        'source_ref: "/nonexistent/pack"\n'
-        "layer_index: 1\n"
-        "nodes: []\n" + edges,
+        'pack_name: testpack\nsource_kind: local_path\nsource_ref: "/nonexistent/pack"\nlayer_index: 1\nnodes: []\n' + edges,
         encoding="utf-8",
     )
     return fragment
@@ -88,9 +86,7 @@ def test_eligible_set_is_artifactkind_minus_template_plus_mission_type() -> None
     """
     from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS
 
-    expected_singulars = {
-        k.value for k in ArtifactKind if k not in _NON_AUGMENTATION_ELIGIBLE_KINDS
-    } | {"mission_type"}
+    expected_singulars = {k.value for k in ArtifactKind if k not in _NON_AUGMENTATION_ELIGIBLE_KINDS} | {"mission_type"}
     assert set(AUGMENTATION_ELIGIBLE_KINDS) == expected_singulars
     assert ArtifactKind.TEMPLATE.value not in AUGMENTATION_ELIGIBLE_KINDS
     assert ArtifactKind.ASSET.value not in AUGMENTATION_ELIGIBLE_KINDS
@@ -172,18 +168,12 @@ def test_specializes_from_field_projects_lineage_edge(tmp_path: Path) -> None:
     pack_root = tmp_path / "pack"
     profiles_dir = pack_root / "agent_profiles"
     profiles_dir.mkdir(parents=True)
-    (profiles_dir / "child.agent.yaml").write_text(
-        "id: child\nspecializes_from: parent\n", encoding="utf-8"
-    )
+    (profiles_dir / "child.agent.yaml").write_text("id: child\nspecializes_from: parent\n", encoding="utf-8")
     _write_fragment(pack_root)
 
     fragment = load_org_pack("testpack", pack_root, layer_index=1)
     lineage = [
-        e
-        for e in fragment.edges
-        if e.relation == Relation.SPECIALIZES_FROM.value
-        and e.source == "agent_profile:child"
-        and e.target == "agent_profile:parent"
+        e for e in fragment.edges if e.relation == Relation.SPECIALIZES_FROM.value and e.source == "agent_profile:child" and e.target == "agent_profile:parent"
     ]
     assert lineage, f"lineage edge not auto-emitted. edges={fragment.edges}"
 
@@ -207,18 +197,11 @@ def test_directive_field_projection_emits_edge(tmp_path: Path) -> None:
     pack_root = tmp_path / "pack"
     directives_dir = pack_root / "directives"
     directives_dir.mkdir(parents=True)
-    (directives_dir / "d.directive.yaml").write_text(
-        "id: DIRECTIVE_900\nenhances: DIRECTIVE_001\n", encoding="utf-8"
-    )
+    (directives_dir / "d.directive.yaml").write_text("id: DIRECTIVE_900\nenhances: DIRECTIVE_001\n", encoding="utf-8")
     _write_fragment(pack_root)
 
     fragment = load_org_pack("testpack", pack_root, layer_index=1)
-    assert any(
-        e.source == "directive:DIRECTIVE_900"
-        and e.target == "directive:DIRECTIVE_001"
-        and e.relation == Relation.ENHANCES.value
-        for e in fragment.edges
-    )
+    assert any(e.source == "directive:DIRECTIVE_900" and e.target == "directive:DIRECTIVE_001" and e.relation == Relation.ENHANCES.value for e in fragment.edges)
 
 
 # ---------------------------------------------------------------------------
@@ -252,9 +235,7 @@ def test_fragment_edge_intent_unknown_target_hard_errors(tmp_path: Path) -> None
         encoding="utf-8",
     )
     intent = _fragment_intent(drg_dir)
-    errors, advisories = _intent_aware_collision_messages_from_edges(
-        intent, {"directives": {"DIRECTIVE_001"}}, {}
-    )
+    errors, advisories = _intent_aware_collision_messages_from_edges(intent, {"directives": {"DIRECTIVE_001"}}, {})
     assert any(e.category == "unknown_target" for e in errors)
     assert advisories == []
 
@@ -282,9 +263,7 @@ def test_fragment_edge_intent_conflict_when_both_declared(tmp_path: Path) -> Non
         encoding="utf-8",
     )
     intent = _fragment_intent(drg_dir)
-    errors, _ = _intent_aware_collision_messages_from_edges(
-        intent, {"toolguides": {"builtin-tg"}}, {}
-    )
+    errors, _ = _intent_aware_collision_messages_from_edges(intent, {"toolguides": {"builtin-tg"}}, {})
     assert any(e.category == "intent_conflict" for e in errors)
 
 
@@ -308,9 +287,7 @@ def test_fragment_edge_valid_intent_suppresses_advisory(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     intent = _fragment_intent(drg_dir)
-    errors, advisories = _intent_aware_collision_messages_from_edges(
-        intent, {"directives": {"DIRECTIVE_001"}}, {}
-    )
+    errors, advisories = _intent_aware_collision_messages_from_edges(intent, {"directives": {"DIRECTIVE_001"}}, {})
     assert errors == []
     assert advisories == []
 
@@ -356,9 +333,7 @@ def test_mission_type_fragment_augmentation_validates(tmp_path: Path) -> None:
             "source_ref": "/nonexistent/acme",
             "layer_index": 1,
             "provenance_marker": "org",
-            "nodes": [
-                {"id": "custom-mission", "kind": "mission_types", "title": "Custom"}
-            ],
+            "nodes": [{"id": "custom-mission", "kind": "mission_types", "title": "Custom"}],
             "edges": [
                 {
                     "source": "mission_type:custom-mission",
@@ -419,54 +394,41 @@ def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None
     assert kinds == {"templates", "assets"}
 
 
-def test_lockstep_drift_guard_against_allowed_kinds() -> None:
-    """FR-032 / glossary-pack-doctrine-kind WP04 (T022) three-way lockstep:
+def test_kind_vocabulary_mirrors_derive_from_one_authority() -> None:
+    """#5409: the three former drift mirrors now derive from ``ArtifactKind``.
 
-        org-pack universe == ``charter.activation.activations._ALLOWED_KINDS`` ∪ mission-type
-                           == ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS``
-
-    This is the contract-test sweep the spec requires: none of the three
-    mirrors (org-pack DRG universe, the activation-allowed set, and the
-    default-on built-in set) may drift silently, and mission types must
-    never be dropped. The org-pack universe additionally retains the
-    ``mission_step_contracts`` backward-compat alias.
-
-    Prior to WP04 this guard bound only ``_ALLOWED_KINDS`` and
-    ``_ORG_DRG_CANONICAL_KINDS`` — ``_BUILTIN_ARTIFACT_KINDS`` (the list that
-    actually delivers default-on) was UNBOUND, so a new kind could be added
-    to the other two lists, the suite would stay green, and the kind would
-    still ship inactive-by-default. This test closes that hole by making the
-    equality genuinely three-way.
+    The hand-kept three-way equality guard (which had to special-case the
+    ``mission_step_contracts``→``mission_steps`` rename and could only catch
+    drift *after* it was hand-authored) is superseded by the structural
+    single-authority gate in
+    ``tests/architectural/test_charter_kind_vocabulary_single_authority.py``,
+    which forbids any hand-authored kind-vocabulary literal under ``src/charter``
+    outright. This test keeps a doctrine-local check that the mirrors relate to
+    the authority exactly as designed — every kind (incl. ``anti_patterns``) is
+    registry-addressable and default-on, and the org-pack universe is the enum
+    plurals (with the mission-step rename) plus the mission-type extension.
     """
     from charter.activation.activations import _ALLOWED_KINDS
     from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS
 
-    # Canonical forms only (drop the loader's backward-compat alias for the
-    # comparison): the org-pack universe must equal the activation allowed set
-    # plus exactly the mission-type extension.
-    canonical_universe = _ORG_DRG_CANONICAL_KINDS - {"mission_step_contracts"} - {
-        "mission_type"
-    }
-    # _ALLOWED_KINDS uses ``mission_step_contracts``; the loader canonicalises it
-    # to ``mission_steps``. Normalise that one rename for the lockstep equality.
-    normalised_allowed = (_ALLOWED_KINDS - {"mission_step_contracts"}) | {
-        "mission_steps"
-    }
-    assert canonical_universe == normalised_allowed | _MISSION_TYPE_UNIVERSE_EXTENSION
-    assert frozenset({"mission_types"}) == _MISSION_TYPE_UNIVERSE_EXTENSION
+    all_plurals = frozenset(k.plural for k in ArtifactKind)
+    # Registry-addressable == default-on == every ArtifactKind plural (#5409).
+    assert all_plurals == _ALLOWED_KINDS
+    assert all_plurals == _BUILTIN_ARTIFACT_KINDS
+    assert "anti_patterns" in _ALLOWED_KINDS
 
-    # Third leg of the lockstep: the default-on built-in set uses the SAME
-    # plural vocabulary as ``_ALLOWED_KINDS`` (no mission-step rename needed
-    # here) so a bare equality is the correct — and strictest — guard.
-    assert _BUILTIN_ARTIFACT_KINDS == _ALLOWED_KINDS, (
-        "charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS has drifted from "
-        "charter.activation.activations._ALLOWED_KINDS. A kind present in one but not "
-        "the other means either an activatable kind can never be the "
-        "default-on set, or a kind ships default-on without being a "
-        "documented activatable kind.\n"
-        f"  _ALLOWED_KINDS only: {sorted(_ALLOWED_KINDS - _BUILTIN_ARTIFACT_KINDS)}\n"
-        f"  _BUILTIN_ARTIFACT_KINDS only: {sorted(_BUILTIN_ARTIFACT_KINDS - _ALLOWED_KINDS)}"
-    )
+    # Org-pack universe == enum plurals (mission_step_contracts → mission_steps)
+    # plus the mission-type extension, retaining the backward-compat aliases.
+    canonical_universe = _ORG_DRG_CANONICAL_KINDS - {"mission_step_contracts", "mission_type"}
+    # ``anti_patterns`` is registry-addressable but NOT a file-backed org-pack
+    # node kind (it has no standalone artifact file), so the org-pack universe
+    # is the enum plurals MINUS anti_patterns (mission_step_contracts→mission_steps)
+    # plus the mission-type extension.
+    enum_universe_with_rename = (all_plurals - {"mission_step_contracts", "anti_patterns"}) | {"mission_steps"}
+    assert canonical_universe == enum_universe_with_rename | _MISSION_TYPE_UNIVERSE_EXTENSION
+    assert frozenset({"mission_types"}) == _MISSION_TYPE_UNIVERSE_EXTENSION
+    assert "anti_patterns" not in _ORG_DRG_CANONICAL_KINDS
+    assert "anti_patterns" in _ALLOWED_KINDS  # registry-addressable, the #5409 fix
 
 
 def test_glossary_packs_ship_active_by_default() -> None:

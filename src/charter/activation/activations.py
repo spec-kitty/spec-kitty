@@ -56,6 +56,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
     CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,
+    ArtifactKind,
 )
 from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
@@ -84,9 +85,7 @@ __all__ = [
 #: (charter -> doctrine) and cycle-free (doctrine never imports charter).
 #: Mirrors the expected vocabulary pinned in
 #: ``tests/architectural/test_activation_registry_schema.py``.
-ALLOWED_MISSION_TYPES: frozenset[str] = frozenset(
-    builtin_mission_type_id_set() | {"any", "generic"}
-)
+ALLOWED_MISSION_TYPES: frozenset[str] = frozenset(builtin_mission_type_id_set() | {"any", "generic"})
 
 
 #: 10-token operator-side closed vocabulary for ``activation_context.action``.
@@ -133,28 +132,20 @@ REGISTERED_TRIGGERS: frozenset[str] = ALLOWED_ACTIONS | frozenset(
 _ACTION_WILDCARDS: frozenset[str] = frozenset({"any", "generic"})
 
 
-#: Allowed values for the optional ``artifact_kind`` disambiguator. Mirrors
-#: the artifact-kind properties exposed by ``DoctrineService``. ``templates``
-#: and ``assets`` are node-declarable org-pack DRG kinds (see
-#: ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``) and must move in
-#: lockstep with this set and ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` —
-#: the drift guard in ``tests/doctrine/test_org_pack_augmentation.py`` fails if
-#: any one of the three mirrors is updated alone.
-_ALLOWED_KINDS: frozenset[str] = frozenset(
-    {
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-        "templates",
-        "assets",
-        "glossary_packs",
-    }
-)
+#: Allowed values for the optional ``artifact_kind`` disambiguator — the plural
+#: property names ``DoctrineService`` exposes for **every** artifact kind
+#: (``templates`` / ``assets`` are node-declarable org-pack DRG kinds; every
+#: other kind is a fetchable repository). Derived from the single
+#: :class:`ArtifactKind` authority so it can never drift from the enum
+#: (issue #5409): this is exactly ``{kind.plural for kind in ArtifactKind}``,
+#: which includes ``anti_patterns`` (the 2026-09-30 ruling that anti-patterns
+#: are charter-activatable and must be registry-addressable end to end). The
+#: former hand-copied literal omitted ``anti_patterns`` while the singular alias
+#: map below advertised ``anti_pattern`` — the self-contradicting rejection this
+#: derivation closes. The former three-way lockstep drift guard is superseded by
+#: the structural single-authority gate in
+#: ``tests/architectural/test_charter_kind_vocabulary_single_authority.py``.
+_ALLOWED_KINDS: frozenset[str] = frozenset(kind.plural for kind in ArtifactKind)
 
 
 #: Mapping of operator-friendly singular ``artifact_kind`` tokens to the
@@ -235,10 +226,7 @@ class ActivationEntry(BaseModel):
         # closed set; typos raise.
         mission_type = value.get("mission_type")
         if mission_type is not None and mission_type not in ALLOWED_MISSION_TYPES:
-            raise ValueError(
-                f"activation_context.mission_type={mission_type!r} is not in "
-                f"ALLOWED_MISSION_TYPES={sorted(ALLOWED_MISSION_TYPES)}"
-            )
+            raise ValueError(f"activation_context.mission_type={mission_type!r} is not in ALLOWED_MISSION_TYPES={sorted(ALLOWED_MISSION_TYPES)}")
         # Per data-model.md §7 the operator-side action vocabulary for
         # ``activation_context.action`` is the FULL ``REGISTERED_TRIGGERS``
         # set (10 mission-type/charter-loop verbs + 4 fine-grained
@@ -250,11 +238,7 @@ class ActivationEntry(BaseModel):
         # top so an operator can write ``action: any`` for "every
         # action".
         action = value.get("action")
-        if (
-            action is not None
-            and action not in REGISTERED_TRIGGERS
-            and action not in _ACTION_WILDCARDS
-        ):
+        if action is not None and action not in REGISTERED_TRIGGERS and action not in _ACTION_WILDCARDS:
             raise ValueError(
                 f"activation_context.action={action!r} is not in "
                 f"REGISTERED_TRIGGERS={sorted(REGISTERED_TRIGGERS)} "
@@ -348,23 +332,13 @@ def resolve_for_context(
     """
 
     def _mission_type_matches(declared: str | None, current: str) -> bool:
-        return (
-            declared is None
-            or declared in ("generic", "any")
-            or declared == current
-        )
+        return declared is None or declared in ("generic", "any") or declared == current
 
     def _action_matches(declared: str | None, current: str) -> bool:
-        return (
-            declared is None
-            or declared in ("generic", "any")
-            or declared == current
-            or declared in _FINE_GRAINED_TRIGGERS
-        )
+        return declared is None or declared in ("generic", "any") or declared == current or declared in _FINE_GRAINED_TRIGGERS
 
     return [
         entry
         for entry in entries
-        if _mission_type_matches(entry.activation_context.get("mission_type"), mission_type)
-        and _action_matches(entry.activation_context.get("action"), action)
+        if _mission_type_matches(entry.activation_context.get("mission_type"), mission_type) and _action_matches(entry.activation_context.get("action"), action)
     ]

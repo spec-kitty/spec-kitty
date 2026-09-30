@@ -26,6 +26,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.schemas import DoctrineSelectionConfig
+from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
     # `_enumerate_org_pack_paths` retired from __all__ (#3520 chain fold): its
@@ -48,15 +49,24 @@ _LOGGER = logging.getLogger(__name__)
 #: as a local constant inside the charter layer so we can do the
 #: cross-pack union without importing ``specify_cli`` (preserves the
 #: kernel <- doctrine <- charter <- specify_cli dependency direction).
-_REQUIRED_KIND_FIELDS: tuple[str, ...] = (
-    "directives",
-    "tactics",
-    "paradigms",
-    "styleguides",
-    "toolguides",
-    "procedures",
-    "agent_profiles",
-    "mission_step_contracts",
+#:
+#: The curated membership (the kinds that carry a ``required_<kind>`` overlay:
+#: every activatable kind except ``glossary_pack`` and ``anti_pattern``) is
+#: named via :class:`ArtifactKind` members and its plural forms are derived from
+#: the authority, so the singular↔plural spelling can never drift from the enum
+#: (issue #5409). Declaration order is preserved.
+_REQUIRED_KIND_FIELDS: tuple[str, ...] = tuple(
+    kind.plural
+    for kind in (
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.PARADIGM,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TOOLGUIDE,
+        ArtifactKind.PROCEDURE,
+        ArtifactKind.AGENT_PROFILE,
+        ArtifactKind.MISSION_STEP_CONTRACT,
+    )
 )
 
 
@@ -75,8 +85,7 @@ def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
         registry = load_pack_registry(repo_root)
     except Exception:  # noqa: BLE001 - context rendering stays best-effort
         _LOGGER.debug(
-            "load_pack_registry raised while enumerating org pack paths for %s; "
-            "treating as no configured packs.",
+            "load_pack_registry raised while enumerating org pack paths for %s; treating as no configured packs.",
             repo_root,
             exc_info=True,
         )
@@ -109,10 +118,7 @@ def _missing_pack_diagnostic(repo_root: Path) -> str | None:
     ]
     for name, local_path in missing:
         lines.append(f"    - pack `{name}`: local_path `{local_path}` does not exist")
-    lines.append(
-        "  - Run `spec-kitty doctrine fetch --pack <name>` to populate the pack, "
-        "or remove the entry from .kittify/config.yaml."
-    )
+    lines.append("  - Run `spec-kitty doctrine fetch --pack <name>` to populate the pack, or remove the entry from .kittify/config.yaml.")
     return "\n".join(lines)
 
 

@@ -123,16 +123,16 @@ def test_singular_artifact_kind_is_accepted_and_normalised() -> None:
         artifact_kind="styleguide",
     )
     assert entry.artifact_kind == "styleguides", (
-        "Singular `styleguide` must be normalised to the canonical plural "
-        f"`styleguides`; observed: {entry.artifact_kind!r}"
+        f"Singular `styleguide` must be normalised to the canonical plural `styleguides`; observed: {entry.artifact_kind!r}"
     )
 
 
 #: Every accepted ``artifact_kind`` spelling and the canonical plural it
 #: normalises to, written as literals so the oracle is independent of the
-#: alias map under test. ``anti_pattern`` is deliberately absent: the alias
-#: map advertises it but the validator rejects it, pending the ruling in
-#: #5409.
+#: alias map under test. ``anti_pattern`` is now present: #5409 ruled
+#: anti-patterns charter-activatable and the registry accepts both spellings
+#: (the registry vocabulary now derives from the single ``ArtifactKind``
+#: authority, so every kind — all 12 — is registry-addressable).
 _ACCEPTED_KIND_NORMALISATION: tuple[tuple[str, str], ...] = (
     # Canonical plurals map to themselves.
     ("directives", "directives"),
@@ -146,6 +146,7 @@ _ACCEPTED_KIND_NORMALISATION: tuple[tuple[str, str], ...] = (
     ("templates", "templates"),
     ("assets", "assets"),
     ("glossary_packs", "glossary_packs"),
+    ("anti_patterns", "anti_patterns"),
     # Operator-friendly singular aliases map to their plural.
     ("directive", "directives"),
     ("tactic", "tactics"),
@@ -156,6 +157,7 @@ _ACCEPTED_KIND_NORMALISATION: tuple[tuple[str, str], ...] = (
     ("agent_profile", "agent_profiles"),
     ("mission_step_contract", "mission_step_contracts"),
     ("glossary_pack", "glossary_packs"),
+    ("anti_pattern", "anti_patterns"),
 )
 
 
@@ -183,9 +185,7 @@ def test_resolver_matches_exact_context() -> None:
         doctrine_pack_id="project",
         artifact_id="x",
     )
-    matched = resolve_for_context(
-        [entry], mission_type="software-dev", action="implement"
-    )
+    matched = resolve_for_context([entry], mission_type="software-dev", action="implement")
     assert matched == [entry]
 
 
@@ -206,9 +206,7 @@ def test_resolver_wildcard_tokens_match_every_context(wildcard: str) -> None:
         doctrine_pack_id="project",
         artifact_id="x",
     )
-    matched = resolve_for_context(
-        [entry], mission_type="documentation", action="review"
-    )
+    matched = resolve_for_context([entry], mission_type="documentation", action="review")
     assert matched == [entry]
 
 
@@ -218,9 +216,7 @@ def test_resolver_absent_slot_is_wildcard() -> None:
         doctrine_pack_id="project",
         artifact_id="x",
     )
-    matched = resolve_for_context(
-        [entry], mission_type="documentation", action="implement"
-    )
+    matched = resolve_for_context([entry], mission_type="documentation", action="implement")
     assert matched == [entry]
 
 
@@ -267,9 +263,7 @@ def test_charter_loop_action_renders_operator_prose(action: str, prose: str) -> 
         artifact_id="caveman-comments",
         artifact_kind="styleguides",
     )
-    rendered = render_activation_stanza(
-        [entry], None, mission_type="software-dev", action=action
-    )
+    rendered = render_activation_stanza([entry], None, mission_type="software-dev", action=action)
     assert f"When you {prose}," in rendered
 
 
@@ -289,24 +283,15 @@ def test_allowed_actions_is_the_canonical_10_token_set() -> None:
             "charter.context",
         }
     )
-    assert expected_actions == ALLOWED_ACTIONS, (
-        "data-model.md §7 pins _ALLOWED_ACTIONS at exactly these 10 tokens; "
-        f"observed {sorted(ALLOWED_ACTIONS)}"
-    )
+    assert expected_actions == ALLOWED_ACTIONS, f"data-model.md §7 pins _ALLOWED_ACTIONS at exactly these 10 tokens; observed {sorted(ALLOWED_ACTIONS)}"
 
 
 def test_registered_triggers_is_superset_of_allowed_actions() -> None:
     assert isinstance(REGISTERED_TRIGGERS, frozenset)
-    assert ALLOWED_ACTIONS <= REGISTERED_TRIGGERS, (
-        "data-model.md §7 union formula violated — "
-        "_REGISTERED_TRIGGERS must contain every _ALLOWED_ACTIONS token."
-    )
+    assert ALLOWED_ACTIONS <= REGISTERED_TRIGGERS, "data-model.md §7 union formula violated — _REGISTERED_TRIGGERS must contain every _ALLOWED_ACTIONS token."
     extra = REGISTERED_TRIGGERS - ALLOWED_ACTIONS
-    assert extra == frozenset(
-        {"write_comment", "write_docstring", "rename_identifier", "add_dependency"}
-    ), (
-        "data-model.md §7 fine-grained suffix drifted; "
-        f"observed extras: {sorted(extra)}"
+    assert extra == frozenset({"write_comment", "write_docstring", "rename_identifier", "add_dependency"}), (
+        f"data-model.md §7 fine-grained suffix drifted; observed extras: {sorted(extra)}"
     )
     # Note: data-model.md §7 text says "15 tokens" but its embedded formula
     # yields 10 ∪ 4 = 14. We assert the formula (it is the executable

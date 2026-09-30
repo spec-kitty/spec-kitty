@@ -603,7 +603,7 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 | `directive` / `tactic` / `styleguide` / `toolguide` / `paradigm` / `procedure` | (same) |
 | `mission-type` | raises `MissionTypeNotAnArtifactKind` |
 
-`template`, `asset`, and `anti_pattern` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially and are excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS` (`src/charter/offering/artifact_kinds.py`). The tokens above (plus `mission-type`) are the charter-activatable vocabulary (`CHARTER_KIND_TOKENS`).
+`template` and `asset` are `ArtifactKind` members that are **not** charter-activatable — they resolve specially (`ArtifactKind.activatable == False`). `anti_pattern` **is** charter-activatable (`ArtifactKind.activatable == True`; it is in `CHARTER_ACTIVATABLE_KINDS` and the activation surfaces accept it end to end — issue #5409, 2026-09-30 ruling), but it is excluded from the hand-authorable operator-token set `CHARTER_KIND_TOKENS` (via `_NON_AUGMENTATION_ELIGIBLE_KINDS`) because an anti-pattern node is a re-kinded node inside another kind's graph fragment, never a standalone artifact file. The single authority is the `ArtifactKind` enum (`plural` + `activatable` facts); every activation kind-vocabulary set and singular↔plural map derives from it (no hand-copied mirrors — gated by `tests/architectural/test_charter_kind_vocabulary_single_authority.py`). The FR-005 docstring in `src/charter/offering/artifact_kinds.py` is the canonical statement.
 
 ### `specializes_from` DRG Lineage
 

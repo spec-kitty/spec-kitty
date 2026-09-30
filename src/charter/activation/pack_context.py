@@ -32,6 +32,7 @@ from kernel.errors import KittyInternalConsistencyError
 from ruamel.yaml import YAML
 
 from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
     "ActivationReachabilityPartition",
@@ -68,29 +69,17 @@ class CharterPackConfigError(KittyInternalConsistencyError):
 # Built-in constants
 # ---------------------------------------------------------------------------
 
-#: All built-in artifact kinds (plural form used by DoctrineService).
-#: Mirrors ``charter.activation.activations._ALLOWED_KINDS`` and
-#: ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``. ``templates``
-#: and ``assets`` move in lockstep with those two mirrors — the drift guard in
-#: ``tests/doctrine/test_org_pack_augmentation.py`` fails if any one of the
-#: three is updated alone.
+#: All built-in artifact kinds (plural form used by DoctrineService). Derived
+#: from the single :class:`ArtifactKind` authority — exactly
+#: ``{kind.plural for kind in ArtifactKind}`` — so it can never drift from the
+#: enum (issue #5409; it now includes ``anti_patterns``). Value-equal to
+#: ``charter.activation.activations._ALLOWED_KINDS`` by construction (both derive
+#: from the same authority); the structural single-authority gate
+#: (``tests/architectural/test_charter_kind_vocabulary_single_authority.py``)
+#: supersedes the former hand-kept three-way drift guard.
 #: Used as the default for ``activated_kinds`` when config.yaml has no
 #: ``activated_kinds`` key (backward-compat default — all kinds are active).
-_BUILTIN_ARTIFACT_KINDS: frozenset[str] = frozenset(
-    {
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-        "templates",
-        "assets",
-        "glossary_packs",
-    }
-)
+_BUILTIN_ARTIFACT_KINDS: frozenset[str] = frozenset(kind.plural for kind in ArtifactKind)
 
 # ---------------------------------------------------------------------------
 # Dataclass
@@ -572,10 +561,7 @@ def _load_charter_activation_source(repo_root: Path, data: dict[str, Any]) -> di
     if charter_path is None:
         return data
     if not charter_path.exists():
-        raise _config_error(
-            f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
-            f"which does not exist."
-        )
+        raise _config_error(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
     try:
         loaded = load_charter_yaml(charter_path)
     except Exception as exc:
@@ -709,7 +695,6 @@ def _read_activated_glossary_packs(data: dict[str, Any]) -> frozenset[str] | Non
 def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_anti_patterns`` from parsed config data (three-state)."""
     return _read_list_key(data, "activated_anti_patterns")
-
 
 
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:
