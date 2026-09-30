@@ -21,7 +21,7 @@ from mission_runtime import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import get_current_branch
-from specify_cli.core.paths import get_status_read_root, load_meta_fail_closed
+from specify_cli.core.paths import assert_safe_path_segment, get_status_read_root, load_meta_fail_closed
 from specify_cli.core.utils import ensure_within_directory
 from specify_cli.git.commit_helpers import _staged_tree_is_empty
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -583,15 +583,18 @@ def adopt_owned_checkout(
 def _target_branch_from_meta_file(mission_dir: Path) -> str:
     """Plain-read the expected write branch from ``meta.json`` (no git); ``""`` when absent or unreadable.
 
-    Routes through :func:`expected_write_branch` so the pre-filter applies the
-    SAME #5100 write-branch rule the minter does.
+    Routes through the canonical silent-empty-dict reader
+    (:func:`specify_cli.mission_metadata.load_meta_or_empty`) instead of a
+    hand-rolled ``json.loads`` -- ``load_meta_or_empty`` already returns
+    ``{}`` on a missing *or* malformed ``meta.json``, matching this
+    function's historical ``""`` fallback exactly (inline-meta-read gate,
+    ``tests/architectural/test_inline_meta_read_gate.py``). Then routes
+    through :func:`expected_write_branch` so the pre-filter applies the SAME
+    #5100 write-branch rule the minter does.
     """
-    import json
+    from specify_cli.mission_metadata import load_meta_or_empty
 
-    try:
-        data = json.loads((mission_dir / "meta.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return ""
+    data = load_meta_or_empty(mission_dir)
     return expected_write_branch(data) if isinstance(data, dict) else ""
 
 
@@ -605,30 +608,33 @@ def invoking_checkout_would_adopt(
 
     Declared out-of-map edit (owned-checkout-lifecycle-authority WP09, review
     cycles 3-4): lets a caller without a ``--mission`` handle ask the SAME
-    question adoption answers. Adoption needs a handle and every existing
-    mission lister is anchored to the repository root, so this enumerates the
-    invoking checkout's OWN ``kitty-specs/`` directories. Cost is bounded
-    (review cycle 4, NFR-002): the handle-independent front of adoption runs
-    once (:func:`_adoptable_toplevel`), the checkout's branch is read once,
-    and directories are pre-filtered by plain file reads against the minter's
-    own branch rule (:func:`_branch_matches_target`); only survivors -- usually
-    none, at most one -- go through full :func:`adopt_owned_checkout`. So R,
-    coordination worktrees, listed and stale lanes and plain linked checkouts
-    resolve zero ownership claims. A mission-surface conflict raised by
-    adoption answers ``True`` (the checkout claims a mission).
+    question adoption answers. Adoption needs a handle, so this enumerates the
+    invoking checkout's OWN mission directories through the canonical resolver
+    boundary (:func:`specify_cli.context.mission_resolver.list_missions_for_selection`)
+    instead of a raw ``kitty-specs/`` walk (mission-resolver-port ADR,
+    ``tests/architectural/test_mission_resolver_walker_gate.py``). Cost is
+    bounded (review cycle 4, NFR-002): the handle-independent front of
+    adoption runs once (:func:`_adoptable_toplevel`), the checkout's branch is
+    read once, and listings are pre-filtered by plain file reads against the
+    minter's own branch rule (:func:`_branch_matches_target`); only survivors
+    -- usually none, at most one -- go through full :func:`adopt_owned_checkout`.
+    So R, coordination worktrees, listed and stale lanes and plain linked
+    checkouts resolve zero ownership claims. A mission-surface conflict raised
+    by adoption answers ``True`` (the checkout claims a mission).
     """
+    from specify_cli.context.mission_resolver import list_missions_for_selection
+
     toplevel = _adoptable_toplevel(repository_root.resolve(), cwd)
     if toplevel is None:
         return False
-    specs_dir = toplevel / "kitty-specs"
-    if not specs_dir.is_dir():
-        return False
     current = get_current_branch(toplevel)
-    for mission_dir in sorted(specs_dir.iterdir()):
+    for listing in list_missions_for_selection(toplevel):
+        safe_slug = assert_safe_path_segment(listing.mission_slug)
+        mission_dir = toplevel / KITTY_SPECS_DIR / safe_slug
         if not _branch_matches_target(current, _target_branch_from_meta_file(mission_dir)):
             continue
         try:
-            if adopt_owned_checkout(repository_root, cwd, mission_dir.name, allowed_topologies=allowed_topologies) is not None:
+            if adopt_owned_checkout(repository_root, cwd, safe_slug, allowed_topologies=allowed_topologies) is not None:
                 return True
         except ActionContextError:
             return True
