@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M3SME5DF2F8ZYNCMP7GCVWW0",
+  "completed_at": "2026-09-30T18:39:09.227141+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "red-proofs-r.md"
+}
