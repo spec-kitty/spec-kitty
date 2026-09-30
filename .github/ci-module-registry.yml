@@ -782,15 +782,13 @@ out_of_matrix_test_dirs:
     Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): single-topic
     invariant/regression-freeze checks extracted to always-on architectural gates:
     tests/evidence -> test_lifted_evidence.py; tests/lint -> test_lifted_lint.py;
-    tests/mission_metadata -> test_lifted_mission_metadata.py; tests/proof ->
-    test_lifted_proof.py; tests/reviews -> test_lifted_reviews.py; tests/state ->
+    tests/mission_metadata -> test_lifted_mission_metadata.py; tests/reviews -> test_lifted_reviews.py; tests/state ->
     test_lifted_state.py; tests/task_utils -> test_lifted_task_utils.py. Each dir below
     maps 1:1 to its named gate under tests/architectural/.
   dirs:
   - tests/evidence
   - tests/lint
   - tests/mission_metadata
-  - tests/proof
   - tests/reviews
   - tests/state
   - tests/task_utils

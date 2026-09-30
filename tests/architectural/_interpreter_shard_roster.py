@@ -375,7 +375,6 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/next",
             "tests/paths",
             "tests/prompts",
-            "tests/proof",
             "tests/readiness",
             "tests/regressions",
             "tests/specify_cli/audit",

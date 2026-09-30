@@ -197,7 +197,7 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
     },
     "tests/cross_cutting/dashboard/test_dashboard_encoding_resilience.py": {"content is not None": 1, "error is None": 1},
     "tests/cross_cutting/encoding/test_encoding_validation_functional.py": {"len(results) == 100": 1},
-    "tests/cross_cutting/misc/test_performance.py": {"result.success": 3},
+    "tests/cross_cutting/misc/test_performance.py": {"result.success": 2},
     "tests/doctor/test_identity_audit.py": {"all((s.state == 'assigned' for s in states))": 1, "ambiguous == {}": 1, "dupes == {}": 1, "len(states) == 200": 1},
     "tests/doctrine/test_doctrine_health_glossary_pack.py": {"exit_code == 0": 1},
     "tests/doctrine/test_shipped_profiles.py": {"len(profiles) == len(EXPECTED_PROFILE_IDS)": 1},

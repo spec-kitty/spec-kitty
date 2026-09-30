@@ -171,7 +171,7 @@ const CLUSTERS = [
   { label: 'upgrade+status', dirs: 'tests/upgrade tests/status' },
   { label: 'cli+runtime+missions', dirs: 'tests/cli tests/runtime tests/missions tests/mission_runtime tests/mission_metadata tests/mission' },
   { label: 'midtier-flows', dirs: 'tests/contract tests/next tests/lanes tests/retrospective tests/merge tests/git_ops tests/git tests/cross_branch' },
-  { label: 'support+grabbag', dirs: 'tests/test_dashboard tests/dashboard tests/tasks tests/release tests/core tests/kernel tests/dossier tests/glossary tests/docs tests/audit tests/review tests/reviews tests/init tests/readiness tests/policy tests/cli_gate tests/cross_cutting tests/unit tests/regressions tests/regression tests/e2e tests/research tests/migration tests/migrate tests/adversarial tests/saas tests/post_merge tests/paths tests/doctor tests/calibration tests/proof tests/perf tests/packaging tests/concurrency tests/stress tests/tracker tests/prompts tests/lint tests/context tests/architecture' },
+  { label: 'support+grabbag', dirs: 'tests/test_dashboard tests/dashboard tests/tasks tests/release tests/core tests/kernel tests/dossier tests/glossary tests/docs tests/audit tests/review tests/reviews tests/init tests/readiness tests/policy tests/cli_gate tests/cross_cutting tests/unit tests/regressions tests/regression tests/e2e tests/research tests/migration tests/migrate tests/adversarial tests/saas tests/post_merge tests/paths tests/doctor tests/calibration tests/perf tests/packaging tests/concurrency tests/stress tests/tracker tests/prompts tests/lint tests/context tests/architecture' },
 ]
 
 const inventoryThunks = CLUSTERS.map((c) => () =>
