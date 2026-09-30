@@ -2,7 +2,7 @@
 title: 'Context: Identity'
 description: 'Glossary context for identity: who performs work and who owns semantic decisions, defining the agent and related workflow-coordination roles.'
 doc_status: active
-updated: '2026-08-04'
+updated: '2026-09-30'
 related:
 - docs/context/execution.md
 - docs/context/practices-principles.md
@@ -150,7 +150,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 
 | | |
 |---|---|
-| **Definition** | The human who remains responsible and accountable for decisions made during a mission. Agents assist and propose, but the HiC owns the final call. This principle ensures that automation supports human judgement rather than replacing it. |
+| **Definition** | The human who remains responsible and accountable for decisions made during a mission. Agents assist and propose, but the HiC owns the final call. This principle ensures that automation supports human judgment rather than replacing it. |
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |

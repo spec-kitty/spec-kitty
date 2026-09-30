@@ -73,7 +73,7 @@ it is**, not on how important or how novel it is:
   new **distributable content artefact** — it ships its own files, has its own repository
   of instances, carries its own provenance, and is meaningfully migrated, versioned, and
   activated as a unit independent of any other artefact. The glossary pack is this shape:
-  `*.glossary-pack.yaml` files, a migrateable 104-term corpus, its own `glossary_pack:` URN.
+  `*.glossary-pack.yaml` files, a migratable 104-term corpus, its own `glossary_pack:` URN.
 - **REUSE / ATTACH** when the concept is a **relationship or configuration** expressed
   *on* an artefact that already has its own first-class identity. It has no files,
   repository, or provenance of its own — it is a field that configures how the existing

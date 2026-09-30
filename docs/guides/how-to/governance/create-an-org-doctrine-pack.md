@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-09-10'
+updated: '2026-09-30'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -41,7 +41,7 @@ You need:
 - Spec Kitty installed and on `PATH` (verify with `uv run spec-kitty --version`).
 - A directory you control where you can lay out pack files.
 - For publishing: a git remote, an HTTPS bundle location, or a custom HTTP API endpoint —
-  whichever your organisation prefers.
+  whichever your organization prefers.
 
 You do **not** need a spec-kitty project to author a pack. Authoring is independent of any
 consumer project.
@@ -252,7 +252,7 @@ For more on how `org-charter.yaml` composes when multiple packs are configured, 
 
 ## Step 4: Wrap an existing governance system
 
-If your organisation already documents its rules — typically as Markdown policy pages,
+If your organization already documents its rules — typically as Markdown policy pages,
 internal wikis, or a YAML config in a different format — you can migrate that content
 into a pack without rewriting it from scratch.
 
@@ -337,7 +337,7 @@ artifact set. Either add the missing artifact, fix the URN, or remove the edge.
 
 ## Step 6 (optional): Assemble multiple packs into a distributable
 
-If your organisation prefers a single distributable artifact over multiple independent
+If your organization prefers a single distributable artifact over multiple independent
 pack repositories, you can merge several packs into one with `doctrine pack assemble`:
 
 ```bash
@@ -351,7 +351,7 @@ are input pack directories. The command produces a single merged pack at the out
 path and validates the result before exiting.
 
 If two input packs ship the same artifact ID or define conflicting DRG edges, the
-default behaviour is to **fail** with a conflict report. You have two options:
+default behavior is to **fail** with a conflict report. You have two options:
 
 ```bash
 # Write the conflict report to a file for inspection
@@ -404,7 +404,7 @@ tar czf security-doctrine-v1.0.0.tar.gz -C my-pack .
 
 ### Option C: Custom HTTP API
 
-For organisations with an existing governance API server, expose pack contents under a
+For organizations with an existing governance API server, expose pack contents under a
 base URL. The contract for that API is in
 [contracts/org-doctrine-source-api-contract.md](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/layered-doctrine-org-layer-01KRNPEE/contracts/org-doctrine-source-api-contract.md)
 (in the mission's planning artifacts).
@@ -413,7 +413,7 @@ base URL. The contract for that API is in
 
 Whichever transport you choose, **pin versions** in consumer config. For git, use a tag
 name or commit SHA. Branch names are accepted but discouraged for reproducibility — a
-moving target on `main` will silently change behaviour for every consumer on every
+moving target on `main` will silently change behavior for every consumer on every
 fetch.
 
 ---
@@ -541,7 +541,7 @@ built-in version.
 
 ### Error: "No artifact directories found in fetched snapshot"
 
-The fetched pack contains no recognised artifact directories. Check that the pack root
+The fetched pack contains no recognized artifact directories. Check that the pack root
 is correct (the pack directory itself, not a parent folder) and that at least one of
 the canonical subdirectories exists with valid YAML files.
 

@@ -106,7 +106,7 @@ The substitute-for-the-record's-own-project is what recurs. Found and closed so 
 | the current working directory | `decision widen`'s root resolution (#3111) |
 | `repo_root` | construction sites that attributed the client to the checkout, not the payload |
 | machine-global arming | `SPEC_KITTY_ENABLE_SAAS_SYNC` — one export carried five never-opted-in projects (2026-07-27 incident) |
-| daemon scope | a long-lived process re-using one client across projects |
+| daemon scope | a long-lived process reusing one client across projects |
 | a checkout-level grant | consent recorded for the checkout rather than for the project |
 | **a symlinked `kitty-specs/`** | *found in review of this mission, not in its design* |
 | **a symlinked `<mission>/decisions/`** (or `decisions/index.json`) | *found in review of this mission, not in its design* |

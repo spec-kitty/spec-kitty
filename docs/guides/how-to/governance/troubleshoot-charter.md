@@ -2,7 +2,7 @@
 title: Troubleshooting Charter Failures
 description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-09-30'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
@@ -247,10 +247,10 @@ written in Python, or prints `Languages: unknown` together with an advisory.
 
 **Cause**: when the languages/frameworks answer (`languages_frameworks`) is a real declaration, the
 languages are derived from that answer alone (built-in detector plus doctrine-scoped words), and
-`unknown` means it named nothing recognised. Only when that answer is absent, the shipped default or
+`unknown` means it named nothing recognized. Only when that answer is absent, the shipped default or
 a placeholder are the other answers scanned for a built-in language or well-known tool word (for
 example `pytest`, `mypy`, `ruff`, `npm` or `cargo`), such as a testing answer. The advisory appears
-whenever no installed doctrine is scoped to the resolved languages, so a recognised language without
+whenever no installed doctrine is scoped to the resolved languages, so a recognized language without
 shipped guidance (for example `Languages: rust`) shows it too. A language token after `word-`, as in
 `React-TypeScript`, does not count.
 

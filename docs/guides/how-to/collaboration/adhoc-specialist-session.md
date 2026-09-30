@@ -2,7 +2,7 @@
 title: How to Start an Ad-Hoc Specialist Session
 description: 'How to start an ad-hoc specialist session with Spec Kitty 3.2: How to Start an Ad-Hoc Specialist Session.'
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-09-30'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 ---
@@ -86,7 +86,7 @@ If the session produced something worth keeping — a decision, an approach, a p
 > "Formalize this approach."
 > "Capture this as a recommendation."
 
-The agent will produce a structured artefact. You then decide whether to commit it, file it as a doctrine candidate, or discard it.
+The agent will produce a structured artifact. You then decide whether to commit it, file it as a doctrine candidate, or discard it.
 
 **Nothing is promoted to doctrine without your explicit instruction.**
 
@@ -99,7 +99,7 @@ Ad-hoc sessions are the first layer in a three-layer model:
 | Layer | Mode | Purpose |
 |-------|------|---------|
 | **Think** | Standalone governed Op | Explore, question, experiment |
-| **Capture** | Formalization (on request) | Turn a finding into a repeatable artefact |
+| **Capture** | Formalization (on request) | Turn a finding into a repeatable artifact |
 | **Execute** | Mission pipeline | Structured, tracked delivery |
 
 A session never escalates to Capture or Execute automatically. You decide if and when to move forward.

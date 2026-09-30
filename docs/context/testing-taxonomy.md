@@ -2,7 +2,7 @@
 title: 'Context: Testing Taxonomy'
 description: 'Glossary context for the testing taxonomy: the canonical pytest-marker categories for the tests/ tree and how to choose markers for a new test file.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
 ---
 ## Context: Testing Taxonomy
 
@@ -10,7 +10,7 @@ Canonical categories for tests in this project's `tests/` tree. Each category is
 
 When choosing a marker for a new test file:
 
-1. **Start at the category that best describes what kind of *behaviour* the test asserts** (unit, integration, contract, architectural, e2e).
+1. **Start at the category that best describes what kind of *behavior* the test asserts** (unit, integration, contract, architectural, e2e).
 2. **Add orthogonal markers** if the test additionally has a property the category alone does not capture (`slow`, `git_repo`, `requires_symlinks`, `platform_linux`, `windows_ci`, …). Multiple markers per file are encouraged when they each carry information.
 3. **Never leave a test file untagged.** If the test is for human-driven exploration only, mark it `exploratory` so CI's `-m "not exploratory"` filter excludes it.
 
@@ -22,7 +22,7 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that asserts the behaviour of a single module in isolation. No subprocess invocation, no real filesystem writes beyond `tmp_path`, no network, no real git. Helper modules may be imported, but third-party services and shell commands are off-limits. |
+| **Definition** | A test that asserts the behavior of a single module in isolation. No subprocess invocation, no real filesystem writes beyond `tmp_path`, no network, no real git. Helper modules may be imported, but third-party services and shell commands are off-limits. |
 | **Use when** | Testing a pure function, a Pydantic model, a parser, a state-machine transition, or any module whose contract can be exercised by direct calls with synthetic inputs. |
 | **Do NOT use when** | The test spawns `git`, hits HTTP, drives the CLI through `typer.testing.CliRunner`, or relies on a real `.kittify/` tree it built itself. Use `integration` instead. |
 | **CI role** | Default profile for the developer loop. `-m unit` is the fastest meaningful filter and should turn green in seconds. |
@@ -53,8 +53,8 @@ The categories below are listed by the question they answer.
 | | |
 |---|---|
 | **Definition** | A consumer-surface test that pins the shape of an external public API this project depends on (currently `spec-kitty-events` and `spec-kitty-tracker` PyPI packages, and the SaaS HTTP contract). The test fails when an upstream contract changes in a way that would break this CLI's consumption. |
-| **Use when** | You are asserting that a serialised event envelope matches a published schema, that a tracker bind payload carries the right keys, or that a vendored fixture from `contracts/` validates against a Pydantic model from `spec_kitty_events`. |
-| **Do NOT use when** | The test exercises *internal* CLI-only behaviour with no external contract — that is `unit` or `integration`. The test exercises a runtime end-to-end flow — that is `e2e`. |
+| **Use when** | You are asserting that a serialized event envelope matches a published schema, that a tracker bind payload carries the right keys, or that a vendored fixture from `contracts/` validates against a Pydantic model from `spec_kitty_events`. |
+| **Do NOT use when** | The test exercises *internal* CLI-only behavior with no external contract — that is `unit` or `integration`. The test exercises a runtime end-to-end flow — that is `e2e`. |
 | **CI role** | Always green; a contract failure is by definition a blocking upstream regression. Run as a dedicated CI gate (`-m contract`). |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
@@ -68,7 +68,7 @@ The categories below are listed by the question they answer.
 | | |
 |---|---|
 | **Definition** | A test that asserts an architectural invariant — layer dependency rules (via pytestarch), import-boundary scans, shared-package boundary, naming conventions, schema enforcement, "this directory may not import that subsystem", "every test file must declare a marker", etc. These tests do not run product code; they introspect the source tree. |
-| **Use when** | You are pinning a rule about the structure of the codebase, not the behaviour of any single module. |
+| **Use when** | You are pinning a rule about the structure of the codebase, not the behavior of any single module. |
 | **Do NOT use when** | The test calls product code (that is `unit` or `integration`). The test only verifies an external contract (that is `contract`). |
 | **CI role** | Dedicated CI gate (`-m architectural`). These tests are the rule book for refactors. |
 | **Context** | Testing Taxonomy |
@@ -98,7 +98,7 @@ The categories below are listed by the question they answer.
 | | |
 |---|---|
 | **Definition** | A security or fuzz-style test that asserts the system rejects malicious or malformed inputs (CSV formula injection, path traversal, malformed YAML, oversized payloads, etc.) without crashing or leaking. |
-| **Use when** | The test feeds hostile input to a parser, validator, file reader, or network handler and verifies safe rejection or sanitisation. |
+| **Use when** | The test feeds hostile input to a parser, validator, file reader, or network handler and verifies safe rejection or sanitization. |
 | **Do NOT use when** | The test verifies normal happy-path validation — that is `unit` or `integration`. |
 | **CI role** | Run alongside the regression suite; a failure indicates a real security regression. |
 | **Context** | Testing Taxonomy |
@@ -127,7 +127,7 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A performance characterisation, not a behavioural category. The marker declares the test runs in well under a second per item, performs no subprocess work, no git, no network, and no heavy fixture setup. Orthogonal to the unit/integration/contract category — both a `unit` test and an `integration` test may be `fast` if they happen to be quick. |
+| **Definition** | A performance characterization, not a behavioral category. The marker declares the test runs in well under a second per item, performs no subprocess work, no git, no network, and no heavy fixture setup. Orthogonal to the unit/integration/contract category — both a `unit` test and an `integration` test may be `fast` if they happen to be quick. |
 | **Use when** | The test reliably finishes in sub-second wall-clock and has no I/O fan-out. Mark it `fast` so the inner developer loop (`uv run pytest -m fast`) selects it. |
 | **Do NOT use when** | The test does anything that depends on subprocess timing, git fetches, network, or large fixture trees. Marking such a test `fast` poisons the fast lane and slows everyone's loop. |
 | **CI role** | The inner-loop selector. `-m fast` is what developers should be able to run between every edit and have green in seconds. |
@@ -142,7 +142,7 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A performance characterisation declaring the test takes >10 seconds wall-clock per item, requires heavy setup (wheel build, distribution install, large fixture tree), or otherwise should not run on every developer save. Orthogonal to category — an `integration` or `e2e` test may also be `slow`. |
+| **Definition** | A performance characterization declaring the test takes >10 seconds wall-clock per item, requires heavy setup (wheel build, distribution install, large fixture tree), or otherwise should not run on every developer save. Orthogonal to category — an `integration` or `e2e` test may also be `slow`. |
 | **Use when** | The test reliably exceeds 10 seconds, builds a wheel, installs a venv, or runs a Docker setup. |
 | **Do NOT use when** | The test could be made fast by isolating a dependency or by writing a leaner fixture — fix the test first, then re-evaluate the marker. |
 | **CI role** | Excluded from the inner loop (`uv run pytest -m "not slow"`) and run in dedicated slow / nightly gates. |
@@ -187,7 +187,7 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that asserts OS-specific behaviour (case-insensitive FS on macOS, POSIX path semantics on Linux, etc.). Auto-skipped on the wrong platform via conftest. |
+| **Definition** | A test that asserts OS-specific behavior (case-insensitive FS on macOS, POSIX path semantics on Linux, etc.). Auto-skipped on the wrong platform via conftest. |
 | **Use when** | The test would always fail or always pass on the wrong platform regardless of code correctness. |
 | **Do NOT use when** | The test is cross-platform but happens to be written on one OS — that is the default; no platform marker needed. |
 | **CI role** | Run on matching CI matrix legs; auto-skipped elsewhere. |
@@ -233,7 +233,7 @@ The categories below are listed by the question they answer.
 | | |
 |---|---|
 | **Definition** | A test that calls the real Anthropic API (or any other live external service) instead of a mocked adapter. Always opt-in; default CI excludes it via `-m "not live_adapter"`. |
-| **Use when** | The test verifies behaviour that only the real service can validate (rate-limit handling, real model responses, real authentication). |
+| **Use when** | The test verifies behavior that only the real service can validate (rate-limit handling, real model responses, real authentication). |
 | **Do NOT use when** | A mocked adapter can simulate the contract — use `unit` or `integration` with a mock. |
 | **CI role** | Excluded from default runs; activated only when API credentials are present and the contract needs live verification. |
 | **Context** | Testing Taxonomy |
@@ -280,7 +280,7 @@ The categories below are listed by the question they answer.
 | **Definition** | An opt-out from the autouse readiness-stub fixture that the tracker CLI test suite installs by default. The test wires its own readiness machinery and would be perturbed by the stub. Introduced for mission 082 tracker CLI tests. |
 | **Use when** | The test exercises the real readiness path of a tracker CLI command and must not be patched by the default stub. |
 | **Do NOT use when** | The test is fine with the default stubbed readiness — most tests are. |
-| **CI role** | Behavioural opt-out; not used by gate filters. |
+| **CI role** | Behavioral opt-out; not used by gate filters. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -353,9 +353,9 @@ The categories below are listed by the question they answer.
 | | |
 |---|---|
 | **Definition** | A test intended for human-driven exploration only, not for CI runs. Satisfies the architectural marker-presence convention without obligating CI to execute it. CI workflows opt these out via `-m "not exploratory"`. |
-| **Use when** | The test is a scratchpad for a developer to spike a behaviour interactively, depends on a particular local state, or is too costly to run on every PR. |
+| **Use when** | The test is a scratchpad for a developer to spike a behavior interactively, depends on a particular local state, or is too costly to run on every PR. |
 | **Do NOT use when** | The test is meant to enforce a contract — promote it to a real category marker and stabilise it. |
-| **CI role** | Excluded by default. The marker is the project's escape valve for non-CI tests; do not normalise it. |
+| **CI role** | Excluded by default. The marker is the project's escape valve for non-CI tests; do not normalize it. |
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |

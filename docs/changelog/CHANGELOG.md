@@ -3992,7 +3992,7 @@ The complete, factual list of changes for this candidate follows in the entries 
 - **Pre-review regression gate no longer silently skipped by a leaked sync toggle in the parallel suite (#2800, #2794).**
   The gate reuses the sync layer's process-wide `SPEC_KITTY_SYNC_MINIMAL_IMPORT` /
   `SPEC_KITTY_SYNC_DISABLE` opt-outs; in a whole-tree `-n auto` run one could leak into an
-  xdist worker and skip the gate, reding the gate-observability tests. An autouse fixture now
+  xdist worker and skip the gate, turning the gate-observability tests red. An autouse fixture now
   unsets both toggles before every agent test, making them worker- and order-independent. No
   production behaviour change; the deliberate gate↔sync coupling is tracked for a dedicated
   opt-out in #2801.
@@ -5833,7 +5833,7 @@ patch releases are expected in quick succession.
   branch surface via `BookkeepingTransaction` (coord-branch-aware), while
   `_assert_merged_wps_reached_done` read back from the primary checkout via
   `resolve_feature_dir_for_mission` (topology-unaware). The two functions resolved to
-  different filesytem paths - write never landed where read looked. Fix: introduced
+  different filesystem paths - write never landed where read looked. Fix: introduced
   `coordination.surface_resolver.resolve_status_surface(repo_root, mission_slug)` as the
   single canonical surface resolver; `_assert_merged_wps_reached_done` now calls it instead
   of the topology-unaware resolver, eliminating the divergence. A full merge-path audit

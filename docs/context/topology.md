@@ -42,7 +42,7 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The single bookkeeping lane of a `single_branch` mission, keeping the existing lane id `lane-planning`. It always resolves to the [write checkout](#write-checkout), never to a `.worktrees/` path, and has no lane branch. It generalises the planning lane that every topology already carries for `planning_artifact` work packages. |
+| **Definition** | The single bookkeeping lane of a `single_branch` mission, keeping the existing lane id `lane-planning`. It always resolves to the [write checkout](#write-checkout), never to a `.worktrees/` path, and has no lane branch. It generalizes the planning lane that every topology already carries for `planning_artifact` work packages. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

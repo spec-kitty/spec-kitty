@@ -10047,7 +10047,7 @@ pages:
     - {slug: "overlay-enhancement-enhances-drg-relation", text: "Overlay Enhancement — `enhances` (DRG Relation)", level: 3}
     - {slug: "overlay-override-overrides-drg-relation", text: "Overlay Override — `overrides` (DRG Relation)", level: 3}
     - {slug: "refinement-refines-drg-relation", text: "Refinement — `refines` (DRG Relation)", level: 3}
-    - {slug: "organisation-tier", text: "Organisation Tier", level: 3}
+    - {slug: "organization-tier", text: "Organization Tier", level: 3}
     - {slug: "charterscope", text: "CharterScope", level: 3}
     - {slug: "workflow-sequence", text: "Workflow Sequence", level: 3}
     - {slug: "workflow-id", text: "Workflow ID", level: 3}
@@ -10126,7 +10126,7 @@ pages:
     - {slug: "missionexecutioncontext", text: "MissionExecutionContext", level: 3}
     - {slug: "infracontext", text: "InfraContext", level: 3}
     - {slug: "effector", text: "Effector", level: 3}
-    - {slug: "communication-artefact", text: "communication artefact", level: 3}
+    - {slug: "communication-artifact", text: "communication artifact", level: 3}
     - {slug: "repository-root-checkout", text: "repository root checkout", level: 3}
     - {slug: "owned-checkout", text: "owned checkout", level: 3}
     - {slug: "shadow-clone-isolated-dev-environment", text: "Shadow Clone (Isolated Dev Environment)", level: 3}
@@ -11013,7 +11013,7 @@ pages:
     - {slug: "low-severity-conflicts-only-all-conflicts-non-empty-high-severity-empty", text: "Low-severity conflicts only (`all_conflicts` non-empty, `high_severity` empty)", level: 3}
     - {slug: "high-severity-conflicts-high-severity-non-empty", text: "High-severity conflicts (`high_severity` non-empty)", level: 3}
     - {slug: "error-during-scan-error-msg-non-null", text: "Error during scan (`error_msg` non-null)", level: 3}
-    - {slug: "trail-behaviour", text: "Trail Behaviour", level: 2}
+    - {slug: "trail-behavior", text: "Trail Behavior", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/collaboration/adhoc-specialist-session.md"
     title: "How to Start an Ad-Hoc Specialist Session"

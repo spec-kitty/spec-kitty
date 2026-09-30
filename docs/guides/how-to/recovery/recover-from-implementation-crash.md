@@ -2,7 +2,7 @@
 title: Recover from an Implementation Crash
 description: 'How to recover from an implementation crash with Spec Kitty 3.2: Learn how to restore a work package that is stuck in inprogress after an agent crash or.'
 doc_status: active
-updated: '2026-06-14'
+updated: '2026-09-30'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -81,7 +81,7 @@ spec-kitty agent status emit WP02 --to in_progress --actor claude \
 
 ## Using `spec-kitty doctor`
 
-`spec-kitty doctor` (added in 3.1.0) summarises the full health of all missions in one pass:
+`spec-kitty doctor` (added in 3.1.0) summarizes the full health of all missions in one pass:
 
 ```
 Stale claims

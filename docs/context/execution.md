@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-09-30'
 related:
 - docs/context/governance.md
 - docs/context/identity.md
@@ -228,18 +228,20 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a mission run, producing or consuming communication artefacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization. |
+| **Definition** | The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a mission run, producing or consuming communication artifacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization. |
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Materialization trigger** | First concrete actor-kind-mismatch bug, or first feature requiring cross-log (status/retrospective/run) actor identity join |
 | **Placement when materialized** | `src/kernel/` (Shared Kernel layer) |
-| **Related terms** | [communication artefact](#communication-artefact) |
+| **Related terms** | [communication artifact](#communication-artifact) |
 | **ADR** | `docs/adr/3.x/2026-06-03-3-effector-actor-model.md` |
 
 ---
 
-### communication artefact
+<a id="communication-artefact"></a>
+
+### communication artifact
 
 | | |
 |---|---|
@@ -247,6 +249,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
+| **Alias** | `communication artefact` (UK spelling, legacy) |
 | **Examples** | git commit, pull request, PR comment, CI run result |
 | **Related terms** | [Effector](#effector) |
 

@@ -2,7 +2,7 @@
 title: Fork packaging hooks
 description: How renamed or private-index forks customize Spec Kitty upgrade checks and package identity via entry points—without overlaying core sources.
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-09-30'
 type: how-to
 related:
 - docs/guides/how-to/installation/upgrade-cli.md
@@ -15,7 +15,7 @@ Publish a renamed Spec Kitty CLI (different distribution name and/or a private
 PEP 503 simple index) **without rewriting** files under `src/specify_cli/**`.
 
 Stock `spec-kitty-cli` from public PyPI registers nothing. Absence of hooks
-preserves today’s public-PyPI / `spec-kitty-cli` behaviour.
+preserves today’s public-PyPI / `spec-kitty-cli` behavior.
 
 ## What Spec Kitty owns vs what you own
 
@@ -25,7 +25,7 @@ preserves today’s public-PyPI / `spec-kitty-cli` behaviour.
 | Entry-point contracts and stock defaults | `pyproject.toml` name / version |
 | Built-in `PyPIProvider` + `SimpleIndexProvider` | Private-index upload and credentials |
 | Compat planner / remediation / notifier wiring | CI triggers, VCS tag filters, webhooks |
-| This guide and stock regression behaviour | Agent Docker / build workarounds |
+| This guide and stock regression behavior | Agent Docker / build workarounds |
 | | SaaS / E2E release gates in your pipelines |
 
 Do **not** sed/cp overlays onto `session_presence/upgrade_check.py`,
@@ -145,7 +145,7 @@ the CLI to restore fork-specific remediation.
 
 ## Phase 3 — Validation checklist
 
-- [ ] Stock install (no entry points): public PyPI + `spec-kitty-cli` behaviour unchanged
+- [ ] Stock install (no entry points): public PyPI + `spec-kitty-cli` behavior unchanged
 - [ ] `--version` / installed-version lookup use the fork name (and aliases if set)
 - [ ] Upgrade refresh / compat planner call your provider for the fork package name
 - [ ] Remediation commands include `--index-url` when the profile sets it and still pass CHK028 (allowlist length 512, same character class)

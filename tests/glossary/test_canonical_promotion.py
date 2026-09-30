@@ -24,7 +24,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 SLICE_F_TERMS = [
     "Three-layer DRG",
-    "Organisation Tier",
+    # Renamed to US spelling (#5426); the legacy `organisation-tier` anchor stays in charter.md.
+    "Organization Tier",
     "CharterScope",
     "Workflow Sequence",
     "Workflow ID",

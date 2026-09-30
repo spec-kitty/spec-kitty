@@ -2,7 +2,7 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -28,7 +28,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its constituent files (activation state, DRG cache, synthesis manifest) as a unit — use **Charter Bundle**. The concept is a distributable, versioned collection of charter-activatable artifacts *offered* to a project (the offer-side catalogue, not the materialised Bundle) — use **Charter Pack**. This is the canonical name for what the current implementation still calls [Doctrine Pack](#doctrine-pack); the code-level collapse of that name into Charter Pack is a later wave of `retire-doctrine-term-01M0JMK9`, not M1. The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `sync`, `context`, `activate`, `deactivate`) — use **the `spec-kitty charter` CLI group**. The concept is a single charter-activatable artifact's own per-project state (the **Active-Inactive Charter** distinction) — use **Active Charter artefact** / **Inactive Charter artefact** (ADR 2026-08-22-2 §76-77). The concept is the shipped default charter template set applied before any project-level customization — use **Pack Default Charter**. Never use bare "doctrine" for any of these senses; the governing term retired to `charter` (mission `retire-doctrine-term-01M0JMK9`, M1). |
+| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its constituent files (activation state, DRG cache, synthesis manifest) as a unit — use **Charter Bundle**. The concept is a distributable, versioned collection of charter-activatable artifacts *offered* to a project (the offer-side catalog, not the materialized Bundle) — use **Charter Pack**. This is the canonical name for what the current implementation still calls [Doctrine Pack](#doctrine-pack); the code-level collapse of that name into Charter Pack is a later wave of `retire-doctrine-term-01M0JMK9`, not M1. The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `sync`, `context`, `activate`, `deactivate`) — use **the `spec-kitty charter` CLI group**. The concept is a single charter-activatable artifact's own per-project state (the **Active-Inactive Charter** distinction) — use **Active Charter artifact** / **Inactive Charter artifact** (ADR 2026-08-22-2 §76-77). The concept is the shipped default charter template set applied before any project-level customization — use **Pack Default Charter**. Never use bare "doctrine" for any of these senses; the governing term retired to `charter` (mission `retire-doctrine-term-01M0JMK9`, M1). |
 | **Related terms** | [Charter Selection](#charter-selection), [Charter-Mediated Selection](#charter-mediated-selection), [Doctrine Pack](#doctrine-pack), [Charter Facade](#charter-facade) |
 
 ---
@@ -315,15 +315,15 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 ### Doctrine Pack
 
-> **Terminology note:** "Doctrine Pack" is the *current implementation name* for the offer-side catalogue whose canonical term is **Charter Pack** (ADR 2026-08-22-2 §74). It is retained here as a code-accurate entry; renaming the module/vocabulary is a later wave of `retire-doctrine-term-01M0JMK9`, out of M1's authority-flip scope.
+> **Terminology note:** "Doctrine Pack" is the *current implementation name* for the offer-side catalog whose canonical term is **Charter Pack** (ADR 2026-08-22-2 §74). It is retained here as a code-accurate entry; renaming the module/vocabulary is a later wave of `retire-doctrine-term-01M0JMK9`, out of M1's authority-flip scope.
 
 | | |
 |---|---|
-| **Definition** | A versioned, distributable bundle of doctrine artefacts (glossary terms, tactics, directives, agent profiles, styleguides, and toolguides) that can be installed into a project to govern its development practices. Packs are identified by a stable [Doctrine Pack ID](#doctrine-pack-id) and registered in `.kittify/config.yaml` under `doctrine.org.packs`. The spec-kitty built-in pack is the base layer; project-layer overrides live at `.kittify/doctrine/`. |
+| **Definition** | A versioned, distributable bundle of doctrine artifacts (glossary terms, tactics, directives, agent profiles, styleguides, and toolguides) that can be installed into a project to govern its development practices. Packs are identified by a stable [Doctrine Pack ID](#doctrine-pack-id) and registered in `.kittify/config.yaml` under `doctrine.org.packs`. The spec-kitty built-in pack is the base layer; project-layer overrides live at `.kittify/doctrine/`. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Pack ID](#doctrine-pack-id), [Activation Registry](#activation-registry), [Organisation Tier](#organisation-tier) |
+| **Related terms** | [Doctrine Pack ID](#doctrine-pack-id), [Activation Registry](#activation-registry), [Organization Tier](#organization-tier) |
 
 ---
 
@@ -412,7 +412,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Pack](#doctrine-pack), [Organisation Tier](#organisation-tier), [Charter-Mediated Selection](#charter-mediated-selection) |
+| **Related terms** | [Doctrine Pack](#doctrine-pack), [Organization Tier](#organization-tier), [Charter-Mediated Selection](#charter-mediated-selection) |
 
 ---
 
@@ -420,7 +420,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A symmetric, non-transitive [Three-layer DRG](#three-layer-drg) relation marking two co-valid, co-activatable artefacts that compete on the same decision. Stored as a single canonical edge (lexicographically-smaller URN as source) and queryable from either endpoint; it does not imply that either side is deprecated, superseded, or wrong — both remain valid rules until an operator deactivates one side or activates a reconciler ([Reconciliation](#reconciliation--reconciles_tension-drg-relation)). Canonical source: `RELATION_DESCRIPTIONS[Relation.IN_TENSION_WITH]` in `src/charter/offering/drg/models.py`; human-readable mirror and worked examples in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Definition** | A symmetric, non-transitive [Three-layer DRG](#three-layer-drg) relation marking two co-valid, co-activatable artifacts that compete on the same decision. Stored as a single canonical edge (lexicographically-smaller URN as source) and queryable from either endpoint; it does not imply that either side is deprecated, superseded, or wrong — both remain valid rules until an operator deactivates one side or activates a reconciler ([Reconciliation](#reconciliation--reconciles_tension-drg-relation)). Canonical source: `RELATION_DESCRIPTIONS[Relation.IN_TENSION_WITH]` in `src/charter/offering/drg/models.py`; human-readable mirror and worked examples in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -432,7 +432,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation linking an active reconciliation artefact to one side of a declared [Tension](#tension--in_tension_with-drg-relation) pair. A tension pair is treated as resolved only when an active artefact carries this edge to **both** sides of the pair — an edge to just one side leaves the pair half-reconciled and still flagged. It is authored explicitly and is never inferred from an `in_tension_with` edge. Canonical source: `RELATION_DESCRIPTIONS[Relation.RECONCILES_TENSION]` in `src/charter/offering/drg/models.py`; human-readable mirror in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation linking an active reconciliation artifact to one side of a declared [Tension](#tension--in_tension_with-drg-relation) pair. A tension pair is treated as resolved only when an active artifact carries this edge to **both** sides of the pair — an edge to just one side leaves the pair half-reconciled and still flagged. It is authored explicitly and is never inferred from an `in_tension_with` edge. Canonical source: `RELATION_DESCRIPTIONS[Relation.RECONCILES_TENSION]` in `src/charter/offering/drg/models.py`; human-readable mirror in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -444,7 +444,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from a good artefact to a marked anti-pattern or smell node (`NodeKind.ANTI_PATTERN`), expressing rejection of a named bad practice. It is distinct from [Tension](#tension--in_tension_with-drg-relation) — the target is not a competing equal, it is a bad practice — and from `replaces`/supersession, since the target was never a valid rule to begin with. Canonical source: `RELATION_DESCRIPTIONS[Relation.REJECTS]` in `src/charter/offering/drg/models.py`; human-readable mirror in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Definition** | A directional [Three-layer DRG](#three-layer-drg) relation from a good artifact to a marked anti-pattern or smell node (`NodeKind.ANTI_PATTERN`), expressing rejection of a named bad practice. It is distinct from [Tension](#tension--in_tension_with-drg-relation) — the target is not a competing equal, it is a bad practice — and from `replaces`/supersession, since the target was never a valid rule to begin with. Canonical source: `RELATION_DESCRIPTIONS[Relation.REJECTS]` in `src/charter/offering/drg/models.py`; human-readable mirror in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -581,7 +581,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Related terms** | [Overlay Override](#overlay-override--overrides-drg-relation), [Three-layer DRG](#three-layer-drg), [Organisation Tier](#organisation-tier) |
+| **Related terms** | [Overlay Override](#overlay-override--overrides-drg-relation), [Three-layer DRG](#three-layer-drg), [Organization Tier](#organization-tier) |
 
 ---
 
@@ -593,7 +593,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Related terms** | [Overlay Enhancement](#overlay-enhancement--enhances-drg-relation), [Three-layer DRG](#three-layer-drg), [Organisation Tier](#organisation-tier) |
+| **Related terms** | [Overlay Enhancement](#overlay-enhancement--enhances-drg-relation), [Three-layer DRG](#three-layer-drg), [Organization Tier](#organization-tier) |
 
 ---
 
@@ -609,14 +609,17 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 ---
 
-### Organisation Tier
+<a id="organisation-tier"></a>
+
+### Organization Tier
 
 | | |
 |---|---|
-| **Definition** | The middle layer of the three-layer DRG model, contributed by one or more configured org doctrine packs. Each pack ships an `org-charter.yaml` (governance policies and required artifact selections) and an optional `drg/fragment.yaml` (DRG extension nodes and edges). Organisation-tier content propagates to all consumer projects via `apply_org_charter_to_interview` and the standard charter pre-fill path. |
+| **Definition** | The middle layer of the three-layer DRG model, contributed by one or more configured org doctrine packs. Each pack ships an `org-charter.yaml` (governance policies and required artifact selections) and an optional `drg/fragment.yaml` (DRG extension nodes and edges). Organization-tier content propagates to all consumer projects via `apply_org_charter_to_interview` and the standard charter pre-fill path. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
+| **Alias** | `Organisation Tier` (UK spelling, legacy) |
 | **Related terms** | [Three-layer DRG](#three-layer-drg), [Doctrine Pack](#doctrine-pack), [Charter Selection](#charter-selection) |
 
 ---
@@ -665,7 +668,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Three-layer DRG](#three-layer-drg), [Organisation Tier](#organisation-tier) |
+| **Related terms** | [Three-layer DRG](#three-layer-drg), [Organization Tier](#organization-tier) |
 
 ---
 
@@ -701,7 +704,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Doctrine Catalog](#doctrine-catalog), [Charter Selection](#charter-selection), [Organisation Tier](#organisation-tier) |
+| **Related terms** | [Doctrine Catalog](#doctrine-catalog), [Charter Selection](#charter-selection), [Organization Tier](#organization-tier) |
 
 ---
 

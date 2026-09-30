@@ -2,7 +2,7 @@
 title: Render Glossary Observations from InvocationPayload (gstack / host agents)
 description: How gstack-compatible host agents should interpret and display the glossary_observations field returned by the Spec Kitty invocation executor.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-09-30'
 type: reference
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 related:
@@ -87,14 +87,16 @@ Example log line:
 [WARN] glossary chokepoint error for invocation 01HXYZ...: <error_msg value>
 ```
 
-## Trail Behaviour
+<a id="trail-behaviour"></a>
+
+## Trail Behavior
 
 A `glossary_checked` event is appended to the Tier 1 JSONL trail **only** when
 `all_conflicts` is non-empty OR `error_msg` is non-null. Clean invocations
 produce no `glossary_checked` line.
 
 Readers that encounter `"event": "glossary_checked"` in a trail file and do not
-recognise the event type may safely skip it.
+recognize the event type may safely skip it.
 
 See [Trail Model — Glossary Check Event](https://github.com/spec-kitty/spec-kitty/blob/main/docs/trail-model.md#glossary-check-event-conditional-tier-1)
 for the full event schema.

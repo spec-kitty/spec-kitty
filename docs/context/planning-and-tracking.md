@@ -2,7 +2,7 @@
 title: 'Context: Planning & Tracking'
 description: 'Glossary context for planning and tracking: how work is organized, classified, and dispatched across the tracker and execution tiers (companion to the seed).'
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-09-30'
 related:
 - docs/context/execution.md
 - docs/context/orchestration.md
@@ -56,7 +56,7 @@ page governs prose. Surfaces are lowercase to match the seed.
 
 | | |
 |---|---|
-| **Definition** | The canonical issue-priority labels `priority:P0` .. `priority:P3`. The legacy `Px-description` labels (P0-critical, P1-bug, P2-enhancement, P3-future, P4-wontfix) are retired in favour of `priority:Px` plus the orthogonal issue-type field. |
+| **Definition** | The canonical issue-priority labels `priority:P0` .. `priority:P3`. The legacy `Px-description` labels (P0-critical, P1-bug, P2-enhancement, P3-future, P4-wontfix) are retired in favor of `priority:Px` plus the orthogonal issue-type field. |
 | **Context** | Planning & Tracking |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

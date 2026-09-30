@@ -2,7 +2,7 @@
 title: Extend your charter for an unsupported language
 description: What "Languages unknown" means, how to add tech-specific guidelines to your local charter, and what review reports for non-Python missions.
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-09-30'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
@@ -21,7 +21,7 @@ charter.
 ## What `Languages: unknown` means
 
 Spec Kitty doctrine is technology-agnostic. It does not ship specialist guidance for every language.
-`Languages: unknown` means your project declares a language that neither the built-in detector nor any installed doctrine recognises.
+`Languages: unknown` means your project declares a language that neither the built-in detector nor any installed doctrine recognizes.
 
 - Language-neutral doctrine keeps applying. Built-in tactics are language-neutral.
 - Guides, tool guides and profiles that are scoped to a specific language (for example the Python
@@ -31,7 +31,7 @@ Spec Kitty doctrine is technology-agnostic. It does not ship specialist guidance
 
 The context output includes a single `Advisory:` line that points you to this page whenever no
 installed doctrine is scoped to your project's languages. That includes `unknown`, and also a
-recognised language that has no shipped specialist guidance (for example Rust, Swift or Ruby). In
+recognized language that has no shipped specialist guidance (for example Rust, Swift or Ruby). In
 that case the compact view shows the recorded value, such as `Languages: rust`, followed by the
 advisory. A project whose language has installed guidance (for example Python) sees no advisory.
 
@@ -60,13 +60,13 @@ The languages/frameworks answer (key `languages_frameworks` in
    built-in detector scan the remaining answers. A hit there is recorded, and a miss records
    nothing: no signal, no `unknown` and no advisory.
 3. **`unknown`** is written only for a real languages/frameworks declaration that neither the
-   detector nor the vocabulary recognised.
+   detector nor the vocabulary recognized.
 
 A language token attached to a preceding `word-` does not count: `librespot-java` does not declare
 Java, and `React-TypeScript` does not declare TypeScript (write `TypeScript with React` instead).
 A trailing compound such as `Java-based` still counts. Spec Kitty does not interpret sentiment or
 negation: a mention counts even if the answer says the tool is only used for helper scripts.
-Recognised languages are written to `catalog.languages` in `.kittify/charter/charter.yaml`.
+Recognized languages are written to `catalog.languages` in `.kittify/charter/charter.yaml`.
 
 ## Add tech-specific guidelines to your local charter
 
