@@ -705,3 +705,37 @@ def test_generate_output_with_invalid_utf8_never_raises(tmp_path: Path, monkeypa
     assert outcome.detail is not None
     assert outcome.detail.startswith("Error: bad byte")
     assert "here" in outcome.detail
+
+
+# ---------------------------------------------------------------------------
+# #5257 landing fold: `ReferencesRefreshOutcome` must not be able to represent
+# the impossible states its two booleans otherwise allow.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("attempted", "succeeded", "detail"),
+    [
+        pytest.param(False, True, None, id="succeeded-without-attempt"),
+        pytest.param(False, False, "why", id="detail-without-attempt"),
+        pytest.param(True, True, "why", id="detail-on-success"),
+    ],
+)
+def test_refresh_outcome_rejects_impossible_states(attempted: bool, succeeded: bool, detail: str | None) -> None:
+    with pytest.raises(ValueError, match="impossible"):
+        references_refresh.ReferencesRefreshOutcome(attempted=attempted, succeeded=succeeded, detail=detail)
+
+
+@pytest.mark.parametrize(
+    ("attempted", "succeeded", "detail"),
+    [
+        pytest.param(False, False, None, id="not-attempted"),
+        pytest.param(True, True, None, id="succeeded"),
+        pytest.param(True, False, "why", id="failed"),
+        pytest.param(True, False, None, id="failed-without-detail"),
+    ],
+)
+def test_refresh_outcome_accepts_the_reachable_states(attempted: bool, succeeded: bool, detail: str | None) -> None:
+    outcome = references_refresh.ReferencesRefreshOutcome(attempted=attempted, succeeded=succeeded, detail=detail)
+
+    assert (outcome.attempted, outcome.succeeded, outcome.detail) == (attempted, succeeded, detail)

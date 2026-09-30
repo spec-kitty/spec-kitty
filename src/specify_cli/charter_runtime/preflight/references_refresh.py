@@ -125,6 +125,15 @@ class ReferencesRefreshOutcome:
     succeeded: bool
     detail: str | None
 
+    def __post_init__(self) -> None:
+        # Three reachable states: not attempted, succeeded, failed (+ detail).
+        if (self.succeeded and not self.attempted) or (self.detail is not None and not (self.attempted and not self.succeeded)):
+            raise ValueError(
+                "impossible ReferencesRefreshOutcome: succeeded requires attempted, "
+                f"and detail is only valid on a failed attempt (attempted={self.attempted}, "
+                f"succeeded={self.succeeded}, detail={self.detail!r})"
+            )
+
     def __bool__(self) -> NoReturn:
         raise TypeError("ReferencesRefreshOutcome has no truth value -- check .attempted/.succeeded explicitly")
 
