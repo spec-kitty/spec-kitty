@@ -1160,6 +1160,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/index.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/index.md
   tag: current
   divio_type: none
@@ -2326,7 +2332,7 @@
   notes: null
 - path: docs/development/analysis-report-transactions.md
   tag: current
-  divio_type: none
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null
@@ -2464,7 +2470,7 @@
   notes: null
 - path: docs/development/reference/quality-and-tech-debt-standing-orders.md
   tag: current
-  divio_type: how-to
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

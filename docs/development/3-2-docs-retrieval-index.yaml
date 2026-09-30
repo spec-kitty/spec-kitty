@@ -3312,10 +3312,20 @@ pages:
     - {slug: "status-conventions", text: "Status Conventions", level: 2}
     - {slug: "template", text: "Template", level: 2}
     - {slug: "index", text: "Index", level: 2}
+  - path: "docs/adr/4.x/index.md"
+    title: "4.x Architectural Decision Records"
+    divio_type: "explanation"
+    abstract: "Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one."
+    anchors:
+    - {slug: "era-history", text: "Era history", level: 2}
+    - {slug: "naming", text: "Naming", level: 2}
+    - {slug: "status-conventions", text: "Status Conventions", level: 2}
+    - {slug: "template", text: "Template", level: 2}
+    - {slug: "index", text: "Index", level: 2}
   - path: "docs/adr/index.md"
     title: "Architecture Decision Records"
     divio_type: "none"
-    abstract: "Architecture Decision Records for Spec Kitty, organized by release era (1.x, 2.x, 3.x). Each ADR captures one decision and its rationale."
+    abstract: "Architecture Decision Records for Spec Kitty, organized by release era (1.x to 4.x); new ADRs land in the 4.x era. Each ADR records one decision and its rationale."
     anchors:
     - {slug: "eras", text: "Eras", level: 2}
     - {slug: "adding-an-adr", text: "Adding an ADR", level: 2}
@@ -4385,9 +4395,9 @@ pages:
     - {slug: "examples", text: "Examples", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/00_landscape/README.md"
-    title: "2.x System Landscape"
+    title: "System Landscape (living)"
     divio_type: "none"
-    abstract: "2.x system landscape snapshot (C4 level 0): the historical bird's-eye view of Spec Kitty's external actors and surrounding systems, preserved beneath the living model."
+    abstract: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "design-philosophy", text: "Design Philosophy", level: 2}
@@ -4481,9 +4491,9 @@ pages:
     - {slug: "decision-traceability", text: "Decision Traceability", level: 2}
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/04_implementation_mapping/README.md"
-    title: "2.x Implementation Mapping"
+    title: "Implementation Mapping (living)"
     divio_type: "none"
-    abstract: "2.x implementation mapping (C4 level 4): the historical link from architecture components to the code that realizes them, preserved beneath the living model."
+    abstract: "Living implementation mapping (C4 level 4): where each architecture concept lives in the source tree today. A derived view of the enforced module map."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "level-0-system-landscape-codebase-modules", text: "Level 0 — System Landscape → Codebase Modules", level: 2}
@@ -4562,15 +4572,15 @@ pages:
   - path: "docs/architecture/README.md"
     title: "Architecture"
     divio_type: "none"
-    abstract: "The canonical architecture corpus landing page: the two-surface boundary rule (architecture/ vs docs/) and how living architecture sits above versioned history."
+    abstract: "Landing page for the architecture corpus: what lives in docs/architecture/ versus docs/adr/, which pages are living, and which are frozen history."
     anchors:
     - {slug: "boundary-rule-single-source-of-truth", text: "Boundary rule (single source of truth)", level: 2}
-    - {slug: "living-architecture-at-the-top-versioned-history-beneath", text: "Living architecture at the top, versioned history beneath", level: 2}
+    - {slug: "living-pages-and-frozen-history", text: "Living pages and frozen history", level: 2}
     - {slug: "decay-rule-so-the-layout-can-t-re-drift", text: "Decay rule (so the layout can't re-drift)", level: 3}
     - {slug: "structure", text: "Structure", level: 2}
-    - {slug: "versioned-adr-locations", text: "Versioned ADR Locations", level: 2}
+    - {slug: "adr-locations", text: "ADR locations", level: 2}
     - {slug: "c4-model", text: "C4 model", level: 2}
-    - {slug: "creating-a-new-adr", text: "Creating a New ADR", level: 2}
+    - {slug: "creating-a-new-adr", text: "Creating a new ADR", level: 2}
     - {slug: "find-adrs", text: "Find ADRs", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/adr-template.md"
@@ -4593,12 +4603,13 @@ pages:
   - path: "docs/architecture/ai-agent-architecture.md"
     title: "AI Agent Architecture Explained"
     divio_type: "none"
-    abstract: "How Spec Kitty stays agent-agnostic across 12 AI agents: slash commands backed by one shared command-template source, rendered per agent format, driving the same lane workflow."
+    abstract: "How Spec Kitty stays agent-agnostic: slash commands and Agent Skills rendered from one shared command-template source, per agent format, driving the same lane workflow."
     anchors:
     - {slug: "how-slash-commands-work", text: "How Slash Commands Work", level: 2}
-    - {slug: "the-12-supported-agents", text: "The 12 Supported Agents", level: 2}
-    - {slug: "cli-based-agents", text: "CLI-Based Agents", level: 3}
-    - {slug: "ide-based-agents", text: "IDE-Based Agents", level: 3}
+    - {slug: "the-supported-agents", text: "The Supported Agents", level: 2}
+    - {slug: "cli-slash-command-agents", text: "CLI slash-command agents", level: 3}
+    - {slug: "ide-slash-command-agents", text: "IDE slash-command agents", level: 3}
+    - {slug: "agent-skills-agents", text: "Agent Skills agents", level: 3}
     - {slug: "agent-specific-directories", text: "Agent-Specific Directories", level: 2}
     - {slug: "command-template-system", text: "Command Template System", level: 2}
     - {slug: "shared-logic-different-formats", text: "Shared Logic, Different Formats", level: 3}
@@ -4662,8 +4673,9 @@ pages:
   - path: "docs/architecture/calibration/README.md"
     title: "Calibration Report Template"
     divio_type: "none"
-    abstract: "Template for per-mission calibration reports documenting the §4.5.1 inequality check (R-005) for every mission step; reports are created and updated by WP10."
+    abstract: "Template for per-mission-type calibration reports that check, for every mission step, that DRG context resolution returns what the step needs and nothing irrelevant."
     anchors:
+    - {slug: "what-this-checks", text: "What this checks", level: 2}
     - {slug: "column-shape", text: "Column Shape", level: 2}
     - {slug: "overlay-files", text: "Overlay Files", level: 2}
     - {slug: "reports", text: "Reports", level: 2}
@@ -4725,7 +4737,7 @@ pages:
   - path: "docs/architecture/charter-backend-service-future.md"
     title: "Charter Backend Service (Future — Backlog)"
     divio_type: "none"
-    abstract: "Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Not 3.2.6."
+    abstract: "Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Backlog."
     anchors:
     - {slug: "1-motivation", text: "1. Motivation", level: 2}
     - {slug: "2-design-constraints-carried-from-the-near-term-work", text: "2. Design constraints (carried from the near-term work)", level: 2}
@@ -4761,9 +4773,9 @@ pages:
     - {slug: "known-limitations", text: "Known limitations", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/diagrams/01_context/README.md"
-    title: "3.x System Context"
+    title: "System Context (living)"
     divio_type: "none"
-    abstract: "Living 3.x system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, part of the living C4 model atop architecture/."
+    abstract: "Living system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, including Team Kitty and its Zeitgeist relay."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "scope-rules", text: "Scope Rules", level: 2}
@@ -4776,15 +4788,15 @@ pages:
     - {slug: "decision-traceability", text: "Decision Traceability", level: 2}
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/diagrams/02_containers/README.md"
-    title: "3.x Containers"
+    title: "Containers (living)"
     divio_type: "none"
-    abstract: "Living 3.x containers view (C4 level 2): the current decomposition of Spec Kitty into deployable and runnable containers, part of the living C4 model."
+    abstract: "Living containers view (C4 level 2): the current decomposition of Spec Kitty into logical containers, including the Zeitgeist moment publisher."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "scope-rules", text: "Scope Rules", level: 2}
     - {slug: "container-diagram-mermaid", text: "Container Diagram (Mermaid)", level: 2}
     - {slug: "container-responsibilities", text: "Container Responsibilities", level: 2}
-    - {slug: "canonical-shape-notes-3-x-what-these-containers-are-not", text: "Canonical-shape notes (3.x — what these containers are NOT)", level: 2}
+    - {slug: "canonical-shape-notes-what-these-containers-are-not", text: "Canonical-shape notes (what these containers are NOT)", level: 2}
     - {slug: "domain-to-container-allocation", text: "Domain-to-Container Allocation", level: 2}
     - {slug: "behavioral-collaboration-loops", text: "Behavioral Collaboration Loops", level: 2}
     - {slug: "loop-a-mission-lifecycle-and-execution-state-resolution", text: "Loop A: Mission lifecycle and execution-state resolution", level: 3}
@@ -4795,9 +4807,9 @@ pages:
     - {slug: "decision-traceability", text: "Decision Traceability", level: 2}
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/diagrams/02_containers/runtime-execution-domain.md"
-    title: "3.x Runtime/Execution Domain (Container Detail)"
+    title: "Runtime/Execution Domain (living container detail)"
     divio_type: "none"
-    abstract: "Living 3.x container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty."
+    abstract: "Living container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "domain-boundary-container-level", text: "Domain Boundary (Container Level)", level: 2}
@@ -4809,15 +4821,15 @@ pages:
     - {slug: "runtime-execution-container-interaction", text: "Runtime/Execution Container Interaction", level: 2}
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/diagrams/03_components/README.md"
-    title: "3.x Components"
+    title: "Components (living)"
     divio_type: "none"
-    abstract: "Living 3.x components view (C4 level 3): the current breakdown of Spec Kitty container internals into components, part of the living C4 model."
+    abstract: "Living components view (C4 level 3): the current breakdown of Spec Kitty container internals into components, part of the living C4 model."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "scope-rules", text: "Scope Rules", level: 2}
     - {slug: "component-diagram-mermaid", text: "Component Diagram (Mermaid)", level: 2}
     - {slug: "component-responsibility-map", text: "Component Responsibility Map", level: 2}
-    - {slug: "canonical-shape-notes-3-x", text: "Canonical-shape notes (3.x)", level: 2}
+    - {slug: "canonical-shape-notes", text: "Canonical-shape notes", level: 2}
     - {slug: "domain-alignment-matrix", text: "Domain Alignment Matrix", level: 2}
     - {slug: "behavioral-sequences", text: "Behavioral Sequences", level: 2}
     - {slug: "sequence-a-execution-state-resolution-cwd-invariant", text: "Sequence A: Execution-state resolution (CWD-invariant)", level: 3}
@@ -4831,9 +4843,10 @@ pages:
   - path: "docs/architecture/diagrams/README.md"
     title: "Architecture Diagrams (living C4)"
     divio_type: "none"
-    abstract: "The living C4 model for the current 3.x architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified 3.x domain model."
+    abstract: "The living C4 model for the current architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified domain model."
     anchors:
-    - {slug: "the-3-x-domain-model-these-diagrams-depict", text: "The 3.x domain model these diagrams depict", level: 2}
+    - {slug: "the-domain-model-these-diagrams-depict", text: "The domain model these diagrams depict", level: 2}
+    - {slug: "how-the-modules-map-onto-the-enforced-layer-packages", text: "How the modules map onto the enforced layer packages", level: 3}
     - {slug: "convention", text: "Convention", level: 2}
   - path: "docs/architecture/divio-documentation.md"
     title: "Why the Divio Documentation System?"
@@ -4921,7 +4934,7 @@ pages:
     - {slug: "quick-start", text: "Quick Start", level: 2}
     - {slug: "initial-documentation-new-project", text: "Initial Documentation (New Project)", level: 3}
     - {slug: "gap-filling-mode-existing-documentation", text: "Gap-Filling Mode (Existing Documentation)", level: 3}
-    - {slug: "feature-specific-documentation", text: "Feature-Specific Documentation", level: 3}
+    - {slug: "mission-specific-documentation", text: "Mission-Specific Documentation", level: 3}
     - {slug: "workflow-phases", text: "Workflow Phases", level: 2}
     - {slug: "1-discover", text: "1. Discover", level: 3}
     - {slug: "2-audit", text: "2. Audit", level: 3}
@@ -4941,7 +4954,7 @@ pages:
     - {slug: "iteration-modes", text: "Iteration Modes", level: 2}
     - {slug: "initial-mode", text: "Initial Mode", level: 3}
     - {slug: "gap-filling-mode", text: "Gap-Filling Mode", level: 3}
-    - {slug: "feature-specific-mode", text: "Feature-Specific Mode", level: 3}
+    - {slug: "mission-specific-mode", text: "Mission-Specific Mode", level: 3}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "generator-not-found", text: "Generator Not Found", level: 3}
     - {slug: "configuration-file-not-found", text: "Configuration File Not Found", level: 3}
@@ -4983,7 +4996,7 @@ pages:
   - path: "docs/architecture/feature-detection.md"
     title: "Architecture: Centralized Feature Detection"
     divio_type: "none"
-    abstract: "Architecture of centralized feature detection (v0.14.0), partly superseded by mission 083's canonical mission_id identity model; kept as the prior-design record."
+    abstract: "Prior-design record of the v0.14.0 centralized mission-selection (feature detection) design, superseded by mission 083's canonical mission_id identity model."
     anchors:
     - {slug: "problem-statement", text: "Problem Statement", level: 2}
     - {slug: "specific-bug-example", text: "Specific Bug Example", level: 3}
@@ -5142,20 +5155,17 @@ pages:
   - path: "docs/architecture/index.md"
     title: "Architecture notes"
     divio_type: "none"
-    abstract: "Page index for docs/architecture/: living C4 model and vision, per-version (1.x/2.x/3.x) history, explanations, assessments, connector/installation notes, and reference templates."
+    abstract: "Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history."
     anchors:
     - {slug: "living-architecture-current-forward", text: "Living architecture (current + forward)", level: 2}
-    - {slug: "versioned-history-3-x", text: "Versioned history — 3.x", level: 2}
-    - {slug: "versioned-history-2-x", text: "Versioned history — 2.x", level: 2}
-    - {slug: "versioned-history-1-x", text: "Versioned history — 1.x", level: 2}
     - {slug: "explanations", text: "Explanations", level: 2}
     - {slug: "status-trail-workflow-models", text: "Status, trail & workflow models", level: 2}
-    - {slug: "connector-installation-notes", text: "Connector & installation notes", level: 2}
+    - {slug: "connector-installation-decisions", text: "Connector & installation decisions", level: 2}
     - {slug: "assessments", text: "Assessments", level: 2}
     - {slug: "calibration-reports", text: "Calibration reports", level: 2}
     - {slug: "ownership-charter-models", text: "Ownership & charter models", level: 2}
     - {slug: "templates-reference", text: "Templates & reference", level: 2}
-    - {slug: "retired-redirect-guides", text: "Retired / redirect guides", level: 2}
+    - {slug: "historical-prior-cycle", text: "Historical / prior cycle", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/kanban-workflow.md"
     title: "Kanban Workflow Explained"
@@ -5262,9 +5272,9 @@ pages:
     - {slug: "spec-kitty-specify", text: "/spec-kitty.specify", level: 3}
     - {slug: "spec-kitty-plan", text: "/spec-kitty.plan", level: 3}
     - {slug: "spec-kitty-implement", text: "/spec-kitty.implement", level: 3}
-    - {slug: "per-feature-vs-global", text: "Per-Feature vs. Global", level: 2}
+    - {slug: "per-mission-vs-global", text: "Per-Mission vs. Global", level: 2}
     - {slug: "before-0-8-0-project-wide-mission", text: "Before 0.8.0: Project-Wide Mission", level: 3}
-    - {slug: "after-0-8-0-per-feature-mission", text: "After 0.8.0: Per-Feature Mission", level: 3}
+    - {slug: "after-0-8-0-per-mission-mission-type", text: "After 0.8.0: Per-Mission Mission Type", level: 3}
     - {slug: "how-missions-affect-agent-behavior", text: "How Missions Affect Agent Behavior", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
     - {slug: "try-it", text: "Try It", level: 2}
@@ -5353,11 +5363,12 @@ pages:
     - {slug: "track-a-the-write-seam-which-bytes-win", text: "Track A — the write seam (which bytes win)", level: 2}
     - {slug: "track-b-the-read-seam-which-surface-a-reader-trusts", text: "Track B — the read seam (which surface a reader trusts)", level: 2}
     - {slug: "shared-vs-disjoint-verdict", text: "Shared-vs-disjoint verdict", level: 2}
+    - {slug: "provenance", text: "Provenance", level: 2}
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/profile-load-reliability.md"
     title: "Profile-Load Reliability (Squads & WP Prompts)"
     divio_type: "none"
-    abstract: "Why adversarial and research squads stopped loading charter agent profiles, and the 3.2.6 fix: resolve-then-inject, fail-loud dispatch, and a /spk-load-profile primitive."
+    abstract: "Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile."
     anchors:
     - {slug: "1-symptoms", text: "1. Symptoms", level: 2}
     - {slug: "2-root-cause-a-charter-activation-allowlist-gap-issue-1", text: "2. Root cause — a charter activation-allowlist gap (Issue 1)", level: 2}
@@ -5366,7 +5377,7 @@ pages:
     - {slug: "2-3-it-ships-upstream", text: "2.3 It ships upstream", level: 3}
     - {slug: "2-4-the-seam-gap-why-it-s-silent", text: "2.4 The seam gap (why it's silent)", level: 3}
     - {slug: "3-secondary-finding-wp-prompt-naming-hygiene-issue-2-low", text: "3. Secondary finding — WP-prompt naming hygiene (Issue 2, LOW)", level: 2}
-    - {slug: "4-near-term-stabilization-design-3-2-6-scope", text: "4. Near-term stabilization design (3.2.6 scope)", level: 2}
+    - {slug: "4-near-term-stabilization-design", text: "4. Near-term stabilization design", level: 2}
     - {slug: "4-1-fix-the-activation-data-close-by-construction", text: "4.1 Fix the activation data (close by construction)", level: 3}
     - {slug: "4-2-orchestrator-resolves-then-injects-the-durable-seam-fix", text: "4.2 Orchestrator-resolves-then-injects (the durable seam fix)", level: 3}
     - {slug: "4-3-the-spk-load-profile-primitive", text: "4.3 The `/spk-load-profile <id> <instructions>` primitive", level: 3}
@@ -5475,6 +5486,7 @@ pages:
     abstract: "Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
+    - {slug: "known-limitations", text: "Known limitations", level: 2}
     - {slug: "cli-commands", text: "CLI Commands", level: 2}
     - {slug: "spec-kitty-agent-status-emit", text: "`spec-kitty agent status emit`", level: 3}
     - {slug: "spec-kitty-agent-status-materialize", text: "`spec-kitty agent status materialize`", level: 3}
@@ -5542,17 +5554,18 @@ pages:
   - path: "docs/architecture/vision/README-3.x.md"
     title: "3.x — vision (history slot)"
     divio_type: "none"
-    abstract: "Per-era vision record for the current 3.x architecture track; forward vision lives in the living top-level while this slot holds the era's settled history."
-    anchors: []
+    abstract: "Per-era vision record for the 3.x architecture track, the prior era that closed with the 3.2.7 release; forward vision lives in the living vision page."
+    anchors:
+    - {slug: "3-x-era-forward-signal-2026-08-12", text: "3.x-era forward signal (2026-08-12)", level: 2}
   - path: "docs/architecture/vision/README.md"
     title: "Architecture Vision (living)"
     divio_type: "none"
-    abstract: "Landing page for the living architecture vision: the current and future, still-changeable forward intent at the top of architecture/, above versioned history."
+    abstract: "Landing page for the living architecture vision: the current and future, still-changeable forward intent for Spec Kitty, above the per-era history slots."
     anchors:
     - {slug: "what-belongs-here", text: "What belongs here", level: 2}
     - {slug: "what-does-not-belong-here", text: "What does NOT belong here", level: 2}
     - {slug: "vision-vs-decision-vs-spike", text: "Vision vs Decision vs Spike", level: 2}
-    - {slug: "current-era-forward-signal-2026-08-12", text: "Current-era forward signal (2026-08-12)", level: 2}
+    - {slug: "forward-signal-for-the-4-x-line-2026-09-30", text: "Forward signal for the 4.x line (2026-09-30)", level: 2}
   - path: "docs/architecture/wp-runtime-state-eviction.md"
     title: "WP Runtime-State Eviction — Architecture Design"
     divio_type: "none"
@@ -7263,7 +7276,7 @@ pages:
     - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
   - path: "docs/development/analysis-report-transactions.md"
     title: "Analysis report transactions"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Record an analysis report while preserving unrelated work and checking the report commit against its material governance inputs."
     anchors:
     - {slug: "material-inputs", text: "Material inputs", level: 2}
@@ -7284,7 +7297,6 @@ pages:
     - {slug: "quick-start", text: "Quick Start", level: 3}
     - {slug: "testing-unreleased-main-or-a-pull-request", text: "Testing Unreleased Main or a Pull Request", level: 3}
     - {slug: "test-isolation", text: "Test Isolation", level: 3}
-    - {slug: "pytest-collection-fails-with-cannot-import-name-normalize-event-id-from-spec-kitty-events", text: "Pytest collection fails with \"cannot import name 'normalize_event_id' from 'spec_kitty_events'\"", level: 3}
     - {slug: "troubleshooting-version-issues", text: "Troubleshooting Version Issues", level: 3}
     - {slug: "troubleshooting-shared-package-import-issues", text: "Troubleshooting Shared Package Import Issues", level: 3}
     - {slug: "how-test-isolation-works", text: "How Test Isolation Works", level: 3}
@@ -7294,6 +7306,7 @@ pages:
     - {slug: "development-workflow", text: "Development workflow", level: 2}
     - {slug: "release-process", text: "Release Process", level: 2}
     - {slug: "branch-strategy", text: "Branch Strategy", level: 3}
+    - {slug: "release-candidates-x-y-zrcn", text: "Release candidates (X.Y.ZrcN)", level: 3}
     - {slug: "quick-release-patch", text: "Quick Release (Patch)", level: 3}
     - {slug: "full-release-minor-major", text: "Full Release (Minor/Major)", level: 3}
     - {slug: "what-the-release-workflow-does", text: "What the Release Workflow Does", level: 3}
@@ -7428,6 +7441,7 @@ pages:
     - {slug: "priority-and-what-makes-a-p0", text: "Priority, and what makes a P0", level: 3}
     - {slug: "a-p0-bug-should-carry-a-failing-reproduction-test", text: "A P0 bug should carry a failing reproduction test", level: 3}
     - {slug: "what-good-first-issue-means-here", text: "What \"good first issue\" means here", level: 3}
+    - {slug: "milestones-and-release-cycles", text: "Milestones and release cycles", level: 2}
     - {slug: "label-taxonomy", text: "Label taxonomy", level: 2}
     - {slug: "classification-labels-what-kind-of-work-it-is", text: "Classification labels — what *kind of work* it is", level: 3}
     - {slug: "domain-labels-which-code-domain-the-work-routes-to", text: "Domain labels — *which code domain* the work routes to", level: 3}
@@ -7464,7 +7478,7 @@ pages:
     - {slug: "11-hand-off-the-operator-merges", text: "11. Hand-off — the operator merges", level: 2}
     - {slug: "12-follow-up-hygiene", text: "12. Follow-up hygiene", level: 2}
     - {slug: "gotchas", text: "Gotchas", level: 2}
-    - {slug: "pr-body-contract-program-md-5", text: "PR-body contract (PROGRAM.md §5)", level: 2}
+    - {slug: "pr-body-contract", text: "PR-body contract", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/review-gates.md"
     title: "Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate"
@@ -7489,6 +7503,7 @@ pages:
     divio_type: "none"
     abstract: "The contributor/maintainer zone for Spec Kitty — subdivided into getting-started, how-to runbooks, reference policy, and testing — kept separate from end-user guides."
     anchors:
+    - {slug: "historical-prior-cycle", text: "Historical / prior cycle", level: 3}
     - {slug: "start-here", text: "Start here", level: 2}
     - {slug: "non-page-artifacts", text: "Non-page artifacts", level: 2}
     - {slug: "repo-owned-workflow-commands", text: "Repo-owned workflow commands", level: 2}
@@ -7505,7 +7520,7 @@ pages:
   - path: "docs/development/reference/ci-gate-mechanics.md"
     title: "CI and Architectural Gate Mechanics"
     divio_type: "reference"
-    abstract: "What trips each spec-kitty CI gate — testing and marker gates, the architectural battery, docs-freshness registration, and accept-to-merge close-out — with symptom and repro."
+    abstract: "What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro."
     anchors:
     - {slug: "how-ci-is-wired-so-a-local-run-can-mirror-it", text: "How CI is wired (so a local run can mirror it)", level: 2}
     - {slug: "testing-and-marker-gates", text: "Testing and marker gates", level: 2}
@@ -7523,9 +7538,10 @@ pages:
     - {slug: "docs-freshness-and-registration-gates", text: "Docs-freshness and registration gates", level: 2}
     - {slug: "a-new-docs-page-needs-triple-registration-plus-a-description-band", text: "A new docs page needs triple registration plus a description band", level: 3}
     - {slug: "touching-any-docs-path-can-surface-a-pre-existing-docs-test-flake", text: "Touching any docs path can surface a pre-existing docs-test flake", level: 3}
+    - {slug: "where-the-docs-site-deploys-from", text: "Where the docs site deploys from", level: 3}
     - {slug: "the-github-pages-docsite-build-needs-pythonpath", text: "The GitHub Pages docsite build needs `PYTHONPATH`", level: 3}
-    - {slug: "accept-to-merge-consolidation-gates", text: "Accept-to-merge consolidation gates", level: 2}
-    - {slug: "the-issue-matrix-verdict-gate-fires-on-every-wp-approval", text: "The issue-matrix verdict gate fires on every WP approval", level: 3}
+    - {slug: "accept-to-consolidate-gates", text: "Accept-to-consolidate gates", level: 2}
+    - {slug: "the-issue-matrix-verdict-gate-blocks-wp-approval", text: "The issue-matrix verdict gate blocks WP approval", level: 3}
     - {slug: "the-other-close-out-gates", text: "The other close-out gates", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/coverage-signals.md"
@@ -7546,7 +7562,7 @@ pages:
     divio_type: "none"
     abstract: "Reference material for maintainers — friction inventories, coverage-signal reconciliation, seam ledgers, standing orders, red-main policy, and terminology exemptions."
     anchors:
-    - {slug: "docs-site-publication-source", text: "Docs site publication source", level: 2}
+    - {slug: "historical-prior-cycle", text: "Historical / prior cycle", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/issue-matrix-verdicts.md"
     title: "Issue-Matrix Verdict Reference"
@@ -7592,7 +7608,7 @@ pages:
     - {slug: "review-response", text: "Review response", level: 2}
   - path: "docs/development/reference/quality-and-tech-debt-standing-orders.md"
     title: "Quality & Tech-Debt Standing Orders"
-    divio_type: "how-to"
+    divio_type: "explanation"
     abstract: "Eight-section standing orders for spec-driven missions: adversarial squads, campsite cleaning, test discipline, architectural gates, sources, git workflow, and mission hygiene."
     anchors:
     - {slug: "1-the-adversarial-squad-cadence-the-spine", text: "1. The Adversarial Squad Cadence (the spine)", level: 2}
@@ -7672,7 +7688,7 @@ pages:
   - path: "docs/development/reporting/debrief-styleguide.md"
     title: "Executive Debrief House Style"
     divio_type: "reference"
-    abstract: "House style for Spec Kitty executive debriefs (WTF-happened one-pagers): the layout grammar, pill vocabulary, brand palette, and light-chrome print treatment."
+    abstract: "House style for Spec Kitty executive debriefs (what-happened one-pagers): the layout grammar, pill vocabulary, brand palette, and light-chrome print treatment."
     anchors:
     - {slug: "provenance-this-is-the-design-system-s-style-not-ad-hoc", text: "Provenance — this is the design system's style, not ad-hoc", level: 2}
     - {slug: "palette-light-theme-these-are-printed-one-pagers", text: "Palette (light theme — these are printed one-pagers)", level: 2}
@@ -7690,7 +7706,7 @@ pages:
   - path: "docs/development/testing/run-mutation-tests.md"
     title: "Run Mutation Tests Locally"
     divio_type: "how-to"
-    abstract: "How to run mutation tests locally with Spec Kitty 3.2: Mutation testing answers the question \"if I introduced a bug here, would my tests fail?\". Line and."
+    abstract: "How to run mutation tests locally with mutmut: mutation testing answers \"if I introduced a bug here, would my tests fail?\" where line coverage cannot."
     anchors:
     - {slug: "quick-start", text: "Quick start", level: 2}
     - {slug: "scope-a-run-to-one-module", text: "Scope a run to one module", level: 2}
@@ -10054,12 +10070,12 @@ pages:
     - {slug: "release-readiness-risk-candid", text: "Release readiness & risk (candid)", level: 2}
     - {slug: "what-s-next-the-strategic-call-for-the-po", text: "What's next & the strategic call for the PO", level: 2}
   - path: "docs/plans/3-2-x-milestone-roadmap.md"
-    title: "3.2.x Milestone — Roadmap"
+    title: "3.2.x Milestone — Roadmap (prior cycle)"
     divio_type: "none"
-    abstract: "Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items."
+    abstract: "Prior-cycle record: the operator roadmap for the 3.2.x milestone, with its epic spine, degod/unshim waves, census and exit criteria."
     anchors:
     - {slug: "intent-of-3-2-x", text: "Intent of 3.2.x", level: 2}
-    - {slug: "addendum-2026-09-14-4-0-x-is-now-the-active-cycle-authority-moved", text: "Addendum 2026-09-14 — 4.0.x is now the active cycle (authority moved)", level: 2}
+    - {slug: "addendum-2026-09-14-4-x-is-now-the-active-cycle-authority-moved", text: "Addendum 2026-09-14 — 4.x is now the active cycle (authority moved)", level: 2}
     - {slug: "addendum-2026-09-04-milestone-taxonomy-re-anchor-the-delayed-action-r", text: "Addendum 2026-09-04 — milestone-taxonomy re-anchor (the delayed Action R)", level: 2}
     - {slug: "1-the-milestone-taxonomy-the-body-speaks-no-longer-exists", text: "1. The milestone taxonomy the body speaks no longer exists", level: 3}
     - {slug: "2-resolved-but-unstruck-items-in-this-doc-and-its-siblings", text: "2. Resolved-but-unstruck items in this doc and its siblings", level: 3}
@@ -10081,7 +10097,7 @@ pages:
     - {slug: "milestone-census-2026-07-04", text: "Milestone census (2026-07-04)", level: 2}
     - {slug: "exit-criteria-for-3-2-x", text: "Exit criteria for 3.2.x", level: 2}
     - {slug: "risks-watch-items", text: "Risks / watch items", level: 2}
-    - {slug: "immediate-next-steps", text: "Immediate next steps", level: 2}
+    - {slug: "immediate-next-steps-historical-2026-07-do-not-act-on", text: "Immediate next steps (historical, 2026-07 — do not act on)", level: 2}
   - path: "docs/plans/3-2-x-open-core-delivery-plan.md"
     title: "3.2.x Open-Core Delivery Plan"
     divio_type: "none"
@@ -10108,7 +10124,7 @@ pages:
     abstract: "Roadmap for the active 4.0.0 cycle: four goal themes, the epic dependency spine, per-theme progress and exit criteria, and watch items through the post-rc structural tail."
     anchors:
     - {slug: "intent-of-4-0-0", text: "Intent of 4.0.0", level: 2}
-    - {slug: "release-posture-2026-09-14", text: "Release posture (2026-09-14)", level: 2}
+    - {slug: "release-posture", text: "Release posture", level: 2}
     - {slug: "drift-since-the-declaration-convergence-re-homing", text: "Drift since the declaration (convergence re-homing)", level: 2}
     - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
     - {slug: "per-theme-progress-and-scope", text: "Per-theme progress and scope", level: 2}
@@ -10910,7 +10926,7 @@ pages:
   - path: "docs/plans/domains/index.md"
     title: "Domain Throughlines — Catalog"
     divio_type: "none"
-    abstract: "One-hop catalog of the durable, version-spanning domain throughlines under docs/plans/domains/: SaaS & hosted sync, doctrine & charter, packs extraction, and API & dashboard."
+    abstract: "One-hop catalog of the durable domain throughlines under docs/plans/domains/: doctrine & charter, packs extraction, and API & dashboard."
     anchors:
     - {slug: "the-throughlines", text: "The throughlines", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
@@ -11928,22 +11944,28 @@ pages:
   - path: "docs/plans/engineering-notes/index.md"
     title: "Engineering notes"
     divio_type: "none"
-    abstract: "Internal engineering notes for Spec Kitty: runtime and state overhaul, surface-resolution clusters, triage logs, architectural reviews, and reflections."
+    abstract: "Internal engineering notes for Spec Kitty: field reports, design notes, architectural reviews, and the historical record of closed investigations and missions."
     anchors:
-    - {slug: "clusters", text: "Clusters", level: 2}
-    - {slug: "retired-clusters-deprecated", text: "Retired clusters (deprecated)", level: 3}
-    - {slug: "field-reports", text: "Field reports", level: 2}
-    - {slug: "closing-reports", text: "Closing reports", level: 2}
-    - {slug: "pre-spec-research", text: "Pre-spec research", level: 2}
-    - {slug: "docs-governance", text: "Docs governance", level: 2}
-    - {slug: "design-notes", text: "Design notes", level: 2}
+    - {slug: "reading-these-notes", text: "Reading these notes", level: 2}
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "clusters", text: "Clusters", level: 3}
+    - {slug: "field-reports", text: "Field reports", level: 3}
+    - {slug: "design-notes", text: "Design notes", level: 3}
+    - {slug: "docs-governance", text: "Docs governance", level: 3}
+    - {slug: "historical-closed-shipped-or-superseded", text: "Historical (closed, shipped or superseded)", level: 2}
+    - {slug: "prior-cycle-status-and-ci-notes", text: "Prior-cycle status and CI notes", level: 3}
+    - {slug: "mission-closeouts-and-verification-records", text: "Mission closeouts and verification records", level: 3}
+    - {slug: "pre-spec-research-and-mission-scopes-missions-delivered", text: "Pre-spec research and mission scopes (missions delivered)", level: 3}
+    - {slug: "architecture-audits-may-2026-3-2-x-cycle", text: "Architecture audits (May 2026, 3.2.x cycle)", level: 3}
+    - {slug: "retired-clusters", text: "Retired clusters", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/engineering-notes/mission-notes/index.md"
     title: "Mission Notes"
     divio_type: "none"
     abstract: "Mission-scoped engineering notes and classifications that support in-flight missions; transient by intent — consolidated into the owning mission on close."
     anchors:
-    - {slug: "pages", text: "Pages", level: 2}
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-owning-mission-closed", text: "Historical (owning mission closed)", level: 2}
   - path: "docs/plans/engineering-notes/mission-notes/mission-type-completion-arc-research.md"
     title: "Mission-type completion arc — pre-spec research (#2652 / S0–S4)"
     divio_type: "none"
@@ -12612,6 +12634,9 @@ pages:
     anchors:
     - {slug: "domain-throughlines-version-spanning", text: "Domain throughlines (version-spanning)", level: 2}
     - {slug: "portfolio-milestone-planning", text: "Portfolio & milestone planning", level: 2}
+    - {slug: "active-cycle-4-x", text: "Active cycle (4.x)", level: 3}
+    - {slug: "prior-cycle-3-2-x-historical", text: "Prior cycle (3.2.x) — historical", level: 3}
+    - {slug: "programmes-and-status-notes", text: "Programmes and status notes", level: 2}
     - {slug: "working-collections-by-area", text: "Working collections (by area)", level: 2}
   - path: "docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/README.md"
     title: "Initiative: 2026-02 Brainstorm Capture"
@@ -12884,9 +12909,9 @@ pages:
   - path: "docs/plans/initiatives/index.md"
     title: "Architecture 2.x Initiatives"
     divio_type: "none"
-    abstract: "Landing page for the 2.x architecture initiatives: active or exploratory, intentionally non-canonical work that feeds future architecture decisions."
+    abstract: "Retired landing page for the 2.x architecture initiatives: exploratory, non-canonical work kept as a historical record."
     anchors:
-    - {slug: "current-initiatives", text: "Current Initiatives", level: 2}
+    - {slug: "initiatives-all-retired", text: "Initiatives (all retired)", level: 2}
   - path: "docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md"
     title: "🎉 Encoding & Plan Validation Test Suite - COMPLETE"
     divio_type: "none"
@@ -13190,10 +13215,10 @@ pages:
   - path: "docs/plans/investigations/index.md"
     title: "Investigations"
     divio_type: "none"
-    abstract: "Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports."
+    abstract: "Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports, split into live and historical."
     anchors:
-    - {slug: "live-investigations", text: "Live investigations", level: 2}
-    - {slug: "retired-shipped-records", text: "Retired (shipped) records", level: 2}
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-shipped-decided-or-superseded", text: "Historical (shipped, decided or superseded)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/investigations/issue-1040-scope-assessment.md"
     title: "Issue #1040 — ADRs as First-Class Primitive: Scope Inclusion Assessment"
@@ -13463,14 +13488,16 @@ pages:
     - {slug: "6-tracker-actions-already-taken", text: "6. Tracker actions already taken", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/next-mission-mappings/index.md"
-    title: "next` Mission Mapping Tracker"
+    title: "`next` Mission Mapping Tracker"
     divio_type: "none"
-    abstract: "Tracker for mission-specific spec-kitty next mapping/template gaps accepted temporarily, with the status rules governing each tracked gap."
-    anchors: []
+    abstract: "Closed tracker for the plan and documentation mission spec-kitty next mapping gaps; both are now guarded by hard regression tests."
+    anchors:
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-closed", text: "Historical (closed)", level: 2}
   - path: "docs/plans/next-mission-mappings/issue-documentation-mission-next-mapping.md"
     title: "Tracking Issue: `documentation` Mission `next` Mapping"
     divio_type: "none"
-    abstract: "Open tracking issue for the documentation mission's spec-kitty next mapping/template gap, owned by the spec-kitty team."
+    abstract: "Closed tracking issue for the documentation mission's spec-kitty next mapping/template gap, owned by the spec-kitty team."
     anchors:
     - {slug: "problem", text: "Problem", level: 2}
     - {slug: "desired-behavior", text: "Desired Behavior", level: 2}
@@ -13478,7 +13505,7 @@ pages:
   - path: "docs/plans/next-mission-mappings/issue-plan-mission-next-mapping.md"
     title: "Tracking Issue: `plan` Mission `next` Mapping"
     divio_type: "none"
-    abstract: "Open tracking issue for the plan mission's spec-kitty next mapping/template gap, owned by the spec-kitty team."
+    abstract: "Closed tracking issue for the plan mission's spec-kitty next mapping/template gap, owned by the spec-kitty team."
     anchors:
     - {slug: "problem", text: "Problem", level: 2}
     - {slug: "desired-behavior", text: "Desired Behavior", level: 2}
@@ -13549,8 +13576,10 @@ pages:
   - path: "docs/plans/refactor/index.md"
     title: "Refactor"
     divio_type: "none"
-    abstract: "Degod/unshim program and related slice-landing planning — inventories, roadmaps, and mission debriefs."
+    abstract: "Degod/unshim program and slice-landing planning: inventories, roadmaps and mission debriefs. All retired; kept as the record of the 3.2.x refactor work."
     anchors:
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-retired", text: "Historical (retired)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/refactor/slice-f-gap-analysis.md"
     title: "Slice F — Codebase-to-Intent Gap Analysis"
@@ -13657,10 +13686,10 @@ pages:
   - path: "docs/plans/research/index.md"
     title: "Research"
     divio_type: "none"
-    abstract: "Landing page for the plans research artifacts — per-era research history slots and standalone research syntheses."
+    abstract: "Landing page for the plans research artifacts — live research notes, superseded syntheses, and the retired per-era history slots."
     anchors:
-    - {slug: "per-era-history-slots", text: "Per-era history slots", level: 2}
-    - {slug: "standalone-research", text: "Standalone research", level: 2}
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical", text: "Historical", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/research/session-presence-harness-gaps.md"
     title: "Research Notes: Session Presence — Harness Capability Gaps"
@@ -13710,6 +13739,8 @@ pages:
     divio_type: "none"
     abstract: "PR and code-review artifacts — resolution plans, test plans, and execution reports for reviewed changes."
     anchors:
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-retired", text: "Historical (retired)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/reviews/pr305-review-resolution-plan.md"
     title: "PR #305 Review Resolution Plan"
@@ -13875,8 +13906,13 @@ pages:
   - path: "docs/plans/testing/index.md"
     title: "Testing"
     divio_type: "none"
-    abstract: "Test-suite planning and tuning notes — mutation testing, acceleration, friction audit, and CI gate tuning."
+    abstract: "Test-suite planning and tuning notes from the 3.2.x cycle — mutation testing, acceleration, the friction audit, and CI gate tuning. All retired."
     anchors:
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-retired", text: "Historical (retired)", level: 2}
+    - {slug: "ci-topology-and-gates-superseded-by-the-modular-ci-3995", text: "CI topology and gates (superseded by the modular CI, #3995)", level: 3}
+    - {slug: "test-suite-friction-and-acceleration-epics-2071-and-1931-closed", text: "Test-suite friction and acceleration (epics #2071 and #1931 closed)", level: 3}
+    - {slug: "mutation-testing", text: "Mutation testing", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/testing/mutation-testing-findings.md"
     title: "Mutation Testing Findings (WP05)"
@@ -14126,7 +14162,8 @@ pages:
     - {slug: "template", text: "Template", level: 2}
     - {slug: "status-lifecycle", text: "Status Lifecycle", level: 2}
     - {slug: "implementation-status-field", text: "Implementation Status Field", level: 2}
-    - {slug: "index", text: "Index", level: 2}
+    - {slug: "live", text: "Live", level: 2}
+    - {slug: "historical-2-x-era-vision-snapshots", text: "Historical (2.x-era vision snapshots)", level: 2}
     - {slug: "relationship-to-other-architecture-artifacts", text: "Relationship to Other Architecture Artifacts", level: 2}
     - {slug: "evaluation", text: "Evaluation", level: 2}
   - path: "docs/plans/user_journey/init-doctrine-flow.md"
