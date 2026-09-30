@@ -162,8 +162,6 @@ def test_derived_dirs_inherit_env_base(
     assert root.base == base
     assert root.auth_dir == base / "auth"
     assert root.tracker_dir == base / "tracker"
-    assert root.sync_dir == base / "sync"
-    assert root.daemon_dir == base / "daemon"
     assert root.cache_dir == base / "cache"
 
 
@@ -195,8 +193,6 @@ def _assert_no_dirs_created(root: RuntimeRoot) -> None:
         root.base,
         root.auth_dir,
         root.tracker_dir,
-        root.sync_dir,
-        root.daemon_dir,
         root.cache_dir,
     ):
         assert not path.exists(), f"{path} was created — resolution is not pure"

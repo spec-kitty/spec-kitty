@@ -160,8 +160,8 @@ def get_saas_base_url() -> str:
     (:func:`specify_cli.auth.server_target.resolve_server_target`) instead.
 
     Fenced off every token-send path (#4755, ``contracts/issuer-target-helper.md``):
-    ``auth/flows/refresh.py``, ``auth/flows/revoke.py``, ``auth/token_manager.py``,
-    and ``auth/websocket/token_provisioning.py`` must never call this accessor,
+    ``auth/flows/refresh.py``, ``auth/flows/revoke.py`` and ``auth/token_manager.py``
+    must never call this accessor,
     because it knows nothing about a session's issuer and would silently send
     a bearer token to the wrong host on a stale/mismatched session. Those flows
     resolve their endpoint through

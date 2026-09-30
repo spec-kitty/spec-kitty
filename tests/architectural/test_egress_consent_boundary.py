@@ -561,11 +561,6 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="OAuth token revocation; carries no project data.",
     ),
-    "specify_cli/auth/websocket/token_provisioning.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="Provisions a websocket token; carries no project data.",
-    ),
     "specify_cli/tracker/saas_readiness.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",
@@ -1857,19 +1852,19 @@ def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
 #
 # Extends the E18 "token traffic, no project data" allowances above
 # (auth/flows/refresh.py, auth/flows/revoke.py, auth/token_manager.py,
-# auth/websocket/token_provisioning.py, auth/http/transport.py already carry
+# auth/http/transport.py already carry
 # a NOT_PROJECT_DATA row in `_EGRESS_ALLOWLIST` for the *sink* scanner) with a
 # second, narrower boundary on one specific accessor rather than a duplicate
 # gate: `get_saas_base_url()` knows nothing about a session's issuer, so a
 # token-send flow that calls it can silently send a held bearer token to the
 # wrong host on a stale/mismatched session
-# (contracts/issuer-target-helper.md). The four flows above must instead
+# (contracts/issuer-target-helper.md). The three flows above must instead
 # resolve their endpoint through
 # `specify_cli.auth.server_target.resolve_token_endpoint`, which compares the
 # session's issuer against the resolved target and refuses on a mismatch.
 #
 # AST-based, not text-matching, and this distinction is load-bearing here:
-# three of the four forbidden modules carry a *comment* naming
+# forbidden modules carry a *comment* naming
 # `get_saas_base_url()` to explain that they no longer call it
 # (auth/flows/refresh.py:98/105, auth/token_manager.py:162/439) -- a grep
 # would false-positive on exactly the modules this fence exists to protect.
@@ -1879,13 +1874,14 @@ def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
 
 _ISSUER_TARGET_SYMBOL = "get_saas_base_url"
 
-#: The four token-send modules `get_saas_base_url()` must never reach.
+#: The three token-send modules `get_saas_base_url()` must never reach
+#: (the fourth, `auth/websocket/token_provisioning.py`, was deleted with the
+#: dead `auth.websocket` package, dead-code review 2026-09-30).
 _FORBIDDEN_TOKEN_SEND_MODULES: frozenset[str] = frozenset(
     {
         "specify_cli/auth/flows/refresh.py",
         "specify_cli/auth/flows/revoke.py",
         "specify_cli/auth/token_manager.py",
-        "specify_cli/auth/websocket/token_provisioning.py",
     }
 )
 
@@ -1918,7 +1914,7 @@ _SERVER_TARGET_DECISION_SYMBOLS: frozenset[str] = frozenset(
     }
 )
 
-#: The six consumers SC-003 names: the four token-send flows,
+#: The five consumers SC-003 names: the three token-send flows,
 #: `saas_client.auth._guard_session_issuer`, and
 #: `_auth_saas_target.format_saas_mismatch_warning`.
 _ISSUER_TARGET_DECISION_CONSUMERS: frozenset[str] = frozenset(
@@ -1926,7 +1922,6 @@ _ISSUER_TARGET_DECISION_CONSUMERS: frozenset[str] = frozenset(
         "specify_cli/auth/flows/refresh.py",
         "specify_cli/auth/flows/revoke.py",
         "specify_cli/auth/token_manager.py",
-        "specify_cli/auth/websocket/token_provisioning.py",
         "specify_cli/saas_client/auth.py",
         "specify_cli/cli/commands/_auth_saas_target.py",
     }
@@ -2016,7 +2011,7 @@ class TestIssuerTargetFence:
     """
 
     def test_forbidden_modules_carry_no_reference_today(self) -> None:
-        """T018: the four token-send modules are clean on the real tree."""
+        """T018: the three token-send modules are clean on the real tree."""
         violations = _issuer_target_fence_violations(
             forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
             allowlist=_ISSUER_TARGET_ALLOWLIST_FLOOR,
@@ -2024,7 +2019,7 @@ class TestIssuerTargetFence:
         assert violations == [], "\n".join(violations)
 
     def test_allowlist_floor_is_disjoint_from_forbidden_modules(self) -> None:
-        """T019: the allowlist provably excludes the four token-send modules
+        """T019: the allowlist provably excludes the three token-send modules
         (no vacuous whitelist)."""
         overlap = _FORBIDDEN_TOKEN_SEND_MODULES & _ISSUER_TARGET_ALLOWLIST_FLOOR
         assert overlap == set(), f"vacuous allowlist: {sorted(overlap)}"
@@ -2117,7 +2112,7 @@ class TestIssuerTargetFence:
     def test_six_consumers_import_the_shared_issuer_target_decision(self) -> None:
         """SC-003 positive membership: the compare+normalize+remedy decision
         lives in exactly one module (`server_target.py`); every one of the
-        six consumers (four flows + `saas_client._guard_session_issuer` +
+        five consumers (three flows + `saas_client._guard_session_issuer` +
         `_auth_saas_target.format_saas_mismatch_warning`) imports/consumes
         it. Positive membership, not a "no copies" grep.
         """

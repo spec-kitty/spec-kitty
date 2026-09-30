@@ -108,15 +108,6 @@ class ResolvedServerTarget:
     override_mode: OverrideMode
     resolved_server_url: str
 
-    def to_diagnostics_dict(self) -> dict[str, str | None]:
-        """Return the resolution inputs for structured output."""
-        return {
-            "configured_server_url": self.configured_server_url,
-            "env_server_url": self.env_server_url,
-            "override_mode": self.override_mode.value,
-            "resolved_server_url": self.resolved_server_url,
-        }
-
 
 def _normalize_url(url: str) -> str:
     """Normalize a URL for comparison and resolution: strip + drop trailing ``/``."""
@@ -355,7 +346,7 @@ def resolve_token_endpoint(session: StoredSession | None) -> str:
     """Resolve the single canonical endpoint a session's tokens may be sent to.
 
     This is the shared issuer-target authority every token-bearing flow
-    (refresh, websocket provisioning, the SaaS client OAuth-session bridge)
+    (refresh, revoke, the SaaS client OAuth-session bridge)
     must consume instead of growing its own copy of the compare-and-refuse
     rule. See ``contracts/issuer-target-helper.md`` for the full contract.
 

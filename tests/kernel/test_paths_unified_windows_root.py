@@ -111,8 +111,6 @@ def test_spec_kitty_home_sets_runtime_base_on_all_platforms(
     assert root.platform == platform
     assert root.base == base
     assert root.tracker_dir == base / "tracker"
-    assert root.sync_dir == base / "sync"
-    assert root.daemon_dir == base / "daemon"
 
 
 @pytest.mark.parametrize("platform", ["linux", "darwin"])

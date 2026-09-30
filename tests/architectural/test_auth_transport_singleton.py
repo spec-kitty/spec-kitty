@@ -10,9 +10,9 @@ calls in those subsystems are a regression of FR-030.
 Walked subsystems
 -----------------
 * ``src/specify_cli/tracker/``
-* ``src/specify_cli/auth/websocket/`` (the websocket-token provisioning
-  surface; the sync package's own websocket connection client was walked
-  here too until it was deleted along with that package, issue #5)
+* ``src/specify_cli/auth/websocket/`` was walked here too until it was
+  deleted (dead-code review 2026-09-30); the sync package's own websocket
+  connection client went earlier with that package (issue #5)
 
 Allowlist
 ---------
@@ -45,7 +45,6 @@ _SRC = _REPO_ROOT / "src" / "specify_cli"
 # Subsystems that MUST go through the centralized auth transport.
 _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
     _SRC / "tracker",
-    _SRC / "auth" / "websocket",
 )
 
 # The only modules permitted to instantiate httpx clients directly.

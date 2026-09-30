@@ -210,7 +210,10 @@ def test_hostname_change_does_not_invalidate_v3_session(storage: FastFileFallbac
 def test_legacy_v2_session_is_read_and_migrated(storage: FastFileFallback, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("specify_cli.auth.secure_storage.file_fallback.socket.gethostname", lambda: "legacy-host")
     session = _make_session()
-    salt = storage._load_or_create_salt()
+    salt = os.urandom(16)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "session.salt").write_bytes(salt)
+    os.chmod(tmp_path / "session.salt", 0o600)
     key = storage._derive_legacy_key(salt)
     nonce = os.urandom(12)
     ciphertext = AESGCM(key).encrypt(nonce, session.to_json().encode(), None)

@@ -45,7 +45,7 @@ _TOP_LEVEL_SYMBOLS = (
     "ConflictResolution",
     # Helpers
     "normalize_event_id",
-    # Clock surface used by adapter.py
+    # Clock surface (adapter.py no longer wraps it; still part of the pinned contract)
     "LamportClock",
     "InMemoryClockStorage",
     # Event-store surface

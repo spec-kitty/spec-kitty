@@ -884,10 +884,8 @@ _PACKAGE_CLOSURE_ALLOWLIST: frozenset[str] = frozenset(
         # dead-code deletion sweep (review 2026-09-30, README section 2.1);
         # calibration's tests are a live FR-032 gate and move to tests/ rather
         # than being deleted.
-        "specify_cli.auth.websocket",
         "specify_cli.calibration",
         "specify_cli.charter_runtime.facade",
-        "specify_cli.proof",
     }
 )
 

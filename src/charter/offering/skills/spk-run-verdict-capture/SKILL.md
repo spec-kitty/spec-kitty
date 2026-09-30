@@ -39,10 +39,8 @@ is what `spec-kitty agent tasks status` and merge preflight read.
 
 ## Verdict vocabulary
 
-The verdict field is validated against the canonical bridge `specify_cli.status.event_verdicts()`
-plus the proof-event extras `commented`, `rejected`, `unknown` (see
-`specify_cli.proof.events`). Do not invent verdict strings; an unknown verdict is rejected at the
-seam. Moving a WP to `done` requires a review triple with `reviewer`, `verdict`, and `reference`.
+The verdict field is validated against the canonical bridge `specify_cli.status.event_verdicts()`.
+Do not invent verdict strings; an unknown verdict is rejected at the seam. Moving a WP to `done` requires a review triple with `reviewer`, `verdict`, and `reference`.
 
 ## Guardrails
 

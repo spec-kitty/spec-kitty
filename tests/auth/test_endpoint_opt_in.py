@@ -53,8 +53,8 @@ check this list against the diff). Each entry: call site -- classification
     ``test_rehydrate_membership_returns_false_without_raising_when_unconfigured``.
 11. ``auth/flows/refresh.py::TokenRefreshFlow.refresh`` -- Explicit --
     verified; caller (``token_manager.py``, #10) already covers it.
-12. ``auth/websocket/token_provisioning.py`` -- Explicit -- verified; no
-    live ``src/`` caller wires this up yet (grep confirmed).
+12. ``auth/websocket/token_provisioning.py`` -- deleted with the dead
+    ``auth.websocket`` package (dead-code review 2026-09-30).
 13. ``auth/http/transport.py::_targets_configured_saas`` -- Automatic --
     code change (D4): resolves via ``resolve_server_target_or_none()``
     instead of ``get_saas_base_url()``. Tests: ``TestTargetsConfiguredSaas``
@@ -260,9 +260,9 @@ def test_device_code_flow_direct_construction_raises_when_unconfigured(
 
 
 # ---------------------------------------------------------------------------
-# T028 item 12: websocket token provisioning has no live src/ caller today;
-# pin that a direct call still raises cleanly (ConfigurationError family),
-# not an unrelated traceback shape.
+# T028 item 12 (its websocket caller was deleted): pin that a direct
+# ``resolve_token_endpoint`` call still raises cleanly (ConfigurationError
+# family), not an unrelated traceback shape.
 # ---------------------------------------------------------------------------
 
 

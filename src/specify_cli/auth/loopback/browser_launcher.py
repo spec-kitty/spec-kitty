@@ -23,20 +23,6 @@ class BrowserLauncher:
     """Cross-platform browser launcher using stdlib :mod:`webbrowser`."""
 
     @staticmethod
-    def is_available() -> bool:
-        """Return True iff a browser controller is available on this system.
-
-        This probes ``webbrowser.get()`` without any arguments, which
-        returns the default browser controller for the platform or raises
-        :class:`webbrowser.Error` if none is registered.
-        """
-        try:
-            webbrowser.get()
-            return True
-        except webbrowser.Error:
-            return False
-
-    @staticmethod
     def launch(url: str) -> bool:
         """Open ``url`` in the default browser.
 

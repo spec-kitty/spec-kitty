@@ -27,8 +27,6 @@ def test_get_runtime_root_on_windows(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert root.base == fake_localappdata / "spec-kitty"
     assert root.auth_dir == root.base / "auth"
     assert root.tracker_dir == root.base / "tracker"
-    assert root.sync_dir == root.base / "sync"
-    assert root.daemon_dir == root.base / "daemon"
     assert root.cache_dir == root.base / "cache"
 
 

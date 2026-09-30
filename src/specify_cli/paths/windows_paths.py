@@ -46,14 +46,6 @@ class RuntimeRoot:
         return self.base / "tracker"
 
     @property
-    def sync_dir(self) -> Path:
-        return self.base / "sync"
-
-    @property
-    def daemon_dir(self) -> Path:
-        return self.base / "daemon"
-
-    @property
     def cache_dir(self) -> Path:
         return self.base / "cache"
 

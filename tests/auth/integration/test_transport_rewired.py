@@ -92,10 +92,3 @@ def test_get_token_manager_has_at_least_five_production_callers() -> None:
         f"found {len(downstream)}: {downstream}"
     )
 
-
-def test_websocket_provisioning_uses_factory() -> None:
-    """WebSocket token provisioning must call ``get_token_manager`` (FR-016)."""
-    import specify_cli.auth.websocket.token_provisioning as wp
-
-    source = inspect.getsource(wp)
-    assert "get_token_manager" in source

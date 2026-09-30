@@ -97,20 +97,6 @@ _BRIDGE_RELPATH = "src/specify_cli/status/verdict_vocab.py"
 #: fails WP05; it is not advisory.
 _UNSWEPT_ALLOWLIST: frozenset[str] = frozenset()
 
-#: The 5 modules THIS WP sweeps onto the bridge (WP04 owned_files) -- the
-#: genuine verdict-mapping sites. ``status/models.py`` and
-#: ``status/reducer.py`` are ALSO WP04-owned files, but are NOT sweep sites:
-#: neither has a verdict-mapping code path to adopt the bridge onto (review
-#: cycle 1 finding; see the module docstring above). Both are covered by the
-#: negative check instead (they never co-occur the inline literal pair).
-_SWEPT_MODULES: tuple[str, ...] = (
-    "src/specify_cli/sync/emitter.py",
-    "src/specify_cli/retrospective/generator.py",
-    "src/specify_cli/proof/events.py",
-    "src/specify_cli/orchestrator_api/commands.py",
-    "src/specify_cli/cli/commands/agent/tasks_move_task.py",
-)
-
 #: The exact literal pair whose CO-OCCURRENCE (not either alone) is the
 #: forbidden inline equivalence (contract's "grep-guard on co-occurring
 #: literals", upgraded here to an AST scan for non-line-adjacency).

@@ -12,7 +12,6 @@ fail-closed, which the packaged-default era had suspended.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -63,21 +62,6 @@ def test_all_fields_populated_under_env_equals_config(
     assert target.env_server_url == CONFIG_URL
     assert target.override_mode is OverrideMode.NONE
     assert target.resolved_server_url == CONFIG_URL
-
-
-def test_to_diagnostics_dict_is_json_safe_with_all_keys(target_root: Path) -> None:
-    _write_config(target_root, CONFIG_URL)
-    target = resolve_server_target()
-
-    diag = target.to_diagnostics_dict()
-    assert set(diag) == {
-        "configured_server_url",
-        "env_server_url",
-        "override_mode",
-        "resolved_server_url",
-    }
-    assert diag["override_mode"] == "none"
-    json.dumps(diag)  # must round-trip through JSON
 
 
 def test_neither_config_nor_env_raises_hosted_endpoint_unconfigured(target_root: Path) -> None:

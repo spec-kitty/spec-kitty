@@ -443,8 +443,8 @@ class SaaSTrackerClient:
         ``tests/architectural/test_auth_transport_singleton.py``
         explicitly allowlists this file with a tracked follow-up — the
         centralized :class:`AuthenticatedClient` exists and is the
-        target for the next migration wave (sync, websocket, and
-        widen-mode SaaS).
+        target for the next migration wave (widen-mode SaaS; the sync
+        and websocket clients it once also named have been deleted).
         """
         self._enforce_tracker_egress_consent()
 

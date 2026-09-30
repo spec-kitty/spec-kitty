@@ -15,19 +15,6 @@ from specify_cli.auth.loopback.browser_launcher import BrowserLauncher
 
 pytestmark = [pytest.mark.integration]
 
-def test_is_available_true_when_webbrowser_get_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(webbrowser, "get", lambda *a, **kw: object())
-    assert BrowserLauncher.is_available() is True
-
-
-def test_is_available_false_when_webbrowser_get_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _raise(*_a: object, **_kw: object) -> object:
-        raise webbrowser.Error("no browser")
-
-    monkeypatch.setattr(webbrowser, "get", _raise)
-    assert BrowserLauncher.is_available() is False
-
-
 def test_launch_returns_true_when_webbrowser_open_returns_true(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

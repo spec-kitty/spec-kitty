@@ -147,15 +147,6 @@ def generate_project_uuid() -> UUID:
     return uuid4()
 
 
-def generate_build_id() -> str:
-    """Generate a new UUID4 string for build identification (FR-009).
-
-    Returns:
-        UUID4 string for use as build_id in upstream contracts
-    """
-    return str(uuid4())
-
-
 def derive_build_id(project_uuid: UUID, node_id: str) -> str:
     """Derive a deterministic build_id from project_uuid + node_id (Decision C, FR-002).
 
@@ -163,7 +154,7 @@ def derive_build_id(project_uuid: UUID, node_id: str) -> str:
     output, with no randomness or I/O. This lets the read-only resolver
     (:func:`resolve_identity`) mint a *stable* build_id for an incomplete-identity
     checkout without persisting it — the value no longer drifts between calls the way
-    :func:`generate_build_id` (random uuid4) would.
+    a random uuid4 build_id would.
 
     Args:
         project_uuid: Resolved project UUID (the stable per-project identifier)

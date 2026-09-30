@@ -682,10 +682,6 @@ def reset_spec_kitty_queue_state() -> None:
     if queues_dir.exists():
         for scope_db in queues_dir.rglob("*.db"):
             _truncate_db(scope_db)
-    # Daemon owner record (preflight inspects this for D-3 mismatches)
-    daemon_dir = home / "daemon"
-    if daemon_dir.exists():
-        shutil.rmtree(daemon_dir)
     # Active-scope pointer (some preflight readers consult this to scope queries)
     active_scope = home / "active-scope"
     if active_scope.exists():

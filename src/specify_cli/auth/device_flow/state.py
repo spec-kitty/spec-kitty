@@ -80,14 +80,6 @@ class DeviceFlowState:
         """Return True when the device code has passed its expiry deadline."""
         return now_utc() >= self.expires_at
 
-    def time_remaining(self) -> timedelta:
-        """Return the remaining time before the device code expires.
-
-        The result can be negative if the flow is already expired; callers
-        that need a non-negative value should clamp it themselves.
-        """
-        return self.expires_at - now_utc()
-
     def record_poll(self) -> None:
         """Mark that a poll attempt just happened.
 

@@ -124,18 +124,6 @@ class FileFallbackStorage(SecureStorage):
     def _ensure_dir(self) -> None:
         self._dir.mkdir(mode=0o700, parents=True, exist_ok=True)
 
-    def _load_or_create_salt(self) -> bytes:
-        self._ensure_dir()
-        if self._salt_file.exists():
-            salt = self._salt_file.read_bytes()
-            if len(salt) != 16:
-                raise StorageDecryptionError(f"Salt file {self._salt_file} has wrong length ({len(salt)} bytes); expected 16")
-            return salt
-        salt = secrets.token_bytes(16)
-        self._salt_file.write_bytes(salt)
-        os.chmod(self._salt_file, 0o600)
-        return salt
-
     def _derive_legacy_key(self, salt: bytes) -> bytes:
         passphrase = f"{socket.gethostname()}:{_get_uid()}".encode()
         kdf = Scrypt(
