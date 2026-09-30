@@ -3,7 +3,7 @@ title: 'ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across
 description: 'Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority.'
 status: Accepted
 date: '2026-09-19'
-updated: '2026-09-29'
+updated: '2026-09-30'
 ---
 
 ## Context and Problem Statement
@@ -242,6 +242,62 @@ residuals #5371 and #5372 are out of scope.
   while that run is still mutating is not excluded by the lock. This is the pre-existing
   owner-token scheme, unchanged by this amendment.
 
+### Follow-up 2026-09-30 — every post-mutation exit goes through A3 (#5385)
+
+Mission `single-rollback-authority-01M3RCP4`, issue #5385. The A3 "remaining authorities" list
+above is superseded by this follow-up.
+
+- **One door.** One `try` in `_run_lane_based_consolidation_locked` covers every phase from
+  `_phase_merge_lanes` through `_phase_reconcile_before_teardown`. A non-zero `typer.Exit`, any
+  exception, or an interrupt (`BaseException`) calls `_report_rollback` →
+  `rollback_to_snapshot`, then re-raises the original error. `typer.Exit(0)` passes through. If
+  the rollback itself fails, or is interrupted by a second Ctrl-C, it prints "Rollback could
+  not complete" and the original error still propagates. After a full rollback the merge record
+  claims no completed WPs and no bake.
+- **Retired.** `_reset_coord_to_checkpoint`, `_revert_coord_done_commit`,
+  `_rollback_to_pre_mutation_checkpoint`, `_revert_orphan_target_bake_commit` and
+  `_capture_pre_mutation_coord_checkpoint` are deleted. `_heal_pending_coord_reconcile` runs
+  only at resume start. Remaining second restore paths: `_rollback_target_after_failed_reconciliation`
+  (the gate FAIL/REFUSE target CAS restore) and `coordination/coherence.py::repair_coord_strand`.
+- **Pin.** `tests/consolidation/test_single_rollback_authority.py` requires all 11 span phase
+  calls inside the door (whose reporting handlers end in a bare `raise`, and whose `typer.Exit`
+  handler reports only under an `exit_code` guard), forbids a `revert` argv in `executor.py`, and
+  forbids the retired names in `src/`.
+- **Protected-target preflight.** Before any branch moves (pre-lock), consolidate refuses a
+  mission whose pending done bookkeeping the workflow mutation policy would refuse (for example
+  a LANES mission recorded for protected `main`), with the policy's own code
+  `PROTECTED_BRANCH_REFUSED`, message and remedy. It reads the recorded meta target, not
+  `--target`; it applies only while some WP still needs its done write (an all-done resume is not
+  refused); it honours `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`; `--dry-run` reports the same
+  code. It reuses the transaction's own gate (`BookkeepingTransaction.preflight_refusal`,
+  `status_write_refusal`), so there is no second protected-branch list. A
+  `BookkeepingPolicyRefused` that reaches the command layer is printed readably, exit 1. When
+  a merge record for the mission already exists (a `--resume`, or a re-run after a crash), the
+  refusal does not claim that no branch moved; it names `spec-kitty consolidate --abort` to
+  restore what an earlier attempt moved. A mission the probe cannot resolve (unresolvable
+  context, unreadable `meta.json`) is an `Error:` line and exit 1, not a traceback.
+- **orchestrator-api.** `orchestrator-api consolidate-mission` has its own lane consolidation
+  path (`_execute_lane_merge`). It runs the same preflight before any gate or merge, on both its
+  code-lane path and its planning-artifact-only closeout, and puts the policy's code, message
+  and next step in its failure envelope.
+- **Residuals (named, not closed).**
+  - A `BookkeepingPolicyRefused` can still escape unrendered from `_record_operator_attestations`
+    (inside the lock, before the snapshot, with `--attest-*`) and from post-gate phases.
+  - The orchestrator-api path has no rollback door: a failure the preflight does not foresee
+    (for example a legacy mission, which is not probed) still leaves its target advanced.
+  - Legacy missions are not probed by the preflight.
+  - A coord mission with a missing coord branch still fails closed after squashing (the door
+    rolls it back).
+  - A stale lane auto-rebased during lane consolidation keeps its merge commit after a rollback
+    (lanes are report-only).
+  - The resume-start heal is a forward revert that runs before the attempt; a later rollback
+    treats it as the restore floor.
+  - A checkout whose resync failed after its branch moved looks dirty and is reported NOT
+    restored.
+  - On a protected `single_branch` landing, the write checkout switched to the target stays there
+    after a rollback.
+  - Out of scope: #3536, #5371, #5372.
+
 ## Consequences
 
 - **Positive.** A default-config command can no longer wedge an in-flight mission or push
@@ -272,6 +328,7 @@ residuals #5371 and #5372 are out of scope.
 
 - Issues: #4764, #4765, #4474, #2745; epic #3897 (parent), #1795 (#2745's lane-mechanics epic).
 - Amendment 2026-09-29: #5338, #5318, #5332, #5296 (epic #5001); mission `kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/`; residuals #5385, #5371, #5372.
+- Follow-up 2026-09-30: #5385; mission `kitty-specs/single-rollback-authority-01M3RCP4/`; out-of-scope follow-ups #3536, #5371, #5372.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),
