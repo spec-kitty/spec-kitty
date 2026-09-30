@@ -21,6 +21,7 @@ from typer.testing import CliRunner
 import specify_cli.cli.commands._mission_state_doctor as mission_state_mod
 import specify_cli.cli.commands.doctor as doctor_mod
 from specify_cli.cli.commands.doctor import app
+from specify_cli.migration.mission_state import MissionRepairResult, RepairReport
 
 pytestmark = [pytest.mark.integration]
 
@@ -462,29 +463,25 @@ class TestFixModeCharacterization:
         carries the same audit paths + count (parity). --fix never commits."""
         monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
 
-        mission = MagicMock()
-        mission.status = "updated"
-        mission.mission_slug = "q-mission"
-        mission.validation_errors = []
-        mission.meta_actions = []
         manifest = ".kittify/mission-state-audit/run-x.json"
         quarantine = ".kittify/mission-state-audit/quarantine/run-x"
-        payload = {
-            "summary": {
-                "missions_updated": 1,
-                "missions_unchanged": 0,
-                "missions_error": 0,
-                "quarantined_rows": 2,
-            },
-            "manifest_path": manifest,
-            "quarantine_root_path": quarantine,
-        }
-        report = MagicMock()
-        report.missions = [mission]
-        report.manifest_path = manifest
-        report.quarantine_root_path = quarantine
-        report.to_dict.return_value = payload
-        report.to_json.return_value = json.dumps(payload)
+        # A real RepairReport: the --json half must be rendered by the product's
+        # own ``to_json``, not echoed from a test-authored payload.
+        report = RepairReport(
+            run_id="run-x",
+            repo_head=None,
+            target_missions=["q-mission"],
+            manifest_path=manifest,
+            missions=[
+                MissionRepairResult(
+                    mission_slug="q-mission",
+                    mission_id=None,
+                    status="updated",
+                    quarantined_rows=2,
+                )
+            ],
+            quarantine_root_path=quarantine,
+        )
 
         # Pretty: names the tracked trail + quarantine + count + commit instruction.
         with patch("specify_cli.migration.mission_state.repair_repo", return_value=report):
