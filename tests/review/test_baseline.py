@@ -762,19 +762,22 @@ class TestConfigCustomTestCommand:
 class TestCoverageEdgeCases:
     """Additional tests to cover edge/error paths in baseline.py."""
 
-    def test_load_baseline_convenience_wrapper(self, tmp_path: Path) -> None:
-        """load_baseline() convenience function delegates to BaselineTestResult.load()."""
-        from specify_cli.review.baseline import load_baseline
+    def test_load_missing_and_existing_artifact(self, tmp_path: Path) -> None:
+        """BaselineTestResult.load() returns None for a missing path and round-trips a saved one.
+
+        (Retargeted from the deleted, never-called ``load_baseline`` wrapper.)
+        """
+        from specify_cli.review.baseline import BaselineTestResult
 
         # Non-existent path
-        result = load_baseline(tmp_path / "missing.json")
+        result = BaselineTestResult.load(tmp_path / "missing.json")
         assert result is None
 
         # Existing path
         baseline = _make_baseline()
         artifact = tmp_path / "baseline-tests.json"
         baseline.save(artifact)
-        loaded = load_baseline(artifact)
+        loaded = BaselineTestResult.load(artifact)
         assert loaded is not None
         assert loaded.wp_id == baseline.wp_id
 
