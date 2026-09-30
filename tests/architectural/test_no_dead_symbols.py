@@ -3682,15 +3682,10 @@ def _compute_dangling(
 # hand at widening time -- each entry is either wired into __all__ plus a
 # real caller, or deleted, in follow-up triage issue #633; this set only
 # exists to keep the widened gate from failing this same PR on debt it did
-# not create. Notably includes specify_cli.migration.mission_state's
-# audit_invocation_disagreement chain (CheckoutDisagreement,
-# _DISAGREEMENT_ARTIFACTS, _artifact_sha256, _compare_checkout_mission_state,
-# audit_invocation_disagreement itself) -- traced to a half-built "--audit"
-# honest-disagreement feature whose CLI dispatch path
-# (_mission_state_doctor.py::_run_audit_mode) calls a DIFFERENT audit engine
-# (specify_cli.audit.run_audit) entirely, so it has zero non-test callers.
-# Whether to wire it into the real dispatch or deprecate it is a product
-# decision outside this widening's mandate -- flagged in #633.
+# not create. Each entry must still earn its place: _compute_widened_stale
+# (dead-code review 2026-09-30) fails the gate when an entry gains a caller,
+# moves into __all__, stops being declared, or is already rescued by an
+# intra-module reference.
 _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
     {
         "charter.activation._io::load_charter_bytes",
@@ -3709,7 +3704,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "charter.offering.drg.migration.hand_authored_overlay::hand_authored_edge_keys",
         "charter.offering.drg.migration.hand_authored_overlay::hand_authored_node_urns",
         "charter.offering.drg.models::RELATION_DESCRIPTIONS",
-        "charter.offering.hatch_build::DoctrinePacksSiblingBuildHook",
         "charter.offering.import_candidates.models::CurationImportCandidate",
         "charter.offering.import_candidates.models::LegacyImportCandidate",
         "charter.offering.missions.repository::MissionRepository",
@@ -3733,17 +3727,8 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "runtime.next._internal_runtime.planner::resolve_next_workflow_action",
         "runtime.next._internal_runtime.planner::serialize_decision",
         "runtime.next._internal_runtime.schema::CommitContext",
-        # runtime.next.committed_authority::mission_terminal_verdict --
-        # convergence port PR #1066 (2026-09-03): verbatim upstream pick of
-        # next-committed-state-authority WP01 (#2947/#3780). Its runtime
-        # caller is runtime_bridge's mission-terminal wiring (upstream WP02),
-        # a conflicted commit deliberately deferred on the #1065 manual
-        # re-port queue. TODO(triage): #1065 -- wire the runtime_bridge
-        # caller and delete this entry (FR-303).
-        "runtime.next.committed_authority::mission_terminal_verdict",
         "runtime.next.runtime_bridge::KITTIFY_DIR",
         "runtime.next.runtime_bridge_cores::evaluate_guards",
-        "specify_cli.acceptance::logger",
         "specify_cli.agent_tasks_ports::default_ports",
         "specify_cli.ast_analysis.imports::extract_static_all",
         "specify_cli.ast_analysis.imports::module_of_import_from",
@@ -3790,9 +3775,7 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.doctrine.pack_descriptor::PackDescriptor",
         "specify_cli.dossier.hasher::WP_DESCRIPTIVE_PROJECTION_FIELDS",
         "specify_cli.dossier.hasher::WP_RUNTIME_PROJECTION_FIELDS",
-        "specify_cli.git.commit_helpers::logger",
         "specify_cli.git.commit_helpers::protected_branches",
-        "specify_cli.git.protection_policy::logger",
         "specify_cli.identity.project::generate_build_id",
         "specify_cli.invocation.executor::ActionRouterPlugin",
         "specify_cli.invocation.task_class_map::known_verbs",
@@ -3802,7 +3785,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.migration.backfill_runtime_state::assert_zero_readers",
         "specify_cli.migration.backfill_runtime_state::backfill_runtime_state_repo",
         "specify_cli.migration.backfill_runtime_state::run_backfill_and_verify",
-        "specify_cli.migration.mission_state::audit_invocation_disagreement",
         "specify_cli.migration.strip_frontmatter::RETIRED_FIELDS",
         "specify_cli.migration.strip_frontmatter::STATIC_FIELDS",
         "specify_cli.mission::discover_missions",
@@ -3810,12 +3792,10 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.mission::validate_deliverables_path",
         "specify_cli.mission_metadata::clear_coordination_metadata",
         "specify_cli.mission_metadata::get_change_mode",
-        "specify_cli.mission_metadata::load_meta_strict",
         "specify_cli.mission_metadata::set_change_mode",
         "specify_cli.mission_metadata::set_purpose_summary",
         "specify_cli.missions._archive::is_mission_archived",
         "specify_cli.missions._read_path_resolver::resolve_feature_dir_for_slug",
-        "specify_cli.ownership.frontmatter_source::InMemoryFrontmatterSource",
         "specify_cli.policy.audit::append_audit_event",
         "specify_cli.policy.audit::create_audit_event",
         "specify_cli.policy.audit::read_audit_events",
@@ -3829,16 +3809,11 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.review.arbiter::prompt_arbiter_checklist",
         "specify_cli.review.baseline::load_baseline",
         "specify_cli.review.gate_bindings::load_gate_bindings",
-        "specify_cli.runtime.resolver::required_artifacts_for",
         "specify_cli.saas_client.client::logger",
         "specify_cli.saas_client.endpoints::AdmissionMetadata",
-        "specify_cli.session_presence.upgrade_check::refresh_cache_once",
         "specify_cli.shims.registry::get_all_skills",
         "specify_cli.shims.registry::get_consumer_skills",
         "specify_cli.shims.registry::is_consumer_skill",
-        "specify_cli.skills.command_installer::prune_stale",
-        "specify_cli.skills.command_installer::remove",
-        "specify_cli.skills.command_installer::verify",
         "specify_cli.state.doctor::logger",
         "specify_cli.status.adapters::reset_handlers",
         "specify_cli.status.cutover_eligibility::assert_birth_invariant_holds",
@@ -3847,8 +3822,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.status.preflight::filter_dossier_snapshots",
         "specify_cli.status.verdict_vocab::ArtifactVerdict",
         "specify_cli.status.verdict_vocab::EmissionArtifactVerdict",
-        "specify_cli.tool_surface.bundles.claude_wrapper::wrapper_bash_content",
-        "specify_cli.tool_surface.bundles.claude_wrapper::wrapper_cmd_content",
         "specify_cli.tool_surface.docs::format_findings",
         "specify_cli.tool_surface.enums::CommandSurfaceCapability",
         "specify_cli.tool_surface.enums::MutabilityPolicy",
@@ -3860,7 +3833,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.tool_surface.providers.managed_skills::doctrine_skill_entries",
         "specify_cli.tool_surface.service::lint_docs_directory",
         "specify_cli.tracker.origin::logger",
-        "specify_cli.upgrade.autocommit::commit_touched_checkout",
         "specify_cli.upgrade.migrations.m_2_0_11_install_skills::logger",
         "specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack::logger",
         "specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands::logger",
@@ -3874,47 +3846,11 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.upgrade.skill_update::exclude_paths",
         "specify_cli.upgrade.skill_update::replace_skill_file",
         "specify_cli.widen.state::validate_entry_schema",
-        "specify_cli.zeitgeist_client.budget::OFFER_BUDGET_S",
-        "specify_cli.zeitgeist_client.budget::bound_stdout",
-        "specify_cli.zeitgeist_client.budget::disarm",
-        "specify_cli.zeitgeist_client.budget::open_bounded",
-        "specify_cli.zeitgeist_client.budget::run_with_deadline",
-        "specify_cli.zeitgeist_client.credentials::load",
-        "specify_cli.zeitgeist_client.credentials::load_negative",
         "specify_cli.zeitgeist_client.credentials::revoke",
-        "specify_cli.zeitgeist_client.credentials::store",
-        "specify_cli.zeitgeist_client.credentials::store_focus_capability",
-        "specify_cli.zeitgeist_client.credentials::store_negative",
-        "specify_cli.zeitgeist_client.filtered_stream::FilteredStream",
-        "specify_cli.zeitgeist_client.grammar::ident",
-        "specify_cli.zeitgeist_client.mcp_stdio::run_stdio",
-        "specify_cli.zeitgeist_client.moments::MomentsDisabled",
-        "specify_cli.zeitgeist_client.moments::allows_repo",
-        "specify_cli.zeitgeist_client.moments::frame_predicate",
-        "specify_cli.zeitgeist_client.moments::load_settings",
-        "specify_cli.zeitgeist_client.moments::write_agents_mode",
-        "specify_cli.zeitgeist_client.operability::collect_report",
-        "specify_cli.zeitgeist_client.operability::rollback_drill",
-        "specify_cli.zeitgeist_client.operability::rotation_drill",
-        "specify_cli.zeitgeist_client.operability::timeout_drill",
-        "specify_cli.zeitgeist_client.outbox_approval::approve",
         "specify_cli.zeitgeist_client.outbox_approval::get_receipt",
-        "specify_cli.zeitgeist_client.outbox_approval::list_pending",
-        "specify_cli.zeitgeist_client.outbox_approval::redacted_preview",
-        "specify_cli.zeitgeist_client.outbox_approval::reject",
-        "specify_cli.zeitgeist_client.outbox_approval::revoke",
-        "specify_cli.zeitgeist_client.outbox_approval::show",
-        "specify_cli.zeitgeist_client.outbox_approval::status_counts",
-        "specify_cli.zeitgeist_client.outbox_approval::submit",
-        "specify_cli.zeitgeist_client.repo_identity::identity",
-        "specify_cli.zeitgeist_client.repo_identity::origin_url",
         "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_CONTROL_KEYS_VERSION",
         "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS",
         "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS_VERSION",
-        "specify_cli.zeitgeist_client.sanitizer::assert_clean",
-        "specify_cli.zeitgeist_client.subscription::render_event",
-        "specify_cli.zeitgeist_client.subscription::status",
-        "specify_cli.zeitgeist_client.subscription::watch",
     }
 )
 
@@ -3950,6 +3886,32 @@ def _apply_widened_scope_exemptions(
             continue
         kept.append(qualified)
     return kept
+
+
+def _compute_widened_stale(
+    grandfathered: frozenset[str],
+    pre_rescue_widened_offenders: list[str],
+    corpus: Mapping[str, CorpusModule],
+) -> list[str]:
+    """Return every ``_WIDENED_SCOPE_GRANDFATHERED_470`` entry that no longer earns its place.
+
+    An entry is stale when the widened-only offender pass no longer reports it
+    (it gained a caller, moved into ``__all__``, or is no longer declared), or
+    when the intra-module rescue already exempts it. Either way the grandfather
+    entry rescues nothing, and leaving it in place would silently re-admit the
+    name if it went dead again.
+    """
+    reported = set(pre_rescue_widened_offenders)
+    stale: list[str] = []
+    for qualified in sorted(grandfathered):
+        if qualified not in reported:
+            stale.append(f"{qualified} (no longer a widened offender)")
+            continue
+        mod_dotted, _, name = qualified.partition("::")
+        module = corpus.get(mod_dotted)
+        if module is not None and _used_within_own_module(module.tree, name):
+            stale.append(f"{qualified} (already rescued: used within its own module)")
+    return stale
 
 
 def test_no_public_symbol_in_all_is_unimported() -> None:
@@ -4004,6 +3966,7 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
         "grandfathered entry has since gained a real caller and should be "
         "pruned (#633)"
     )
+    widened_stale = _compute_widened_stale(_WIDENED_SCOPE_GRANDFATHERED_470, pre_rescue_widened_offenders, corpus)
     offenders += pre_rescue_widened_offenders
     offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
 
@@ -4048,6 +4011,13 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
         bullets = "\n  - ".join(sorted(stale))
         messages.append(
             "Stale `_SYMBOL_ALLOWLIST` entries detected. The following symbols now have at least one caller and must be removed from the allowlist:\n  - " + bullets
+        )
+    if widened_stale:
+        bullets = "\n  - ".join(widened_stale)
+        messages.append(
+            "Stale `_WIDENED_SCOPE_GRANDFATHERED_470` entries detected. The "
+            "following grandfathered names no longer need the exemption and "
+            "must be removed from the set:\n  - " + bullets
         )
     if dangling:
         bullets = "\n  - ".join(sorted(dangling))
@@ -4192,6 +4162,28 @@ def test_apply_widened_scope_exemptions() -> None:
     ]
     kept = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
     assert kept == ["synthetic.all_mod::AllMember", "synthetic.dead_mod::truly_dead"], f"got {kept!r}"
+
+
+def test_compute_widened_stale() -> None:
+    """Unit test for `_compute_widened_stale`, the per-entry grandfather ratchet.
+
+    A grandfathered name that the widened pass still reports and nothing else
+    rescues is kept. One the pass no longer reports (it gained a caller) is
+    stale, and so is one the intra-module rescue already exempts.
+    """
+    dead_source = "still_dead = 1\n"
+    intra_source = "helper = 1\ndef use():\n    return helper\n"
+    corpus = {
+        "synthetic.dead_mod": CorpusModule(tree=ast.parse(dead_source), source=dead_source, containing_pkg="synthetic"),
+        "synthetic.intra_mod": CorpusModule(tree=ast.parse(intra_source), source=intra_source, containing_pkg="synthetic"),
+    }
+    grandfathered = frozenset({"synthetic.dead_mod::still_dead", "synthetic.intra_mod::helper", "synthetic.wired_mod::now_wired"})
+    reported = ["synthetic.dead_mod::still_dead", "synthetic.intra_mod::helper"]
+    stale = _compute_widened_stale(grandfathered, reported, corpus)
+    assert stale == [
+        "synthetic.intra_mod::helper (already rescued: used within its own module)",
+        "synthetic.wired_mod::now_wired (no longer a widened offender)",
+    ], f"got {stale!r}"
 
 
 def test_widened_scope_flags_synthetic_zero_caller_symbol() -> None:

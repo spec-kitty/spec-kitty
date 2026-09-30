@@ -55,12 +55,8 @@ contract.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import (
-    MISSION_TYPE_RESEARCH,
-)
 import json
 import logging
-import re
 import subprocess
 import contextlib
 from pathlib import Path
@@ -78,50 +74,29 @@ if TYPE_CHECKING:
     from specify_cli.invocation.record import OpStartedEvent
 
 from charter.activation.context import build_charter_context
-from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
+from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.coordination.types import CommitReceipt
-from specify_cli.core.dependency_graph import (
-    build_dependency_graph,
-    dependency_readiness_for_wp,
-    get_dependents,
-)
-from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
-from specify_cli.core.utils import write_text_within_directory
+from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
 from mission_runtime import CommitTarget, MissionArtifactKind, is_primary_artifact_kind, kind_for_mission_file
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
-from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.review.prompt_metadata import (
-    build_review_prompt_metadata,
-    validate_review_prompt_metadata,
-    write_review_prompt_with_metadata,
-)
-from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.review.cycle import (
     REVIEW_FEEDBACK_SENTINELS,
     next_review_feedback_source_path,
-    resolve_review_cycle_pointer,
 )
-from specify_cli.status import feature_status_lock
-from specify_cli.status import AgentAssignment, Lane
+from specify_cli.status import feature_status_lock  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
+from specify_cli.status import Lane
 from specify_cli.status import (
     ResolvedBinding,
-    WorkPackageClaimConflict,
-    WorkPackageStartRejected,
     read_wp_frontmatter,
-    start_implementation_status,
-    start_review_status,
 )
 from specify_cli.task_utils import (
-    append_activity_log,
-    build_document,
     extract_scalar,
-    locate_work_package,
-    set_scalar,
+    locate_work_package,  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
     split_frontmatter,
 )
 from specify_cli.workspace.context import (
@@ -140,25 +115,19 @@ from specify_cli.cli.commands.agent.workflow_cores import (
     ImplementRequest,
     ReviewRequest,
     auto_claim_failure_message as _auto_claim_failure_message,
-    has_prior_rejection as _has_prior_rejection,
-    is_missing_canonical_status_error as _is_missing_canonical_status_error,
-    latest_review_feedback_reference as _latest_review_feedback_reference,
-    missing_canonical_status_message as _missing_canonical_status_message,
+    has_prior_rejection as _has_prior_rejection,  # noqa: F401 -- imported from this module by tests
+    latest_review_feedback_reference as _latest_review_feedback_reference,  # noqa: F401 -- imported from this module by tests
     normalize_wp_id as _normalize_wp_id,
-    read_wp_events as _read_wp_events,
-    render_isolation_banner as _render_isolation_banner,
-    render_resolved_agent_identity as _render_resolved_agent_identity,
-    render_wp_prompt_wrapper as _render_wp_prompt_wrapper,
-    resolve_review_feedback_context as _resolve_review_feedback_context,
-    resolve_review_feedback_pointer as _resolve_review_feedback_pointer,
-    review_feedback_root as _review_feedback_root,
-    shared_artifact_guidance as _shared_artifact_guidance,
-    workspace_contract_description as _workspace_contract_description,
-)
+    render_isolation_banner as _render_isolation_banner,  # noqa: F401 -- imported from this module by tests
+    render_resolved_agent_identity as _render_resolved_agent_identity,  # noqa: F401 -- imported from this module by tests
+    render_wp_prompt_wrapper as _render_wp_prompt_wrapper,  # noqa: F401 -- imported from this module by tests
+    resolve_review_feedback_context as _resolve_review_feedback_context,  # noqa: F401 -- imported from this module by tests
+    resolve_review_feedback_pointer as _resolve_review_feedback_pointer,  # noqa: F401 -- imported from this module by tests
+    )
 from specify_cli.cli.commands.agent.workflow_executor import (
-    commit_workflow_change as _commit_workflow_change,
+    commit_workflow_change as _commit_workflow_change,  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
     ensure_workspace_materialized as _ensure_workspace_materialized,
-    write_prompt_to_file as _write_prompt_to_file,
+    write_prompt_to_file as _write_prompt_to_file,  # noqa: F401 -- imported from this module by tests
 )
 
 # Phase functions the implement()/review()/_resolve_review_context() shells
