@@ -4534,7 +4534,7 @@
   notes: null
 - path: docs/plans/4-x-executive-overview.md
   tag: current
-  divio_type: none
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

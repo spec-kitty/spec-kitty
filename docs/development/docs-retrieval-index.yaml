@@ -13150,7 +13150,7 @@ pages:
     - {slug: "links", text: "Links", level: 2}
   - path: "docs/plans/4-x-executive-overview.md"
     title: "4.x Executive Overview"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make."
     anchors:
     - {slug: "bottom-line", text: "Bottom line", level: 2}
