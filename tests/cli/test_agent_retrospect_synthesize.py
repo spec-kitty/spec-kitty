@@ -567,6 +567,8 @@ REAL_EVIDENCE_EVENT_ID = "01KQ6YEGA0B1C2D3E4F5G6H7K9"
 ACCEPTED_PROPOSAL_ID = "01KQ6YEGA0B1C2D3E4F5G6H7M1"
 PENDING_PROPOSAL_ID = "01KQ6YEGA0B1C2D3E4F5G6H7M2"
 REJECTED_PROPOSAL_ID = "01KQ6YEGA0B1C2D3E4F5G6H7M3"
+SECOND_ACCEPTED_PROPOSAL_ID = "01KQ6YEGA0B1C2D3E4F5G6H7M4"
+UNKNOWN_PROPOSAL_ID = "01KQ6YEGA0B1C2D3E4F5G6H7M5"
 
 
 def _glossary_proposal(proposal_id: str, term_key: str, status: str) -> Any:
@@ -598,10 +600,11 @@ def _glossary_proposal(proposal_id: str, term_key: str, status: str) -> Any:
     )
 
 
-def _seed_project_with_mixed_proposals(root: Path) -> None:
+def _seed_project_with_mixed_proposals(root: Path, *, second_accepted: bool = False) -> None:
     """A real project: mission meta, an event log holding the evidence, and a
     retrospective record (written by the production writer) carrying one
-    accepted, one pending and one rejected ``add_glossary_term`` proposal."""
+    accepted, one pending and one rejected ``add_glossary_term`` proposal
+    (plus a second accepted one when *second_accepted*)."""
     from specify_cli.retrospective.schema import (
         ActorRef,
         MissionIdentity,
@@ -644,6 +647,7 @@ def _seed_project_with_mixed_proposals(root: Path) -> None:
                 _glossary_proposal(ACCEPTED_PROPOSAL_ID, "accepted-term", "accepted"),
                 _glossary_proposal(PENDING_PROPOSAL_ID, "pending-term", "pending"),
                 _glossary_proposal(REJECTED_PROPOSAL_ID, "rejected-term", "rejected"),
+                *([_glossary_proposal(SECOND_ACCEPTED_PROPOSAL_ID, "second-accepted-term", "accepted")] if second_accepted else []),
             ],
             provenance=RecordProvenance(authored_by=actor, runtime_version="0.0.0-test", written_at=completed_at, schema_version="1"),
         ),
@@ -685,6 +689,104 @@ def test_synthesize_apply_applies_only_accepted_proposals(tmp_path: Path, monkey
     glossary = tmp_path / ".kittify" / "glossary"
     assert sorted(path.name for path in glossary.glob("*.yaml")) == ["accepted-term.yaml"]
     assert sorted(path.name for path in (glossary / ".provenance").glob("*.yaml")) == ["accepted-term.yaml"]
+
+
+def test_synthesize_proposal_id_narrows_the_accepted_batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--proposal-id`` restricts ``--apply`` to the named accepted proposal; the other accepted one is left alone."""
+    _seed_project_with_mixed_proposals(tmp_path, second_accepted=True)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["retrospect", "synthesize", "--mission", REAL_SLUG, "--apply", "--proposal-id", SECOND_ACCEPTED_PROPOSAL_ID, "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout)
+    assert [applied["proposal_id"] for applied in envelope["result"]["applied"]] == [SECOND_ACCEPTED_PROPOSAL_ID]
+    assert sorted(path.name for path in (tmp_path / ".kittify" / "glossary").glob("*.yaml")) == ["second-accepted-term.yaml"]
+
+
+_NOT_ACCEPTED = pytest.mark.parametrize(
+    ("requested", "expected_statuses"),
+    [
+        ([PENDING_PROPOSAL_ID], {PENDING_PROPOSAL_ID: "pending"}),
+        ([REJECTED_PROPOSAL_ID], {REJECTED_PROPOSAL_ID: "rejected"}),
+        ([UNKNOWN_PROPOSAL_ID], {UNKNOWN_PROPOSAL_ID: "unknown"}),
+        ([ACCEPTED_PROPOSAL_ID, PENDING_PROPOSAL_ID], {PENDING_PROPOSAL_ID: "pending"}),
+    ],
+    ids=["pending", "rejected", "unknown", "accepted-plus-pending"],
+)
+
+
+@_NOT_ACCEPTED
+@pytest.mark.parametrize("apply_flag", [["--apply"], []], ids=["apply", "dry-run"])
+def test_synthesize_refuses_a_proposal_id_that_is_not_accepted_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    requested: list[str],
+    expected_statuses: dict[str, str],
+    apply_flag: list[str],
+) -> None:
+    """Every non-accepted id is refused (exit 1) before anything is applied; stdout stays empty, stderr carries the error payload."""
+    _seed_project_with_mixed_proposals(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    before = _tree_digest(tmp_path)
+    id_args = [arg for pid in requested for arg in ("--proposal-id", pid)]
+
+    result = runner.invoke(app, ["retrospect", "synthesize", "--mission", REAL_SLUG, *apply_flag, *id_args, "--json"])
+
+    assert result.exit_code == 1, result.output
+    assert result.stdout == ""
+    payload = json.loads(result.stderr)
+    assert payload["error"] == "proposal_not_accepted"
+    assert payload["proposal_ids"] == list(expected_statuses)
+    assert payload["statuses"] == expected_statuses
+    for pid, status in expected_statuses.items():
+        assert f"{pid} ({status})" in payload["detail"]
+    assert _tree_digest(tmp_path) == before
+
+
+def test_synthesize_proposal_id_duplicates_select_the_proposal_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A repeated accepted id is applied once; a repeated refused id is named once."""
+    _seed_project_with_mixed_proposals(tmp_path, second_accepted=True)
+    monkeypatch.chdir(tmp_path)
+    base = ["retrospect", "synthesize", "--mission", REAL_SLUG, "--json"]
+
+    refused = runner.invoke(app, [*base, "--apply", "--proposal-id", PENDING_PROPOSAL_ID, "--proposal-id", PENDING_PROPOSAL_ID])
+
+    assert refused.exit_code == 1, refused.output
+    payload = json.loads(refused.stderr)
+    assert payload["proposal_ids"] == [PENDING_PROPOSAL_ID]
+    assert payload["detail"].count(PENDING_PROPOSAL_ID) == 1
+
+    applied = runner.invoke(app, [*base, "--apply", "--proposal-id", ACCEPTED_PROPOSAL_ID, "--proposal-id", ACCEPTED_PROPOSAL_ID])
+
+    assert applied.exit_code == 0, applied.output
+    envelope = json.loads(applied.stdout)
+    assert [entry["proposal_id"] for entry in envelope["result"]["applied"]] == [ACCEPTED_PROPOSAL_ID]
+    assert sorted(path.name for path in (tmp_path / ".kittify" / "glossary").glob("*.yaml")) == ["accepted-term.yaml"]
+
+
+def test_synthesize_refuses_a_rejected_proposal_id_with_a_rich_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without ``--json`` the refusal is a Rich error on stderr naming the id and its status."""
+    _seed_project_with_mixed_proposals(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["retrospect", "synthesize", "--mission", REAL_SLUG, "--apply", "--proposal-id", REJECTED_PROPOSAL_ID])
+
+    assert result.exit_code == 1, result.output
+    error = " ".join(result.stderr.split())
+    assert error.startswith("Error:")
+    assert f"{REJECTED_PROPOSAL_ID} (rejected)" in error
+    assert not (tmp_path / ".kittify" / "glossary").exists()
+
+
+def test_synthesize_help_says_proposal_id_must_name_accepted_proposals() -> None:
+    result = runner.invoke(app, ["retrospect", "synthesize", "--help"], env={"COLUMNS": "200", "NO_COLOR": "1"})
+
+    assert result.exit_code == 0, result.output
+    assert "which must be accepted" in " ".join(result.stdout.split())
 
 
 # ---------------------------------------------------------------------------

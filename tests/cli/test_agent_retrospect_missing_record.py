@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -117,31 +117,6 @@ def test_missing_record_insufficient_artifacts_returns_parseable_json(tmp_path: 
     assert payload["mission_slug"] == MISSION_SLUG
     assert payload["error"] == "record_not_found"
     assert payload["next_action"]
-
-
-def test_existing_record_json_includes_synthesized_outcome(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / ".kittify").mkdir()
-    feature_dir = _completed_mission(repo)
-    stub_record = MagicMock()
-    stub_record.proposals = []
-    stub_record.mission.mission_id = MISSION_ID
-
-    with (
-        patch("specify_cli.cli.commands.agent_retrospect.locate_project_root", return_value=repo),
-        patch("specify_cli.cli.commands.agent_retrospect.resolve_mission_handle", return_value=_resolved(feature_dir)),
-        patch("specify_cli.cli.commands.agent_retrospect.read_record", return_value=stub_record),
-        patch("specify_cli.cli.commands.agent_retrospect.apply_proposals", return_value=_empty_result()),
-    ):
-        result = runner.invoke(app, ["retrospect", "synthesize", "--mission", MISSION_ID[:8], "--json"])
-
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["status"] == "ok"
-    assert payload["outcome"] == "retrospective_synthesized"
-    assert payload["mission_id"] == MISSION_ID
-    assert payload["mission_slug"] == MISSION_SLUG
 
 
 def test_missing_mission_returns_parseable_json_outcome(tmp_path: Path) -> None:

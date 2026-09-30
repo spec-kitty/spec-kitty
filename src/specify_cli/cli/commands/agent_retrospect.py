@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
+from rich.markup import escape
 from specify_cli.cli.console import console as _console
 from specify_cli.cli.console import err_console as _err_console
 from rich.table import Table
@@ -64,11 +65,11 @@ app = typer.Typer(
 )
 
 
-
 def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False) -> ResolvedMission:
     """Resolve a mission handle for this command without pre-rendering JSON errors."""
     del json_mode
     return resolve_mission(handle, repo_root)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -249,10 +250,7 @@ def _mission_artifacts_sufficient_for_empty_record(
         return False
     if not snapshot.work_packages:
         return False
-    return all(
-        str(state.get("lane")) in {"approved", "done"}
-        for state in snapshot.work_packages.values()
-    )
+    return all(str(state.get("lane")) in {"approved", "done"} for state in snapshot.work_packages.values())
 
 
 def _create_empty_retrospective_record(
@@ -321,6 +319,54 @@ def _create_empty_retrospective_record(
     return canonical_path, record
 
 
+def _refuse_non_accepted_proposal_ids(requested: list[str], proposals: list[Any], *, json_only: bool) -> None:
+    """Refuse (exit 1) when any ``--proposal-id`` is not an accepted proposal in the record.
+
+    ``--proposal-id`` narrows the accepted batch; it never promotes a pending,
+    rejected or unknown proposal into it. Every offending id is named with its
+    status (``unknown`` when the record has no such proposal). Under ``--json``
+    the error payload goes to stderr, like the command's other error payloads.
+    """
+    status_by_id = {p.id: p.state.status for p in proposals}
+    offending = {pid: status_by_id.get(pid, "unknown") for pid in dict.fromkeys(requested) if status_by_id.get(pid) != "accepted"}
+    if not offending:
+        return
+    listing = ", ".join(f"{pid} ({status})" for pid, status in offending.items())
+    detail = f"--proposal-id only selects accepted proposals; not accepted in the retrospective record: {listing}. Nothing was applied."
+    if json_only:
+        _err_console.print_json(json.dumps({"error": "proposal_not_accepted", "detail": detail, "proposal_ids": list(offending), "statuses": offending}))
+    else:
+        _err_console.print(f"[red]Error:[/red] {escape(detail)}", soft_wrap=True)
+    raise typer.Exit(1)
+
+
+_UNSUPPORTED_GENERATOR_RECORD = "unsupported_generator_record"
+
+
+def _refuse_proposal_ids_on_generator_record(requested: list[str], *, record_written: bool, json_only: bool) -> None:
+    """Refuse (exit 1) every ``--proposal-id`` against a generator-shaped record.
+
+    Proposal application does not read generator-shaped proposals yet (the batch
+    is empty), so no id can be selected. Each id gets the status
+    ``unsupported_generator_record`` rather than ``unknown``: the record may well
+    carry it. ``record_written`` says the command itself just wrote the record
+    (``--fabricate-empty``), so the message does not claim nothing happened.
+    """
+    ids = list(dict.fromkeys(requested))
+    written = "The empty retrospective record was written, but no proposal" if record_written else "Nothing"
+    detail = (
+        f"--proposal-id cannot pick proposals in this retrospective record: it uses the generator record "
+        f"schema, and proposal application does not support generator-shaped proposals yet. "
+        f"Requested: {', '.join(ids)}. {written} was applied."
+    )
+    if json_only:
+        statuses = dict.fromkeys(ids, _UNSUPPORTED_GENERATOR_RECORD)
+        _err_console.print_json(json.dumps({"error": _UNSUPPORTED_GENERATOR_RECORD, "detail": detail, "proposal_ids": ids, "statuses": statuses}))
+    else:
+        _err_console.print(f"[red]Error:[/red] {escape(detail)}", soft_wrap=True)
+    raise typer.Exit(1)
+
+
 # ---------------------------------------------------------------------------
 # synthesize subcommand
 # ---------------------------------------------------------------------------
@@ -341,7 +387,16 @@ def _create_empty_retrospective_record(
 def synthesize_cmd(
     mission: Annotated[str, typer.Option("--mission", help="Mission handle (mission_id / mid8 / mission_slug)")],
     apply: Annotated[bool, typer.Option("--apply", help="Execute application after checks pass (default is dry-run)")] = False,
-    proposal_id: Annotated[Optional[list[str]], typer.Option("--proposal-id", help="Restrict batch to specific proposal ids (repeatable)")] = None,
+    proposal_id: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--proposal-id",
+            help=(
+                "Restrict the batch to the given proposal ids, which must be accepted (repeatable). "
+                "Any id that is pending, rejected or not in the record is refused (exit 1) before anything is applied."
+            ),
+        ),
+    ] = None,
     json_out: Annotated[Optional[Path], typer.Option("--json-out", help="Write JSON envelope to PATH in addition to other output")] = None,
     json_only: Annotated[bool, typer.Option("--json", help="Emit JSON to stdout (suppresses Rich rendering)")] = False,
     actor_id: Annotated[Optional[str], typer.Option("--actor-id", help="Override provenance actor id (default: inferred from environment)")] = None,
@@ -361,10 +416,7 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     repo_root = locate_project_root()
     if repo_root is None:
-        _err_console.print(
-            "[red]Error:[/red] Could not locate project root. "
-            "Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/)."
-        )
+        _err_console.print("[red]Error:[/red] Could not locate project root. Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/).")
         raise typer.Exit(1)
 
     # ------------------------------------------------------------------
@@ -392,8 +444,7 @@ def synthesize_cmd(
             )
         else:
             _err_console.print(
-                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
-                f"Check that the handle is correct and that the mission exists in kitty-specs/."
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". Check that the handle is correct and that the mission exists in kitty-specs/.'
             )
         raise typer.Exit(1) from exc
     except AmbiguousHandleError as exc:
@@ -443,8 +494,7 @@ def synthesize_cmd(
                             "mission_id": mission_id,
                             "mission_slug": resolved.mission_slug,
                             "blocked_reason": (
-                                f"No retrospective record found for this mission. "
-                                f"Author one with: spec-kitty retrospect create --mission {resolved.mission_slug}"
+                                f"No retrospective record found for this mission. Author one with: spec-kitty retrospect create --mission {resolved.mission_slug}"
                             ),
                             "exit_code": 1,
                         }
@@ -590,13 +640,17 @@ def synthesize_cmd(
         all_proposals = record.proposals
 
     if proposal_id:
-        # --proposal-id filter: restrict approved_proposal_ids to those listed
+        # --proposal-id only NARROWS the accepted set: a pending, rejected or
+        # unknown id is refused before anything is applied (never a bypass of
+        # the accepted-state gate). A generator-shaped record has no applicable
+        # proposals at all, so every id is refused as unsupported, not unknown.
+        if _fabricated_empty or generator_record is not None:
+            _refuse_proposal_ids_on_generator_record(proposal_id, record_written=_fabricated_empty, json_only=json_only)
+        _refuse_non_accepted_proposal_ids(proposal_id, all_proposals, json_only=json_only)
         approved_ids: set[str] = set(proposal_id)
     else:
         # Default: all accepted proposals
-        approved_ids = {
-            p.id for p in all_proposals if p.state.status == "accepted"
-        }
+        approved_ids = {p.id for p in all_proposals if p.state.status == "accepted"}
 
     dry_run = not apply
 
@@ -638,16 +692,14 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     # Step 7: Exit codes
     # Exit 0 = dry-run complete OR apply succeeded with no issues
+    # (Exit 1 = a --proposal-id that is not an accepted proposal, refused in Step 4)
     # Exit 4 = conflicts present (apply only)
     # Exit 5 = staleness/invalid-payload rejections (apply only)
     # ------------------------------------------------------------------
     if apply:
         if result.conflicts:
             raise typer.Exit(4)
-        has_rejections = any(
-            r.reason in ("stale_evidence", "invalid_payload")
-            for r in result.rejected
-        )
+        has_rejections = any(r.reason in ("stale_evidence", "invalid_payload") for r in result.rejected)
         if has_rejections:
             raise typer.Exit(5)
 
@@ -682,6 +734,7 @@ def summary_cmd(
 ) -> None:
     """Cross-mission retrospective summary (back-compat alias). READ-ONLY."""
     from specify_cli.cli.commands.retrospect import summary_cmd as _canonical_summary
+
     _canonical_summary(
         project=project,
         json_only=json_only,

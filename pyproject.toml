@@ -506,7 +506,6 @@ exclude = [
     "src/specify_cli/cli/commands/agent/workflow.py",
     "src/specify_cli/cli/commands/agent/workflow_cores.py",
     "src/specify_cli/cli/commands/agent/workflow_executor.py",
-    "src/specify_cli/cli/commands/agent_retrospect.py",
     "src/specify_cli/cli/commands/archive.py",
     "src/specify_cli/cli/commands/auth.py",
     "src/specify_cli/cli/commands/charter/__init__.py",
