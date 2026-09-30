@@ -32,7 +32,7 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 - **`orchestrator-api merge-mission` is renamed to `orchestrator-api consolidate-mission`** (#3080). The rename follows the CLI command rename above.
 - **Orchestrator API `plan` now reports setup failures whose error codes are not part of the orchestrator contract as `PLAN_SETUP_FAILED`.** **Before:** `plan` returned codes such as `SPEC_REQUIREMENT_IDS_INVALID`, `SPEC_FILE_MISSING`, `TEMPLATE_CONFIGURATION_ERROR` and `PLAN_CONTEXT_UNRESOLVED` directly. **After:** it returns `PLAN_SETUP_FAILED` and puts the original code in `data.reason`.
 
-- **The top-level `doctrine` Python import shim is removed** (#805). **Before:** `import doctrine` still worked and warned that it would be removed in 3.3.0. **After:** it raises `ImportError`. Import from `charter.offering` instead, where that code has lived since the convergence. The `spec-kitty` command is not affected.
+- **The top-level `doctrine` Python import shim is removed** (CR-06). **Before:** `import doctrine` still worked and warned that it would be removed in 3.3.0. **After:** it raises `ImportError`. Import from `charter.offering` instead, where that code has lived since the convergence. The `spec-kitty` command is not affected.
 
 ### Upgrade Notes
 
