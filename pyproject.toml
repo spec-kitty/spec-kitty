@@ -2902,7 +2902,6 @@ also_copy = [
 
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
-    "src/doctrine.py",       # CR-06 deprecation shim re-exporting charter.offering
     "src/kernel/",           # Copy kernel package for shared utilities
     "src/charter/",          # Copy charter package (nests the relocated doctrine offering)
     "src/specify_cli/status/",  # Copy status module for status transitions
