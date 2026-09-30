@@ -5,7 +5,6 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import os
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.panel import Panel

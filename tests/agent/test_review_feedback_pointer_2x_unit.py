@@ -18,7 +18,7 @@ from specify_cli.cli.commands.agent.tasks import (
     _resolve_git_common_dir,
     app as tasks_app,
 )
-from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
+from specify_cli.cli.commands.agent.workflow_cores import resolve_review_feedback_pointer as _resolve_review_feedback_pointer
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.task_utils import extract_scalar, split_frontmatter

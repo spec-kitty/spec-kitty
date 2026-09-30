@@ -2,9 +2,8 @@
 
 Hosts the ``check-prerequisites`` command and its dedicated emit helpers
 (``_emit_check_prerequisites_detection_error``, ``_emit_check_prerequisites_result``,
-``_paths_only_payload``) plus the small ``meta.json`` readers
-(``_read_meta_for_pr_bound``, ``_read_meta_for_emission``) the create/finalize
-lifecycle shares.
+``_paths_only_payload``) plus the small ``meta.json`` reader
+(``_read_meta_for_emission``) the finalize lifecycle uses.
 
 The command is defined here as a plain callable; ``mission`` registers it on its
 Typer ``app`` (and re-exports the name so ``mission.check_prerequisites`` — the
@@ -403,20 +402,6 @@ def _emit_resume_probe_payload(payload: dict[str, object], *, json_output: bool)
         console.print(f"[green]Resume probe:[/green] {state}")
     else:
         console.print(f"[red]Resume probe:[/red] {state}: {payload.get('error', '')}")
-
-
-def _read_meta_for_pr_bound(feature_dir: Path) -> dict[str, Any]:
-    """Read ``meta.json`` for the ``pr_bound`` write-back, silent-empty contract.
-
-    Routes through the canonical ``mission_metadata.load_meta`` authority
-    (FR-009 / SC-004) via ``load_meta_or_empty``: a missing *or* malformed file
-    degrades to ``{}`` so the write-back is skipped, preserving the prior
-    ``except (OSError, JSONDecodeError): pass`` (a corrupt meta never crashes
-    the create flow).
-    """
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    return cast(dict[str, Any], load_meta_or_empty(feature_dir))
 
 
 def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:

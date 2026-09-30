@@ -372,11 +372,6 @@ def _git_stdout(repo_root: Path, args: list[str]) -> str:
     return result.stdout.strip()
 
 
-def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
-    """Repo-relative paths of *writable* (non-structural) feature-dir changes."""
-    return [e.path for e in _feature_dir_status_entries(repo_root, feature_dir) if not e.is_structural]
-
-
 def _resolve_lanes_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return the directory containing ``lanes.json`` for *mission_slug*.
 

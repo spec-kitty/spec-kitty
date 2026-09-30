@@ -29,15 +29,14 @@ if TYPE_CHECKING:
     # type is accurate, not a fiction.
     import re as _typing_re
 
-# WP02 (#2058): the shared result vocabulary, the inline-subtasks regex, and the
-# pipe-table row parsers live in the ``tasks_outline`` seam. Imported here so
+# WP02 (#2058): the shared result vocabulary and the pipe-table row parsers
+# live in the ``tasks_outline`` seam. Imported here so
 # the materialization helpers keep their exact prior behavior.
 from specify_cli.cli.commands.agent.tasks_outline import (
     TASKS_MD_FILENAME,
     TaskIdResolutionFormat,
     TaskIdResolutionOutcome,
     TaskIdResult,
-    _INLINE_SUBTASKS_RE,
     _is_pipe_table_task_row,
     _parse_pipe_table_header,
 )
@@ -322,63 +321,3 @@ def _resolve_pipe_table(
         format=TaskIdResolutionFormat.PIPE_TABLE,
         message=f"Marked {task_id} as {status} (pipe-table row updated).",
     )
-
-
-def _materialize_inline_subtask_status(
-    task_id: str,
-    tasks_content: str,
-    status: str,
-) -> tuple[str, bool]:
-    """Insert a checkbox row next to a matching inline Subtasks reference."""
-    new_checkbox = "[x]" if status == "done" else "[ ]"
-    normalized_task_id = task_id.upper()
-    lines = tasks_content.split("\n")
-
-    for line_idx, line in enumerate(lines):
-        match = _INLINE_SUBTASKS_RE.search(line)
-        if not match:
-            continue
-        ids = [value.strip().upper() for value in str(match.group("ids")).split(",")]
-        if normalized_task_id not in ids:
-            continue
-
-        for existing_idx, existing_line in enumerate(lines):
-            if re.search(
-                rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b",
-                existing_line,
-                re.IGNORECASE,
-            ):
-                lines[existing_idx] = re.sub(
-                    r"-\s*\[[ x]\]",
-                    f"- {new_checkbox}",
-                    existing_line,
-                )
-                return "\n".join(lines), True
-
-        insert_at = line_idx + 1
-        while insert_at < len(lines) and re.match(r"\s*-\s*\[[ x]\]\s*(?:T|WP)\d+\b", lines[insert_at], re.IGNORECASE):
-            insert_at += 1
-        lines.insert(insert_at, f"- {new_checkbox} {task_id}")
-        return "\n".join(lines), True
-
-    return tasks_content, False
-
-
-def _persist_inline_subtask_status(
-    task_id: str,
-    status: str,
-    feature_dir: Path,
-    tasks_content: str | None = None,
-) -> bool:
-    """Persist an inline Subtasks match by materializing a checkbox row."""
-    tasks_path = feature_dir / TASKS_MD_FILENAME
-    if tasks_content is None:
-        if not tasks_path.exists():
-            return False
-        tasks_content = tasks_path.read_text(encoding="utf-8")
-
-    updated_content, persisted = _materialize_inline_subtask_status(task_id, tasks_content, status)
-    if not persisted:
-        return False
-    tasks_path.write_text(updated_content, encoding="utf-8")
-    return True

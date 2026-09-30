@@ -24,12 +24,14 @@ readers is no longer restated as a number in this docstring. Live code is the
 authority; this docstring intentionally carries no second frozen count that
 can go stale silently.
 
-Sites in this module that **mention** ``review-cycle-*`` artifacts but do
-**not** mutate the counter or write any artifact:
+Sites in this module and its ``workflow_cores`` / ``workflow_executor``
+helpers that **mention** ``review-cycle-*`` artifacts but do **not** mutate
+the counter or write any artifact:
 
-* ``_resolve_review_feedback_pointer``'s docstring, describing the canonical
-  pointer scheme.
-* ``_has_prior_rejection``, which performs a read-only ``glob`` check.
+* ``workflow_cores.resolve_review_feedback_pointer``'s docstring, describing
+  the canonical pointer scheme.
+* ``workflow_cores.has_prior_rejection``, which performs a read-only ``glob``
+  check.
 * fix-mode prompt rendering, which reads the latest artifact via
   ``ReviewCycleArtifact.from_file`` / ``.latest``; no write.
 * review-prompt rendering, which computes a *placeholder* path
@@ -106,29 +108,24 @@ from specify_cli.workspace.context import (
     resolve_workspace_for_wp,
 )
 
-# WP02 (coord-authority-trio-degod-01KX7094, T013): bare re-export shims for
-# the god-function pieces moved to workflow_cores.py / workflow_executor.py.
-# NOT added to __all__ (this module defines none, and stays that way) --
-# existing ``from specify_cli.cli.commands.agent.workflow import <name>``
-# imports and ``monkeypatch.setattr(workflow, "<name>", ...)`` call sites
-# resolve identically to before the split.
+# WP02 (coord-authority-trio-degod-01KX7094, T013): pieces of the former god
+# functions now live in workflow_cores.py / workflow_executor.py and are
+# imported from there directly. Only five names are still re-exported here,
+# each marked ``noqa: F401``: ``_collect_status_artifacts``,
+# ``is_worktree_context``, ``feature_status_lock``, ``locate_work_package`` and
+# ``_commit_workflow_change``. workflow_executor reads them late through
+# ``_wf()``, so ``monkeypatch.setattr(workflow, "<name>", ...)`` intercepts
+# them. Everything else is imported frozen by workflow_executor, so patching
+# it on this module would be vacuous: import and patch it at its home module.
 from specify_cli.cli.commands.agent.workflow_cores import (
     ImplementRequest,
     ReviewRequest,
     auto_claim_failure_message as _auto_claim_failure_message,
-    has_prior_rejection as _has_prior_rejection,  # noqa: F401 -- imported from this module by tests
-    latest_review_feedback_reference as _latest_review_feedback_reference,  # noqa: F401 -- imported from this module by tests
     normalize_wp_id as _normalize_wp_id,
-    render_isolation_banner as _render_isolation_banner,  # noqa: F401 -- imported from this module by tests
-    render_resolved_agent_identity as _render_resolved_agent_identity,  # noqa: F401 -- imported from this module by tests
-    render_wp_prompt_wrapper as _render_wp_prompt_wrapper,  # noqa: F401 -- imported from this module by tests
-    resolve_review_feedback_context as _resolve_review_feedback_context,  # noqa: F401 -- imported from this module by tests
-    resolve_review_feedback_pointer as _resolve_review_feedback_pointer,  # noqa: F401 -- imported from this module by tests
-    )
+)
 from specify_cli.cli.commands.agent.workflow_executor import (
     commit_workflow_change as _commit_workflow_change,  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
     ensure_workspace_materialized as _ensure_workspace_materialized,
-    write_prompt_to_file as _write_prompt_to_file,  # noqa: F401 -- imported from this module by tests
 )
 
 # Phase functions the implement()/review()/_resolve_review_context() shells

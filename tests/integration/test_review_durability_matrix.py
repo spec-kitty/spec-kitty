@@ -39,7 +39,7 @@ prompt names).
   ``_skip_target_branch_commit`` boolean, not a real coord worktree. It
   legitimately proves the ONE topology-mediated behaviour a ``FakeCoordCommit
   Router`` cell can observe at all -- the skip-gate
-  (``_resolve_verdict_commit_router``'s own docstring: "a protected-primary-
+  (``VerdictDurabilitySignal``'s own docstring: "a protected-primary-
   coord topology is a SECOND, structurally different cause") -- but it does
   NOT exercise WP04's OTHER topology effect: which git REF the commit lands on
   (PRIMARY vs COORD). That effect needed a genuinely separate, real coord
@@ -744,7 +744,7 @@ def test_protected_and_no_auto_commit_cells_never_invoke_commit_artifact(
 ) -> None:
     """The other half of T068's edge case: for the 9 cells where
     ``auto_commit=False`` or the topology is ``coord_protected``, the skip
-    gate (``_resolve_verdict_commit_router``) must prevent ``commit_artifact``
+    gate (in ``_persist_review_cycle_with_queue``) must prevent ``commit_artifact``
     from ever being called. Explicit local-only cells return their stable skip
     reason; protected automatic cells fail nonzero with retained evidence and
     no event. Mutating an unreachable commit method must alter neither path."""

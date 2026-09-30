@@ -148,7 +148,7 @@ if TYPE_CHECKING:
 
 import typer
 
-from mission_runtime import CommitTarget, MissionTopology
+from mission_runtime import MissionTopology
 from runtime.next.decision import VALID_RESULT_VALUES
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
@@ -748,17 +748,6 @@ def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
         "mission_number": identity.mission_number,
         "mission_type": identity.mission_type,
     }
-
-
-def _get_last_actor(mission_dir: Path, wp_id: str) -> str | None:
-    """Get the actor of the most recent event for this WP."""
-    from specify_cli.status import read_events
-
-    events = read_events(mission_dir)
-    for event in reversed(events):
-        if event.wp_id == wp_id:
-            return event.actor
-    return None
 
 
 _WP_ID_RE = re.compile(r"^(WP\d+)")
@@ -2060,53 +2049,6 @@ def transition(
 
 
 # ── Command 7: append-history ──────────────────────────────────────────────
-
-
-def _resolve_history_commit_args(main_repo_root: Path, mission: str) -> tuple[Path, CommitTarget]:
-    """Resolve (worktree_root, target) for committing a WP prompt-file edit.
-
-    The WP prompt file is a ``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind
-    (write-surface-coherence WP03 / T013). So it commits to the primary
-    ``target_branch`` for every topology, via the kind-aware
-    :func:`resolve_placement_only`, NOT through the coordination worktree: the
-    planning→coord transit is removed (FR-003 / C-005). The WP prompt edit is
-    committed directly from the primary checkout.
-
-    FR-004 (read-surface-ssot-closeout, C-005): a placement-resolution
-    failure (:class:`ActionContextError`) is FAIL-CLOSED — it raises
-    :class:`PlacementResolutionRequired` and propagates. It must never
-    silently degrade to ``CommitTarget(ref=<current checked-out branch>)``: a
-    resolver failure is a real defect (missing mission, corrupt state, a
-    ``coordination_branch`` declared in meta.json but torn down in git, ...),
-    and committing the WP history entry to whatever branch the operator
-    happens to have checked out is a shadow write path, not a legitimate
-    fallback.
-    """
-    from mission_runtime import (
-        ActionContextError,
-        MissionArtifactKind,
-        resolve_placement_only,
-    )
-
-    try:
-        # WORK_PACKAGE_TASK is a primary kind: the placement resolves to the
-        # primary target branch for every topology (no coord transit). The WP
-        # prompt edit therefore commits directly to the primary checkout.
-        placement = resolve_placement_only(main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
-    except ActionContextError as exc:
-        raise PlacementResolutionRequired(
-            "Cannot resolve the canonical write placement for this mission's "
-            "WP prompt-file history commit -- refusing to commit to the "
-            "currently checked-out branch (D11 fail-closed / FR-004). This "
-            "usually means the mission's stored topology could not be "
-            "resolved (e.g. a coordination branch declared in meta.json is "
-            "missing/torn down in git). Run `spec-kitty doctor workspaces "
-            "--fix`, or flatten the mission by removing `coordination_branch` "
-            "from meta.json if the coordination topology was never used, "
-            "then retry."
-        ) from exc
-
-    return main_repo_root, placement
 
 
 @app.command(name="append-history")
@@ -3970,7 +3912,7 @@ def _tasks_are_finalized(mission_dir: Path) -> bool:
     two different inodes' bytes, because only one inode ever exists for
     this file.
     """
-    from specify_cli.status import StoreError, read_events, reduce
+    from specify_cli.status import read_events, reduce
 
     snapshot = reduce(read_events(mission_dir))
     _check_no_snapshot_drift(mission_dir, snapshot)

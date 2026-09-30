@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 from charter.activation.mission_type_key import read_mission_type
-from typing import Any, Dict
+from typing import Any
 
 __all__ = ["run_diagnostics"]
 

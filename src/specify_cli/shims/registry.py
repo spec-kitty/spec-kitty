@@ -92,18 +92,6 @@ assert frozenset() == PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS, (
 )
 
 
-def is_consumer_skill(skill_name: str) -> bool:
-    """Return True if *skill_name* is a consumer-facing skill.
-
-    Args:
-        skill_name: Skill identifier (e.g. ``"implement"``).
-
-    Returns:
-        True when the skill appears in :data:`CONSUMER_SKILLS`.
-    """
-    return skill_name in CONSUMER_SKILLS
-
-
 def is_prompt_driven(skill_name: str) -> bool:
     """Return True if *skill_name* is handled by a full prompt template.
 
@@ -132,11 +120,6 @@ def is_cli_driven(skill_name: str) -> bool:
         True when the skill appears in :data:`CLI_DRIVEN_COMMANDS`.
     """
     return skill_name in CLI_DRIVEN_COMMANDS
-
-
-def get_consumer_skills() -> frozenset[str]:
-    """Return the frozen set of consumer-facing skill names."""
-    return CONSUMER_SKILLS
 
 
 def get_all_skills() -> frozenset[str]:

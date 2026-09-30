@@ -5,7 +5,7 @@ The pre-decomposition ``setup_plan`` was a 507-LOC monolith; WP06 split it into
 the SaaS auth refusal + boundary preflight gates, feature-dir resolution, the
 spec gate, the plan-template scaffold, the plan-commit branch, the documentation
 wiring no-op, and the result emitter. The relocated planning-commit helpers
-(``_kind_for_artifact``, ``_artifact_absent_at_placement``, etc.) keep their
+(``_kind_for_artifact``, ``_print_artifact_unchanged``, etc.) keep their
 existing coverage via ``test_kind_for_artifact.py`` and
 ``test_agent_mission_commit_to_branch.py``; the end-to-end command stays pinned
 by ``test_agent_feature.py``, ``test_mission_planning_entry.py`` and the WP01

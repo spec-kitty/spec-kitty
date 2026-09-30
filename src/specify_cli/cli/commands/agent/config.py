@@ -105,15 +105,6 @@ def _agent_location(
     return None, "unknown agent", False
 
 
-def _project_agent_root(repo_root: Path, agent_key: str) -> Path | None:
-    """Return the legacy project-local root for command-layer agents."""
-    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-    if agent_dir_info is None:
-        return None
-    agent_root, _ = agent_dir_info
-    return repo_root / agent_root
-
-
 def _project_agent_surface(repo_root: Path, agent_key: str) -> tuple[Path, Path, str] | None:
     """Return root, managed surface, and display label for a project agent."""
     agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)

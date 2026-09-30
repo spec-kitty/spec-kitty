@@ -149,7 +149,6 @@ def test_branch_strategy_gate_bypassed_by_already_confirmed() -> None:
 
 def test_run_create_core_phase_returns_result(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     result = _mk_result(tmp_path)
-    monkeypatch.setattr(seam, "_persist_pr_bound_phase", lambda *a, **k: None)
     import specify_cli.core.mission_creation as core
 
     monkeypatch.setattr(core, "create_mission_core", lambda **_k: result)
@@ -279,28 +278,6 @@ def test_worktree_hint_prints_when_worktree_error(monkeypatch: pytest.MonkeyPatc
     out = capsys.readouterr().out
     assert "main repository" in out
     assert "001-demo" in out
-
-
-# ---------------------------------------------------------------------------
-# _persist_pr_bound_phase
-# ---------------------------------------------------------------------------
-
-
-def test_persist_pr_bound_noop_when_false(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    called = {"read": False}
-    monkeypatch.setattr(seam, "_read_meta_for_pr_bound", lambda _fd: called.__setitem__("read", True) or {})
-    seam._persist_pr_bound_phase(_mk_result(tmp_path), pr_bound=False)
-    assert called["read"] is False
-
-
-def test_persist_pr_bound_writes_flag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    written: dict[str, Any] = {}
-    monkeypatch.setattr(seam, "_read_meta_for_pr_bound", lambda _fd: {"mission_id": "x"})
-    import specify_cli.mission_metadata as meta_mod
-
-    monkeypatch.setattr(meta_mod, "write_meta", lambda fd, data: written.update(data))
-    seam._persist_pr_bound_phase(_mk_result(tmp_path), pr_bound=True)
-    assert written.get("pr_bound") is True
 
 
 # ---------------------------------------------------------------------------

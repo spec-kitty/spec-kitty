@@ -28,7 +28,7 @@ import pytest
 from runtime.next._tmp_namespace import SPEC_KITTY_PROMPT_NAMESPACE, prompt_tmp_dir
 from runtime.next.decision import _build_prompt_or_error
 from runtime.next.prompt_builder import _write_to_temp, build_decision_prompt
-from specify_cli.cli.commands.agent.workflow import _write_prompt_to_file
+from specify_cli.cli.commands.agent.workflow_executor import write_prompt_to_file as _write_prompt_to_file
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -211,10 +211,10 @@ class TestSharedConstantSingleSourceOfTruth:
         assert decision_module.prompt_tmp_dir is prompt_tmp_dir
 
     def test_workflow_imports_shared_helper(self) -> None:
-        import specify_cli.cli.commands.agent.workflow as workflow_module
+        import specify_cli.cli.commands.agent.workflow_executor as executor_module
 
-        # workflow.py imports prompt_tmp_dir lazily inside the function (matching
+        # workflow_executor.py imports prompt_tmp_dir lazily inside the function (matching
         # this module's other runtime.next imports), so it is not a module
         # attribute — assert the import statement is present in the source.
-        source = inspect.getsource(workflow_module._write_prompt_to_file)
+        source = inspect.getsource(executor_module.write_prompt_to_file)
         assert "from runtime.next._tmp_namespace import prompt_tmp_dir" in source

@@ -48,7 +48,6 @@ same way removes it.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, cast
 
 import typer
@@ -81,8 +80,6 @@ from specify_cli.cli.commands._auth_saas_target import (
 if TYPE_CHECKING:
     from specify_cli.auth.session import StorageBackend, StoredSession
     from specify_cli.auth.token_manager import TokenManager
-
-log = logging.getLogger(__name__)
 
 
 async def login_impl(*, headless: bool, force: bool, machine: bool = False) -> None:

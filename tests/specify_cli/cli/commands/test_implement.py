@@ -46,54 +46,6 @@ def _make_meta(
     )
 
 
-class TestFeatureDirStatusPaths:
-    """Regression: porcelain parsing must not truncate worktree-only changes.
-
-    ``git status --porcelain`` emits ``XY<space>PATH``. For a tracked file that
-    is modified but **not staged**, ``X`` is a space → the line is ``" M path"``.
-    ``_git_stdout`` ``.strip()``s the whole output, which removes the leading
-    space of the *first* line, shifting its columns so the previous ``line[3:]``
-    slice ate the first path character (``kitty-specs`` → ``itty-specs``). The
-    bogus path then fails ``source.exists()``, the planning-artifact transaction
-    stages nothing, and the claim dies with "commit() called with no events or
-    artifacts to commit" — so status never advances. This pins the real path.
-    """
-
-    def _git_repo_with_modified_tracked_file(self, tmp_path: Path) -> tuple[Path, Path]:
-        repo = tmp_path / "repo"
-        repo.mkdir()
-
-        def git(*args: str) -> None:
-            subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
-
-        git("init", "-q", "-b", "main")
-        git("config", "user.email", "t@example.com")
-        git("config", "user.name", "Test")
-        git("config", "commit.gpgsign", "false")
-        feature_dir = repo / "kitty-specs" / "demo-feature"
-        feature_dir.mkdir(parents=True)
-        status_json = feature_dir / "status.json"
-        status_json.write_text('{"v":1}\n', encoding="utf-8")
-        git("add", "-A")
-        git("commit", "-q", "-m", "initial")
-        # Modify WITHOUT staging → porcelain emits " M kitty-specs/.../status.json"
-        status_json.write_text('{"v":2}\n', encoding="utf-8")
-        return repo, feature_dir
-
-    def test_worktree_modified_tracked_file_path_not_truncated(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.implement import _feature_dir_status_paths
-
-        repo, feature_dir = self._git_repo_with_modified_tracked_file(tmp_path)
-
-        paths = _feature_dir_status_paths(repo, feature_dir)
-
-        assert paths == ["kitty-specs/demo-feature/status.json"], (
-            f"expected the full untruncated path; got {paths!r}"
-        )
-        # The parsed path must actually exist on disk (the claim loop checks this).
-        assert (repo / paths[0]).exists()
-
-
 class TestPlanningArtifactIdempotentCommit:
     """Sequential claims must not fail on already-committed planning edits.
 

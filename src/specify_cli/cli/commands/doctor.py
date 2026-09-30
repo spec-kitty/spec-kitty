@@ -16,7 +16,6 @@ dedicated ``_*_doctor`` / ``_*`` sibling (shared infra in ``_doctor_shared``).
 from __future__ import annotations
 
 import json
-import logging
 import sys  # noqa: F401 — re-exported patch target: tests monkeypatch ``doctor.sys.stdin`` (#2059)
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -191,8 +190,6 @@ from ._review_cycle_reconcile_doctor import run_review_cycle_reconciliation  # n
 # DecisionPointOpened/Resolved event log via the single canonical fold
 # (``specify_cli.decisions.index_fold``).
 from ._decisions_doctor import run_decisions_reconciliation  # noqa: E402
-
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------

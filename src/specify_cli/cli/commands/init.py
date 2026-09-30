@@ -7,7 +7,6 @@ import json
 import shutil
 import stat
 import subprocess
-import sys
 from kernel.clock import now_utc
 from pathlib import Path
 from collections.abc import Callable
@@ -627,66 +626,6 @@ def _get_package_templates_root() -> Path | None:
     return None
 
 
-def _resolve_mission_command_templates_dir(
-    project_path: Path,
-    mission: str,
-    *,
-    scratch_parent: Path | None = None,
-) -> Path:
-    """Materialize the resolved command templates for one mission into scratch space.
-
-    Each template file is resolved independently through the runtime's 6-tier
-    precedence chain so mixed-tier command sets still produce the correct
-    effective directory for init-time consumers.
-    """
-    from specify_cli.runtime.resolver import resolve_command
-
-    candidate_dirs: list[Path] = [
-        project_path / ".kittify" / "overrides" / "command-templates",
-        project_path / ".kittify" / "command-templates",
-    ]
-
-    try:
-        global_home = get_kittify_home()
-    except RuntimeError:
-        global_home = None
-    if global_home is not None:
-        candidate_dirs.extend(
-            [
-                global_home / "missions" / mission / "command-templates",
-                global_home / "command-templates",
-            ]
-        )
-
-    try:
-        package_root = get_package_asset_root()
-    except FileNotFoundError:
-        package_root = None
-    if package_root is not None:
-        candidate_dirs.append(package_root / mission / "command-templates")
-
-    template_names: set[str] = set()
-    for candidate_dir in candidate_dirs:
-        if not candidate_dir.is_dir():
-            continue
-        template_names.update(path.name for path in candidate_dir.glob("*.md") if path.is_file())
-
-    scratch_base = scratch_parent or (project_path / ".kittify")
-    resolved_dir = scratch_base / f".resolved-command-templates-{mission}"
-    if resolved_dir.exists():
-        shutil.rmtree(resolved_dir)
-    resolved_dir.mkdir(parents=True, exist_ok=True)
-
-    for template_name in sorted(template_names):
-        try:
-            resolved = resolve_command(template_name, project_path, mission)
-        except FileNotFoundError:
-            continue
-        shutil.copy2(resolved.path, resolved_dir / template_name)
-
-    return resolved_dir
-
-
 # =============================================================================
 # VCS Detection and Configuration
 # =============================================================================
@@ -1020,8 +959,6 @@ def init(  # noqa: C901
     # Download and set up project
     # New tree-based progress (no emojis); include earlier substeps
     tracker = StepTracker("Initialize Specify Project")
-    # Flag to allow suppressing legacy headings
-    sys._specify_tracker_active = True
     # Pre steps recorded as completed before live rendering
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")

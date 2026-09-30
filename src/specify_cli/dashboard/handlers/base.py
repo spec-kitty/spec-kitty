@@ -7,7 +7,7 @@ import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..csp import send_csp_header
 

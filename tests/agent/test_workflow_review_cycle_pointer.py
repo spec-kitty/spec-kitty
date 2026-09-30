@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent import workflow, workflow_executor
+from specify_cli.cli.commands.agent import workflow_cores, workflow_executor
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
@@ -85,7 +85,7 @@ def test_canonical_review_cycle_pointer_resolves_for_fix_context(
         ),
     )
 
-    has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+    has_feedback, ref, path, source = workflow_cores.resolve_review_feedback_context(
         feature_dir,
         "WP01",
         "",
@@ -134,7 +134,7 @@ def test_fix_context_skips_action_review_claim_sentinel(
         ),
     )
 
-    ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+    ref, path, _ = workflow_cores.latest_review_feedback_reference(feature_dir, "WP01")
 
     assert ref == pointer
     assert path is not None
@@ -168,7 +168,7 @@ def test_fix_context_skips_synthetic_approval_token(
         ),
     )
 
-    has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+    has_feedback, ref, path, source = workflow_cores.resolve_review_feedback_context(
         feature_dir,
         "WP01",
         "",
@@ -219,7 +219,7 @@ def test_fix_context_skips_synthetic_rejection_token_and_falls_back_to_real_poin
         ),
     )
 
-    ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+    ref, path, _ = workflow_cores.latest_review_feedback_reference(feature_dir, "WP01")
 
     assert ref == pointer
     assert path is not None
@@ -234,7 +234,7 @@ def test_legacy_feedback_pointer_remains_readable_with_deprecated_kind(tmp_path:
     legacy.parent.mkdir(parents=True)
     legacy.write_text("legacy feedback", encoding="utf-8")
 
-    resolved = workflow._resolve_review_feedback_pointer(
+    resolved = workflow_cores.resolve_review_feedback_pointer(
         repo,
         "feedback://001-review-pointer/WP01/feedback.md",
     )
@@ -352,7 +352,7 @@ def test_coord_status_state_split_resolves_feedback_file_contents(tmp_path: Path
     # The real render call path reads the PRIMARY ``feature_dir``
     # (``implement_resolve_feedback_and_gate`` passes a WORK_PACKAGE_TASK /
     # PRIMARY dir) -- this must still discover the COORD-partition record.
-    ref, resolved_path, _ = workflow._latest_review_feedback_reference(ctx.primary_feature_dir, "WP01")
+    ref, resolved_path, _ = workflow_cores.latest_review_feedback_reference(ctx.primary_feature_dir, "WP01")
 
     assert ref == pointer
     assert resolved_path is not None, "coord-partition rejection record must resolve to a readable artifact"
@@ -386,7 +386,7 @@ def test_single_branch_status_state_reroute_is_a_noop(
         ),
     )
 
-    has_feedback, ref, path, source = workflow._resolve_review_feedback_context(feature_dir, "WP01", "")
+    has_feedback, ref, path, source = workflow_cores.resolve_review_feedback_context(feature_dir, "WP01", "")
 
     assert has_feedback is True
     assert source == "canonical"
@@ -459,7 +459,7 @@ def test_sc005_no_preseed_rejection_renders_feedback_text_coord(tmp_path: Path, 
     )
     assert result.exit_code == 0, result.stdout
 
-    ref, resolved_path, _ = workflow._latest_review_feedback_reference(ctx.primary_feature_dir, "WP01")
+    ref, resolved_path, _ = workflow_cores.latest_review_feedback_reference(ctx.primary_feature_dir, "WP01")
     assert ref is not None, "the real move-task rejection must have recorded a resolvable review_ref"
     assert resolved_path is not None and resolved_path.exists()
 
@@ -494,7 +494,7 @@ def test_sc005_no_preseed_rejection_renders_feedback_text_single_branch(tmp_path
     result = _move_task_cli(mission_slug=_PARITY_MISSION_SLUG, to="in_progress", feedback_file=feedback_file)
     assert result.exit_code == 0, result.stdout
 
-    ref, resolved_path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+    ref, resolved_path, _ = workflow_cores.latest_review_feedback_reference(feature_dir, "WP01")
     assert ref is not None
     assert resolved_path is not None and resolved_path.exists()
 

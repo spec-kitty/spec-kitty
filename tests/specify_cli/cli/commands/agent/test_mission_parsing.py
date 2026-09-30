@@ -62,28 +62,6 @@ def test_parse_wp_sections_empty_when_no_headings() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _parse_dependencies_from_tasks_md
-# ---------------------------------------------------------------------------
-
-
-def test_parse_dependencies_depends_on_phrase() -> None:
-    content = "## WP02\nDepends on WP01\n## WP03\nDepends on WP01, WP02\n"
-    deps = seam._parse_dependencies_from_tasks_md(content)
-    assert deps["WP02"] == ["WP01"]
-    assert deps["WP03"] == ["WP01", "WP02"]
-
-
-def test_parse_dependencies_dependencies_line() -> None:
-    content = "## WP02\n**Dependencies**: WP01\n"
-    assert seam._parse_dependencies_from_tasks_md(content)["WP02"] == ["WP01"]
-
-
-def test_parse_dependencies_empty_section() -> None:
-    content = "## WP01\nno deps here\n"
-    assert seam._parse_dependencies_from_tasks_md(content)["WP01"] == []
-
-
-# ---------------------------------------------------------------------------
 # _parse_requirement_refs_from_tasks_md
 # ---------------------------------------------------------------------------
 

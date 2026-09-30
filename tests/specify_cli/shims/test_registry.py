@@ -19,9 +19,7 @@ from specify_cli.shims.registry import (
     INTERNAL_SKILLS,
     PROMPT_DRIVEN_COMMANDS,
     get_all_skills,
-    get_consumer_skills,
     is_cli_driven,
-    is_consumer_skill,
     is_prompt_driven,
 )
 
@@ -69,34 +67,6 @@ class TestInternalSkills:
 
     def test_internal_skills_is_frozenset(self) -> None:
         assert isinstance(INTERNAL_SKILLS, frozenset)
-
-
-class TestIsConsumerSkill:
-    def test_returns_true_for_consumer(self) -> None:
-        assert is_consumer_skill("implement") is True
-
-    def test_returns_false_for_internal(self) -> None:
-        assert is_consumer_skill("doctor") is False
-
-    def test_returns_false_for_unknown(self) -> None:
-        assert is_consumer_skill("nonexistent-skill-xyz") is False
-
-    @pytest.mark.parametrize("skill", sorted(CONSUMER_SKILLS))
-    def test_all_consumer_skills_return_true(self, skill: str) -> None:
-        assert is_consumer_skill(skill) is True
-
-    @pytest.mark.parametrize("skill", sorted(INTERNAL_SKILLS))
-    def test_all_internal_skills_return_false(self, skill: str) -> None:
-        assert is_consumer_skill(skill) is False
-
-
-class TestGetConsumerSkills:
-    def test_returns_frozenset(self) -> None:
-        result = get_consumer_skills()
-        assert isinstance(result, frozenset)
-
-    def test_same_as_constant(self) -> None:
-        assert get_consumer_skills() == CONSUMER_SKILLS
 
 
 class TestGetAllSkills:

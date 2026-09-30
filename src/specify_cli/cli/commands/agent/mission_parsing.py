@@ -64,36 +64,6 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     return sections
 
 
-def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
-    """Parse WP dependencies from tasks.md content."""
-    dependencies: dict[str, list[str]] = {}
-
-    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
-        explicit_deps: list[str] = []
-
-        # Pattern: "Depends on WP01" or "Depends on WP01, WP02"
-        depends_matches = re.findall(
-            r"Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)",
-            section_content,
-            re.IGNORECASE,
-        )
-        for match in depends_matches:
-            explicit_deps.extend(re.findall(r"WP\d{2}", match))
-
-        # Pattern: "**Dependencies**: WP01" or "Dependencies: WP01, WP02"
-        deps_line_matches = re.findall(
-            r"\*?\*?Dependencies\*?\*?\s*:\s*(.+)",
-            section_content,
-            re.IGNORECASE,
-        )
-        for match in deps_line_matches:
-            explicit_deps.extend(re.findall(r"WP\d{2}", match))
-
-        dependencies[wp_id] = list(dict.fromkeys(explicit_deps))
-
-    return dependencies
-
-
 def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
     """Parse requirement references per WP from tasks.md content."""
     requirement_refs: dict[str, list[str]] = {}

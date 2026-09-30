@@ -43,9 +43,6 @@ from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
 )
-from specify_cli.cli.commands.agent.mission_check_prerequisites import (
-    _read_meta_for_pr_bound,
-)
 from specify_cli.cli.commands.agent.mission_parsing import _emit_json
 
 if TYPE_CHECKING:
@@ -669,18 +666,6 @@ def _run_create_core_phase(
         )
     except Exception as exc:
         _emit_create_core_error_and_exit(exc, mission_slug=mission_slug, json_output=json_output)
-
-
-def _persist_pr_bound_phase(result: MissionCreationResult, *, pr_bound: bool) -> None:
-    """Persist the ``pr_bound`` flag in ``meta.json`` (FR-033 schema addition)."""
-    if not pr_bound:
-        return
-    meta_data = _read_meta_for_pr_bound(result.feature_dir)
-    if meta_data and not meta_data.get("pr_bound"):
-        meta_data["pr_bound"] = True
-        from specify_cli.mission_metadata import write_meta
-
-        write_meta(result.feature_dir, meta_data)
 
 
 def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:

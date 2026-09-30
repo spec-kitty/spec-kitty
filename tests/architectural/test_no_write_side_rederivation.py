@@ -737,7 +737,8 @@ def _scan_checkout_grammar_module(path: Path) -> list[_CheckoutGrammarFinding]:
 #: ``ActionContextError`` catch now raises ``PlacementResolutionRequired``
 #: (fail-closed) instead of constructing a ``CommitTarget(ref=current_branch)``
 #: via ``git branch --show-current`` -- there is no longer a checkout-grammar
-#: construction at that site.
+#: construction at that site. The helper itself was later deleted as dead code
+#: (append-history stopped committing WP-file edits in #2684).
 _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="src/specify_cli/coordination/transaction.py",

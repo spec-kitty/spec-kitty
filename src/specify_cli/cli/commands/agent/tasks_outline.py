@@ -197,19 +197,6 @@ def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
     return None
 
 
-def _wp_id_exists(feature_dir: Path, wp_id: str) -> bool:
-    """Return True when *wp_id* has a canonical WP artifact or task mention."""
-    tasks_dir = feature_dir / "tasks"
-    if tasks_dir.exists():
-        wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)", re.IGNORECASE)
-        if any(wp_pattern.match(path.name) for path in tasks_dir.glob("*.md")):
-            return True
-    tasks_path = feature_dir / TASKS_MD_FILENAME
-    if tasks_path.exists():
-        return bool(re.search(rf"\b{re.escape(wp_id)}\b", tasks_path.read_text(encoding="utf-8"), re.IGNORECASE))
-    return False
-
-
 def _resolve_wp_id(
     wp_id: str,
     status: str,

@@ -802,9 +802,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "classify_asset", "4c0ca6c39f4ac992dc93f2eabd525739ce05774519b897b083b76dc54fb4ae3c", source_module="specify_cli.runtime"
         ),  # specify_cli.runtime::classify_asset
         SymbolKey(
-            "SkillRegistry", "c01cd024b561b9115a36d3487195aac21d78bd7262a02d993702e4346c51c16b", source_module="specify_cli.shims"
-        ),  # specify_cli.shims::SkillRegistry
-        SymbolKey(
             "SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811", source_module="specify_cli.skills.manifest_store"
         ),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
         # specify_cli.skills.manifest_store::{load,save} -- REMOVED (#666):
@@ -3741,17 +3738,7 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.auth.transport::reset_user_facing_dedup",
         "specify_cli.bulk_edit.occurrence_map::logger",
         "specify_cli.charter_runtime.lint._drg::get_nodes_by_kind",
-        "specify_cli.cli.commands._auth_login::log",
-        "specify_cli.cli.commands._auth_logout::log",
-        "specify_cli.cli.commands.agent.mission::FINALIZE_TASKS_COMMAND_NAME",
         "specify_cli.cli.commands.agent.mission::INVALID_WP_OWNED_FILES_KITTY_SPECS",
-        "specify_cli.cli.commands.agent.mission::PROJECT_ROOT_NOT_FOUND_MESSAGE",
-        "specify_cli.cli.commands.agent.mission::SETUP_PLAN_COMMAND_NAME",
-        "specify_cli.cli.commands.agent.mission::TASKS_MD_FILENAME",
-        "specify_cli.cli.commands.agent.mission::logger",
-        "specify_cli.cli.commands.agent.mission_setup_plan::TASKS_MD_FILENAME",
-        "specify_cli.cli.commands.agent.tasks::logger",
-        "specify_cli.cli.commands.doctor::logger",
         "specify_cli.cli.commands.intake::MAX_BRIEF_FILE_SIZE_BYTES",
         "specify_cli.cli.commands.invocations_cmd::append_to_index",
         "specify_cli.cli.helpers::check_version_compatibility",
@@ -3814,8 +3801,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.saas_client.client::logger",
         "specify_cli.saas_client.endpoints::AdmissionMetadata",
         "specify_cli.shims.registry::get_all_skills",
-        "specify_cli.shims.registry::get_consumer_skills",
-        "specify_cli.shims.registry::is_consumer_skill",
         "specify_cli.state.doctor::logger",
         "specify_cli.status.adapters::reset_handlers",
         "specify_cli.status.cutover_eligibility::assert_birth_invariant_holds",

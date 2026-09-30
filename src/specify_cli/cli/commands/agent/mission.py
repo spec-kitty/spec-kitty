@@ -33,7 +33,6 @@ from __future__ import annotations
 from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
 )
-import logging
 from pathlib import Path
 
 import typer
@@ -228,7 +227,6 @@ from specify_cli.cli.commands.agent.mission_check_prerequisites import (
     _emit_check_prerequisites_detection_error as _emit_check_prerequisites_detection_error,
     _emit_check_prerequisites_result as _emit_check_prerequisites_result,
     _paths_only_payload as _paths_only_payload,
-    _read_meta_for_pr_bound as _read_meta_for_pr_bound,
 )
 
 # Lifecycle families I (#2056 WP05): the ``create`` command, decomposed into
@@ -321,7 +319,6 @@ globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = _i
 top_level_accept = _accept
 top_level_merge = _merge
 
-logger = logging.getLogger(__name__)
 
 app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents", no_args_is_help=True)
 
@@ -340,12 +337,7 @@ app.command(name="finalize-tasks")(finalize_tasks)
 app.command(name="repair")(repair_mission)
 
 
-TASKS_MD_FILENAME = "tasks.md"
-SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
-FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
-PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
-PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
 
 
 def _enforce_git_preflight(

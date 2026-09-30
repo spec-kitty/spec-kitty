@@ -7,7 +7,7 @@ import json
 import logging
 import urllib.parse
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 
 from ..api_types import (
     ArtifactDirectoryResponse,

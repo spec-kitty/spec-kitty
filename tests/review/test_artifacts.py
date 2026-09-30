@@ -214,7 +214,7 @@ def test_frontmatter_field_completeness(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def test_legacy_feedback_pointer_resolution(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
+    from specify_cli.cli.commands.agent.workflow_cores import resolve_review_feedback_pointer as _resolve_review_feedback_pointer
 
     # Create a fake git common-dir structure
     feedback_dir = tmp_path / ".git" / "spec-kitty" / "feedback" / "066-test" / "WP01"
@@ -239,7 +239,7 @@ def test_legacy_feedback_pointer_resolution(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def test_new_review_cycle_pointer_resolution(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
+    from specify_cli.cli.commands.agent.workflow_cores import resolve_review_feedback_pointer as _resolve_review_feedback_pointer
 
     # Create a fake review artifact
     artifact_dir = (
@@ -270,7 +270,7 @@ def test_new_review_cycle_pointer_resolution(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def test_force_override_pointer_returns_none(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
+    from specify_cli.cli.commands.agent.workflow_cores import resolve_review_feedback_pointer as _resolve_review_feedback_pointer
 
     result = _resolve_review_feedback_pointer(tmp_path, "force-override")
     assert result is None

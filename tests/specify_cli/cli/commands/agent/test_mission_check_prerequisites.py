@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -442,18 +441,6 @@ def test_emit_detection_error_human(monkeypatch: pytest.MonkeyPatch, capsys: pyt
 # ---------------------------------------------------------------------------
 # meta readers — silent-degrade contracts
 # ---------------------------------------------------------------------------
-
-
-def test_read_meta_for_pr_bound_empty_when_missing(tmp_path: Path) -> None:
-    assert seam._read_meta_for_pr_bound(tmp_path / "001-demo") == {}
-
-
-def test_read_meta_for_pr_bound_reads_existing(tmp_path: Path) -> None:
-    fd = tmp_path / "001-demo"
-    fd.mkdir()
-    (fd / "meta.json").write_text(json.dumps({"mission_id": "01ABC", "pr_bound": False}))
-    out: dict[str, Any] = seam._read_meta_for_pr_bound(fd)
-    assert out["mission_id"] == "01ABC"
 
 
 def test_read_meta_for_emission_none_when_missing(tmp_path: Path) -> None:

@@ -14,7 +14,6 @@ class StepTracker:
     def __init__(self, title: str) -> None:
         self.title = title
         self.steps: list[dict[str, Any]] = []  # list of dicts: {key, label, status, detail}
-        self.status_order = {"pending": 0, "running": 1, "done": 2, "error": 3, "skipped": 4}
         self._refresh_cb: Any = None  # callable to trigger UI refresh
 
     def attach_refresh(self, cb: Any) -> None:

@@ -63,11 +63,6 @@ AGENT_ARG_PLACEHOLDERS: dict[str, str] = {
 _DEFAULT_ARG_PLACEHOLDER = "$ARGUMENTS"
 
 
-def _get_arg_placeholder(agent_key: str) -> str:
-    """Return the arg placeholder for *agent_key*."""
-    return AGENT_ARG_PLACEHOLDERS.get(agent_key, _DEFAULT_ARG_PLACEHOLDER)
-
-
 def _canonical_command(command: str, agent_name: str, arg_placeholder: str) -> str:
     """Map a CLI-driven command verb to its canonical ``spec-kitty`` invocation.
 

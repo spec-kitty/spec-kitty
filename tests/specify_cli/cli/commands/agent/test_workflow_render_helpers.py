@@ -10,9 +10,9 @@ behaviour-preserving.
 
 from __future__ import annotations
 
-from specify_cli.cli.commands.agent.workflow import (
-    _render_isolation_banner,
-    _render_wp_prompt_wrapper,
+from specify_cli.cli.commands.agent.workflow_cores import (
+    render_isolation_banner as _render_isolation_banner,
+    render_wp_prompt_wrapper as _render_wp_prompt_wrapper,
 )
 
 import pytest

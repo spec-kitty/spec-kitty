@@ -65,7 +65,6 @@ _BRANCH_CONTEXT = (  # Seam B / lifecycle I (WP05)
     "_show_branch_context",
     "_resolve_primary_branch_for_recommendation",
     "_read_meta_for_emission",
-    "_read_meta_for_pr_bound",
 )
 
 _SETUP_PLAN = (  # Lifecycle II (WP06)

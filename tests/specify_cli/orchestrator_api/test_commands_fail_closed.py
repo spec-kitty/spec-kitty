@@ -1,27 +1,12 @@
-"""FR-004 fail-closed regression for ``orchestrator_api/commands.py``.
+"""Fail-closed regressions for ``orchestrator_api/commands.py``.
 
-Guards ``_resolve_history_commit_args`` (the WP prompt-file history-commit
-placement resolver): an ``ActionContextError`` from the canonical placement
-seam (``resolve_placement_only``) must raise the structured
-``PlacementResolutionRequired`` (D11 fail-closed surface, C-005) and never
-silently degrade to ``CommitTarget(ref=<current checked-out branch>)`` — a
-shadow write path that commits the WP prompt-file history entry to whatever
-branch the operator happens to have checked out.
-
-Pre-fix, this went RED: a forced ``ActionContextError`` fell through to the
-``git branch --show-current`` fallback and returned a ``CommitTarget``
-pointing at it instead of raising.
-
-WP08 (runtime-state-eviction, FR-007 / T031) note: ``append-history`` no
-longer calls ``_resolve_history_commit_args`` at all (it emits a ``note``
-``InnerStateChanged`` annotation instead of committing a WP-file edit), so the
-resolver's own fail-closed contract (the first two tests below) is pinned as a
-standalone unit guarantee for any future WP-prompt-file commit caller. The
-former end-to-end ``append-history`` regression test is replaced with the
-command's *current* structured-envelope contract: a failed emit still returns
-``_fail(...)``'s JSON error, never a bare traceback (see the last test below).
+WP08 (runtime-state-eviction, FR-007 / T031): ``append-history`` emits a
+``note`` ``InnerStateChanged`` annotation instead of committing a WP-file edit,
+so the former WP prompt-file history-commit placement resolver (and its FR-004
+fail-closed unit tests) was deleted with its last caller. What remains pinned
+here is the command's *current* structured-envelope contract: a failed emit
+still returns ``_fail(...)``'s JSON error, never a bare traceback.
 """
-
 from __future__ import annotations
 
 import json
@@ -31,8 +16,6 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from mission_runtime import ActionContextError
-from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.orchestrator_api import commands as orch
 from specify_cli.orchestrator_api.commands import app
 
@@ -71,59 +54,14 @@ def _seed_mission(tmp_path: Path) -> tuple[Path, Path]:
     return repo_root, primary
 
 
-def test_resolve_history_commit_args_raises_structured_error_on_action_context_error(
-    tmp_path: Path,
-) -> None:
-    """Direct unit proof (C-005 red-first target): the resolver must raise
-    ``PlacementResolutionRequired``, never build a ``current_branch`` fallback
-    ``CommitTarget``.
-    """
-    repo_root, _primary = _seed_mission(tmp_path)
-
-    with (
-        patch(
-            "mission_runtime.resolve_placement_only",
-            side_effect=ActionContextError("PLACEMENT_UNRESOLVED", "boom"),
-        ),
-        pytest.raises(PlacementResolutionRequired),
-    ):
-        orch._resolve_history_commit_args(repo_root, _MISSION_SLUG)
-
-
-def test_resolve_history_commit_args_error_never_carries_current_branch_ref(
-    tmp_path: Path,
-) -> None:
-    """Belt-and-braces: even if some future refactor changes the exception
-    type, the resolver must never return a ``CommitTarget`` whose ``ref`` is
-    the plain checked-out branch name obtained via ``git branch
-    --show-current`` -- that shadow write path is exactly what FR-004 closes.
-    """
-    repo_root, _primary = _seed_mission(tmp_path)
-
-    with patch(
-        "mission_runtime.resolve_placement_only",
-        side_effect=ActionContextError("PLACEMENT_UNRESOLVED", "boom"),
-    ):
-        try:
-            orch._resolve_history_commit_args(repo_root, _MISSION_SLUG)
-        except PlacementResolutionRequired:
-            pass
-        else:
-            pytest.fail(
-                "expected PlacementResolutionRequired; a fallback CommitTarget "
-                "was returned instead (FR-004 regression)"
-            )
-
-
 def test_append_history_surfaces_structured_error_code_on_emit_failure(
     tmp_path: Path,
 ) -> None:
     """End-to-end (WP08 / T031): a failed ``InnerStateChanged`` emit still
     surfaces the orchestrator-api's own structured ``HISTORY_COMMIT_FAILED``
     envelope -- never a bare traceback -- even though ``append-history`` no
-    longer routes through ``_resolve_history_commit_args``/
-    ``resolve_placement_only`` at all (that WP-file-commit placement seam is
-    unreachable from this command post-WP08; see the module docstring).
+    longer routes through a WP-file-commit placement seam at all (see the
+    module docstring).
     """
     repo_root, _primary = _seed_mission(tmp_path)
 

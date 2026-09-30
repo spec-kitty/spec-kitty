@@ -12,12 +12,10 @@ Source-of-truth contract:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.console import Console
 from specify_cli.cli.console import console as _console
 from specify_cli.cli.console import err_console as _err_console
 from rich.table import Table
@@ -33,7 +31,6 @@ from specify_cli.doctrine_synthesizer import (
 )
 from specify_cli.retrospective import (
     emit_captured,
-    RetrospectiveActor,
 )
 from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
 from specify_cli.retrospective.reader import (
@@ -49,18 +46,12 @@ from specify_cli.retrospective.schema import (
     GenActor,
     GenProvenance,
     GenRetrospectiveRecord,
-    MissionIdentity,
-    Mode,
-    ModeSourceSignal,
-    RecordProvenance,
     RetrospectiveRecord,
 )
-from specify_cli.retrospective.schema import RecordValidationError
 from specify_cli.retrospective.writer import (
     WriterError,
     resolve_existing_record_path,
     write_gen_record,
-    write_record,
 )
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import reduce as reduce_status_events
@@ -201,17 +192,6 @@ def _build_json_envelope(
     if next_action is not None:
         envelope["next_action"] = next_action
     return envelope
-
-
-def _empty_synthesis_result(*, dry_run: bool) -> SynthesisResult:
-    return SynthesisResult(
-        dry_run=dry_run,
-        planned=[],
-        applied=[],
-        conflicts=[],
-        rejected=[],
-        events_emitted=[],
-    )
 
 
 def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path) -> Path:

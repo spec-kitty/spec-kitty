@@ -29,7 +29,6 @@ from specify_cli.core.constants import (
 # through ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, and
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
-import logging
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -159,9 +158,6 @@ from specify_cli.cli.commands.agent.tasks_outline import (
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _collect_status_artifacts as _collect_status_artifacts,
     _resolve_wp_slug as _resolve_wp_slug,
-    _materialize_inline_subtask_status as _materialize_inline_subtask_status,
-    # WP09: ``_persist_inline_subtask_status`` left with ``_resolve_inline_subtasks``
-    # (now imported directly by ``tasks_mark_status``); zero external refs via ``tasks``.
     # ``_persist_review_artifact_override_in_coord`` deleted in WP09 (FR-009): the
     # primary/coord frontmatter mirror collapsed into the single review emit.
     _persist_review_feedback as _persist_review_feedback,
@@ -349,7 +345,6 @@ __all__ = [
     "subprocess",
 ]
 
-logger = logging.getLogger(__name__)
 # ``SPEC_MD_FILENAME`` stays a ``tasks.py``-owned constant: its only consumer
 # (``_mr_resolve_read_dirs``) relocated to ``tasks_map_requirements`` in WP06
 # and reads it back through ``_tasks.SPEC_MD_FILENAME`` (the WP05

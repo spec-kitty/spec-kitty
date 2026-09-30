@@ -22,7 +22,6 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     _parse_pipe_table_header,
     _resolve_history_wp_id,
     _resolve_wp_id,
-    _wp_id_exists,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -258,32 +257,6 @@ def test_resolve_history_wp_id_inline_subtasks() -> None:
 def test_resolve_history_wp_id_not_found() -> None:
     content = "## WP01: Nothing here\nsome prose"
     assert _resolve_history_wp_id(content, "T999") is None
-
-
-# ---------------------------------------------------------------------------
-# _wp_id_exists
-# ---------------------------------------------------------------------------
-
-
-def test_wp_id_exists_via_tasks_file_artifact(tmp_path: Path) -> None:
-    tasks_dir = tmp_path / "tasks"
-    tasks_dir.mkdir()
-    (tasks_dir / "WP01-extract-seam.md").write_text("body", encoding="utf-8")
-    assert _wp_id_exists(tmp_path, "WP01") is True
-
-
-def test_wp_id_exists_via_tasks_md_mention(tmp_path: Path) -> None:
-    (tmp_path / "tasks.md").write_text("Work for WP05 lives here", encoding="utf-8")
-    assert _wp_id_exists(tmp_path, "WP05") is True
-
-
-def test_wp_id_exists_absent(tmp_path: Path) -> None:
-    (tmp_path / "tasks.md").write_text("nothing relevant", encoding="utf-8")
-    assert _wp_id_exists(tmp_path, "WP99") is False
-
-
-def test_wp_id_exists_no_sources(tmp_path: Path) -> None:
-    assert _wp_id_exists(tmp_path, "WP01") is False
 
 
 # ---------------------------------------------------------------------------

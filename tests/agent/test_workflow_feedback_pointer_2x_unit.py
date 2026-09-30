@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from tests.branch_contract import IS_2X_BRANCH
-from specify_cli.cli.commands.agent import workflow
+from specify_cli.cli.commands.agent import workflow, workflow_cores
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
@@ -179,17 +179,17 @@ def test_resolve_feedback_pointer_handles_blank_and_legacy_missing(tmp_path: Pat
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    assert workflow._resolve_review_feedback_pointer(repo, "   ") is None
+    assert workflow_cores.resolve_review_feedback_pointer(repo, "   ") is None
 
     assert (
-        workflow._resolve_review_feedback_pointer(
+        workflow_cores.resolve_review_feedback_pointer(
             repo,
             "feedback://001-test-feature/WP01/file.md",
         )
         is None
     )
 
-    assert workflow._resolve_review_feedback_pointer(repo, "relative/path/that/does-not-exist.md") is None
+    assert workflow_cores.resolve_review_feedback_pointer(repo, "relative/path/that/does-not-exist.md") is None
 
 
 def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(workflow_repo: tuple[Path, str, Path]):

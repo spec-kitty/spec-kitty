@@ -21,8 +21,6 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     TaskIdResolutionFormat,
     TaskIdResolutionOutcome,
     _collect_status_artifacts,
-    _materialize_inline_subtask_status,
-    _persist_inline_subtask_status,
     _persist_review_artifact_override,
     _persist_review_feedback,
     _resolve_checkbox,
@@ -165,85 +163,6 @@ class TestResolvePipeTable:
         _resolve_pipe_table("T001", lines, "done")
         assert "[D]" in lines[2]
         assert "WP01" in lines[2]
-
-
-# ---------------------------------------------------------------------------
-# _materialize_inline_subtask_status (pure, no I/O)
-# ---------------------------------------------------------------------------
-
-
-class TestMaterializeInlineSubtaskStatus:
-    def test_inserts_checkbox_row_after_reference(self) -> None:
-        content = "## WP01\nSubtasks: T001, T002\nmore text"
-        updated, persisted = _materialize_inline_subtask_status("T001", content, "done")
-        assert persisted is True
-        assert "- [x] T001" in updated
-
-    def test_toggles_existing_checkbox_instead_of_duplicating(self) -> None:
-        content = "Subtasks: T001\n- [ ] T001 already present"
-        updated, persisted = _materialize_inline_subtask_status("T001", content, "done")
-        assert persisted is True
-        assert updated.count("T001") == content.count("T001")  # no new row
-        assert "- [x] T001 already present" in updated
-
-    def test_inserts_after_trailing_subtask_rows(self) -> None:
-        content = "Subtasks: T003\n- [ ] T001 existing\n- [ ] T002 existing"
-        updated, persisted = _materialize_inline_subtask_status("T003", content, "pending")
-        assert persisted is True
-        # New row appended below the contiguous existing subtask rows.
-        assert "- [ ] T003" in updated
-
-    def test_is_case_insensitive_in_reference_ids(self) -> None:
-        content = "Subtasks: t001"
-        updated, persisted = _materialize_inline_subtask_status("T001", content, "done")
-        assert persisted is True
-        assert "- [x] T001" in updated
-
-    def test_returns_unchanged_when_no_reference(self) -> None:
-        content = "## WP01\nno subtasks here"
-        updated, persisted = _materialize_inline_subtask_status("T001", content, "done")
-        assert persisted is False
-        assert updated == content
-
-    def test_returns_unchanged_when_id_not_in_reference_list(self) -> None:
-        content = "Subtasks: T002, T003"
-        updated, persisted = _materialize_inline_subtask_status("T001", content, "done")
-        assert persisted is False
-        assert updated == content
-
-
-# ---------------------------------------------------------------------------
-# _persist_inline_subtask_status (filesystem I/O + error paths)
-# ---------------------------------------------------------------------------
-
-
-class TestPersistInlineSubtaskStatus:
-    def test_persists_to_tasks_md(self, tmp_path: Path) -> None:
-        tasks_md = tmp_path / TASKS_MD_FILENAME
-        tasks_md.write_text("Subtasks: T001\n", encoding="utf-8")
-        persisted = _persist_inline_subtask_status("T001", "done", tmp_path)
-        assert persisted is True
-        assert "- [x] T001" in tasks_md.read_text(encoding="utf-8")
-
-    def test_uses_provided_content_without_reading_file(self, tmp_path: Path) -> None:
-        # File does not exist, but explicit content is provided -> still writes.
-        persisted = _persist_inline_subtask_status(
-            "T001", "done", tmp_path, tasks_content="Subtasks: T001\n"
-        )
-        assert persisted is True
-        assert (tmp_path / TASKS_MD_FILENAME).exists()
-
-    def test_missing_file_returns_false(self, tmp_path: Path) -> None:
-        # No tasks.md and no explicit content -> graceful False, no write.
-        assert _persist_inline_subtask_status("T001", "done", tmp_path) is False
-        assert not (tmp_path / TASKS_MD_FILENAME).exists()
-
-    def test_no_matching_reference_does_not_write(self, tmp_path: Path) -> None:
-        tasks_md = tmp_path / TASKS_MD_FILENAME
-        original = "no references here\n"
-        tasks_md.write_text(original, encoding="utf-8")
-        assert _persist_inline_subtask_status("T001", "done", tmp_path) is False
-        assert tasks_md.read_text(encoding="utf-8") == original
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,6 @@ line, error message, console output, or exception string.
 
 from __future__ import annotations
 
-import logging
 
 import typer
 from rich.markup import escape
@@ -37,7 +36,6 @@ from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome
 from specify_cli.auth.server_target import HostedEndpointUnconfigured, ServerTargetSplitBrainError, resolve_token_endpoint
 from specify_cli.auth.session import StoredSession
 
-log = logging.getLogger(__name__)
 
 #: S1192: this exact suffix closes seven distinct revocation-skip messages
 #: below -- server revocation never blocks local credential deletion

@@ -6,9 +6,8 @@ feature-dir resolution → spec gate → plan scaffold → lifecycle emit → pl
 commit → documentation wiring → result emit), plus the planning-commit helpers
 it owns: ``_commit_to_branch`` + ``CommitToBranchResult``, ``_kind_for_artifact``
 (and its ``_ARTIFACT_TYPE_TO_KIND`` table), ``_artifact_has_no_git_changes``,
-``_artifact_absent_at_placement``, ``_print_artifact_unchanged``,
-``_warn_commit_failed``. The heavyweight ``commit_for_mission`` import stays
-function-local (A-3 / NFR-005).
+``_print_artifact_unchanged``, ``_warn_commit_failed``. The heavyweight
+``commit_for_mission`` import stays function-local (A-3 / NFR-005).
 
 The command is defined here as a plain callable; ``mission`` registers it on its
 Typer ``app`` and re-exports ``setup_plan`` / ``_commit_to_branch`` /
@@ -86,7 +85,6 @@ logger = logging.getLogger(__name__)
 SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
-TASKS_MD_FILENAME = "tasks.md"
 #: FR-013: setup-plan refuses a spec.md that declares a malformed
 #: kind-prefixed requirement ID in a declared position (WP05).
 SPEC_REQUIREMENT_IDS_INVALID = "SPEC_REQUIREMENT_IDS_INVALID"
@@ -114,23 +112,6 @@ def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
         check=False,
     )
     return status.returncode == 0 and not status.stdout.strip()
-
-
-def _artifact_absent_at_placement(worktree_root: Path, commit_paths: tuple[Path, ...], file_path: Path) -> bool:
-    """Return True iff the artifact is NOT present at the resolved placement.
-
-    FR-006 / D-5: a commit that would run against a worktree where the artifact
-    does not exist is a no-op-against-the-wrong-surface (vs. a genuine
-    benign-unchanged where the artifact IS present and already committed). When
-    ``_planning_commit_worktree`` produced committable paths, each must exist on
-    disk; when it produced none, the original ``file_path`` is checked against
-    the worktree. An empty changeset where the artifact IS present is a genuine
-    no-op (returns False here), handled by the caller.
-    """
-    if commit_paths:
-        return any(not path.exists() for path in commit_paths)
-    # No committable paths: check the artifact at the worktree-relative location.
-    return not _artifact_has_no_git_changes(worktree_root, file_path) and not file_path.exists()
 
 
 def _print_artifact_unchanged(artifact_type: str, json_output: bool) -> None:
@@ -338,29 +319,6 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
             if "example_command" in payload:
                 console.print(f"  {payload['example_command']}")
         raise typer.Exit(1) from None
-
-
-def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *, json_output: bool) -> None:
-    """Emit the SPEC_FILE_MISSING payload and exit 1."""
-    payload: dict[str, object] = {
-        "error_code": "SPEC_FILE_MISSING",
-        "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
-        "mission_slug": mission_slug,
-        "mission_dir": str(feature_dir.resolve()),
-        "feature_dir": str(feature_dir.resolve()),  # legacy alias of mission_dir (#5206)
-        "spec_file": str(spec_file.resolve()),
-        "remediation": [
-            f"Restore the missing spec file at {spec_file.resolve()}",
-            f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
-        ],
-    }
-    if json_output:
-        _emit_json(payload)
-    else:
-        console.print(f"[red]Error:[/red] {payload['error']}")
-        for step in cast(list[str], payload["remediation"]):
-            console.print(f"  - {step}")
-    raise typer.Exit(1)
 
 
 def _resolve_branch_match_operands(

@@ -125,7 +125,6 @@ class _MarkStatusState:
     updated_tasks: list[str] = field(default_factory=list)
     not_found_tasks: list[str] = field(default_factory=list)
     resolved_tasks: list[str] = field(default_factory=list)
-    artifact_mutated: bool = False
 
 
 def _default_mark_status_ports() -> TasksPorts:
@@ -346,7 +345,6 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
         st.updated_tasks = [r.id for r in results if r.outcome == TaskIdResolutionOutcome.UPDATED]
         st.not_found_tasks = [r.id for r in results if r.outcome == TaskIdResolutionOutcome.NOT_FOUND]
         st.resolved_tasks = [r.id for r in results if r.outcome != TaskIdResolutionOutcome.NOT_FOUND]
-        st.artifact_mutated = False
 
         # Fail if no tasks were resolved.
         if not st.resolved_tasks:
@@ -649,9 +647,9 @@ def _do_mark_status(
 # WP09 (tasks-py-degod-wave2-01KWH9EQ / FR-008, IC-07): the final
 # registration-shim sweep relocates the mark_status-family straggler that
 # remained ``tasks.py``-resident after WP08 — the inline-Subtasks resolver
-# (``_resolve_inline_subtasks``). Moved VERBATIM (``_INLINE_SUBTASKS_RE`` /
-# ``_persist_inline_subtask_status`` and the ``TaskIdResult`` vocabulary are
-# module-scope imports here; none is a ``tasks``-namespace patch seam). The
+# (``_resolve_inline_subtasks``). Moved VERBATIM (``_INLINE_SUBTASKS_RE`` and
+# the ``TaskIdResult`` vocabulary are module-scope imports here; none is a
+# ``tasks``-namespace patch seam). The
 # ``_ms_apply_updates`` call site above keeps routing through
 # ``_tasks.<attr>``, so the seam-interception contract
 # (``@patch("...agent.tasks._resolve_inline_subtasks")``,

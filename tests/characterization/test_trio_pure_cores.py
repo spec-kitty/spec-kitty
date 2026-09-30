@@ -15,7 +15,7 @@ Targets (CC19-37, all currently pure/deterministic given controlled inputs):
 * ``acceptance._check_lane_gates``              (CC19; I/O collaborators mocked)
 * ``acceptance.collect_feature_summary``        (CC25; wiring, collaborators mocked)
 * ``workflow._resolve_review_context``          (CC37; subprocess/git mocked)
-* ``workflow._resolve_review_feedback_context`` / ``_has_prior_rejection``
+* ``workflow_cores.resolve_review_feedback_context`` / ``has_prior_rejection``
   (the rejection/rewind/resume paths feeding review-context)
 
 Marker: unit only (no subprocess, no real git -- filesystem use is confined
@@ -38,10 +38,10 @@ from specify_cli.cli.commands.agent import workflow as workflow_module
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     is_review_rejection_edge,
 )
-from specify_cli.cli.commands.agent.workflow import (
-    _has_prior_rejection,
-    _resolve_review_context,
-    _resolve_review_feedback_context,
+from specify_cli.cli.commands.agent.workflow import _resolve_review_context
+from specify_cli.cli.commands.agent.workflow_cores import (
+    has_prior_rejection as _has_prior_rejection,
+    resolve_review_feedback_context as _resolve_review_feedback_context,
 )
 from specify_cli.review.cycle import create_rejected_review_cycle
 from specify_cli.status import Lane, StatusEvent

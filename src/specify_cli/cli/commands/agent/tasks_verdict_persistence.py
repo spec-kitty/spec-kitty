@@ -252,28 +252,6 @@ class VerdictRevertCompoundFailure(RuntimeError):
         super().__init__(message)
 
 
-def _resolve_verdict_commit_router(
-    st: _MoveTaskState, ports: TasksPorts
-) -> tuple[CoordCommitRouter | None, str | None]:
-    """Resolve the review-cycle artifact's ``commit_router`` + skip reason.
-
-    T050: mirrors ``tasks_move_task.py``'s own status-event gate EXACTLY
-    (``if st.resolved_auto_commit and not st.skip_target_branch_commit:`` at
-    ``tasks_move_task.py:346``, threaded via ``tasks_transition_core.py``'s
-    analogous ``if not req.skip_target_branch_commit:`` / ``if req.auto_commit
-    and not req.skip_target_branch_commit and req.protected_error:`` guards at
-    lines 317/344) so the review-cycle-artifact commit never attempts a
-    protected-branch write the status-event commit already declined. Returns
-    ``(commit_router, skip_reason)`` -- ``skip_reason is None`` iff the write
-    will be durable.
-    """
-    if not st.resolved_auto_commit:
-        return None, _DURABILITY_REASON_NO_AUTO_COMMIT
-    if st.skip_target_branch_commit:
-        return None, _DURABILITY_REASON_PROTECTED_TARGET_BRANCH
-    return ports.coord, None
-
-
 def _resolve_revert_commit_worktree(
     st: _MoveTaskState, *, target_ref: str, original_path: Path,
 ) -> tuple[Path, Path | None]:

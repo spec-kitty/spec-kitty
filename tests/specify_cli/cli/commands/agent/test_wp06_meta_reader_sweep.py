@@ -13,14 +13,11 @@ proves only that the text changed, not that the canonical contract holds at the
 site.  We assert the **consuming helper's return value**, never the internal
 ``load_meta`` call-graph (CT4 / D036).
 
-Three in-mission sites (the only ones in scope; the ~53-site #2100 backlog is
-deferred):
+Two in-mission sites (the only ones in scope; the ~53-site #2100 backlog is
+deferred; a third, the ``pr_bound`` write-back reader, was deleted as dead code):
 
 - ``_read_feature_meta`` (was ``json.loads`` + ``except (JSONDecodeError,
   OSError): return {}``) -> silent-empty contract (c): missing/malformed -> ``{}``.
-- ``_read_meta_for_pr_bound`` (was the inline ``pr_bound`` write-back read,
-  ``except (OSError, JSONDecodeError): pass``) -> silent-empty contract (c):
-  missing/malformed -> ``{}`` so the write-back is skipped.
 - ``_read_meta_for_emission`` (was the inline finalize-tasks event-emission
   read, ``except (JSONDecodeError, OSError): warn``) -> silent-none contract:
   missing/malformed -> ``None``.
@@ -115,43 +112,7 @@ def test_read_feature_meta_returns_dict_on_valid(tmp_path: Path) -> None:
 
 
 # ===========================================================================
-# Site 2: _read_meta_for_pr_bound -> load_meta_or_empty (silent-empty contract)
-#
-# The pr_bound write-back skips when the read yields a falsy mapping, so the
-# silent-empty contract (missing/malformed -> {}) preserves the original
-# ``except (OSError, JSONDecodeError): pass`` behavior (no write-back).
-# ===========================================================================
-
-
-def test_read_meta_for_pr_bound_returns_empty_on_missing(tmp_path: Path) -> None:
-    """Missing meta.json -> {} (write-back skipped)."""
-    from specify_cli.cli.commands.agent.mission import _read_meta_for_pr_bound
-
-    assert _read_meta_for_pr_bound(tmp_path) == {}
-
-
-def test_read_meta_for_pr_bound_returns_empty_on_malformed(tmp_path: Path) -> None:
-    """Malformed meta.json -> {} -- never raises (mutation-killer).
-
-    Preserves the original ``except (OSError, JSONDecodeError): pass`` so a
-    corrupt meta.json does not crash the create flow.
-    """
-    _seed_malformed(tmp_path)
-    from specify_cli.cli.commands.agent.mission import _read_meta_for_pr_bound
-
-    assert _read_meta_for_pr_bound(tmp_path) == {}
-
-
-def test_read_meta_for_pr_bound_returns_dict_on_valid(tmp_path: Path) -> None:
-    """A valid meta.json returns the parsed mapping (positive control)."""
-    expected = _seed_valid(tmp_path)
-    from specify_cli.cli.commands.agent.mission import _read_meta_for_pr_bound
-
-    assert _read_meta_for_pr_bound(tmp_path) == expected
-
-
-# ===========================================================================
-# Site 3: _read_meta_for_emission -> load_meta(..., on_malformed="none")
+# Site 2: _read_meta_for_emission -> load_meta(..., on_malformed="none")
 #
 # The finalize-tasks event-emission read tolerates a missing/malformed meta by
 # leaving ``meta = None`` (and warning at the call site).  Contract: missing or

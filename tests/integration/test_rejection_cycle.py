@@ -142,7 +142,7 @@ class TestHasPriorRejection:
 
     def test_no_artifacts_returns_false(self, tmp_path: Path) -> None:
         """test_has_prior_rejection_no_artifacts — returns False for clean WP."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         feature_dir.mkdir(parents=True)
@@ -152,7 +152,7 @@ class TestHasPriorRejection:
 
     def test_artifacts_but_no_events_returns_false(self, tmp_path: Path) -> None:
         """Artifacts exist but no event log — returns False."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title")
@@ -162,7 +162,7 @@ class TestHasPriorRejection:
 
     def test_artifacts_and_rejection_event_returns_true(self, tmp_path: Path) -> None:
         """test_has_prior_rejection_with_artifacts_and_event — returns True after rejection."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title")
@@ -182,7 +182,7 @@ class TestHasPriorRejection:
 
     def test_rejected_then_resolved_returns_false(self, tmp_path: Path) -> None:
         """Artifact exists but the latest event is not a rejection (approved) — returns False."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title")
@@ -215,7 +215,7 @@ class TestHasPriorRejection:
 
     def test_only_checks_matching_wp_id(self, tmp_path: Path) -> None:
         """Rejection events for a different WP ID do not trigger fix mode."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title")
@@ -233,7 +233,7 @@ class TestHasPriorRejection:
 
     def test_no_sub_artifact_dir_returns_false(self, tmp_path: Path) -> None:
         """Sub-artifact directory does not exist — returns False without error."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         feature_dir.mkdir(parents=True)
@@ -244,7 +244,7 @@ class TestHasPriorRejection:
 
     def test_multiple_rejections_uses_latest(self, tmp_path: Path) -> None:
         """Multiple rejection events — still returns True (latest event is rejection)."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title", cycle=2)
@@ -271,7 +271,7 @@ class TestHasPriorRejection:
 
     def test_reentry_after_rejection_still_returns_true(self, tmp_path: Path) -> None:
         """Claim/in-progress events after a rejection should not clear fix mode."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title", cycle=1)
@@ -374,7 +374,7 @@ class TestModeSwitchFallsThroughOnResolved:
 
     def test_no_rejection_event_means_no_fix_mode(self, tmp_path: Path) -> None:
         """When the latest WP event is NOT from for_review, _has_prior_rejection is False."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title")
@@ -392,7 +392,7 @@ class TestModeSwitchFallsThroughOnResolved:
 
     def test_empty_artifact_dir_means_no_fix_mode(self, tmp_path: Path) -> None:
         """Empty sub-artifact dir (no .md files) means no fix mode even with rejection event."""
-        from specify_cli.cli.commands.agent.workflow import _has_prior_rejection
+        from specify_cli.cli.commands.agent.workflow_cores import has_prior_rejection as _has_prior_rejection
 
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
 

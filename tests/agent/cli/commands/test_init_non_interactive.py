@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from specify_cli.cli.commands import init as init_module
@@ -28,7 +30,7 @@ def test_non_interactive_env_override(monkeypatch: pytest.MonkeyPatch):
     """Env var SPEC_KITTY_NON_INTERACTIVE=1 forces non-interactive mode."""
     # Arrange
     monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
-    monkeypatch.setattr(init_module.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
     # Assumption check
     assert is_truthy("1") is True
     # Act
@@ -41,7 +43,7 @@ def test_non_interactive_non_tty(monkeypatch: pytest.MonkeyPatch):
     """Non-TTY stdin forces non-interactive mode regardless of env var."""
     # Arrange
     monkeypatch.delenv("SPEC_KITTY_NON_INTERACTIVE", raising=False)
-    monkeypatch.setattr(init_module.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
     # Assumption check
     assert is_truthy(None) is False
     # Act
@@ -56,7 +58,7 @@ def test_force_interactive_overrides_non_interactive_env(monkeypatch: pytest.Mon
     # Arrange
     monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
     monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
-    monkeypatch.setattr(init_module.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
     # Act
     result = init_module._is_non_interactive_mode(False)
     # Assert

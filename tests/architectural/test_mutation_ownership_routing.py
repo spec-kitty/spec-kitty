@@ -364,16 +364,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "backup-guarded: _discard_failed_project_scaffold runs back_up_operator_subtrees(...) to "
         "project_path.parent FIRST, so operator subtrees are archived before the scaffold rmtree."
     ),
-    CensusKey(
-        rel="src/specify_cli/cli/commands/init.py",
-        qualname="_resolve_mission_command_templates_dir",
-        token_line="shutil . rmtree ( resolved_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): (
-        "ephemeral scratch: removes the .resolved-command-templates-<mission> resolver scratch dir "
-        "this run creates immediately below — package-generated, never user-authored."
-    ),
     CensusKey(rel="src/specify_cli/cli/commands/init.py", qualname="init", token_line="shutil . rmtree ( scratch )", op="shutil.rmtree", op_ordinal=0): (
         "ephemeral scratch: best-effort sweep of .kittify/.resolved-* / .merged-* resolver scratch "
         "dirs (name-prefixed, package-generated this run); the #4861 command-templates cleanup just "
