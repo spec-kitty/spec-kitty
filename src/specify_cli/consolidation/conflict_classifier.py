@@ -132,10 +132,6 @@ def _split_conflict_region(hunk_text: str) -> tuple[str, str] | None:
     return ours, theirs
 
 
-def _strip_trailing_newline(text: str) -> str:
-    return text[:-1] if text.endswith("\n") else text
-
-
 # ---------------------------------------------------------------------------
 # Rule 1: R-PYPROJECT-DEPS-UNION
 # ---------------------------------------------------------------------------

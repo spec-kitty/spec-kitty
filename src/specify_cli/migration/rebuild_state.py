@@ -243,31 +243,6 @@ def _read_frontmatter_lanes(feature_dir: Path) -> dict[str, str]:
     return lanes
 
 
-def _read_wp_frontmatter_full(feature_dir: Path) -> dict[str, dict[str, Any]]:
-    """Return mapping of wp_code → full frontmatter dict."""
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.is_dir():
-        return {}
-    result: dict[str, dict[str, Any]] = {}
-    try:
-        from specify_cli.frontmatter import read_frontmatter
-    except ImportError:
-        return {}
-    import re
-    _WP_RE = re.compile(r"^(WP\d{2,})")
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        m = _WP_RE.match(wp_file.stem)
-        if not m:
-            continue
-        wp_code = m.group(1)
-        try:
-            fm, _ = read_frontmatter(wp_file)
-            result[wp_code] = dict(fm)
-        except Exception as exc:
-            logger.debug("Cannot read frontmatter for %s: %s", wp_file.name, exc)
-    return result
-
-
 # ---------------------------------------------------------------------------
 # Event deduplication
 # ---------------------------------------------------------------------------

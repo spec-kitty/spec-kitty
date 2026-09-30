@@ -227,9 +227,10 @@ Marked deprecated, describe the deleted transport, keep for history only:
 `docs/guides/project-sync-consent.md`, the 2.x/3.x sync ADRs. On the SaaS
 side `docs/architecture/teamspace-compatibility-handshake.md` still says
 "Production" but its code is gone, and `contracts/consumer-compatibility.json`
-pins versions the SaaS no longer uses. Vestigial `ensure_sync_daemon` /
-`ensure_daemon` parameters are threaded through `status/emit.py`,
-`coordination/status_transition.py` and friends and read by nobody.
+pins versions the SaaS no longer uses. (The vestigial `ensure_sync_daemon` /
+`ensure_daemon` and `sync_dossier` parameters that were threaded through
+`status/emit.py`, `coordination/status_transition.py` and friends were removed
+in the 2026-09-30 dead-code sweep.)
 
 ## Sources
 

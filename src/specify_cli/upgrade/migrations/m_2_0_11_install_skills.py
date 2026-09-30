@@ -15,15 +15,12 @@ Scope:
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
-
-logger = logging.getLogger(__name__)
 
 
 @MigrationRegistry.register

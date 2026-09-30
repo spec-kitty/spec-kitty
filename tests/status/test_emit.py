@@ -451,7 +451,6 @@ class TestEmitStatusTransition:
                 actor="claude-opus",
                 repo_root=lock_root,
             ),
-            ensure_sync_daemon=False,
         )
 
         assert event.to_lane == Lane.CLAIMED
@@ -1265,7 +1264,6 @@ class TestSaasFanOut:
                 evidence=None,
                 occurred_at=event.at,
             ),
-            "ensure_daemon": True,
             "repo_root": None,
         }
 
@@ -1584,34 +1582,9 @@ class TestReasonGuard:
         assert event.to_lane == Lane.PLANNED
 
 
-class TestMergeLightweightEmit:
-    def test_emit_status_transition_can_skip_daemon_start(
-        self,
-        feature_dir: Path,
-    ) -> None:
-        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch.object(emit_module, "_saas_fan_out") as mock_fanout:
-            event = emit_status_transition(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="merge",
-                repo_root=feature_dir.parent.parent,
-                ensure_sync_daemon=False,
-            )
-
-        assert event.to_lane == Lane.CLAIMED
-        mock_fanout.assert_called_once()
-        assert mock_fanout.call_args.kwargs["ensure_sync_daemon"] is False
-
-
 class TestBatchEmit:
     def test_empty_batch_returns_empty(self) -> None:
         assert emit_status_transition_batch([]) == []
-
-    def test_empty_batch_accepts_retired_326_dossier_keyword(self) -> None:
-        assert emit_status_transition_batch([], sync_dossier=False) == []
 
     def test_batch_requires_first_request_identity(self) -> None:
         with pytest.raises(TypeError, match="requires feature_dir"):

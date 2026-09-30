@@ -442,7 +442,6 @@ def _fire_transition(**overrides: Any) -> None:
         "mission_slug": "demo-mission",
         "mission_id": None,
         "metadata": _transition_metadata(),
-        "ensure_daemon": False,
     }
     kwargs.update(overrides)
     adapters.fire_saas_fanout(**kwargs)

@@ -12,7 +12,7 @@ ZERO behavioral change on the writer side (NFR-004/SC-005).
 
 Fixture pattern (per this WP's own Context section -- reused, not hand-
 rolled): the ``tmp_path``-``feature_dir`` + ``seed_wp_to_planned`` +
-``emit_status_transition(..., ensure_sync_daemon=False, sync_dossier=False)``
+``emit_status_transition(...)``
 pattern from ``tests/status/conftest.py`` / ``tests/status/test_emit.py``.
 This harness never mints a real mission via a genuine ULID-minting
 mission-creation codepath (no ``spec-kitty agent mission create``, nothing
@@ -168,9 +168,8 @@ def _run_writer_sequence(feature_dir: Path) -> None:
     """T032: the fixed, deterministic writer sequence T031's test depends on.
 
     Runs WRITER_SEQUENCE against *feature_dir* via the real
-    ``emit_status_transition`` pipeline (``ensure_sync_daemon=False,
-    sync_dossier=False`` -- no SaaS fan-out, no real sync daemon, no
-    unrelated network/process dependency), leaving the event log in its
+    ``emit_status_transition`` pipeline (no unrelated network/process
+    dependency), leaving the event log in its
     final state. Used unmodified for the control run; the concurrent run
     below inlines the same four calls with checkpoint signaling between
     the first and the remaining three.
@@ -184,8 +183,6 @@ def _run_writer_sequence(feature_dir: Path) -> None:
                 to_lane=to_lane,
                 actor=ACTOR,
             ),
-            ensure_sync_daemon=False,
-            sync_dossier=False,
         )
 
 
@@ -283,8 +280,6 @@ def test_concurrent_writer_and_bounded_reader_byte_identical_to_control(
                         to_lane=to_lane,
                         actor=ACTOR,
                     ),
-                    ensure_sync_daemon=False,
-                    sync_dossier=False,
                 )
                 if index == 0:
                     first_write_done.set()

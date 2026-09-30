@@ -116,11 +116,11 @@ def _batch(repo_root: Path) -> list[TransitionRequest]:
 
 
 def _emit_single(repo_root: Path) -> None:
-    st.emit_status_transition_transactional(_request(repo_root), ensure_sync_daemon=False)
+    st.emit_status_transition_transactional(_request(repo_root))
 
 
 def _emit_batch(repo_root: Path) -> None:
-    st.emit_status_transition_batch_transactional(_batch(repo_root), ensure_sync_daemon=False)
+    st.emit_status_transition_batch_transactional(_batch(repo_root))
 
 
 def test_coord_fallback_announces_only_its_own_rows_when_writer_interleaves(
@@ -142,7 +142,7 @@ def test_coord_fallback_announces_only_its_own_rows_when_writer_interleaves(
             other = _request(repo)
             other.to_lane = "in_progress"
             other.workspace_context = "worktree:/test/parallel"
-            st.emit_status_transition_transactional(other, ensure_sync_daemon=False)
+            st.emit_status_transition_transactional(other)
 
     monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", interleaved_commit)
     monkeypatch.setattr(st._emit, "_saas_fan_out", lambda event, *a, **k: seen.append(event.event_id))
@@ -490,7 +490,7 @@ def test_coord_fallback_collapse_arm_commits_and_announces_nothing(
     request = _request(repo)
     request.to_lane = "doing"  # the one legacy alias; resolves to the current lane
 
-    event = st.emit_status_transition_transactional(request, ensure_sync_daemon=False)
+    event = st.emit_status_transition_transactional(request)
 
     assert event.to_lane == Lane.IN_PROGRESS
     assert order == ["commit"]

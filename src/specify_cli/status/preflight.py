@@ -60,18 +60,6 @@ def is_dossier_snapshot(path: str | Path) -> bool:
     return any(fnmatch.fnmatch(posix, pat) for pat in _DOSSIER_SNAPSHOT_PATTERNS)
 
 
-def filter_dossier_snapshots(paths: list[str]) -> list[str]:
-    """Return *paths* with any dossier-snapshot entries removed.
-
-    Convenience wrapper around :func:`is_dossier_snapshot` for callers that
-    need to filter a list of porcelain-derived path strings before deciding
-    whether to block a transition.
-    """
-    return [p for p in paths if not is_dossier_snapshot(p)]
-
-
 __all__ = [
-    # filter_dossier_snapshots: demoted — no cross-module src/ from-import
-    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "is_dossier_snapshot",
 ]

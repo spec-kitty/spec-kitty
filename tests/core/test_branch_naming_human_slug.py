@@ -7,7 +7,6 @@ Covers:
 - Collision: two missions with same human slug but different ULIDs -> distinct branches
 - Legacy parse: NNN-slug forms still parse correctly
 - parse_mission_slug_from_branch for both legacy and new forms
-- is_legacy_branch helper
 """
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ from specify_cli.lanes.branch_naming import (
     InvalidMissionIdentity,
     _mid8,
     code_lane_branch_name,
-    is_legacy_branch,
     lane_branch_name,
     mission_branch_name,
     parse_mission_slug_from_branch,
@@ -229,28 +227,6 @@ def test_parse_unknown_branch_returns_none() -> None:
 def test_parse_non_kitty_prefix_returns_none() -> None:
     result = parse_mission_slug_from_branch("main")
     assert result is None
-
-
-# ---------------------------------------------------------------------------
-# is_legacy_branch
-# ---------------------------------------------------------------------------
-
-
-def test_is_legacy_branch_with_numeric_prefix() -> None:
-    assert is_legacy_branch("kitty/mission-080-browser-mediated-oauth-cli-auth") is True
-    assert is_legacy_branch("kitty/mission-080-foo-lane-a") is True
-    assert is_legacy_branch("kitty/mission-feature-without-number") is True
-    assert is_legacy_branch("kitty/mission-feature-without-number-lane-a") is True
-
-
-def test_is_legacy_branch_new_form() -> None:
-    assert is_legacy_branch("kitty/mission-foo-bar-01KNXQS9") is False
-    assert is_legacy_branch("kitty/mission-foo-bar-01KNXQS9-lane-a") is False
-
-
-def test_is_legacy_branch_non_kitty() -> None:
-    assert is_legacy_branch("main") is False
-    assert is_legacy_branch("feature/something") is False
 
 
 # ---------------------------------------------------------------------------

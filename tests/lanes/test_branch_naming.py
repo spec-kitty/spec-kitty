@@ -5,7 +5,6 @@ import pytest
 from specify_cli.lanes.branch_naming import (
     code_lane_branch_name,
     is_lane_branch,
-    is_mission_branch,
     lane_branch_shell_glob,
     mission_branch_name,
     parse_mission_slug_from_branch,
@@ -29,21 +28,6 @@ class TestLaneBranchName:
 
     def test_lane_b(self):
         assert code_lane_branch_name("057-feat", "lane-b") == "kitty/mission-057-feat-lane-b"
-
-
-class TestIsMissionBranch:
-    def test_mission_branch(self):
-        assert is_mission_branch("kitty/mission-057-feat") is True
-
-    def test_lane_branch_is_not_mission(self):
-        assert is_mission_branch("kitty/mission-057-feat-lane-a") is False
-
-    def test_regular_branch(self):
-        assert is_mission_branch("main") is False
-        assert is_mission_branch("057-feat") is False
-
-    def test_partial_prefix(self):
-        assert is_mission_branch("kitty/other-057") is False
 
 
 class TestIsLaneBranch:

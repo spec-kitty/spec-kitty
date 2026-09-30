@@ -776,27 +776,6 @@ def _restore_staged_patch(
         )
 
 
-_EMPTY_CHANGESET_MARKERS = (
-    "nothing to commit",
-    "nothing added to commit",
-    "no changes added to commit",
-)
-
-
-def _commit_output_is_empty_changeset(output: str) -> bool:
-    """True iff git's own output says the commit was a genuine empty changeset.
-
-    Secondary signal only — see :func:`_staged_tree_is_empty` for the
-    authoritative check. Output-text matching alone is unsound: a failing
-    pre-commit hook can print one of these markers to its own stdout/stderr
-    while rejecting a real staged change, which would misclassify a genuine
-    failure as a benign no-op (audit finding, PR #3269). Kept as a fallback
-    for callers that only have the combined text and no repo to probe.
-    """
-    low = output.lower()
-    return any(marker in low for marker in _EMPTY_CHANGESET_MARKERS)
-
-
 def _staged_tree_is_empty(repo_path: Path) -> bool:
     """True iff the index matches HEAD, i.e. there is genuinely nothing staged.
 

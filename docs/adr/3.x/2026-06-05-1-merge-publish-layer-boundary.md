@@ -51,6 +51,8 @@ should operate on the local git graph and remain entirely network-free.
    always returns `True`. It existed to gate local merge operations on remote
    state, which was incorrect — local merges do not require remote sync.
    Callers making push decisions must migrate to `is_safe_to_push`.
+   *(Amended 2026-09-30: the alias had no remaining callers and was removed
+   in the 2026-09-30 dead-code sweep.)*
 
 ## Consequences
 
@@ -64,7 +66,7 @@ should operate on the local git graph and remain entirely network-free.
   `origin/main` can run `spec-kitty merge` without `--push` without error.
 - **The `is_safe` predicate is deprecated.** It always returns `True` to
   unblock callers during the transition; callers making push decisions must
-  switch to `is_safe_to_push`.
+  switch to `is_safe_to_push`. *(Amended 2026-09-30: removed.)*
 
 ## Rejected Alternatives
 

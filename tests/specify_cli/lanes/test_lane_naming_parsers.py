@@ -15,7 +15,6 @@ import pytest
 from specify_cli.lanes.branch_naming import (
     BranchParseResult,
     is_lane_branch,
-    is_mission_branch,
     lane_id_for_worktree_dir,
     parse_lane_id_from_branch,
     parse_lane_worktree_dir,
@@ -89,11 +88,6 @@ class TestIsLaneBranchPlainLegacy:
 
     def test_plain_legacy_lane_branch_is_recognized(self) -> None:
         assert is_lane_branch("kitty/mission-foo-lane-a") is True
-
-    def test_plain_legacy_lane_branch_is_not_a_mission_branch(self) -> None:
-        """named behaviour change: is_mission_branch flips to False for a
-        plain-legacy lane branch, now that is_lane_branch recognizes it."""
-        assert is_mission_branch("kitty/mission-foo-lane-a") is False
 
     def test_multi_letter_lane_id_still_recognized(self) -> None:
         assert is_lane_branch("kitty/mission-057-foo-lane-aa") is True

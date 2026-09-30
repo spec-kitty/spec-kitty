@@ -57,7 +57,6 @@ def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
             to_lane=lane,
             actor="test-agent",
             repo_root=feature_repo,
-            ensure_sync_daemon=False,
         )
     emit_status_transition(
         feature_dir=feature_dir,
@@ -78,7 +77,6 @@ def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
             reference=f"review:{wp_id}",
         ),
         repo_root=feature_repo,
-        ensure_sync_daemon=False,
     )
 
 
@@ -119,7 +117,6 @@ def _force_lane(feature_repo: Path, mission_slug: str, wp_id: str, to_lane: str)
         force=True,
         reason="test fixture seed",
         repo_root=feature_repo,
-        ensure_sync_daemon=False,
     )
 
 
@@ -578,7 +575,6 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
             to_lane=lane,
             actor="test-agent",
             repo_root=feature_repo,
-            ensure_sync_daemon=False,
         )
     emit_status_transition(
         feature_dir=feature_dir,
@@ -589,7 +585,6 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
         force=True,
         reason="Expedited approval without review",
         repo_root=feature_repo,
-        ensure_sync_daemon=False,
     )
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Force-approve WP01"], cwd=feature_repo)

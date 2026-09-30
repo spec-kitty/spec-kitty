@@ -12,7 +12,6 @@ from specify_cli.core.worktree_topology import (
     WPTopologyEntry,
     materialize_worktree_topology,
     render_topology_json,
-    render_topology_text,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -127,29 +126,6 @@ class TestRenderTopologyJson:
         assert payload["mission_branch"] == "kitty/mission-002-feature"
         assert payload["shared_lane"] is True
         assert payload["diff_command"] == "git diff kitty/mission-002-feature..HEAD"
-
-
-class TestRenderTopologyText:
-    def test_box_structure(self) -> None:
-        topology = FeatureTopology(
-            mission_slug="002-feature",
-            target_branch="main",
-            mission_branch="kitty/mission-002-feature",
-            entries=[
-                WPTopologyEntry(
-                    wp_id="WP01",
-                    lane_id="lane-a",
-                    lane_wp_ids=["WP01"],
-                    branch_name="kitty/mission-002-feature-lane-a",
-                    base_branch="kitty/mission-002-feature",
-                    lane="done",
-                )
-            ],
-        )
-        lines = render_topology_text(topology, "WP01")
-        assert lines[0].startswith("╔")
-        assert lines[-1].startswith("╚")
-        assert any("LANE WORKTREE TOPOLOGY" in line for line in lines)
 
 
 class TestMaterializeWorktreeTopology:

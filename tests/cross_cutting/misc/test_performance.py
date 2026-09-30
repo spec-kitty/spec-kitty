@@ -129,54 +129,6 @@ def test_performance_multiple_runs():
         print(f"✓ Multiple runs: {elapsed1:.3f}s, {elapsed2:.3f}s, {elapsed3:.3f}s")
 
 
-def test_performance_selected_agents():
-    """Verify protect_selected_agents succeeds across several selections.
-
-    Functional half of the #4015 split.
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_path = Path(tmpdir)
-        manager = GitignoreManager(project_path)
-
-        # Test with various selections
-        test_cases = [
-            (["claude"], "single"),
-            (["claude", "codex", "gemini"], "three"),
-            (["claude", "codex", "gemini", "cursor", "qwen", "kiro"], "six"),
-        ]
-
-        for agents, desc in test_cases:
-            result = manager.protect_selected_agents(agents)
-
-            assert result.success, f"Operation should succeed for {desc}"
-
-
-@pytest.mark.performance
-def test_selected_agents_stay_under_one_second():
-    """Verify protect_selected_agents completes in under 1 second per selection (nightly).
-
-    Split from ``test_performance_selected_agents`` (#4015); budget preserved.
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_path = Path(tmpdir)
-        manager = GitignoreManager(project_path)
-
-        test_cases = [
-            (["claude"], "single"),
-            (["claude", "codex", "gemini"], "three"),
-            (["claude", "codex", "gemini", "cursor", "qwen", "kiro"], "six"),
-        ]
-
-        for agents, desc in test_cases:
-            start_time = time.perf_counter()
-            manager.protect_selected_agents(agents)
-            elapsed = time.perf_counter() - start_time
-
-            assert_timing_budget(elapsed, 1.0, name=f"protect_selected_agents[{desc}]")
-
-            print(f"✓ protect_selected_agents ({desc}) completed in {elapsed:.3f}s")
-
-
 def run_performance_tests():
     """Run all performance tests."""
     tests = [
@@ -185,8 +137,6 @@ def run_performance_tests():
         test_performance_with_large_gitignore,
         test_large_gitignore_stays_under_one_second,
         test_performance_multiple_runs,
-        test_performance_selected_agents,
-        test_selected_agents_stay_under_one_second,
     ]
 
     print("Running Performance Tests")

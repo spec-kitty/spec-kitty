@@ -14,7 +14,6 @@ import pytest
 from specify_cli.gitignore_manager import (
     AGENT_DIRECTORIES,
     RUNTIME_PROTECTED_ENTRIES,
-    AgentDirectory,
     GitignoreManager,
     GitignorePathError,
     ProtectionResult,
@@ -142,66 +141,6 @@ class TestGitignoreManager:
         for dir_name in expected_dirs:
             assert dir_name in content
 
-    # T026 - Test protect_selected_agents method
-    def test_protect_selected_single_agent(self, manager):
-        """Test protecting a single selected agent."""
-        result = manager.protect_selected_agents(["claude"])
-
-        assert result.success
-        assert result.modified
-        assert ".claude/" in result.entries_added
-        assert len(result.entries_added) == 1
-
-    def test_protect_selected_multiple_agents(self, manager):
-        """Test protecting multiple selected agents."""
-        result = manager.protect_selected_agents(["claude", "codex", "gemini"])
-
-        assert result.success
-        assert result.modified
-        assert len(result.entries_added) == 3
-        assert ".claude/" in result.entries_added
-        assert ".codex/" in result.entries_added
-        assert ".gemini/" in result.entries_added
-
-    def test_protect_selected_agent_with_multiple_entries(self, manager):
-        """cursor owns 3 AGENT_DIRECTORIES rows (#2498) -- selecting it must add
-        all 3, not just the last one registered under that name."""
-        cursor_entries = [agent.directory for agent in AGENT_DIRECTORIES if agent.name == "cursor"]
-        assert len(cursor_entries) > 1  # guards against this test going stale
-
-        result = manager.protect_selected_agents(["cursor"])
-
-        assert result.success
-        assert result.modified
-        assert len(result.entries_added) == len(cursor_entries)
-        for entry in cursor_entries:
-            assert entry in result.entries_added
-
-    def test_protect_selected_unknown_agent(self, manager):
-        """Test warning for unknown agent name."""
-        result = manager.protect_selected_agents(["unknown_agent"])
-
-        assert result.success
-        assert not result.modified
-        assert any("Unknown agent name: unknown_agent" in w for w in result.warnings)
-
-    def test_protect_selected_empty_list(self, manager):
-        """Test with empty agent list."""
-        result = manager.protect_selected_agents([])
-
-        assert result.success
-        assert not result.modified
-        assert any("No valid agent directories" in w for w in result.warnings)
-
-    def test_protect_selected_mixed_valid_invalid(self, manager):
-        """Test with mix of valid and invalid agents."""
-        result = manager.protect_selected_agents(["claude", "invalid", "codex"])
-
-        assert result.success
-        assert result.modified
-        assert len(result.entries_added) == 2
-        assert any("Unknown agent name: invalid" in w for w in result.warnings)
-
     # T027 - Test duplicate detection logic
     def test_duplicate_detection_prevents_duplicates(self, manager):
         """Test that duplicate entries are never created."""
@@ -318,14 +257,6 @@ class TestGitignoreManager:
         assert isinstance(result, ProtectionResult)
 
     # T032 - Edge case tests
-    def test_edge_case_github_special_handling(self, manager):
-        """Test that unknown agent 'github' is handled properly."""
-        result = manager.protect_selected_agents(["github"])
-
-        assert result.success
-        assert len(result.entries_added) == 0  # Unknown agent, nothing added
-        assert any("Unknown agent" in w for w in result.warnings)
-
     def test_edge_case_large_gitignore(self, manager):
         """Test performance with large .gitignore file."""
         # Create a large .gitignore
@@ -366,25 +297,10 @@ class TestGitignoreManager:
         content = manager.gitignore_path.read_text()
         assert content.count(manager.marker) == 1
 
-    def test_get_agent_directories_returns_copy(self):
-        """Test that get_agent_directories returns a copy, not reference."""
-        dirs1 = GitignoreManager.get_agent_directories()
-        dirs2 = GitignoreManager.get_agent_directories()
-
-        assert dirs1 == dirs2
-        assert dirs1 is not dirs2  # Different objects
-
-        # Modifying one shouldn't affect the other
-        dirs1.append(AgentDirectory("test", ".test/", False, "Test"))
-        assert len(dirs1) == len(AGENT_DIRECTORIES) + 1
-        assert len(dirs2) == len(AGENT_DIRECTORIES)
-
     def test_all_agent_directories_have_trailing_slash(self):
         """Test that all agent directories end with trailing slash, except
         explicit generated-file entries (e.g. cursor's rule file, #2498)."""
-        dirs = GitignoreManager.get_agent_directories()
-
-        for agent_dir in dirs:
+        for agent_dir in AGENT_DIRECTORIES:
             if agent_dir.directory.endswith(".mdc"):
                 continue
             assert agent_dir.directory.endswith("/"), f"{agent_dir.directory} missing trailing slash"

@@ -478,18 +478,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "detect_execution_context", "66c12833de0af4228946dec0b95a17b58daa610f60172a5c7867ca8dbae145f1", source_module="specify_cli.core.context_validation"
         ),
-        # specify_cli.core.context_validation::get_context_env_vars
-        SymbolKey("get_context_env_vars", "56bf48a63174f5c63921938c0a8dcda0d19f98c00ba638e8a702aae1074dce0d", source_module="specify_cli.core.context_validation"),
         # specify_cli.core.context_validation::get_current_context
         SymbolKey("get_current_context", "530ede0c50e1cc62a22df394e5677aebc9c966a146bc0e67272e3f7617e26f50", source_module="specify_cli.core.context_validation"),
-        SymbolKey(
-            "require_either", "d0cef5401daa9ad655fdf70d43329ecd945a77062022719cbd2e3a16f8c43805", source_module="specify_cli.core.context_validation"
-        ),  # specify_cli.core.context_validation::require_either
-        SymbolKey(
-            "require_worktree", "1d54252d092035cbcd73ac4705bab7cd7fd668e041d5d4125a8e93b67eeffdda", source_module="specify_cli.core.context_validation"
-        ),  # specify_cli.core.context_validation::require_worktree
-        # specify_cli.core.context_validation::set_context_env_vars
-        SymbolKey("set_context_env_vars", "b766e1ecbde17cc1bb179f2fd9f2587caa50d9a5f7fd68c27b8588ef02137b53", source_module="specify_cli.core.context_validation"),
         SymbolKey(
             "STALE_AFTER_S_DEFAULT", "4cc4fddf416cec3b9f30b60227a6ef49ccbb4e284b60157cbc63318f63c28452", source_module="kernel.locks"
         ),  # kernel.locks::STALE_AFTER_S_DEFAULT (relocated verbatim from specify_cli.core.file_lock, cross-os-primitive-unification WP03)
@@ -497,25 +487,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "BranchResolution", "8ff2750e1b6b4d57f15389814bd6a09313da7c83e1c97c832a08b599030251f5", source_module="specify_cli.core.git_ops"
         ),  # specify_cli.core.git_ops::BranchResolution
         SymbolKey(
-            "has_tracking_branch", "d56afa2a06af3ad5cf4510162cc98b1fa96c3dfccf116935d8fc14ef3a2c2533", source_module="specify_cli.core.git_ops"
-        ),  # specify_cli.core.git_ops::has_tracking_branch
-        SymbolKey(
             "GitPreflightIssue", "0d7ef9d2b9dd1a727e7f312f0452d3454a00afdf70f96cd4a3a60918d0fdb996", source_module="specify_cli.core.git_preflight"
         ),  # specify_cli.core.git_preflight::GitPreflightIssue
         SymbolKey(
             "GitPreflightResult", "27bc17df44fcb02a7c958848286546deb067266d6e30fe1337bdd194e7f6cd0c", source_module="specify_cli.core.git_preflight"
         ),  # specify_cli.core.git_preflight::GitPreflightResult
-        SymbolKey(
-            "StatusReadUnsupported", "cb3fb8a540195e5a5d9e44f0c57aeafca8af3da21dd56ae454c8566085d8f6fa", source_module="specify_cli.core.paths"
-        ),  # specify_cli.core.paths::StatusReadUnsupported
-        # specify_cli.core.paths::assert_worktree_supported
-        SymbolKey("assert_worktree_supported", "d09277b8bab529fa14813600e1e8b1c40eeaad52f8939c11664500ed93ac6723", source_module="specify_cli.core.paths"),
-        SymbolKey(
-            "check_broken_symlink", "da895533a84b6c40ff500a143b2f8e31c1f0f05f0ad70936d7dde5d3689c1054", source_module="specify_cli.core.paths"
-        ),  # specify_cli.core.paths::check_broken_symlink
-        SymbolKey(
-            "resolve_with_context", "ecd3546936aecdb7a52d035c1413d9e70abc5da973e64066bfcf51544da5f69c", source_module="specify_cli.core.paths"
-        ),  # specify_cli.core.paths::resolve_with_context
         SymbolKey(
             "DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76", source_module="specify_cli.core.upgrade_probe"
         ),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
@@ -530,8 +506,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "WPTopologyEntry", "c141560334391715de4dfc82c956b81426a506c4d022fca2af3509b38aa57045", source_module="specify_cli.core.worktree_topology"
         ),  # specify_cli.core.worktree_topology::WPTopologyEntry
-        # specify_cli.core.worktree_topology::render_topology_text
-        SymbolKey("render_topology_text", "f2355bf1f11119024cdc83aa9f71dfc3723ce0c0f1055798038d064eecea5b68", source_module="specify_cli.core.worktree_topology"),
         # specify_cli.dashboard.api_types::ArtifactDirectoryFile
         SymbolKey("ArtifactDirectoryFile", "6d6d39dfb5f96086c52c2fb376fa70e288617ba0d2ec0e1eb6f90129d9c6e07c", source_module="specify_cli.dashboard.api_types"),
         SymbolKey(
@@ -726,9 +700,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "r_uvlock_regenerate", "00c7c15c6ac3c4eebd8a6a071b3c6157953733f7dcdcdf0f8c9b29d11fbf4b94", source_module="specify_cli.consolidation.conflict_classifier"
         ),
-        SymbolKey(
-            "display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67", source_module="specify_cli.consolidation.ordering"
-        ),  # specify_cli.consolidation.ordering::display_merge_order
         # specify_cli.consolidation.state::MergeAmbiguousStateError -- RE-KEYED
         # (landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS2
         # changed the body; hash recomputed via resolve_symbol_key/key_tier
@@ -3768,9 +3739,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.identity.project::generate_build_id",
         "specify_cli.invocation.executor::ActionRouterPlugin",
         "specify_cli.invocation.task_class_map::known_verbs",
-        "specify_cli.lanes.branch_naming::is_legacy_branch",
-        "specify_cli.lanes.branch_naming::is_mission_branch",
-        "specify_cli.lanes.compute::SURFACE_TAXONOMY",
         "specify_cli.migration.backfill_runtime_state::assert_zero_readers",
         "specify_cli.migration.backfill_runtime_state::backfill_runtime_state_repo",
         "specify_cli.migration.backfill_runtime_state::run_backfill_and_verify",
@@ -3804,9 +3772,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.state.doctor::logger",
         "specify_cli.status.adapters::reset_handlers",
         "specify_cli.status.cutover_eligibility::assert_birth_invariant_holds",
-        "specify_cli.status.emit::append_event_jsonl",
-        "specify_cli.status.migrate_lifecycle_envelope::logger",
-        "specify_cli.status.preflight::filter_dossier_snapshots",
         "specify_cli.status.verdict_vocab::ArtifactVerdict",
         "specify_cli.status.verdict_vocab::EmissionArtifactVerdict",
         "specify_cli.tool_surface.docs::format_findings",
@@ -3820,14 +3785,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.tool_surface.providers.managed_skills::doctrine_skill_entries",
         "specify_cli.tool_surface.service::lint_docs_directory",
         "specify_cli.tracker.origin::logger",
-        "specify_cli.upgrade.migrations.m_2_0_11_install_skills::logger",
-        "specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack::logger",
-        "specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands::logger",
-        "specify_cli.upgrade.migrations.m_3_1_1_direct_canonical_commands::logger",
-        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::MIGRATION_ID",
-        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::TARGET_VERSION",
-        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::logger",
-        "specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill::logger",
         "specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env::NEVER_SEED_VARS",
         "specify_cli.upgrade.skill_update::apply_text_replacements",
         "specify_cli.upgrade.skill_update::exclude_paths",

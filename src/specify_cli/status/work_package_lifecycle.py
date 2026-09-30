@@ -182,7 +182,6 @@ def start_implementation_status(
     execution_mode: str,
     repo_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
-    ensure_sync_daemon: bool = True,
     allow_rework: bool = False,
     rework_reason: str = "Re-implementing after review feedback",
     annotation_delta: WPInnerStateDelta | None = None,
@@ -240,7 +239,6 @@ def start_implementation_status(
                         annotation_delta=annotation_delta,
                     ),
                 ],
-                ensure_sync_daemon=ensure_sync_daemon,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -269,7 +267,6 @@ def start_implementation_status(
                         annotation_delta=annotation_delta,
                     )
                 ],
-                ensure_sync_daemon=ensure_sync_daemon,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -311,7 +308,6 @@ def start_implementation_status(
                     policy_metadata=policy_metadata,
                     annotation_delta=annotation_delta,
                 ),
-                ensure_sync_daemon=ensure_sync_daemon,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -335,7 +331,6 @@ def start_review_status(
     execution_mode: str,
     repo_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
-    ensure_sync_daemon: bool = True,
     review_ref: str | None = "action-review-claim",
     annotation_delta: WPInnerStateDelta | None = None,
 ) -> WorkPackageStartResult:
@@ -376,7 +371,6 @@ def start_review_status(
                     policy_metadata=policy_metadata,
                     annotation_delta=annotation_delta,
                 ),
-                ensure_sync_daemon=ensure_sync_daemon,
             )
             return WorkPackageStartResult(
                 wp_id,

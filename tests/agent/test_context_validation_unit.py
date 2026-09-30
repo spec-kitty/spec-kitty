@@ -2,9 +2,9 @@
 
 Verifies Phase 3 implementation:
 - Context detection (main repo vs worktree)
-- Location-based command guards (@require_main_repo, @require_worktree)
+- Location-based command guard (@require_main_repo)
 - Clear error messages for location mismatches
-- Environment variable support
+- Filesystem detection beats the SPEC_KITTY_CONTEXT env var
 """
 
 from __future__ import annotations
@@ -22,11 +22,8 @@ from specify_cli.core.context_validation import (
     ExecutionContext,
     detect_execution_context,
     format_location_error,
-    get_context_env_vars,
     get_current_context,
     require_main_repo,
-    require_worktree,
-    set_context_env_vars,
 )
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
@@ -366,40 +363,6 @@ class TestRequireMainRepo:
         assert exc_info.value.exit_code == 1
 
 
-@pytest.mark.real_worktree_detection
-class TestRequireWorktree:
-    """Tests for @require_worktree decorator."""
-
-    def test_allows_execution_from_worktree(self, tmp_path: Path, monkeypatch):
-        """Test decorator allows execution from worktree."""
-        (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
-        worktree_path.mkdir(parents=True)
-        monkeypatch.chdir(worktree_path)
-
-        @require_worktree
-        def test_command():
-            return "success"
-
-        result = test_command()
-        assert result == "success"
-
-    def test_blocks_execution_from_main_repo(self, tmp_path: Path, monkeypatch):
-        """Test decorator blocks execution from main repo."""
-        kittify = tmp_path / ".kittify"
-        kittify.mkdir()
-        monkeypatch.chdir(tmp_path)
-
-        @require_worktree
-        def test_command():
-            return "success"
-
-        with pytest.raises(typer.Exit) as exc_info:
-            test_command()
-
-        assert exc_info.value.exit_code == 1
-
-
 class TestLocationErrorMessages:
     """Tests for error message formatting."""
 
@@ -456,137 +419,6 @@ class TestEnvVarBypass:
         assert "workspace_status" in error_msg
         assert "worktree" in error_msg
         assert ".worktrees" in error_msg
-
-
-class TestEnvironmentVariables:
-    """Tests for context environment variable support."""
-
-    _CONTEXT_ENV_VARS = (
-        "SPEC_KITTY_CONTEXT",
-        "SPEC_KITTY_CWD",
-        "SPEC_KITTY_REPO_ROOT",
-        "SPEC_KITTY_WORKTREE_NAME",
-        "SPEC_KITTY_WORKTREE_PATH",
-    )
-
-    @pytest.fixture(autouse=True)
-    def _isolate_context_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """T031 (WP06 fix-before-wiring, FR-015): ``set_context_env_vars``
-        mutates ``os.environ`` directly with no built-in restore, so a test
-        below that calls it leaves ``SPEC_KITTY_CONTEXT``/``CWD``/
-        ``REPO_ROOT``/``WORKTREE_NAME``/``WORKTREE_PATH`` set for whatever
-        test runs next in this worker -- order-dependent on shard split.
-        ``monkeypatch.delenv(raising=False)`` records each key's pre-test
-        state (present or absent) and restores exactly that at teardown,
-        regardless of what the test under it set or removed.
-        """
-        for var in self._CONTEXT_ENV_VARS:
-            monkeypatch.delenv(var, raising=False)
-
-    def test_set_context_env_vars_main_repo(self, tmp_path: Path):
-        """Test setting environment variables for main repo context."""
-        ctx = CurrentContext(
-            location=ExecutionContext.MAIN_REPO,
-            cwd=tmp_path,
-            repo_root=tmp_path,
-            worktree_name=None,
-            worktree_path=None,
-        )
-
-        set_context_env_vars(ctx)
-
-        import os
-
-        assert os.environ["SPEC_KITTY_CONTEXT"] == "main"
-        assert os.environ["SPEC_KITTY_CWD"] == str(tmp_path)
-        assert os.environ["SPEC_KITTY_REPO_ROOT"] == str(tmp_path)
-        assert "SPEC_KITTY_WORKTREE_NAME" not in os.environ
-        assert "SPEC_KITTY_WORKTREE_PATH" not in os.environ
-
-    def test_set_context_env_vars_worktree(self, tmp_path: Path):
-        """Test setting environment variables for worktree context."""
-        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
-
-        ctx = CurrentContext(
-            location=ExecutionContext.WORKTREE,
-            cwd=worktree_path,
-            repo_root=tmp_path,
-            worktree_name="010-feature-lane-b",
-            worktree_path=worktree_path,
-        )
-
-        set_context_env_vars(ctx)
-
-        import os
-
-        assert os.environ["SPEC_KITTY_CONTEXT"] == "worktree"
-        assert os.environ["SPEC_KITTY_WORKTREE_NAME"] == "010-feature-lane-b"
-        assert os.environ["SPEC_KITTY_WORKTREE_PATH"] == str(worktree_path)
-
-    def test_get_context_env_vars(self, tmp_path: Path):
-        """Test getting context environment variables."""
-        ctx = CurrentContext(
-            location=ExecutionContext.WORKTREE,
-            cwd=tmp_path / ".worktrees" / "010-feature-lane-b",
-            repo_root=tmp_path,
-            worktree_name="010-feature-lane-b",
-            worktree_path=tmp_path / ".worktrees" / "010-feature-lane-b",
-        )
-
-        set_context_env_vars(ctx)
-        env_vars = get_context_env_vars()
-
-        assert env_vars["SPEC_KITTY_CONTEXT"] == "worktree"
-        assert env_vars["SPEC_KITTY_WORKTREE_NAME"] == "010-feature-lane-b"
-
-    def test_env_vars_cleared_when_switching_context(self, tmp_path: Path):
-        """Test environment variables are cleared when switching from worktree to main."""
-        # Set worktree context
-        worktree_ctx = CurrentContext(
-            location=ExecutionContext.WORKTREE,
-            cwd=tmp_path / ".worktrees" / "010-feature-lane-b",
-            repo_root=tmp_path,
-            worktree_name="010-feature-lane-b",
-            worktree_path=tmp_path / ".worktrees" / "010-feature-lane-b",
-        )
-        set_context_env_vars(worktree_ctx)
-
-        # Switch to main repo context
-        main_ctx = CurrentContext(
-            location=ExecutionContext.MAIN_REPO,
-            cwd=tmp_path,
-            repo_root=tmp_path,
-            worktree_name=None,
-            worktree_path=None,
-        )
-        set_context_env_vars(main_ctx)
-
-        import os
-
-        # Worktree-specific vars should be removed
-        assert "SPEC_KITTY_WORKTREE_NAME" not in os.environ
-        assert "SPEC_KITTY_WORKTREE_PATH" not in os.environ
-
-    def test_no_context_env_vars_leak_out_of_this_class(self) -> None:
-        """T031 red-first (FR-015 fix-before-wiring): order-independence proof.
-
-        Every test above calls ``set_context_env_vars`` (production code,
-        ``core/context_validation.py``), which mutates ``os.environ`` directly
-        with no test-side restore. Placed last in the class (pytest runs a
-        class's methods in declaration order), this asserts a clean
-        ``SPEC_KITTY_CONTEXT``/``CWD``/``REPO_ROOT`` slate is observed by
-        whatever runs next -- on base this is RED (the prior tests' mutations
-        survive past their own scope, an order-dependent leak invisible to
-        ``make test-fast`` but exposed under any shard split that runs this
-        class before something depending on ambient env cleanliness).
-        """
-        import os
-
-        assert "SPEC_KITTY_CONTEXT" not in os.environ
-        assert "SPEC_KITTY_CWD" not in os.environ
-        assert "SPEC_KITTY_REPO_ROOT" not in os.environ
-        assert "SPEC_KITTY_WORKTREE_NAME" not in os.environ
-        assert "SPEC_KITTY_WORKTREE_PATH" not in os.environ
 
 
 @pytest.mark.real_worktree_detection

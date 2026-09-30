@@ -128,7 +128,7 @@ Each entry in `collapse_report` lists the WPs that were merged into a single lan
 `compute_lanes` (`src/specify_cli/lanes/compute.py`) has a second collapse
 rule beyond file-overlap: two WPs that share an inferred *surface* keyword
 (e.g. both bodies mention "legacy" or "cleanup", matching the
-`legacy-cleanup` tag in `SURFACE_TAXONOMY`) are also candidates for merging
+`legacy-cleanup` tag in `_SURFACE_KEYWORDS`) are also candidates for merging
 into one lane — **unless their `owned_files` are provably disjoint**
 (`_are_disjoint`), in which case the merge is skipped.
 

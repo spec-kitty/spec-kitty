@@ -491,16 +491,6 @@ def test_validate_target_branch_generic_message_without_slug(tmp_path: Path) -> 
     assert exc.value.exit_code == 1
 
 
-# --- _print_remediation_lines -----------------------------------------------
-
-
-def test_print_remediation_lines_list_and_scalar(capsys: pytest.CaptureFixture[str]) -> None:
-    preflight._print_remediation_lines(["one", "two"])
-    preflight._print_remediation_lines("single")
-    out = capsys.readouterr().out
-    assert "one" in out and "two" in out and "single" in out
-
-
 # --- _enforce_canonical_status_history --------------------------------------
 
 

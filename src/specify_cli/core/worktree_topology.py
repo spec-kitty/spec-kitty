@@ -312,37 +312,9 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[
     ]
 
 
-def render_topology_text(topology: FeatureTopology, current_wp_id: str) -> list[str]:
-    """Render lane topology as human-readable text."""
-    lines = []
-    lines.append("╔" + "═" * 78 + "╗")
-    lines.append("║  LANE WORKTREE TOPOLOGY" + " " * 54 + "║")
-    lines.append("╠" + "═" * 78 + "╣")
-    lines.append(f"║  Feature: {topology.mission_slug:<66} ║")
-    lines.append(f"║  Target:  {topology.target_branch:<66} ║")
-    lines.append(f"║  Mission: {topology.mission_branch:<66} ║")
-    lines.append("║" + " " * 78 + "║")
-
-    for entry in topology.entries:
-        marker = "→" if entry.wp_id == current_wp_id else " "
-        if entry.resolution_kind == "repo_root":
-            line_text = f"{marker} {entry.wp_id} [{entry.lane}] workspace=repo-root mode={entry.execution_mode}"
-        else:
-            lane_members = ",".join(entry.lane_wp_ids)
-            line_text = f"{marker} {entry.wp_id} [{entry.lane}] lane={entry.lane_id} members={lane_members} branch={entry.branch_name}"
-        if entry.worktree_exists and entry.commits_ahead_of_base > 0:
-            line_text += f" (+{entry.commits_ahead_of_base})"
-        padded = line_text[:76].ljust(76)
-        lines.append(f"║  {padded}║")
-
-    lines.append("╚" + "═" * 78 + "╝")
-    return lines
-
-
 __all__ = [
     "WPTopologyEntry",
     "FeatureTopology",
     "materialize_worktree_topology",
     "render_topology_json",
-    "render_topology_text",
 ]

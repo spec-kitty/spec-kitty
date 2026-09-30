@@ -21,14 +21,12 @@ files are overwritten with identical content.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
-logger = logging.getLogger(__name__)
 
 # Old shim marker that should no longer appear in generated command files.
 _OLD_SHIM_MARKER = "spec-kitty agent shim"

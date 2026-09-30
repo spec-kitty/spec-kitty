@@ -60,10 +60,6 @@ class ResolutionResult:
     """Errors encountered (unexpected derived files, I/O failures, etc.)."""
 
     @property
-    def has_unresolved(self) -> bool:
-        return bool(self.unresolved)
-
-    @property
     def has_errors(self) -> bool:
         return bool(self.errors)
 

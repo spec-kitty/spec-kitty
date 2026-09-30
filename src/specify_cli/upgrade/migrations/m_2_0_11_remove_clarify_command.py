@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
 
 from specify_cli.agent_utils.directories import AGENT_DIRS
 from specify_cli.asset_preservation import (

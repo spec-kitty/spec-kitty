@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.paths import get_status_read_root, assert_worktree_supported, StatusReadUnsupported
+from specify_cli.core.paths import get_status_read_root
 
 
 pytestmark = pytest.mark.git_repo
@@ -193,33 +193,6 @@ class TestGetStatusReadRoot:
             pytest.fail(f"get_status_read_root() raised unexpectedly: {exc}")
         # Result is a Path — may be the fallback cwd
         assert isinstance(result, Path)
-
-
-# ---------------------------------------------------------------------------
-# T030: assert_worktree_supported() unit tests
-# ---------------------------------------------------------------------------
-
-class TestAssertWorktreeSupported:
-    """Unit tests for the fail-loud helper (T030)."""
-
-    def test_does_not_raise_from_main_repo(self, two_worktree_setup: dict) -> None:
-        """No exception when invoked from the main checkout (not a worktree)."""
-        main: Path = two_worktree_setup["main"]
-        # Should not raise — main checkout is not a worktree
-        assert_worktree_supported("test-command", start=main)
-
-    def test_raises_from_worktree(self, two_worktree_setup: dict) -> None:
-        """Raises StatusReadUnsupported when invoked from a linked worktree."""
-        worktree: Path = two_worktree_setup["worktree"]
-        with pytest.raises(StatusReadUnsupported, match="test-command"):
-            assert_worktree_supported("test-command", start=worktree)
-
-    def test_error_message_contains_command_name(self, two_worktree_setup: dict) -> None:
-        """Error message names the command so the operator knows what to fix."""
-        worktree: Path = two_worktree_setup["worktree"]
-        with pytest.raises(StatusReadUnsupported) as exc_info:
-            assert_worktree_supported("my-special-command", start=worktree)
-        assert "my-special-command" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------

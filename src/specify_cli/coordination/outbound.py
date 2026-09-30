@@ -44,7 +44,6 @@ def queue_saas_emission(
     *,
     mission_slug: str | None = None,
     repo_root: Any = None,
-    ensure_sync_daemon: bool = True,
 ) -> None:
     """Register a SaaS outbound emission to fire after the local commit succeeds.
 
@@ -58,8 +57,6 @@ def queue_saas_emission(
         Optional override; defaults to ``txn.mission_slug`` when omitted.
     repo_root:
         Optional override; defaults to ``txn.repo_root`` when omitted.
-    ensure_sync_daemon:
-        Passed through to the SaaS sync adapter after commit.
 
     The emission is **not** fired synchronously.  It is appended to the
     transaction's ``_deferred`` queue and runs only after
@@ -79,7 +76,6 @@ def queue_saas_emission(
             event,
             resolved_slug,
             resolved_repo,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
 
     txn.defer_outbound(_fire)
@@ -89,8 +85,6 @@ def _send_to_saas(
     event: StatusEvent,
     mission_slug: str,
     repo_root: Any,
-    *,
-    ensure_sync_daemon: bool = True,
 ) -> None:
     """Forward ``event`` to the canonical SaaS fanout adapter.
 
@@ -116,7 +110,6 @@ def _send_to_saas(
         metadata=WPStatusChangeMetadata.from_status_event(
             event, policy_metadata=event.policy_metadata
         ),
-        ensure_daemon=ensure_sync_daemon,
         # The emitting checkout root, so the Zeitgeist bridge resolves relay
         # credentials from it instead of the process cwd (#125).
         repo_root=repo_root,

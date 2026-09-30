@@ -27,7 +27,6 @@ def run_tests():
         test_basic_functionality,
         test_all_agents_protected,
         test_duplicate_detection,
-        test_selected_agents,
         test_error_handling,
     ]
 
@@ -101,28 +100,11 @@ def test_duplicate_detection():
         assert len(result2.entries_added) == 0, "Should add 0 new entries"
 
 
-def test_selected_agents():
-    """Test protecting selected agents."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        manager = GitignoreManager(tmppath)
-
-        # Test with specific agents
-        result = manager.protect_selected_agents(["claude", "codex"])
-        assert result.success, "protect_selected_agents failed"
-        assert len(result.entries_added) == 2, f"Expected 2 entries, got {len(result.entries_added)}"
-
-        content = manager.gitignore_path.read_text()
-        assert ".claude/" in content, ".claude/ not found"
-        assert ".codex/" in content, ".codex/ not found"
-        assert ".gemini/" not in content, ".gemini/ should not be present"
-
-
 def test_error_handling():
     """Test error handling for invalid inputs."""
     # Test with non-existent directory
     try:
-        manager = GitignoreManager(Path("/nonexistent/path"))
+        GitignoreManager(Path("/nonexistent/path"))
         raise AssertionError("Should have raised ValueError")
     except ValueError as e:
         assert "does not exist" in str(e), "Wrong error message"
@@ -130,20 +112,10 @@ def test_error_handling():
     # Test with file instead of directory
     with tempfile.NamedTemporaryFile() as tmpfile:
         try:
-            manager = GitignoreManager(Path(tmpfile.name))
+            GitignoreManager(Path(tmpfile.name))
             raise AssertionError("Should have raised ValueError")
         except ValueError as e:
             assert "not a directory" in str(e), "Wrong error message"
-
-    # Test with unknown agent
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        manager = GitignoreManager(tmppath)
-
-        result = manager.protect_selected_agents(["unknown_agent"])
-        assert result.success, "Should succeed even with unknown agent"
-        assert not result.modified, "Should not modify with only unknown agents"
-        assert any("Unknown agent" in w for w in result.warnings), "Should warn about unknown agent"
 
 
 if __name__ == "__main__":

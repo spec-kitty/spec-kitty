@@ -846,4 +846,4 @@ def test_flat_ad_hoc_directory_keeps_its_declared_dependencies(tmp_path: Path) -
     feature_dir.mkdir()
     _dependent_pair(feature_dir)
     with pytest.raises(TransitionError, match="unsatisfied dependencies"):
-        emit_status_transition(_claim_request(feature_dir, "WP02"), ensure_sync_daemon=False)
+        emit_status_transition(_claim_request(feature_dir, "WP02"))

@@ -94,15 +94,6 @@ def main() -> int:
     return 0
 
 
-def _detect_owned_files(
-    worktree_root: Path,
-    repo_root: Path,
-    branch: str,
-) -> list[str]:
-    """Try to detect owned_files for the current WP from workspace context or lanes."""
-    return _detect_ownership_scope(worktree_root, repo_root, branch).owned_files
-
-
 def _detect_ownership_scope(
     worktree_root: Path,
     repo_root: Path,

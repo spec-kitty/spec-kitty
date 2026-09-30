@@ -799,10 +799,6 @@ def _read_text_strict(path: Path) -> str:
         raise ArtifactEncodingError(path, exc) from exc
 
 
-def _read_file(path: Path) -> str:
-    return _read_text_strict(path) if path.exists() else ""
-
-
 def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
     results: list[str] = []
     for file_path in files:

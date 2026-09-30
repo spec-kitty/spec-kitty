@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -11,8 +10,6 @@ from .base import BaseMigration, MigrationResult
 
 if TYPE_CHECKING:
     from specify_cli.skills.registry import SkillRegistry
-
-logger = logging.getLogger(__name__)
 
 
 def _discover_registry() -> SkillRegistry | None:

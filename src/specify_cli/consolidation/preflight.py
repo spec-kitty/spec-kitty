@@ -312,18 +312,6 @@ def _validate_target_branch(
     raise typer.Exit(1)
 
 
-def _print_remediation_lines(remediation: object) -> None:
-    """Print remediation lines from a ``dict[str, object]`` payload value.
-
-    The payload is typed ``dict[str, object]`` so the ``remediation`` value is
-    ``object`` at the call site; normalize to a list of strings before printing
-    (behavior-preserving — the value is always a ``list[str]``).
-    """
-    lines = remediation if isinstance(remediation, list) else [str(remediation)]
-    for line in lines:
-        console.print(f"  - {line}")
-
-
 def _effective_push_requested(
     repo_root: Path,
     mission_id: str,

@@ -363,53 +363,6 @@ def is_worktree_context(path: Path) -> bool:
     return False
 
 
-def resolve_with_context(start: Path | None = None) -> tuple[Path | None, bool]:
-    """
-    Resolve project root and detect worktree context in one call.
-
-    Args:
-        start: Starting directory for search (defaults to current working directory)
-
-    Returns:
-        Tuple of (project_root, is_worktree)
-        - project_root: Path to repo root or None if not found
-        - is_worktree: True if executing from within .worktrees/
-
-    Examples:
-        >>> # From main repo
-        >>> root, in_worktree = resolve_with_context()
-        >>> assert in_worktree is False
-
-        >>> # From worktree
-        >>> root, in_worktree = resolve_with_context(Path(".worktrees/my-feature"))
-        >>> assert in_worktree is True
-    """
-    current = (start or Path.cwd()).resolve()
-    root = locate_project_root(current)
-    in_worktree = is_worktree_context(current)
-    return root, in_worktree
-
-
-def check_broken_symlink(path: Path) -> bool:
-    """
-    Check if a path is a broken symlink (symlink pointing to non-existent target).
-
-    This helper is useful for graceful error handling when dealing with
-    worktree symlinks that may become invalid.
-
-    Args:
-        path: Path to check
-
-    Returns:
-        True if path is a broken symlink, False otherwise
-
-    Note:
-        A broken symlink returns True for is_symlink() but False for exists().
-        Always check is_symlink() before exists() to detect this condition.
-    """
-    return path.is_symlink() and not path.exists()
-
-
 class WorkspaceRootNotFound(Exception):
     """Raised when a canonical mission repo root cannot be resolved.
 
@@ -540,16 +493,6 @@ def get_main_repo_root(current_path: Path) -> Path:
     return current_path.resolve()
 
 
-class StatusReadUnsupported(RuntimeError):
-    """Raised when a status command does not support detached-worktree invocation.
-
-    Commands that require comparison across worktrees (or that have an explicit
-    constraint against detached-worktree reads) should call
-    ``assert_worktree_supported()`` at their entry point.  The error message
-    names the command and describes the constraint so the operator can act.
-    """
-
-
 class CommitToTargetMetaError(RuntimeError):
     """Raised when ``meta.json``'s ``commit_to_target`` value is present but not a bool.
 
@@ -606,32 +549,6 @@ class MissionMetaReadError(GuardedReadError, RuntimeError):
         self.path = str(meta_path)
 
 
-def _is_detached_worktree(start: Path | None = None) -> bool:
-    """Return True when the current working directory is inside a git worktree.
-
-    A git worktree has a ``.git`` *file* (not directory) whose content starts
-    with ``gitdir:`` and points to ``<main>/.git/worktrees/<name>`` — the
-    canonical .git/worktrees topology.  Submodules and separate-git-dir clones
-    also produce a ``.git`` file, but they do *not* use the worktrees topology,
-    so this function correctly excludes them.
-
-    Args:
-        start: Starting directory (defaults to ``Path.cwd()``).
-
-    Returns:
-        True when running inside a worktree, False otherwise.
-    """
-    cwd = (start or Path.cwd()).resolve()
-    for ancestor in [cwd, *cwd.parents]:
-        git_marker = ancestor / ".git"
-        if git_marker.is_file():
-            return _read_worktree_gitdir(git_marker) is not None
-        if git_marker.is_dir():
-            # Main repo .git directory — not a worktree
-            return False
-    return False
-
-
 def get_status_read_root(start: Path | None = None) -> Path:
     """Resolve the root for read-only status commands.
 
@@ -684,30 +601,6 @@ def get_status_read_root(start: Path | None = None) -> Path:
             return ancestor
     # Fallback: defer to existing main-repo resolver (very rare path).
     return get_main_repo_root(cwd)
-
-
-def assert_worktree_supported(command_name: str, start: Path | None = None) -> None:
-    """Raise with a clear diagnostic when the current context is a detached
-    worktree and the command does not support that context.
-
-    As of WP05 this helper exists but is NOT called by any active command — all
-    read-only status commands work correctly from both worktrees and the main
-    checkout after the ``get_status_read_root()`` routing fix.  This function is
-    available for future commands that genuinely cannot serve from a detached
-    worktree (e.g., cross-worktree comparison commands).
-
-    Args:
-        command_name: Human-readable name of the subcommand (used in the error).
-        start: Starting directory override (defaults to ``Path.cwd()``).
-
-    Raises:
-        StatusReadUnsupported: When invoked from a detached worktree.
-    """
-    if _is_detached_worktree(start):
-        raise StatusReadUnsupported(
-            f"command '{command_name}' does not support detached-worktree invocation. "
-            f"Run from the primary checkout or document the constraint."
-        )
 
 
 def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
@@ -1231,14 +1124,10 @@ __all__ = [
     "locate_project_root",
     "lint_report_path",
     "is_worktree_context",
-    "resolve_with_context",
-    "check_broken_symlink",
     "get_main_repo_root",
     "resolve_canonical_root",
     "WorkspaceRootNotFound",
     "get_status_read_root",
-    "StatusReadUnsupported",
-    "assert_worktree_supported",
     "MissionMetaReadError",
     "load_meta_fail_closed",
     "read_target_branch_from_meta",

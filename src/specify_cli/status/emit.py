@@ -156,10 +156,8 @@ def _generate_ulid() -> str:
 # ---------------------------------------------------------------------------
 #
 # Per FR-032, the status domain stays free of coordination-layer concerns.
-# These helpers are pure: ``build_status_event`` mints a StatusEvent in
-# memory (ULID, ISO timestamp, Lane coercion) with no I/O;
-# ``append_event_jsonl`` performs a single-line JSONL append with no
-# commit and no materialization.
+# ``build_status_event`` is pure: it mints a StatusEvent in memory (ULID, ISO
+# timestamp, Lane coercion) with no I/O.
 #
 # Workflow call sites compose ``build_status_event`` + the coordination
 # transaction's ``append_event`` (which calls into store + reducer).
@@ -231,26 +229,6 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         policy_metadata=policy_metadata,
         mission_id=mission_id,
     )
-
-
-def append_event_jsonl(events_path: Path, event: StatusEvent) -> None:
-    """Append a single :class:`StatusEvent` to a JSONL event log.
-
-    Pure I/O: writes one canonical JSON line. Does not materialize,
-    does not commit, does not fan out. The caller is responsible for
-    holding any required lock.
-
-    Args:
-        events_path: Path to the ``status.events.jsonl`` file. Parent
-            directories are created on demand.
-        event: The :class:`StatusEvent` to append.
-    """
-    # Delegate to the canonical store implementation so the wire format
-    # stays consistent (sorted keys, trailing newline, etc.). The store
-    # accepts the feature_dir, not the events_path directly.
-    feature_dir = events_path.parent
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    _store.append_event_verified(feature_dir, event)
 
 
 def build_claim_policy_metadata(
@@ -870,8 +848,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     repo_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
     review_result: Any = None,
-    ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
     fan_out: bool = True,
     refresh_projection: bool = True,
 ) -> StatusEvent:
@@ -905,10 +881,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         repo_root: Repository root for SaaS fan-out (optional).
         policy_metadata: Orchestrator policy metadata dict (optional).
         review_result: Structured ReviewResult for in_review -> * transitions (optional).
-        ensure_sync_daemon: If False, emit SaaS events without starting the local sync daemon.
-        sync_dossier: Deprecated 3.2.6 compatibility keyword. Accepted as a
-            no-op because the permanently-empty dossier fan-out registry was
-            retired by issue #677.
         fan_out: When False, step 7 (SaaS + resolved-binding fan-out) is
             skipped and the persisted event is returned as-is. The coord
             fallback arm uses this to fan out only after its commit succeeds
@@ -1028,7 +1000,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             request_mission_slug,
             request.repo_root,
             policy_metadata=request.policy_metadata,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
         if prepared.annotation is not None:
             _resolved_binding_fan_out(prepared.annotation, request_mission_slug, request.repo_root)
@@ -1125,8 +1096,6 @@ def _prepare_batch(
 def emit_status_transition_batch(
     requests: list[TransitionRequest],
     *,
-    ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,  # noqa: ARG001 -- 3.2.6 compatibility; fan-out retired by #677
     fan_out: bool = True,
     refresh_projection: bool = True,
 ) -> list[StatusEvent]:
@@ -1139,9 +1108,7 @@ def emit_status_transition_batch(
     derivation, every per-request :func:`prepare_transition`, the single
     atomic append, the materialize and the lane mirrors; fan-out follows the
     release. The full sequence is validated before any write -- a refused
-    member persists nothing. ``sync_dossier`` remains an accepted no-op
-    keyword for 3.2.6 callers after retirement of the permanently-empty
-    dossier fan-out registry in issue #677; ``fan_out=False`` skips step 7 for
+    member persists nothing. ``fan_out=False`` skips step 7 for
     the coord fallback arm (FR-008). ``refresh_projection=False`` skips the
     F-3 projection refresh (see :func:`emit_status_transition`'s docstring
     for why the coord fallback's flat shell needs this independent flag).
@@ -1201,7 +1168,6 @@ def emit_status_transition_batch(
                 mission_slug,
                 request.repo_root,
                 policy_metadata=request.policy_metadata,
-                ensure_sync_daemon=ensure_sync_daemon,
             )
         # #5181: paired with its own request (never the flattened `annotations`
         # list above) so each annotation's fan-out reads ITS OWN request's
@@ -1537,7 +1503,6 @@ def _saas_fan_out(
     repo_root: Path | None,
     *,
     policy_metadata: dict[str, Any] | None = None,
-    ensure_sync_daemon: bool = True,
 ) -> None:
     """Conditionally fan out a SaaS telemetry event via the registered handlers.
 
@@ -1589,7 +1554,6 @@ def _saas_fan_out(
         # time so SaaS persists Event.occurred_at = StatusEvent.at, not the
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
         metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
-        ensure_daemon=ensure_sync_daemon,
         # The emitting checkout root, so the Zeitgeist bridge resolves relay
         # credentials from it instead of the process cwd (#125).
         repo_root=repo_root,

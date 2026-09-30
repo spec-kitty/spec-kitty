@@ -791,21 +791,6 @@ def resolve_branch_name(mission_slug: str, *, mission_id: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def is_mission_branch(branch_name: str) -> bool:
-    """Return True if branch matches either mission branch pattern (legacy or new).
-
-    A mission branch matches ``kitty/mission-<body>`` but NOT a lane branch
-    (which ends in ``-lane-<id>``).
-    """
-    if not branch_name.startswith(_MISSION_PREFIX):
-        return False
-    # Must not be a lane branch
-    if is_lane_branch(branch_name):
-        return False
-    body = branch_name[len(_MISSION_PREFIX) :]
-    return bool(body)
-
-
 def is_lane_branch(branch_name: str) -> bool:
     """Return True if branch matches a lane branch pattern (legacy, plain-legacy, or new)."""
     return _LEGACY_LANE_RE.match(branch_name) is not None or _PLAIN_LEGACY_LANE_RE.match(branch_name) is not None or _NEW_LANE_RE.match(branch_name) is not None
@@ -859,20 +844,6 @@ def lane_id_for_worktree_dir(dir_name: str, mission_slug: str) -> str | None:
     if worktree_dir_name(mission_slug, lane_id=lane_id) != dir_name:
         return None
     return lane_id
-
-
-def is_legacy_branch(branch_name: str) -> bool:
-    """Return True if branch uses the legacy NNN-slug naming form.
-
-    Legacy form: ``kitty/mission-NNN-slug[-lane-X]``
-    New form:    ``kitty/mission-<human-slug>-<mid8>[-lane-X]``
-
-    Returns False for non-mission branches.
-    """
-    if not branch_name.startswith(_MISSION_PREFIX):
-        return False
-    parsed = parse_mission_slug_from_branch(branch_name)
-    return parsed is not None and parsed.mid8_token is None
 
 
 # ---------------------------------------------------------------------------

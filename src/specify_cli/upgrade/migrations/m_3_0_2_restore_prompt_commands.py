@@ -20,13 +20,10 @@ so the upgrade runner skips this migration.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
-
-logger = logging.getLogger(__name__)
 
 
 def _compute_output_filename(command: str, agent_key: str) -> str:

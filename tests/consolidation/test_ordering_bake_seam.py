@@ -290,24 +290,6 @@ def test_get_merge_order_wraps_topological_value_error(tmp_path: Path) -> None:
         ordering.get_merge_order(workspaces, tmp_path)
 
 
-# --- display_merge_order ----------------------------------------------------
-
-
-def test_display_merge_order_empty_is_noop() -> None:
-    printed: list[str] = []
-    fake_console = type("C", (), {"print": lambda self, *a: printed.append(" ".join(map(str, a)))})()
-    ordering.display_merge_order([], fake_console)
-    assert printed == []
-
-
-def test_display_merge_order_lists_workspaces() -> None:
-    printed: list[str] = []
-    fake_console = type("C", (), {"print": lambda self, *a: printed.append(" ".join(map(str, a)))})()
-    ordering.display_merge_order([_ws("WP01"), _ws("WP02")], fake_console)
-    joined = "\n".join(printed)
-    assert "WP01" in joined and "WP02" in joined
-
-
 # --- _compute_next_mission_number_or_none -----------------------------------
 
 

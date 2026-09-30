@@ -92,7 +92,6 @@ def test_fallback_commits_status_to_coord_worktree(
         identity,
         request,
         mission_slug,
-        ensure_sync_daemon=False,
     )
 
     assert str(event.to_lane) == str(Lane.CLAIMED)
@@ -134,7 +133,6 @@ def test_fallback_preserves_primary_for_flat_topology(
         identity,
         request,
         mission_slug,
-        ensure_sync_daemon=False,
     )
 
     # The primary event log records the transition (primary write path), and no
@@ -194,7 +192,6 @@ def test_fallback_fails_loud_for_stored_coord_when_worktree_unresolvable(
             identity,
             request,
             mission_slug,
-            ensure_sync_daemon=False,
         )
     primary_events = feature_dir / "status.events.jsonl"
     if primary_events.exists():
@@ -315,7 +312,6 @@ def test_coord_fallback_commit_failure_rolls_back_event(
             identity,
             request,
             mission_slug,
-            ensure_sync_daemon=False,
         )
 
     # The event log was truncated back to its pre-emit content (rollback).

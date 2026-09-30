@@ -171,6 +171,11 @@ We'll validate this decision by:
 - `@require_worktree` - Command must run from inside a worktree
 - `@require_either` - Command can run in either location (documentation only)
 
+> **Note (2026-09-30):** `@require_worktree`, `@require_either` and the
+> `SPEC_KITTY_CONTEXT` env-var helpers (`set_context_env_vars` /
+> `get_context_env_vars`) never gained a production caller and were removed in
+> the 2026-09-30 dead-code sweep. Only `@require_main_repo` remains.
+
 **Context detection:**
 - Checks if ".worktrees" is in current path
 - Extracts worktree name and repo root automatically

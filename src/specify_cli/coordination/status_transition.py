@@ -420,7 +420,6 @@ def _fan_out_committed_coord_tail(
     *,
     mission_slug: str,
     repo_root: Path | None,
-    ensure_sync_daemon: bool,
     coord_feature_dir: Path | None = None,
 ) -> None:
     """Announce only the rows captured for the successful coord commit.
@@ -441,7 +440,6 @@ def _fan_out_committed_coord_tail(
             mission_slug,
             repo_root,
             policy_metadata=event.policy_metadata,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
     for annotation in stream.annotations:
         _emit._resolved_binding_fan_out(annotation, mission_slug, repo_root)
@@ -459,7 +457,6 @@ def _emit_on_coord_then_commit(
     *,
     emit: Callable[[Path], _CoordEmitResult],
     repo_root: Path | None,
-    ensure_sync_daemon: bool,
 ) -> tuple[_CoordEmitResult, Path]:
     """The coord fallback arm shared by the single and batch doors (FR-004 row 7).
 
@@ -517,7 +514,6 @@ def _emit_on_coord_then_commit(
         stream,
         mission_slug=mission_slug,
         repo_root=repo_root,
-        ensure_sync_daemon=ensure_sync_daemon,
         coord_feature_dir=coord_fd,
     )
     return result, coord_fd
@@ -527,8 +523,6 @@ def _fallback_emit_single(
     identity: _TransactionIdentity,
     request: TransitionRequest,
     mission_slug: str,
-    *,
-    ensure_sync_daemon: bool,
 ) -> StatusEvent:
     """Single-event non-transactional fallback (FR-004 rows 7-8).
 
@@ -540,7 +534,7 @@ def _fallback_emit_single(
     """
 
     def _primary() -> StatusEvent:
-        event = _emit.emit_status_transition(request, ensure_sync_daemon=ensure_sync_daemon)
+        event = _emit.emit_status_transition(request)
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
             mission_slug=mission_slug,
@@ -560,7 +554,6 @@ def _fallback_emit_single(
             # projection (a rolled-back event) on a commit failure.
             event: StatusEvent = _emit.emit_status_transition(
                 replace(request, feature_dir=coord_fd, mission_dir=None),
-                ensure_sync_daemon=ensure_sync_daemon,
                 fan_out=False,
                 refresh_projection=False,
             )
@@ -572,7 +565,6 @@ def _fallback_emit_single(
             coord_worktree,
             emit=_flat_shell,
             repo_root=request.repo_root,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
@@ -590,8 +582,6 @@ def _fallback_emit_batch(
     identity: _TransactionIdentity,
     requests: list[TransitionRequest],
     mission_slug: str,
-    *,
-    ensure_sync_daemon: bool,
 ) -> list[StatusEvent]:
     """Same-WP batch non-transactional fallback (FR-004 rows 7-8).
 
@@ -615,7 +605,7 @@ def _fallback_emit_batch(
 
     def _primary() -> list[StatusEvent]:
         # Local annotation re-narrows the cross-module (``Any``) emit result.
-        events: list[StatusEvent] = _emit.emit_status_transition_batch(requests, ensure_sync_daemon=ensure_sync_daemon)
+        events: list[StatusEvent] = _emit.emit_status_transition_batch(requests)
         return events
 
     def _coord(coord_worktree: Path) -> list[StatusEvent]:
@@ -623,7 +613,6 @@ def _fallback_emit_batch(
             # B1 fix: same reasoning as _fallback_emit_single's _flat_shell.
             events: list[StatusEvent] = _emit.emit_status_transition_batch(
                 [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
-                ensure_sync_daemon=ensure_sync_daemon,
                 fan_out=False,
                 refresh_projection=False,
             )
@@ -635,7 +624,6 @@ def _fallback_emit_batch(
             coord_worktree,
             emit=_flat_shell,
             repo_root=requests[0].repo_root,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
         return events
 
@@ -1073,7 +1061,6 @@ def _defer_fan_out(
     *,
     mission_slug: str,
     repo_root: Path | None,
-    ensure_sync_daemon: bool,
 ) -> None:
     """Step 7 of the transactional shell: fan-out fires only after commit success."""
     if prepared.annotation is not None:
@@ -1083,7 +1070,6 @@ def _defer_fan_out(
         event,
         mission_slug=mission_slug,
         repo_root=repo_root,
-        ensure_sync_daemon=ensure_sync_daemon,
     )
     # F-3: register the projection refresh as a post-commit deferred outbound
     # (never called synchronously inside the transaction) -- the shared choke
@@ -1540,7 +1526,6 @@ def _tombstone_lane_workspace_context_on_cancel(
 def emit_status_transition_transactional(
     request: TransitionRequest,
     *,
-    ensure_sync_daemon: bool = True,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
 ) -> StatusEvent:
@@ -1569,7 +1554,6 @@ def emit_status_transition_transactional(
             identity,
             request,
             mission_slug,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
 
     with _acquire_status_transaction(
@@ -1615,7 +1599,6 @@ def emit_status_transition_transactional(
             event,
             mission_slug=mission_slug,
             repo_root=request.repo_root,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
@@ -1786,7 +1769,6 @@ def emit_inner_state_changed_transactional(
 def emit_status_transition_batch_transactional(
     requests: list[TransitionRequest],
     *,
-    ensure_sync_daemon: bool = True,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
 ) -> list[StatusEvent]:
@@ -1820,7 +1802,6 @@ def emit_status_transition_batch_transactional(
             identity,
             requests,
             mission_slug,
-            ensure_sync_daemon=ensure_sync_daemon,
         )
 
     with _acquire_status_transaction(
@@ -1861,7 +1842,6 @@ def emit_status_transition_batch_transactional(
                 event,
                 mission_slug=mission_slug,
                 repo_root=request.repo_root,
-                ensure_sync_daemon=ensure_sync_daemon,
             )
 
         return [event for _prepared, event, _request in built]

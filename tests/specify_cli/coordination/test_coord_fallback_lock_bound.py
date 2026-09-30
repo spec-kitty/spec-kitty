@@ -144,7 +144,7 @@ def test_coord_fallback_lock_take_is_bounded(
     try:
         assert ready.wait(timeout=5), "holder thread never acquired the lock"
         with pytest.raises(FeatureStatusLockTimeoutError) as excinfo:
-            st.emit_status_transition_transactional(_request(repo), ensure_sync_daemon=False)
+            st.emit_status_transition_transactional(_request(repo))
     finally:
         release.set()
         holder.join(timeout=10)
@@ -178,5 +178,5 @@ def test_coord_fallback_lock_take_still_succeeds_uncontended(
     monkeypatch.setattr(st, "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", 0.2)
     monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", lambda **_kwargs: None)
 
-    event = st.emit_status_transition_transactional(_request(repo), ensure_sync_daemon=False)
+    event = st.emit_status_transition_transactional(_request(repo))
     assert event.to_lane == Lane.CLAIMED

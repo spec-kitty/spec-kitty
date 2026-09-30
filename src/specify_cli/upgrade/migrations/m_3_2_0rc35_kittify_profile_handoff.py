@@ -31,7 +31,6 @@ to migrate).
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from specify_cli.runtime.generated_writer import write_generated_file
@@ -39,10 +38,6 @@ from specify_cli.runtime.generated_writer import write_generated_file
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
-logger = logging.getLogger(__name__)
-
-MIGRATION_ID = "m_3_2_0rc35_kittify_profile_handoff"
-TARGET_VERSION = "3.2.0rc35"
 
 # ---------------------------------------------------------------------------
 # Sentinel strings used for idempotency checks

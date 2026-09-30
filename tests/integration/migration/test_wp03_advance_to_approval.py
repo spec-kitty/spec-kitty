@@ -125,7 +125,6 @@ def _build_wedged_repo(tmp_path: Path) -> tuple[Path, Path]:
         actor=_AGENT,
         mission_slug=_MISSION_SLUG,
         repo_root=repo,
-        ensure_sync_daemon=False,
         fan_out=False,
     )
     assert read_lanes_json(feature_dir) is None, "fixture precondition: wedge has no lanes.json"

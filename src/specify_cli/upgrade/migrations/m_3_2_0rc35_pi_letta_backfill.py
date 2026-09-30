@@ -8,7 +8,6 @@ and repairs them idempotently.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
@@ -16,7 +15,6 @@ from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_tex
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
-logger = logging.getLogger(__name__)
 
 # Maps agent key -> gitignore entry that must be present for that agent.
 _AGENT_GITIGNORE_ENTRIES: dict[str, str] = {

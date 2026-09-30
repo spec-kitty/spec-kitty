@@ -14,7 +14,7 @@ import os
 import re
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -386,14 +386,6 @@ class Mission:
             return []
         return [f.stem for f in self.command_templates_dir.glob("*.md")]
 
-    def get_validation_checks(self) -> list[str]:
-        """Get list of validation checks for this mission."""
-        return list(self.config.validation.checks)
-
-    def has_custom_validators(self) -> bool:
-        """Check if mission has custom validators.py."""
-        return self.config.validation.custom_validators
-
     def get_workflow_phases(self) -> list[dict[str, str]]:
         """Get workflow phases for this mission.
 
@@ -413,40 +405,6 @@ class Mission:
     def get_path_conventions(self) -> dict[str, str]:
         """Get path conventions for this mission (e.g., workspace, tests)."""
         return dict(self.config.paths)
-
-    def get_mcp_tools(self) -> dict[str, list[str]]:
-        """Get MCP tools configuration for this mission.
-
-        Returns:
-            Dict with 'required', 'recommended', 'optional' lists
-        """
-        mcp_tools = self.config.mcp_tools
-        if mcp_tools is None:
-            return {"required": [], "recommended": [], "optional": []}
-        return {
-            "required": list(mcp_tools.required),
-            "recommended": list(mcp_tools.recommended),
-            "optional": list(mcp_tools.optional),
-        }
-
-    def get_agent_context(self) -> str:
-        """Get agent personality/instructions for this mission."""
-        return self.config.agent_context or ""
-
-    def get_command_config(self, command_name: str) -> dict[str, str]:
-        """Get configuration for a specific command.
-
-        Args:
-            command_name: Name of command (e.g., 'plan', 'implement')
-
-        Returns:
-            Dict with command configuration (e.g., 'prompt')
-        """
-        if not self.config.commands:
-            return {}
-
-        command = self.config.commands.get(command_name)
-        return command.model_dump() if command else {}
 
     def __repr__(self) -> str:
         return f"Mission(name='{self.name}', domain='{self.domain}', version='{self.version}')"

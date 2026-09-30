@@ -36,7 +36,6 @@ from mission_runtime import TopologySurface
 from specify_cli.acceptance.execution_context import GateSurfaceRefMismatch
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
 from specify_cli.status_lanes import is_acceptable_ending
-from specify_cli.task_utils import run_git
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -864,10 +863,6 @@ def _check_lane_gates(
         owned=owned,
     )
     return LaneGateOutcome(matrix_dir=matrix_dir)
-
-
-def _git_ref_exists(repo_root: Path, ref: str) -> bool:
-    return bool(run_git(["rev-parse", "--verify", "--quiet", ref], cwd=repo_root, check=False).returncode == 0)
 
 
 __all__: list[str] = []

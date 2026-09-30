@@ -36,7 +36,6 @@ from rich.markup import escape
 if TYPE_CHECKING:
     from specify_cli.lanes.consolidation import MissionConsolidationResult
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
-    from specify_cli.migration.runtime_state_cutover import CutoverResult
 
 from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
@@ -396,11 +395,10 @@ class _MergeRunState:
     assigned_mission_number: int | None = None
     baseline_meta_path: Path | None = None
     stale_report: StaleAssertionReport | None = None
-    # coord-write-placement-closure-01KYCF83 WP09 (IC-08 / FR-009): the birth-time
-    # runtime cutover's outcome + the ``meta.json`` path it flipped (when it
+    # coord-write-placement-closure-01KYCF83 WP09 (IC-08 / FR-009): the
+    # ``meta.json`` path the birth-time runtime cutover flipped (when it
     # flipped), so the porcelain-invariant + bookkeeping-commit phases can
-    # recognize the write and the caller can inspect the outcome.
-    birth_cutover_result: CutoverResult | None = None
+    # recognize the write.
     birth_cutover_meta_path: Path | None = None
 
     # Paths
@@ -1920,7 +1918,6 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
         logger.warning("birth-cutover failed for %s: %s", run.mission_slug, exc)
         return
 
-    run.birth_cutover_result = result
     if result.flipped:
         run.birth_cutover_meta_path = run.target_feature_dir / "meta.json"
     elif result.error:

@@ -107,7 +107,6 @@ class TestCanonicalFanOut:
                 evidence=None,
                 occurred_at=event.at,
             ),
-            "ensure_daemon": True,
             "repo_root": None,
         }
 

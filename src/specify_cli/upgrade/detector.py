@@ -11,8 +11,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.migration.schema_version import get_project_schema_version
-
 from .metadata import ProjectMetadata
 
 if TYPE_CHECKING:
@@ -47,20 +45,6 @@ class VersionDetector:
 
         return "unknown"
 
-    def detect_schema_version(self) -> int:
-        """Return the integer schema version of the project.
-
-        Returns:
-            The ``spec_kitty.schema_version`` integer from metadata.yaml, or
-            ``0`` when the field is absent (legacy / uninitialized project).
-        """
-        schema_version = get_project_schema_version(self.project_path)
-        if schema_version is None:
-            # Legacy project: .kittify/ exists but no schema_version field.
-            # Treat as version 0 — needs migration.
-            return 0
-        return schema_version
-
     def applicable_migrations(self, target_version: str) -> list[BaseMigration]:
         """Return the migrations a real upgrade run would apply.
 
@@ -89,14 +73,3 @@ class VersionDetector:
             from_version, target_version, project_path=self.project_path
         )
         return applicable
-
-    def get_needed_migrations(self, target_version: str) -> list[str]:
-        """Get list of migration IDs needed to reach *target_version*.
-
-        Args:
-            target_version: Version string to upgrade to (e.g. ``"2.1.3"``).
-
-        Returns:
-            List of migration IDs in application order.
-        """
-        return [m.migration_id for m in self.applicable_migrations(target_version)]

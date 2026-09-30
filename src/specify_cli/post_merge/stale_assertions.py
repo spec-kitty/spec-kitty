@@ -664,29 +664,6 @@ def _get_node_line(node: ast.AST) -> int:
     return getattr(node, "lineno", 0)
 
 
-def _is_directly_inside_assert(
-    node: ast.AST, assertion: ast.AST
-) -> bool:
-    """Return True if node appears as a direct child of an Assert.test or assertEqual call.
-
-    Used to distinguish high vs. medium confidence.
-    """
-    if isinstance(assertion, ast.Assert):
-        test = assertion.test
-        # Direct Name or Attribute in the test expression.
-        if isinstance(test, ast.Name) and isinstance(node, ast.Name):
-            return test.id == node.id
-        if isinstance(test, ast.Attribute) and isinstance(node, ast.Attribute):
-            return test.attr == node.attr
-        # Walk one level: Compare, BoolOp, etc.
-        for direct_child in ast.iter_child_nodes(test):
-            if isinstance(direct_child, ast.Name) and isinstance(node, ast.Name) and direct_child.id == node.id:
-                return True
-            if isinstance(direct_child, ast.Attribute) and isinstance(node, ast.Attribute) and direct_child.attr == node.attr:
-                return True
-    return False
-
-
 def _scan_test_file(
     test_path: Path,
     changed_symbols: list[_SourceSymbol],

@@ -132,7 +132,6 @@ def test_saas_emission_preserves_mission_slug_and_repo_root(
     _, kwargs = mock_saas_sink.calls[-1]
     assert kwargs["mission_slug"] == MISSION_SLUG
     assert kwargs["mission_id"] == MISSION_ID
-    assert kwargs["ensure_daemon"] is True
     # #125: the emitting checkout root travels with the fan-out kwargs so the
     # Zeitgeist bridge can resolve credentials from it instead of cwd.
     assert kwargs["repo_root"] == repo

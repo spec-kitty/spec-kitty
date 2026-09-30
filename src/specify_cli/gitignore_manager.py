@@ -452,13 +452,6 @@ class GitignoreManager:
             target = os.readlink(self.gitignore_path)
             raise GitignorePathError(f".gitignore is a symlink to {target!r}; refusing to read or write through it: {self.gitignore_path}")
 
-    def _read_text_no_follow(self) -> str:
-        """Read `.gitignore` through the shared no-follow helper."""
-        try:
-            return read_text_no_follow(self.gitignore_path, encoding="utf-8-sig")
-        except NoFollowPathError as exc:
-            raise GitignorePathError(f".gitignore is a symlink; refusing to read or write through it: {self.gitignore_path}") from exc
-
     def _atomic_write(self, content: str) -> None:
         """Write `.gitignore` atomically without following a symlink.
 
@@ -513,17 +506,6 @@ class GitignoreManager:
             return "\r\n"
         else:
             return "\n"
-
-    @classmethod
-    def get_agent_directories(cls) -> list[AgentDirectory]:
-        """
-        Get a copy of the registry of all known agent directories.
-
-        Returns:
-            List of AgentDirectory objects representing all known agents
-        """
-        # Return a copy to prevent external modification
-        return AGENT_DIRECTORIES.copy()
 
     def _protect_entries(self, directories: list[str], error_context: str) -> ProtectionResult:
         """
@@ -610,44 +592,4 @@ class GitignoreManager:
             result.success = False
             result.errors.append(f"Error protecting agent directories: {exc}")
 
-        return result
-
-    def protect_selected_agents(self, agents: list[str]) -> ProtectionResult:
-        """
-        Add specific agent directories to .gitignore based on selection.
-
-        Args:
-            agents: List of agent names (e.g., ['claude', 'codex', 'opencode'])
-
-        Returns:
-            ProtectionResult containing details of the operation
-        """
-        result = ProtectionResult(success=True, modified=False)
-
-        # Build mapping of agent names to directories. An agent name may own
-        # more than one entry (e.g. cursor, #2498), so collect a list per
-        # name rather than the last match.
-        agent_map: dict[str, list[AgentDirectory]] = {}
-        for agent in AGENT_DIRECTORIES:
-            agent_map.setdefault(agent.name, []).append(agent)
-
-        # Collect directories for selected agents
-        directories_to_add: list[str] = []
-        for agent_name in agents:
-            if agent_name in agent_map:
-                directories_to_add.extend(entry.directory for entry in agent_map[agent_name])
-            else:
-                result.warnings.append(f"Unknown agent name: {agent_name}")
-
-        if not directories_to_add:
-            result.warnings.append("No valid agent directories to add")
-            return result
-
-        protection = self._protect_entries(directories_to_add, "selected agents")
-        # Merge protection result into result (which may already have warnings)
-        result.success = protection.success
-        result.modified = protection.modified
-        result.entries_added = protection.entries_added
-        result.entries_skipped = protection.entries_skipped
-        result.errors = protection.errors
         return result

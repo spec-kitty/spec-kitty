@@ -60,7 +60,6 @@ class EventLogWriteTarget(enum.StrEnum):
     """Explicit event-log mutation target."""
 
     PRIMARY_CHECKOUT_APPEND = "primary_checkout_append"
-    LEGACY_LANE_APPEND = "legacy_lane_append"
     COORDINATION_TRANSACTION_APPEND = "coordination_transaction_append"
 
 
@@ -166,13 +165,6 @@ class EventLogWriteContract:
     def coordination_transaction_append(cls, feature_dir: Path) -> EventLogWriteContract:
         return cls(
             target=EventLogWriteTarget.COORDINATION_TRANSACTION_APPEND,
-            feature_dir=feature_dir,
-        )
-
-    @classmethod
-    def legacy_lane_append(cls, feature_dir: Path) -> EventLogWriteContract:
-        return cls(
-            target=EventLogWriteTarget.LEGACY_LANE_APPEND,
             feature_dir=feature_dir,
         )
 

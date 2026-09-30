@@ -149,7 +149,7 @@ def test_plain_door_lanes_mission_gains_no_commits(lanes_repo: tuple[Path, Path]
 
     monkeypatch.setattr(st, "_resolve_fallback_coord_worktree", _recording_resolve)
 
-    event = st.emit_status_transition_transactional(_claim(feature_dir, repo), ensure_sync_daemon=False)
+    event = st.emit_status_transition_transactional(_claim(feature_dir, repo))
 
     assert event.to_lane == Lane.CLAIMED
     assert resolved == [None], "a coord-less topology must take the primary arm"
@@ -173,7 +173,7 @@ def test_plain_door_itself_resolves_no_identity_through_git(lanes_repo: tuple[Pa
     head_before = _git(repo, "rev-list", "--count", "HEAD")
     del git_argv[:]  # drop the fixture's own rev-list call
 
-    event = emit_status_transition(_claim(feature_dir, repo), ensure_sync_daemon=False)
+    event = emit_status_transition(_claim(feature_dir, repo))
 
     assert event.to_lane == Lane.CLAIMED
     assert [argv[-2:] for argv in git_argv] == [_LOCK_PATH_PROBE], git_argv

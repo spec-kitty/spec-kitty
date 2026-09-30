@@ -336,8 +336,6 @@ def test_issue_1706_ahead_and_behind_does_not_block_no_push_merge() -> None:
     )
     # When push=False, the preflight is never called — diverged doesn't matter.
     # When push=True, diverged blocks — but the LOCAL merge already completed.
-    # The key invariant: is_safe (local merge) is ALWAYS True.
-    assert status.is_safe is True  # deprecated alias — local merge always safe
     # is_safe_to_push would block a push, but is irrelevant for local-only merge
     assert status.is_safe_to_push is False  # diverged
 

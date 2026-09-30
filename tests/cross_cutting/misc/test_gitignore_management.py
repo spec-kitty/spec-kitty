@@ -172,41 +172,14 @@ def test_protect_all_agents_with_existing_directory():
         assert len(result.entries_added) == _TOTAL_ENTRIES - 2
 
 
-def test_protect_selected_agents():
-    """Test that protect_selected_agents only adds specified agents."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        project_path = Path(temp_dir)
-
-        # Use GitignoreManager
-        manager = GitignoreManager(project_path)
-        result = manager.protect_selected_agents(["codex", "claude", "gemini"])
-
-        # Check success
-        assert result.success
-        assert result.modified
-
-        # Check that only selected agents were added
-        assert len(result.entries_added) == 3
-        assert ".codex/" in result.entries_added
-        assert ".claude/" in result.entries_added
-        assert ".gemini/" in result.entries_added
-
-        # Verify in file
-        content = manager.gitignore_path.read_text()
-        assert ".codex/" in content
-        assert ".claude/" in content
-        assert ".gemini/" in content
-        assert ".cursor/" not in content  # Not selected
-
-
-def test_protect_selected_agents_cursor_is_narrow():
-    """#2498: selecting cursor must not blanket-ignore .cursor/, only the
+def test_protect_all_agents_cursor_is_narrow():
+    """#2498: protecting cursor must not blanket-ignore .cursor/, only the
     paths Spec Kitty itself generates there."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
 
         manager = GitignoreManager(project_path)
-        result = manager.protect_selected_agents(["cursor"])
+        result = manager.protect_all_agents()
 
         assert result.success
         assert result.modified
@@ -221,26 +194,6 @@ def test_protect_selected_agents_cursor_is_narrow():
         assert blanket_lines == []
 
 
-def test_protect_selected_agents_with_unknown():
-    """Test that protect_selected_agents handles unknown agent names."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        project_path = Path(temp_dir)
-
-        # Use GitignoreManager
-        manager = GitignoreManager(project_path)
-        result = manager.protect_selected_agents(["codex", "unknown_agent"])
-
-        # Check success
-        assert result.success
-        assert result.modified
-
-        # Check that valid agent was added
-        assert ".codex/" in result.entries_added
-
-        # Check for warning about unknown agent
-        assert any("unknown_agent" in w for w in result.warnings)
-
-
 # Run tests if executed directly
 if __name__ == "__main__":
     tests = [
@@ -250,9 +203,7 @@ if __name__ == "__main__":
         test_gitignore_manager_handles_multiple_entries,
         test_protect_all_agents_adds_all_directories,
         test_protect_all_agents_with_existing_directory,
-        test_protect_selected_agents,
-        test_protect_selected_agents_cursor_is_narrow,
-        test_protect_selected_agents_with_unknown,
+        test_protect_all_agents_cursor_is_narrow,
     ]
 
     passed = 0

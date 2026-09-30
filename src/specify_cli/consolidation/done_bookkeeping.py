@@ -281,7 +281,6 @@ def _emit_approved_replay_if_needed(
                         "target_branch": target_branch,
                     },
                 ),
-                ensure_sync_daemon=False,
             )
         except TransitionError as exc:
             console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
@@ -435,7 +434,6 @@ def _mark_wp_merged_done(
                     "target_branch": target_branch,
                 },
             ),
-            ensure_sync_daemon=False,
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")

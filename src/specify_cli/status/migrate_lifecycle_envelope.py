@@ -59,7 +59,6 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
-import logging
 import os
 import tempfile
 from contextlib import AbstractContextManager
@@ -83,7 +82,6 @@ from .store import (  # noqa: PLC2701 -- same-package reuse, not a public API
     _read_text_without_following_symlinks,
 )
 
-logger = logging.getLogger(__name__)
 
 #: The 6 STRICT_ENVELOPE_KEYS (F1.md section 3.2) genuinely absent from the
 #: on-disk legacy shape -- not just the 5 the module's earlier framing named.

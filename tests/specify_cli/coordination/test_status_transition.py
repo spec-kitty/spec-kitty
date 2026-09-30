@@ -1179,15 +1179,15 @@ def test_three_doors_build_the_same_event_and_validate_once_each(repo: Path, tmp
     coord_feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
     flat_feature_dir = _flat_mission(tmp_path)
 
-    plain = status_emit.emit_status_transition(_claim_with_policy(flat_feature_dir, None), ensure_sync_daemon=False)
+    plain = status_emit.emit_status_transition(_claim_with_policy(flat_feature_dir, None))
     assert len(calls) == 1
-    single = emit_status_transition_transactional(_claim_with_policy(coord_feature_dir, repo), ensure_sync_daemon=False)
+    single = emit_status_transition_transactional(_claim_with_policy(coord_feature_dir, repo))
     assert len(calls) == 2
     # Roll the coord WP back to planned so the batch door sees the same from_lane
     # (the worktree holding the branch must go before the ref can move).
     _git(repo, "worktree", "remove", "-f", str(CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)))
     _git(repo, "branch", "-f", COORD_BRANCH, f"{COORD_BRANCH}~1")
-    (batch,) = emit_status_transition_batch_transactional([_claim_with_policy(coord_feature_dir, repo)], ensure_sync_daemon=False)
+    (batch,) = emit_status_transition_batch_transactional([_claim_with_policy(coord_feature_dir, repo)])
     assert len(calls) == 3
 
     assert _event_identity(plain) == _event_identity(single) == _event_identity(batch)

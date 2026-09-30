@@ -378,7 +378,6 @@ def _txn_transition(repo: Path, to_lane: str, *, force: bool = False) -> None:
             reason="claim-base wiring test" if force else None,
             evidence=_approval_evidence() if to_lane in ("approved", "done") else None,
         ),
-        ensure_sync_daemon=False,
     )
 
 
@@ -434,7 +433,6 @@ def _primary_fallback_transition(repo: Path, feature_dir: Path, mission_slug: st
             reason="claim-base wiring test" if force else None,
             evidence=_approval_evidence() if to_lane in ("approved", "done") else None,
         ),
-        ensure_sync_daemon=False,
     )
 
 
@@ -572,7 +570,6 @@ def _coord_fallback_transition(repo: Path, to_lane: str, *, force: bool = False)
                 reason="claim-base wiring test" if force else None,
                 evidence=_approval_evidence() if to_lane in ("approved", "done") else None,
             ),
-            ensure_sync_daemon=False,
         )
 
 

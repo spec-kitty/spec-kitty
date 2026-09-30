@@ -1739,7 +1739,6 @@ def start_implementation(
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
-            ensure_sync_daemon=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1836,7 +1835,6 @@ def start_review(
             execution_mode=_status_execution_mode_for_start_workspace(review_ws),
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
-            ensure_sync_daemon=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -2016,7 +2014,6 @@ def transition(
                 repo_root=main_repo_root,
                 policy_metadata=policy_dict,
             ),
-            ensure_sync_daemon=False,
         )
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))

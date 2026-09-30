@@ -41,7 +41,6 @@ __all__ = [
     "get_merge_order",
     "MergeOrderError",
     "has_dependency_info",
-    "display_merge_order",
     "assign_next_mission_number",
     "_already_baked",
     "_mark_mission_number_baked",
@@ -206,25 +205,6 @@ def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path
     if not collected:
         return 1
     return max(collected) + 1
-
-
-def display_merge_order(
-    ordered_workspaces: list[tuple[Path, str, str]],
-    console,
-) -> None:
-    """Display the merge order to the user.
-
-    Args:
-        ordered_workspaces: Ordered list of (path, wp_id, branch) tuples
-        console: Rich Console for output
-    """
-    if not ordered_workspaces:
-        return
-
-    console.print("\n[bold]Merge Order[/bold] (dependency-based):\n")
-    for i, (_, wp_id, branch) in enumerate(ordered_workspaces, 1):
-        console.print(f"  {i}. {wp_id} ({branch})")
-    console.print()
 
 
 # ---------------------------------------------------------------------------

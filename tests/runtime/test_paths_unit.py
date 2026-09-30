@@ -11,8 +11,6 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     locate_project_root,
     is_worktree_context,
-    resolve_with_context,
-    check_broken_symlink,
     require_explicit_feature,
 )
 
@@ -240,54 +238,6 @@ def test_is_worktree_context_handles_gitfile_read_oserror(
 
     monkeypatch.setattr(Path, "read_text", _broken_read_text)
     assert is_worktree_context(repo) is False
-
-
-def test_resolve_with_context_main_repo(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test combined resolution from main repo."""
-    monkeypatch.chdir(mock_main_repo)
-
-    root, in_worktree = resolve_with_context()
-
-    assert root == mock_main_repo
-    assert in_worktree is False
-
-
-def test_resolve_with_context_worktree(mock_worktree: dict[str, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test combined resolution from worktree."""
-    monkeypatch.chdir(mock_worktree["worktree_path"])
-
-    root, in_worktree = resolve_with_context()
-
-    assert root == mock_worktree["repo_root"]
-    assert in_worktree is True
-
-
-def test_broken_symlink_handling(tmp_path: Path) -> None:
-    """Test graceful handling of broken symlinks."""
-    # Create broken symlink
-    target = tmp_path / "nonexistent"
-    link = tmp_path / "broken_link"
-    link.symlink_to(target)
-
-    # Verify is_symlink() returns True
-    assert link.is_symlink()
-    # Verify exists() returns False
-    assert not link.exists()
-
-    # Test check_broken_symlink helper
-    assert check_broken_symlink(link) is True
-
-    # Test with valid symlink
-    valid_target = tmp_path / "valid_target"
-    valid_target.mkdir()
-    valid_link = tmp_path / "valid_link"
-    valid_link.symlink_to(valid_target)
-    assert check_broken_symlink(valid_link) is False
-
-    # Test with regular file
-    regular_file = tmp_path / "regular.txt"
-    regular_file.write_text("content")
-    assert check_broken_symlink(regular_file) is False
 
 
 @pytest.mark.non_sandbox

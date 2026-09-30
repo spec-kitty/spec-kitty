@@ -50,10 +50,8 @@ class TargetBranchSyncStatus:
     """Local target branch state relative to its tracking branch.
 
     This dataclass lives in the *publish layer* and is used only when a push
-    is being evaluated.  Use ``is_safe_to_push`` for push-safety decisions.
-    ``is_safe`` is a deprecated alias kept for transition compatibility; it
-    always returns ``True`` because local-merge operations do not require
-    remote sync.
+    is being evaluated.  Use ``is_safe_to_push`` for push-safety decisions;
+    local-merge operations do not require remote sync.
     """
 
     target_branch: str
@@ -78,19 +76,6 @@ class TargetBranchSyncStatus:
         It must be blocked before mutation, like ``"diverged"``.
         """
         return self.state not in {"behind", "diverged"}
-
-    @property
-    def is_safe(self) -> bool:
-        """Deprecated.  Always returns True.
-
-        This predicate was previously used to gate *local* merge operations on
-        remote sync state, which was incorrect (see ADR 2026-06-05-1 and issue
-        #1706).  Local merges do not require remote sync; only push operations
-        do.
-
-        Callers making push decisions must migrate to ``is_safe_to_push``.
-        """
-        return True
 
 
 @dataclass(frozen=True)

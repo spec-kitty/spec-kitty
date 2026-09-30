@@ -356,23 +356,3 @@ class PythonOnlyMigration(BaseMigration):
             return True, replacements_made
 
         return False, 0
-
-    def _detect_custom_modifications(self, project_path: Path) -> list[str]:
-        """Detect custom modifications to bash scripts."""
-        warnings: list[str] = []
-
-        kittify_bash = project_path / ".kittify" / "scripts" / "bash"
-        if not kittify_bash.exists():
-            return warnings
-
-        # Look for non-standard scripts (not in PACKAGE_SCRIPTS)
-        custom_scripts = []
-        for script_path in kittify_bash.glob("*.sh"):
-            if script_path.name not in self.PACKAGE_SCRIPTS:
-                custom_scripts.append(script_path.name)
-
-        if custom_scripts:
-            warnings.append(f"Custom bash scripts detected: {', '.join(custom_scripts)}")
-            warnings.append("These scripts will NOT be removed automatically. Please migrate them manually or remove if no longer needed.")
-
-        return warnings

@@ -230,20 +230,8 @@ class LaneDependencyCycleError(LaneComputationError):
         super().__init__("Execution-lane dependency cycle detected: " + " -> ".join(cycle_path))
 
 
-# Surface taxonomy for conflict detection.
-# If two WPs predict the same surface, they are presumed to overlap.
-SURFACE_TAXONOMY: tuple[str, ...] = (
-    "dashboard",
-    "workspace",
-    "app-shell",
-    "legacy-cleanup",
-    "tests",
-    "tracker-integration",
-    "artifact-rendering",
-    "api",
-)
-
 # Keywords that map to surface tags (case-insensitive substring match).
+# If two WPs predict the same surface, they are presumed to overlap.
 _SURFACE_KEYWORDS: dict[str, tuple[str, ...]] = {
     "dashboard": ("dashboard", "landing page", "landing-page"),
     "workspace": ("workspace", "mission workspace"),

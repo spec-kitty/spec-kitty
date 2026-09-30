@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeAlias
 
 from pydantic import BaseModel
 

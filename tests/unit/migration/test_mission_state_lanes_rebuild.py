@@ -110,7 +110,6 @@ def _seed_wedged_events(feature_dir: Path, mission_slug: str, *, claim_wp: str =
         actor="test-wedge-seed",
         mission_slug=mission_slug,
         repo_root=feature_dir.parent.parent,
-        ensure_sync_daemon=False,
         fan_out=False,
     )
 
