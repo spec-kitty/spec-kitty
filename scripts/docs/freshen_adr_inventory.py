@@ -1,6 +1,6 @@
 """One-command ADR index + inventory-lockfile freshener.
 
-Adding an ADR under ``docs/adr/<era>/`` (era = ``1.x`` | ``2.x`` | ``3.x``)
+Adding an ADR under ``docs/adr/<era>/`` (era = ``1.x`` | ``2.x`` | ``3.x`` | ``4.x``; new ADRs use ``4.x``)
 requires two index updates the ``docs-freshness`` CI gate enforces:
 
 1. A :class:`~scripts.docs._inventory.PageInventoryEntry` row in

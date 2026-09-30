@@ -51,7 +51,7 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 _DOCS_ADR: Final[Path] = _REPO_ROOT / "docs" / "adr"
-_ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x")
+_ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x", "4.x")
 _DATE_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 # Non-dated *promoted* ADRs: ``adr-<slug>.md`` (no date prefix). READMEs and other
 # ``.md`` files are excluded — only ``adr-`` carries the promoted-ADR contract.

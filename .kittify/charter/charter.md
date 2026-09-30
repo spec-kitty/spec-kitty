@@ -2,6 +2,9 @@
 
 > Created: 2026-01-27
 > Version: 1.4.0
+> Updated: 2026-09-30 — re-anchored Architecture: Branch and Release Strategy to the
+> active 4.x line (4.0.0 rc-stage); the 3.x section still read "current version 3.x
+> (3.1.0a3+)", which led docs updates to treat 3.2.x as the live cycle.
 > Updated: 2026-09-28 — dogfooded the squad-doctrine-single-owner-01M3KBP7
 > retirement sweep: applied the `4.0.0rc5_retire_single_owner_doctrine_ids`
 > migration to this project's own `.kittify/charter/` surfaces, then reworded
@@ -376,9 +379,13 @@ For external package contract changes:
 
 ## Architecture: Branch and Release Strategy
 
-### Current Branch Strategy (3.x)
+### Current Branch Strategy (4.x)
 
-**Active development** happens on `main`. The current version is **3.x** (3.1.0a3+).
+**Active development** happens on `main`. The current line is **4.x**: the 4.0.0 cycle is at
+release-candidate stage (`4.0.0rc5` is open on `main`). The cycle's intent is declared in
+[`docs/changelog/4.0.0.md`](../../docs/changelog/4.0.0.md) and executed against the
+[4.0.0 milestone roadmap](../../docs/plans/4-0-0-milestone-roadmap.md); work deferred past
+4.0.0 goes to the **CLI 4.x stable** milestone.
 
 **Branch layout:**
 - **`main`** — Active development. All new features, bug fixes, and releases target `main`.
@@ -388,14 +395,15 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 
 ### Release Versioning
 
-- **3.x** — Current active version. Event sourcing, sync protocol, mission identity model, spec-kitty-events integration.
+- **4.x** — Current active line. Hosted collaboration (Team Kitty over Zeitgeist), the open-core structural finish, and consolidation/status integrity. The sync transport was retired in August 2026.
+- **3.x** — Closed. The last release was **3.2.7** (2026-09-10). The planned 3.3.x cycle was retired on 2026-08-23 without shipping; its open work was re-triaged into 4.0.0 or CLI 4.x stable. Documents scoped to 3.2.x/3.3.x are historical records.
 - **1.x** — Historical maintenance branch. YAML activity logs, local-only operation, no spec-kitty-events dependency.
 
 ### Development Principles
 
 - All new features target `main`
 - Breaking changes are allowed during pre-release alpha/beta cycles
-- The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any feature
+- The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any mission
 - Do not hardcode branch names in templates or scaffolding; use the resolved branch context
 
 ### Programme PR Workflow
@@ -619,7 +627,8 @@ authority_paths:
   # Common Docs fold complete: legacy homes dropped, canonical new homes only
   # (matches charter.yaml/governance.yaml; keeps `charter sync` idempotent).
   - docs/context/             # canonical terminology (FR-009)
-  - docs/adr/3.x/             # canonical architectural decisions
+  - docs/adr/3.x/             # architectural decisions through the early 4.0.0 cycle
+  - docs/adr/4.x/             # canonical architectural decisions (new ADRs land here)
 ```
 
 ---

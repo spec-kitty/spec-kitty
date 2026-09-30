@@ -258,6 +258,7 @@ governance:
     authority_paths:
     - docs/context/
     - docs/adr/3.x/
+    - docs/adr/4.x/
     governance_references: []
   activations: []
   enforcement: {}

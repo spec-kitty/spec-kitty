@@ -2,7 +2,7 @@
 title: '3.x Architectural Decision Records'
 description: 'Index and era history for every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry.'
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-09-30'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -10,6 +10,11 @@ audience: docs/context/audience/internal/system-architect.md
 # 3.x ADRs
 
 Architectural Decision Records for the 3.x track (starting 3.0.0, released 2026-03-30).
+
+> **Closed to new ADRs.** The 4.x line is active: new ADRs land in
+> [`docs/adr/4.x/`](../4.x/index.md). This folder also holds the ADRs written early in the
+> 4.0.0 cycle (2026-09-13 to 2026-09-29), before the 4.x folder opened; they stay here
+> because ADRs are immutable and their links must keep resolving.
 
 ## Era history
 
@@ -39,7 +44,7 @@ system with a hardened execution model. The through-lines of this era's decision
 - **Governance honesty** — red main is honest signal and CI is the release authority;
   charter.yaml is the authoritative structured source with the prose extractor retired.
 
-This is the **current** track. The prior architecture is [2.x](../2.x/index.md); the
+The current track is [4.x](../4.x/index.md). The prior architecture is [2.x](../2.x/index.md); the
 foundational decisions are [1.x](../1.x/index.md).
 
 ## Naming
@@ -47,14 +52,15 @@ foundational decisions are [1.x](../1.x/index.md).
 - `YYYY-MM-DD-N-descriptive-title-with-dashes.md` where `N` is `1, 2, 3, …` per ADR landed on a given date.
 
 After adding an ADR file, run (from the repository root, so `scripts` resolves as a
-package — #3227) `python -m scripts.docs.freshen_adr_inventory docs/adr/3.x/<your-adr>.md`
-to update the page-inventory lockfile and add the row to the index table below. Invoking
+package — #3227) `python -m scripts.docs.freshen_adr_inventory docs/adr/<era>/<your-adr>.md`
+to update the page-inventory lockfile and add the row to that era's index table. New ADRs
+use the `4.x` era; this table only grows for back-filled 3.x records. Invoking
 the script by file path (`python scripts/docs/freshen_adr_inventory.py ...`) fails with
 `ModuleNotFoundError: No module named 'scripts'`; use the `python -m` module form.
 
 ## Source of Truth
 
-This folder is canonical for 3.x decisions. The `architecture/` tree was removed
+This folder is canonical for 3.x decisions and for the early 4.0.0-cycle decisions listed below. The `architecture/` tree was removed
 by the Common Docs structural move (PR #2225); existing references using the old
 `architecture/2.x/adr/<filename>` paths will need updating to `docs/adr/3.x/`.
 
