@@ -7,7 +7,7 @@ Covers the acceptance paths from WP02:
 - **Server failure**: RevokeFlow returns SERVER_FAILURE, local cleanup still runs.
 - **Network error**: RevokeFlow returns NETWORK_ERROR, local cleanup still runs.
 - **No refresh token**: RevokeFlow returns NO_REFRESH_TOKEN, local cleanup still runs.
-- **Local cleanup failure**: clear_session raises, exits 1 with error message.
+- **Local cleanup failure**: storage.delete raises, exits 1 with error message.
 - **``--force``**: skips the revoke call entirely, clears local session.
 - **Missing SAAS URL**: config error short-circuits revoke, local cleanup still runs.
 
@@ -43,8 +43,11 @@ runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
-def _isolate(monkeypatch):
+def _isolate(monkeypatch, canonical_home):
     """Reset the process-wide TokenManager between tests.
+
+    ``canonical_home`` pins ``SPEC_KITTY_HOME`` to a per-test tmp dir so no
+    test can read or write a real auth store (isolate, never skip).
 
     Also sets ``SPEC_KITTY_SAAS_URL`` so ``get_saas_base_url`` succeeds
     without touching real config. Tests that verify the missing-config
@@ -226,39 +229,6 @@ class TestAuthLogoutCommand:
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
 
-    def test_logout_local_cleanup_failure_exits_1(self):
-        """clear_session raises -> error message, exit code 1.
-
-        Patches clear_session on the TokenManager instance to raise OSError,
-        verifying that logout_impl surfaces the error and exits 1.
-        """
-        storage = _mock_storage(_make_session())
-
-        with (
-            patch(
-                "specify_cli.auth.secure_storage.SecureStorage.from_environment",
-                return_value=storage,
-            ),
-            patch(
-                "specify_cli.cli.commands._auth_logout.RevokeFlow.revoke",
-                new_callable=AsyncMock,
-                return_value=RevokeOutcome.REVOKED,
-            ),
-            patch("specify_cli.cli.commands._auth_logout.get_token_manager") as mock_get_tm,
-        ):
-            mock_tm = MagicMock()
-            mock_tm.get_current_session.return_value = _make_session()
-            mock_tm.clear_session.side_effect = OSError("disk full")
-            mock_get_tm.return_value = mock_tm
-
-            result = runner.invoke(app, ["logout"])
-
-        assert result.exit_code == 1, result.stdout
-        assert "could not be deleted" in result.stdout
-        assert "OSError" in result.stdout
-        # "Logged out" must NOT appear when local cleanup fails.
-        assert "Logged out" not in result.stdout
-
     def test_logout_storage_delete_failure_propagates(self):
         """storage.delete() raising flows through clear_session() to logout_impl.
 
@@ -348,15 +318,3 @@ class TestAuthLogoutCommand:
         # Local cleanup still ran.
         assert "Logged out" in result.stdout
         storage.delete.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# Direct import check — the dispatch shell in auth.py uses this exact path
-# ---------------------------------------------------------------------------
-
-
-def test_logout_impl_is_importable():
-    """The dispatch shell does ``from ... import logout_impl`` — must work."""
-    from specify_cli.cli.commands._auth_logout import logout_impl
-
-    assert callable(logout_impl)
