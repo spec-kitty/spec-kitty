@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from specify_cli.workspace.context import ResolvedWorkspace
 
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
+from specify_cli.cli.commands._git_remedies import restore_recipe
 from specify_cli.cli.commands.agent.tasks_dependency_graph import (
     _count_behind_commits_outside_planning_artifacts,
 )
@@ -730,7 +731,16 @@ def _check_kitty_specs_contamination(
     guidance.append("")
     guidance.append(f"Clean the branch before moving to {target_lane}:")
     guidance.append(f"  cd {worktree_path}")
-    guidance.append(f"  git restore --source {_guard_base} --staged --worktree -- {KITTY_SPECS_DIR}/")
+    # #3931 F-30 (P0, data-loss): scope the restore to the NAMED offending files
+    # and source it from the MERGE-BASE of this lane and its planning branch --
+    # never `--source <planning-tip> -- kitty-specs/`. A directory-scoped restore
+    # from the planning tip pulls every other mission's advanced planning content
+    # into the lane AND deletes lane-local files the planning branch does not
+    # carry (issue-matrix.json, acceptance-matrix.json; PR #4881, epic #4915).
+    from specify_cli.core.vcs.git import git_merge_base
+
+    _restore_base = git_merge_base(worktree_path, "HEAD", _guard_base) or f"$(git merge-base HEAD {_guard_base})"
+    guidance.append(f"  {restore_recipe(contamination_files, source=_restore_base)}")
     # FR-018 (WP03 review cycle 1, #1): --to-branch must name worktree_path's
     # OWN checked-out branch, resolved here with one extra git call -- never
     # check_branch/_guard_base, which is the comparison BASE this lane

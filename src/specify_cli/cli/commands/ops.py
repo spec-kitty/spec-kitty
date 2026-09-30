@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+from specify_cli.cli.commands._git_remedies import GIT_UNDO_ALTERNATIVES
 from specify_cli.cli.console import console
 from rich.table import Table
 
@@ -22,7 +23,6 @@ app = typer.Typer(
     help="Operation history (git reflog)",
     no_args_is_help=True,
 )
-
 
 
 def _display_operations(ops: list[OperationInfo]) -> None:
@@ -129,9 +129,7 @@ def undo() -> None:
     console.print()
     console.print("[dim]Git does not have reversible operation history.[/dim]")
     console.print("[dim]Consider using these alternatives manually:[/dim]")
-    console.print("  git reset --soft HEAD~1  (undo last commit, keep changes)")
-    console.print("  git reset --hard HEAD~1  (undo last commit, discard changes)")
-    console.print("  git revert <commit>      (create reverting commit)")
-    console.print("  git reflog               (find previous states)")
+    for _alt in GIT_UNDO_ALTERNATIVES:
+        console.print(f"  {_alt}")
     console.print()
     raise typer.Exit(1)
