@@ -95,9 +95,9 @@ _INTERACTION = re.compile(
     r"\.(assert_called|assert_called_once|assert_called_with|assert_called_once_with"
     r"|assert_not_called|assert_any_call|assert_has_calls)\b|\.call_count\b|\.call_args"
 )
-_SOURCE_READ = re.compile(r"(read_text|open)\(.*\)")
+_SOURCE_READ_ATTRS = frozenset({"read_text", "read_bytes", "open"})
 _SOURCE_PATH = re.compile(r"src/|Path\(.*(specify_cli|charter|runtime)")
-_SUBSTRING_ASSERT = re.compile(r"\bassert\b.*(\bin\b|\bnot in\b)")
+_SOURCE_PACKAGES = frozenset({"specify_cli", "charter", "runtime", "kernel", "glossary", "mission_runtime"})
 _PLATFORM_GUARD = re.compile(r"skipif\(.*(platform|sys\.|win|shutil\.which|os\.name|environ)")
 _WALLCLOCK = re.compile(r"(datetime\.now|datetime\.utcnow|time\.time)\(\)")
 _FROZEN_CLOCK = re.compile(r"freeze|monkeypatch|clock")
@@ -225,16 +225,13 @@ def _coupling_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, calls: list[ast.
 def _text_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef, seg: str) -> list[str]:
     """Flags read off the test's source text or, for R6 and R7, its AST (R4, R6, R7, R9, skips)."""
     checks = (
-        (
-            "literal-source-scan",
-            _SOURCE_READ.search(seg) and _SOURCE_PATH.search(seg) and _SUBSTRING_ASSERT.search(seg) and "ast.parse" not in seg,
-        ),
+        ("literal-source-scan", _scans_source_literally(fn)),
         ("line-number-pin", _asserts_line_pin(fn)),
         ("broad-raises", _BROAD_RAISES.search(seg)),
         ("fake-short-ulid", _has_fake_ulid(fn)),
         ("sleep", "time.sleep(" in seg),
         ("wallclock", _WALLCLOCK.search(seg) and not _FROZEN_CLOCK.search(seg)),
-        ("skip-or-xfail", re.search(r"pytest\.(skip|xfail)\(", seg) or _unguarded_skip(fn)),
+        ("skip-or-xfail", _skips_or_xfails(fn)),
     )
     return [code for code, hit in checks if hit]
 
@@ -315,12 +312,95 @@ def _has_fake_ulid(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return any(text is not None and not _ULID.fullmatch(text) for text in folded)
 
 
-def _unguarded_skip(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    for decorator in fn.decorator_list:
-        text = ast.unparse(decorator)
-        if re.search(r"xfail|skip", text) and not _PLATFORM_GUARD.search(text):
+_SKIP_CALLS = frozenset({"pytest.skip", "pytest.xfail"})
+_SKIP_MARKERS = frozenset({"skip", "skipif", "xfail"})
+
+
+def _skips_or_xfails(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """True for a real ``pytest.skip()``/``xfail()`` call or an unguarded marker.
+
+    Matches on the AST, so a string such as ``"skipped: drain off"`` (a
+    parametrize id, an expected outcome) is data, not a skip. A ``skipif``
+    whose condition is a platform or tool guard is not flagged.
+    """
+    if any(isinstance(n, ast.Call) and ast.unparse(n.func) in _SKIP_CALLS for n in ast.walk(fn)):
+        return True
+    return any(_unguarded_marker(decorator) for decorator in fn.decorator_list)
+
+
+def _unguarded_marker(decorator: ast.expr) -> bool:
+    """A ``pytest.mark.skip|skipif|xfail`` inside the decorator (``pytest.param(marks=...)`` included)."""
+    markers = {n.attr for n in ast.walk(decorator) if isinstance(n, ast.Attribute) and n.attr in _SKIP_MARKERS and ast.unparse(n.value).endswith("mark")}
+    if markers == {"skipif"}:
+        return not _PLATFORM_GUARD.search(ast.unparse(decorator))
+    return bool(markers)
+
+
+def _scans_source_literally(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """True when the test reads text under ``src/`` and asserts a substring of it (R4).
+
+    Judged on the AST, so a ``src/`` named only in a comment, docstring or
+    assertion message does not count, and neither does a read of a fixture file.
+    A test that parses the source with ``ast`` is structural, not a literal scan.
+    """
+    reads = any(isinstance(n, ast.Call) and _is_read_call(n) for n in ast.walk(fn))
+    return reads and _names_source_path(fn) and _asserts_substring(fn) and not _parses_ast(fn)
+
+
+def _is_read_call(call: ast.Call) -> bool:
+    func = call.func
+    return (isinstance(func, ast.Attribute) and func.attr in _SOURCE_READ_ATTRS) or (isinstance(func, ast.Name) and func.id == "open")
+
+
+def _names_source_path(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """A live string literal or ``Path(...)`` argument that points under ``src/``."""
+    skip = _prose_nodes(fn)
+    for node in ast.walk(fn):
+        if node in skip:
+            continue
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and "src/" in node.value:
+            return True
+        if isinstance(node, ast.Call) and ast.unparse(node.func).endswith("Path") and _SOURCE_PATH.search(ast.unparse(node)):
+            return True
+        if isinstance(node, ast.BinOp) and _is_src_join(node):
             return True
     return False
+
+
+def _join_parts(node: ast.expr) -> list[str | None]:
+    """Left-to-right operands of a ``/`` chain: the string value, or ``None`` for a non-literal."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        return [*_join_parts(node.left), *_join_parts(node.right)]
+    return [node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None]
+
+
+def _is_src_join(node: ast.BinOp) -> bool:
+    """True for a ``... / "src" / "<package>" ...`` path-join chain."""
+    parts = _join_parts(node)
+    return any(a == "src" and b in _SOURCE_PACKAGES for a, b in zip(parts, parts[1:], strict=False))
+
+
+def _prose_nodes(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[ast.AST]:
+    """String constants that are prose for the reader: the docstring and assertion messages."""
+    prose: set[ast.AST] = set()
+    first = fn.body[0] if fn.body else None
+    if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+        prose.update(ast.walk(first))
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Assert) and node.msg is not None:
+            prose.update(ast.walk(node.msg))
+    return prose
+
+
+def _asserts_substring(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        isinstance(n, ast.Assert) and any(isinstance(c, ast.Compare) and any(isinstance(op, ast.In | ast.NotIn) for op in c.ops) for c in ast.walk(n.test))
+        for n in ast.walk(fn)
+    )
+
+
+def _parses_ast(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(isinstance(n, ast.Call) and ast.unparse(n.func) == "ast.parse" for n in ast.walk(fn))
 
 
 def _shape_flags(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:

@@ -54,6 +54,26 @@ _PLANTED: list[tuple[str, str]] = [
     ("sleep", "def test_waits():\n    time.sleep(0.5)\n    assert done()\n"),
     ("wallclock", "def test_stamp():\n    assert stamp() <= time.time()\n"),
     ("skip-or-xfail", "@pytest.mark.xfail(reason='later')\ndef test_future():\n    assert future() == 1\n"),
+    ("skip-or-xfail", "@pytest.mark.skip(reason='later')\ndef test_marked_skip():\n    assert future() == 1\n"),
+    ("skip-or-xfail", "@pytest.mark.skipif(flaky_today(), reason='flaky')\ndef test_cond_skip():\n    assert future() == 1\n"),
+    ("skip-or-xfail", "def test_runtime_skip():\n    pytest.skip('not today')\n    assert future() == 1\n"),
+    ("skip-or-xfail", "def test_runtime_xfail():\n    pytest.xfail('known')\n    assert future() == 1\n"),
+    (
+        "skip-or-xfail",
+        "@pytest.mark.parametrize('n', [1, pytest.param(2, marks=pytest.mark.xfail)])\ndef test_param_xfail(n):\n    assert n == 1\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_open_reads_src():\n    with open('src/specify_cli/x.py') as fh:\n        text = fh.read()\n    assert 'guard(' in text\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_joined_src_path():\n    text = (Path(__file__).resolve().parents[2] / 'src' / 'specify_cli' / 'x.py').read_text()\n    assert 'guard(' in text\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_first_statement_is_a_call():\n    check('src/specify_cli/x.py')\n    text = open('fixture.txt').read()\n    assert 'guard(' in text\n",
+    ),
     ("vague-name", "def test_basic():\n    assert total([1]) == 1\n"),
     ("no-assertion", "def _build():\n    return 1\n\n\ndef test_calls_a_helper_that_checks_nothing():\n    _build()\n"),
     ("provenance-tokens", 'def test_wp03_gate():\n    """T012: pins FR-004."""\n    assert gate() == 1\n'),
@@ -71,6 +91,46 @@ _NOT_FLAGGED: list[tuple[str, str]] = [
     # The contract is that the call does not raise, stated in the name or docstring.
     ("no-assertion", "def test_empty_log_does_not_raise():\n    reduce([])\n"),
     ("no-assertion", 'def test_refusing_shape_state():\n    """Must not raise on a refusing-shape state."""\n    reduce([])\n'),
+    # #5353 slice 3: a parametrize id that merely contains the word "skipped" is data, not a skip.
+    (
+        "skip-or-xfail",
+        "@pytest.mark.parametrize(('outcome', 'color'), [('pass', 'green'), ('skipped: drain off', 'yellow')])\n"
+        "def test_drill_outcome_color(outcome, color):\n    assert paint(outcome) == color\n",
+    ),
+    ("skip-or-xfail", "def test_label_mentions_skip():\n    assert label() == 'pytest.skip(x) is not called'\n"),
+    ("skip-or-xfail", "@pytest.mark.skipif(sys.platform == 'win32', reason='posix only')\ndef test_posix_only():\n    assert posix() == 1\n"),
+    # #5353 slice 3: a comment naming src/ plus a fixture read is not a source scan.
+    (
+        "literal-source-scan",
+        "def test_local_full_copy_source_absent_preserves_pre_existing_operator_templates(tmp_path):\n"
+        "    # Deliberately do NOT create src/charter/offering/templates -- the source is absent.\n"
+        "    preserved = tmp_path / '.kittify' / 'templates' / 'x.md'\n"
+        "    survived = preserved.is_file() and preserved.read_text(encoding='utf-8') == 'operator'\n"
+        "    diagnostics = run_init(tmp_path)\n"
+        "    assert survived\n"
+        "    assert 'not package-owned' in diagnostics\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_reads_fixture_not_source(tmp_path):\n    text = (tmp_path / 'fixture.txt').read_text()\n    assert 'guard(' in text\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_reads_tests_fixture():\n    text = Path('tests/fixtures/sample.py').read_text()\n    assert 'guard(' in text\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_parses_source_structurally():\n"
+        "    tree = ast.parse(Path('src/specify_cli/x.py').read_text())\n"
+        "    assert 'guard' in [n.name for n in ast.walk(tree) if hasattr(n, 'name')]\n",
+    ),
+    (
+        "literal-source-scan",
+        "def test_src_only_in_prose(tmp_path):\n"
+        '    """Mirrors src/specify_cli/x.py."""\n'
+        "    text = (tmp_path / 'fixture.txt').read_text()\n"
+        "    assert 'guard(' in text, 'see src/specify_cli/x.py'\n",
+    ),
 ]
 
 
