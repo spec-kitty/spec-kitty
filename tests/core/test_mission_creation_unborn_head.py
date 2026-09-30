@@ -18,6 +18,7 @@ import pytest
 
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import MissionCreationError, create_mission_core
+from specify_cli.core.owned_mission import resolve_owned_create_root
 
 from tests._factories import provision_test_charter
 
@@ -201,12 +202,14 @@ def test_guard_uses_owned_checkout_head(tmp_path: Path, unborn_owned: bool) -> N
     _git(repo, "worktree", "add", str(owned), "-b", "owned-work")
     _git(owned if unborn_owned else repo, "checkout", "--orphan", "unborn")
 
+    # occurrence_map tests_fixtures: rename to the typed create root (WP10 T055)
+    owned_create_root = resolve_owned_create_root(repo, owned)
     if unborn_owned:
         with pytest.raises(MissionCreationError, match="no commits yet"):
-            create_mission_core(repo, "owned-unborn", owned_checkout=owned, **_mission_summary("owned-unborn"))
+            create_mission_core(repo, "owned-unborn", owned_create_root=owned_create_root, **_mission_summary("owned-unborn"))
         assert not (owned / "kitty-specs").exists()
     else:
-        result = create_mission_core(repo, "owned-committed", owned_checkout=owned, **_mission_summary("owned-committed"))
+        result = create_mission_core(repo, "owned-committed", owned_create_root=owned_create_root, **_mission_summary("owned-committed"))
         assert result.feature_dir.is_relative_to(owned)
         assert result.feature_dir.exists()
         assert result.coordination_branch is not None

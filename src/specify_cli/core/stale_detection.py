@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import UTC, datetime, now_utc, parse_iso
+from mission_runtime import OwnedCheckout
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
@@ -448,9 +449,7 @@ def _resolve_feature_dir_for_staleness(main_repo_root: Path, mission_slug: str) 
         # of the seam's own fail-loud behavior.
         from mission_runtime import MissionArtifactKind, placement_seam
 
-        return placement_seam(main_repo_root, mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        return placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     except Exception:
         return None
 
@@ -460,6 +459,8 @@ def check_doing_wps_for_staleness(
     mission_slug: str,
     doing_wps: list[dict[str, Any]],
     threshold_minutes: int = 10,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> dict[str, StaleCheckResult]:
     """
     Check all WPs in "doing" lane for staleness.
@@ -469,6 +470,10 @@ def check_doing_wps_for_staleness(
         mission_slug: Feature slug
         doing_wps: List of WP dicts with at least 'id' key
         threshold_minutes: Minutes of inactivity threshold
+        owned: Validated ownership fact (owned-checkout-lifecycle-authority
+            WP05); threaded into :func:`resolve_workspace_for_wp` so an owned
+            mission's staleness check reads the owned checkout, never a
+            repository-root-side lane worktree.
 
     Returns:
         Dict mapping WP ID to StaleCheckResult
@@ -480,9 +485,9 @@ def check_doing_wps_for_staleness(
         if not wp_id:
             continue
 
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id, owned=owned)
 
-        if workspace.resolution_kind == "repo_root":
+        if workspace.runs_in_checkout_root:
             result = StaleCheckResult(
                 wp_id=wp_id,
                 stale=StaleState(

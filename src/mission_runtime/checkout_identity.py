@@ -1,11 +1,12 @@
 """Seam-B checkout-identity refusal (write-path-integrity WP03, #3128 / FR-005).
 
 A WP-execution write (``implement`` / ``review``) must be invoked from a checkout
-the mission actually owns — its own lane worktree, or the repository-root/primary
-checkout it legitimately allocates from. Invoking such a write from a *foreign*
-checkout (canonically another mission's lane worktree in the same registry) is
-the #3128 defect: nothing refused, so the write landed against the wrong
-checkout's object store.
+the mission actually owns — its own lane worktree, the repository-root/primary
+checkout it legitimately allocates from, or (owned-checkout-lifecycle-authority
+WP05, FR-011) the owned checkout itself for an owned single_branch mission.
+Invoking such a write from a *foreign* checkout (canonically another mission's
+lane worktree in the same registry, or the repository root for an owned
+mission) is refused.
 
 This module is the ONE authority for that refusal. Two design constraints shape it:
 
@@ -22,6 +23,7 @@ This module is the ONE authority for that refusal. Two design constraints shape 
   SC-008) is a pure ``.worktrees`` segment inspection so a foreign lane nested
   physically under the primary checkout is still refused (the NESTED case holds).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -37,6 +39,12 @@ _WORKTREES_DIRNAME = ".worktrees"
 # resolve to ``"repo_root"`` (routed to primary, CWD-invariant, R3) and are
 # never gated.
 _LANE_WORKSPACE_KIND = "lane_workspace"
+
+# The ``ResolvedWorkspace.resolution_kind`` value for an owned single_branch
+# mission's workspace (owned-checkout-lifecycle-authority WP05, FR-011): the
+# owned checkout itself, gated with NO repository-root allowance (unlike the
+# lane arm, R is not a legitimate allocation point for an owned checkout).
+_OWNED_CHECKOUT_KIND = "owned_checkout"
 
 
 class CheckoutIdentityError(Exception):
@@ -58,20 +66,31 @@ class CheckoutIdentityError(Exception):
         actual: Path,
         mission_slug: str,
         wp_id: str,
+        owned: bool = False,
     ) -> None:
         self.expected = expected
         self.actual = actual
         self.mission_slug = mission_slug
         self.wp_id = wp_id
-        super().__init__(
-            f"Refusing a WP-execution write for {mission_slug} {wp_id}: the "
-            f"invoking checkout does not own this mission's execution workspace.\n"
-            f"  invoked from : {actual}\n"
-            f"  expected     : {expected}\n"
-            f"    (or this mission's repository-root/primary checkout).\n"
-            f"You are most likely inside another mission's lane worktree. "
-            f"cd into {expected} (or the repository root) and retry."
-        )
+        if owned:
+            super().__init__(
+                f"Refusing a WP-execution write for {mission_slug} {wp_id}: the "
+                f"invoking checkout does not own this mission's owned checkout.\n"
+                f"  invoked from : {actual}\n"
+                f"  expected     : {expected}\n"
+                f"There is no repository-root allowance for an owned checkout. "
+                f"cd into the owned checkout {expected} and retry."
+            )
+        else:
+            super().__init__(
+                f"Refusing a WP-execution write for {mission_slug} {wp_id}: the "
+                f"invoking checkout does not own this mission's execution workspace.\n"
+                f"  invoked from : {actual}\n"
+                f"  expected     : {expected}\n"
+                f"    (or this mission's repository-root/primary checkout).\n"
+                f"You are most likely inside another mission's lane worktree. "
+                f"cd into {expected} (or the repository root) and retry."
+            )
 
 
 def _is_within(path: Path, ancestor: Path) -> bool:
@@ -110,20 +129,38 @@ def enforce_checkout_identity(
 ) -> None:
     """Refuse a WP-execution write from a foreign checkout (FR-005 / SC-004).
 
-    Only WP-execution writes that resolve to a real, separate lane worktree
-    (``resolution_kind == "lane_workspace"``) are gated. Planning-lane /
-    planning-artifact / single-branch resolutions route to the primary checkout,
-    are CWD-invariant, and MUST proceed from any checkout (R3) — they are
-    exempt. Pure reads never reach here (their callers pass ``write_intent=False``).
+    Two kinds are gated:
 
-    Proceeds when the invoking checkout's working-tree root is either the
-    mission's declared execution workspace (its own lane worktree, or any subdir
-    of it) OR the primary checkout (the legitimate allocation/launch point).
-    Refuses — raising :class:`CheckoutIdentityError` — otherwise, canonically
-    when the invoker sits inside another mission's lane worktree.
+    - ``lane_workspace``: proceeds when the invoking checkout's working-tree
+      root is either the mission's declared lane worktree (or any subdir of
+      it) OR the primary checkout (the legitimate allocation/launch point).
+      Refuses otherwise, canonically when the invoker sits inside another
+      mission's lane worktree.
+    - ``owned_checkout`` (owned-checkout-lifecycle-authority WP05, FR-011):
+      proceeds only when the invoking cwd is inside the owned checkout itself.
+      There is **no** repository-root allowance here — unlike a lane
+      workspace, the repository root is not a legitimate allocation point for
+      an owned checkout.
+
+    Planning-lane / planning-artifact / single-branch (non-owned) resolutions
+    route to the primary checkout, are CWD-invariant, and MUST proceed from any
+    checkout (R3) — they are exempt, along with every other kind. Pure reads
+    never reach here (their callers pass ``write_intent=False``).
 
     Pure path comparison: no git subprocess is invoked (NFR-004).
     """
+    if resolution_kind == _OWNED_CHECKOUT_KIND:
+        cwd = current_cwd.resolve()
+        owned_root = workspace_path.resolve()
+        if _is_within(cwd, owned_root):
+            return
+        raise CheckoutIdentityError(
+            expected=workspace_path,
+            actual=current_cwd,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            owned=True,
+        )
     if resolution_kind != _LANE_WORKSPACE_KIND:
         return
     primary = primary_root.resolve()

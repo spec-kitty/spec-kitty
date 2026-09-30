@@ -140,21 +140,33 @@ _COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset({MissionTopolo
 
 
 def is_single_branch(topology: MissionTopology | None) -> bool:
-    """The SINGLE owned-placement topology predicate (#3862 item A).
+    """The SINGLE ``single_branch`` topology predicate (#3862 item A).
 
     The ONE predicate every ``single_branch`` invariant check flows through —
-    the owned-placement arms of ``mission_context_for`` /
-    ``resolve_placement_only`` / ``resolve_artifact_surface`` and the owned
-    checkout preflight (``specify_cli.core.owned_mission``) dispose against
-    this enum member rather than restating a raw ``"single_branch"`` meta
-    string or a second enum comparison, so the string and enum
+    the owned checkout preflight (``specify_cli.core.owned_mission
+    .resolve_owned_mission``, via ``_require_allowed_topology``) disposes
+    against this enum member rather than restating a raw ``"single_branch"``
+    meta string or a second enum comparison, so the string and enum
     representations cannot drift apart. A ``None`` (absent / malformed /
     degraded) stored-topology read is refused — fail-closed, the same
     refusal the owned preflight has always applied to a missing value.
 
+    owned-checkout-lifecycle-authority WP04 (FR-023, research R-16): this
+    predicate is **no longer** the placement layer's own refusal — the
+    former hoisted ``mission_runtime.resolution._require_owned_single_branch``
+    guard (which both ``resolve_placement_only`` and
+    ``resolve_artifact_surface`` called on their owned arms) is deleted.
+    Topology has exactly ONE authority: the minter's ``allowed_topologies``
+    set (WP02's ``resolve_owned_mission``), applied once, at minting — a
+    second refusal at the placement layer would refuse `next`'s owned
+    coordination-topology missions once THEY carry a fact too, which is
+    exactly the regression R-16 exists to prevent. This predicate survives
+    only as the minter-side allowed-topology building block for lifecycle
+    commands (``LIFECYCLE_OWNED_TOPOLOGIES == {SINGLE_BRANCH}``).
+
     Distinct from :func:`routes_through_coordination` (the coord-routing
-    half of the same grid): this names the owned-placement eligibility of
-    the coord-less, lane-less cell only.
+    half of the same grid): this names the ``single_branch``, coord-less,
+    lane-less cell only.
     """
     return topology is MissionTopology.SINGLE_BRANCH
 

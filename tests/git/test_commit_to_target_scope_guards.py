@@ -22,6 +22,7 @@ import pytest
 
 from mission_runtime import CommitTarget, MissionArtifactKind, MissionTopology
 from specify_cli.coordination import commit_router
+from specify_cli.core.owned_mission import OwnedCreateRoot, resolve_owned_create_root
 from specify_cli.git.commit_helpers import ProtectedBranchRefused, _single_mission_slug, preflight_commit
 from specify_cli.git.protection_policy import ProtectionPolicy
 
@@ -73,6 +74,66 @@ def _preflight(repo: Path, *paths: str) -> list[str]:
         paths=tuple(repo / p for p in paths),
     )
     return normalized
+
+
+def _owned_create_pair(tmp_path: Path) -> tuple[Path, Path, OwnedCreateRoot]:
+    """R parked on another branch, P a linked checkout on ``main``, and the validated owned-create fact."""
+    repo = _repo(tmp_path)
+    _git(repo, "checkout", "-qb", "parked")
+    owned = tmp_path / "owned"
+    _git(repo, "worktree", "add", "-q", str(owned), "main")
+    return repo, owned, resolve_owned_create_root(repo, owned)
+
+
+def _preflight_owned(repo: Path, owned: Path, fact: OwnedCreateRoot, slug: str) -> list[str]:
+    """Preflight an owned create's scaffold write of ``slug``'s spec, folded through the bound create fact."""
+    mission_dir = owned / "kitty-specs" / slug
+    normalized: list[str] = preflight_commit(
+        repo_root=repo,
+        worktree_root=owned,
+        target=CommitTarget(ref="main"),
+        message="test",
+        paths=(mission_dir / "spec.md",),
+        owned=fact.bind_mission(mission_dir),
+    )
+    return normalized
+
+
+def test_preflight_owned_create_without_meta_ignores_the_repository_roots_opt_out(tmp_path: Path) -> None:
+    """An owned create's fold reads only the owned checkout's mission: R's flagged copy grants nothing (fail-closed)."""
+    repo, owned, fact = _owned_create_pair(tmp_path)
+    (owned / "kitty-specs" / CTT / "meta.json").unlink()
+
+    with pytest.raises(ProtectedBranchRefused):
+        _preflight_owned(repo, owned, fact, CTT)
+
+
+def test_preflight_owned_create_opt_out_is_honoured_over_an_unflagged_repository_root_copy(tmp_path: Path) -> None:
+    repo, owned, fact = _owned_create_pair(tmp_path)
+    meta = {"mission_slug": OTHER, "target_branch": "main", "topology": "single_branch", "commit_to_target": True}
+    (owned / "kitty-specs" / OTHER / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    assert _preflight_owned(repo, owned, fact, OTHER) == [f"kitty-specs/{OTHER}/spec.md"]
+
+
+def test_preflight_non_owned_lane_style_worktree_folds_the_primary_meta_not_the_local_copy(tmp_path: Path) -> None:
+    """F1: without a fact, a separate write checkout is NOT inferred to own the mission from its filesystem shape.
+
+    The worktree's local copy opts out but the primary copy does not: origin/main's
+    rule (fold the primary meta) applies, so the commit stays refused.
+    """
+    repo, owned, _fact = _owned_create_pair(tmp_path)
+    meta = {"mission_slug": OTHER, "target_branch": "main", "topology": "single_branch", "commit_to_target": True}
+    (owned / "kitty-specs" / OTHER / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    with pytest.raises(ProtectedBranchRefused):
+        preflight_commit(
+            repo_root=repo,
+            worktree_root=owned,
+            target=CommitTarget(ref="main"),
+            message="test",
+            paths=(owned / "kitty-specs" / OTHER / "spec.md",),
+        )
 
 
 @pytest.mark.parametrize(

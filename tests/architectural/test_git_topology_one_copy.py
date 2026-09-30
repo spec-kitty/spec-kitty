@@ -2,14 +2,14 @@
 
 Mission ``write-path-integrity-01KZZD69`` collapsed four re-implementations of
 the git-common-dir / toplevel probe into one primitive, the ~12x
-``effective_root`` meta-read fork into one ``read_dir_for`` helper, and the
+owned/default meta-read fork into one ``read_dir_for`` helper, and the
 nested/toplevel-mismatch classifier into that single primitive. These gates make
 the consolidation hard to silently undo:
 
 * SC-005 — exactly one ``git_common_dir`` / ``git_toplevel`` primitive, and none
   of the four migrated call sites still shells out to ``rev-parse`` for topology.
 * SC-007 — exactly one ``read_dir_for``, and the ``compose_meta_json_path`` meta
-  fork it owns appears exactly once in the resolver module.
+  fork it once owned is gone from the resolver module (the owned arm reads the fact).
 * SC-008 — the toplevel-mismatch classifier (``--show-toplevel``) has one
   authority: the primitive. The two classifier consumers carry no raw probe.
 """
@@ -120,12 +120,14 @@ def test_exactly_one_read_dir_for() -> None:
 
 
 def test_meta_read_fork_compose_call_is_single_copy() -> None:
-    # The ``compose_meta_json_path`` meta-read fork must live only inside
-    # read_dir_for; any other call is a re-inlined copy of the consolidated fork.
-    assert _count_calls(_RESOLUTION, "compose_meta_json_path") == 1, (
-        "compose_meta_json_path must be called exactly once in resolution.py "
-        "(inside read_dir_for); another call means the effective_root meta fork "
-        "was re-inlined (WP01 #3373 SC-007)."
+    # WP18 retired the ``effective_root`` fork: the owned arm of ``read_dir_for``
+    # reads ``owned.mission_dir`` directly, so the ``compose_meta_json_path``
+    # meta-read compose must not reappear anywhere in the resolver module (zero
+    # copies -- a re-inlined fork would be a second, uncounted authority).
+    assert _count_calls(_RESOLUTION, "compose_meta_json_path") == 0, (
+        "compose_meta_json_path must not be called in resolution.py "
+        "(the owned arm of read_dir_for reads owned.mission_dir); a call means the "
+        "retired effective_root meta fork was re-inlined (WP01 #3373 SC-007, WP18)."
     )
 
 

@@ -44,13 +44,16 @@ the git/mission-creation primitives) — same pattern as
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from mission_runtime import (
+    ActionContextError,
     MissionArtifactKind,
     MissionTopology,
+    OwnedRefusalCode,
     ReadDegradeStrategy,
     resolve_read_dir_or_degrade,
 )
@@ -67,10 +70,31 @@ from tests.integration.test_placement_partition_golden_path import (
     _create_mission,
     _init_git_repo,
 )
+from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _WORK_BRANCH = "coord-read-seam-callers-work"
+
+
+def _owned_handle(repo: Path, result: MissionCreationResult, tmp_path: Path, topology: MissionTopology) -> MissionHandle:
+    """A ``MissionHandle`` carrying the fact for a linked owned checkout ``P`` of ``repo``.
+
+    WP18 re-point of the retired ``MissionHandle(effective_root=repo)``: ``P`` is
+    a linked worktree of ``repo`` (the repository root checkout), which carries
+    the mission's committed ``kitty-specs/<slug>`` dir.
+    """
+    owned_root = tmp_path / "P"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned-p", str(owned_root)], cwd=repo, check=True, capture_output=True)
+    fact = mint_test_fact(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=owned_root / "kitty-specs" / result.mission_slug,
+        mission_slug=result.mission_slug,
+        write_branch=_WORK_BRANCH,
+        topology=topology,
+    )
+    return MissionHandle(repo_root=repo, mission_slug=result.mission_slug, owned=fact)
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -232,45 +256,43 @@ def test_lanes_recovery_scan_recovery_state_fails_loud_sanely(
     assert "materializ" in excinfo.value.next_step.lower()
 
 
-def test_agent_tasks_ports_feature_write_dir_fails_loud_sanely(
+def test_agent_tasks_ports_feature_write_dir_owned_fails_closed_on_unmaterialized_coord(
     tmp_path: Path,
 ) -> None:
-    """``agent_tasks_ports.py:339`` (``RealCoordCommitRouter.feature_write_dir``):
-    verified NOT reachable with ``CoordinationWorktreeUnmaterialized`` at all.
+    """owned-checkout-lifecycle-authority WP04 (T019) / WP18 re-expression.
 
-    The ``effective_root is not None`` arm that calls the modified seam is the
-    ``--owned-checkout`` leg, gated upstream by ``resolve_artifact_surface``'s
-    ``_require_owned_single_branch`` to ``MissionTopology.SINGLE_BRANCH`` only
-    (``ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED")`` otherwise) —
-    single_branch missions never declare a ``coordination_branch``, so
-    ``CoordState.UNMATERIALIZED`` can never be reported for them. This test
-    pins that a COORD mission hitting this arm fails loud with the EXISTING,
-    already-typed ``ActionContextError`` (sane boundary, unrelated to this
-    mission's fix) rather than ever reaching the coord seam.
+    ``agent_tasks_ports.py`` (``RealCoordCommitRouter.feature_write_dir``): this
+    test HISTORICALLY pinned that a COORD mission hitting the bare-root
+    ``--owned-checkout`` arm never reached this module's coord seam at all (a
+    placement-layer topology guard refused it upstream); WP04 then pinned the
+    legacy bare-root arm's "PREDICTED coordination worktree path" answer for an
+    UNMATERIALIZED coordination worktree.
 
-    The default (``effective_root is None``, both real callers' non-owned
-    case) arm calls ``resolve_feature_dir_for_mission`` -> ``resolve_action_
-    context`` — a DIFFERENT, untouched resolver (see the sibling
-    ``..._no_raise_on_single_branch`` test and the module docstring) that
-    always resolves to the PRIMARY dir regardless of coord materialization;
-    it is unaffected by WP01's fix and cannot surface the new sibling either."""
-    from mission_runtime import ActionContextError
+    WP18 retired the bare-root arm. The owned arm reads the fact and FAILS
+    CLOSED on a coordination-routing topology whose coordination worktree is not
+    materialised (``OWNED_COORDINATION_WORKSPACE_UNAVAILABLE``, WP04 F2): it is
+    never the repository-ROOT / primary mission dir (never a silent wrong-data
+    substitution) and never a predicted path that does not exist on disk.
 
+    The default (no fact, both real callers' non-owned case) arm is UNCHANGED --
+    it calls ``resolve_feature_dir_for_mission`` -> ``resolve_action_context`` --
+    a DIFFERENT, untouched resolver that always resolves to the PRIMARY dir
+    regardless of coord materialization."""
     repo, result = _unmaterialized_coord_mission(tmp_path, "coord-ports-demo")
 
     router = RealCoordCommitRouter()
-    handle = MissionHandle(repo_root=repo, mission_slug=result.mission_slug, effective_root=repo)
+    handle = _owned_handle(repo, result, tmp_path, MissionTopology.COORD)
 
     with pytest.raises(ActionContextError) as excinfo:
         router.feature_write_dir(handle)
-    assert excinfo.value.code == "OWNED_TOPOLOGY_UNSUPPORTED"
+    assert excinfo.value.code == OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE
 
     # The realistic (non-owned) default path never reaches the modified seam,
-    # so it never raises on UNMATERIALIZED either — pinned explicitly so a
-    # future change to this resolver is caught here, not silently.
-    default_handle = MissionHandle(repo_root=repo, mission_slug=result.mission_slug, effective_root=None)
-    resolved = router.feature_write_dir(default_handle)
-    assert resolved.resolve() == result.feature_dir.resolve()
+    # so it is UNCHANGED by this WP -- pinned explicitly so a future change to
+    # this resolver is caught here, not silently.
+    default_handle = MissionHandle(repo_root=repo, mission_slug=result.mission_slug)
+    default_resolved = router.feature_write_dir(default_handle)
+    assert default_resolved.resolve() == result.feature_dir.resolve()
 
 
 # ===========================================================================
@@ -327,10 +349,10 @@ def test_agent_tasks_ports_feature_write_dir_no_raise_on_single_branch(
     repo, result = _single_branch_mission(tmp_path, "single-ports-demo")
 
     router = RealCoordCommitRouter()
-    handle = MissionHandle(repo_root=repo, mission_slug=result.mission_slug, effective_root=repo)
+    handle = _owned_handle(repo, result, tmp_path, MissionTopology.SINGLE_BRANCH)
 
     resolved = router.feature_write_dir(handle)
-    assert resolved.resolve() == result.feature_dir.resolve()
+    assert resolved.resolve() == (handle.owned.mission_dir).resolve()
 
 
 # ===========================================================================

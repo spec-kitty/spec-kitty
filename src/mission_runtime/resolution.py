@@ -23,7 +23,17 @@ import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, cast, get_args
+from typing import TYPE_CHECKING, Any, Literal, cast, get_args
+
+if TYPE_CHECKING:
+    # Import-cycle note (owned-checkout-lifecycle-authority WP04): this module
+    # is imported BY ``mission_runtime.owned_checkout`` at module scope (for
+    # ``ActionContextError``), so a module-scope import back here would cycle.
+    # ``OwnedCheckout`` is used only in type annotations (lazy under
+    # ``from __future__ import annotations``), so a TYPE_CHECKING-only import
+    # is sufficient -- no runtime attribute access on the class itself, only on
+    # instances callers pass in.
+    from mission_runtime.owned_checkout import OwnedCheckout
 
 from mission_runtime.artifacts import (
     MissionArtifactKind,
@@ -48,7 +58,7 @@ from mission_runtime.context import (
     is_single_branch,
     routes_through_coordination,
 )
-from mission_runtime.identity import mid8_from_slug, resolve_mid8
+from mission_runtime.identity import handle_names_mission, mid8_from_slug, resolve_mid8
 from mission_runtime.lifecycle_phase import (
     _GIT_PROBE_TIMEOUT,
     LifecyclePhase,
@@ -131,6 +141,22 @@ class ActionContextError(RuntimeError):
 # ``mission_context_for``, ``resolve_placement_only``) restated the literal
 # string. Hoisted to one module constant.
 _FEATURE_CONTEXT_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
+
+
+def _refuse_owned_handle_mismatch(handle: str, owned: OwnedCheckout) -> None:
+    """Refuse when ``handle`` does not canonicalise to ``owned``'s mission
+    (F4): never silently prefer either identity.
+
+    Delegates to the ONE canonical authority,
+    :func:`mission_runtime.identity.handle_names_mission` (review cycle 2,
+    R3): no private duplicate lives in this module.
+    """
+    if not handle_names_mission(handle, owned.mission_slug):
+        raise ActionContextError(
+            _FEATURE_CONTEXT_UNRESOLVED_CODE,
+            f"owned fact is for mission {owned.mission_slug!r} but was called with handle {handle!r}; refusing to guess which one is correct.",
+        )
+
 
 # #3033 WP03 (ADR 2026-07-30-1 Decision 1 §6, operator HiC): the E2
 # (PUBLISHED) CONSOLIDATED-surface write routing is SCOPED, not blanket. It
@@ -237,50 +263,43 @@ _MISSION_LEVEL_ACTIONS: frozenset[str] = frozenset(
 
 
 def read_dir_for(
-    effective_root: Path | None,
     primary_root: Path,
     mission_slug: str,
     *,
     kind: MissionArtifactKind,
     resolver: MissionResolver | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> Path:
     """Resolve the primary meta-bearing read dir for a mission (single fork authority).
 
-    Collapses the ``effective_root is None ? <legacy primary compose> :
-    compose_meta_json_path(effective_root, …).parent`` fork that recurred across
-    the coord/topology resolvers in this module (mission
-    write-path-integrity-01KZZD69 WP01, #3373, T004). One helper now owns the
-    derivation so no site re-inlines it and the read stays drift-free.
+    Collapses the ``owned is None ? <legacy primary compose> : owned.mission_dir``
+    fork that recurred across the coord/topology resolvers in this module
+    (mission write-path-integrity-01KZZD69 WP01, #3373, T004). One helper now
+    owns the derivation so no site re-inlines it and the read stays drift-free.
 
-    * The default (``effective_root is None``) arm delegates to
+    * The default (``owned is None``) arm delegates to
       :func:`resolve_planning_read_dir` for the PRIMARY-partition ``kind`` these
       sites read (``PRIMARY_METADATA``). That is byte-identical to the prior
       inline ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(
-      primary_root, mission_slug, resolver=resolver))`` — because
+      primary_root, mission_slug, resolver=resolver))`` -- because
       :func:`resolve_planning_read_dir`'s PRIMARY leg IS exactly that composition
       (the ``resolver`` is threaded to the same single injected walk, no bypass).
-    * The opted-in (owned-checkout) arm composes the ``meta.json`` dir directly
-      against the already-validated ``effective_root`` — never re-folding it
-      through ``get_main_repo_root`` (#3328 / C-002) — matching the prior inline
-      ``compose_meta_json_path(effective_root, mission_slug).parent``.
+    * The owned arm returns the fact's own ``mission_dir`` -- no compose, no
+      walk, no ``get_main_repo_root`` fold (#3328 / C-002).
 
     ``kind`` MUST be a PRIMARY-partition kind (``meta.json`` lives only on the
     primary checkout); passing a STATUS-partition kind would route the default
     arm through the topology-aware seam instead and is a caller error.
     """
-    from specify_cli.missions._read_path_resolver import (
-        compose_meta_json_path,
-        resolve_planning_read_dir,
-    )
+    if owned is not None:
+        return owned.mission_dir
 
-    # Explicit ``Path`` binds absorb the ``Any`` the ``specify_cli.*`` package
-    # boundary erases these returns to (follow_imports=skip) — mirroring the
-    # existing typed-local pattern elsewhere in this module.
-    if effective_root is None:
-        planning_dir: Path = resolve_planning_read_dir(primary_root, mission_slug, kind=kind, resolver=resolver)
-        return planning_dir
-    meta_dir: Path = compose_meta_json_path(effective_root, mission_slug).parent
-    return meta_dir
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    # Explicit ``Path`` bind absorbs the ``Any`` the ``specify_cli.*`` package
+    # boundary erases this return to (follow_imports=skip).
+    planning_dir: Path = resolve_planning_read_dir(primary_root, mission_slug, kind=kind, resolver=resolver)
+    return planning_dir
 
 
 def build_execution_context(
@@ -476,7 +495,7 @@ def _resolve_mission_slug(
     cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
     env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[str, Path]:
     """Resolve the CANONICAL mission slug and read-side directory.
 
@@ -511,6 +530,15 @@ def _resolve_mission_slug(
     except ValueError as exc:
         raise ActionContextError(_FEATURE_CONTEXT_UNRESOLVED_CODE, str(exc)) from exc
 
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP04 (review cycle 1, F1): the
+        # fact already carries the resolved identity -- no walk, no resolver
+        # consultation, no ``get_main_repo_root`` fold. Canonicalise the raw
+        # handle (slug / mid8 / mission id, F4) against the fact and refuse a
+        # mismatch rather than silently preferring either.
+        _refuse_owned_handle_mismatch(slug, owned)
+        return owned.mission_slug, owned.mission_dir
+
     # Route through the SINGLE guarded read-side seam (WP01 reroute, IC-01 /
     # FR-001): ``resolve_handle_to_read_path`` owns the primary-meta probe AND
     # the ONE sanctioned mid8 cascade internally, so this caller no longer
@@ -529,7 +557,7 @@ def _resolve_mission_slug(
 
     try:
         feature_dir = resolve_handle_to_read_path(
-            effective_root or repo_root,
+            repo_root,
             slug,
             resolver=resolver,
         )
@@ -692,12 +720,22 @@ def _resolve_wp_bearing_fields(
     resolve_workspace_for_wp: Callable[..., Any],
     resolve_lane_alias: Callable[[str], str],
     planned_lane: str,
+    owned: OwnedCheckout | None = None,
 ) -> dict[str, Any]:
     """Assemble the WP-bearing fields (incl. ``commands``) for one build call.
 
     Returns the field mapping the factory consumes; performs NO construction or
     post-build mutation (T005 — verification-by-deletion of the ``:800-808``
     mutator and the ``commands["workflow"] =`` dict-write).
+
+    ``owned`` (owned-checkout-lifecycle-authority WP04, T018, FR-006/FR-007):
+    threaded into :func:`~specify_cli.task_utils.locate_work_package` (T020) so
+    the WP file resolves from the OWNED checkout, never a stale copy under the
+    repository root -- this is the O3/O4 fix: the pre-WP04 code called
+    ``locate_work_package(repo_root, mission_slug, normalized_wp_id)`` with no
+    ownership argument, so an explicit owned checkout threaded all the way
+    through ``resolve_action_context`` was silently dropped exactly at this one
+    call.
     """
     normalized_wp_id = _resolve_wp_id(action, feature_dir, wp_id)
     if normalized_wp_id is None:
@@ -707,7 +745,7 @@ def _resolve_wp_bearing_fields(
         )
 
     try:
-        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id, owned=owned)
     except Exception as exc:
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
@@ -718,7 +756,7 @@ def _resolve_wp_bearing_fields(
         resolve_lane_alias=resolve_lane_alias,
         planned_lane=planned_lane,
     )
-    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
+    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id, owned=owned)
 
     return {
         "wp_id": normalized_wp_id,
@@ -885,7 +923,7 @@ def _resolve_coordination_branch(
     mission_slug: str,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str | None:
     """Read the mission ``coordination_branch`` from meta (canonical anchor).
 
@@ -910,21 +948,21 @@ def _resolve_coordination_branch(
     """
     from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
-    # WP01 (#3373, T004): the effective-root read fork is consolidated into the
+    # WP01 (#3373, T004): the owned/default read fork is consolidated into the
     # single ``read_dir_for`` authority. PRIMARY_METADATA is a PRIMARY-partition
     # kind, so the default arm stays byte-identical to the prior
     # ``_compose_primary_feature_dir(_canonicalize_primary_read_handle(...))``
     # (resolver threaded to the same single injected walk — WP03/FR-002), and the
-    # opted-in arm to ``compose_meta_json_path(effective_root, …).parent``. This
+    # owned arm to ``owned.mission_dir``. This
     # read feeds the seam's classification decision (it produces the raw
     # ``coordination_branch`` routing signal) rather than recursing through it, so
     # there is no cycle.
     primary_dir = read_dir_for(
-        effective_root,
         primary_root,
         mission_slug,
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
+        owned=owned,
     )
     # FR-006: canonical reader contract (a) — None on missing, typed
     # MissionMetaReadError on malformed (routed through the ONE fail-closed
@@ -947,7 +985,7 @@ def _resolve_mission_branch(
     mission_slug: str,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str | None:
     """Read the mission ``mission_branch`` from meta (WP08 / #5100 T036).
 
@@ -960,11 +998,11 @@ def _resolve_mission_branch(
     from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     primary_dir = read_dir_for(
-        effective_root,
         primary_root,
         mission_slug,
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
+        owned=owned,
     )
     try:
         meta = load_meta_fail_closed(primary_dir)
@@ -1031,7 +1069,7 @@ def _resolve_single_branch_write_ref(
     mission_slug: str,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str:
     """SINGLE_BRANCH protected-target write destination (WP08 / IC-05, FR-007/012).
 
@@ -1052,7 +1090,7 @@ def _resolve_single_branch_write_ref(
     """
     if not is_single_branch(topology):
         return target_branch
-    mission_branch = _resolve_mission_branch(primary_root, mission_slug, resolver=resolver, effective_root=effective_root)
+    mission_branch = _resolve_mission_branch(primary_root, mission_slug, resolver=resolver, owned=owned)
     return single_branch_write_ref(topology, mission_branch, target_branch)
 
 
@@ -1061,7 +1099,7 @@ def _resolve_topology(
     mission_slug: str,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> MissionTopology:
     """Read the WP02 **stored** :class:`MissionTopology` from meta (PURE shell read).
 
@@ -1078,6 +1116,12 @@ def _resolve_topology(
     ``(coordination_branch, has_lanes=False)`` classification when ``meta.json`` is
     absent/malformed so bootstrap windows still resolve a stable shape.
     """
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP04 (review cycle 1, F1): the
+        # fact already carries the STORED topology -- zero I/O, no meta read
+        # at all (stronger than "no get_main_repo_root": no read whatsoever).
+        return owned.topology
+
     from mission_runtime.context import classify_topology
     from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
@@ -1089,7 +1133,6 @@ def _resolve_topology(
     # produce the PRIMARY/COORD signal for a coord-partition kind — it precedes
     # and feeds that decision rather than routing through it, so there is no cycle.
     primary_dir = read_dir_for(
-        effective_root,
         primary_root,
         mission_slug,
         kind=MissionArtifactKind.PRIMARY_METADATA,
@@ -1106,7 +1149,6 @@ def _resolve_topology(
             primary_root,
             mission_slug,
             resolver=resolver,
-            effective_root=effective_root,
         )
         return classify_topology(coordination_branch, has_lanes=False)
 
@@ -1151,13 +1193,141 @@ def resolve_topology(repo_root: Path, mission_handle: str, *, resolver: MissionR
     return _resolve_topology(primary_root, mission_slug, resolver=resolver)
 
 
+def _mission_context_for_owned(
+    mission_handle: str,
+    topology: MissionTopology | None,
+    *,
+    owned: OwnedCheckout,
+    resolver: MissionResolver | None,
+    tolerate_unmaterialized_coord: bool = False,
+) -> MissionContext:
+    """The owned arm of :func:`mission_context_for` (T018 step 1 in full).
+
+    Zero handle walk, zero resolver consultation, zero ``get_main_repo_root``
+    fold: the fact already carries ``mission_slug``/``mission_dir``/
+    ``target_branch``/``topology``. An explicit ``topology`` argument that
+    disagrees with the fact's own stored value is refused rather than
+    silently preferred either way (T018 step 1).
+
+    Review cycle 3 (S1): every :class:`MissionArtifactContext` is built by
+    calling :func:`_owned_read_dir_for_kind` and
+    :func:`_owned_commit_target_for_kind` -- the SAME per-kind rule
+    :func:`resolve_artifact_surface` / :func:`resolve_placement_only` use.
+    There is exactly one place that decides, for a given ``(topology, kind)``
+    pair, whether an artifact lives at the primary mission dir or the
+    coordination surface; this function no longer re-derives that decision
+    (or the ``coord_ref`` ref expression) a second time inline.
+
+    Whole-context contract (stated honestly, cycle 3): this function builds
+    EVERY :class:`MissionArtifactKind` at once, so it always reaches a
+    non-primary (COORD-partition) kind whenever any exist -- which they
+    always do. Under a coordination-routing topology whose coordination
+    worktree is not MATERIALIZED (``CoordState.EMPTY`` or
+    ``UNMATERIALIZED``), building the whole context therefore fails closed
+    with ``OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE`` --
+    even for a caller that only ultimately wanted a PRIMARY kind such as
+    SPEC. This is an accepted outcome (IC-05 maps the code to a `blocked`
+    decision for `next`), not a bug: a whole-context request is, by
+    definition, a request for every kind, coordination-routed ones
+    included. A caller that wants only ONE kind and needs row 3 to succeed
+    even in that window -- :func:`resolve_artifact_surface` /
+    :func:`resolve_placement_only` -- bypasses this function entirely and
+    calls :func:`_owned_read_dir_for_kind` / :func:`_owned_commit_target_for_kind`
+    directly for just that kind, so it never pays for (or fails on) a kind
+    it never asked about.
+    """
+    from specify_cli.mission import get_mission_type
+
+    _refuse_owned_handle_mismatch(mission_handle, owned)
+    if topology is not None and topology is not owned.topology:
+        from mission_runtime.owned_checkout import OwnedRefusalCode
+
+        raise ActionContextError(
+            OwnedRefusalCode.OWNED_TOPOLOGY_UNSUPPORTED,
+            f"explicit topology {topology.value!r} disagrees with the fact's own stored topology {owned.topology.value!r} for mission {owned.mission_slug!r}.",
+        )
+    resolved_topology = owned.topology
+    mission_slug = owned.mission_slug
+    primary_read_dir = owned.mission_dir
+
+    artifacts: list[MissionArtifactContext] = [
+        MissionArtifactContext(
+            kind=kind,
+            read_dir=(
+                read_dir := _owned_read_dir_for_kind(owned, mission_slug, kind, resolver=resolver, tolerate_unmaterialized_coord=tolerate_unmaterialized_coord)
+            ),
+            write_dir=read_dir,
+            commit_target=_owned_commit_target_for_kind(owned, mission_slug, kind, resolver=resolver),
+        )
+        for kind in MissionArtifactKind
+    ]
+    return MissionContext(
+        mission_slug=mission_slug,
+        mission_type=get_mission_type(primary_read_dir),
+        topology=resolved_topology,
+        artifacts=tuple(artifacts),
+    )
+
+
+def _owned_read_dir_for_kind(
+    owned: OwnedCheckout,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    resolver: MissionResolver | None,
+    tolerate_unmaterialized_coord: bool = False,
+) -> Path:
+    """Resolve ONLY the read/write dir for ONE requested ``kind`` on the
+    owned arm (review cycle 2, R2 item 1): a PRIMARY kind never touches the
+    coordination surface at all -- it never probes coord materialisation,
+    so it can never fail on an UNMATERIALIZED/EMPTY coordination window
+    (T019 row 3). Used by :func:`resolve_artifact_surface`'s owned arm
+    directly, bypassing the whole-context builder
+    (:func:`_mission_context_for_owned`) so a single-kind caller pays only
+    for the one kind it asked about.
+    """
+    if is_primary_artifact_kind(kind):
+        return owned.mission_dir
+    return _resolve_status_surface_dir(
+        owned.repository_root,
+        mission_slug,
+        owned.topology,
+        resolver=resolver,
+        owned=owned,
+        tolerate_unmaterialized_coord=tolerate_unmaterialized_coord,
+    )
+
+
+def _owned_commit_target_for_kind(
+    owned: OwnedCheckout,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    resolver: MissionResolver | None,
+) -> CommitTarget:
+    """Resolve ONLY the commit target for ONE requested ``kind`` on the
+    owned arm. Placement never needs the coordination worktree's actual
+    materialisation state -- only the declared ``coordination_branch``
+    VALUE (a meta.json read, zero git calls) -- so this never probes coord
+    state and never raises on UNMATERIALIZED/EMPTY (T019 row 3 applies to
+    placement identically to reads; used by :func:`resolve_placement_only`'s
+    owned arm).
+    """
+    if is_primary_artifact_kind(kind):
+        return CommitTarget(ref=owned.write_branch)
+    coordination_branch = _resolve_coordination_branch(owned.repository_root, mission_slug, resolver=resolver, owned=owned)
+    coord_ref = coordination_branch if routes_through_coordination(owned.topology) and coordination_branch is not None else owned.write_branch
+    return CommitTarget(ref=coord_ref)
+
+
 def mission_context_for(
     repo_root: Path,
     mission_handle: str,
     topology: MissionTopology | None = None,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
+    tolerate_unmaterialized_coord: bool = False,
 ) -> MissionContext:
     """Resolve mission artifact context by mission + topology.
 
@@ -1172,10 +1342,19 @@ def mission_context_for(
     this function's body so no read path bypasses the injected walk. ``None``
     preserves historical behaviour.
 
-    ``effective_root`` (owned mode): the already-validated owned checkout
-    root. When set, ``repo_root`` is vestigial — it does not participate in
-    the derivation (#3862 item B; see the pinned invariance note at the
-    ``primary_root`` fold below).
+    ``tolerate_unmaterialized_coord`` (owned arm only; default ``False`` keeps
+    the fail-closed whole-context contract): a coordination-partition kind whose
+    coordination worktree is DECLARED but not yet created (``CoordState.UNMATERIALIZED``,
+    e.g. a just-created ``lanes_with_coord`` mission) resolves to its declared
+    coordination candidate path instead of refusing, exactly as the legacy
+    pre-fact owned arm did. ``EMPTY`` / ``NONE`` / ``DELETED`` still fail closed.
+    Runtime callers that only READ (query) or that materialise the worktree next
+    (advance) pass it; a caller that WRITES to the surface must not.
+
+    ``owned`` (owned mode): the validated ownership fact. When set,
+    ``repo_root`` is vestigial -- it does not participate in the derivation
+    (#3862 item B; see the pinned invariance note at the ``primary_root`` fold
+    below).
     """
     from specify_cli.core.paths import get_feature_target_branch
     from specify_cli.core.paths import get_main_repo_root
@@ -1191,21 +1370,15 @@ def mission_context_for(
             _FEATURE_CONTEXT_UNRESOLVED_CODE,
             "mission_context_for requires an explicit mission handle.",
         )
+    if owned is not None:
+        return _mission_context_for_owned(mission_handle, topology, owned=owned, resolver=resolver, tolerate_unmaterialized_coord=tolerate_unmaterialized_coord)
 
-    # The default path retains the historical primary-checkout fold exactly.
-    # An owned-checkout caller instead threads the root already validated by
-    # ``resolve_ownership_claim``. Folding it through ``get_main_repo_root``
-    # would silently cross-read a sibling checkout (#3328 / C-002).
-    #
-    # #3862 item B: on the owned arm (``effective_root is not None``) the
-    # ``repo_root`` parameter is VESTIGIAL — it does not participate in this
-    # derivation at all, which is why callers may legitimately pass either
-    # ``owned.primary`` or ``owned.root`` (or a CWD-derived root) without the
-    # answer changing. That invariance is a pinned contract, not an accident:
-    # ``tests/mission_runtime/test_owned_single_branch_ssot.py`` fails if a
-    # future edit makes ``repo_root`` load-bearing here, forcing the
-    # inconsistent caller pairings to be reconciled first.
-    primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
+    # The default (non-owned) path folds ``repo_root`` to the primary checkout.
+    # An owned-checkout caller never reaches here: it returned above through
+    # ``_mission_context_for_owned``, which reads only the fact (#3328 / C-002,
+    # #3862 item B: ``repo_root`` is vestigial on the owned arm, pinned by
+    # ``tests/mission_runtime/test_owned_single_branch_ssot.py``).
+    primary_root = get_main_repo_root(repo_root)
     try:
         candidate_dir = candidate_feature_dir_for_mission(primary_root, mission_handle, resolver=resolver)
     except StatusReadPathNotFound as exc:
@@ -1218,31 +1391,16 @@ def mission_context_for(
         primary_root,
         mission_slug,
         resolver=resolver,
-        effective_root=effective_root,
     )
     # WP01 (#3373, T004): consolidated through the single ``read_dir_for`` fork
-    # authority. ``effective_root`` arrives already resolved (validated by
-    # ``resolve_ownership_claim``), so composing meta against it is byte-identical
-    # to the prior ``compose_meta_json_path(primary_root, …)`` (``primary_root ==
-    # effective_root.resolve()`` on this arm).
+    # authority (the default, non-owned arm).
     primary_read_dir = read_dir_for(
-        effective_root,
         primary_root,
         mission_slug,
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
     )
-    if effective_root is None:
-        target_branch = get_feature_target_branch(primary_root, mission_slug)
-    else:
-        # The legacy helper deliberately folds a generic worktree to the
-        # ambient primary checkout. The opted-in path reads only the validated
-        # checkout's meta and derives its fallback branch from that checkout.
-        from specify_cli.core.git_ops import resolve_primary_branch
-        from specify_cli.core.paths import read_target_branch_from_meta
-
-        stored_target = read_target_branch_from_meta(primary_read_dir)
-        target_branch = stored_target or str(resolve_primary_branch(primary_root))
+    target_branch = get_feature_target_branch(primary_root, mission_slug)
     _identity, branch_ref, status_surface, _workspace = _assemble_core_fragments(
         primary_root,
         mission_slug=mission_slug,
@@ -1250,15 +1408,12 @@ def mission_context_for(
         topology=resolved_topology,
         cwd=None,
         resolver=resolver,
-        effective_root=effective_root,
     )
     # WP08 (#5100 FR-007/012): a single_branch mission's PRIMARY-kind bypass
     # (below) resolves to `mission_branch` too when a protected-target mint
     # recorded one -- every artifact kind of such a mission writes there, not
     # just the non-primary ones `branch_ref.destination_ref` already covers.
-    primary_kind_ref = _resolve_single_branch_write_ref(
-        resolved_topology, target_branch, primary_root, mission_slug, resolver=resolver, effective_root=effective_root
-    )
+    primary_kind_ref = _resolve_single_branch_write_ref(resolved_topology, target_branch, primary_root, mission_slug, resolver=resolver)
     artifacts: list[MissionArtifactContext] = []
     for kind in MissionArtifactKind:
         placement_ref = CommitTarget(ref=primary_kind_ref) if is_primary_artifact_kind(kind) else branch_ref.destination_ref
@@ -1286,7 +1441,7 @@ def _resolve_mission_id(
     mission_slug: str,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str:
     """Resolve the canonical ``mission_id`` for the mission.
 
@@ -1321,11 +1476,11 @@ def _resolve_mission_id(
     # sentinel carve-out below is unaffected: it fires on a malformed/absent meta
     # read, before any classification decision is even in play.
     primary_dir = read_dir_for(
-        effective_root,
         primary_root,
         mission_slug,
         kind=MissionArtifactKind.PRIMARY_METADATA,
         resolver=resolver,
+        owned=owned,
     )
     # FR-006: canonical reader contract (a) — None on missing, typed
     # MissionMetaReadError on malformed (routed through the ONE fail-closed
@@ -1342,14 +1497,102 @@ def _resolve_mission_id(
     return f"legacy-{mission_slug}"
 
 
+def _resolve_status_surface_dir_owned(
+    owned: OwnedCheckout,
+    mission_slug: str,
+    topology: MissionTopology,
+    *,
+    resolver: MissionResolver | None = None,
+    tolerate_unmaterialized_coord: bool = False,
+) -> Path:
+    """The owned arm of :func:`_resolve_status_surface_dir` (review cycle 1
+    F2 / review cycle 2 R2). Called ONLY for a non-primary (COORD-partition)
+    kind -- :func:`_mission_context_for_owned` never calls this for a
+    PRIMARY kind (T019 row 3, R2 item 1).
+
+    Composes the coordination worktree candidate under ``owned.repository_root``
+    -- the actual git repository root -- never under ``owned.owned_root`` (the
+    selected checkout ``P``, which never hosts a coordination worktree of its
+    own). Fails closed with a typed :class:`ActionContextError` coded from
+    :class:`~mission_runtime.owned_checkout.OwnedRefusalCode` on EVERY
+    non-materialised coordination state for a COORD-partition kind --
+    ``EMPTY`` (the coordination worktree root exists but its mission
+    directory is absent, #1716's documented fail-closed condition, "never a
+    silent primary fallback" -- R2 item 2), ``UNMATERIALIZED`` (the
+    declared-but-not-yet-created window) and ``NONE`` (no mid8 signal) --
+    rather than ever silently substituting the primary checkout. Only
+    ``MATERIALIZED`` returns a real, on-disk coordination path; only
+    ``DELETED`` raises the existing :class:`CoordinationBranchDeleted`.
+    The one exception is the opt-in ``tolerate_unmaterialized_coord`` flag
+    (WP19 / FR-022), which lets ``UNMATERIALIZED`` -- and only that state --
+    return the DECLARED coordination candidate path (never the primary dir). Before
+    WP04 the placement layer's own topology guard refused this whole class of
+    call outright; this restores an equivalent fail-closed outcome now that
+    the guard is gone (R-16).
+    """
+    from mission_runtime.owned_checkout import OwnedRefusalCode
+    from specify_cli.core.paths import load_meta_fail_closed
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+    from specify_cli.missions._read_path_resolver import (
+        CoordState,
+        coord_feature_dir,
+        probe_coord_state,
+    )
+
+    primary_dir = owned.mission_dir
+    # FR-007 / #3162: routed through the ONE fail-closed reader — a corrupt
+    # meta.json surfaces the typed MissionMetaReadError; a missing file
+    # degrades to ``{}`` (the absent arm).
+    meta = load_meta_fail_closed(primary_dir) or {}
+    raw_coordination_branch = meta.get("coordination_branch")
+    coordination_branch = str(raw_coordination_branch) if raw_coordination_branch else None
+    if not routes_through_coordination(topology) or coordination_branch is None:
+        return primary_dir
+
+    mission_id = _resolve_mission_id(owned.repository_root, mission_slug, resolver=resolver, owned=owned)
+    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+    # F2: the coordination worktree lives under the REPOSITORY root, not the
+    # selected owned checkout.
+    coord_dir: Path = coord_feature_dir(owned.repository_root, mission_slug, mid8)
+    coord_state = probe_coord_state(owned.repository_root, mission_slug, mid8, coordination_branch=coordination_branch)
+    if coord_state is CoordState.DELETED:
+        raise CoordinationBranchDeleted.for_mission(
+            repo_root=owned.repository_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coordination_branch=coordination_branch,
+            primary_candidate=primary_dir,
+        )
+    if coord_state is CoordState.MATERIALIZED:
+        return coord_dir
+    if tolerate_unmaterialized_coord and coord_state is CoordState.UNMATERIALIZED:
+        # The declared-but-not-yet-created window, for a caller that reads (or is
+        # about to materialise): the declared candidate path, never the primary dir.
+        return coord_dir
+    # EMPTY (#1716 fail-closed, R2 item 2) / NONE (no mid8 signal) always, and
+    # UNMATERIALIZED (the declared-but-not-yet-created window, F2) unless the
+    # caller passed ``tolerate_unmaterialized_coord`` (handled above): fail
+    # closed for this COORD-partition kind rather than ever silently
+    # substituting the primary checkout or handing back a path that does not
+    # exist on disk. A caller that needs "does this exist yet" degrades
+    # explicitly through its own sanctioned degrader, never silently here.
+    raise ActionContextError(
+        OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE,
+        f"the coordination worktree for mission {mission_slug!r} (declared branch {coordination_branch!r}) is not "
+        f"materialised at {coord_dir} (state={coord_state.value}); run the command that materialises it before "
+        "resolving this surface.",
+    )
+
+
 def _resolve_status_surface_dir(
     primary_root: Path,
     mission_slug: str,
     topology: MissionTopology,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     for_write: bool = False,
+    tolerate_unmaterialized_coord: bool = False,
 ) -> Path:
     """Resolve the canonical status-surface DIRECTORY via WP02's resolver.
 
@@ -1377,64 +1620,8 @@ def _resolve_status_surface_dir(
         candidate_feature_dir_for_mission,
     )
 
-    if effective_root is not None:
-        from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-        from specify_cli.core.paths import load_meta_fail_closed
-        from specify_cli.missions._read_path_resolver import (
-            CoordState,
-            coord_feature_dir,
-            probe_coord_state,
-        )
-
-        # WP01 (#3373, T004): the effective-root meta compose routes through the
-        # single ``read_dir_for`` fork authority. ``effective_root`` is non-None
-        # on this arm, so it is the opted-in owned-checkout compose —
-        # byte-identical to the prior ``compose_meta_json_path(effective_root,
-        # …).parent``.
-        primary_dir: Path = read_dir_for(
-            effective_root,
-            effective_root,
-            mission_slug,
-            kind=MissionArtifactKind.PRIMARY_METADATA,
-            resolver=resolver,
-        )
-        # FR-007 / #3162: routed through the ONE fail-closed reader — a corrupt
-        # meta.json now surfaces the typed MissionMetaReadError (previously a raw
-        # ValueError); a missing file still degrades to ``{}`` (the absent arm).
-        meta = load_meta_fail_closed(primary_dir) or {}
-        raw_coordination_branch = meta.get("coordination_branch")
-        coordination_branch = str(raw_coordination_branch) if raw_coordination_branch else None
-        if not routes_through_coordination(topology) or coordination_branch is None:
-            return primary_dir
-        mission_id = _resolve_mission_id(
-            effective_root,
-            mission_slug,
-            resolver=resolver,
-            effective_root=effective_root,
-        )
-        mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
-        coord_dir: Path = coord_feature_dir(effective_root, mission_slug, mid8)
-        coord_state = probe_coord_state(
-            effective_root,
-            mission_slug,
-            mid8,
-            coordination_branch=coordination_branch,
-        )
-        if coord_state is CoordState.DELETED:
-            # #4403: the DELETED → build-and-raise policy routes through the ONE
-            # ``CoordinationBranchDeleted.for_mission`` factory (single payload
-            # authority — it composes the coord candidate itself); only this
-            # site's seam-resolved ``primary_dir`` is threaded.
-            raise CoordinationBranchDeleted.for_mission(
-                repo_root=effective_root,
-                mission_slug=mission_slug,
-                mid8=mid8,
-                coordination_branch=coordination_branch,
-                primary_candidate=primary_dir,
-            )
-        if coord_state in {CoordState.EMPTY, CoordState.NONE}:
-            return primary_dir
-        return coord_dir
+    if owned is not None:
+        return _resolve_status_surface_dir_owned(owned, mission_slug, topology, resolver=resolver, tolerate_unmaterialized_coord=tolerate_unmaterialized_coord)
 
     try:
         surface = resolve_status_surface(primary_root, mission_slug, topology, for_write=for_write)
@@ -1503,7 +1690,7 @@ def _assemble_core_fragments(
     topology: MissionTopology,
     cwd: Path | None,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
     for_write: bool = False,
 ) -> tuple[IdentityFragment, BranchRefFragment, StatusSurfaceFragment, WorkspaceFragment]:
     """Assemble the WP02/WP03/WP05-owned fragments of the op-composite (IC-02).
@@ -1544,15 +1731,22 @@ def _assemble_core_fragments(
     the WP03 design ruling); it only forwards the one it was given. ``None``
     preserves historical behaviour end-to-end.
     """
-    from specify_cli.core.paths import get_main_repo_root
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP04 (review cycle 1, F1/F2): the
+        # canonical primary root is the fact's OWN ``repository_root`` -- never
+        # ``owned_root`` (the selected checkout ``P``) and never a
+        # ``get_main_repo_root`` fold.
+        primary_root = owned.repository_root
+    else:
+        from specify_cli.core.paths import get_main_repo_root
 
-    primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
+        primary_root = get_main_repo_root(repo_root)
 
     mission_id = _resolve_mission_id(
         primary_root,
         mission_slug,
         resolver=resolver,
-        effective_root=effective_root,
+        owned=owned,
     )
     identity = IdentityFragment.derive(mission_id=mission_id, mission_slug=mission_slug)
 
@@ -1565,7 +1759,7 @@ def _assemble_core_fragments(
         primary_root,
         mission_slug,
         resolver=resolver,
-        effective_root=effective_root,
+        owned=owned,
     )
     # The coord-routing DECISION reads the STORED topology via the SINGLE predicate
     # (FR-005 / WP04 drain) — never a re-derived per-ref enum. ``CommitTarget`` is a
@@ -1578,7 +1772,7 @@ def _assemble_core_fragments(
         # its minted `mission_branch` when a protected-target mint recorded
         # one, else `target_branch` unchanged (see
         # `_resolve_single_branch_write_ref`).
-        coord_ref = _resolve_single_branch_write_ref(topology, target_branch, primary_root, mission_slug, resolver=resolver, effective_root=effective_root)
+        coord_ref = _resolve_single_branch_write_ref(topology, target_branch, primary_root, mission_slug, resolver=resolver, owned=owned)
     destination_ref = CommitTarget(ref=coord_ref)
     branch_ref = BranchRefFragment(
         target_branch=target_branch,
@@ -1591,7 +1785,7 @@ def _assemble_core_fragments(
         mission_slug,
         topology,
         resolver=resolver,
-        effective_root=effective_root,
+        owned=owned,
         for_write=for_write,
     )
     status_surface = StatusSurfaceFragment(
@@ -1630,30 +1824,13 @@ def _assemble_artifact_placement_fragment(
     return ArtifactPlacementFragment(placement_ref=branch_ref.destination_ref)
 
 
-def _require_owned_single_branch(context: MissionContext) -> None:
-    """The ONE owned-placement topology refusal (#3862 item A).
-
-    Both owned arms (``resolve_placement_only`` / ``resolve_artifact_surface``)
-    refused a non-``single_branch`` stored topology with a byte-identical
-    duplicated ``ActionContextError`` tuple; this guard is the single hoisted
-    refusal, disposing against the ONE enum-based
-    :func:`~mission_runtime.context.is_single_branch` predicate — the same
-    predicate the owned checkout preflight
-    (:func:`specify_cli.core.owned_mission.resolve_owned_mission`) applies to
-    the raw meta read — so the invariant is expressed once, enum-based, and
-    the historical string/enum representations cannot drift apart.
-    """
-    if not is_single_branch(context.topology):
-        raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "Explicit placement requires single_branch.")
-
-
 def resolve_placement_only(
     repo_root: Path,
     mission_slug: str,
     *,
     kind: MissionArtifactKind,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> CommitTarget:
     """Resolve the placement :class:`CommitTarget` for a mission artifact ``kind``.
 
@@ -1719,13 +1896,18 @@ def resolve_placement_only(
             the current checkout (FR-006 refuse-with-recovery; code
             ``CONSOLIDATED_CONTENT_ABSENT``).
     """
-    if effective_root is not None:
-        context = mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root)
-        _require_owned_single_branch(context)
-        target = context.artifact(kind).commit_target
-        if target is None:
-            raise ActionContextError("OWNED_ARTIFACT_UNSUPPORTED", f"Artifact {kind.value} has no commit target.")
-        return target
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP04 (FR-023, R-16, review cycle
+        # 2 R2 item 1): topology has exactly ONE authority -- the minter's
+        # ``allowed_topologies`` (WP02). This placement layer no longer
+        # refuses by topology at all (the deleted
+        # ``_require_owned_single_branch`` second authority). Resolves ONLY
+        # the requested ``kind`` directly (never the whole-context builder,
+        # T019 row 3): placement never needs the coordination worktree's
+        # materialisation state, only the declared branch VALUE, so it never
+        # probes coord state and never raises on UNMATERIALIZED/EMPTY.
+        _refuse_owned_handle_mismatch(mission_slug, owned)
+        return _owned_commit_target_for_kind(owned, mission_slug, kind, resolver=resolver)
 
     from specify_cli.core.paths import get_feature_target_branch
     from specify_cli.missions._read_path_resolver import (
@@ -2110,7 +2292,14 @@ class PlacementSeam:
 
     repo_root: Path
     mission_slug: str
-    effective_root: Path | None = None
+    owned: OwnedCheckout | None = None
+
+    def __post_init__(self) -> None:
+        if self.owned is not None:
+            # F4 (review cycle 1): compare canonical forms -- callers pass the
+            # slug, a bare mid8, or a full mission id, and all three must be
+            # accepted when they name the fact's own mission.
+            _refuse_owned_handle_mismatch(self.mission_slug, self.owned)
 
     def write_target(self, kind: MissionArtifactKind) -> CommitTarget:
         """Return the :class:`CommitTarget` a write of ``kind`` must commit to.
@@ -2123,7 +2312,7 @@ class PlacementSeam:
             self.repo_root,
             self.mission_slug,
             kind=kind,
-            effective_root=self.effective_root,
+            owned=self.owned,
         )
 
     def read_dir(self, kind: MissionArtifactKind) -> Path:
@@ -2166,19 +2355,24 @@ class PlacementSeam:
         if kind is MissionArtifactKind.RETROSPECTIVE:
             from specify_cli.retrospective.writer import resolve_retrospective_home
 
+            # With a fact, the retrospective root is the owned checkout, not
+            # ``self.repo_root`` (owned-checkout-lifecycle-authority WP04,
+            # T017 step 6): consumers of ``.files()``/reads under a fact never
+            # read under the repository-root checkout instead.
+            retrospective_root = self.owned.owned_root if self.owned is not None else self.repo_root
             # Explicit ``Path`` annotation: under the project's
             # ``follow_imports = "skip"`` mypy config the cross-module
             # ``resolve_retrospective_home`` return is seen as ``Any``; the
             # annotation re-narrows it (the function IS typed ``-> Path``) —
             # matching the sibling ``_planning_read_dir`` chokepoint pattern.
-            retrospective_dir: Path = resolve_retrospective_home(self.repo_root, self.mission_slug)
+            retrospective_dir: Path = resolve_retrospective_home(retrospective_root, self.mission_slug)
             return retrospective_dir
 
         return resolve_artifact_surface(
             self.repo_root,
             self.mission_slug,
             kind,
-            effective_root=self.effective_root,
+            owned=self.owned,
         ).path
 
 
@@ -2260,7 +2454,7 @@ def declared_read_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> TopologySurface:
     """The intrinsic, materialization-BLIND declared home for a read of ``kind``.
 
@@ -2292,11 +2486,12 @@ def declared_read_surface(
     """
     if is_primary_artifact_kind(kind):
         return TopologySurface.PRIMARY
-    topology = (
-        resolve_topology(repo_root, mission_slug, resolver=resolver)
-        if effective_root is None
-        else mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root).topology
-    )
+    if owned is not None:
+        # Zero I/O: the fact already carries the stored topology.
+        _refuse_owned_handle_mismatch(mission_slug, owned)
+        topology = owned.topology
+    else:
+        topology = resolve_topology(repo_root, mission_slug, resolver=resolver)
     if routes_through_coordination(topology):
         return TopologySurface.COORD
     return TopologySurface.PRIMARY
@@ -2455,7 +2650,7 @@ def resolve_artifact_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> ResolvedSurface:
     """Resolve the affirmative read/write surface for a mission artifact ``kind``.
 
@@ -2488,10 +2683,27 @@ def resolve_artifact_surface(
         MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
             (propagated from handle canonicalization — no silent pick).
     """
-    if effective_root is not None:
-        context = mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root)
-        _require_owned_single_branch(context)
-        return ResolvedSurface(path=context.artifact(kind).read_dir, surface_kind=TopologySurface.PRIMARY)
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP04 (T019, FR-023, R-16, review
+        # cycle 2 F3): the second topology authority
+        # (``_require_owned_single_branch``) is deleted -- topology is decided
+        # once, at minting. The surface stamp is the DECLARED,
+        # topology-collapsed home (AH-1/AH-2), derived from ``(topology, kind
+        # partition)`` alone -- COORD iff the fact's topology routes through
+        # coordination AND ``kind`` is not a primary-partition kind, else
+        # PRIMARY. This reproduces every T019 table row, including the row 4
+        # (COORD) / EMPTY-coord-state (PRIMARY-vs-stamp mismatch) cell a
+        # path-equality heuristic could not: EMPTY (#1716's fail-closed
+        # window) now raises before ever reaching this stamp step (R2), so
+        # stamp and resolved path can no longer disagree. Resolves ONLY the
+        # requested ``kind`` directly (never the whole-context builder, T019
+        # row 3 / R2 item 1): a PRIMARY kind never probes the coordination
+        # surface, so a coord-topology fact's UNMATERIALIZED/EMPTY window
+        # never fails a PRIMARY-kind (e.g. SPEC) read.
+        _refuse_owned_handle_mismatch(mission_slug, owned)
+        surface_kind = TopologySurface.COORD if routes_through_coordination(owned.topology) and not is_primary_artifact_kind(kind) else TopologySurface.PRIMARY
+        path = _owned_read_dir_for_kind(owned, mission_slug, kind, resolver=resolver)
+        return ResolvedSurface(path=path, surface_kind=surface_kind)
 
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
@@ -2620,7 +2832,12 @@ def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
     return CommitTarget(ref=planning_branch)
 
 
-def placement_seam(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> PlacementSeam:
+def placement_seam(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> PlacementSeam:
     """Construct the placement seam for one mission operation (T001 entry point).
 
     Asserts the P-1 partition invariant (T002) before returning the seam: the
@@ -2631,9 +2848,14 @@ def placement_seam(repo_root: Path, mission_slug: str, *, effective_root: Path |
     construction — so a future kind added without a partition entry fails
     loudly here rather than as a deep ``ValueError`` inside
     :func:`~mission_runtime.artifacts.artifact_home_for`.
+
+    ``owned`` (owned-checkout-lifecycle-authority WP04): the validated
+    ownership fact. Every PRIMARY-partition kind's :meth:`PlacementSeam.read_dir`
+    then reads ``owned.mission_dir`` and never calls ``get_main_repo_root``
+    (contracts/owned-checkout-carrier.md §7).
     """
     assert_partition_invariant()
-    return PlacementSeam(repo_root=repo_root, mission_slug=mission_slug, effective_root=effective_root)
+    return PlacementSeam(repo_root=repo_root, mission_slug=mission_slug, owned=owned)
 
 
 def resolve_action_context(
@@ -2646,7 +2868,7 @@ def resolve_action_context(
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
     resolver: MissionResolver | None = None,
-    effective_root: Path | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> MissionExecutionContext:
     """Resolve canonical mission/work-package context for an agent action.
 
@@ -2683,33 +2905,28 @@ def resolve_action_context(
         cwd=cwd,
         env=env,
         resolver=resolver,
-        effective_root=effective_root,
+        owned=owned,
     )
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here and
     # threaded onto both the flat substrate field and the BranchRefFragment; no
     # downstream surface re-derives it. The WP02 stored ``topology`` is read once
     # alongside it (shell read) and threaded in so the placement/surface ``kind``
     # is classified from the stored shape, never re-inferred (FR-004 / SC-001).
-    if effective_root is None:
-        target_branch = get_feature_target_branch(repo_root, mission_slug)
-    else:
-        # Prefer the caller-owned surface's stored value, but fall back through
-        # the SINGLE canonical adapter (FR-005 thin-reader doctrine): under coord
-        # topology ``feature_dir`` may be the coordination worktree, whose mission
-        # dir carries no meta.json — falling back to the bare repo default there
-        # would silently drop the stored ``target_branch`` (the WP00/FR-004 bug
-        # class). ``get_feature_target_branch`` reads the PRIMARY surface's meta
-        # and only then degrades to the primary branch.
+    if owned is not None:
+        # owned-checkout-lifecycle-authority WP04 (review cycle 1, F1, T018
+        # step 2): the fact IS the topology authority -- no
+        # ``_resolve_topology`` meta re-read. ``target_branch`` is the LANDING
+        # branch (the non-owned contract): read from the fact's own mission
+        # meta, never a re-derived repository root. The fact's ``write_branch``
+        # (the #5100 minted mission branch for a protected-target mint) is
+        # what ``_assemble_core_fragments`` resolves into ``destination_ref``.
         from specify_cli.core.paths import read_target_branch_from_meta
 
-        stored_target = read_target_branch_from_meta(feature_dir)
-        target_branch = stored_target if stored_target is not None else get_feature_target_branch(repo_root, mission_slug)
-    topology = _resolve_topology(
-        get_main_repo_root(repo_root),
-        mission_slug,
-        resolver=resolver,
-        effective_root=effective_root,
-    )
+        target_branch = read_target_branch_from_meta(owned.mission_dir) or owned.write_branch
+        topology = owned.topology
+    else:
+        target_branch = get_feature_target_branch(repo_root, mission_slug)
+        topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
 
     identity, branch_ref, status_surface, workspace = _assemble_core_fragments(
         repo_root,
@@ -2718,7 +2935,7 @@ def resolve_action_context(
         topology=topology,
         cwd=cwd,
         resolver=resolver,
-        effective_root=effective_root,
+        owned=owned,
     )
     # IC-05 (WP06 / T019): the artifact-placement ref is the SAME CommitTarget
     # status events resolve to (C-PLACE-1) — assembled from ``branch_ref`` so no
@@ -2784,5 +3001,6 @@ def resolve_action_context(
         resolve_workspace_for_wp=resolve_workspace_for_wp,
         resolve_lane_alias=resolve_lane_alias,
         planned_lane=Lane.PLANNED,
+        owned=owned,
     )
     return build_execution_context(**base_fields, **wp_fields)

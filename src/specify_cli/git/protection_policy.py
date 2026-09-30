@@ -42,9 +42,14 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
+
+    from specify_cli.core.owned_mission import OwnedCreateMission
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +102,8 @@ class ProtectionPolicy:
     #: Mission-scoped fold of the operator-hatch concept (#5100 FR-008): the ONE
     #: branch a mission with ``meta.commit_to_target: true`` may write to
     #: directly. ``None`` (the default) means no mission scope. Set only via
-    #: :meth:`scoped_to_mission` / :meth:`resolve_for_mission`, never by env.
+    #: :meth:`scoped_to_mission` (reached through :meth:`resolve_for_mission` /
+    #: :meth:`resolve_for_owned`), never by env.
     mission_bypass_branch: str | None = None
 
     # ------------------------------------------------------------------
@@ -192,6 +198,52 @@ class ProtectionPolicy:
             return self
         meta = _load_mission_meta(repo_root, mission_slug)
         return self if meta is None else self.scoped_to_mission(meta)
+
+    @classmethod
+    def resolve_for_owned(cls, owned: OwnedCheckout | OwnedCreateMission, mission_slug: str | None = None) -> ProtectionPolicy:
+        """The ONE owned-checkout mission-scoped protection policy (#5100 FR-008 x owned checkouts).
+
+        Every owned caller -- the minter (``core.owned_mission``), the commit
+        router, finalize, the bookkeeping policy and ``safe_commit`` -- folds
+        through this one door with the validated fact in hand, never a bare
+        mission directory. Its semantics are the minter's:
+
+        * **Roots.** The protected set is the union of the repository root's
+          (``owned.repository_root``) and the owned checkout's configured
+          ``protected_branches``: a branch protected under EITHER config stays
+          protected, whichever of the two roots a caller commits through.
+        * **Mission scope.** ``commit_to_target`` is read from the fact's own
+          ``mission_dir`` in the owned checkout -- never from a copy found by
+          re-deriving the repository root from the slug. An unreadable or absent
+          ``meta.json`` grants no bypass (fail-closed).
+        * **Whose write.** ``mission_slug`` names the mission whose files are
+          being written and defaults to the fact's own mission; any other slug
+          gets NO mission scope (one mission's opt-out never un-protects
+          another's write).
+
+        ``owned`` is a lifecycle command's :class:`~mission_runtime.OwnedCheckout`
+        or, for an owned ``mission create`` (whose mission does not exist when
+        its root is validated), the create root bound to the new mission
+        (:class:`~specify_cli.core.owned_mission.OwnedCreateMission`).
+        """
+        from mission_runtime import OwnedCheckout as _OwnedCheckout
+
+        checkout = owned.owned_root if isinstance(owned, _OwnedCheckout) else owned.checkout
+        mission_dir = owned.mission_dir if mission_slug in (None, owned.mission_dir.name) else None
+        policy = cls(
+            protected_branches=_resolve_protected_branches(owned.repository_root) | _resolve_protected_branches(checkout),
+            operator_hatch_active=_resolve_hatch(),
+        )
+        if mission_dir is None:
+            return policy
+        from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+        try:
+            meta = load_meta_fail_closed(mission_dir)
+        except MissionMetaReadError:
+            logger.warning("mission meta.json unreadable in %s; keeping the target protected (fail-closed).", mission_dir)
+            return policy
+        return policy.scoped_to_mission(meta)
 
     @classmethod
     def resolve_for_mission(cls, repo_root: Path, mission_slug: str | None) -> ProtectionPolicy:

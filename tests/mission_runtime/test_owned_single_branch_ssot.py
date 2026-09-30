@@ -26,15 +26,16 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import (
-    ActionContextError,
     MissionArtifactKind,
     MissionTopology,
+    OwnedCheckout,
     is_single_branch,
     mission_context_for,
     resolve_artifact_surface,
     resolve_placement_only,
     single_branch_write_ref,
 )
+from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -55,11 +56,27 @@ def _git(repo_root: Path, *args: str) -> None:
     )
 
 
+def _owned_fact(repo: Path, topology: MissionTopology) -> OwnedCheckout:
+    """The fact for the mission ``_build_mission`` wrote into ``repo`` (WP18 re-point).
+
+    ``repo`` plays the owned checkout; the repository root is a decoy sibling the
+    owned arms must never read.
+    """
+    return mint_test_fact(
+        repository_root=repo.parent / "decoy-repository-root",
+        owned_root=repo,
+        mission_dir=repo / "kitty-specs" / _SLUG_WITH_MID8,
+        mission_slug=_SLUG_WITH_MID8,
+        write_branch="main",
+        topology=topology,
+    )
+
+
 def _build_mission(repo_root: Path, topology: str) -> Path:
     """Real git repo carrying one mission with the given stored ``topology``.
 
     Same narrow shape as ``tests/mission_runtime/test_status_surface_dir_deleted_arm.py``:
-    a plain single repo (the owned arm threads ``effective_root`` at the repo
+    a plain single repo (the owned arm is handed the fact for the repo
     itself), no coordination branch — ``lanes`` is the clean non-single_branch
     cell for the seam-level guard because it never enters coord-state
     classification.
@@ -109,39 +126,90 @@ def test_is_single_branch_predicate(topology: MissionTopology | None, expected: 
     assert is_single_branch(topology) is expected
 
 
-def test_placement_owned_arm_refuses_non_single_branch(tmp_path: Path) -> None:
-    """``resolve_placement_only``'s owned arm refuses a ``lanes`` mission.
+def test_placement_owned_arm_no_longer_refuses_by_topology(tmp_path: Path) -> None:
+    """owned-checkout-lifecycle-authority WP04 (T019, FR-023, R-16): the
+    placement-layer's OWN topology refusal (``_require_owned_single_branch``)
+    is deleted — topology has exactly ONE authority now: the minter's
+    ``allowed_topologies`` set (WP02's ``resolve_owned_mission``), applied
+    once, at minting. A ``lanes`` mission's PRIMARY-kind placement resolves
+    through ``resolve_placement_only``'s owned arm exactly like any other
+    topology — the second refusal this guard used to raise is GONE.
 
-    The refusal flows through the one hoisted ``_require_owned_single_branch``
-    guard over the shared predicate — the exact code and message both owned
-    arms historically duplicated.
+    Paired with ``test_lifecycle_owned_mission_refuses_non_single_branch``
+    below, which pins the OTHER half of the FR-023 contract: the minter still
+    refuses a ``lanes`` mission for a LIFECYCLE command's allowed-topology set.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
     _build_mission(repo, "lanes")
+
+    target = resolve_placement_only(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, owned=_owned_fact(repo, MissionTopology.LANES))
+    assert target.ref == "main"
+
+
+def test_artifact_surface_owned_arm_no_longer_refuses_by_topology(tmp_path: Path) -> None:
+    """``resolve_artifact_surface``'s owned arm: the SAME deleted guard, pinned
+    identically to its ``resolve_placement_only`` sibling above (the two
+    historically shared ONE hoisted refusal; now neither refuses)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir = _build_mission(repo, "lanes")
+
+    surface = resolve_artifact_surface(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, owned=_owned_fact(repo, MissionTopology.LANES))
+    assert surface.path == feature_dir
+
+
+def test_lifecycle_minter_refuses_lanes_topology(tmp_path: Path) -> None:
+    """The OTHER half of the FR-023 / R-16 paired proof (T019 step 5,
+    review cycle 1 non-blocking finding): a lifecycle command's minter
+    (``specify_cli.core.owned_mission.resolve_owned_mission``, default
+    ``LIFECYCLE_OWNED_TOPOLOGIES`` set) still refuses to MINT a fact for a
+    ``lanes`` mission at all -- the refusal moved UP to the single minting
+    authority; it did not disappear when the placement-layer's OWN
+    ``_require_owned_single_branch`` guard was deleted (F1 above).
+
+    This file's owned-arm tests above (``test_placement_owned_arm_no_longer_
+    refuses_by_topology`` etc.) only exercise the placement layer with an
+    ALREADY-MINTED (hand-built, via ``mint_test_fact``) fact -- exactly the
+    case this test does not cover. Both together are the full FR-023
+    contract: topology is refused exactly ONCE, at minting, never again at
+    placement.
+    """
+    from mission_runtime import ActionContextError, OwnedRefusalCode
+    from specify_cli.core.owned_mission import resolve_owned_mission
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git(repo_root, "init", "-q", "-b", "main")
+    _git(repo_root, "config", "user.email", "owned-ssot-3862@example.test")
+    _git(repo_root, "config", "user.name", "Owned SSOT 3862")
+    (repo_root / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-qm", "seed")
+
+    checkout = tmp_path / "checkout"
+    _git(repo_root, "worktree", "add", "-qb", "codex/lanes-checkout", str(checkout))
+    feature_dir = checkout / "kitty-specs" / _SLUG_WITH_MID8
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": _MISSION_ID,
+                "mission_slug": _MISSION_SLUG,
+                "slug": _SLUG_WITH_MID8,
+                "mission_type": "software-dev",
+                "target_branch": "codex/lanes-checkout",
+                "topology": "lanes",
+            }
+        ),
+        encoding="utf-8",
+    )
+    _git(checkout, "add", "-A")
+    _git(checkout, "commit", "-qm", "lanes mission")
 
     with pytest.raises(ActionContextError) as excinfo:
-        resolve_placement_only(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, effective_root=repo)
-    assert excinfo.value.code == "OWNED_TOPOLOGY_UNSUPPORTED"
-    assert str(excinfo.value) == "Explicit placement requires single_branch."
-
-
-def test_artifact_surface_owned_arm_refuses_identically(tmp_path: Path) -> None:
-    """``resolve_artifact_surface``'s owned arm refuses with the SAME error tuple.
-
-    Byte-identical to ``resolve_placement_only``'s refusal — both arms share the
-    one guard, so the two historical duplicates cannot drift apart.
-    """
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    _build_mission(repo, "lanes")
-
-    with pytest.raises(ActionContextError) as placement_exc:
-        resolve_placement_only(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, effective_root=repo)
-    with pytest.raises(ActionContextError) as surface_exc:
-        resolve_artifact_surface(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, effective_root=repo)
-    assert surface_exc.value.code == placement_exc.value.code
-    assert str(surface_exc.value) == str(placement_exc.value)
+        resolve_owned_mission(repo_root, checkout, _SLUG_WITH_MID8)
+    assert excinfo.value.code == OwnedRefusalCode.OWNED_TOPOLOGY_UNSUPPORTED
 
 
 def test_owned_arms_resolve_single_branch(tmp_path: Path) -> None:
@@ -150,16 +218,17 @@ def test_owned_arms_resolve_single_branch(tmp_path: Path) -> None:
     repo.mkdir()
     feature_dir = _build_mission(repo, "single_branch")
 
-    target = resolve_placement_only(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, effective_root=repo)
+    fact = _owned_fact(repo, MissionTopology.SINGLE_BRANCH)
+    target = resolve_placement_only(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, owned=fact)
     assert target.ref == "main"
-    surface = resolve_artifact_surface(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, effective_root=repo)
+    surface = resolve_artifact_surface(repo, _SLUG_WITH_MID8, kind=MissionArtifactKind.SPEC, owned=fact)
     assert surface.path == feature_dir
 
 
 def test_mission_context_for_owned_arm_is_repo_root_invariant(tmp_path: Path) -> None:
     """Item B pin: the owned arm's answer does not depend on ``repo_root``.
 
-    The owned callers thread ``effective_root`` alongside a ``repo_root`` they
+    The owned callers thread ``owned`` alongside a ``repo_root`` they
     fill inconsistently (``owned.primary`` vs ``owned.root`` vs a CWD-derived
     root) — harmless ONLY because the owned arm never reads ``repo_root``.
     This test pins that structural vestigial-ness: resolving the same mission
@@ -172,7 +241,8 @@ def test_mission_context_for_owned_arm_is_repo_root_invariant(tmp_path: Path) ->
     repo.mkdir()
     _build_mission(repo, "single_branch")
 
-    baseline = mission_context_for(repo, _SLUG_WITH_MID8, effective_root=repo)
+    fact = _owned_fact(repo, MissionTopology.SINGLE_BRANCH)
+    baseline = mission_context_for(repo, _SLUG_WITH_MID8, owned=fact)
     assert baseline.topology is MissionTopology.SINGLE_BRANCH
 
     for vestigial_root in (
@@ -180,7 +250,7 @@ def test_mission_context_for_owned_arm_is_repo_root_invariant(tmp_path: Path) ->
         tmp_path,  # an unrelated existing directory
         tmp_path / "not-a-repository",  # a path that does not even exist
     ):
-        context = mission_context_for(vestigial_root, _SLUG_WITH_MID8, effective_root=repo)
+        context = mission_context_for(vestigial_root, _SLUG_WITH_MID8, owned=fact)
         assert context == baseline
 
 

@@ -33,6 +33,7 @@ from specify_cli.coordination.policy import WorkflowMutationPolicy
 from specify_cli.coordination.types import Allowed, GitChangeSet, Refused
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -194,15 +195,14 @@ def test_non_mainline_write_target_allowed(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Effective-root target-branch threading (PR #3691 adversarial-review fixes)
+# Owned-checkout target-branch threading (PR #3691 adversarial-review fixes)
 #
-# When a caller passes ``effective_root`` (a linked worktree that owns its own
-# copy of the mission), the resolver prefers the caller surface's stored
-# ``target_branch`` but must fall back through the canonical
-# ``get_feature_target_branch`` adapter — which reads the PRIMARY surface's
-# meta.json — instead of the bare repo default. Falling back to the default
-# directly would silently drop the mission's declared branch whenever the
-# caller-surface meta lacks the field (the WP00/FR-004 bug class).
+# When a caller passes ``owned`` (a linked worktree that owns its own copy of
+# the mission), the resolver takes the branch from the fact -- the single
+# authority -- and never re-reads a caller-surface or primary ``meta.json``
+# (the WP00/FR-004 bug class: silently dropping the mission's declared branch
+# when a surface's meta lacks the field). WP18 re-pointed both tests from the
+# retired bare ``effective_root=`` keyword to the fact.
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +213,17 @@ def _add_caller_worktree(repo: Path, tmp_path: Path) -> Path:
     return caller
 
 
-def test_effective_root_prefers_caller_surface_stored_target(repo: Path, tmp_path: Path) -> None:
+def _caller_fact(repo: Path, caller: Path, *, target_branch: str):
+    return mint_test_fact(
+        repository_root=repo,
+        owned_root=caller,
+        mission_dir=caller / "kitty-specs" / _MISSION_SLUG,
+        mission_slug=_MISSION_SLUG,
+        write_branch=target_branch,
+    )
+
+
+def test_owned_fact_prefers_caller_surface_stored_target(repo: Path, tmp_path: Path) -> None:
     """The caller-owned worktree's stored target_branch wins when present."""
     _build_mission(repo, target_branch="feat/primary-stored")
     _git(repo, "add", ".")
@@ -230,17 +240,17 @@ def test_effective_root_prefers_caller_surface_stored_target(repo: Path, tmp_pat
         action="tasks",
         feature=_MISSION_SLUG,
         cwd=caller,
-        effective_root=caller,
+        owned=_caller_fact(repo, caller, target_branch="feat/caller-stored"),
     )
 
     assert ctx.target_branch == "feat/caller-stored"
 
 
-def test_effective_root_falls_back_to_primary_stored_target(repo: Path, tmp_path: Path) -> None:
-    """A caller surface whose meta lacks target_branch falls back to PRIMARY's.
+def test_owned_fact_supplies_target_when_caller_meta_lacks_it(repo: Path, tmp_path: Path) -> None:
+    """A caller surface whose meta lacks target_branch still yields the fact's.
 
-    Regression: the first cut of the effective-root path degraded to the bare
-    repo-default branch here, silently dropping the primary surface's stored
+    Regression: the first cut of the owned path degraded to the bare
+    repo-default branch here, silently dropping the mission's stored
     ``target_branch`` (diff-coverage lines 2278/2280-2281).
     """
     _build_mission(repo, target_branch="feat/primary-stored")
@@ -258,7 +268,7 @@ def test_effective_root_falls_back_to_primary_stored_target(repo: Path, tmp_path
         action="tasks",
         feature=_MISSION_SLUG,
         cwd=caller,
-        effective_root=caller,
+        owned=_caller_fact(repo, caller, target_branch="feat/primary-stored"),
     )
 
     assert ctx.target_branch == "feat/primary-stored"

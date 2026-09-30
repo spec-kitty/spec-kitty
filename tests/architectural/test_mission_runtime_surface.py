@@ -72,6 +72,17 @@ _PUBLIC_SURFACE = sorted(
         # mission_runtime/mission_resolver_port.py for the full rationale.
         "MissionResolver",
         "MissionTopology",
+        # owned-checkout-lifecycle-authority-01M3M2ZB WP01 (FR-001/C-003): the
+        # validated ownership fact for an owned checkout, plus its error-code
+        # registry — the runtime and specify_cli layers consume both from the
+        # package root only.
+        "OwnedCheckout",
+        "OwnedRefusalCode",
+        # owned-checkout-lifecycle-authority WP12 (FR-025): the topology-agnostic
+        # claim-commit authority every review path shares, plus its typed error.
+        # MR-1/MR-2 forbid submodule imports, so both live on the package root.
+        "ClaimCommitUnresolved",
+        "claim_commit_for_wp",
         # #5100 WP04 (T020b): the SINGLE_BRANCH-manifest fail-closed writer
         # guard, promoted off module-private status onto the root once the
         # review path (``agent/workflow.py``) became its first real src/
@@ -131,6 +142,12 @@ _PUBLIC_SURFACE = sorted(
         # independently reimplementing it inline — a package-root public
         # symbol, so it is pinned here.
         "declared_read_surface",
+        # owned-checkout-lifecycle-authority WP04 (review cycle 2, F4): the ONE
+        # canonical handle-canonicalisation authority (slug / mid8 / full
+        # mission-id forms) resolution.py and specify_cli.task_utils.support
+        # both consume, instead of each keeping a private copy -- a
+        # package-root public symbol, so it is pinned here.
+        "handle_names_mission",
         "is_primary_artifact_kind",
         # owned-ssot-3862 item A: the SINGLE enum-based single_branch predicate
         # the owned-placement arms (resolution.py) and the owned checkout

@@ -34,6 +34,7 @@ still-FS-bound legs (``get_main_repo_root``, ``_resolve_coordination_branch``,
 ``_resolve_status_surface_dir``, topology) explicitly deferred to later #2173
 phases per the WP03 design ruling (D-09).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,6 +47,7 @@ from specify_cli.context.mission_resolver import FakeMissionResolver, ResolvedMi
 from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
 
 from mission_runtime.resolution import _resolve_mission_id
+from tests._owned_fixtures import mint_test_fact
 
 # Production-shaped fixture values (26-char ULID, 8-char mid8, a realistic
 # on-disk-style composed slug) rather than placeholder shorthand — the mission
@@ -73,9 +75,7 @@ def _fake_resolver(tmp_path: Path) -> FakeMissionResolver:
     [_MISSION_ID, _MID8, _COMPOSED_SLUG],
     ids=["full-mission-id", "bare-mid8", "full-slug"],
 )
-def test_identity_leg_resolves_via_injected_resolver_with_no_specs_tree(
-    tmp_path: Path, handle: str
-) -> None:
+def test_identity_leg_resolves_via_injected_resolver_with_no_specs_tree(tmp_path: Path, handle: str) -> None:
     """The canonicalizer chain resolves every handle form via the Fake alone.
 
     ``tmp_path`` deliberately has NO ``kitty-specs/`` directory created — proving
@@ -110,9 +110,7 @@ def test_identity_leg_unknown_handle_degrades_without_raising(
     tolerated "nothing matched" by returning its best-known candidate.
     """
     resolver = _fake_resolver(tmp_path)
-    resolved_dir = resolve_handle_to_read_path(
-        tmp_path, "no-such-mission", resolver=resolver
-    )
+    resolved_dir = resolve_handle_to_read_path(tmp_path, "no-such-mission", resolver=resolver)
     assert resolved_dir == tmp_path / "kitty-specs" / "no-such-mission"
 
 
@@ -139,33 +137,34 @@ def test_resolve_mission_id_bootstrap_sentinel_not_routed_through_resolve(
     """
     assert not (tmp_path / "kitty-specs").exists()
     empty_resolver = FakeMissionResolver([])  # no missions known to the walk
-    mission_id = _resolve_mission_id(
-        tmp_path, "bootstrap-mission-no-meta-yet", resolver=empty_resolver
-    )
+    mission_id = _resolve_mission_id(tmp_path, "bootstrap-mission-no-meta-yet", resolver=empty_resolver)
     assert mission_id == "legacy-bootstrap-mission-no-meta-yet"
 
 
 def test_resolve_mission_id_bootstrap_sentinel_reads_owned_checkout(
     tmp_path: Path,
 ) -> None:
-    """The ``effective_root`` (owned-checkout) fork of the identity leg (#3328).
+    """The owned-checkout fork of the identity leg (#3328).
 
-    Mirrors the carve-out test above, but drives the ``effective_root``
-    branch: ``primary_root`` is deliberately a DIFFERENT, never-created path
-    (proving it is never read once ``effective_root`` is supplied, C-002),
-    and the meta read is anchored on ``compose_meta_json_path(effective_root,
-    ...)`` instead of the canonicalizer chain. No ``meta.json`` exists at the
-    owned root either, so the same ``legacy-<slug>`` sentinel carve-out
-    applies.
+    Mirrors the carve-out test above, but drives the ``owned`` branch:
+    ``primary_root`` is deliberately a DIFFERENT, never-created path (proving
+    it is never read once ``owned`` is supplied, C-002), and the meta read is
+    anchored on the fact's own ``mission_dir`` instead of the canonicalizer
+    chain. No ``meta.json`` exists there either, so the same
+    ``legacy-<slug>`` sentinel carve-out applies.
     """
     owned_root = tmp_path / "owned-checkout"
     owned_root.mkdir()
     decoy_primary_root = tmp_path / "decoy-primary-never-read"
-
-    mission_id = _resolve_mission_id(
-        decoy_primary_root,
-        "owned-bootstrap-mission-no-meta-yet",
-        effective_root=owned_root,
+    slug = "owned-bootstrap-mission-no-meta-yet"
+    fact = mint_test_fact(
+        repository_root=decoy_primary_root,
+        owned_root=owned_root,
+        mission_dir=owned_root / "kitty-specs" / slug,
+        mission_slug=slug,
+        write_branch="codex/owned",
     )
+
+    mission_id = _resolve_mission_id(decoy_primary_root, slug, owned=fact)
 
     assert mission_id == "legacy-owned-bootstrap-mission-no-meta-yet"

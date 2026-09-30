@@ -77,11 +77,13 @@ def _build_coord_deleted_mission(repo_root: Path) -> Path:
     return feature_dir
 
 
-def test_effective_root_status_surface_deleted_raises_via_factory(tmp_path: Path) -> None:
+def test_owned_status_surface_deleted_raises_via_factory(tmp_path: Path) -> None:
     """The owned-checkout status-surface read refuses a DELETED coord branch.
 
-    ``mission_context_for(..., effective_root=...)`` drives
-    ``_resolve_status_surface_dir``'s effective-root arm: meta declares a
+    ``mission_context_for(..., owned=...)`` drives
+    ``_resolve_status_surface_dir_owned`` (WP18: re-pointed from the retired
+    bare-root arm; the coordination worktree is composed under the fact's
+    ``repository_root``): meta declares a
     ``coord`` topology and a ``coordination_branch`` that no longer exists, the
     single probe answers ``CoordState.DELETED``, and the arm must raise through
     the ONE ``CoordinationBranchDeleted.for_mission`` factory (#4403) — never a
@@ -93,12 +95,26 @@ def test_effective_root_status_surface_deleted_raises_via_factory(tmp_path: Path
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.missions._read_path_resolver import coord_feature_dir
 
+    from mission_runtime import MissionTopology
+    from tests._owned_fixtures import mint_test_fact
+
     repo = tmp_path / "repo"
     repo.mkdir()
-    feature_dir = _build_coord_deleted_mission(repo)
+    _build_coord_deleted_mission(repo)
+    owned_root = tmp_path / "P"
+    _git(repo, "worktree", "add", "-q", "-b", "owned-p", str(owned_root))
+    feature_dir = owned_root / "kitty-specs" / _SLUG_WITH_MID8
+    fact = mint_test_fact(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=feature_dir,
+        mission_slug=_SLUG_WITH_MID8,
+        write_branch="main",
+        topology=MissionTopology.COORD,
+    )
 
     with pytest.raises(CoordinationBranchDeleted) as excinfo:
-        mission_context_for(repo, _SLUG_WITH_MID8, effective_root=repo)
+        mission_context_for(repo, _SLUG_WITH_MID8, owned=fact)
 
     err = excinfo.value
     assert err.error_code == "COORDINATION_BRANCH_DELETED"
@@ -110,5 +126,5 @@ def test_effective_root_status_surface_deleted_raises_via_factory(tmp_path: Path
     # double-suffix guard keeps the already-composed slug unchanged.
     assert err.coord_candidate == coord_feature_dir(repo, _SLUG_WITH_MID8, _MID8)
     # This site's primary anchor is the seam-resolved owned-checkout dir.
-    assert err.primary_candidate == feature_dir
+    assert err.primary_candidate == feature_dir.resolve()
     assert "doctor coordination --fix" in err.next_step

@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 
 __all__ = [
+    "handle_names_mission",
     "mid8_from_slug",
     "resolve_mid8",
 ]
@@ -29,6 +30,8 @@ __all__ = [
 # <human-slug>-<mid8>[-lane-<id>] tail check.
 # Mid8 = exactly 8 uppercase alphanumeric characters (ULID character set)
 _MID8_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{8}$")  # Crockford base32, exactly 8 chars
+# A full mission id: exactly 26 Crockford base32 characters (ULID shape).
+_MISSION_ID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
 def mid8_from_slug(slug: str) -> str:
@@ -90,3 +93,43 @@ def resolve_mid8(mission_slug: str, *, mission_id: str | None) -> str:
     # No declared identity to confirm a (possibly coincidental) 8-char tail
     # against: decline rather than mis-resolve (#1918).
     return ""
+
+
+def handle_names_mission(handle: str, mission_slug: str) -> bool:
+    """True when ``handle`` — a slug, an exact 8-char mid8, or a full 26-char
+    mission id — names the mission identified by ``mission_slug``.
+
+    owned-checkout-lifecycle-authority WP04 (review cycle 2, F3/F4): the ONE
+    canonical handle-canonicalisation authority. A caller may pass any of the
+    three forms an operator or another command supplies; all three must
+    resolve to the SAME mission an ``OwnedCheckout`` fact was minted for, so
+    that placement / mission-context / WP-lookup callers can compare a raw
+    handle against a fact's own ``mission_slug`` without guessing.
+
+    Exact forms only — never a prefix match:
+
+    - the handle equals ``mission_slug`` verbatim (the slug form);
+    - the handle is exactly 8 Crockford base32 characters and equals the
+      mid8 embedded in ``mission_slug``'s own ``-<mid8>`` suffix
+      (:func:`mid8_from_slug`) (the mid8 form);
+    - the handle is exactly 26 Crockford base32 characters (a full ULID
+      shape — the fact does not carry ``mission_id`` itself, so only the
+      SHAPE is validated) and its first 8 characters equal that same mid8
+      (the mission-id form).
+
+    Comparison of the mid8/mission-id forms is case-insensitive (Crockford
+    base32 is conventionally case-insensitive); the slug form is exact.
+    Anything else — including a string that merely STARTS WITH the mid8,
+    such as ``"<mid8>-something-else"`` — is refused: a prefix match would
+    let an unrelated handle silently resolve to this mission.
+    """
+    if handle == mission_slug:
+        return True
+    mid8 = mid8_from_slug(mission_slug)
+    if not mid8:
+        return False
+    handle_upper = handle.upper()
+    mid8_upper = mid8.upper()
+    if _MID8_RE.match(handle_upper) and handle_upper == mid8_upper:
+        return True
+    return bool(_MISSION_ID_RE.match(handle_upper)) and handle_upper[:8] == mid8_upper

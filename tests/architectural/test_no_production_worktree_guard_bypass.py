@@ -88,6 +88,16 @@ def _json_object(output: str) -> dict[str, object]:
             continue
         if isinstance(payload, dict):
             return payload
+    # An indented (multi-line) document, as the shared owned-checkout refusal
+    # renderer (``emit_owned_refusal``) prints it: decode from the first brace.
+    start = output.find("{")
+    if start != -1:
+        try:
+            document, _end = json.JSONDecoder().raw_decode(output[start:])
+        except json.JSONDecodeError:
+            document = None
+        if isinstance(document, dict):
+            return document
     raise AssertionError(f"no JSON object in CLI output: {output!r}")
 
 

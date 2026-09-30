@@ -29,6 +29,7 @@ primary checkout. WP07 routes ``read_dir`` through the EXISTING, already-hardene
 substitution with the EXISTING typed ``CoordinationBranchDeleted`` exception — no
 new exception type needed.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,9 +39,12 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import (
+    ActionContextError,
     CommitTarget,
     MissionArtifactKind,
     MissionTopology,
+    OwnedCheckout,
+    OwnedRefusalCode,
     is_primary_artifact_kind,
     mission_context_for,
     placement_seam,
@@ -76,9 +80,7 @@ def repo(tmp_path: Path) -> Path:
     _git(r, "config", "user.name", "Test")
     _git(r, "config", "commit.gpgsign", "false")
     (r / ".kittify").mkdir()
-    (r / ".kittify" / "config.yaml").write_text(
-        "agents:\n  available:\n    - claude\n", encoding="utf-8"
-    )
+    (r / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
     return r
 
 
@@ -128,9 +130,7 @@ def _build_mission_materialized(repo_root: Path) -> tuple[Path, Path]:
     _git(repo_root, "branch", _COORD_BRANCH)
     coord_dir = coord_feature_dir(repo_root, _MISSION_SLUG, _MID8)
     coord_dir.mkdir(parents=True)
-    (coord_dir / "meta.json").write_text(
-        (feature_dir / "meta.json").read_text(encoding="utf-8"), encoding="utf-8"
-    )
+    (coord_dir / "meta.json").write_text((feature_dir / "meta.json").read_text(encoding="utf-8"), encoding="utf-8")
     return feature_dir, coord_dir
 
 
@@ -409,34 +409,49 @@ def test_retrospective_generator_reads_traces_from_materialized_coord_surface(
 
     summaries = [f.summary for f in record.helped]
     assert any("Coord-only tracer read" in s for s in summaries), (
-        f"tracer finding not present -- traces/ was not read from the coord "
-        f"surface (helped={summaries!r})"
+        f"tracer finding not present -- traces/ was not read from the coord surface (helped={summaries!r})"
     )
 
 
 # ---------------------------------------------------------------------------
-# Owned-checkout (``effective_root``) threading — checkout-ownership landing
-# branch (#3328). ``mission_context_for(..., effective_root=...)`` folds the
-# VALIDATED owned checkout as the primary root instead of
+# Owned-checkout (``owned=``) threading -- checkout-ownership landing
+# branch (#3328). ``mission_context_for(..., owned=fact)`` reads only the
+# VALIDATED ownership fact instead of folding through
 # ``get_main_repo_root(repo_root)`` (C-002: never silently cross-read a
 # sibling checkout). Every fixture below reuses the SAME ``_build_mission_*``
 # helpers the non-owned tests above already exercise, so the only variable is
-# the ``effective_root`` fork through ``mission_context_for`` ->
-# ``_assemble_core_fragments`` -> ``_resolve_mission_id`` /
-# ``_resolve_coordination_branch`` / ``_resolve_status_surface_dir`` (and
-# ``mission_context_for``'s own ``primary_read_dir`` / ``target_branch``
-# forks) -- the exact branches the checkout-ownership landing PR's e2e
-# (subprocess, invisible to pytest-cov) exercises only end-to-end.
+# the ``owned`` fork through ``mission_context_for``.
 # ``decoy_repo_root`` is deliberately a never-created, unrelated path: since
-# ``effective_root`` is supplied, ``repo_root`` must never be read (a
-# regression that folded it back through ``get_main_repo_root`` would try to
-# touch this path and fail loud).
+# ``owned`` is supplied, ``repo_root`` must never be read (a regression that
+# folded it back through ``get_main_repo_root`` would try to touch this path
+# and fail loud).
+#
+# WP18: re-pointed from the retired bare ``effective_root=`` keyword. The fact
+# is minted with ``OwnedCheckout._mint`` (test code may; G3 scans ``src/``
+# only). The coordination worktree lives under the fact's ``repository_root``
+# (``repo``); the owned checkout ``P`` is a linked worktree of ``repo``.
 # ---------------------------------------------------------------------------
 
 
-def test_mission_context_for_owned_checkout_flat_topology_resolves_primary(
-    repo: Path, tmp_path: Path
-) -> None:
+def _owned_fact(*, repository_root: Path, owned_root: Path, topology: MissionTopology) -> OwnedCheckout:
+    return OwnedCheckout._mint(
+        repository_root=repository_root,
+        owned_root=owned_root,
+        mission_dir=owned_root / "kitty-specs" / _MISSION_SLUG,
+        mission_slug=_MISSION_SLUG,
+        topology=topology,
+        write_branch=_TARGET_BRANCH,
+    )
+
+
+def _linked_owned_checkout(repo: Path, tmp_path: Path) -> Path:
+    """A linked worktree ``P`` of ``repo`` (carries the fixture's committed mission dir)."""
+    owned_root = tmp_path / "P"
+    _git(repo, "worktree", "add", "-q", "-b", "owned-p", str(owned_root))
+    return owned_root
+
+
+def test_mission_context_for_owned_checkout_flat_topology_resolves_primary(repo: Path, tmp_path: Path) -> None:
     """Owned checkout, coord-less topology: every artifact resolves off the
     validated owned checkout's own primary dir (FR-004/FR-005 owned branches:
     ``_resolve_status_surface_dir``'s ``not routes_through_coordination(...)``
@@ -444,7 +459,9 @@ def test_mission_context_for_owned_checkout_flat_topology_resolves_primary(
     feature_dir = _build_mission_flat(repo, topology=MissionTopology.SINGLE_BRANCH)
     decoy_repo_root = tmp_path / "decoy-primary-never-read"
 
-    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+    fact = _owned_fact(repository_root=decoy_repo_root, owned_root=repo, topology=MissionTopology.SINGLE_BRANCH)
+
+    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, owned=fact)
 
     assert ctx.mission_slug == _MISSION_SLUG
     assert ctx.topology is MissionTopology.SINGLE_BRANCH
@@ -453,47 +470,47 @@ def test_mission_context_for_owned_checkout_flat_topology_resolves_primary(
     assert status_artifact.write_dir == feature_dir
 
 
-def test_mission_context_for_owned_checkout_materialized_coord_resolves_coord_dir(
-    repo: Path, tmp_path: Path
-) -> None:
+def test_mission_context_for_owned_checkout_materialized_coord_resolves_coord_dir(repo: Path, tmp_path: Path) -> None:
     """Owned checkout, materialized coord surface: resolves the coord dir
     (the ``CoordState.MATERIALIZED`` -> ``return coord_dir`` owned tail)."""
     _feature_dir, coord_dir = _build_mission_materialized(repo)
     decoy_repo_root = tmp_path / "decoy-primary-never-read"
 
-    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+    fact = _owned_fact(repository_root=repo, owned_root=_linked_owned_checkout(repo, tmp_path), topology=MissionTopology.COORD)
+
+    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, owned=fact)
 
     assert ctx.topology is MissionTopology.COORD
     status_artifact = ctx.artifact(MissionArtifactKind.STATUS_STATE)
     assert status_artifact.read_dir == coord_dir
 
 
-def test_mission_context_for_owned_checkout_empty_coord_root_falls_back_to_primary(
-    repo: Path, tmp_path: Path
-) -> None:
+def test_mission_context_for_owned_checkout_empty_coord_root_fails_closed(repo: Path, tmp_path: Path) -> None:
     """Owned checkout, coord root materialized but this mission's subdir is
-    not (``CoordState.EMPTY``): the owned branch degrades to the primary dir,
-    never raises (FR-006 fail-closed is reserved for DELETED, not EMPTY)."""
-    feature_dir = _build_mission_empty_coord_root(repo)
+    not (``CoordState.EMPTY``): the owned arm fails closed with
+    ``OWNED_COORDINATION_WORKSPACE_UNAVAILABLE`` instead of degrading to the
+    primary dir (WP04 F2: the fact never silently substitutes another surface;
+    WP18 re-point -- the retired bare-root arm used to degrade here)."""
+    _build_mission_empty_coord_root(repo)
     decoy_repo_root = tmp_path / "decoy-primary-never-read"
+    fact = _owned_fact(repository_root=repo, owned_root=_linked_owned_checkout(repo, tmp_path), topology=MissionTopology.COORD)
 
-    ctx = mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+    with pytest.raises(ActionContextError) as excinfo:
+        mission_context_for(decoy_repo_root, _MISSION_SLUG, owned=fact)
 
-    status_artifact = ctx.artifact(MissionArtifactKind.STATUS_STATE)
-    assert status_artifact.read_dir == feature_dir
+    assert excinfo.value.code == OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE
 
 
-def test_mission_context_for_owned_checkout_deleted_branch_fails_loud(
-    repo: Path, tmp_path: Path
-) -> None:
+def test_mission_context_for_owned_checkout_deleted_branch_fails_loud(repo: Path, tmp_path: Path) -> None:
     """Owned checkout, declared coordination branch deleted from git
     (``CoordState.DELETED``): fails loud with ``CoordinationBranchDeleted``
     instead of silently substituting the primary checkout (#1889/#1848)."""
     _build_mission_deleted_branch(repo)
     decoy_repo_root = tmp_path / "decoy-primary-never-read"
+    fact = _owned_fact(repository_root=repo, owned_root=_linked_owned_checkout(repo, tmp_path), topology=MissionTopology.COORD)
 
     with pytest.raises(CoordinationBranchDeleted) as excinfo:
-        mission_context_for(decoy_repo_root, _MISSION_SLUG, effective_root=repo)
+        mission_context_for(decoy_repo_root, _MISSION_SLUG, owned=fact)
 
     assert excinfo.value.mission_slug == _MISSION_SLUG
     assert excinfo.value.coordination_branch == _COORD_BRANCH

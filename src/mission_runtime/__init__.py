@@ -27,6 +27,9 @@ value-object internals -- the context fragments, ``MissionArtifactContext``,
 off the root in mission dead-port-disposition-01M1TZVN (FR-014): nothing
 outside the package imported them, so tests reach them from their defining
 submodule instead of widening the public surface for test convenience.
+``OwnedCheckout`` is on the root because the ``runtime`` and ``specify_cli``
+layers both consume it as the validated ownership fact (ADR
+2026-06-07-1; WP03 of owned-checkout-lifecycle-authority-01M3M2ZB amends it).
 
 See ADR ``docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md``.
 """
@@ -55,11 +58,16 @@ from mission_runtime.artifacts import (
     kind_for_mission_file,
     kind_is_coordination_residue,
 )
+
+# owned-checkout-lifecycle-authority WP12 (FR-025): the one claim-commit authority
+# every review path shares; on the package root because MR-1/MR-2 forbid
+# submodule imports from outside the package.
+from mission_runtime.claim_commit import ClaimCommitUnresolved, claim_commit_for_wp
 from mission_runtime.checkout_identity import (
     CheckoutIdentityError,
     enforce_checkout_identity,
 )
-from mission_runtime.identity import mid8_from_slug, resolve_mid8
+from mission_runtime.identity import handle_names_mission, mid8_from_slug, resolve_mid8
 from mission_runtime.resolution import (
     ActionContextError,
     IssueMatrixRefReadError,
@@ -76,6 +84,14 @@ from mission_runtime.resolution import (
     resolve_topology,
     single_branch_write_ref,
 )
+
+# owned-checkout-lifecycle-authority WP01 (FR-001/C-003): the validated ownership
+# fact that every owned read/write consumes, exported here because runtime and
+# specify_cli layers may only import it from the package root (MR-1/MR-2).
+from mission_runtime.owned_checkout import (
+    OwnedCheckout,
+    OwnedRefusalCode,
+)
 from mission_runtime.issue_matrix_partition import resolve_issue_matrix_partition
 from mission_runtime.mission_resolver_port import MissionResolver
 from mission_runtime.read_dir_degrade import (
@@ -91,6 +107,7 @@ from mission_runtime.write_target_degrade import (
 __all__ = [
     "ActionContextError",
     "CheckoutIdentityError",
+    "ClaimCommitUnresolved",
     "CommitTarget",
     # #5222 (F2): promoted onto the package root so review/doctor consumers of
     # ``read_issue_matrix_ref_content`` (via ``resolve_issue_matrix_partition``)
@@ -103,6 +120,8 @@ __all__ = [
     "MissionExecutionContext",
     "MissionResolver",
     "MissionTopology",
+    "OwnedCheckout",
+    "OwnedRefusalCode",
     "PlacementSeam",
     "ReadDegradeStrategy",
     "ReadDirDecision",
@@ -115,10 +134,15 @@ __all__ = [
     "_MISSION_FILE_KIND_BY_BASENAME",
     "assert_coord_write_materialized",
     "assert_topology_matches_manifest",
+    # owned-checkout-lifecycle-authority WP07 review cycle 2 MEDIUM: the ONE
+    # canonical "does this legacy bare root name the same checkout as this
+    # validated fact" predicate -- see its own docstring in owned_checkout.py.
+    "claim_commit_for_wp",
     "classify_topology",
     "coord_read_dir_for",
     "declared_read_surface",
     "enforce_checkout_identity",
+    "handle_names_mission",
     "is_primary_artifact_kind",
     # owned-ssot-3862 item A: the SINGLE enum-based single_branch predicate the
     # owned-placement arms and the owned checkout preflight dispose against.

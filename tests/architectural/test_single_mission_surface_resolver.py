@@ -303,8 +303,8 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # name — not a raw slug bypass.
     ContentDescriptor(
         rel_path="specify_cli/core/mission_creation.py",
-        qualname="_create_mission_core_impl",
-        token_substring="feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted",
+        qualname="_scaffold_mission_dir",
+        token_substring="feature_dir = write_root / KITTY_SPECS_DIR / mission_slug_formatted",
         occurrence=None,
         rationale=(
             "TBYD — join uses mission_slug_formatted, the OUTPUT of the canonical "
@@ -314,7 +314,10 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
             "(feature_dir.mkdir follows immediately), so there is no prior surface "
             "to resolve through. Re-pinned 2026-08-13 (#3339/WP12): create_mission_core "
             "is now a thin failure-atomic wrapper delegating to _create_mission_core_impl, "
-            "which owns this join line."
+            "which owns this join line. Re-pinned (owned-checkout-lifecycle-authority "
+            "WP10/T051): _create_mission_core_impl decomposed (FR-026); the join is "
+            "unchanged seam-grammar output, now in the extracted _scaffold_mission_dir "
+            "helper (param renamed effective_root -> write_root)."
         ),
     ),
     # ----- DRAINED by mission retrospective-durable-home-01KVYM1W (#2136/#2164):

@@ -66,7 +66,7 @@ def test_coord_stamp_leg_does_not_round_trip_through_git(monkeypatch: pytest.Mon
 
     captured: list[Path | None] = []
 
-    def _stamp(_feature_dir: Path, *, status_feature_dir: Path | None = None) -> Any:
+    def _stamp(_feature_dir: Path, *, status_feature_dir: Path | None = None, owned: object | None = None) -> Any:
         captured.append(status_feature_dir)
         raise RuntimeError("stop after capture")  # absorbed by the best-effort guard
 

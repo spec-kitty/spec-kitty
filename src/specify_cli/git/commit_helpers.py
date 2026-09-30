@@ -101,7 +101,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
@@ -114,6 +114,11 @@ from kernel.git_topology import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.git.ref_advance import RefAdvanceError, advance_branch_ref_for_commit
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
+
+    from specify_cli.core.owned_mission import OwnedCreateMission
 
 logger = logging.getLogger(__name__)
 
@@ -901,6 +906,40 @@ def _run_commit_capture_sha(
     return sha, commit_result.stdout, commit_result.stderr
 
 
+def _mission_scoped_policies(
+    repo_root: Path,
+    worktree_root: Path,
+    mission_slug: str | None,
+    *,
+    owned: OwnedCheckout | OwnedCreateMission | None = None,
+) -> tuple[ProtectionPolicy, ProtectionPolicy]:
+    """Resolve the repo-root and worktree policies, folded to *mission_slug*'s ``commit_to_target``.
+
+    #5100 FR-008 mission-scoped hatch: when every staged path lives under one
+    mission's ``kitty-specs/<slug>/`` the commit is that mission's own write.
+
+    * **Owned** (``owned`` set): ownership is the validated fact, never inferred
+      from the filesystem shape of the two roots. The one owned authority,
+      :meth:`ProtectionPolicy.resolve_for_owned`, folds the mission's
+      ``meta.json`` held in the owned checkout (and the union of both roots'
+      protection configs) -- it never re-derives the repository root.
+    * **Non-owned**: :meth:`ProtectionPolicy.for_mission` folds the mission's
+      primary ``meta.json`` for both roots (origin/main's rule, including its
+      fail-closed ambiguous-selector arm).
+
+    A commit that is not one mission's own write keeps both plain policies.
+    """
+    if not mission_slug:
+        return ProtectionPolicy.resolve(repo_root), ProtectionPolicy.resolve(worktree_root)
+    if owned is not None:
+        owned_policy = ProtectionPolicy.resolve_for_owned(owned, mission_slug)
+        return owned_policy, owned_policy
+    return (
+        ProtectionPolicy.resolve(repo_root).for_mission(repo_root, mission_slug),
+        ProtectionPolicy.resolve(worktree_root).for_mission(repo_root, mission_slug),
+    )
+
+
 def _single_mission_slug(normalized_files: list[str]) -> str | None:
     """Return the mission slug when every path is under one ``kitty-specs/<slug>/``, else ``None``."""
     slugs: set[str] = set()
@@ -1238,12 +1277,19 @@ def preflight_commit(
     message: str,
     paths: tuple[Path, ...],
     capability: GuardCapability = GuardCapability.STANDARD,
+    owned: OwnedCheckout | OwnedCreateMission | None = None,
 ) -> list[str]:
     """Validate a commit destination and paths without mutating git or files.
 
     Creation can use the same policy before writing its scaffold. The actual
     commit repeats this validation so a preflight never grants stale authority.
     Return the paths normalized for staging in the selected worktree.
+
+    ``owned`` is the validated owned-checkout fact (an owned lifecycle write's
+    :class:`~mission_runtime.OwnedCheckout`, or an owned ``mission create``'s
+    :class:`~specify_cli.core.owned_mission.OwnedCreateMission`); the
+    mission-scoped ``commit_to_target`` fold then reads the mission from the
+    fact (see :func:`_mission_scoped_policies`).
     """
     destination_ref = target.ref
     # 1. Shape: short branch name only.
@@ -1322,9 +1368,7 @@ def preflight_commit(
     #    and ``ProtectionPolicy.for_mission`` honours its persisted
     #    ``commit_to_target`` for its own target branch only. Any path outside a
     #    single mission dir (or no ``commit_to_target``) leaves the policy as-is.
-    _mission_slug = _single_mission_slug(normalized_files)
-    _policy_repo = ProtectionPolicy.resolve(repo_root).for_mission(repo_root, _mission_slug)
-    _policy_wt = ProtectionPolicy.resolve(worktree_root).for_mission(repo_root, _mission_slug)
+    _policy_repo, _policy_wt = _mission_scoped_policies(repo_root, worktree_root, _single_mission_slug(normalized_files), owned=owned)
     is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
     guard_verdict: GuardVerdict = evaluate_commit_guard(
         target,
@@ -1350,9 +1394,9 @@ def safe_commit(
     message: str,
     paths: tuple[Path, ...],
     capability: GuardCapability = GuardCapability.STANDARD,
-    effective_root: Path | None = None,
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
+    owned: OwnedCheckout | OwnedCreateMission | None = None,
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -1421,6 +1465,10 @@ def safe_commit(
         expected_path_bytes: Optional exact raw bytes expected in selected
             staged blobs. Requires ``expected_parent_sha`` and refuses before
             ref update if a clean filter changes any asserted path.
+        owned: The validated owned-checkout fact when this is an owned write
+            (``None`` otherwise). The mission-scoped protection fold then reads
+            the mission from the fact -- never inferred from the two roots'
+            filesystem shape, never re-deriving the repository root.
 
     Returns:
         :class:`CommitResult` carrying the new commit SHA, the declared
@@ -1445,8 +1493,6 @@ def safe_commit(
             failed commit.
         RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
-    # Compatibility-only routing hint after retirement of the ambient sync emitter.
-    del effective_root
     # 0. Compat shim: accept either ``target`` (preferred) or the legacy
     #    ``destination_ref`` string. The CommitTarget's ``ref`` is the single
     #    destination authority; ``destination_ref`` mirrors it below so callers
@@ -1467,6 +1513,7 @@ def safe_commit(
         message=message,
         paths=paths,
         capability=capability,
+        owned=owned,
     )
 
     if expected_parent_sha is not None:

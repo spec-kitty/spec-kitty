@@ -427,3 +427,10 @@ test_no_worktree_name_guess:
 # defect to fix, never an exemption to record.
 test_hosted_drain_gate:
   ungated_edge_allowlist: 0
+
+# tests/architectural/test_owned_checkout_single_authority.py — owned-checkout
+# single-authority gate (mission owned-checkout-lifecycle-authority-01M3M2ZB,
+# FR-001/SC-004). Empty by operator decision 01M3M65D: no bare owned-root
+# path parameter or field anywhere in src/; growth is a gate evasion.
+test_owned_checkout_single_authority:
+  owned_root_bare_path_params: 0  # justification: empty allowlist by construction; never grows.

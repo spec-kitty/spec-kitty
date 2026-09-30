@@ -101,30 +101,22 @@ def _count_commits_ahead(worktree_path: Path, base_branch: str) -> int:
     return 0
 
 
-def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | None:
-    result = subprocess.run(
-        [
-            "git",
-            "log",
-            "--format=%H%x00%s",
-            "--",
-            str(wp_path),
-        ],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode == 0 and result.stdout.strip():
-        for raw in result.stdout.splitlines():
-            commit_hash, _, subject = raw.partition("\x00")
-            if not commit_hash:
-                continue
-            if f"Move {wp_id} to in_progress" in subject or f"{wp_id} claimed for implementation" in subject or f"Start {wp_id} implementation" in subject:
-                return commit_hash.strip()
-    return None
+def _planning_claim_commit(feature_dir: Path, wp_id: str) -> str | None:
+    """The WP's claim commit (FR-025), or ``None`` when no single one is provable.
+
+    ``feature_dir`` is the mission's PRIMARY directory: the checkout where the base
+    is consumed (``claim..HEAD`` is counted in the repository root checkout). A
+    coordination mission's planning WP claim is committed on the coordination
+    branch, which is not on that checkout's ``HEAD``, and its events file is not in
+    the primary directory either, so the shared authority reports it unresolved and
+    the entry fails closed to ``None`` instead of reporting a foreign-branch SHA.
+    """
+    from mission_runtime import ClaimCommitUnresolved, claim_commit_for_wp
+
+    try:
+        return claim_commit_for_wp(feature_dir, wp_id)
+    except ClaimCommitUnresolved:
+        return None
 
 
 def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
@@ -203,7 +195,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
         worktree_exists = workspace.exists
         commits_ahead = 0
         if workspace.resolution_kind == "repo_root":
-            base_branch: str | None = _planning_claim_commit(main_repo_root, normalized_wp.path, wp_id)
+            base_branch: str | None = _planning_claim_commit(feature_dir, wp_id)
         else:
             base_branch = lanes_manifest.mission_branch if lane_entry and lanes_manifest is not None else None
         if worktree_exists and base_branch:

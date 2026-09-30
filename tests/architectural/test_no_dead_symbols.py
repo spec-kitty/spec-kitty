@@ -174,9 +174,11 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2
         # canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers
         # that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.
+        # Hash re-pinned (owned-checkout-lifecycle-authority WP09 out-of-map edit / WP18 closure):
+        # the body gained the optional ``repo_root`` lock-root parameter (same entry, same symbol).
         SymbolKey(
             "append_lifecycle_event",
-            "3534b0a120eafa5dc1cc295cb539f18cd9737f4003b4c124ce57e7842ad5a1d0",
+            "5ca39b322e18ef30d931ba4b1848998105873e6cc6f0a475bf51a10f9ef0877e",
             source_module="specify_cli.status.lifecycle_events",
         ),
         # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
