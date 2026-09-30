@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M3RGWHEWXFNW77BVVVHT567C",
+  "completed_at": "2026-09-30T07:30:57.813374+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "work/test-quality/2026-09-30/cli/review.md"
+}
