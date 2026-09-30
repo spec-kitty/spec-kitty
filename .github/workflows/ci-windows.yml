@@ -34,6 +34,7 @@ jobs:
               - 'tests/kernel/test_paths_unified_windows_root.py'
               - 'tests/lanes/test_acceptance_matrix.py'
               - 'tests/mission/test_active_mission_handle_windows.py'
+              - 'tests/mission_runtime/test_owned_checkout.py'
               - 'tests/paths/test_windows_migrate.py'
               - 'tests/policy/test_hook_installer_execution.py'
               - 'tests/regressions/test_issue_101_utf8_startup.py'
