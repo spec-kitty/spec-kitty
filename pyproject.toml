@@ -2815,10 +2815,10 @@ dev = [
     # with `--extra test`; the dev group IS installed by a plain `uv sync`, so
     # declare it here too.
     "pytest-xdist>=3.8.0",
-    # `make test-full`'s serial passes (Makefile:60,62) pass `--timeout=240
-    # --timeout-method=signal`, which needs the pytest-timeout plugin. Same
-    # reasoning as pytest-xdist above: it lives in the `test` extra, but the
-    # dev group IS installed by a plain `uv sync`, so declare it here too.
+    # pytest.ini's single per-test timeout authority (`timeout = 240`, #3143)
+    # needs the pytest-timeout plugin. Same reasoning as pytest-xdist above: it
+    # lives in the `test` extra, but the dev group IS installed by a plain
+    # `uv sync`, so declare it here too.
     "pytest-timeout>=2.2.0",
     # The architectural suite (`tests/architectural/`) imports `pytestarch`.
     # `make test-fast` / `make test-full` run `uv run --frozen pytest`, which in
