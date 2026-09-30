@@ -73,7 +73,7 @@ def _css(fonts: Path) -> str:
 }}
 
 @page {{
-  size:A4; margin:20mm 25mm 18mm 25mm;
+  size:A4; margin:20mm 25mm 18mm 25mm; background:#F8F5EC;
   @bottom-left   {{ content:"Spec Kitty"; font-family:var(--mono); font-size:7pt; color:#8A8578; letter-spacing:.08em; }}
   @bottom-center {{ content:"__FOOTER__"; font-family:var(--mono); font-size:7pt; color:#8A8578; letter-spacing:.14em; }}
   @bottom-right  {{ content:counter(page)" / "counter(pages); font-family:var(--mono); font-size:7pt; color:#8A8578; }}
@@ -86,7 +86,7 @@ body {{ font-family:var(--body); color:var(--ink); background:var(--page); line-
 .cover {{ page-break-after:always; height:297mm; box-sizing:border-box; background:var(--page); padding:52mm 24mm 24mm; position:relative; }}
 .cover .rule-top {{ position:absolute; top:0; left:0; right:0; height:9mm; background:var(--yellow); }}
 .cover img.logo {{ width:33mm; height:33mm; display:block; margin-bottom:14mm; }}
-.cover .eyebrow {{ font-family:var(--mono); font-size:9pt; letter-spacing:.26em; text-transform:uppercase; color:#8A6A08; margin-bottom:8mm; }}
+.cover .eyebrow {{ font-family:var(--mono); font-size:9pt; letter-spacing:.16em; text-transform:uppercase; color:#5A5342; margin-bottom:8mm; }}
 .cover h1.title {{ font-family:var(--display); font-weight:900; font-size:44pt; line-height:1.02; color:var(--ink); margin:0 0 6mm; letter-spacing:-.01em; }}
 .cover .subtitle {{ font-family:var(--display); font-weight:500; font-size:15pt; color:var(--ink); margin:0 0 3mm; max-width:135mm; }}
 .cover .lede {{ font-size:11pt; color:var(--ink-soft); max-width:130mm; margin:0 0 14mm; line-height:1.55; }}
@@ -107,13 +107,13 @@ h4 {{ font-weight:600; font-size:10.5pt; color:var(--ink-soft); margin:4mm 0 1mm
 p {{ margin:0 0 2.6mm; }}
 strong {{ font-weight:700; color:var(--ink); }}
 em {{ font-style:italic; }}
-a {{ color:var(--yellow-deep); text-decoration:none; border-bottom:.5pt solid var(--hair); }}
+a {{ color:var(--ink); text-decoration:none; border-bottom:1.5pt solid var(--yellow); }}
 ul, ol {{ margin:0 0 3mm; padding-left:6mm; }}
 li {{ margin:.8mm 0; }}
 ul li::marker {{ color:var(--yellow-deep); }}
 hr {{ border:none; border-top:1pt solid var(--hair); margin:6mm 0; }}
 
-code {{ font-family:var(--mono); font-size:8.4pt; background:var(--input); color:#6B4E00; padding:.3mm 1.2mm; border-radius:2px; }}
+code {{ font-family:var(--mono); font-size:8.4pt; background:var(--input); color:#6B4E00; padding:.3mm .15em; margin:0; border-radius:2px; }}
 pre {{
   background:var(--muted); border:1pt solid var(--hair);
   border-left:3pt solid var(--yellow-deep); border-radius:3px;
