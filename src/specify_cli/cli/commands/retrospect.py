@@ -11,6 +11,9 @@ Source-of-truth contract:
 
 from __future__ import annotations
 
+from mission_runtime import MissionArtifactKind, resolve_topology
+from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
 from specify_cli.core.utils import safe_is_dir
@@ -40,6 +43,7 @@ from specify_cli.context.mission_resolver import (
 )
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import locate_project_root
+from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.retrospective import (
     RetrospectiveActor,
     emit_captured,
@@ -241,39 +245,87 @@ def _warn_auto_commit_failed(files: list[Path], exc: Exception) -> None:
     )
 
 
+def _warn_protected_target_refused(target: str, files: list[Path]) -> None:
+    """Tell the operator, on stderr, that the protected target branch refused the commit.
+
+    Non-fatal: the record and its events are on disk. The mission commit router
+    refuses a STANDARD commit onto a protected branch, and the retrospect CLI holds
+    no protected-flow capability, so the operator commits from a branch that may
+    take it. The hint names a feature branch and never the mission branch: on a
+    coordination-topology Mission the only ``kitty/mission-*`` branch is the
+    coordination branch, which must never carry the PRIMARY-partition record.
+    """
+    paths = " ".join(str(f) for f in files)
+    _err_console.print(
+        f"[yellow]Warning:[/yellow] retrospective auto-commit skipped: the mission's "
+        f"target branch '{escape(target)}' is protected, so nothing was committed to it. "
+        f"The record is written but not committed; commit it from a feature branch "
+        f"(never the coordination branch) and land it through a pull request: {escape(paths)}",
+        soft_wrap=True,
+    )
+
+
+def _refused_on_protected_target(repo_root: Path, mission_slug: str, result: CommitRouterResult) -> bool:
+    """True when the router refused *result* because the mission's target branch is protected."""
+    return result.status == "no_op_wrong_surface" and ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(result.placement_ref)
+
+
+def _uncommitted_target_files(repo_root: Path, mission_slug: str, files: list[Path]) -> list[Path]:
+    """The *files* bound for the mission's target branch that still differ from ``HEAD``.
+
+    Coordination residue (the coordination branch's own event log) is left out:
+    the router commits it on the coordination branch even when it refuses the
+    protected target.
+    """
+    topology = resolve_topology(repo_root, mission_slug)
+    targeted = [f for f in files if not is_coord_residue_churn(f, mission_slug=mission_slug, topology=topology)]
+    if not targeted:
+        return []
+    changed = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all", "--", *(str(f) for f in targeted)],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return targeted if changed.strip() else []
+
+
 def _maybe_auto_commit(
     repo_root: Path,
+    mission_slug: str,
     files: list[Path],
     message: str,
 ) -> None:
-    """Auto-commit files if auto_commit is enabled in config.
+    """Auto-commit *files* for *mission_slug* if auto_commit is enabled in config.
 
-    A failure is non-fatal (the record is already on disk) but is surfaced as a
-    stderr warning naming the cause, so the operator can commit by hand.
+    The commit goes through the canonical STANDARD mission commit router as a
+    ``RETROSPECTIVE`` artifact. The router is the one authority that splits the
+    batch by partition: the record lands on the mission's target branch, and on a
+    coordination-topology mission the canonical event log lands on the
+    coordination branch. A protected target branch is refused, and that refusal
+    is a warning, not a failure (silent when those files are already committed).
+    Any other failure is non-fatal too (the record
+    is already on disk) but is surfaced as a stderr warning naming the cause, so
+    the operator can commit by hand; "nothing to commit" stays silent.
     """
     try:
         if not get_auto_commit_default(repo_root):
             return
-        # Stage and commit the files
-        rel_files = []
-        for f in files:
-            try:
-                rel_files.append(str(f.relative_to(repo_root)))
-            except ValueError:
-                rel_files.append(str(f))
-
-        subprocess.run(
-            ["git", "add", "--"] + rel_files,
-            cwd=str(repo_root),
-            check=True,
-            capture_output=True,
+        result = commit_for_mission(
+            repo_root,
+            mission_slug,
+            tuple(files),
+            message,
+            ProtectionPolicy.resolve(repo_root),
+            kind=MissionArtifactKind.RETROSPECTIVE,
         )
-        subprocess.run(
-            ["git", "commit", "-m", message],
-            cwd=str(repo_root),
-            check=True,
-            capture_output=True,
-        )
+        if _refused_on_protected_target(repo_root, mission_slug, result):
+            uncommitted = _uncommitted_target_files(repo_root, mission_slug, files)
+            if uncommitted:
+                _warn_protected_target_refused(result.placement_ref, uncommitted)
+        elif result.status in ("error", "no_op_wrong_surface"):
+            _warn_auto_commit_failed(files, RuntimeError(result.diagnostic or result.status))
     except Exception as exc:
         # Non-fatal (the record write already succeeded), but never silent.
         _warn_auto_commit_failed(files, exc)
@@ -452,6 +504,10 @@ def create_cmd(
     # --overwrite / mode="error" / backfill, where persisted == new.
     persisted = read_gen_record(record_path)
 
+    # FR-006 (#1735/#1771): the event is appended to, and committed from, the
+    # ONE canonical status surface (coord-aware), never a primary-only copy.
+    events_path = _canonical_events_path(repo_root, persisted.mission_slug)
+
     # Emit lifecycle event (non-fatal — record write already succeeded)
     with contextlib.suppress(Exception):
         emit_captured(
@@ -459,14 +515,14 @@ def create_cmd(
             repo_root,
             provenance_kind="explicit_create",
             actor=_cli_actor(),
+            event_log_dir=events_path.parent,
         )
 
-    # Auto-commit if enabled. FR-006 (#1735/#1771): stage the canonical status
-    # surface (coord-aware), not the primary-checkout-only path.
-    events_path = _canonical_events_path(repo_root, persisted.mission_slug)
+    # Auto-commit if enabled, through the mission commit router.
     _maybe_auto_commit(
         repo_root,
-        [record_path, events_path],
+        persisted.mission_slug,
+        [path for path in (record_path, events_path) if path.exists()],
         f"chore(retrospective): author retrospective for {persisted.mission_slug}",
     )
 
@@ -636,6 +692,27 @@ def _discover_missions_for_backfill(
     return candidates
 
 
+def _auto_commit_backfilled(repo_root: Path, created: list[dict[str, object]]) -> None:
+    """Auto-commit each backfilled mission's record and canonical event log, one mission at a time.
+
+    FR-006 (#1735/#1771): the event log is the canonical status surface
+    (coord-aware); the mission commit router lands it on the coordination branch
+    of a coordination-topology mission, and the record on the target branch.
+    """
+    for entry in created:
+        mslug = str(entry["mission_slug"])
+        events_path = _canonical_events_path(repo_root, mslug)
+        files = [Path(str(entry["record_path"]))]
+        if events_path.exists():
+            files.append(events_path)
+        _maybe_auto_commit(
+            repo_root,
+            mslug,
+            files,
+            f"chore(retrospective): backfill retrospective for {mslug}",
+        )
+
+
 @app.command(
     "backfill",
     help=(
@@ -719,6 +796,7 @@ def backfill_cmd(  # noqa: C901
                 skip_reason_source="cli_flag",
                 policy_source={},
                 actor=_cli_actor(),
+                event_log_dir=_canonical_events_path(repo_root, mission_slug).parent,
             )
 
     work_candidates = []
@@ -788,6 +866,7 @@ def backfill_cmd(  # noqa: C901
                 repo_root,
                 provenance_kind="backfill",
                 actor=_cli_actor(),
+                event_log_dir=_canonical_events_path(repo_root, mslug).parent,
             )
             created.append({
                 "mission_id": mid,
@@ -828,6 +907,7 @@ def backfill_cmd(  # noqa: C901
                         attempted_provenance_kind="backfill",
                         missing_artifacts=[str(exc)],
                         actor=_cli_actor(),
+                        event_log_dir=_canonical_events_path(repo_root, mslug).parent,
                     )
         except Exception as exc:
             failed_entry = {
@@ -851,6 +931,7 @@ def backfill_cmd(  # noqa: C901
                         attempted_provenance_kind="backfill",
                         missing_artifacts=None,
                         actor=_cli_actor(),
+                        event_log_dir=_canonical_events_path(repo_root, mslug).parent,
                     )
 
     if json_output:
@@ -869,20 +950,10 @@ def backfill_cmd(  # noqa: C901
                 _process_candidate(c)
                 progress.advance(task)
 
-    # Auto-commit created records
+    # Auto-commit created records, one mission at a time, through the mission
+    # commit router.
     if created_paths and not dry_run:
-        # FR-006 (#1735/#1771): stage the canonical status surface per mission.
-        event_paths = [
-            _canonical_events_path(repo_root, str(c.get("mission_slug", "")))
-            for c in created
-            if not c.get("dry_run")
-        ]
-        all_paths = created_paths + [p for p in event_paths if p.exists()]
-        _maybe_auto_commit(
-            repo_root,
-            all_paths,
-            f"chore(retrospective): backfill {len(created)} retrospective records",
-        )
+        _auto_commit_backfilled(repo_root, created)
 
     # Compute next actions
     next_actions: list[str] = []

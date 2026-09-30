@@ -398,6 +398,7 @@ def emit_captured(
     actor: Actor,
     execution_mode: Literal["worktree", "main"] = "main",
     lock_timeout: float | None = None,
+    event_log_dir: Path | None = None,
 ) -> RetrospectiveCaptured:
     """Emit a ``RetrospectiveCaptured`` event to the mission event log.
 
@@ -412,6 +413,13 @@ def emit_captured(
         execution_mode: Execution context (worktree or main).
         lock_timeout: Mission status-lock wait bound in seconds; ``None``
             inherits the :func:`bounded_lock_timeout` scope (default: unbounded).
+        event_log_dir: Directory of the ``status.events.jsonl`` to append to.
+            ``None`` appends in the retrospective's durable PRIMARY home. A
+            caller that also commits the event log passes the directory it
+            resolved through the canonical status surface
+            (:func:`~specify_cli.coordination.surface_resolver.resolve_status_surface`),
+            so the event is written where it is committed (the coordination
+            worktree for a coordination-topology mission).
 
     Returns:
         The ``RetrospectiveCaptured`` event dataclass (also written to JSONL).
@@ -434,6 +442,7 @@ def emit_captured(
         raise ValueError("record.mission_slug must be non-empty to determine feature_dir")
 
     feature_dir = resolve_retrospective_home(repo_root, record.mission_slug)
+    log_dir = feature_dir if event_log_dir is None else event_log_dir
 
     # FR-001/003 (#2119): the record lives in the durable PRIMARY home for every
     # topology, resolved above through the single durable-home authority — never
@@ -461,7 +470,7 @@ def emit_captured(
             evidence_ref_count=len(record.evidence_refs),
         )
 
-    event = _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    event = _locked_append(log_dir, _build, lock_timeout=lock_timeout)
     _fanout_live_work_retrospective(
         "captured",
         repo_root=repo_root,
@@ -491,6 +500,7 @@ def emit_capture_failed(
     actor: Actor,
     execution_mode: Literal["worktree", "main"] = "main",
     lock_timeout: float | None = None,
+    event_log_dir: Path | None = None,
 ) -> RetrospectiveCaptureFailed:
     """Emit a ``RetrospectiveCaptureFailed`` event to the mission event log.
 
@@ -508,6 +518,13 @@ def emit_capture_failed(
         execution_mode: Execution context.
         lock_timeout: Mission status-lock wait bound in seconds; ``None``
             inherits the :func:`bounded_lock_timeout` scope (default: unbounded).
+        event_log_dir: Directory of the ``status.events.jsonl`` to append to.
+            ``None`` appends in the retrospective's durable PRIMARY home. A
+            caller that also commits the event log passes the directory it
+            resolved through the canonical status surface
+            (:func:`~specify_cli.coordination.surface_resolver.resolve_status_surface`),
+            so the event is written where it is committed (the coordination
+            worktree for a coordination-topology mission).
 
     Returns:
         The ``RetrospectiveCaptureFailed`` event dataclass.
@@ -515,7 +532,7 @@ def emit_capture_failed(
     if not mission_slug:
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = resolve_retrospective_home(repo_root, mission_slug)
+    feature_dir = event_log_dir if event_log_dir is not None else resolve_retrospective_home(repo_root, mission_slug)
 
     def _build(lamport: int) -> RetrospectiveCaptureFailed:
         return RetrospectiveCaptureFailed(
@@ -559,6 +576,7 @@ def emit_skipped(
     would_have_attempted: bool = True,
     execution_mode: Literal["worktree", "main"] = "main",
     lock_timeout: float | None = None,
+    event_log_dir: Path | None = None,
 ) -> RetrospectiveSkipped:
     """Emit a ``RetrospectiveSkipped`` event to the mission event log.
 
@@ -578,6 +596,13 @@ def emit_skipped(
         execution_mode: Execution context.
         lock_timeout: Mission status-lock wait bound in seconds; ``None``
             inherits the :func:`bounded_lock_timeout` scope (default: unbounded).
+        event_log_dir: Directory of the ``status.events.jsonl`` to append to.
+            ``None`` appends in the retrospective's durable PRIMARY home. A
+            caller that also commits the event log passes the directory it
+            resolved through the canonical status surface
+            (:func:`~specify_cli.coordination.surface_resolver.resolve_status_surface`),
+            so the event is written where it is committed (the coordination
+            worktree for a coordination-topology mission).
 
     Returns:
         The ``RetrospectiveSkipped`` event dataclass.
@@ -591,7 +616,7 @@ def emit_skipped(
     if not mission_slug:
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = resolve_retrospective_home(repo_root, mission_slug)
+    feature_dir = event_log_dir if event_log_dir is not None else resolve_retrospective_home(repo_root, mission_slug)
 
     def _build(lamport: int) -> RetrospectiveSkipped:
         return RetrospectiveSkipped(
