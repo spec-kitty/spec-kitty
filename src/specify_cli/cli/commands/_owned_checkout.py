@@ -55,13 +55,13 @@ from pathlib import Path
 from typing import Annotated, Final, NoReturn
 
 import typer
-from rich.console import Console
 
 from mission_runtime import ActionContextError, MissionTopology, OwnedCheckout, OwnedRefusalCode
 
+from specify_cli.cli.console import err_console
 from specify_cli.cli.json_contract import json_error
 
-_stderr_console: Final = Console(stderr=True)
+_stderr_console: Final = err_console
 
 _ERROR_CODE_KEY: Final = "error_code"
 
