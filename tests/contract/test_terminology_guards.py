@@ -78,6 +78,15 @@ FORBIDDEN_SCAN_ROOTS = (
     # wording (--feature, main-centric workflow). Mirrors the narrow docs/adr/
     # exemption in tests/architectural/test_no_legacy_terminology.py.
     "docs/adr/",
+    # docs/archive/ holds retired pages relocated out of the live tree by #5428
+    # ("archive retired pages and neutralize 3.x-anchored names"). They are
+    # immutable historical snapshots that legitimately retain era-correct wording
+    # (--feature, main-centric workflow), exactly like docs/adr/ — the Terminology
+    # Canon permits legacy wording in explicitly-archived artifacts. #5428 moved
+    # the pages but did not exempt docs/archive/ here, so the scan began flagging
+    # e.g. docs/archive/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md
+    # ("Merge to main"); this restores the archival exemption. See #5488.
+    "docs/archive/",
     # Historical/archival sub-areas relocated under docs/plans/ by the common-docs
     # move (the old, unscanned engineering_notes/initiatives world): completed
     # initiative records, retained 1.x deep-dive notes, and engineering notes.
@@ -149,6 +158,7 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
                 (
                     "docs/migrations/",
                     "docs/adr/",
+                    "docs/archive/",
                     "docs/plans/engineering-notes/",
                     "docs/plans/initiatives/",
                     "docs/reports/",
@@ -527,10 +537,13 @@ def test_docs_adr_exemption_is_narrow() -> None:
     assert not any(p.startswith("docs/reports/") for p in scanned), (
         "docs/reports/ dated snapshots must be excluded from the live-docs terminology scan"
     )
+    assert not any(p.startswith("docs/archive/") for p in scanned), (
+        "docs/archive/ retired pages (relocated by #5428) must be excluded from the live-docs terminology scan"
+    )
     # Non-vacuity / narrowness: live docs/ pages outside the exempt roots ARE scanned.
     assert any(
         p.startswith("docs/")
-        and not p.startswith(("docs/adr/", "docs/migrations/", "docs/reports/"))
+        and not p.startswith(("docs/adr/", "docs/archive/", "docs/migrations/", "docs/reports/"))
         for p in scanned
     ), "the exemption widened too far — no live docs/ page is being scanned"
 
