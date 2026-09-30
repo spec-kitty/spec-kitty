@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import ast
 import re
+import shlex
 from pathlib import Path
 
 import pytest
@@ -244,6 +245,16 @@ def test_scanner_does_not_flag_branch_switching_checkout() -> None:
 def test_restore_recipe_scopes_to_named_files_from_source() -> None:
     recipe = restore_recipe(["kitty-specs/m/tasks/WP02.md", "kitty-specs/m/issue-matrix.json"], source="deadbeef")
     assert recipe == "git restore --source deadbeef --staged --worktree -- kitty-specs/m/tasks/WP02.md kitty-specs/m/issue-matrix.json"
+
+
+def test_restore_recipe_shell_quotes_paths_with_spaces() -> None:
+    """The line is pasted into a shell (and run via ``shell=True``), so a path
+    with a space must be quoted or it splits into two pathspecs and the remedy
+    silently fails to clean. The ``--source`` ref stays unquoted so a
+    ``$(git merge-base ...)`` fallback still substitutes."""
+    recipe = restore_recipe(["kitty-specs/m/a note.md"], source="deadbeef")
+    assert recipe == "git restore --source deadbeef --staged --worktree -- 'kitty-specs/m/a note.md'"
+    assert shlex.split(recipe) == ["git", "restore", "--source", "deadbeef", "--staged", "--worktree", "--", "kitty-specs/m/a note.md"]
 
 
 def test_restore_recipe_refuses_directory_scope() -> None:

@@ -28,6 +28,7 @@ the planning tip. See #2555 (the same remedy for coord topology) and epic
 
 from __future__ import annotations
 
+import shlex
 from collections.abc import Sequence
 
 # Standard git alternatives the ``spec-kitty ops undo`` command prints when it
@@ -76,5 +77,12 @@ def restore_recipe(paths: Sequence[str], *, source: str) -> str:
     directoryish = [p for p in cleaned if p.endswith("/")]
     if directoryish:
         raise ValueError(f"restore_recipe refuses a directory-scoped restore (name the offending files): {directoryish}")
-    path_args = " ".join(cleaned)
+    # Shell-quote each path: the rendered line is pasted into a shell (and run
+    # via ``subprocess ... shell=True`` in the shipped regression test), and
+    # ``git diff --name-only`` can return a path with a space, which would
+    # otherwise split into two pathspecs and silently fail to clean. The
+    # ``--source`` ref is intentionally NOT quoted -- callers may pass the
+    # ``$(git merge-base ...)`` command-substitution fallback, which quoting
+    # would neutralise.
+    path_args = " ".join(shlex.quote(p) for p in cleaned)
     return f"git restore --source {source} --staged --worktree -- {path_args}"
