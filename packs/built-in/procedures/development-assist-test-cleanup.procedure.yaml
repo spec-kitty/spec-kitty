@@ -68,9 +68,8 @@ steps:
       required: FOLD moves its cases into the purpose-named suite that owns the
       contract (retiring any case that suite already asserts), KEEP renames the
       file after the contract it guards and records a one-line reason why it
-      stands alone. A standing census guard
-      (tests/architectural/test_issue_named_test_census.py) holds the count of
-      issue-named test files shrink-only, so an unjudged one shows up at review.
+      stands alone. A shrink-only census of issue-named test files is a cheap
+      way to back this up, so an unjudged one shows up at review.
     actor: agent
   - title: Execute — retire, split, and re-home per the verdicts
     description: >

@@ -435,7 +435,7 @@ constituents:
   kind: procedure
   path: procedures/bdd-scenario-lifecycle.procedure.yaml
   provenance_path:
-- content_hash: f07787f89767e1666c1051dc76d02cbeb3d998f78869cf837f6a5499e9de22c7
+- content_hash: ad141f2ea54a0dcf93c7ff18e120a338a7724a3f2491001c492bd4e9fc6ee03f
   id: development-assist-test-cleanup
   kind: procedure
   path: procedures/development-assist-test-cleanup.procedure.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 8e478c4c1604c58e49bc2102a21a229c8d3c96ab711d7b02189cac0bf8bac7ee
+manifest_hash: 6a7b13918cbdb65d79ed73e3633d4c53d9dd330aa051624b4fc7cef5ce1e8041
 schema_version: '1'
 source_type: built-in
 source_url:
