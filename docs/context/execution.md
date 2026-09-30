@@ -277,7 +277,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Context** | Execution |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
-| **Use when** | Describing where an owned Mission's artifacts, status log and commits live; describing `--owned-checkout` behaviour or its refusals (`OWNED_*` codes). |
+| **Use when** | Describing where an owned Mission's artifacts, status log and commits live; describing `--owned-checkout` behavior or its refusals (`OWNED_*` codes). |
 | **Do NOT use when** | The concept is the repository-root working copy — use [repository root checkout](#repository-root-checkout); the repository root checkout is never an owned checkout, and passing it is refused with `OWNED_CHECKOUT_IS_REPOSITORY_ROOT`. It is a per-work-package execution checkout — use lane worktree, [Lane](./orchestration.md#lane). It is the coordination worktree of a coordination topology. It is any linked worktree the validator has not accepted — say "linked checkout". It is the ref being committed to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Never write "primary" for either checkout. |
 | **Related terms** | [repository root checkout](#repository-root-checkout), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [target branch](./orchestration.md#target-branch) |
 
