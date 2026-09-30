@@ -215,6 +215,10 @@ spec-kitty init my-project --ai claude
 
 See the [Contributing guide](docs/development/contributing.md) for contribution guidelines.
 
+## Ecosystem & Specification Tools
+
+- [MySpec](https://myspec.dev) — Spec discovery engine compiling interactive developer interviews into structured 4-file bundles (`constitution.md`, `requirements.md`, `solution.md`, `tasks.md`) with MCP server support.
+
 ## Support
 
 - Open a [GitHub issue](https://github.com/spec-kitty/spec-kitty/issues/new) for bugs, feature requests, or questions.
