@@ -91,16 +91,12 @@ _RICH_ERROR_LINE = re.compile(r"^(?:Unexpected error|Error):")
 
 @dataclass(frozen=True)
 class ReferencesRefreshOutcome:
-    """Outcome of one targeted ``generate`` invocation (T017, WP04 auto-refresh
-    swallow fold-in, #5257).
+    """Outcome of one targeted ``generate`` invocation.
 
-    Replaces the bare ``bool`` :func:`refresh_references_if_needed` used to
-    return -- that shape could only say "was a targeted generate attempted",
-    never "did it actually succeed", which is exactly what let a genuine
-    ``generate`` failure at this call site be logged-and-swallowed into an
-    unconditional success report. This is an internal signature widening
-    confined to this module and its one in-repo caller
-    (``preflight.runner``) -- not a change to any documented/public contract.
+    Carries "did it succeed", not just "was it attempted", so a genuine
+    ``generate`` failure cannot be reported as success. Only three states
+    are reachable (enforced in ``__post_init__``): not attempted, succeeded,
+    or failed (optionally with a *detail*).
 
     Attributes:
         attempted: ``True`` iff *cause* named the references-parity layer
@@ -112,13 +108,9 @@ class ReferencesRefreshOutcome:
             (see :func:`_extract_failure_detail`) when ``attempted and not
             succeeded``; ``None`` otherwise.
 
-    A plain object is always truthy, so a caller that wrote ``if
-    refresh_references_if_needed(...):`` instead of checking ``.attempted``/
-    ``.succeeded`` explicitly would silently read a not-attempted (or even a
-    failed) outcome as success -- precisely the silent-success defect class
-    this fold-in exists to close. ``__bool__`` refuses that coercion outright
-    rather than relying on every present and future caller remembering to
-    check the named fields.
+    A plain object is always truthy, so ``if refresh_references_if_needed(...):``
+    would read a not-attempted or failed outcome as success; ``__bool__``
+    refuses that coercion so callers must check the named fields.
     """
 
     attempted: bool
@@ -255,11 +247,8 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> ReferencesRefre
     detail=None)``, no subprocess spawned) unless
     :func:`is_references_parity_cause` accepts *cause*. When it does, runs a
     targeted ``spec-kitty charter generate`` against *repo_root* and reports
-    the subprocess's actual outcome -- this is the T017 fix (WP04
-    auto-refresh swallow fold-in, #5257): the previous ``bool`` return only
-    ever reported ``True`` ("attempted"), discarding the subprocess's
-    ``CompletedProcess`` entirely and letting a genuine ``generate`` failure
-    sail through as an unqualified success.
+    the subprocess's actual outcome, so a genuine ``generate`` failure is
+    never reported as success.
 
     Never raises: an ``OSError``/``TimeoutExpired`` spawning the subprocess
     is reported as ``attempted=True, succeeded=False`` (the same failure

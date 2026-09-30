@@ -250,27 +250,13 @@ def _healable_references(project_path: Path, document: Any | None = None) -> lis
 
     if document is None:
         document = _load_charter_document(charter_path)
-    # PR-FRESH2-002 fix (#5257, HALT round-3 operator ruling): the same
-    # `collections.abc.Mapping` predicate the shared accessor
-    # (charter_yaml_io.catalog_field_from_document) now uses, replacing the
-    # permissive `hasattr(document, "get")` gate this function used to carry
-    # locally -- a mismatched pair of "is this document-like" checks on the
-    # same `document` value let a Mapping-like-but-not-`dict` document (e.g.
-    # `types.MappingProxyType`) pass this local gate while
-    # `catalog_field_from_document` below silently returned `None` for it.
+    # Same Mapping predicate as `catalog_field_from_document`, so the two
+    # "is this document-like" gates cannot disagree on a non-dict Mapping.
     catalog = document.get("catalog") if isinstance(document, Mapping) else None
     if not isinstance(catalog, Mapping):
         return []
 
-    # PR-FRESH-001 fix (#5257): read `catalog.mission` from the ALREADY-LOADED
-    # `document` via the shared, pure, in-memory accessor
-    # (charter.activation.charter_yaml_io.catalog_field_from_document) --
-    # never a second, independent disk read. The prior fold-in called
-    # `read_catalog_mission(project_path)` here, which re-opens and
-    # re-parses charter.yaml from disk with a DIFFERENT (fail-open) failure
-    # philosophy than this function's own fail-closed `_load_charter_document`
-    # load path; this now uses exactly one read, honouring a caller-supplied
-    # `document` instead of silently re-reading past it.
+    # Read the mission from the already-loaded document: no second disk read.
     mission = catalog_field_from_document(document, "mission")
     template_set = catalog.get("template_set")
     if not isinstance(template_set, str) or not template_set:
@@ -312,20 +298,12 @@ def describe_template_set_ambiguities(project_path: Path) -> list[str]:
         return []
 
     document = _load_charter_document(charter_path)
-    # PR-FRESH2-002 fix (#5257, HALT round-3 operator ruling): the same
-    # `collections.abc.Mapping` predicate the shared accessor
-    # (charter_yaml_io.catalog_field_from_document) now uses, replacing the
-    # permissive `hasattr(document, "get")` gate this function used to carry
-    # locally -- a mismatched pair of "is this document-like" checks on the
-    # same `document` value let a Mapping-like-but-not-`dict` document (e.g.
-    # `types.MappingProxyType`) pass this local gate while
-    # `catalog_field_from_document` below silently returned `None` for it.
+    # Same Mapping predicate as `catalog_field_from_document`, so the two
+    # "is this document-like" gates cannot disagree on a non-dict Mapping.
     catalog = document.get("catalog") if isinstance(document, Mapping) else None
     if not isinstance(catalog, Mapping):
         return []
-    # PR-FRESH-001 fix (#5257): read the mission from the document this
-    # function just loaded -- shared pure accessor, no second disk read --
-    # see the matching comment in `_healable_references` above.
+    # Read the mission from the document just loaded: no second disk read.
     suffix = _expected_mission_suffix(catalog_field_from_document(document, "mission"))
     if suffix is None:
         return []

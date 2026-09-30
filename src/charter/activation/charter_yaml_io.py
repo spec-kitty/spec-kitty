@@ -542,26 +542,18 @@ def catalog_field_from_document(document: Any, field: str) -> Any | None:
     Pure, in-memory extraction -- no disk I/O of any kind. This is the ONE
     canonical extraction rule (DIRECTIVE_044) behind both
     :func:`read_catalog_field` (which loads *document* from disk itself,
-    fail-open) and any caller that already holds a loaded document/mapping
-    (e.g. a migration that must not perform a second, independent disk read
-    -- PR-FRESH-001, #5257). The caller owns *document*'s own load path and
-    its failure semantics (fail-open or fail-closed); this function never
-    touches disk and never swallows an I/O error, so it cannot silently
-    change a fail-closed caller's failure behaviour into a fail-open one.
+    fail-open) and callers that already hold a loaded document (e.g. a
+    migration that must not read the file a second time). The caller owns
+    *document*'s load path and its failure semantics; this function never
+    touches disk, so it cannot turn a fail-closed caller fail-open.
 
     Returns ``None`` when *document* is not a mapping, its ``catalog``
     section is absent or not a mapping, or ``field`` itself is absent from
     that section.
 
-    Gates on ``collections.abc.Mapping`` (PR-FRESH2-002, #5257 HALT
-    round-3 operator ruling), not the narrower ``dict`` -- a prior fix
-    round's ``isinstance(document, dict)`` rejected any Mapping-like
-    document that is not literally a ``dict``/``CommentedMap`` (e.g. a
-    ``types.MappingProxyType``), even though such a document already
-    satisfies every real caller's own "document-like" gate elsewhere
-    (``hasattr(document, "get")``). Both ``dict`` and ruamel's
-    ``CommentedMap`` are themselves ``Mapping`` instances, so this widening
-    changes no existing caller's behaviour.
+    Gates on ``collections.abc.Mapping`` rather than ``dict`` so any
+    Mapping-like document (e.g. ``types.MappingProxyType``) is accepted;
+    ``dict`` and ruamel's ``CommentedMap`` are both Mappings.
     """
     catalog = document.get("catalog") if isinstance(document, Mapping) else None
     if not isinstance(catalog, Mapping):

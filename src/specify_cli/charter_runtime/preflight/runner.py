@@ -571,13 +571,10 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> ReferencesRefre
 
     Returns:
         A :class:`~specify_cli.charter_runtime.preflight.references_refresh.
-        ReferencesRefreshOutcome` (T017, WP04 auto-refresh swallow fold-in, #5257):
-        ``attempted`` iff *cause* named the references-parity layer;
-        ``succeeded``/``detail`` report the targeted ``generate``
-        subprocess's actual outcome — this widening is what lets
-        :func:`_attempt_auto_refresh` distinguish "nothing to re-stamp"
-        from "generate ran and failed" instead of collapsing both into a
-        bare ``True``.
+        ReferencesRefreshOutcome`: ``attempted`` iff *cause* named the
+        references-parity layer; ``succeeded``/``detail`` report the targeted
+        ``generate`` subprocess's actual outcome, so :func:`_attempt_auto_refresh`
+        can tell "nothing to re-stamp" from "generate ran and failed".
     """
     from .references_refresh import refresh_references_if_needed as _refresh_references
 
@@ -625,10 +622,9 @@ def _attempt_auto_refresh(
        cause. When it fires and succeeds, step 5 (below) re-runs
        ``synthesize`` once more to re-stamp the manifest against
        generate's rewritten ``charter.yaml`` — see that step's own comment
-       for why. When it fires and FAILS, we stop immediately (T018, WP04
-       auto-refresh swallow fold-in, #5257) — the manifest restamp is
-       skipped entirely rather than run over content ``generate`` failed
-       to actually reconcile.
+       for why. When it fires and FAILS, we stop immediately — the manifest
+       restamp is skipped rather than run over content ``generate`` failed
+       to reconcile.
 
     On any non-zero exit — including the targeted generate above — we
     stop, surface the failing command's first stderr line (or, for the
@@ -740,14 +736,9 @@ def _attempt_auto_refresh(
     refresh_outcome = refresh_references_if_needed(repo_root, cause=stale_cause)
 
     if refresh_outcome.attempted and not refresh_outcome.succeeded:
-        # T018 (WP04 auto-refresh swallow fold-in, #5257): a failed targeted
-        # `generate` must never be masked behind an unconditional manifest
-        # restamp — fail closed immediately, skipping the restamp entirely,
-        # exactly like every OTHER step in this sequence already does on
-        # its own failure (lines ~686-692, ~704-709 above return
-        # `blocked_reason=reason` with `auto_refresh_applied=True` the same
-        # way). Restamping over content `generate` failed to actually
-        # reconcile is precisely the masking mechanism being removed.
+        # A failed targeted `generate` must not be masked behind a manifest
+        # restamp: fail closed like every other step in this sequence, since
+        # restamping over unreconciled content would hide the failure.
         return CharterPreflightResult(
             passed=False,
             checks=initial_checks,
@@ -757,8 +748,7 @@ def _attempt_auto_refresh(
         )
 
     if refresh_outcome.attempted and refresh_outcome.succeeded:
-        # MAJOR-1 (WP06 rejection cycle 1): `generate` rewrites
-        # `charter.yaml`'s derived catalog but — unlike `synthesize` — never
+        # `generate` rewrites `charter.yaml`'s derived catalog but — unlike `synthesize` — never
         # re-stamps the synthesis manifest's `bundle_content_hash` itself.
         # Left alone, the freshness recompute below would then see
         # stored_hash (pre-generate) != current_hash (post-generate) and
