@@ -3,14 +3,17 @@
 The terminology guard's ``docs/reports/`` exemption (see
 ``docs/development/reference/terminology-exemptions.md``, Exempt Surface 5)
 is only safe while ``docs/docfx.json`` never turns those dated point-in-time
-snapshots into published, live documentation. Two guard tests assert this:
+snapshots into published, live documentation. Three guard tests assert this:
 
 - ``tests/contract/test_terminology_guards.py::
   test_docs_reports_exemption_is_not_published_as_live_docs``
 - ``tests/specify_cli/cli/test_decision_command_shape_consistency.py::
   test_docs_reports_exemption_is_not_published_as_live_docs``
+- ``tests/audit/test_no_legacy_agent_profiles_path.py::
+  test_docs_reports_exemption_is_not_published_as_live_docs``
 
-Both import :func:`docfx_publishes_reports` from here instead of carrying
+All of them reach :func:`docfx_publishes_reports` through
+:func:`assert_docfx_does_not_publish_reports` here instead of carrying
 their own copy, so there is exactly one glob-matching implementation to keep
 correct (previously each file re-implemented a much weaker, vacuous-prone
 check: a bare ``"reports" in pattern`` substring test that neither
@@ -196,7 +199,7 @@ def docfx_publishes_reports(config: dict[str, Any]) -> bool:
 def assert_docfx_does_not_publish_reports(docfx_config_path: Path) -> None:
     """Load ``docfx_config_path`` and fail loudly if it publishes docs/reports/.
 
-    Shared assertion body for the two guard tests listed in the module
+    Shared assertion body for the guard tests listed in the module
     docstring, so they stay identical by construction instead of by
     discipline.
     """
@@ -205,8 +208,9 @@ def assert_docfx_does_not_publish_reports(docfx_config_path: Path) -> None:
         "docs/docfx.json now publishes docs/reports/ as live docs (probe path "
         f"{PROBE_REPORT_PATH!r} matched a build.content entry's files globs "
         "and was not excluded). The docs/reports/ exemption in "
-        "tests/contract/test_terminology_guards.py and "
-        "tests/specify_cli/cli/test_decision_command_shape_consistency.py "
+        "tests/contract/test_terminology_guards.py, "
+        "tests/specify_cli/cli/test_decision_command_shape_consistency.py and "
+        "tests/audit/test_no_legacy_agent_profiles_path.py "
         "assumes reports/ snapshots are never published as live docs -- if "
         "that changed on purpose, the exemption must be removed/narrowed, "
         "not left in place."
