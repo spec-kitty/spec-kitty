@@ -396,6 +396,19 @@ def test_job_runs_under_honours_an_active_group() -> None:
     )
 
 
+def test_fork_guard_holds_on_the_core_repository() -> None:
+    """The fork guard is modelled for upstream ``main``: a push still runs the job."""
+    guard = (
+        "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request'"
+        " || github.event_name == 'workflow_dispatch') && needs.changes.outputs.cli == 'true'"
+    )
+    assert gc.job_runs_under(guard, event_name=gc.PUSH_EVENT, active_groups=frozenset({"cli"}))
+    assert not gc.job_runs_under(guard, event_name=gc.PUSH_EVENT, active_groups=frozenset())
+    assert not gc.job_runs_under(
+        "github.repository == 'someone/spec-kitty'", event_name=gc.PUSH_EVENT, active_groups=frozenset(),
+    )
+
+
 def test_label_guard_blocks_only_pull_requests() -> None:
     """``!contains(labels...)`` is vacuously true when there is no pull request."""
     guard = "!contains(github.event.pull_request.labels.*.name, 'pr:skip-ci')"

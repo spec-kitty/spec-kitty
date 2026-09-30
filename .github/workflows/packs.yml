@@ -59,6 +59,9 @@ concurrency:
 permissions:
   contents: read
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   # ---------------------------------------------------------------------------
   # changes: the single gate-selection authority for this workflow (Gate-1).
@@ -66,6 +69,7 @@ jobs:
   # `changes` job does, so `full` mode / a main push always selects both lanes.
   # ---------------------------------------------------------------------------
   changes:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     outputs:
       built_in: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.built_in }}
@@ -255,7 +259,7 @@ jobs:
       - built-in-plugin-validate
       - internal-org-validate
       - internal-packaging-safety
-    if: ${{ always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - name: Evaluate packs-gate decision
         shell: bash

@@ -33,6 +33,9 @@ concurrency:
   group: release-readiness-${{ github.ref }}
   cancel-in-progress: true
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   check-readiness:
     runs-on: ubuntu-24.04
@@ -43,7 +46,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -197,6 +200,7 @@ jobs:
     permissions:
       contents: read
     if: >-
+      (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') &&
       github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
       !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci')

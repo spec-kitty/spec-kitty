@@ -36,8 +36,12 @@ concurrency:
   # still skipped by the group, so only the newest waiting deploy runs.
   cancel-in-progress: false
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   pages:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     outputs:
       configured: ${{ steps.probe-pages.outputs.available }}

@@ -109,10 +109,13 @@ concurrency:
 permissions:
   contents: read
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   recapture-charter-shard-timings:
     # F4: never publish a topic branch's capture -- see the header comment.
-    if: github.ref == 'refs/heads/main'
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     # 18-minute measured local capture time (scripts/ci/capture_shard_timings.py
     # --module charter --write) x ~1.5 headroom, rounded up, mirroring
@@ -173,6 +176,7 @@ jobs:
   # runs pytest, so actions/checkout's default credential (this workflow's
   # own permissions: {contents: read}) is sufficient.
   strict-shard-timings-check:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     # A local strict run of this exact command (`SPEC_KITTY_STRICT_SHARD_
     # TIMINGS=1 pytest tests/architectural/test_module_length_agreement.py

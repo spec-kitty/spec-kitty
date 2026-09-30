@@ -24,8 +24,12 @@ concurrency:
   group: ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' && format('aggregate-{0}', github.event.workflow_run.id) || github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 
+# Fork guard: the fleet verdict (PR `[ci]` comments, main-red P0 issues) is
+# core-repo only; on a fork `identify` skips and so does everything after it.
+# Pinned by tests/ci/test_fork_guard.py.
 jobs:
   identify:
+    if: (github.repository == 'spec-kitty/spec-kitty')
     permissions:
       contents: read
       actions: read

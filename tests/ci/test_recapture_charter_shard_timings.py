@@ -960,4 +960,8 @@ def test_recapture_job_only_runs_on_main() -> None:
     """F4: a `workflow_dispatch` from a topic branch must never commit that branch's
     capture onto the fixed recapture branch (or open a PR from it) -- the job is gated
     to `refs/heads/main`."""
-    assert _recapture_job().get("if") == "github.ref == 'refs/heads/main'"
+    # The leading conjunct is the fork guard (tests/ci/test_fork_guard.py).
+    assert _recapture_job().get("if") == (
+        "${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request'"
+        " || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}"
+    )

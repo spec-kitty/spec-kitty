@@ -79,6 +79,9 @@ concurrency:
   group: ci-aggregate-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   # ---------------------------------------------------------------------------
   # collect: download the exact source attempt (plus non-PR diagnostic fallback),
@@ -92,9 +95,10 @@ jobs:
       actions: read
     runs-on: ubuntu-24.04
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') &&
+      (github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success' ||
-      github.event.workflow_run.conclusion == 'failure'
+      github.event.workflow_run.conclusion == 'failure')
     timeout-minutes: 15
     outputs:
       mode: ${{ steps.resolve-mode.outputs.mode }}
@@ -289,6 +293,7 @@ jobs:
     permissions:
       contents: read
     if: >-
+      (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') &&
       always() &&
       (needs.collect.outputs.mode == 'full' ||
         (needs.collect.result == 'success' &&
@@ -643,7 +648,7 @@ jobs:
   aggregate-gate:
     name: CI Aggregate gate
     needs: [collect, diff-cover]
-    if: ${{ always() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') && always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

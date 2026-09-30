@@ -328,6 +328,8 @@ _ALWAYS_ON_JOB_NAMES = (
     "archive-freeze",
 )
 
+_FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
+
 _CODE_SHARD_JOB_NAMES = ("tests-consolidation", "tests-status", "tests-cli")
 
 _BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
@@ -392,11 +394,13 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     assert jobs["tests-docs"]["needs"] == ["changes", "prose-scan"]
     assert _eval_gh_if(jobs["tests-docs"]["if"], context) is True
 
+    # Always-on lanes carry only the fork guard (tests/ci/test_fork_guard.py),
+    # which is a no-op on the core repository: no prose_only term.
     for always_on in _ALWAYS_ON_JOB_NAMES:
-        assert jobs[always_on].get("if") in (None, ""), f"{always_on} must stay unconditional, unaffected by prose_only"
+        assert jobs[always_on].get("if") == _FORK_GUARD, f"{always_on} must stay unconditional, unaffected by prose_only"
 
     assert "prose-scan" in jobs["router-gate"]["needs"]
-    assert jobs["router-gate"]["if"] == "${{ always() && !cancelled() }}"
+    assert jobs["router-gate"]["if"] == f"${{{{ {_FORK_GUARD} && always() && !cancelled() }}}}"
 
     # Explicitly untouched: tests-corpus, tests-e2e, and the `changes` job's
     # own outputs (no `prose_only` output was added under `changes` -- FR-007

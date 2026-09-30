@@ -74,6 +74,9 @@ concurrency:
 permissions:
   contents: read
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   # ---------------------------------------------------------------------------
   # generate-matrix: expand ci-module-registry.yml's modules[] rows into one
@@ -84,6 +87,7 @@ jobs:
   # gate-selection authority.
   # ---------------------------------------------------------------------------
   generate-matrix:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Generate module-shard matrix
     runs-on: ubuntu-24.04
     outputs:
@@ -360,7 +364,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [generate-matrix, test]
-    if: ${{ always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - name: Evaluate modules-gate decision
         shell: bash
@@ -405,7 +409,7 @@ jobs:
   summarize:
     name: shard outcome summary
     needs: test
-    if: always()
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     # Job-level too, not just on the step: this workflow's RUN conclusion is
     # itself consumed as a signal, so a summariser that failed (a checkout
     # blip, an API 5xx) would turn a green run red -- manufacturing exactly

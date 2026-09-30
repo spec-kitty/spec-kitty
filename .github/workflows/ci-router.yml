@@ -42,6 +42,9 @@ concurrency:
 permissions:
   contents: read
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   # ---------------------------------------------------------------------------
   # changes: the two-authority router's authority #1 (path -> group). The dorny
@@ -52,6 +55,7 @@ jobs:
   # post-merge safety net that replaces the old push-always-full-scope.
   # ---------------------------------------------------------------------------
   changes:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     outputs:
       consolidation: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.consolidation }}
@@ -282,6 +286,7 @@ jobs:
   # by this step's own IO.
   # ---------------------------------------------------------------------------
   prose-scan:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: prose-only PR scan
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -382,6 +387,7 @@ jobs:
   # Ordered cheapest-first in declaration order.
   # ===========================================================================
   ruff:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: ruff (lint + format)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -399,6 +405,7 @@ jobs:
           uv run --frozen ruff format --check .
 
   commit-msg:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: commit message lint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -409,6 +416,7 @@ jobs:
       - run: git log --format=%s origin/${{ github.base_ref || 'main' }}..HEAD || true
 
   markdownlint:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: markdownlint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -417,6 +425,7 @@ jobs:
       - run: npx --yes markdownlint-cli2 "**/*.md" || true
 
   uv-lock:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: uv lock --check
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -428,6 +437,7 @@ jobs:
       - run: uv lock --check
 
   import-linter:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: import boundaries (TID251)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -443,6 +453,7 @@ jobs:
           uv run --frozen ruff check --select TID251 .
 
   regen-check:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: regen --check
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -462,6 +473,7 @@ jobs:
   # still pays for them but pays for NO code shard and NOT the heavy battery.
   # ---------------------------------------------------------------------------
   terminology:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: terminology guard (fast, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -475,6 +487,7 @@ jobs:
           uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q
 
   layer-rules:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: layer rules / import direction (fast, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 8
@@ -497,6 +510,7 @@ jobs:
   # reads archived history. The heavy battery deselects this file (as it does
   # terminology/layer-rules) so it is not executed twice on a code PR.
   archive-freeze:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: archive freeze (fast, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -728,7 +742,7 @@ jobs:
       - tests-docs
       - tests-corpus
       - tests-e2e
-    if: ${{ always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Evaluate router-gate decision

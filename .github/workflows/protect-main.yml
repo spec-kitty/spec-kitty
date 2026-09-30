@@ -29,8 +29,12 @@ permissions:
   # Needed to resolve a pushed commit's PR association (rebase-merge detection).
   pull-requests: read
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   check-merge-compliance:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository

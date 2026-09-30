@@ -1634,6 +1634,9 @@ _GROUP_OUTPUT_RE = re.compile(
     r"^needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)\s*==\s*'true'$",
 )
 _EVENT_NAME_RE = re.compile(r"^github\.event_name\s*(==|!=)\s*'([A-Za-z_]+)'$")
+# The fork guard (tests/ci/test_fork_guard.py) names the core repository. This
+# model reasons about upstream ``main``, where that term always holds.
+_CORE_REPOSITORY_RE = re.compile(r"^github\.repository\s*==\s*'spec-kitty/spec-kitty'$")
 _EXPRESSION_WRAPPER_RE = re.compile(r"^\$\{\{(?P<inner>.*)\}\}$", re.DOTALL)
 
 _AND = "&&"
@@ -1706,6 +1709,8 @@ def _atom_runs_under(atom: str, *, event_name: str, active_groups: frozenset[str
     group_match = _GROUP_OUTPUT_RE.match(atom)
     if group_match:
         return group_match.group(1) in active_groups
+    if _CORE_REPOSITORY_RE.match(atom):
+        return True
     event_match = _EVENT_NAME_RE.match(atom)
     if event_match:
         operator, expected = event_match.groups()

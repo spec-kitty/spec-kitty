@@ -14,8 +14,12 @@ concurrency:
 permissions:
   contents: read
 
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   lint:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -32,6 +36,7 @@ jobs:
           uv run --frozen ruff format --check .
 
   build-wheel:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Build wheel
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -107,6 +112,7 @@ jobs:
           "
 
   uv-lock-check:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: uv lock --check
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -127,7 +133,7 @@ jobs:
       - build-wheel
       - clean-install-verification
       - uv-lock-check
-    if: ${{ always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - name: Evaluate quality-gate decision
         shell: bash
