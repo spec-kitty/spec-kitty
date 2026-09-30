@@ -517,27 +517,51 @@ def test_mark_wp_merged_done_re_records_done_for_a_wp_reopened_after_done(tmp_pa
 
 
 def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> None:
-    """Final done emit raising TransitionError is caught + warned."""
-    from specify_cli.status import TransitionError
+    """A rejected final done emit is reported as a warning and leaves the WP approved.
 
-    wp_file = tmp_path / "WP01.md"
+    Drives the real mission dir and event log; only the git-transactional write
+    (the boundary) is replaced, so it can reject the done move.
+    """
+    import json
+
+    from specify_cli.status import StatusEvent, TransitionError, get_wp_lane
+    from specify_cli.status.store import append_event
+
+    mission_slug = "080-test-feature"
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01TEST00000000000000000000", "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks" / "WP01-test.md").write_text(
+        '---\nwork_package_id: "WP01"\ntitle: "Test WP"\ndependencies: []\n---\n# WP01\n',
+        encoding="utf-8",
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="01TESTWP01APPROVED00000000",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-04-09T12:00:00+00:00",
+            actor="reviewer",
+            force=True,
+            execution_mode="direct_repo",
+        ),
+    )
+
     with (
-        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
-        patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "resolve_status_surface"),
-        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
-        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.APPROVED, "merge", None)),
-        patch.object(db, "_has_transition_to", return_value=False),
-        patch.object(
-            db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)
-        ),
-        patch.object(
-            db, "_emit_approved_replay_if_needed", return_value=(Lane.APPROVED, False)
-        ),
-        patch(_EMIT_TRANSACTIONAL, side_effect=TransitionError("rejected done jump")),
+        patch(_EMIT_TRANSACTIONAL, side_effect=TransitionError("rejected done jump")) as emit_mock,
+        db.console.capture() as captured,
     ):
-        # The TransitionError is swallowed with a warning; no exception escapes.
-        db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+        db._mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
+
+    assert emit_mock.call_args.args[0].to_lane == "done"
+    assert "Failed to mark WP01 done after merge: rejected done jump" in captured.get()
+    assert get_wp_lane(feature_dir, "WP01") == Lane.APPROVED.value
 
 
 def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> None:
