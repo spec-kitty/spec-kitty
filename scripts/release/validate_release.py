@@ -97,6 +97,56 @@ def parse_changelog_heading(line: str) -> ChangelogHeading | None:
     return ChangelogHeading(version=version, unreleased=unreleased)
 
 
+@dataclass(frozen=True)
+class UnreleasedSection:
+    """The body of a changelog's ``## [Unreleased]`` section.
+
+    ``start_line`` is the 1-based line of the heading in the source text. ``lines`` are the
+    body lines, excluding the heading and the release heading that terminates the section.
+    """
+
+    start_line: int
+    lines: tuple[str, ...]
+
+
+_FENCE_MARKERS: tuple[str, ...] = ("```", "~~~")
+
+
+def _fence_marker(line: str) -> str | None:
+    """Return the fence marker (triple backtick or triple tilde) *line* opens or closes, else None."""
+    stripped = line.lstrip()
+    return next((marker for marker in _FENCE_MARKERS if stripped.startswith(marker)), None)
+
+
+def unreleased_section(text: str) -> UnreleasedSection | None:
+    """Locate the ``## [Unreleased]`` section of a changelog.
+
+    Built on :func:`parse_changelog_heading`, so it accepts every heading shape the release
+    validator accepts (including ``##[Unreleased]`` without a space). A release-looking heading
+    inside a fenced block never ends the section; a fence closes only with the marker that opened it.
+    Returns ``None`` when the changelog has no Unreleased heading.
+    """
+    start_line: int | None = None
+    body: list[str] = []
+    open_fence: str | None = None
+    for number, line in enumerate(text.splitlines(), start=1):
+        marker = _fence_marker(line)
+        if marker is not None and open_fence in (None, marker):
+            open_fence = None if open_fence else marker
+        elif open_fence is None and line.startswith("##"):
+            heading = parse_changelog_heading(line)
+            if heading is not None and start_line is None and heading.unreleased:
+                start_line = number
+                continue
+            if heading is not None and start_line is not None:
+                break
+        if start_line is not None:
+            body.append(line)
+    if start_line is None:
+        return None
+    return UnreleasedSection(start_line=start_line, lines=tuple(body))
+
+
 @dataclass
 class ValidationIssue:
     message: str
