@@ -259,6 +259,9 @@ guard (`tests/architectural/test_module_shard_registry.py`,
 Adding or moving a `docs/**` page trips several documentation gates that draw
 from separate committed catalogs; fixing one leaves the others red.
 
+The prose of those pages is linted by a separate, always-on job: see
+[`docs-lint`](#docs-lint).
+
 ### A new docs page needs triple registration plus a description band
 
 - **Trips it:** a new `docs/**/*.md` page that is not registered everywhere.
@@ -272,8 +275,11 @@ from separate committed catalogs; fixing one leaves the others red.
   1. **Curated section index** — hand-add the page to its section's `index.md`
      (satisfies the index-completeness rule).
   2. **Page inventory** — regenerate `docs/development/page-inventory.yaml`
-     via `scripts/docs/inventory_lockfile.py`. Its `--write` guard refuses a path
-     under `docs/`, so write to a temp file and copy it over.
+     in place with `scripts/docs/inventory_lockfile.py --write <that path>` (run
+     with `PYTHONPATH=.`). The script does not refuse a
+     path under `docs/` (its `--help` text and module docstring still say it
+     never writes there; the code does not enforce that), so no temp-file copy
+     is needed.
   3. **Retrieval index** — regenerate
      `docs/development/docs-retrieval-index.yaml` via
      `scripts/docs/docs_index.py --write` (this one writes in place).
@@ -290,6 +296,56 @@ from separate committed catalogs; fixing one leaves the others red.
   regenerates the page inventory in one step; then run the retrieval-index
   regeneration. An ADR's frontmatter needs `date:`, `updated:`, and a 50–180
   character `description`.
+
+### `docs-lint`
+
+- **Trips it:** a typo or British spelling in docs prose, or a changelog
+  `[Unreleased]` entry that breaks the house style. Any PR can trip it, because
+  the job has no path filter.
+- **Job:** `docs-lint` in `.github/workflows/ci-router.yml` (display name "docs
+  lint (spelling + changelog style, always-on)"). It is listed in the
+  `router-gate` job's `needs`, so a red `docs-lint` blocks the merge. It is
+  **blocking**: neither command's exit code is masked.
+- **Why always-on:** its inputs span `docs/**`, `README.md`,
+  `packs/built-in/**/*.md`, `pyproject.toml` (the `[tool.codespell]` table and
+  the pinned `codespell`) and `uv.lock`. No single router path group covers all
+  of them, so a path filter would let some edits skip the check.
+- **What it runs:** `uv sync --frozen`, then
+  `python -m scripts.docs.check_spelling` (typo, US-spelling and Unreleased
+  passes) and `python -m scripts.docs.check_changelog_style`. It runs **no
+  pytest**. The planted-violation and live-tree tests for the two scripts
+  (`tests/docs/test_check_spelling.py`, `tests/docs/test_changelog_style.py`,
+  `tests/docs/test_docs_spelling_live.py`) run in the `tests-docs` job.
+- **Exit codes:** `0` clean; `1` findings; `2` the check could not run or could
+  not prove it looked at anything: a usage error, `codespell` missing, no
+  `[tool.codespell]` table in `pyproject.toml`, an unreadable changelog (both
+  scripts), a `typo` or `us` pass that scanned 0 files, or an `unreleased`
+  scratch file that a `[tool.codespell]` `skip` glob would drop. A changelog with
+  no `[Unreleased]` section is `0` (nothing to check). The changelog guard also
+  exits `0` on warnings alone.
+- **Scope:** Markdown only. `docs/archive/`, `docs/reports/`, `docs/plans/` and
+  the generated CLI reference (`docs/api/cli-commands.md`) are skipped through
+  the `[tool.codespell]` `skip` list, so a finding never comes from them. A
+  relative `--changelog` resolves against the repository root in both scripts
+  (against `--repo-root` for the spelling check), not the current directory.
+- **Symptom:** the job log lists one finding per line as
+  `path:line: [rule] ... — fix`, ending in a summary line. It is not one of the
+  docs-freshness or registration errors above. The guard's rules include
+  `bullet-marker` (a column-0 `* ` or `+ ` bullet) and banned-token checks on
+  prose between a `###`/`####` heading and its first bullet; the how-to lists
+  every rule and the false-positive shapes (`WP-D-1`, `SC-2086`,
+  `DEFAULT-branch`) to put in backticks.
+- **Fix / repro:** `make docs-lint` from the repository root reproduces the job
+  (it runs the same two commands). The how-to has the steps: [run the checks,
+  allow a word, exempt a quoted literal, and read a
+  failure](../how-to/review-gates.md#changelog-update-and-style). Never run bare
+  `codespell`, which scans the whole repository.
+- **Owning files:** `scripts/docs/check_spelling.py`,
+  `scripts/docs/check_changelog_style.py`, and the `[tool.codespell]` table
+  (`skip`, `ignore-words-list`) plus the exact `codespell==2.4.3` pin in
+  `pyproject.toml`. The pin is exact on purpose: a new `codespell` release
+  changes its dictionary, so bump it deliberately, together with the docs it
+  newly flags.
 
 ### Touching any docs path can surface a pre-existing docs-test flake
 

@@ -495,18 +495,22 @@ For larger releases with multiple changes:
      ```markdown
      ## [X.Y.Z] - YYYY-MM-DD
 
-     ### <emoji> <Category>
+     ### <Category>
 
-     **Short bold summary**:
-     - Bullet point details
+     - **Short bold headline** (#1234).
+       **Before:** what used to happen. **After:** what happens now.
      ```
-   - Categories used in this project (with emoji headings):
-     - `### ✨ Added` — New features
-     - `### 🔧 Improved` — Enhancements to existing features
-     - `### 🐛 Fixed` — Bug fixes
-     - `### 💥 Breaking` — Breaking changes
-     - `### 📝 Architecture` — ADRs, design decisions
-     - `### 🧹 Maintenance` — Refactoring, dependency updates
+   - Use only the category headings the changelog style guard enforces, each at
+     most once and in this order, with no emoji:
+     - `### Breaking` — Breaking changes
+     - `### Upgrade Notes` — Steps users take when upgrading
+     - `### Added` — New features
+     - `### Changed` — Changes to existing behavior
+     - `### Fixed` — Bug fixes
+     - `### Internal` — Refactoring, dependency updates, other maintainer-only changes
+   - The entry rules (bold headline, `**Before:**`/`**After:**`, banned tokens,
+     length) are in
+     [Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
    - Use ISO date format: `YYYY-MM-DD`
 
 4. **Create a pull request**
@@ -571,7 +575,7 @@ Before tagging a release, ensure:
 
 - [ ] You are on the `main` branch
 - [ ] Version number follows semantic versioning
-- [ ] CHANGELOG.md is updated with emoji category headings
+- [ ] CHANGELOG.md is updated under the enforced category headings (see [Changelog update and style](how-to/review-gates.md#changelog-update-and-style))
 - [ ] The release-candidate hygiene runs in the [Release Checklist](../../RELEASE_CHECKLIST.md) are recorded
 - [ ] Broad CI, release readiness, and shared-package drift checks are green
 

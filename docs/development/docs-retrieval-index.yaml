@@ -10747,6 +10747,13 @@ pages:
     - {slug: "pr-draft-and-wip-title-conventions", text: "PR draft and WIP-title conventions", level: 2}
     - {slug: "pr-body-style-consumer-focused-bluf", text: "PR body style: consumer-focused BLUF", level: 2}
     - {slug: "changelog-update-and-style", text: "Changelog update and style", level: 2}
+    - {slug: "run-the-docs-checks-locally", text: "Run the docs checks locally", level: 3}
+    - {slug: "what-gets-checked", text: "What gets checked", level: 3}
+    - {slug: "false-positives", text: "False positives", level: 3}
+    - {slug: "read-a-failure", text: "Read a failure", level: 3}
+    - {slug: "allow-a-legitimate-word", text: "Allow a legitimate word", level: 3}
+    - {slug: "exempt-a-quoted-literal", text: "Exempt a quoted literal", level: 3}
+    - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
     - {slug: "shippable-doctrine-built-in-doctrine-must-work-in-a-consumer-repo", text: "Shippable doctrine: built-in doctrine must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/index.md"
@@ -10788,6 +10795,7 @@ pages:
     - {slug: "router-path-filters-are-the-tail-of-a-guarded-ssot-chain", text: "Router path filters are the tail of a guarded SSOT chain", level: 3}
     - {slug: "docs-freshness-and-registration-gates", text: "Docs-freshness and registration gates", level: 2}
     - {slug: "a-new-docs-page-needs-triple-registration-plus-a-description-band", text: "A new docs page needs triple registration plus a description band", level: 3}
+    - {slug: "docs-lint", text: "`docs-lint`", level: 3}
     - {slug: "touching-any-docs-path-can-surface-a-pre-existing-docs-test-flake", text: "Touching any docs path can surface a pre-existing docs-test flake", level: 3}
     - {slug: "where-the-docs-site-deploys-from", text: "Where the docs site deploys from", level: 3}
     - {slug: "the-github-pages-docsite-build-needs-pythonpath", text: "The GitHub Pages docsite build needs `PYTHONPATH`", level: 3}
