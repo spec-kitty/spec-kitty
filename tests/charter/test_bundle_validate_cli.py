@@ -616,25 +616,36 @@ def test_validate_passes_legacy_bundle_without_synthesis_state(
 # ---------------------------------------------------------------------------
 
 
+# Unparseable: the YAML parser itself raises. ``":\n"`` would parse to
+# ``{None: None}`` and exercise only the schema check.
+_UNPARSEABLE_YAML = "key: [unclosed\n"
+# Parses, but is not a valid provenance entry.
+_SCHEMA_INVALID_YAML = ":\n"
+
+
+def _build_otherwise_clean_v2_bundle(repo_root: Path) -> Path:
+    """Complete v2 bundle (artifact + sidecar + manifest); return the sidecar path."""
+    content = "# isolated sidecar gate directive\n"
+    rel = "directives/007-isolated.directive.yaml"
+    _add_doctrine_artifact(repo_root, rel, content)
+    sidecar = _add_provenance_sidecar(repo_root, kind="directive", slug="isolated")
+    _add_synthesis_manifest(repo_root, rel, content=content, corrupt_hash=False)
+    return sidecar
+
+
 def test_validate_passes_complete_v2_bundle(compliant_repo: Path) -> None:
-    """FR-009 regression: a complete v2 bundle with synthesis state must still pass."""
-    artifact_content = "# complete directive\n"
-    _add_doctrine_artifact(
-        compliant_repo, "directives/005-complete.directive.yaml", artifact_content
-    )
-    # Sidecar: directive-complete.yaml (kind=directive, slug=complete).
-    _add_provenance_sidecar(compliant_repo, kind="directive", slug="complete")
-    _add_synthesis_manifest(
-        compliant_repo,
-        "directives/005-complete.directive.yaml",
-        content=artifact_content,
-        corrupt_hash=False,
-    )
+    """FR-009 regression: a complete v2 bundle with synthesis state must still pass.
+
+    Also the positive pair of the isolated provenance-sidecar guard below: the
+    same fixture, with a valid sidecar, is clean on every check.
+    """
+    _build_otherwise_clean_v2_bundle(compliant_repo)
 
     result = runner.invoke(charter_bundle.app, ["validate", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
     assert payload["passed"] is True
+    assert payload["bundle_compliant"] is True
     ss = payload["synthesis_state"]
     assert ss["present"] is True
     assert ss["passed"] is True
@@ -647,13 +658,42 @@ def test_validate_reports_provenance_yaml_parse_error(
 ) -> None:
     sidecar = compliant_repo / ".kittify" / "charter" / "provenance" / "broken.yaml"
     sidecar.parent.mkdir(parents=True, exist_ok=True)
-    sidecar.write_text(":\n", encoding="utf-8")
+    sidecar.write_text(_UNPARSEABLE_YAML, encoding="utf-8")
 
     result = runner.invoke(charter_bundle.app, ["validate", "--json"])
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
     assert any("broken.yaml" in error for error in payload["errors"])
+
+
+@pytest.mark.parametrize(
+    "broken_sidecar",
+    [_UNPARSEABLE_YAML, _SCHEMA_INVALID_YAML],
+    ids=["yaml-parse-error", "schema-invalid"],
+)
+def test_validate_fails_on_provenance_yaml_error_when_nothing_else_is_broken(
+    compliant_repo: Path, broken_sidecar: str
+) -> None:
+    """Isolated guard: the sidecar gate alone must turn the overall result red.
+
+    The positive pair is ``test_validate_passes_complete_v2_bundle``.
+    """
+    sidecar = _build_otherwise_clean_v2_bundle(compliant_repo)
+    sidecar.write_text(broken_sidecar, encoding="utf-8")
+
+    result = runner.invoke(charter_bundle.app, ["validate", "--json"])
+
+    payload = json.loads(result.stdout)
+    # Every other gate is clean, so only the sidecar gate can account for the failure.
+    assert payload["bundle_compliant"] is True
+    assert payload["synthesis_state"]["passed"] is True
+    assert any(
+        e.startswith("provenance:") and sidecar.name in e for e in payload["errors"]
+    ), payload["errors"]
+    assert payload["passed"] is False
+    assert payload["result"] == "failure"
+    assert result.exit_code == 1, result.output
 
 
 # ---------------------------------------------------------------------------
