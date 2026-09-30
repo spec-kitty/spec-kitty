@@ -1,13 +1,8 @@
 """Tests for FR-019 (safe_commit insertion) and FR-020 (done events in git history).
 
-The most important test is test_done_events_committed_to_git which uses
-git show HEAD: to prove the events are durably committed after _run_lane_based_consolidation
-returns (the canonical mechanically-correct assertion — NOT git reset --hard HEAD).
-
-Note on patching: consolidate_lane_into_mission/integrate_mission_into_target are imported locally inside
-_run_lane_based_consolidation, so they must be patched at the source module level
-(specify_cli.lanes.consolidation.*) not at specify_cli.cli.commands.consolidate.*.
-evaluate_merge_gates and load_policy_config are similarly patched at their source paths.
+``TestLanesConsolidateRecordsDoneForEveryWp`` runs a real LANES-topology
+``spec-kitty consolidate`` and reads ``status.events.jsonl`` / ``status.json`` back
+from the target branch with ``git show`` (never from the working tree).
 """
 
 from __future__ import annotations
@@ -16,19 +11,17 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import typer
 
-from specify_cli.cli.commands.consolidate import (
-    _record_baseline_merge_commit,
-    _run_lane_based_consolidation,
-)
+from specify_cli.cli.commands.consolidate import _record_baseline_merge_commit
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from tests.terminus.conftest import CoordMission, build_coord_mission, run_terminus, sha_reachable
 from tests._support.git_cli import git_out
+from tests.terminus.lanes_fixture import build_lanes_mission
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -53,45 +46,12 @@ def _init_git_repo(path: Path, branch: str = "main") -> None:
     )
 
 
-def _seed_mission_branch(repo_path: Path, mission_slug: str) -> None:
-    """Create the expected mission branch for tests that mock merge internals."""
-    if not (repo_path / ".git").exists():
-        _init_git_repo(repo_path)
-    subprocess.run(
-        ["git", "branch", f"kitty/mission-{mission_slug}"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
-
-
 def _write_wp_file(tasks_dir: Path, wp_id: str, *, review_status: str = "approved", reviewed_by: str = "reviewer-1") -> None:
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}-impl.md").write_text(
         f'---\nwork_package_id: "{wp_id}"\nreview_status: "{review_status}"\nreviewed_by: "{reviewed_by}"\n---\n# {wp_id}\n',
         encoding="utf-8",
     )
-
-
-def _seed_status_event(feature_dir: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
-    """Write a minimal status event JSON line to status.events.jsonl."""
-    event = {
-        "actor": "test",
-        "at": "2026-04-07T00:00:00+00:00",
-        "event_id": f"TEST{wp_id}000",
-        "evidence": None,
-        "execution_mode": "direct_repo",
-        "feature_slug": mission_slug,
-        "force": True,
-        "from_lane": "planned",
-        "reason": "test seed",
-        "review_ref": None,
-        "to_lane": to_lane,
-        "wp_id": wp_id,
-    }
-    jsonl_path = feature_dir / "status.events.jsonl"
-    with jsonl_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(event, sort_keys=True) + "\n")
 
 
 def _write_meta(feature_dir: Path, mission_slug: str, **overrides: object) -> None:
@@ -271,142 +231,42 @@ class TestRealMergeCommitsBookkeeping:
 
 
 # ---------------------------------------------------------------------------
-# FR-020 — done events committed to git (the canonical regression test)
+# FR-020 -- done events for EVERY WP land on the target (real LANES consolidate)
 # ---------------------------------------------------------------------------
 
 
-class TestDoneEventsCommittedToGit:
-    """FR-020: after _run_lane_based_consolidation, done events are in git history at HEAD.
+@pytest.mark.slow  # real `spec-kitty consolidate` subprocess on a real 2-lane LANES mission
+class TestLanesConsolidateRecordsDoneForEveryWp:
+    """FR-019/FR-020 on LANES topology: a real consolidate records ``done`` for each merged WP.
 
-    Uses git show HEAD: — the mechanically-correct assertion.
-    Does NOT use git reset --hard HEAD (that would be a no-op).
+    Replaces the 17-patch ``_run_lane_based_consolidation`` harness that stubbed the
+    lane merge, reconciliation, gates and state store. Nothing is stubbed here; the
+    target defaults to ``develop`` (a protected ``main`` target crashes, #5385).
     """
 
-    def test_done_events_committed_to_git(self, tmp_path: Path) -> None:
-        """FR-019/FR-020 regression: safe_commit must persist status.events.jsonl to git."""
-        mission_slug = "068-done-events-test"
-        wps = ["WP01", "WP02"]
+    def test_every_wp_has_done_event_and_snapshot_on_target(self, tmp_path: Path) -> None:
+        wps = ("WP01", "WP02")
+        mission = build_lanes_mission(tmp_path, wps=wps)
 
-        # Set up a real git repo
-        _init_git_repo(tmp_path)
+        result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
+        assert result.returncode == 0, f"the real LANES consolidate must succeed\nstdout={result.stdout}\nstderr={result.stderr}"
 
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _write_meta(feature_dir, mission_slug, mission_id=None)
-        tasks_dir = feature_dir / "tasks"
+        # Read from the target branch's git history, never from the working tree.
+        prefix = f"{mission.target_branch}:kitty-specs/{mission.slug}"
+        events = [json.loads(line) for line in git_out(mission.repo, "show", f"{prefix}/status.events.jsonl").splitlines() if line.strip()]
+        assert {e["wp_id"] for e in events if e.get("to_lane") == "done"} == set(wps)
 
-        for wp_id in wps:
-            _write_wp_file(tasks_dir, wp_id)
+        snapshot = json.loads(git_out(mission.repo, "show", f"{prefix}/status.json"))
+        assert {wp: snapshot["work_packages"][wp]["lane"] for wp in wps} == dict.fromkeys(wps, "done")
 
-        # Commit the initial feature directory to git (without status files)
-        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "initial feature"],
-            cwd=tmp_path,
-            check=True,
-            capture_output=True,
-        )
-        _seed_mission_branch(tmp_path, mission_slug)
 
-        # Seed event log entries (approved state for each WP, as they would be pre-merge)
-        for wp_id in wps:
-            _seed_status_event(feature_dir, mission_slug, wp_id, "approved")
+# ---------------------------------------------------------------------------
+# #5019 -- graceful exit on an unmaterialized coordination worktree
+# ---------------------------------------------------------------------------
 
-        # Materialize status.json
-        from specify_cli.status.reducer import materialize
 
-        materialize(feature_dir)
-
-        manifest = MagicMock()
-        # Lane naming is keyed on lanes_manifest.mission_slug; keep it
-        # aligned with the real slug.
-        manifest.mission_slug = mission_slug
-        manifest.target_branch = "main"
-        manifest.mission_branch = f"kitty/mission-{mission_slug}"
-
-        lane_a = MagicMock()
-        lane_a.lane_id = "lane-a"
-        lane_a.wp_ids = ["WP01"]
-
-        lane_b = MagicMock()
-        lane_b.lane_id = "lane-b"
-        lane_b.wp_ids = ["WP02"]
-
-        manifest.lanes = [lane_a, lane_b]
-
-        lane_result = MagicMock()
-        lane_result.success = True
-        lane_result.errors = []
-
-        mission_result = MagicMock()
-        mission_result.success = True
-        mission_result.commit = "deadbeef"
-        mission_result.errors = []
-
-        with (
-            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
-            patch("specify_cli.consolidation.resolve.load_state", return_value=None),
-            patch("specify_cli.consolidation.done_bookkeeping.save_state"),
-            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
-            # #5001: stub the reconciliation-claim phase — see comment on the
-            # same patch pair in test_safe_commit_is_called_with_correct_files
-            # above (reconciliation is covered by tests/terminus +
-            # tests/merge/test_reconciliation, not this focused unit test).
-            patch("specify_cli.consolidation.executor._capture_reconciliation_claim"),
-            patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
-            patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
-            patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch("specify_cli.consolidation.executor.run_command", return_value=(0, "abc123", "")),
-            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-            patch("specify_cli.consolidation.executor.clear_state"),
-            patch("specify_cli.consolidation.state.ConsolidationState"),
-            patch("specify_cli.status.emit._saas_fan_out"),
-        ):
-            stale_report = MagicMock()
-            stale_report.findings = []
-            mock_run_check.return_value = stale_report
-
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mock_gates.return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mock_policy.return_value = policy
-
-            # Run the full merge
-            _run_lane_based_consolidation(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
-
-        # FR-020: read status.events.jsonl from git history, NOT from the working tree
-        result = subprocess.run(
-            ["git", "show", f"HEAD:kitty-specs/{mission_slug}/status.events.jsonl"],
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
-        done_wps = {e["wp_id"] for e in events if e.get("to_lane") == "done"}
-
-        assert done_wps == set(wps), (
-            f"Expected done events for every merged WP in git history. "
-            f"Got {done_wps}, expected {set(wps)}. "
-            "This regression means the FR-019 safe_commit step was missed or failed."
-        )
-        # Explicitly: do NOT use git reset --hard HEAD here — that would be a no-op
-        # (the file is already at HEAD) and proves nothing about the commit having occurred.
+class TestUnmaterializedCoordWorktreeMerge:
+    """A coord merge whose worktree was never materialized exits gracefully, not with a traceback."""
 
     def test_lane_based_merge_exits_cleanly_on_unmaterialized_coord_worktree(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """#5019 landing-pass fold (Finding 1): a coord-topology merge whose
