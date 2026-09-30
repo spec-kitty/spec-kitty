@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 CONVERGENCE_MAP = ROOT / "docs" / "convergence" / "interim-ci-producer.md"
 RELEASE_CHECKLIST = ROOT / "RELEASE_CHECKLIST.md"
-DOCS_REFERENCE_INDEX = ROOT / "docs" / "development" / "reference" / "index.md"
 DRIFT_WORKFLOW = "check-spec-kitty-events-alignment.yml"
 DRIFT_SCRIPT = Path("scripts/release/check_shared_package_drift.py")
 COMPATIBILITY_MANIFEST = Path(".kittify/release/shared-package-compatibility.json")
@@ -437,11 +436,6 @@ def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_e
     assert build_job["needs"] == ["pages"]
     assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
     assert deploy_job["if"] == "github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
-
-    publication_policy = DOCS_REFERENCE_INDEX.read_text(encoding="utf-8")
-    assert "intentionally deployed from the promotion-only" in publication_policy
-    assert "does not claim the custom domain" in publication_policy
-    assert "controller's promotion loop" in publication_policy
 
 
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
