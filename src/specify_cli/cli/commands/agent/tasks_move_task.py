@@ -112,6 +112,7 @@ from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
     resolve_review_verdict_facts,
     revert_committed_verdict_write,
 )
+from specify_cli.cli.console import err_console
 from specify_cli.coordination.atomic_write import (
     enroll_subprocess_byproducts,
     restore_generated_artifact_snapshots,
@@ -3536,10 +3537,18 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         raise
     except Exception as e:
         if args.owned is not None and isinstance(e, ActionContextError):
+            # Unified owned-refusal output (#5445): human mode on stderr as
+            # ``Error: [<CODE>] <message>``, ``--json`` mode indented -- the
+            # same shape ``emit_owned_refusal`` renders. Not routed through
+            # ``emit_owned_refusal`` itself: this catch-all accepts ANY
+            # ``ActionContextError`` (including codes outside the registered
+            # owned-refusal vocabulary; see
+            # ``test_context_error_envelope_is_opt_in``), and
+            # ``emit_owned_refusal`` fails closed on an unregistered code.
             if args.json_output:
-                print(json.dumps({"error_code": e.code, "error": str(e)}))
+                print(json.dumps({"error_code": e.code, "error": str(e)}, indent=2))
             else:
-                _tasks.console.print(f"[red]{e.code}: {e}[/red]")
+                err_console.print(f"Error: [{e.code}] {e}")
             raise typer.Exit(1) from e
         if isinstance(e, _PostTransitionSideEffectFailure):
             diagnostic: dict[str, object] | None = _mt_post_transition_diagnostic(e)

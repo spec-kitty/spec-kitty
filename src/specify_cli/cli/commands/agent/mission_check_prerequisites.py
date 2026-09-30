@@ -30,7 +30,12 @@ from specify_cli.cli.console import console
 import typer
 
 from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode
-from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, flat_error_envelope, resolve_owned_or_refuse
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    emit_owned_refusal,
+    flat_error_envelope,
+    resolve_owned_or_refuse,
+)
 from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -703,11 +708,14 @@ def check_prerequisites(
     except typer.Exit:
         raise
     except ActionContextError as e:
-        if json_output:
-            _emit_json({"error": str(e), "error_code": e.code})
-        else:
-            console.print(f"[red]{e.code}:[/red] {e}")
-        raise typer.Exit(1) from None
+        # Unified owned-refusal output (#5445): route through the canonical
+        # ``emit_owned_refusal`` renderer with this command's own
+        # ``_refusal_envelope`` so human mode lands on stderr as
+        # ``Error: [<CODE>] <message>`` and ``--json`` mode is indented, matching
+        # the ``resolve_owned_or_refuse`` call above. The only code that reaches
+        # this generic handler today is ``OWNED_OPTION_UNSUPPORTED`` (raised by
+        # ``_refuse_resume_probe_with_owned``), which is registered.
+        emit_owned_refusal(e, json_output=json_output, envelope=_refusal_envelope)
     except Exception as e:
         if json_output:
             _emit_json({"error": str(e)})

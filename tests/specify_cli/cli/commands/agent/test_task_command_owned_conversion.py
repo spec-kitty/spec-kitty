@@ -368,11 +368,7 @@ class TestMarkStatusFailureEnvelope:
         assert payload["dirty"] is False
 
     @pytest.mark.parametrize("json_output", [True, False])
-    def test_report_owned_failure_exits_one_with_the_owned_state(
-        self, fact: OwnedCheckout, json_output: bool, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        printed: list[str] = []
-        monkeypatch.setattr(tasks.console, "print", lambda message, *a, **k: printed.append(str(message)))
+    def test_report_owned_failure_exits_one_with_the_owned_state(self, fact: OwnedCheckout, json_output: bool, capsys: pytest.CaptureFixture[str]) -> None:
         st: Any = SimpleNamespace(status_dir=Path(), applied_event_ids=["E1"], applied_wps=["WP01"], json_output=json_output)
         error = ActionContextError("TEST_CODE", "boom")
 
@@ -380,8 +376,9 @@ class TestMarkStatusFailureEnvelope:
             tasks_mark_status._ms_report_owned_failure(st, fact, error)
 
         assert excinfo.value.exit_code == 1
+        captured = capsys.readouterr()
         if json_output:
-            payload = json.loads(capsys.readouterr().out)
+            payload = json.loads(captured.out)
             assert payload["error_code"] == "TEST_CODE"
             assert payload["event_ids"] == ["E1"]
             assert payload["applied_wps"] == ["WP01"]
@@ -389,8 +386,13 @@ class TestMarkStatusFailureEnvelope:
             assert payload["status_events_path"] == str(fact.mission_dir / "status.events.jsonl")
             assert payload["status_snapshot_path"] is None
             assert payload["dirty"] is False
+            assert captured.err == ""
         else:
-            assert printed == ["[red]TEST_CODE: boom[/red]"]
+            # Unified owned-refusal output (#5445): human mode lands on
+            # stderr as ``Error: [<CODE>] <message>``, not the old
+            # ``[red]CODE: message[/red]`` on stdout.
+            assert captured.err.strip() == "Error: [TEST_CODE] boom"
+            assert captured.out == ""
 
     def test_report_owned_failure_defaults_the_error_code(self, fact: OwnedCheckout, capsys: pytest.CaptureFixture[str]) -> None:
         st: Any = SimpleNamespace(status_dir=fact.mission_dir, applied_event_ids=[], applied_wps=[], json_output=True)

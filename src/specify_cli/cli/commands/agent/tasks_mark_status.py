@@ -66,6 +66,7 @@ import typer
 
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
+from specify_cli.cli.console import err_console
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _resolve_checkbox,
     _resolve_pipe_table,
@@ -558,8 +559,6 @@ def _ms_failure_payload(
 
 def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: Exception) -> NoReturn:
     """Render the owned failure envelope (which events landed, dirty tree) and exit 1 (#3865)."""
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
     status_dir = st.status_dir if st.status_dir != Path() else owned.mission_dir
     events_path = status_dir / "status.events.jsonl"
     detected = _reconstruct_applied_events(owned, error, events_path)
@@ -584,10 +583,16 @@ def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: 
         status_snapshot_path=st.status_dir / "status.json" if st.status_dir != Path() else None,
         dirty=bool(git_status.stdout.strip()) if git_status.returncode == 0 else None,
     )
+    # Unified owned-refusal output (#5445): human mode on stderr as
+    # ``Error: [<CODE>] <message>``, ``--json`` mode indented -- the same shape
+    # ``emit_owned_refusal`` renders for the Typer-edge ownership refusal
+    # above. Every key of ``payload`` (event_ids, applied_wps, destination_ref,
+    # recovery detail) is preserved verbatim; only the stream, human format and
+    # indentation change.
     if st.json_output:
-        print(json.dumps(payload))
+        print(json.dumps(payload, indent=2))
     else:
-        _tasks.console.print(f"[red]{error_code}: {error}[/red]")
+        err_console.print(f"Error: [{error_code}] {error}")
     raise typer.Exit(1) from error
 
 
