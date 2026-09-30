@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -604,6 +604,33 @@ been fixed, the end-state is stated instead of the trap.
 - **Per-worktree venv rebuild.** The first `uv run` in a fresh landing
   worktree rebuilds the virtualenv (~40 s + disk). Budget for it; do not
   debug it.
+- **Do NOT recapture `charter` shard-timings during a landing (#5189).** When a
+  PR changes `tests/charter`'s test count, the committed `charter` durations in
+  `.github/ci-shard-timings.json` no longer match live collection, so
+  `test_charter_is_not_allowlisted_and_agrees` /
+  `test_non_allowlisted_modules_agree_with_live_collection`
+  (`tests/architectural/test_module_length_agreement.py`) drift. This is the one
+  count-pinning anchor the general "recapture a drifted count anchor" advice does
+  **not** apply to. Mission `per-pr-shard-timings-recapture-friction-01M3H7V8`
+  (#5189) deliberately removed per-PR charter recapture as landing work: per-PR
+  the drift is a non-blocking `ShardTimingsDriftWarning`, not a failure; the
+  strict exact-count gate lives only in `ci-charter-shard-recapture.yml`
+  (`schedule` + `workflow_dispatch`, no PR/push trigger → it cannot run on a PR
+  or block merge); and its `recapture-charter-shard-timings` job auto-opens the
+  fix PR on the next scheduled `main` run (~18-min in-process capture). So note
+  the drift as #5189-relieved and automation-owned in the hand-off and move on —
+  a local recapture is ~18–30 min of machine-specific measurement for a gate that
+  cannot block the PR and self-heals. Recapture still applies to *other*
+  non-allowlisted modules without dedicated automation (today only `agent`).
+- **A `docs(landing)` fold that edits a `kitty-specs/**` mission dossier reds
+  `archive freeze`.** Archived mission dossiers are frozen byte-identical
+  (`tests/architectural/test_archive_root_byte_identical.py`, the always-on
+  `archive freeze` job; this is the #4260 "rewriting archived dossiers unjudged"
+  class). If a squad flags that a *cited* archived contract now contradicts
+  shipped behavior, do **not** edit the frozen dossier — record the supersession
+  in the **live** code that cites it (the resolver docstring), which is the
+  correct place to overturn a frozen snapshot's stale claims. Reproduce the gate
+  locally before pushing any fold that touches `kitty-specs/**`.
 
 ## PR-body contract (PROGRAM.md §5)
 
