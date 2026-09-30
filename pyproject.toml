@@ -982,7 +982,6 @@ exclude = [
     "tests/audit/test_audit_serializer.py",
     "tests/audit/test_detectors.py",
     "tests/audit/test_identity_adapter.py",
-    "tests/audit/test_no_legacy_agent_profiles_path.py",
     "tests/audit/test_shape_registry_writer_parity.py",
     "tests/auth/concurrency/test_incident_regression.py",
     "tests/auth/concurrency/test_machine_refresh_lock.py",
