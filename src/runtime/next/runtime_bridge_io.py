@@ -893,9 +893,11 @@ def get_or_start_run(
             _adopt_verified_unbound_run(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
         existing = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
         if existing is not None:
-            winner = _run_ref_for_entry(existing, mission_slug=mission_slug, mission_id=resolved_mission_id, mission_type=mission_type, repo_root=repo_root)
+            # We lost a same-mission race. Remove our just-started orphan FIRST so
+            # it is cleaned even if resolving the winner raises (e.g. the winner's
+            # cursor is missing / out-of-repo), then reuse the winner's run.
             shutil.rmtree(run_ref.run_dir, ignore_errors=True)
-            return winner
+            return _run_ref_for_entry(existing, mission_slug=mission_slug, mission_id=resolved_mission_id, mission_type=mission_type, repo_root=repo_root)
         resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
         index[index_key] = {
             "run_id": run_ref.run_id,

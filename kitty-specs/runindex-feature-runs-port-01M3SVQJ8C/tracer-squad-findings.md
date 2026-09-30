@@ -42,3 +42,17 @@ findings folded into the design BEFORE implementation.
   tokenizes relative to that same root, so there is no NEW root mismatch. Guarded by an
   owned-mission OC-resolution test to prove no regression.
 - **N4:** file the audit follow-up issue (template_path/event-log/review-lock) BEFORE close.
+
+## Pre-PR review squad (aggregate diff) — verdict SHIP, no CRITICAL
+Folded:
+- **IMPORTANT-1** heal now preserves an in-tree absolute's subpath (via
+  `serialize_run_dir`) and only re-anchors OUT-of-tree absolutes by run id
+  (`_healed_token`) — a working in-place project is never relocated.
+- **NIT-2** Phase-3 orphan `rmtree` moved BEFORE resolving the winner, so the
+  orphan is cleaned even if winner resolution raises.
+- **NIT-3** doctor `_run_index_audit` annotated `repo_root: Path` (dropped the
+  `# type: ignore`); command fn renamed `run_index_command`.
+- **NIT-1** gate docstring softened to "duplication ratchet, not adversarial
+  obfuscation guard" (kept: concatenated-literal evasion is out of scope by design).
+Kept as-is: everything else (concurrency, containment, save_index, cross-OS heal
+idempotency, contract preservation) reviewed CORRECT.

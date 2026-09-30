@@ -50,9 +50,25 @@ def _run_id_basename(value: str) -> str:
     return PurePosixPath(value).name
 
 
-def _canonical_token(value: str) -> str:
-    """The portable repo-relative token for an absolute ``run_dir``."""
-    return (_RUNS_TOKEN_PREFIX / _run_id_basename(value)).as_posix()
+def _healed_token(value: str, project_path: Path) -> str:
+    """The portable token an absolute ``run_dir`` should heal to.
+
+    - An absolute path **inside** ``project_path`` (an in-place upgrade, possibly
+      at a non-canonical subpath) is relativized by the port, **preserving its
+      subpath** — never blindly re-anchored, so a currently-working project is not
+      relocated to a nonexistent directory (pre-PR review IMPORTANT-1).
+    - An absolute path **outside** ``project_path`` (a copied/moved index pointing
+      at the original folder, or a foreign/cross-OS path) is re-anchored to this
+      repo's canonical run store by run id — the run store location
+      (``.kittify/runtime/runs/<run_id>``) is fixed, so the copy/move carried the
+      run directory to exactly that path.
+    """
+    tokenized = run_index.serialize_run_dir(value, project_path)
+    if _is_absolute(tokenized):
+        # serialize_run_dir left an out-of-tree/foreign absolute unchanged (C2):
+        # re-anchor it to this repo's run store by run id.
+        return (_RUNS_TOKEN_PREFIX / _run_id_basename(value)).as_posix()
+    return tokenized
 
 
 def _load_index(project_path: Path) -> dict[str, Any]:
@@ -110,7 +126,7 @@ class HealRunIndexPathsMigration(BaseMigration):
             run_dir = entry.get("run_dir")
             if not (isinstance(run_dir, str) and run_dir and _is_absolute(run_dir)):
                 continue
-            new_value = _canonical_token(run_dir)
+            new_value = _healed_token(run_dir, project_path)
             changes.append(f"{FEATURE_RUNS_FILENAME}[{key}].run_dir: {run_dir} -> {new_value}")
             if not dry_run:
                 entry["run_dir"] = new_value

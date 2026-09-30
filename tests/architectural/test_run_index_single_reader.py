@@ -8,7 +8,9 @@ string constant in EXACTLY ONE module — ``src/runtime/next/run_index.py`` (the
 RunIndex port, sole reader/writer of the index). Every other module composes the
 name from :data:`run_index.FEATURE_RUNS_FILENAME`. This keeps the index's
 filename and open sites single-homed so a second, unlocked/absolute-path writer
-cannot silently reappear.
+is not *accidentally* duplicated into another module (the gate targets whole
+string literals; it is a duplication ratchet, not an adversarial obfuscation
+guard — a deliberately concatenated literal is out of its scope).
 
 Comments and docstrings are excluded (they legitimately name the file when
 explaining it); the gate scans code string constants only. The allowlist is

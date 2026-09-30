@@ -15,6 +15,7 @@ mutates state.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -30,7 +31,7 @@ __all__ = ["register"]
 _HEAL_HINT = "spec-kitty migrate  # rewrites absolute run_dir paths to portable tokens"
 
 
-def _run_index_audit(repo_root, *, json_output: bool) -> None:  # type: ignore[no-untyped-def]
+def _run_index_audit(repo_root: Path, *, json_output: bool) -> None:
     """Entry point for ``doctor run-index``.
 
     Advisory (matches ``doctor provenance``): exits 1 when an absolute ``run_dir``
@@ -64,7 +65,7 @@ def register(app: typer.Typer) -> None:
     """Register the ``run-index`` subcommand onto *app* (doctor.py auto-discovery seam)."""
 
     @app.command(name="run-index")
-    def run_index(
+    def run_index_command(
         json_output: Annotated[
             bool,
             typer.Option("--json", help="Machine-readable JSON output"),
