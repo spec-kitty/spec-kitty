@@ -107,6 +107,10 @@ nodes:
     kind: assets
     title: "Test-quality static triage scanner (ranks test files; runs no tests)"
     body_path: assets/test-quality-scan.py
+  - id: validate-pr-body
+    kind: assets
+    title: "PR-body contract validator (five sections, closes link, runnable commands, git-grep discovery check)"
+    body_path: assets/validate-pr-body.py
   - id: test-quality-triage
     kind: toolguides
     title: "Test-Quality Triage (static scan of the pytest corpus)"

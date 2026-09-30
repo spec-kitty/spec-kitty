@@ -651,9 +651,27 @@ that template. Exactly five sections, in order:
   re-derived from a fresh run of it).
 - `## Deferred` — anything intentionally left for follow-up.
 
-The fleet squad checks the body with a validator script (`validate-pr-body.py`) that lives
-in the fleet tooling, not in this repository; if you have that tooling, run it before
-opening. Otherwise, check the body against the template by hand. Note the description-length SEO gate
+The shape is defined by the template above; the internal validator
+`packs/internal/assets/validate-pr-body.py` (stdlib only; internal pack, never shipped to
+consumers) enforces it, and the fleet squad runs it. It checks the five sections in order,
+a `closes #<n>` line, a `Self-review:` block inside Tests run, runnable test commands, and
+`Discovery:` plus `Files:` in Blast radius, and it rejects a body that still carries the
+template's placeholders. Run it before opening, from a file or stdin:
+
+```
+python packs/internal/assets/validate-pr-body.py body.md
+gh pr view <n> --json body -q .body | python packs/internal/assets/validate-pr-body.py -
+```
+
+After the last rebase, prove the `Files:` list against a fresh run of the `Discovery:`
+`git grep` at the head you are landing (only a `git grep` command is ever executed):
+
+```
+python packs/internal/assets/validate-pr-body.py body.md --verify-discovery --expected-head <sha>
+```
+
+Exit 0 means valid; exit 1 prints one `section: problem` line per violation; exit 2 is a
+usage error. Note the description-length SEO gate
 (50–180 chars) is **CI-only** — run `scripts/docs/description_length_check.py` (or the
 docs SEO tests) as part of any docs blast radius.
 

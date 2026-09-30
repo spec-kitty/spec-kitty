@@ -55,7 +55,9 @@ packs/internal/
     ├── spec-kitty-branded-pdf.py                    # the Markdown -> branded-PDF generator
     ├── spec-kitty-branded-pdf.py.asset.yaml         # its asset sidecar
     ├── test-quality-scan.py                         # static test-quality triage (runs no tests)
-    └── test-quality-scan.py.asset.yaml              # its asset sidecar
+    ├── test-quality-scan.py.asset.yaml              # its asset sidecar
+    ├── validate-pr-body.py                          # PR-body contract validator (five sections, git-grep discovery check)
+    └── validate-pr-body.py.asset.yaml               # its asset sidecar
 ```
 
 Asset sidecar `path` values are relative to this `assets/` folder (org-tier

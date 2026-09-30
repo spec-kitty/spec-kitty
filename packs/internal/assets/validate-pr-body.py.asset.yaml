@@ -1,0 +1,4 @@
+id: validate-pr-body
+mime: text/x-python
+path: validate-pr-body.py
+title: PR-body contract validator (five sections, closes link, runnable test commands, git-grep discovery check)

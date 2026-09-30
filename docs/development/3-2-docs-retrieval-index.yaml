@@ -2752,6 +2752,8 @@ pages:
     - {slug: "extend-the-worktrees-literal-execution-context-guard", text: "Extend the `.worktrees`-literal execution-context guard", level: 3}
     - {slug: "infer-the-owned-root-from-ambient-project-discovery", text: "Infer the owned root from ambient project discovery", level: 3}
     - {slug: "adopt-scoped-shadow-workspaces-now", text: "Adopt scoped shadow workspaces now", level: 3}
+    - {slug: "amendments", text: "Amendments", level: 2}
+    - {slug: "2026-09-28-validator-routed-next-and-validated-flagless-adoption", text: "2026-09-28 — Validator-routed `next` and validated flagless adoption", level: 3}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md"
     title: "ADR: Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams — a New Genre Beside the Hand-Authored C4 Lane"
@@ -3030,6 +3032,8 @@ pages:
     - {slug: "extend-owned-checkout-to-coordinated-topologies-now", text: "Extend `--owned-checkout` to coordinated topologies now", level: 3}
     - {slug: "let-each-lifecycle-command-grow-its-own-ownership-check", text: "Let each lifecycle command grow its own ownership check", level: 3}
     - {slug: "degrade-to-the-repository-root-checkout-when-owned-validation-fails", text: "Degrade to the repository-root checkout when owned validation fails", level: 3}
+    - {slug: "amendments", text: "Amendments", level: 2}
+    - {slug: "2026-09-28-validated-ownership-fact-and-per-command-topology", text: "2026-09-28 — Validated ownership fact and per-command topology", level: 3}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md"
     title: "ADR: Convergence Retirement and Client-Repo Inversion"
@@ -6855,6 +6859,7 @@ pages:
     - {slug: "effector", text: "Effector", level: 3}
     - {slug: "communication-artefact", text: "communication artefact", level: 3}
     - {slug: "repository-root-checkout", text: "repository root checkout", level: 3}
+    - {slug: "owned-checkout", text: "owned checkout", level: 3}
     - {slug: "shadow-clone-isolated-dev-environment", text: "Shadow Clone (Isolated Dev Environment)", level: 3}
   - path: "docs/context/glossary-conventions.md"
     title: "Glossary Conventions"
