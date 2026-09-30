@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "mission_slug": "docs-lint-codespell-changelog-guard-01M3RFGJ",
+  "mission_id": "01M3RFGJRZZHQES13C2BMZM3HX",
+  "mission_branch": "kitty/mission-docs-lint-codespell-changelog-guard-01M3RFGJ",
+  "target_branch": "issue-5426-docs-lint",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "scripts/docs/check_changelog_style.py",
+        "scripts/release/validate_release.py",
+        "tests/docs/fixtures/changelog_unreleased_pre_rewrite.md",
+        "tests/docs/test_changelog_style.py",
+        "tests/docs/test_unreleased_section.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "scripts/docs/check_spelling.py",
+        "tests/docs/test_check_spelling.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-07-22-1-gate-binding-content-vs-relationship.md",
+        "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md",
+        "docs/context/**",
+        "docs/guides/**",
+        "src/specify_cli/.contextive/**",
+        "tests/docs/test_docs_spelling_live.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "Makefile",
+        "tests/architectural/_ci_integrity_oracle.py",
+        "tests/ci/test_ci_module_wiring.py",
+        "tests/ci/test_docs_lint_job.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/how-to/review-gates.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "tests/docs/test_docs_lint_guidance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-30T07:22:47.587210+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3a448321ea749499e33babdd116108e02ad7d480"
+}

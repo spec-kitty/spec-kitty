@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-30T06:23:38.521618Z",
+      "decision_id": "01M3RFQ90SJVVDQ7C4AV6W13FM",
+      "final_answer": "Rename to US + keep legacy anchor",
+      "input_key": "glossary_heading_spelling",
+      "mission_id": "01M3RFGJRZZHQES13C2BMZM3HX",
+      "mission_slug": "docs-lint-codespell-changelog-guard-01M3RFGJ",
+      "opened_by": "cli",
+      "options": [
+        "Rename to US + keep legacy anchor",
+        "Keep UK heading verbatim, inline ignore",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "UK-spelled glossary headings in docs/context (Organisation Tier, communication artefact, Trail Behaviour): rename to US spelling with a legacy anchor kept, or keep verbatim with an inline codespell:ignore?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T06:47:26.396054Z",
+      "resolved_by": null,
+      "slot_key": "specify.us-spelling.glossary-headings",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3RFGJRZZHQES13C2BMZM3HX",
+  "version": 1
+}

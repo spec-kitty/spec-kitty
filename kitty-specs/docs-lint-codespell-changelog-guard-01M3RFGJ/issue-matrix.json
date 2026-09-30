@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#1234": {
+      "evidence_ref": "Placeholder issue number in fix-message examples; not a real reference.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4990": {
+      "evidence_ref": "Appears only as an example cross-repo ref shape in the guard rule tests.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5100": {
+      "evidence_ref": "Cited only as the source for two Changed-entry Before sentences (WP01 T007); no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5420": {
+      "evidence_ref": "PR #5420: the changelog rewrite this mission is stacked on; context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5426": {
+      "evidence_ref": "WP01-WP05 approved: codespell (typo + scoped US) and the changelog Unreleased guard, blocking via the always-on docs-lint job; contributor docs in docs/development/.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}
