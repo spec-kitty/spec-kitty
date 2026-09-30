@@ -11,7 +11,7 @@ principles:
   - "SEO description is bounded. Frontmatter carries a description string of 50-180 characters (inclusive) consumed by the SEO post-processing step; descriptions outside that band are rejected."
   - "Cross-references use related: resolvable paths. Cross-references are a related: frontmatter list of repo-relative .md paths that each resolve to an existing file. The dead citation_refs sidecar field is not reintroduced."
   - "Audience is named via a resolvable audience: path. Every documentation page touched by a change declares its target reader through an audience: frontmatter field — one resolvable repo-relative .md path (or a list of paths) targeting a persona under docs/context/audience/. This is the machine-checkable form of DIRECTIVE_047's audience-oriented-writing rule. The field is required on touched pages only and is deliberately NOT added to frontmatter_required_fields, so untouched legacy pages are never red-lined for lacking it (C-012)."
-  - "ADRs live under adr/<era>/ with YAML frontmatter. Architecture Decision Records are filed under adr/1.x/, adr/2.x/, or adr/3.x/ by era of decision and carry YAML frontmatter so the docsite can index them. The living architectural design collapses into a single unversioned architecture/ location."
+  - "ADRs live under adr/<era>/ with YAML frontmatter. Architecture Decision Records are filed under adr/<era>/ (adr/1.x/ through adr/4.x/) by era of decision and carry YAML frontmatter so the docsite can index them. The living architectural design collapses into a single unversioned architecture/ location."
   - "Naming is kebab-case and section-scoped. Documentation file and directory names are lowercase kebab-case; ADR filenames keep their dated prefix; one concern per file."
   - "Curate by delete-stale. docs/ is not a wiki: one concern per file; DIRECTIVE_037 (Living Documentation Sync) owns the same-change documentation-update rule; stale or deprecated documents are distilled into a decision (adr/) or design (architecture/) and then retired rather than accumulating."
 
@@ -38,7 +38,7 @@ patterns:
       .md paths, validated at build time, rather than the dead citation_refs
       sidecar field.
     bad_example: |
-      # in docs/development/3-2-page-inventory.yaml
+      # in docs/development/page-inventory.yaml
       citation_refs: []   # populated in only 6 of 565 rows — effectively dead
     good_example: |
       ---
@@ -78,7 +78,7 @@ anti_patterns:
       docs/architecture/3x/...    # shadow duplicate of the same content
     good_example: |
       docs/architecture/...       # single living design, unversioned
-      docs/adr/3.x/...            # immutable era history only
+      docs/adr/<era>/...          # immutable era history only
   - name: Sidecar metadata SSOT
     description: >
       Treating a sidecar inventory as the metadata source of truth forces

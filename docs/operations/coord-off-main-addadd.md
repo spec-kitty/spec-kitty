@@ -6,7 +6,7 @@ updated: '2026-08-15'
 related:
 - docs/operations/recovery-index.md
 - docs/operations/start-branch-coord-divergence.md
-- docs/plans/engineering-notes/coord-splitbrain-rootcause.md
+- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
 ---
 
 # Recovery: Coordination Branch Created Off main (Add/Add Conflict)
@@ -28,7 +28,7 @@ fork from coord, so when `implement` merges the recorded
 both strands have independently added `kitty-specs/<mission>/` — an add/add
 conflict even when file *content* is identical. See [Coord-branch
 bookkeeping: read/write split-brain
-root-cause](../plans/engineering-notes/coord-splitbrain-rootcause.md) for why
+root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md) for why
 the write-placement seam allows this drift.
 
 ## No shipped `--fix` for this case
@@ -91,5 +91,5 @@ you would for a force-push.
 
 - [`--start-branch` coordination divergence](start-branch-coord-divergence.md) — the pr-bound sibling of this failure
 - [Coordination branch stranded after a base rebase](coord-branch-base-strand.md)
-- [Coord-branch bookkeeping root-cause](../plans/engineering-notes/coord-splitbrain-rootcause.md)
+- [Coord-branch bookkeeping root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md)
 - [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/index.md) — implementation-crash and merge recovery

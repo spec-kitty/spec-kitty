@@ -324,5 +324,5 @@ any event log entries keyed off the original ULID will become orphaned.
 - [Event Envelope Reference](../api/event-envelope.md) — how `mission_id` flows into the machine contract.
 - [Orchestrator API Reference](../api/orchestrator-api.md) — `--mission` selector semantics.
 - [Execution Lanes](../architecture/execution-lanes.md) — lane branch and worktree naming.
-- [Feature Detection architecture note](https://github.com/spec-kitty/spec-kitty/blob/main/docs/architecture/feature-detection.md) — historical context for the pre-083 selector.
+- [Feature Detection architecture note](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/feature-detection.md) — historical context for the pre-083 selector.
 - [Feature Flag Deprecation](feature-flag-deprecation.md) — the earlier `--feature` → `--mission` migration.

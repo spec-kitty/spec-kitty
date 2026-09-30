@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
-- docs/plans/doctrine/squad-reports/index.md
+- docs/archive/plans/doctrine/squad-reports/index.md
 - docs/plans/doctrine/index.md
 ---
 # FoundationalValues/creed program — delivery sequence
@@ -14,7 +14,7 @@ related:
 > **Tier: AUTHORITY** for sequencing. The design authority is
 > [`foundational-values-and-creed.md`](foundational-values-and-creed.md).
 
-> **Status (checked 2026-09-30).** Only Mission A (`doctrine-silence-guards-01KYFV7Q`) has
+> **Status (2026-09-30): resumed for 4.x, tracked by #5432 on 4.x Work.** Only Mission A (`doctrine-silence-guards-01KYFV7Q`) has
 > landed. Missions B1, B2, C and D never got past specify. Milestone references below are as
 > of 2026-07-26: the 3.2.x line has since closed (last release 3.2.7), #2934 closed on
 > 2026-07-26, and the 3.3.x milestone was retired on 2026-08-23 (#2538 is now in Product

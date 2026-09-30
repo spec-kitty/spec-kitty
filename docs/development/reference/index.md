@@ -17,6 +17,7 @@ kept honest.
 
 - [Known current friction points](known-friction-points.md) — the fast-drifting list of current repo/tooling gotchas an agent hits mid-mission.
 - [Coverage signals](coverage-signals.md) — reconciling the internal diff-coverage gate with SonarCloud coverage / new_coverage.
+- [Version taxonomy](version-taxonomy.md) — the five version-relevance tags every docs page carries, relative to the active release line.
 - [Quality & tech-debt standing orders](quality-and-tech-debt-standing-orders.md) — the eight standing practices for spec-driven missions.
 - [Read-side placement-seam classification ledger](read-side-seam-classification.md) — per-site verdicts for every production call site that bypasses `PlacementSeam.read_dir(kind)`.
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
@@ -28,7 +29,7 @@ kept honest.
 
 Kept as a record; not current reference.
 
-- [`tests/sync/` process-global and thread-seam inventory (#3115)](process-global-inventory-3115.md) — deprecated; maps the `tests/sync/` cone, which was deleted with the sync transport.
+- [`tests/sync/` process-global and thread-seam inventory (#3115)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/development/reference/process-global-inventory-3115.md) — deprecated; maps the `tests/sync/` cone, which was deleted with the sync transport.
 
 ## See also
 

@@ -7,10 +7,10 @@ audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
 - docs/development/testing/testing-flakiness.md
-- docs/plans/testing/test-suite-acceleration-plan.md
-- docs/plans/testing/ci-job-timings.md
-- docs/plans/testing/ci-coverage-union-audit.md
-- docs/plans/engineering-notes/testing-parallel-ci-topology-status.md
+- docs/archive/plans/testing/test-suite-acceleration-plan.md
+- docs/archive/plans/testing/ci-job-timings.md
+- docs/archive/plans/testing/ci-coverage-union-audit.md
+- docs/archive/plans/engineering-notes/testing-parallel-ci-topology-status.md
 ---
 # Running the test suite in parallel
 
@@ -231,7 +231,7 @@ ls -la ~/.spec-kitty 2>/dev/null
 Point-in-time mission-status snapshots (named mission IDs, CI-confirmation state, and
 per-job PENDING wall-clock records for the `ci-test-topology-performance-01KXBJRT`
 shard-topology re-flip) have moved to
-[`testing-parallel-ci-topology-status.md`](../../plans/engineering-notes/testing-parallel-ci-topology-status.md)
+[`testing-parallel-ci-topology-status.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/testing-parallel-ci-topology-status.md)
 in engineering notes — this how-to page stays focused on the durable local workflow above.
 
 ## Reproducing #3115 (the folded-uuid render-width defect)

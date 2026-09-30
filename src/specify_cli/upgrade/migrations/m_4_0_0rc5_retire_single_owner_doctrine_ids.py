@@ -68,7 +68,7 @@ found no reader anywhere in ``src/`` -- not the charter compiler
 (``charter.activation.compiler.compile_charter``), not
 ``charter.activation.context.build_charter_context``, nor any other
 runtime code path; it is write-once, orphaned residue (independently noted
-in ``docs/plans/doctrine/squad-reports/architect.md``: "five orphaned
+in ``docs/archive/plans/doctrine/squad-reports/architect.md``: "five orphaned
 residue files ... none has a src writer"). A module nothing reads cannot be
 broken by a stale node/edge id inside it, so a stale
 ``iterative-deepening-review``/``tracker-organisation-workflow`` node in a

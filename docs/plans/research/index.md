@@ -23,10 +23,10 @@ subject ships. The active cycle is 4.0.0 — see the
 
 ## Historical
 
-- [Event-sync retention & delivery — synthesis](2026-06-25-event-sync-retention-delivery-synthesis.md) —
+- [Event-sync retention & delivery — synthesis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/research/2026-06-25-event-sync-retention-delivery-synthesis.md) —
   **superseded**; the sync transport it analysed was removed. Hosted status now runs through
   Team Kitty over Zeitgeist (see [Team Kitty](../../context/team-kitty.md)).
-- [1.x — research (history slot)](README-1.x.md) and [2.x — research (history slot)](README-2.x.md) —
+- [1.x — research (history slot)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/research/README-1.x.md) and [2.x — research (history slot)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/research/README-2.x.md) —
   **retired**; empty per-era slots that never received content.
 
 ## See also

@@ -271,11 +271,11 @@ from separate committed catalogs; fixing one leaves the others red.
   band:
   1. **Curated section index** — hand-add the page to its section's `index.md`
      (satisfies the index-completeness rule).
-  2. **Page inventory** — regenerate `docs/development/3-2-page-inventory.yaml`
+  2. **Page inventory** — regenerate `docs/development/page-inventory.yaml`
      via `scripts/docs/inventory_lockfile.py`. Its `--write` guard refuses a path
      under `docs/`, so write to a temp file and copy it over.
   3. **Retrieval index** — regenerate
-     `docs/development/3-2-docs-retrieval-index.yaml` via
+     `docs/development/docs-retrieval-index.yaml` via
      `scripts/docs/docs_index.py --write` (this one writes in place).
   4. **Frontmatter `description`** — a hard **50–180 character** band, enforced by
      `scripts/docs/description_length_check.py` and the docs SEO tests. Both

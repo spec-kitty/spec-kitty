@@ -4,14 +4,14 @@ description: 'Technical concretization of the consolidated domain model for the 
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
 ---
 # 06 — Domains & Splits: Technical Concretization
 
 > **Rewritten (2026-06-03)** as the **technical/codebase concretization of the consolidated model
-> ([17](./17-consolidated-domain-model.md))**, grounded in the fan-out package findings
-> ([16](./16-codebase-reassessment-fanout.md) H6). The earlier "for discussion" sketch (C1–C6 context
+> ([17](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md))**, grounded in the fan-out package findings
+> ([16](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md) H6). The earlier "for discussion" sketch (C1–C6 context
 > catalogue, options A/B/C) is preserved in git history; its still-relevant parts (the owner-shape
 > options, the e2e ratchet, the #992 alignment) are folded in below.
 

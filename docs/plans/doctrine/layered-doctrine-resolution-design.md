@@ -16,7 +16,7 @@ Depends on: Phase 7 schema versioning (#469), landed in 3.2.x
 ## Problem
 
 *Written 2026-05-15. The org layer this blueprint proposes has since shipped (the three-layer
-built-in → org → project model; see the retired [#391 doctrine usage test](391-doctrine-usage-test.md)),
+built-in → org → project model; see the retired [#391 doctrine usage test](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/391-doctrine-usage-test.md)),
 so read this section as the problem as it stood then.*
 
 The spec-kitty doctrine resolution stack had two layers at the time: **shipped** (bundled with the

@@ -1,7 +1,7 @@
 """Frontmatter backfill tooling (FR-010 / NFR-004).
 
 Mission B inverts the page-metadata SSOT: in-file frontmatter becomes the
-authority and ``docs/development/3-2-page-inventory.yaml`` is a *generated*
+authority and ``docs/development/page-inventory.yaml`` is a *generated*
 rollup derived FROM it (directive 042, ADR ``2026-06-27-1`` decision D1). The
 live inventory snapshot carries **0** ``doc_status``, **0** ``description`` and
 **0** ``related`` values, so FR-010 is **derivation + authoring**, not a
@@ -70,7 +70,7 @@ __all__ = [
 ]
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
-DEFAULT_INVENTORY: Final[str] = "docs/development/3-2-page-inventory.yaml"
+DEFAULT_INVENTORY: Final[str] = "docs/development/page-inventory.yaml"
 
 # Frontmatter key names shared with ``scripts.docs.inventory_lockfile`` — the
 # divio axis lives under the existing ``type:`` key, not ``divio_type:``.

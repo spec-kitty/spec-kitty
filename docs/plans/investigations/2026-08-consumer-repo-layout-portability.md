@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/plans/3-2-x-open-core-delivery-plan.md
+- docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/index.md
 ---

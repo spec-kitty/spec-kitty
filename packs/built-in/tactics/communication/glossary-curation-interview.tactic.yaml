@@ -18,7 +18,7 @@ steps:
       (4) Communication — issue tracker descriptions, PR discussions, and design review notes.
       Record which sources are available and how to access them before proceeding to extraction.
     examples:
-      - "For a 430-commit diff: 8 new Python modules in src/specify_cli/dossier/, 3 mission specs in kitty-specs/, 2 new ADRs in docs/adr/3.x/."
+      - "For a 430-commit diff: 8 new Python modules in src/specify_cli/dossier/, 3 mission specs in kitty-specs/, 2 new ADRs in docs/adr/4.x/."
       - "Source inventory: dossier/ (8 modules), glossary/ (16 modules), charter/ (11 modules), next/ (3 modules), plus 6 untracked mission spec directories."
 
   - title: Extract candidate terms

@@ -5,8 +5,8 @@ doc_status: active
 updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
-- docs/architecture/ARCHITECTURE_DOCS_GUIDE.md
-- docs/architecture/NAVIGATION_GUIDE.md
+- docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md
+- docs/archive/architecture/NAVIGATION_GUIDE.md
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
@@ -127,5 +127,5 @@ rg -n "Status:|Decision Outcome|Technical Story" docs/adr/
 
 - Project terminology canon: [glossary conventions](../context/glossary-conventions.md)
 - [ADR index](../adr/index.md)
-- [`docs/architecture/ARCHITECTURE_DOCS_GUIDE.md`](ARCHITECTURE_DOCS_GUIDE.md)
-- [`docs/architecture/NAVIGATION_GUIDE.md`](NAVIGATION_GUIDE.md)
+- [`docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md)
+- [`docs/archive/architecture/NAVIGATION_GUIDE.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/NAVIGATION_GUIDE.md)

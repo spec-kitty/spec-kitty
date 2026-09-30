@@ -1,267 +1,166 @@
 ---
 title: 'Packs Extraction — Domain Plan'
-description: 'Durable domain plan for physically extracting the doctrine layer into the standalone spec-kitty-doctrine module: boundary, import-cycle break, strangler cutover, repo split.'
+description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics.'
 doc_status: durable
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
-- docs/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/domains/api-dashboard-domain-plan.md
 - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+- docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 ---
 
 # Packs Extraction — Domain Plan
 
-> **Status banner (2026-09-30): the premise below has changed. The plan text is kept as
-> written (2026-08-12) and has not been re-baselined.**
->
-> - **`src/doctrine/` no longer exists.** The doctrine package was absorbed into
->   `src/charter/offering/`, and the built-in packs now live at the repository root under
->   `packs/built-in/`. The enforced module chain is
->   `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`
->   (`tests/architectural/test_layer_rules.py`).
-> - **The standalone `spec-kitty-doctrine` wheel groundwork was deleted**, not kept dormant
->   (mission `charter-code-topology-01M152G1`; see the comment in `pyproject.toml`
->   `[tool.hatch.build.targets.wheel]`). So the "core artefact" in §1 — a buildable
->   `src/doctrine/pyproject.toml` — and the charter↔doctrine import-cycle break are moot in
->   their original form.
-> - **The epics are still open** (checked 2026-09-30): #3101 (split doctrine into its own
->   wheel), #3022 (extract built-in packs into `spec-kitty-open-packs`) and #2539 (verified
->   distribution, now on the **4.x Work** milestone; the 3.3.x milestone was retired on
->   2026-08-23 and never shipped).
-> - **Open decision:** restate this throughline as a re-extraction from
->   `src/charter/offering/` (and/or `packs/built-in/`), or retire it. Until then, read §1–§3
->   as history, not as a description of the current tree.
+**Audience:** maintainers deciding what to build next in the doctrine layer's
+packaging.
 
-**Audience:** the project maintainer — technical, time-pressed, wants signal over ritual.
+> **Restated 2026-09-30 (#5428).** The first version of this plan (2026-08-12) was
+> written against a `src/doctrine/` package that no longer exists. It described a buildable
+> `spec-kitty-doctrine` wheel and a charter↔doctrine import cycle. Both are gone:
+> the package was absorbed into `src/charter/offering/`, and the dormant wheel
+> groundwork was deleted. This version restates the extraction as a **re-extraction** from
+> today's tree. The earlier text is in git history. It is also linked from the
+> [archived 3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md).
 
-> **Status: durable domain plan (throughline).** Unlike the release-scoped
-> `docs/plans/` working notes that follow the distil-then-retire lifecycle, this
-> document is one of the **standing domain throughlines** meant to persist across
-> releases. It is the index and the "why" for the **physical extraction** of the
-> doctrine layer into a standalone module and, later, a standalone repo; the release
-> milestones and epics it references are the "what ships when." Where a release plan
-> and this plan disagree on *scope of the domain*, this plan is the canonical map;
-> where they disagree on *what ships in a given tag*, the milestone roadmap and the
-> owning epic win. Keep this plan factual and current; do not let it accrete
-> release-scoped tracking that belongs in an epic.
+This is a **standing domain throughline**. It holds the invariants the extraction must
+keep, whatever release ships each step. The epics and the milestone roadmap decide
+*what ships when*. Where the two disagree on what ships in a tag, the epic wins.
 
 ---
 
-## 1. Purpose & scope
+## 1. Scope
 
-**Purpose.** Give the **physical code extraction / modularization** of the doctrine
-layer a single durable home that states the *invariants* the split must hold, groups
-the domain's lasting sub-areas, and points at the epics, ADRs, and the open-core plan
-that carry the design and the tracking. Before this plan, the extraction lineage was
-carried implicitly inside the release-window [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)
-(its §2.2 item 3 and §2.3) and the wheel-assessment ADR (see §2). This plan makes the
-throughline explicit and becomes the domain's index. It is a sibling domain throughline
-to the [Doctrine & Charter Domain Plan](doctrine-charter-domain-plan.md) and (until its
-2026-09-06 retirement, Convergence #3881) the SaaS & Hosted Sync domain plan.
+**In scope: the physical split.** This plan covers moving doctrine code and doctrine
+content across a package, wheel or repository boundary:
 
-**In scope — the physical split.** "Packs extraction" here means the movement of code
-and packaged doctrine content across a module (and eventually a repo) boundary:
+- **Code.** The `charter.offering` subtree (or all of `src/charter/`) is released as its
+  own wheel (#3101).
+- **Content.** Built-in doctrine is authored in `spec-kitty-open-packs` and vendored into
+  `packs/built-in/` at release (#3504). A later step may fetch it at runtime (#3022).
+- **Distribution integrity.** Pinned, checksummed and verifiable pack distribution
+  (#2539, on 4.x Work).
 
-- **The standalone `spec-kitty-doctrine` module boundary** — `src/doctrine/pyproject.toml`
-  already declares a standalone `spec-kitty-doctrine` v1.0.0 distribution with kernel-only
-  dependencies, guarded by a layer test. Keeping that boundary buildable and importable
-  as its own unit is this domain's core artefact.
-- **The charter↔doctrine import-cycle break** — the one structural blocker to a clean
-  lift: the misfiled charter-reaching imports inside the doctrine package
-  (`agent_profiles/repository.py`) that make `spec-kitty-doctrine` non-standalone until
-  they are inverted or relocated.
-- **In-place strangler cutover** — the move → shim → repoint → delete rhythm on `main`
-  (never a long-lived divergent branch), so the P0 fix stream is never stalled by the
-  restructure.
-- **The `kernel → doctrine → charter` wheel split** and the **built-in pack physical
-  packaging** — how the built-in packs are packaged and distributed as a unit.
-- **Repo-split transparency** — the later move to a separate repository must be a
-  non-event for consumers *because they already consume across the module boundary*.
-
-**Explicit boundary / non-goal (FR-003).**
-
-> **This plan is the PHYSICAL code extraction / modularization lineage. It is NOT the
-> pack *authoring / governance* model.** The doctrine/charter *pack ecosystem* — pack
-> tiers (`built-in → org → project`), DRG merge semantics (`enhances` = field-merge,
-> `overrides` = full replacement, `specializes_from` lineage), owner-declared
-> `component-type` immutability, and the author-able first-class kinds (assets,
-> shortcodes, mission types) — is owned by the **[Doctrine & Charter Domain Plan
-> §3.2](doctrine-charter-domain-plan.md) ("Doctrine/charter extensibility & the pack
-> ecosystem")**. That section governs *how a customer authors and layers packs and what
-> a lower-tier pack may not silently mutate*; **this** plan governs *where the doctrine
-> code physically lives and how it is packaged and shipped as a module/repo*. They share
-> the word "packs" and the epics #2466 / #2216 (each of which has both a governance facet
-> and a physical-packaging facet), so the seam is explicit: **DRG merge / tier
-> immutability / `enhances`/`overrides` authoring semantics are §3.2's and are not
-> restated here; the module boundary, the import-cycle break, and the wheel/repo split
-> are this plan's and are not restated there.** When the two must be read together (a
-> packaging change that alters an authoring guarantee), cross-reference — do not
-> duplicate.
-
-**Why a durable domain plan and not a release plan.** The extraction is governed by
-standing invariants — the doctrine layer must remain buildable as its own unit with
-kernel-only dependencies; no charter→doctrine reach may re-introduce the import cycle;
-every cutover step ships behind a deprecation shim so a consumer's break is auto-migrated,
-not stranded; and a future repo split is transparent because the consumer already binds
-across the boundary. Those invariants outlive any one tag. Release plans churn as
-milestones close; the invariants do not.
+**Out of scope: authoring and governance.** Pack tiers (`built-in → org → project`),
+DRG merge semantics (`enhances`, `overrides`, `specializes_from`) and `component-type`
+immutability belong to the
+[Doctrine & Charter Domain Plan §3.2](doctrine-charter-domain-plan.md). That plan owns
+*how packs are authored and layered*. This plan owns *where the code and content live and
+how they ship*. When a packaging change alters an authoring guarantee, link the two plans
+rather than restating either one.
 
 ---
 
-## 2. Where extraction planning lives today (honest inventory)
+## 2. Where things stand (checked 2026-09-30)
 
-There has been **no standalone extraction throughline** before this document. The
-lineage was distributed across three surfaces:
-
-1. **[3.2.x Open-Core Delivery Plan §2.2–2.3](../3-2-x-open-core-delivery-plan.md)** — the
-   release-window home. §2.2 item 3 ("built-in artefacts extracted from `src/` into a
-   root-level module") records the verified state: *~90% done structurally —
-   `src/doctrine/pyproject.toml` already declares a standalone `spec-kitty-doctrine`
-   v1.0.0 with kernel-only deps, guarded by a layer test; the one blocker is a
-   charter↔doctrine import cycle (two misfiled function-local imports in
-   `agent_profiles/repository.py`); resolve it and the lift mirrors the
-   runtime/events/tracker cutover already done.* §2.3 mandates the **in-place strangler**
-   discipline (move → shim → repoint → delete on `main`, never a long-lived branch) and
-   the "engineered, not scheduled" auto-migrate + deprecation-shim posture. This is a
-   release-window framing, not a durable domain map.
-2. **ADR [2026-08-02-1 charter-wheel-assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md)**
-   — the `kernel → doctrine → charter` wheel split design of record (#3101).
-3. **The epics themselves** — #3101 (wheel split), #3091 / #3022 (built-in pack
-   extraction), and the physical-packaging facet of #2466 / #2216 / #2539. These are
-   issue-tracker groupings with scope bullets, **not written plans.**
-
-**This plan now becomes the domain's index.** It does not replace the open-core plan or
-the wheel ADR — it ties them together under one set of extraction invariants and
-surfaces the gaps they leave open (§4). The [Doctrine & Charter Domain Plan §1](doctrine-charter-domain-plan.md)
-already names this plan as the owner of the wheel/packaging cutover (#3101, #3091/#3022)
-and cross-references here rather than owning it — this plan is the other half of that seam.
+| Fact | Evidence |
+| --- | --- |
+| Doctrine code lives in `src/charter/offering/`. `src/doctrine.py` is only a deprecation shim. | `pyproject.toml` `[tool.hatch.build.targets.wheel]` |
+| `charter.offering` imports nothing outside itself and `kernel`, so the import cycle the first plan called "the blocker" no longer exists. | `grep` of `src/charter/offering/**/*.py` imports |
+| The enforced module chain is `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`. | `tests/architectural/test_layer_rules.py` |
+| The public import surface is curated in `src/charter/offering/api.py`. That was #3179, the wheel's own precondition. | `tests/architectural/test_doctrine_public_surface.py` |
+| The dormant `spec-kitty-doctrine` wheel groundwork was **deleted**, not kept. No doctrine wheel has ever been built or shipped. | mission `charter-code-topology-01M152G1`; comment in `pyproject.toml` |
+| Built-in content lives at the repository root in `packs/built-in/`. The CLI wheel force-includes it. | `pyproject.toml` `force-include`; `tests/cross_cutting/packaging/test_packaging_safety.py` |
+| In-house doctrine lives in `packs/internal/` and never ships. | ADR `2026-08-16-3` |
+| The mission data move to `packs/built-in/missions` has landed. | #3091, closed by PR #3204 |
 
 ---
 
-## 3. Standing concerns — the durable spine
+## 3. Standing concerns
 
-The domain divides into three lasting sub-areas. Each states the **invariant** it must
-hold (the durable "why"), then lists the **currently open work** grouped beneath it (the
-release-scoped "what," which turns over across versions).
+Each sub-area states its **invariant** (the durable "why") and its **open work** (the
+part that turns over).
 
-### 3.1 The module boundary & the import-cycle break
+### 3.1 The code boundary (#3101)
 
-**Invariant.** `spec-kitty-doctrine` builds and imports as a standalone distribution with
-**kernel-only dependencies** — no doctrine module reaches "up" into charter. The layer
-test that guards `src/doctrine/pyproject.toml` stays green; the charter↔doctrine import
-cycle stays broken (dependency inversion, not a function-local import papering over it).
+**Invariant.** `charter.offering` depends only on `kernel`. Callers outside it import
+through `charter.offering.api`. The layer rules and the public-surface test stay the
+mechanical guard; a function-local import never papers over an upward reach.
 
-**Design of record.** Open-core plan §2.2 item 3 (the verified ~90%-done structural state
-and the named import-cycle blocker in `agent_profiles/repository.py`); the module's own
-`src/doctrine/pyproject.toml` (`spec-kitty-doctrine` v1.0.0, kernel-only deps).
+**Open work.** #3101 is a design spike on Product backlog. It must decide:
 
-**Open work.** Resolve the charter↔doctrine import cycle so the lift can complete; keep
-the layer-boundary test as the standing regression guard.
+- whether the wheel is `charter.offering` alone or all of `src/charter/`;
+- whether `kernel` ships as its own wheel first (`src/kernel/pyproject.toml` is dormant
+  metadata for that, per ADR `2026-08-02-1`);
+- whether the new wheel starts version-locked to the CLI, as `spec-kitty-events` and
+  `spec-kitty-tracker` did (ADR `2026-04-25-1`).
 
-### 3.2 In-place strangler cutover
+### 3.2 Content provenance (#3504, then #3022)
 
-**Invariant.** The boundary is drawn **in place on `main`** via small strangler steps
-(move → shim → repoint → delete), never a long-lived branch that diverges from the P0
-stream. Every consumer-visible break rides the migration rail (`spec-kitty migrate …`)
-and lands behind a deprecation shim that names its replacement and removal version, so a
-break is *auto-migrated and shimmed*, not stranded.
+**Invariant.** A consumer's install does not change when content provenance moves.
+Built-in doctrine is always present in the wheel, byte-identical to a pinned source.
+The filesystem resolver `resolve_pack_root("built-in")` stays as it is.
 
-**Design of record.** Open-core plan §2.3 (dual-track, no hard freeze) and §2.4 (the
-"minimal-hurt" machinery: migration rail, deprecation shims, versioned contract, batched
-consumer-visible breaks). Mission `doctrine-built-in-seam-consolidation` (2026-08-02) is
-the landed precedent — one fail-closed built-in doctrine location seam with the
-`packs/built-in` relocation complete.
+**Design of record.** ADR `2026-08-16-2` (Accepted) chose Option B: author the content
+in `spec-kitty-open-packs`, and have a release step vendor a pinned, checksummed ref into
+`packs/built-in/` before `hatch build`.
 
-**Open work.** Continue the strangler steps for the residual doors the open-core plan §3
-row 2 enumerates as sequenced under #3176 / #3091 / #3022 / #3101 (e.g.
-`runtime/resolver.py`'s tier reimplementation, `runtime/home.py`'s importlib-resources
-root path, and the missions-root duplicates), each as a move → shim → repoint → delete.
+**Open work.**
+- #3504 builds the re-vendor pipeline and a local `materialize` path for contributors.
+- #3022 is the deferred Option C: fetching built-in content at runtime like an org pack.
+  It raises hard questions: `PackContext.pack_roots` assumes the built-in root is at
+  index 0, and a missing pack would become a failure mode for every consumer's baseline
+  governance. Option C waits on #3504 and on the manifest and checksum work.
 
-### 3.3 Wheel/repo-split packaging & transparency
+### 3.3 Strangler discipline
 
-**Invariant.** The built-in packs are packaged and distributed as a coherent unit along
-the `kernel → doctrine → charter` layering, and the eventual move to a **separate repo is
-transparent** for consumers — it changes the distribution's provenance, not the surface
-they bind to, because they already consume across the module boundary.
+**Invariant.** Every step lands in place on `main` as move → shim → repoint → delete.
+There is no long-lived divergent branch. A consumer-visible break rides the migration
+rail (`spec-kitty upgrade`) behind a deprecation shim that names its replacement and
+removal version. `src/doctrine.py` is the live example.
 
-**Design of record.** ADR [2026-08-02-1 charter-wheel-assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md)
-(#3101 wheel split); epics #3091 / #3022 (built-in pack extraction) and the
-physical-packaging facet of #2466 / #2216, with **#2539 (verified distribution)**
-deferred (then to 3.3.x, a milestone since retired; now on 4.x Work) as the
-distribution-integrity half of the split.
+### 3.4 Distribution integrity (#2539)
 
-**Open work.** Land the wheel split (#3101), complete the built-in pack extraction
-(#3091/#3022), and carry #2539 verified-distribution into the 4.x line so the repo split, when
-it lands, ships with provenance guarantees rather than a bare code move.
+**Invariant.** Once content or code ships from a second source, the consumer can verify
+what they received: pinned refs, content hashes, and later a graduated trust signal
+(built-in / org / third-party / verified).
+
+**Open work.** #2539 (owner: Robert) is on **4.x Work**, not in 4.0.0 scope. One of its
+eight sub-issues is done.
 
 ---
 
 ## 4. Known gaps
 
-1. **The import-cycle break is the single load-bearing blocker.** Until the
-   charter-reaching imports in `agent_profiles/repository.py` are inverted, the
-   standalone-module invariant (§3.1) is structurally reachable but not *proven* by a
-   clean standalone build; everything downstream (wheel split, repo split) waits behind
-   it. This is the one genuinely blocking item, not a scheduling nicety.
-2. **Physical-packaging vs authoring-governance epic overlap is unreconciled in the
-   tracker.** #2466 and #2216 carry both a §3.2-authoring facet and a §3.3-packaging
-   facet under the same epic; without a facet split in the tracker, a PO reading the epic
-   cannot tell which slice is this plan's and which is the doctrine-charter plan's. The
-   boundary statement in §1 is the reconciling map; the tracker should mirror it.
-3. **Repo-split transparency has no acceptance check yet.** The "transparent for
-   consumers" invariant (§3.3) is asserted but not gated — there is no test that a
-   consumer pinned to the module surface survives the repo move untouched. #2539
-   verified-distribution is the nearest home for such a check.
+1. **No acceptance check for "transparent to consumers".** Nothing tests yet that a
+   consumer pinned to `charter.offering.api` survives the wheel split, or that a vendored
+   `packs/built-in/` is byte-identical to the pinned open-packs ref. #3504's confirmation
+   criterion and #2539 are the natural homes for those checks.
+2. **Epic facets are mixed in the tracker.** #2466 carries both authoring work (§3.2 of
+   the doctrine-charter plan) and packaging work (this plan) as sub-issues. The scope
+   split in §1 of this plan is the reconciling map until the tracker mirrors it.
+3. **Nothing here is 4.0.0 scope.** None of #3101, #3504, #3022 or #2539 is on milestone
+   11. Treat this plan as post-4.0.0 direction, not a GA dependency.
 
 ---
 
-## 5. Release-scoped view (the "what ships when")
+## 5. Epics at a glance
 
-This plan tracks the **why** (extraction invariants and sub-areas); the epics track the
-**what-ships-when**. The table below is a snapshot for orientation, not a schedule. It
-will turn over as milestones close. Verify live state via
+A snapshot for orientation. Check live state with
 `gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
-| Work | Sub-area (§3) | Owning epic | State |
-|---|---|---|---|
-| Built-in doctrine location seam / `packs/built-in` relocation | Strangler cutover (3.2) | — (mission `doctrine-built-in-seam-consolidation`) | **LANDED** (2026-08-02) |
-| Charter↔doctrine import-cycle break | Module boundary (3.1) | #3091 / #3022 | Open — the blocker (§4.1) |
-| Wheel split (`kernel → doctrine → charter`) | Wheel/repo split (3.3) | #3101 | Design of record (ADR 2026-08-02-1) |
-| Built-in pack extraction | Wheel/repo split (3.3) | #3091 / #3022 | Sequenced |
-| Verified distribution | Wheel/repo split (3.3) | #2539 | Deferred to 4.x Work (3.3.x retired) |
+| Work | Sub-area | Epic | State (2026-09-30) |
+| --- | --- | --- | --- |
+| Mission data into `packs/built-in/missions` | 3.3 | #3091 | **Landed** (PR #3204) |
+| Curated public surface `charter.offering.api` | 3.1 | #3179 | Largely landed |
+| Doctrine/charter wheel split | 3.1 | #3101 | Open, design spike, Product backlog |
+| Re-vendor open-packs into `packs/built-in/` | 3.2 | #3504 | Open, Product backlog |
+| Runtime-fetched built-in pack (Option C) | 3.2 | #3022 | Open, deferred, Product backlog |
+| Verified distribution | 3.4 | #2539 | Open, 4.x Work |
 
-*Read the WHY in §3; the epic tracks the WHAT-ships-when.*
+All six sit under the parent epic #2466.
 
 ---
 
 ## 6. Cross-references
 
-**Sibling domain throughlines (the durable spine of `docs/plans/`):**
-
-- **Doctrine & charter** — [Doctrine & Charter Domain Plan](doctrine-charter-domain-plan.md).
-  Its **§3.2 (Doctrine/charter extensibility & the pack ecosystem)** is the **non-goal
-  boundary** for this plan (§1): §3.2 owns the pack *authoring/governance* model (tiers,
-  DRG merge, `enhances`/`overrides`, `component-type` immutability); this plan owns the
-  *physical* module/repo split. *(At this plan's commit the doctrine-charter plan still
-  lives at `docs/plans/doctrine-charter-domain-plan.md`; the domains/ migration WP moves
-  it and repoints these links.)*
-- **API & dashboard** — [API & Dashboard Domain Plan](api-dashboard-domain-plan.md), the
-  application/mission-data API + dashboard throughline.
-- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881; surface re-homed upstream).
-
-**Release & design of record:**
-
-- [3.2.x Open-Core Delivery Plan §2.2–2.3](../3-2-x-open-core-delivery-plan.md) — the
-  release-window extraction framing and the strangler/minimal-hurt discipline.
-- ADR [2026-08-02-1 charter-wheel-assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md) — the `kernel → doctrine → charter` wheel split (#3101).
-- ADR [2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md) — referenced for the §3.2 authoring seam this plan non-goals against (the merge semantics live there, not here).
-
-**Epics:** #3101 (wheel split), #3091 / #3022 (built-in pack extraction), #2539 (verified
-distribution, 4.x Work); physical-packaging facet of #2466 / #2216 (authoring facet is
-doctrine-charter §3.2).
-
-**Plans index:** [docs/plans/index.md](../index.md).
+- [Doctrine & Charter Domain Plan](doctrine-charter-domain-plan.md). Its §3.2 is the
+  authoring boundary for this plan.
+- [API & Dashboard Domain Plan](api-dashboard-domain-plan.md).
+- ADR [2026-08-02-1 charter-wheel-assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md): the wheel-split assessment.
+- ADR [2026-08-16-2 open-packs is source of truth for built-in doctrine](../../adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md): Option B, the re-vendor.
+- ADR [2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md): the authoring seam this plan stays out of.
+- [Plans index](../index.md).

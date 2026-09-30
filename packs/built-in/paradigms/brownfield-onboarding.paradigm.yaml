@@ -45,7 +45,7 @@ references:
 # ---------------------------------------------------------------------------
 # - This paradigm is DRAFT as of 2026-05-08. It codifies the worldview that
 #   emerged from the 2026-05 CaaCS engagement on spec-kitty itself
-#   (docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md and the meta-assessment
+#   (docs/archive/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md and the meta-assessment
 #   companion). It is deliberately authored before issues #665 (hierarchical
 #   reference bundles as a skill) and #666 (SME-interview tactic) ship, so
 #   that the worldview anchors those artifacts rather than trailing them.

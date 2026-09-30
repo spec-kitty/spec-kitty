@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/code-quality/index.md
-- docs/plans/refactor/degod-unshim-roadmap.md
+- docs/archive/plans/refactor/degod-unshim-roadmap.md
 ---
 # Targeted Cleanup Scoping — `sync.py` and `walker.py`
 
@@ -66,7 +66,7 @@ suite. Good first pickup / campsite PR. Clears all 14 smells.
 
 6,261 LOC — a **god-module** of `spec-kitty sync` subcommands. **26 smells**, ~4h
 Sonar effort. This file is the worst single source file in the project and sits in the
-**Wave 4 sync-adapter cluster** of the [degod roadmap](../refactor/degod-unshim-roadmap.md).
+**Wave 4 sync-adapter cluster** of the [degod roadmap](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md).
 Do **not** treat it as one cosmetic pass — separate the mechanical wins from the two
 complexity monsters.
 

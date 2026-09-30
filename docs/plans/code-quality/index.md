@@ -8,7 +8,7 @@ related:
 - docs/plans/index.md
 - docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/plans/refactor/degod-unshim-roadmap.md
+- docs/archive/plans/refactor/degod-unshim-roadmap.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 ---
@@ -26,7 +26,7 @@ The standing code-quality surface for Spec Kitty: what the SonarCloud analysis o
 `main` actually says, how the metrics have moved, where the debt clusters, and how
 that debt lines up with work the roadmap has already scoped. This is a
 **distil-then-retire** working collection (see [Plans](../index.md)) — the durable
-"why" lives in the [degod/unshim roadmap](../refactor/degod-unshim-roadmap.md) and the
+"why" lives in the [degod/unshim roadmap](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md) and the
 [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) (the
 [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) is the prior-cycle record); this
 collection holds the measurement and the targeted cleanup scoping.
@@ -158,7 +158,7 @@ The "hoist to a constant at >=3x" cluster. One clear standout:
 ## How the debt maps onto the roadmap
 
 The reds are not surprise debt — they map almost 1:1 onto named, sequenced-but-not-yet
--executed [degod/unshim waves](../refactor/degod-unshim-roadmap.md) and the subsystems
+-executed [degod/unshim waves](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md) and the subsystems
 the 3.x execution model built out. The vulnerabilities all appeared on 2026-07-07,
 exactly when the lanes/`next` execution-model merge landed.
 

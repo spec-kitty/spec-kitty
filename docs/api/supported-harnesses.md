@@ -6,7 +6,7 @@ updated: '2026-07-20'
 ---
 # Supported Harnesses
 
-This page is the canonical 5-tier support matrix for AI coding harnesses ("agents") that Spec Kitty integrates with. Each row conforms to the `HarnessEntry` schema in `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md`. The research procedure that backs each classification lives in `docs/plans/3-2-doc-publication/3-2-harness-research-method.md`.
+This page is the canonical 5-tier support matrix for AI coding harnesses ("agents") that Spec Kitty integrates with. Each row conforms to the `HarnessEntry` schema in `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md`. The research procedure that backs each classification lives in `docs/archive/plans/3-2-doc-publication/3-2-harness-research-method.md`.
 
 **Access date for citations:** 2026-06-03.
 
@@ -22,7 +22,7 @@ This page is the canonical 5-tier support matrix for AI coding harnesses ("agent
 | **experimental** | Provisional coverage that may break without notice; typically depends on another harness's installation. |
 | **archived** | No longer covered by the installer, or the upstream project is deprecated; coverage (if any) lives in `docs/migrations/`. |
 
-Full tier criteria and promotion rules are maintained in `docs/plans/3-2-doc-publication/3-2-harness-research-method.md` §5 and §6.
+Full tier criteria and promotion rules are maintained in `docs/archive/plans/3-2-doc-publication/3-2-harness-research-method.md` §5 and §6.
 
 ---
 
@@ -66,7 +66,7 @@ Full tier criteria and promotion rules are maintained in `docs/plans/3-2-doc-pub
 
 ## Promotion path
 
-A harness moves up tiers only when new evidence lands. See `docs/plans/3-2-doc-publication/3-2-harness-research-method.md` §6 for the full rule. Summary:
+A harness moves up tiers only when new evidence lands. See `docs/archive/plans/3-2-doc-publication/3-2-harness-research-method.md` §6 for the full rule. Summary:
 
 1. **`partial` → `supported`** when (a) the installer produces a full `/spec-kitty.*` set, (b) a current external citation is recorded, and (c) at least one smoke test has been documented.
 2. **`supported` → `first_class`** when (a) integration tests exercise the harness end-to-end, (b) the mechanism is the harness's canonical UX, (c) the per-harness page under `docs/guides/harnesses/<key>.md` is non-stub, and (d) the promotion is logged in CHANGELOG.
@@ -79,5 +79,5 @@ Tier moves are recorded in this matrix's row notes and the project CHANGELOG.
 ## Maintenance
 
 - The inventory step is re-run on every release; the citation step is re-run on every release as part of the freshness audit (WP13).
-- This matrix is the published artifact; the procedure that backs it is maintained at `docs/plans/3-2-doc-publication/3-2-harness-research-method.md`.
+- This matrix is the published artifact; the procedure that backs it is maintained at `docs/archive/plans/3-2-doc-publication/3-2-harness-research-method.md`.
 - Per-harness "how-to" pages live at `docs/guides/harnesses/<key>.md` and are promoted under the plan's matrix-first default (decision `01KS4KTS4V300M9MMTS1AJEGXY`).

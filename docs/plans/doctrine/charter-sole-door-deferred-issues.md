@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-08-03'
 related:
 - docs/plans/index.md
-- docs/plans/3-2-x-open-core-delivery-plan.md
+- docs/archive/plans/3-2-x-open-core-delivery-plan.md
 ---
 
 # Charter as Sole Door: Deferred Issues Record

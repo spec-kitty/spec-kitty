@@ -68,7 +68,7 @@ A hosted REST/GraphQL doc/doctrine/DRG API does **not** exist, but the substrate
   retrieval. For the *how-to-work* half, no new build is needed.
 - **Common Docs retrieval is the real gap (~40% exists).** The metadata spine is done — validated
   per-page frontmatter + a generated, CI-drift-gated page-inventory
-  (`scripts/docs/inventory_lockfile.py` → `docs/development/3-2-page-inventory.yaml`) — but there is
+  (`scripts/docs/inventory_lockfile.py` → `docs/development/page-inventory.yaml`) — but there is
   **no title / heading-anchor / body index and no query surface**. The glossary
   (`src/glossary/store.py`, `spec-kitty glossary … --json`) is the proven queryable-index model to
   mirror. A loopback dashboard already serves `GET /api/charter` and `/api/glossary-terms`
@@ -100,5 +100,5 @@ its existing canonical home, and add one modest CLI build to close the Common Do
 `src/specify_cli/core/worktree.py`, `src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py`,
 `src/charter/offering/templates/AGENTS.md`, `.kittify/memory/`, `src/charter/activation/context.py`,
 `src/charter/offering/service.py`, `src/charter/offering/drg/query.py`, `scripts/docs/inventory_lockfile.py`,
-`docs/development/3-2-page-inventory.yaml`, `src/glossary/store.py`,
+`docs/development/page-inventory.yaml`, `src/glossary/store.py`,
 `src/specify_cli/dossier/api.py`, `src/specify_cli/dashboard/server.py`.

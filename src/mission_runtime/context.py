@@ -7,7 +7,7 @@ from :mod:`mission_runtime` only (see ADR 2026-06-07-1 and
 
 WP03 grows the hardened context value object into the **doc-09 fragment /
 op-composite** model
-(``docs/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model.md``).
+(``docs/archive/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model.md``).
 ``MissionExecutionContext`` is NOT a flat field bag: it is a deep module whose
 hidden structure is a set of cohesive, domain-owned **value-object fragments**
 (Identity, BranchRef, Workspace, StatusSurface, ArtifactPlacement, PromptSource).

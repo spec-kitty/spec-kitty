@@ -19,7 +19,7 @@ steps:
       in-flight investigations and traces go to plans/ under the distil-then-retire
       lifecycle.
     examples:
-      - "A new dashboard how-to is owned by guides/; the durable decision it documents is owned by adr/3.x/, not duplicated in both."
+      - "A new dashboard how-to is owned by guides/; the durable decision it documents is owned by adr/<era>/ (the current era, e.g. adr/4.x/), not duplicated in both."
       - "A migration runbook is owned by migrations/; a connector integration note is owned by integrations/."
   - title: Create the file at the section-aware path
     description: >
@@ -47,8 +47,8 @@ steps:
   - title: File a new ADR under its era, with MADR status
     description: >
       An Architecture Decision Record is the one sanctioned exception to the
-      doc_status schema above: file it under adr/<era>/ (adr/1.x, adr/2.x,
-      adr/3.x) by era of decision, with YAML frontmatter carrying the MADR
+      doc_status schema above: file it under adr/<era>/ (adr/1.x through
+      adr/4.x) by era of decision, with YAML frontmatter carrying the MADR
       `status` field (Proposed | Accepted | Deprecated | Superseded) — never
       `doc_status`. See DIRECTIVE_042 for the full ADR frontmatter exception;
       this step does not restate it.

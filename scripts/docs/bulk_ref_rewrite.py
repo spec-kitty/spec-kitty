@@ -95,7 +95,7 @@ EXCLUDE_BASENAMES: frozenset[str] = frozenset(
 # tool's own sources / tests that intentionally carry old-path literals.
 EXCLUDE_PATHS: frozenset[str] = frozenset(
     {
-        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/page-inventory.yaml",
         "scripts/docs/bulk_ref_rewrite.py",
         "tests/docs/test_bulk_ref_rewrite.py",
         "tests/docs/test_runtime_read_resolution.py",

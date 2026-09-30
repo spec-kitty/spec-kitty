@@ -5,12 +5,12 @@ doc_status: draft
 updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
-- docs/plans/user_journey/001-project-onboarding-bootstrap.md
-- docs/plans/user_journey/002-system-architecture-design.md
-- docs/plans/user_journey/003-system-design-and-shared-understanding.md
-- docs/plans/user_journey/004-curating-external-practice-into-governance.md
-- docs/plans/user_journey/005-governance-mission-charter-operations.md
-- docs/plans/user_journey/evaluation.md
+- docs/archive/plans/user_journey/001-project-onboarding-bootstrap.md
+- docs/archive/plans/user_journey/002-system-architecture-design.md
+- docs/archive/plans/user_journey/003-system-design-and-shared-understanding.md
+- docs/archive/plans/user_journey/004-curating-external-practice-into-governance.md
+- docs/archive/plans/user_journey/005-governance-mission-charter-operations.md
+- docs/archive/plans/user_journey/evaluation.md
 - docs/plans/user_journey/init-doctrine-flow.md
 ---
 # Spec Kitty Architecture: User Journeys
@@ -85,11 +85,11 @@ No design journey is currently live.
 
 | Journey | Status | Implementation Status | Description |
 |---------|--------|-----------------------|-------------|
-| [Project Onboarding & Bootstrap](001-project-onboarding-bootstrap.md) | DRAFT | VISION | New project setup: init → bootstrap (vision + charter) → first mission |
-| [System Architecture Design](002-system-architecture-design.md) | DRAFT | VISION | Architectural structure and boundary design after bootstrap |
-| [System Design & Shared Understanding](003-system-design-and-shared-understanding.md) | DRAFT | VISION | Design mission flow for glossary, journeys, and ADR alignment |
-| [Curating External Practice into Governance](004-curating-external-practice-into-governance.md) | DRAFT | VISION | Pull-based adoption flow for external practices (e.g., ZOMBIES TDD) via curation + charter activation |
-| [Governance Mission Creation and Charter Operations](005-governance-mission-charter-operations.md) | DRAFT | VISION | Bootstrap flow for governance mission: curation, charter review/alter/sync, and directive-compliant traceability |
+| [Project Onboarding & Bootstrap](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/001-project-onboarding-bootstrap.md) | DRAFT | VISION | New project setup: init → bootstrap (vision + charter) → first mission |
+| [System Architecture Design](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/002-system-architecture-design.md) | DRAFT | VISION | Architectural structure and boundary design after bootstrap |
+| [System Design & Shared Understanding](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/003-system-design-and-shared-understanding.md) | DRAFT | VISION | Design mission flow for glossary, journeys, and ADR alignment |
+| [Curating External Practice into Governance](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/004-curating-external-practice-into-governance.md) | DRAFT | VISION | Pull-based adoption flow for external practices (e.g., ZOMBIES TDD) via curation + charter activation |
+| [Governance Mission Creation and Charter Operations](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/005-governance-mission-charter-operations.md) | DRAFT | VISION | Bootstrap flow for governance mission: curation, charter review/alter/sync, and directive-compliant traceability |
 
 ## Relationship to Other Architecture Artifacts
 
@@ -100,4 +100,4 @@ No design journey is currently live.
 
 ## Evaluation
 
-See the [2.x User Journey Evaluation](evaluation.md) (historical) for the canonical-vs-initiative assessment.
+See the [2.x User Journey Evaluation](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/evaluation.md) (historical) for the canonical-vs-initiative assessment.

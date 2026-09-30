@@ -12,7 +12,7 @@ steps:
       identify 2–3 ADRs most relevant to the task scope. Flag conflicts
       with established decisions before proceeding.
     examples:
-      - "Load docs/adr/3.x/README.md, identify ADR-007 (event store) as relevant, confirm no conflict with proposed change."
+      - "Load docs/adr/index.md and the current era index, identify ADR-007 (event store) as relevant, confirm no conflict with proposed change."
 
   - title: Add decision markers during implementation
     description: >-

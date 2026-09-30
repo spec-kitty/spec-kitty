@@ -92,7 +92,7 @@ class DivioType(StrEnum):
 
 @dataclass(slots=True, frozen=True)
 class PageInventoryEntry:
-    """One row of ``docs/development/3-2-page-inventory.yaml``.
+    """One row of ``docs/development/page-inventory.yaml``.
 
     ``citation_refs`` was retired in mission ``common-docs-consolidation``
     (ADR ``2026-06-27-1`` decision D1): only 6 of 565 rows ever populated it,

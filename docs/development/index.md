@@ -27,17 +27,17 @@ This zone is subdivided by concern:
 
 - **[Getting started](getting-started/index.md)** — [onboarding a co-maintainer](getting-started/onboarding-run.md) and [isolated dev environments](getting-started/isolated-dev-environments.md).
 - **[How-to](how-to/index.md)** — task runbooks: [landing PRs](how-to/pr-landing.md), [review gates](how-to/review-gates.md), [local overrides](how-to/local-overrides.md), [the issue tracker](how-to/manage-issue-tracker.md), [contract pinning](how-to/contract-pinning.md), [the cut-over guard](how-to/cutover-guard.md), [creating a doctrine artifact](how-to/create-a-doctrine-artifact.md), [architectural-gate exemptions](how-to/add-architectural-gate-exemption.md), and [compressing mission history](how-to/compress-mission-history.md).
-- **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [CI and architectural gate mechanics](reference/ci-gate-mechanics.md), [issue-matrix verdicts](reference/issue-matrix-verdicts.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), and [terminology exemptions](reference/terminology-exemptions.md).
+- **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [CI and architectural gate mechanics](reference/ci-gate-mechanics.md), [issue-matrix verdicts](reference/issue-matrix-verdicts.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), [terminology exemptions](reference/terminology-exemptions.md), and the [version taxonomy](reference/version-taxonomy.md).
 - **[Testing](testing/index.md)** — [flakiness policy](testing/testing-flakiness.md), [parallel runs](testing/testing-parallel.md), [mutation tests](testing/run-mutation-tests.md), [UI e2e](testing/ui-e2e.md), and [time-dependent tests](testing/write-time-dependent-tests.md).
 - **Reporting** — the [executive debrief styleguide](reporting/debrief-styleguide.md).
 - **Other records** — [analysis-report transactions (`record-analysis --report-only`)](analysis-report-transactions.md) and the [inline meta-read allowlist baseline deviation](inline-meta-read-allowlist-baseline-deviation.md).
 
-### Historical / prior cycle
+### Archived records
 
-Kept as records; not current guidance.
+These pages moved to `docs/archive/`, which is not published. They are kept as records, not current guidance.
 
-- [`tests/sync/` process-global and thread-seam inventory (#3115)](reference/process-global-inventory-3115.md) — deprecated; the `tests/sync/` cone it maps was deleted with the sync transport.
-- [Agent-memory migration manifest](agent-memory-migration-manifest.md) and [agent-memory workflow migration manifest](agent-memory-workflow-migration-manifest.md) — one-off audit records of a migration of operator memory into doctrine.
+- [`tests/sync/` process-global and thread-seam inventory (#3115)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/development/reference/process-global-inventory-3115.md) — deprecated; the `tests/sync/` cone it maps was deleted with the sync transport.
+- [Agent-memory migration manifest](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/development/agent-memory-migration-manifest.md) and [agent-memory workflow migration manifest](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/development/agent-memory-workflow-migration-manifest.md) — one-off audit records of a migration of operator memory into doctrine.
 
 ## Start here
 
@@ -46,17 +46,17 @@ Kept as records; not current guidance.
 
 ## Non-page artifacts
 
-The `3-2-` prefix on both files below is a frozen historical filename, not a
-version scope: they cover every current doc, and are regenerated for 4.x
-changes.
+Both files cover every current doc, whatever the release line. Until
+2026-09-30 they carried a `3-2-` filename prefix from the mission that
+introduced them.
 
-- **`3-2-page-inventory.yaml`** — the page-inventory tooling artifact. It STAYS
+- **`page-inventory.yaml`** — the page-inventory tooling artifact. It STAYS
   PUT by operator directive; the freshness/lockfile tooling
   (`scripts/docs/inventory_lockfile.py`, `check_docs_freshness.py`,
   `version_leakage_check.py`, `_inventory.py`) reads it at this stable path.
   A regression guard (`tests/docs/test_inventory_path_stable.py`) asserts the
   path cannot silently move.
-- **`3-2-docs-retrieval-index.yaml`** — the docs retrieval index, regenerated
+- **`docs-retrieval-index.yaml`** — the docs retrieval index, regenerated
   by `scripts/docs/docs_index.py` (see below).
 
 ## Repo-owned workflow commands
@@ -71,7 +71,7 @@ subcommand — plus the regen command for generated agent copies:
   ```bash
   # inventory_lockfile.py: --write takes the OUTPUT PATH as its argument (not a bare flag)
   PYTHONPATH=. .venv/bin/python scripts/docs/inventory_lockfile.py \
-    --write docs/development/3-2-page-inventory.yaml
+    --write docs/development/page-inventory.yaml
 
   # docs_index.py: --write IS a bare flag here (rewrites the default --index path in place)
   PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write

@@ -26,22 +26,22 @@ None. Every note below belongs to closed work.
 
 ### CI topology and gates (superseded by the modular CI, #3995)
 
-- [CI Quality Workflow Structure](quality_check_structure.md) — the February 2026 `ci-quality.yml` layout.
-- [CI Coverage Gate — Tuning Notes](ci-coverage-gate-tuning.md) — mission-062 coverage gate; per-PR coverage is now the diff-cover gate in `ci-aggregate.yml`.
-- [CI job timings](ci-job-timings.md) — timings for the retired shard topology of mission `01KXBJRT`.
-- [CI coverage union audit](ci-coverage-union-audit.md) — coverage evidence for the same retired topology.
+- [CI Quality Workflow Structure](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/quality_check_structure.md) — the February 2026 `ci-quality.yml` layout.
+- [CI Coverage Gate — Tuning Notes](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/ci-coverage-gate-tuning.md) — mission-062 coverage gate; per-PR coverage is now the diff-cover gate in `ci-aggregate.yml`.
+- [CI job timings](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/ci-job-timings.md) — timings for the retired shard topology of mission `01KXBJRT`.
+- [CI coverage union audit](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/ci-coverage-union-audit.md) — coverage evidence for the same retired topology.
 
 ### Test-suite friction and acceleration (epics #2071 and #1931 closed)
 
-- [Test-Suite Friction Audit — "Tests as scaffold, not friction"](test-suite-friction-audit.md) — the June 2026 four-lens audit.
-- [Friction Burn-Down Sequencing](friction-burn-down-sequencing.md) — found the audit's premise largely spent; its residual items have since closed.
-- [QA Mission — Tidy-First Sequencing](qa-tidy-first-sequencing.md) — which degod cleanup made the test-QA mission cheaper.
-- [CaaCS: test↔production change-coupling analysis](test-change-coupling-caacs.md) — git-history ranking of refactor-fragile tests.
-- [Test Suite Acceleration — Final Remediation Plan](test-suite-acceleration-plan.md) — parallelization and HOME isolation, now standard practice.
+- [Test-Suite Friction Audit — "Tests as scaffold, not friction"](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/test-suite-friction-audit.md) — the June 2026 four-lens audit.
+- [Friction Burn-Down Sequencing](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/friction-burn-down-sequencing.md) — found the audit's premise largely spent; its residual items have since closed.
+- [QA Mission — Tidy-First Sequencing](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/qa-tidy-first-sequencing.md) — which degod cleanup made the test-QA mission cheaper.
+- [CaaCS: test↔production change-coupling analysis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/test-change-coupling-caacs.md) — git-history ranking of refactor-fragile tests.
+- [Test Suite Acceleration — Final Remediation Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/test-suite-acceleration-plan.md) — parallelization and HOME isolation, now standard practice.
 
 ### Mutation testing
 
-- [Mutation Testing Findings (WP05)](mutation-testing-findings.md) — March 2026 baseline; see [Run mutation tests](../../development/testing/run-mutation-tests.md) for current practice.
+- [Mutation Testing Findings (WP05)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/mutation-testing-findings.md) — March 2026 baseline; see [Run mutation tests](../../development/testing/run-mutation-tests.md) for current practice.
 
 ## See also
 

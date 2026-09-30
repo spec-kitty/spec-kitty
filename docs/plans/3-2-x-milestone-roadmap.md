@@ -9,7 +9,7 @@ related:
 - docs/changelog/index.md
 - docs/plans/index.md
 - docs/plans/code-quality/index.md
-- docs/plans/testing/qa-tidy-first-sequencing.md
+- docs/archive/plans/testing/qa-tidy-first-sequencing.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/changelog/release-goals.md
@@ -21,7 +21,7 @@ related:
 > [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md). Everything below, including the
 > "Immediate next steps", is a historical record; do not act on it.
 
-*Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md). Addendum, 2026-07-26: doctrine canonical-structure remediation programme recorded — one mission specced then split into five sequenced missions (#2948–#2952) by operator ruling; see the dedicated section below.* **Addendum, 2026-07-30: verified status re-read + spine re-anchoring — the body below (2026-07-04 vintage) predates the work that delivered the milestone's goals and mis-reads it as idle; see [Addendum 2026-07-30](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring) immediately below, and the PO-facing [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) which supersedes the "G2-is-the-blocking-spine / G1-is-off-spine" framing.**
+*Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/qa-tidy-first-sequencing.md). Addendum, 2026-07-26: doctrine canonical-structure remediation programme recorded — one mission specced then split into five sequenced missions (#2948–#2952) by operator ruling; see the dedicated section below.* **Addendum, 2026-07-30: verified status re-read + spine re-anchoring — the body below (2026-07-04 vintage) predates the work that delivered the milestone's goals and mis-reads it as idle; see [Addendum 2026-07-30](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring) immediately below, and the PO-facing [3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md) which supersedes the "G2-is-the-blocking-spine / G1-is-off-spine" framing.**
 
 ## Intent of 3.2.x
 
@@ -232,7 +232,7 @@ and note the remaining Sonar backlog as known/deferred in the release notes.
 *Two read-only audits (G1 doctrine/charter; G2/G3 + release posture) grounded in the
 code and the live tracker on 2026-07-30 found the body below has drifted from reality.
 The corrections, in brief — full PO-facing detail in the
-[3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md):*
+[3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md):*
 
 1. **The G2 "spine" is substantially DELIVERED, not idle — filed under new numbers.**
    The placement-seam swarm is the delivery of the named spine, and burn-down keys on
@@ -266,7 +266,7 @@ The corrections, in brief — full PO-facing detail in the
    structurally; one import-cycle blocker), and ship the still-design-only schema
    (Creed / Values / the ADR-accepted `impacts` relation) behind migration rails +
    deprecation shims to a small consenting consumer set. No hard freeze. See the
-   delivery plan and [3.2.x Delivery Approach](3-2-x-approach.md) (doctrine-first,
+   delivery plan and [3.2.x Delivery Approach](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-approach.md) (doctrine-first,
    confirmed).
 
 4. **Release posture: `main` is NOT tag-ready** — CI red 10+ consecutive runs
@@ -330,7 +330,7 @@ claim before any tracker action was taken; findings below.*
 
 ## Addendum 2026-08-02 — charter-as-sole-door boundary/usage pair landed (Mission 1 + Mission 2)
 
-*The two-mission sequence scoped to close out the [open-core delivery plan](3-2-x-open-core-delivery-plan.md)
+*The two-mission sequence scoped to close out the [open-core delivery plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md)
 §3 item 1 (boundary extraction) and make progress on item 2 (charter-as-sole-door) has landed on main.*
 
 1. **Mission 1 — `doctrine-built-in-seam-consolidation` — landed.** Consolidated built-in doctrine
@@ -364,7 +364,7 @@ claim before any tracker action was taken; findings below.*
 
 ## Addendum 2026-08-04 — charter-sole-door-bypass-closure substantially landed
 
-*The delivery plan's item 2 ([§3](3-2-x-open-core-delivery-plan.md#3-remaining-work-sequenced)) —
+*The delivery plan's item 2 ([§3](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md#3-remaining-work-sequenced)) —
 closing the charter-as-sole-door bypass list — landed as its own mission, following the boundary
 (Mission 1) and existing-door-hardening (Mission 2) pair above.*
 
@@ -576,7 +576,7 @@ Derived from the epics' own done-conditions; the milestone closes when all hold:
 - **#2345 / #1790 — dedup decision MADE; #1790 still OPEN.** The dedup was resolved by picking **#2345** as the canonical ticket (CLOSED 2026-07-05 — bind the `occurrence_map_complete` guard at plan/tasks-finalize so bulk-edit schema errors fail before implement). Its sibling **#1790** (validate `occurrence_map.yaml` at authoring + add a rich-occurrences schema example) remains OPEN and should be dispositioned as the authoring-side residual rather than re-litigated as a duplicate.
 - **Milestone-drift on critical-path items** — resolved for the known set on 2026-07-04 (#1239/#1231/#1734/#825 and #2034 all pulled into 3.2.x by operator ruling), but the class remains live: a critical-path issue filed without a milestone silently escapes the burn count. The sub-issue milestone sweep (executed 2026-07-04, see next steps) is the standing counter-measure.
 - **#2071 children are audit-fed.** The epic forbids pre-creating children; exit criterion 4 has open-ended scope until the audit's ticket set is complete. Watch for scope creep into #1931 territory (hygiene items belong in the campsite epic, not the blocker).
-- **#1797 ↔ #2071 intra-pair sequencing (tidy-first enabler).** The spine lists #1797 (degod/unshim) and #2071 (test-QA) as peer blockers of #1619 but leaves their *relative* sequencing implicit. Ruling ([`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md)): they are **not merely parallel** — a **targeted** subset of #1797 is a cheap enabler of #2071, while the bulk stays independent. Only *structure-induced* test friction (fragile-because-god-module, per the [CaaCS co-change ranking](testing/test-change-coupling-caacs.md)) is cheapened by degod; *test-intrinsic* friction (CT3/4/5 #2074/#2075/#2076, CT7 #2564, quarantine #2295/#2309/#2342, legacy-contract #2553/#2323) is not. Do **not** gate #2071 behind the full degod program. Order: (1) a small dead-code/deshim sweep first (`#2463`, `#2293`, `#2499`, `#2561`, + the `#2559` dead-code-gate tooling) — it deletes code *and its tests*, near-zero risk; (2) fold CaaCS-implicated god-surface degod **into** the QA mission as campsite-first WPs (route full decompositions `#2059`/`#2057`/`#2056`/`#2532` to their own #1797 slices); (3) fix genuinely-clean-but-badly-written tests directly.
+- **#1797 ↔ #2071 intra-pair sequencing (tidy-first enabler).** The spine lists #1797 (degod/unshim) and #2071 (test-QA) as peer blockers of #1619 but leaves their *relative* sequencing implicit. Ruling ([`qa-tidy-first-sequencing.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/qa-tidy-first-sequencing.md)): they are **not merely parallel** — a **targeted** subset of #1797 is a cheap enabler of #2071, while the bulk stays independent. Only *structure-induced* test friction (fragile-because-god-module, per the [CaaCS co-change ranking](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/test-change-coupling-caacs.md)) is cheapened by degod; *test-intrinsic* friction (CT3/4/5 #2074/#2075/#2076, CT7 #2564, quarantine #2295/#2309/#2342, legacy-contract #2553/#2323) is not. Do **not** gate #2071 behind the full degod program. Order: (1) a small dead-code/deshim sweep first (`#2463`, `#2293`, `#2499`, `#2561`, + the `#2559` dead-code-gate tooling) — it deletes code *and its tests*, near-zero risk; (2) fold CaaCS-implicated god-surface degod **into** the QA mission as campsite-first WPs (route full decompositions `#2059`/`#2057`/`#2056`/`#2532` to their own #1797 slices); (3) fix genuinely-clean-but-badly-written tests directly.
 - **Wave-numbering homonyms — confirmed, not hypothetical.** Mission names and the roadmap's Wave 0–4 are distinct namespaces: PR #2308 is literally titled "Wave 2 tasks.py degod" yet delivered the roadmap's **Wave 1**, and "Unshim Wave 1/2" (PRs #2325/#2328) map to roadmap Waves 1∥/2∥ (plus the Wave-3 category_7 slice in #2325). Anchor all status claims to issue/PR numbers, never wave labels.
 - **Avoid multi-path split-brain bugfix.** #2385/#1873/#2105 are the same underlying defect (upgrade-run auto-commit doesn't cover every touched checkout) surfacing at different call sites; fixing them independently risks exactly the kind of divergent-husk split-brain regression this milestone is paying down elsewhere. **#2392** is the counter-measure: one canonical `commit_touched_checkout` seam, applied symmetrically, instead of N partial patches. PR #2387 (an earlier single-path attempt) was redirected to `pr:needs-revision` for this reason — it should be re-pointed at the #2392 design rather than landed as-is. #2367's two seams (#2367-A vcs-lock stop-gap, #2367-B merge-snapshot rollback) are deliberately kept OUT of the consolidation and tracked separately.
 - **Instructed-not-enforced / metadata split-brain.** #2399 and #2093 are the same "canonical authority exists in name, bound only by prompt instruction or hardcoded frontmatter copy" defect class as #2364 (dispatch-time model-discipline rule) and the sibling framing epic #1868 (different concrete domain — package layering, mission identity, guard capability, daemon identity, CI suite map, versioned contracts — not agent-profile/WP-metadata authority). **#2400** (P1) is the counter-measure, clustering #2399 + #2093 under one sub-epic instead of three unrelated parent epics (#2399 was under #1799 alone; #2093 under #1676; the WP-claim slice #1841 and doc-only companion #1840 under #1808). The pair is mutually coupled, not independently sequenceable: land #2093's intent/binding split and #2399's resolve→materialize→record mechanism together, or the half that lands first has nothing to bind against.

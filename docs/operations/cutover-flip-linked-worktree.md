@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-08-15'
 related:
 - docs/operations/recovery-index.md
-- docs/plans/engineering-notes/coord-splitbrain-rootcause.md
+- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
 ---
 
 # Recovery: Cutover Flip Fails From a Linked Worktree
@@ -86,5 +86,5 @@ spec-kitty migrate backfill-runtime-state --mission <slug>
 
 ## Related
 
-- [Coord-branch bookkeeping root-cause](../plans/engineering-notes/coord-splitbrain-rootcause.md)
+- [Coord-branch bookkeeping root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md)
 - [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/index.md) — implementation-crash and merge recovery

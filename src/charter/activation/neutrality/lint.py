@@ -361,7 +361,7 @@ def _default_scan_roots(repo_root: Path) -> list[Path]:
     prompts/templates while staying green (a gate-coverage loss, not a wrong
     resolution). The separate, still-live ``src/specify_cli/missions`` legacy
     tree (a distinct data tree, unaffected by this move — see
-    ``docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md``'s "Two
+    ``docs/archive/plans/doctrine/missions-reader-inventory-01KZ6G6H.md``'s "Two
     distinct specify_cli/missions trees" note) keeps its own root below,
     unchanged.
 

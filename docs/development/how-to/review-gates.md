@@ -374,7 +374,7 @@ first pattern returned **84 hits across 23 files of which 52 were real** — the
 rest were permitted prose or a regex false positive. The worked classification,
 the relocation order, and the gate that currently *requires* one of these
 references live in
-[`built-in-doctrine-repo-coupling-audit.md`](../../plans/doctrine/built-in-doctrine-repo-coupling-audit.md).
+[`built-in-doctrine-repo-coupling-audit.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/built-in-doctrine-repo-coupling-audit.md).
 
 ## See also
 

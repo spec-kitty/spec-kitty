@@ -1,8 +1,9 @@
 """Common Docs retrieval CLI commands.
 
 Provides ``spec-kitty docs query``, a first-class query surface over the
-generated Common Docs retrieval index (``docs/development/3-2-docs-retrieval-
-index.yaml``, produced by ``scripts/docs/docs_index.py``). The index is
+generated Common Docs retrieval index
+(``docs/development/docs-retrieval-index.yaml``, produced by
+``scripts/docs/docs_index.py``). The index is
 loaded once per invocation and filtered entirely in memory (NFR-002) -- there
 is no per-query filesystem walk.
 

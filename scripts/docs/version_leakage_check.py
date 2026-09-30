@@ -66,7 +66,7 @@ __all__ = [
 ]
 
 
-DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/3-2-page-inventory.yaml"
+DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/page-inventory.yaml"
 DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 DEFAULT_BANNER_REGEX: Final[str] = r"^>\s*(?:Archive notice|Migration note)\b"
 

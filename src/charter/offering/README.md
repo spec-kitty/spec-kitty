@@ -46,8 +46,8 @@ matching `graph.yaml` edges.
 
 ## Architecture references
 
-- Container view: `docs/architecture/02_containers/README.md` — "Doctrine Artifact Catalog"
-- Component view: `docs/architecture/03_components/README.md` — "Doctrine and Glossary" section
+- Container view: `docs/architecture/diagrams/02_containers/README.md` — "Doctrine Artifact Catalog"
+- Component view: `docs/architecture/diagrams/03_components/README.md` — "Doctrine and Glossary" section
 - Governance ADR: `docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`
 - Glossary: `docs/context/charter.md`
 - Naming decision (agent vs tool): `docs/context/naming-decision-tool-vs-agent.md`

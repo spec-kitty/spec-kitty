@@ -163,7 +163,7 @@ Mirroring #2851's tally, for the **in-scope** sections:
 
 Each inherits the #2851 IA-mechanics obligations: **redirect-map entry** per moved path
 (`scripts/docs/redirect_map.yaml`), **relative-link fix** (`relative_link_fixer --check`),
-**page-inventory regen** (`3-2-page-inventory.yaml` lockfile + `check_docs_freshness --ci`),
+**page-inventory regen** (`page-inventory.yaml` lockfile + `check_docs_freshness --ci`),
 **`related:` frontmatter edges** on moved files + referrers, and the **terminology guard**
 (`tests/architectural/test_no_legacy_terminology.py`).
 

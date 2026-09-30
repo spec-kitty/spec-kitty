@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 - docs/plans/4-0-0-milestone-roadmap.md
-- docs/plans/3-2-x-open-core-delivery-plan.md
+- docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/architecture/status-model.md

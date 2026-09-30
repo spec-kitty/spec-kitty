@@ -36,7 +36,7 @@ structural_lint_config:
     point_in_time: plans/engineering-notes/
     ops_runbook: operations/
     generated_report: reports/
-    generated_nav: pinned  # stays at its pinned path (e.g. 3-2-page-inventory.yaml, toc.yml); C-004
+    generated_nav: pinned  # stays at its pinned path (e.g. page-inventory.yaml, toc.yml); C-004
     doctrine_artifact: src/doctrine/
   # Dated-filename patterns identifying a point-in-time document
   # (point_in_time_placement). Regex, matched against the file basename.
@@ -59,6 +59,8 @@ structural_lint_config:
     - "plans/research/**"
     - "plans/investigations/**"
     - "plans/**"
+    # Retired plans moved to docs/archive/ keep their dated filenames (#5428).
+    - "archive/**"
   # Frontmatter fields every in-scope page must carry (frontmatter_contract).
   # Mirrors what this directive/styleguide already binds — no new fields.
   frontmatter_required_fields:

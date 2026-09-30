@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/development/3-2-page-inventory.yaml
+- docs/development/page-inventory.yaml
 - docs/docfx.json
 - docs/plans/engineering-notes/651-docs-consolidation/03-target-structure-mapping.md
 - docs/plans/engineering-notes/651-docs-consolidation/index.md
@@ -142,7 +142,7 @@ by design (`related:` for cross-refs, `status`/`updated` for lifecycle).
 
 ### spec-kitty's split-brain today (measured)
 
-The sidecar `docs/development/3-2-page-inventory.yaml` (565 rows) is SSOT for
+The sidecar `docs/development/page-inventory.yaml` (565 rows) is SSOT for
 `path/tag/divio_type/owning_workstream/current_target/citation_refs`. The gates split:
 
 - **SEO gate** (`tests/docs/test_docs_seo.py`) reads **in-file frontmatter** (`title`,

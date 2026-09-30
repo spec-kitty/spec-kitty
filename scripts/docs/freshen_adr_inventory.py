@@ -4,7 +4,7 @@ Adding an ADR under ``docs/adr/<era>/`` (era = ``1.x`` | ``2.x`` | ``3.x`` | ``4
 requires two index updates the ``docs-freshness`` CI gate enforces:
 
 1. A :class:`~scripts.docs._inventory.PageInventoryEntry` row in
-   ``docs/development/3-2-page-inventory.yaml`` — a **generated lockfile**,
+   ``docs/development/page-inventory.yaml`` — a **generated lockfile**,
    regenerated from every page's frontmatter.
 2. A table row ``| YYYY-MM-DD | [Title](filename.md) |`` in the era's
    ``docs/adr/<era>/index.md`` index (or its legacy ``README.md`` index).

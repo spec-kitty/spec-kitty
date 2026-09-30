@@ -34,10 +34,10 @@ Three throughlines are live. A fourth, the former "SaaS & hosted sync" plan, is 
   governance substrate: charter lifecycle & sole-door access, pack extensibility,
   activation-driven availability, `meta.json` fail-closed reads, the stable public API
   surface, and glossary-as-doctrine.
-- **[Packs Extraction — Domain Plan](packs-extraction-domain-plan.md)** — physically
-  extracting the doctrine layer into the standalone `spec-kitty-doctrine` module:
-  boundary definition, import-cycle break, strangler cutover, and repo split. Its premise
-  (a standalone `src/doctrine/` package) is gone; see the plan's status banner.
+- **[Packs Extraction — Domain Plan](packs-extraction-domain-plan.md)** — re-extracting
+  the doctrine layer from `src/charter/offering/` and `packs/built-in/`: the code
+  boundary and wheel split, content provenance via open-packs, strangler discipline, and
+  verified distribution.
 - **[API & Dashboard — Domain Plan](api-dashboard-domain-plan.md)** — the stable
   application/mission-data API surface (#645) and the dashboard/UX consumers (#650),
   including retiring the Feature-labelled UI drift.

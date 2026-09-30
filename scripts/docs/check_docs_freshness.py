@@ -63,12 +63,12 @@ __all__ = [
 ]
 
 
-DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/3-2-page-inventory.yaml"
+DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/page-inventory.yaml"
 DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 # WP01's committed retrieval index (sibling artifact to the page inventory,
 # C-001: never conflated with it). Lives under DEFAULT_DOCS_ROOT itself, but
 # as a ``.yaml`` file it is never picked up by the ``*.md`` generation walk.
-DEFAULT_DOCS_INDEX_PATH: Final[str] = "docs/development/3-2-docs-retrieval-index.yaml"
+DEFAULT_DOCS_INDEX_PATH: Final[str] = "docs/development/docs-retrieval-index.yaml"
 # The CLI reference lives under docs/api/ after the Common Docs structural move
 # (Mission B WP16 retired docs/reference/). Pointing the default at the old
 # docs/reference/ path short-circuits the whole freshness gate with INPUT-MISSING.
@@ -754,7 +754,7 @@ def _lockfile_finding(location: str, message: str) -> FreshnessFinding:
         message=message,
         suggested_action=(
             "regenerate the lockfile with scripts/docs/inventory_lockfile.py "
-            "--write docs/development/3-2-page-inventory.yaml, then commit it"
+            "--write docs/development/page-inventory.yaml, then commit it"
         ),
     )
 
@@ -770,7 +770,7 @@ def _check_docs_index_drift(
     """Regenerate the docs retrieval index and report drift as errors.
 
     Mirrors :func:`_check_inventory_lockfile_drift` exactly (WP02 / FR-005):
-    the committed docs-index (WP01's ``docs/development/3-2-docs-retrieval-index.yaml``,
+    the committed docs-index (WP01's ``docs/development/docs-retrieval-index.yaml``,
     a sibling artifact to the page inventory per C-001, never conflated with
     it) must equal a fresh regeneration of ``docs/**/*.md`` frontmatter +
     headings via :func:`scripts.docs.docs_index.run_generate_and_compare` —

@@ -2,7 +2,7 @@
 
 Mission ``common-docs-consolidation`` ADR ``2026-06-27-1`` decision D1 makes
 **in-file frontmatter the per-page metadata SSOT**. The page inventory
-(``docs/development/3-2-page-inventory.yaml``) is no longer hand-maintained;
+(``docs/development/page-inventory.yaml``) is no longer hand-maintained;
 it is **regenerated FROM frontmatter** as a validated lockfile:
 
 1. Walk ``docs/**/*.md``.
@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 
-DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/3-2-page-inventory.yaml"
+DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/page-inventory.yaml"
 DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 
 # Frontmatter key carrying the canonical version tier (decision D1). Absent

@@ -8,8 +8,8 @@ related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
 - docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
 - docs/architecture/README.md
-- docs/architecture/feature-detection.md
-- docs/architecture/gap-analysis-connector-installation-model.md
+- docs/archive/architecture/feature-detection.md
+- docs/archive/architecture/gap-analysis-connector-installation-model.md
 - docs/index.md
 ---
 # Architecture notes
@@ -79,7 +79,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 
 ## Assessments
 
-- [Code as a Crime Scene — High-Level Overview](assessments/code-as-a-crime-scene-overview.md) — pedagogical overview of the CaaCS auditing technique (durable methodology explainer; the dated 2026-05 forensic run itself lives under [`docs/plans/engineering-notes/architecture-audits/`](../plans/engineering-notes/architecture-audits/)).
+- [Code as a Crime Scene — High-Level Overview](assessments/code-as-a-crime-scene-overview.md) — pedagogical overview of the CaaCS auditing technique (durable methodology explainer; the dated 2026-05 forensic run itself lives under [`docs/archive/plans/engineering-notes/architecture-audits/`](https://github.com/spec-kitty/spec-kitty/tree/main/docs/archive/plans/engineering-notes/architecture-audits/)).
 
 ## Calibration reports
 
@@ -106,17 +106,17 @@ Kept as records; not maintained as current.
 - [Vision history slot — 3.x](vision/README-3.x.md) — the prior era's settled vision, including the 2026-08-12 forward signal.
 - [Vision history slot — 2.x](vision/README-2.x.md) — per-era vision record for 2.x.
 - [Vision history slot — 1.x](vision/README-1.x.md) — per-era vision record for 1.x.
-- [2.x System Context](01_context/README.md) — frozen 2.x C4 level 1 snapshot.
-- [2.x Containers](02_containers/README.md) — frozen 2.x C4 level 2 snapshot.
-- [2.x Runtime/Execution Domain](02_containers/runtime-execution-domain.md) — frozen 2.x C4 level 2 container detail.
-- [2.x Components](03_components/README.md) — frozen 2.x C4 level 3 snapshot.
+- [2.x System Context](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/01_context/README.md) — frozen 2.x C4 level 1 snapshot.
+- [2.x Containers](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/02_containers/README.md) — frozen 2.x C4 level 2 snapshot.
+- [2.x Runtime/Execution Domain](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/02_containers/runtime-execution-domain-2x.md) — frozen 2.x C4 level 2 container detail.
+- [2.x Components](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/03_components/README.md) — frozen 2.x C4 level 3 snapshot.
 - [Functional Ownership Map (demoted)](05_ownership_map.md) — superseded narrative; module boundaries are owned by the enforced pyproject package list and layer rules.
-- [Architecture: centralized feature detection](feature-detection.md) — the v0.14.0 centralized mission-selection design, superseded by `mission_id` identity.
+- [Architecture: centralized feature detection](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/feature-detection.md) — the v0.14.0 centralized mission-selection design, superseded by `mission_id` identity.
 - [Launch-readiness behavior (coming soon)](launch-readiness-future.md) — superseded pre-Zeitgeist launch plan built on the retired sync gate.
 - [Team Kitty (SaaS): the hosted-sync flow](team-kitty-saas.md) — the deleted sync transport, kept as a record.
-- [Gap analysis: connector installation model](gap-analysis-connector-installation-model.md) — point-in-time 2026-03 gap analysis against the pre-convergence code.
-- [Architecture Documentation Guide](ARCHITECTURE_DOCS_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
-- [Architecture Navigation Guide](NAVIGATION_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
+- [Gap analysis: connector installation model](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/gap-analysis-connector-installation-model.md) — point-in-time 2026-03 gap analysis against the pre-convergence code.
+- [Architecture Documentation Guide](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
+- [Architecture Navigation Guide](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/NAVIGATION_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
 
 ## See also
 

@@ -6,7 +6,7 @@ updated: '2026-08-15'
 related:
 - docs/operations/recovery-index.md
 - docs/operations/coord-off-main-addadd.md
-- docs/plans/engineering-notes/coord-splitbrain-rootcause.md
+- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
 ---
 
 # Recovery: --start-branch Coordination Divergence
@@ -26,7 +26,7 @@ embeds the SHA) on every claim. Re-finalizing does not converge: the
 allocator regenerates coord's snapshot on each claim, and re-finalize
 re-captures `planning_commit_sha` against the tip *before* its own commit —
 a self-inconsistent loop. Root cause: [Coord-branch bookkeeping split-brain
-root-cause](../plans/engineering-notes/coord-splitbrain-rootcause.md).
+root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md).
 
 **Contributing footgun:** never `git add` `status.json` /
 `status.events.jsonl` on the primary branch of a coord-topology mission —
@@ -70,5 +70,5 @@ SPEC_KITTY_SYNC_DISABLE=1 spec-kitty agent action implement WP## --mission <hand
 ## Related
 
 - [Coordination branch created off main (add/add)](coord-off-main-addadd.md)
-- [Coord-branch bookkeeping root-cause](../plans/engineering-notes/coord-splitbrain-rootcause.md)
+- [Coord-branch bookkeeping root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md)
 - [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/index.md) — implementation-crash and merge recovery

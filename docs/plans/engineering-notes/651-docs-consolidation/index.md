@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/3.x/README.md
-- docs/development/3-2-page-inventory.yaml
+- docs/development/page-inventory.yaml
 - docs/docfx.json
 - docs/llms.txt
 ---
@@ -146,8 +146,8 @@ Both open questions below were resolved before Mission B opens.
 ## References
 
 - Issue #2165; Epic #651; CTO comment by @xtfer.
-- Key files: `docs/development/3-2-page-inventory.yaml`, `scripts/docs/check_docs_freshness.py`,
+- Key files: `docs/development/page-inventory.yaml`, `scripts/docs/check_docs_freshness.py`,
   `scripts/docs/version_leakage_check.py`, `tests/docs/test_docs_seo.py`, `docs/docfx.json`,
   `.github/workflows/docs-pages.yml`, `scripts/docs/seo_postprocess.py`,
   `docs/architecture/README.md` (the boundary contract this supersedes), `docs/adr/3.x/`,
-  `docs/architecture/NAVIGATION_GUIDE.md`, `docs/llms.txt`, `src/doctrine/graph.yaml` (DRG).
+  `docs/archive/architecture/NAVIGATION_GUIDE.md`, `docs/llms.txt`, `src/doctrine/graph.yaml` (DRG).

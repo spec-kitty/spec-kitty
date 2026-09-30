@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 - docs/plans/4-0-0-milestone-roadmap.md
-- docs/plans/3-2-x-open-core-delivery-plan.md
+- docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/plans/glossary-doctrine-overhaul-program.md
 - docs/changelog/4.0.0.md
@@ -157,7 +157,7 @@ cross-references the release-scoped docs rather than duplicating their tables.
 There has been **no standalone doctrine/charter throughline** before this document.
 The planning was distributed across four surfaces, none of which is the domain's index:
 
-1. **[3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md)** (superseded,
+1. **[3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md)** (superseded,
    prior cycle; the active release companion is the
    [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md)) — the closest
    thing to a doctrine/charter strategy, but framed as a *release-window* delivery plan,
@@ -211,13 +211,13 @@ activation seam.
 **Design of record.** Epic **#2519** (charter authoring & lifecycle hardening — the
 disjoint-ledgers root defect, deterministic intake, `charter author` scaffold, charter
 domain events); the sole-door done-bar in the
-[Open-Core Delivery Plan §1.1/§2.2](../3-2-x-open-core-delivery-plan.md); ADR
+[Open-Core Delivery Plan §1.1/§2.2](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md); ADR
 [2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 (plan/commit activation seam, cascade over DRG edges). The reasoning trail lives in two
 now-archived design notes (both `doc_status: deprecated`, cited here as historical
-provenance) — [charter-activation-reachability-assessment](../doctrine/charter-activation-reachability-assessment.md)
+provenance) — [charter-activation-reachability-assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-activation-reachability-assessment.md)
 (the V1/V2/V3 activation-vocabulary split; 185 activated artefacts, zero surfaced at the
-action boundary) and [runtime-charter-doctrine-boundary](../doctrine/runtime-charter-doctrine-boundary.md)
+action boundary) and [runtime-charter-doctrine-boundary](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/runtime-charter-doctrine-boundary.md)
 (the `runtime → charter → doctrine` layering ratchet); their findings are distilled into
 this plan's invariants and §4 gaps.
 
@@ -237,7 +237,7 @@ this plan's invariants and §4 gaps.
   that is the one activation vector that *does* surface artefacts today.
 
 > **Standing sub-thread — activation reachability (unspecced, durable).** The
-> [reachability assessment](../doctrine/charter-activation-reachability-assessment.md)'s (now archived) R1
+> [reachability assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-activation-reachability-assessment.md)'s (now archived) R1
 > ("make activation an entry vector into action context") and R2 ("collapse the three
 > activation vocabularies to one") are the difference between a doctrine layer that is
 > *declared* and one that is *in force*. They are blast-radius-bearing (they change what
@@ -264,7 +264,7 @@ the consumer-declared `replaceable-builtins.yaml` #2082) under parent epic **#17
 (charter/doctrine governance configuration & docs); the pack/DRG merge semantics in ADR
 [2026-05-16-1](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 (`enhances` = field-merge, `overrides` = full replacement, `specializes_from` lineage
-as a DRG edge); and the [doctrine-inclusion-assessment](../doctrine/doctrine-inclusion-assessment.md)
+as a DRG edge); and the [doctrine-inclusion-assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/doctrine-inclusion-assessment.md)
 (the three pillars — agent profiles, mission-type customization, ad-hoc composition —
 and the compiler gap).
 
@@ -293,7 +293,7 @@ sequenced #2658 template-slot → #2659 activation-driven enumeration → #2660 
 ("availability is charter-activation-driven, not filesystem-driven"); the provisioned
 default-charter revision (#2657, under #461) that retires "all built-in doctrine" as the
 implicit default; and the interlock analysis in the now-archived
-[next-slice-wheel-mission-types-public-api-research](../doctrine/next-slice-wheel-mission-types-public-api-research.md)
+[next-slice-wheel-mission-types-public-api-research](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md)
 note *(deprecated — historical record)* (how #3091 / #2468 / #2652 converge on the same
 end state via three independently sequenced efforts).
 
@@ -322,7 +322,7 @@ same "resolves means reachable, not just present" honesty the activation surface
 gap (see §4). The nearest guardrails are the terminology enforcement in the
 [glossary program](../glossary-doctrine-overhaul-program.md) (canonical-term casing, banned
 synonyms) and the reachability-metric discipline recorded in the now-archived
-[reachability assessment §5](../doctrine/charter-activation-reachability-assessment.md) *(deprecated)*
+[reachability assessment §5](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-activation-reachability-assessment.md) *(deprecated)*
 (measure reachability, not incidence) — both wiring/terminology gates, neither a
 content-scoping review.
 
@@ -377,9 +377,9 @@ single-entry-point invariant → *then* a transport/framework choice, sequenced 
 verified surface gap: `doctrine/__init__.py` declares 3 public names while **79 files
 reach past it across ~30 distinct submodule paths**, with no architectural test pinning
 "use the public surface." The now-archived `runtime → charter → doctrine` boundary audit
-([runtime-charter-doctrine-boundary](../doctrine/runtime-charter-doctrine-boundary.md), *deprecated*) is
+([runtime-charter-doctrine-boundary](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/runtime-charter-doctrine-boundary.md), *deprecated*) is
 the internal half of the same invariant; the now-archived
-[next-slice research §(c)](../doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)*
+[next-slice research §(c)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)*
 established that this public surface is a **precondition** for a credible wheel-cutover
 external contract, not a parallel effort.
 
@@ -434,7 +434,7 @@ program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
    glossary program's ASSET-gate rail (mission B) so shipped content is reviewed the way
    its wiring now is.
 2. **#3179 epic-home discrepancy.** The now-archived
-   [next-slice research §(c)](../doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)*
+   [next-slice research §(c)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)*
    recorded #3179 as filed **parented under #2466** (extensibility & pack ecosystem),
    while the issue itself is framed entirely on the **#645/#460** stable-application-API
    pattern (its Refs list is #3101, #645, #460, #2787, #3176) and the triage parents it
@@ -445,7 +445,7 @@ program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
 3. **Charter-sole-door residual doors are tracked in two places.** The residual bypass
    inventory lives in **both** the [charter-sole-door-deferred-issues](../doctrine/charter-sole-door-deferred-issues.md)
    record (six deferred issues: #2986, #3036, #3039, #3091, #3022, #3101) **and** the
-   [Open-Core Delivery Plan §1.1](../3-2-x-open-core-delivery-plan.md) residual list
+   [Open-Core Delivery Plan §1.1](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md) residual list
    (`resolve_template_by_id`'s 5 importers, `runtime/resolver.py`'s tier-1–4
    reimplementation, `runtime/home.py`'s importlib-resources root, three missions-root
    duplicates, the escalated #3176 site, sequenced as #3176/#3091/#3022/#3101). The two
@@ -453,7 +453,7 @@ program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
    ledger (this §3.1 + the deferred-issues doc as its citable summary) so a reader is not
    left to diff two lists to learn what the sole-door still leaks.
 4. **Activation reachability (R1/R2) is unspecced and durable.** Per the now-archived
-   [reachability assessment](../doctrine/charter-activation-reachability-assessment.md) *(deprecated)*, 185
+   [reachability assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-activation-reachability-assessment.md) *(deprecated)*, 185
    charter-activated artefacts surface **zero** at the action-context boundary because
    activation is operationalised as *filter membership* (V1) while the boundary renders
    from the *interview-answer* vocabulary (V2/V3). R1 (activation as an entry vector into
@@ -514,7 +514,7 @@ content-QA gap (no owning workstream) stands.*
 
 - [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) — the active-cycle release
   companion.
-- [3.2.x Open-Core Delivery Plan](../3-2-x-open-core-delivery-plan.md) — *superseded, prior
+- [3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md) — *superseded, prior
   cycle.* The release-window
   delivery strategy: charter-as-sole-door done-bar (§1.1/§2.2), built-in → module
   extraction (§2.2), Creed/Values schema (§3 item 4). The `what-ships-in-3.2.x` view of
@@ -526,14 +526,14 @@ content-QA gap (no owning workstream) stands.*
 
 **Doctrine design corpus** ([`docs/plans/doctrine/`](../doctrine/index.md)):
 
-- [Charter as Central Path Resolver — Gap Analysis](../doctrine/charter-path-resolution-gaps.md), [Doctrine Inclusion Assessment](../doctrine/doctrine-inclusion-assessment.md), [Layered Doctrine Resolution — Design Blueprint](../doctrine/layered-doctrine-resolution-design.md), and the FoundationalValues/Creed AUTHORITY docs — background design for §3.1/§3.2.
+- [Charter as Central Path Resolver — Gap Analysis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-path-resolution-gaps.md), [Doctrine Inclusion Assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/doctrine-inclusion-assessment.md), [Layered Doctrine Resolution — Design Blueprint](../doctrine/layered-doctrine-resolution-design.md), and the FoundationalValues/Creed AUTHORITY docs — background design for §3.1/§3.2.
 
 **Archived design notes (retired — cited above as historical provenance, not live design authority).**
 These three `docs/plans/doctrine/` investigations have been distilled into the invariants and gaps above and flipped to `doc_status: deprecated`; the durable throughline no longer treats them as its live design corpus. They are retained for lineage — read them for the reasoning trail, not for current state:
 
-- [Charter Activation vs DRG Reachability](../doctrine/charter-activation-reachability-assessment.md) *(deprecated)* — the V1/V2/V3 split and R1–R5, distilled into §3.1 and §4 gap 4.
-- [Runtime → Charter → Doctrine — boundary audit](../doctrine/runtime-charter-doctrine-boundary.md) *(deprecated)* — the layering ratchet, distilled into §3.6.
-- [Next doctrine slice — wheel / mission-types / public API research](../doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)* — the (a)/(b)/(c) interlock, distilled into §3.3, §3.6, and §4 gap 2.
+- [Charter Activation vs DRG Reachability](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-activation-reachability-assessment.md) *(deprecated)* — the V1/V2/V3 split and R1–R5, distilled into §3.1 and §4 gap 4.
+- [Runtime → Charter → Doctrine — boundary audit](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/runtime-charter-doctrine-boundary.md) *(deprecated)* — the layering ratchet, distilled into §3.6.
+- [Next doctrine slice — wheel / mission-types / public API research](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md) *(deprecated)* — the (a)/(b)/(c) interlock, distilled into §3.3, §3.6, and §4 gap 2.
 
 **Doctrine/charter ADRs (design of record):**
 

@@ -12,9 +12,9 @@ audience: docs/context/audience/internal/maintainer.md
 **Last updated:** 2026-05-09 (after `tests/` + `kitty-specs/` scope-expansion pass).
 **Companion artefacts:**
 - Doctrine: `packs/built-in/tactics/analysis/forensic-repository-audit.tactic.yaml`, `packs/built-in/procedures/legacy-codebase-triage.procedure.yaml`
-- Empirical run: `docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md`
-- Cross-check vs issue tracker: `docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md`
-- Phase-3 synthesis & meta: `docs/plans/engineering-notes/architecture-audits/2026-05-phase3-*.md`, `docs/plans/engineering-notes/architecture-audits/2026-05-caacs-meta-assessment.md`
+- Empirical run: `docs/archive/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md`
+- Cross-check vs issue tracker: `docs/archive/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md`
+- Phase-3 synthesis & meta: `docs/plans/engineering-notes/architecture-audits/2026-05-phase3-*.md`, `docs/archive/plans/engineering-notes/architecture-audits/2026-05-caacs-meta-assessment.md`
 
 ---
 
@@ -175,6 +175,6 @@ The audit-vs-issue-tracker crosscheck produced **zero STRONG matches** between t
 **Internal artefacts** (this repo)
 - Doctrine: `packs/built-in/tactics/analysis/forensic-repository-audit.tactic.yaml`
 - Doctrine: `packs/built-in/procedures/legacy-codebase-triage.procedure.yaml`
-- Audit (2026-05, two-pass): `docs/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md`
-- Issue-tracker crosscheck: `docs/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md`
-- Phase-3 synthesis (issue drafts, backlog triage, F1 knowledge-capture plan, meta-assessment): `docs/plans/engineering-notes/architecture-audits/2026-05-phase3-*.md` and `docs/plans/engineering-notes/architecture-audits/2026-05-caacs-meta-assessment.md`
+- Audit (2026-05, two-pass): `docs/archive/plans/engineering-notes/architecture-audits/2026-05-spec-kitty-caacs.md`
+- Issue-tracker crosscheck: `docs/archive/plans/engineering-notes/architecture-audits/2026-05-822-crosscheck.md`
+- Phase-3 synthesis (issue drafts, backlog triage, F1 knowledge-capture plan, meta-assessment): `docs/plans/engineering-notes/architecture-audits/2026-05-phase3-*.md` and `docs/archive/plans/engineering-notes/architecture-audits/2026-05-caacs-meta-assessment.md`

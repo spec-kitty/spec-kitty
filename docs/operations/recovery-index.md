@@ -24,7 +24,7 @@ Six recovery entries for the coordination-branch / lane-worktree split-brain sta
 coord-topology mission can land in. Each leads with the shipped `spec-kitty doctor …
 --fix` where one genuinely exists; the rest are manual, operator-approved procedures,
 citing the [coord-branch bookkeeping root-cause
-analysis](../plans/engineering-notes/coord-splitbrain-rootcause.md) for the underlying
+analysis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md) for the underlying
 "why."
 
 - [Coordination branch created off main (add/add)](coord-off-main-addadd.md)

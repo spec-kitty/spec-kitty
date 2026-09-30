@@ -6,7 +6,7 @@ updated: '2026-08-15'
 related:
 - docs/operations/recovery-index.md
 - docs/operations/coord-off-main-addadd.md
-- docs/plans/engineering-notes/coord-splitbrain-rootcause.md
+- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
 ---
 
 # Recovery: Coordination Branch Stranded After a Base Rebase
@@ -116,5 +116,5 @@ the literal intended-base SHA.
 ## Related
 
 - [Coordination branch created off main (add/add)](coord-off-main-addadd.md)
-- [Coord-branch bookkeeping root-cause](../plans/engineering-notes/coord-splitbrain-rootcause.md)
+- [Coord-branch bookkeeping root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md)
 - [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/index.md) — implementation-crash and merge recovery

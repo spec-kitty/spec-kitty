@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/investigations/wp-op-schema-model.md
-- docs/plans/investigations/wp-op-schema-research/README.md
+- docs/archive/plans/investigations/wp-op-schema-research/README.md
 ---
 # WP & Op Schema Model — Related Open Tracker Tickets
 

@@ -62,11 +62,11 @@ needing the stickies/causal DSL. See
 
 | Diagram Template | C4 Template Alignment | 2.x Architecture Alignment |
 |---|---|---|
-| System Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/01_context/README.md`](../../../../docs/architecture/01_context/README.md) |
-| Frontend Architecture | [C4 Containers](../architecture/c4-container-mermaid-template.md), [C4 Components](../architecture/c4-component-mermaid-template.md) | [`docs/architecture/02_containers/README.md`](../../../../docs/architecture/02_containers/README.md), [`docs/architecture/03_components/README.md`](../../../../docs/architecture/03_components/README.md) |
-| Request Lifecycle | [C4 Components](../architecture/c4-component-mermaid-template.md) | [`docs/architecture/02_containers/runtime-execution-domain.md`](../../../../docs/architecture/02_containers/runtime-execution-domain.md) |
-| Structure Meta Model | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/01_context/README.md`](../../../../docs/architecture/01_context/README.md) |
-| Causal Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/01_context/README.md`](../../../../docs/architecture/01_context/README.md) |
+| System Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/diagrams/01_context/README.md`](../../../../../docs/architecture/diagrams/01_context/README.md) |
+| Frontend Architecture | [C4 Containers](../architecture/c4-container-mermaid-template.md), [C4 Components](../architecture/c4-component-mermaid-template.md) | [`docs/architecture/diagrams/02_containers/README.md`](../../../../../docs/architecture/diagrams/02_containers/README.md), [`docs/architecture/diagrams/03_components/README.md`](../../../../../docs/architecture/diagrams/03_components/README.md) |
+| Request Lifecycle | [C4 Components](../architecture/c4-component-mermaid-template.md) | [`docs/architecture/diagrams/02_containers/runtime-execution-domain.md`](../../../../../docs/architecture/diagrams/02_containers/runtime-execution-domain.md) |
+| Structure Meta Model | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/diagrams/01_context/README.md`](../../../../../docs/architecture/diagrams/01_context/README.md) |
+| Causal Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/diagrams/01_context/README.md`](../../../../../docs/architecture/diagrams/01_context/README.md) |
 | Content Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/README.md`](../../../../docs/architecture/README.md) |
 | Repo Content Graph | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/README.md`](../../../../docs/architecture/README.md) |
 

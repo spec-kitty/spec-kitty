@@ -51,6 +51,8 @@
       href: reference/ci-gate-mechanics.md
     - name: Issue-matrix verdict reference
       href: reference/issue-matrix-verdicts.md
+    - name: Version taxonomy
+      href: reference/version-taxonomy.md
     - name: Analysis report transactions
       href: analysis-report-transactions.md
     - name: 'Deviation: inline-meta-read allow-list baseline'
@@ -72,11 +74,3 @@
   items:
     - name: Executive debrief house style
       href: reporting/debrief-styleguide.md
-- name: Historical / prior cycle
-  items:
-    - name: 'tests/sync/ process-global and thread-seam inventory (#3115)'
-      href: reference/process-global-inventory-3115.md
-    - name: Agent-memory migration manifest
-      href: agent-memory-migration-manifest.md
-    - name: Agent-memory workflow migration manifest
-      href: agent-memory-workflow-migration-manifest.md

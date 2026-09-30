@@ -38,14 +38,14 @@ below, a throughline does not retire when a milestone closes.
   availability, meta.json fail-closed reads, the public API surface, and
   glossary-as-doctrine. Its release-scoped companion is the
   [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md) (the
-  [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) is the prior-cycle
+  [3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md) is the prior-cycle
   record); its program-scoped companions are the
   [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) and the
   [Charter-Resolution Program](charter-resolution/README.md).
 - **Packs extraction** — [Packs Extraction — Domain Plan](domains/packs-extraction-domain-plan.md):
-  physically extracting the doctrine layer into a standalone `spec-kitty-doctrine`
-  module. **Premise changed:** the standalone `src/doctrine/` package it builds on has since
-  been absorbed into `src/charter/offering/`; see the status banner on the plan.
+  re-extracting the doctrine layer from `src/charter/offering/` and `packs/built-in/`
+  into separately released units: the wheel split (#3101), open-packs re-vendoring
+  (#3504) and verified distribution (#2539). None of it is 4.0.0 scope.
 - **API & dashboard** — [API & Dashboard — Domain Plan](domains/api-dashboard-domain-plan.md):
   the stable application/mission-data API surface (#645) and the dashboard/UX consumers
   (#650), including retiring the Feature-labelled UI drift.
@@ -76,12 +76,12 @@ their next steps; the 4.0.0 roadmap is the plan of record.
   execution roadmap; re-anchored on 2026-09-14 to hand authority to the 4.0.0 roadmap.
   The durable declarations of intent it executed live in
   [release goals](../changelog/release-goals.md).
-- [3.2.x Executive Overview](3-2-x-executive-overview.md) — *superseded.* PO / C-suite
+- [3.2.x Executive Overview](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-executive-overview.md) — *superseded.* PO / C-suite
   synthesis of 3.2.x goals and progress since 3.2.4, framed as business outcomes.
-- [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) — *superseded.*
+- [3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md) — *superseded.*
   PO-facing status re-read and the open-core breaking-change delivery strategy
   (charter-as-sole-door, built-in→module extraction).
-- [3.2.x Delivery Approach](3-2-x-approach.md) — *superseded.* Cross-mission sequencing
+- [3.2.x Delivery Approach](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-approach.md) — *superseded.* Cross-mission sequencing
   intent, stress-tested by a two-round dialectic squad.
 
 ## Programmes and status notes
@@ -127,8 +127,8 @@ Retired collections (distilled and closed out; their `index.md` is `deprecated`,
 on disk as archived provenance, not a live working surface): the **Reviews** collection
 (PR review resolution plans, test plans, execution reports), the **3.2 doc
 publication** collection (IA, navigation, and the 3.2 publication checklist), the
-**[Initiatives](initiatives/index.md)** collection (2.x-era architecture initiatives, retired
-2026-09-30), the **[Refactor](refactor/index.md)** collection (the degod/unshim
+**[Initiatives](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/initiatives/index.md)** collection (2.x-era architecture initiatives, retired
+2026-09-30), the **[Refactor](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/index.md)** collection (the degod/unshim
 programme, executed; retired 2026-09-30), and the
-**[Next-mission mappings](next-mission-mappings/index.md)** collection (both mapped gaps are
+**[Next-mission mappings](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/next-mission-mappings/index.md)** collection (both mapped gaps are
 now hard regression tests; retired 2026-09-30).

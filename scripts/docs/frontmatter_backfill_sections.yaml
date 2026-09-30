@@ -12,7 +12,7 @@
 #
 # ---------------------------------------------------------------------------
 # STALE-INVENTORY GAP (flagged to orchestrator):
-#   WP11's frontmatter_backfill.py is keyed off docs/development/3-2-page-inventory.yaml,
+#   WP11's frontmatter_backfill.py is keyed off docs/development/page-inventory.yaml,
 #   the PRE-move snapshot. After WP03/WP04/WP16 only 228/580 inventory rows still
 #   resolve, and 360/415 live docs/*.md pages have NO inventory row. The tool can
 #   therefore reach only ~55 of the live docs pages. Frontmatter is the SSOT now

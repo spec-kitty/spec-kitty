@@ -1,7 +1,7 @@
 """Packaged schema + query store for the Common Docs retrieval index.
 
 Mission ``common-docs-query`` closes the retrieval gap for Common Docs
-(``docs/``): the existing page-inventory (``docs/development/3-2-page-inventory.yaml``,
+(``docs/``): the existing page-inventory (``docs/development/page-inventory.yaml``,
 owned by ``scripts/docs/_inventory.py::PageInventoryEntry``) carries version/
 ownership metadata but no title, heading-anchor, or abstract index, so agents
 resort to globbing the tree.
@@ -46,7 +46,7 @@ __all__ = [
 ]
 
 
-DEFAULT_INDEX_PATH: Final[str] = "docs/development/3-2-docs-retrieval-index.yaml"
+DEFAULT_INDEX_PATH: Final[str] = "docs/development/docs-retrieval-index.yaml"
 
 _INDEX_HEADER: Final[str] = (
     "# GENERATED — do not edit by hand; run scripts/docs/docs_index.py --write "
