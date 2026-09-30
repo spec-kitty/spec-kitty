@@ -412,7 +412,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         destination_ref: str,
         operation: str,
         capability: GuardCapability = GuardCapability.STANDARD,
-        effective_root: Path | None = None,
+        owned: OwnedCheckout | None = None,
     ) -> Refused | None:
         """The ``Refused`` :meth:`acquire` would raise as ``BookkeepingPolicyRefused``, else ``None``.
 
@@ -421,7 +421,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         ``_acquire_locked`` uses and runs the SAME policy gate
         (:func:`_preflight_policy_verdict`), so a caller can refuse up front
         exactly what the real write would refuse later (C-001: no second rule).
-        ``repo_root`` / ``effective_root`` mean what they mean for :meth:`acquire`.
+        ``repo_root`` is the primary checkout root; ``owned`` is the owned-checkout
+        carrier (``None`` for a non-owned mission), threaded into the policy gate so
+        an owned mission resolves protection through ``resolve_for_owned`` exactly as
+        its real write does.
 
         * coordination arm: the caller-ref verdict (:func:`_caller_ref_refusal`),
           then the gate against the redirected coordination branch. A missing
@@ -433,8 +436,15 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
           lane HEAD, which is not knowable before the run;
         * modern coordination-less arm: the gate against ``destination_ref`` on
           the primary checkout.
+
+        C-001 (no second rule): the probe carries ``owned`` verbatim into
+        :func:`_preflight_policy_verdict`, so it resolves protection the same way the
+        real write does — ``owned=None`` (e.g. the consolidate ``done`` write,
+        ``done_bookkeeping._mark_wp_merged_done``, which builds an owned-less request)
+        resolves via ``resolve(repo_root).for_mission``; an owned mission resolves via
+        ``resolve_for_owned``. Arm classification stays on the primary ``repo_root``.
         """
-        arm_root = effective_root or repo_root
+        arm_root = repo_root
         safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
         safe_mid8 = _validate_safe_segment("mid8", mid8)
         effective_destination_ref = destination_ref
@@ -461,13 +471,14 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME
         verdict = _preflight_policy_verdict(
             repo_root=arm_root,
-            primary_root=repo_root if effective_root is not None else None,
+            primary_root=None,
             worktree_root=worktree_root,
             mission_slug=safe_mission_slug,
             destination_ref=effective_destination_ref,
             status_paths=(events_path, snapshot_path),
             operation=operation,
             capability=capability,
+            owned=owned,
         )
         if not isinstance(verdict, Refused):
             return None

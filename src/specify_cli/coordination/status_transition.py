@@ -1563,17 +1563,17 @@ def status_write_refusal(
     identity, topology_available = _resolve_transaction_entry(request, mission_slug)
     if not topology_available:
         return None
-    # WP07/T033: ``primary_root`` was folded into the ``owned`` carrier;
-    # ``identity.owned.repository_root`` is the former ``identity.primary_root``.
-    primary_root = identity.owned.repository_root if identity.owned is not None else None
+    # WP07/T033: the owned root rides the ``owned`` carrier, never a bare path.
+    # ``preflight_refusal`` threads it into the policy gate, so an owned mission
+    # resolves protection via ``resolve_for_owned`` exactly as its real write does.
     return BookkeepingTransaction.preflight_refusal(
-        repo_root=primary_root or identity.repo_root,
+        repo_root=identity.repo_root,
         mission_slug=mission_slug,
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition {request.wp_id}",
         capability=capability,
-        effective_root=identity.repo_root if primary_root is not None else None,
+        owned=identity.owned,
     )
 
 
