@@ -60,6 +60,10 @@ SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan Template
 """
 
 
+def _git_stdout(cwd: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
 def _init_owned_checkout_pair(tmp_path: Path) -> tuple[Path, Path]:
     """Create a configured primary repository and real generic linked worktree."""
     primary = tmp_path / "primary"
@@ -601,119 +605,80 @@ class TestCreateFeatureCommand:
     def test_owned_checkout_creates_mission_in_real_linked_worktree(
         self,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """An explicit validated checkout owns mission scaffolding and commit routing."""
-        primary, linked = _init_owned_checkout_pair(tmp_path)
+        """An explicit validated checkout owns mission scaffolding and commit routing.
 
-        with (
-            patch(
-                "specify_cli.cli.commands.agent.mission.locate_project_root",
-                return_value=primary,
-            ),
-            patch(
-                "specify_cli.core.mission_creation.Path.cwd",
-                return_value=linked,
-            ),
-            patch("specify_cli.core.mission_creation.safe_commit") as safe_commit,
-            patch(
-                "specify_cli.core.mission_creation.ULID",
-                return_value=ULID.from_str(TEST_MISSION_ID),
-            ),
-        ):
-            result = runner.invoke(
-                app,
-                [
-                    "create",
-                    "owned-feature",
-                    "--owned-checkout",
-                    str(linked),
-                    "--topology",
-                    "single_branch",
-                    "--json",
-                ],
-            )
+        Runs from inside the real linked worktree with nothing patched: the
+        scaffold commit must land on the checkout's own branch, never on the
+        primary's ``main``, and the primary checkout stays clean.
+        """
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+        main_before = _git_stdout(primary, "rev-parse", "main")
+        monkeypatch.chdir(linked)
+
+        result = runner.invoke(
+            app,
+            [
+                "create",
+                "owned-feature",
+                "--owned-checkout",
+                str(linked),
+                "--topology",
+                "single_branch",
+                "--json",
+            ],
+        )
 
         assert result.exit_code == 0, result.output
         payload = json.loads(result.stdout)
-        mission_slug = f"owned-feature-{TEST_MISSION_MID8}"
+        mission_slug = payload["mission_slug"]
         mission_dir = linked / "kitty-specs" / mission_slug
+        assert mission_slug.startswith("owned-feature-")
         assert payload["owned_checkout"] == str(linked.resolve())
         assert payload["canonical_repo_root"] == str(primary.resolve())
-        assert payload["feature_dir"] == str(mission_dir)
-        assert mission_dir.is_dir()
+        assert Path(payload["feature_dir"]).resolve() == mission_dir.resolve()
         assert (mission_dir / "meta.json").is_file()
         assert not (primary / "kitty-specs" / mission_slug).exists()
-        assert (
-            subprocess.run(
-                ["git", "status", "--short"],
-                cwd=primary,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout
-            == ""
-        )
-        safe_commit.assert_called_once()
-        assert safe_commit.call_args.kwargs["repo_root"] == primary.resolve()
-        assert safe_commit.call_args.kwargs["worktree_root"] == linked.resolve()
-        assert safe_commit.call_args.kwargs["target"].ref == "owned-mission"
+        assert _git_stdout(primary, "status", "--short") == ""
+        assert _git_stdout(primary, "rev-parse", "main") == main_before
+        assert mission_slug in _git_stdout(linked, "log", "-1", "--format=%s", "owned-mission")
+        assert f"kitty-specs/{mission_slug}/meta.json" in _git_stdout(
+            linked, "show", "--name-only", "--format=", "owned-mission"
+        ).splitlines()
 
     def test_owned_checkout_with_no_topology_flag_still_defaults_to_single_branch(
         self,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """WP06 review cycle 1, nit 3 (#5100, ADR 2026-09-03-1): a real
-        ``--owned-checkout`` create with NO ``--topology`` still resolves to
-        ``single_branch`` -- but this is a genuine behaviour CHANGE, not the
-        preservation the WP06 commit message originally (incorrectly)
-        described. ``linked`` here has no ``origin`` remote, so
-        ``resolve_primary_branch`` falls back to reading the checkout's OWN
-        current branch (``owned-mission``); pre-WP06 that fallback made
-        ``current_branch == primary_branch`` for ANY checkout, so this exact
-        fixture minted ``coord``, never the non-primary arm's
-        ``single_branch``. WP06's explicit ``owned_checkout is not None``
-        short-circuit is what makes this ``single_branch`` on HEAD -- so it
-        is pinned at the CLI level, end to end, not only at the unit level.
-        Out-of-map edit (WP06 owns ``mission_create.py`` + the
-        ``agent/test_mission_create*`` files, not this module) -- added here
-        because it clones the sibling real-owned-checkout fixture
-        (``_init_owned_checkout_pair``) one test above, which only this file
-        defines.
+        """A real ``--owned-checkout`` create with no ``--topology`` resolves to ``single_branch``.
+
+        ``linked`` has no ``origin`` remote, so ``resolve_primary_branch``
+        falls back to the checkout's own current branch (``owned-mission``).
+        Without the explicit owned-checkout short-circuit that fallback makes
+        the current branch look primary and the create would mint ``coord``
+        (ADR 2026-09-03-1), so this is pinned end to end at the CLI.
         """
         primary, linked = _init_owned_checkout_pair(tmp_path)
+        monkeypatch.chdir(linked)
 
-        with (
-            patch(
-                "specify_cli.cli.commands.agent.mission.locate_project_root",
-                return_value=primary,
-            ),
-            patch(
-                "specify_cli.core.mission_creation.Path.cwd",
-                return_value=linked,
-            ),
-            patch("specify_cli.core.mission_creation.safe_commit"),
-            patch(
-                "specify_cli.core.mission_creation.ULID",
-                return_value=ULID.from_str(TEST_MISSION_ID),
-            ),
-        ):
-            result = runner.invoke(
-                app,
-                [
-                    "create",
-                    "owned-feature-default-topology",
-                    "--owned-checkout",
-                    str(linked),
-                    "--json",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "create",
+                "owned-feature-default-topology",
+                "--owned-checkout",
+                str(linked),
+                "--json",
+            ],
+        )
 
         assert result.exit_code == 0, result.output
         payload = json.loads(result.stdout)
         assert payload["topology"] == "single_branch", payload
-        mission_slug = f"owned-feature-default-topology-{TEST_MISSION_MID8}"
         meta = json.loads(
-            (linked / "kitty-specs" / mission_slug / "meta.json").read_text(encoding="utf-8")
+            (linked / "kitty-specs" / payload["mission_slug"] / "meta.json").read_text(encoding="utf-8")
         )
         assert meta["topology"] == "single_branch", meta
 
