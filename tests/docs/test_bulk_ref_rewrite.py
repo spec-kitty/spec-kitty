@@ -194,7 +194,7 @@ class TestDoNotChangeCategoriesUntouched:
 
     def test_inventory_lockfile_untouched(self, tmp_path: Path) -> None:
         occ = _build_fixture_repo(tmp_path)
-        lock = tmp_path / "docs" / "development" / "3-2-page-inventory.yaml"
+        lock = tmp_path / "docs" / "development" / "page-inventory.yaml"
         body = "- path: architecture/3.x/adr/x.md\n"
         _write(lock, body)
         run(tmp_path, occ, roots=("docs",), include_root_md=False)
@@ -265,7 +265,7 @@ def test_resolve_destination_variants(tmp_path: Path) -> None:
     # (regression: appending the basename doubled it, e.g. …/x.md/x.md)
     assert (
         resolve_destination(
-            "docs/architecture/feature-detection.md",
+            "docs/archive/architecture/feature-detection.md",
             "docs/plans/engineering-notes/feature-detection.md",
             tmp_path,
         )

@@ -54,7 +54,7 @@ _MOVED_BUILTIN_DOC_RE = r"src/charter/offering/[a-z_]+/built-in|src/charter/offe
 _GUARD_DOC_EXCLUSIONS = (
     ":(exclude)docs/adr",
     ":(exclude)docs/plans",
-    ":(exclude)docs/development/3-2-docs-retrieval-index.yaml",
+    ":(exclude)docs/development/docs-retrieval-index.yaml",
     ":(exclude)docs/migrations/relocate-builtin-doctrine-packs.md",
 )
 

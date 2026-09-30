@@ -33,7 +33,7 @@ ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
 # (This comment intentionally avoids the contiguous hyphenated literal so the
 # guard does not flag itself.)
 _GENERATED_EXCLUSIONS: frozenset[Path] = frozenset(
-    {REPO_ROOT / "docs" / "development" / "3-2-docs-retrieval-index.yaml"}
+    {REPO_ROOT / "docs" / "development" / "docs-retrieval-index.yaml"}
 )
 
 # Curated docs that name the live GitHub domain label literally called

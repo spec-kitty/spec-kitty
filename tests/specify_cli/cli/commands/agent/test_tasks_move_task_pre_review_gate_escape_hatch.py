@@ -4,7 +4,7 @@ honoring + running-progress legibility on ``_mt_run_pre_review_gate``.
 ``move-task --to for_review`` runs a synchronous, potentially multi-minute
 scoped pytest subprocess (``pre_review_gate.run_scoped_tests_at_head``) with
 no way to skip it — the loop-friction fast-follow spec
-(``docs/plans/investigations/loop-friction-fastfollow-spec.md`` FR-002/FR-003) adds:
+(``docs/archive/plans/investigations/loop-friction-fastfollow-spec.md`` FR-002/FR-003) adds:
 
 1. an explicit ``--skip-pre-review-gate`` CLI flag (``st.skip_pre_review_gate``),
 2. honoring the gate's own ``SPEC_KITTY_SKIP_PRE_REVIEW_GATE`` env var as a

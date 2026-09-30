@@ -54,6 +54,8 @@ AGENT_DIRS = [
 ALLOWLIST_PREFIXES = (
     "kitty-specs/",
     "docs/plans/engineering-notes/",
+    # Historical engineering notes moved here by the #5428 docs cleanup.
+    "docs/archive/plans/engineering-notes/",
     "docs/changelog/",
 )
 

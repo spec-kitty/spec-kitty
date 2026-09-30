@@ -210,7 +210,7 @@ def test_render_table_plain_empty_findings() -> None:
 def test_build_parser_defaults() -> None:
     parser = build_parser()
     args = parser.parse_args([])
-    assert str(args.inventory) == "docs/development/3-2-page-inventory.yaml"
+    assert str(args.inventory) == "docs/development/page-inventory.yaml"
     assert str(args.docs_root) == "docs"
     assert args.banner_regex == DEFAULT_BANNER_REGEX
     assert args.report is None

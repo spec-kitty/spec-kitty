@@ -11,7 +11,7 @@ Covers WP01 subtasks T001-T006 (mission ``common-docs-query``):
 * T004 — generator API (``render_index``/``parse_index``/``compare_index``/
   ``run_generate_and_compare``), mirroring ``inventory_lockfile.py``.
 * T005 — sanity checks on the committed, generated
-  ``docs/development/3-2-docs-retrieval-index.yaml``.
+  ``docs/development/docs-retrieval-index.yaml``.
 * T006 — C-001 (no ``PageInventoryEntry``) and packaging-layering regressions,
   plus the positive "``slugify`` is imported, not forked" assertion.
 

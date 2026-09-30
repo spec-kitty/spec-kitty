@@ -6,7 +6,7 @@ every gap-filler lesson it contained, grouped into six clusters (G1-G6). The
 working artifact that audit was run against (``work/memory-gap-filler-
 analysis.md``) is gitignored and does not exist in this worktree or in CI —
 so the manifest at
-:mod:`docs/development/agent-memory-migration-manifest.md` IS the committed
+:mod:`docs/archive/development/agent-memory-migration-manifest.md` IS the committed
 authority, not a summary of one.
 
 This module does **not** hardcode the gap-filler list as an inline literal
@@ -38,16 +38,12 @@ import pytest
 pytestmark = pytest.mark.fast
 
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-_MANIFEST_PATH: Final[Path] = (
-    _REPO_ROOT / "docs" / "development" / "agent-memory-migration-manifest.md"
-)
+_MANIFEST_PATH: Final[Path] = _REPO_ROOT / "docs" / "archive" / "development" / "agent-memory-migration-manifest.md"
 
 _EXPECTED_CLUSTERS: Final[tuple[str, ...]] = ("G1", "G2", "G3", "G4", "G5", "G6")
 
 # A cluster heading looks like: "## G1 — Gate-fix guidance (WP01, ...)"
-_CLUSTER_HEADING_RE: Final[re.Pattern[str]] = re.compile(
-    r"^##\s+(?P<cluster>G[1-6])\b(?P<rest>.*)$"
-)
+_CLUSTER_HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^##\s+(?P<cluster>G[1-6])\b(?P<rest>.*)$")
 
 # A markdown table row: "| memory entry text | resolution text |"
 # Skip separator rows ("| --- | --- |") and the header row itself.
@@ -164,9 +160,7 @@ def _extract_home_path(resolution_cell: str) -> str | None:
 @pytest.fixture(scope="module")
 def manifest_text() -> str:
     assert _MANIFEST_PATH.is_file(), (
-        f"Migration manifest missing at {_MANIFEST_PATH}. "
-        "This test derives its checks from that file's own content — "
-        "it cannot run without it."
+        f"Migration manifest missing at {_MANIFEST_PATH}. This test derives its checks from that file's own content — it cannot run without it."
     )
     return _MANIFEST_PATH.read_text(encoding="utf-8")
 
@@ -189,10 +183,7 @@ class TestAllClustersPresent:
     def test_all_six_clusters_present(self, manifest_rows: list[ManifestRow]) -> None:
         present_clusters = {row.cluster for row in manifest_rows}
         missing = set(_EXPECTED_CLUSTERS) - present_clusters
-        assert not missing, (
-            f"Manifest is missing gap-filler rows for cluster(s) {sorted(missing)}. "
-            f"Expected all of {_EXPECTED_CLUSTERS} to have at least one row."
-        )
+        assert not missing, f"Manifest is missing gap-filler rows for cluster(s) {sorted(missing)}. Expected all of {_EXPECTED_CLUSTERS} to have at least one row."
 
     def test_no_unexpected_clusters(self, manifest_rows: list[ManifestRow]) -> None:
         present_clusters = {row.cluster for row in manifest_rows}
@@ -207,47 +198,27 @@ class TestAllClustersPresent:
 class TestEveryRowResolved:
     """Property (2): every gap-filler row carries a recognised resolution."""
 
-    def test_every_row_has_a_resolution_token(
-        self, manifest_rows: list[ManifestRow]
-    ) -> None:
-        unresolved = [
-            row
-            for row in manifest_rows
-            if _resolution_token(row.resolution_cell) is None
-        ]
-        assert not unresolved, (
-            "Row(s) with no recognised resolution token "
-            f"({', '.join(_RESOLUTION_TOKENS)}): "
-            + "; ".join(
-                f"[{row.cluster}] {row.entry_cell!r} -> {row.resolution_cell!r}"
-                for row in unresolved
-            )
+    def test_every_row_has_a_resolution_token(self, manifest_rows: list[ManifestRow]) -> None:
+        unresolved = [row for row in manifest_rows if _resolution_token(row.resolution_cell) is None]
+        assert not unresolved, f"Row(s) with no recognised resolution token ({', '.join(_RESOLUTION_TOKENS)}): " + "; ".join(
+            f"[{row.cluster}] {row.entry_cell!r} -> {row.resolution_cell!r}" for row in unresolved
         )
 
 
 class TestHomePathsExist:
     """Property (3): every ``home:`` resolution's path exists on disk."""
 
-    def test_every_home_path_exists_on_disk(
-        self, manifest_rows: list[ManifestRow]
-    ) -> None:
-        home_rows = [
-            row for row in manifest_rows if "home:" in row.resolution_cell
-        ]
+    def test_every_home_path_exists_on_disk(self, manifest_rows: list[ManifestRow]) -> None:
+        home_rows = [row for row in manifest_rows if "home:" in row.resolution_cell]
         assert home_rows, (
-            "Expected at least one `home:` resolution across the manifest "
-            "— found none. Either the manifest lost its home: rows or the "
-            "parser regressed."
+            "Expected at least one `home:` resolution across the manifest — found none. Either the manifest lost its home: rows or the parser regressed."
         )
 
         missing: list[str] = []
         for row in home_rows:
             raw_path = _extract_home_path(row.resolution_cell)
             if raw_path is None:
-                missing.append(
-                    f"[{row.cluster}] {row.entry_cell!r}: `home:` resolution has "
-                    f"no parseable markdown link in {row.resolution_cell!r}"
-                )
+                missing.append(f"[{row.cluster}] {row.entry_cell!r}: `home:` resolution has no parseable markdown link in {row.resolution_cell!r}")
                 continue
 
             # Manifest links are relative to docs/development/ (the
@@ -255,14 +226,9 @@ class TestHomePathsExist:
             # GitHub and any static-site docs build.
             resolved = (_MANIFEST_PATH.parent / raw_path).resolve()
             if not resolved.exists():
-                missing.append(
-                    f"[{row.cluster}] {row.entry_cell!r}: home path "
-                    f"{raw_path!r} does not exist (resolved: {resolved})"
-                )
+                missing.append(f"[{row.cluster}] {row.entry_cell!r}: home path {raw_path!r} does not exist (resolved: {resolved})")
 
-        assert not missing, "Broken `home:` path(s) in manifest:\n" + "\n".join(
-            missing
-        )
+        assert not missing, "Broken `home:` path(s) in manifest:\n" + "\n".join(missing)
 
 
 class TestManifestNotATautology:
@@ -277,23 +243,13 @@ class TestManifestNotATautology:
     """
 
     def test_parser_rejects_row_with_no_recognised_token(self) -> None:
-        synthetic = (
-            "## G1 — synthetic\n\n"
-            "| Memory entry | Resolution |\n"
-            "|---|---|\n"
-            "| `some_entry` | this row has no resolution token at all |\n"
-        )
+        synthetic = "## G1 — synthetic\n\n| Memory entry | Resolution |\n|---|---|\n| `some_entry` | this row has no resolution token at all |\n"
         rows = parse_manifest_rows(synthetic)
         assert len(rows) == 1
         assert _resolution_token(rows[0].resolution_cell) is None
 
     def test_parser_flags_missing_cluster(self) -> None:
-        synthetic = (
-            "## G1 — synthetic\n\n"
-            "| Memory entry | Resolution |\n"
-            "|---|---|\n"
-            "| `some_entry` | **retired** |\n"
-        )
+        synthetic = "## G1 — synthetic\n\n| Memory entry | Resolution |\n|---|---|\n| `some_entry` | **retired** |\n"
         rows = parse_manifest_rows(synthetic)
         present_clusters = {row.cluster for row in rows}
         missing = set(_EXPECTED_CLUSTERS) - present_clusters
@@ -302,11 +258,7 @@ class TestManifestNotATautology:
     def test_parser_flags_dead_home_path(self, tmp_path: Path) -> None:
         synthetic_manifest = tmp_path / "synthetic-manifest.md"
         synthetic_manifest.write_text(
-            "## G1 — synthetic\n\n"
-            "| Memory entry | Resolution |\n"
-            "|---|---|\n"
-            "| `some_entry` | **home:** "
-            "[`nope.py`](definitely/does/not/exist.py) |\n",
+            "## G1 — synthetic\n\n| Memory entry | Resolution |\n|---|---|\n| `some_entry` | **home:** [`nope.py`](definitely/does/not/exist.py) |\n",
             encoding="utf-8",
         )
         text = synthetic_manifest.read_text(encoding="utf-8")

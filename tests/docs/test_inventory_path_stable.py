@@ -3,11 +3,14 @@
 Mission B (Common Docs Structural Move, WP04 / FR-012) re-sections
 ``docs/development/`` per-file into the durable-vs-ephemeral structure, but the
 operator directive is explicit: the page-inventory tooling artifact
-``docs/development/3-2-page-inventory.yaml`` does **not** move with the pages,
+``docs/development/page-inventory.yaml`` does **not** move with the pages,
 and the four lockfile-tooling modules keep reading it at that exact path.
 
 Moving the inventory re-opens the freshness-gate self-block that #2054 closed,
 so this test pins the path against a future re-section silently relocating it.
+The file was deliberately renamed once, from ``3-2-page-inventory.yaml`` to the
+version-neutral ``page-inventory.yaml`` (#5428), with every reader updated in
+the same change.
 
 The pin covers:
 
@@ -37,7 +40,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # leaves a new file selected by zero CI gates (orphan surface).
 pytestmark = [pytest.mark.fast]
 
-CANONICAL_INVENTORY_PATH = "docs/development/3-2-page-inventory.yaml"
+CANONICAL_INVENTORY_PATH = "docs/development/page-inventory.yaml"
 
 
 @pytest.mark.parametrize(

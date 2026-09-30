@@ -148,10 +148,10 @@ _ALLOWED_DEAD_LITERALS: dict[str, dict[str, str]] = {
     "docs/architecture/execution-lanes.md": {
         "src/foo.py": "illustrative example path in a lane-layout snippet",
     },
-    "docs/architecture/feature-detection.md": {
+    "docs/archive/architecture/feature-detection.md": {
         "src/specify_cli/core/feature_detection.py": "prior-design record: the References section states this module was removed in #347",
     },
-    "docs/architecture/gap-analysis-connector-installation-model.md": {
+    "docs/archive/architecture/gap-analysis-connector-installation-model.md": {
         # Point-in-time draft gap analysis (2026-03-10) whose "Relevant code"
         # bullets cite the pre-Convergence sync tree the gap was measured
         # against; the sync transport has since been retired outright.

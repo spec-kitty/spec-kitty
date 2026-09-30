@@ -60,7 +60,7 @@ def _stage_one_page(tmp_path: Path) -> tuple[Path, Path]:
         description="A guide.",
         heading="Intro",
     )
-    index_path = docs_root / "development" / "3-2-docs-retrieval-index.yaml"
+    index_path = docs_root / "development" / "docs-retrieval-index.yaml"
     _write_fresh_index(docs_root, index_path)
     return docs_root, index_path
 
@@ -181,7 +181,7 @@ def test_regenerated_index_is_green_again(tmp_path: Path) -> None:
 def test_missing_committed_index_skips(tmp_path: Path) -> None:
     docs_root = tmp_path / "docs"
     _write_page(docs_root / "guide.md", title="Guide", description="A guide.", heading="Intro")
-    absent_index = docs_root / "development" / "3-2-docs-retrieval-index.yaml"
+    absent_index = docs_root / "development" / "docs-retrieval-index.yaml"
 
     findings = orchestrator._check_docs_index_drift(absent_index, docs_root)
 

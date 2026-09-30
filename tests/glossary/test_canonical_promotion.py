@@ -8,6 +8,7 @@ RED on planning base (and after WP08): the 10 Slice F terms land as
 The glossary uses a Markdown table format:
     | **Status** | canonical |
 """
+
 from __future__ import annotations
 
 import functools
@@ -58,14 +59,9 @@ def test_all_slice_f_terms_are_canonical_in_doctrine_context() -> None:
         if not match:
             offenders.append(f"{term}: missing entry or malformed Status row")
         elif match.group(1).lower() != "canonical":
-            offenders.append(
-                f"{term}: Status={match.group(1)!r} (expected 'canonical')"
-            )
+            offenders.append(f"{term}: Status={match.group(1)!r} (expected 'canonical')")
 
-    assert not offenders, (
-        "Glossary canonical-promotion failures (C-010 binding):\n  "
-        + "\n  ".join(offenders)
-    )
+    assert not offenders, "Glossary canonical-promotion failures (C-010 binding):\n  " + "\n  ".join(offenders)
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +105,7 @@ def _resolve_wp02_base_commit() -> str | None:
     if result.returncode != 0:
         return None
     return _WP02_BASE_COMMIT
+
 
 _AGENT_PROFILE_NAMES = [
     "architect-alphonso",
@@ -237,8 +234,7 @@ def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str])
             "The three unexpanded nested value objects (`collaboration`,",
         )
         text = text.replace(
-            "its `context-sources` pull in the\n"
-            "paradigm/directive/tactic/procedure/styleguide layers plus specific directives",
+            "its `context-sources` pull in the\nparadigm/directive/tactic/procedure/styleguide layers plus specific directives",
             "its `directive-references` name specific directives",
         )
         # Catalog-languages ADR (#5284, 2026-09-29): a related: edge to the new
@@ -246,8 +242,7 @@ def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str])
         # path-token or term content changes.
         text = text.replace(
             "- docs/guides/how-to/governance/setup-governance.md\n---\n",
-            "- docs/guides/how-to/governance/setup-governance.md\n"
-            f"- {_CATALOG_LANGUAGES_ADR}\n---\n",
+            f"- docs/guides/how-to/governance/setup-governance.md\n- {_CATALOG_LANGUAGES_ADR}\n---\n",
         )
         text = text.replace(
             "\n\n> **A note on `template`, `asset`, and `anti_pattern`",
@@ -304,7 +299,49 @@ _LATER_WAVE_DOC_REPLACEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
         ),
         ("  code changes).", "  production code changes)."),
     ),
+    # Docs 4.x cycle remediation (#5423 / #5428, 2026-09-30): two spent plan
+    # pages were marked deprecated (their added banner and audience lines are
+    # stripped by _strip_retirement_additions), and the charter README's 2.x
+    # C4 pointers moved to the living diagrams under docs/architecture/diagrams/.
+    "docs/plans/engineering-notes/drg-completeness-2843-research.md": (("doc_status: active", "doc_status: deprecated"),),
+    "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md": (("doc_status: draft", "doc_status: deprecated"),),
+    "src/charter/offering/README.md": (
+        ("`docs/architecture/02_containers/", "`docs/architecture/diagrams/02_containers/"),
+        ("`docs/architecture/03_components/", "`docs/architecture/diagrams/03_components/"),
+    ),
 }
+
+#: Referrers retired as historical records in the 4.x docs remediation
+#: (#5423, 2026-09-30). Each gained a maintainer ``audience:`` frontmatter line
+#: and/or one "Historical" banner blockquote plus its trailing blank line. Only
+#: those exact additions are stripped before the line-by-line comparison.
+_RETIREMENT_ADDITION_REFERRERS = frozenset(
+    {
+        "docs/plans/engineering-notes/drg-completeness-2843-research.md",
+        "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
+    }
+)
+_RETIREMENT_AUDIENCE_LINE = "audience: docs/context/audience/internal/maintainer.md"
+_RETIREMENT_BANNER_PREFIX = "> **Historical ("
+
+
+def _strip_retirement_additions(rel_path: str, lines: list[str]) -> list[str]:
+    if rel_path not in _RETIREMENT_ADDITION_REFERRERS:
+        return lines
+    stripped: list[str] = []
+    skip_blank = False
+    for line in lines:
+        if skip_blank and line == "":
+            skip_blank = False
+            continue
+        skip_blank = False
+        if line == _RETIREMENT_AUDIENCE_LINE:
+            continue
+        if line.startswith(_RETIREMENT_BANNER_PREFIX):
+            skip_blank = True
+            continue
+        stripped.append(line)
+    return stripped
 
 
 def _apply_later_wave_replacements(rel_path: str, line: str) -> str:
@@ -347,9 +384,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
         f"{edge.from_path} -> {edge.to_path}" for edge in owned_dangling
     )
 
-    still_dangling_doctrine = {
-        edge.from_path for edge in report.dangling_edges if edge.to_path == f"docs/{_OLD_GLOSSARY_PATH}"
-    }
+    still_dangling_doctrine = {edge.from_path for edge in report.dangling_edges if edge.to_path == f"docs/{_OLD_GLOSSARY_PATH}"}
     known_wp01_gap = {
         "docs/context/configuration-project-structure.md",
         "docs/context/governance.md",
@@ -357,8 +392,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     }
     unexpected = still_dangling_doctrine - known_wp01_gap
     assert not unexpected, (
-        "New/unexpected historical-glossary-path dangling referrers outside WP02's "
-        f"owned set and the known WP01 frontmatter gap: {sorted(unexpected)}"
+        f"New/unexpected historical-glossary-path dangling referrers outside WP02's owned set and the known WP01 frontmatter gap: {sorted(unexpected)}"
     )
 
 
@@ -372,21 +406,16 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     exceptions block)."""
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
-        pytest.skip(
-            "WP02 base commit unavailable in this checkout (likely a shallow "
-            "clone) -- cannot diff against the pre-rename base"
-        )
+        pytest.skip("WP02 base commit unavailable in this checkout (likely a shallow clone) -- cannot diff against the pre-rename base")
     violations: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
         old_lines = _git_show(rel_path, base_commit).splitlines()
-        new_lines = (REPO_ROOT / rel_path).read_text(encoding="utf-8").splitlines()
+        new_lines = _strip_retirement_additions(rel_path, (REPO_ROOT / rel_path).read_text(encoding="utf-8").splitlines())
         if rel_path in WP02_CONTEXT_SOURCES_CONSOLIDATION_REFERRERS:
             expected_lines = _context_sources_consolidation_expected(rel_path, old_lines)
             if _mask_updated_dates(new_lines) == _mask_updated_dates(expected_lines):
                 continue
-            violations.append(
-                f"{rel_path}: diff is not the sanctioned context-sources consolidation"
-            )
+            violations.append(f"{rel_path}: diff is not the sanctioned context-sources consolidation")
             continue
         if len(old_lines) != len(new_lines):
             violations.append(f"{rel_path}: line count changed ({len(old_lines)} -> {len(new_lines)})")
@@ -400,16 +429,10 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
             # malformed updated: line still falls through and reds).
             if old.startswith("updated:") and new.startswith("updated:"):
                 continue
-            allow_source_topology = rel_path.startswith("src/charter/offering/") or rel_path == (
-                "tests/architectural/test_no_dead_doctrine_paths.py"
-            )
-            expected = _apply_later_wave_replacements(
-                rel_path, _flip_path_token(old, allow_source_topology=allow_source_topology)
-            )
+            allow_source_topology = rel_path.startswith("src/charter/offering/") or rel_path == ("tests/architectural/test_no_dead_doctrine_paths.py")
+            expected = _apply_later_wave_replacements(rel_path, _flip_path_token(old, allow_source_topology=allow_source_topology))
             if expected != new:
-                violations.append(
-                    f"{rel_path}:{lineno}: diff is not a pure path-token flip\n    old: {old!r}\n    new: {new!r}"
-                )
+                violations.append(f"{rel_path}:{lineno}: diff is not a pure path-token flip\n    old: {old!r}\n    new: {new!r}")
     assert not violations, "Non-path-token referrer diffs (T007b):\n" + "\n".join(violations)
 
 
@@ -419,10 +442,7 @@ def test_wp02_owned_referrers_flip_at_least_one_line() -> None:
     the hand-edit set must have actually changed."""
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
-        pytest.skip(
-            "WP02 base commit unavailable in this checkout (likely a shallow "
-            "clone) -- cannot diff against the pre-rename base"
-        )
+        pytest.skip("WP02 base commit unavailable in this checkout (likely a shallow clone) -- cannot diff against the pre-rename base")
     unchanged: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
         if _git_show(rel_path, base_commit) == (REPO_ROOT / rel_path).read_text(encoding="utf-8"):
