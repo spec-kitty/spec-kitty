@@ -1,0 +1,30 @@
+---
+schema: wp-verdict/v1
+complete: true
+wp: WP04
+cycle: 3
+mission: charter-generation-drops-scoped-references-01M3M1KF
+verdict: approved           # approved | rejected — nothing else
+gates_observed:
+  tsc: n/a
+  tests: pass               # pass | fail | unknown
+  coverage: unknown         # pytest-cov not installed in the shared .venv; not measured
+feedback:                   # empty or severity-1 advisory only, since verdict is approved
+  - id: WP04-C3-001
+    severity: 1
+    claim: >-
+      c81fb5c3f's pyproject.toml diff is exactly the one removed exclude-list line described in
+      the dispatch (verified directly: `git -C <lane> diff 3759ea9e4..HEAD -- pyproject.toml`
+      shows a single `-` line removing
+      `"tests/specify_cli/charter_runtime/test_references_parity_refresh.py"` from
+      `[tool.ruff.format].exclude`, nothing else). Running
+      `.venv/bin/python -m pytest -q tests/architectural/test_ruff_format_exclude_ratchet.py
+      tests/architectural/test_pyproject_shape.py tests/architectural/test_ruff_format_enforcement.py`
+      at this WP's HEAD: 17 passed (the exclude-ratchet gate's
+      `test_every_exclude_entry_still_genuinely_reformats`, which C2-001 found failing at cycle 2,
+      is now green along with its five siblings and both companion files). Whole-repo
+      `.venv/bin/ruff format --check .` reports "2624 files already formatted" (clean, exit 0).
+      This is advisory-only confirmation, not a new finding — recorded so a future reviewer of
+      this WP family does not need to re-derive it.
+    remediation: >-
+      None required.

@@ -1,0 +1,114 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH5-001
+    status: resolved
+    reason: >
+      All three dangling "WP-CORE reconciliation point 3's test requirement" citations were
+      repointed: Phasing & Sequencing step 3 (WP-CORE) now reads "the ATDD-First Discipline
+      section's invariant → red-first fixture mapping table; design rationale in 'WP-CORE
+      reconciliation' point 3", and IC-01's Purpose bullet now reads "See 'WP-CORE
+      reconciliation' point 3 for the full design, and the ATDD-First Discipline section's
+      invariant → red-first fixture mapping table for the test requirement" — matching IC-01
+      Risk (3)'s existing correct phrasing. A repo-wide grep for the old dangling phrase
+      ("point 3's test requirement") against plan.md returns zero hits.
+
+  - id: PLAN-FRESH5-002
+    status: resolved
+    reason: >
+      plan.md's I1 and I2 (WP-CORE reconciliation → Round-5 restatement) each gained an
+      explicit "Carve-out (total graph-load failure)" paragraph stating transitively-only-
+      reachable ids are covered collectively, never individually, by the single
+      `_graph`/`_load_failure` sentinel diagnostic, framed as a direct consequence of the
+      round-3 ruling. spec.md's FR-001 requirements-table cell and the Key Entities
+      "Activated reference id" bullet each carry a minimal, style-preserving carve-out clause
+      ("except for ids reachable only via DRG-transitive closure when the whole DRG graph
+      fails to load..."). The ATDD-First Discipline invariant → red-first fixture table gained
+      a new row ("I1/I2 carve-out...") pinning sentinel-present, exit 0, and
+      deterministic-across-repeat-runs — matching the ruling's three required elements exactly.
+
+  - id: PLAN-FRESH5-003
+    status: resolved
+    reason: >
+      contracts/charter-generate-json-diagnostics.md's "Round-5 addition" section now splits
+      the merged item 3 into item 3 (genuinely-`None`-repository kinds: template/asset/
+      anti_pattern, detail "no repository for kind: <kind_prefix>") and a new item 4
+      (valid-but-untracked kinds with a real repository outside the six tracked kinds:
+      paradigm/mission_step_contract/glossary_pack, detail "kind '<kind_prefix>' is not one of
+      the six DRG-backed kinds tracked for reference resolution"); both keep the shared `cause:
+      "unattributed_kind"` value per the operator's explicit allowance. plan.md's I3 bullet and
+      the "Binding mechanism decisions retained" I3 bullet were updated from three to four
+      unattributable classes to match the contract doc's new item count.
+
+  - id: PLAN-FRESH5-004
+    status: resolved
+    reason: >
+      plan.md's IC-01 "Affected surfaces" bullet and its dedicated "Residual from
+      reviews/plan-verify-4.yaml, FOLDED IN this round" bullet both specify the
+      `_raw_kind_repository` fallback change (compiler.py:1093, `getattr(doctrine_service,
+      kind)` → `getattr(doctrine_service, kind, None)`) as in-mission scope, state "This is
+      fixed in this mission, not deferred" and "There is no follow-up issue for this residual."
+      The ATDD-First Discipline fixture table carries a dedicated row asserting pre-fix
+      AttributeError (RED) / post-fix None-degrade (GREEN). A repo-wide grep of plan.md,
+      spec.md, and the contract doc finds no live assertion that this item is deferred/out of
+      scope/flagged for follow-up (the two "out of scope"/"follow-up" hits in plan.md are the
+      historical description of round 5's now-reversed disposition and the auto-refresh
+      section's unrelated "fold-in, not defer-to-follow-up" phrasing); plan.ruling.md's
+      round-5 section correctly retains its historical "flagged for a follow-up" wording
+      unedited, as it must. Live code at src/charter/activation/compiler.py:1093 confirmed to
+      currently read `return getattr(doctrine_service, kind)` (no default) — matching the
+      plan's description of current (pre-fix) behavior exactly, as expected at plan phase.
+
+  - id: PLAN-FRESH5-005
+    status: resolved
+    reason: >
+      Verified every binding ruling from rounds 3-6 is still present and internally consistent
+      in plan.md: the URN-split/kind-mapping rule (partition on ":", ArtifactKind.plural
+      mapping), the diagnostics/structured-record sink mechanism (parameters into
+      `_resolve_transitive_reference_graph`'s except branch, no return-type widening), `cause`
+      typed as plain `str` (never CatalogMissCause), I4's graph-load-failure-is-loud-not-
+      fail-closed rule, the WP-CORE-TESTS dedicated red-first commit as Phasing step 2, and
+      invariants I1-I5 themselves (now with round-6's I1/I2 carve-out layered on top without
+      altering I3/I4/I5's substance). "PR Shape" still correctly states "five" commits matching
+      its own five-item enumeration. The 56-test baseline command and Contract C4 scoping
+      (SCOPE_FILTERED-only placeholder path) are unchanged and still consistent with the
+      currently-green `tests/charter/test_catalog_completeness_4785.py` claim. No round-6 edit
+      contradicts or silently reopens any earlier ruling.
+
+  - id: PLAN-FRESH5-006
+    status: unresolved
+    remaining_severity: 3
+    reason: >
+      spec.md's round-6 edit narrowed only FR-001's table cell and the Key Entities "Activated
+      reference id" bullet, per the operator's explicit ruling scope — but two other spec.md
+      passages still flatly assert complete per-id coverage with no carve-out and were not
+      touched: SC-001 ("every activated reference id is either present in catalog.references or
+      corresponds to an explicit, id-and-reason-bearing diagnostic... never a silent omission
+      with no trace") and the Key Entities "CharterReference" bullet ("This is the entity that
+      must never silently vanish for an activated id"). Under the newly-documented I1/I2
+      carve-out, a transitively-only-reachable id during total graph-load failure gets neither a
+      catalog.references entry nor its own id-and-reason-bearing diagnostic — it is folded,
+      unnamed, into one graph-wide `_graph`/`_load_failure` sentinel — which is exactly the
+      "silent vanish" / no-individual-diagnostic outcome SC-001 and the CharterReference bullet
+      say never happens. A reader relying on SC-001 in isolation (e.g. a tasks-squad or WP
+      reviewer checking acceptance criteria) would reasonably reject the carve-out fixture as a
+      violation of SC-001, even though it is the ruling-mandated, invariant-correct behavior.
+      Moderate severity: the binding I1-I5 invariants and the ATDD fixture table are correct and
+      would still drive a correct implementation, but this is a genuine, uncorrected
+      spec.md-level inconsistency likely to cause confusion/rework when SC-001 is checked
+      literally against the carve-out fixture.
+
+  - id: PLAN-FRESH5-PROCESS-TRAIL
+    status: resolved
+    reason: >
+      Confirmed via `git status --porcelain` that exactly 16 untracked reviews/plan-*.yaml
+      trail files from rounds 1-5 remain untracked (plan-arch.findings.yaml, plan-fresh.yaml,
+      plan-fresh-2..5.yaml, plan-gov.findings.yaml, plan-refute-1.yaml,
+      plan-verify.yaml/.findings.yaml, plan-verify-2..5.yaml, plan.confirmed.yaml,
+      plan.merged.yaml). Since these files were never committed, a literal `git diff
+      e783c1bbb` shows no tracked-file delta for them by construction; as a proxy content-
+      stability check, every one of their mtimes (15:13-17:48) predates both e783c1bbb's commit
+      time (17:43:45) and the current round's edits to plan.md/spec.md/the contract doc
+      (17:58-17:59), and none was re-touched during this round's fix work. Process check only,
+      per the task framing — not a content finding.

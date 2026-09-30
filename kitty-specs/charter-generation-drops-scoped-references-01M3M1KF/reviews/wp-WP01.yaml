@@ -1,0 +1,12 @@
+---
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 1
+mission: charter-generation-drops-scoped-references-01M3M1KF
+verdict: approved
+gates_observed:
+  tsc: n/a
+  tests: pass
+  coverage: n/a
+feedback: []

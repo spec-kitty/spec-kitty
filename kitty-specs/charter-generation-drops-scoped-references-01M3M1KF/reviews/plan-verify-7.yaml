@@ -1,0 +1,123 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH5-006
+    status: resolved
+    reason: >
+      Independently confirmed via `git diff 1a20ddab6 4b73197e -- .../spec.md` and a direct
+      read of the current file: SC-001 (spec.md line 104, Measurable Outcomes) now reads
+      "...never a silent omission with no trace — except for ids reachable only via
+      DRG-transitive closure when the whole DRG graph fails to load, which are covered
+      collectively — never individually — by the single loud `_graph`/`_load_failure`
+      sentinel diagnostic (see Edge Cases; FR-001)." The Key Entities "CharterReference"
+      bullet (spec.md line 94) now reads "...must never silently vanish for an activated id,
+      except for an id reachable only via DRG-transitive closure when the whole DRG graph
+      fails to load, which is covered collectively with other such ids — never individually
+      as a `CharterReference` — by the single loud `_graph`/`_load_failure` sentinel
+      diagnostic (see Edge Cases; FR-001)." Both clauses are consistent in structure and
+      substance with FR-001's own round-6 carve-out (spec.md line 69) and with I1's carve-out
+      paragraph in plan.md (lines 310-320): same "except for ids reachable only via
+      DRG-transitive closure when the whole DRG graph fails to load... covered collectively
+      — never individually — by the single loud `_graph`/`_load_failure` sentinel
+      diagnostic" pattern, grammatically adapted per site (id/ids, "as a CharterReference").
+      PLAN-FRESH5-006 is resolved.
+
+  - id: PLAN-FRESH7-SWEEP
+    status: resolved
+    reason: >
+      Ran my own independent case-insensitive grep of spec.md, plan.md, and
+      contracts/charter-generate-json-diagnostics.md for every required term plus my own
+      chosen near-variants (no trace, vacuous(ly), omission, dropped, accounted for,
+      coherent, without exception, silently absent, silently omitted) and read every hit
+      in full context. Result: the same 20 distinct hits the fixer's tracer entry lists.
+      Independently judged each: the three the fixer edited (spec.md's Edge Case "All
+      activated references of a kind... unresolvable" at line 58, the CharterReference
+      bullet at line 94, and SC-001 at line 104) are genuine absolute per-id/per-kind
+      coverage claims the round-6 carve-out would otherwise contradict, and all three now
+      carry it. Every other hit checks out as either already-carved-in-round-6 (FR-001's
+      table cell line 69, the "Activated reference id" bullet line 97, and plan.md's I1/I2
+      paragraphs lines 310-334, all re-verified present and unedited) or genuinely not a
+      claim the carve-out implicates: several are explicitly scoped to a directly-activated
+      SCOPE_FILTERED fixture with no graph.unresolved/transitive-closure involvement at all
+      (spec.md AS4 line 23, SC-005 line 108, User Story 1's Independent Test line 16 and
+      Acceptance Scenario 3 line 22, User Story 2's Acceptance Scenario 1 line 37, plan.md's
+      WP-ATDD step line 232, the Charter Check seam description line 30, and IC-01 Purpose
+      line 406 — each fixture/claim is built from directly-config-activated ids, and
+      SCOPE_FILTERED classification requires an actual repository lookup, which never
+      happens under total graph-load failure); the contract doc's Round-5 addition (line
+      130) presupposes the DRG graph loaded successfully (its four unattributable-URN
+      classes live inside `graph.unresolved`, which per I2 is never populated at all under
+      total graph-load failure — a disjoint, non-overlapping mechanism, not a contradiction);
+      and the remainder are historical/narrative/purpose prose with no per-id/per-kind
+      completeness guarantee (spec.md's User Story 1/2 "Why this priority" and narrative
+      paragraphs at lines 10/12/14/29/31, the FR-006/C-001 backward-compatibility and
+      parity-guard constraint text at lines 60/61/74/87, SC-002's parity-guard-passes
+      criterion at line 105, User Story 2 Acceptance Scenario 2's "test is not vacuous" at
+      line 38, and plan.md's gate-applicability/test-baseline/campsite-clean/`__all__`-
+      convention/design-rationale/risk/purpose prose at lines 50/91/98/185/290-293/410/431).
+      No absolute-coverage claim survives anywhere in spec.md, plan.md, or contracts/*.md
+      that the round-6 carve-out would contradict.
+
+  - id: PLAN-FRESH7-SCOPE
+    status: resolved
+    reason: >
+      `git show --stat 4b73197e` and `git diff 1a20ddab6 4b73197e -- kitty-specs/.../` show
+      exactly three files touched: reviews/plan.ruling.md (+62, the Round-7 ruling and
+      disposition, append-only), tracer-design-decisions.md (+128, a new dated decision
+      entry, append-only), and spec.md (+3/-3, the three carve-out clauses shown above).
+      plan.md and contracts/charter-generate-json-diagnostics.md have zero diff this round —
+      confirmed both by the stat output and by direct re-read of both files in full, which
+      matches the pre-round-7 content verified in reviews/plan-verify-6.yaml's
+      PLAN-FRESH5-005 entry. No FR/NFR/SC/constraint row was added, removed, or renumbered
+      in spec.md's Requirements/Success Criteria tables (FR-001..FR-006, NFR-001/002,
+      C-001..C-004, SC-001..SC-005 — same IDs, same count, before and after). No new
+      mechanism, function, parameter, or design decision appears anywhere in the diff — only
+      qualifying clauses appended to three existing sentences. Matches the operator's
+      round-7 ruling constraint ("No new mechanism, no new requirements") exactly.
+
+  - id: PLAN-FRESH7-CONSISTENCY
+    status: resolved
+    reason: >
+      Compared the three new clauses against FR-001's existing carve-out (spec.md line 69:
+      "...except for ids reachable only via DRG-transitive closure when the whole DRG graph
+      fails to load, which are covered collectively by one loud, structured diagnostic
+      rather than individually or via fail-closed exit (see Edge Cases)") and I1/I2's
+      carve-out paragraphs (plan.md lines 310-334). All five sites (FR-001, "Activated
+      reference id" bullet, and the three new ones) use the same core formulation —
+      "except for [ids/an id/a kind's ids] reachable only via DRG-transitive closure when
+      the whole DRG graph fails to load, which [is/are] covered collectively... never
+      individually [...] by the single loud `_graph`/`_load_failure` sentinel diagnostic" —
+      with only the grammatically-necessary noun/pronoun adapted per site (plural ids for
+      SC-001, singular id-as-CharterReference for the Key Entities bullet, kind-level for
+      the Edge Case, matching that Edge Case's own kind-level framing "All activated
+      references of a KIND"). No fourth, divergent wording was invented; no site drifts in
+      substance (all three deny a per-id catalog.references entry AND a per-id structured
+      diagnostic AND, where applicable, fail-closed exit, for the same transitive-only/
+      total-graph-load-failure case). This is internally consistent, not a fresh
+      inconsistency.
+
+  - id: PLAN-FRESH7-RULINGS-INTACT
+    status: resolved
+    reason: >
+      Since plan.md and contracts/charter-generate-json-diagnostics.md have zero diff this
+      round (confirmed above), every round 3-6 ruling plan-verify-6.yaml's PLAN-FRESH5-005
+      already verified is unchanged by construction. Re-read plan.md and the contract doc in
+      full this round and spot-confirmed each is still present and internally consistent:
+      the URN-split/kind-mapping rule (plan.md "Binding mechanism decisions retained" list,
+      "URN split and kind mapping" bullet, `urn.partition(":")` / `ArtifactKind(kind_prefix
+      ).plural`); the diagnostics-sink mechanism (same list, "Diagnostics/structured-record
+      sink, not a return-type widening" bullet — sink params into
+      `_resolve_transitive_reference_graph`'s except branch, `ResolveTransitiveRefsResult`
+      unchanged); `cause` typed as plain `str`, never `CatalogMissCause` (same list, third
+      bullet, and contract doc's Round-3/Round-5 additions restating it); I4's not-fail-
+      closed rule (plan.md line 343-344, unchanged); invariants I1-I5 all present with I1/I2
+      carrying their round-6 carve-out paragraphs intact; PR Shape's "five" commit count
+      (plan.md line 447) still matches its own five-item enumeration (IC-04/WP-ATDD,
+      WP-CORE-TESTS, IC-01/02 implementation pair, IC-03, IC-05); the contract doc's four
+      unattributable-URN classes (Round-5 addition, items 1-4) still split genuinely-None-
+      repository kinds from valid-but-untracked-with-real-repository kinds per round 6's
+      PLAN-FRESH5-003 fix; and the `_raw_kind_repository` getattr-with-default fold-in
+      (plan.md IC-01 "Affected surfaces" and the dedicated "Residual... FOLDED IN this
+      round" bullet, stating the fix lands in-mission with no follow-up issue). No round-7
+      edit touches any of this text.

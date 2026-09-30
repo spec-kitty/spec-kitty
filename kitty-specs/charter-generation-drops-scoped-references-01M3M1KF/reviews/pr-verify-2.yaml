@@ -1,0 +1,128 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-BOUNDARY-001
+    status: resolved
+    reason: >
+      compiler.py:1229-1255 now derives `_TRACKED_REFERENCE_KIND_PLURALS` via
+      `_derive_tracked_reference_kind_plurals(_TRACKED_KIND_TO_GRAPH_ATTR)` --
+      one canonical six-kind declaration, not two hand-written literals.
+  - id: PR-CONTRACT-001
+    status: resolved
+    reason: >
+      test_boundary_heal.py:392 now declares `def spy(repo_root: Path, cause:
+      str) -> ReferencesRefreshOutcome:`, matching the widened production
+      return type it forwards.
+  - id: PR-TESTS-001
+    status: resolved
+    reason: >
+      Per the binding operator ruling, resolved iff no change touched the
+      shared CI registry/workflows. `git log --oneline 78583dddc..HEAD --
+      .github/ci-module-registry.yml .github/workflows/` is empty across both
+      fix rounds -- untouched, left to #4732 as ruled.
+  - id: PR-TESTS-002
+    status: resolved
+    reason: >
+      New tests test_whole_kind_missing_artifact_fails_closed_is_deterministic_across_repeat_invocations
+      and its graph_unresolved_routing sibling (test_charter_whole_kind_invariants.py:252-298)
+      each call `_call_build_references` twice on the identical fixture and
+      assert `str(first_invocation.value) == str(second_invocation.value)`,
+      fulfilling plan.md's I5 idempotency commitment for the whole-kind
+      fail-closed path specifically. Full file: 12 passed.
+  - id: PR-TESTS-003
+    status: resolved
+    reason: >
+      Two new parametrized tests (test_extract_failure_detail_falls_back_to_stdout_when_stderr_is_empty,
+      test_extract_failure_detail_reports_no_captured_output_when_both_streams_are_empty)
+      cover both previously-dead branches. Re-ran with coverage:
+      references_refresh.py now 100% (was 92%, missing 198/202); 19 passed.
+  - id: PR-TESTS-004
+    status: resolved
+    reason: >
+      generate.py:566 assigns `unresolved_references_payload = list(compiled.unresolved_reference_records)`
+      on its own statement before the dict literal, giving the new value an
+      independent coverage.py line entry so diff-cover scores it (comment at
+      generate.py cites PR-TESTS-004 explicitly). No functional gap existed;
+      the attribution artifact is now also eliminated.
+  - id: PR-TESTS-005
+    status: resolved
+    reason: >
+      All three `# TODO(WP02): also assert the structured record` markers are
+      gone; test_unattributable_graph_unresolved_urn_gets_a_shaped_diagnostic
+      (test_charter_whole_kind_invariants.py:382-420) now asserts the
+      structured `unresolved_records` dict directly (kind/id/cause/detail)
+      alongside the pre-existing diagnostics-substring check. 12 passed.
+  - id: PR-FRESH-001
+    status: resolved
+    reason: >
+      _healable_references/describe_template_set_ambiguities now call the pure
+      `catalog_mission_from_document(document)` (charter_yaml_io.py:537-563)
+      on the document each function already loaded via the fail-closed
+      `_load_charter_document` path -- grepped both functions, zero
+      `read_catalog_field`/`read_catalog_mission`/second-load calls remain in
+      the migration for the mission read; `apply()` (line 369) passes its
+      already-loaded `document` through to `_healable_references`, so no
+      second read occurs there either. Spot-checked the regression test
+      (test_healable_references_honours_caller_supplied_document_over_a_second_disk_read)
+      myself: built a scratch src/ copy with only this one migration file
+      reverted to the 2d431a53f (read_catalog_mission(project_path)) shape,
+      ran it with `-o pythonpath=<scratch>` (overriding pytest.ini) +
+      SPEC_KITTY_PACKS_ROOT -- it failed exactly as claimed
+      ("assert [] != []"); against the current tracked tree it and its 16
+      siblings all pass (17 passed). `read_catalog_field` still delegates to
+      the same pure `catalog_field_from_document` extractor (one extraction
+      rule, DIRECTIVE_044); test_no_dead_symbols and the full __all__ list are
+      consistent (34 architectural tests passed, including the two new pure
+      helpers). test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor
+      passes on HEAD (18 passed in that file) without changing migration
+      behaviour -- present/missing/None/non-str mission values still resolve
+      identically to the old in-memory `catalog.get("mission")` since the new
+      accessor is the same `.get` shape, just against the caller's own
+      document.
+  - id: PR-FRESH-002
+    status: resolved
+    reason: >
+      test_tracked_reference_kind_plurals_is_derived_from_the_graph_attr_mapping
+      (test_compiler.py:731-771) no longer touches ast/inspect; it calls
+      `_derive_tracked_reference_kind_plurals` directly against the live
+      mapping AND against a mutated mapping with an added kind, asserting the
+      mutated result reflects the addition -- a genuine mutation-style check
+      that catches two independent literals diverging (a reverted
+      hand-written literal would pass assertion 1 by coincidence but fail
+      assertion 2). 1 passed.
+  - id: WP03-C1-002
+    status: resolved
+    reason: >
+      New file test_charter_generate_drg_transitive_missing_cli.py adds
+      test_generate_json_reports_missing_artifact_for_a_drg_transitively_reached_id,
+      which builds a project DRG overlay reaching a ghost styleguide id only
+      via a `requires` edge (never in config.activated_*) and drives the real
+      `charter generate --json` CLI, asserting the payload's
+      unresolved_references carries a missing_artifact/typo_suspected entry
+      for it -- exactly the CLI-level DRG-transitive gap the finding named.
+      2 passed (file run together with its sibling test).
+  - id: WP03-C1-004
+    status: resolved
+    reason: >
+      Same new file's test_generate_json_whole_kind_fail_closed_exits_non_zero_naming_the_kind
+      drives the real CLI with a DRG-transitively-reached, unresolvable
+      toolguide id and asserts exit_code != 0, the existing
+      {"result":"error","success":false,"error":...} JSON shape naming
+      "toolguide", and that no charter.yaml catalog was written -- pinned at
+      the literal CLI-invocation level the finding required, not only
+      compiler-unit level. Passed.
+  - id: FOLD-IN
+    status: resolved
+    reason: >
+      test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor
+      (tests/specify_cli/cli/commands/charter/test_recompile_preserves_mission_4908.py:324-344)
+      passes on HEAD (18 passed in that file): the migration's two mission
+      reads now go through catalog_mission_from_document, and grepping src/
+      for direct `catalog.get("mission")`/`catalog["mission"]` outside
+      charter_yaml_io.py finds none. Migration behaviour is unchanged: the
+      accessor is the same catalog.get("mission") extraction, just applied to
+      the caller's own already-loaded document instead of re-reading disk,
+      confirmed both by direct code reading and by the round-1 regression
+      test's red-on-2d431a53f / green-on-HEAD spot-check under FOLD-IN's
+      sibling item PR-FRESH-001.

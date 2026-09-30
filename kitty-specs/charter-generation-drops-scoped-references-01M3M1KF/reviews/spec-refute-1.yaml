@@ -1,0 +1,60 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      spec.md's FR-004 row text mandates only fail-closed ("refuse to silently
+      succeed... produces a loud failure") for the all-unresolvable-in-a-kind
+      case, while the Edge Cases bullet for the identical scenario explicitly
+      allows fail-closed OR placeholder-preservation -- a real same-artifact
+      contradiction -- and `gh issue view 5257` confirms the issue's
+      Expected/Suggested-implementation sections state only the general
+      per-id preserve-or-report rule with no distinct aggregate-kind
+      mechanism requested.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      SC-004's two clauses (no removed or loosened assertions; no new code
+      path pattern-matches any of the six ids) are both vacuously true of a
+      completely empty diff to that test file, matching the tactic's own
+      no-op-passable test verbatim (verified in
+      packs/built-in/tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml),
+      yet SC-004 is marked no-op-passable false with no reword and no named
+      positive control, unlike FR-003/FR-007 which correctly name one.
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: >-
+      packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml lines
+      531-535 defines a canonical term with surface "scope" (bounded semantic
+      scope: mission_local, team_domain, audience_domain, spec_kitty_core)
+      distinct from language scope, and spec.md's FR-002 title, FR-004 body,
+      and User Story 3 Acceptance Scenario 2 do drop the "language" qualifier
+      in bare "scope" usages exactly as cited.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      grep confirms `_render_kind_references` in
+      src/charter/activation/compiler.py lines 1096-1141 only does
+      `repository.get(raw_id)` and appends a bare "Unresolved reference"
+      string on miss -- it never calls `_diagnose_catalog_miss` or
+      `scope_filtered_ids`, which are verified to exist
+      (src/charter/offering/base.py lines 435-447,
+      src/charter/activation/_catalog_miss.py) and to be wired only into
+      context_renderers/selection_block.py and profile_sections.py (the
+      FR-013 `charter context --include` path), confirming the spec omits
+      naming this existing, already-wired classifier as a Key Entity.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      the full call chain was verified end-to-end -- next_cmd.py's
+      `_run_charter_preflight_for_next` calls `run_preflight_or_abort`
+      (hook.py) which reads `cfg.auto_refresh` from config.py (default false,
+      a real per-project opt-in) and, when true, `_attempt_auto_refresh` in
+      runner.py calls `refresh_references_if_needed`
+      (references_refresh.py) which runs a targeted `charter generate`
+      non-interactively -- directly contradicting spec.md's Edge Cases claim
+      that charter.yaml is unaffected until someone explicitly regenerates.

@@ -1,0 +1,230 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: charter-generation-drops-scoped-references-01M3M1KF
+sources:
+- pr-boundary.findings.yaml
+- pr-contract.findings.yaml
+- pr-tests.findings.yaml
+findings:
+- id: PR-BOUNDARY-001
+  lens: single canonical authority (DIRECTIVE_044)
+  severity: 2
+  title: The "six DRG-backed tracked kinds" set is hand-duplicated across two independent module-level
+    constants
+  evidence:
+  - code: src/charter/activation/compiler.py:1222
+  - code: src/charter/activation/compiler.py:1288
+  - code: src/charter/activation/compiler.py:1381-1388
+  - code: src/charter/activation/compiler.py:1416
+  claim: '`_TRACKED_REFERENCE_KIND_PLURALS` (a frozenset of the six plural kind names, gating which `graph.unresolved`
+    URNs `_route_unresolved_urn` attributes to a tracked kind) and `_TRACKED_KIND_TO_GRAPH_ATTR` (a singular->plural
+    dict for the identical six kinds, gating which kinds `_check_whole_kind_unresolved` evaluates at all)
+    encode the same six-kind set independently, with `_TRACKED_KIND_TO_GRAPH_ATTR.values()` exactly equal
+    to `_TRACKED_REFERENCE_KIND_PLURALS` as a set. Neither is derived from the other, and no test asserts
+    they stay in sync. Both are themselves independent of the six explicit `_render_kind_references` call
+    sites in `_build_references_from_service` (directive/tactic/ styleguide/toolguide/procedure/agent_profile),
+    so the "six tracked kinds" concept is effectively hand-maintained in three places. This is exactly
+    the class of gap the mission''s invariant I2 exists to close: if a future kind is added to one of
+    these two constants but not the other, `_route_unresolved_urn` and `_check_whole_kind_unresolved`
+    would silently disagree about which kinds are tracked, reopening a whole-kind-unresolved blind spot
+    for the newly-added kind without any red test catching it (neither constant is exercised for internal-consistency,
+    only for behavior against the current six-member set).
+
+    '
+  remediation: 'Derive one constant from the other so there is a single canonical six-kind declaration,
+    e.g. define `_TRACKED_KIND_TO_GRAPH_ATTR` as the source of truth and compute `_TRACKED_REFERENCE_KIND_PLURALS
+    = frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values())`; or add a module-level assertion / architectural
+    test asserting the two constants'' kind sets (and the six explicit `_render_kind_references` call
+    sites'' kinds) are identical, so drift fails loudly instead of silently.
+
+    '
+  source_group: boundary
+- id: PR-CONTRACT-001
+  lens: exported-api-change (ReferencesRefreshOutcome type-hint drift)
+  severity: 1
+  title: Test spy's return-type annotation lies about the widened ReferencesRefreshOutcome return
+  evidence:
+  - code: tests/specify_cli/charter_runtime/test_boundary_heal.py:392
+  claim: '`refresh_references_if_needed` was widened from `bool` to `ReferencesRefreshOutcome` (src/specify_cli/charter_runtime/preflight/references_refresh.py:205,
+    src/specify_cli/charter_runtime/preflight/runner.py:554). The test spy wrapping it, `def spy(repo_root:
+    Path, cause: str) -> bool:` (test_boundary_heal.py:392), still declares `-> bool` while its body (`return
+    original(repo_root, cause)`, line 394) actually returns a `ReferencesRefreshOutcome`. Python does
+    not enforce this at runtime and the test (test_references_parity_hook_is_installed_and_invoked_after_a_successful_heal)
+    passes regardless, but the annotation is now factually wrong and would mislead a reader or a future
+    mypy pass (mypy is not currently gated in this repo per the sk-doctrine gate table, but the repo''s
+    own charter mandates `mypy --strict` aspirationally under Technical Standards > Testing Requirements).
+
+    '
+  remediation: 'Change the spy''s signature to `def spy(repo_root: Path, cause: str) -> ReferencesRefreshOutcome:`
+    to match the widened return type it forwards.
+
+    '
+  source_group: contract
+- id: PR-TESTS-001
+  lens: shard-selection (#3241 class)
+  severity: 4
+  title: WP03's FR-004 JSON-diagnostics tests and WP04's auto-refresh swallow fold-in tests land in directories
+    no per-PR CI module shard selects
+  evidence:
+  - code: .github/workflows/module-tests.yml:186-191
+  - code: '.github/ci-module-registry.yml:153-197 (charter module row: test_dirs: [tests/charter, tests/doctrine]
+      only)'
+  - code: '.github/ci-module-registry.yml:512-525 (deferred-promotion disposition explicitly names tests/specify_cli/charter_runtime
+      as excluded, tracked as #4732)'
+  - code: .github/ci-module-registry.yml:462-473, :475-488 (tests/specify_cli/cli/commands and tests/specify_cli/cli
+      both explicitly excluded)
+  - code: .github/workflows/ci-nightly.yml:989-1031 (specify-cli-out-of-matrix job; only nightly lane
+      that reaches these trees)
+  claim: 'The "charter" module row''s `test_dirs` (tests/charter, tests/doctrine) REPLACES the tests/{module}
+    mirror fallback (module-tests.yml:186-191: "if registry_test_dirs: test_dirs = registry_test_dirs"),
+    so a PR that only touches src/specify_cli/charter_runtime/** still runs ONLY tests/charter + tests/doctrine
+    per-PR -- never tests/specify_cli/charter_runtime/. Separately, the "cli" module''s own mirror is
+    the literal `tests/cli` directory (confirmed: `tests/cli` exists as its own tree, distinct from `tests/specify_cli/cli`),
+    and tests/specify_cli/cli/commands (and its parent tests/specify_cli/cli) are explicitly listed in
+    the registry''s "Deferred-promotion" disposition ledger as excluded from every module''s test_dirs,
+    deferred to follow-up #4732. This PR lands three new/substantially-extended test files inside these
+    excluded trees: tests/specify_cli/charter_runtime/test_references_parity_refresh.py (336 lines changed
+    -- the entire red-first + green suite for WP04''s preflight auto-refresh swallow-bug fix, including
+    the new ReferencesRefreshOutcome type and its truthiness guard), tests/specify_cli/charter_runtime/test_boundary_heal.py
+    (10 lines), and tests/specify_cli/cli/commands/test_charter_generate_autotrack.py (202 lines, new
+    -- WP03''s FR-004 `unresolved_references` JSON-field tests). None of these three files are collected
+    by any per-PR CI module shard; only the nightly `specify-cli-out-of-matrix` job (ci-nightly.yml, #5201)
+    runs `tests/specify_cli` by directory and would eventually catch a regression here -- one day later,
+    disconnected from the PR that introduced it. A bug in the new `ReferencesRefreshOutcome` plumbing
+    or the `unresolved_references` JSON field would merge to main green and only surface as an unattributed
+    nightly red.
+
+    '
+  remediation: 'Either (a) promote tests/specify_cli/charter_runtime (and, ideally, tests/specify_cli/cli/commands)
+    out of the #4732 deferred-promotion backlog now, given this mission adds substantial new per-PR-relevant
+    coverage there -- add them to the "charter"/"cli" registry rows'' test_dirs (or a dedicated row) so
+    module-tests.yml actually collects them; or (b) as a smaller in-mission fix, duplicate the load-bearing
+    assertions (ReferencesRefreshOutcome truthiness/attempted/succeeded contract, and the --json unresolved_references
+    shape) into a test file under tests/charter/ or tests/doctrine/ (both already in the per-PR selection)
+    that drives the same behavior through the public CLI/compiler entry points, so the per-PR gate --
+    not just the nightly lane -- actually exercises this mission''s new production code.
+
+    '
+  source_group: tests
+- id: PR-TESTS-002
+  lens: coverage of invariants I1-I5
+  severity: 2
+  title: I5 determinism is untested for the whole-kind-unresolved fail-closed path, contrary to plan.md's
+    own binding invariant-to-fixture table
+  evidence:
+  - code: tests/charter/test_charter_whole_kind_invariants.py:198-221 (test_whole_kind_missing_artifact_fails_closed)
+  - code: tests/charter/test_charter_whole_kind_invariants.py:224-241 (test_whole_kind_graph_unresolved_routing_fails_closed)
+  - code: 'kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/plan.md I5 row: "Idempotency
+      assertion appended to the whole-kind-unresolved fixture: run generate --force twice, assert both
+      invocations exit non-zero identically (same code, same kind named)..."'
+  claim: 'plan.md''s ATDD-First Discipline "Invariant -> red-first fixture mapping" table commits explicitly
+    to appending an idempotency assertion (run twice, assert identical non-zero exit + kind named) to
+    the whole-kind-unresolved fixture for I5. In the actual test file, neither test_whole_kind_missing_artifact_fails_closed
+    nor test_whole_kind_graph_unresolved_routing_fails_closed calls `_call_build_references` more than
+    once or asserts on repeat-call determinism -- both are single-invocation `pytest.raises` checks. Only
+    the graph-load-failure carve-out fixture (test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure)
+    actually exercises I5 (calls `_run()` twice, asserts `diagnostics_1 == diagnostics_2`). The whole-kind
+    fail-closed RuntimeError path itself is a pure function of its inputs with no state mutation before
+    the raise, so the real-world risk is low, but the plan''s own binding commitment for this specific
+    fixture is unfulfilled.
+
+    '
+  remediation: 'Add a second invocation (or a loop of two) to test_whole_kind_missing_artifact_fails_closed
+    (and/or test_whole_kind_graph_unresolved_routing_fails_closed), asserting both calls raise RuntimeError
+    with the identical message/kind, matching plan.md''s I5 row for the whole-kind-unresolved fixture
+    specifically.
+
+    '
+  source_group: tests
+- id: PR-TESTS-003
+  lens: DIFF-COVER
+  severity: 2
+  title: 'Two real branches of the new _extract_failure_detail helper are untested: the stdout-fallback
+    branch and the "no captured output" branch'
+  evidence:
+  - code: src/specify_cli/charter_runtime/preflight/references_refresh.py:196-202
+  - code: 'diff-cover report: src/specify_cli/charter_runtime/preflight/references_refresh.py (92.0%):
+      Missing lines 198,202'
+  - code: tests/specify_cli/charter_runtime/test_references_parity_refresh.py:348-349,465 (every faked
+      CompletedProcess for the failure path sets a non-empty stderr)
+  claim: 'Ran the diff-cover gate as configured (`.venv/bin/python -m pytest tests/charter/ tests/specify_cli/charter_runtime/
+    tests/specify_cli/charter_preflight/ tests/specify_cli/cli/commands/charter/ tests/specify_cli/cli/commands/test_charter_generate_autotrack.py
+    --cov=charter.activation.compiler --cov=specify_cli.charter_runtime.preflight --cov=specify_cli.cli.commands.charter.generate
+    --cov-report=xml`, then `diff-cover <xml> --compare-branch=3759ea9e4`). Result: 127 changed lines,
+    2 missing, 98% overall (well above the 90% gate) -- compiler.py 100%, runner.py 100%, references_refresh.py
+    92.0% missing lines 198 and 202. Line 198 is the `continue` inside `for stream in (completed.stderr,
+    completed.stdout): if not stream: continue` (the stdout-fallback path, reached only when stderr is
+    empty); line 202 is the final `return f"generate exited {completed.returncode} with no captured output"`
+    fallback (reached only when BOTH streams are empty). Every test-constructed `subprocess.CompletedProcess`
+    for the failure path in test_references_parity_refresh.py sets a non-empty `stderr`, so both branches
+    of this new helper are dead in the test suite. This does not fail the diff-cover gate (98% aggregate,
+    92% for this one file, both above 90%), but it is a genuine, reportable gap in a new diagnostic-detail
+    helper whose whole purpose is FR-002/NFR-002 "actionable diagnostic content" -- a bug in the stdout-fallback
+    or the no-output fallback would not be caught.
+
+    '
+  remediation: 'Add two parametrized cases to test_generate_invocation_error_yields_failed_outcome (or
+    a sibling test) for `_extract_failure_detail`: (1) stderr empty, stdout non-empty -> assert `detail`
+    is the last non-empty stdout line; (2) both stderr and stdout empty -> assert `detail == f"generate
+    exited {rc} with no captured output"`.
+
+    '
+  source_group: tests
+- id: PR-TESTS-004
+  lens: DIFF-COVER
+  severity: 1
+  title: generate.py's new unresolved_references JSON-field line is invisible to the diff-cover report
+    (coverage.py multi-line-statement attribution, not a real gap)
+  evidence:
+  - code: src/specify_cli/cli/commands/charter/generate.py:566
+  - code: 'coverage.xml: <class filename="src/specify_cli/cli/commands/charter/generate.py" line-rate="0.9012">
+      carries no <line number="566"> entry; the enclosing multi-line dict-literal statement is attributed
+      entirely to its opening line (540, hits=1)'
+  claim: 'diff-cover''s report (see PR-TESTS-003) lists compiler.py, runner.py, and references_refresh.py
+    but omits generate.py entirely, even though generate.py is part of the reviewed diff and was included
+    in --cov=specify_cli.cli.commands.charter.generate. Root cause: the new line `"unresolved_references":
+    list(compiled.unresolved_reference_records),` (generate.py:566) is one entry inside a pre-existing
+    multi-line dict literal whose enclosing statement starts several lines above the diff (line 540);
+    coverage.py attributes hit-counts to a multi-line statement''s first line only, so line 566 has no
+    independent <line> entry in coverage.xml at all. diff-cover therefore finds "no lines with coverage
+    information" for this file''s diff hunk and silently excludes it from both the numerator and denominator
+    -- it is neither counted as covered nor as a miss. The line IS genuinely exercised (test_charter_generate_autotrack.py::test_generate_json_reports_unresolved_references_for_scope_filtered_id
+    and the empty-list sibling test both assert directly on payload["unresolved_references"]), so this
+    is a tooling-attribution artifact, not a real coverage gap -- filed for transparency since a reviewer
+    trusting the diff-cover report''s file list alone would not know generate.py''s new line was never
+    actually scored.
+
+    '
+  remediation: 'No functional fix needed (the line is real, tested code). If the team wants diff-cover
+    to score this kind of one-line-in-a-dict-literal addition in future PRs, extract the new value to
+    its own preceding assignment statement (e.g. `unresolved_references_payload = list(compiled.unresolved_reference_records)`
+    on its own line, then reference it in the dict literal) so coverage.py gives it an independent line
+    entry.
+
+    '
+  source_group: tests
+- id: PR-TESTS-005
+  lens: coverage of invariants (structured records) -- dedup of known finding
+  severity: 3
+  title: (dedup) Structured unresolved_reference_records for the four unattributable-URN classes and the
+    graph-load-failure sentinel are asserted only as diagnostics-string substrings, never as structured
+    dicts
+  evidence:
+  - code: 'tests/charter/test_charter_whole_kind_invariants.py:301,368,429 (open # TODO(WP02) markers,
+      confirmed still present)'
+  claim: 'Confirmed live: the three `# TODO(WP02): also assert the structured record ...` markers plan
+    reviewers previously flagged (wp-WP03.yaml finding WP03-C1-003) are still open in the current diff.
+    Reported here only to dedupe/cite per the mission brief''s routing -- no new analysis beyond confirming
+    the markers are still present at the cited line numbers.
+
+    '
+  remediation: 'See wp-WP03.yaml''s WP03-C1-003 remediation (fulfill the three TODO(WP02) markers by asserting
+    `unresolved_records` directly, and/or extend test_compiler_scope_filtered_placeholder.py with the
+    sentinel classes).
+
+    '
+  source_group: tests
+dedup_notes: No two findings cite the same file:line with the same claim; nothing merged. PR-TESTS-005
+  corresponds to per-WP verdict WP03-C1-003 (not part of this squad set).

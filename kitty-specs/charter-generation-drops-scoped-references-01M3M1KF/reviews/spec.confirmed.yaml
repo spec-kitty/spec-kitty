@@ -1,0 +1,330 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: charter-generation-drops-scoped-references-01M3M1KF
+note: All 9 merged findings were CONFIRMED by R3 refutation (spec-refute-1.yaml, spec-refute-2.yaml);
+  none refuted. This file is the full merged findings set, unfiltered.
+findings:
+- id: SPEC-GOV-001
+  lens: Scope
+  severity: 3
+  title: FR-004 duplicates FR-001's general rule, is not requested by
+  evidence:
+  - artifact: spec.md § FR-004 (Functional Requirements table, row FR-004)
+  - artifact: spec.md § Edge Cases, bullet "All activated references of a kind (or all references overall)
+      are unresolvable..."
+  - code: 'issue #5257 (gh issue view 5257 --repo spec-kitty/spec-kitty) — Expected behavior / Suggested
+      implementation and acceptance sections name only the per-id preserve-or-report bar; neither mentions
+      an aggregate "entire kind resolves to nothing" special case'
+  claim: 'FR-001 already obligates the generator to preserve-or-loudly-report every activated-but-unresolvable
+    reference id, with no cardinality qualifier — so "every id in a kind is unresolvable" is just N simultaneous
+    instances of the condition FR-001 already governs, not a distinct behavior. FR-004 restates this as
+    a separate, higher-priority (High) FR with its own remedy language that is narrower than FR-001''s:
+    FR-004''s row text says generation must "refuse to silently succeed... produces a loud failure," offering
+    only the fail-closed remedy, while FR-001''s own Acceptance Scenario 1 and the Edge Cases bullet for
+    this exact all-unresolvable-in-a-kind case both explicitly also allow placeholder-preservation as
+    an equally valid remedy. An implementer following FR-004''s row literally would build a hard fail-closed-only
+    code path for the aggregate case; a reviewer checking the Edge Cases bullet would accept an all-placeholder
+    implementation as compliant. That is a real, citable contradiction between two mandatory sections
+    of the same artifact, and FR-004 is also scope beyond the issue''s literal acceptance bar (issue #5257
+    never asks for a distinct all-unresolvable-in-a-kind mechanism).
+
+    '
+  remediation: 'Cut FR-004 as a standalone FR and fold it into FR-001 as an explicit sub-clause, e.g.:
+    "This preserve-or-report rule applies uniformly regardless of how many ids within a kind are affected,
+    including all of them; the fix must not vacuously succeed by emitting an empty-for-that-kind catalog
+    section, whether the chosen remedy is placeholder-preservation of every affected id or a fail-closed
+    exit — both satisfy this requirement identically to the single-id case." This removes the FR-004-vs-Edge-Case
+    remedy contradiction, keeps one requirement (and one test surface under FR-006) governing the whole
+    defect class per DIRECTIVE_044 canonical-source-unification, and stays inside the issue''s literal
+    ask.
+
+    '
+- id: SPEC-GOV-002
+  lens: Directive
+  severity: 3
+  title: 'SC-004 is mislabeled "no-op passable: no" although an empty diff would trivially satisfy it,
+    violating the activated acceptance-criteria-non-vacuity tactic''s mandatory labeling step'
+  evidence:
+  - artifact: spec.md § Success Criteria, SC-004
+  - code: 'packs/built-in/tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml (step "Ask \"no-op
+      passable?\"": "If yes, either reword the criterion so a no-op cannot pass it, or name a positive
+      control that proves the check is non-vacuous")'
+  - code: 'packs/built-in/missions/software-dev/templates/spec-template.md:85-96 (Action Required item
+      5: "Delivery label + no-op mark on every FR row and success criterion", citing this same tactic
+      as the sole definition)'
+  claim: 'SC-004 reads "A diff of tests/doctrine/test_activation_parity_guard.py between the mission''s
+    base commit and its final commit contains no removed or loosened assertions, and no new code path
+    anywhere in the diff pattern-matches on any of the six literal ids from #5257," marked "[ratchet]
+    · no-op passable: no." Taken literally, a completely empty (do-nothing) diff trivially satisfies both
+    clauses — nothing is removed, and nothing pattern-matches the six ids, because nothing changed. That
+    makes SC-004 no-op-passable by the tactic''s own test, yet it is marked "no" with no reword and no
+    named positive control, which is exactly the "Ask no-op passable?" step this charter-bound, ATDD-first-linked
+    tactic requires every FR row and success criterion to pass (the charter''s Governing Principles cite
+    ATDD-first as binding, and the spec template''s own Action Required item 5 makes this tactic mandatory
+    for every success criterion, not optional style).
+
+    '
+  remediation: 'Either (a) reword SC-004 so a no-op cannot pass it — e.g. add a positive clause requiring
+    the diff to actually contain FR-001..FR-006''s production code changes (measurable via a non-empty
+    diff on src/charter/activation/compiler.py and the new FR-006 test), or (b) mark it "no-op passable:
+    yes" and name the positive control explicitly, e.g. "yes — paired with SC-003''s red-before/green-after
+    proof that the diff contains real behavioral code, not merely an absence of changes."
+
+    '
+- id: SPEC-GOV-003
+  lens: Terminology
+  severity: 1
+  title: Bare "scope" in a few spots risks collision with this repo's unrelated canonical glossary term
+    "scope"
+  evidence:
+  - artifact: spec.md § FR-002 title ("Distinguish never-existed from filtered-by-scope..."), § FR-004
+      body ("a misconfigured pack root or scope"), § User Story 3 Acceptance Scenario 2 ("filtered by
+      scope, and names the scope condition")
+  - code: 'spec-kitty glossary list (spec_kitty_core scope: "Bounded semantic scope (mission_local, team_domain,
+      audience_domain, spec_kitty_core)") — an unrelated glossary-pack-scoping concept, not language applicability'
+  - code: 'src/charter/activation/language_scope.py (the canonical source module name for the concept
+      the spec means: infer_repo_languages / active-language filtering)'
+  claim: 'Throughout most of spec.md the spec correctly qualifies this concept as "language/scope" or
+    "language-scoped," matching the canonical source module `language_scope.py`. A handful of spots drop
+    the "language" qualifier and use bare "scope"/"scoped by scope," which is also this repo''s canonical
+    glossary term for an unrelated concept (glossary-pack semantic scoping: mission_local / team_domain
+    / audience_domain / spec_kitty_core). A reader unfamiliar with the charter-compiler internals could
+    momentarily read "filtered by scope" as glossary-pack scoping rather than language-applicability filtering.
+    This has no effect on implementation since surrounding context always disambiguates within a sentence
+    or two.
+
+    '
+  remediation: 'Consistently spell out "language scope" / "language-scoped" (never bare "scope") in FR-002''s
+    title, FR-004''s body, and User Story 3''s Acceptance Scenario 2, matching the qualifier used everywhere
+    else in the document and the canonical `language_scope.py` module name.
+
+    '
+- id: SPEC-ARCH-001
+  lens: canonical-source / root-cause-fidelity
+  severity: 4
+  title: Spec omits an existing, already-wired classifier that does exactly what FR-002/User Story 3 asks
+    for
+  evidence:
+  - artifact: spec.md § Key Entities ("Unresolved diagnostic"), § User Story 3, § FR-002
+  - code: 'src/charter/offering/base.py:435-447 (BaseDoctrineRepository.scope_filtered_ids — populated
+      at load time, docstring: "Callers should use this to distinguish a scope-filtered miss (SCOPE_FILTERED)
+      from a genuinely absent artifact (MISSING_ARTIFACT)")'
+  - code: 'src/charter/activation/_catalog_miss.py:1-80 (CatalogMissCause enum: TYPO_SUSPECTED / MISSING_ARTIFACT
+      / SCHEMA_VALIDATION_SUSPECTED; classify_catalog_miss; classify_scope_filtered_miss; CatalogMissDiagnosis)'
+  - code: src/charter/activation/context_renderers/catalog_diagnosis.py:31-58 (_diagnose_catalog_miss
+      — reads repository.scope_filtered_ids first, falls back to fuzzy-match classify_catalog_miss; already
+      the FR-013 contract for the `charter context` include path)
+  claim: The spec's Key Entities section and User Story 3 describe the never-existed-vs-filtered-by-scope
+    distinction as new work the mission must invent (a "reason" the diagnostic/placeholder must "gain"),
+    and names no existing primitive to reuse. In fact the codebase already ships a complete, tested classification
+    mechanism for this exact distinction — BaseDoctrineRepository.scope_filtered_ids (and its AgentProfileRepository
+    override) records every id excluded solely by language/scope at load time, and charter.activation._catalog_miss
+    already turns that into a structured CatalogMissDiagnosis (SCOPE_FILTERED vs MISSING_ARTIFACT vs TYPO_SUSPECTED,
+    with a remediation hint) — wired into the `charter context --include` prompt path (catalog_diagnosis.py
+    / selection_block.py / profile_sections.py) via a prior mission's FR-013. `_render_kind_references`
+    in compiler.py (the code path this mission fixes) does not consult scope_filtered_ids or _catalog_miss
+    at all — that is part of why the distinction is currently missing from `catalog generate`'s output,
+    not because the distinguishing logic doesn't exist anywhere in the repo. A plan-phase author working
+    only from this spec would have no signal that this reusable classifier exists and could re-derive
+    a second, parallel classification scheme for the compiler path — exactly the "parallel copies / parity
+    fixes to a non-canonical surface" duplicate- authority failure the charter's Governing Principles
+    (single canonical authority → DIRECTIVE_044) forbid.
+  remediation: Add a Key Entity (or a note under User Story 3 / FR-002) naming charter.activation._catalog_miss
+    (CatalogMissCause, CatalogMissDiagnosis, classify_catalog_miss, classify_scope_filtered_miss) and
+    BaseDoctrineRepository.scope_filtered_ids as the canonical primitives the fix must reuse for the generate-path
+    reason classification, rather than reinventing one — and note that _render_kind_references currently
+    bypasses both, which is the gap the plan phase should close.
+- id: SPEC-ARCH-002
+  lens: reflexivity
+  severity: 4
+  title: Edge Cases § "Mid-flight missions" claim is contradicted by an existing auto-refresh code path
+    that also runs charter generate
+  evidence:
+  - artifact: spec.md § Edge Cases, bullet "Mid-flight missions"
+  - code: 'src/specify_cli/charter_runtime/preflight/references_refresh.py:1-46 (module docstring: "refresh_references_if_needed
+      runs a targeted generate" as part of the boundary auto-refresh reconciler)'
+  - code: src/specify_cli/charter_runtime/preflight/runner.py:282,553,585,733 (_attempt_auto_refresh calls
+      refresh_references_if_needed(repo_root, cause=stale_cause), which runs a targeted charter generate)
+  - code: src/specify_cli/cli/commands/next_cmd.py:182-190,487-531 (_run_charter_preflight_for_next →
+      run_preflight_or_abort(repo_root, consumer="next") — runs on every `spec-kitty next` invocation)
+  - code: 'src/specify_cli/charter_runtime/preflight/config.py:40-81 (auto_refresh: bool = False — off
+      by default, but a real, documented per-project opt-in via .kittify/config.yaml preflight.auto_refresh)'
+  claim: 'The spec states: "The fix changes behavior only inside `spec-kitty charter generate` invocations;
+    it must not mutate any committed `charter.yaml` outside of an explicit generate/sync call, so a mission
+    already in flight against a currently-coherent charter is unaffected until someone explicitly regenerates."
+    This is not accurate for any project with `preflight.auto_refresh: true` set (an existing, documented
+    config option, off by default but real). For such a project, ordinary `spec-kitty next` calls during
+    a mid-flight mission route through `run_preflight_or_abort` → the boundary auto-refresh reconciler
+    → `refresh_references_if_needed`, which runs a *targeted* `charter generate` non-interactively, with
+    no `--force` and no operator present to read a printed message. This is the exact `compile_charter`/`_render_kind_references`
+    code path this mission changes. The spec''s absolute "only via an explicit generate/sync call" framing
+    therefore misdirects the plan phase: it can lead the plan to skip verifying how FR-004''s fail-closed
+    behavior (exit non-zero with a printed message) and FR-001''s placeholder-preservation behavior degrade
+    when triggered from this silent, non-interactive call site — a fail-closed abort there would block
+    `spec-kitty next` mid-mission with a different failure surface (printed via the preflight `blocked_reason`
+    channel, not a CLI generate invocation) than the spec''s User Story 1/Acceptance Scenario 1 describes.'
+  remediation: 'Correct the "Mid-flight missions" edge case to acknowledge the preflight boundary auto-refresh
+    trigger path (references_refresh.py / runner.py::_attempt_auto_refresh), scoped by its real gate (`preflight.auto_refresh`,
+    default off). Add an explicit requirement or note for the plan phase: verify FR-004''s fail-closed
+    behavior and FR-001''s preserve/report behavior both propagate correctly through `run_preflight_or_abort`''s
+    `blocked_reason` / `passed=False` contract (hook.py''s consumer table) when the targeted generate
+    triggered by auto-refresh hits an unresolvable, language/ scope-filtered reference, rather than assuming
+    the only caller is an operator running `charter generate` directly.'
+- id: SPEC-VERIFY-001
+  lens: falsifiability / mission-derived test-invocation realism
+  severity: 4
+  title: US1 Acceptance Scenario 3 names a test that is hardcoded to this checkout and cannot actually
+    verify scenario 1's fixture output
+  evidence:
+  - artifact: spec.md § User Story 1, Acceptance Scenarios, item 3
+  - code: tests/doctrine/test_activation_parity_guard.py:77 (`_REPO_ROOT = Path(__file__).resolve().parents[2]`)
+  - code: 'tests/doctrine/test_activation_parity_guard.py:162-171 (`def test_this_project_charter_pack_is_coherent()
+      -> None: ... ctx = ProjectContext.from_repo(_REPO_ROOT) ...`)'
+  claim: 'Acceptance Scenario 3 reads: "Given a freshly generated catalog from scenario 1, When `PYTHONPATH=src
+    .venv/bin/pytest -q tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+    runs against it, Then the test passes." But `test_this_project_charter_pack_is_coherent` takes zero
+    arguments and is hardcoded at module scope to `_REPO_ROOT = Path(__file__).resolve().parents[2]` —
+    i.e. it always runs `ProjectContext.from_repo()` against THIS actual spec-kitty checkout''s own committed
+    `.kittify/charter/charter.yaml`, never against an arbitrary fixture repo. Scenario 1''s fixture ("a
+    repo whose `.kittify/charter/charter.yaml` activates `styleguide/java-conventions`...") is, per its
+    own wording and per User Story 2''s distinct "test fixture repo" terminology, a separate throwaway
+    repo (e.g. a `tmp_path`), not this checkout. So the pytest invocation named in Scenario 3 cannot be
+    conditioned on Scenario 1''s fixture output at all — it is invariant to whatever the implementer does
+    there. I verified this directly: the exact command in AC3 (`PYTHONPATH=src .venv/bin/pytest -q tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`)
+    already passes today, on the unmodified pre-fix repo, in 1 passed / 7.8s — with zero relationship
+    to any Scenario-1 fixture. As literally worded, a no-op implementation trivially satisfies AC3 because
+    the named test was never wired to the thing AC3 claims to be testing. (If AC3 intends "regenerate
+    THIS repo in place and re-run the guard", that is a materially different, much higher-stakes scenario
+    — it would run against and could mutate this repo''s own already-coherent, already-curated `catalog.references`
+    — and the spec never says that either.)
+
+    '
+  remediation: 'Either (a) rewrite AC3 to parametrize/construct `ProjectContext.from_repo(<scenario-1
+    fixture path>)` and call `run_consistency_check` directly against that context in the new test the
+    mission is adding (this is exactly what FR-006/US2 already specifies — merge AC3 into that test rather
+    than treating it as a separate scenario against the fixed suite-tier guard), or (b) if AC3 is deliberately
+    about this actual repository, say so explicitly, name that it exercises the real, already-curated
+    six ids already present in this repo''s committed `charter.yaml` (lines ~177-240, ~1343-2003), and
+    specify whether/how the regeneration during the scenario is expected to mutate a real, uncommitted
+    working copy (interacts with C-004 hygiene and FR-007''s byte-identical-regeneration guarantee).
+
+    '
+- id: SPEC-VERIFY-002
+  lens: silent-success / falsifiability
+  severity: 4
+  title: FR-004 (fail-closed when an entire kind's activation resolves to nothing) has no dedicated, falsifiable
+    Acceptance Scenario or Success Criterion
+  evidence:
+  - artifact: spec.md § Requirements, FR-004
+  - artifact: spec.md § Edge Cases, bullet 2 ("All activated references of a kind ... are unresolvable")
+  - artifact: spec.md § User Story 1, Acceptance Scenarios (items 1-3) — none constructs an all-unresolvable-in-a-kind
+      fixture
+  - artifact: spec.md § Success Criteria, SC-001..SC-004 — none names this condition
+  claim: 'FR-004 is rated High priority, `[build]` delivery, `no-op passable: no` — the strongest testability
+    bar the spec''s own table uses — yet the only place its behavior is described is one Edge Cases prose
+    bullet, not a Given/When/Then Acceptance Scenario under any User Story, and no Success Criterion names
+    it either. That Edge Case bullet itself only says generation "must still fail closed... or preserve
+    every one as a placeholder" — the same two-way OR as AC1''s single-id case, but for FR-004 there is
+    no concrete fixture (which kind, how many ids, what the expected catalog/exit-code/diagnostic actually
+    looks like) tying the prose to a checkable outcome. This is precisely the silent-success risk the
+    Edge Case bullet itself names ("An empty result set here is indistinguishable... from ''this repo
+    legitimately activated nothing of this kind''") — but the spec never promotes that risk into something
+    an implementer or reviewer can mechanically verify. An implementation that handles the single-unresolvable-id
+    case (User Story 1) but leaves the all-unresolvable-in-a-kind case degrading to a silently-empty,
+    structurally-valid kind slice would satisfy every literal AC and SC in the spec.
+
+    '
+  remediation: 'Add a Given/When/Then Acceptance Scenario (either as a 4th scenario under User Story 1
+    or a new scenario under User Story 3) that constructs a fixture where every activated id of one kind
+    (e.g. all activated `toolguide`s) is unresolvable, and asserts a concrete, checkable outcome: either
+    a non-zero exit with a message naming the kind, or every id present as a placeholder — pick one deterministically
+    per FR-004''s own "must never silently write an empty-for-that-kind but structurally successful catalog"
+    language — and add a matching Success Criterion so FR-004 is covered the same way FR-001/FR-002/FR-005
+    already are by AC1/AC2 under User Story 1 and AC1/AC2 under User Story 3. NOTE: if SPEC-GOV-001''s
+    remediation (fold FR-004 into FR-001) is applied instead, this finding is satisfied by ensuring the
+    folded sub-clause inherits a concrete all-unresolvable-in-a-kind Acceptance Scenario — do not simply
+    delete FR-004 and leave the scenario ungoverned.
+
+    '
+- id: SPEC-VERIFY-003
+  lens: mission-derived — test-invocation and command realism
+  severity: 2
+  title: The `PYTHONPATH=src` prefix baked into AC3 (US1) and SC-002 is unnecessary and not this repo's
+    own invocation convention
+  evidence:
+  - artifact: spec.md § User Story 1, Acceptance Scenarios, item 3
+  - artifact: spec.md § Success Criteria, SC-002
+  - code: pytest.ini:1-8 (`pythonpath = src` — ini option; comment explains `.` is deliberately excluded
+      to avoid dual-identity module loading, and that `src` is handled via the ini option, not an env
+      var)
+  - code: Makefile:50-52, 63-66 (`test-fast`/`test-full` invoke `uv run --frozen pytest ...` with no `PYTHONPATH`
+      set)
+  claim: 'I ran the exact command from AC3/SC-002 read-only: `PYTHONPATH=src .venv/bin/pytest -q tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+    → `1 passed in 7.81s`. I then re-ran the identical invocation with the `PYTHONPATH=src` prefix dropped:
+    `.venv/bin/pytest -q tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+    → `1 passed in 6.14s` — same result. This repo''s `pytest.ini` already sets `pythonpath = src` as
+    a pytest ini option (with an explicit comment warning that mixing `.` and `src` on the path creates
+    duplicate module identities — the ini option is the sanctioned mechanism, not the `PYTHONPATH` env
+    var), and neither `make test-fast` nor `make test-full` (Makefile:50-52, 63-66) sets `PYTHONPATH`
+    for their `uv run --frozen pytest` invocations. CLAUDE.md''s own targeted-pytest example (line 657,
+    the Playwright UI suite) also omits any `PYTHONPATH` prefix. The `PYTHONPATH=src` prefix baked into
+    two of the spec''s ACs is therefore a copied convention (plausibly from Team Kitty / a different worktree-comparison
+    context — see CLAUDE.md:299''s *different* `PYTHONPATH=<worktree>/src` usage for comparing against
+    a merge-base checkout) that doesn''t reflect how this repo actually wants tests invoked, though it
+    is harmless here since it doesn''t introduce the `.`-plus-`src` duplicate- module hazard by itself.
+
+    '
+  remediation: 'Drop the `PYTHONPATH=src` prefix from AC3 and SC-002; state the invocation as `.venv/bin/
+    pytest -q tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+    (or point at `make test-fast`''s targeted equivalent), matching this repo''s own pytest.ini- driven
+    convention and CLAUDE.md''s documented invocation style, so the plan/implement phase doesn''t inherit
+    or propagate the extra prefix into FR-006''s new test.
+
+    '
+- id: SPEC-VERIFY-004
+  lens: regression-test design soundness (FR-006/US2)
+  severity: 3
+  title: 'US2/FR-006 doesn''t point at directly-reusable fixture infrastructure or note the six #5257
+    ids are already real, on-disk built-in artifacts'
+  evidence:
+  - artifact: spec.md § User Story 2 (background paragraph and Acceptance Scenarios)
+  - artifact: spec.md § FR-006
+  - code: 'tests/charter/test_active_languages_idempotency.py:1-20 (issue #3292 — same defect class: language-scoped
+      styleguide/toolguide silently degrading to the "Definition unavailable in bundled doctrine." placeholder),
+      and its `_git_init`/`_write_curated_charter_md`/`_invoke_generate`/`_read_catalog`/`_summary_for`
+      helpers (lines ~50-83), which already build a real `tmp_path` git repo and invoke the real `charter_app`
+      `generate` CLI (the production entry point) and read back `catalog.references`'
+  - code: 'packs/built-in/styleguides/java-conventions.styleguide.yaml, packs/built-in/toolguides/maven-review-checks.toolguide.yaml,
+      packs/built-in/toolguides/typescript-mutation-tools.toolguide.yaml, packs/built-in/agent_profiles/frontend-freddy.agent.yaml,
+      packs/built-in/agent_profiles/java-jenny.agent.yaml, packs/built-in/agent_profiles/node-norris.agent.yaml
+      (all six #5257 ids already exist as real, on-disk built-in doctrine artifacts — confirmed via `grep
+      -rl` over `packs/`)'
+  claim: 'US2''s background paragraph correctly observes that `tests/doctrine/test_activation_parity_guard.py`
+    never calls `compile_charter`/`charter generate` — but the spec is silent about `tests/charter/test_active_languages_idempotency.py`,
+    which is the *same defect class* (#3292: a language-scoped doctrine artifact silently degrading instead
+    of resolving) and already contains exactly the fixture machinery FR-006 needs: a real `tmp_path` git
+    repo, a real `charter_app` `generate` CLI invocation (satisfying US2 AC1''s "real production entry
+    point, not an internal helper" requirement), and a catalog-reading helper. Separately, I confirmed
+    all six #5257 ids (`styleguide/java-conventions`, `toolguide/maven-review-checks`, `toolguide/typescript-mutation-tools`,
+    `agent-profile/frontend-freddy`, `agent-profile/java-jenny`, `agent-profile/node-norris`) are already
+    real, on-disk built-in doctrine artifacts under `packs/built-in/` — the new test does not need to
+    construct a synthetic org/project doctrine-pack overlay at all; it only needs a `tmp_path` repo (no
+    Java/TypeScript source) whose `.kittify/charter/charter.yaml` activation lists include these six real
+    ids plus one more of a different kind. Without the spec naming either of these two facts, a WP implementer
+    is likely to either (a) not discover the closely-related `test_active_languages_idempotency.py` precedent
+    and rebuild the git-repo-plus-CLI-invoke scaffolding from scratch, or (b) assume a synthetic doctrine-pack
+    fixture must be authored for the six named ids, which is unnecessary extra work and risks drifting
+    from how the real #5257 bug actually manifested.
+
+    '
+  remediation: 'Add a sentence to US2''s background (or a plan-phase note, since plan.md wasn''t produced
+    this phase) pointing FR-006''s implementer at `tests/charter/test_active_languages_idempotency.py`
+    as the closest existing precedent to extend/reuse, and stating explicitly that the six #5257 ids are
+    pre-existing real built-in artifacts (no synthetic pack construction required) — narrowing the new
+    test''s actual scope to: a `tmp_path` repo with no Java/TypeScript signal, a `.kittify/charter/charter.yaml`
+    activating the six ids plus one differently-scoped id, a real `generate` CLI invocation, and a `run_consistency_check`
+    call over the result.
+
+    '

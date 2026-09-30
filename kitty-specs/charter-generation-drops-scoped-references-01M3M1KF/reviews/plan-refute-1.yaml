@@ -1,0 +1,18 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "Independently ran .venv/bin/python -m pytest -q tests/charter/test_catalog_completeness_4785.py and got 5 passed (currently green on HEAD); its test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placeholder asserts references==[] for a genuine miss (Contract C4, cited docstring in compiler.py:1118-1121 matches verbatim), while plan.md line 163's WP-CORE step (b) states the placeholder path ALWAYS preserves the id regardless of cause, and the mission's own stated 51-test baseline (plan.md lines 74-78) omits test_catalog_completeness_4785.py, with zero mentions of '4785', 'C4', or 'catalog-coherence' anywhere in the mission's plan/tracer files."
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: "spec.md's Edge Cases (line 60) and NFR-002 (line 81) are quoted accurately; .kittify/charter/charter.yaml verifiably has 9 rows with the exact reason-less text 'Definition unavailable in bundled doctrine.' including for the six #5257 WP-ATDD fixture ids' kinds (styleguide/toolguide/agent_profile), and plan.md's WP-CORE (line 163) only specifies the diagnostics-string format, never the placeholder CharterReference's summary/content text, so the NFR-002-vs-Edge-Case tension is real and unaddressed (no test targets this specific edge case either)."
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: "_catalog_miss.py:261-305 confirmed: classify_scope_filtered_miss produces a materially richer suggestion when active_languages is non-empty vs. the generic fallback when None/empty; compiler.py's _build_references (1045), _build_references_from_service (1144), and _render_kind_references (1096) all lack an active_languages parameter even though compile_charter computes it at line 424 and never threads it down; the mission's own contracts/charter-generate-json-diagnostics.md worked example (lines ~44-49) shows the rich form naming the active language set, and 'active_languages' never appears anywhere else in plan.md/tracer-approach.md, confirming IC-02's 'Risks: None identified' omits this real threading requirement."
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: "tests/specify_cli/charter_runtime/preflight/ does not exist (ls confirms), so plan.md's Project Structure target tests/specify_cli/charter_runtime/preflight/test_references_refresh.py is a nonexistent path; the real precedent file tests/specify_cli/charter_runtime/test_references_parity_refresh.py exists and verifiably ships _git_init, _make_generate_subprocess_fake, and _seed_baseline_repo exactly as cited, and is never named anywhere in plan.md (only a hedge 'Extended (or new sibling test)' at line 138, which never points at the real file)."

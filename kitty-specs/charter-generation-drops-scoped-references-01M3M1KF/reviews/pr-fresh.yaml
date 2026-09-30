@@ -1,0 +1,90 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PR-FRESH-001
+    lens: migration-integrity
+    severity: 4
+    title: SSOT fold-in makes the rc5 provenance migration read charter.yaml's mission field through a second, fail-open disk read that can silently disable healing
+    evidence:
+      - code: "src/specify_cli/upgrade/migrations/m_4_0_0rc5_heal_template_set_provenance.py:128-149"
+      - code: "src/specify_cli/upgrade/migrations/m_4_0_0rc5_heal_template_set_provenance.py:166-178"
+      - code: "src/charter/activation/charter_yaml_io.py:537-572"
+      - code: "src/specify_cli/upgrade/migrations/m_4_0_0rc5_heal_template_set_provenance.py:222-234 (_load_charter_document docstring: fail-closed rationale)"
+    claim: >
+      Commit 2d431a53f replaces the in-memory `mission = catalog.get("mission")`
+      read (taken from the `document`/`catalog` this function had just parsed,
+      or that a caller already loaded and passed in) with
+      `mission = read_catalog_mission(project_path)` in both
+      `_healable_references` and `describe_template_set_ambiguities`. This is a
+      SECOND, independent open+parse of charter.yaml, not a reuse of the
+      already-loaded `document`. It is unconditional: even when `apply()`
+      passes an already-loaded `document` specifically to avoid re-reading the
+      file, `_healable_references` still performs this extra read every time,
+      defeating the purpose of that parameter. Worse, the two reads have
+      DIFFERENT failure semantics: `_load_charter_document`
+      (m_4_0_0rc5_heal_template_set_provenance.py:222-234) is deliberately
+      fail-closed -- its own docstring says "An unreadable charter is not
+      'nothing to heal' ... raise ... so the upgrade fails and retries" --
+      while `read_catalog_mission` -> `read_catalog_field`
+      (charter_yaml_io.py:537-567) is deliberately fail-open: it swallows
+      YAMLError/OSError/UnicodeDecodeError and silently returns `None`. Live
+      reproduction (executed against this checkout, not just read from
+      source): `_mission_token("software-dev")` resolves a real portable
+      token (`${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml`)
+      while `_mission_token(None)` returns `None`; `_healable_references`
+      returns `[]` (via its `if token is None: return []` guard) whenever the
+      second read fails/returns None even though the already-parsed
+      `catalog["mission"]` in the very same call was perfectly valid. Any
+      transient I/O hiccup, permission blip, or future change to
+      `read_catalog_field`'s error handling on the SECOND read now silently
+      turns "there is healable drift" into "nothing to heal" for this
+      migration -- a new silent-success path in code whose whole job is to be
+      loud on read failure, and a genuine atomicity regression (two reads of
+      one file where the mission-bearing catalog dict was already in hand).
+    remediation: >
+      Read `catalog.mission` once. Either (a) keep using the already-parsed
+      `catalog` dict (`catalog.get("mission")`) inside `_healable_references`
+      /`describe_template_set_ambiguities` since both functions already load
+      `document`/`catalog` themselves via the fail-closed `_load_charter_document`
+      path, and reserve `read_catalog_mission` for call sites that have no
+      already-loaded document; or (b) refactor `read_catalog_field` to accept
+      an already-parsed document/mapping so the shared accessor can be reused
+      without a second disk read, and make its error handling on that path
+      fail-closed to match `_load_charter_document`'s contract. Either way, no
+      caller here should perform two independent reads of the same
+      `charter.yaml` with two different failure philosophies inside one
+      migration call.
+
+  - id: PR-FRESH-002
+    lens: test-quality
+    severity: 2
+    title: New compiler test pins an AST-shape implementation detail rather than only observable behavior
+    evidence:
+      - code: "tests/charter/test_compiler.py:468-514"
+    claim: >
+      `test_tracked_reference_kind_plurals_is_derived_from_the_graph_attr_mapping`
+      parses `compiler.py`'s own source with `ast.parse`/`inspect.getsource`
+      and asserts that `_TRACKED_REFERENCE_KIND_PLURALS`'s assignment is an
+      `ast.Call` whose call graph references the name
+      `_TRACKED_KIND_TO_GRAPH_ATTR`. This pins a specific implementation shape
+      (must be a call expression referencing that exact name) rather than
+      only the derived value; a legitimate future refactor that still derives
+      the plural set correctly (e.g. via a different-but-equivalent
+      expression that doesn't syntactically embed that identifier, or moving
+      the mapping to a different module with a re-export) would fail this
+      test even though nothing is behaviorally wrong. The test does include a
+      "belt-and-suspenders" value-equality assertion at the end, which
+      mitigates the risk of it being purely vacuous, but the AST-shape
+      assertions are the dominant, brittle part of the test.
+    remediation: >
+      Drop the AST introspection and keep only the behavioral assertion
+      (`frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values()) ==
+      _TRACKED_REFERENCE_KIND_PLURALS`), or, if the goal is specifically to
+      prevent a future hand-written duplicate literal from silently
+      reappearing, use a narrower structural check (e.g. assert the two
+      objects are literally derived via `is`-identity of an intermediate, or
+      add a code-review/lint rule) instead of parsing and pattern-matching the
+      module's own AST in a unit test.

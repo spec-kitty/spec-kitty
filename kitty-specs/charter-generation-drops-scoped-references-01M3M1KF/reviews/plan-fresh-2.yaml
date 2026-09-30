@@ -1,0 +1,147 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-FRESH2-001
+    lens: structural-coherence
+    severity: 4
+    title: The new whole-kind aggregate fail-closed check only inspects `_render_kind_references`'s per-kind return list, so it cannot see ids that never reach that function — a real "misconfigured pack root" case the plan's own test requirement names
+    evidence:
+      - artifact: "plan.md § \"WP-CORE reconciliation...\", point 3 \"Design\" (lines 254-276) and \"Test requirement (new)\" (lines 292-301)"
+      - artifact: "plan.md § \"Campsite-clean scope\" (lines 96-98) — unchanged across both fix rounds"
+      - code: "src/charter/activation/compiler.py:1249-1251 (the `graph.unresolved` diagnostics loop, a second unresolved-tracking site distinct from `_render_kind_references`)"
+      - code: "src/charter/offering/drg/query.py:383-399 (`resolve_transitive_refs`: a start URN whose DRG node is absent from an otherwise-successfully-loaded graph is recorded in `unresolved`, never bucketed into `by_kind`/`graph.<kind>`)"
+      - code: "src/charter/activation/compiler.py:1286-1296 (`_resolve_transitive_reference_graph`'s total-graph-load-failure `fallback`: on `except Exception`, only directly-activated roots and bare directive ids are re-populated into `graph.<kind>` via `_bare_ids_for_kind`; anything reachable ONLY via directive-transitive closure is silently omitted — never even reaches `graph.unresolved`)"
+    claim: >
+      Decision 3's aggregate whole-kind check (compiler.py:1144, "immediately after each per-kind
+      call to `_render_kind_references`") triggers only when a kind's `graph.<kind>` bucket is
+      non-empty but `_render_kind_references` returned nothing for it. That bucket is populated by
+      `resolve_transitive_refs`, which buckets a visited URN by kind ONLY when the URN's DRG node
+      actually exists in the loaded graph; a URN whose node is absent goes to `graph.unresolved`
+      instead (query.py:385-391) and never reaches `_render_kind_references` at all, so the new
+      aggregate check cannot count it. Two concrete, verified-in-code scenarios fall entirely outside
+      the new check's field of view: (1) a directly- or directive-transitively-activated id whose
+      DRG node has been removed from the graph (e.g. deleted from the doctrine pack's `*.graph.yaml`
+      fragment while its config activation entry remains) lands in `graph.unresolved`, not
+      `graph.<kind>` — `generate` still exits 0, the kind's `catalog.references` section is still
+      silently empty, and only the pre-existing (untouched by this mission) bare
+      `"Unresolved reference: {kind}/{id}"` diagnostic fires, with no reason suffix and no fail-closed
+      exit; (2) under a genuinely misconfigured pack root causing the whole DRG graph load to raise
+      (the `except Exception: return fallback` branch, compiler.py:1298-1307), anything reachable
+      ONLY via directive-transitive closure (not a `config.activated_*` direct root) is dropped with
+      *zero* trace anywhere — not even a diagnostic — because the fallback never calls
+      `resolve_transitive_refs` at all. Both scenarios are exactly the FR-001/Edge-Case
+      "misconfigured pack root" / "all activated references of a kind... are unresolvable" language
+      the plan's own "Test requirement (new)" paragraph invokes verbatim as its motivating fixture
+      example ("an id under a misconfigured pack root, or an id deleted from the doctrine pack") —
+      yet the check the plan designed to close this gap cannot detect either one. This also leaves
+      unresolved the plan's own Campsite-clean section (line 98, unchanged since the original plan and
+      never revisited by either fix round), which asserts "both call sites end up calling one new
+      shared classify-and-placeholder helper" — the `graph.unresolved` site (compiler.py:1250-1251)
+      is never mentioned anywhere in the WP-CORE reconciliation design, so that claim is currently
+      false for the plan as written. An implementer building a "misconfigured pack root" test fixture
+      by deleting the DRG node (the natural reading of "misconfigured pack root" — the whole pack,
+      graph fragment included, is unreachable) would produce a fixture that never exercises the new
+      aggregate check, giving false confidence that FR-001's whole-kind clause is closed.
+    remediation: >
+      Either (a) extend decision 3's aggregate check to also count `graph.unresolved` entries per
+      kind (and, separately, address or explicitly accept-as-out-of-scope the total-graph-load-failure
+      fallback's silent drop of directive-transitive-only ids), reconciling it with the
+      Campsite-clean section's "one shared helper" claim by actually routing the `graph.unresolved`
+      loop through the same classify-and-placeholder/aggregate machinery; or (b) narrow the plan's own
+      language and test-requirement wording to state explicitly that the new whole-kind check covers
+      only ids that reach `_render_kind_references` (i.e., DRG-node-present, raw-repository-miss
+      cases) and is NOT a full closure of FR-001's "misconfigured pack root" example, updating the
+      Campsite-clean section to no longer claim unification of both call sites, and filing the
+      DRG-node-absent / total-graph-load-failure gap as an explicitly out-of-scope, ledgered follow-up
+      rather than leaving it implicitly (and incorrectly) claimed as closed.
+
+  - id: PLAN-FRESH2-002
+    lens: atdd-discipline
+    severity: 3
+    title: ATDD-First Discipline section is stale — the new whole-kind fail-closed test (round-2 addition) is not required to be its own separate, committed-before-implementation failing-first test, unlike FR-005's and the auto-refresh fold-in's tests
+    evidence:
+      - artifact: "plan.md § \"ATDD-First Discipline (C-011, binding)\" (lines 181-185) — names only the WP-ATDD FR-005 test and the WP-AUTOREFRESH fold-in test as requiring a separate, committed, failing-first commit"
+      - artifact: "plan.md § \"WP-CORE reconciliation...\", point 3 \"Test requirement (new)\" (lines 292-301) — placement given as \"alongside `tests/charter/test_charter_generate_scoped_reference_parity.py` ... or as a narrower `compiler.py`-level unit test — implementer's choice\", with no statement that it must land as its own red-first commit before the implementation that makes it pass"
+      - artifact: "plan.md § Phasing item 2 (WP-CORE) — \"Verify the WP-ATDD test now passes GREEN, the new whole-kind-unresolved fail-closed test ... passes GREEN\" — phrased as a post-hoc verification inside WP-CORE's own commit, not as a pre-existing RED gate the way WP-ATDD and WP-AUTOREFRESH are phrased"
+      - artifact: "plan.md § \"PR Shape\" — \"IC-01/02 as one commit pair\" (no separate red-first commit called out for the new whole-kind test)"
+      - artifact: ".kittify/charter/charter.md § \"ATDD-First Discipline (binding per C-011)\" — \"The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers... committed as a separate commit... BEFORE any implementation commits.\""
+    claim: >
+      The round-2 fix (decision 3 / WP-CORE reconciliation point 3) introduces a genuinely new,
+      user-observable behavior — a fail-closed non-zero exit for a whole-kind MISSING_ARTIFACT case —
+      that WP-ATDD's existing FR-005 fixture (SCOPE_FILTERED-only, per the plan's own text: "SC-005
+      and this new test together now cover both whole-kind-unresolvable causes") does not exercise.
+      Per C-011 (binding), a WP cannot start coding until a failing-first test pinning that behavior
+      is committed separately, before any implementation commit. WP-AUTOREFRESH's fold-in explicitly
+      gets this treatment ("gets its OWN separate red-first test... its own commit"). The new
+      whole-kind test does not get the same explicit treatment anywhere in the plan — it is only
+      described as something "WP-CORE adds," verified GREEN as part of WP-CORE's own commit, with no
+      stated requirement that it be committed RED first, separately, before the compiler.py
+      implementation changes that make it pass. An implementer following the plan literally (author
+      the whole-kind check and its test in the same WP-CORE commit) would be plan-compliant but
+      C-011-noncompliant, and a reviewer would have to infer the requirement from charter text the
+      plan itself doesn't restate for this specific test, unlike it does for the other two.
+    remediation: >
+      Add the new whole-kind-unresolved test to the ATDD-First Discipline section explicitly,
+      stating it must be authored and committed RED (failing against the pre-round-2 `SCOPE_FILTERED`
+      -only implementation) in its own commit before the compiler.py changes that make it pass, mirroring
+      the treatment already given to WP-ATDD's FR-005 test and WP-AUTOREFRESH's fold-in test. Update the
+      PR Shape section's commit breakdown to reflect this as a distinct commit (or explicitly justify why
+      it can share a commit with WP-ATDD's existing red-first commit instead).
+
+  - id: PLAN-FRESH2-003
+    lens: cross-reference-integrity
+    severity: 2
+    title: IC-01 cites SC-005 as a "relevant requirement" for the new whole-kind MISSING_ARTIFACT mechanism, but SC-005's actual spec.md text only measures the SCOPE_FILTERED whole-kind case
+    evidence:
+      - artifact: "plan.md § \"Implementation Concern Map\" → IC-01, line 324: \"Relevant requirements: FR-001, FR-003, NFR-001, NFR-002, C-001, C-002, SC-001, SC-004, SC-005.\" — this list is unchanged text covering IC-01's now-expanded scope (the purpose bullet above it explicitly states IC-01 \"additionally closes FR-001's aggregate whole-kind sub-clause\")"
+      - artifact: "spec.md line 108, SC-005: \"A fresh `spec-kitty charter generate --force` run against User Story 1's Acceptance Scenario 4 fixture (every activated `toolguide` id excluded by language scope)...\" — explicitly scoped to the SCOPE_FILTERED case only"
+      - artifact: "plan.md line 296: \"distinct from SC-005/Acceptance Scenario 4, which is a `SCOPE_FILTERED` whole-kind fixture already satisfied by decision 1's placeholder path alone\" — the plan's own text elsewhere correctly distinguishes the two, making the IC-01 citation inconsistent with the plan's own stated understanding"
+    claim: >
+      IC-01's "Relevant requirements" list has not been updated to distinguish which of its now-two
+      mechanisms (per-id SCOPE_FILTERED placeholder vs. per-kind MISSING_ARTIFACT/TYPO_SUSPECTED
+      fail-closed) each cited SC/FR row actually backs. SC-005 is cited as relevant to all of IC-01,
+      but per the plan's own "WP-CORE reconciliation" text (line 296), SC-005 is explicitly a
+      SCOPE_FILTERED-only fixture and does not exercise the new whole-kind fail-closed mechanism at
+      all. This means the new mechanism this round adds has no spec.md Success Criterion backing it —
+      only the plan's own ad hoc "Test requirement (new)" paragraph — a gap a reviewer skimming IC-01's
+      requirement list would not notice, since SC-005 reads as if it already covers it.
+    remediation: >
+      Split IC-01's "Relevant requirements" citation to note which FR/SC rows back the SCOPE_FILTERED
+      placeholder mechanism (SC-005 among them) versus the new whole-kind MISSING_ARTIFACT fail-closed
+      mechanism (FR-001's Edge Case text only, no dedicated SC row) — or add a new spec.md Success
+      Criterion for the new mechanism so it has an explicit acceptance-level measurable outcome, not
+      only a plan-level "Test requirement" paragraph.
+
+  - id: PLAN-FRESH2-004
+    lens: idempotency
+    severity: 2
+    title: Plan does not state that NFR-001's byte-identical guarantee is inapplicable to the new fail-closed path, nor require a test proving the failure itself is stable across repeated invocations
+    evidence:
+      - artifact: "plan.md § \"WP-CORE reconciliation...\", point 3 (lines 239-301) — no mention of repeated/retry invocation behavior for the new fail-closed path"
+      - artifact: "plan.md § \"Implementation Concern Map\" → IC-01, line 324 — cites NFR-001 as a relevant requirement without qualifying that it does not literally apply (no catalog is written) to the new whole-kind fail-closed branch"
+      - artifact: "spec.md line 80, NFR-001: \"Running `spec-kitty charter generate --force` twice in immediate succession against an unchanged repo and config produces a byte-identical `catalog.references`...\""
+    claim: >
+      The new whole-kind fail-closed path raises before any catalog is written (verified: compiler.py's
+      `_build_references_from_service` is called from `compile_charter` at line 460 with no
+      surrounding try/except, and `write_compiled_charter` is called strictly after `compile_charter`
+      returns in generate.py — so a raised `_WholeKindUnresolvedError` propagates before any file
+      write). NFR-001's literal text ("byte-identical `catalog.references`") presumes a catalog is
+      produced each run; the plan never states that NFR-001 is vacuously inapplicable here (no output
+      to compare) rather than silently unsatisfied, and never adds a test asserting that a SECOND
+      `generate` invocation against the same still-broken repo fails the same way (same exit code, same
+      kind named, still no catalog written) — i.e. that the failure itself is deterministic/stable
+      across repeats, which is the natural idempotency property that actually applies here. This is a
+      minor documentation gap, not a functional defect (the design is passively safe: no write happens
+      on either invocation), but it leaves an explicit reviewer question — "is this new failure mode
+      idempotent?" — unanswered by the plan text that cites NFR-001 against it.
+    remediation: >
+      Add one sentence to the WP-CORE reconciliation point 3 section stating that NFR-001 does not
+      literally apply to the fail-closed branch (no catalog is written, so there is no
+      `catalog.references` to compare byte-for-byte) and that the relevant idempotency property instead
+      is "the same unresolved-kind repo fails the same way on a second invocation, with the
+      pre-existing catalog file (if any) left untouched" — and add that as an explicit assertion to the
+      new test requirement (run the fixture's `generate --force` twice, assert both invocations exit
+      non-zero identically and neither writes a catalog file).

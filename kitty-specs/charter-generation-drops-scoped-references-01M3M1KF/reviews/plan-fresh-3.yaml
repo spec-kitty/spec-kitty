@@ -1,0 +1,188 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-FRESH3-001
+    lens: code-truth (root-cause verification against live source)
+    severity: 4
+    title: "Round-3 Design part (a) assumes graph.unresolved yields (kind, bare_id) tuples; the actual code yields (full_urn, full_urn)"
+    evidence:
+      - artifact: "plan.md § \"WP-CORE reconciliation\" → \"Round-3 amendment to point 3\" → \"Design, part (a)\""
+      - artifact: "tracer-design-decisions.md § \"Decision: operator ruling on PLAN-FRESH2-001\" point 1"
+      - code: "src/charter/offering/drg/query.py:383-391 (resolve_transitive_refs's unresolved-collection loop)"
+      - code: "src/charter/offering/drg/query.py:391 (unresolved.append((urn, urn)))"
+      - code: "src/charter/activation/compiler.py:1250-1251 (the existing graph.unresolved consumer loop this design extends)"
+    claim: >
+      The round-3 amendment's "Design, part (a)" instructs the implementer to route
+      _build_references_from_service's graph.unresolved loop through the shared
+      classify-and-placeholder helper "once per (artifact_type, artifact_id) pair it
+      yields", using "_raw_kind_repository(doctrine_service, artifact_type) to fetch
+      the right raw repository for graph.unresolved's artifact_type string" and
+      classifying via "raw_id in repository.scope_filtered_ids" against artifact_id.
+      This assumes each graph.unresolved tuple is a (kind_string, bare_id) pair.
+      Verified against the actual current resolve_transitive_refs
+      (src/charter/offering/drg/query.py:331-405): when a visited URN's node is
+      absent from the graph, the code executes `unresolved.append((urn, urn))`
+      (query.py:391) — BOTH tuple elements are the SAME full, kind-prefixed URN
+      string (e.g. "toolguide:my-id"), never a bare kind name plus a bare id. This
+      is exactly the scenario the round-3 amendment's own motivating example
+      describes ("an id deleted from the doctrine pack's graph fragment while its
+      config activation entry remains" — an unknown start URN, which is precisely
+      what walks into this `node is None` branch). Unlike the successful-lookup
+      path a few lines above (`bare_id = urn.split(":", 1)[1] if ":" in urn else
+      urn`, query.py:397-398), the unresolved-collection branch never strips the
+      kind prefix and never splits kind from id. Passing the full URN string as
+      `artifact_type` into `_raw_kind_repository` (which every existing call site
+      in compiler.py invokes with a plural kind key like "toolguides"/"directives",
+      not a "kind:id" URN) would not resolve to a valid repository, and passing the
+      full URN as the `raw_id` for a `repository.scope_filtered_ids` membership
+      check would never match (that set holds bare ids, not "kind:id" strings), so
+      the SCOPE_FILTERED vs MISSING_ARTIFACT/TYPO_SUSPECTED classification the
+      round-3 design depends on could never fire correctly for a graph.unresolved
+      id. Note also that the existing (pre-round-3, unmodified) compiler.py:1250-1251
+      loop that already reads graph.unresolved has the identical latent mismatch
+      (`for artifact_type, artifact_id in graph.unresolved: diagnostics.append(f"...
+      {artifact_type}/{artifact_id}")` — already produces a malformed diagnostic
+      string today for this case), so the round-3 amendment inherits rather than
+      fixes the shape mismatch, and builds new classification logic directly on
+      top of the same wrong assumption.
+    remediation: >
+      Before implementation starts, correct the round-3 "Design, part (a)" text
+      (and the mirrored tracer-design-decisions.md decision) to account for the
+      actual tuple shape: either (1) split each graph.unresolved element on the
+      first ":" to recover (kind_prefix, bare_id) — matching the pattern
+      resolve_transitive_refs's own successful-lookup branch already uses
+      (query.py:397-398) — before calling the shared classify-and-placeholder
+      helper, and map the URN's singular kind prefix to whatever plural/singular
+      key _raw_kind_repository and the six existing call sites actually expect; or
+      (2) change resolve_transitive_refs itself to emit a genuinely split
+      (kind, bare_id) pair for a dangling/unresolved node (a change to
+      src/charter/offering/drg/query.py, which is not listed anywhere in this
+      mission's Charter Check "Seams this mission touches" or Project Structure,
+      so doing this would need its own justification and scope note). Either way,
+      the plan as written would send an implementer straight into incorrect
+      lookups (or a runtime AttributeError/KeyError) the first time this new code
+      path is actually exercised by the round-3 amendment's own new test requirement.
+
+  - id: PLAN-FRESH3-002
+    lens: architecture (seam/signal-flow completeness)
+    severity: 3
+    title: "Round-3 Design part (c) requires _build_references_from_service to detect a graph-load failure, but no signal crosses the _resolve_transitive_reference_graph boundary to make that possible, and the function isn't listed as an affected surface"
+    evidence:
+      - artifact: "plan.md § \"WP-CORE reconciliation\" → \"Round-3 amendment to point 3\" → \"Design, part (c)\""
+      - artifact: "plan.md § \"Implementation Concern Map\" → \"IC-01\" → \"Affected surfaces\" (unchanged by round 3)"
+      - code: "src/charter/activation/compiler.py:1296-1307 (_resolve_transitive_reference_graph's try/except Exception: return fallback)"
+      - code: "src/charter/activation/compiler.py:1175-1182 (_build_references_from_service's call site: graph = _resolve_transitive_reference_graph(...), no exception propagated, no flag returned)"
+    claim: >
+      Design part (c) says "_build_references_from_service now appends ONE
+      unconditional, structured diagnostic recording the graph-load failure"
+      when "_resolve_transitive_reference_graph's except Exception: return
+      fallback branch fires". Verified against the actual current code: the
+      try/except lives entirely inside _resolve_transitive_reference_graph
+      (compiler.py:1296-1307), which swallows the exception and returns the
+      SAME ResolveTransitiveRefsResult type (built from the fallback dict) on
+      both the success and failure paths — there is no boolean flag, sentinel
+      attribute, or re-raised/wrapped exception that crosses back to its one
+      caller, _build_references_from_service (compiler.py:1175), which just does
+      `graph = _resolve_transitive_reference_graph(...)` with no way to
+      distinguish "graph loaded fine, direct roots only" from "graph load threw
+      and this is the fallback". The round-3 design describes WHAT the caller
+      should do once it "knows" the branch fired, but not HOW that knowledge
+      reaches the caller across the existing function boundary. This isn't a
+      cosmetic omission: IC-01's "Affected surfaces" line (elsewhere in this
+      same plan, unchanged by the round-3 edit) enumerates only
+      "_render_kind_references, _build_references_from_service, new private
+      classify-and-placeholder helper, new private whole-kind fail-closed
+      check/exception" — it does not name _resolve_transitive_reference_graph,
+      even though the round-3 design cannot be implemented without also
+      changing that function's return contract (or introducing a marker
+      exception it raises instead of swallowing).
+    remediation: >
+      Add _resolve_transitive_reference_graph to IC-01's (or a new IC's)
+      "Affected surfaces" list, and specify the actual signal-crossing
+      mechanism in the round-3 "Design, part (c)" text — e.g. widen the
+      function's return type to a small (graph, load_failed: bool, detail: str
+      | None) tuple/NamedTuple, or have it re-raise a module-private marker
+      exception that _build_references_from_service catches around the call
+      site — so an implementer isn't left to invent the plumbing ad hoc while
+      also satisfying the "does not attempt to reconstruct the transitive
+      closure" and "existing fallback behavior unchanged" constraints the same
+      paragraph states.
+
+  - id: PLAN-FRESH3-003
+    lens: sequencing (WP/commit-graph consistency)
+    severity: 2
+    title: "Phasing & Sequencing's numbered WP list was not updated to place the round-3-added dedicated red-first whole-kind-test commit, even though ATDD-First Discipline and PR Shape (both edited this round) now require it as a distinct step"
+    evidence:
+      - artifact: "plan.md § \"ATDD-First Discipline (C-011, binding)\" — \"The whole-kind-unresolved fail-closed tests ALSO get this treatment (closes PLAN-FRESH2-002)\" paragraph (added round 3)"
+      - artifact: "plan.md § \"Phasing & Sequencing\", numbered steps 1–5 (NOT touched by the round-3 diff)"
+      - artifact: "plan.md § \"PR Shape\" (edited round 3: \"now six small ... changes\")"
+    claim: >
+      The round-3-added ATDD-First Discipline paragraph states the whole-kind
+      fail-closed tests (MISSING_ARTIFACT case, graph.unresolved case,
+      graph-load-failure case) are "authored and committed as ONE dedicated
+      red-first commit" that "MUST land strictly BEFORE the WP-CORE
+      implementation commit(s)" — i.e. a distinct commit sitting between
+      WP-ATDD and WP-CORE. The round-3-edited PR Shape section correctly
+      counts this as a separate item in its six-commit breakdown ("a second,
+      dedicated red-first commit for the whole-kind-unresolved fail-closed
+      tests"). But the numbered "Phasing & Sequencing" list itself — the
+      section an implementer is most likely to follow step-by-step — was left
+      completely unedited by the round-3 diff: it still reads "1. WP-ATDD ...
+      2. WP-CORE ... 3. WP-JSON ... 4. WP-AUTOREFRESH ... 5. WP-CLEANUP-VERIFY
+      (folded in)", with no step naming this new mandatory intermediate
+      commit or clarifying whether it is a sub-step of WP-ATDD, a sub-step of
+      WP-CORE, or its own numbered phase. A reader who works from the
+      numbered Phasing list alone (rather than cross-referencing the ATDD-First
+      Discipline prose and the PR Shape prose) would not learn this commit
+      exists as a distinct step at all.
+    remediation: >
+      Update the "Phasing & Sequencing" numbered list to either insert an
+      explicit step (e.g. "1b. WP-CORE-TESTS — dedicated red-first commit for
+      the whole-kind-unresolved fail-closed tests, landing after WP-ATDD and
+      before WP-CORE's implementation commits") or add one sentence to step 2
+      (WP-CORE) cross-referencing the ATDD-First Discipline paragraph and
+      stating explicitly that its first sub-commit is this dedicated red-first
+      test commit, not the compiler.py implementation itself.
+
+  - id: PLAN-FRESH3-004
+    lens: type/contract consistency
+    severity: 2
+    title: "The new cause value \"graph_load_failed\" has no declared type, and Project Structure still claims _catalog_miss.py is \"REUSED, not modified\" without addressing whether CatalogMissCause needs a new member"
+    evidence:
+      - artifact: "contracts/charter-generate-json-diagnostics.md § \"Round-3 addition\" (\"cause: \\\"graph_load_failed\\\" is a new value in this field, distinct from the three CatalogMissCause values\")"
+      - artifact: "plan.md § \"Project Structure\" → Source Code tree (unchanged by round 3): \"_catalog_miss.py  # REUSED, not modified: CatalogMissCause, classify_catalog_miss, classify_scope_filtered_miss (already built, already tested)\""
+      - code: "src/charter/activation/_catalog_miss.py:129-161 (class CatalogMissCause(str, Enum): TYPO_SUSPECTED / MISSING_ARTIFACT / SCHEMA_VALIDATION_SUSPECTED / SCOPE_FILTERED — 4 members, no fifth)"
+      - code: "src/charter/activation/_catalog_miss.py:165-174 (CatalogMissDiagnosis.cause: CatalogMissCause — strictly typed to the enum, not a bare str)"
+    claim: >
+      Everywhere else in this plan, the structured unresolved-reference
+      record's `cause` field is explicitly built by reusing
+      CatalogMissDiagnosis/CatalogMissCause (IC-02's whole purpose, and the
+      contract doc's own "cause is the ... CatalogMissCause enum's .value
+      string" line for the three existing values). CatalogMissCause is a
+      closed 4-member str Enum with no "graph_load_failed" member, and the
+      existing CatalogMissDiagnosis dataclass types its `cause` field
+      strictly as CatalogMissCause, not `str`. The round-3 addition
+      introduces a fifth value, "graph_load_failed", that by the contract
+      doc's own admission is "not per-id classified via classify_catalog_miss/
+      classify_scope_filtered_miss at all" — i.e. it never flows through
+      CatalogMissDiagnosis. Neither plan.md's WP-CORE reconciliation round-3
+      text nor the contract doc states what TYPE the new compiler-internal
+      structured record's `cause` field actually is (a bare `str` wide enough
+      to hold both enum .value strings and this new sentinel, vs. reusing
+      CatalogMissCause itself, which would require adding a member to that
+      enum). If an implementer follows IC-02's DIRECTIVE_044 instinct to reuse
+      CatalogMissCause directly for the new structured record's cause field,
+      adding "graph_load_failed" to it means modifying _catalog_miss.py —
+      directly contradicting Project Structure's still-unedited "REUSED, not
+      modified" line for that exact file.
+    remediation: >
+      Add one sentence to the round-3 "Design, part (c)" (or the contract doc)
+      explicitly stating the new structured record type's `cause` field is a
+      plain `str` (not `CatalogMissCause`), so the three real enum values and
+      the new sentinel value can coexist in the same field without touching
+      _catalog_miss.py — and update Project Structure's "_catalog_miss.py ...
+      not modified" line to note this is exactly why no enum change is needed,
+      closing the ambiguity explicitly rather than leaving it implicit.

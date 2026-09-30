@@ -1,0 +1,102 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-ARCH-001
+    lens: mission-derived (placeholder-always mechanism vs. FR-006/NFR-002 continuity)
+    severity: 4
+    title: >-
+      Plan does not commit to a placeholder-text format for the new DRG-backed-kind
+      placeholders, leaving an unresolved tension between NFR-002 (reason-bearing
+      placeholder) and the Edge Case's "must not further diverge from the existing
+      placeholder convention" — and provides zero test coverage for that specific
+      Edge Case.
+    evidence:
+      - artifact: "spec.md § Edge Cases — 'A repo whose committed .kittify/charter/charter.yaml already carries the pre-fix \"Definition unavailable\" placeholder baseline'"
+      - artifact: "spec.md § Non-Functional Requirements — NFR-002 ('every placeholder entry names the specific kind/id and its reason category ... a reason-less ... diagnostic does not satisfy this requirement')"
+      - artifact: "plan.md § Phasing & Sequencing, WP-CORE (step 2) — describes building a placeholder CharterReference but never specifies the placeholder's summary/content text template"
+      - artifact: "tracer-approach.md § Overall approach — '_doctrine_yaml_reference ... as the TEMPLATE (not a direct reuse ...)' — deliberately non-committal on the final placeholder text"
+      - code: ".kittify/charter/charter.yaml:1343-1348 (and :1457-1462, :1493-1498, :1667-1672, :1691-1696, :1709-1714) — the six #5257 ids' CURRENT committed placeholder entries all read verbatim `summary: Definition unavailable in bundled doctrine.` with no reason/cause distinguishing scope_filtered from missing"
+      - code: "src/charter/activation/compiler.py:1505 — `_doctrine_yaml_reference`'s fallback source is `{\"summary\": \"Definition unavailable in bundled doctrine.\"}`, confirming this is the literal existing convention the Edge Case refers to"
+      - artifact: "plan.md § Auto-refresh fail-closed swallow / Phasing — FR-006's only stated verification is the 'zero unresolved ids -> byte-identical catalog' inert-path case (also spec.md FR-006's no-op-passable clause); no WP, IC, or test in plan.md exercises regenerating a fixture that already carries the pre-fix 'Definition unavailable' baseline and asserting the new output does not diverge from it"
+    claim: >-
+      NFR-002 requires every placeholder entry (not just the diagnostics-list string)
+      to name the reason category, which the CURRENT committed baseline text
+      ("Definition unavailable in bundled doctrine.") verifiably does not do — I
+      confirmed this against .kittify/charter/charter.yaml's own six existing
+      placeholder rows for the #5257 ids. Making WP-CORE's new placeholder
+      satisfy NFR-002 therefore necessarily changes the placeholder summary text
+      away from that exact existing string for every regenerated repo carrying it,
+      which is precisely the divergence spec.md's Edge Case for
+      "A repo whose committed charter.yaml already carries the pre-fix ... baseline"
+      warns against ("a regeneration after the fix lands must not further diverge
+      from — or silently discard — that existing placeholder convention"). Plan.md
+      and tracer-approach.md never resolve this tension: they neither commit to
+      reusing the exact existing string (which would leave NFR-002 unsatisfied for
+      these ids) nor explicitly declare an extension/replacement format as the
+      intended, acceptable divergence. No WP or test in the Phasing/Implementation
+      Concern Map sections exercises this specific Edge Case at all — FR-006's
+      only test is the unrelated "nothing to reconcile" inert-path case. An
+      implementer is left to decide this unguided, and a reviewer applying NFR-002
+      literally versus a reviewer applying the Edge Case literally will reach
+      opposite verdicts on the same diff, which is exactly the rework risk this
+      review lens exists to catch.
+    remediation: >-
+      Before WP-CORE starts, add an explicit decision to plan.md's WP-CORE step (or
+      a new short "Placeholder text format" subsection) that either (a) states the
+      new placeholder summary keeps the existing literal string
+      "Definition unavailable in bundled doctrine." as a stable prefix and appends
+      the reason-bearing suffix (e.g. "Definition unavailable in bundled doctrine.
+      Reason: scope_filtered — <detail>"), explicitly reasoning that this
+      extension — not replacement — satisfies both NFR-002 (reason is now present)
+      and the Edge Case (the existing convention's wording is preserved, not
+      discarded), or (b) states the summary text changes format entirely and
+      explicitly overrides the Edge Case's "must not diverge" language as an
+      accepted, intentional documented divergence. Either way, add one concrete
+      test to WP-CORE (or WP-ATDD) that regenerates a fixture seeded with today's
+      exact baseline row shape (`summary: Definition unavailable in bundled
+      doctrine.`) for a still-unresolvable id and asserts the post-fix output
+      against the chosen format — closing the coverage gap for this specific,
+      named Edge Case rather than leaving it implicit in the "zero unresolved ids"
+      inert-path test alone.
+
+  - id: PLAN-ARCH-002
+    lens: Reflexivity / Canonical source (IC-02 risk statement)
+    severity: 2
+    title: >-
+      IC-02's "Risks: None identified" understates a real (but gracefully-degrading)
+      gap — active_languages is not currently threaded into _build_references /
+      _render_kind_references, so classify_scope_filtered_miss's language-naming
+      suggestion may fall back to its generic, language-set-less message.
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map, IC-02 — 'Risks: None identified — the reused primitives are already tested ... and this mission does not modify them.'"
+      - code: "src/charter/activation/_catalog_miss.py:261-305 — classify_scope_filtered_miss(artifact_id, active_languages=None) produces a richer suggestion naming the exact active language set when active_languages is supplied, and a generic fallback suggestion when it is None/empty"
+      - code: "src/charter/activation/compiler.py:1045-1070 (_build_references) and :1144-1255 (_build_references_from_service) — neither function's signature currently carries active_languages, even though compile_charter itself computes it locally at line 424 and never passes it down to these helpers"
+      - artifact: "contracts/charter-generate-json-diagnostics.md § After — the worked example's `detail` text explicitly names the active language set (\"... does not include the active language set ('python').\"), implying the richer, language-set-naming form is the intended output"
+    claim: >-
+      The contract doc's own worked example for the new `unresolved_references`
+      JSON field shows a `detail` string that names the concrete active language
+      set, which only happens when classify_scope_filtered_miss is called with a
+      non-empty active_languages argument. Today, active_languages is computed once
+      inside compile_charter (line 424) and is not threaded through
+      _build_references -> _build_references_from_service -> _render_kind_references,
+      so the new classify-and-placeholder helper WP-CORE introduces will need a new
+      parameter threaded across three call levels to actually produce the contract's
+      documented example output; if the implementer misses this and calls
+      classify_scope_filtered_miss(raw_id) with no active_languages, FR-002/NFR-002's
+      minimum bar (reason category present) still passes, but the diagnostic is
+      weaker than the contract's own documented example and than what an operator
+      following the Edge Case's remediation guidance ("names the active-language set
+      that excluded it", User Story 3 Acceptance Scenario 2) would expect.
+    remediation: >-
+      Add active_languages as an explicit parameter to _build_references,
+      _build_references_from_service, and the new classify-and-placeholder helper
+      (compile_charter already computes it once at line 424 and can pass it straight
+      through), and note this signature-threading requirement explicitly in IC-02's
+      "Affected surfaces"/"Risks" text so it isn't discovered ad hoc during
+      implementation. Add one assertion in the WP-ATDD or WP-JSON test that the
+      emitted detail/suggestion text for a scope_filtered case names the actual
+      active language set, matching the contract doc's own worked example, so a
+      silently-degraded generic message is caught red rather than passing unnoticed.

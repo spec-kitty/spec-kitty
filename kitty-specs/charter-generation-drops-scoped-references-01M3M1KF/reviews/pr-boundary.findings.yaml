@@ -1,0 +1,45 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PR-BOUNDARY-001
+    lens: single canonical authority (DIRECTIVE_044)
+    severity: 2
+    title: The "six DRG-backed tracked kinds" set is hand-duplicated across two independent module-level constants
+    evidence:
+      - code: "src/charter/activation/compiler.py:1222"
+      - code: "src/charter/activation/compiler.py:1288"
+      - code: "src/charter/activation/compiler.py:1381-1388"
+      - code: "src/charter/activation/compiler.py:1416"
+    claim: >
+      `_TRACKED_REFERENCE_KIND_PLURALS` (a frozenset of the six plural kind
+      names, gating which `graph.unresolved` URNs `_route_unresolved_urn`
+      attributes to a tracked kind) and `_TRACKED_KIND_TO_GRAPH_ATTR` (a
+      singular->plural dict for the identical six kinds, gating which kinds
+      `_check_whole_kind_unresolved` evaluates at all) encode the same
+      six-kind set independently, with `_TRACKED_KIND_TO_GRAPH_ATTR.values()`
+      exactly equal to `_TRACKED_REFERENCE_KIND_PLURALS` as a set. Neither is
+      derived from the other, and no test asserts they stay in sync. Both are
+      themselves independent of the six explicit `_render_kind_references`
+      call sites in `_build_references_from_service` (directive/tactic/
+      styleguide/toolguide/procedure/agent_profile), so the "six tracked
+      kinds" concept is effectively hand-maintained in three places. This is
+      exactly the class of gap the mission's invariant I2 exists to close: if
+      a future kind is added to one of these two constants but not the
+      other, `_route_unresolved_urn` and `_check_whole_kind_unresolved` would
+      silently disagree about which kinds are tracked, reopening a
+      whole-kind-unresolved blind spot for the newly-added kind without any
+      red test catching it (neither constant is exercised for
+      internal-consistency, only for behavior against the current six-member
+      set).
+    remediation: >
+      Derive one constant from the other so there is a single canonical
+      six-kind declaration, e.g. define `_TRACKED_KIND_TO_GRAPH_ATTR` as the
+      source of truth and compute
+      `_TRACKED_REFERENCE_KIND_PLURALS = frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values())`;
+      or add a module-level assertion / architectural test asserting the two
+      constants' kind sets (and the six explicit `_render_kind_references`
+      call sites' kinds) are identical, so drift fails loudly instead of
+      silently.

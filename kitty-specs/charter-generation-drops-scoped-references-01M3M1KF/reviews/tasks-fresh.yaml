@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-artifact consistency (structural root-cause)
+    severity: 3
+    title: >
+      Fix commit rewrote WP02/WP03/WP04's commit shapes but left plan.md's PR-Shape/Phasing
+      commit-count prose stale, and copied a mischaracterization of WP02's shape into WP03/WP04's
+      new Definition-of-Done bullets
+    evidence:
+      - artifact: "plan.md § 'PR Shape' (line 447, edited by e7d812e4f — only the IC-05 clause was changed from 'commit' to 'WP'): \"...IC-01/02 as one implementation commit pair that turns that second red commit green; IC-03 as one commit; IC-05 as one self-contained WP)...\""
+      - artifact: "tasks/WP02-compiler-fix.md § 'Commits' (new section added by e7d812e4f): \"Land T007-T013 as four logically-scoped commits, not one\" — enumerates T007+T008, T009+T010, T011 alone, T012+T013 (four commits), directly contradicting plan.md's 'IC-01/02 as one implementation commit pair'"
+      - artifact: "tasks/WP03-json-diagnostics.md § Objective (rewritten by e7d812e4f): \"This WP produces TWO separate commits...\" — contradicts plan.md's 'IC-03 as one commit'"
+      - artifact: "plan.md § 'Phasing & Sequencing' item 5 (unchanged by this fix, line 236): \"WP-AUTOREFRESH — ...its own red-first test, its own commit, sequenced independently...\" — 'its own commit' (singular) contradicts WP04's actual two-commit structure this same fix commit imposed"
+      - artifact: "tasks/WP03-json-diagnostics.md § Definition of Done (new bullet added by e7d812e4f): \"...two separate commits, verified RED then GREEN, matching WP01/WP02/WP04's pattern.\""
+      - artifact: "tasks/WP04-autorefresh-foldin.md § Definition of Done (new bullet added by e7d812e4f): \"...two separate commits, verified RED then GREEN, matching WP01/WP02's pattern.\""
+      - artifact: "reviews/tasks.merged.yaml § TASKS-VERIFY-002 remediation (the source template for the bullet above): \"Add a RED-verification line to the Definition of Done...matching the pattern already used in WP01/WP02/WP04's prompts.\""
+    claim: >
+      This fix commit is the SAME commit that (a) added WP02's brand-new "Commits" section
+      mandating four commits (T007+T008, T009+T010, T011 alone, T012+T013) with no internal
+      red-first commit of its own (WP02 relies entirely on WP01's already-landed red tests), and
+      (b) rewrote WP03 and WP04 to each require a two-commit "red-first-then-implementation"
+      structure. Having just changed WP02's real shape, the commit needed to reconcile every
+      other place in the tasks package that describes WP02's commit count/pattern — but it only
+      fixed one of three: plan.md's PR-Shape line 447 had its "IC-05" clause corrected from
+      "commit" to "WP" (per TASKS-VERIFY-001's remediation, which named that specific fix), yet
+      the adjacent "IC-01/02 as one implementation commit pair" and "IC-03 as one commit" clauses
+      in the exact same sentence were left untouched, even though they describe WP02 and WP03 —
+      the two WPs this very commit rewrote to have four and two commits respectively. Separately,
+      plan.md's older "Phasing & Sequencing" section (item 5, not touched by this fix) still says
+      WP-AUTOREFRESH is "its own commit" (singular), contradicting WP04's new two-commit mandate.
+      Worse, the new Definition-of-Done bullets this fix added to WP03 and WP04 both assert their
+      two-commit RED-then-GREEN shape "match[es] WP01/WP02['s]...pattern" — but WP02 does not
+      have that pattern at all: it has four commits and no red-first commit of its own. This
+      exact phrase was copied verbatim from reviews/tasks.merged.yaml's TASKS-VERIFY-002
+      remediation text (itself written before WP02's four-commit "Commits" section existed), and
+      the fix applied it to WP03/WP04 without cross-checking it against the WP02 rewrite
+      happening in the same commit. The net effect: a reviewer using plan.md's "PR Shape" section,
+      or WP03/WP04's own Definition of Done, as the reference for what WP02's diff should look
+      like will be pointed at the wrong shape (a "commit pair" / "matching...WP02's pattern") for
+      a WP that actually ships four commits with no internal red-first test — precisely the kind
+      of commit-boundary confusion charter C-011 verification (RED-on-base, GREEN-on-final-commit,
+      per commit) depends on getting right.
+    remediation: >
+      In plan.md's "PR Shape" paragraph, change "IC-01/02 as one implementation commit pair" to
+      name WP02's actual four commits (or cross-reference tasks/WP02-compiler-fix.md's "Commits"
+      section instead of re-describing it), and change "IC-03 as one commit" to "two commits" (or
+      the same cross-reference approach), mirroring the IC-05 fix already applied. In plan.md's
+      "Phasing & Sequencing" item 5, change "its own commit" to "two commits (red-first, then
+      implementation)" for WP-AUTOREFRESH. In tasks/WP03-json-diagnostics.md and
+      tasks/WP04-autorefresh-foldin.md's Definition of Done, drop or correct the "matching
+      WP01/WP02['s]...pattern" clause — WP02 has no comparable two-commit red-first pattern; cite
+      WP01 and (for WP04) WP03 only, or describe WP02's actual dependency-on-WP01's-red-tests
+      shape accurately.
+
+  - id: TASKS-FRESH-002
+    lens: internal consistency (manifest vs. prose)
+    severity: 2
+    title: >
+      wps.yaml/tasks.md/WP-frontmatter subtask rosters for WP03 and WP04 still list subtasks in
+      pre-fix numeric order, no longer matching the commit/execution order the fix imposed on the
+      WP prompt bodies
+    evidence:
+      - artifact: "wps.yaml WP03.subtasks: [T014, T015, T016] (unchanged by e7d812e4f)"
+      - artifact: "tasks/WP03-json-diagnostics.md frontmatter subtasks: [T014, T015, T016] (unchanged) vs. body section order after e7d812e4f: '## Subtask T016...(commit 1)' then '## Subtask T014...(commit 2, with T015)' then '## Subtask T015...(commit 2, with T014)'"
+      - artifact: "wps.yaml WP04.subtasks: [T017, T018, T019] (unchanged by e7d812e4f)"
+      - artifact: "tasks/WP04-autorefresh-foldin.md frontmatter subtasks: [T017, T018, T019] (unchanged) vs. body section order after e7d812e4f: '## Subtask T019...(commit 1)' then '## Subtask T017...(commit 2, with T018)' then '## Subtask T018...(commit 2, with T017)'"
+      - artifact: "tasks/WP01-red-first-tests.md subtasks: [T001..T006], where the frontmatter/body order already agrees (T001 alone first, T002-T006 together second) — the established convention this mission otherwise follows"
+    claim: >
+      WP01 (untouched by this fix) keeps its subtask roster order aligned with its actual
+      red-first-then-tests execution order, establishing the mission's own convention that
+      `subtasks:` list order tracks intended sequence. The fix broke that convention for WP03 and
+      WP04 without noticing: it reordered each WP's body (moving the red-first subtask — T016 for
+      WP03, T019 for WP04 — to the front) but left wps.yaml, tasks.md, and each WP's own frontmatter
+      `subtasks:` list in the original numeric order (T014/T015/T016 and T017/T018/T019). Project
+      tooling treats `subtasks:` as an unordered membership roster (confirmed: `tasks_mark_status.py`
+      resolves a task id against the roster by membership, not by position), so this is not a
+      functional/gating defect — but it is a genuine, fix-introduced fidelity gap between the
+      generated summary artifacts (wps.yaml, tasks.md) and the WP prompt files' actual required
+      order, and a human skimming tasks.md/wps.yaml for "what happens first" would be misled.
+    remediation: >
+      Regenerate tasks.md via `finalize-tasks` (or hand-edit) so WP03's and WP04's `Subtasks:`
+      line/roster reads in execution order (T016, T014, T015 and T019, T017, T018 respectively),
+      or add a one-line note in wps.yaml/tasks.md that roster order is alphabetic/original and not
+      the required commit order for these two WPs.

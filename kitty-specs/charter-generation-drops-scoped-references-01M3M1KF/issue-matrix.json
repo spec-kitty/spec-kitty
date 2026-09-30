@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2759": {
+      "evidence_ref": "Cited as prior-context reference in plan.md; no work owed in this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3292": {
+      "evidence_ref": "Cited as fixture precedent (test_active_languages_idempotency helpers); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4785": {
+      "evidence_ref": "Cited as the completed mission behind Contract C4 (test_catalog_completeness_4785 kept green); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5253": {
+      "evidence_ref": "Cited as the PR/issue context where the defect surfaced; no work owed in this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5257": {
+      "evidence_ref": "This mission's own issue; red-first tests in WP01, fix in WP02",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

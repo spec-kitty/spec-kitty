@@ -1,0 +1,70 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      Same defect as PLAN-FRESH3-001 (one defect filed twice across rounds, per the operator's
+      framing); resolved on the same evidence — see PLAN-FRESH3-001 below.
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: >-
+      Verified against live HEAD: plan.md Design part (a) now specifies urn.partition(":")
+      matching query.py's own bare_id = urn.split(":", 1)[1] pattern (confirmed at query.py:394,
+      exactly as cited, with unresolved.append((urn, urn)) confirmed at query.py:391, exactly as
+      cited); maps kind_prefix via ArtifactKind(kind_prefix).plural, confirmed real at
+      artifact_kinds.py:125/146/148 backed by _PLURALS at artifact_kinds.py:51-64 (both citations
+      exact); confirmed ArtifactKind(kind_prefix) raises ValueError for the four NodeKind values
+      with no ArtifactKind counterpart (action/glossary_scope/glossary/mission_type at
+      drg/models.py lines 59/65/66/72 exactly as cited); confirmed _RAW_REPOSITORY_KINDS's 9-member
+      set at resolver.py:100-112 and raw_repository's None-degrade guard at resolver.py:393-424
+      (guard at 421-422) both match citations exactly, and _raw_kind_repository at compiler.py:1073
+      passes that None through unguarded, matching the plan's stated crash-avoidance guard; the
+      no-":" case, the ValueError case, and the None-repository case are each explicitly handled
+      with a preserve-and-report-never-crash directive. One narrow residual: _raw_kind_repository's
+      fallback branch (compiler.py:1093, getattr(doctrine_service, kind) with no default, used only
+      when doctrine_service is the raw/unwrapped charter.offering.service.DoctrineService shape,
+      itself only reachable via explicit test-supplied override per the function's own docstring,
+      never via compile_charter's default path which always uses the activation-aware wrapper) would
+      raise AttributeError rather than degrade to None for kind_prefix values "template"/
+      "anti_pattern" specifically; the plan's guard text does not carve out this alternate shape.
+      This is a pre-existing property of _raw_kind_repository itself (not something the plan
+      proposes to add), is not reachable via charter generate's production/default doctrine_service,
+      and is unlikely to be exercised by the mission's own CLI-driven ATDD fixtures — noted for the
+      record but not treated as blocking against the ruling's bar.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: >-
+      Verified _resolve_transitive_reference_graph's current signature (compiler.py:1258-1265, no
+      diagnostics param today) and its try/except (try at compiler.py:1298, except Exception: at
+      1306, return fallback at 1307 — exact match to plan's citations) plus its one call site in
+      _build_references_from_service (compiler.py:1175-1180, no signal crossing today); the plan's
+      described sink mechanism (two new mutable-list params, diagnostics: list[str] forwarded from
+      the caller's own existing diagnostics param at compiler.py:1144-1152, plus a new
+      structured-records list, both appended-to inside the except branch before return fallback) is
+      directly implementable against this real signature and mirrors the diagnostics: list[str]
+      convention _render_kind_references/_build_references_from_service already use; return type
+      stays ResolveTransitiveRefsResult (query.py:247, unchanged) as required; IC-01's Affected
+      surfaces list (plan.md line 595) now names _resolve_transitive_reference_graph explicitly.
+  - id: PLAN-FRESH3-003
+    status: resolved
+    reason: >-
+      Phasing & Sequencing's numbered list now has an explicit step 2, "WP-CORE-TESTS," for the
+      dedicated red-first whole-kind-unresolved/graph.unresolved/graph-load-failure test commit,
+      landing strictly after WP-ATDD (step 1) and strictly before WP-CORE (renumbered step 3); this
+      agrees with the ATDD-First Discipline section's round-3 paragraph (same three assertions, same
+      ordering constraint) and PR Shape's six-commit breakdown (both cross-reference the same
+      bundled commit) with no contradiction found.
+  - id: PLAN-FRESH3-004
+    status: resolved
+    reason: >-
+      Design part (c) (plan.md lines 506-516) and the contract doc's Round-3 addition section both
+      now state explicitly that the new record's cause field is a plain str (e.g.
+      "graph_load_failed"), not CatalogMissCause, and that CatalogMissCause/_catalog_miss.py stay
+      reused/unmodified; verified live against _catalog_miss.py: CatalogMissCause is a closed
+      4-member str,Enum at line 129 (TYPO_SUSPECTED/MISSING_ARTIFACT/SCHEMA_VALIDATION_SUSPECTED/
+      SCOPE_FILTERED, no fifth member) and CatalogMissDiagnosis.cause is strictly typed
+      CatalogMissCause at line 174, matching the plan's citations; Project Structure's
+      "_catalog_miss.py ... REUSED, not modified" tree comment (plan.md lines 136-142) now carries
+      the same rationale inline and is consistent with both other locations.

@@ -1,0 +1,98 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Falsifiability / Baseline honesty
+    severity: 4
+    title: WP-CORE's uniform "always-placeholder" design silently reverses a named, documented behavioral contract (Contract C4) that an existing, passing regression test currently pins — the plan neither cites nor schedules updating either
+    evidence:
+      - artifact: "plan.md § Phasing & Sequencing, step 2 (WP-CORE); tracer-approach.md § 'Overall approach' / 'Rejected alternative: a hard fail-closed exit branch'"
+      - code: "tests/charter/test_catalog_completeness_4785.py:191-216 (test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placeholder — calls _render_kind_references directly with an _EmptyRepository simulating a genuine, never-existed miss, and asserts `references == []` at line 215 plus the exact diagnostics string at line 216)"
+      - code: "kitty-specs/charter-catalog-coherence-01M2XQQF/contracts/behavior-contracts.md:48-58 (Contract C4: '...Given a directive id with genuinely no bundled definition, Then it surfaces through the graph.unresolved diagnostics channel, not as a silent placeholder catalog.references row.')"
+      - artifact: "spec.md FR-001 ('...placeholder-preservation of every affected id and a fail-closed non-zero exit naming the kind both satisfy this requirement identically, at any cardinality') — read together with tracer-approach.md's explicit rejection of a cardinality-conditioned/fail-closed branch in favor of a single, uniform always-placeholder mechanism for EVERY unresolved id, genuine-miss included"
+    claim: >
+      Plan.md's WP-CORE (and tracer-approach.md's design rationale) commits to ONE uniform
+      mechanism for every unresolved DRG-backed reference — "PRESERVED as a placeholder
+      reference (never dropped)... uniformly regardless of cardinality" — explicitly rejecting a
+      branch that would treat "genuinely never existed" differently from "scope-filtered". This
+      reads as required by spec.md's own FR-001 text (a single id unresolvable for ANY reason
+      must not be silently omitted from catalog.references), so the design choice itself is
+      sound. But `_render_kind_references` — the exact function WP-CORE modifies — already has a
+      direct, named unit-test regression pin for the OPPOSITE behavior for the genuine-miss case:
+      `tests/charter/test_catalog_completeness_4785.py::test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placeholder`
+      asserts `references == []` (no placeholder at all) when a raw/unfiltered lookup genuinely
+      misses, and its docstring explicitly labels this "Contract C4" — a behavioral contract
+      ratified by a PRIOR mission (`charter-catalog-coherence-01M2XQQF`) and written down in that
+      mission's own `contracts/behavior-contracts.md`. WP-CORE's design will make this exact test
+      fail (both the `references == []` assertion and the exact-string diagnostics assertion),
+      yet: (a) plan.md's "Project Structure" section lists only `compiler.py`,
+      `_catalog_miss.py` (reused, unmodified), and the new FR-005 test file as touched under
+      `src/charter/activation/` / `tests/charter/` — `test_catalog_completeness_4785.py` is never
+      named; (b) the stated baseline command (plan.md § "The baseline") deliberately excludes this
+      file, so WP-CORE's own stated green-bar check ("the existing 51-test baseline... stays
+      green") cannot and will not catch this regression; (c) IC-01's "Risks" note only flags a
+      generic "grep the test suite for any exact-string assertion on the OLD format" for the
+      diagnostic STRING, not the deeper behavioral inversion (placeholder-vs-empty) this test
+      encodes; (d) neither plan.md, the tracers, nor spec.md ever cites Contract C4 or its source
+      contract document, so there is no reconciliation record of this mission superseding a prior
+      mission's ratified contract (charter's single-canonical-authority principle, DIRECTIVE_044,
+      requires reconciling/amending existing doctrine, not silently overriding it). An implementing
+      agent following the plan as written will hit an unplanned, unexplained test failure mid
+      WP-CORE and have no plan-level guidance on whether to update the test, the contract doc, or
+      reconsider the "always uniform" design — real rework risk exactly where C-011's ATDD
+      red/green discipline is supposed to make the WP's scope unambiguous.
+    remediation: >
+      Before/within WP-CORE, plan.md must: (1) explicitly name
+      `tests/charter/test_catalog_completeness_4785.py` as an in-scope file requiring a
+      deliberate update — rename/revise
+      `test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placeholder`'s assertion
+      to expect the new placeholder-preserving behavior (or, if the mission intends to keep
+      genuine misses diagnostics-only while placeholdering only scope-filtered misses, revise
+      WP-CORE's design to branch on cause instead of "uniformly regardless of cardinality" — a
+      design change with its own consequences for C-002); (2) update
+      `kitty-specs/charter-catalog-coherence-01M2XQQF/contracts/behavior-contracts.md`'s Contract
+      C4 to state the amended genuine-miss behavior, with a one-line cross-reference back to this
+      mission, so the contract document does not go stale/wrong; (3) add
+      `tests/charter/test_catalog_completeness_4785.py` to the blast-radius test command that
+      gates WP-CORE's own green-bar verification, not just the three-file baseline that currently
+      excludes it.
+
+  - id: PLAN-VERIFY-002
+    lens: Revert discipline
+    severity: 3
+    title: WP-AUTOREFRESH's planned test home (tests/specify_cli/charter_runtime/preflight/test_references_refresh.py) does not exist and is not where the auto-refresh path is actually tested today — the plan misses the real, already-built fixture infrastructure it should extend
+    evidence:
+      - artifact: "plan.md § Project Structure ('tests/specify_cli/charter_runtime/preflight/ └── test_references_refresh.py  # Extended (or new sibling test) for the auto-refresh fold-in's red-first regression case')"
+      - code: "tests/specify_cli/charter_runtime/preflight/ does not exist (`ls` returns 'No such file or directory' against this checkout's HEAD)"
+      - code: "tests/specify_cli/charter_runtime/test_references_parity_refresh.py (the REAL, existing test module for `preflight.references_refresh` — see its own module docstring: 'Covers preflight.references_refresh — WP06's implementation...'; it already ships `_git_init`, `_make_generate_subprocess_fake` (a fake `subprocess.run` that routes `spec-kitty charter generate` calls in-process and records every call), and `_seed_baseline_repo` — fixture machinery directly reusable for a red-first test that makes the faked `generate` call return non-zero)"
+    claim: >
+      Plan.md's Project Structure and IC-05 both target
+      `tests/specify_cli/charter_runtime/preflight/test_references_refresh.py` for the
+      WP-AUTOREFRESH fold-in's red-first regression test, describing it as "Extended (or new
+      sibling test)". Neither that directory nor that file exists in this checkout. The module
+      under fix (`references_refresh.refresh_references_if_needed`) is ALREADY covered by a real,
+      non-trivial test file at a different path and name —
+      `tests/specify_cli/charter_runtime/test_references_parity_refresh.py` — which already builds
+      exactly the kind of fixture WP-AUTOREFRESH's red-first test needs (a real git repo, a fake
+      `subprocess.run` that routes the `spec-kitty charter generate` argv to an in-process
+      `CliRunner` invocation and records the call). This is the opposite of IC-04's own diligence
+      for the FR-005 test, where plan.md correctly located and cited
+      `tests/charter/test_active_languages_idempotency.py`'s real `_git_init`/`_invoke_generate`/
+      `_read_catalog` helpers by name before committing to "extend, don't rebuild". For
+      WP-AUTOREFRESH the equivalent verification was not done: the plan names a path that doesn't
+      exist and never surfaces the real precedent file, so an implementing agent following the
+      plan literally is likely to create a second, duplicate test module (new fixture helpers
+      re-implementing `_git_init`/`_make_generate_subprocess_fake`-equivalents) rather than
+      extending the real one — fragmenting this module's test coverage and inviting a
+      reviewer-requested consolidation rework mid-WP, contrary to the charter's
+      canonical-sources/single-authority standing order (Standing Order #6, DIRECTIVE_044).
+    remediation: >
+      Update plan.md's Project Structure / IC-05 to point WP-AUTOREFRESH's red-first test at the
+      real, existing file — `tests/specify_cli/charter_runtime/test_references_parity_refresh.py`
+      — naming its `_make_generate_subprocess_fake` helper as the mechanism to adapt (make the
+      faked `generate` invocation return a non-zero `returncode`/stderr) rather than inventing a
+      new `preflight/` subdirectory and file name that has no basis in the current test-tree
+      layout.

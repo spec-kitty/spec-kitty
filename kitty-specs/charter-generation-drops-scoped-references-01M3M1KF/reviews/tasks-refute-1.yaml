@@ -1,0 +1,56 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >-
+      Verified WP03's frontmatter and wps.yaml owned_files list only generate.py; a grep of every
+      file under tests/specify_cli/cli/commands/charter/ shows none references generate --json or
+      diagnostics, and test_charter_generate_autotrack.py (lines ~305-310, ~563-568) is confirmed
+      to already invoke `generate ... --json` and json.loads the payload, so it is the sole real
+      candidate for T015/T016 yet is undeclared in owned_files in both artifacts.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: >-
+      WP01's Objective (line 53) and WP04's T019 step 4 both give explicit commit-boundary
+      instructions verbatim as quoted, while a full read of WP02-compiler-fix.md's Objective,
+      T007-T013 subtasks, and Definition of Done contains no equivalent commit-count/boundary
+      instruction despite spanning ~7 subtasks and one file, and plan.md's PR Shape section's "one
+      implementation commit pair" phrasing for IC-01/02 is genuinely ambiguous and never resolved
+      in WP02's own text.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: >-
+      WP02-compiler-fix.md's T008 Validation text contains the exact quoted self-correction
+      fragment ("in WP01's test_charter_generate_scoped_reference_parity.py — wait, that file is
+      owned by WP01, not WP02; add this assertion instead to T012's new file...") verbatim,
+      confirming leftover thinking-out-loud phrasing in the binding prompt.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >-
+      Confirmed in test_references_parity_refresh.py: _invoke_generate_in_process/_make_generate_subprocess_fake
+      route the faked generate subprocess through the real in-process CliRunner/compile_charter path,
+      the cited comment about the pre-existing language-scoped-doctrine placeholder quirk is present
+      near lines 172-190, WP02's Gates section never names this file (only the 56-test baseline plus
+      tests/charter/), and lanes.json confirms WP04 is parallel_group 0 (same as WP01) while WP02 is
+      parallel_group 1, so WP04 can land before WP02 with no cross-check of this shared code path.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      charter.md's C-011 (lines 644-656) states the ATDD test "is committed as a separate commit
+      ... BEFORE any implementation commits" with no size carve-out, while WP04-autorefresh-foldin.md's
+      T019 step 4 instructs verbatim to "Commit this test change alongside T017/T018's implementation
+      in ONE self-contained commit," a direct textual contradiction; plan.md's PR Shape section's "IC-05
+      as one self-contained commit" answers a different question (PR/commit-count within the whole
+      mission PR, not this WP's internal test-then-fix ordering), and no ruling in plan.ruling.md
+      authorizes this as a C-011 exception.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      WP03-json-diagnostics.md orders T014 (implementation) before T015/T016 (tests) with no
+      instruction to author a failing test first, and its Definition of Done has no RED-verification
+      bullet, in contrast to WP01's DoD (verified RED against af847be71...) and WP04's DoD (verified
+      RED against pre-fix code); WP01 line 131 explicitly disclaims covering `--json` wiring as "WP03's
+      job," confirming no pre-existing red-first test pins FR-004's JSON shape.

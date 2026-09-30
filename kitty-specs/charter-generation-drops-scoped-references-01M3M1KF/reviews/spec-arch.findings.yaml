@@ -1,0 +1,95 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: SPEC-ARCH-001
+    lens: canonical-source / root-cause-fidelity
+    severity: 4
+    title: "Spec omits an existing, already-wired classifier that does exactly what FR-002/User Story 3 asks for"
+    evidence:
+      - artifact: "spec.md § Key Entities (\"Unresolved diagnostic\"), § User Story 3, § FR-002"
+      - code: "src/charter/offering/base.py:435-447 (BaseDoctrineRepository.scope_filtered_ids — populated at load time, docstring: \"Callers should use this to distinguish a scope-filtered miss (SCOPE_FILTERED) from a genuinely absent artifact (MISSING_ARTIFACT)\")"
+      - code: "src/charter/activation/_catalog_miss.py:1-80 (CatalogMissCause enum: TYPO_SUSPECTED / MISSING_ARTIFACT / SCHEMA_VALIDATION_SUSPECTED; classify_catalog_miss; classify_scope_filtered_miss; CatalogMissDiagnosis)"
+      - code: "src/charter/activation/context_renderers/catalog_diagnosis.py:31-58 (_diagnose_catalog_miss — reads repository.scope_filtered_ids first, falls back to fuzzy-match classify_catalog_miss; already the FR-013 contract for the `charter context` include path)"
+    claim: >-
+      The spec's Key Entities section and User Story 3 describe the
+      never-existed-vs-filtered-by-scope distinction as new work the mission
+      must invent (a "reason" the diagnostic/placeholder must "gain"), and
+      names no existing primitive to reuse. In fact the codebase already
+      ships a complete, tested classification mechanism for this exact
+      distinction — BaseDoctrineRepository.scope_filtered_ids (and its
+      AgentProfileRepository override) records every id excluded solely by
+      language/scope at load time, and charter.activation._catalog_miss
+      already turns that into a structured CatalogMissDiagnosis
+      (SCOPE_FILTERED vs MISSING_ARTIFACT vs TYPO_SUSPECTED, with a
+      remediation hint) — wired into the `charter context --include` prompt
+      path (catalog_diagnosis.py / selection_block.py / profile_sections.py)
+      via a prior mission's FR-013. `_render_kind_references` in
+      compiler.py (the code path this mission fixes) does not consult
+      scope_filtered_ids or _catalog_miss at all — that is part of why the
+      distinction is currently missing from `catalog generate`'s output, not
+      because the distinguishing logic doesn't exist anywhere in the repo.
+      A plan-phase author working only from this spec would have no signal
+      that this reusable classifier exists and could re-derive a second,
+      parallel classification scheme for the compiler path — exactly the
+      "parallel copies / parity fixes to a non-canonical surface" duplicate-
+      authority failure the charter's Governing Principles (single canonical
+      authority → DIRECTIVE_044) forbid.
+    remediation: >-
+      Add a Key Entity (or a note under User Story 3 / FR-002) naming
+      charter.activation._catalog_miss (CatalogMissCause,
+      CatalogMissDiagnosis, classify_catalog_miss,
+      classify_scope_filtered_miss) and
+      BaseDoctrineRepository.scope_filtered_ids as the canonical primitives
+      the fix must reuse for the generate-path reason classification, rather
+      than reinventing one — and note that _render_kind_references currently
+      bypasses both, which is the gap the plan phase should close.
+
+  - id: SPEC-ARCH-002
+    lens: reflexivity
+    severity: 4
+    title: "Edge Cases § \"Mid-flight missions\" claim is contradicted by an existing auto-refresh code path that also runs charter generate"
+    evidence:
+      - artifact: "spec.md § Edge Cases, bullet \"Mid-flight missions\""
+      - code: "src/specify_cli/charter_runtime/preflight/references_refresh.py:1-46 (module docstring: \"refresh_references_if_needed runs a targeted generate\" as part of the boundary auto-refresh reconciler)"
+      - code: "src/specify_cli/charter_runtime/preflight/runner.py:282,553,585,733 (_attempt_auto_refresh calls refresh_references_if_needed(repo_root, cause=stale_cause), which runs a targeted charter generate)"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:182-190,487-531 (_run_charter_preflight_for_next → run_preflight_or_abort(repo_root, consumer=\"next\") — runs on every `spec-kitty next` invocation)"
+      - code: "src/specify_cli/charter_runtime/preflight/config.py:40-81 (auto_refresh: bool = False — off by default, but a real, documented per-project opt-in via .kittify/config.yaml preflight.auto_refresh)"
+    claim: >-
+      The spec states: "The fix changes behavior only inside `spec-kitty
+      charter generate` invocations; it must not mutate any committed
+      `charter.yaml` outside of an explicit generate/sync call, so a mission
+      already in flight against a currently-coherent charter is unaffected
+      until someone explicitly regenerates." This is not accurate for any
+      project with `preflight.auto_refresh: true` set (an existing,
+      documented config option, off by default but real). For such a
+      project, ordinary `spec-kitty next` calls during a mid-flight mission
+      route through `run_preflight_or_abort` → the boundary auto-refresh
+      reconciler → `refresh_references_if_needed`, which runs a *targeted*
+      `charter generate` non-interactively, with no `--force` and no
+      operator present to read a printed message. This is the exact
+      `compile_charter`/`_render_kind_references` code path this mission
+      changes. The spec's absolute "only via an explicit generate/sync call"
+      framing therefore misdirects the plan phase: it can lead the plan to
+      skip verifying how FR-004's fail-closed behavior (exit non-zero with a
+      printed message) and FR-001's placeholder-preservation behavior
+      degrade when triggered from this silent, non-interactive call site —
+      a fail-closed abort there would block `spec-kitty next` mid-mission
+      with a different failure surface (printed via the preflight
+      `blocked_reason` channel, not a CLI generate invocation) than the
+      spec's User Story 1/Acceptance Scenario 1 describes.
+    remediation: >-
+      Correct the "Mid-flight missions" edge case to acknowledge the
+      preflight boundary auto-refresh trigger path
+      (references_refresh.py / runner.py::_attempt_auto_refresh), scoped by
+      its real gate (`preflight.auto_refresh`, default off). Add an explicit
+      requirement or note for the plan phase: verify FR-004's fail-closed
+      behavior and FR-001's preserve/report behavior both propagate
+      correctly through `run_preflight_or_abort`'s `blocked_reason` /
+      `passed=False` contract (hook.py's consumer table) when the targeted
+      generate triggered by auto-refresh hits an unresolvable, language/
+      scope-filtered reference, rather than assuming the only caller is an
+      operator running `charter generate` directly.

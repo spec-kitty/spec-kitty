@@ -1,0 +1,103 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PR-FRESH2-001
+    lens: test-quality
+    severity: 4
+    title: The "behavioral, not AST-shape" replacement test for _TRACKED_REFERENCE_KIND_PLURALS is algebraically vacuous -- it cannot catch the exact reversion-to-literal drift its own docstring claims it catches
+    evidence:
+      - code: "tests/charter/test_compiler.py:734-767 (test_tracked_reference_kind_plurals_is_derived_from_the_graph_attr_mapping)"
+      - code: "src/charter/activation/compiler.py:1239-1255 (_derive_tracked_reference_kind_plurals, _TRACKED_REFERENCE_KIND_PLURALS)"
+    claim: >
+      This fix round replaced the (round-1-criticized, PR-FRESH-002) AST-shape
+      test with two value assertions: (a)
+      `_derive_tracked_reference_kind_plurals(_TRACKED_KIND_TO_GRAPH_ATTR) ==
+      _TRACKED_REFERENCE_KIND_PLURALS`, and (b) the same call fed a mutated
+      mapping equals `_TRACKED_REFERENCE_KIND_PLURALS | {"extra_kinds"}`. The
+      docstring explicitly claims: "if `_TRACKED_REFERENCE_KIND_PLURALS` were
+      ever reverted to a second, independent literal, this call would keep
+      returning the old value regardless of the mapping change, so the
+      second assertion below would fail." This claim is false. Neither
+      assertion reads `_TRACKED_REFERENCE_KIND_PLURALS` through anything
+      that depends on *how* it was produced -- both are pure equality
+      comparisons against its current *value*. Concretely: let
+      `L = frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values())` (today's correct
+      6-member set). If `_TRACKED_REFERENCE_KIND_PLURALS` were hand-reverted
+      to the literal `L` (not a call), assertion (a) is
+      `derive(mapping) == L` -> True (both sides equal `L`) regardless of
+      whether the LHS is a call. Assertion (b) is
+      `derive(mutated) == L | {"extra_kinds"}`; since `derive(mutated) ==
+      L | {"extra_kinds"}` by construction of `derive` and set union, and
+      `_TRACKED_REFERENCE_KIND_PLURALS == L` under the reverted-literal
+      scenario, assertion (b) reduces to `L | {"extra_kinds"} == L |
+      {"extra_kinds"}` -- always true, independent of whether
+      `_TRACKED_REFERENCE_KIND_PLURALS` is a call result or a hand-written
+      literal. I verified this empirically (ran both assertions in isolation
+      with a hardcoded-literal stand-in for the constant): both pass. The
+      test therefore provides no structural guarantee against the exact
+      "future kind added to one but not the other" drift class it claims to
+      close (and which PR-BOUNDARY-001/PR-FRESH-002 were both about); it is
+      the same class of vacuous test round 1 flagged, now dressed with a
+      docstring claim that is demonstrably incorrect.
+    remediation: >
+      Either keep a structural guarantee (the AST check, scoped narrowly, or
+      a lint/review rule) alongside a behavioral assertion, or make the test
+      genuinely behavioral by mutating `_TRACKED_KIND_TO_GRAPH_ATTR` itself
+      (via `monkeypatch.setattr` on the module) and re-deriving
+      `_TRACKED_REFERENCE_KIND_PLURALS` through a call that the module's own
+      top-level statement would perform (e.g. reload the module under the
+      patched mapping, or refactor the module to expose a function that
+      recomputes the constant on demand from the current
+      `_TRACKED_KIND_TO_GRAPH_ATTR`, then assert that call reflects the
+      mutation). As written, remove the "mutation-style check" claim from the
+      docstring -- it does not hold.
+
+  - id: PR-FRESH2-002
+    lens: migration-integrity
+    severity: 3
+    title: catalog_mission_from_document is stricter (isinstance(document, dict)) than the migration's own pre-existing document gate (hasattr(document, "get")), so a Mapping-like non-dict document silently drops the mission and empties the healable list
+    evidence:
+      - code: "src/charter/activation/charter_yaml_io.py:538-549 (catalog_field_from_document: isinstance(document, dict))"
+      - code: "src/specify_cli/upgrade/migrations/m_4_0_0rc5_heal_template_set_provenance.py:249-266 (_healable_references: catalog = document.get(\"catalog\") if hasattr(document, \"get\") else None)"
+      - code: "src/specify_cli/upgrade/migrations/m_4_0_0rc5_heal_template_set_provenance.py:298-312 (describe_template_set_ambiguities: same hasattr gate)"
+    claim: >
+      `_healable_references`/`describe_template_set_ambiguities` gate their
+      local `catalog` extraction on `hasattr(document, "get")` (unchanged,
+      pre-existing code, permissive: accepts any Mapping-like object with a
+      `.get` method). The new shared accessor `catalog_field_from_document`
+      (which `catalog_mission_from_document` wraps) instead gates on
+      `isinstance(document, dict)` -- strictly narrower. I confirmed the gap
+      is real, not theoretical: `types.MappingProxyType({"catalog":
+      {"mission": "x"}})` passes `hasattr(m, "get")` (True) and returns the
+      catalog dict via `.get("catalog")`, but fails `isinstance(m, dict)`
+      (False). For such a document, `_healable_references` would accept
+      `catalog` as valid (its own gate passes) and proceed, but
+      `catalog_mission_from_document(document)` returns `None` unconditionally
+      (its stricter gate fails) even though `catalog["mission"]` is present
+      and valid -- so `mission = None` -> `_mission_token(None)` -> `None` ->
+      the `if token is None: return []` guard fires, silently reporting "no
+      healable references" for a document that genuinely has drift to heal.
+      This exact class of bug (a caller-supplied document silently losing
+      its mission field through a stricter internal check than the local
+      "is this document-like" gate) is precisely what PR-FRESH-001 was
+      raised against; the fix closes the "second disk read" half of that
+      problem but leaves a narrower, type-based version of the same "single
+      canonical rule doesn't actually cover every document shape this
+      function itself accepts" gap. Today's only real callers only ever
+      supply a `CommentedMap` (from `load_charter_yaml`) or a plain `dict`
+      (in tests) -- both satisfy `isinstance(dict)` -- so this is not
+      currently reachable through `detect()`/`can_apply()`/`apply()`, but the
+      function's own signature (`document: Any | None = None`) and local gate
+      make no promise that will remain true, and nothing enforces it.
+    remediation: >
+      Make `_healable_references`'s/`describe_template_set_ambiguities`'s
+      local `catalog` extraction use the same predicate the shared accessor
+      uses (`isinstance(document, dict)`), or loosen
+      `catalog_field_from_document` to accept any object with `.get`
+      (`hasattr(document, "get")`) so both gates agree -- the docstring's
+      "ONE canonical extraction rule" claim should mean one predicate, not
+      two different type checks layered on the same `document` value inside
+      one function.

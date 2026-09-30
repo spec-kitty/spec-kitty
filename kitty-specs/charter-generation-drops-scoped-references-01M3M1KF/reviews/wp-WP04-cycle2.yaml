@@ -1,0 +1,89 @@
+---
+schema: wp-verdict/v1
+complete: true
+wp: WP04
+cycle: 2
+mission: charter-generation-drops-scoped-references-01M3M1KF
+verdict: rejected           # approved | rejected — nothing else
+gates_observed:
+  tsc: n/a
+  tests: fail               # pass | fail | unknown — WP's own targeted shards pass (see feedback),
+                             # but this cycle's own remediation commit broke a real, previously-green
+                             # architectural gate (WP04-C2-001) — see below.
+  coverage: unknown         # pytest-cov absent from the shared .venv; not installed, per instruction.
+feedback:                   # REQUIRED when rejected; empty or severity-1 advisory only when approved
+  - id: WP04-C2-001
+    severity: 3
+    claim: >-
+      Commit df0e9b673 ("style(preflight): format the auto-refresh red-first test") whole-file
+      `ruff format`-ed `tests/specify_cli/charter_runtime/test_references_parity_refresh.py` in
+      response to cycle-1's WP04-C1-001. That file is one of the pyproject.toml
+      `[tool.ruff.format].exclude` formatter-debt-ratchet entries (line 1862 at both base
+      `3759ea9e4` and HEAD — confirmed unchanged; `runner.py` line 482 and
+      `test_boundary_heal.py` line 1858 are also on the list, both at base and HEAD). Reformatting
+      it to be fully clean, while leaving its `pyproject.toml` exclude entry in place, makes the
+      entry stale: `tests/architectural/test_ruff_format_exclude_ratchet.py::
+      test_every_exclude_entry_still_genuinely_reformats` explicitly asserts no exclude entry may
+      already pass `ruff format --check` (`"N exclude entries are already formatted and no longer
+      need the exclusion ... Remove them from [tool.ruff.format].exclude"`). Verified directly:
+      `.venv/bin/ruff format --check --no-cache tests/specify_cli/charter_runtime/
+      test_references_parity_refresh.py` → clean at HEAD (was NOT clean at commit `9615b51bc`,
+      right after T019's red-first commit — confirmed by piping `git show
+      9615b51bc:tests/.../test_references_parity_refresh.py` through `ruff format --check --stdin-
+      filename ...`, exit 1). Running
+      `.venv/bin/python -m pytest -q tests/architectural/test_ruff_format_exclude_ratchet.py`:
+      6 passed at base `3759ea9e4` (throwaway detached worktree, removed after); at this WP's HEAD,
+      `test_every_exclude_entry_still_genuinely_reformats` FAILS —
+      `"1 exclude entries are already formatted and no longer need the exclusion:
+      ['tests/specify_cli/charter_runtime/test_references_parity_refresh.py']"` — 1 failed, 5
+      passed. This is a genuine regression this WP's own cycle-2 remediation introduced (green at
+      base, red at this WP's HEAD), and `tests/architectural/` is CI's cross-cutting lane
+      (`ci-aggregate.yml`) per CLAUDE.md, so it will fail there too.
+    remediation: >-
+      Remove `"tests/specify_cli/charter_runtime/test_references_parity_refresh.py"` from
+      `pyproject.toml`'s `[tool.ruff.format].exclude` list (shrinking the list needs no
+      `_BASELINE_EXCLUDE_COUNT` bump — only growth does) and re-run
+      `tests/architectural/test_ruff_format_exclude_ratchet.py` to confirm all 6 tests pass. Do NOT
+      re-introduce non-compliant formatting in the file to "match" the stale entry — removing the
+      now-unneeded exclude entry is the correct fix and matches the exclude list's own header
+      policy ("remove entries as files are reformatted").
+  - id: WP04-C2-002
+    severity: 1
+    claim: >-
+      Cycle-1's WP04-C1-001 finding stated, "verified by grep," that none of the four files this
+      WP touches appear in `pyproject.toml`'s `[tool.ruff.format].exclude`. That premise is false:
+      `test_references_parity_refresh.py` (line 1862), `runner.py` (line 482), and
+      `test_boundary_heal.py` (line 1858) were ALL on the exclude list at base commit `3759ea9e4`
+      already (re-verified directly against `git show 3759ea9e4:pyproject.toml`), unchanged by
+      this WP. Only `references_refresh.py` was never on the list (and was, and remains, cleanly
+      formatted — confirmed at base `3759ea9e4`, at `9615b51bc`, and at HEAD). Because the file WAS
+      excluded, CI's whole-repo `ruff format --check .` was never actually at risk from T019's
+      non-compliant new hunks (C1-001's stated consequence, "CI's `ruff format --check .` ... will
+      fail on this branch," does not hold) — the cycle-1 implementer's claim on this point was
+      correct; the cycle-1 reviewer's grep was not. The cycle-1 remediation (whole-file reformat)
+      was therefore not required to satisfy the original finding, and its side effect is
+      WP04-C2-001 above. Net effect of this WP on the whole-repo `ruff format --check .` gate is
+      NEUTRAL (it passed before and passes now, for the same reason — the touched test files were
+      always either excluded or already clean); the effect on the exclude-ratchet gate specifically
+      is NEGATIVE (WP04-C2-001).
+    remediation: >-
+      Advisory / record-correction only, no action required beyond WP04-C2-001's fix. Future
+      reviewers of this WP family should re-verify exclude-list membership directly against
+      `pyproject.toml` rather than relying on a prior review's grep claim.
+  - id: WP04-C2-003
+    severity: 1
+    claim: >-
+      Commit `4abf6f2c0`'s message ("test(preflight): cover refresh invocation failures and
+      RefreshOutcome truthiness guard") describes only the new tests, but the same commit also
+      performs the `RefreshOutcome` → `ReferencesRefreshOutcome` mechanical rename across
+      production code (`references_refresh.py`, `runner.py`) plus `test_boundary_heal.py`'s call-
+      site update — a `refactor`-flavored change the message does not mention. Verified mechanical
+      and behavior-preserving (17 occurrences renamed per `git diff 3759ea9e4..HEAD | grep -c
+      ReferencesRefreshOutcome`; the unrelated `specify_cli.auth.refresh_transaction.RefreshOutcome`
+      StrEnum and its ~35 call sites in `token_manager.py` and `tests/auth/` are untouched — grep
+      confirms every remaining bare `RefreshOutcome` hit belongs to that unrelated module), so this
+      is a minor commit-message completeness gap, not a behavioral or discipline defect.
+    remediation: >-
+      Advisory only — no action required. A future commit bundling a rename with tests could
+      mention the rename in the message (e.g. `test(preflight): ... ; rename RefreshOutcome ->
+      ReferencesRefreshOutcome`) for a fully accurate trail.

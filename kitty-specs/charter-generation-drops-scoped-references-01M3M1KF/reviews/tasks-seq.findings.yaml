@@ -1,0 +1,52 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: TASKS-SEQ-001
+    lens: chokepoint-serialisation
+    severity: 3
+    title: "WP04's owned regression test transitively executes WP02's owned compiler.py through a real-CLI subprocess fake, an entanglement neither WP's gate list rechecks after both land"
+    evidence:
+      - artifact: "wps.yaml WP04.dependencies (empty list) and WP04.owned_files"
+      - artifact: "wps.yaml WP02.dependencies (WP01) and WP02.owned_files (src/charter/activation/compiler.py)"
+      - code: "tests/specify_cli/charter_runtime/test_references_parity_refresh.py:35-36 — imports `from specify_cli.cli.commands.charter import app as charter_app` and defines `_invoke_generate_in_process`, which runs the REAL `generate` Typer command in-process via `typer.testing.CliRunner`"
+      - code: "tests/specify_cli/charter_runtime/test_references_parity_refresh.py:91-104 — `_make_generate_subprocess_fake` routes any `spec-kitty charter generate` subprocess call to `_invoke_generate_in_process`, i.e. the real in-process `compile_charter` path (compiler.py), not a stub"
+      - code: "tests/specify_cli/charter_runtime/test_references_parity_refresh.py:172-178 — `test_references_parity_drift_recompiles_the_catalog`'s own comment names a 'pre-existing... quirk in compile_charter's language-scoped doctrine lookup' that degrades certain styleguide/toolguide entries to the exact 'Definition unavailable in bundled doctrine' placeholder text WP02 is about to change (decision 2, WP02 prompt lines 100-107: appends 'Reason: scope_filtered — <suggestion>' to that same string)"
+      - artifact: "tasks/WP02-compiler-fix.md Gates section — regression baseline list is `tests/doctrine/test_activation_parity_guard.py`, `tests/charter/test_active_languages_idempotency.py`, `tests/charter/test_context_catalog_miss.py`, `tests/charter/test_catalog_completeness_4785.py`, plus a `tests/charter/` directory shard — `tests/specify_cli/charter_runtime/test_references_parity_refresh.py` is not in either list"
+      - artifact: "tasks/WP04-autorefresh-foldin.md Objective — 'This WP is independent of WP01/WP02/WP03: it touches a disjoint file set with no ordering dependency either direction'"
+    claim: >
+      The lens-2 brief's premise — that a "hidden ordering dependency" would show up as an
+      import of compiler.py or of another WP's new test files — is too narrow. WP04's owned
+      file `tests/specify_cli/charter_runtime/test_references_parity_refresh.py` does not import
+      compiler.py directly, but its existing (pre-mission) test
+      `test_references_parity_drift_recompiles_the_catalog` drives the real `generate` Typer
+      command in-process (via a fake that special-cases the `spec-kitty charter generate`
+      argv prefix and calls `CliRunner.invoke(charter_app, ...)`), which calls straight into
+      `compile_charter`/`compiler.py` — the file WP02 exclusively owns and rewrites. That test's
+      own comment shows it is already aware of and working around a scope-filtered-placeholder
+      quirk in the exact code path WP02 changes (it deliberately compares only the `id` set,
+      not full record equality, "without coupling this test to that separate, out-of-scope
+      defect" — a defensive design that happens to make this specific test resilient to WP02's
+      summary-text change, but that resilience is incidental, not verified or even mentioned in
+      either WP's prompt). Neither WP02's nor WP04's Gates section reruns this file against the
+      OTHER WP's final diff: WP02's gates enumerate a 56-test baseline plus `tests/charter/`
+      (not `tests/specify_cli/charter_runtime/`), and WP04's gates run `tests/specify_cli/
+      charter_runtime/` only in WP04's own review context, before WP02 necessarily lands (WP04
+      is `parallel_group: 0` in lanes.json, same group as WP01, i.e. it can implement/merge
+      before WP02's `parallel_group: 1`). If WP02's placeholder-text or whole-kind fail-closed
+      logic changes behavior in a way this test's id-set comparison does not fully absorb, the
+      gap is caught only by the generic `make ci-parity` re-run each WP prompt defers to "once
+      WP02/WP03/WP04 have all landed" — a step with no owning WP, no explicit command, and no
+      named file list in this tasks package.
+    remediation: >
+      Add `tests/specify_cli/charter_runtime/test_references_parity_refresh.py` to WP02's Gates
+      section as an explicit named regression check (alongside the existing 56-test baseline and
+      the `tests/charter/` shard), since it is the one test file outside WP02's own owned files
+      that exercises `compile_charter` end-to-end through the real CLI. Alternatively/additionally,
+      add one line to WP04's prompt Context or Risks section acknowledging that
+      `test_references_parity_drift_recompiles_the_catalog` already drives the real `generate`
+      path through compiler.py and that its id-set-only comparison (not full record equality) is
+      the reason it should tolerate WP02's placeholder-text change — so a reviewer checking this
+      WP knows the tolerance was a deliberate, verified property rather than an accidental one.

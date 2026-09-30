@@ -1,0 +1,35 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+batch: 2
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Verified live — test_this_project_charter_pack_is_coherent takes zero arguments and
+      is hardcoded to ProjectContext.from_repo(_REPO_ROOT) (test_activation_parity_guard.py:77,162-171),
+      and running the exact AC3 command against the unmodified pre-fix checkout passes today
+      (1 passed in 6.09s), proving it has no relationship to any Scenario-1 fixture.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Confirmed by direct read of spec.md — FR-004 (line 71) is described only in Edge
+      Cases bullet 2 (line 57, prose, not Given/When/Then), and none of the three US1
+      Acceptance Scenarios (lines 20-22) or SC-001..SC-004 (lines 103-106) construct or
+      name an all-unresolvable-in-a-kind fixture/outcome.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Verified live — ran the exact AC3/SC-002 pytest invocation with and without
+      PYTHONPATH=src; both passed identically (6.09s vs 6.37s), and pytest.ini already sets
+      `pythonpath = src` while the Makefile's test-fast/test-full targets never set the env var.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      Confirmed — tests/charter/test_active_languages_idempotency.py exists with reusable
+      _git_init/_invoke_generate/_read_catalog helpers driving the real charter generate CLI
+      (lines 52,70,75), and all six #5257 ids exist as real on-disk built-in artifacts
+      (java-conventions.styleguide.yaml, maven-review-checks/typescript-mutation-tools
+      toolguides, frontend-freddy/java-jenny/node-norris agent profiles), yet spec.md's US2
+      background (line 28) and FR-006 (line 73) cite neither fact.

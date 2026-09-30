@@ -1,0 +1,93 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-BOUNDARY-001
+    status: resolved
+    reason: >-
+      _TRACKED_KIND_TO_GRAPH_ATTR is now the sole hand-written declaration;
+      _TRACKED_REFERENCE_KIND_PLURALS derives via frozenset(...values()). The new
+      AST-based test is meaningful, not vacuous or brittle: verified live that it
+      goes red (referenced_names == {'frozenset'}) against a scratch copy reverted
+      to the pre-fix two-independent-literal shape, and green against the current
+      derived shape.
+  - id: PR-CONTRACT-001
+    status: resolved
+    reason: >-
+      tests/specify_cli/charter_runtime/test_boundary_heal.py:392 spy signature now
+      declares -> ReferencesRefreshOutcome (with the type imported), matching the
+      widened production return type; test still passes.
+  - id: PR-TESTS-001
+    status: resolved
+    reason: >-
+      Per the operator ruling replacing the acceptance bar: git diff --name-only
+      78583dddc..HEAD contains no .github/ or CI-registry files, so the shared CI
+      registry/workflows were left untouched and the gap remains deferred to #4732
+      as ruled.
+  - id: PR-TESTS-002
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      No commit in the fix round touches test_whole_kind_missing_artifact_fails_closed
+      or test_whole_kind_graph_unresolved_routing_fails_closed; grep confirms
+      _call_build_references is still invoked exactly once in each. plan.md's I5
+      row committed to appending a run-twice idempotency assertion specifically to
+      the whole-kind-unresolved fixture; that commitment remains unfulfilled (the
+      new WP03-C1-002/004 CLI tests and the cf915a2e8 structured-record work are
+      single-invocation and do not substitute for it).
+  - id: PR-TESTS-003
+    status: resolved
+    reason: >-
+      Two new direct unit tests exercise the stdout-fallback and no-captured-output
+      branches of _extract_failure_detail. Re-ran
+      tests/specify_cli/charter_runtime/test_references_parity_refresh.py with
+      --cov=...references_refresh --cov-report=term-missing: 19 passed, 100%
+      coverage, no missing lines (previously 198,202 missing).
+  - id: PR-TESTS-004
+    status: resolved
+    reason: >-
+      unresolved_references_payload is now assigned on its own line (generate.py:556)
+      before the dict literal; re-ran the 3 targeted autotrack JSON tests with
+      --cov=...generate --cov-report=xml and confirmed line 556 now carries its own
+      independent <line hits="1"> entry in coverage.xml (previously coalesced into
+      the enclosing statement and invisible to diff-cover) -- purely an extraction,
+      behavior-preserving, tests pass.
+  - id: PR-TESTS-005
+    status: resolved
+    reason: >-
+      All three # TODO(WP02) markers are fulfilled: the four unattributable-URN
+      parametrized cases and the graph-load-failure sentinel fixture (including its
+      I5 carve-out repeat-invocation check) now assert the structured {kind, id,
+      cause, detail} unresolved_records dicts directly, alongside the retained
+      plain-text diagnostics assertions. Verified passing in the full
+      test_charter_whole_kind_invariants.py run.
+  - id: WP03-C1-002
+    status: resolved
+    reason: >-
+      New CLI-level test (test_charter_generate_drg_transitive_missing_cli.py)
+      builds a real project DRG overlay reached only via a requires edge from an
+      activated real directive, invokes the real `charter generate --json` CLI, and
+      asserts a missing_artifact/typo_suspected unresolved_references entry.
+      Break-it check: no-op'd _record_unresolved_reference in a scratch src/ copy
+      (pytest -o pythonpath=<scratch>, SPEC_KITTY_PACKS_ROOT set) and the test
+      failed (0 matches, was 1) -- proving it is a real, non-vacuous assertion on
+      production wiring, not a trivially-green fixture.
+  - id: WP03-C1-004
+    status: resolved
+    reason: >-
+      Same new file's second test drives a DRG-transitively-reached, unresolvable
+      sole toolguide id through `charter generate --json` and asserts a non-zero
+      exit with the command's existing {"result":"error","success":false,"error":...}
+      shape naming "toolguide", plus no catalog.yaml written. Passed in the full
+      run (90 passed, 1 skipped across the touched test files).
+  - id: FOLD-IN
+    status: resolved
+    reason: >-
+      m_4_0_0rc5_heal_template_set_provenance.py's two catalog.get("mission") reads
+      now go through read_catalog_mission (both call sites and all three
+      _healable_references call sites consistently updated to take project_path).
+      read_catalog_field fails open to None on missing/unparseable
+      charter.yaml/absent field, matching prior dict.get semantics, and re-reads
+      only before any write. test_recompile_preserves_mission_4908.py::
+      test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor now
+      passes (0 hits); full targeted run: 64 passed.

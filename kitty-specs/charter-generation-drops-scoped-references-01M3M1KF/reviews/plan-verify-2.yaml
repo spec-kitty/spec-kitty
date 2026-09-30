@@ -1,0 +1,39 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      plan.md's "WP-CORE reconciliation" point 3 (lines 239-301) and IC-01 add a genuinely
+      cause-agnostic per-kind aggregate check (fires whenever a kind's activated ids ALL fall
+      through the diagnostics-only branch, regardless of SCOPE_FILTERED-vs-MISSING_ARTIFACT mix,
+      since a mixed kind's SCOPE_FILTERED id already yields a placeholder and keeps the kind's
+      list non-empty), explicitly distinguishes this per-kind cardinality COUNT from the six-id
+      C-002 special case in a dedicated subsection (plan.md lines 278-290, mirrored in
+      tracer-design-decisions.md lines 214-239), names a concrete new test requirement for a
+      whole-kind MISSING_ARTIFACT fixture (misconfigured pack root / deleted id) distinct from
+      SC-005/AS4's SCOPE_FILTERED-only fixture (plan.md lines 292-301), and the described mechanism
+      (raise inside _build_references_from_service after the six _render_kind_references call sites,
+      propagate through compile_charter, caught by generate.py's existing RuntimeError handler)
+      checks out exactly against live code: compiler.py active_languages at 424, _build_references
+      call at 460, _render_kind_references def at 1096 with its six call sites at 1182/1193/1204/
+      1215/1226/1237, _build_references_from_service def at 1144, no intervening try/except in
+      compile_charter/_build_references/_build_references_from_service to swallow the raise, and
+      generate.py's compile_charter call at 489 strictly precedes write_compiled_charter at 497
+      with the broad RuntimeError handler at 584 — all line numbers confirmed live, not restated
+      on faith. tracer-design-decisions.md's new entry (lines 178-248) is substantive, not a
+      one-liner, and additionally clarifies Contract C4's pinning test is single-id not whole-kind
+      so the two tests don't conflict.
+
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      IC-02 (plan.md lines 329-333) now explicitly names four threading hops — compile_charter
+      (~460) -> _build_references (1045) -> _build_references_from_service (1144) ->
+      _render_kind_references (1096) — states _render_kind_references is "the function where the
+      raw_id in repository.scope_filtered_ids membership check and the classify_scope_filtered_miss
+      call actually happen," and calls out its six call sites inside _build_references_from_service
+      requiring the new parameter forwarded at each; this matches the live code exactly (the
+      per-id else-branch inside _render_kind_references at compiler.py:1139-1140 is the only site
+      recording an unresolved miss per id, called six times at compiler.py:1182-1247).

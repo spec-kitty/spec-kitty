@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "mission_slug": "charter-generation-drops-scoped-references-01M3M1KF",
+  "mission_id": "01M3M1KFFPC04BHFA54SSZ4CMG",
+  "mission_branch": "kitty/mission-charter-generation-drops-scoped-references-01M3M1KF",
+  "target_branch": "fix/charter-generation-drops-scoped-references-5257",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/charter/test_charter_generate_scoped_reference_parity.py",
+        "tests/charter/test_charter_whole_kind_invariants.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/preflight/references_refresh.py",
+        "src/specify_cli/charter_runtime/preflight/runner.py",
+        "tests/specify_cli/charter_runtime/test_references_parity_refresh.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/compiler.py",
+        "tests/charter/test_compiler_scope_filtered_placeholder.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-28T18:19:47.354256+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f7bbd5c905a8cfabcc5eb77b1161eb124beab2e2"
+}

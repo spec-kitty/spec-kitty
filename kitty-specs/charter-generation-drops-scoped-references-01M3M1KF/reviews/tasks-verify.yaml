@@ -1,0 +1,88 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+verdicts:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >
+      tasks/WP03-json-diagnostics.md frontmatter owned_files now lists
+      tests/specify_cli/cli/commands/test_charter_generate_autotrack.py alongside
+      generate.py, and wps.yaml's WP03 entry (owned_files, line ~59) and tasks.md's
+      WP03 "Owned Files" line carry the same addition — all three artifacts agree.
+      T014/T015's former "pick whichever already covers --json output... do not
+      create a new test file" ambiguity is gone from T015's Files field, which now
+      names test_charter_generate_autotrack.py directly ("the only real candidate
+      that already exercises generate --json"); T016's Files field names the same
+      file directly too.
+
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: >
+      tasks/WP02-compiler-fix.md gained a concrete "## Commits" section (after the
+      catalog contract block, before Subtask T007) grouping T007-T013 into four
+      named commits (T007+T008, T009+T010, T011 alone, T012+T013) with a stated
+      rationale per group and a per-commit gate requirement
+      (tests/charter/test_catalog_completeness_4785.py must pass on each). This is
+      echoed in Definition of Done ("land as the four logically-scoped commits...
+      not one undifferentiated commit") and Reviewer Guidance ("Verify T007-T013
+      landed as four separate commits... git log --oneline"). This is a concrete
+      grouping, not vague words.
+
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: >
+      Subtask T008's Validation text no longer contains the "— wait, that file is
+      owned by WP01, not WP02..." self-correction fragment. It now reads directly:
+      "Add one assertion to T012's new file,
+      tests/charter/test_compiler_scope_filtered_placeholder.py (not WP01's
+      test_charter_generate_scoped_reference_parity.py, which WP01 owns) asserting
+      that the emitted detail/suggestion text..." — a single direct instruction
+      with no thinking-out-loud residue.
+
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >
+      tasks/WP02-compiler-fix.md's "## Gates (run these; do not invent others)"
+      section (not merely an aside) now names
+      tests/specify_cli/charter_runtime/test_references_parity_refresh.py as a
+      "Cross-WP regression check (per TASKS-SEQ-001)" with an explicit command to
+      run it after WP02 lands. tasks/WP04-autorefresh-foldin.md's Context section
+      gained a "Cross-WP coupling note (acknowledged, not a defect)" explaining
+      that the shared test module's pre-existing
+      test_references_parity_drift_recompiles_the_catalog test drives compiler.py
+      end-to-end and that the id-set-only (not full-record) comparison tolerates a
+      pre-existing, WP04-unrelated placeholder-text variance that WP02's
+      SCOPE_FILTERED text change lands inside of — a substantive explanation, not
+      a bare acknowledgment.
+
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >
+      tasks/WP04-autorefresh-foldin.md's Objective now states WP04 "produces TWO
+      separate commits... commit 1 = T019's red-first test extension, committed
+      ALONE, verified RED against af847be71d97c8a126e91c31a7d05629c69c93ba; commit
+      2 = T017+T018... committed together strictly after commit 1." T019 is
+      reordered ahead of T017/T018 in the file, its step 4 now instructs committing
+      the test "ALONE, in its own commit" and explicitly retracts the prior
+      "bundle with T017/T018... citing plan.md's PR Shape" instruction as a
+      "conflation." Definition of Done and Reviewer Guidance both now require two
+      separate commits verified via `git log --oneline`, matching WP01/WP02's
+      pattern (not just naming the requirement once). plan.md's PR Shape wording
+      was corrected from "IC-05 as one self-contained commit" to "IC-05 as one
+      self-contained WP," which now reads consistently with WP04 landing as two
+      commits within one WP.
+
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >
+      tasks/WP03-json-diagnostics.md now orders T016 (renamed "commit 1 —
+      authored and committed FIRST, alone") before T014/T015 ("commit 2, with
+      T015"/"commit 2, with T014") in the file body, and the Objective section
+      states the two-commit split explicitly with charter C-011 cited. T016's
+      Validation instructs running the assertion against WP02's landed fix,
+      confirming RED, then committing it alone before starting T014. Definition of
+      Done requires "T016's Acceptance Scenario 2 assertion is committed ALONE...
+      and was verified RED... before that commit" and "T014+T015 are committed
+      together in ONE commit... strictly after T016's commit." Reviewer Guidance
+      adds a git-log check for the two distinct commits.
+

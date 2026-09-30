@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-FRESH-001
+    lens: requirements-coverage
+    severity: 4
+    title: >-
+      Narrowing WP-CORE's placeholder mechanism to SCOPE_FILTERED-only reopens FR-001's
+      "misconfigured pack root" whole-kind aggregate case, which the plan no longer closes and
+      no acceptance scenario tests
+    evidence:
+      - artifact: "spec.md FR-001 (row in Functional Requirements table)"
+      - artifact: >-
+          spec.md Edge Cases: "All activated references of a kind (or all references overall)
+          are unresolvable (e.g. a misconfigured pack root, or every styleguide selection scoped
+          to a language the repo doesn't use): generation must still fail closed with actionable
+          guidance or preserve every one as a placeholder — it must never silently write an
+          empty-for-that-kind but structurally 'successful' catalog."
+      - artifact: >-
+          plan.md "WP-CORE reconciliation: Contract C4 scope and placeholder text format" §1
+          (new this fix round): "for MISSING_ARTIFACT/TYPO_SUSPECTED, stays on the EXISTING
+          Contract-C4-compatible diagnostics-only path — no placeholder row, references unchanged
+          at [] for that id"
+      - artifact: >-
+          tracer-approach.md "Rejected alternative: a hard fail-closed exit branch (for the
+          SCOPE_FILTERED cause)" — the fail-closed-exit alternative is discussed and rejected
+          only for the SCOPE_FILTERED cause; no fail-closed mechanism is proposed anywhere for a
+          whole-kind MISSING_ARTIFACT/TYPO_SUSPECTED case
+      - artifact: "spec.md SC-005 and Acceptance Scenario 4 (User Story 1) — both fixtures are language-scope-only ('every activated toolguide id excluded by language scope'), never a misconfigured-pack-root / genuinely-nonexistent whole-kind fixture"
+    claim: >-
+      FR-001's own text gives "a misconfigured pack root or language scope" as its two
+      illustrative causes of a whole-kind-unresolvable scenario, and states only two mechanisms
+      satisfy the requirement: "placeholder-preservation of every affected id and a fail-closed
+      non-zero exit naming the kind both satisfy this requirement identically, at any
+      cardinality." The Edge Case bullet repeats the same "misconfigured pack root" example and
+      the same closed set of two satisfying mechanisms. This fix round's WP-CORE reconciliation
+      (added in response to PLAN-GOV-001, to preserve Contract C4) narrows the placeholder
+      mechanism to the SCOPE_FILTERED cause only, and explicitly keeps MISSING_ARTIFACT/
+      TYPO_SUSPECTED on a diagnostics-only path with no placeholder row AND no fail-closed exit
+      (charter generate still exits 0 and writes a "successful" catalog). Concretely: if every
+      activated toolguide id is unresolvable because the configured pack root is misconfigured
+      (a MISSING_ARTIFACT-class cause, not scope-filtered — the literal first example FR-001
+      itself gives), the new design produces exactly the vacuous-success catalog FR-001 forbids
+      — a structurally valid but silently empty toolguide section, with only a diagnostics-list
+      mention that FR-001's own text does not count as one of the two satisfying mechanisms. This
+      is a genuine regression relative to the ORIGINAL (pre-fix-round) always-placeholder design,
+      which covered this case for every cause. No SC or acceptance scenario exercises this
+      cardinality×cause combination — SC-005/AS4 test only the scope-filtered variant — so an
+      implementation built exactly to this plan would silently fail FR-001/the Edge Case for the
+      genuinely-missing whole-kind case, and nothing in the test suite this plan describes would
+      catch it.
+    remediation: >-
+      Either (a) extend WP-CORE's design with an aggregate check independent of cause — when
+      every activated id of a kind is unresolved (regardless of SCOPE_FILTERED vs
+      MISSING_ARTIFACT/TYPO_SUSPECTED mix), fail closed with a non-zero exit naming the kind,
+      satisfying FR-001's second stated mechanism for the case the placeholder-narrowing no
+      longer covers (note: this is a cardinality-of-a-kind check, not the six-id special case
+      C-002 forbids, so it does not reintroduce the problem the "Rejected alternative" section
+      was actually arguing against); or (b) explicitly amend spec.md's FR-001 text and the Edge
+      Case bullet to scope the "no vacuous success" cardinality guarantee to the SCOPE_FILTERED
+      cause only, with the same explicit operator-facing reasoning WP-CORE's Contract-C4
+      reconciliation used, and add an SC/acceptance-scenario fixture that actually proves the
+      chosen behavior for a whole-kind MISSING_ARTIFACT case (misconfigured pack root or all-ids-
+      deleted). Silently leaving spec.md's stricter text unreconciled with plan.md's narrower
+      design is the gap; either the plan must widen or the spec must be amended and re-verified.
+
+  - id: PLAN-FRESH-002
+    lens: implementation-concern-map
+    severity: 3
+    title: >-
+      IC-02's active_languages threading path omits `_render_kind_references`, the exact
+      function where the SCOPE_FILTERED classification decision is made
+    evidence:
+      - artifact: "plan.md IC-02 'Affected surfaces' (new text this fix round)"
+      - code: "src/charter/activation/compiler.py:1096 (_render_kind_references signature: ids, kind, repository, id_of, title_of, summary_of, diagnostics — no active_languages parameter)"
+      - code: "src/charter/activation/compiler.py:460 (compile_charter calls _build_references without active_languages, confirmed live)"
+      - code: "src/charter/activation/compiler.py:1045 (_build_references) and :1144 (_build_references_from_service)"
+    claim: >-
+      IC-02 (as edited this fix round) states the active_languages threading spans "three call
+      levels: compile_charter ... _build_references ... _build_references_from_service ... must
+      forward it to the new classify-and-placeholder helper." But per WP-CORE's own design (a),
+      the `raw_id in repository.scope_filtered_ids` check and the resulting call to
+      `classify_scope_filtered_miss(artifact_id, active_languages=...)` happen inside
+      `_render_kind_references`'s per-id `else:` branch (the existing miss-handling site at
+      compiler.py:1096, called six times — once per DRG-backed kind — from
+      `_build_references_from_service`), not inside `_build_references_from_service` itself
+      (whose own `graph.unresolved` loop is a structurally separate diagnostic path for ids that
+      never resolved in the DRG transitive walk at all, distinct from a raw-repository lookup
+      miss). For `active_languages` to reach the actual classification call, it must also be
+      added as a new parameter to `_render_kind_references` and threaded through its six call
+      sites inside `_build_references_from_service` — a fourth hop IC-02's explicit "three call
+      levels" enumeration never names. An implementer following IC-02's threading list literally
+      would either produce non-compiling code (the helper called from inside
+      `_render_kind_references` has no `active_languages` in scope) or would have to discover and
+      add the missing hop unguided, which is exactly the kind of gap likely to cause avoidable
+      back-and-forth inside WP-CORE.
+    remediation: >-
+      Update IC-02's "Affected surfaces" threading list to explicitly name
+      `_render_kind_references` as a fourth threading hop (new `active_languages: list[str] |
+      None` parameter, forwarded from each of its six call sites inside
+      `_build_references_from_service`), so the enumerated call-level list matches where the
+      classify-and-placeholder helper is actually invoked.

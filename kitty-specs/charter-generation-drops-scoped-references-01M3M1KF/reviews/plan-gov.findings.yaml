@@ -1,0 +1,77 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-GOV-001
+    lens: Directive (single-canonical-authority / DIRECTIVE_044; ties to the mission-derived C-002/FR-004 governance lens)
+    severity: 4
+    title: >-
+      WP-CORE's "always-placeholder, uniformly, for every unresolved cause" design silently
+      contradicts an existing, currently-green, test-pinned behavior contract (Contract C4,
+      issue #4785) on the exact same function, which the plan never discovers, cites, or
+      reconciles.
+    evidence:
+      - artifact: "plan.md § Phasing & Sequencing, step 2 (WP-CORE)"
+      - artifact: "plan.md § The baseline (stated as fact, not a TODO)"
+      - artifact: "tracer-approach.md § Overall approach / Rejected alternative: a hard fail-closed exit branch"
+      - code: "src/charter/activation/compiler.py:1096-1141 (_render_kind_references, docstring lines 1120-1125: \"A miss against the raw repository IS a genuine unresolved reference: it is recorded into diagnostics ... rather than a silent placeholder CharterReference row (contract C4)\")"
+      - code: "tests/charter/test_catalog_completeness_4785.py:191-216 (test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placeholder — asserts `references == []` for a genuine miss, i.e. no placeholder row)"
+      - code: "kitty-specs/charter-catalog-coherence-01M2XQQF/contracts/behavior-contracts.md:48-57 (\"Contract C4 — Recompiled catalog is complete and stable\" — \"And Given a directive id with genuinely no bundled definition, Then it surfaces through the graph.unresolved diagnostics channel, not as a silent placeholder catalog.references row.\")"
+    claim: >-
+      The plan's WP-CORE fix (plan.md Phasing step 2, part (b): "ALWAYS preserves the id as a
+      placeholder CharterReference ... never a second fail-closed exit branch") and
+      tracer-approach.md's explicit rejection of a cardinality-conditioned branch both commit to
+      a SINGLE uniform mechanism — placeholder-preservation for every unresolved id, regardless of
+      cause (scope-filtered OR genuinely-never-existed). This is verified against live code to
+      directly reverse a documented, tested, binding contract from a prior completed mission
+      (charter-catalog-coherence-01M2XQQF, issue #4785): "Contract C4" explicitly requires that a
+      genuinely-nonexistent id surface ONLY through the diagnostics channel, "not as a silent
+      placeholder catalog.references row" — and this exact behavior is pinned by
+      test_render_kind_references_routes_genuine_miss_to_diagnostics_not_placeholder, which I ran
+      locally on this branch (`.venv/bin/python -m pytest -q tests/charter/test_catalog_completeness_4785.py`
+      → 5 passed) and confirmed is currently green, calling the exact same `_render_kind_references`
+      function the plan's WP-CORE step rewrites. Once WP-CORE lands as designed, this assertion
+      (`references == []` for a genuine/never-existed miss) will go red, because the new design
+      places a placeholder row there instead.
+      This is a real gap, not a hypothetical: (1) the plan's own "baseline" test run
+      (`tests/doctrine/test_activation_parity_guard.py`, `tests/charter/test_active_languages_idempotency.py`,
+      `tests/charter/test_context_catalog_miss.py` — "51 passed") deliberately does not include
+      `tests/charter/test_catalog_completeness_4785.py`, so the plan's stated baseline claim "No
+      pre-existing red in the relevant shards" is true only because the directly-relevant shard was
+      never run; (2) IC-01's own Risks note anticipates a grep-the-test-suite check only for the
+      diagnostic STRING format ("Unresolved reference: <kind>/<id>"), not for the `references`
+      list's return-value invariant the same test file also pins — a narrower check than the actual
+      blast radius; (3) neither plan.md, spec.md, nor any tracer file anywhere mentions "#4785",
+      "Contract C4", "catalog-coherence", or "behavior-contracts.md" (grepped, zero hits) — so there
+      is no evidence the planner discovered this contract at all, let alone made a considered
+      decision to supersede it. Spec.md's FR-001 text ("misconfigured pack root or language scope")
+      arguably intends this broader class to be covered too, so superseding Contract C4 may well be
+      the *correct* outcome — but the charter's single-canonical-authority principle
+      (DIRECTIVE_044: "Reconcile (extend/reference) existing doctrine rather than add a second
+      authority") requires that reconciliation to be explicit, not a silent, unacknowledged
+      side-effect an implementer discovers only when a WP's local test run flips an unrelated file
+      red. As written, whichever WP implements WP-CORE will hit an unplanned, unscoped red test with
+      no guidance on whether to update/retire the Contract C4 test-and-doc pair or narrow the new
+      design's scope to SCOPE_FILTERED only — a genuine "gap likely to cause rework inside a work
+      package," and because it contradicts existing, verified, currently-green code/test/contract
+      text, it meets the high-severity ("contradicts existing code") bar in the rubric.
+    remediation: >-
+      Before WP-CORE starts: (1) explicitly decide and state in plan.md whether Contract C4's
+      "genuinely-missing id stays diagnostics-only, never placeholdered" clause is superseded by
+      this mission's FR-001 for the MISSING_ARTIFACT/TYPO_SUSPECTED causes specifically (uniform
+      placeholder-always, matching the plan's current design), or whether WP-CORE's placeholder path
+      should apply ONLY to the SCOPE_FILTERED cause — the actual #5257/#5253 defect — while leaving
+      genuinely-nonexistent ids on the existing diagnostics-only path Contract C4 already covers
+      (a narrower, C4-compatible fix that still satisfies FR-001's disjunctive "preserve OR
+      fail-closed" wording, since a fail-closed non-zero exit is the sibling option FR-001 already
+      allows for the never-existed case, or diagnostics-only could be argued to already satisfy
+      "loudly report"). (2) Whichever choice is made, update
+      `tests/charter/test_catalog_completeness_4785.py` and
+      `kitty-specs/charter-catalog-coherence-01M2XQQF/contracts/behavior-contracts.md`'s Contract C4
+      text in the SAME WP-CORE commit (not a follow-up), with an explicit rationale note describing
+      the supersession — never leave the two contradicting texts both live. (3) Add
+      `tests/charter/test_catalog_completeness_4785.py` to the plan's stated baseline test run so the
+      "no pre-existing red" claim is actually verified against the file the fix touches.

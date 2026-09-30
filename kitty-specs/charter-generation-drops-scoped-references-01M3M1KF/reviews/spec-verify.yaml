@@ -1,0 +1,32 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: FR-004 is gone as a standalone row; its content is folded into FR-001 as an explicit cardinality-agnostic sub-clause naming both remedies (placeholder-preservation and fail-closed exit), matching the Edge Cases bullet exactly, and the FR-005/FR-006 renumbering is internally consistent with every FR-00X reference in the file (verified by grep; no dangling or mismatched reference remains).
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: The folded all-unresolvable-in-a-kind case now has its own Given/When/Then Acceptance Scenario 4 under User Story 1 and a matching Success Criterion SC-005, both cited from the Edge Cases bullet.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: "SC-004 is reworded with an added positive clause requiring the diff to contain real, non-empty production changes to compiler.py plus the new FR-005 test file, so an empty diff can no longer trivially satisfy it; the no-op-passable-no label is now accurate."
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: All three concretely-cited collision sites (FR-002 title, the folded FR-004 clause now in FR-001, User Story 3 AC2) are fixed to "language scope"/"language-scoped"; remaining bare "scope" instances are the mission title/branch/issue-title citation (unavoidable, unambiguous in context), "scoped to a language" phrasing that self-disambiguates in-clause, and code symbol names (scope_filtered_ids, classify_scope_filtered_miss) — no leftover instance of the named collision.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: A new Key Entity names charter.activation._catalog_miss (CatalogMissCause, CatalogMissDiagnosis, classify_catalog_miss, classify_scope_filtered_miss) and BaseDoctrineRepository.scope_filtered_ids as the reuse target; verified all of these exist at the cited paths (src/charter/activation/_catalog_miss.py, src/charter/offering/base.py, src/charter/activation/context_renderers/catalog_diagnosis.py).
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: The Mid-flight Missions edge case now describes the preflight boundary auto-refresh path (references_refresh.py's refresh_references_if_needed, runner.py::_attempt_auto_refresh, gated by preflight.auto_refresh default False) and requires the plan phase verify propagation through run_preflight_or_abort's blocked_reason/passed=False contract; verified these functions, the call sites, and the default-False config all exist as described.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: AC3 is rewritten to construct ProjectContext.from_repo() against Scenario 1's actual fixture path and call run_consistency_check directly via the new FR-005 test, explicitly noting the old test_this_project_charter_pack_is_coherent is hardcoded to this checkout and cannot be conditioned on an arbitrary fixture — it now tests something actually tied to the fixture.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: Grepped the whole file for PYTHONPATH — zero occurrences remain; both AC3 and SC-002 now invoke pytest without the prefix.
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: User Story 2's background paragraph now names tests/charter/test_active_languages_idempotency.py as the reuse precedent (with its real helper names) and states the six #5257 ids are pre-existing real built-in artifacts; verified the test file exists with matching helpers and all six artifact files exist on disk under packs/built-in/.

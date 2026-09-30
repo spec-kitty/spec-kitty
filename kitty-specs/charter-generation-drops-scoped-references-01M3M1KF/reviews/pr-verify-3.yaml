@@ -1,0 +1,166 @@
+schema: review-verify/v1
+complete: false
+phase: pr
+results:
+  - id: PR-BOUNDARY-001
+    status: resolved
+    reason: >
+      compiler.py now has a single hand-written six-kind declaration,
+      `_TRACKED_KIND_TO_GRAPH_ATTR` (:1237-1244); the plural view is derived
+      at call time by `_tracked_reference_kind_plurals()` (:1247-1262,
+      `return frozenset(_TRACKED_KIND_TO_GRAPH_ATTR.values())`), consumed by
+      `_route_unresolved_urn` (:1328) and `_check_whole_kind_unresolved`
+      (:1441 iterates `_TRACKED_KIND_TO_GRAPH_ATTR.items()` directly). No
+      second module-level constant exists to drift from it.
+  - id: PR-CONTRACT-001
+    status: resolved
+    reason: >
+      tests/specify_cli/charter_runtime/test_boundary_heal.py:392 now
+      declares `def spy(repo_root: Path, cause: str) -> ReferencesRefreshOutcome:`,
+      matching the widened production return type.
+  - id: PR-TESTS-001
+    status: resolved
+    reason: >
+      Binding ruling: resolved iff no change to the shared CI
+      registry/workflows was made for it. `git diff 78583dddc..HEAD --stat`
+      shows zero touches under `.github/` across all three fix rounds — left
+      to #4732 as ruled.
+  - id: PR-TESTS-002
+    status: resolved
+    reason: >
+      tests/charter/test_charter_whole_kind_invariants.py gained
+      `test_whole_kind_missing_artifact_fails_closed_is_deterministic_across_repeat_invocations`
+      and `test_whole_kind_graph_unresolved_routing_fails_closed_is_deterministic_across_repeat_invocations`
+      (:252-297), each invoking `_call_build_references` twice on the
+      identical fixture and asserting `str(first_invocation.value) ==
+      str(second_invocation.value)`, fulfilling plan.md's I5 commitment for
+      both whole-kind fixtures. Full file: 12 passed.
+  - id: PR-TESTS-003
+    status: resolved
+    reason: >
+      tests/specify_cli/charter_runtime/test_references_parity_refresh.py:577-606
+      adds `test_extract_failure_detail_falls_back_to_stdout_when_stderr_is_empty`
+      and `test_extract_failure_detail_reports_no_captured_output_when_both_streams_are_empty`,
+      directly exercising `_extract_failure_detail`'s stdout-fallback
+      (`continue` on empty stderr) and no-captured-output branches (lines
+      198/202) that diff-cover previously reported missing.
+  - id: PR-TESTS-004
+    status: resolved
+    reason: >
+      The finding itself concluded "no functional fix needed" (tooling
+      attribution artifact, not a real gap); the suggested improvement was
+      applied anyway — generate.py:556 now assigns
+      `unresolved_references_payload = list(compiled.unresolved_reference_records)`
+      on its own statement, referenced at :573, giving coverage.py an
+      independent line to score instead of coalescing it into the
+      multi-line dict literal's opening line.
+  - id: PR-TESTS-005
+    status: resolved
+    reason: >
+      All three `# TODO(WP02)` markers (formerly at
+      test_charter_whole_kind_invariants.py:301/368/429) are fulfilled: the
+      parametrized unattributable-URN test (:373-420) now asserts the
+      structured `unresolved_records` dict directly (not just the
+      diagnostics substring), and both the graph-load-failure test and the
+      I1/I2 carve-out determinism test (:474-478, :545-561) assert the
+      `_graph`/`_load_failure` sentinel record's presence/shape/count. Same
+      file: 12 passed.
+  - id: PR-FRESH-001
+    status: resolved
+    reason: >
+      `_healable_references`/`describe_template_set_ambiguities`
+      (m_4_0_0rc5_heal_template_set_provenance.py:249-266, :298-312) now
+      call `catalog_mission_from_document(document)` against the
+      already-loaded `document`/`catalog` — a pure, in-memory read, not a
+      second disk read — and `_load_charter_document`'s fail-closed contract
+      (raises `MigrationStateUnreadableError` on unreadable charter.yaml) is
+      untouched by `git diff 2d431a53f..HEAD`. tests/specify_cli/upgrade/migrations/test_heal_template_set_provenance.py:
+      165 passed (combined with test_charter_yaml_io.py).
+  - id: PR-FRESH-002
+    status: resolved
+    reason: >
+      `grep -n "ast\.\|inspect.getsource" tests/charter/test_compiler.py`
+      returns zero hits -- the AST-introspection test this finding named was
+      removed in round 2/3, superseded by the purely behavioral
+      monkeypatch test verified under PR-FRESH2-001 below.
+  - id: PR-FRESH2-001
+    status: resolved
+    reason: >
+      Binding ruling requirements all met: `_TRACKED_REFERENCE_KIND_PLURALS`
+      module constant is gone (grep confirms only `_TRACKED_KIND_TO_GRAPH_ATTR`
+      and the function remain); the sole use site (`_route_unresolved_urn`)
+      calls `_tracked_reference_kind_plurals()`, which reads
+      `_TRACKED_KIND_TO_GRAPH_ATTR` at call time via `frozenset(...values())`
+      -- no default-arg snapshot, no `lru_cache`. The new test
+      `test_tracked_reference_kind_plurals_reflects_a_monkeypatched_mapping`
+      monkeypatches `_TRACKED_KIND_TO_GRAPH_ATTR` and asserts the function
+      reflects the mutation on its very next call (2 passed at HEAD). I
+      independently built a scratch copy of src/ under
+      <scratch>/pr5257-scratch (tracked files never touched), replaced
+      `_tracked_reference_kind_plurals()`'s body with a hand-written
+      independent literal returning the same six-member set, and ran
+      `pytest -k tracked_reference_kind_plurals -o
+      pythonpath=<scratch>/pr5257-scratch/src` (with
+      SPEC_KITTY_PACKS_ROOT set): the test genuinely FAILS
+      (`AssertionError: ... Extra items in the right set: 'extra_kinds'`),
+      confirming the break-it claim myself. Scratch copy deleted after use.
+  - id: PR-FRESH2-002
+    status: resolved
+    reason: >
+      Binding ruling requirements all met: `catalog_field_from_document`
+      (charter_yaml_io.py:538-566) now gates on `isinstance(document,
+      Mapping)` for both the document and the nested `catalog` value; the
+      migration's local guards (m_4_0_0rc5_heal_template_set_provenance.py:261-262,
+      :323-324) use the identical `isinstance(document, Mapping)` predicate
+      (both import `from collections.abc import Mapping`), replacing the
+      migration's former `hasattr(document, "get")` mismatch. dict/CommentedMap
+      behaviour unchanged: full suite (test_charter_yaml_io.py +
+      test_heal_template_set_provenance.py) 165 passed. MappingProxyType
+      regression tests exist in both files
+      (test_catalog_field_from_document_accepts_a_mappingproxytype_document,
+      test_healable_references_accepts_a_mappingproxytype_document_with_a_valid_mission)
+      and pass now. Spot-checked the red claim myself:
+      `isinstance(types.MappingProxyType({}), dict)` is empirically `False`
+      in this venv's Python, and `git show e609d3944:.../charter_yaml_io.py`
+      confirms the pre-fix code gated on `isinstance(document, dict)`
+      verbatim at that commit -- so the same test would have failed there
+      exactly as the docstrings claim; the `isinstance(..., Mapping)`
+      widening landed only in ebf4b27c9.
+  - id: WP03-C1-002
+    status: resolved
+    reason: >
+      The WP review's own verdict is "blocks WP03: no" with an advisory-only
+      remediation, on the grounds that WP03's emission
+      (`list(compiled.unresolved_reference_records)`) is a cause-agnostic
+      pass-through already proven correct for every cause via the existing
+      compiler-level mixed-cause test. test_charter_generate_autotrack.py:773-789
+      now carries an explicit comment documenting this exact disposition
+      (why the CLI-level DRG-transitive missing-id fixture was deliberately
+      not added), so the finding was engaged with and consciously disposed
+      of, not silently dropped -- matching the finding's own conclusion that
+      no code change was required to close it.
+  - id: WP03-C1-004
+    status: resolved
+    reason: >
+      The WP review's own verdict is "blocks WP03: no", explicitly citing
+      plan.md's IC-04 allowance for "the implementer's choice ... narrower
+      compiler.py-level unit test" in place of a CLI-level fail-closed
+      `--json` fixture, and independently verifying the underlying mechanism
+      (compiler.py RuntimeError -> generate.py's pre-existing RuntimeError
+      handler -> `_emit_error`) is real, wired, and untouched. No code
+      change is required or was made; the pre-existing IC-04 design
+      allowance still governs, and the mechanism it relies on remains
+      correct.
+  - id: FOLD-IN
+    status: resolved
+    reason: >
+      The rc5 provenance migration's `_healable_references` and
+      `describe_template_set_ambiguities` read `catalog.mission` via
+      `catalog_mission_from_document(document)` -- the shared accessor --
+      against the document each function already loaded, not a second disk
+      read (verified above under PR-FRESH-001).
+      tests/specify_cli/cli/commands/charter/test_recompile_preserves_mission_4908.py::test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor
+      passes (1 passed). Migration behaviour and `_load_charter_document`'s
+      fail-closed contract are unchanged by this round
+      (`git diff 2d431a53f..HEAD` touches only the import and the
+      mission-read call site).

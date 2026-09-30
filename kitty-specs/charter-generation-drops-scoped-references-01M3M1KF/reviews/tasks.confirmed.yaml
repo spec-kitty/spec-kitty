@@ -1,0 +1,118 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: charter-generation-drops-scoped-references-01M3M1KF
+source: >
+  reviews/tasks.merged.yaml findings whose reviews/tasks-refute-1.yaml verdict is `confirmed`.
+  All 6 merged findings were confirmed (0 refuted) — see tasks-refute-1.yaml for the refuter's
+  per-finding reasoning.
+findings:
+  - id: TASKS-DECOMP-001
+    lens: decomposition quality (catalog lens) — ownership/write-scope completeness
+    severity: 3
+    title: WP03 edits a pre-existing shared test file that is not declared in its owned_files
+    evidence:
+      - artifact: "tasks/WP03-json-diagnostics.md § Subtask T015 / T016"
+      - artifact: "tasks/WP03-json-diagnostics.md frontmatter `owned_files:` (lists only `src/specify_cli/cli/commands/charter/generate.py`) and `create_intent: []`"
+      - artifact: "kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/wps.yaml WP03 `owned_files`"
+      - code: "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py:302-306,563-568"
+      - artifact: "tasks/WP01-red-first-tests.md § 'Design decision this WP embodies'"
+    claim: >
+      T015/T016 instruct extending "the most relevant existing test file" for --json diagnostics
+      coverage. Only `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py` actually
+      exercises `generate --json`, and it is absent from WP03's owned_files/create_intent in both
+      the WP frontmatter and wps.yaml, unlike every other WP in this mission.
+    remediation: >
+      Add `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py` to WP03's
+      `owned_files` in both `tasks/WP03-json-diagnostics.md` frontmatter and `wps.yaml`'s WP03
+      entry. Resolve T014/T015's "pick whichever" phrasing to name that file directly.
+
+  - id: TASKS-DECOMP-002
+    lens: decomposition quality (catalog lens) — reviewable-in-one-sitting
+    severity: 3
+    title: WP02 bundles eight distinct fix mechanisms into one file/commit with no internal commit-boundary guidance, unlike WP01 and WP04
+    evidence:
+      - artifact: "tasks/WP02-compiler-fix.md § Subtasks T007-T013"
+      - artifact: "tasks/WP01-red-first-tests.md § Objective (explicit two-commit sequence)"
+      - artifact: "tasks/WP04-autorefresh-foldin.md § Subtask T019 step 4 (explicit one-commit instruction)"
+      - artifact: "plan.md § PR Shape ('one implementation commit pair' — ambiguous, unresolved in WP02's own text)"
+    claim: >
+      WP01 and WP04 each give an explicit commit-boundary directive; WP02 — the mission's densest
+      WP (≥8 mechanisms across T007-T013 in one file) — gives no equivalent instruction, leaving
+      the "reviewable in one sitting" claim unverified for its densest WP specifically.
+    remediation: >
+      Add an explicit commit-boundary instruction to WP02 (Objective or a new "Commits"
+      subsection) grouping T007-T013 into logically-scoped commits, or state explicitly that WP02
+      lands as a single commit and why that stays reviewable in one sitting.
+
+  - id: TASKS-DECOMP-003
+    lens: decomposition quality (catalog lens) — description concreteness
+    severity: 1
+    title: WP02 T008's Validation text contains a leftover self-correction/thinking-out-loud fragment
+    evidence:
+      - artifact: "tasks/WP02-compiler-fix.md § Subtask T008 Validation: '— wait, that file is owned by WP01, not WP02; add this assertion instead to T012's new file...'"
+    claim: >
+      The text reads as an unedited draft artifact — a first (wrong) instruction corrected
+      mid-sentence. Resolves to the correct answer but is sloppy, citable-verbatim editing debt.
+    remediation: >
+      Clean up the sentence to state directly that the assertion goes into T012's new file,
+      `tests/charter/test_compiler_scope_filtered_placeholder.py`, with no self-correction prose.
+
+  - id: TASKS-SEQ-001
+    lens: chokepoint-serialisation
+    severity: 3
+    title: "WP04's owned regression test transitively executes WP02's owned compiler.py through a real-CLI subprocess fake, an entanglement neither WP's gate list rechecks after both land"
+    evidence:
+      - artifact: "wps.yaml WP04.dependencies (empty) and WP02.dependencies (WP01), owned_files for both"
+      - code: "tests/specify_cli/charter_runtime/test_references_parity_refresh.py:35-36, 91-104, 172-178"
+      - artifact: "tasks/WP02-compiler-fix.md Gates section (does not name this test file)"
+      - artifact: "tasks/WP04-autorefresh-foldin.md Objective ('no ordering dependency either direction')"
+    claim: >
+      WP04's owned test file does not statically import compiler.py, but its pre-existing test
+      drives the real `generate` CLI path in-process, reaching straight into compiler.py — the
+      file WP02 exclusively rewrites — with no gate in either WP explicitly re-running this file
+      against the other WP's final diff.
+    remediation: >
+      Add `tests/specify_cli/charter_runtime/test_references_parity_refresh.py` to WP02's Gates
+      section as a named regression check, and/or add a line to WP04's Context/Risks section
+      acknowledging the coupling and why the id-set-only comparison tolerates it.
+
+  - id: TASKS-VERIFY-001
+    lens: Test strategy (catalog lens) — red-first-per-WP
+    severity: 5
+    title: WP04 instructs committing its red-first test and its implementation together, violating charter C-011's binding separate-commit requirement
+    evidence:
+      - artifact: ".kittify/charter/charter.md § ATDD-First Discipline (C-011, binding), lines 644-656"
+      - code: "tasks/WP04-autorefresh-foldin.md § Subtask T019, step 4 ('Commit this test change alongside T017/T018's implementation in ONE self-contained commit')"
+    claim: >
+      Charter C-011 is binding with no size-based carve-out: the failing-first test must land as
+      its own commit, strictly before any implementation commit. WP04's T019 step 4 directly
+      contradicts this, citing plan.md's "PR Shape" section, which actually answers a different
+      question (PR/lane-split, not this WP's internal commit ordering). No operator ruling
+      authorizes this as a C-011 exception.
+    remediation: >
+      Split T019 into two sequential commits matching WP01/WP02's pattern: commit 1 = the
+      red-first test extension alone, verified RED against `af847be71d97c8a126e91c31a7d05629c69c93ba`;
+      commit 2 = T017+T018's implementation, turning it GREEN. Add the RED/GREEN two-commit
+      verification to WP04's Definition of Done and Reviewer Guidance. Correct plan.md's PR Shape
+      wording from "one self-contained commit" to "one self-contained WP" for IC-05.
+
+  - id: TASKS-VERIFY-002
+    lens: Test strategy (catalog lens) — red-first-per-WP
+    severity: 3
+    title: WP03 has no stated red-first commit/verification for its own FR-004 behavior (unresolved_references JSON field)
+    evidence:
+      - artifact: ".kittify/charter/charter.md § ATDD-First Discipline (C-011, binding)"
+      - artifact: "tasks/WP03-json-diagnostics.md § Subtask ordering (T014 implementation precedes T015/T016 tests) and Definition of Done (no RED-verification bullet)"
+      - artifact: "tasks/WP01-red-first-tests.md (explicitly disclaims covering --json wiring: 'WP03's job')"
+    claim: >
+      FR-004 (the `unresolved_references` JSON field) is a genuine, additive, user-observable
+      contract change with no pre-existing red-first test pinning it. WP03's own subtask
+      ordering and DoD, unlike WP01/WP02/WP04, never require a RED verification for the
+      behavior WP03 itself delivers.
+    remediation: >
+      Reorder WP03 so a failing test asserting the `unresolved_references` key/shape is authored
+      and committed FIRST — run against WP02's landed compiler fix (where `--json` does not yet
+      emit the field) and confirmed to fail — before T014's implementation commit turns it GREEN.
+      Add a RED-verification line to Definition of Done and Reviewer Guidance.

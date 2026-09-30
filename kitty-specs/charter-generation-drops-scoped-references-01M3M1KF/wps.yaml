@@ -1,0 +1,86 @@
+work_packages:
+  - id: WP01
+    title: "Red-first regression tests — FR-005 parity + I1-I5 whole-kind invariants"
+    dependencies: []
+    owned_files:
+      - "tests/charter/test_charter_generate_scoped_reference_parity.py"
+      - "tests/charter/test_charter_whole_kind_invariants.py"
+    requirement_refs:
+      - FR-001
+      - FR-005
+    plan_concern_refs:
+      - IC-04
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP01-red-first-tests.md"
+
+  - id: WP02
+    title: "Compiler fix — scope-filtered placeholders, reason classification, whole-kind fail-closed"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/charter/activation/compiler.py"
+      - "tests/charter/test_compiler_scope_filtered_placeholder.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-006
+      - NFR-001
+      - NFR-002
+      - C-001
+      - C-002
+      - C-003
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+    subtasks:
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+    prompt_file: "tasks/WP02-compiler-fix.md"
+
+  - id: WP03
+    title: "Machine-readable --json diagnostics (unresolved_references)"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/cli/commands/charter/generate.py"
+      - "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py"
+    requirement_refs:
+      - FR-004
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T016
+      - T014
+      - T015
+    prompt_file: "tasks/WP03-json-diagnostics.md"
+
+  - id: WP04
+    title: "Preflight auto-refresh swallow fold-in"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/charter_runtime/preflight/references_refresh.py"
+      - "src/specify_cli/charter_runtime/preflight/runner.py"
+      - "tests/specify_cli/charter_runtime/test_references_parity_refresh.py"
+    requirement_refs:
+      - FR-001
+      - NFR-002
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T019
+      - T017
+      - T018
+    prompt_file: "tasks/WP04-autorefresh-foldin.md"

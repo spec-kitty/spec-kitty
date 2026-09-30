@@ -1,0 +1,6 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings: []

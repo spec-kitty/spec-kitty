@@ -1,0 +1,94 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: TASKS-DECOMP-001
+    lens: decomposition quality (catalog lens) — ownership/write-scope completeness
+    severity: 3
+    title: WP03 edits a pre-existing shared test file that is not declared in its owned_files
+    evidence:
+      - artifact: "tasks/WP03-json-diagnostics.md § Subtask T015 / T016"
+      - artifact: "tasks/WP03-json-diagnostics.md frontmatter `owned_files:` (lists only `src/specify_cli/cli/commands/charter/generate.py`) and `create_intent: []`"
+      - artifact: "kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/wps.yaml WP03 `owned_files`"
+      - code: "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py:302-306,563-568 (already drives `generate --force --json` and `json.loads(result.stdout)` — the only existing test file that actually covers `generate --json` output; confirmed via grep that no file under tests/specify_cli/cli/commands/charter/ currently references `diagnostics` or `generate --json` together)"
+      - artifact: "tasks/WP01-red-first-tests.md § 'Design decision this WP embodies' (cites `packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md` §1b — owned_files is the load-bearing mechanism `finalize-tasks --validate-only` uses for write-scope/ownership, confirmed present in that prompt file)"
+    claim: >
+      T015/T016 instruct the implementer to "extend the most relevant existing test file under
+      `tests/specify_cli/cli/commands/charter/` or
+      `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py`" and explicitly say
+      "do not create a new test file for this WP." A grep of every file under
+      `tests/specify_cli/cli/commands/charter/` shows none of them currently exercises
+      `generate --json`'s diagnostics output at all; `test_charter_generate_autotrack.py` is the
+      only real candidate (it already calls `generate --force --json` and parses the JSON payload
+      at several call sites). That file is a pre-existing, shared test module not owned by WP03 —
+      it is absent from WP03's `owned_files`/`create_intent` in both the WP prompt frontmatter and
+      `wps.yaml`, and no other WP in this mission declares it either. Every other WP in this
+      mission (WP01, WP02, WP04) is scrupulous about declaring every file it edits, including test
+      files, in `owned_files` — WP02 even deliberately creates a brand-new test file specifically
+      "to keep ownership disjoint" rather than touch a shared one (WP02 T012). WP03 breaks that
+      pattern: an implementer following its literal instructions will either write to an undeclared
+      file (bypassing the mission's own ownership-declaration discipline and the
+      `finalize-tasks --validate-only` mechanism WP01 itself cites as load-bearing) or stall trying
+      to reconcile the mismatch.
+    remediation: >
+      Add `tests/specify_cli/cli/commands/test_charter_generate_autotrack.py` to WP03's
+      `owned_files` in both `tasks/WP03-json-diagnostics.md`'s frontmatter and `wps.yaml`'s WP03
+      entry (it is a pre-existing file being extended, not created, so it does not need
+      `create_intent`). Resolve T014/T015's "pick whichever" phrasing to name that file directly,
+      since the grep shows it is the only real candidate today.
+
+  - id: TASKS-DECOMP-002
+    lens: decomposition quality (catalog lens) — reviewable-in-one-sitting
+    severity: 3
+    title: WP02 bundles eight distinct fix mechanisms into one file/commit with no internal commit-boundary guidance, unlike WP01 and WP04
+    evidence:
+      - artifact: "tasks/WP02-compiler-fix.md § Subtasks T007-T013 (shared classify-and-placeholder helper; 4-call-level active_languages threading; graph.unresolved routing across 4 unattributable URN classes; graph-load-failure diagnostics sink; aggregate whole-kind fail-closed check; _raw_kind_repository getattr fallback fix; new structured-records field exposure — all in src/charter/activation/compiler.py)"
+      - artifact: "tasks/WP01-red-first-tests.md § Objective ('This WP produces TWO separate commits, each independently verified RED, in this exact order')"
+      - artifact: "tasks/WP04-autorefresh-foldin.md § Subtask T019 step 4 ('Commit this test change alongside T017/T018's implementation in ONE self-contained commit for this WP')"
+      - artifact: "plan.md § PR Shape ('IC-01/02 as one implementation commit pair that turns that second red commit green') — ambiguous as to whether this means one commit or two, and WP02 does not resolve the ambiguity"
+      - artifact: "tasks/WP02-compiler-fix.md § Risks ('Complexity ceiling... `_build_references_from_service` and `_render_kind_references` both gain nontrivial new branching... extract small helpers... rather than inlining everything into one large function' — WP02's own text already flags the density this finding is about)"
+    claim: >
+      Both WP01 and WP04 give the implementer an explicit, unambiguous commit-boundary directive
+      (WP01: two separate, independently-RED-verified commits in a stated order; WP04: one
+      self-contained commit). WP02 — the largest and most mechanism-dense WP in the mission,
+      spanning T007 through T013 and touching one file across roughly a dozen call sites with at
+      least four largely independent concerns (Contract-C4-preserving classify/placeholder logic,
+      active_languages plumbing through four function signatures, graph.unresolved URN routing
+      with four sub-classified entry shapes, the graph-load-failure sink, the aggregate whole-kind
+      fail-closed check, the `_raw_kind_repository` degrade fix, and the new field exposure for
+      WP03) — gives no equivalent commit-count or commit-boundary instruction anywhere in its
+      Objective, subtasks, or Definition of Done. Plan.md's own "PR Shape" section calls this
+      "one implementation commit pair," which is itself ambiguous (a "pair" naming the two
+      concerns IC-01/IC-02, or two literal commits) and is never resolved down to WP02's own text.
+      Per this lens's brief: if the mission ships one PR, the WP split still has to leave a diff a
+      human can read in a sitting, and the plan must say so explicitly if it will not. WP02's own
+      Risks section already flags the density (recommending helper extraction to stay under the
+      C901/S3776 complexity ceiling) but that acknowledgment is about function complexity, not
+      about whether the reviewer sees one huge diff or several logically-scoped ones.
+    remediation: >
+      Add an explicit commit-boundary instruction to WP02 (either in the Objective or a new
+      "Commits" subsection), e.g.: commit T007+T008 together (classify-and-placeholder helper +
+      active_languages threading), T009+T010 together (graph.unresolved routing + graph-load-
+      failure sink), T011 alone (aggregate whole-kind check), T012+T013 together (raw_kind_repository
+      fix + structured-field exposure) — or state explicitly that WP02 lands as a single commit and
+      why that is still reviewable in one sitting, matching the precision WP01 and WP04 already give.
+
+  - id: TASKS-DECOMP-003
+    lens: decomposition quality (catalog lens) — description concreteness
+    severity: 1
+    title: WP02 T008's Validation text contains a leftover self-correction/thinking-out-loud fragment
+    evidence:
+      - artifact: "tasks/WP02-compiler-fix.md § Subtask T008 Validation: 'Add one assertion (in WP01's `test_charter_generate_scoped_reference_parity.py` — wait, that file is owned by WP01, not WP02; add this assertion instead to T012's new file, `tests/charter/test_compiler_scope_filtered_placeholder.py`, or as a narrower `compiler.py`-level unit test in that same new file)...'"
+    claim: >
+      The text reads as an unedited draft artifact — a first (wrong) instruction immediately
+      corrected mid-sentence with "— wait, ...". It resolves to the correct answer
+      (T012's new file), so it is not ambiguous, but leaving visible self-correction/thinking-out-
+      loud phrasing in a binding implementation prompt is sloppy editing that a literal-minded
+      implementer or reviewer could stumble on or miscite.
+    remediation: >
+      Clean up the sentence to read directly: "Add one assertion to T012's new file,
+      `tests/charter/test_compiler_scope_filtered_placeholder.py` (not WP01's owned test files),
+      or as a narrower `compiler.py`-level unit test in that same new file, that the emitted
+      detail/suggestion text for a SCOPE_FILTERED case names the actual active language set..."

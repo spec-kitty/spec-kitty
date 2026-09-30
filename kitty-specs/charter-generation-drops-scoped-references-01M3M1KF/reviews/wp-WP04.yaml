@@ -1,0 +1,107 @@
+---
+schema: wp-verdict/v1
+complete: true
+wp: WP04
+cycle: 1
+mission: charter-generation-drops-scoped-references-01M3M1KF
+verdict: rejected           # approved | rejected — nothing else
+gates_observed:
+  tsc: n/a
+  tests: pass               # pass | fail | unknown
+  coverage: unknown         # a percentage for the changed files if you measured one
+feedback:                   # REQUIRED when rejected; empty or severity-1 advisory only when approved
+  - id: WP04-C1-001
+    severity: 3
+    claim: >-
+      The T019 red-first test added by this WP (commit 9615b51bc) fails the
+      repo's hard-enforced formatter gate. `.venv/bin/ruff format --check
+      tests/specify_cli/charter_runtime/test_references_parity_refresh.py`
+      reports "Would reformat", and `ruff format --diff` shows the violating
+      hunks fall entirely inside the brand-new
+      `test_auto_refresh_reports_failure_when_generate_fails` /
+      `_make_generate_failure_subprocess_fake` block this WP authored
+      (e.g. the multi-line `assert result.passed is False, (...)` and
+      `assert any(... seen_calls), (...)` at the end of the file collapse to
+      one line under the project's configured `line-length = 164`). None of
+      the four files this WP touches
+      (`references_refresh.py`/`runner.py`/`test_boundary_heal.py`/
+      `test_references_parity_refresh.py`) appear in pyproject.toml's
+      `[tool.ruff.format].exclude` formatter-debt ratchet (verified by grep),
+      so this is not tolerated debt. `references_refresh.py` itself is
+      cleanly formatted (`ruff format --check` passes); `runner.py` and
+      `test_boundary_heal.py`'s format violations are pre-existing and
+      confined to lines this WP never touched (verified by running the same
+      check against base commit 3759ea9e4 and diffing the violating hunk
+      line-ranges against this WP's own diff hunks — no overlap). Only
+      `test_references_parity_refresh.py`'s NEW T019 lines are both violating
+      and newly authored by this WP. `make format-check` / CI's
+      `ruff format --check .` (CLAUDE.md "Formatting is a separate gate from
+      linting", WP04's own Gates section: "ruff format --check . (whole-repo,
+      always-on)") will fail on this branch because of code this WP wrote.
+    remediation: >-
+      Run `.venv/bin/ruff format tests/specify_cli/charter_runtime/test_references_parity_refresh.py`
+      (touching only the new T019 lines, or accept the wider reformat if it
+      also touches pre-existing lines in the same file) and re-verify
+      `ruff format --check` passes for that file before re-submitting.
+  - id: WP04-C1-002
+    severity: 3
+    claim: >-
+      T017's fix (`references_refresh.py:247-257`) adds a NEW behavior
+      branch beyond what T019's red-first test or the WP brief describe: the
+      `except (OSError, subprocess.TimeoutExpired) as exc:` handler now
+      constructs and returns `RefreshOutcome(attempted=True, succeeded=False,
+      detail=f"...invocation failed: {exc}")` instead of falling through to
+      the old unconditional `return True`. This is a real, additional fix
+      (pre-fix, a spawn-level OSError/TimeoutExpired also silently fell
+      through to `return True`, the same swallow-bug class) but it is
+      entirely untested: grep across
+      `tests/specify_cli/charter_runtime/test_references_parity_refresh.py`
+      and `test_boundary_heal.py` for `OSError`, `TimeoutExpired`, and
+      `invocation failed` returns zero hits. CLAUDE.md's Sonar Expectations
+      are explicit and binding: "Every new branch/helper needs tests in the
+      same PR... When you add or refactor logic, add narrow tests that
+      execute the new branches/helpers directly." This branch is untested
+      new logic, not itself pinned red-first, so a regression here (e.g. the
+      detail string silently swallowing something, or the branch
+      accidentally falling back to the old `return True` behavior) would not
+      be caught by this WP's test suite.
+    remediation: >-
+      Add a focused test in `test_references_parity_refresh.py` that
+      monkeypatches `subprocess.run` to raise `OSError` (and/or
+      `subprocess.TimeoutExpired`) for the targeted `generate` invocation and
+      asserts `refresh_references_if_needed(...)` returns
+      `RefreshOutcome(attempted=True, succeeded=False, detail=<non-empty,
+      names the exception>)`, mirroring the non-zero-exit test already
+      added.
+  - id: WP04-C1-003
+    severity: 2
+    claim: >-
+      The fold-in commit (88ba1d776) adds `RefreshOutcome.__bool__` (raises
+      `TypeError`) per the orchestrator's requested "truthiness guard" — a
+      new, deliberate observable contract on a dataclass this WP owns. No
+      test exercises it: grep for `__bool__`, `pytest.raises(TypeError)`,
+      `bool(outcome)`, `bool(result)` across both touched test files returns
+      zero hits. The one place a caller might have hit this coercion
+      (`test_boundary_heal.py`'s no-op assertion) was correctly adapted to
+      check `.attempted`/`.succeeded`/`.detail` directly instead of
+      truthiness — which is the right fix, but it means the guard's own
+      contract (raising, not silently coercing) is asserted nowhere.
+    remediation: >-
+      Add `with pytest.raises(TypeError): bool(RefreshOutcome(attempted=True,
+      succeeded=True, detail=None))` (or equivalent) to
+      `test_references_parity_refresh.py`, pinning the guard's contract
+      directly rather than only via its absence of use.
+  - id: WP04-C1-004
+    severity: 1
+    claim: >-
+      The new `references_refresh.RefreshOutcome` frozen dataclass shares its
+      exact name with the pre-existing, unrelated
+      `specify_cli.auth.refresh_transaction.RefreshOutcome` (a `StrEnum` with
+      six branch members, consumed by `token_manager.py`). The two are never
+      co-imported and Python scoping makes this harmless today, but it is a
+      terminology collision a future grep/import-by-name mistake could catch
+      on.
+    remediation: >-
+      Advisory only — no action required for this WP; consider a more
+      specific name (e.g. `RefreshAttemptOutcome`) if this surfaces again in
+      review of a future change touching either module.

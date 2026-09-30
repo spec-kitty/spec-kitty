@@ -1,0 +1,44 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      plan.md now consistently scopes the placeholder mechanism to SCOPE_FILTERED only in every
+      section checked (Summary, Charter Check, Phasing/WP-CORE step 2, IC-01, and the new
+      "WP-CORE reconciliation" section), MISSING_ARTIFACT/TYPO_SUSPECTED stay on the existing
+      Contract-C4 diagnostics-only path, tests/charter/test_catalog_completeness_4785.py is in the
+      stated baseline command, a live run of that exact 4-file command reproduced 56 passed, 0
+      failed, 1 warning (75.27s) matching the claim, tracer-design-decisions.md carries a
+      substantive multi-paragraph decision entry (not a one-liner), and the mechanism stays general
+      (routes on repository.scope_filtered_ids, not the six named ids) so C-002 still holds.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      plan.md and tracer-design-decisions.md commit to a concrete template — the existing
+      compiler.py line 1505 fallback string "Definition unavailable in bundled doctrine." (verified
+      verbatim at that line) kept as a byte-identical prefix plus an appended reason-bearing suffix
+      naming scope_filtered and a detail — and both the Phasing/WP-CORE step and the WP-CORE
+      reconciliation section name a concrete test requirement (regenerate a fixture seeded with
+      today's baseline row shape and assert the post-fix summary matches the prefix+suffix format).
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >-
+      IC-02's Affected-surfaces text names the concrete 3-level threading chain by function name
+      (compile_charter's active_languages computed at line 424, through _build_references, through
+      _build_references_from_service, to classify_scope_filtered_miss), which was independently
+      verified against src/charter/activation/compiler.py — neither _build_references (line 1045)
+      nor _build_references_from_service (line 1144) currently accepts active_languages, and the
+      call site at line 460 does not pass it — and IC-02's Risks text names a concrete test
+      assertion requirement (assert the emitted detail/suggestion text for a SCOPE_FILTERED case
+      names the actual active language set).
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      grepping plan.md for the stale path string returns zero hits (it only survives in the
+      historical reviews findings records, not in plan.md or the tracers), the real path
+      tests/specify_cli/charter_runtime/test_references_parity_refresh.py is named in Project
+      Structure, ATDD-First Discipline, the Auto-refresh section, and IC-05, and that file plus its
+      _make_generate_subprocess_fake helper were confirmed to genuinely exist on disk.

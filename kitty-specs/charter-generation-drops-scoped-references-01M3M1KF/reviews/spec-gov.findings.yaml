@@ -1,0 +1,97 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: SPEC-GOV-001
+    lens: Scope
+    severity: 3
+    title: FR-004 duplicates FR-001's general rule, is not requested by #5257, and contradicts spec.md's own Edge Case remedy for the same scenario
+    evidence:
+      - artifact: "spec.md § FR-004 (Functional Requirements table, row FR-004)"
+      - artifact: "spec.md § Edge Cases, bullet \"All activated references of a kind (or all references overall) are unresolvable...\""
+      - code: "issue #5257 (gh issue view 5257 --repo spec-kitty/spec-kitty) — Expected behavior / Suggested implementation and acceptance sections name only the per-id preserve-or-report bar; neither mentions an aggregate \"entire kind resolves to nothing\" special case"
+    claim: >
+      FR-001 already obligates the generator to preserve-or-loudly-report every
+      activated-but-unresolvable reference id, with no cardinality qualifier — so
+      "every id in a kind is unresolvable" is just N simultaneous instances of the
+      condition FR-001 already governs, not a distinct behavior. FR-004 restates this
+      as a separate, higher-priority (High) FR with its own remedy language that is
+      narrower than FR-001's: FR-004's row text says generation must "refuse to
+      silently succeed... produces a loud failure," offering only the fail-closed
+      remedy, while FR-001's own Acceptance Scenario 1 and the Edge Cases bullet for
+      this exact all-unresolvable-in-a-kind case both explicitly also allow
+      placeholder-preservation as an equally valid remedy. An implementer following
+      FR-004's row literally would build a hard fail-closed-only code path for the
+      aggregate case; a reviewer checking the Edge Cases bullet would accept an
+      all-placeholder implementation as compliant. That is a real, citable
+      contradiction between two mandatory sections of the same artifact, and FR-004
+      is also scope beyond the issue's literal acceptance bar (issue #5257 never asks
+      for a distinct all-unresolvable-in-a-kind mechanism).
+    remediation: >
+      Cut FR-004 as a standalone FR and fold it into FR-001 as an explicit sub-clause,
+      e.g.: "This preserve-or-report rule applies uniformly regardless of how many ids
+      within a kind are affected, including all of them; the fix must not vacuously
+      succeed by emitting an empty-for-that-kind catalog section, whether the chosen
+      remedy is placeholder-preservation of every affected id or a fail-closed exit —
+      both satisfy this requirement identically to the single-id case." This removes
+      the FR-004-vs-Edge-Case remedy contradiction, keeps one requirement (and one
+      test surface under FR-006) governing the whole defect class per DIRECTIVE_044
+      canonical-source-unification, and stays inside the issue's literal ask.
+
+  - id: SPEC-GOV-002
+    lens: Directive
+    severity: 3
+    title: 'SC-004 is mislabeled "no-op passable: no" although an empty diff would trivially satisfy it, violating the activated acceptance-criteria-non-vacuity tactic''s mandatory labeling step'
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-004"
+      - code: "packs/built-in/tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml (step \"Ask \\\"no-op passable?\\\"\": \"If yes, either reword the criterion so a no-op cannot pass it, or name a positive control that proves the check is non-vacuous\")"
+      - code: "packs/built-in/missions/software-dev/templates/spec-template.md:85-96 (Action Required item 5: \"Delivery label + no-op mark on every FR row and success criterion\", citing this same tactic as the sole definition)"
+    claim: >
+      SC-004 reads "A diff of tests/doctrine/test_activation_parity_guard.py between
+      the mission's base commit and its final commit contains no removed or loosened
+      assertions, and no new code path anywhere in the diff pattern-matches on any of
+      the six literal ids from #5257," marked "[ratchet] · no-op passable: no." Taken
+      literally, a completely empty (do-nothing) diff trivially satisfies both clauses
+      — nothing is removed, and nothing pattern-matches the six ids, because nothing
+      changed. That makes SC-004 no-op-passable by the tactic's own test, yet it is
+      marked "no" with no reword and no named positive control, which is exactly the
+      "Ask no-op passable?" step this charter-bound, ATDD-first-linked tactic requires
+      every FR row and success criterion to pass (the charter's Governing Principles
+      cite ATDD-first as binding, and the spec template's own Action Required item 5
+      makes this tactic mandatory for every success criterion, not optional style).
+    remediation: >
+      Either (a) reword SC-004 so a no-op cannot pass it — e.g. add a positive clause
+      requiring the diff to actually contain FR-001..FR-006's production code changes
+      (measurable via a non-empty diff on src/charter/activation/compiler.py and the
+      new FR-006 test), or (b) mark it "no-op passable: yes" and name the positive
+      control explicitly, e.g. "yes — paired with SC-003's red-before/green-after
+      proof that the diff contains real behavioral code, not merely an absence of
+      changes."
+
+  - id: SPEC-GOV-003
+    lens: Terminology
+    severity: 1
+    title: Bare "scope" in a few spots risks collision with this repo's unrelated canonical glossary term "scope"
+    evidence:
+      - artifact: "spec.md § FR-002 title (\"Distinguish never-existed from filtered-by-scope...\"), § FR-004 body (\"a misconfigured pack root or scope\"), § User Story 3 Acceptance Scenario 2 (\"filtered by scope, and names the scope condition\")"
+      - code: "spec-kitty glossary list (spec_kitty_core scope: \"Bounded semantic scope (mission_local, team_domain, audience_domain, spec_kitty_core)\") — an unrelated glossary-pack-scoping concept, not language applicability"
+      - code: "src/charter/activation/language_scope.py (the canonical source module name for the concept the spec means: infer_repo_languages / active-language filtering)"
+    claim: >
+      Throughout most of spec.md the spec correctly qualifies this concept as
+      "language/scope" or "language-scoped," matching the canonical source module
+      `language_scope.py`. A handful of spots drop the "language" qualifier and use
+      bare "scope"/"scoped by scope," which is also this repo's canonical glossary
+      term for an unrelated concept (glossary-pack semantic scoping: mission_local /
+      team_domain / audience_domain / spec_kitty_core). A reader unfamiliar with the
+      charter-compiler internals could momentarily read "filtered by scope" as
+      glossary-pack scoping rather than language-applicability filtering. This has no
+      effect on implementation since surrounding context always disambiguates within
+      a sentence or two.
+    remediation: >
+      Consistently spell out "language scope" / "language-scoped" (never bare
+      "scope") in FR-002's title, FR-004's body, and User Story 3's Acceptance
+      Scenario 2, matching the qualifier used everywhere else in the document and the
+      canonical `language_scope.py` module name.

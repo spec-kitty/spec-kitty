@@ -1,0 +1,57 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: unresolved
+    remaining_severity: 4
+    reason: >
+      Round-3's part (a)/(b) design for routing graph.unresolved through the shared
+      classify-and-placeholder helper misreads the actual data shape: query.py's
+      resolve_transitive_refs populates `unresolved` via `unresolved.append((urn, urn))`
+      (query.py:391, and the field docstring at query.py:288-290 confirms it is
+      "(source_urn, target_urn)") — both tuple elements are the SAME full "kind:id"
+      URN string (e.g. "styleguide:java-conventions"), never a bare (kind, id) pair —
+      yet the round-3 design text (plan.md's Round-3 amendment, part (a)) states the
+      helper is called "once per (artifact_type, artifact_id) pair" and uses
+      "`_raw_kind_repository(doctrine_service, artifact_type)` to fetch the right raw
+      repository for graph.unresolved's artifact_type string," treating artifact_type
+      as if it were already a valid bare kind. It is not: `_raw_kind_repository`
+      (compiler.py:1073) degrades silently to None for any kind outside its nine
+      gated plural kind strings ("directives"/"tactics"/"styleguides"/... per
+      resolver.py raw_repository's documented None-degrade for out-of-set kinds), so
+      passing a full URN (or even a correctly-.split(":",1)-derived singular kind like
+      "styleguide", which still doesn't match the required plural "styleguides") would
+      return None, and any subsequent `.get()`/`in repository.scope_filtered_ids` call
+      on that None raises AttributeError. An implementer following the round-3 design
+      literally would crash on every graph.unresolved entry — i.e. cannot actually
+      classify or count the very DRG-node-absent ids PLAN-FRESH2-001 raised, so the
+      fix does not close the gap and the Campsite-clean "one shared helper" claim is
+      not actually made true by this text, despite being asserted as closed.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >
+      ATDD-First Discipline section now explicitly names the whole-kind MISSING_ARTIFACT,
+      graph.unresolved-routing, and graph-load-failure tests as ONE dedicated red-first
+      commit, requires it be verified RED against the mission's pre-round-2/pre-round-3
+      base commit and land strictly before the compiler.py implementation commit(s)
+      (plan.md lines 189-208), and PR Shape's commit breakdown reflects this as a
+      distinct, named commit (plan.md line 504).
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: >
+      IC-01's "Relevant requirements" now splits the citation (plan.md line 465):
+      SC-005 is stated to back only the SCOPE_FILTERED placeholder mechanism, matching
+      spec.md line 108's actual SC-005 text (scoped to the toolguide SCOPE_FILTERED
+      fixture); the whole-kind MISSING_ARTIFACT/TYPO_SUSPECTED fail-closed mechanism
+      is attributed only to FR-001's Edge Case text with no spec.md SC, per the
+      finding's own remediation option (a) — a minimal citation split rather than a
+      new spec.md SC, and spec.md is otherwise correctly left untouched.
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: >
+      Plan now states NFR-001's byte-identical guarantee does not literally apply to
+      the fail-closed branch (no catalog written) and states the real property (same
+      failure, same exit code/kind, no catalog write, on a second invocation), and adds
+      an explicit double-invocation assertion to the test requirement (plan.md lines
+      404-431), matching the finding's remediation as written.

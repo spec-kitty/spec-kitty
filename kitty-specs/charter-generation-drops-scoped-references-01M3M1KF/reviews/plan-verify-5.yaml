@@ -1,0 +1,79 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH4-001
+    status: resolved
+    reason: >
+      plan.md's Round-5 restatement, invariant I2 (lines 311-317) now states the activation-detection
+      condition explicitly as an OR: "A kind counts as activated if EITHER `graph.<kind>` is non-empty
+      OR at least one `graph.unresolved` URN was attributed to it via the kind-mapping step — the two
+      conditions are OR'd, never just the output-emptiness condition alone." This is restated
+      identically at IC-01's Risk (3) (line 391): "'activated' means either `graph.<kind>` was
+      non-empty OR at least one `graph.unresolved` URN was attributed to it (I2's OR condition)."
+      Both landing sites agree; the finding's cited defect (activation-detection input hard-wired to
+      `graph.<kind>` alone, ignoring `graph.unresolved` attribution) no longer exists in the text.
+      Matches the round-5 ruling's naming of I2 as the closing invariant. Unambiguous.
+
+      Fold-in spot-check (does not map to one of the four ids; closest-related is this finding's own
+      "WP-CORE reconciliation" section): verified all five concrete operator rulings the round-5
+      ruling requires to stay binding are still present and unweakened in plan.md's "Binding mechanism
+      decisions retained from prior rounds" list (lines 334-356) — (1) URN split
+      `kind_prefix, _, bare_id = urn.partition(":")` + existing `ArtifactKind(kind_prefix).plural`
+      mapping (lines 337-343; verified live `query.py:394` still has
+      `bare_id = urn.split(":", 1)[1] if ":" in urn else urn`, `artifact_kinds.py:51,125,146-148` still
+      define `_PLURALS`/`ArtifactKind`/`.plural`, and `ArtifactKind` is already imported into
+      `compiler.py:37` and already used via `_bare_ids_for_kind` from `compiler.py:205` on); (2)
+      diagnostics/structured-record sink appended inside `_resolve_transitive_reference_graph`'s own
+      `except` branch, `ResolveTransitiveRefsResult` unchanged (lines 344-348, restated at IC-01
+      Affected Surfaces line 389; verified live `compiler.py:1306-1307` still has
+      `except Exception: return fallback`); (3) `cause` stays plain `str`, never `CatalogMissCause`,
+      `_catalog_miss.py` reused/unmodified (lines 349-353, matches the contract doc's round-3 and
+      round-5 typing statements); (4) graph-load failure never fails closed, restated as I4 (lines
+      324-325); (5) the auto-refresh fold-in section is explicitly stated unchanged (lines 355-356) and
+      the full "Auto-refresh fail-closed swallow" section (lines 367-381) is present and unweakened.
+      None of the five is missing, weakened, or contradicted.
+
+  - id: PLAN-FRESH4-002
+    status: resolved
+    reason: >
+      Grepped plan.md for all three of the finding's cited phrases: "immediately after each per-kind
+      call" (0 hits — decision 3's original Design paragraph was replaced, not amended, per the
+      round-5 ruling's disposition note), "automatically sees them" (0 hits), and "strictly AFTER all
+      per-id classification" (0 hits — the only remaining "strictly AFTER" match, line 215, refers to
+      WP-CORE-TESTS' commit-landing order in Phasing & Sequencing, a different subject from the check's
+      runtime timing). The single remaining timing statement is I2 (lines 311-312): "The whole-kind
+      fail-closed check is evaluated once per kind, after ALL sources ... have contributed," restated
+      in substance at IC-01 Risk (3) (line 391): "the aggregate whole-kind check is evaluated ONCE per
+      kind, after ALL sources for that kind have contributed ... never 'immediately after' any single
+      source." No unreconciled timing claim remains anywhere in plan.md, including IC-01's Risks
+      section — the specific location the finding flagged as still carrying a different claim — which
+      now cites PLAN-FRESH4-002 by name as closed.
+
+  - id: PLAN-FRESH4-003
+    status: resolved
+    reason: >
+      contracts/charter-generate-json-diagnostics.md's "Round-5 addition" section (lines 124-160)
+      defines a `kind`/`id`/`cause` shape for all three unattributable `graph.unresolved` classes: (1)
+      no `":"` in URN → `kind: "_unattributed"`, `id: <full URN>`, `cause: "malformed_urn"`; (2)
+      `kind_prefix` has no `ArtifactKind` counterpart → `kind: <raw kind_prefix>`, `id: <bare id>`,
+      `cause: "unattributed_kind"`; (3) valid `ArtifactKind` with no repository or outside the six
+      tracked kinds → `kind: <ArtifactKind singular>`, `id: <bare id>`, `cause: "unattributed_kind"`.
+      plan.md's invariant I3 (lines 318-323) states the same requirement in the same vocabulary
+      ("`contracts/charter-generate-json-diagnostics.md` defines the sentinel/shape for each of these
+      three unattributable classes; `cause` is a plain `str` value, distinct from the four
+      `CatalogMissCause` values and from `\"graph_load_failed\"`") — internally consistent with the
+      contract doc's `"malformed_urn"`/`"unattributed_kind"` cause values, both plain `str` per the
+      contract doc's own closing sentence (line 154). No shape gap remains.
+
+  - id: PLAN-FRESH4-004
+    status: resolved
+    reason: >
+      "PR Shape" (plan.md line 428) now reads "it is now **five** small, independently-testable,
+      mostly-disjoint changes," and its own parenthetical enumerates exactly five items (IC-04/
+      WP-ATDD; WP-CORE-TESTS; IC-01/02 implementation pair; IC-03; IC-05) — count and enumeration
+      agree. The Phasing & Sequencing list (lines 230-235) has 6 numbered steps but only 5 are
+      commit-bearing; step 6 (WP-CLEANUP-VERIFY) is explicitly "folded into WP-CORE/WP-JSON's own
+      commits, not a separate step" — matching "five." All three surfaces (prose count, parenthetical
+      enumeration, Phasing & Sequencing's actual commit count) now agree.

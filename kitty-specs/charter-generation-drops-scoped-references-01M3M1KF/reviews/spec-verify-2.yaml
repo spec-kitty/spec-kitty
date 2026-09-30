@@ -1,0 +1,11 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "The Key Entity now enumerates all four CatalogMissCause members (TYPO_SUSPECTED / MISSING_ARTIFACT / SCHEMA_VALIDATION_SUSPECTED / SCOPE_FILTERED, verified against _catalog_miss.py:158-161) and explicitly states classify_scope_filtered_miss returns CatalogMissCause.SCOPE_FILTERED, quoting its docstring's present-but-filtered distinction."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "The Mid-flight missions edge case now asserts as a confirmed fact (\"not an open question\") that refresh_references_if_needed discards the subprocess result unconditionally, matching the verified code at references_refresh.py:172-189, and gives the plan phase a concrete decision to make (close the gap vs. accept/defer as pre-existing degradation) rather than restating the finding's title."

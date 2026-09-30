@@ -1,0 +1,32 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 2
+verdicts:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >
+      plan.md's PR Shape paragraph now names WP02's real four-commit shape (T007+T008,
+      T009+T010, T011 alone, T012+T013, no internal red-first commit), WP03's real two-commit
+      shape (T016 alone, then T014+T015), and WP04's real two-commit shape (T019 alone, then
+      T017+T018), stating the mission total as WP01:2 + WP02:4 + WP03:2 + WP04:2 = 10 commits.
+      Recounted independently from each WP prompt's own Commits/Objective section
+      (WP01-red-first-tests.md: "TWO separate commits"; WP02-compiler-fix.md's "## Commits"
+      section: "four logically-scoped commits"; WP03/WP04's Objective sections: "TWO separate
+      commits" each) and the arithmetic checks out exactly as stated. Phasing & Sequencing item 5
+      now reads "its own red-first test (T019) committed alone as commit 1, then a second commit
+      (T017+T018) turning it GREEN — two commits total", replacing the stale "its own commit"
+      singular. WP03's and WP04's Definition of Done bullets now read "matching WP01's and
+      WP04's/WP03's two-commit red-first pattern. (WP02 has a different, four-commit shape with
+      no internal red-first commit of its own... it is not a comparable match.)" — the false
+      WP02 citation is corrected in both files.
+
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >
+      WP03's subtasks roster is [T016, T014, T015] and WP04's is [T019, T017, T018] consistently
+      in all three locations checked independently: wps.yaml (lines 64-67 and 82-85), tasks.md's
+      "Subtasks" lines (WP03 line 35, WP04 line 46), and each WP prompt's own frontmatter
+      (WP03-json-diagnostics.md and WP04-autorefresh-foldin.md `subtasks:` blocks), matching the
+      red-first-then-implementation execution order now used in each WP's body and mirroring
+      WP01's established convention.

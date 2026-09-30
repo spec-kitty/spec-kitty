@@ -1,0 +1,119 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-FRESH5-001
+    lens: cross-reference-integrity
+    severity: 3
+    title: "Phasing step 3 and IC-01 cite \"WP-CORE reconciliation point 3's test requirement\", a subsection round 5 deleted"
+    evidence:
+      - artifact: "plan.md § Phasing & Sequencing, step 2 (WP-CORE)"
+      - artifact: "plan.md § Implementation Concern Map, IC-01"
+    claim: >
+      Three call sites still point readers at "WP-CORE reconciliation point 3's test requirement":
+      Phasing step 3 says "see 'WP-CORE reconciliation' point 3 below for the full design and the
+      test requirement it adds" and "the new whole-kind-unresolved fail-closed test ('WP-CORE
+      reconciliation' point 3's test requirement) passes GREEN"; IC-01's Purpose bullet says "See
+      'WP-CORE reconciliation' point 3 for the full design and its test requirement." Round 5 deleted
+      point 3's old "Test requirement (new)" paragraph (and the round-3 amendment's own two-item test
+      requirement) and replaced them with the "Round-5 restatement" subsection (I1-I5) plus a
+      separate "Invariant → red-first fixture mapping" table under "ATDD-First Discipline". Point 3,
+      as it now reads, contains no content literally titled or shaped as a "test requirement" — a
+      reader following any of these three pointers to find "the test requirement" inside point 3
+      will not find one there; the actual fixture requirements now live in the ATDD table two
+      sections away, which none of the three citing sentences names. IC-01's own Risk (3) bullet
+      gets this right elsewhere ("see 'WP-CORE reconciliation' point 3 and the ATDD-First Discipline
+      invariant table"), showing the corrected form was available but not applied consistently.
+    remediation: >
+      Update all three dangling citations to point at the actual location: "the ATDD-First
+      Discipline section's invariant → red-first fixture mapping table" (optionally alongside "WP-CORE
+      reconciliation point 3" for the design rationale), matching the phrasing IC-01's Risk (3)
+      bullet already uses.
+
+  - id: PLAN-FRESH5-002
+    lens: invariant-completeness
+    severity: 4
+    title: "I1/I2 do not account for activated ids that are reachable only via DRG-transitive closure when the whole graph fails to load"
+    evidence:
+      - artifact: "plan.md § WP-CORE reconciliation, Round-5 restatement (I1, I2)"
+      - artifact: "plan.md § WP-CORE reconciliation, \"Binding mechanism decisions retained\" (diagnostics-sink bullet, I4 bullet)"
+      - artifact: "contracts/charter-generate-json-diagnostics.md § Round-3 addition"
+      - artifact: "spec.md § Key Entities, \"Activated reference id\""
+    claim: >
+      I1 states every activated reference id "ends up either in catalog.references (resolved or
+      placeholder) or in a structured diagnostic — never silently absent." spec.md's Key Entities
+      section defines "Activated reference id" to explicitly include ids that are "DRG-transitively
+      reachable from an activated directive," not only ids in `.kittify/charter/charter.yaml`'s
+      literal activation lists. Per the retained, binding graph-load-failure mechanism (I4 plus the
+      "diagnostics sink" bullet, unchanged from round 3 and restated as binding this round),
+      `_resolve_transitive_reference_graph`'s `except` branch appends exactly ONE unconditional
+      sentinel record (`kind: "_graph"`, `id: "_load_failure"`) — never a per-id record — and the
+      fallback reconstructs only direct `config.activated_*` roots, not the transitive closure. An
+      id that is activated ONLY transitively (no direct config root for it) and whose only path to
+      resolution was the now-failed transitive closure gets neither a `catalog.references` entry nor
+      its own structured diagnostic naming it — it is represented, if at all, only by the one
+      graph-wide sentinel that names no real id. I1's literal "every activated reference id... ends
+      up... in a structured diagnostic" is therefore false for this class, an internal inconsistency
+      between I1 and the graph-load-failure mechanism I4 explicitly keeps as binding.
+
+      This same gap propagates into I2: the whole-kind fail-closed check counts a kind as
+      "activated" only if `graph.<kind>` is non-empty OR a `graph.unresolved` URN was attributed to
+      it. Under total graph-load failure, `graph.<kind>` is populated only from that kind's direct
+      config roots (via the unchanged `_bare_ids_for_kind` fallback), and `graph.unresolved` is never
+      populated at all (the exception fires before `resolve_transitive_refs` produces any unresolved
+      bucket). A kind whose activated ids are ALL transitively-reachable (no direct root of that
+      kind) therefore never satisfies I2's OR condition when the graph fails to load — the whole-kind
+      check silently never evaluates that kind, even though 100% of its activated ids are
+      unresolved. This is exactly the "vacuous success... at any cardinality" FR-001 forbids
+      ("the fix must not vacuously succeed by emitting an empty-for-that-kind but structurally
+      'successful' catalog section... at any cardinality"). No row in the ATDD-First Discipline's
+      invariant → fixture table exercises this combination: the I1/I2 row's two named fixtures are a
+      direct-root `MISSING_ARTIFACT` case and a `graph.unresolved`-attributed case, neither of which
+      is a total-graph-load-failure case against a kind with no direct roots — so an implementation
+      could pass every named fixture and still leave this FR-001 gap live and undetected.
+    remediation: >
+      Either (a) add an explicit sixth carve-out to I1/I2 stating that ids reachable only via
+      transitive closure are exempted from the per-id completeness/fail-closed guarantee when the
+      whole graph fails to load (mirroring I4's existing "loud, not fail-closed" framing, made
+      explicit rather than left to be inferred), and correspondingly narrow spec.md's FR-001 "at any
+      cardinality" language or its Key Entities "activated reference id" definition to match; or (b)
+      add a fixture to the ATDD table pinning the transitive-only-kind-plus-graph-load-failure case
+      against whichever behavior is intended (loud diagnostic naming the kind vs. fail-closed).
+      Either way, the current text lets a reader believe I1/I2 are exhaustive when this combination
+      falls through both.
+
+  - id: PLAN-FRESH5-003
+    lens: consistency-check
+    severity: 3
+    title: "Contract doc's round-5 case 3 gives a factually inaccurate 'no repository for kind' detail for kinds that DO have a repository"
+    evidence:
+      - artifact: "contracts/charter-generate-json-diagnostics.md § Round-5 addition, item 3"
+      - artifact: "plan.md § WP-CORE reconciliation, Round-5 restatement (I3)"
+    claim: >
+      I3 requires "every structured diagnostic record carries a defined kind, id and cause" and, by
+      extension (per NFR-002, "every unresolved-reference diagnostic... names the specific kind/id
+      and its reason category; a reason-less... diagnostic does not satisfy this requirement"), the
+      detail text backing that cause should be accurate. The contract doc's round-5 "item 3" merges
+      two distinct root causes under one templated detail string
+      `"no repository for kind: <kind_prefix>"`: (i) `template`/`asset`/`anti_pattern`, whose
+      `DoctrineService.raw_repository(kind)` genuinely returns `None` by design, and (ii) a
+      "valid-but-untracked kind such as `paradigm`, `mission_step_contract`, `glossary_pack`" — kinds
+      that DO resolve to a real, non-`None` repository (they are members of the 9-kind
+      `_RAW_REPOSITORY_KINDS` gated set) and are simply not among the six kinds
+      `_render_kind_references` iterates. For group (ii), the message "no repository for kind:
+      paradigm" is factually wrong — a repository exists; the actual reason is that this kind falls
+      outside the six DRG-backed kinds the compiler's per-kind aggregate tracks. An operator or a
+      red-first fixture author who copies this contract text verbatim for a `paradigm`/
+      `mission_step_contract`/`glossary_pack` case pins an inaccurate diagnostic as the acceptance
+      bar.
+    remediation: >
+      Split item 3 into two entries with distinct, accurate detail templates: one for the
+      genuinely-`None`-repository kinds ("no repository for kind: <kind_prefix>") and one for
+      valid-but-untracked kinds whose repository IS non-`None` but outside the six tracked kinds
+      (e.g. "kind '<kind_prefix>' is not one of the six DRG-backed kinds tracked for reference
+      resolution"). `cause` may stay the shared `"unattributed_kind"` value for both if that
+      granularity is intentionally not surfaced in `cause`, but `detail` must not claim "no
+      repository" for a kind that has one.
+out_of_scope_notes: []

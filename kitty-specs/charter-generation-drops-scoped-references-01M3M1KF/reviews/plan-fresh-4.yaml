@@ -1,0 +1,136 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: PLAN-FRESH4-001
+    lens: structural-root-cause (five-whys / divergence-mapping)
+    severity: 4
+    title: Whole-kind check's activation gate is keyed to graph.<kind>, which a graph.unresolved-only id never populates — the round-3 Test requirement it promises is unsatisfiable as designed
+    evidence:
+      - artifact: "plan.md § WP-CORE reconciliation point 3, 'Design' paragraph (lines ~289-298): \"if that kind's `ids` (the DRG transitive-closure result for the kind, e.g. `graph.toolguides`) is non-empty — the kind WAS activated — but the list `_render_kind_references` returned for that kind is empty ... That kind is recorded as whole-kind-unresolved.\""
+      - artifact: "plan.md § Round-3 amendment, 'Test requirement (round-3 addition)' item 1 (lines ~536-542): \"...when it is the SOLE activated id of its kind and classifies as MISSING_ARTIFACT/TYPO_SUSPECTED — trips the whole-kind aggregate fail-closed check exactly as a `_render_kind_references`-sourced miss would.\""
+      - artifact: "plan.md § Round-3 amendment, Design part (b) (lines ~443-460): claims the aggregate check 'automatically sees' graph.unresolved contributions because they land in the same `references` output list — this only addresses the check's OUTPUT-emptiness condition, not its separate ACTIVATION-detection input condition quoted above."
+      - code: "src/charter/offering/drg/query.py:385-393 — the bucket-fill loop: `if node is None: unresolved.append((urn, urn)); continue` — a `continue` that skips `buckets[node.kind].append(bare_id)` entirely for any URN whose node is absent."
+      - code: "src/charter/offering/drg/query.py:404 — `return ResolveTransitiveRefsResult(unresolved=unresolved, by_kind=buckets)` — the named per-kind fields (e.g. `.toolguides`) are projected from `by_kind`/`buckets` alone (via `__post_init__`), which `unresolved` URNs never entered."
+    claim: >
+      Decision 3's whole-kind check treats a kind as "activated" only when `graph.<kind>` (e.g.
+      `graph.toolguides`) is non-empty. But by construction, an id whose DRG node is absent (a
+      `graph.unresolved` entry) NEVER lands in `buckets[node.kind]` — it is appended to `unresolved`
+      and the per-URN loop `continue`s past the bucket-fill line, per query.py:385-393. So a kind
+      whose SOLE activated id has an absent DRG node leaves `graph.<kind>` == `[]`, meaning decision
+      3's own activation-detection condition ("is that kind's `ids` non-empty") evaluates FALSE for
+      that kind, and the whole-kind fail-closed check never even considers it — regardless of what
+      Design parts (a)/(b) do to route that id through the shared classify-and-placeholder helper and
+      append a diagnostic/structured record. Design parts (a)/(b) only widen the check's OUTPUT
+      condition (the `references` list the check inspects for emptiness); they never touch or widen
+      the SEPARATE activation-detection INPUT condition, which stays hard-wired to `graph.<kind>`.
+      Consequently the round-3 Test requirement's own explicit promise — that a sole graph.unresolved
+      id classifying as MISSING_ARTIFACT/TYPO_SUSPECTED "trips the whole-kind aggregate fail-closed
+      check exactly as a `_render_kind_references`-sourced miss would" — is false under the plan's own
+      stated design: this is precisely the "misconfigured pack root" / "DRG node deleted while config
+      activation remains" scenario PLAN-FRESH2-001 set out to close, and it slips through silently
+      (generate exits 0, writes a catalog with that kind's section empty) exactly as before the fix.
+    remediation: >
+      Explicitly widen decision 3's activation-detection condition (not just its output-emptiness
+      condition) to also treat a kind as "activated" when at least one `graph.unresolved` URN was
+      attributed to it via Design part (a)'s URN-split/kind-mapping step — e.g. have
+      `_build_references_from_service` accumulate a per-kind "ids sourced from graph.unresolved" set
+      (or count) alongside `graph.<kind>`, and OR the two before evaluating "was this kind activated."
+      State this explicitly in the Design text (both decision 3's original paragraph and the round-3/4
+      amendment), and add a dedicated fixture assertion distinguishing this from the already-covered
+      "kind had OTHER successfully-resolved ids in `graph.<kind>` too" case.
+
+  - id: PLAN-FRESH4-002
+    lens: bisection / timeline (call-order verification)
+    severity: 4
+    title: Whole-kind check's stated placement ("immediately after each per-kind call") is temporally incompatible with graph.unresolved's later, single, post-all-six-calls loop, contradicting Design part (b)'s "automatically sees them" claim
+    evidence:
+      - artifact: "plan.md § WP-CORE reconciliation point 3, 'Design' (lines ~289-291): \"The check runs inside `_build_references_from_service` (`compiler.py:1144`), immediately after each per-kind call to `_render_kind_references` (the six call sites at `compiler.py:1182-1247`...).\" — this text is UNCHANGED by round 4."
+      - artifact: "plan.md § Round-3 amendment, Design part (b) (lines ~443-449): \"Because part (a) routes every `graph.unresolved` URN ... through the same classify-and-placeholder helper, and appends its outcome to the SAME per-kind `references` list `_render_kind_references` populates, the aggregate whole-kind check (decision 3's 'Design' above, mechanism unchanged) automatically sees them — no separate counting logic is needed.\""
+      - artifact: "plan.md § IC-01, Risk (3) (line ~597): \"The aggregate whole-kind check must run strictly AFTER all per-id classification for that kind completes...\" — a THIRD, again-different timing statement (post-all-per-id-classification, which for a kind touched by `graph.unresolved` would be even later than 'immediately after each per-kind call')."
+      - code: "src/charter/activation/compiler.py:1182-1247 — the six `_render_kind_references` call-and-extend blocks."
+      - code: "src/charter/activation/compiler.py:1250-1251 — the CURRENT `graph.unresolved` loop, which runs in ONE pass strictly AFTER all six `_render_kind_references` calls complete (not interleaved per-kind)."
+    claim: >
+      Three different, mutually inconsistent statements about WHEN the whole-kind check evaluates
+      each kind's emptiness now coexist in plan.md: (1) decision 3's unrevised text says "immediately
+      after each per-kind call to `_render_kind_references`" (implying the check for kind K evaluates
+      right after K's own render call, before any later processing); (2) Design part (b) requires the
+      check to already reflect `graph.unresolved`-derived placeholder contributions to that SAME
+      per-kind list, which in the current code structure only get appended in a single loop AFTER ALL
+      SIX per-kind calls finish (compiler.py:1250-1251); (3) IC-01's Risk (3) says the check "must run
+      strictly AFTER all per-id classification for that kind completes," a still-different, looser
+      timing. If an implementer follows reading (1) literally — evaluating/recording each kind's
+      emptiness right after that kind's own `_render_kind_references` call, in the existing per-kind
+      block order — a `graph.unresolved`-sourced placeholder for that same kind (processed only in
+      the later, separate loop) arrives too late to prevent an incorrect whole-kind-unresolved
+      recording, silently reintroducing the exact gap PLAN-FRESH2-001/3-001 were meant to close. The
+      round-3/4 amendment never restates or corrects decision 3's original placement text to resolve
+      this, leaving two "binding" sections of the same plan in direct tension.
+    remediation: >
+      Revise decision 3's "Design" paragraph (not just the round-3/4 amendment) to state explicitly:
+      the whole-kind emptiness check must be evaluated ONCE, per kind, only after BOTH (a) all six
+      `_render_kind_references` calls AND (b) the (now URN-split/kind-mapped) `graph.unresolved` loop
+      have finished appending to that kind's slice of `references` — i.e. move the check's actual
+      evaluation point to after compiler.py's current line 1251, not "immediately after each per-kind
+      call." Reconcile IC-01's Risk (3) wording to match the same single, restated timing so the plan
+      does not carry three different orderings for the same mechanism.
+
+  - id: PLAN-FRESH4-003
+    lens: divergence-matrix (spec/contract-doc vs. design cross-check)
+    severity: 4
+    title: Contract doc's kind field is documented as one of only 6 DRG-backed kinds, but round-4's own Design part (a)/(b) requires structured records for graph.unresolved misses whose kind is NOT one of those 6 (or is unparseable/unrecognized) — the contract doesn't say what kind/id those records carry
+    evidence:
+      - artifact: "contracts/charter-generate-json-diagnostics.md, 'After' section: \"`kind` is one of the DRG-backed kinds `_render_kind_references` covers: `directive`, `tactic`, `styleguide`, `toolguide`, `procedure`, `agent_profile`.\" — this sentence is PRE-EXISTING, unchanged by round 4's diff (which only added the graph-load-failure sentinel subsection below it)."
+      - artifact: "plan.md § Round-3 amendment, Design part (a), step 2 third bullet (lines ~424-430): \"A `graph.unresolved` kind that DOES map to a real, non-`None` repository but is not one of the six kinds `_render_kind_references`'s per-kind aggregate lists track ... i.e. `paradigm`, `mission_step_contract`, or `glossary_pack` — still gets a reason-bearing diagnostic/structured record via the shared helper (never crashes, never silently dropped)...\""
+      - artifact: "plan.md § Round-3 amendment, Design part (a), step 1 (lines ~384-388): a URN with no `\":\"` must be \"preserve[d]/report[ed]... as an unresolved reference with a reason string\" — with no stated `kind`/`id` field shape for the resulting structured record."
+      - artifact: "plan.md § Round-3 amendment, Design part (a), step 2 first sub-bullet (lines ~404-409): a `kind_prefix` raising `ValueError` on `ArtifactKind(kind_prefix)` (e.g. `action`, `glossary_scope`, `glossary`, `mission_type`) must also be \"preserve[d]/report[ed]\" — again with no stated `kind`/`id` shape for the record."
+    claim: >
+      Round 4's own text (Design part (a)/(b), unchanged from round 3 but never reconciled against the
+      contract doc this round) requires the shared helper to emit a reason-bearing structured record
+      for THREE further `graph.unresolved` classes beyond the six tracked DRG kinds: (i) a valid
+      `ArtifactKind` outside the six tracked kinds (paradigm/mission_step_contract/glossary_pack); (ii)
+      a `kind_prefix` with no `ArtifactKind` counterpart (action/glossary_scope/glossary/mission_type)
+      or any other unrecognized string; (iii) a URN with no `":"` at all. The contract doc's `kind`
+      field documentation — untouched by round 4 except for the unrelated graph-load-failure sentinel
+      addition — states flatly that `kind` is "one of" only the six tracked kinds, with no sentinel or
+      escape hatch documented for these three classes (unlike the graph-load-failure case, which DOES
+      get its own explicit `_graph`/`_load_failure` sentinel entry this round). An implementer who
+      follows the contract doc literally has no defined `kind`/`id` value to emit for these three
+      classes; one who follows Design part (a)/(b) literally produces `unresolved_references` entries
+      the contract doc does not document and that violate its own stated invariant, risking a
+      downstream automated consumer (FR-004's whole reason for existing) mis-parsing or rejecting
+      them.
+    remediation: >
+      Extend the contract doc's `kind`/`id` field documentation (mirroring the `_graph`/`_load_failure`
+      sentinel pattern already added this round for graph-load failure) to cover all three
+      unattributable `graph.unresolved` classes: e.g. `kind` = the raw (possibly malformed) kind
+      prefix or a reserved sentinel such as `"_unattributed"`, `id` = the full URN, `cause` = a new
+      plain-str value distinct from the four `CatalogMissCause` values and from `"graph_load_failed"`
+      (e.g. `"unattributed_kind"` / `"malformed_urn"`). State this explicitly in plan.md's Design part
+      (a) as well, so the structured-record shape for these branches is pinned before implementation,
+      not left to be invented ad hoc.
+
+  - id: PLAN-FRESH4-004
+    lens: divergence-matrix (cross-section arithmetic check)
+    severity: 2
+    title: PR Shape claims "six" independently-testable changes but its own parenthetical enumerates only five, and the renumbered Phasing & Sequencing list has only 5 actual commits (WP-CLEANUP-VERIFY is explicitly folded in, not a separate commit)
+    evidence:
+      - artifact: "plan.md § PR Shape (line ~633): \"...it is now six small, independently-testable, mostly-disjoint changes (IC-04 as the leading FR-005 ATDD commit; a second, dedicated red-first commit for the whole-kind-unresolved fail-closed tests...; IC-01/02 as one implementation commit pair...; IC-03 as one commit; IC-05 as one self-contained commit)...\""
+      - artifact: "plan.md § Phasing & Sequencing (lines ~223-228): 6 numbered steps, but step 6 (WP-CLEANUP-VERIFY) is explicitly described as \"folded into WP-CORE/WP-JSON's own commits, not a separate step\" — i.e. not an independent commit."
+    claim: >
+      The PR Shape paragraph's own parenthetical lists exactly 5 items (IC-04/WP-ATDD; the dedicated
+      whole-kind-tests red-first commit/WP-CORE-TESTS; IC-01/02 implementation pair/WP-CORE; IC-03/
+      WP-JSON; IC-05/WP-AUTOREFRESH) — matching the 5 real commit-bearing steps in the renumbered
+      Phasing & Sequencing list (WP-CLEANUP-VERIFY explicitly is not a sixth commit) — yet the prose
+      claims "six." This section was NOT touched by round 4's diff even though round 4 inserted a new
+      numbered step (WP-CORE-TESTS) into Phasing & Sequencing specifically to make that list match "PR
+      Shape" per the operator's PLAN-FRESH3-003 ruling ("so that list agrees with what ATDD-First
+      Discipline and PR Shape already say") — but the arithmetic mismatch inside PR Shape itself was
+      never caught or corrected, so the cross-reference the ruling assumed was already consistent is
+      not actually internally consistent.
+    remediation: >
+      Fix the PR Shape paragraph's count from "six" to "five" (or add a genuine sixth enumerated item
+      if a sixth commit was actually intended), so the prose count, the parenthetical enumeration, and
+      the Phasing & Sequencing list's actual commit-bearing steps all agree.

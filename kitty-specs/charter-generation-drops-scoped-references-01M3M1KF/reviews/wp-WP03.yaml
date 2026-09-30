@@ -1,0 +1,155 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP03
+cycle: 1
+mission: charter-generation-drops-scoped-references-01M3M1KF
+verdict: approved
+gates_observed:
+  tsc: n/a
+  tests: pass
+  coverage: n/a
+feedback:
+  - id: WP03-C1-001
+    severity: 1
+    claim: >
+      The dispatch's "IMPLEMENTER CLAIMS" line stating the implementer "added
+      a code comment noting WP01's TODO(WP02) structured-record markers
+      remain" does not match the actual diff. `git -C <lane> diff
+      7c6fa4e53..HEAD` touches exactly two files (generate.py,
+      test_charter_generate_autotrack.py) and contains no reference to
+      WP01's TODO(WP02) markers anywhere in the added lines (verified via
+      `git diff 7c6fa4e53..HEAD | grep TODO`, zero hits). The comment WP03
+      *did* add (generate.py:556-565) is a different, legitimate comment
+      explaining the additive/always-present design of the new key — it does
+      not mention the WP01 TODOs. The WP01 TODO(WP02) markers
+      (tests/charter/test_charter_whole_kind_invariants.py:301,368,429) are
+      real and still unresolved, but WP03's diff never touches that file.
+      blocks WP03: no
+    remediation: >
+      No code change needed for WP03. If the mission's tracer/closeout notes
+      repeat this claim, correct it — WP03 did not add any comment about the
+      WP01 TODO(WP02) markers.
+  - id: WP03-C1-002
+    severity: 2
+    claim: >
+      Claim (b)'s CLI-untestability of MISSING_ARTIFACT/TYPO_SUSPECTED is
+      true only for a DIRECT `config.activated_*` id: `_resolve_config_
+      activated_roots` (compiler.py:167-269) raises `UnknownArtifactIdError`
+      for a genuinely-unknown direct id before the soft
+      `_classify_and_placeholder_reference` path ever runs, matching the
+      code comment at test_charter_generate_autotrack.py:775-787. However, a
+      DRG-*transitively*-reached id (one that appears in a `graph.<kind>`
+      bucket via a `requires`/`suggests` edge, not via `config.activated_*`
+      directly) that is missing from the actual doctrine repository is NOT
+      gated by that early raise — `_build_references_from_service`'s
+      per-kind `_render_kind_references` calls `_classify_and_placeholder_
+      reference` for it, producing a real `missing_artifact`/
+      `typo_suspected` structured record. This path IS reachable through the
+      real `generate --json` CLI entry point (WP02's compiler-level test
+      `test_catalog_completeness_4785.py` proves the mechanism exists, but
+      no test anywhere drives it through `generate --json` and asserts the
+      JSON payload). WP03's own code comment in the test file conflates
+      "genuinely missing id" with only the direct-activation case, which
+      overstates claim (b)'s scope. That said, WP03's emission code (`list(
+      compiled.unresolved_reference_records)`) is a single, cause-agnostic
+      pass-through with no per-cause branching — the scope_filtered fixture
+      WP03 did test proves the plumbing works identically for any cause
+      already present in the list (WP02's own
+      test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture
+      exercises scope_filtered + missing_artifact together at the compiler
+      level) — so the residual risk from the missing CLI-level
+      missing_artifact fixture is low, not a correctness gap.
+      blocks WP03: no (WP03's own emission logic is proven correct for every
+      cause by the cause-agnostic pass-through + existing compiler-level
+      mixed-cause test; the gap is an additional CLI-level integration
+      fixture, which is more naturally WP01/WP02 territory since it exercises
+      DRG-transitive-reachability construction, not JSON emission).
+    remediation: >
+      Non-blocking for WP03. If picked up, add one CLI-level `generate
+      --force --json` fixture (in
+      tests/specify_cli/cli/commands/test_charter_generate_autotrack.py or a
+      WP01/WP02-owned file) with a DRG-transitively-reached id that is absent
+      from the repository, asserting a `missing_artifact` or
+      `typo_suspected` entry appears in `unresolved_references`. Also correct
+      the test file's own comment (lines ~775-787) so it does not read as if
+      ALL missing-id cases hard-fail before the soft path.
+  - id: WP03-C1-003
+    severity: 3
+    claim: >
+      Mission-level coverage gap, not WP03's: the four `_unattributed`/
+      `unattributed_kind`/`malformed_urn` sentinel-record classes and the
+      `_graph`/`_load_failure` graph-load-failure sentinel record — all
+      defined by contracts/charter-generate-json-diagnostics.md's Round-3 and
+      Round-5 additions, and FR-004's own stated purpose (structured,
+      non-prose-only diagnostics) — are never asserted as STRUCTURED
+      `{kind, id, cause, detail}` dicts anywhere in the test suite. They are
+      asserted only as substrings of the plain-text `diagnostics: list[str]`
+      field, in tests/charter/test_charter_whole_kind_invariants.py
+      (`test_unattributable_graph_unresolved_urn_gets_a_shaped_diagnostic`,
+      `test_total_graph_load_failure_yields_loud_diagnostic_not_fail_closed`,
+      `test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure`),
+      each carrying an explicit, still-open
+      `# TODO(WP02): also assert the structured record ... once compiler.py
+      exposes the structured-records sink` comment at lines 301, 368, and
+      429 respectively. WP02 landed the structured-records sink
+      (`unresolved_reference_records`, compiler.py:378) and DOES populate it
+      correctly for these classes (verified by reading
+      `_record_unresolved_reference` at compiler.py:1139-1157, shared by
+      `_classify_and_placeholder_reference`, `_route_unresolved_urn`, and
+      `_resolve_transitive_reference_graph`'s except branch), but neither
+      WP02 nor WP03 came back to fulfill these three TODOs. This means
+      roughly 5 of the 7 documented `cause` values
+      (`graph_load_failed`, `malformed_urn`, `unattributed_kind` x3) in a
+      shipped, machine-readable public JSON contract have zero structured-
+      record-level test coverage, only prose-substring coverage — a real gap
+      against FR-004's own stated purpose ("structured, non-prose-only")
+      and against this repo's dominant-defect-class concern (silent
+      success). blocks WP03: no — WP03 owns only the JSON pass-through
+      (`generate.py`'s `list(compiled.unresolved_reference_records)`),
+      proven correct end-to-end for the one cause (`scope_filtered`) it
+      does test plus, structurally, for every cause via the cause-agnostic
+      list copy. The gap is in the compiler-level fixtures, which belong to
+      WP01 (owns tests/charter/test_charter_whole_kind_invariants.py and its
+      open TODOs) and/or WP02 (owns tests/charter/
+      test_compiler_scope_filtered_placeholder.py, which already has the
+      pattern to extend for the sentinel classes).
+    remediation: >
+      File as a mission-level follow-up (not a WP03 fix): fulfill the three
+      `TODO(WP02)` markers in test_charter_whole_kind_invariants.py by
+      asserting the structured `unresolved_records` list directly (the
+      helpers already accept and populate it), and/or extend
+      test_compiler_scope_filtered_placeholder.py with parametrized cases for
+      `_graph`/`_load_failure`, `_unattributed`/`malformed_urn`, and the two
+      `unattributed_kind` shapes, mirroring
+      test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture's
+      existing pattern.
+  - id: WP03-C1-004
+    severity: 1
+    claim: >
+      SC-005's fail-closed acceptance criterion ("a non-zero exit ... with a
+      message naming the toolguide kind") is pinned only at the compiler-unit
+      level (`pytest.raises(RuntimeError, match="styleguide"/"agent_profile")`
+      in test_charter_whole_kind_invariants.py's
+      test_whole_kind_missing_artifact_fails_closed /
+      test_whole_kind_graph_unresolved_routing_fails_closed), never through
+      an actual `generate --json` (or plain `generate`) CLI invocation
+      asserting `exit_code != 0` and a parseable `{"result":"error",...}`
+      payload naming the kind. Manually traced the mechanism instead
+      (compiler.py:1421 raises RuntimeError -> generate.py:595-597's
+      pre-existing `except (..., RuntimeError)` handler -> `_emit_error`
+      emits `{"result":"error","success":false,"error":<message>}` and
+      `raise typer.Exit(code=1)`) and confirmed it is real, wired,
+      pre-existing machinery WP03 does not touch. This is a legitimate,
+      plan.md IC-04-sanctioned substitution (that section's docstring cites
+      IC-04's "implementer's choice ... narrower compiler.py-level unit
+      test" allowance explicitly, for exactly this reason: fragile
+      corner-case construction at the CLI level). blocks WP03: no — WP03's
+      own task file lists no such test as a gate, and the mechanism it
+      relies on is untouched, pre-existing, and independently verified
+      correct by direct code trace.
+    remediation: >
+      Advisory only. If a future WP wants belt-and-suspenders coverage for
+      SC-005 at the literal CLI-invocation level described in spec.md, add
+      one `generate --force --json` fixture asserting `exit_code == 1` and
+      the JSON error payload names the kind. Not required to close this WP
+      or this mission per plan.md's existing IC-04 allowance.

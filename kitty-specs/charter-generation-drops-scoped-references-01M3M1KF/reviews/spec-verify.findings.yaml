@@ -1,0 +1,154 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: SPEC-VERIFY-001
+    lens: falsifiability / mission-derived test-invocation realism
+    severity: 4
+    title: "US1 Acceptance Scenario 3 names a test that is hardcoded to this checkout and cannot actually verify scenario 1's fixture output"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios, item 3"
+      - code: "tests/doctrine/test_activation_parity_guard.py:77 (`_REPO_ROOT = Path(__file__).resolve().parents[2]`)"
+      - code: "tests/doctrine/test_activation_parity_guard.py:162-171 (`def test_this_project_charter_pack_is_coherent() -> None: ... ctx = ProjectContext.from_repo(_REPO_ROOT) ...`)"
+    claim: >
+      Acceptance Scenario 3 reads: "Given a freshly generated catalog from scenario 1, When
+      `PYTHONPATH=src .venv/bin/pytest -q
+      tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+      runs against it, Then the test passes." But `test_this_project_charter_pack_is_coherent`
+      takes zero arguments and is hardcoded at module scope to `_REPO_ROOT =
+      Path(__file__).resolve().parents[2]` — i.e. it always runs `ProjectContext.from_repo()`
+      against THIS actual spec-kitty checkout's own committed `.kittify/charter/charter.yaml`,
+      never against an arbitrary fixture repo. Scenario 1's fixture ("a repo whose
+      `.kittify/charter/charter.yaml` activates `styleguide/java-conventions`...") is, per its
+      own wording and per User Story 2's distinct "test fixture repo" terminology, a separate
+      throwaway repo (e.g. a `tmp_path`), not this checkout. So the pytest invocation named in
+      Scenario 3 cannot be conditioned on Scenario 1's fixture output at all — it is invariant
+      to whatever the implementer does there. I verified this directly: the exact command in
+      AC3 (`PYTHONPATH=src .venv/bin/pytest -q
+      tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`)
+      already passes today, on the unmodified pre-fix repo, in 1 passed / 7.8s — with zero
+      relationship to any Scenario-1 fixture. As literally worded, a no-op implementation
+      trivially satisfies AC3 because the named test was never wired to the thing AC3 claims to
+      be testing. (If AC3 intends "regenerate THIS repo in place and re-run the guard", that is
+      a materially different, much higher-stakes scenario — it would run against and could
+      mutate this repo's own already-coherent, already-curated `catalog.references` — and the
+      spec never says that either.)
+    remediation: >
+      Either (a) rewrite AC3 to parametrize/construct `ProjectContext.from_repo(<scenario-1
+      fixture path>)` and call `run_consistency_check` directly against that context in the new
+      test the mission is adding (this is exactly what FR-006/US2 already specifies — merge AC3
+      into that test rather than treating it as a separate scenario against the fixed suite-tier
+      guard), or (b) if AC3 is deliberately about this actual repository, say so explicitly, name
+      that it exercises the real, already-curated six ids already present in this repo's
+      committed `charter.yaml` (lines ~177-240, ~1343-2003), and specify whether/how the
+      regeneration during the scenario is expected to mutate a real, uncommitted working copy
+      (interacts with C-004 hygiene and FR-007's byte-identical-regeneration guarantee).
+
+  - id: SPEC-VERIFY-002
+    lens: silent-success / falsifiability
+    severity: 4
+    title: "FR-004 (fail-closed when an entire kind's activation resolves to nothing) has no dedicated, falsifiable Acceptance Scenario or Success Criterion"
+    evidence:
+      - artifact: "spec.md § Requirements, FR-004"
+      - artifact: "spec.md § Edge Cases, bullet 2 (\"All activated references of a kind ... are unresolvable\")"
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios (items 1-3) — none constructs an all-unresolvable-in-a-kind fixture"
+      - artifact: "spec.md § Success Criteria, SC-001..SC-004 — none names this condition"
+    claim: >
+      FR-004 is rated High priority, `[build]` delivery, `no-op passable: no` — the strongest
+      testability bar the spec's own table uses — yet the only place its behavior is described
+      is one Edge Cases prose bullet, not a Given/When/Then Acceptance Scenario under any User
+      Story, and no Success Criterion names it either. That Edge Case bullet itself only says
+      generation "must still fail closed... or preserve every one as a placeholder" — the same
+      two-way OR as AC1's single-id case, but for FR-004 there is no concrete fixture (which kind,
+      how many ids, what the expected catalog/exit-code/diagnostic actually looks like) tying the
+      prose to a checkable outcome. This is precisely the silent-success risk the Edge Case bullet
+      itself names ("An empty result set here is indistinguishable... from 'this repo legitimately
+      activated nothing of this kind'") — but the spec never promotes that risk into something an
+      implementer or reviewer can mechanically verify. An implementation that handles the
+      single-unresolvable-id case (User Story 1) but leaves the all-unresolvable-in-a-kind case
+      degrading to a silently-empty, structurally-valid kind slice would satisfy every literal AC
+      and SC in the spec.
+    remediation: >
+      Add a Given/When/Then Acceptance Scenario (either as a 4th scenario under User Story 1 or
+      a new scenario under User Story 3) that constructs a fixture where every activated id of one
+      kind (e.g. all activated `toolguide`s) is unresolvable, and asserts a concrete, checkable
+      outcome: either a non-zero exit with a message naming the kind, or every id present as a
+      placeholder — pick one deterministically per FR-004's own "must never silently write an
+      empty-for-that-kind but structurally successful catalog" language — and add a matching
+      Success Criterion so FR-004 is covered the same way FR-001/FR-002/FR-005 already are by
+      AC1/AC2 under User Story 1 and AC1/AC2 under User Story 3.
+
+  - id: SPEC-VERIFY-003
+    lens: "mission-derived — test-invocation and command realism"
+    severity: 2
+    title: "The `PYTHONPATH=src` prefix baked into AC3 (US1) and SC-002 is unnecessary and not this repo's own invocation convention"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios, item 3"
+      - artifact: "spec.md § Success Criteria, SC-002"
+      - code: "pytest.ini:1-8 (`pythonpath = src` — ini option; comment explains `.` is deliberately excluded to avoid dual-identity module loading, and that `src` is handled via the ini option, not an env var)"
+      - code: "Makefile:50-52, 63-66 (`test-fast`/`test-full` invoke `uv run --frozen pytest ...` with no `PYTHONPATH` set)"
+    claim: >
+      I ran the exact command from AC3/SC-002 read-only: `PYTHONPATH=src .venv/bin/pytest -q
+      tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+      → `1 passed in 7.81s`. I then re-ran the identical invocation with the `PYTHONPATH=src`
+      prefix dropped: `.venv/bin/pytest -q
+      tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+      → `1 passed in 6.14s` — same result. This repo's `pytest.ini` already sets `pythonpath =
+      src` as a pytest ini option (with an explicit comment warning that mixing `.` and `src` on
+      the path creates duplicate module identities — the ini option is the sanctioned mechanism,
+      not the `PYTHONPATH` env var), and neither `make test-fast` nor `make test-full`
+      (Makefile:50-52, 63-66) sets `PYTHONPATH` for their `uv run --frozen pytest` invocations.
+      CLAUDE.md's own targeted-pytest example (line 657, the Playwright UI suite) also omits any
+      `PYTHONPATH` prefix. The `PYTHONPATH=src` prefix baked into two of the spec's ACs is
+      therefore a copied convention (plausibly from Team Kitty / a different worktree-comparison
+      context — see CLAUDE.md:299's *different* `PYTHONPATH=<worktree>/src` usage for comparing
+      against a merge-base checkout) that doesn't reflect how this repo actually wants tests
+      invoked, though it is harmless here since it doesn't introduce the `.`-plus-`src` duplicate-
+      module hazard by itself.
+    remediation: >
+      Drop the `PYTHONPATH=src` prefix from AC3 and SC-002; state the invocation as `.venv/bin/
+      pytest -q tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent`
+      (or point at `make test-fast`'s targeted equivalent), matching this repo's own pytest.ini-
+      driven convention and CLAUDE.md's documented invocation style, so the plan/implement phase
+      doesn't inherit or propagate the extra prefix into FR-006's new test.
+
+  - id: SPEC-VERIFY-004
+    lens: "regression-test design soundness (FR-006/US2)"
+    severity: 3
+    title: "US2/FR-006 doesn't point at directly-reusable fixture infrastructure or note the six #5257 ids are already real, on-disk built-in artifacts"
+    evidence:
+      - artifact: "spec.md § User Story 2 (background paragraph and Acceptance Scenarios)"
+      - artifact: "spec.md § FR-006"
+      - code: "tests/charter/test_active_languages_idempotency.py:1-20 (issue #3292 — same defect class: language-scoped styleguide/toolguide silently degrading to the \"Definition unavailable in bundled doctrine.\" placeholder), and its `_git_init`/`_write_curated_charter_md`/`_invoke_generate`/`_read_catalog`/`_summary_for` helpers (lines ~50-83), which already build a real `tmp_path` git repo and invoke the real `charter_app` `generate` CLI (the production entry point) and read back `catalog.references`"
+      - code: "packs/built-in/styleguides/java-conventions.styleguide.yaml, packs/built-in/toolguides/maven-review-checks.toolguide.yaml, packs/built-in/toolguides/typescript-mutation-tools.toolguide.yaml, packs/built-in/agent_profiles/frontend-freddy.agent.yaml, packs/built-in/agent_profiles/java-jenny.agent.yaml, packs/built-in/agent_profiles/node-norris.agent.yaml (all six #5257 ids already exist as real, on-disk built-in doctrine artifacts — confirmed via `grep -rl` over `packs/`)"
+    claim: >
+      US2's background paragraph correctly observes that `tests/doctrine/test_activation_parity_guard.py`
+      never calls `compile_charter`/`charter generate` — but the spec is silent about
+      `tests/charter/test_active_languages_idempotency.py`, which is the *same defect class*
+      (#3292: a language-scoped doctrine artifact silently degrading instead of resolving) and
+      already contains exactly the fixture machinery FR-006 needs: a real `tmp_path` git repo,
+      a real `charter_app` `generate` CLI invocation (satisfying US2 AC1's "real production entry
+      point, not an internal helper" requirement), and a catalog-reading helper. Separately, I
+      confirmed all six #5257 ids (`styleguide/java-conventions`, `toolguide/maven-review-checks`,
+      `toolguide/typescript-mutation-tools`, `agent-profile/frontend-freddy`,
+      `agent-profile/java-jenny`, `agent-profile/node-norris`) are already real, on-disk built-in
+      doctrine artifacts under `packs/built-in/` — the new test does not need to construct a
+      synthetic org/project doctrine-pack overlay at all; it only needs a `tmp_path` repo (no
+      Java/TypeScript source) whose `.kittify/charter/charter.yaml` activation lists include these
+      six real ids plus one more of a different kind. Without the spec naming either of these two
+      facts, a WP implementer is likely to either (a) not discover the closely-related
+      `test_active_languages_idempotency.py` precedent and rebuild the git-repo-plus-CLI-invoke
+      scaffolding from scratch, or (b) assume a synthetic doctrine-pack fixture must be authored
+      for the six named ids, which is unnecessary extra work and risks drifting from how the real
+      #5257 bug actually manifested.
+    remediation: >
+      Add a sentence to US2's background (or a plan-phase note, since plan.md wasn't produced
+      this phase) pointing FR-006's implementer at `tests/charter/test_active_languages_idempotency.py`
+      as the closest existing precedent to extend/reuse, and stating explicitly that the six
+      #5257 ids are pre-existing real built-in artifacts (no synthetic pack construction required)
+      — narrowing the new test's actual scope to: a `tmp_path` repo with no Java/TypeScript
+      signal, a `.kittify/charter/charter.yaml` activating the six ids plus one differently-scoped
+      id, a real `generate` CLI invocation, and a `run_consistency_check` call over the result.

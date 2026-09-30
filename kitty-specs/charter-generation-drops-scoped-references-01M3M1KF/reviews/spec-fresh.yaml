@@ -1,0 +1,82 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: fresh
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: SPEC-FRESH-001
+    lens: canonical-source fidelity in newly-added Key Entity text
+    severity: 4
+    title: "New Key Entity enumerates only 3 of the 4 CatalogMissCause variants, omitting the exact SCOPE_FILTERED value FR-002 needs — risking the duplicate-classification failure the fix round itself was trying to prevent"
+    evidence:
+      - artifact: "spec.md § Key Entities, \"Existing catalog-miss classifier (reuse target)\" (line 98): \"`CatalogMissCause` (`TYPO_SUSPECTED` / `MISSING_ARTIFACT` / `SCHEMA_VALIDATION_SUSPECTED`)\""
+      - code: "src/charter/activation/_catalog_miss.py:129-161 — the enum actually has FOUR members: `TYPO_SUSPECTED = \"typo_suspected\"` (158), `MISSING_ARTIFACT = \"missing_artifact\"` (159), `SCHEMA_VALIDATION_SUSPECTED = \"schema_validation_suspected\"` (160), and `SCOPE_FILTERED = \"scope_filtered\"` (161) — the docstring for the 4th (129-152) reads: \"SCOPE_FILTERED: The artifact exists on disk and passed schema validation but was excluded from the loaded catalog because its `applies_to_languages` scope does not overlap with the active language set. Distinct from `MISSING_ARTIFACT` — the artifact is present but intentionally filtered.\""
+      - code: "src/charter/activation/_catalog_miss.py:261-300 (`classify_scope_filtered_miss`) — its docstring states it \"Return[s] a `SCOPE_FILTERED` diagnosis for a present-but-filtered artifact\" and the function is the canonical primitive that produces exactly the never-existed-vs-filtered-by-language-scope distinction FR-002 asks for."
+    claim: >-
+      This Key Entity was added in the fix round specifically to satisfy
+      SPEC-ARCH-001 (folded into spec.confirmed.yaml), whose whole point was
+      to stop a plan-phase author from re-deriving a second, parallel
+      classification scheme for the never-existed-vs-filtered-by-language-
+      scope distinction instead of reusing the existing canonical one. But
+      the added text names only three of the classifier's four
+      `CatalogMissCause` values and leaves out `SCOPE_FILTERED` — the one
+      value whose docstring describes precisely FR-002's target distinction
+      ("the artifact is present but intentionally filtered") and the one
+      `classify_scope_filtered_miss` (also named in the same Key Entity
+      sentence) actually returns. A plan-phase author reading only the
+      spec's enumerated list would see TYPO_SUSPECTED / MISSING_ARTIFACT /
+      SCHEMA_VALIDATION_SUSPECTED, conclude none of them names "filtered by
+      language scope," and could easily re-derive a new cause value or a
+      parallel enum for exactly that case — the same duplicate-authority
+      failure (DIRECTIVE_044) SPEC-ARCH-001 was raised to close. This is a
+      case where checking the newly-added text against its own cited source
+      (`_catalog_miss.py`) turns up a material omission, not just a stylistic
+      gap.
+    remediation: >-
+      Add `SCOPE_FILTERED` to the enumerated list in the Key Entity sentence
+      (`CatalogMissCause` (`TYPO_SUSPECTED` / `MISSING_ARTIFACT` /
+      `SCHEMA_VALIDATION_SUSPECTED` / `SCOPE_FILTERED`)) and note that
+      `classify_scope_filtered_miss` returns `SCOPE_FILTERED` specifically —
+      i.e. that this is the exact primitive/value FR-002's generate-path fix
+      should reuse, not just the module in general.
+
+  - id: SPEC-FRESH-002
+    lens: reflexivity — newly-added Edge Case text vs. the code it cites
+    severity: 3
+    title: "\"Mid-flight missions\" edge case frames FR-001 propagation through the auto-refresh call site as an open question to \"verify,\" but the cited module already shows, on its face, that the subprocess's exit code and output are unconditionally discarded"
+    evidence:
+      - artifact: "spec.md § Edge Cases, \"Mid-flight missions\" (line 61): \"The plan phase must verify that FR-001's preserve-or-report behavior (both remedies, including the fail-closed exit) propagates correctly through `run_preflight_or_abort`'s `blocked_reason`/`passed=False` contract when the targeted generate is triggered from this silent, non-interactive call site...\""
+      - code: "src/specify_cli/charter_runtime/preflight/references_refresh.py:145-189 (`refresh_references_if_needed`) — the `subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=_GENERATE_TIMEOUT_SECS, check=False)` call at line 175 does not assign or inspect its `CompletedProcess` result at all; the surrounding `try/except (OSError, subprocess.TimeoutExpired)` (line 183) only logs at `_logger.debug` on a spawn/timeout failure, never on a non-zero return code; the function unconditionally `return True` (line 189) \"regardless of the subprocess's outcome\" (docstring), and its own docstring states plainly: \"a failed `generate` here is logged and swallowed rather than escalated.\""
+    claim: >-
+      This edge case was rewritten in the fix round specifically to satisfy
+      SPEC-ARCH-002, whose evidence already cited this exact file
+      (`references_refresh.py:1-46`) and function (`runner.py::
+      _attempt_auto_refresh`). Having done that research, the rewritten text
+      still poses FR-001's propagation through this call site as something
+      the plan phase "must verify" — phrased as an open question — even
+      though the cited module's own code and docstring already answer it on
+      inspection: the subprocess's return code, stdout, and stderr are
+      structurally discarded (the `subprocess.run(...)` result isn't even
+      bound to a variable), so any message FR-001's fail-closed remedy would
+      print, and the non-zero exit code that would signal it, cannot reach
+      `run_preflight_or_abort`'s `blocked_reason`/`passed=False` contract
+      through this path as the code exists today — full stop, not
+      "verify whether." The spec's own cited module already resolves the
+      question it defers to the plan phase, so leaving it phrased as
+      unresolved due diligence risks the plan phase re-deriving the same
+      investigation from scratch, or worse, treating "verify" as a checkbox
+      that can be satisfied without discovering the concrete swallowing
+      behavior.
+    remediation: >-
+      Replace "must verify that FR-001's preserve-or-report behavior...
+      propagates correctly" with a direct statement of the confirmed fact:
+      `refresh_references_if_needed` currently discards the targeted
+      `generate` subprocess's exit code and output unconditionally
+      (`references_refresh.py:175-189`), so FR-001's fail-closed exit and
+      diagnostic message do not reach an operator through this call site as
+      currently implemented. Then pose the actual open question for the plan
+      phase: whether closing that gap (e.g. surfacing the subprocess's
+      captured output/returncode into the boundary heal's own freshness
+      recompute or `blocked_reason`) is in scope for this mission, or an
+      explicitly accepted pre-existing degradation to note and defer.

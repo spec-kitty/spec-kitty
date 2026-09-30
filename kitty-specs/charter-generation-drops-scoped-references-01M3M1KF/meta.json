@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "6ce996b4459ae52045d6a5ce32005243e4d01f29",
+  "created_at": "2026-09-28T12:59:56.291286+00:00",
+  "flattened": false,
+  "friendly_name": "Charter generation drops configured scoped references and breaks parity",
+  "merged_at": "2026-09-29T07:49:05.966290+00:00",
+  "merged_commit": "87b962ce01c453db811bc4738a0805435732b63c",
+  "mid8": "01M3M1KF",
+  "mission_id": "01M3M1KFFPC04BHFA54SSZ4CMG",
+  "mission_number": null,
+  "mission_slug": "charter-generation-drops-scoped-references-01M3M1KF",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Charter generation drops configured scoped references and breaks parity on fix/charter-generation-drops-scoped-references-5257 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Charter generation drops configured scoped references and breaks parity",
+  "slug": "charter-generation-drops-scoped-references-01M3M1KF",
+  "status_phase": "1",
+  "target_branch": "fix/charter-generation-drops-scoped-references-5257",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-28T18:45:29.115141+00:00"
+}

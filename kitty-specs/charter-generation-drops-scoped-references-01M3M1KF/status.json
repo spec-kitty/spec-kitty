@@ -1,0 +1,149 @@
+{
+  "event_count": 34,
+  "last_event_id": "01M3P27539WYZKWD30C7PN9JVD",
+  "materialized_at": "2026-09-29T07:49:09.865871+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-generation-drops-scoped-references-01M3M1KF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P272AJVAXDE9ATQ73GN7JX",
+      "last_transition_at": "2026-09-29T07:49:07.026882+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T006 red-first tests committed (2 commits); ruff+ruff format pass; baseline 56 passed unaffected.",
+        "Reviewer (reviewer-renata, fresh context) approved cycle 1: all expected-red tests fail on assertions, negative control justified, ruff clean, CI shard charter selects both files. Verdict: kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/reviews/wp-WP01.yaml"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260928",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 927196,
+      "shell_pid_created_at": "1790621116.95",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P27468W76HQN6Z0R81HRWQ",
+      "last_transition_at": "2026-09-29T07:49:08.936397+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Reviewer (reviewer-renata, fresh context) approved cycle 1: all rulings verified in code, Contract C4 extension plan-sanctioned, red-green proven, 7/8 lane failures confirmed linked-worktree guard via standalone clone, 1 environment. Verdict: kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/reviews/wp-WP02.yaml"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260928",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1435798,
+      "shell_pid_created_at": "1790630220.35",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P27539WYZKWD30C7PN9JVD",
+      "last_transition_at": "2026-09-29T07:49:09.865871+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T014+T015+T016 done; unresolved_references wired additive-alongside diagnostics; RED->GREEN proven; gates pass (1 pre-existing unrelated fail)",
+        "Reviewer (reviewer-renata, fresh context) approved cycle 1: --json field matches contract line-for-line, additive only, red-green-red proven. Mission-level structured-record assertion gap (WP03-C1-003) routed to post-squad fix round. Verdict: kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/reviews/wp-WP03.yaml"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260929",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2155546,
+      "shell_pid_created_at": "1790637487.0",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3P27385QZ0WCFM0FMRFAWXE",
+      "last_transition_at": "2026-09-29T07:49:07.973497+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T017-T019 done: RefreshOutcome fold-in fixes the auto-refresh generate-failure swallow. Red-first proven (T019 commit 9615b51bc, fixed in 95d61ad09, re-verified red against a scratch pre-fix overlay). Gates green (whole-repo ruff check/format, targeted shard, baseline). test_boundary_heal.py::test_references_parity_hook_no_ops_for_a_non_references_parity_cause now fails (bool identity vs RefreshOutcome) -- out of WP04 write_scope, flagged not fixed.",
+        "Reviewer (reviewer-renata, fresh context) approved cycle 3 after two rejections (cycles 1-2 fixed: formatting, untested OSError/TimeoutExpired branch, untested __bool__ guard, stale format-exclude entry). Verdict: kitty-specs/charter-generation-drops-scoped-references-01M3M1KF/reviews/wp-WP04-cycle3.yaml"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260928",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 945038,
+      "shell_pid_created_at": "1790621345.6",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    }
+  }
+}

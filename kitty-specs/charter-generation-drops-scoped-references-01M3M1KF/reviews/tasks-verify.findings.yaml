@@ -1,0 +1,75 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: charter-generation-drops-scoped-references-01M3M1KF
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Test strategy (catalog lens) — red-first-per-WP
+    severity: 5
+    title: WP04 instructs committing its red-first test and its implementation together, violating charter C-011's binding separate-commit requirement
+    evidence:
+      - artifact: ".kittify/charter/charter.md § ATDD-First Discipline (C-011, binding), lines 644-656: \"The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits.\""
+      - code: "tasks/WP04-autorefresh-foldin.md § Subtask T019, step 4: \"Commit this test change alongside T017/T018's implementation in ONE self-contained commit for this WP (per plan.md's 'PR Shape' — WP-AUTOREFRESH is one commit, distinct from WP01's two-commit red-first pattern, because this bug and its fix are small and cohesive enough to verify RED→GREEN within a single reviewed diff...).\""
+    claim: >
+      Charter C-011 is stated as binding for "every implementation work package" with no
+      size-based carve-out: the failing-first test must land as its own commit, strictly before
+      any implementation commit, so a reviewer can independently verify RED-on-base and
+      GREEN-on-final-commit. WP04's T019 step 4 explicitly instructs the implementer to commit
+      T017/T018's implementation (RefreshOutcome type + runner.py fail-closed branch) together
+      with the new red-first test in ONE commit. This is a direct textual contradiction of C-011,
+      not an ambiguity — a compliant implementer following WP04's own written instructions
+      produces a WP that cannot pass a strict C-011 review (no commit boundary exists at which
+      the test was RED without the fix present). The justification cited in the prompt (plan.md's
+      "PR Shape" section) is itself a conflation: PR Shape's "one self-contained commit" language
+      answers a different question — whether IC-05 needs its own separate PR/lane split from
+      WP01-03 — not whether the fix's own test-then-implementation split inside that one WP must
+      still honor C-011's commit ordering. No operator ruling in reviews/plan.ruling.md
+      (rounds 3-7, all read) addresses or authorizes this single-commit shape as a C-011 exception;
+      it is not a reviewed carve-out, it is an unexamined drift introduced while writing the task
+      prompt. WP04's own "Reviewer Guidance" section asks the reviewer to confirm "the red-first
+      test genuinely fails against pre-fix code" but never asks the reviewer to confirm the test
+      landed in a commit that precedes and excludes the implementation — so the WP's own built-in
+      review checklist will not catch this before merge.
+    remediation: >
+      Edit tasks/WP04-autorefresh-foldin.md: split T019 into two sequential steps that produce
+      TWO commits, matching WP01/WP02's pattern: commit 1 = the red-first test extension to
+      tests/specify_cli/charter_runtime/test_references_parity_refresh.py alone, verified RED
+      against planning_base_branch af847be71d97c8a126e91c31a7d05629c69c93ba (rewrite T019 step 4
+      to say "commit this test change ALONE, before T017/T018's implementation" instead of "ONE
+      self-contained commit"); commit 2 = T017 (RefreshOutcome widening) + T018
+      (_attempt_auto_refresh fail-closed branch), landed after, turning the test GREEN. Add an
+      explicit "verified RED on planning_base_branch, GREEN on final commit, in two separate
+      commits" line to the Definition of Done (matching WP01/WP02's DoD pattern) and to Reviewer
+      Guidance (matching WP01's "Confirm the two commits are genuinely separate" check). Separately,
+      plan.md's PR Shape section's "IC-05 as one self-contained commit" phrase should be corrected
+      to read "one self-contained WP" (PR/lane-split sense) to stop this conflation from recurring
+      in a future task-authoring pass.
+
+  - id: TASKS-VERIFY-002
+    lens: Test strategy (catalog lens) — red-first-per-WP
+    severity: 3
+    title: WP03 has no stated red-first commit/verification for its own FR-004 behavior (unresolved_references JSON field)
+    evidence:
+      - artifact: ".kittify/charter/charter.md § ATDD-First Discipline (C-011, binding): \"The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers.\""
+      - code: "tasks/WP03-json-diagnostics.md § Subtask T014 (implementation: add the unresolved_references key to the --json emit block) precedes § Subtask T015 (regression test) and § Subtask T016 (Acceptance Scenario 2 test), with no instruction to author/commit a failing test before T014's implementation."
+      - code: "tasks/WP03-json-diagnostics.md § Definition of Done — lists four completion bullets, none of which require a RED verification, unlike WP01's DoD (\"was verified RED against af847be71d97c8a126e91c31a7d05629c69c93ba before that commit\"), WP02's DoD (which requires every WP01 fixture, itself RED-verified, to now pass GREEN), and WP04's DoD (\"was verified RED against the pre-fix code and is GREEN on this WP's final commit\")."
+    claim: >
+      FR-004 (the `unresolved_references` JSON field) is a genuine, additive, user-observable
+      contract change per plan.md's own Charter Check ("Whether any contract moves" — a new
+      documented JSON key). WP01's own text explicitly disclaims covering it: WP01's I1/I2
+      carve-out fixture note says "WP01 asserts against diagnostics and the compiler-level
+      structured record only, since --json wiring is WP03's job" — so no pre-existing red-first
+      test pins FR-004's specific JSON shape before WP03 starts. WP03's own subtask ordering
+      (T014 implementation, then T015/T016 tests) and its Definition of Done (silent on RED
+      verification, unlike the other three WPs) together mean an implementer following this
+      prompt literally has no instructed failing-first commit for the behavior WP03 itself
+      delivers — a C-011 gap distinct from, and not covered by, WP01/WP02's red-first pair.
+    remediation: >
+      Reorder tasks/WP03-json-diagnostics.md so a failing test asserting the
+      `unresolved_references` key/shape (the T016 Acceptance Scenario 2 assertion, or a
+      dedicated new one) is authored and committed FIRST — run against the WP02-landed compiler
+      fix, where `--json` does not yet emit the field, and confirm it fails — before T014's
+      implementation commit lands and turns it GREEN. Add a RED-verification line to the
+      Definition of Done and a corresponding check to Reviewer Guidance, matching the pattern
+      already used in WP01/WP02/WP04's prompts.
