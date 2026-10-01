@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M3RE6X9BCRFEYQP1TG7G6EP5",
+  "completed_at": "2026-09-30T18:44:38.111833+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "work/test-quality/2026-09-30/triage/synthesis.md"
+}
