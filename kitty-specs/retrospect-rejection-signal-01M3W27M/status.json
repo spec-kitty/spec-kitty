@@ -29,7 +29,8 @@
       "last_transition_at": "2026-10-01T16:20:03.268717+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Work committed (c0d40911..d6ecec3b); no claim base recorded because implement was blocked by #5550"
+        "Work committed (c0d40911..d6ecec3b); no claim base recorded because implement was blocked by #5550",
+        "Work committed; no claim base recorded because implement was blocked by #5550"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
