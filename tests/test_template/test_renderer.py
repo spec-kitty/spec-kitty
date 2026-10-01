@@ -136,3 +136,39 @@ def test_glossary_seeds_are_parsed_once_per_change(tmp_path: Path, monkeypatch: 
 
     assert len(loads) == 2 * per_build
     assert third == "A widget and a gadget<!-- glossary:glossary:gadget -->.\n"
+
+
+def test_glossary_seed_edit_with_identical_size_and_mtime_is_reparsed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A same-size, same-mtime seed edit must still invalidate the memo (#5526 squad MINOR).
+
+    The glossary seed files are consumer-writable, unlike the shipped
+    read-only files the other renderer memos cover. A fingerprint keyed on
+    ``(size, mtime)`` would serve a stale term-surface map for an edit that
+    happens to preserve both, which coarse-granularity filesystems, ``touch
+    -r``, or a times-preserving backup/restore can all produce.
+    """
+    import os
+
+    from specify_cli.template import renderer
+
+    monkeypatch.setattr(renderer, "_TERM_SURFACES_MEMO", {}, raising=False)
+    seed = tmp_path / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
+    seed.parent.mkdir(parents=True)
+    seed.write_text(_SEED.format(surface="widget"), encoding="utf-8")
+    template = tmp_path / "templates" / "demo.md"
+    template.parent.mkdir()
+    template.write_text("A widget and a gadget.\n", encoding="utf-8")
+
+    _, first, _ = render_template(template)
+    assert first == "A widget<!-- glossary:glossary:widget --> and a gadget.\n"
+
+    pre_stat = seed.stat()
+    seed.write_text(_SEED.format(surface="gadget"), encoding="utf-8")
+    assert seed.stat().st_size == pre_stat.st_size
+    os.utime(seed, ns=(pre_stat.st_atime_ns, pre_stat.st_mtime_ns))
+    assert seed.stat().st_mtime_ns == pre_stat.st_mtime_ns
+
+    _, second, _ = render_template(template)
+    assert second == "A widget and a gadget<!-- glossary:glossary:gadget -->.\n"

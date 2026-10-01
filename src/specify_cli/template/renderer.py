@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -166,26 +167,36 @@ def _annotate_glossary_refs_from_store(content: str, template_path: Path | None 
 
 
 #: Term-surface maps already built from a repository's glossary seed files,
-#: keyed on the seed files' sizes and modification times. A single command
-#: renders hundreds of templates against the same seeds (#5526), and parsing
-#: them dominated the render; an edited seed file changes the key.
+#: keyed on a content hash of each seed file. A single command renders
+#: hundreds of templates against the same seeds (#5526), and parsing them
+#: dominated the render; an edited seed file changes the key.
 _TERM_SURFACES_MEMO: dict[tuple[object, ...], dict[str, str]] = {}
 
 
 def _glossary_seed_fingerprint(repo_root: Path) -> tuple[object, ...]:
-    """Identify the glossary seed files :func:`load_seed_file` would read."""
+    """Identify the glossary seed files :func:`load_seed_file` would read.
+
+    Each present seed is keyed on a SHA-256 content hash rather than
+    ``(size, mtime)``: the seed files are consumer-writable, and a same-size
+    edit that preserves ``st_mtime_ns`` (coarse filesystem granularity,
+    ``touch -r``, or a backup/restore that preserves times) would otherwise
+    serve a stale term-surface map from the memo.
+    """
     from glossary.scope import GlossaryScope
 
-    stats: list[tuple[str, int, int] | None] = []
+    hashes: list[tuple[str, str] | None] = []
     for scope in GlossaryScope:
         seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
         try:
-            stat = seed_path.stat()
+            content = seed_path.read_bytes()
         except OSError:
-            stats.append(None)
+            hashes.append(None)
             continue
-        stats.append((scope.value, stat.st_size, stat.st_mtime_ns))
-    return (str(repo_root), tuple(stats))
+        # File-integrity check on raw seed bytes, not charter markdown content
+        # (charter.hasher.hash_content normalizes BOM/newlines for charter.md
+        # specifically and does not fit a generic YAML-seed fingerprint).
+        hashes.append((scope.value, hashlib.sha256(content).hexdigest()))  # noqa: TID251 - file-integrity check, not charter hashing
+    return (str(repo_root), tuple(hashes))
 
 
 def _glossary_term_surfaces(repo_root: Path) -> dict[str, str]:
