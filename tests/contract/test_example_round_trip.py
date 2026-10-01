@@ -70,6 +70,12 @@ import pydantic
 import pytest
 import yaml
 
+from tests.contract import _module_relocations
+from tests.contract._module_relocations import (
+    HISTORICAL_TO_CANONICAL,
+    import_contract_module,
+)
+
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
 # Type of the built-in ``record_property`` fixture: records a (name, value)
@@ -638,29 +644,14 @@ def test_contract_example_round_trip(
         )
 
     try:
-        module = importlib.import_module(module_dotted)
+        module = import_contract_module(module_dotted)
     except ImportError as exc:
-        # Slice F ATDD pattern: contract examples may reference Pydantic
-        # models that haven't been landed by their owning WP yet. Skip
-        # (don't fail) so the round-trip gate stays honest while future
-        # WPs progressively turn each skip into a pass.
-        # The owning WP MUST remove the skipif behaviour by landing the
-        # named model (per their acceptance criteria, see tasks/WP06,
-        # WP09, WP10 task files).
-        pytest.skip(
-            f"'{contract_label}': module ``{module_dotted}`` not yet "
-            f"importable ({exc}). The owning WP turns this case GREEN by "
-            f"landing the Pydantic model under that import path. See the "
-            f"owning WP's task file for the binding acceptance criterion."
-        )
+        pytest.fail(f"'{contract_label}': pydantic_model module is not importable: {exc}")
 
     if not hasattr(module, class_name):
-        # Same pattern as ImportError above: the module exists but the
-        # specific class doesn't yet. Skip pending the owning WP.
-        pytest.skip(
+        pytest.fail(
             f"'{contract_label}': ``{module_dotted}`` has no attribute "
-            f"``{class_name}`` yet. The owning WP defines this class "
-            f"per its acceptance criterion."
+            f"``{class_name}``."
         )
 
     model_cls = getattr(module, class_name)
@@ -843,3 +834,107 @@ def test_legacy_contract_backfill_nudges_are_reported(
     """
     for rel, message in _LEGACY_BACKFILL_NUDGES:
         record_property(f"legacy_contract_backfill_nudge[{rel}]", message)
+
+
+# ---------------------------------------------------------------------------
+# Module-relocation map self-tests (FR-004 masked-greens row 16, C-006)
+# ---------------------------------------------------------------------------
+
+
+def test_module_relocation_targets_are_importable() -> None:
+    """Every canonical target in the relocation map actually imports.
+
+    A dead-end row (a canonical name that itself does not exist) would let
+    ``import_contract_module`` raise a misleading error blaming the wrong
+    side of the relocation instead of the map. Pin importability at the map
+    level so a future rename of a canonical target is caught here first.
+    """
+    for historical, canonical in HISTORICAL_TO_CANONICAL.items():
+        try:
+            importlib.import_module(canonical)
+        except ImportError as exc:
+            pytest.fail(
+                f"relocation row {historical!r} -> {canonical!r} names a "
+                f"canonical module that is not importable: {exc}"
+            )
+
+
+def test_module_relocation_keys_are_referenced_by_an_archived_contract() -> None:
+    """Every relocation row exists because an archived contract still needs it.
+
+    Reuses ``_DISCOVERED`` — the same discovery the parametrized round-trip
+    test consumes — so the map's rows track the corpus of archived
+    ``# pydantic_model:`` references. A row nobody references is a dead row:
+    it should be deleted, not kept "just in case".
+    """
+    referenced_modules = {
+        model_path.rpartition(".")[0] for _, model_path, *_ in _DISCOVERED
+    }
+    for key in HISTORICAL_TO_CANONICAL:
+        assert any(
+            module == key or module.startswith(f"{key}.")
+            for module in referenced_modules
+        ), f"relocation row {key!r} is a dead row: no archived contract references it"
+
+
+def test_canonical_module_name_prefers_longest_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prefix matching is whole-segment only, and the longest key wins a tie.
+
+    The live map has no nested/overlapping keys today, so this test installs
+    a small synthetic map (via monkeypatch, restored automatically) to pin
+    the tie-breaking and whole-segment-matching behavior directly. Only
+    ``HISTORICAL_TO_CANONICAL`` is patched: the lookup order itself is
+    derived from the map by the PRODUCTION sort inside
+    ``canonical_module_name`` (there is no separate precomputed-order
+    constant to patch around), so this test exercises the real ordering
+    expression, not a copy of it.
+    """
+    synthetic = {
+        "a.b": "canonical.coarse",
+        "a.b.c": "canonical.fine",
+    }
+    monkeypatch.setattr(_module_relocations, "HISTORICAL_TO_CANONICAL", synthetic)
+
+    # A nested module beneath the more specific key resolves against it, not
+    # against its coarser ancestor.
+    assert (
+        _module_relocations.canonical_module_name("a.b.c.d") == "canonical.fine.d"
+    )
+    # A module that only extends the coarser row still resolves deterministically.
+    assert (
+        _module_relocations.canonical_module_name("a.b.other")
+        == "canonical.coarse.other"
+    )
+    # A non-matching dotted path returns None.
+    assert _module_relocations.canonical_module_name("z.y.x") is None
+    # Whole-segment matching: "a.bc" must not match the "a.b" row.
+    assert _module_relocations.canonical_module_name("a.bc") is None
+
+
+def test_import_contract_module_names_no_relocation_row_when_unmapped() -> None:
+    """An unmapped, non-importable module fails naming itself and the reason.
+
+    Pins the ``canonical is None`` branch of ``import_contract_module``
+    directly, rather than only exercising it via a planted break.
+    """
+    with pytest.raises(ImportError, match="no relocation row matches"):
+        _module_relocations.import_contract_module("nonexistent_pkg_xyz.mod")
+
+
+def test_import_contract_module_names_both_modules_when_canonical_also_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A mapped row whose canonical target is itself missing names both sides.
+
+    Pins the "neither X nor canonical Y is importable" branch directly,
+    rather than only exercising it via a planted break.
+    """
+    monkeypatch.setattr(
+        _module_relocations,
+        "HISTORICAL_TO_CANONICAL",
+        {"doctrine.drg": "charter.offering.drg_moved_away"},
+    )
+    with pytest.raises(ImportError, match=r"neither .* nor canonical .* is importable"):
+        _module_relocations.import_contract_module("doctrine.drg.models")
