@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.activation.kind_vocabulary import UnknownArtifactIdError, resolve_config_id
+from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_config_id
 from specify_cli.cli.console import console
 
 __all__ = ["drg_urn_to_config_id", "render_kind_filtered_line"]
@@ -57,6 +57,7 @@ def drg_urn_to_config_id(
     doctrine_root: Path,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None = None,
+    resolution_pass: ResolutionPass | None = None,
 ) -> str:
     """Map a cascade-reported DRG URN back to its config-stem ID.
 
@@ -76,6 +77,10 @@ def drg_urn_to_config_id(
     ``layer_roots``. Without it, a cascade-reported ID that only resolves
     through org pack 2..N fell back to the raw DRG ID here (pack 1 was the
     only pack ``layer_roots["org"]`` could ever carry).
+
+    ``resolution_pass``: a render loop that maps many URNs in one read-only
+    pass shares one :class:`ResolutionPass`, so each doctrine artifact file is
+    parsed once per loop instead of once per URN (#5526).
     """
     try:
         resolved: str = resolve_config_id(
@@ -83,6 +88,7 @@ def drg_urn_to_config_id(
             doctrine_root=doctrine_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
+            resolution_pass=resolution_pass,
         )
         return resolved
     except (UnknownArtifactIdError, ValueError):

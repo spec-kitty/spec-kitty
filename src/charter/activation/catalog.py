@@ -13,6 +13,7 @@ from ruamel.yaml.error import YAMLError
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
+from charter.offering.yaml_utils import parse_shipped_yaml
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
 __all__ = [
@@ -235,9 +236,13 @@ def _extract_artifact_id(
     active_languages: list[str] | tuple[str, ...] | None,
     yaml: object,
 ) -> str | None:
-    """Return the artifact ID from a single YAML file, or None to skip."""
+    """Return the artifact ID from a single YAML file, or None to skip.
+
+    The catalog reads only shipped built-in directories, so each file is parsed
+    at most once per change (#5526).
+    """
     try:
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}  # type: ignore[attr-defined]
+        data = parse_shipped_yaml(path, lambda p: yaml.load(p.read_text(encoding="utf-8")), variant="safe-text") or {}  # type: ignore[attr-defined]
     except (OSError, YAMLError, TypeError):
         return None
     if isinstance(data, dict) and not applies_to_languages_match(

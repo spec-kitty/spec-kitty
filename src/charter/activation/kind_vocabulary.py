@@ -38,6 +38,7 @@ This WP (WP01) delivers the resolver and its tests only. Consumer rewiring
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -77,6 +78,7 @@ __all__ = [
     "MISSION_TYPE_TOKEN",
     "PROJECT_KIND_DIRS",
     "MissionTypeNotAnArtifactKind",
+    "ResolutionPass",
     "UnknownArtifactIdError",
     "UnrepresentableDirectiveIdError",
     "resolve_artifact_urn",
@@ -114,12 +116,23 @@ def _id_field_for(kind: ArtifactKind) -> str:
     return _ID_FIELD_BY_KIND.get(kind, _DEFAULT_ID_FIELD)
 
 
-def _read_id(path: Path, id_field: str, yaml: YAML) -> str | None:
+def _read_id(path: Path, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None = None) -> str | None:
     """Return the artifact ID from a YAML file, falling back to the file stem.
 
     Mirrors the logic behind :func:`charter.activation.catalog._extract_artifact_id`
     (without the language-scoping filter, which is not relevant to ID identity).
+    With a *resolution_pass*, each file is parsed at most once per pass.
     """
+    if resolution_pass is None:
+        return _parse_id(path, id_field, yaml)
+    key = (path, id_field)
+    if key not in resolution_pass.ids:
+        resolution_pass.ids[key] = _parse_id(path, id_field, yaml)
+    return resolution_pass.ids[key]
+
+
+def _parse_id(path: Path, id_field: str, yaml: YAML) -> str | None:
+    """Parse *path* and return its declared ID, falling back to the file stem."""
     try:
         data = yaml.load(path.read_text(encoding="utf-8")) or {}
     except (OSError, YAMLError, TypeError):
@@ -296,17 +309,25 @@ def _layer_scan_dirs(kind: ArtifactKind, layer_roots: dict[str, Path] | None) ->
     return dirs
 
 
-#: A resolution-pass-scoped memo of `_iter_artifact_paths` results, keyed on
-#: its resolved inputs. Callers that perform several scans within a single
-#: logical resolution (e.g. `resolve_config_id`'s per-stem directive
-#: round-trip) create one of these and thread it through every nested scan
-#: call so each distinct layer set is walked at most once per pass (FR-001).
-#: The memo is never module-level or persisted across calls -- a caller
-#: that omits it (the default) gets the old unmemoized behaviour, and a
-#: fresh pass (a new dict) always re-scans, so a later resolution after an
-#: on-disk change is unaffected (FR-002; no invalidation logic is needed
-#: because nothing outlives its own pass).
-_ScanCache = dict[tuple[object, ...], list[Path]]
+@dataclass
+class ResolutionPass:
+    """A resolution-pass-scoped memo of layer scans and artifact ID reads.
+
+    Callers that perform several resolutions within a single logical pass
+    (e.g. `resolve_config_id`'s per-stem directive round-trip, or a CLI render
+    loop that maps every cascade-reported URN back to its config stem) create
+    one of these and thread it through every nested call, so each distinct
+    layer set is walked at most once (FR-001) and each artifact file is parsed
+    at most once per pass. The memo is never module-level or persisted across
+    calls -- a caller that omits it (the default) gets the old unmemoized
+    behaviour, and a fresh pass always re-scans and re-reads, so a later
+    resolution after an on-disk change is unaffected (FR-002; no invalidation
+    logic is needed because nothing outlives its own pass). A pass must
+    therefore never span a write to the artifact files it reads.
+    """
+
+    scans: dict[tuple[object, ...], list[Path]] = field(default_factory=dict)
+    ids: dict[tuple[Path, str], str | None] = field(default_factory=dict)
 
 
 def _scan_cache_key(
@@ -327,12 +348,12 @@ def _iter_artifact_paths(
     doctrine_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
-    _scan_cache: _ScanCache | None = None,
+    resolution_pass: ResolutionPass | None = None,
 ) -> list[Path]:
     cache_key = None
-    if _scan_cache is not None:
+    if resolution_pass is not None:
         cache_key = _scan_cache_key(kind, doctrine_root, org_roots, layer_roots)
-        cached = _scan_cache.get(cache_key)
+        cached = resolution_pass.scans.get(cache_key)
         if cached is not None:
             return cached
     pattern = kind.glob_pattern
@@ -347,8 +368,8 @@ def _iter_artifact_paths(
             layer_roots=layer_roots,
         ):
             paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
-    if _scan_cache is not None and cache_key is not None:
-        _scan_cache[cache_key] = paths
+    if resolution_pass is not None and cache_key is not None:
+        resolution_pass.scans[cache_key] = paths
     return paths
 
 
@@ -397,7 +418,7 @@ def resolve_artifact_urn(
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
-    _scan_cache: _ScanCache | None = None,
+    resolution_pass: ResolutionPass | None = None,
 ) -> str:
     """Resolve a config/file-stem ID to its DRG URN node ID.
 
@@ -429,10 +450,10 @@ def resolve_artifact_urn(
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
-        _scan_cache=_scan_cache,
+        resolution_pass=resolution_pass,
     ):
         if _config_stem(path) == config_id:
-            artifact_id = _read_id(path, id_field, yaml)
+            artifact_id = _read_id(path, id_field, yaml, resolution_pass)
             if artifact_id:
                 return f"{kind.value}:{artifact_id}"
     # Older org-required promotion wrote declared directive IDs into activation
@@ -445,7 +466,7 @@ def resolve_artifact_urn(
                 doctrine_root=doctrine_root,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
-                _scan_cache=_scan_cache,
+                resolution_pass=resolution_pass,
             )
             return f"{kind.value}:{config_id}"
         except ValueError:
@@ -485,7 +506,7 @@ class UnrepresentableDirectiveIdError(UnknownArtifactIdError):
     """A declared directive exists, but every filename selects another ID."""
 
 
-def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML) -> dict[str, set[str]]:
+def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None = None) -> dict[str, set[str]]:
     """Map each config stem in *paths* to the distinct IDs declared under it.
 
     A stem used by two or more directive files across layers that disagree on
@@ -498,7 +519,7 @@ def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML) -> dict
     """
     ids_by_stem: dict[str, set[str]] = {}
     for path in paths:
-        artifact_id = _read_id(path, id_field, yaml)
+        artifact_id = _read_id(path, id_field, yaml, resolution_pass)
         if artifact_id is None:
             continue
         ids_by_stem.setdefault(_config_stem(path), set()).add(artifact_id)
@@ -514,7 +535,7 @@ def _directive_stem_represents(
     doctrine_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
-    scan_cache: _ScanCache,
+    resolution_pass: ResolutionPass,
 ) -> bool:
     """Return True when *stem* unambiguously represents *urn*'s identity.
 
@@ -536,7 +557,7 @@ def _directive_stem_represents(
             doctrine_root=doctrine_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
-            _scan_cache=scan_cache,
+            resolution_pass=resolution_pass,
         )
         == urn
     )
@@ -549,7 +570,7 @@ def resolve_config_id(
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
-    _scan_cache: _ScanCache | None = None,
+    resolution_pass: ResolutionPass | None = None,
 ) -> str:
     """Resolve a DRG URN node ID back to its config/file-stem ID.
 
@@ -563,6 +584,8 @@ def resolve_config_id(
         doctrine_root: Resolved doctrine package root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
         layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
+        resolution_pass: Optional memo shared by several resolutions in one
+            read-only pass (see :class:`ResolutionPass`).
 
     Returns:
         The config/file-stem ID, e.g. ``"001-architectural-integrity-standard"``.
@@ -585,29 +608,30 @@ def resolve_config_id(
     yaml = YAML(typ="safe")
     id_field = _id_field_for(kind)
     # A fresh, pass-scoped memo (unless the caller is itself part of a larger
-    # pass and threaded one in): every `_iter_artifact_paths` call this
-    # resolution makes -- the initial scan below and each per-stem
-    # round-trip check further down -- shares it, so each distinct layer set
-    # is walked at most once for the whole call (FR-001). The memo is
-    # discarded when this call returns, so it can never make a *later*,
-    # independent resolution observe stale content (FR-002).
-    scan_cache: _ScanCache = _scan_cache if _scan_cache is not None else {}
+    # pass and threaded one in): every `_iter_artifact_paths` call and every
+    # ID read this resolution makes -- the initial scan below and each
+    # per-stem round-trip check further down -- shares it, so each distinct
+    # layer set is walked, and each file parsed, at most once for the whole
+    # call (FR-001). A call-local memo is discarded when this call returns,
+    # so it can never make a *later*, independent resolution observe stale
+    # content (FR-002).
+    active_pass = resolution_pass if resolution_pass is not None else ResolutionPass()
     paths = _iter_artifact_paths(
         kind,
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
-        _scan_cache=scan_cache,
+        resolution_pass=active_pass,
     )
     # `_iter_artifact_paths` already returns the authoritative highest-to-lowest
     # layer precedence order (project, then org packs last-declared-first, then
     # built-in) -- the same order `resolve_artifact_urn`'s first-match scan
     # consumes. Directive resolution walks that order directly; no local
     # reordering is layered on top of it.
-    ids_by_stem = _directive_ids_by_stem(paths, id_field, yaml) if kind is ArtifactKind.DIRECTIVE else {}
+    ids_by_stem = _directive_ids_by_stem(paths, id_field, yaml, active_pass) if kind is ArtifactKind.DIRECTIVE else {}
     matched_identity = False
     for path in paths:
-        if _read_id(path, id_field, yaml) != artifact_id:
+        if _read_id(path, id_field, yaml, active_pass) != artifact_id:
             continue
         stem = _config_stem(path)
         if kind is not ArtifactKind.DIRECTIVE:
@@ -621,7 +645,7 @@ def resolve_config_id(
             doctrine_root=doctrine_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
-            scan_cache=scan_cache,
+            resolution_pass=active_pass,
         ):
             return stem
     if matched_identity:

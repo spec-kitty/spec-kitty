@@ -17,9 +17,10 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from charter.activation import kind_vocabulary
-from charter.activation.kind_vocabulary import UnknownArtifactIdError, resolve_config_id
+from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_config_id
 
 pytestmark = pytest.mark.fast
 
@@ -149,3 +150,63 @@ def test_non_directive_kind_returns_first_matching_stem(tmp_path: Path) -> None:
     stem = resolve_config_id("tactic:TACTIC_ADVERSARIAL", doctrine_root=tmp_path / "builtin", org_roots=[org])
 
     assert stem == "adversarial-squad"
+
+
+# ---------------------------------------------------------------------------
+# Shared resolution pass (#5526): a CLI render loop maps many URNs back to
+# config stems in one read-only pass. Before the pass also memoized ID reads,
+# every URN re-parsed every artifact file in every layer.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def parsed_files(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """Counted-parse seam: record every artifact file whose YAML is parsed."""
+    calls: list[Path] = []
+    original = kind_vocabulary._parse_id
+
+    def _counted(path: Path, id_field: str, yaml: YAML) -> str | None:
+        calls.append(path)
+        return original(path, id_field, yaml)
+
+    monkeypatch.setattr(kind_vocabulary, "_parse_id", _counted)
+    return calls
+
+
+def test_shared_resolution_pass_parses_each_file_once(tmp_path: Path, parsed_files: list[Path]) -> None:
+    doctrine_root, org_roots = _colliding_layers(tmp_path)
+    shared = ResolutionPass()
+
+    for _ in range(3):
+        assert resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=shared) == "original"
+
+    # The scan also covers the shipped built-in directives; what matters is
+    # that no file is parsed twice across the three resolutions.
+    assert len(set(parsed_files)) >= 3
+    assert len(parsed_files) == len(set(parsed_files)), parsed_files
+
+
+def test_independent_resolutions_reparse(tmp_path: Path, parsed_files: list[Path]) -> None:
+    """Without a shared pass each top-level call reads the files afresh (FR-002)."""
+    doctrine_root, org_roots = _colliding_layers(tmp_path)
+
+    resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+    first_call = len(parsed_files)
+    resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+
+    assert first_call >= 3
+    assert len(parsed_files) == 2 * first_call
+
+
+def test_a_new_resolution_pass_observes_on_disk_changes(tmp_path: Path) -> None:
+    directory = tmp_path / "org" / "directives"
+    _directive(directory, "policy", "OLD-POLICY")
+    doctrine_root = tmp_path / "builtin"
+    org_roots = [tmp_path / "org"]
+
+    assert resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=ResolutionPass()) == "policy"
+    _directive(directory, "policy", "NEW-POLICY")
+
+    assert resolve_config_id("directive:NEW-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=ResolutionPass()) == "policy"
+    with pytest.raises(UnknownArtifactIdError):
+        resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=ResolutionPass())

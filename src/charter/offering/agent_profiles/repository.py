@@ -27,6 +27,7 @@ from charter.offering.drg.reachability import agent_profile_seed_urns, profile_c
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.shared.exceptions import InlineReferenceRejectedError
 from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
+from charter.offering.yaml_utils import parse_shipped_yaml
 
 from .diagnostics import SkippedProfile
 from .profile import AgentProfile, Role, TaskContext
@@ -461,7 +462,7 @@ class AgentProfileRepository:
         ``self._source_paths`` writes and ``loaded`` bookkeeping.
         """
         try:
-            data = yaml.load(yaml_file)
+            data = parse_shipped_yaml(yaml_file, yaml.load, variant="safe") if layer == "builtin" else yaml.load(yaml_file)
         except (YAMLError, OSError) as exc:
             self._record_skip(
                 layer=layer,

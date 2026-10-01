@@ -9,12 +9,15 @@ call-site edits — this test locks in the post-flip sharded layout.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
 )
+from charter.offering.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
@@ -43,3 +46,52 @@ def test_seam_returns_a_populated_graph() -> None:
 
     assert graph.nodes, "built-in graph should ship nodes"
     assert graph.edges, "built-in graph should ship edges"
+
+
+@pytest.fixture
+def counted_parses(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    """Isolate the per-process memo and record every real graph parse (#5526)."""
+    from charter.offering.drg import loader
+
+    calls: list[object] = []
+    original = loader.load_graph_or_dir
+
+    def _counted(path: Path) -> DRGGraph:
+        calls.append(path)
+        return original(path)
+
+    monkeypatch.setattr(loader, "_BUILT_IN_GRAPH_MEMO", {}, raising=False)
+    monkeypatch.setattr(loader, "load_graph_or_dir", _counted)
+    return calls
+
+
+def test_repeat_loads_parse_once_and_return_independent_copies(counted_parses: list[object]) -> None:
+    first = load_built_in_graph()
+    second = load_built_in_graph()
+
+    assert len(counted_parses) == 1
+    assert first == second
+    assert first is not second
+    first.nodes.clear()
+    assert load_built_in_graph().nodes, "mutating one caller's graph leaked into the memo"
+
+
+def test_an_edited_fragment_is_reparsed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, counted_parses: list[object]) -> None:
+    import shutil
+
+    from charter.offering.drg import loader
+
+    source = tmp_path / "built-in"
+    source.mkdir()
+    for fragment in sorted(built_in_graph_source().glob("*.graph.yaml")):
+        shutil.copy2(fragment, source / fragment.name)
+    monkeypatch.setattr(loader, "built_in_graph_source", lambda: source)
+
+    baseline = load_built_in_graph()
+    load_built_in_graph()
+    edited = sorted(source.glob("*.graph.yaml"))[0]
+    edited.write_text(edited.read_text(encoding="utf-8") + "# edited\n", encoding="utf-8")
+    reparsed = load_built_in_graph()
+
+    assert len(counted_parses) == 2
+    assert reparsed == baseline

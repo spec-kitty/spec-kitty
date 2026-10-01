@@ -34,6 +34,7 @@ from charter.activation.catalog import resolve_doctrine_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
+    ResolutionPass,
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
@@ -228,11 +229,13 @@ def _render_cascade_deactivation(
     # kind -> sorted-bare-IDs shape as the activate-side siblings, so the
     # render order (kinds sorted, then ids sorted within each kind) is
     # byte-identical to the previous flat sorted-URN iteration.
+    # The deactivations above are done; this render only reads (#5526).
+    render_pass = ResolutionPass()
     for kind_value in sorted(plan.not_cascaded_kind_filtered):
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in plan.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 

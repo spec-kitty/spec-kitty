@@ -92,3 +92,47 @@ def test_rewrite_paths_accepts_custom_patterns() -> None:
 def test_rewrite_paths_keeps_source_template_paths() -> None:
     source_path = "packs/built-in/missions/software-dev/templates/spec-template.md"
     assert rewrite_paths(source_path) == source_path
+
+
+_SEED = """terms:
+  - surface: {surface}
+    definition: A term used by the renderer memo test
+    confidence: 1.0
+    status: active
+"""
+
+
+def test_glossary_seeds_are_parsed_once_per_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rendering many templates parses the glossary seeds once until they change (#5526)."""
+    import glossary.scope as scope_module
+    from glossary.models import TermSense
+    from specify_cli.template import renderer
+
+    monkeypatch.setattr(renderer, "_TERM_SURFACES_MEMO", {}, raising=False)
+    loads: list[object] = []
+    original = scope_module.load_seed_file
+
+    def _counted(scope: scope_module.GlossaryScope, repo_root: Path) -> list[TermSense]:
+        loads.append(scope)
+        return original(scope, repo_root)
+
+    monkeypatch.setattr(scope_module, "load_seed_file", _counted)
+    seed = tmp_path / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
+    seed.parent.mkdir(parents=True)
+    seed.write_text(_SEED.format(surface="widget"), encoding="utf-8")
+    template = tmp_path / "templates" / "demo.md"
+    template.parent.mkdir()
+    template.write_text("A widget and a gadget.\n", encoding="utf-8")
+
+    _, first, _ = render_template(template)
+    _, second, _ = render_template(template)
+    per_build = len(scope_module.GlossaryScope)
+
+    assert len(loads) == per_build
+    assert first == second == "A widget<!-- glossary:glossary:widget --> and a gadget.\n"
+
+    seed.write_text(_SEED.format(surface="gadget"), encoding="utf-8")
+    _, third, _ = render_template(template)
+
+    assert len(loads) == 2 * per_build
+    assert third == "A widget and a gadget<!-- glossary:glossary:gadget -->.\n"

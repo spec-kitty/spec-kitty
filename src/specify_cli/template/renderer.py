@@ -158,9 +158,55 @@ def _annotate_glossary_refs_from_store(content: str, template_path: Path | None 
     if repo_root is None:
         return content
 
+    term_surfaces = _glossary_term_surfaces(repo_root)
+    if not term_surfaces:
+        return content
+
+    return _annotate_glossary_refs(content, term_surfaces)
+
+
+#: Term-surface maps already built from a repository's glossary seed files,
+#: keyed on the seed files' sizes and modification times. A single command
+#: renders hundreds of templates against the same seeds (#5526), and parsing
+#: them dominated the render; an edited seed file changes the key.
+_TERM_SURFACES_MEMO: dict[tuple[object, ...], dict[str, str]] = {}
+
+
+def _glossary_seed_fingerprint(repo_root: Path) -> tuple[object, ...]:
+    """Identify the glossary seed files :func:`load_seed_file` would read."""
+    from glossary.scope import GlossaryScope
+
+    stats: list[tuple[str, int, int] | None] = []
+    for scope in GlossaryScope:
+        seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
+        try:
+            stat = seed_path.stat()
+        except OSError:
+            stats.append(None)
+            continue
+        stats.append((scope.value, stat.st_size, stat.st_mtime_ns))
+    return (str(repo_root), tuple(stats))
+
+
+def _glossary_term_surfaces(repo_root: Path) -> dict[str, str]:
+    """Return the lower-case surface -> glossary URN map for *repo_root*'s seeds.
+
+    Built at most once per unchanged set of seed files; a copy is returned so
+    a caller can never change the memoized map.
+    """
+    key = _glossary_seed_fingerprint(repo_root)
+    cached = _TERM_SURFACES_MEMO.get(key)
+    if cached is None:
+        cached = _build_glossary_term_surfaces(repo_root)
+        _TERM_SURFACES_MEMO[key] = cached
+    return dict(cached)
+
+
+def _build_glossary_term_surfaces(repo_root: Path) -> dict[str, str]:
+    """Load every seed file into a ``GlossaryStore`` and map surfaces to URNs."""
     # Import lazily to avoid hard dependency at module load time
-    from glossary.store import GlossaryStore
     from glossary.scope import GlossaryScope, load_seed_file
+    from glossary.store import GlossaryStore
 
     event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_renderer.events.jsonl"
     store = GlossaryStore(event_log_path)
@@ -183,10 +229,7 @@ def _annotate_glossary_refs_from_store(content: str, template_path: Path | None 
                 term_id = f"glossary:{slug}"
                 term_surfaces[surface_lower] = term_id
 
-    if not term_surfaces:
-        return content
-
-    return _annotate_glossary_refs(content, term_surfaces)
+    return term_surfaces
 
 
 def _resolve_variables(variables: VariablesResolver | None, metadata: dict[str, Any]) -> Mapping[str, str]:

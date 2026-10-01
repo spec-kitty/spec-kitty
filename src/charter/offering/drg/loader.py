@@ -135,6 +135,29 @@ def built_in_graph_source() -> Path:
     return built_in_root()
 
 
+#: The last built-in graph parsed in this process, keyed on the fingerprint of
+#: the files it was parsed from (see :func:`_source_fingerprint`). Parsing the
+#: shipped fragments costs about half a second, and one command can need the
+#: built-in graph dozens of times (#5526). The shipped fragments are read-only
+#: package data, so a key over their names, sizes and modification times
+#: re-parses whenever any of them changes or a different root is resolved.
+_BUILT_IN_GRAPH_MEMO: dict[tuple[object, ...], DRGGraph] = {}
+
+
+def _source_fingerprint(source: Path) -> tuple[object, ...]:
+    """Identify the graph files :func:`load_graph_or_dir` would read from *source*."""
+    if source.is_dir():
+        single_graph = source / "graph.yaml"
+        files = [single_graph] if single_graph.is_file() else sorted(source.glob("*.graph.yaml"))
+    else:
+        files = [source]
+    stats = []
+    for path in files:
+        stat = path.stat()
+        stats.append((path.name, stat.st_size, stat.st_mtime_ns))
+    return (str(source.resolve()), tuple(stats))
+
+
 def load_built_in_graph() -> DRGGraph:
     """Load the shipped built-in DRG as a validated ``DRGGraph``.
 
@@ -148,8 +171,22 @@ def load_built_in_graph() -> DRGGraph:
 
     Raises :class:`DRGLoadError` when no graph source can be loaded (the callers
     that must degrade rather than crash catch this themselves).
+
+    The parsed graph is memoized per process against the fingerprint of its
+    source files, and every call returns a deep copy, so a caller that mutates
+    its graph never affects another caller.
     """
-    return load_graph_or_dir(built_in_graph_source())
+    source = built_in_graph_source()
+    try:
+        key = _source_fingerprint(source)
+    except OSError:
+        return load_graph_or_dir(source)
+    cached = _BUILT_IN_GRAPH_MEMO.get(key)
+    if cached is None:
+        cached = load_graph_or_dir(source)
+        _BUILT_IN_GRAPH_MEMO.clear()
+        _BUILT_IN_GRAPH_MEMO[key] = cached
+    return cached.model_copy(deep=True)
 
 
 def merge_layers(

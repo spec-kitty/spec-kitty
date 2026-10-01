@@ -41,6 +41,7 @@ from ruamel.yaml.error import YAMLError
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
 from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
+from charter.offering.yaml_utils import parse_shipped_yaml
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -213,7 +214,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
             return built_in
         for yaml_file in sorted(self._built_in_dir.rglob(self._glob)):
             try:
-                data = yaml_parser.load(yaml_file)
+                data = parse_shipped_yaml(yaml_file, yaml_parser.load, variant="safe")
                 if data is None:
                     continue
                 self._pre_validate(data, yaml_file)

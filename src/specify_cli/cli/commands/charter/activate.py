@@ -43,6 +43,7 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
+    ResolutionPass,
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
@@ -338,11 +339,14 @@ def _render_cascade_activation(
                 f"[cyan]Cascade-activated[/cyan]: {kind_token}/{config_id}"
             )
 
+    # The activations above are done; everything below only reads, so one
+    # resolution pass parses each artifact file once for all remaining lines.
+    render_pass = ResolutionPass()
     for kind_value in sorted(result.skipped_by_scope):
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{skipped_id}", doctrine_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
@@ -359,7 +363,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -448,11 +452,14 @@ def _render_no_cascade_warning(
     if not report.has_skipped:
         return
     doctrine_root = resolve_doctrine_root()
+    # A read-only render: one resolution pass parses each artifact file once
+    # for every warning line, not once per referenced artifact (#5526).
+    render_pass = ResolutionPass()
     for kind_value in sorted(report.skipped):
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_drg_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{skipped_drg_id}", doctrine_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
@@ -484,7 +491,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
