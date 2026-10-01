@@ -289,7 +289,9 @@ def battery_parts(
     if outside:
         raise ValueError(f"roster entries not in the base files: {', '.join(outside)}")
     remaining = sorted(base - set(roster))
-    resolution = resolve_file_weights(remaining, file_durations)
+    # A timed roster file is in the base, not stale: only keys outside the base are reported.
+    fast = set(roster)
+    resolution = resolve_file_weights(remaining, {file: seconds for file, seconds in file_durations.items() if file not in fast})
     weight = dict(zip(remaining, resolution.weights, strict=True))
     placement = lpt_assign(list(weight.items()), shard_count)
     parts: dict[str, frozenset[str]] = {_FAST_PART: frozenset(roster)}

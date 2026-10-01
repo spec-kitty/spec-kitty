@@ -78,9 +78,11 @@ __all__ = [
     "compute_partition",
     "escalated_exitstatus",
     "files_outside_part",
+    "ignores_file",
     "invocation_mismatches",
     "load_battery_spec",
     "load_battery_timings",
+    "load_spec_and_timings",
     "normalise_deselect",
     "overrun_warnings",
     "parse_part",
@@ -543,15 +545,29 @@ def _read_timings(path: Path) -> Mapping[str, Any]:
     return _mapping(json.loads(path.read_text(encoding="utf-8")), str(path))
 
 
-def _load_spec_and_timings(config: pytest.Config) -> tuple[BatterySpec, dict[str, float]]:
-    root = config.rootpath
-    registry = Path(config.getoption("battery_registry") or root / _DEFAULT_REGISTRY)
-    timings = Path(config.getoption("battery_timings") or root / _DEFAULT_TIMINGS)
+def load_spec_and_timings(
+    root: Path,
+    registry: Path | None = None,
+    timings: Path | None = None,
+) -> tuple[BatterySpec, dict[str, float]]:
+    """The typed battery spec and its file timings, read from *root* (or the given files).
+
+    The one loader both this plugin and the static gate model use (D-24). Raises
+    :class:`pytest.UsageError` for a missing file or a schema problem.
+    """
+    registry = registry or root / _DEFAULT_REGISTRY
+    timings = timings or root / _DEFAULT_TIMINGS
     try:
         spec = load_battery_spec(_read_registry(registry))
         return spec, load_battery_timings(_read_timings(timings), spec.timings_key)
     except ValueError as error:
         raise pytest.UsageError(f"{_PREFIX}: registry/timings schema problem -- {error}") from error
+
+
+def _load_spec_and_timings(config: pytest.Config) -> tuple[BatterySpec, dict[str, float]]:
+    registry = config.getoption("battery_registry")
+    timings = config.getoption("battery_timings")
+    return load_spec_and_timings(config.rootpath, Path(registry) if registry else None, Path(timings) if timings else None)
 
 
 def _parse_requested_part(raw: str, spec: BatterySpec) -> PartSpec:
@@ -603,6 +619,11 @@ def pytest_configure(config: pytest.Config) -> None:
     config.pluginmanager.register(BatteryRuntime(state), "battery-partition-runtime")
 
 
+def ignores_file(relative: str, state: PartitionState) -> bool:
+    """``True`` when the enumerated base file *relative* belongs to another part (the only files ever ignored)."""
+    return relative in state.foreign
+
+
 def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
     """Ignore an enumerated base file that belongs to another part; never anything else, never ``False``."""
     state = config.stash.get(PARTITION_STATE_KEY, None)
@@ -612,4 +633,4 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool 
         relative = collection_path.relative_to(config.rootpath).as_posix()
     except ValueError:
         return None
-    return True if relative in state.foreign else None
+    return True if ignores_file(relative, state) else None

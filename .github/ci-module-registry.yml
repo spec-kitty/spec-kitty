@@ -729,10 +729,12 @@ out_of_matrix_test_dirs:
 - reason: >-
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
     grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.corpus VERIFIED present.
-    Real marker home is ci-router.yml's marker-selected 'tests (corpus)' job
-    (uv run pytest -m "corpus and not windows_ci") -- a conditional per-PR lane gated on
-    corpus-touching path changes, not the per-module matrix; claiming it in a module row
-    too would double-run it. Not a disguised snapshot (#2979 class).
+    Real marker homes (mission ci-runtime-stabilisation, D-13/D-22): the Packs advisory
+    corpus run (packs.yml built-in-corpus-suite, -m "corpus and not windows_ci") plus the
+    small required router job 'tests (corpus-blocking)' in ci-router.yml, which carries the
+    corpus-marked tests with no other blocking per-PR home and is gated on the corpus path
+    group -- not the per-module matrix; claiming it in a module row too would double-run it.
+    Not a disguised snapshot (#2979 class).
   dirs:
   - tests/contract
 
@@ -884,43 +886,54 @@ special_tiers:
       # the census window. Excluded on purpose: test_no_dead_symbols.py (C-007 / #5503),
       # test_dead_symbol_allowlist_contract.py (its M11 test drives the real _real_tree_inputs()
       # src/ walk: 30 s single-file, the same cost class as test_no_dead_symbols.py) and
-      # test_interpreter_shard_coverage.py. The partition proof test joins the roster with WP14.
+      # test_interpreter_shard_coverage.py. Budget rule (WP14): budget_seconds = max(10, ceil(1.5 x seed))
+      # against the committed battery_file_durations seed, <= max_file_budget_seconds; checked statically
+      # by tests/ci/test_battery_roster_budgets.py (committed numbers only, never wall-clock).
       roster:                   # {path, budget_seconds, reason}
-      - {path: tests/architectural/test_inline_meta_read_gate.py, budget_seconds: 80, reason: "red 8x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_inline_meta_read_gate.py, budget_seconds: 88, reason: "red 8x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_ruff_format_exclude_ratchet.py, budget_seconds: 10, reason: "red 5x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_untrusted_path_containment.py, budget_seconds: 35, reason: "red 4x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_untrusted_path_containment.py, budget_seconds: 33, reason: "red 4x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_issue_named_test_census.py, budget_seconds: 10, reason: "red 4x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_finalize_refresh_pin_authority.py, budget_seconds: 10, reason: "red 4x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_no_manual_global_state_mutation.py, budget_seconds: 25, reason: "red 3x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_status_events_writes_gate.py, budget_seconds: 25, reason: "red 2x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_safe_commit_import_boundary.py, budget_seconds: 25, reason: "red 2x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_owned_checkout_single_authority.py, budget_seconds: 25, reason: "red 2x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_no_write_side_rederivation.py, budget_seconds: 15, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_no_manual_global_state_mutation.py, budget_seconds: 22, reason: "red 3x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_status_events_writes_gate.py, budget_seconds: 22, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_safe_commit_import_boundary.py, budget_seconds: 24, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_owned_checkout_single_authority.py, budget_seconds: 24, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_no_write_side_rederivation.py, budget_seconds: 13, reason: "red 2x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_mission_resolver_walker_gate.py, budget_seconds: 10, reason: "red 2x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_docs_cli_reference_parity.py, budget_seconds: 10, reason: "red 2x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_coord_read_residuals_closeout.py, budget_seconds: 15, reason: "red 2x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_coord_read_residuals_closeout.py, budget_seconds: 13, reason: "red 2x in the 2026-09-30 census window"}
       - {path: tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_timing_coverage_invariant.py, budget_seconds: 15, reason: "red 1x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_timing_coverage_invariant.py, budget_seconds: 13, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_status_module_boundary.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_src_reachability_guard.py, budget_seconds: 15, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_no_tmp_paths_in_tests.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_no_dead_modules.py, budget_seconds: 15, reason: "red 1x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_no_dead_modules.py, budget_seconds: 14, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_module_shard_registry.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_lifted_root_no_checklist_surface.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_json_contract_enumeration.py, budget_seconds: 45, reason: "red 1x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_json_contract_enumeration.py, budget_seconds: 47, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_completion_manifest_freshness.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_cli_console_single_seam.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
-      - {path: tests/architectural/test_gate_selection_authority.py, budget_seconds: 15, reason: "CI-config wiring verdict"}
+      - {path: tests/architectural/test_gate_selection_authority.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_ci_integrity_oracle_nonvacuous.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_dual_mode_contract.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_ci_quality_path_filters.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
-      - {path: tests/architectural/test_no_duplicate_suite_execution.py, budget_seconds: 20, reason: "CI-config wiring verdict"}
+      - {path: tests/architectural/test_no_duplicate_suite_execution.py, budget_seconds: 13, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_pytest_ini_timeout_default.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_makefile_tier_topology.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_workflow_coherence.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_dead_symbol_allowlist_loader.py, budget_seconds: 10, reason: "schema gate over the committed dead_symbol_allowlist.yaml (L1-L10 + real-file invariants); post-census file, measured 0.7 s / 47 tests single-file on 2026-10-01; never walks src/"}
+      - {path: tests/architectural/test_battery_partition_proof.py, budget_seconds: 10, reason: "static three-way partition proof (FR-004); no collection, must gate every battery change"}
     shards:
       job: architectural-heavy
       shard_count: 2
       granularity: file
       timings_key: architectural
+      # Seed (WP14, D-29): battery_file_durations.architectural is the per-file median over the 68 router
+      # 'architectural battery' job logs of the 2026-09-30T05:32Z..2026-10-01T04:41Z census (-n 2, contended
+      # worker-seconds) + 0.12 s x collected tests; job ids and formula in battery_capture_provenance. It is
+      # superseded by capture_shard_timings.py --suite architectural --from-junit.
+      # Predicted loads (worker-s, 238 files): fast 269.4 (34 roster files) | 1/2 1126.6 (102 files) | 2/2 1126.5
+      # (102 files); skew 0.0 %. Expected wall (load / ~2.9 effective cores + ~40 s overhead): fast ~2 min
+      # (NFR-002 <= 5 min), legs ~7-10 min (NFR-001 <= 14 min). A prediction only: the verdict comes from
+      # >= 3 recorded CI runs (C-011).

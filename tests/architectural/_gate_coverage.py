@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import ast
 import configparser
+import functools
 import json
 import os
 import re
@@ -68,6 +69,8 @@ import yaml
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+
+    from scripts.ci.shard_select import BatteryPartition
 
 # pytest's own marker-expression evaluator — guarantees identical semantics to a
 # real ``-m`` selection. This is a *private* pytest API and ``pytest`` is floored
@@ -164,6 +167,10 @@ _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_]\w*=(?:'[^']*'|\"[^\"]*\"|\S+)\s+")
 _PYTEST_HEAD_RE = re.compile(r"^pytest\b")
 _GHA_EXPR_RE = re.compile(r"\$\{\{(.*?)\}\}")
 _SEGMENT_SPLIT_RE = re.compile(r"&&|;|\|\|?|\bthen\b|\bdo\b")
+# ``--battery-part fast|i/n`` (WP05 plugin flag): the literal, statically readable
+# partition of one architectural-battery invocation (mission
+# ci-runtime-stabilisation-01M3TZH6 WP06, D-02).
+_BATTERY_PART_RE = re.compile(r"--battery-part(?:=|\s+)(?P<part>\S+)")
 
 # The two operator-facing "full CI block" labels: a PR explicitly labeled
 # ``pr:deferred`` / ``pr:skip-ci`` blocks ALL PR-triggered workflows (added in
@@ -294,6 +301,12 @@ class Gate:
     resolved through (``"make <target>"`` / ``"script <path>"``). A gate is a
     gate either way — the field exists so a consumer can *report* the
     provenance, never so it can filter indirect invocations back out.
+
+    ``partition`` is the literal ``--battery-part`` of the command (``"fast"`` /
+    ``"i/n"``) or ``None``: a partitioned gate selects only that part's files
+    of the architectural battery, computed by the shared selector (D-24).
+    ``runs_on`` is the job's ``runs-on`` and feeds the OS-family tier model
+    (:func:`gate_os_tier`, D-14).
     """
 
     workflow: str
@@ -303,10 +316,16 @@ class Gate:
     ignores: list[str] = field(default_factory=list)
     marker_expr: str | None = None
     via: str | None = None
+    partition: str | None = None
+    # The job's ``runs-on`` (matrix-substituted; a reusable-workflow caller carries
+    # its delegate's). Excluded from equality: it classifies where the gate runs
+    # (:func:`gate_os_tier`), it is not part of WHAT the gate selects.
+    runs_on: str | None = field(default=None, compare=False)
 
     def label(self) -> str:
         suffix = f" ({self.shard})" if self.shard else ""
-        return f"{self.workflow}::{self.job}{suffix}"
+        part = f" [part {self.partition}]" if self.partition else ""
+        return f"{self.workflow}::{self.job}{suffix}{part}"
 
 
 # ---------------------------------------------------------------------------
@@ -404,25 +423,43 @@ def _extract_paths(tail: str) -> list[str]:
     return paths
 
 
-def parse_pytest_invocation(
-    logical_line: str,
-) -> tuple[list[str], list[str], str | None] | None:
-    """Return ``(paths, ignores, marker)`` for a real pytest command, else None."""
+def _pytest_command_tail(logical_line: str) -> str | None:
+    """The text after ``pytest`` in the first real pytest command segment, else None."""
     if logical_line.lstrip().startswith("#"):
         return None
     for segment in _SEGMENT_SPLIT_RE.split(logical_line):
         command = strip_to_command(segment)
-        if not command.startswith("pytest"):
-            continue
-        tail = command[len("pytest") :]
-        deselected = _DESELECT_RE.findall(tail)
-        positional = _DESELECT_RE.sub(" ", tail)
-        return (
-            _extract_paths(positional),
-            _IGNORE_RE.findall(tail) + deselected,
-            _extract_marker(tail),
-        )
+        if command.startswith("pytest"):
+            return command[len("pytest") :]
     return None
+
+
+def parse_pytest_invocation(
+    logical_line: str,
+) -> tuple[list[str], list[str], str | None] | None:
+    """Return ``(paths, ignores, marker)`` for a real pytest command, else None."""
+    tail = _pytest_command_tail(logical_line)
+    if tail is None:
+        return None
+    deselected = _DESELECT_RE.findall(tail)
+    positional = _DESELECT_RE.sub(" ", tail)
+    return (
+        _extract_paths(positional),
+        _IGNORE_RE.findall(tail) + deselected,
+        _extract_marker(tail),
+    )
+
+
+def extract_battery_part(logical_line: str) -> str | None:
+    """The literal ``--battery-part`` of the pytest command on *logical_line*, else None.
+
+    Only the pytest command's own segment is read (the same one
+    :func:`parse_pytest_invocation` parses), so a ``--battery-part`` on a
+    neighbouring ``echo`` / ``&&`` command is never attributed to the suite run.
+    """
+    tail = _pytest_command_tail(logical_line)
+    match = _BATTERY_PART_RE.search(tail) if tail is not None else None
+    return match.group("part").strip("'\"") if match else None
 
 
 # ---------------------------------------------------------------------------
@@ -531,6 +568,7 @@ class SuiteInvocation:
     ignores: tuple[str, ...]
     marker_expr: str | None
     via: str | None = None
+    partition: str | None = None
 
 
 @dataclass(frozen=True)
@@ -694,7 +732,13 @@ def makefile_target_invocations(
             line = payload
         direct = parse_pytest_invocation(line)
         if direct is not None:
-            found.append(_as_invocation(direct, via=_VIA_MAKE.format(target=target)))
+            found.append(
+                _as_invocation(
+                    direct,
+                    via=_VIA_MAKE.format(target=target),
+                    partition=extract_battery_part(line),
+                ),
+            )
             continue
         for nested in make_targets_in_command(strip_to_command(line).strip()):
             found.extend(makefile_target_invocations(nested, model, reached))
@@ -705,9 +749,12 @@ def _as_invocation(
     parsed: tuple[list[str], list[str], str | None],
     *,
     via: str | None,
+    partition: str | None = None,
 ) -> SuiteInvocation:
     paths, ignores, marker = parsed
-    return SuiteInvocation(tuple(paths), tuple(ignores), marker, via=via)
+    return SuiteInvocation(
+        tuple(paths), tuple(ignores), marker, via=via, partition=partition,
+    )
 
 
 def _load_makefile(makefile: Path | None) -> MakefileModel | None:
@@ -764,6 +811,7 @@ def _script_indirection(
                     invocation.ignores,
                     invocation.marker_expr,
                     via=invocation.via or label,
+                    partition=invocation.partition,
                 ),
             )
     return found
@@ -789,7 +837,11 @@ def suite_invocations(
     """
     direct = parse_pytest_invocation(logical_line)
     if direct is not None:
-        return [_as_invocation(direct, via=None)]
+        return [
+            _as_invocation(
+                direct, via=None, partition=extract_battery_part(logical_line),
+            ),
+        ]
     root = repo_root if repo_root is not None else REPO_ROOT
     payload = _shell_c_payload(strip_to_command(logical_line))
     if payload is not None:
@@ -820,6 +872,14 @@ def suite_invocations(
     return found
 
 
+def _job_runs_on(job: dict[str, Any], mvars: dict[str, Any] | None) -> str | None:
+    """The job's ``runs-on`` with the matrix substituted; None when absent, non-string or unresolved."""
+    raw = job.get("runs-on")
+    if not isinstance(raw, str):
+        return None
+    return substitute_matrix(raw, mvars or {}).strip() or None
+
+
 def parse_workflow(path: Path, *, makefile: Path | None = None) -> list[Gate]:
     """Parse one workflow file into the gates it defines.
 
@@ -839,6 +899,7 @@ def parse_workflow(path: Path, *, makefile: Path | None = None) -> list[Gate]:
         # itself.
         action_name = step.get(_SPLICED_ACTION_KEY)
         for mvars in variants:
+            runs_on = _job_runs_on(job, mvars)
             script = substitute_matrix(step["run"], mvars or {})
             for logical in join_continuations(script):
                 for invocation in suite_invocations(logical, makefile=makefile):
@@ -856,6 +917,8 @@ def parse_workflow(path: Path, *, makefile: Path | None = None) -> list[Gate]:
                                 if action_name
                                 else None
                             ),
+                            partition=invocation.partition,
+                            runs_on=runs_on,
                         ),
                     )
     return gates
@@ -1303,11 +1366,17 @@ def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, A
                 f"into caller {name!r}; found {sorted(target_jobs)}"
             )
             delegate_steps: list[Any] = []
+            delegate_runs_on: Any = None
             for delegate_job in target_jobs.values():
                 if isinstance(delegate_job, dict):
                     delegate_steps.extend(delegate_job.get("steps") or [])
+                    delegate_runs_on = delegate_job.get("runs-on")
             merged = dict(job)
             merged["steps"] = list(job.get("steps") or []) + delegate_steps
+            # A reusable-workflow caller cannot declare ``runs-on``: its tier is
+            # the delegate's (D-14). A caller value is never overwritten.
+            if "runs-on" not in job and delegate_runs_on is not None:
+                merged["runs-on"] = delegate_runs_on
         merged["steps"] = _splice_step_level_actions(
             list(merged.get("steps") or []), actions_dir, frozenset(),
         )
@@ -1479,11 +1548,50 @@ def path_matches(relpath: str, nodeid: str, entry: str) -> bool:
     return relpath.startswith(prefix)
 
 
+@functools.cache
+def _battery_partition() -> BatteryPartition:
+    """The architectural battery partition: ONE enumeration, ONE selector (D-24).
+
+    Computed by the exact functions the WP05 plugin runs at collection time
+    (``scripts/ci/shard_select.py`` via ``battery_partition_plugin``), from the
+    committed registry and timings -- never a second file list. Imported lazily
+    so the many consumers that never see a partitioned gate pay nothing.
+    """
+    from scripts.ci.battery_partition_plugin import (
+        compute_partition,
+        load_spec_and_timings,
+    )
+
+    spec, timings = load_spec_and_timings(REPO_ROOT)
+    return compute_partition(spec, REPO_ROOT, timings)
+
+
+@functools.cache
+def battery_base_files() -> frozenset[str]:
+    """Every file of the battery base selection (what an unpartitioned run collects)."""
+    return frozenset().union(*_battery_partition().parts.values())
+
+
+@functools.cache
+def battery_part_files(partition: str) -> frozenset[str]:
+    """The files one ``--battery-part`` leg runs; an unknown partition fails closed."""
+    parts = _battery_partition().parts
+    if partition not in parts:
+        raise ValueError(
+            f"unknown battery partition {partition!r}; the registry defines {sorted(parts)}",
+        )
+    return parts[partition]
+
+
 class CompiledGate:
     """A :class:`Gate` with its marker expression pre-compiled for evaluation."""
 
     def __init__(self, gate: Gate) -> None:
         self.gate = gate
+        # A partitioned gate runs only its ``--battery-part`` leg's files (D-24).
+        self._part_files = (
+            battery_part_files(gate.partition) if gate.partition else None
+        )
         # A gate whose positional paths could not be parsed (e.g. ci-windows.yml
         # builds its test list dynamically via ``git grep``) falls back to the
         # whole tree. That fallback is coverage-SAFE only when a marker expression
@@ -1509,6 +1617,8 @@ class CompiledGate:
         if not any(path_matches(relpath, nodeid, p) for p in self.paths):
             return False
         if any(path_matches(relpath, nodeid, ig) for ig in self.gate.ignores):
+            return False
+        if self._part_files is not None and relpath not in self._part_files:
             return False
         if self.expr is None:
             return True
@@ -1941,6 +2051,13 @@ def collect_job_nodeids(gate: Gate, repo_root: Path | None = None) -> list[str]:
     ]
     if gate.marker_expr:
         args += ["-m", gate.marker_expr]
+    if gate.partition:
+        args += [
+            "-p",
+            "scripts.ci.battery_partition_plugin",
+            "--battery-part",
+            gate.partition,
+        ]
     result = subprocess.run(
         args, cwd=repo, env=env, capture_output=True, text=True, timeout=900, check=False,
     )
@@ -2451,6 +2568,66 @@ def arch_blind_src_dirs(
     return tuple(sorted(d for d, selected in matrix.items() if not selected))
 
 
+# --- OS-family tiers (D-14) ---------------------------------------------------
+
+# ``runs-on`` prefix -> OS family. Tiers are keyed on the OS family ONLY: module
+# rows run on Python 3.11 and the router / Packs jobs on 3.12, so an
+# interpreter-keyed tier would hide exactly the router-vs-module duplicates.
+_OS_FAMILY_BY_PREFIX: tuple[tuple[str, str], ...] = (
+    ("ubuntu-", "linux"),
+    ("windows-", "windows"),
+    ("macos-", "macos"),
+)
+
+
+def os_family(runs_on: str | None) -> str | None:
+    """OS family of a ``runs-on`` label (``linux`` / ``windows`` / ``macos``), else None.
+
+    An absent or unresolved label (``${{ matrix.os }}``) is None: the gate is
+    untiered and the caller must fail closed rather than guess.
+    """
+    if runs_on is None:
+        return None
+    for prefix, family in _OS_FAMILY_BY_PREFIX:
+        if runs_on.startswith(prefix):
+            return family
+    return None
+
+
+def gate_os_tier(gate: Gate) -> str | None:
+    """The OS-family tier of a gate (NFR-003 per OS tier, D-14); None when untiered."""
+    return os_family(gate.runs_on)
+
+
+def os_tier_shard_counts(
+    gates: Sequence[Gate],
+    universe: Sequence[TestRecord],
+) -> dict[str, dict[str, int]]:
+    """``nodeid -> {os tier: number of gates in that tier selecting it}`` (NFR-003, D-14).
+
+    Only tiers with at least one selecting gate appear (a test no gate selects
+    maps to ``{}``); untiered gates are skipped. A count above one inside a
+    tier is a same-OS double run. Pure over its inputs (the caller supplies the
+    collected ``universe``); reuses :class:`CompiledGate`, so a partitioned gate
+    counts only its own part.
+    """
+    tiered = [
+        (CompiledGate(gate), tier)
+        for gate in gates
+        if (tier := gate_os_tier(gate)) is not None
+    ]
+    counts: dict[str, dict[str, int]] = {}
+    for test in universe:
+        relpath, nodeid, markers = test["relpath"], test["nodeid"], set(test["markers"])
+        per_tier: dict[str, int] = {}
+        for compiled, tier in tiered:
+            if compiled.selects(relpath, nodeid, markers):
+                per_tier[tier] = per_tier.get(tier, 0) + 1
+        counts[nodeid] = per_tier
+    return counts
+
+
+# TRANSITIONAL (closeout fold (c) deletes the legacy prefix-tier helpers below)
 # --- Same-tier shard-uniqueness relation (NFR-003) -------------------------
 
 
