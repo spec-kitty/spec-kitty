@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-01T11:12:10.739413Z",
+      "decision_id": "01M3VJMAFK4G9W5CA9YNQZ05H8",
+      "final_answer": "Seed on the coordination branch at create",
+      "input_key": "status_log_home",
+      "mission_id": "01M3VJKPZ8GND76ADW6238Q8BN",
+      "mission_slug": "coord-status-log-home-01M3VJKP",
+      "opened_by": "cli",
+      "options": [
+        "Seed on the coordination branch at create",
+        "Reconcile the target-side copy at consolidate",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should a coordination mission's status log stay off the target branch: seed it on the coordination branch at create, or let consolidate reconcile a target-side copy?",
+      "rationale": "Self-driven per the operator's instruction (thread request 2026-10-01: 'Self-drive as much as you can, based on the charter'). Seeding fixes the defect at its source (issue #5440's primary expected outcome), matches the existing coord fixture shape (STATUS-only husk), and also removes the first-coord-write carry-over gap. Reconciling at consolidate would leave the CLI writing a COORD-partition kind onto the target and only paper over it later.",
+      "resolved_at": "2026-10-01T11:12:13.472852Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.status-home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3VJKPZ8GND76ADW6238Q8BN",
+  "version": 1
+}

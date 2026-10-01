@@ -1,0 +1,51 @@
+{
+  "event_count": 5,
+  "last_event_id": "01M3VRGFQMXWDMFKE40TXAE9HQ",
+  "materialized_at": "2026-10-01T12:54:56.500859+00:00",
+  "mission_number": "",
+  "mission_slug": "coord-status-log-home-01M3VJKP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3VRGFQMXWDMFKE40TXAE9HQ",
+      "last_transition_at": "2026-10-01T12:54:56.500859+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented in c1d3d0931..b049d4451 on the thread branch (no recorded claim base); 378 targeted tests and arch gates green",
+        "Independent review by a separate reviewer agent: two blocking arch-gate findings on c1d3d0931 fixed in d9681d5a4 and re-verified; 378 targeted tests green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 15395,
+      "shell_pid_created_at": "1790853311.12",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}

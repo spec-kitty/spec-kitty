@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-01T11:11:52.486465+00:00",
+  "flattened": false,
+  "friendly_name": "Coordination status log stays off the target branch",
+  "mid8": "01M3VJKP",
+  "mission_id": "01M3VJKPZ8GND76ADW6238Q8BN",
+  "mission_number": null,
+  "mission_slug": "coord-status-log-home-01M3VJKP",
+  "mission_type": "software-dev",
+  "purpose_context": "Creating a coordination-topology mission commits status.events.jsonl to the target branch in the scaffold commit. The status log is a coordination-partition artifact, so the later squash to the target fails with TARGET_BRANCH_CONTENT_CONFLICT (#5440). This mission seeds the status log on the coordination branch at create, keeps it out of the target-branch scaffold commit, and turns the red-first reproduction from PR #5518 green.",
+  "purpose_tldr": "Keep a coordination mission's status log on its coordination branch from birth, so the target branch never carries it.",
+  "slug": "coord-status-log-home-01M3VJKP",
+  "status_phase": "1",
+  "target_branch": "claude/project-thread-oymt0g",
+  "topology": "single_branch"
+}
