@@ -1088,13 +1088,117 @@ jobs:
           echo "specify_cli out-of-matrix suite passed (exit 0)."
 
   # ---------------------------------------------------------------------------
+  # architectural-backstop (#5510, FR-001, SC-003; folds #3265): the nightly runs
+  # the FULL per-PR architectural battery base, so a green nightly really means
+  # the whole battery ran. Before this job the nightly reached the battery only
+  # through interpreter-matrix-shard-3's `-m "fast or unit"` selection (Python
+  # 3.13), roughly a fifth of it; ADR 2026-09-26-1 and the by-design closure of
+  # #5302 both assume a full nightly backstop.
+  #
+  # Plugin-free on purpose (D-04): no `--battery-part`, no partition plugin, so
+  # if the partition machinery or the gate selector ever dropped a file, this
+  # plain base run still executes it. The command is the `architectural-heavy`
+  # base command of ci-router.yml (same path, marker and deselects); its parity
+  # is pinned by tests/ci/test_nightly_architectural_backstop.py, and the
+  # fast + S1 + S2 = base half is the partition proof's job. The python-version
+  # pin is the per-PR battery interpreter (interpreter diversity stays with the
+  # interpreter shards, D-14). It is deliberately NOT a registry key (D-26).
+  #
+  # `-n 4` and no `-q` so xdist prints `created: 4/4 workers` (FR-002 evidence).
+  # Same if: always() + set +e + exit-into-$GITHUB_ENV + terminal fail-loud
+  # (#4212) + FR-007 escalation pattern as the other directory lanes, including
+  # no exit-5 exemption. No continue-on-error anywhere: a red backstop fails the
+  # run conclusion, which scripts/ci/release_nightly_gate.py reads for the
+  # release SHA, so the release gate needs no extra wiring (T017).
+  #
+  # Its junit report is the per-file timings refresh source for the battery
+  # partition (D-29/D-36: the seed comes from census logs, junit capture via
+  # `--from-junit` is the refresh path).
+  # ---------------------------------------------------------------------------
+  architectural-backstop:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: Architectural battery backstop (nightly-only, #5510)
+    runs-on: ubuntu-24.04
+    # headroom (#5378): max-suite>=25:09 runs=census-2026-09-30 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 40
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Full history: several architectural recovery/receipt tests
+          # `git archive` historical mission SHAs, which a shallow checkout
+          # does not contain (same reason as the per-PR battery job).
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Run the full architectural battery base (no partition, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run --frozen python -m pytest tests/architectural \
+            -m "not performance and not stress and not timing" \
+            -n 4 --dist loadfile \
+            --deselect tests/architectural/test_no_legacy_terminology.py \
+            --deselect tests/architectural/test_layer_rules.py \
+            --deselect tests/architectural/test_pyproject_shape.py \
+            --deselect tests/architectural/test_archive_root_byte_identical.py \
+            --junitxml=out/reports/xunit-nightly-architectural.xml
+          code=$?
+          echo "ARCH_BACKSTOP_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::architectural backstop exit=$code (full base, no partition; if: always() -- a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly architectural backstop reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-architectural-backstop-reports
+          path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007), scoped to the
+      # `architectural` suite key. Fail-closed, if: always(); the `:-1` default
+      # (FIND-1) treats an unset/timeout-killed exit as failure.
+      - name: Escalate architectural backstop red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${ARCH_BACKSTOP_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key architectural --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      # Terminal fail-loud gate (#4212): only exit 0 passes. Exit 5 (zero
+      # collected) and an unset/timeout-killed exit (`:-1`) both fail -- this
+      # is a directory lane (FIND-2, #5034).
+      - name: Fail the job if the architectural backstop was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${ARCH_BACKSTOP_EXIT:-1}" -ne 0 ]; then
+            echo "::error::architectural backstop exited ${ARCH_BACKSTOP_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+            exit 1
+          fi
+          echo "architectural backstop passed (exit 0)."
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, specify-cli-out-of-matrix, full-module-matrix]
+    needs: [performance, e2e, stress, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1111,4 +1215,5 @@ jobs:
           echo "interpreter-matrix-shard-6: ${{ needs.interpreter-matrix-shard-6.result }}"
           echo "integration-next: ${{ needs.integration-next.result }}"
           echo "specify-cli-out-of-matrix: ${{ needs.specify-cli-out-of-matrix.result }}"
+          echo "architectural-backstop: ${{ needs.architectural-backstop.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"

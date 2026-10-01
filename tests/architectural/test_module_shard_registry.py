@@ -40,6 +40,8 @@ from typing import Any
 
 import pytest
 
+from scripts.ci.shard_select import lpt_loads
+
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -106,18 +108,15 @@ def _module_test_durations(timings: dict[str, Any], module: str) -> list[float]:
 
 
 def _lpt_bin_pack(durations: list[float], n: int) -> list[float]:
-    """Greedy LPT (longest-processing-time-first) bin packing into *n* bins.
+    """Greedy LPT (longest-processing-time-first) bin loads for *n* bins.
 
-    Mirrors the algorithm used to derive ``shard_count`` (WP08 T042 generation
-    script): always place the next-largest remaining item into the
-    currently least-loaded bin. Standard, well-known approximation for
-    balanced multiway partitioning.
+    Reuses the shared selector (``scripts/ci/shard_select.py``, C-010): the
+    algorithm ``module-tests.yml`` shards with is the algorithm that sizes
+    ``shard_count``. This gate's independence is about not trusting the
+    registry's *claim* (it re-derives the skew from the measured durations),
+    not about retyping the algorithm.
     """
-    bins = [0.0] * n
-    for d in sorted(durations, reverse=True):
-        i = min(range(n), key=lambda k: bins[k])
-        bins[i] += d
-    return bins
+    return lpt_loads(durations, n)
 
 
 def _skew_of(bins: list[float]) -> float:

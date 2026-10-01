@@ -62,10 +62,12 @@ _MARKER_LANES = {
     **{shard.lane_label: (shard.exit_var, shard.job_key) for shard in INTERPRETER_SHARDS},
 }
 # directory-lane job name -> $GITHUB_ENV exit variable. #5201 added the
-# specify_cli out-of-matrix lane alongside integration-next.
+# specify_cli out-of-matrix lane alongside integration-next; #5510 added the
+# architectural-backstop lane (the plain per-PR battery base, nightly-only).
 _DIRECTORY_LANES = {
     "integration-next": "INTEGRATION_EXIT",
     "specify-cli-out-of-matrix": "SPECIFY_CLI_OOM_EXIT",
+    "architectural-backstop": "ARCH_BACKSTOP_EXIT",
 }
 
 _ALL_EXIT_VARS = [var for var, _job in _MARKER_LANES.values()] + list(_DIRECTORY_LANES.values())

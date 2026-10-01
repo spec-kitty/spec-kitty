@@ -12,10 +12,11 @@ reproducible.
 
 Why the captured shape must match the consumer exactly
 ------------------------------------------------------
-``module-tests.yml`` cannot join durations to node ids (the committed file drops
-node ids for compactness), so it pairs them **positionally** against its own
-``pytest <test_dirs> -m "not performance" --collect-only -q`` order, and falls
-back to **uniform weights for the whole module** when
+``module-tests.yml`` (through ``scripts/ci/shard_select.py``) cannot join durations
+to node ids (the committed file drops node ids for compactness), so it pairs them
+**positionally** against its own
+``pytest <test_dirs> -m "not performance and not stress" --collect-only -q`` order,
+and falls back to **uniform weights for the whole module** when
 ``len(durations) != len(node_ids)``. That fallback is silent and no gate
 notices it: the skew guard re-reads the same committed list, so a list of the
 right length always passes whether or not it was ever measured. Therefore this
@@ -67,13 +68,20 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 from kernel.clock import datetime, now_utc_compact_stamp, now_utc_iso  # noqa: E402
 
+# ``scripts.ci`` resolves as a namespace package only with the repo root on the
+# path; this script also runs bare (``python -I -S``), where cwd is not on it.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR  # noqa: E402
+
 REGISTRY_PATH = REPO_ROOT / ".github" / "ci-module-registry.yml"
 TIMINGS_PATH = REPO_ROOT / ".github" / "ci-shard-timings.json"
 
 #: The marker expression ``module-tests.yml`` collects its shard under. Capturing
 #: under any other selection produces a length mismatch and silently degrades the
-#: consumer to uniform weights.
-SELECTION_MARKER_EXPR = "not performance"
+#: consumer to uniform weights. ``scripts/ci/shard_select.py`` is the authority;
+#: this name is kept for the recapture script, the tests and the provenance field.
+SELECTION_MARKER_EXPR = MODULE_SELECTION_MARKER_EXPR
 
 #: Known dual-test-tree modules, mirroring ``module-tests.yml``'s own fallback
 #: (the doctrine test tree did not move when ``src/doctrine/`` was absorbed into
