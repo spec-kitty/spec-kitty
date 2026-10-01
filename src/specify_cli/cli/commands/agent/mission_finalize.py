@@ -2264,6 +2264,33 @@ def _emit_validate_only_report(
             )
 
 
+def _lifecycle_event_dir(planning_dir: Path, repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> Path:
+    """Directory of the mission's canonical status log, for lifecycle emission (#5440).
+
+    ``TasksStarted`` / ``WPCreated`` / ``TasksCompleted`` belong in the same log
+    the status surface reads, which for a coordination-routed mission is the
+    coordination worktree's copy (``setup-plan`` already emits there). Writing
+    them into ``planning_dir`` instead strands them in a primary-checkout file
+    no reader consults. Resolution goes through the canonical status-surface
+    authority; when it cannot resolve to an existing directory (an owned
+    checkout, a missing or malformed ``meta.json``, an unmaterialized
+    coordination worktree) the primary planning dir is kept, as before.
+    """
+    if owned is not None:
+        return planning_dir
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        StatusReadPathNotFound,
+        resolve_status_surface_with_anchor,
+    )
+
+    try:
+        read_dir: Path = resolve_status_surface_with_anchor(repo_root, mission_slug, for_write=True).read_dir
+    except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
+        return planning_dir
+    return read_dir if read_dir.is_dir() else planning_dir
+
+
 def _emit_local_canonical_events(
     planning_dir: Path,
     mission_slug: str,
@@ -2282,6 +2309,7 @@ def _emit_local_canonical_events(
     try:
         from specify_cli.status import TASKS_COMPLETED, emit_artifact_phase, emit_wp_created_local
 
+        event_dir = _lifecycle_event_dir(planning_dir, repo_root, mission_slug, owned=owned)
         for wp in work_packages:
             wp_id = str(wp["id"])
             wp_path: str | None = None
@@ -2292,7 +2320,7 @@ def _emit_local_canonical_events(
             except Exception:  # noqa: BLE001 — best-effort path resolution
                 wp_path = None
             emit_wp_created_local(
-                planning_dir,
+                event_dir,
                 mission_slug=mission_slug,
                 wp_id=wp_id,
                 wp_title=str(wp.get("title") or wp_id),
@@ -2310,7 +2338,7 @@ def _emit_local_canonical_events(
             except ValueError:
                 tasks_artifact_rel = str(tasks_artifact)
         emit_artifact_phase(
-            planning_dir,
+            event_dir,
             event_type=TASKS_COMPLETED,
             mission_slug=mission_slug,
             actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -3795,6 +3823,7 @@ def _emit_tasks_started(
     mission_slug: str,
     state: _BootstrapState,
     *,
+    repo_root: Path,
     validate_only: bool,
     owned: OwnedCheckout | None = None,
 ) -> None:
@@ -3809,7 +3838,7 @@ def _emit_tasks_started(
         from specify_cli.status import TASKS_STARTED, emit_artifact_phase
 
         emit_artifact_phase(
-            planning_dir,
+            _lifecycle_event_dir(planning_dir, repo_root, mission_slug, owned=owned),
             event_type=TASKS_STARTED,
             mission_slug=mission_slug,
             actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -5000,7 +5029,7 @@ def finalize_tasks(
         meta = _read_meta_for_emission(planning_dir)
         _warn_missing_meta(planning_dir, meta, json_output=json_output)
         if not refresh_planning_commit:
-            _emit_tasks_started(planning_dir, mission_slug, state, validate_only=validate_only, owned=owned)
+            _emit_tasks_started(planning_dir, mission_slug, state, repo_root=repo_root, validate_only=validate_only, owned=owned)
 
         if validate_only:
             _emit_validate_only_report(

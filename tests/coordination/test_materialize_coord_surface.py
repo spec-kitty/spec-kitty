@@ -13,6 +13,7 @@ sources, DIRECTIVE_044) — real git, real mission scaffolding, no fakes.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -44,6 +45,18 @@ def _worktree_list(repo: Path) -> str:
 def _fresh_coord_mission(tmp_path: Path, slug: str = "materialize-coord-surface"):
     _init_git_repo(tmp_path)
     return tmp_path, _create_mission(tmp_path, slug, MissionTopology.COORD)
+
+
+def _unmaterialize_coord_worktree(repo: Path, slug: str, mid8: str) -> Path:
+    """Remove the coordination worktree create seeded, keeping its branch (UNMATERIALIZED).
+
+    #5440: create now seeds the coordination worktree, so the seam's
+    unmaterialized arms must establish that state explicitly.
+    """
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, mid8)
+    _git(repo, "worktree", "remove", "--force", str(coord_worktree))
+    assert not coord_worktree.exists()
+    return coord_worktree
 
 
 # ---------------------------------------------------------------------------
@@ -96,10 +109,12 @@ def test_empty_surface_is_a_noop(tmp_path: Path) -> None:
     slug = result.mission_slug
     mid8 = str(result.meta["mid8"])
 
-    # The coord branch forks off before the scaffold commit (research Part B):
-    # resolving it alone yields a materialized worktree ROOT with no mission
-    # dir on that branch -- the EMPTY state.
+    # The coord branch forks off before the scaffold commit (research Part B).
+    # #5440: create now seeds the coordination worktree with the status-log
+    # commit, so rewind the coord branch to its target-tip fork point to reach
+    # a materialized worktree ROOT with no mission dir -- the EMPTY state.
     coord_root = CoordinationWorkspace.resolve(repo, slug, mid8)
+    _git(coord_root, "reset", "-q", "--hard", str(result.meta["target_branch"]))
     assert not (coord_root / "kitty-specs" / slug).exists()
 
     before = _worktree_list(repo)
@@ -120,8 +135,7 @@ def test_unmaterialized_local_branch_materializes(tmp_path: Path) -> None:
     repo, result = _fresh_coord_mission(tmp_path, "unmaterialized-local")
     slug = result.mission_slug
     mid8 = str(result.meta["mid8"])
-    coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, mid8)
-    assert not coord_worktree.exists()
+    coord_worktree = _unmaterialize_coord_worktree(repo, slug, mid8)
 
     materialize_coord_surface_for_write(repo, slug)
 
@@ -139,7 +153,7 @@ def test_remote_only_branch_raises_and_creates_nothing(tmp_path: Path) -> None:
     mid8 = str(result.meta["mid8"])
     coord_branch = result.coordination_branch
     assert coord_branch is not None
-    coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, mid8)
+    coord_worktree = _unmaterialize_coord_worktree(repo, slug, mid8)
 
     _git(repo, "update-ref", f"refs/remotes/origin/{coord_branch}", coord_branch)
     _git(repo, "branch", "-D", coord_branch)
@@ -159,6 +173,10 @@ def test_remote_only_branch_raises_and_creates_nothing(tmp_path: Path) -> None:
 def test_resolve_failure_raises_with_cause(tmp_path: Path) -> None:
     repo, result = _fresh_coord_mission(tmp_path, "resolve-obstacle")
     slug = result.mission_slug
+    # #5440: create now seeds the coordination worktree; drop it (and the
+    # ``.worktrees`` container) so the obstacle below sits in its place.
+    _unmaterialize_coord_worktree(repo, slug, str(result.meta["mid8"]))
+    shutil.rmtree(repo / ".worktrees")
 
     # A REAL obstacle (per Test Strategy: no mocks for failure injection):
     # ``.worktrees`` as a regular file makes ``mkdir(parents=True)`` raise

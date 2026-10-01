@@ -23,9 +23,11 @@ Green-state (post-fix):
     translates the raw exception to ActionContextError(MISSION_AMBIGUOUS_SELECTOR),
     making the test pass.
 """
+
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -70,9 +72,7 @@ def repo(tmp_path: Path) -> Path:
     _git(r, "config", "user.name", "Test")
     _git(r, "config", "commit.gpgsign", "false")
     (r / ".kittify").mkdir()
-    (r / ".kittify" / "config.yaml").write_text(
-        "agents:\n  available:\n    - claude\n", encoding="utf-8"
-    )
+    (r / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
     return r
 
 
@@ -139,9 +139,7 @@ def test_ambiguous_handle_raises_action_context_error_with_specific_code(
         "The MissionSelectorAmbiguous exception escaped the mission_runtime boundary "
         "as a raw specify_cli exception instead of being translated."
     )
-    assert _AMBIGUOUS_HANDLE in str(excinfo.value), (
-        "The error message must include the ambiguous handle so operators can diagnose."
-    )
+    assert _AMBIGUOUS_HANDLE in str(excinfo.value), "The error message must include the ambiguous handle so operators can diagnose."
 
 
 def test_ambiguous_handle_resolve_placement_only_raises_action_context_error(
@@ -161,8 +159,7 @@ def test_ambiguous_handle_resolve_placement_only_raises_action_context_error(
         )
 
     assert excinfo.value.code == "MISSION_AMBIGUOUS_SELECTOR", (
-        f"Expected code 'MISSION_AMBIGUOUS_SELECTOR', got {excinfo.value.code!r}. "
-        "MissionSelectorAmbiguous escaped resolve_placement_only untranslated."
+        f"Expected code 'MISSION_AMBIGUOUS_SELECTOR', got {excinfo.value.code!r}. MissionSelectorAmbiguous escaped resolve_placement_only untranslated."
     )
 
 
@@ -193,8 +190,15 @@ def _create_coord_mission(repo: Path, slug: str) -> MissionCreationResult:
         _init_git_repo,
     )
 
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
     _init_git_repo(repo, branch="main")
     result: MissionCreationResult = _create_mission(repo, slug, MissionTopology.COORD)
+    # #5440: create now seeds the coordination worktree; remove it (keeping the
+    # branch) so the fixture keeps its branch-only UNMATERIALIZED shape.
+    coord_root = CoordinationWorkspace.worktree_path(repo, result.mission_slug, str(result.meta["mid8"]))
+    _git(repo, "worktree", "remove", "--force", str(coord_root))
+    assert not coord_root.exists()
     return result
 
 
@@ -278,7 +282,10 @@ def test_empty_and_none_coord_states_still_resolve_primary(tmp_path: Path) -> No
     # Materialize the coord worktree ROOT without ever writing a mission dir
     # into it — the EMPTY state (distinct from UNMATERIALIZED, where the root
     # itself does not exist yet).
-    CoordinationWorkspace.resolve(repo_empty, result_empty.mission_slug, mid8)
+    coord_root = CoordinationWorkspace.resolve(repo_empty, result_empty.mission_slug, mid8)
+    # #5440: the coordination branch now carries the create-seeded mission dir
+    # (status log), so drop it from the worktree to re-establish EMPTY.
+    shutil.rmtree(coord_root / "kitty-specs" / result_empty.mission_slug)
 
     seam_empty = placement_seam(repo_empty, result_empty.mission_slug)
     resolved_empty = seam_empty.read_dir(MissionArtifactKind.STATUS_STATE)

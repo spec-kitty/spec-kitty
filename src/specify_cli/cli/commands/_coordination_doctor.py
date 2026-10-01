@@ -648,6 +648,10 @@ def _coord_branch_stale_vs_target_finding(
     target_sha = _rev_parse(repo_root, f"refs/heads/{target_branch}")
     if not coord_sha or not target_sha or coord_sha == target_sha:
         return None
+    if _is_ff_candidate(repo_root, target_sha, coord_sha):
+        # Coord branch strictly AHEAD of target: it carries only its own
+        # coordination commits (e.g. the status log a create seeds, #5440).
+        return None
     stale = _fast_forward_finding(
         subject_sha=coord_sha, tip_sha=target_sha, repo_root=repo_root,
         message=(
@@ -1762,6 +1766,8 @@ def _fix_one_mission_coord_staleness(
     coord_branch, target_branch, coord_sha, target_sha = shas
     if coord_sha == target_sha:
         return None  # nothing to fix: already in sync
+    if _is_ff_candidate(repo_root, target_sha, coord_sha):
+        return None  # coord strictly ahead: only its own coordination commits (#5440)
 
     if not _is_ff_candidate(repo_root, coord_sha, target_sha):
         return _coord_staleness_fix_blocked_finding(

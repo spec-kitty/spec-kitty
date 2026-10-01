@@ -52,6 +52,11 @@ def _fresh_coord_mission(tmp_path: Path):  # -> tuple[Path, MissionCreationResul
     """Real fresh ``COORD`` topology mission: branch present, worktree absent."""
     _init_git_repo(tmp_path)
     result = _create_mission(tmp_path, _SLUG_BASE, MissionTopology.COORD)
+    # #5440: create now seeds the coordination worktree; remove it (keeping the
+    # branch) so every arm below starts from the absent-worktree state it guards.
+    coord_worktree = CoordinationWorkspace.worktree_path(tmp_path, result.mission_slug, str(result.meta["mid8"]))
+    _git(tmp_path, "worktree", "remove", "--force", str(coord_worktree))
+    assert not coord_worktree.exists()
     return tmp_path, result
 
 

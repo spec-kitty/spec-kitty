@@ -59,9 +59,7 @@ from tests.specify_cli.test_specify_topology_flag import (
 # ---------------------------------------------------------------------------
 
 
-def _write_single_lane(
-    feature_dir: Path, slug: str, mission_branch: str, *, wp_id: str = "WP01"
-) -> None:
+def _write_single_lane(feature_dir: Path, slug: str, mission_branch: str, *, wp_id: str = "WP01") -> None:
     from kernel.clock import now_utc_iso
 
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -155,9 +153,7 @@ def _status_dir(repo: Path, slug: str) -> Path:
     return resolve_status_surface(repo, slug).parent
 
 
-def _claim_real(
-    repo: Path, slug: str, wp_id: str, *, actor: str = "python-pedro"
-) -> None:
+def _claim_real(repo: Path, slug: str, wp_id: str, *, actor: str = "python-pedro") -> None:
     """Drive ``planned -> claimed`` through the REAL production status-emit
     pipeline — the genuine event-sourced claim (FR-008 / IC-07): no
     frontmatter ``shell_pid`` / ``agent`` write accompanies it."""
@@ -226,11 +222,23 @@ def _drive_claimed_through_approved(repo: Path, slug: str, wp_id: str) -> None:
                     "reference": f"review-{wp_id}",
                 }
             },
-            review_result=ReviewResult(
-                reviewer="reviewer-renata", verdict="approved", reference=f"review-{wp_id}"
-            ),
+            review_result=ReviewResult(reviewer="reviewer-renata", verdict="approved", reference=f"review-{wp_id}"),
         )
     )
+
+
+def _remove_coord_worktree(repo: Path, slug: str, mission_id: str) -> None:
+    """Remove the coordination worktree create materialized on the coord branch.
+
+    #5440: create now materializes ``.worktrees/<slug>-<mid8>-coord`` on the
+    coordination branch, and git refuses to delete a checked-out branch, so a
+    ``force_recreate`` re-fork must drop that worktree first (``resolve``
+    re-materializes it on the re-forked branch).
+    """
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    worktree = CoordinationWorkspace.worktree_path(repo, slug, mission_id[:8])
+    _git(repo, "worktree", "remove", "--force", str(worktree))
 
 
 def _bootstrap_born_mission(
@@ -290,6 +298,7 @@ def _bootstrap_born_mission(
         # planning content, mirroring the production shape
         # test_issue_2367_bake_strand.py's fixture uses (content committed
         # BEFORE the coordination branch forks).
+        _remove_coord_worktree(repo, slug, str(result.meta["mission_id"]))  # #5440
         ensure_coordination_branch(
             repo_root=repo,
             mission_slug=slug,
@@ -297,9 +306,7 @@ def _bootstrap_born_mission(
             target_branch="main",
             force_recreate=True,
         )
-        coord_worktree = CoordinationWorkspace.resolve(
-            repo, slug, str(result.meta["mission_id"])[:8]
-        )
+        coord_worktree = CoordinationWorkspace.resolve(repo, slug, str(result.meta["mission_id"])[:8])
 
     _claim_real(repo, slug, "WP01")
     _mark_subtask_done(repo, slug, "T001")
@@ -321,9 +328,7 @@ def _bootstrap_born_mission(
     import subprocess as _subprocess
 
     _git(repo, "add", "-A")
-    diff_check = _subprocess.run(
-        ["git", "-C", str(repo), "diff", "--cached", "--quiet"], capture_output=True
-    )
+    diff_check = _subprocess.run(["git", "-C", str(repo), "diff", "--cached", "--quiet"], capture_output=True)
     if diff_check.returncode != 0:
         _git(repo, "commit", "-m", f"chore({slug}): WP01 runtime bookkeeping residue")
 
@@ -366,9 +371,7 @@ def _run_real_merge(repo: Path, slug: str) -> None:
     [MissionTopology.COORD, MissionTopology.LANES],
     ids=["coord", "lanes"],
 )
-def test_birth_cutover_reconciles_at_merge_no_manual_backfill(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: MissionTopology
-) -> None:
+def test_birth_cutover_reconciles_at_merge_no_manual_backfill(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: MissionTopology) -> None:
     """T042 (RED-first anchor) / T047: create -> claim -> complete -> merge
     lands ``status_phase>=1`` + ``verify_backfill().ok`` + a non-empty
     snapshot, with NO manual backfill invocation anywhere in this test."""
@@ -384,8 +387,7 @@ def test_birth_cutover_reconciles_at_merge_no_manual_backfill(
     meta = _read_meta(feature_dir)
     status_phase = meta.get("status_phase")
     assert status_phase is not None and int(status_phase) >= 1, (
-        "birth-cutover must stamp status_phase>=1 at merge time with NO manual "
-        f"backfill; got meta.json status_phase={status_phase!r}"
+        f"birth-cutover must stamp status_phase>=1 at merge time with NO manual backfill; got meta.json status_phase={status_phase!r}"
     )
 
     # verify_backfill/the reduced snapshot are checked against the resolved
@@ -410,9 +412,7 @@ def test_birth_cutover_reconciles_at_merge_no_manual_backfill(
     [MissionTopology.COORD, MissionTopology.LANES],
     ids=["coord", "lanes"],
 )
-def test_birth_cutover_status_phase_is_primary_only(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: MissionTopology
-) -> None:
+def test_birth_cutover_status_phase_is_primary_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: MissionTopology) -> None:
     """T047 partition-surface split: ``status_phase`` lands on the resolved
     PRIMARY meta.json only. For coord topology the coordination worktree's
     OWN ``meta.json`` copy (if any) never carries the flip — the sole-writer
@@ -427,9 +427,7 @@ def test_birth_cutover_status_phase_is_primary_only(
     if topology is MissionTopology.COORD:
         from specify_cli.coordination.workspace import CoordinationWorkspace
 
-        coord_worktree = CoordinationWorkspace.worktree_path(
-            repo, slug, str(primary_meta["mission_id"])[:8]
-        )
+        coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, str(primary_meta["mission_id"])[:8])
         coord_meta_path = coord_worktree / "kitty-specs" / slug / "meta.json"
         if coord_meta_path.exists():
             coord_meta = json.loads(coord_meta_path.read_text(encoding="utf-8"))
@@ -521,8 +519,8 @@ def _write_legacy_mission(feature_dir: Path, *, wp_id: str = "WP01") -> None:
         f"work_package_id: {wp_id}\n"
         f"title: {wp_id} legacy work\n"
         "agent: implementer-ivan\n"
-        "shell_pid: \"4242\"\n"
-        "shell_pid_created_at: \"1735689600.0\"\n"
+        'shell_pid: "4242"\n'
+        'shell_pid_created_at: "1735689600.0"\n'
         "---\n"
         f"# {wp_id}\n",
         encoding="utf-8",
@@ -588,9 +586,7 @@ def _write_issue_2985_mixed_mission(
             f"# {wp_id}\n",
             encoding="utf-8",
         )
-        task_sections.append(
-            f"## {wp_id} issue 2985 work\n\n- [x] T00{index} Legacy completed task\n"
-        )
+        task_sections.append(f"## {wp_id} issue 2985 work\n\n- [x] T00{index} Legacy completed task\n")
     (feature_dir / "tasks.md").write_text(
         "\n".join(task_sections),
         encoding="utf-8",
@@ -694,10 +690,7 @@ def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
     assert result.verify is not None and result.verify.ok, result.verify
     assert result.flipped
     snapshot = materialize_snapshot(feature_dir)
-    assert {
-        wp_id: snapshot.work_packages[wp_id]["lane"]
-        for wp_id in expected_lanes
-    } == expected_lanes
+    assert {wp_id: snapshot.work_packages[wp_id]["lane"] for wp_id in expected_lanes} == expected_lanes
     assert snapshot.work_packages["WP01"]["shell_pid"] == 4201
     assert snapshot.work_packages["WP01"]["agent"] == "later-legitimate-agent"
     assert snapshot.work_packages["WP02"]["agent"] == "legacy-agent-2"
@@ -713,31 +706,17 @@ def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
 
     stream = read_event_stream(feature_dir)
     legitimate_keys = {
-        wp_id: [
-            (event.at, event.event_id)
-            for event in (*stream.transitions, *stream.annotations)
-            if event.wp_id == wp_id and event.actor == "legitimate-history"
-        ]
+        wp_id: [(event.at, event.event_id) for event in (*stream.transitions, *stream.annotations) if event.wp_id == wp_id and event.actor == "legitimate-history"]
         for wp_id in expected_lanes
     }
     new_seed_rows = [
         event
         for event in (*stream.transitions, *stream.annotations)
-        if event.actor == BACKFILL_ACTOR
-        and event.event_id
-        != _seed_id(_mission_id(feature_dir), "WP01", "claim")
+        if event.actor == BACKFILL_ACTOR and event.event_id != _seed_id(_mission_id(feature_dir), "WP01", "claim")
     ]
     assert new_seed_rows
-    assert all(
-        (seed.at, seed.event_id) < history_key
-        for seed in new_seed_rows
-        for history_key in legitimate_keys[seed.wp_id]
-    )
-    repairs = [
-        event
-        for event in (*stream.transitions, *stream.annotations)
-        if event.actor == COMPATIBILITY_REPAIR_ACTOR
-    ]
+    assert all((seed.at, seed.event_id) < history_key for seed in new_seed_rows for history_key in legitimate_keys[seed.wp_id])
+    repairs = [event for event in (*stream.transitions, *stream.annotations) if event.actor == COMPATIBILITY_REPAIR_ACTOR]
     assert repairs
     assert all(event.wp_id == "WP01" for event in repairs)
 
@@ -765,13 +744,11 @@ def test_crash_between_seed_and_flip_heals_on_resume(tmp_path: Path) -> None:
     # before verify/flip": call ONLY the seed phase directly.
     seed_result = _seed_phase(feature_dir, dry_run=False)
     assert seed_result.action == "wrote" and seed_result.seeded_count > 0, (
-        "precondition: the legacy fixture must actually seed real events, or "
-        "this test proves nothing about the crash window"
+        "precondition: the legacy fixture must actually seed real events, or this test proves nothing about the crash window"
     )
     pre_resume_meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert pre_resume_meta.get("status_phase") is None, (
-        "precondition (half-born state): status_phase must be unset before the "
-        f"flip; got {pre_resume_meta.get('status_phase')!r}"
+        f"precondition (half-born state): status_phase must be unset before the flip; got {pre_resume_meta.get('status_phase')!r}"
     )
     events_after_seed = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8")
 
@@ -779,17 +756,13 @@ def test_crash_between_seed_and_flip_heals_on_resume(tmp_path: Path) -> None:
     resumed = cutover_mission(feature_dir)
 
     assert resumed.seeded_count == 0, (
-        "resume must not duplicate seeding — the deterministic seed ids were "
-        f"already on disk; got seeded_count={resumed.seeded_count}"
+        f"resume must not duplicate seeding — the deterministic seed ids were already on disk; got seeded_count={resumed.seeded_count}"
     )
     assert resumed.verify is not None and resumed.verify.ok, resumed.verify
     assert resumed.flipped, "resume must complete the still-open flip leg"
 
     events_after_resume = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8")
-    assert events_after_resume == events_after_seed, (
-        "the event log must be byte-identical across the resume (no duplicate "
-        "or reordered seed rows)"
-    )
+    assert events_after_resume == events_after_seed, "the event log must be byte-identical across the resume (no duplicate or reordered seed rows)"
 
     post_meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert post_meta.get("status_phase") == "1"
@@ -806,9 +779,7 @@ def test_crash_between_seed_and_flip_heals_on_resume(tmp_path: Path) -> None:
     stream_after_third = read_event_stream(feature_dir)
     assert len(stream_after_third.transitions) == len(stream_before_third.transitions)
     assert len(stream_after_third.annotations) == len(stream_before_third.annotations)
-    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == meta_before_third, (
-        "a third run over an already-flipped mission must write zero bytes"
-    )
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == meta_before_third, "a third run over an already-flipped mission must write zero bytes"
 
 
 def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
@@ -830,9 +801,7 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
     second = cutover_mission(birth_first_dir)
     assert second.seeded_count == 0, "the second (migration-shaped) run must seed nothing new"
     events_after_second = (birth_first_dir / "status.events.jsonl").read_text(encoding="utf-8")
-    assert events_after_second == events_after_first, (
-        "birth-then-migration must be byte-identical on the second pass"
-    )
+    assert events_after_second == events_after_first, "birth-then-migration must be byte-identical on the second pass"
     assert (birth_first_dir / "meta.json").read_text(encoding="utf-8") == meta_after_first, (
         "the second pass must write zero new bytes to meta.json (already flipped)"
     )
@@ -841,9 +810,7 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
     _write_legacy_mission(migration_first_dir, wp_id="WP01")
     m_first = cutover_mission(migration_first_dir)
     assert m_first.flipped and m_first.seeded_count > 0
-    events_m_after_first = (migration_first_dir / "status.events.jsonl").read_text(
-        encoding="utf-8"
-    )
+    events_m_after_first = (migration_first_dir / "status.events.jsonl").read_text(encoding="utf-8")
     meta_m_after_first = (migration_first_dir / "meta.json").read_text(encoding="utf-8")
 
     m_second = cutover_mission(migration_first_dir)
@@ -851,12 +818,8 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
     assert (migration_first_dir / "meta.json").read_text(encoding="utf-8") == meta_m_after_first, (
         "the second pass must write zero new bytes to meta.json (already flipped)"
     )
-    events_m_after_second = (migration_first_dir / "status.events.jsonl").read_text(
-        encoding="utf-8"
-    )
-    assert events_m_after_second == events_m_after_first, (
-        "migration-then-birth must be byte-identical on the second pass"
-    )
+    events_m_after_second = (migration_first_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    assert events_m_after_second == events_m_after_first, "migration-then-birth must be byte-identical on the second pass"
 
 
 # ---------------------------------------------------------------------------
@@ -887,9 +850,7 @@ def test_two_target_spine_seeds_status_dir_and_flips_feature_dir(tmp_path: Path)
     # target); no tasks/ of its own is needed since the legacy read now
     # anchors on the PRIMARY leg (FR-002).
     status_dir.mkdir(parents=True)
-    (status_dir / "meta.json").write_text(
-        (primary_dir / "meta.json").read_text(encoding="utf-8"), encoding="utf-8"
-    )
+    (status_dir / "meta.json").write_text((primary_dir / "meta.json").read_text(encoding="utf-8"), encoding="utf-8")
 
     result = cutover_mission(primary_dir, status_feature_dir=status_dir)
 
@@ -897,17 +858,13 @@ def test_two_target_spine_seeds_status_dir_and_flips_feature_dir(tmp_path: Path)
     assert result.flipped
 
     primary_events = primary_dir / "status.events.jsonl"
-    assert not primary_events.exists(), (
-        "seed events must land on the COORD/status leg, never on the PRIMARY leg"
-    )
+    assert not primary_events.exists(), "seed events must land on the COORD/status leg, never on the PRIMARY leg"
     assert (status_dir / "status.events.jsonl").exists()
 
     primary_meta = json.loads((primary_dir / "meta.json").read_text(encoding="utf-8"))
     assert primary_meta.get("status_phase") == "1"
     status_meta = json.loads((status_dir / "meta.json").read_text(encoding="utf-8"))
-    assert status_meta.get("status_phase") is None, (
-        "the flip must never touch the status/COORD leg's meta.json"
-    )
+    assert status_meta.get("status_phase") is None, "the flip must never touch the status/COORD leg's meta.json"
 
 
 def test_two_target_spine_defaults_status_dir_to_feature_dir(tmp_path: Path) -> None:
@@ -1007,8 +964,7 @@ def test_ambient_repo_marker_cannot_capture_the_synthetic_mission_root(
 # ---------------------------------------------------------------------------
 
 _SEED_EVENT_LINE = (
-    '{"event_id":"01JSEEDBIRTHCUTOVER0000000","at":"2026-07-25T00:00:00+00:00",'
-    '"wp_id":"WP01","from_lane":"planned","to_lane":"claimed","actor":"migration"}\n'
+    '{"event_id":"01JSEEDBIRTHCUTOVER0000000","at":"2026-07-25T00:00:00+00:00","wp_id":"WP01","from_lane":"planned","to_lane":"claimed","actor":"migration"}\n'
 )
 
 
@@ -1074,9 +1030,7 @@ def test_coord_seed_commit_targets_coord_branch_no_head_mismatch(tmp_path: Path)
     assert "01JSEEDBIRTHCUTOVER0000000" in tracked
 
 
-def _coord_seed_run_real_meta(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> tuple[object, Path, Path, str, Path, str]:
+def _coord_seed_run_real_meta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[object, Path, Path, str, Path, str]:
     """Real-``meta.json`` sibling of :func:`_coord_seed_run` (adversarial-review
     P1, #2884): builds a genuine COORD-topology mission through the REAL
     ``create_mission_core`` entry point, so ``meta.json`` carries the exact
@@ -1107,9 +1061,7 @@ def _coord_seed_run_real_meta(
     _git(repo, "add", ".gitignore")
     _git(repo, "commit", "-m", "chore: ignore worktrees + sync-state churn")
 
-    result = create_mission_core(
-        repo, "coord-seed-real-meta-demo", topology=MissionTopology.COORD
-    )
+    result = create_mission_core(repo, "coord-seed-real-meta-demo", topology=MissionTopology.COORD)
     feature_dir = result.feature_dir
     slug = feature_dir.name
     assert result.coordination_branch is not None, "COORD topology must mint a coord branch"
@@ -1125,6 +1077,7 @@ def _coord_seed_run_real_meta(
     mission_id = str(result.meta["mission_id"])
     # Re-fork from the CURRENT "main" tip (now carrying the mission dir),
     # the same documented operator escape hatch _bootstrap_born_mission uses.
+    _remove_coord_worktree(repo, slug, mission_id)  # #5440
     ensure_coordination_branch(
         repo_root=repo,
         mission_slug=slug,
@@ -1155,9 +1108,7 @@ def _coord_seed_run_real_meta(
     return run, coord_worktree, status_feature_dir, coord_branch, repo, slug
 
 
-def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """F1 sibling, under a REAL coord-topology ``meta.json`` (adversarial-review
     P1, #2884): proves ``_commit_coord_seed_events`` actually reaches
     ``resolve_placement_only(kind=MissionArtifactKind.STATUS_STATE)`` through
@@ -1180,21 +1131,15 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
     from mission_runtime import MissionArtifactKind, resolve_placement_only, write_target_degrade
     from specify_cli.consolidation.executor import _commit_coord_seed_events
 
-    run, coord_worktree, status_feature_dir, coord_branch, main_repo, slug = (
-        _coord_seed_run_real_meta(tmp_path, monkeypatch)
-    )
+    run, coord_worktree, status_feature_dir, coord_branch, main_repo, slug = _coord_seed_run_real_meta(tmp_path, monkeypatch)
 
     # Falsifiability precondition: in THIS fixture, the artifact ``kind`` must
     # actually change the resolved destination, or assertion (b) below would
     # pass even with the wrong kind (or no placement-port call at all) wired
     # in. PRIMARY_METADATA resolves to the mission's PRIMARY target branch
     # ("main"), which is a different ref than the coord branch.
-    primary_target = resolve_placement_only(
-        main_repo, slug, kind=MissionArtifactKind.PRIMARY_METADATA
-    ).ref
-    assert primary_target != coord_branch, (
-        "fixture is not falsifying: PRIMARY_METADATA must NOT resolve to the coord branch"
-    )
+    primary_target = resolve_placement_only(main_repo, slug, kind=MissionArtifactKind.PRIMARY_METADATA).ref
+    assert primary_target != coord_branch, "fixture is not falsifying: PRIMARY_METADATA must NOT resolve to the coord branch"
 
     # Spy on the placement port at the seam ``resolve_write_target_or_degrade``
     # (the FR-005 helper ``bookkeeping_commit`` now delegates through) actually
@@ -1217,9 +1162,7 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
         calls.append(kwargs["kind"])  # type: ignore[arg-type]
         return real_resolve_placement_only(*args, **kwargs)
 
-    monkeypatch.setattr(
-        write_target_degrade, "resolve_placement_only", _spy_resolve_placement_only
-    )
+    monkeypatch.setattr(write_target_degrade, "resolve_placement_only", _spy_resolve_placement_only)
 
     _commit_coord_seed_events(run, status_feature_dir)
 
@@ -1234,9 +1177,7 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(
     assert porcelain.strip() == "", f"seed events not committed: {porcelain!r}"
     subject = _git(coord_worktree, "log", "-1", "--pretty=%s").stdout.strip()
     assert "birth-cutover seed events reconciled" in subject
-    tracked = _git(
-        coord_worktree, "show", "HEAD:kitty-specs/" + slug + "/status.events.jsonl"
-    ).stdout
+    tracked = _git(coord_worktree, "show", "HEAD:kitty-specs/" + slug + "/status.events.jsonl").stdout
     assert "01JSEEDBIRTHCUTOVER0000000" in tracked
 
     # (b) The falsifiable assertion the finding demands: the placement port
@@ -1301,9 +1242,7 @@ def test_birth_cutover_seed_projects_onto_primary_target(tmp_path: Path) -> None
     assert primary_events.read_text(encoding="utf-8").count("01JSEEDBIRTHCUTOVER0000000") == 1
 
 
-def test_birth_cutover_seed_projection_best_effort_never_raises(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_birth_cutover_seed_projection_best_effort_never_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#4787: a projection failure is logged, never raised — the birth-cutover
     must not abort an otherwise successful merge."""
     from specify_cli.consolidation import executor

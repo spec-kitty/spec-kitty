@@ -27,6 +27,7 @@ from typer.testing import CliRunner
 from specify_cli.core.mission_creation import MissionCreationResult
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
+from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._create import (
@@ -269,29 +270,38 @@ def test_mission_create_mints_coordination_branch(tmp_path: Path) -> None:
 
 
 def test_mission_create_idempotent_second_run(tmp_path: Path) -> None:
-    """Re-creating the same mission slug (slug collision permitted in same dir) is a no-op for the branch.
+    """A same-identity re-ensure after create refuses and leaves the branch untouched.
 
     Because each ``mission create`` mints a fresh ULID, two calls with the
     same input slug yield *different* mission directories and therefore
-    different coordination branch names. The idempotency guarantee at the
-    branch level is exercised by directly invoking
-    ``ensure_coordination_branch`` twice for the same identity (already
-    covered above), and at the mission level we assert that re-running with
-    the *same* identity (same mission_id) does not raise.
+    different coordination branch names, so a same-identity re-ensure never
+    happens in production. The branch-level idempotency guarantee is
+    exercised by invoking ``ensure_coordination_branch`` twice on an untouched
+    branch (``test_ensure_is_idempotent_when_branch_at_target``). After a real
+    create the coordination branch carries the status-log seed commit (#5440)
+    while the target advanced with the scaffold, so a same-identity re-ensure is a
+    divergence: it must refuse with the structured error and never move or
+    rewrite the coordination branch (only ``force_recreate`` may reset it).
     """
     _init_repo(tmp_path)
     result = _create(tmp_path, "twice-run")
     mission_id = result.meta["mission_id"]
+    assert result.coordination_branch is not None
+    tip_before = _branch_sha(tmp_path, result.coordination_branch)
+    tip_subject = _git(tmp_path, "log", "-1", "--pretty=%s", result.coordination_branch).stdout.strip()
+    assert tip_subject == f"Add status log for mission {result.mission_slug}"
 
-    # Direct second invocation with the same identity: no error, no churn.
-    second = ensure_coordination_branch(
-        repo_root=tmp_path,
-        mission_slug=result.mission_slug,
-        mission_id=mission_id,
-        target_branch="main",
-    )
-    assert second.created is False
-    assert second.branch_name == result.coordination_branch
+    with pytest.raises(CoordinationBranchDiverged) as exc_info:
+        ensure_coordination_branch(
+            repo_root=tmp_path,
+            mission_slug=result.mission_slug,
+            mission_id=mission_id,
+            target_branch="main",
+        )
+
+    assert exc_info.value.coordination_branch == result.coordination_branch
+    assert exc_info.value.target_branch == "main"
+    assert _branch_sha(tmp_path, result.coordination_branch) == tip_before
 
 
 def test_meta_json_contains_coordination_branch(tmp_path: Path) -> None:
@@ -906,7 +916,9 @@ def test_explicit_research_create_keeps_scaffold_meta_and_event_type_coherent(tm
 
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     spec = (result.feature_dir / "spec.md").read_text(encoding="utf-8")
-    events = [json.loads(line) for line in (result.feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    # #5440: the status log lives on the resolved status surface (the coordination worktree).
+    status_log = resolve_status_surface(tmp_path, result.mission_slug)
+    events = [json.loads(line) for line in status_log.read_text(encoding="utf-8").splitlines() if line.strip()]
     created = next(event for event in events if event["event_type"] == "MissionCreated")
 
     assert meta["mission_type"] == "research"

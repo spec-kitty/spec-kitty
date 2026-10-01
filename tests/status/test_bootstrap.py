@@ -548,3 +548,25 @@ def test_bootstrap_threads_owned_fact_into_per_wp_requests(tmp_path: Path, monke
     assert result.newly_seeded == 2
     assert [request.wp_id for request in recorded] == ["WP01", "WP02"]
     assert all(request.owned is owned for request in recorded)
+
+
+def test_final_snapshot_skipped_when_feature_dir_holds_no_event_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5440: a coordination-routed mission's log lives on the coordination
+    surface, where the transactional emitter already materialized the snapshot;
+    the final pass must not strand a ``status.json`` in the primary dir."""
+    feature_dir = tmp_path / "kitty-specs" / "coord-feature"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp_file(tasks_dir, "WP01")
+    seeded: list[str] = []
+    monkeypatch.setattr("specify_cli.coordination.status_transition.read_events_transactional", lambda **_kwargs: [])
+    monkeypatch.setattr(
+        "specify_cli.coordination.status_transition.emit_status_transition_transactional",
+        lambda request, **_kwargs: seeded.append(request.wp_id),
+    )
+
+    result = bootstrap_canonical_state(feature_dir, "coord-feature")
+
+    assert seeded == ["WP01"]
+    assert result.newly_seeded == 1
+    assert not (feature_dir / "status.json").exists()

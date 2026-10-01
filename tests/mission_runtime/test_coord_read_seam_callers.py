@@ -62,6 +62,7 @@ from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
 )
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.mission_creation import MissionCreationResult
 from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 from specify_cli.status.aggregate import MissionStatus
@@ -109,7 +110,11 @@ def _unmaterialized_coord_mission(tmp_path: Path, slug: str) -> tuple[Path, Miss
     whose worktree was never materialized — ``CoordState.UNMATERIALIZED``."""
     repo = _repo(tmp_path)
     result = _create_mission(repo, slug, MissionTopology.COORD)
-    # Deliberately no `_materialize_coord_worktree` call.
+    # #5440: create now seeds the coordination worktree; remove it (keeping the
+    # branch) so the fixture keeps its branch-only UNMATERIALIZED shape.
+    coord_root = CoordinationWorkspace.worktree_path(repo, result.mission_slug, str(result.meta["mid8"]))
+    subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(coord_root)], check=True, capture_output=True)
+    assert not coord_root.exists()
     return repo, result
 
 

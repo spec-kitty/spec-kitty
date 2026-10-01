@@ -6,6 +6,9 @@ No network request or sync queue mutation is performed by this test.
 import pytest
 import subprocess
 from pathlib import Path
+from typing import Any
+
+from specify_cli.core.mission_creation import MissionCreationResult
 
 
 def _git(repo: Path, *args: str):
@@ -13,6 +16,32 @@ def _git(repo: Path, *args: str):
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _committed_in_own_worktree(log_path: Path) -> bool:
+    """True when *log_path* is committed at HEAD of the worktree that holds it.
+
+    A coordination-routed create keeps the status log in the coordination
+    worktree and commits it on the coordination branch (#5440), so "committed"
+    is read against the log's own worktree, never the primary checkout.
+    """
+    toplevel = Path(_git(log_path.parent, "rev-parse", "--show-toplevel").stdout.strip())
+    relative = log_path.relative_to(toplevel).as_posix()
+    shown = subprocess.run(["git", "show", f"HEAD:{relative}"], cwd=toplevel, capture_output=True, check=False)
+    return shown.returncode == 0
+
+
+def _assert_status_log_seeded_on_coordination(result: MissionCreationResult, emitted: list[dict[str, Any]]) -> None:
+    """The disclosed bootstrap skip covers the target scaffold only; the status
+    log is already committed on the (never protected) coordination branch."""
+    log_paths = {item["log_path"] for item in emitted}
+    assert len(log_paths) == 1
+    (log_path,) = log_paths
+    assert ".worktrees" in log_path.parts
+    assert _committed_in_own_worktree(log_path)
+    assert log_path not in result.uncommitted_files
+    assert result.feature_dir / "status.events.jsonl" not in result.uncommitted_files
+    assert result.feature_dir / "meta.json" in result.uncommitted_files
 
 
 def test_protected_bootstrap_preserves_disclosed_local_source(tmp_path, monkeypatch):
@@ -24,9 +53,9 @@ def test_protected_bootstrap_preserves_disclosed_local_source(tmp_path, monkeypa
     emitted = []
     monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
     result = create_mission_core(tmp_path, "bootstrap", allow_worktree_context=True, **_mission_summary("bootstrap"))
-    assert result.feature_dir / "status.events.jsonl" in result.uncommitted_files
     assert [item["envelope"]["event_type"] for item in emitted] == ["MissionCreated", "SpecifyStarted"]
     assert all(item["log_path"].exists() for item in emitted)
+    _assert_status_log_seeded_on_coordination(result, emitted)
 
 
 def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
@@ -37,15 +66,8 @@ def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
     emitted = []
 
     def capture(**kwargs):
-        log_path = kwargs["log_path"]
-        relative = log_path.relative_to(tmp_path).as_posix()
-        committed = subprocess.run(
-            ["git", "show", f"HEAD:{relative}"],
-            cwd=tmp_path,
-            capture_output=True,
-            check=False,
-        )
-        emitted.append((kwargs["envelope"]["event_type"], committed.returncode))
+        committed = _committed_in_own_worktree(kwargs["log_path"])
+        emitted.append((kwargs["envelope"]["event_type"], 0 if committed else 1))
 
     monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", capture)
     create_mission_core(tmp_path, "committed-first", allow_worktree_context=True, **_mission_summary("committed-first"))
@@ -114,6 +136,6 @@ def test_head_mismatch_bootstrap_keeps_planning_target_and_disclosure(tmp_path, 
     result = create_mission_core(tmp_path, "other-target", target_branch="planning-work", allow_worktree_context=True, **_mission_summary("other-target"))
     assert result.target_branch == "planning-work"
     assert result.current_branch == "operator-work"
-    assert result.feature_dir / "status.events.jsonl" in result.uncommitted_files
     assert [item["envelope"]["event_type"] for item in emitted] == ["MissionCreated", "SpecifyStarted"]
+    _assert_status_log_seeded_on_coordination(result, emitted)
     assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "operator-work"

@@ -585,6 +585,16 @@ def test_blocked_floor_dependency_walled_has_named_recovery(tmp_path: Path) -> N
     _assert_reason_has_runnable_recovery_command(advance_decision.reason, mission_slug)
 
 
+def _unmaterialize_coord_worktree(repo: Path, mission_slug: str, mid8: str) -> None:
+    """#5440: create now seeds the coordination worktree; remove it (keeping
+    the branch) to re-establish the branch-only UNMATERIALIZED shape."""
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    coord_root = CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)
+    subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(coord_root)], capture_output=True, check=True)
+    assert not coord_root.exists()
+
+
 def test_unmaterialized_coord_surfaces_typed_blocked_reason(tmp_path: Path) -> None:
     """CT-5 / NFR-003: an unmaterialized coordination worktree MUST surface a
     blocked reason naming the unmaterialized surface -- NOT the generic
@@ -611,7 +621,8 @@ def test_unmaterialized_coord_surfaces_typed_blocked_reason(tmp_path: Path) -> N
     mission_slug = "coord-anbu-unmat"
     _golden_init_git_repo(repo)
     result = _golden_create_mission(repo, mission_slug, _MissionTopology.COORD)
-    # deliberately never materialize the coord worktree (CoordState.UNMATERIALIZED)
+    # remove the create-seeded coord worktree (#5440) -> CoordState.UNMATERIALIZED
+    _unmaterialize_coord_worktree(repo, result.mission_slug, str(result.meta["mid8"]))
     write_wp_task_files(result.feature_dir, {"WP01": "planned"})
     (result.feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True, check=True)
@@ -661,6 +672,8 @@ def test_deleted_coord_branch_surfaces_flatten_blocked_reason(tmp_path: Path) ->
     # Delete the declared coordination branch entirely (no worktree, no
     # remote-tracking ref either) -- CoordState.DELETED, never UNMATERIALIZED.
     coord_branch = f"kitty/mission-{result.mission_slug}"
+    # #5440: create seeds the coord worktree; remove it so `git branch -D` is allowed.
+    _unmaterialize_coord_worktree(repo, result.mission_slug, str(result.meta["mid8"]))
     subprocess.run(
         ["git", "-C", str(repo), "branch", "-D", coord_branch],
         capture_output=True,

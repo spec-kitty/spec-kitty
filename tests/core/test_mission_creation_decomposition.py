@@ -22,6 +22,7 @@ from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import (
     MissionAlreadyExistsError,
     MissionCreationError,
+    MissionCreationResult,
     create_mission_core,
 )
 
@@ -278,16 +279,27 @@ def test_documentation_mission_writes_documentation_state(repo: Path) -> None:
     assert "documentation_state" in on_disk_meta
 
 
+def _coordination_status_log(repo: Path, result: MissionCreationResult) -> Path:
+    """The coordination worktree copy of the mission's status log (#5440)."""
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    surface: Path = resolve_status_surface(repo, result.mission_slug)
+    assert ".worktrees" in surface.parts, f"coord status surface must be the coordination worktree, got {surface}"
+    return surface
+
+
 def test_status_log_holds_exactly_created_and_specify_started(repo: Path) -> None:
     result = create_mission_core(repo, "event-mission", **_summary("event-mission"))
-    log_path = result.feature_dir / "status.events.jsonl"
+    log_path = _coordination_status_log(repo, result)
     events = [json.loads(line) for line in log_path.read_text().splitlines() if line.strip()]
     event_types = [event.get("event_type") for event in events]
     assert event_types.count("MissionCreated") == 1
     assert event_types.count("SpecifyStarted") == 1
+    assert not (result.feature_dir / "status.events.jsonl").exists(), "#5440: a coord create keeps no primary status log"
 
 
 def test_scaffold_commit_is_single_commit_excluding_spec_md(repo: Path) -> None:
+    """Default ``coord`` create: one target commit without the status log (#5440)."""
     result = create_mission_core(repo, "scaffold-commit", **_summary("scaffold-commit"))
     head = _git(repo, "rev-parse", "HEAD").stdout.decode().strip()
     parent_count = _git(repo, "rev-list", "--count", head).stdout.decode().strip()
@@ -295,10 +307,33 @@ def test_scaffold_commit_is_single_commit_excluding_spec_md(repo: Path) -> None:
     tree_files = _git(repo, "ls-tree", "-r", "--name-only", head).stdout.decode().splitlines()
     slug = result.mission_slug
     assert f"kitty-specs/{slug}/meta.json" in tree_files
-    assert f"kitty-specs/{slug}/status.events.jsonl" in tree_files
+    assert f"kitty-specs/{slug}/status.events.jsonl" not in tree_files
     assert f"kitty-specs/{slug}/tasks/README.md" in tree_files
     assert f"kitty-specs/{slug}/tasks/.gitkeep" in tree_files
     assert f"kitty-specs/{slug}/spec.md" not in tree_files
+
+    # The status log lives on the coordination branch instead, in its own commit.
+    assert result.coordination_branch is not None
+    coord_files = _git(repo, "ls-tree", "-r", "--name-only", result.coordination_branch).stdout.decode().splitlines()
+    assert f"kitty-specs/{slug}/status.events.jsonl" in coord_files
+    assert f"kitty-specs/{slug}/meta.json" not in coord_files
+
+
+def test_single_branch_scaffold_commit_keeps_the_status_log(repo: Path) -> None:
+    """Branch-flat topologies have no coordination surface: the log rides the scaffold."""
+    result = create_mission_core(
+        repo,
+        "flat-scaffold",
+        topology=MissionTopology.SINGLE_BRANCH,
+        **_summary("flat-scaffold"),
+    )
+    head = _git(repo, "rev-parse", "HEAD").stdout.decode().strip()
+    tree_files = _git(repo, "ls-tree", "-r", "--name-only", head).stdout.decode().splitlines()
+    slug = result.mission_slug
+    assert f"kitty-specs/{slug}/meta.json" in tree_files
+    assert f"kitty-specs/{slug}/status.events.jsonl" in tree_files
+    assert f"kitty-specs/{slug}/tasks/README.md" in tree_files
+    assert not (repo / ".worktrees").exists()
 
 
 # ---------------------------------------------------------------------------

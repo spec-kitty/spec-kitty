@@ -9,6 +9,7 @@ seeded lane state. These tests pin the corrected staging behaviour.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,15 @@ def _write(path: Path, text: str) -> Path:
     return path
 
 
+def _commit_all(worktree: Path) -> None:
+    for argv in (
+        ["init", "-q"],
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed"],
+    ):
+        subprocess.run(["git", *argv], cwd=worktree, check=True)
+
+
 def test_canonical_status_files_excluded_from_coord_staging(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     feature_dir = repo_root / "kitty-specs" / "060-test"
@@ -42,6 +52,9 @@ def test_canonical_status_files_excluded_from_coord_staging(tmp_path: Path) -> N
     coord_feature = coord_wt / "kitty-specs" / "060-test"
     # The seeded lane-state log the transactional emitter already wrote.
     seeded = _write(coord_feature / "status.events.jsonl", "SEEDED-LANE-EVENTS\n")
+    # The emitter commits that log, so the coord twin is a clean git checkout
+    # (#5513 reads the twin's git status and fails closed outside a repository).
+    _commit_all(coord_wt)
 
     staged = _stage_finalize_artifacts_in_coord_worktree(
         files_to_commit, coord_wt, repo_root

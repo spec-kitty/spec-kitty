@@ -163,10 +163,17 @@ def _build_coord_mission_for_matrix(tmp_path: Path) -> tuple[MissionCreationResu
     assert coord_feature_dir != result.feature_dir, (
         "fixture invariant violated: coord and primary must be genuinely divergent surfaces, or every coord-landing assertion is vacuous"
     )
-    assert not coord_feature_dir.exists(), (
-        "fixture invariant: the coord worktree must NOT carry kitty-specs/<slug>/ "
-        "yet — it is materialised lazily by the first COORD-partition write "
-        "(matches coord_topology_fixture.py's base-husk invariant)"
+    # #5440: create now seeds the coordination worktree with the mission's
+    # status log, committed on the coordination branch — and nothing else (no
+    # meta.json, no matrix): every other COORD-partition file still lands only
+    # through the write paths under test.
+    coord_files = sorted(p.name for p in coord_feature_dir.iterdir()) if coord_feature_dir.is_dir() else []
+    assert coord_files == ["status.events.jsonl"], (
+        f"fixture invariant: create seeds the coord worktree's kitty-specs/<slug>/ with ONLY the status log, got {coord_files!r}"
+    )
+    tracked = _git(coord_root, "ls-files", "--", f"kitty-specs/{result.mission_slug}").stdout.split()
+    assert tracked == [f"kitty-specs/{result.mission_slug}/status.events.jsonl"], (
+        f"fixture invariant: the seeded status log must be committed on the coordination branch, got {tracked!r}"
     )
 
     return result, coord_root, coord_feature_dir
@@ -429,7 +436,11 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(tmp_path: Pat
     # it commits directly to the primary working branch, and the coord
     # worktree never receives it.
     assert regressed_result.status == "committed", regressed_result
-    assert not coord_feature_dir.exists(), "regression check invalid: coord dir should NOT be materialised when the per-file classifier is disabled"
+    # #5440: create now seeds the coord mission dir with the status log, so the
+    # pin is that the MATRIX never reaches the coord surface.
+    assert not (coord_feature_dir / "acceptance-matrix.json").exists(), (
+        "regression check invalid: the matrix should NOT reach the coord surface when the per-file classifier is disabled"
+    )
     resolved, acc_matrix = _read_back_via_accept_seam(tmp_path, slug)
     assert acc_matrix is None or acc_matrix.extras.get("marker") != "REGRESSION_MARKER" or resolved != coord_feature_dir, (
         "the per-batch-kind regression must NOT be indistinguishable from the "

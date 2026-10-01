@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,19 @@ def test_rev_parse_returns_empty_on_failure(monkeypatch: pytest.MonkeyPatch, tmp
 
     monkeypatch.setattr(subprocess, "check_output", _boom)
     assert cd._rev_parse(tmp_path, "HEAD") == ""
+
+
+def _coord_behind(coord_sha: str, target_sha: str) -> Callable[..., bool]:
+    """Stub ``_is_ff_candidate`` for a coord branch strictly BEHIND its target.
+
+    Only the (coord -> target) direction is an ancestry; the reverse (coord
+    strictly ahead, #5440) is not.
+    """
+
+    def _is_ff(_repo_root: Path, ancestor: str, descendant: str) -> bool:
+        return (ancestor, descendant) == (coord_sha, target_sha)
+
+    return _is_ff
 
 
 def test_is_ff_candidate_false_for_equal_shas(tmp_path: Path) -> None:
@@ -146,7 +160,7 @@ def test_coord_branch_stale_vs_target_finding_stale(
 ) -> None:
     shas = {"refs/heads/coord": "coord-sha", "refs/heads/main": "main-sha"}
     monkeypatch.setattr(cd, "_rev_parse", lambda _cwd, ref: shas[ref])
-    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *a: True)
+    monkeypatch.setattr(cd, "_is_ff_candidate", _coord_behind("coord-sha", "main-sha"))
     finding = cd._coord_branch_stale_vs_target_finding(tmp_path, "coord", "main")
     assert finding is not None
     assert finding.severity == "warning"
@@ -245,7 +259,7 @@ def test_fix_one_staleness_requires_declared_ref_postcondition(
         "_coord_vs_target_shas",
         lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
     )
-    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(cd, "_is_ff_candidate", _coord_behind("coord-sha", "target-sha"))
     monkeypatch.setattr(
         cd,
         "_coordination_identity",
@@ -295,7 +309,7 @@ def test_fix_one_staleness_merges_target_sha_not_branch_name(
         "_coord_vs_target_shas",
         lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
     )
-    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(cd, "_is_ff_candidate", _coord_behind("coord-sha", "target-sha"))
     monkeypatch.setattr(
         cd,
         "_coordination_identity",
@@ -337,7 +351,7 @@ def test_fix_one_staleness_merge_failure_returns_finding_without_raising(
         "_coord_vs_target_shas",
         lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
     )
-    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(cd, "_is_ff_candidate", _coord_behind("coord-sha", "target-sha"))
     monkeypatch.setattr(
         cd,
         "_coordination_identity",
@@ -1128,3 +1142,40 @@ def test_e_one_diverged_mission_does_not_block_fix_for_other_missions(
         "an unrelated mission's diverged Gap-1 state must not block the "
         "flatten-cleanup fix for a different mission in the same --fix run"
     )
+
+
+def _make_coord_ahead_repo(repo: Path, mission_slug: str) -> Path:
+    """coord carries one commit on top of main -- strictly ahead (#5440 create seed)."""
+    _init_repo(repo)
+    _git(repo, "branch", _COORD_BRANCH)
+    _git(repo, "checkout", "-q", _COORD_BRANCH)
+    (repo / "status.events.jsonl").write_text("{}\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "coord-only status commit")
+    _git(repo, "checkout", "-q", _TARGET_BRANCH)
+    return _seed_stale_meta(repo, mission_slug)
+
+
+@pytest.mark.git_repo
+def test_coord_branch_ahead_of_target_is_not_a_finding(tmp_path: Path) -> None:
+    """#5440: a coord branch that only adds its own commits on top of target is in sync."""
+    repo = tmp_path / "repo"
+    _make_coord_ahead_repo(repo, "ahead-mission")
+    assert cd._coord_branch_stale_vs_target_finding(repo, _COORD_BRANCH, _TARGET_BRANCH) is None
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_fix_leaves_a_coord_branch_ahead_of_target_untouched(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """#5440: ``--fix`` has nothing to do for a coord branch strictly ahead of target."""
+    repo = tmp_path / "repo"
+    feature_dir = _make_coord_ahead_repo(repo, "ahead-fix-mission")
+    worktree = _add_coord_worktree(repo, tmp_path)
+    _patch_worktree_path(monkeypatch, worktree)
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+
+    assert cd._fix_one_mission_coord_staleness(repo, meta) is None
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before

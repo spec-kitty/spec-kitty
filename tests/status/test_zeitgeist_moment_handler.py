@@ -1105,7 +1105,11 @@ def test_mission_creation_publishes_specify_started_after_local_persistence(
     result = create_mission_core(tmp_path, "specify-started", allow_worktree_context=True, **_mission_summary("specify-started"))
 
     assert [args["kind"] for _op, args in recorder.moment_offers()] == ["MissionCreated", "SpecifyStarted"]
-    persisted = [json.loads(line) for line in (result.feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    # #5440: the status log lives on the resolved status surface (the coordination worktree).
+    status_log = resolve_status_surface(tmp_path, result.mission_slug)
+    persisted = [json.loads(line) for line in status_log.read_text(encoding="utf-8").splitlines() if line.strip()]
     local_started = [event for event in persisted if event["event_type"] == "SpecifyStarted"]
     assert len(local_started) == 1
     local = local_started[0]

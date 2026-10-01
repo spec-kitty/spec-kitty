@@ -124,8 +124,17 @@ def _fresh_unmaterialized_coord_mission(tmp_path: Path, name: str) -> tuple[Path
     _init_git_repo(repo)
     slug = f"{name}-mission".replace("_", "-")
     result = _create_mission(repo, slug, MissionTopology.COORD)
-    # Deliberately never materialize: CoordState.UNMATERIALIZED.
+    _unmaterialize_coord_worktree(repo, result.mission_slug)
     return repo, result.mission_slug
+
+
+def _unmaterialize_coord_worktree(repo: Path, mission_slug: str) -> None:
+    """Remove the coordination worktree create materialized, keeping the branch.
+
+    #5440: create now seeds the status log in a materialized coordination
+    worktree; remove it so the fixture keeps CoordState.UNMATERIALIZED.
+    """
+    _git(repo, "worktree", "remove", "--force", str(_worktree_path(repo, mission_slug)))
 
 
 # ---------------------------------------------------------------------------

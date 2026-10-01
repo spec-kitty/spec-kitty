@@ -16,9 +16,11 @@ Real-git fixtures reuse #2462's golden-path scaffolding verbatim (do NOT
 duplicate the git/mission-creation primitives), mirroring
 ``tests/integration/test_accept_matrix_coord_partition.py``.
 """
+
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -50,13 +52,28 @@ def _repo(tmp_path: Path) -> Path:
     return repo
 
 
+def _unmaterialize_coord_worktree(repo: Path, slug: str, mid8: str) -> Path:
+    """Remove the coordination worktree create seeded, keeping its branch.
+
+    #5440: create now seeds the coordination worktree, so the UNMATERIALIZED
+    state (branch present in git, no worktree on disk) is established explicitly.
+    """
+    coord_root = CoordinationWorkspace.worktree_path(repo, slug, mid8)
+    subprocess.run(
+        ["git", "-C", str(repo), "worktree", "remove", "--force", str(coord_root)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert not coord_root.exists()
+    return coord_root
+
+
 @pytest.mark.parametrize(
     "topology",
     [MissionTopology.COORD, MissionTopology.LANES_WITH_COORD],
 )
-def test_coord_read_dir_for_routes_to_materialised_coord_surface(
-    tmp_path: Path, topology: MissionTopology
-) -> None:
+def test_coord_read_dir_for_routes_to_materialised_coord_surface(tmp_path: Path, topology: MissionTopology) -> None:
     """Under COORD *and* LANES_WITH_COORD, a coord-classified kind resolves the
     materialised coordination worktree — the SAME dir the canonical materialiser
     yields — NOT the primary checkout."""
@@ -69,9 +86,7 @@ def test_coord_read_dir_for_routes_to_materialised_coord_surface(
     coord_mission_dir.mkdir(parents=True, exist_ok=True)
     (coord_mission_dir / "issue-matrix.md").write_text("# issues\n", encoding="utf-8")
 
-    resolved = coord_read_dir_for(
-        repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
+    resolved = coord_read_dir_for(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
     assert resolved is not None
     expected = coord_root / "kitty-specs" / result.mission_slug
     assert resolved.resolve() == expected.resolve()
@@ -85,9 +100,7 @@ def test_coord_read_dir_for_returns_none_for_coordless_mission(tmp_path: Path) -
     repo = _repo(tmp_path)
     result = _create_mission(repo, "coordless-read-demo", MissionTopology.SINGLE_BRANCH)
 
-    resolved = coord_read_dir_for(
-        repo, result.mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX
-    )
+    resolved = coord_read_dir_for(repo, result.mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX)
     assert resolved is None
 
 
@@ -100,27 +113,21 @@ def test_coord_read_dir_for_coord_declared_unmaterialised_is_not_coord(
     never a non-existent coord dir."""
     repo = _repo(tmp_path)
     result = _create_mission(repo, "coord-unmat-demo", MissionTopology.COORD)
+    _unmaterialize_coord_worktree(repo, result.mission_slug, str(result.meta["mid8"]))
 
-    resolved = coord_read_dir_for(
-        repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
+    resolved = coord_read_dir_for(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
     # No coord worktree materialised, so the resolved dir is NOT the coord husk.
     if resolved is not None:
         meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
         mid8 = str(meta["mission_id"])[:8]
         coord_root = CoordinationWorkspace.worktree_path(repo, result.mission_slug, mid8)
-        assert (
-            resolved.resolve()
-            != (coord_root / "kitty-specs" / result.mission_slug).resolve()
-        )
+        assert resolved.resolve() != (coord_root / "kitty-specs" / result.mission_slug).resolve()
 
 
 def test_baseline_tests_json_classifies_as_primary_work_package_task() -> None:
     """#3: ``baseline-tests.json`` classifies to the PRIMARY ``WORK_PACKAGE_TASK``
     partition, so its home is DERIVABLE from the basename (not caller-asserted)."""
-    kind = kind_for_mission_file(
-        "kitty-specs/demo-01ABCDEF/baseline-tests.json", mission_slug="demo-01ABCDEF"
-    )
+    kind = kind_for_mission_file("kitty-specs/demo-01ABCDEF/baseline-tests.json", mission_slug="demo-01ABCDEF")
     assert kind is MissionArtifactKind.WORK_PACKAGE_TASK
     assert is_primary_artifact_kind(kind)
 
@@ -149,8 +156,8 @@ def test_unmaterialized_coord_read_raises_instead_of_empty_primary(
 
     Builds a COORD-topology mission via ``_create_mission`` (the real
     ``mission create`` core, which mints the coordination branch in git and
-    writes ``coordination_branch`` into ``meta.json``) and deliberately never
-    materializes the coord worktree — the same fixture shape as
+    writes ``coordination_branch`` into ``meta.json``) and then removes the
+    coord worktree create seeds (#5440) — the same fixture shape as
     ``test_coord_read_dir_for_coord_declared_unmaterialised_is_not_coord``
     above, which pins that the branch-declared-but-unmaterialized state is
     real and reachable without any coord worktree on disk.
@@ -162,9 +169,10 @@ def test_unmaterialized_coord_read_raises_instead_of_empty_primary(
 
     repo = _repo(tmp_path)
     result = _create_mission(repo, "coord-unmat-raise-demo", MissionTopology.COORD)
-    # No `_materialize_coord_worktree` call: the coord branch exists in git
-    # (minted by `_create_mission`) but its worktree was never created —
-    # exactly `CoordState.UNMATERIALIZED`.
+    # The coord branch exists in git (minted by `_create_mission`) but its
+    # worktree is removed (#5440: create now seeds the coordination worktree)
+    # — exactly `CoordState.UNMATERIALIZED`.
+    _unmaterialize_coord_worktree(repo, result.mission_slug, str(result.meta["mid8"]))
 
     seam = placement_seam(repo, result.mission_slug)
 

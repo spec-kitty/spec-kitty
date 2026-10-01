@@ -44,6 +44,7 @@ from specify_cli.coordination.surface_resolver import (
     CoordinationWorktreeUnmaterialized,
     _coord_branch_exists,
 )
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.mission_creation import MissionCreationResult
 from specify_cli.git.remote_probes import RemoteLookup
 from tests.integration.test_placement_partition_golden_path import (
@@ -79,6 +80,10 @@ def _create_coord_mission(repo: Path, slug: str) -> MissionCreationResult:
     """
     result = _create_mission(repo, slug, MissionTopology.COORD)
     assert result.coordination_branch, "fixture precondition: coord branch must be minted"
+    # Since #5440 create seeds the status log in a materialized coordination
+    # worktree; remove it so the fixture keeps its branch-only (unmaterialized) shape.
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, result.mission_slug, str(result.meta["mission_id"])[:8])
+    _git(repo, "worktree", "remove", "--force", str(coord_worktree))
     return result
 
 

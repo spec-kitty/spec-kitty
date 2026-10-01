@@ -24,6 +24,7 @@ Git/mission scaffolding is reused verbatim from ``test_placement_partition_
 golden_path`` (do NOT duplicate the git primitives), mirroring
 ``tests/mission_runtime/test_coord_read_seam.py``.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -41,6 +42,8 @@ from mission_runtime import (
 from mission_runtime.artifacts import artifact_home_for
 from mission_runtime.resolution import ResolvedSurface, SurfaceLocations, translate_surface
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
+from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.mission_creation import MissionCreationResult
 
 from tests.integration.test_placement_partition_golden_path import (
     _create_mission,
@@ -92,9 +95,7 @@ def test_every_surface_member_translates_to_a_real_location(tmp_path: Path) -> N
         assert resolved == expected[member]
         assert resolved.exists()
     # Non-vacuity: the members mapped to DISTINCT locations, not one shared dir.
-    assert len({expected[member] for member in TopologySurface}) == len(
-        list(TopologySurface)
-    )
+    assert len({expected[member] for member in TopologySurface}) == len(list(TopologySurface))
 
 
 def test_planned_members_are_declared_not_phantom(tmp_path: Path) -> None:
@@ -127,6 +128,20 @@ def _coord_mission_dir(coord_root: Path, mission_slug: str) -> Path:
     return coord_root / "kitty-specs" / mission_slug
 
 
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True)
+
+
+def _remove_coord_worktree(repo: Path, result: MissionCreationResult) -> None:
+    """Remove the coordination worktree create materialized, keeping the branch.
+
+    #5440: create now seeds the status log in a materialized coordination
+    worktree; tests needing an unmaterialized (or deletable) branch remove it.
+    """
+    mid8 = str(result.meta["mission_id"])[:8]
+    _git(repo, "worktree", "remove", "--force", str(CoordinationWorkspace.worktree_path(repo, result.mission_slug, mid8)))
+
+
 def test_materialized_coord_resolves_coord_and_stamps_coord(tmp_path: Path) -> None:
     """MATERIALIZED → the coordination mission dir, stamped COORD."""
     repo = _repo(tmp_path)
@@ -136,9 +151,7 @@ def test_materialized_coord_resolves_coord_and_stamps_coord(tmp_path: Path) -> N
     coord_dir.mkdir(parents=True, exist_ok=True)
     (coord_dir / "issue-matrix.md").write_text("# issues\n", encoding="utf-8")
 
-    resolved = resolve_artifact_surface(
-        repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
+    resolved = resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
     assert isinstance(resolved, ResolvedSurface)
     assert resolved.surface_kind is TopologySurface.COORD
     assert resolved.path.resolve() == coord_dir.resolve()
@@ -149,13 +162,17 @@ def test_materialized_coord_resolves_coord_and_stamps_coord(tmp_path: Path) -> N
 def test_empty_coord_resolves_primary_and_stamps_primary(tmp_path: Path) -> None:
     """EMPTY (coord root present, mission dir absent) → primary + stamp PRIMARY."""
     repo = _repo(tmp_path)
+    baseline = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, check=True, text=True).stdout.strip()
     result = _create_mission(repo, "seam-empty", MissionTopology.COORD)
-    # Materialise the coord root but leave its mission dir absent → EMPTY.
-    _materialize_coord_worktree(repo, result)
+    assert result.coordination_branch is not None
+    # #5440: create commits the mission dir (status log) on the coord branch; reset
+    # the branch to the pre-create baseline so it carries no mission dir → EMPTY.
+    _remove_coord_worktree(repo, result)
+    _git(repo, "branch", "-f", result.coordination_branch, baseline)
+    coord_root = _materialize_coord_worktree(repo, result)
+    assert not _coord_mission_dir(coord_root, result.mission_slug).exists()
 
-    resolved = resolve_artifact_surface(
-        repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
+    resolved = resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
     assert resolved.surface_kind is TopologySurface.PRIMARY
     assert resolved.path.resolve() == result.feature_dir.resolve()
 
@@ -172,7 +189,8 @@ def test_unmaterialized_coord_refuses_fail_closed(
     """
     repo = _repo(tmp_path)
     result = _create_mission(repo, "seam-unmaterialized", MissionTopology.COORD)
-    # Do NOT materialise the coord worktree → coord root absent, branch present.
+    # Remove the coord worktree create materialised → coord root absent, branch present.
+    _remove_coord_worktree(repo, result)
 
     with pytest.raises(CoordinationWorktreeUnmaterialized) as exc_info:
         resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
@@ -184,6 +202,8 @@ def test_deleted_coord_branch_raises_fail_loud(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     result = _create_mission(repo, "seam-deleted", MissionTopology.COORD)
     assert result.coordination_branch is not None
+    # #5440: a checked-out branch cannot be deleted; remove the coord worktree first.
+    _remove_coord_worktree(repo, result)
     # Delete the declared coordination branch; leave meta.json declaring it.
     subprocess.run(
         ["git", "-C", str(repo), "branch", "-D", result.coordination_branch],
@@ -192,9 +212,7 @@ def test_deleted_coord_branch_raises_fail_loud(tmp_path: Path) -> None:
     )
 
     with pytest.raises(CoordinationBranchDeleted) as exc_info:
-        resolve_artifact_surface(
-            repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-        )
+        resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
     assert exc_info.value.error_code == "COORDINATION_BRANCH_DELETED"
 
 
@@ -203,9 +221,7 @@ def test_flat_topology_resolves_primary_affirmatively(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     result = _create_mission(repo, "seam-flat", MissionTopology.SINGLE_BRANCH)
 
-    resolved = resolve_artifact_surface(
-        repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX
-    )
+    resolved = resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.ISSUE_MATRIX)
     assert resolved.surface_kind is TopologySurface.PRIMARY
     assert resolved.path.resolve() == result.feature_dir.resolve()
 
@@ -216,15 +232,15 @@ def test_primary_kind_ignores_deleted_coord_branch(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     result = _create_mission(repo, "seam-primary-kind", MissionTopology.COORD)
     assert result.coordination_branch is not None
+    # #5440: a checked-out branch cannot be deleted; remove the coord worktree first.
+    _remove_coord_worktree(repo, result)
     subprocess.run(
         ["git", "-C", str(repo), "branch", "-D", result.coordination_branch],
         capture_output=True,
         check=True,
     )
 
-    resolved = resolve_artifact_surface(
-        repo, result.mission_slug, MissionArtifactKind.SPEC
-    )
+    resolved = resolve_artifact_surface(repo, result.mission_slug, MissionArtifactKind.SPEC)
     assert resolved.surface_kind is TopologySurface.PRIMARY
     assert resolved.path.resolve() == result.feature_dir.resolve()
 

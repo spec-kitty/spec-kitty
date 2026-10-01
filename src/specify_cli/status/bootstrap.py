@@ -22,6 +22,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
+from specify_cli.status.store import EVENTS_FILENAME
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 if TYPE_CHECKING:
@@ -193,8 +194,12 @@ def bootstrap_canonical_state(
     # Materialize snapshot after all events are emitted.
     # The transactional emitter materializes per event, but
     # we call it once more to guarantee the final snapshot is coherent
-    # across all newly seeded WPs.
-    if wps_to_seed:
+    # across all newly seeded WPs. Only when ``feature_dir`` holds the event
+    # log: for a coordination-routed mission the log (and the snapshot the
+    # emitter already wrote) lives on the coordination surface, and reducing
+    # an absent primary log would strand a stray ``status.json`` in the
+    # primary checkout (#5440).
+    if wps_to_seed and (feature_dir / EVENTS_FILENAME).exists():
         materialize(feature_dir)
 
     return result

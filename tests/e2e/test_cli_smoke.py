@@ -94,10 +94,14 @@ class TestFullCLIWorkflow:
         assert (feature_dir / "spec.md").exists(), "spec.md not created"
         assert (feature_dir / "tasks").is_dir(), "tasks/ directory not created"
 
-        # No worktree should have been created during planning
+        # No execution (lane) worktree is created during planning. Since #5440 a
+        # coordination-routed create seeds the status log in the mission's
+        # coordination worktree, which is the only worktree allowed here.
         worktrees_dir = e2e_project / ".worktrees"
         if worktrees_dir.exists():
-            assert list(worktrees_dir.iterdir()) == [], "Worktree created during feature creation"
+            allowed = {f"{output['mission_slug']}-coord"} if output.get("coordination_branch") else set()
+            unexpected = [path.name for path in worktrees_dir.iterdir() if path.name not in allowed]
+            assert unexpected == [], f"Worktree created during mission creation: {unexpected}"
 
     def test_setup_plan(self, e2e_project: Path, run_cli) -> None:
         """Step 2: setup-plan produces plan.md in feature directory."""
@@ -219,10 +223,7 @@ class TestFullCLIWorkflow:
             "--json",
         )
 
-        assert result.returncode == 0, (
-            f"mission create failed (rc={result.returncode}):\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
         output = json.loads(result.stdout)
         assert output["result"] == "success"
         assert "documentation-template-smoke" in output["mission_slug"]

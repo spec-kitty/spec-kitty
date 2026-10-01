@@ -28,6 +28,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.consolidate import consolidate as merge
 from specify_cli.coordination import CoordinationWorkspace
+from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
@@ -152,7 +153,8 @@ def test_abort_valid_coord_mission_without_state_is_true_noop(
     """#4863: a resolved mission alone is not proof of an active merge."""
     repo, mission_slug, mission_id, mid8 = cli_created_coord_mission
     mission_dir = repo / "kitty-specs" / mission_slug
-    ledger = mission_dir / "status.events.jsonl"
+    # #5440: the ledger's canonical home is the coordination surface.
+    ledger = resolve_status_surface(repo, mission_slug)
     head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
     ledger_before = ledger.read_bytes()
 
@@ -174,7 +176,10 @@ def test_real_abort_tears_down_without_completion_provenance(
     """A real abort keeps cleanup semantics but skips the completion terminus."""
     repo, mission_slug, mission_id, mid8 = cli_created_coord_mission
     mission_dir = repo / "kitty-specs" / mission_slug
-    ledger = mission_dir / "status.events.jsonl"
+    # #5440: the ledger's canonical home is the coordination surface.
+    ledger = resolve_status_surface(repo, mission_slug)
+    coord_branch = CoordinationWorkspace.branch_name(mission_slug, mid8)
+    coord_tip_before = _git(repo, "rev-parse", coord_branch).stdout.strip()
     head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
     ledger_before = ledger.read_bytes()
     save_state(
@@ -193,6 +198,11 @@ def test_real_abort_tears_down_without_completion_provenance(
     assert f"Aborted merge for {mission_slug}" in result.output
     assert load_state(repo, mission_id) is None
     assert _git(repo, "rev-parse", "HEAD").stdout.strip() == head_before
-    assert ledger.read_bytes() == ledger_before
+    # The teardown removes the coordination worktree that held the ledger
+    # (#5440), so the ledger is checked where it persists: committed on the
+    # surviving coordination branch, whose tip gained no completion commit.
+    assert _git(repo, "rev-parse", coord_branch).stdout.strip() == coord_tip_before
+    ledger_path = ledger.relative_to(CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)).as_posix()
+    assert _git(repo, "show", f"{coord_branch}:{ledger_path}").stdout.encode() == ledger_before
     assert not (mission_dir / "retrospective.yaml").exists()
     assert not CoordinationWorkspace.is_present(repo, mission_slug, mid8)
