@@ -19,7 +19,8 @@ _TEMPLATES_ROOT = _REPO_ROOT / "src" / "specify_cli" / "missions"
 _RUNTIME_SOURCE_ROOT = _REPO_ROOT / "src" / "runtime" / "next"
 # Planning-base count of ``.py`` files under ``_RUNTIME_SOURCE_ROOT`` (NFR-002
 # floor). A deliberate shrink of the runtime tree is a one-line edit here.
-_RUNTIME_SOURCE_FILE_FLOOR = 31
+# 31 -> 27: the dead-code sweep (6bb119d0d0) deleted four runtime modules (#5506).
+_RUNTIME_SOURCE_FILE_FLOOR = 27
 
 
 def _placeholder_offenders(root: Path) -> tuple[int, list[tuple[Path, int]]]:
