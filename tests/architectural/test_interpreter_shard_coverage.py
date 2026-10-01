@@ -623,15 +623,16 @@ def isolated_collect_memo() -> Iterator[None]:
         yield
 
 
-def test_no_shard_collects_zero_tests() -> None:
+@pytest.mark.parametrize("shard", INTERPRETER_SHARDS, ids=lambda shard: shard.job_key)
+def test_no_shard_collects_zero_tests(shard: InterpreterShard) -> None:
     """FR-005: a shard whose selector collects 0 node-ids fails loudly,
-    naming the empty shard -- never a silent pass."""
-    empty: list[str] = []
-    for shard in INTERPRETER_SHARDS:
-        nodeids = _memo_collect(_shard_gate(shard))
-        if not nodeids:
-            empty.append(shard.job_key)
-    assert not empty, f"shard(s) collected 0 tests: {empty} (FR-005 -- a shard must never be silently vacuous)"
+    naming the empty shard -- never a silent pass.
+
+    One case per shard, so each case pays for one shard's collection (the memo
+    shares it with the later tests in this file) and no single test carries every
+    shard's collection under the per-test timeout (NFR-003)."""
+    nodeids = _memo_collect(_shard_gate(shard))
+    assert nodeids, f"shard {shard.job_key} collected 0 tests (FR-005 -- a shard must never be silently vacuous)"
 
 
 def _coverage_completeness_violations(
@@ -880,12 +881,16 @@ def test_real_consumers_collect_each_selection_once(monkeypatch: pytest.MonkeyPa
     world = _consistent_fake_world()
     calls = _install_counting_collector(monkeypatch, world)
 
+    def run_zero_test_cases() -> None:
+        for shard in INTERPRETER_SHARDS:
+            test_no_shard_collects_zero_tests(shard)
+
     if zero_first:
-        test_no_shard_collects_zero_tests()
+        run_zero_test_cases()
         test_shard_union_equals_full_selection_with_zero_gap_and_zero_overlap()
     else:
         test_shard_union_equals_full_selection_with_zero_gap_and_zero_overlap()
-        test_no_shard_collects_zero_tests()
+        run_zero_test_cases()
 
     assert set(calls) == set(world), "every shard gate plus the full-selection gate is collected"
     assert {key: count for key, count in calls.items() if count != 1} == {}, f"a consumer that bypasses the memo collects a selection twice (FR-006): {calls}"
