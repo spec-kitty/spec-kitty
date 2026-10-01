@@ -570,28 +570,31 @@ def test_phase_record_done_refuses_when_projection_window_unreadable(tmp_path: P
     assert "Nothing was torn down" in out
 
 
-def test_record_done_refusal_rolls_back_through_the_single_authority(tmp_path: Path) -> None:
-    run = _make_run(tmp_path)
-    run.state.reconciliation_passed_target_sha = "anchor"
-    with (
-        patch.object(ex, "_phase_record_done_and_project", side_effect=typer.Exit(1)),
-        patch.object(ex, "_report_rollback") as rollback_mock,
-        pytest.raises(typer.Exit),
-    ):
-        ex._phase_record_done_and_project_or_roll_back(run)
-    rollback_mock.assert_called_once_with(run, anchor_before="anchor")
-
-
-@pytest.mark.parametrize("error", [typer.Exit(0), RuntimeError("raw")])
-def test_record_done_wrapper_rolls_back_only_on_a_refusal(tmp_path: Path, error: BaseException) -> None:
-    run = _make_run(tmp_path)
-    with (
-        patch.object(ex, "_phase_record_done_and_project", side_effect=error),
-        patch.object(ex, "_report_rollback") as rollback_mock,
-        pytest.raises(type(error)),
-    ):
-        ex._phase_record_done_and_project_or_roll_back(run)
-    rollback_mock.assert_not_called()
+# Landing reconciliation (#5444): ``_phase_record_done_and_project_or_roll_back``
+# (the phase-local rollback wrapper these two tests exercised) was removed when
+# #5385's single rollback door subsumed it — the done-and-project phase now runs
+# inside the ONE ``try``/``except`` spanning the whole post-mutation sequence in
+# ``_run_lane_based_consolidation_locked`` (``src/specify_cli/consolidation/executor.py``).
+# Both behaviors these tests pinned are covered, with the real (not mocked)
+# single-door mechanism, by existing tests elsewhere:
+#   - "a non-zero ``typer.Exit`` from ``_phase_record_done_and_project`` rolls
+#     back" -> tests/terminus/test_rollback_door.py::
+#     test_failure_in_a_post_mutation_phase_restores_every_movable_branch
+#     [record_done_and_project-exit1]
+#   - "``typer.Exit(0)`` never rolls back" -> tests/consolidation/
+#     test_executor_rollback_wiring.py::test_door_lets_a_zero_exit_through_without_rolling_back
+#   - a plain ``RuntimeError`` from that phase ALSO rolls back under the single
+#     door (the old narrow wrapper's "only a refusal" half of this test asserted
+#     the opposite and is no longer true) -> tests/terminus/test_rollback_door.py::
+#     test_failure_in_a_post_mutation_phase_restores_every_movable_branch
+#     [record_done_and_project-runtime] and tests/consolidation/
+#     test_executor_rollback_wiring.py::test_door_rolls_back_once_and_propagates_the_original[runtime]
+# Re-expressing either test here would mean calling
+# ``_run_lane_based_consolidation_locked`` directly, which needs a full on-disk
+# mission (main_repo, lanes manifest, feature dirs, ...) rather than a bare
+# ``run`` -- i.e. the same real-git harness the tests above already use. That
+# would be a pure duplicate, not a narrower unit test, so these two are deleted
+# instead of rewritten.
 
 
 def test_phase_record_done_success_sets_target_paths(tmp_path: Path) -> None:

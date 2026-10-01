@@ -104,7 +104,11 @@ def test_locked_driver_calls_phases_in_frozen_order() -> None:
         "_phase_bake_and_pre_target_done(run)",
         "_phase_mission_to_target(run)",
         "_phase_capture_and_baseline(run)",
-        "_phase_record_done_and_project_or_roll_back(run)",
+        # Landing reconciliation (#5444): main's interim phase-local
+        # ``_phase_record_done_and_project_or_roll_back`` was removed when #5385's
+        # single rollback door subsumed it; the done-and-project phase now runs
+        # inside that one ``try``/``except`` as the base ``_phase_record_done_and_project``.
+        "_phase_record_done_and_project(run)",
         "_phase_porcelain_invariant(run)",
         "_phase_commit_and_assert(run)",
     ]
