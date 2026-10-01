@@ -1,13 +1,13 @@
 {
-  "event_count": 71,
-  "last_event_id": "01M3VG6RVF425D6H6NDR7SS4EZ",
-  "materialized_at": "2026-10-01T10:29:49.469422+00:00",
+  "event_count": 76,
+  "last_event_id": "01M3VHH2K5NQYQBJS1W6QT64Q7",
+  "materialized_at": "2026-10-01T10:52:55.703778+00:00",
   "mission_number": "",
   "mission_slug": "ci-runtime-stabilisation-01M3TZH6",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 12
+    "planned": 11
   },
   "work_packages": {
     "WP01": {
@@ -53,44 +53,54 @@
       }
     },
     "WP02": {
-      "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M3VG6RVF425D6H6NDR7SS4EZ",
-      "last_transition_at": "2026-10-01T10:29:49.469422+00:00",
+      "lane": "approved",
+      "last_event_id": "01M3VHFXMMCH8QDY603K2FBDTN",
+      "last_transition_at": "2026-10-01T10:52:17.940875+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: loud mismatch (annotation+step summary), file weights (median), enumerate_base_files, battery_parts + battery-parts CLI, check=True pinned, length-gate imports shared marker",
-        "Cycle 2: fixed 3 blockers (fast markers restored: -m fast 17 = 16 base + new; median-vs-mean pinned by skewed-set test, mean mutation red; battery-parts CLI loudness tested, deleting report_mismatch red). Manual enumeration smoke: 235 files. WP14 NOTE: battery-parts CLI flags are --path/--deselect/--roster/--timings/--shards/--root (no --registry; YAML stays out of the stdlib selector) - WP14 should adapt or call battery_parts(...) directly."
+        "Cycle 2: fixed 3 blockers (fast markers restored: -m fast 17 = 16 base + new; median-vs-mean pinned by skewed-set test, mean mutation red; battery-parts CLI loudness tested, deleting report_mismatch red). Manual enumeration smoke: 235 files. WP14 NOTE: battery-parts CLI flags are --path/--deselect/--roster/--timings/--shards/--root (no --registry; YAML stays out of the stdlib selector) - WP14 should adapt or call battery_parts(...) directly.",
+        "Cycle 3: closed the cycle-2 finding (shard_select.py resolve_file_weights 'if missing or stale' -> 'if missing' mutant now killed by stale-only/missing-only/CLI tests; production unchanged; commit 19dab4ad00). Self-mutation sweep: 62 mutants over weight/mismatch/report code (predicate booleans, stale/missing swaps, sort order, median variants, message parts and joiner, 10-name elision boundary, escape chain, summary append/newline, battery wiring); 6 initial survivors (stale sort order, '; ' joiner, ellipsis boundary x2, summary trailing newline) closed with tests; 1 equivalent mutant (count vs len(names)). Enumeration smoke: 235 files. Verification: tests/ci/test_shard_select.py + architectural test_module_length_agreement/test_module_shard_registry 128 passed; make test-fast 2172 passed/5 skipped (env var not exported); ruff/format/mypy --strict clean. DEVIATION for WP14: battery-parts CLI flags are --path/--deselect/--roster/--timings/--shards/--root (no --registry; YAML stays out of the stdlib module) - WP14 must adapt its invocation.",
+        "Review passed (cycle 3): cycle-2 survivor (if missing or stale -> if missing) now killed by 3 tests incl. battery-parts CLI stale-only; cycle-1 mutants (median->mean, battery/module report_mismatch deletion) still killed; fast marker on allowlist ratchet intact (17/20). tests/ci 1107 passed; arch length-agreement+shard-registry 38 passed; make test-fast 2172 passed/5 skipped; ruff/format/mypy --strict/C901 clean. Non-blocking: Activity Log still lacks the battery-parts CLI signature deviation note for WP14 (its --registry invocation must adapt) and the 235 enumeration smoke."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/stijn/Documents/_code/SDD/fork/SHADOW_CLONES/spec-kitty_THREE/kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP02-selector-loud-mismatch-file-mode/review-cycle-2.md",
-        "reference": "review-cycle://ci-runtime-stabilisation-01M3TZH6/WP02-selector-loud-mismatch-file-mode/review-cycle-2.md",
-        "reviewer": "claude-reviewer",
-        "verdict": "changes_requested"
+        "reference": "auto-approval:WP02:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 2060889,
+      "shell_pid_created_at": "1790851334.01",
       "subtasks": {
-        "T006": "planned",
-        "T007": "planned",
-        "T008": "planned",
-        "T009": "planned"
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
       }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M3V3HGJFCFWKZWEM4GT4YFTC",
-      "last_transition_at": "2026-10-01T06:48:30.031085+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M3VHH2K5NQYQBJS1W6QT64Q7",
+      "last_transition_at": "2026-10-01T10:52:55.703778+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 2116061,
+      "shell_pid_created_at": "1790851966.91"
     },
     "WP04": {
       "actor": "claude-reviewer",

@@ -23,8 +23,8 @@
 #     in-process pytest capture run without it (see the job's comments).
 #   * `strict-shard-timings-check`: runs the architectural length-agreement
 #     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
-#     failure for `charter` (and `agent`, the only other non-allowlisted
-#     module) on a real, scheduled cadence -- nothing in `ci-nightly.yml`
+#     failure for `charter` (and `agent` and `consolidation`, the other
+#     non-allowlisted modules) on a real, scheduled cadence -- nothing in `ci-nightly.yml`
 #     runs `tests/architectural` today (its `full-module-matrix` job only
 #     expands `.github/ci-module-registry.yml`'s `modules[]` rows, and that
 #     registry's own `out_of_matrix_test_dirs` explicitly excludes
@@ -38,7 +38,7 @@
 # AND, independently in the same run, `recapture-charter-shard-timings`
 # detects the same drift and opens/updates its fix PR (the fix); the next
 # scheduled run after that PR merges goes green again. If a DIFFERENT
-# non-allowlisted module drifts (today, only `agent`), `strict-shard-timings-
+# non-allowlisted module drifts (today, `agent` or `consolidation`), `strict-shard-timings-
 # check` goes red -- a genuine, new signal -- but the recapture job, hardcoded
 # to `charter` only (FR-009/C-001), does nothing about it; that is intentional
 # (CL-003), now at least visible instead of silently unblocked. Triage a red

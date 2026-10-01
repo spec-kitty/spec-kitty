@@ -23,8 +23,28 @@ modules:
   # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/consolidation (the secondary
   # tests/specify_cli/** mirror) into this row's per-PR execution -- the explicit
   # test_dirs list REPLACES the tests/consolidation fallback claim, so tests/consolidation is named
-  # explicitly alongside it or the guard reds. shard_count re-measured in T010.
-  shard_count: 1
+  # explicitly alongside it or the guard reds.
+  #
+  # shard_count=2 (#5510 FR-012, partial #5086): consolidation set the longest per-PR pipelines
+  # (last 7 green runs 15.5-26.2 min serial; CI xunit sum ~788 s; heaviest single test 39.3 s --
+  # D-21). Timings recaptured by `python scripts/ci/capture_shard_timings.py --module consolidation
+  # --run-id landing-5510-consolidation-split --write` (1615 tests collected under
+  # `not performance and not stress`; 1609 passed, 0 skipped, 6 xfailed, 1 deselected by the
+  # marker; summed 507.3 s locally, exit 0), replacing the stale 782-entry list captured as `merge`
+  # before #3080/#5001 so positional pairing weights by measured time, not the uniform fallback.
+  # LPT-2 projection over the committed list: bins [253.7 s, 253.7 s], skew 0.00% (the heaviest
+  # single test, 17.5 s locally, cannot unbalance two ~254 s bins). CI translation: ~788 s / 2
+  # = ~394 s of tests per shard plus ~3 min setup/coverage = ~10 min per shard, against the NFR-006
+  # bound p90 <= 15 min per shard with the two shards within 25% of each other (measured later on
+  # the Mission PR's CI over >= 3 runs, `module-tests (consolidation shard 1/2)` and `(... 2/2)`;
+  # not a local claim). 3 shards were rejected (R3 3.6): unnecessary for the measured weight and
+  # more runner start-up overhead.
+  # Consequence (R3 3.3): consolidation is no longer in test_module_length_agreement's
+  # _MISMATCH_ALLOWLIST, so the scheduled `strict-shard-timings-check` hard-fails on future
+  # consolidation count drift; per PR it is a `ShardTimingsDriftWarning` plus the loud selector
+  # warning. Recapture with the command above. Follow-up: generalise the scheduled recapture
+  # beyond charter (child of #5086).
+  shard_count: 2
   # spec-kitty#5001 (terminus-merge-integrity): tests/terminus holds the real-CLI,
   # mock-free terminus reconciliation repros. The spine they exercise lives under
   # src/specify_cli/consolidation/** (reconciliation.py, executor.py, ref_advance via merge),
