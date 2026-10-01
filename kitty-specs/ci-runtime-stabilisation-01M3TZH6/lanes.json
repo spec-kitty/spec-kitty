@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "mission_slug": "ci-runtime-stabilisation-01M3TZH6",
+  "mission_id": "01M3TZH6ZRJAR1SCMVQH8PXHFJ",
+  "mission_branch": "kitty/mission-ci-runtime-stabilisation-01M3TZH6",
+  "target_branch": "issue-5510-ci-runtime-stabilisation",
+  "lanes": [
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "tests/ci/test_nightly_architectural_backstop.py",
+        "tests/ci/test_nightly_exit_code_honesty.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "scripts/ci/memory_sampler.py",
+        "tests/ci/test_memory_sampler.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        "tests/architectural/test_clock_call_ban.py",
+        "tests/architectural/test_interpreter_shard_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP16"
+      ],
+      "write_scope": [
+        "scripts/ci/aggregate_source.py",
+        "scripts/ci/green_match.py",
+        "tests/ci/fixtures/green_match/**",
+        "tests/ci/test_aggregate_source.py",
+        "tests/ci/test_green_match.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP17"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-aggregate.yml",
+        "tests/architectural/test_coverage_artefact_contract.py",
+        "tests/ci/test_aggregate_attempts.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP14",
+        "WP12",
+        "WP15",
+        "WP18"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/ci-shard-timings.json",
+        ".github/workflows/ci-charter-shard-recapture.yml",
+        ".github/workflows/ci-modules.yml",
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/module-tests.yml",
+        ".github/workflows/packs.yml",
+        "pyproject.toml",
+        "scripts/ci/battery_partition_plugin.py",
+        "scripts/ci/capture_shard_timings.py",
+        "scripts/ci/corpus_select.py",
+        "scripts/ci/recapture_charter_shard_timings.py",
+        "scripts/ci/shard_select.py",
+        "scripts/verify_shard_3115.sh",
+        "tests/architectural/_ci_integrity_oracle.py",
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/_live_uniqueness.py",
+        "tests/architectural/test_battery_partition_proof.py",
+        "tests/architectural/test_ci_collection_completeness.py",
+        "tests/architectural/test_ci_corpus_trigger_completeness.py",
+        "tests/architectural/test_dual_mode_contract.py",
+        "tests/architectural/test_gate_selection_authority.py",
+        "tests/architectural/test_local_gate_parity.py",
+        "tests/architectural/test_module_length_agreement.py",
+        "tests/architectural/test_module_shard_registry.py",
+        "tests/architectural/test_no_duplicate_suite_execution.py",
+        "tests/architectural/test_same_tier_uniqueness.py",
+        "tests/architectural/test_workflow_coherence.py",
+        "tests/ci/test_battery_partition_plugin.py",
+        "tests/ci/test_battery_roster_budgets.py",
+        "tests/ci/test_capture_shard_timings.py",
+        "tests/ci/test_ci_config_battery_routing.py",
+        "tests/ci/test_ci_module_wiring.py",
+        "tests/ci/test_corpus_blocking_home.py",
+        "tests/ci/test_corpus_select.py",
+        "tests/ci/test_shard_select.py",
+        "tests/ci/test_skip_if_green_wiring.py",
+        "tests/ci/test_xdist_worker_policy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-f"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP19"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md",
+        "docs/adr/3.x/2026-09-26-1-ci-coverage-honesty.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/how-to/pr-landing.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "docs/development/reference/known-friction-points.md",
+        "docs/development/testing/testing-parallel.md",
+        "tests/docs/test_ci_runtime_adr_amendments.py",
+        "tests/release/coverage_breadth_evidence.md",
+        "tests/release/pinning_rule_inventory.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-01T08:43:17.685019+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b51753f0428a14d7588307634e2b982bc196236d",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'scripts/ci/shard_select.py' vs 'scripts/ci/shard_select.py', 'tests/ci/test_shard_select.py' vs 'tests/ci/test_shard_select.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/ci-charter-shard-recapture.yml' vs '.github/workflows/ci-charter-shard-recapture.yml'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'scripts/ci/capture_shard_timings.py' vs 'scripts/ci/capture_shard_timings.py', 'tests/ci/test_capture_shard_timings.py' vs 'tests/ci/test_capture_shard_timings.py', 'tests/architectural/test_module_shard_registry.py' vs 'tests/architectural/test_module_shard_registry.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP14",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/ci-module-registry.yml' vs '.github/ci-module-registry.yml', '.github/ci-shard-timings.json' vs '.github/ci-shard-timings.json'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'scripts/ci/battery_partition_plugin.py' vs 'scripts/ci/battery_partition_plugin.py'; WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP12",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_battery_partition_proof.py' vs 'tests/architectural/test_battery_partition_proof.py'; WP12 depends on WP06"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP15",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/_gate_coverage.py' vs 'tests/architectural/_gate_coverage.py'; WP15 depends on WP06"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml', 'tests/ci/test_ci_module_wiring.py' vs 'tests/ci/test_ci_module_wiring.py'; WP08 depends on WP07"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml', 'tests/ci/test_ci_module_wiring.py' vs 'tests/ci/test_ci_module_wiring.py'"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml'"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP12",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml', 'tests/architectural/_ci_integrity_oracle.py' vs 'tests/architectural/_ci_integrity_oracle.py', 'tests/ci/test_ci_module_wiring.py' vs 'tests/ci/test_ci_module_wiring.py'"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP18",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml'"
+      }
+    ],
+    "total_merges": 12,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 12
+    }
+  }
+}
