@@ -32,6 +32,8 @@ def _is_reviewer_rework_verdict(event: StatusEvent) -> bool:
     check and so uses a deliberately NARROWER lane set (``to == planned`` only,
     sources ``for_review``/``in_review``). A future change to "what counts as a
     reviewer verdict" must be weighed against both. (#5196)
+    The retrospective and hollow-review signal reads a third variant:
+    ``review.rejection_signal.is_documented_review_rejection`` (#2267).
     """
     return Lane(event.from_lane).value in _REVIEWER_SOURCE_LANES and bool(event.review_ref)
 

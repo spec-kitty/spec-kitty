@@ -162,3 +162,27 @@ def test_missing_event_log_keeps_the_raw_force_count(tmp_path: Path) -> None:
     (feature_dir / "status.events.jsonl").unlink()
 
     assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=2"]}
+
+
+def test_review_claims_do_not_count_as_hollow_review(tmp_path: Path) -> None:
+    """#2267: forced review claims (for_review -> in_progress) are the review path."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_force_history(feature_dir, "WP01", [], force_count=2)
+    claims = [
+        {"event_id": f"c{n}", "wp_id": "WP01", "actor": "claude", "force": True, "from_lane": "for_review", "to_lane": "in_progress", "review_ref": marker}
+        for n, marker in enumerate(("action-review-claim", "workflow-review-claim"))
+    ]
+    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(json.dumps(c) for c in claims) + "\n")
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {}
+
+
+def test_malformed_event_lines_are_skipped(tmp_path: Path) -> None:
+    """Garbage and non-object lines neither crash nor discount."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_force_history(feature_dir, "WP01", ["review-cycle://034-test/WP01/review-cycle-1.md", None, None], force_count=3)
+    with (feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write("not json\n[1, 2]\n\n")
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=2"]}

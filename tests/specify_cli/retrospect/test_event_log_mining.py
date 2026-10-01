@@ -20,6 +20,7 @@ from specify_cli.retrospective.generator import (
     _detect_arbiter_overrides,
     _detect_force_overrides,
     _detect_implementation_cycles,
+    _detect_lane_friction,
     _is_arbiter_event,
     _is_force_override_event,
 )
@@ -103,6 +104,21 @@ class TestForceOverrideDetection:
             },
         ]
         assert _detect_force_overrides(events) == {"WP07": 1}
+
+    @pytest.mark.parametrize("marker", ["action-review-claim", "workflow-review-claim"])
+    def test_review_claim_force_is_excluded(self, marker: str) -> None:
+        """#2267: a reviewer's forced for_review -> in_progress claim is the review path."""
+        event = {
+            "wp_id": "WP08",
+            "actor": "reviewer",
+            "force": True,
+            "from_lane": "for_review",
+            "to_lane": "in_progress",
+            "review_ref": marker,
+            "event_id": "f9",
+        }
+        assert _detect_force_overrides([event]) == {}
+        assert _detect_lane_friction([event]) == {}
 
     def test_no_op_force_is_excluded(self) -> None:
         """force=True with from_lane == to_lane carries no signal."""

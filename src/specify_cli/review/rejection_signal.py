@@ -12,10 +12,16 @@ rework.
 A *documented review rejection* is a backward rework move (into ``planned``,
 ``claimed`` or ``in_progress`` from a later lane) that carries documented
 review feedback. Feedback is documented when the event names a resolvable
-review pointer: a ``review_ref`` or a changes-requested review evidence whose
+review pointer -- a ``review_ref`` or a changes-requested review evidence whose
 reference is not an operational sentinel (``force-override``,
-``action-review-claim``) or a synthetic marker (``review:<WP>``) -- those are
-minted precisely when no feedback artifact exists.
+``action-review-claim``, ``workflow-review-claim``) or a synthetic marker
+(``review:<WP>``), which are minted precisely when no feedback artifact
+exists -- or legacy free-text string evidence.
+
+A *review claim* is the reviewer taking a WP for review; the claim markers
+``action-review-claim`` / legacy ``workflow-review-claim`` ride a forced
+``for_review -> in_progress`` move. It is the standard review path, so it is
+neither a guard bypass nor a lane bounce.
 
 Readers: ``retrospective.generator`` (rejection, lane-friction, force-override
 and implementation-cycle detectors) and ``consolidation.preflight`` (the
@@ -39,7 +45,10 @@ from specify_cli.status import Lane, is_changes_requested
 __all__ = [
     "is_backward_rework_move",
     "is_documented_review_rejection",
+    "is_review_claim",
 ]
+
+_REVIEW_CLAIM_MARKERS = frozenset({"action-review-claim", "workflow-review-claim"})
 
 _REWORK_TARGETS = (Lane.PLANNED.value, Lane.CLAIMED.value, Lane.IN_PROGRESS.value)
 
@@ -86,3 +95,9 @@ def is_backward_rework_move(event: Mapping[str, Any]) -> bool:
 def is_documented_review_rejection(event: Mapping[str, Any]) -> bool:
     """True when the event is a backward rework move carrying documented feedback."""
     return is_backward_rework_move(event) and _has_documented_review_feedback(event)
+
+
+def is_review_claim(event: Mapping[str, Any]) -> bool:
+    """True when the event is a reviewer's claim, marked by a review-claim ``review_ref``."""
+    review_ref = event.get("review_ref")
+    return isinstance(review_ref, str) and review_ref.strip() in _REVIEW_CLAIM_MARKERS

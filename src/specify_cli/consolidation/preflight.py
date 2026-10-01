@@ -550,16 +550,16 @@ def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
     return implementer != reviewer
 
 
-def _documented_rejection_force_counts(feature_dir: Path, wp_set: set[str]) -> dict[str, int]:
-    """Count forced documented review rejections per WP in the event log (#2267).
+def _review_force_counts(feature_dir: Path, wp_set: set[str]) -> dict[str, int]:
+    """Count forced review transitions per WP in the event log (#2267).
 
     ``move-task --to planned --force --review-feedback-file`` is the standard
-    rejection path, so every documented rejection raises the reducer's
-    ``force_count``. Those transitions are evidence of review, not of its
-    absence. Lines are deduped by ``event_id`` as the reducer dedupes them;
+    rejection path and a review claim is a forced ``for_review -> in_progress``
+    move, so both raise the reducer's ``force_count``. Those transitions are
+    evidence of review, not of its absence. Lines are deduped by ``event_id`` as the reducer dedupes them;
     an absent or unreadable log yields no discount (fail toward warning).
     """
-    from specify_cli.review.rejection_signal import is_documented_review_rejection
+    from specify_cli.review.rejection_signal import is_documented_review_rejection, is_review_claim
 
     events_path = feature_dir / _STATUS_EVENTS_FILENAME
     try:
@@ -576,7 +576,7 @@ def _documented_rejection_force_counts(feature_dir: Path, wp_set: set[str]) -> d
         if not isinstance(event, dict) or not event.get("force") or event.get("wp_id") not in wp_set:
             continue
         event_id = str(event.get("event_id") or "")
-        if (event_id and event_id in seen) or not is_documented_review_rejection(event):
+        if (event_id and event_id in seen) or not (is_documented_review_rejection(event) or is_review_claim(event)):
             continue
         seen.add(event_id)
         counts[event["wp_id"]] = counts.get(event["wp_id"], 0) + 1
@@ -595,7 +595,8 @@ def _collect_force_count_warnings(
     additive guards. Item #9: a WP whose approving actor is positively
     confirmed distinct from its implementing actor is not a hollow review,
     even with a high force_count. #2267: forced documented review rejections
-    are discounted, so the count reflects only undocumented forcing.
+    and review claims are discounted, so the count reflects only undocumented
+    forcing.
     """
     status_path = feature_dir / _STATUS_FILENAME
     if not status_path.exists():
@@ -607,7 +608,7 @@ def _collect_force_count_warnings(
     work_packages = status.get("work_packages", {}) if isinstance(status, dict) else {}
     if not isinstance(work_packages, dict):
         return
-    discounts = _documented_rejection_force_counts(feature_dir, wp_set)
+    discounts = _review_force_counts(feature_dir, wp_set)
     for wp_id in sorted(wp_set):
         wp_state = work_packages.get(wp_id, {})
         if not isinstance(wp_state, dict):

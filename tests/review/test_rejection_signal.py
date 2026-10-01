@@ -86,3 +86,20 @@ def test_backward_move_without_feedback_is_not_a_rejection() -> None:
     event = {"from_lane": "for_review", "to_lane": "planned", "force": True, "review_ref": "force-override"}
     assert is_backward_rework_move(event) is True
     assert is_documented_review_rejection(event) is False
+
+
+@pytest.mark.parametrize(
+    ("review_ref", "expected"),
+    [
+        ("action-review-claim", True),
+        ("workflow-review-claim", True),
+        ("force-override", False),
+        (_REF, False),
+        (None, False),
+    ],
+)
+def test_review_claim_markers(review_ref: str | None, expected: bool) -> None:
+    from specify_cli.review.rejection_signal import is_review_claim
+
+    event = {"from_lane": "for_review", "to_lane": "in_progress", "force": True, "review_ref": review_ref}
+    assert is_review_claim(event) is expected

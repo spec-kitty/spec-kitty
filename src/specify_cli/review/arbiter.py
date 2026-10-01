@@ -264,6 +264,8 @@ def _is_rejection_event(event: StatusEvent) -> bool:
     (the latest-implementer projection) and so uses a deliberately WIDER lane set
     (it also admits ``approved`` as a source and any target lane). A future change
     to "what counts as a reviewer verdict" must be weighed against both. (#5196)
+    The retrospective and hollow-review signal reads a third, widest variant:
+    ``review.rejection_signal.is_documented_review_rejection`` (#2267).
     """
     return event.to_lane == Lane.PLANNED and event.from_lane in _REJECTION_SOURCES and event.review_ref is not None
 

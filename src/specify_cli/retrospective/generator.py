@@ -348,8 +348,15 @@ def _is_review_rejection_event(event: dict[str, Any]) -> bool:
     return is_documented_review_rejection(event)
 
 
+def _is_review_claim_event(event: dict[str, Any]) -> bool:
+    # Lazy import (cycle-breaker; see module note above _LOGGER).
+    from specify_cli.review.rejection_signal import is_review_claim
+
+    return is_review_claim(event)
+
+
 def _is_lane_friction_event(event: dict[str, Any]) -> bool:
-    return _is_backward_lane_event(event) and not _is_review_rejection_event(event)
+    return _is_backward_lane_event(event) and not _is_review_rejection_event(event) and not _is_review_claim_event(event)
 
 
 def _detect_rejection_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
@@ -424,7 +431,8 @@ def _is_force_override_event(event: dict[str, Any]) -> bool:
     (from_lane == to_lane) which carry no signal.  Also excludes documented
     review rejections: the state machine requires ``--force`` to send a WP
     back with ``--review-feedback-file``, and that event already feeds the
-    ``review_loop`` finding (#2267).
+    ``review_loop`` finding; and review claims, the forced
+    ``for_review -> in_progress`` move a reviewer makes to take a WP (#2267).
     """
     if not event.get("force"):
         return False
@@ -433,7 +441,7 @@ def _is_force_override_event(event: dict[str, Any]) -> bool:
         return False
     if event.get("from_lane") == event.get("to_lane"):
         return False
-    return not _is_review_rejection_event(event)
+    return not (_is_review_rejection_event(event) or _is_review_claim_event(event))
 
 
 def _detect_force_overrides(events: list[dict[str, Any]]) -> dict[str, int]:
