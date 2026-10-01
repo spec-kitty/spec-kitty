@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-01T15:44:53.788902+00:00",
+  "flattened": false,
+  "friendly_name": "Retrospect: one signal for documented review rejections",
+  "mid8": "01M3W27M",
+  "mission_id": "01M3W27MCR4KCMHFAQHQN7DXBQ",
+  "mission_number": null,
+  "mission_slug": "retrospect-rejection-signal-01M3W27M",
+  "mission_type": "software-dev",
+  "purpose_context": "The retrospective classifier and the consolidate hollow-review warning read --force counts and in_progress re-entries without correlating them with documented review feedback, so a healthy rejection cycle is reported up to three times as a process failure (#2267).",
+  "purpose_tldr": "Stop reporting a documented review rejection as a guard bypass and as undocumented rework",
+  "slug": "retrospect-rejection-signal-01M3W27M",
+  "target_branch": "claude/issue-2267-77kxtr",
+  "topology": "single_branch"
+}
