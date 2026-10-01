@@ -42,11 +42,15 @@ reachable):
    ``needs_number_assignment`` doctor-proxy predicate flips
    ``True`` (pending) -> ``False`` (assigned).
 
-2. ``test_genuinely_unreachable_primary_surfaces_instead_of_silent_fail_open``
+2. ``test_unreachable_primary_returns_decided_number_unbaked_and_surfaces_it``
    — separately constructed: NEITHER the mission-branch worktree NOR
    ``main_repo``'s own checkout carries ``meta.json`` for this mission.
-   Asserts the bake returns a non-write result (no commit) AND that a
-   merge-summary line is printed (never a silent skip).
+   Asserts the seam returns the decided number (never discards it),
+   leaves ``mission_number_baked`` False, AND that a merge-summary line is
+   printed (never a silent skip). The refusal half of the #4900 contract
+   (the executor refusing rather than fabricating a null on the target) is
+   covered separately by
+   ``test_mission_number_truthful_4900.py::test_absent_target_meta_refuses_instead_of_fabricating``.
 """
 
 from __future__ import annotations
@@ -185,9 +189,18 @@ def test_coord_topology_bake_persists_to_primary_tree_when_reachable(tmp_path: P
 # ---------------------------------------------------------------------------
 
 
-def test_genuinely_unreachable_primary_surfaces_instead_of_silent_fail_open(tmp_path: Path) -> None:
+def test_unreachable_primary_returns_decided_number_unbaked_and_surfaces_it(tmp_path: Path) -> None:
     """#4474 / FR-011 fallback: when the primary tree is ALSO unreachable, the
-    unbaked field must be surfaced (merge-summary line), never a silent skip."""
+    seam's own contract is to RETURN the decided ``mission_number`` (never
+    discard it), leave ``mission_number_baked`` False, and print an observable
+    merge-summary line -- never a silent skip (``return None``/``False``).
+
+    The refusal half of the #4900 contract -- the executor refusing (``Error:``
+    + exit 1) instead of fabricating a ``null`` mission_number when the target
+    tree's own ``meta.json`` is absent -- is NOT exercised here; it is covered
+    by ``tests/consolidation/test_mission_number_truthful_4900.py::
+    test_absent_target_meta_refuses_instead_of_fabricating``.
+    """
     from specify_cli.consolidation import ordering
     from specify_cli.consolidation.state import ConsolidationState
 

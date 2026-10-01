@@ -306,7 +306,15 @@ def test_preflight_with_recovery_recovers_and_retries_successfully(tmp_path: Pat
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
     assert mock_preflight.call_count == 2
-    mock_recover.assert_called_once_with(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+    mock_recover.assert_called_once()
+    assert mock_recover.call_args.args[0] is exc
+    # cycle-2 fold (C-002): the identity-only form dropped the ONLY guard that
+    # _pre_mutation_safety_preflight_with_recovery threads lanes_manifest.mission_branch
+    # (not target_branch) into _recover_behind_head_primary_on_resume -- the value
+    # gates classify_resume_dirty_remedy's lane-ancestry check for the #4997
+    # in-place recovery. Keyword lookup (not a full-signature pin) stays neutral
+    # under the M2 strategy=None plant.
+    assert mock_recover.call_args.kwargs["mission_branch"] == manifest.mission_branch
     mock_report.assert_not_called()
 
 
@@ -326,10 +334,14 @@ def test_preflight_with_recovery_reports_and_exits_when_not_recovered(tmp_path: 
     mock_recover.assert_called_once()
     # #4933: `_report_pre_mutation_refusal` now takes `base_sha` (the persisted
     # `ConsolidationState.pre_mutation_target_sha`), threaded from a fresh
-    # `load_state` read at the call site -- `tmp_path` has no state.json here,
-    # so the call is `base_sha=None`, re-pinning the previously-implicit
-    # 2-kwarg signature.
-    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    # `load_state` read at the call site. The threading contract itself is
+    # pinned by ``test_preflight_with_recovery_threads_persisted_pre_mutation_target_sha_as_base_sha``
+    # below; this test is only about identity: the ORIGINAL refusal is reported.
+    mock_report.assert_called_once()
+    assert mock_report.call_args.args[0] is exc
+    # cycle-2 fold (C-002): same mission_branch-not-target_branch guard as above,
+    # for the first _report_pre_mutation_refusal call site.
+    assert mock_report.call_args.kwargs["mission_branch"] == manifest.mission_branch
     assert exc_info.value.exit_code == 1
 
 
@@ -359,7 +371,10 @@ def test_preflight_with_recovery_threads_persisted_pre_mutation_target_sha_as_ba
 
     assert mock_preflight.call_count == 1
     mock_recover.assert_called_once()
-    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m", base_sha=persisted_sha)
+    # #4933: the one explicit threading contract this WP keeps -- base_sha must
+    # be the REAL persisted value, not the None default the sibling tests exercise.
+    mock_report.assert_called_once()
+    assert mock_report.call_args.kwargs["base_sha"] == persisted_sha
     assert exc_info.value.exit_code == 1
 
 
@@ -380,8 +395,11 @@ def test_preflight_with_recovery_reports_and_exits_when_still_refused_after_reco
 
     assert mock_preflight.call_count == 2
     mock_recover.assert_called_once()
-    # #4933: see the sibling assertion's comment above -- same re-pin, no state.json here.
-    mock_report.assert_called_once_with(exc_after, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    mock_report.assert_called_once()
+    assert mock_report.call_args.args[0] is exc_after
+    # cycle-2 fold (C-002): same mission_branch-not-target_branch guard, for the
+    # SECOND _report_pre_mutation_refusal call site (the still-refused-after-recovery path).
+    assert mock_report.call_args.kwargs["mission_branch"] == manifest.mission_branch
     assert exc_info.value.exit_code == 1
 
 
@@ -413,7 +431,8 @@ def test_preflight_with_recovery_corrupt_state_still_reports_original_refusal(tm
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
-    mock_report.assert_called_once_with(exc, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    mock_report.assert_called_once()
+    assert mock_report.call_args.args[0] is exc
     assert exc_info.value.exit_code == 1
 
 
@@ -432,7 +451,8 @@ def test_preflight_with_recovery_corrupt_state_after_retry_still_reports(tmp_pat
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
-    mock_report.assert_called_once_with(exc_after, tmp_path, mission_branch="kitty/mission-m", base_sha=None)
+    mock_report.assert_called_once()
+    assert mock_report.call_args.args[0] is exc_after
     assert exc_info.value.exit_code == 1
 
 

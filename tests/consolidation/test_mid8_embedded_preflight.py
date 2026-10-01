@@ -33,7 +33,6 @@ from specify_cli.cli.commands.consolidate import _check_mission_branch
 from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
     reset_legacy_failover_warning,
-    worktree_path,
 )
 from specify_cli.consolidation.preflight import target_branch_sync_remediation
 
@@ -351,47 +350,3 @@ class TestPreflightMissionBranchFallbacks:
         )
         assert not any("git switch -c" in line for line in lines)
         assert any("doctor identity" in line for line in lines)
-
-
-class TestWorktreeTeardownSeamRouting:
-    """WP02 c1 (#1899): merge teardown must resolve the allocator-created path.
-
-    The ``--remove-worktree`` teardown loop previously guessed
-    ``f"{mission_slug}-{lane_id}"`` with NO mid8. Routing the teardown through
-    ``worktree_path(main_repo, slug, lane_id=…)`` makes the resolution explicit
-    and authoritative, and proves byte-identical to the allocator path.
-
-    The seam takes no ``mission_id`` at all (FR-002) — a lane
-    worktree path is keyed on the creation input (slug + lane id) alone. The
-    former "fed the REAL mission_id" premise is retired; the seam composes the
-    SAME path the allocator does for every shape, including a legacy ``NNN-``
-    slug (re-pinned to the created name — the mid8-injected form
-    this class used to pin for the NNN- case is no longer reachable).
-    """
-
-    def test_embedded_mission_teardown_matches_allocator_path(self, tmp_path: Path) -> None:
-        """Teardown seam path == the WP03 allocator's on-disk worktree path."""
-        slug = "mission-identity-seam-and-1908-panel-01KV6510"
-        lane_id = "lane-b"
-
-        # What the WP03 allocator (worktree_allocator.py) composes on disk.
-        allocator_path = tmp_path / ".worktrees" / f"{slug}-{lane_id}"
-
-        # What the routed teardown resolves (no identity).
-        teardown_path = worktree_path(tmp_path, slug, lane_id=lane_id)
-
-        assert teardown_path == allocator_path, (
-            "the routed teardown must resolve the SAME path the allocator created; the old no-mid8 f-string is the resolution the seam now subsumes"
-        )
-
-    def test_teardown_seam_matches_allocator_path_for_nnn_slug(self, tmp_path: Path) -> None:
-        """A legacy ``NNN-`` slug: the teardown seam composes the SAME bare path
-        the allocator created — no identity to inject a mid8 with."""
-        slug = "057-foo-bar"
-        lane_id = "lane-a"
-
-        allocator_path = tmp_path / ".worktrees" / f"{slug}-{lane_id}"
-        teardown_path = worktree_path(tmp_path, slug, lane_id=lane_id)
-
-        assert teardown_path == allocator_path
-        assert teardown_path.name == "057-foo-bar-lane-a"

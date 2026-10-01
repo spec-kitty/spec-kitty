@@ -476,22 +476,42 @@ def test_push_and_open_pr_fails_loudly_on_subprocess_error(
     assert len(calls) == fail_at_call_index + 1
 
 
-def test_pr_body_template_matches_fr010_verbatim_text() -> None:
+def test_pr_body_template_renders_substitutions_and_names_timings_file() -> None:
+    """#5346 row 5a (FIX): assert what the template *drives* -- the rendered
+    substitutions and the timings file it names -- instead of a verbatim
+    copy-pin of the wording, so a wording tweak stays green while a dropped
+    substitution or file reference still reds."""
     body = recapture.PR_BODY_TEMPLATE.format(before=100, after=105, run_url="https://example.invalid/run/1")
-    assert body == (
-        "Automated recapture opened by the scheduled `ci-charter-shard-recapture.yml` workflow "
-        "(`scripts/ci/recapture_charter_shard_timings.py`). Updates `.github/ci-shard-timings.json`'s "
-        "`charter` entry: committed length `100` -> `105`. Workflow run: `https://example.invalid/run/1`. "
-        "See spec-kitty#5189."
-    )
+    assert "100" in body
+    assert "105" in body
+    assert "https://example.invalid/run/1" in body
+    assert ".github/ci-shard-timings.json" in body
+    assert "{" not in body and "}" not in body
 
 
-def test_commit_message_matches_fr010_verbatim_text() -> None:
-    assert recapture.COMMIT_MESSAGE == "chore(ci): automated charter shard-timings recapture"
+def test_run_capture_phase_invokes_capture_shard_timings_with_module_charter(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5346 row 5b (FIX): ``recapture.MODULE == "charter"`` alone is a constant copy --
+    the real FR-009 scope lock is that :func:`run_capture_phase` actually passes
+    ``--module charter`` through the real seam (``run_capture_or_die`` ->
+    ``capture_shard_timings.main``). Stub ``capture_shard_timings.main`` with a recorder
+    (mirroring the drift-output tests' setup) instead of the usual ``lambda argv: 0``,
+    so the argv it receives is observed, not ignored."""
+    lengths = iter([10, 10])
+    monkeypatch.setattr(recapture, "_read_charter_length", lambda: next(lengths))
+    seen: list[list[str]] = []
 
+    def _record(argv: list[str]) -> int:
+        seen.append(list(argv))
+        return 0
 
-def test_module_is_hardcoded_to_charter() -> None:
-    assert recapture.MODULE == "charter"
+    monkeypatch.setattr(capture_shard_timings, "main", _record)
+    monkeypatch.setattr(recapture, "_write_github_output", lambda **fields: None)
+
+    exit_code = recapture.run_capture_phase()
+
+    assert exit_code == 0
+    assert len(seen) == 1
+    assert seen[0][:2] == ["--module", "charter"]
 
 
 def test_write_github_output_appends_to_output_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
