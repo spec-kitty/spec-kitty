@@ -31,7 +31,7 @@ implementation-agnostic:
 | Container (concept) | Current implementation | Could also be |
 |---|---|---|
 | Control Plane | CLI (`spec-kitty` commands) | TUI, web app, IDE plugin |
-| Dashboard | `spec-kitty dashboard` (local browser kanban), slated for removal; the Mission Status Read API is the read contract a replacement consumes ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md)) | External UI in its own repository, SaaS web view, IDE panel |
+| Dashboard | None in the CLI: the bundled `spec-kitty dashboard` was removed (#5530). Interim read path: `spec-kitty agent tasks status` / `orchestrator-api mission-state`. The planned Mission Status Read API (#5528) is the read contract a replacement consumes ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md)) | External UI in its own repository, SaaS web view, IDE panel |
 | Kitty-core | Python modules (specify, plan, tasks) | Same — domain logic |
 | Event Store | Filesystem (JSONL, frontmatter, meta.json) | Database, cloud event store |
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
@@ -150,9 +150,10 @@ view of mission progress, WP status, and execution history. Has no write path
 to any other container.
 
 The Dashboard reads mission state through the **Mission Status Read API**, the read
-contract of the Event Store. The API has two granularities: an overview built from the
-ledger, and a per-mission WP detail. The CLI-bundled implementation
-(`src/specify_cli/dashboard/`) is slated for removal. A replacement UI is an external
+contract of the Event Store. The API (planned, #5528) has two granularities: an overview
+built from the ledger, and a per-mission WP detail. The CLI-bundled implementation
+(`src/specify_cli/dashboard/`) has been removed (#5530); the Dashboard container now
+lives outside the CLI. A replacement UI, in its own repository, is an external
 consumer of that contract
 ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 proposed).

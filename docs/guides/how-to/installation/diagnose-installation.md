@@ -8,7 +8,6 @@ audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/installation/install-spec-kitty.md
 - docs/guides/how-to/collaboration/manage-agents.md
-- docs/guides/how-to/monitoring/use-dashboard.md
 ---
 # Diagnose Installation Problems
 
@@ -133,27 +132,7 @@ repository root.
 
 ---
 
-### 5. Dashboard not starting
-
-**Symptoms:**
-- The dashboard URL is unreachable after initialization.
-- Browser shows "connection refused" or the request times out.
-
-**Cause:**  Another process is using the dashboard port, the dashboard process
-crashed, or the dashboard was never started.
-
-**Recovery:**
-
-```bash
-spec-kitty dashboard
-```
-
-If the port is already in use, the dashboard reports the conflict.  Stop the
-conflicting process or let the dashboard auto-select an available port.
-
----
-
-### 6. Stale agent configuration
+### 5. Stale agent configuration
 
 **Symptoms:**
 - `spec-kitty agent config status` shows "Orphaned" directories (present on
@@ -178,7 +157,7 @@ below before running sync with orphan removal.
 
 ---
 
-### 7. Corrupted config file
+### 6. Corrupted config file
 
 **Symptoms:**
 - Any `spec-kitty` command fails with a YAML parse error referencing
@@ -208,7 +187,7 @@ write operation was interrupted mid-file.
 
 ---
 
-### 8. Worktree linkage broken
+### 7. Worktree linkage broken
 
 **Symptoms:**
 - `spec-kitty implement` fails with "worktree not found".
@@ -234,7 +213,7 @@ spec-kitty agent action implement WP01 --agent <name>
 
 ---
 
-### 9. Shared package imports resolve as a namespace package
+### 8. Shared package imports resolve as a namespace package
 
 **Symptoms:**
 
@@ -362,7 +341,6 @@ would be affected before executing a sync with orphan removal.
 | Missing skill root | `spec-kitty init . --ai <your-agent>` |
 | Manifest drift | `spec-kitty upgrade` |
 | Runtime not found | `cd "$(git rev-parse --show-toplevel)" && spec-kitty init . --ai <your-agent>` |
-| Dashboard not starting | `spec-kitty dashboard` |
 | Stale agent config | `spec-kitty agent config sync` |
 | Corrupted config | `cp .kittify/config.yaml .kittify/config.yaml.bak && rm .kittify/config.yaml && spec-kitty init . --ai <your-agent>` |
 | Broken worktree | `git worktree prune && spec-kitty agent action implement WP01 --agent <name>` |
@@ -371,4 +349,3 @@ would be affected before executing a sync with orphan removal.
 
 - [Install & Upgrade](install-spec-kitty.md) -- initial installation steps
 - [Manage Agents](../collaboration/manage-agents.md) -- add, remove, and sync agent directories
-- [Use the Dashboard](../monitoring/use-dashboard.md) -- starting and configuring the dashboard

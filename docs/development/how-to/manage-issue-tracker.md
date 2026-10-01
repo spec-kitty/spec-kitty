@@ -349,7 +349,7 @@ and any label-name automation, so it is not performed as a docs change.
 | Legacy label | Target | Code domain |
 |---|---|---|
 | `git` | `domain:git` | `src/specify_cli/git/` + worktree / topology helpers |
-| `dashboard` | `domain:dashboard` | `src/specify_cli/dashboard/` |
+| `dashboard` | `domain:dashboard` | formerly `src/specify_cli/dashboard/` (removed, #5530); now the planned Mission Status Read API (#5528) and its out-of-repo replacement UI |
 | `saas` | `domain:hosted` | hosted Team Kitty surface: `saas_client/` + `zeitgeist_client/` + `auth/` |
 | `agent-profiles` | `domain:agent-profiles` | agent-profile system in `src/charter/offering/` + profile loading in `specify_cli` |
 | `schema-versioning` | `domain:schema-versioning` | schema / versioning infrastructure (`src/specify_cli/schemas/`, migrations) |

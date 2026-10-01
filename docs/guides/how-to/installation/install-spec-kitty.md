@@ -13,7 +13,6 @@ related:
 - docs/guides/how-to/installation/install-macos.md
 - docs/guides/how-to/installation/install-windows.md
 - docs/guides/how-to/installation/non-interactive-init.md
-- docs/guides/how-to/monitoring/use-dashboard.md
 ---
 # Installation Guide
 
@@ -186,7 +185,7 @@ including `/spec-kitty.implement`, `/spec-kitty.review`, `/spec-kitty.accept`, a
 `/spec-kitty.merge` — with syntax and prerequisites for each, see the
 [slash command reference](../../../api/slash-commands.md).
 
-Run `spec-kitty dashboard --open` if you want the live dashboard immediately after setup.
+Run `spec-kitty agent tasks status` at any time to see where each work package stands.
 
 ## Troubleshooting
 
@@ -236,7 +235,6 @@ rm gcm-linux_amd64.2.6.1.deb
 
 - [Non-Interactive Init](non-interactive-init.md)
 - [Upgrade to 0.11.0](install-and-upgrade.md)
-- [Use the Dashboard](../monitoring/use-dashboard.md)
 
 ## Background
 

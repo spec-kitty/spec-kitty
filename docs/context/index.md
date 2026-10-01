@@ -16,7 +16,7 @@ to do and why.
 - **Glossary contexts** (`*.md`) — canonical terminology per bounded context,
   relocated from `docs/context/`. These remain the doctrine-extraction
   source consumed by `scripts/generate_contextive_glossaries.py`; the
-  dashboard glossary seed files under `.kittify/glossaries/` are unchanged.
+  glossary seed files under `.kittify/glossaries/` are unchanged.
 - **`audience/`** — architecture audience personas (internal/external),
   relocated from `docs/context/audience/`.
 - **Charter-era overview** — the current Spec Kitty 3.2 Charter governance

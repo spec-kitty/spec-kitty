@@ -24,7 +24,6 @@ Terminology note:
 
 ## Practical Usage
 
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
 
 <!-- BEGIN GENERATED -->

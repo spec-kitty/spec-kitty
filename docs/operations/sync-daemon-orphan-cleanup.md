@@ -109,12 +109,10 @@ surfaced by `auth doctor` (with `skip_reason`) and cleaned only by
 
 The process is not identifiable as a Spec Kitty sync daemon. This includes:
 
-- **Dashboard daemons** (port range `[9237, 9337)`) — sync cleanup never
-  touches the dashboard lifecycle.
 - **Third-party listeners** — any process on a port in `[9400, 9450)` that
   does not identify as Spec Kitty sync.
 - **Out-of-range processes** — a Spec Kitty-looking process listening outside
-  both reserved ranges.
+  the reserved range.
 
 `never_touch` candidates are excluded from all cleanup paths and are never
 reported in the `auth doctor` orphan table. They are invisible to the operator
@@ -127,8 +125,6 @@ intentionally.
 The following are **always** excluded from sync cleanup regardless of any
 other identity signal:
 
-- **Dashboard daemons** (`DaemonIntent.LOCAL_ONLY`, ports `9237–9336`). Sync
-  and dashboard daemon lifecycles are fully separate.
 - **Third-party applications** squatting on a port in `[9400, 9450)`. A
   foreign health response causes immediate `never_touch` classification.
 - **Out-of-range processes** (outside `[9400, 9450)`).

@@ -134,7 +134,7 @@ The bundle's freshness signal is content-hash driven, not sync-driven:
    field `versioning.py` reads from it.
 
 `charter sync` / `ensure_charter_bundle_fresh()` are retained for
-canonical-root resolution and back-compat call sites (the dashboard, the
+canonical-root resolution and back-compat call sites (the
 bundle-migration upgrader, `charter context`), but no longer perform
 extraction — every call is a no-op (`synced=False`, `files_written=[]`).
 

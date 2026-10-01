@@ -55,7 +55,7 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 | Split implementation | Work packages with lifecycle lanes such as `planned`, `in_progress`, `for_review`, `approved`, and `done` |
 | Run agents in parallel | Isolated git worktrees under `.worktrees/` |
 | Keep quality visible | Review, accept, merge, and retrospective gates |
-| See progress | Optional local kanban dashboard with `spec-kitty dashboard` |
+| See progress | Lane-by-lane mission status with `spec-kitty agent tasks status` (`--json` for tools) |
 | Integrate agents | Slash commands or skills for Claude Code, Codex, Cursor, Gemini, Copilot, Windsurf, OpenCode, and more |
 | Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/guides/how-to/governance/use-retrospective-learning.md). |
 
@@ -148,7 +148,7 @@ For the full walkthrough, see [Your First Mission](docs/guides/tutorials/your-fi
 | --- | --- |
 | `spec-kitty init . --ai <agent>` | Add Spec Kitty to the current repo |
 | `spec-kitty verify-setup` | Check local installation and project wiring |
-| `spec-kitty dashboard` | Open the local mission dashboard |
+| `spec-kitty agent tasks status` | Show work package status for a mission |
 | `spec-kitty next --agent <agent> --mission <slug>` | Ask Spec Kitty what the agent should do next |
 | `spec-kitty upgrade` | Update an existing project after upgrading the CLI |
 | `spec-kitty --help` | Show available commands |
@@ -163,7 +163,6 @@ Start here:
 - [CLI Command Reference](docs/api/cli-commands.md)
 - [Slash Commands](docs/api/slash-commands.md)
 - [Supported Agents](docs/api/supported-agents.md)
-- [Dashboard Guide](docs/guides/how-to/monitoring/use-dashboard.md)
 - [Install and Upgrade](docs/guides/how-to/installation/install-and-upgrade.md)
 
 Deeper topics:
@@ -192,7 +191,7 @@ Spec Kitty supports common AI coding agents and coding harnesses including Claud
 
 ### How is Spec Kitty different from prompt templates or Spec Kit?
 
-Spec Kitty is inspired by spec-driven development workflows, but adds repo-native mission state, work-package lanes, git worktree isolation, a local dashboard, governance commands, and an explicit `next -> review -> accept -> merge` runtime loop.
+Spec Kitty is inspired by spec-driven development workflows, but adds repo-native mission state, work-package lanes, git worktree isolation, governance commands, and an explicit `next -> review -> accept -> merge` runtime loop.
 
 ### Does Spec Kitty require a SaaS service?
 

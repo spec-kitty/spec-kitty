@@ -129,7 +129,7 @@ how-to/troubleshoot-merge.html: guides/how-to/recovery/troubleshoot-merge.html
 how-to/uninstall.html: guides/how-to/installation/uninstall.html
 how-to/upgrade-cli.html: guides/how-to/installation/upgrade-cli.html
 how-to/upgrade-project.html: guides/how-to/installation/upgrade-project.html
-how-to/use-dashboard.html: guides/how-to/monitoring/use-dashboard.html
+how-to/use-dashboard.html: guides/how-to/monitoring/index.html
 how-to/use-operation-history.html: guides/how-to/monitoring/use-operation-history.html
 how-to/use-retrospective-learning.html: guides/how-to/governance/use-retrospective-learning.html
 how-to/use-wps-yaml-manifest.html: guides/how-to/missions/use-wps-yaml-manifest.html

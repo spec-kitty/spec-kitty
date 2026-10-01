@@ -89,16 +89,16 @@ Create a fresh test feature and run through the full lifecycle:
 | 1.3.5 | Test `doing` alias | Resolves to `in_progress`, alias never persisted in events | | |
 | 1.3.6 | Test `force` flag on terminal lane exit | `done` → `in_progress` only works with `--force` | | |
 
-### 1.4 Local Dashboard
+### 1.4 Local Status View
+
+The bundled local web dashboard has been removed; local status is read from the CLI.
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 1.4.1 | Run `spec-kitty dashboard` | Browser opens, dashboard loads on localhost | | |
-| 1.4.2 | Verify feature list | All kitty-specs features visible with correct status counts | | |
-| 1.4.3 | Click into a feature | Kanban board displays with WPs in correct lanes | | |
-| 1.4.4 | Verify artifact browser | Can view spec.md, plan.md, tasks.md content | | |
-| 1.4.5 | Check health diagnostics | Dashboard health endpoint returns OK | | |
-| 1.4.6 | Screenshot the dashboard | Save for parity comparison with SaaS (Section 8) | | |
+| 1.4.1 | Run `spec-kitty agent tasks status --mission <slug>` | Lane board printed with WPs in correct lanes and correct status counts | | |
+| 1.4.2 | Run `spec-kitty agent tasks status --mission <slug> --json` | Valid JSON with the same lane assignments | | |
+| 1.4.3 | Run `spec-kitty orchestrator-api mission-state --mission <slug>` | Mission state and WP lanes match the status board | | |
+| 1.4.4 | Save the `--json` output | Kept for parity comparison with SaaS (Section 8) | | |
 
 ### 1.5 Merge System (Feature 017)
 
@@ -405,23 +405,19 @@ Create a fresh test feature and run through the full lifecycle:
 
 ---
 
-## Section 8: Dashboard Parity (Local vs SaaS)
+## Section 8: Status Parity (Local CLI vs SaaS)
 
-### 8.1 Visual Comparison
+### 8.1 Status Comparison
 
-Perform these with the local dashboard and SaaS dashboard open side-by-side on the same feature:
+The bundled local web dashboard has been removed. Compare `spec-kitty agent tasks status` output with the SaaS dashboard for the same Mission:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 8.1.1 | Compare kanban board layout | Same lanes, same lane names, similar card layout | | |
-| 8.1.2 | Compare WP card content | Same information: WP ID, title, status, assignee | | |
+| 8.1.1 | Compare lane layout | Same lanes, same lane names | | |
+| 8.1.2 | Compare WP content | Same information: WP ID, title, status, assignee | | |
 | 8.1.3 | Compare lane vocabulary | Identical: planned, claimed, in_progress, for_review, done, blocked, canceled | | |
-| 8.1.4 | Compare status badge styling | Consistent color semantics per lane | | |
-| 8.1.5 | Compare feature list/overview | Same features visible with same status counts | | |
-| 8.1.6 | Compare artifact viewer | Same artifacts accessible, similar content rendering | | |
-| 8.1.7 | Compare navigation flow | Project → Feature → Board → WP detail feels familiar | | |
-| 8.1.8 | Compare empty states | Empty lanes/features have helpful messaging in both | | |
-| 8.1.9 | Take screenshots of both | Archive for brand review sign-off | | |
+| 8.1.4 | Compare Mission list/overview | Same Missions visible with same status counts | | |
+| 8.1.5 | Take a SaaS screenshot and save the CLI `--json` output | Archive for brand review sign-off | | |
 
 ### 8.2 Brand Token Verification
 
@@ -555,7 +551,6 @@ Perform these with the local dashboard and SaaS dashboard open side-by-side on t
 | 13.2 | SaaS dashboard page load (warm) | Under 1 second | | |
 | 13.3 | Kanban board with 50+ WPs | Renders without lag | | |
 | 13.4 | Batch sync of 100 queued events | Completes within 10 seconds | | |
-| 13.5 | Local dashboard startup | Opens in under 2 seconds | | |
 | 13.6 | `spec-kitty status` command | Output in under 1 second | | |
 | 13.7 | `spec-kitty next` command | Decision returned in under 2 seconds | | |
 | 13.8 | WebSocket reconnection after drop | Reconnects within 5 seconds (first attempt) | | |
@@ -580,7 +575,7 @@ Cross-reference with Feature 022 WP09 GA readiness report:
 | **Notifications** | Status transition notifications trigger | | |
 | **Notifications** | User preference toggles work | | |
 | **Dashboard** | Brand tokens applied | | |
-| **Dashboard** | Near-parity verified (screenshot comparison) | | |
+| **Dashboard** | Status parity with local CLI verified (Section 8) | | |
 | **Security** | Connector secrets encrypted at rest | | |
 | **Security** | Webhook signature validation on all endpoints | | |
 | **Observability** | Connector health rollup API operational | | |
@@ -597,7 +592,7 @@ Cross-reference with Feature 022 WP09 GA readiness report:
 1. **Section 1** (CLI core) — baseline verification, no SaaS needed
 2. **Section 2** (Auth/sync) — establishes CLI ↔ SaaS connection
 3. **Section 3** (SaaS dashboard) — verify the web experience
-4. **Section 8** (Dashboard parity) — compare local vs SaaS
+4. **Section 8** (Status parity) — compare local CLI vs SaaS
 5. **Section 4.1–4.4** (Jira → Linear → GitHub → GitLab) — follows ADR connector order
 6. **Section 4.5** (Slack) — prerequisite for stand-ups
 7. **Section 5** (Spontaneous stand-ups) — the flagship differentiator

@@ -157,11 +157,9 @@
           href: how-to/collaboration/manage-agents.md
         - name: "How to Start an Ad-Hoc Specialist Session"
           href: how-to/collaboration/adhoc-specialist-session.md
-    - name: Dashboard & History
+    - name: Status & History
       href: how-to/monitoring/index.md
       items:
-        - name: "How to Use the Spec Kitty Dashboard"
-          href: how-to/monitoring/use-dashboard.md
         - name: "Use Operation History"
           href: how-to/monitoring/use-operation-history.md
     - name: Recovery & Troubleshooting
@@ -178,8 +176,6 @@
       items:
         - name: "Solo Developer Workflow"
           href: how-to/scenarios/solo-developer-workflow.md
-        - name: "Dashboard-Driven Development"
-          href: how-to/scenarios/dashboard-driven-development.md
         - name: "Agency Client Transparency Workflow"
           href: how-to/scenarios/agency-client-demo.md
         - name: "Parallel Implementation Tracking"

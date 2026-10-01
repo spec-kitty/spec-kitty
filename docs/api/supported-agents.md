@@ -393,7 +393,6 @@ All agents support the same 13 slash commands:
 | `/spec-kitty.accept` | Validate an approved mission before merge |
 | `/spec-kitty.merge` | Merge an accepted mission to its target branch |
 | `/spec-kitty.status` | Show kanban status |
-| `/spec-kitty.dashboard` | Open web dashboard |
 | `/spec-kitty.charter` | Create project principles |
 | `/spec-kitty.research` | Conduct research |
 | `/spec-kitty.analyze` | Analyze codebase |
@@ -459,7 +458,6 @@ spec-kitty agent config sync
 ## Practical Usage
 
 - [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Background
 

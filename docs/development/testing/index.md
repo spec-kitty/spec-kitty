@@ -18,7 +18,7 @@ local mutation testing, browser regressions, and time-dependent test discipline.
 - [Test-flakiness handling policy](testing-flakiness.md) — detection tiers and the never-retry-to-green rule.
 - [Running the test suite in parallel](testing-parallel.md) — the parallel-run workflow and volume gates.
 - [Run mutation tests locally](run-mutation-tests.md) — `mutmut`-based assertion-quality checks.
-- [UI end-to-end tests (Playwright)](ui-e2e.md) — the dashboard browser-regression suite.
+- [UI end-to-end tests (Playwright)](ui-e2e.md) — the browser-regression pattern (its dashboard targets were removed with the bundled dashboard).
 - [Write time-dependent tests](write-time-dependent-tests.md) — inject stable clocks; avoid wall-clock reads in assertions.
 
 ## See also

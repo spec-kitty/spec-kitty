@@ -11,7 +11,7 @@ audience: docs/context/audience/external/project-owner.md
 
 Develop three or more missions at once — no branch-switching churn, no lost IDE state.
 
-**At a glance:** each mission lives in its own git worktree, so three agents (or three terminals) run in parallel, the kanban dashboard shows every mission at once, and `git checkout` disappears from your daily loop.
+**At a glance:** each mission lives in its own git worktree, so three agents (or three terminals) run in parallel, `spec-kitty agent tasks status --mission <slug>` reports each mission's lanes, and `git checkout` disappears from your daily loop.
 
 ## The Problem Without Worktrees
 
@@ -57,7 +57,7 @@ cd .worktrees/003-api-v2        # Feature C
 - Side-by-side development
 - Parallel testing
 - No branch confusion
-- Dashboard shows all missions
+- Status for every mission from one terminal
 
 ## Scenario: Three Parallel Missions
 
@@ -203,11 +203,13 @@ idempotency keys, PCI-compliant data handling.
 # Start implementing...
 ```
 
-## Dashboard View: All Three Missions
+## Status View: All Three Missions
 
-Open dashboard in browser:
+Check each mission's status from the repository root:
 ```bash
-open http://localhost:3000
+for m in 001-auth 002-dashboard 003-payment; do
+  spec-kitty agent tasks status --mission "$m"
+done
 ```
 
 **You see:**
@@ -231,7 +233,7 @@ Mission: 003-payment (Progress: 25%)
 └─ Done: WP01
 ```
 
-**All visible at once!**
+**All visible from one terminal!**
 
 ## Working Across Missions
 
@@ -395,11 +397,11 @@ code --diff .worktrees/001-auth/README.md \
              .worktrees/002-dashboard/README.md
 ```
 
-### 5. Dashboard Coordination
-**One screen shows all missions:**
+### 5. Status Coordination
+**One status sweep covers all missions:**
 - PM sees progress on all three
 - Bottlenecks visible (Mission B stuck in review)
-- Rebalance work based on dashboard
+- Rebalance work based on status output
 - Export single report for all missions
 
 ## Advanced: Shared Code Between Missions
@@ -477,8 +479,8 @@ Mission C → Complete & Merge
    tmux new -s payment
    ```
 
-3. **Dashboard as coordination hub**
-   - Daily standup: Show dashboard
+3. **Status as coordination hub**
+   - Daily standup: Show `spec-kitty agent tasks status` for each mission
    - Identify blocked missions
    - Rebalance work across missions
 
@@ -517,7 +519,7 @@ git branch -d 001-auth
 | Parallel Work | No | Yes |
 | Branch Confusion | Common | Impossible |
 | Side-by-Side Compare | Difficult | Easy |
-| Dashboard View | N/A | All missions visible |
+| Status View | Per branch | All missions visible |
 | Mental Overhead | High | Low |
 
 **Worktrees + Spec Kitty = parallel mission development without the pain!**

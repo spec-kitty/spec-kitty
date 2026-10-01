@@ -108,7 +108,6 @@ You've completed the core tutorials. Explore how-to guides for specific tasks or
 - [Parallel Development](../how-to/collaboration/parallel-development.md) - Run multiple agents simultaneously
 - [Handle Dependencies](../how-to/missions/handle-dependencies.md) - Manage WP dependencies
 - [Implement a work package](../how-to/missions/implement-work-package.md) - Detailed implementation steps
-- [Use the Dashboard](../how-to/monitoring/use-dashboard.md) - Monitor progress in real time
 
 ### Reference Documentation
 

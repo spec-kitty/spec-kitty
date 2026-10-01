@@ -54,7 +54,7 @@ modules within a single-process CLI application. The main ones map as follows.
 | **Kitty-core** | `src/specify_cli/core/`, `mission.py`, `mission_v1/`, `missions/`, `template/`, `runtime/` | `specify_cli` | Planning pipeline (specify→plan→tasks). The next-action loop itself lives at `src/runtime/next/_internal_runtime/` (`specify_cli/next` is gone). |
 | **Event Store** | `src/specify_cli/status/` | `specify_cli` | JSONL event logs (`store.py`), reducer (`reducer.py`), WP frontmatter, `meta.json`. Filesystem-only today. |
 | **Orchestration** | `src/specify_cli/orchestrator_api/`, `consolidation/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, lane consolidation, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
-| **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Local browser kanban (stdlib HTTP daemon). Read-only against the Event Store. Slated for removal; replacement UIs consume the Mission Status Read API ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed). |
+| **Dashboard** | None in the CLI (the former `src/specify_cli/dashboard/` was removed, #5530) | external | The container now lives outside the CLI. Interim read path: `spec-kitty agent tasks status` and `orchestrator-api mission-state`. Replacement UIs, in their own repository, will consume the planned Mission Status Read API (#5528; [ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed). |
 | **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; doctrine code lives at `src/charter/offering/`. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in mission 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
 | **Doctrine** | doctrine code at `src/charter/offering/` (models/repository/validation per kind, `drg/`, `artifact_kinds.py`, `schemas/`) + `src/charter/offering/skills/` (canonical skill packs); pack content at `packs/built-in/` | `charter` (the former standalone `doctrine` package was absorbed here in the convergence) | JSON Schema validation, Pydantic models, repository pattern. Skill packs deployed from `src/charter/offering/skills/`. |
@@ -113,7 +113,7 @@ vars are sanctioned by design.
 | External Actor | Current Boundary Surface | Implementation |
 |---|---|---|
 | **Human In Charge** | CLI commands, interview prompts | `src/specify_cli/cli/commands/` (Typer command groups) |
-| **Human In Charge** (read) | Dashboard kanban | `src/specify_cli/dashboard/server.py` → local browser |
+| **Human In Charge** (read) | Lane status board | `spec-kitty agent tasks status` (bundled browser dashboard removed, #5530) |
 | **Agent Tools** | Command template prompts | `.claude/commands/`, `.codex/prompts/`, etc. (12 agent directories) |
 | **External Trackers** | Optional status projection | `src/specify_cli/tracker/` (feature-gated; the local `sync/` transport was retired in the convergence) |
 | **Project Repository** | Filesystem read/write | `kitty-specs/`, `.kittify/`, `status.events.jsonl`, WP frontmatter |
@@ -124,7 +124,7 @@ vars are sanctioned by design.
 |---|---|
 | Host-owned authority is non-negotiable | ✅ All state mutations go through `status/emit.py` — agents cannot bypass |
 | Agent Tools are external | ✅ Agents receive rendered prompts; they do not call `specify_cli` directly |
-| Dashboard is read-only | ✅ `dashboard/` reads frontmatter/events only; no write path exists |
+| Dashboard is read-only | ✅ No dashboard ships in the CLI; the read surfaces (`agent tasks status`, `orchestrator-api mission-state`) have no write path |
 | Tracker integration is optional | ✅ Tracker modules are feature-gated; system works without them |
 | Repository is canonical state | ✅ All persistence is filesystem-based; no external state authority |
 
@@ -182,14 +182,16 @@ Agent calls: spec-kitty charter context --action implement
 This sub-loop runs at every execution boundary (Principle 5). First invocation
 returns depth-2 (full bootstrap); subsequent calls return depth-1 (compact).
 
-### Loop D: Visibility (Dashboard ← Event Store)
+### Loop D: Visibility (Status read ← Event Store)
 
 ```
-User runs: spec-kitty dashboard
-  → src/specify_cli/dashboard/server.py (starts local server)
-  → src/specify_cli/dashboard/scanner.py (reads kitty-specs/ frontmatter)
-  → Browser renders kanban (read-only)
+User runs: spec-kitty agent tasks status [--json]
+  → reduces status.events.jsonl for the Mission
+  → prints the lane board (read-only)
 ```
+
+The bundled browser dashboard was removed (#5530). A replacement UI will
+read through the planned Mission Status Read API (#5528) from its own repository.
 
 ### Loop E: External Projection (Orchestration → Tracker)
 
@@ -225,7 +227,6 @@ Orchestration lifecycle event triggers:
 | **WP Lifecycle Engine** | `status/transitions.py` | 16-pair transition matrix, guard conditions |
 | **Target-Line Router** | `mission_runtime/lifecycle_phase.py`, `core/` | Phase resolution, target branch routing |
 | **Tracker Connector Gateway** | `tracker/` | External tracker API adapters (the former `sync/` runtime coordinator was retired in the convergence) |
-| **Kanban View** | `dashboard/` | `server.py`, `scanner.py`, `templates/`, `static/` |
 | **Doctrine Catalog Loader** | `src/charter/offering/service.py` | `DoctrineService` — lazy aggregation facade |
 | **Schema Validation Gate** | `src/charter/offering/*/validation.py`, `src/charter/offering/schemas/` | JSON Schema + Pydantic validation |
 | **Glossary Hook Coordinator** | `src/charter/offering/missions/glossary_hook.py`, `src/glossary/` | Glossary checks during mission execution |
@@ -419,7 +420,7 @@ update and a valid fixture update.
 | Non-software-dev mission parity | 🟡 Partial | `documentation`, `plan`, `research` missions have action directories but thinner indexes than `software-dev`. |
 | Event Store behind interface contract | 🟡 Partial | `store.py`/`reducer.py` provide the interface pattern. Not yet formally abstracted for alternative backends (Phase 3). |
 | Control Plane as swappable surface | 🔴 Conceptual | CLI is tightly coupled. No interface abstraction exists yet for TUI/web alternatives |
-| Dashboard as independent read surface | 🟡 Partial | Functionally independent. Reads filesystem directly rather than through Event Store interface. Target: a Mission Status Read API in the `specify_cli` layer (overview and detail granularities); the bundled dashboard is removed ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed) |
+| Dashboard as independent read surface | 🟡 Partial | The bundled dashboard was removed (#5530); no UI ships in the CLI. Target: a Mission Status Read API in the `specify_cli` layer (overview and detail granularities); replacement UIs live outside the CLI ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed) |
 
 ---
 
@@ -441,9 +442,9 @@ architecture:
    markdown template. There is no formal `Connector` interface that alternative
    dispatch mechanisms (SDK, shell, remote API) could implement.
 
-4. **Dashboard reads filesystem directly:** Rather than querying through
-   the Event Store interface, `dashboard/scanner.py` reads WP frontmatter files
-   directly. This works but bypasses the Event Store abstraction. The
+4. **No single status read contract yet:** The former bundled dashboard's
+   `dashboard/scanner.py` read WP frontmatter files directly, bypassing the
+   Event Store abstraction; it was removed (#5530). The
    orchestrator-api reads (`mission-state`, `list-ready`) and `agent tasks status`
    each reduce the event log again, and do not all use the same reducer. The fix is
    one Mission Status Read API that every display and external consumer reads

@@ -290,24 +290,6 @@ overlay is absent or invalid. See [Handoff Packet v1](../contracts/handoff-packe
 
 ---
 
-## /spec-kitty.dashboard
-
-**Syntax**: `/spec-kitty.dashboard`
-
-**Purpose**: Open or stop the Spec Kitty dashboard in the browser.
-
-**Prerequisites**:
-- Can run from the repository root checkout or any worktree.
-
-**What it does**:
-- Runs `spec-kitty dashboard` to start or stop the dashboard server.
-
-**Creates/updates**: None (read-only status server).
-
-**Related**: `/spec-kitty.status`
-
----
-
 ## /spec-kitty.charter
 
 **Syntax**: `/spec-kitty.charter`
@@ -385,5 +367,4 @@ mission types without research templates, e.g. `software-dev`):
 
 ## Practical Usage
 
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)

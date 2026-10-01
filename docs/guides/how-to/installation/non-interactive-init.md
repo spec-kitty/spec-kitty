@@ -384,7 +384,6 @@ Usage:
 ## Command Reference
 
 - [`spec-kitty init`](../../../api/cli-commands.md#spec-kitty-init)
-- [`spec-kitty dashboard`](../../../api/cli-commands.md#spec-kitty-dashboard)
 - [`spec-kitty agent`](../../../api/agent-subcommands.md)
 
 ## See Also

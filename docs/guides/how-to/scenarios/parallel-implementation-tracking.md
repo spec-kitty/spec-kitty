@@ -1,6 +1,6 @@
 ---
 title: Parallel Implementation Tracking
-description: Track several agents implementing a roadmap in parallel and give leadership continuous visibility through the Spec Kitty dashboard and activity logs.
+description: Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and activity logs.
 doc_status: active
 updated: '2026-08-10'
 type: how-to
@@ -14,14 +14,13 @@ Use this recipe when multiple agents implement a roadmap in parallel and leaders
 ## Setup
 - Project: Priivacy Rust recognizers
 - Active worktree: `.worktrees/001-systematic-recognizer-enhancement`
-- Dashboard URL: `http://localhost:3000` (or custom port from `spec-kitty dashboard`)
 
 ## Steps
-1. **Start Dashboard** – Run `spec-kitty dashboard` to launch the real-time kanban view. Dashboard runs in background and auto-refreshes.
+1. **Check status** – Run `spec-kitty agent tasks status` to see the lane-based board for the Mission.
 
-2. **Snapshot lane counts** – Dashboard shows items in `planned`, `doing`, `for_review`, `done` with live updates. Take screenshots for hourly reports.
+2. **Snapshot lane counts** – The status output shows items in `planned`, `in_progress`, `for_review`, `done`. Capture `spec-kitty agent tasks status --json` for hourly reports.
 
-3. **Move prompts via workflow commands** – Always use `spec-kitty agent action implement/review` so the dashboard stays synchronized:
+3. **Move prompts via workflow commands** – Always use `spec-kitty agent action implement/review` so the status log stays accurate:
    ```bash
    spec-kitty agent action implement WP01
    ```
@@ -35,20 +34,16 @@ Use this recipe when multiple agents implement a roadmap in parallel and leaders
 
 5. **Monitor task completion** – Review `kitty-specs/<feature>/tasks.md` checklist to ensure all subtasks are checked before merge.
 
-6. **Automate alerts** (Optional) – Use dashboard API endpoints for monitoring:
-   - `GET /api/features` - List all features and their work packages
-   - `GET /api/feature/{slug}` - Get specific feature details
-   - Build custom alerts when tasks spend >4 hours in `doing` lane
+6. **Automate alerts** (Optional) – Poll machine-readable status for monitoring:
+   - `spec-kitty orchestrator-api mission-state --mission <slug>` - Mission state and WP lanes as JSON
+   - `spec-kitty agent tasks status --json` - Lane-based status for the current Mission
+   - Build custom alerts when tasks spend >4 hours in `in_progress` lane
 
 ## Reporting
-- Export `tasks.md` and dashboard screenshots at daily stand-up
+- Export `tasks.md` and `spec-kitty agent tasks status` output at daily stand-up
 - Summarize agent throughput using the Activity Log entries in work package files
-- Identify bottlenecks by checking lane distribution in dashboard
+- Identify bottlenecks by checking lane distribution in the status output
 - Use `/spec-kitty.accept --mode checklist` to generate readiness report
 - Use `/spec-kitty.merge --dry-run` to produce merge preview for executives
 
-## Dashboard Features for Tracking
-- **Real-time updates** - Refresh is automatic via polling, no manual page reload needed
-- **Lane filtering** - Focus on specific lanes (e.g., only "for_review")
-- **Agent assignments** - See which agent is working on which task
-- **Completion metrics** - Track progress percentages per feature
+The bundled local web dashboard has been removed. A read-only Mission Status Read API ([#5528](https://github.com/spec-kitty/spec-kitty/issues/5528)) is planned as the contract for a replacement UI, which will live in its own repository.

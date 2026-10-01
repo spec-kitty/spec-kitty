@@ -111,7 +111,7 @@ confirms that the host CLI is installed and that JSON output is available.
 
 ## 3. Find your mission slug
 
-Use the dashboard, `kitty-specs/`, or the mission commands to identify the
+Use `kitty-specs/` or the mission commands to identify the
 mission slug:
 
 ```bash

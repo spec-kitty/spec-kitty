@@ -93,9 +93,9 @@ adds OAuth2 providers as delta to existing system.
 
 **The difference:** Spec Kitty specs are concise change requests. LLMs read the codebase to understand context, then implement the specified delta.
 
-## Real-Time Progress Tracking with Integrated Kanban
+## Progress Tracking with Kanban Lanes
 
-Spec Kitty pairs specification rigor with a **visual workflow** that keeps the entire team aligned. The built-in task dashboard streams lane transitions from every feature worktree, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane scripts, so the dashboard highlights blockers, review requests, and idle work packages in real time. This **task dashboard** becomes the heartbeat of the project—drive agent coordination from one screen, rebalance workloads instantly, and archive the full timeline for compliance.
+Spec Kitty pairs specification rigor with a **lane-based workflow** that keeps the entire team aligned. Every lane transition is appended to the Mission's status event log, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane commands, and `spec-kitty agent tasks status` highlights blockers, review requests, and idle work packages. This **status board** becomes the heartbeat of the project—drive agent coordination from one place, rebalance workloads, and archive the full timeline for compliance.
 
 ## The SDD Workflow in Practice
 

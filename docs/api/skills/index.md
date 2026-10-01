@@ -81,7 +81,6 @@ re-listing it here.
 | `spk-admin-setup-doctor` | Install and repair | `spec-kitty-setup-doctor` | [spk-admin-setup-doctor](spk-admin-setup-doctor.md) |
 | `spk-admin-agent-config` | Agent setup | — | — |
 | `spk-admin-upgrade` | Upgrade and migrations | — | — |
-| `spk-admin-dashboard` | Status and dashboard | — | — |
 | `spk-admin-git-workflow` | Git and worktree workflows | `spec-kitty-git-workflow` | — |
 
 ## spk-team-*

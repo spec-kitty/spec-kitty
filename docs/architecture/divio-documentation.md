@@ -248,7 +248,6 @@ For background on why conflicts occur, see [Git Worktrees Explained](git-worktre
 ## How-To Guides
 
 - [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Reference
 
