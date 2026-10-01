@@ -69,8 +69,9 @@ ALLOWLIST_PREFIXES = (
     "kitty-specs/",  # mission-level checklists/ directory is canonical
     # Historical engineering analysis (triage / closeout / retrospectives) is
     # narrative prose about the retired command, not a live command surface.
-    # (The 01KSMG8Y closeout moved from docs/ to docs/plans/engineering-notes/.)
-    "docs/plans/engineering-notes/",
+    # (The 01KSMG8Y closeout moved from docs/ to docs/plans/engineering-notes/,
+    # then to docs/archive/plans/engineering-notes/ in #5428; see #5505.)
+    "docs/archive/plans/engineering-notes/",
     "docs/changelog/",  # immutable changelog documenting the REMOVED command, not a live surface
 )
 
