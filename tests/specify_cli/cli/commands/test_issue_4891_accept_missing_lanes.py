@@ -6,7 +6,7 @@ underlying fix already lives on ``main`` (``gates_core.py`` routes through
 ``require_lanes_json``); this is the CLI-level pin so a regression can never
 again ship unnoticed: it drives the REAL ``spec-kitty accept`` CLI end to
 end (not just the domain-level ``collect_feature_summary`` surface
-``tests/cross_cutting/misc/test_acceptance_support.py::test_accept_fails_closed_when_lanes_json_is_absent``
+``tests/specify_cli/acceptance/test_acceptance_support.py::test_accept_fails_closed_when_lanes_json_is_absent``
 already covers).
 
 This is a standing test, expected GREEN on ``main`` by design (the fix is

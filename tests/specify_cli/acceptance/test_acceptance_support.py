@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shlex
 import sys
 from pathlib import Path
@@ -19,7 +18,6 @@ pytestmark = [pytest.mark.integration]
 
 ACCEPTANCE_MODE_CHECKLIST = "checklist"
 runner = CliRunner()
-_ACCEPT_COMMAND_XDIST_QUARANTINE = pytest.mark.quarantine(reason="spec-kitty#171: in-process accept CLI family fails under xdist -n auto; passes alone")
 
 
 def _write_acceptance_meta(feature_repo: Path, mission_slug: str) -> None:
@@ -138,8 +136,9 @@ def _passing_acceptance_matrix(mission_slug: str) -> AcceptanceMatrix:
     """A minimal acceptance matrix whose ``overall_verdict`` is ``pass`` (#5030).
 
     #4891 made the lane-gate's acceptance-matrix check reachable (rather than
-    a no-op) once a non-planning ``lanes.json`` is present. The quarantined
-    accept-CLI tests that seed a lane manifest need a passing matrix too, or
+    a no-op) once a non-planning ``lanes.json`` is present. The formerly
+    quarantined accept-CLI tests that seed a lane manifest need a passing
+    matrix too, or
     the gate blocks on ``acceptance_matrix_verdict`` before reaching the
     behavior under test.
     """
@@ -268,7 +267,7 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
 
     assert result.exit_code == 0, result.output
     assert "to_lane in {'approved', 'done'} requires evidence" not in result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["accepted_wps"] == ["WP01", "WP02"]
     assert payload["approved_wps"] == ["WP01", "WP02"]
     assert payload["done_wps"] == []
@@ -281,7 +280,6 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
     assert summary.lanes["done"] == []
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     from tests.utils import run
 
@@ -304,7 +302,7 @@ def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(feature_rep
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["diagnose"] is True
     assert any("status.events.jsonl" in issue for issue in payload["activity_issues"])
     assert any("finalize-tasks" in issue for issue in payload["activity_issues"])
@@ -347,7 +345,7 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: P
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["accepted_wps"] == ["WP01"]
     assert payload["approved_wps"] == ["WP01"]
     assert payload["done_wps"] == []
@@ -357,7 +355,6 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: P
     assert summary.lanes["approved"] == ["WP01"]
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_json_reports_skipped_checks_without_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     from tests.lane_test_utils import write_single_lane_manifest
     from tests.utils import run
@@ -384,7 +381,7 @@ def test_accept_diagnose_json_reports_skipped_checks_without_mutation(feature_re
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["diagnose"] is True
     assert any(item["check"] == "acceptance_matrix" for item in payload["blocked_checks"])
     assert any(item["check"] == "negative_invariants" for item in payload["skipped_checks"])
@@ -395,7 +392,6 @@ def test_accept_diagnose_json_reports_skipped_checks_without_mutation(feature_re
     assert status.stdout == ""
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_json_blocks_corrupt_lanes_json(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     from tests.lane_test_utils import write_single_lane_manifest
     from tests.utils import run
@@ -423,7 +419,7 @@ def test_accept_diagnose_json_blocks_corrupt_lanes_json(feature_repo: Path, miss
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["ok"] is False
     assert any(item["check"] == "lanes_manifest" for item in payload["blocked_checks"])
     assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
@@ -433,7 +429,6 @@ def test_accept_diagnose_json_blocks_corrupt_lanes_json(feature_repo: Path, miss
     assert status.stdout == ""
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
     from specify_cli.acceptance.matrix import AcceptanceMatrix, NegativeInvariant, write_acceptance_matrix
@@ -483,7 +478,7 @@ def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo:
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["diagnose"] is True
     assert payload["ok"] is False
     assert any(item["check"] == "negative_invariants" for item in payload["skipped_checks"])
@@ -495,7 +490,6 @@ def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo:
     assert status.stdout == ""
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
     from specify_cli.acceptance.matrix import AcceptanceMatrix, NegativeInvariant, write_acceptance_matrix
@@ -542,7 +536,7 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_rep
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert any(item["check"] == "negative_invariants" for item in payload["skipped_checks"])
     assert not side_effect_path.exists()
     assert (feature_dir / "acceptance-matrix.json").read_text(encoding="utf-8") == before_matrix
@@ -602,7 +596,7 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
     )
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["accepted_wps"] == ["WP01"]
     assert payload["approved_wps"] == ["WP01"]
     assert payload["done_wps"] == []
