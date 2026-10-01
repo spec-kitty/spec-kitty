@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#2267": {
+      "evidence_ref": "spec.md FR-001..FR-005 \u2014 WP01 (retrospective detectors), WP02 (consolidate hollow-review)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "retrospect: auto-classifier mislabels review-rejection --force as guard-bypass and documented rejection cycles as undocumented rework",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
