@@ -1,0 +1,108 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-30T18:32:54.828155Z",
+      "decision_id": "01M3SSEKSCGN9XN6P1X0THC4DS",
+      "final_answer": "C: masked greens + architectural pin honesty (#5346). Integration harness honesty is out of scope (#5417 in flight; re-check after next nightly).",
+      "input_key": "mission_scope_tracks",
+      "mission_id": "01M3SSDWED2X2HYRKNPYQM9EN1",
+      "mission_slug": "test-suite-remediation-01M3SSDW",
+      "opened_by": "cli",
+      "options": [
+        "A: masked greens only",
+        "B: masked greens + integration harness honesty",
+        "C: masked greens + architectural pin honesty",
+        "D: all three tracks",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which remediation tracks does this mission cover: (A) masked greens only; (B) masked greens + integration harness honesty (nightly red); (C) masked greens + architectural pin honesty (#5346); (D) all three tracks?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:38:02.766326Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.tracks",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T18:38:33.829953Z",
+      "decision_id": "01M3SSRYV5VRART7Z50HFN0X01",
+      "final_answer": "4: #5346 listed pins + the recurring exact-count re-pin class converted to floors/duplicate+stale invariants + a shift-left shrink-only census gate against new exact-count pins + re-keying the dead-symbol content-hash allowlists (test_no_dead_symbols).",
+      "input_key": "pin_honesty_extent",
+      "mission_id": "01M3SSDWED2X2HYRKNPYQM9EN1",
+      "mission_slug": "test-suite-remediation-01M3SSDW",
+      "opened_by": "cli",
+      "options": [
+        "1: #5346 listed pins",
+        "2: + recurring exact-count class",
+        "3: + shift-left census gate",
+        "4: + dead-symbol hash re-key",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How far does pin honesty reach: (1) the pins #5346 lists; (2) plus the recurring exact-count re-pin class across the corpus; (3) plus a shift-left shrink-only census gate against new exact-count pins; (4) plus re-keying the dead-symbol content-hash allowlists?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:39:43.310515Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.pin-honesty-extent",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T18:39:45.135933Z",
+      "decision_id": "01M3SSV4FFQF6M2Q195JBKZ26N",
+      "final_answer": "Fix the product red-first in-mission when the fix fits one work package; otherwise keep the test as an honest strict xfail citing a newly filed open issue.",
+      "input_key": "unmasked_red_policy",
+      "mission_id": "01M3SSDWED2X2HYRKNPYQM9EN1",
+      "mission_slug": "test-suite-remediation-01M3SSDW",
+      "opened_by": "cli",
+      "options": [
+        "Fix small defects red-first in-mission; larger ones become an honest strict xfail citing a new open issue",
+        "Always fix the product in-mission",
+        "Always record as honest strict xfail + new open issue",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a masked-green test is unmasked and goes red because it catches a real product defect, what happens?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:40:41.555920Z",
+      "resolved_by": null,
+      "slot_key": "specify.rules.unmasked-red-policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T19:07:21.802287Z",
+      "decision_id": "01M3SVDPAAQR7HHCPRS55VMJYM",
+      "final_answer": "Drop FR-010 and honour ADR 2026-09-14-1: no new exact-count census gate; regrowth stays a review concern. Pin conversions (FR-006/FR-007) and the dead-symbol re-key (FR-009) remain.",
+      "input_key": "census_gate_disposition",
+      "mission_id": "01M3SSDWED2X2HYRKNPYQM9EN1",
+      "mission_slug": "test-suite-remediation-01M3SSDW",
+      "opened_by": "cli",
+      "options": [
+        "Drop FR-010 and honour ADR 2026-09-14-1",
+        "Narrow blocking gate + superseding ADR",
+        "Advisory report only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-010's shift-left census gate re-introduces the golden-count ban that ADR 2026-09-14-1 retired (0 catches, 13 forced re-freezes, 387 annotations). Drop FR-010, keep it narrowly scoped with a superseding ADR, or make it advisory?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T19:08:27.060466Z",
+      "resolved_by": null,
+      "slot_key": "plan.gates.census-gate-vs-adr-2026-09-14-1",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3SSDWED2X2HYRKNPYQM9EN1",
+  "version": 1
+}

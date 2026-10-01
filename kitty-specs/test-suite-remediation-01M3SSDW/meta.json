@@ -1,0 +1,35 @@
+{
+  "accept_commit": "f5c87bb4d3c1097f4e291e1bf38fdcecc488b9ad",
+  "acceptance_history": [
+    {
+      "accept_commit": "f5c87bb4d3c1097f4e291e1bf38fdcecc488b9ad",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-01T00:06:44.776391+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "fe433bff1d767ab8d66e420230c3111b9d3ddd6c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-01T00:06:44.776391+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "fe433bff1d767ab8d66e420230c3111b9d3ddd6c",
+  "baseline_merge_commit": "665bb48c98186606b8f6b06e3cd390c6fad3f113",
+  "created_at": "2026-09-30T18:32:30.979447+00:00",
+  "flattened": true,
+  "friendly_name": "Test-suite remediation: masked greens, harness and pin honesty",
+  "merged_at": "2026-10-01T00:11:17.799686+00:00",
+  "merged_commit": "bcebcabcd1cb508a65f258d53377894121dcc42a",
+  "mid8": "01M3SSDW",
+  "mission_id": "01M3SSDWED2X2HYRKNPYQM9EN1",
+  "mission_number": 210,
+  "mission_slug": "test-suite-remediation-01M3SSDW",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A 2026-09-30 identification squad (static triage, git-history forensics, friction signals) found test slices that hide defects behind skips citing closed issues or moved paths, harnesses that stub new safety gates instead of running them, and ratchet gates re-pinned at nearly every landing. This mission remediates the confirmed findings under the #5353 test-suite quality effort so a green suite is trustworthy again and correct changes stop paying a test-repair tax.",
+  "purpose_tldr": "Make the test suite tell the truth: tests that always skip or pass for the wrong reason run again, and tests that break on correct changes stop doing so.",
+  "slug": "test-suite-remediation-01M3SSDW",
+  "status_phase": "1",
+  "target_branch": "issue-5353-test-suite-remediation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-30T20:52:28.454734+00:00"
+}

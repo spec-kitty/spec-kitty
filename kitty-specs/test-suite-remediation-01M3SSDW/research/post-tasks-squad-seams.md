@@ -1,0 +1,109 @@
+# Post-tasks squad: seam and boundary review (paula-patterns)
+
+**Mission**: `test-suite-remediation-01M3SSDW` (#5346 under #5353)
+**Lens**: architecture scout. Covers recurring boundary leaks, ownership confusion, parallel authority (DIRECTIVE_044) and whack-a-field risk across the dead-symbol chain (WP10 to WP15), plus the WP01 to WP09 boundaries.
+**Base inspected**: `issue-5353-test-suite-remediation` @ `b9030a0102` (planning), live code at `74373ec95a`.
+**Mode**: read-only. No tests were run. Evidence comes from reading the source and from `git grep`, plus one in-process introspection of the current allowlist constants.
+
+## Verdict: FOLD-REQUIRED
+
+The chain's architecture is sound:
+- one YAML exemption authority;
+- a pure, schema-enforcing loader;
+- a gate injected with the allowlist;
+- a size cap in the one baseline authority.
+
+No finding needs a re-plan. Five MAJOR findings do need prompt-level folds before implementation starts. Each is a one-to-five-line edit to a WP prompt (or to `tasks.md`). If they are not folded, the likely results are:
+- a guaranteed stall (F-01);
+- an unowned edit (F-02, F-04);
+- a cap that can be silently deleted on day one (F-03);
+- an unproven half of the "one authority" claim (F-05).
+
+## Findings
+
+| # | severity | WP(s) | finding | concrete fix |
+|---|---|---|---|---|
+| F-01 | MAJOR | WP13 (vs WP11, WP12) | WP13's Definition of Done can never be met. Its grep gate, `rg -n "source_module\|_refresh_dead_symbol_hashes\|refresh_dead_symbol" src tests scripts` must return **nothing** (T061, Review Guidance, tasks.md Independent Test). T061 step 1 says any hit outside WP13's two files means "stop and report". But WP11 is *required* to commit the string `source_module`: contract §1 says the loader "must not accept `line`, `body_hash` or `source_module` keys", and WP11 T052 step 4 asserts "no entry carries a forbidden key … on the raw document too". WP12's rewritten gate docstring may also mention the retired helper. WP13 will stop on a false positive, or edit WP11's files without ownership. | Narrow the grep to *field usage*, not the word. For example: `rg -n "\.source_module\b\|source_module=" src tests scripts` and `rg -n "import .*_refresh_dead_symbol_hashes\|from tests\.architectural\._refresh_dead_symbol_hashes" tests scripts`. Alternatively, keep the broad grep with explicit `-g '!tests/architectural/_dead_symbol_allowlist.py' -g '!tests/architectural/test_dead_symbol_allowlist_loader.py'` exclusions, and state that forbidden-key literals in the loader are expected. Apply the same edit to tasks.md WP13 and to WP13's Review Guidance. |
+| F-02 | MAJOR | WP12 (vs WP11); closeout | **Unsanctioned out-of-map edit, plus an unowned rebase protocol.** WP12 T054 step 3 tells WP12 to "regenerate the YAML with WP11's converter logic" when the base moved. That file (`dead_symbol_allowlist.yaml`) is WP11-owned, and only the xfail-marker removal is sanctioned. The drift is not hypothetical: `test_no_dead_symbols.py` took three allowlist-editing commits on 2026-09-30 alone (the domain A/D dead-code sweeps). Worse, **after** WP12 deletes the `_CATEGORY_*` literals, any upstream PR that still edits them conflicts at the mission's final rebase. Resolving that conflict means re-running the converter on the YAML, and no WP owns that step. | (a) Add a second sanctioned out-of-map edit to WP12: "regenerate `dead_symbol_allowlist.yaml` via WP11's recorded converter when T054 detects base drift; WP12 depends on WP11, so no parallel collision". Record both digests. (b) Add a closeout step for the orchestrator. Before opening the PR, and after any rebase that touched `test_no_dead_symbols.py` upstream, port the upstream `_CATEGORY_*` delta into the YAML. Then re-run the named gates (`test_no_dead_symbols.py`, `test_dead_symbol_allowlist_loader.py`, `test_ratchet_baselines.py`) and re-read the live counts for the two `_baselines.yaml` leaves. |
+| F-03 | MAJOR | WP14 | **Whack-a-field slack on day one.** WP14 converts `assert len(_REQUIRED_TOP_LEVEL_KEYS) == 15` to `>= 15` in the same WP that adds the 16th section, `test_no_dead_symbols`. Sections are derived from rows, and the bijection test only checks row-to-leaf pairing. So deleting the new dead-symbol rows **and** leaves together stays green. The floor of 15 leaves slack of exactly the cap this WP exists to add, so the Burn-down (a) cap can be removed with zero red (C-003 spirit). No other gate protects it. | Set the floor to the live section count at landing (`>= 16` today), commented as a shrink-only non-vacuity floor. A legitimate section retirement then tightens it as a deliberate ratchet step (spec Edge Case 4). Legitimate additions still need 0 edits, so NFR-003 holds. Add a violation plant to T065: delete both new rows and both leaves; the floor reds. |
+| F-04 | MAJOR | WP01 (vs WP10 to WP12); closeout | **The only product-source seam in the mission never runs the global dead-symbol oracle.** WP01 T004 tells the fix to reuse "the same org-fragment loading authority … or reuse the loader's fragment-parsing helper" in `charter.offering.drg.org_pack_loader`. That module carries three **allowlisted dead** `__all__` symbols (`AUGMENTATION_RELATIONS`, `TOPOLOGY_KINDS`, `merge_topology_artifact`; `test_no_dead_symbols.py:1069-1078`). `AUGMENTATION_RELATIONS` is exactly the "enhances/overrides relation set" the fix is tempted to import. If it does: the entry turns REVIVED/stale, the gate goes red after lane consolidation, and the 293-entry parity the chain froze shifts. Fixing it needs an edit to WP11/WP12-owned data from WP01's lane. WP01's verification list omits `test_no_dead_symbols.py`. | Add to WP01 T004: "Do not import a name listed in the dead-symbol allowlist. `load_org_pack` is already live. If reuse of an allowlisted name is unavoidable, stop and report so the chain removes the entry." Add `tests/architectural/test_no_dead_symbols.py` (a named gate file, about 4 minutes) to WP01's T004 run. Add a closeout step: run the dead-symbol gate plus `test_ratchet_baselines.py` on the **consolidated** mission branch before the PR. The chain's parity was measured on a lane that does not contain WP01's product change. |
+| F-05 | MAJOR | WP12 (WP10 seam) | **The evaluation seam covers only half of the folded authority.** `_evaluate_allowlist(...)` is scoped to `__all__` and returns offenders "before the widened merge". The widened pass stays composed by hand inside the real-tree test. It reads the **import-time** module global `_WIDENED_SCOPE_GRANDFATHERED_470`: `_apply_widened_scope_exemptions` reads the global directly (`:3767`); it does not take it as a parameter. So, after R2 folds #470 into the YAML: <ul><li>M11's authority-parse covers only `entries`;</li><li>nothing committed proves the gate evaluates the YAML's `widened_grandfathered_470` section it claims to read;</li><li>the gate verdict is still two code paths plus an ad-hoc merge in the test body.</li></ul> This is not a second data authority, but it is a split evaluation seam. It also means two in-process read paths: `load_allowlist()` at test time for entries, and the import-time constant for widened. | Inside WP12's owned file, and **additive** to WP10's binding surface: <ul><li>thread `grandfathered: frozenset[str]` as a parameter into `_apply_widened_scope_exemptions` (behaviour unchanged, G4);</li><li>add `_evaluate_widened(decls, all_literal_decls, per_symbol, star_targets, corpus, collision_index, grandfathered) -> (post_rescue_offenders, widened_stale)`;</li><li>have the real-tree test source **both** sections from the **same** `DeadSymbolAllowlist` instance.</li></ul> Add a gate-file bite test "M11(c)": pop one widened entry from a scratch YAML, and the real cached corpus shows it as an offender. Optionally export the loader's parsed instance, e.g. `ALLOWLIST: DeadSymbolAllowlist`, and pass that into the real-tree test instead of a second `load_allowlist()`. Then `SYMBOL_ALLOWLIST` and `WIDENED_…` are views of one parse. |
+| F-06 | MINOR | WP12 | **Cache hygiene for `_real_tree_inputs()`.** It is `lru_cache(maxsize=1)` and returns live `dict`/`set` containers (`per_symbol: dict[str, set[str]]`, `star_targets: set`, `corpus`). Today's bite tests use in-memory synthetic corpora and never touch the cache, so there is no current contamination path. Two latent ones exist: <ul><li>A real-scale REVIVED plant done in-process by adding a caller to `inputs.per_symbol` silently rescues dead symbols for every later real-tree test on that worker (a false green).</li><li>An M13 written as "monkeypatch `_walk_modules`, then call `_real_tree_inputs()`" is order-dependent. It either reads the cached full tree (M13 false green) or seeds the cache with a quarter-tree for the real gate (the real gate scans a partial tree). WP12 T055 lists "read-only mappings" only as an option.</li></ul> | Make it mandatory: `RealTreeInputs` exposes `MappingProxyType` views with `frozenset` values. The downstream readers only read, so no signature change is needed if they are typed as `Mapping`. Add a rule to T057: "no test may monkeypatch the walker and then call `_real_tree_inputs()`; M13 goes through `_assert_corpus_floor(truncated_mapping)` only." |
+| F-07 | MINOR | WP10, WP12 | **The "M11 adds no second full walk" claim (contract G7, WP10 T048) is false in CI.** The architectural battery runs `-n auto --dist loadfile` (`ci-router.yml:581-583`), so the contract file and the gate file usually land on different workers, each with its own cache. The net cost is still likely below today's, because WP12 collapses the gate's roughly six real walks into one, and the gate file remains the long pole. | Correct the claim in the WP10 docstring ("one extra walk on its own xdist worker"). Record the before and after wall time in WP12's evidence, as it already plans to. No structural change is needed. |
+| F-08 | MINOR | WP10 | **M11(a) is fragile against L9.** "Pop the first entry by sorted `(module, name)`" empties that entry's category if it is a singleton, and the loader's L9 ("no tombstones") then raises `AllowlistSchemaError` instead of yielding an offender. Today the first entry is `charter.activation._catalog_miss::CharterCatalogMissError`, in a 32-entry category, but 7 of 33 categories are singletons, and burn-down will move the head. | Choose the first entry, by sorted `(module, name)`, **whose category has ≥ 2 entries**. Or drop the emptied category along with the entry. |
+| F-09 | MINOR | WP10 | Strict xfail without `raises=` masks wrong-reason failures across the WP10 to WP12 window: a typo or a WP11 schema rejection would also XFAIL. T049 step 5 ("expect every test to FAIL") contradicts rule 7 (strict xfail → XFAIL). | Use `@pytest.mark.xfail(strict=True, raises=(ImportError, AttributeError), reason=…)`. Reword T049 step 5 to "XFAIL; under `--runxfail`, FAIL on the missing seam". |
+| F-10 | MINOR | WP11 to WP12 | **Transitional dual authority.** After WP11 and before WP12, the YAML is committed but inert while the gate literals stay authoritative. Parity is proven only by a scratchpad check, and no committed test catches divergence while the chain is paused. | This is acceptable because WP11 and WP12 share a lane and the mission cannot be accepted half-done. Fold it into F-02's protocol: WP12 T054 re-verifies before any edit. Do not add a transitional committed test; it would need a second out-of-map deletion. |
+| F-11 | MINOR | WP12 | The C-007 canon check (`test_enforcement_allowlists_still_carry_real_blocking_assertions`) passes if **any** `test_*` in the gate file contains an `ast.Assert`. NFR-005's extraction pressure ("split the real-tree test into helpers") could move the real gate's only assert into a helper. The canon would stay green on the bite tests while the real-tree test asserts nothing directly. | In T055/T056, keep `assert not messages, …` (and the floor asserts, or a direct call that raises) literally inside `test_no_public_symbol_in_all_is_unimported`. Extract message *building* only. |
+| F-12 | MINOR | WP11, WP14 | The prompts cite `test_ratchet_positional_anchor_ban.py` staying green as protection for the new YAML. Its YAML arm scans only `_YAML_ALLOWLISTS = ("inline_meta_read_allowlist.yaml",)` (`:166`), so it is vacuous for `dead_symbol_allowlist.yaml`. The real guard is loader rule L5 (plus L2's exact top-level keys, which also stop a smuggled `count:`). | In the evidence, name L2/L5 plus M12 as the guard, not the anchor ban. Enrolling the file would need `schema_version` whitelisted in `_yaml_int_field_permitted`, an unowned edit; file it as a follow-up only if wanted. |
+| F-13 | MINOR | WP15 | The canonical exemption how-to, `docs/development/how-to/add-architectural-gate-exemption.md` §1, lists only "hand-curated" and "census" kinds. After the re-key, the dead-symbol YAML is a third kind (`(module, name)` + category + rationale + issue + a `_baselines.yaml` leaf bump). ci-gate-mechanics.md alone leaves the canonical how-to incomplete (DIRECTIVE_044). | Add the how-to to WP15 `owned_files`, with one table row plus a short "2c" section. It is freshness-indexed, so WP15's regeneration already covers it. |
+| F-14 | MINOR | WP15 | The ADR's supersession list omits `01M0A42D` FR-005: the "re-adding an inert `test_no_dead_symbols` key is rejected" guarantee that `test_leaf_drift_detects_planted_unenforced_leaf` carried. WP14 T068 legitimately re-plants it, because the section is now enforced. | Name it in the ADR: "FR-005 re-entry guarantee subsumed by the row↔leaf bijection". |
+| F-15 | INFO | WP13, closeout | Stale prose outside the mission's file set: <ul><li>`src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py:474-484` explains content-tier hashing and module_path-tier "un-allowlisting", which is false after the re-key; C-005 forbids editing it here.</li><li>`tests/architectural/README.md:83` cites a nonexistent `spec-kitty doctor ratchet`.</li><li>`docs/reports/dead-code-review/2026-09-30/tooling/widened_stale.py` calls gate internals; it survives because of G8 and the kept positional `_compute_offenders` shape.</li></ul> | File one follow-up issue for the product comment (RK-5 style). The README line is a WP13 campsite (the file is owned). The report tooling needs no action. |
+| F-16 | NIT | WP10, WP11 | `StaleVerdict` in the loader does **not** invert a dependency. The import graph stays gate → loader, and the loader stays a pure leaf. It is a cohesion leak: the data module publishes evaluation vocabulary it never assigns, while its twin `StaleFinding` lives in the gate. The alternatives are worse: defining it in the gate and re-exporting from the loader creates a loader→gate cycle, and moving it later forces an edit to WP10's file. | Keep it. Document in the loader docstring and `__all__` comment: "shared verdict vocabulary; assigned only by the gate; no loader rule depends on it". |
+
+## Answers to the six questions
+
+1. **The WP10 seam** is the right boundary for `__all__`-scope evaluation. It keeps one data authority, the YAML read through one loader. It has two gaps:
+   - It stops short of the widened section, so the gate verdict remains two code paths with the widened list read from an import-time global (F-05).
+   - The cache must be made read-only and kept out of reach of walker monkeypatching (F-06).
+
+   `StaleVerdict` in the loader is not an inversion; keep it (F-16).
+2. **Ownership** is disjoint in `owned_files` (per-WP table below). Two edits fall outside it and neither is sanctioned:
+   - the WP12 YAML regeneration (F-02);
+   - a possible WP01-driven allowlist change (F-04).
+
+   One Definition of Done is unsatisfiable without touching another WP's files (F-01). There is no other contention:
+   - **`test_p1_planted_regression.py`**: WP12 only.
+   - **`test_shape_guard_membership.py` and `shape_guard_membership.yaml`**: nobody needs to edit them. The canon is the file name plus any `assert` in a `test_*` function.
+   - **`_baselines.yaml`**: WP14 only. WP05 reads its `test_example_round_trip` row and does not change it.
+   - **`tests/unit/test_symbol_key.py`**: WP13 only. It imports nothing from the gate, so WP12's deletions do not break it.
+   - **Docs indexes**: WP15 only. `tests/architectural/README.md` is in neither the page inventory nor the retrieval index.
+3. **Parallel authority**, after the full chain:
+   - Exemption membership has exactly one authority: `dead_symbol_allowlist.yaml`, both sections, through the loader.
+   - The count has one: the `_baselines.yaml` leaves. L2 structurally stops a count from entering the YAML.
+   - All 42 `_CATEGORY_*` literals, `_category_frozensets`, `owning_category` and the refresh helper are gone.
+   - The T013 auto-exempt remains a code-derived exemption *mechanism*, kept disjoint by SUPERSEDED.
+
+   Transitional states:
+   - **WP11 to WP12**: two authorities, the inert YAML and the live literals (F-10, bounded by F-02).
+   - **WP12 to WP14**: an uncapped YAML, no worse than today's uncapped literals.
+   - **WP13 to WP15**: `ci-gate-mechanics.md` points at the deleted refresh tool. Acceptable, because the mission lands as one.
+4. **Whack-a-field.** T068's re-plant (`test_never_enforced_section`) handles the planted-leaf test at `:554-578` correctly: today's plant would *replace* the enforced section and report two missing leaves. The `>= 15` floor, however, leaves exactly the new section unprotected (F-03). No other gate counts `_baselines.yaml` sections or leaves:
+   - the pydantic `BaselinesFile` is `extra="allow"` with 4 named sections;
+   - `test_yaml_leaves_refuses_a_scalar_section` uses a synthetic dict;
+   - `test_ci_collection_completeness.py` only bans *reaching* the file.
+
+   The new rows point at the pure loader, not the gate module, so the ratchet's lazy-import discipline holds.
+5. **C-007 canon.** It holds at every intermediate WP:
+   - WP10 and WP11 add files only.
+   - WP12 keeps the file name, `pytestmark = [pytest.mark.architectural]`, `_ENFORCEMENT_GATE_NAMES` and `_p1_census_oracle._ENFORCEMENT_ALLOWLIST_GATES` (name-based).
+   - WP13 edits `_symbol_key.py`, which is format-excluded and whose lazy gate import at `:397` is kept.
+
+   One weak point is the AST canon check, which any bite test satisfies (F-11). No registry (`p1_census/census.json`, `ci-module-registry.yml`, `ruff.toml`, `pyproject.toml` excludes, the tool-artifact enrolment) references the two refresh files WP12 deletes.
+6. **WP01 to WP09.** The `owned_files` are file-disjoint, and the test-side seams are clean:
+   - WP02's wheel tests build with their own `built_artifacts` fixture, not WP04's conftest `build_artifacts`/`installed_wheel_venv`.
+   - WP05 is told not to touch `_LEGACY_CONTRACT_ALLOWLIST` or its leaf.
+   - WP03's `ruff.toml` key is the only config edit.
+   - Test deletions cannot affect the dead-symbol gate, which scans `src/` callers only.
+
+   The one real cross-lane seam is WP01's product fix against the global dead-symbol oracle (F-04). No hard dependency edge is missing; the fix is a verification step plus a closeout re-run on the consolidated branch.
+
+## Per-WP realistic edit set vs `owned_files` (WP10 to WP15)
+
+| WP | owned_files | realistic edit set to meet the DoD | delta |
+|---|---|---|---|
+| WP10 | `tests/architectural/test_dead_symbol_allowlist_contract.py` | the same file (new). `before.json` and the script stay in the scratchpad; tracers go through the CLI. | none. Fold F-08 and F-09 into the prompt. |
+| WP11 | `_dead_symbol_allowlist.py`, `dead_symbol_allowlist.yaml`, `test_dead_symbol_allowlist_loader.py` | the same three (new) | none. Its committed forbidden-key literals collide with WP13's grep (F-01, fix in WP13). |
+| WP12 | `test_no_dead_symbols.py`, `test_p1_planted_regression.py`, `_refresh_dead_symbol_hashes.py` (delete), `test_refresh_dead_symbol_hashes.py` (delete) | the four owned files; `test_dead_symbol_allowlist_contract.py` (xfail-marker removal; **sanctioned**); **`dead_symbol_allowlist.yaml`** (T054 step 3 regeneration on base drift; **not sanctioned**) | **+1 unsanctioned (F-02).** Also absorbs F-05, F-06 and F-11 inside owned files. |
+| WP13 | `_symbol_key.py`, `tests/unit/test_symbol_key.py`, `tests/architectural/README.md` | the same three | none in files. The **DoD grep is unsatisfiable** as written (F-01). Optional README campsite (F-15). |
+| WP14 | `test_ratchet_baselines.py`, `_baselines.yaml` | the same two. The T069 growth plant edits `dead_symbol_allowlist.yaml` in scratch only and reverts it, so no commit. | none. Floor value fix (F-03). |
+| WP15 | ADR glob, `docs/adr/4.x/index.md`, `ci-gate-mechanics.md`, `3-2-page-inventory.yaml`, `3-2-docs-retrieval-index.yaml` | the same five; **plus** `docs/development/how-to/add-architectural-gate-exemption.md` if F-13 is folded | +1, optional (F-13). This would be the first ADR in `docs/adr/4.x/`, so check the freshener's row insertion on an empty table. |
+
+## Minimum fold set (to reach READY)
+
+1. **WP13** (and tasks.md): narrow the grep gate to field and import usage (F-01).
+2. **WP12**: sanction the YAML regeneration on base drift (F-02a). Mandate read-only `RealTreeInputs` and a walker-free M13 (F-06). Add the widened-evaluation parameterization plus the M11(c) bite (F-05). Keep a literal `assert` in the real-tree test (F-11).
+3. **WP14**: set the floor to the live section count at landing (`>= 16`), with a delete-section violation plant (F-03).
+4. **WP01**: add a "no allowlisted import" rule, and run `test_no_dead_symbols.py` in T004 (F-04).
+5. **Closeout runbook**: re-port the upstream `_CATEGORY_*` delta after any rebase. Then run the dead-symbol gate, the loader test and `test_ratchet_baselines.py` on the consolidated branch (F-02b, F-04).
+
+F-07 to F-10 and F-12 to F-16 can be folded opportunistically.
