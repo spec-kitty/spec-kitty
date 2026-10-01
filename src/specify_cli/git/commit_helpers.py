@@ -107,6 +107,7 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
+from kernel.git import GitCommandError, changed_paths
 from kernel.git_topology import (
     GitTopologyError,
     git_common_dir,
@@ -697,25 +698,19 @@ def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> No
     if not normalized_files:
         return
 
-    staged_result = subprocess.run(
-        ["git", "diff", "--cached", "--no-renames", "--name-only", "-z", "--", *normalized_files],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if staged_result.returncode != 0:
+    try:
+        staged_requested = [str(path) for path in changed_paths(repo_path, cached=True, pathspecs=normalized_files)]
+    except GitCommandError:
+        # Best-effort recovery step (unchanged): when the probe fails there is
+        # nothing safe to unstage, and the caller still re-applies its patch.
         return
-    staged_requested = [path for path in staged_result.stdout.split("\0") if path]
     if not staged_requested:
         return
 
     has_head = _run_git_text(repo_path, ["rev-parse", "--verify", "HEAD"]) is not None
     if has_head:
         subprocess.run(
-            ["git", "restore", "--staged", "--", *staged_requested],
+            ["git", "--literal-pathspecs", "restore", "--staged", "--", *staged_requested],
             cwd=repo_path,
             capture_output=True,
             text=True,
@@ -726,7 +721,7 @@ def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> No
         return
 
     subprocess.run(
-        ["git", "rm", "--cached", "--ignore-unmatch", "-q", "--", *staged_requested],
+        ["git", "--literal-pathspecs", "rm", "--cached", "--ignore-unmatch", "-q", "--", *staged_requested],
         cwd=repo_path,
         capture_output=True,
         text=True,

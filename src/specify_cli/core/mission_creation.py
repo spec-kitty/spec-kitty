@@ -42,6 +42,7 @@ from specify_cli.core.paths import (
     locate_project_root,
 )
 from kernel.clock import now_utc_iso
+from kernel.git import GitCommandError, GitPath, status_entries, tracked_paths
 from specify_cli.git import preflight_commit, safe_commit
 from specify_cli.git.commit_helpers import (
     ProtectedBranchRefused,
@@ -534,31 +535,26 @@ def _mint_protected_single_branch_mission_branch(
     mutation of *meta* on the refusal paths -- the git branch/checkout writes
     only happen after both refusal checks pass).
     """
-    from specify_cli.lanes.worktree_allocator import _git_status_porcelain_lines
-
     if not _target_is_protected(write_root, target_branch):
         return
     _refuse_target_without_commit(write_root, target_branch)
 
     # This mission's own (still-untracked) scaffold is never "dirty" here --
     # only the operator's unrelated uncommitted work is. A bidirectional
-    # prefix match (unlike ``lanes.checkout_occupancy.dirty_paths``'s
+    # component-wise overlap (unlike ``lanes.checkout_occupancy.dirty_paths``'s
     # one-directional ``_is_owned_path``) is required: on a freshly-scaffolded
     # ``kitty-specs/`` (this mission is the first ever created), git's default
     # ``--untracked-files=normal`` collapses the whole new directory to the
     # single line ``kitty-specs/`` -- an ANCESTOR of, not a match for, the
-    # mission-scoped prefix below.
-    own_prefix = f"{KITTY_SPECS_DIR}/{mission_slug_formatted}/"
-    owned_prefixes = (".kittify/", own_prefix)
+    # mission-scoped path below.
+    owned_paths = (GitPath.parse(".kittify"), GitPath.parse(f"{KITTY_SPECS_DIR}/{mission_slug_formatted}"))
     dirty: list[str] = []
-    for line in _git_status_porcelain_lines(write_root):
-        raw = line[3:] if len(line) > 3 else line.strip()
-        path = raw.split(" -> ", 1)[-1].strip()
-        if not path:
+    # Guard: a failed ``git status`` raises ``GitCommandError`` (a ``RuntimeError``,
+    # as the helper this replaces raised) rather than reading as "clean".
+    for entry in status_entries(write_root, untracked=None):
+        if any(owned.overlaps(entry.path) for owned in owned_paths):
             continue
-        if any(path == prefix or path.startswith(prefix) or prefix.startswith(path) for prefix in owned_prefixes):
-            continue
-        dirty.append(path)
+        dirty.append(str(entry.path))
     if dirty:
         raise MissionCreationError(
             "Cannot mint the protected-target mission branch: the write "
@@ -603,17 +599,10 @@ def _path_is_tracked_by_git(repo_root: Path, path: Path) -> bool:
     deletion whenever Git cannot establish that the path is disposable.
     """
     try:
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "ls-files", "--", str(path)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
+        return bool(tracked_paths(repo_root, pathspecs=(str(path),)))
+    except GitCommandError:
+        # Refuse deletion whenever Git cannot establish that the path is disposable.
         return True
-    if result.returncode != 0:
-        return True
-    return bool(result.stdout.strip())
 
 
 def _failure_is_disposable_create_refusal(exc: BaseException) -> bool:

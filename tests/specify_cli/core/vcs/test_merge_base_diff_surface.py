@@ -15,12 +15,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from kernel.git import GitCommandError
 from specify_cli.core.vcs.git import (
     git_diff_names,
     git_diff_names_checked,
     git_ls_tree_names_checked,
     git_merge_base,
-    git_rev_list_count,
     merge_base_changed_files,
 )
 
@@ -96,12 +96,10 @@ class TestGitDiffNames:
         assert set(names) == {"src/a.py", "src/b.py"}
 
     def test_non_zero_exit_returns_empty_tuple(self, tmp_path):
+        # Real git: an unknown ref makes ``git diff`` exit non-zero.
         repo = _make_repo(tmp_path)
-        fake_result = MagicMock(returncode=1, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake_result):
-            names = git_diff_names(repo, "HEAD", "HEAD")
 
-        assert names == ()
+        assert git_diff_names(repo, "no-such-ref", "HEAD") == ()
 
     def test_pathspec_restricts_output(self, tmp_path):
         repo = _make_repo(tmp_path)
@@ -114,14 +112,14 @@ class TestGitDiffNames:
         assert names == ("kitty-specs/spec.md",)
 
     def test_diff_filter_is_passed_through(self, tmp_path):
+        # Real git: only the added file survives ``--diff-filter=A``.
         repo = _make_repo(tmp_path)
-        base = "abc123"
-        fake_result = MagicMock(returncode=0, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake_result) as mock_run:
-            git_diff_names(repo, base, "HEAD", diff_filter="AMR")
+        base = git_merge_base(repo, "HEAD", "HEAD")
+        _commit(repo, "src/added.py", "one\n", "add")
+        (repo / "README.md").write_text("changed\n")
+        _run(["git", "commit", "-q", "-am", "edit"], repo)
 
-        called_cmd = mock_run.call_args.args[0]
-        assert "--diff-filter=AMR" in called_cmd
+        assert git_diff_names(repo, base, "HEAD", diff_filter="A") == ("src/added.py",)
 
     def test_non_head_branch_target_fences_f1(self, tmp_path):
         """F1 fence: git_diff_names must diff an arbitrary ``head``, not HEAD.
@@ -181,12 +179,8 @@ class TestMergeBaseChangedFiles:
     def test_diff_failure_returns_empty(self, tmp_path):
         repo = _make_repo(tmp_path)
 
-        def fake_run(cmd, **_kwargs):
-            if "merge-base" in cmd:
-                return MagicMock(returncode=0, stdout="deadbeef\n")
-            return MagicMock(returncode=1, stdout="")
-
-        with patch("specify_cli.core.vcs.git.subprocess.run", side_effect=fake_run):
+        # A merge-base that resolves but a diff that fails (unknown object) is ()
+        with patch("specify_cli.core.vcs.git.git_merge_base", return_value="0" * 40):
             result = merge_base_changed_files(repo, "HEAD")
 
         assert result == ()
@@ -220,29 +214,22 @@ class TestGitLsTreeNamesChecked:
     """Fail-distinguishing base-tree listing: ``None`` on git failure vs ``()`` on nothing recorded."""
 
     def test_non_zero_exit_returns_none(self, tmp_path):
-        fake = MagicMock(returncode=128, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_ls_tree_names_checked(tmp_path, "0" * 40, "kitty-specs/x/") is None
-
-    def test_nothing_recorded_returns_empty_tuple_not_none(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/") == ()
-
-    def test_success_returns_names(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="kitty-specs/x/a.md\nkitty-specs/x/sub/meta.json\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/") == (
-                "kitty-specs/x/a.md",
-                "kitty-specs/x/sub/meta.json",
-            )
+        _run(["git", "init", "-q", "-b", "main"], tmp_path)
+        assert git_ls_tree_names_checked(tmp_path, "0" * 40, "kitty-specs/x/") is None
 
     def test_timeout_is_passed_through(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+        with patch("specify_cli.core.vcs.git.tree_paths", return_value=frozenset()) as mock_tree:
+            assert git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/", timeout=7) == ()
+        assert mock_tree.call_args.kwargs["timeout"] == 7
+        assert mock_tree.call_args.kwargs["pathspecs"] == ("kitty-specs/x/",)
+
+    def test_timeout_propagates_as_timeout_expired(self, tmp_path):
+        timed_out = GitCommandError(argv=("ls-tree",), cwd=tmp_path, returncode=-1, stderr="", timed_out=True)
+        with (
+            patch("specify_cli.core.vcs.git.tree_paths", side_effect=timed_out),
+            pytest.raises(subprocess.TimeoutExpired),
+        ):
             git_ls_tree_names_checked(tmp_path, "HEAD", "kitty-specs/x/", timeout=7)
-        assert mock_run.call_args.kwargs["timeout"] == 7
-        assert mock_run.call_args.args[0][:4] == ["git", "ls-tree", "-r", "--name-only"]
 
     def test_real_repo_lists_recursively_and_scopes_to_path(self, tmp_path):
         _run(["git", "init", "-q", "-b", "main"], tmp_path)
@@ -267,105 +254,31 @@ class TestGitDiffNamesChecked:
     """Fail-distinguishing variant: ``None`` on git failure vs ``()`` on empty diff."""
 
     def test_non_zero_exit_returns_none(self, tmp_path):
-        fake = MagicMock(returncode=129, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_diff_names_checked(tmp_path, "base", "head") is None
+        repo = _make_repo(tmp_path)
+        assert git_diff_names_checked(repo, "no-such-ref", "HEAD") is None
 
     def test_empty_diff_returns_empty_tuple_not_none(self, tmp_path):
         # The load-bearing distinction: a genuinely-empty diff is () (success),
         # NOT None (failure). Fail-closed callers rely on this.
-        fake = MagicMock(returncode=0, stdout="\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_diff_names_checked(tmp_path, "base", "head") == ()
+        repo = _make_repo(tmp_path)
+        assert git_diff_names_checked(repo, "HEAD", "HEAD") == ()
 
     def test_success_returns_paths(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="a.py\nb.py\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_diff_names_checked(tmp_path, "base", "head") == ("a.py", "b.py")
+        repo = _make_repo(tmp_path)
+        base = git_merge_base(repo, "HEAD", "HEAD")
+        _commit(repo, "a.py", "a\n", "a")
+        _commit(repo, "b.py", "b\n", "b")
+        assert git_diff_names_checked(repo, base, "HEAD") == ("a.py", "b.py")
 
     def test_pathspec_and_diff_filter_passthrough(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+        with patch("specify_cli.core.vcs.git.changed_paths", return_value=()) as mock_changed:
             git_diff_names_checked(tmp_path, "base", "head", pathspec="x/", diff_filter="AMR")
-        cmd = mock_run.call_args.args[0]
-        assert "--diff-filter=AMR" in cmd
-        assert cmd[-2:] == ["--", "x/"]
+        assert mock_changed.call_args.kwargs["pathspecs"] == ("x/",)
+        assert mock_changed.call_args.kwargs["diff_filter"] == "AMR"
+        assert mock_changed.call_args.kwargs["renames"] is True
 
     def test_git_diff_names_maps_none_to_empty_tuple(self, tmp_path):
         # The fail-open wrapper collapses the checked variant's None to ().
-        fake = MagicMock(returncode=1, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_diff_names_checked(tmp_path, "base", "head") is None
-            assert git_diff_names(tmp_path, "base", "head") == ()
-
-    def test_timeout_is_passed_through(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
-            git_diff_names(tmp_path, "base", "head", timeout=10)
-        assert mock_run.call_args.kwargs["timeout"] == 10
-
-
-class TestGitRevListCount:
-    """Fail-closed ``git rev-list --count`` (#3940)."""
-
-    def test_counts_range_on_real_repo(self, tmp_path):
         repo = _make_repo(tmp_path)
-        _run(["git", "checkout", "-b", "side"], repo)
-        _commit(repo, "src/a.py", "a\n", "a")
-        _commit(repo, "src/b.py", "b\n", "b")
-        _run(["git", "checkout", "main"], repo)
-
-        assert git_rev_list_count(repo, "HEAD..side") == 2
-
-    def test_pathspec_excludes_subtree(self, tmp_path):
-        # #3940's core shape: ledger-only commits under an excluded root do
-        # not count; only the commit touching a matching path does.
-        repo = _make_repo(tmp_path)
-        _run(["git", "checkout", "-b", "side"], repo)
-        _commit(repo, "kitty-specs/other-mission/tasks.md", "t\n", "ledger")
-        _commit(repo, ".kittify/workspaces/wp.json", "w\n", "workspaces")
-        _commit(repo, "src/a.py", "a\n", "source")
-        _run(["git", "checkout", "main"], repo)
-
-        counted = git_rev_list_count(
-            repo,
-            "HEAD..side",
-            pathspecs=(".", ":(exclude)kitty-specs", ":(exclude).kittify"),
-        )
-
-        assert counted == 1
-
-    def test_non_zero_exit_returns_none(self, tmp_path):
-        repo = _make_repo(tmp_path)
-
-        assert git_rev_list_count(repo, "HEAD..does-not-exist") is None
-
-    def test_non_numeric_stdout_returns_none(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="not-a-count\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_rev_list_count(tmp_path, "HEAD..main") is None
-
-    def test_empty_stdout_returns_none(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
-            assert git_rev_list_count(tmp_path, "HEAD..main") is None
-
-    def test_no_pathspecs_omits_separator(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="0\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
-            assert git_rev_list_count(tmp_path, "HEAD..main") == 0
-        cmd = mock_run.call_args.args[0]
-        assert "--" not in cmd
-
-    def test_pathspecs_passed_after_separator(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="0\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
-            git_rev_list_count(tmp_path, "HEAD..main", pathspecs=(".", ":(exclude)x"))
-        cmd = mock_run.call_args.args[0]
-        assert cmd[-3:] == ["--", ".", ":(exclude)x"]
-
-    def test_timeout_is_passed_through(self, tmp_path):
-        fake = MagicMock(returncode=0, stdout="0\n")
-        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
-            git_rev_list_count(tmp_path, "HEAD..main", timeout=10)
-        assert mock_run.call_args.kwargs["timeout"] == 10
+        assert git_diff_names_checked(repo, "no-such-ref", "HEAD") is None
+        assert git_diff_names(repo, "no-such-ref", "HEAD") == ()

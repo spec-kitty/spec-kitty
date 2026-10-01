@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from tests.lane_test_utils import create_lane_branches
@@ -140,8 +141,8 @@ class TestPostMergeRefreshAndInvariant:
         def fake_raw_porcelain(repo_root):  # noqa: ANN001
             call_log.append("status_check")
             # Clean working tree — no offending lines. The post-merge invariant
-            # reads porcelain RAW via _raw_porcelain_status.
-            return (0, "")
+            # reads porcelain via _raw_porcelain_status.
+            return (0, ())
 
         def fake_safe_commit(**kwargs):  # noqa: ANN001
             call_log.append("safe_commit")
@@ -259,7 +260,7 @@ class TestPostMergeRefreshAndInvariant:
             # expected status files. This must trigger the invariant. The
             # post-merge invariant reads porcelain RAW via _raw_porcelain_status
             # so the leading status column is preserved.
-            return (0, " M src/unexpected_file.py\n")
+            return (0, (StatusEntry(xy=" M", path=GitPath.parse("src/unexpected_file.py")),))
 
         def fake_safe_commit(**kwargs):  # noqa: ANN001
             call_log.append("safe_commit")

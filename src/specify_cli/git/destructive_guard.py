@@ -35,6 +35,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from kernel.git import GitPath
+
 from . import ref_advance
 
 MERGE_UNSAFE_PRIMARY_OFF_TARGET = "MERGE_UNSAFE_PRIMARY_OFF_TARGET"
@@ -186,7 +188,7 @@ def assert_worktree_clean(
     destroyed by the removal, unlike a ``reset --hard``'s obstruction-only
     exposure). Defaults to ``False``.
     """
-    target_paths: set[str] = ref_advance._target_tree_paths(worktree, new_sha, env) if new_sha else set()
+    target_paths: frozenset[GitPath] = ref_advance._target_tree_paths(worktree, new_sha, env) if new_sha else frozenset()
     dirty = ref_advance._dirty_entries(
         worktree,
         env,
@@ -269,7 +271,7 @@ def guarded_worktree_remove(
         worktree,
         env,
         new_sha="HEAD",
-        target_paths=set(),
+        target_paths=frozenset(),
         is_residue=is_residue,
         treat_untracked_as_dirty=True,
     )

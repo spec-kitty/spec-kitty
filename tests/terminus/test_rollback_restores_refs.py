@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitCommandError
+
 from specify_cli.consolidation import executor
 from tests.terminus.conftest import blob_present_at, build_coord_mission, fold_lanes_into_mission_branch, plant_canceled_commit, run_terminus
 from tests.terminus.conftest import _git as git
@@ -239,3 +241,35 @@ def test_earlier_verified_landing_is_kept_on_resume_projection_refusal(tmp_path:
     assert blob_present_at(mission.repo, mission.target_branch, "src/pkg/wp01.py")
     bookkeeping = state_bookkeeping(mission)
     assert bookkeeping is not None and bookkeeping["reconciliation_passed_target_sha"] == anchored_tip, "the earlier anchor must stay intact"
+
+
+def test_unreadable_projection_window_refuses_and_rolls_back_like_a_refuse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """FR-013 (git-paths-are-data WP03 fold): a failed coord-window read inside the
+    squash projection proof runs AFTER the fresh PASS anchor was saved. It must take
+    the same refusal + rollback path as a content-proof REFUSE — never a traceback
+    that skips the rollback and leaves a PASS anchor a later ``--abort`` trusts."""
+    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5332C")
+    before = ref_shas(mission)
+
+    def _unreadable(main_repo: Path, *_args: object) -> list[str]:
+        raise GitCommandError(argv=("diff",), cwd=main_repo, returncode=128, stderr="fatal: bad object")
+
+    monkeypatch.setattr(executor, "_post_checkpoint_mission_paths", _unreadable)
+    monkeypatch.setenv("HOME", str(mission.home))
+    monkeypatch.chdir(mission.repo)
+
+    with pytest.raises(executor.typer.Exit) as excinfo:
+        executor._run_lane_based_consolidation(mission.repo, mission.slug, push=False, delete_branch=None, remove_worktree=None, assume_yes=True)
+
+    assert excinfo.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert "coordination bookkeeping window could not be read" in output, output
+    after = ref_shas(mission)
+    assert after["target"] == before["target"], f"target left advanced. output={output}"
+    assert after["coord"] == before["coord"], f"coordination branch left advanced. output={output}"
+    assert restored_pairs(output, mission.target_branch), f"the report must show the target RESTORED line. output={output}"
+    bookkeeping = state_bookkeeping(mission)
+    assert bookkeeping is not None
+    assert bookkeeping["reconciliation_passed_target_sha"] is None, f"the refused run's own PASS anchor must not survive. {bookkeeping}"

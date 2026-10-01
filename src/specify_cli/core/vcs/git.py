@@ -19,6 +19,7 @@ import subprocess
 from pathlib import Path
 
 from kernel.clock import from_epoch, now_utc, parse_iso
+from kernel.git import GitCommandError, GitPath, StatusEntry, changed_paths, status_entries, tree_paths
 
 from .types import (
     ChangeInfo,
@@ -35,6 +36,35 @@ from .types import (
 # Import existing git helpers where they provide reusable functionality
 from ..git_preflight import run_git_preflight
 from ..git_ops import get_current_branch, is_git_repo
+
+
+_CONFLICT_PROBE_TIMEOUT_SECONDS = 30
+
+
+def _unmerged_diff_paths(workspace_path: Path) -> tuple[GitPath, ...]:
+    """Paths ``git diff --diff-filter=U`` reports; ``()`` when git fails.
+
+    Advisory: conflict detection is a best-effort workspace probe whose
+    callers already treat "cannot tell" as "no conflicts" (FR-013).
+    """
+    try:
+        return changed_paths(
+            workspace_path,
+            renames=True,
+            diff_filter="U",
+            timeout=_CONFLICT_PROBE_TIMEOUT_SECONDS,
+        )
+    except GitCommandError:
+        return ()
+
+
+def _conflicted_status_entries(workspace_path: Path) -> tuple[StatusEntry, ...]:
+    """Unmerged ``git status`` entries; ``()`` when git fails (advisory, see above)."""
+    try:
+        entries = status_entries(workspace_path, untracked=None, timeout=_CONFLICT_PROBE_TIMEOUT_SECONDS)
+    except GitCommandError:
+        return ()
+    return tuple(entry for entry in entries if entry.is_conflicted)
 
 
 class GitVCS:
@@ -268,15 +298,11 @@ class GitVCS:
             current_commit = commit_result.stdout.strip() if commit_result.returncode == 0 else ""
 
             # Check for uncommitted changes
-            status_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=10,
-            )
-            has_uncommitted = bool(status_result.stdout.strip())
+            try:
+                has_uncommitted = bool(status_entries(workspace_path, untracked=None, timeout=10))
+            except GitCommandError:
+                # Advisory display field: an unreadable status must not hide the workspace.
+                has_uncommitted = False
 
             # Check for conflicts
             has_conflicts = self.has_conflicts(workspace_path)
@@ -412,57 +438,37 @@ class GitVCS:
         """
         try:
             # Get list of conflicted files
-            result = subprocess.run(
-                ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-            )
+            unmerged = _unmerged_diff_paths(workspace_path)
 
-            if result.returncode != 0 or not result.stdout.strip():
+            if not unmerged:
                 # Also check git status for unmerged paths
-                status_result = subprocess.run(
-                    ["git", "-C", str(workspace_path), "status", "--porcelain"],
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=30,
-                )
-
                 conflicts = []
-                for line in status_result.stdout.strip().split("\n"):
-                    if line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
-                        file_path = Path(line[3:].strip())
-                        conflict_type = self._status_to_conflict_type(line[:2])
-                        full_path = workspace_path / file_path
+                for entry in _conflicted_status_entries(workspace_path):
+                    file_path = Path(str(entry.path))
+                    conflict_type = self._status_to_conflict_type(entry.xy)
+                    full_path = workspace_path / file_path
 
-                        line_ranges = None
-                        if full_path.exists() and conflict_type == ConflictType.CONTENT:
-                            line_ranges = self._parse_conflict_markers(full_path)
+                    line_ranges = None
+                    if full_path.exists() and conflict_type == ConflictType.CONTENT:
+                        line_ranges = self._parse_conflict_markers(full_path)
 
-                        conflicts.append(
-                            ConflictInfo(
-                                file_path=file_path,
-                                conflict_type=conflict_type,
-                                line_ranges=line_ranges,
-                                sides=2,
-                                is_resolved=False,
-                                our_content=None,
-                                their_content=None,
-                                base_content=None,
-                            )
+                    conflicts.append(
+                        ConflictInfo(
+                            file_path=file_path,
+                            conflict_type=conflict_type,
+                            line_ranges=line_ranges,
+                            sides=2,
+                            is_resolved=False,
+                            our_content=None,
+                            their_content=None,
+                            base_content=None,
                         )
+                    )
                 return conflicts
 
             conflicts = []
-            for line in result.stdout.strip().split("\n"):
-                if not line:
-                    continue
-
-                file_path = Path(line.strip())
+            for unmerged_path in unmerged:
+                file_path = Path(str(unmerged_path))
                 full_path = workspace_path / file_path
 
                 # Parse conflict markers to get line ranges
@@ -499,33 +505,11 @@ class GitVCS:
             True if conflicts exist, False otherwise
         """
         try:
-            result = subprocess.run(
-                ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-            )
-
-            if result.returncode == 0 and result.stdout.strip():
+            if _unmerged_diff_paths(workspace_path):
                 return True
 
             # Also check git status
-            status_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-            )
-
-            for line in status_result.stdout.strip().split("\n"):
-                if line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
-                    return True
-
-            return False
+            return bool(_conflicted_status_entries(workspace_path))
 
         except (subprocess.TimeoutExpired, OSError):
             return False
@@ -997,6 +981,12 @@ def git_merge_base(repo: Path, ref_a: str, ref_b: str) -> str | None:
     return merge_base or None
 
 
+def _raise_if_timed_out(exc: GitCommandError, timeout: float | None) -> None:
+    """Keep the helpers' documented contract: a timeout propagates as ``TimeoutExpired``."""
+    if exc.timed_out:
+        raise subprocess.TimeoutExpired(list(exc.argv), timeout if timeout is not None else 0) from exc
+
+
 def git_diff_names(
     repo: Path,
     base: str,
@@ -1028,7 +1018,7 @@ def git_diff_names(
             semantics; the surface never silently swallows a timeout).
 
     Returns:
-        Tuple of stripped, non-empty repo-relative paths; empty tuple on
+        Tuple of exact repo-relative paths (NUL-safe, never stripped); empty tuple on
         non-zero exit.
     """
     result = git_diff_names_checked(repo, base, head, pathspec=pathspec, diff_filter=diff_filter, timeout=timeout)
@@ -1065,29 +1055,26 @@ def git_diff_names_checked(
             propagates (not swallowed).
 
     Returns:
-        Tuple of stripped, non-empty repo-relative paths on success (possibly
+        Tuple of exact repo-relative paths on success (possibly
         empty); ``None`` on non-zero exit.
     """
-    cmd = ["git", "diff", "--name-only"]
-    if diff_filter:
-        cmd.append(f"--diff-filter={diff_filter}")
-    cmd.extend([base, head])
-    if pathspec:
-        cmd.extend(["--", pathspec])
-
-    result = subprocess.run(
-        cmd,
-        cwd=str(repo),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=timeout,
-    )
-    if result.returncode != 0:
+    try:
+        # renames=True: the old argv relied on git's default rename detection.
+        paths = changed_paths(
+            repo,
+            base,
+            head,
+            renames=True,
+            diff_filter=diff_filter,
+            pathspecs=(pathspec,) if pathspec else (),
+            timeout=timeout,
+        )
+    except GitCommandError as exc:
+        # The documented contract: a failed diff is ``None`` (fail-closed
+        # callers tell it from an empty diff); only a timeout propagates.
+        _raise_if_timed_out(exc, timeout)
         return None
-    return tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
+    return tuple(str(path) for path in paths)
 
 
 def git_ls_tree_names_checked(
@@ -1116,22 +1103,16 @@ def git_ls_tree_names_checked(
             propagates (not swallowed).
 
     Returns:
-        Tuple of stripped, non-empty repo-relative entry names on success
+        Tuple of exact repo-relative entry names on success
         (possibly empty); ``None`` on non-zero exit.
     """
-    result = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", rev, path],
-        cwd=str(repo),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=timeout,
-    )
-    if result.returncode != 0:
+    try:
+        entries = tree_paths(repo, rev, pathspecs=(path,), timeout=timeout)
+    except GitCommandError as exc:
+        # The documented contract: an unreadable tree is ``None``, not "nothing there".
+        _raise_if_timed_out(exc, timeout)
         return None
-    return tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
+    return tuple(sorted(str(entry) for entry in entries))
 
 
 def git_rev_list_count(
@@ -1252,6 +1233,33 @@ def capture_branch_tip(
     return sha or None
 
 
+def merge_base_changed_files_checked(
+    worktree: Path,
+    base_ref: str,
+    *,
+    pathspec: str | None = None,
+    diff_filter: str | None = None,
+) -> tuple[str, ...] | None:
+    """Fail-distinguishing variant of :func:`merge_base_changed_files`.
+
+    Composes ``git_merge_base(worktree, "HEAD", base_ref)`` then
+    :func:`git_diff_names_checked`. Returns ``None`` when the changed set could
+    not be determined, versus an empty tuple when the diff genuinely reports no
+    changes. ``git_merge_base`` cannot tell "no common ancestor" (exit 1) from a
+    git failure such as an unresolvable ref (exit 128) — both are ``None`` — so
+    the checked variant treats both as undetermined (fail closed). Use this from
+    guards; advisory callers use :func:`merge_base_changed_files`.
+
+    Returns:
+        Exact repo-relative paths (possibly empty); ``None`` on merge-base or
+        diff failure.
+    """
+    merge_base = git_merge_base(worktree, "HEAD", base_ref)
+    if merge_base is None:
+        return None
+    return git_diff_names_checked(worktree, merge_base, "HEAD", pathspec=pathspec, diff_filter=diff_filter)
+
+
 def merge_base_changed_files(
     worktree: Path,
     base_ref: str,
@@ -1278,7 +1286,5 @@ def merge_base_changed_files(
         Changed-file tuple; empty tuple on any failure (no merge-base, or
         diff failure).
     """
-    merge_base = git_merge_base(worktree, "HEAD", base_ref)
-    if merge_base is None:
-        return ()
-    return git_diff_names(worktree, merge_base, "HEAD", pathspec=pathspec, diff_filter=diff_filter)
+    checked = merge_base_changed_files_checked(worktree, base_ref, pathspec=pathspec, diff_filter=diff_filter)
+    return checked if checked is not None else ()

@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
+from kernel.git import GitPath, IndexEntry, commit_paths, index_entries, status_entries, tracked_paths
 from mission_runtime import MissionArtifactKind, placement_seam
 
 from specify_cli.analysis_inputs import collect_material_inputs
@@ -66,28 +67,21 @@ def report_is_qualified(root: Path, report: Path, token: object) -> bool:
 
 
 def _dirty_paths(root: Path) -> set[str]:
-    entries = iter(_git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all").split(b"\0"))
     paths: set[str] = set()
-    for entry in entries:
-        if not entry:
-            continue
-        status = entry[:2]
-        paths.add(entry[3:].decode("utf-8", "surrogateescape"))
-        if b"R" in status or b"C" in status:
-            paths.add(next(entries).decode("utf-8", "surrogateescape"))
+    for entry in status_entries(root, untracked="all"):
+        paths.add(str(entry.path))
+        if entry.orig_path is not None:
+            paths.add(str(entry.orig_path))
     return paths
 
 
-def _index(root: Path, report: str) -> tuple[bytes, ...]:
-    entries = _git(root, "ls-files", "--stage", "-v", "-z").split(b"\0")
+def _index(root: Path, report: str) -> tuple[IndexEntry, ...]:
+    report_path = GitPath.parse(report)
     result = []
-    for entry in entries:
-        if not entry:
-            continue
-        header, path = entry.split(b"\t", 1)
-        if header[:1] != b"H" or header.split()[-1] != b"0":
+    for entry in index_entries(root, tags=True):
+        if entry.tag != "H" or entry.stage != 0:
             raise ValueError("Unsupported index flags, sparse entry or unresolved conflict")
-        if path.decode("utf-8", "surrogateescape") != report:
+        if entry.path != report_path:
             result.append(entry)
     return tuple(result)
 
@@ -152,7 +146,7 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
         material_paths = {entry["path"] for entry in inputs.values()}
         dirty = _dirty_paths(repo_root)
         relevant = dirty & (material_paths | {relative})
-        tracked = set(_git(repo_root, "ls-files", "-z").decode("utf-8", "surrogateescape").split("\0"))
+        tracked = {str(path) for path in tracked_paths(repo_root)}
         relevant.update(path for path in material_paths if path is not None and (repo_root / path).is_file() and path not in tracked)
         if relevant:
             return {"success": False, "commit_status": "failed_before_write", "error_code": "DIRTY_ANALYSIS_INPUT", "dirty_paths": sorted(relevant)}
@@ -209,10 +203,10 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
             raise ValueError(outcome.diagnostic or f"Report commit did not complete: {outcome.status}")
         committed = outcome.commit_hash
         parents = _git(repo_root, "rev-list", "--parents", "-n", "1", committed).split()
-        changed = _git(repo_root, "diff-tree", "--no-commit-id", "--name-only", "-z", "-r", committed).split(b"\0")
+        changed = commit_paths(repo_root, committed)
         if (
             parents != [committed.encode(), head]
-            or changed != [relative.encode(), b""]
+            or changed != (GitPath.parse(relative),)
             or _git(repo_root, "rev-parse", "HEAD").strip() != committed.encode()
             or _index(repo_root, relative) != index
             or _working(repo_root, relative) != working

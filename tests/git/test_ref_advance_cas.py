@@ -147,7 +147,9 @@ def test_advance_fails_closed_when_ref_moves_between_read_and_write(
     def _move_ref_once(args: list[str]) -> None:
         # Fire just before the CAS write: simulate a concurrent writer that has
         # advanced the ref since ``advance_branch_ref`` read ``old_sha``.
-        if args and args[0] == "ls-tree" and _ref_value(repo, "target") == old_sha:
+        # ``worktree list`` is the first ``_run_git`` call after the FF precheck
+        # (the tree/status listings run through ``kernel.git``, outside the spy).
+        if args and args[0] == "worktree" and _ref_value(repo, "target") == old_sha:
             _git(repo, "update-ref", "refs/heads/target", concurrent_sha, old_sha)
 
     recorded = spy_run_git(_move_ref_once)

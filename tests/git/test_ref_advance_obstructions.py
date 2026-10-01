@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitPath
+
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
     _path_obstructs_target_tree,
@@ -30,6 +32,9 @@ _PARENT = "tracked parent\n"
 _KEEP = "keep\n"
 _LOCAL = "operator local bytes\n"
 _COLLAPSED = "collapsed\n"
+
+
+P = GitPath.parse
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -320,13 +325,14 @@ def test_ignored_sibling_survives_when_directory_remains_a_directory(tmp_path: P
     assert (repo / "src" / "store").is_dir()
 
 
-def test_empty_path_and_empty_target_set_do_not_obstruct() -> None:
-    assert _path_obstructs_target_tree("", {"src/store"}) is False
-    assert _path_obstructs_target_tree("src/store/local.txt", set()) is False
-    assert _path_obstructs_target_tree("", set()) is False
-    assert _path_obstructs_target_tree("store", {"storehouse"}) is False
-    assert _path_obstructs_target_tree("storehouse", {"store"}) is False
-    assert _path_obstructs_target_tree("src/storehouse/local.txt", {"src/store"}) is False
+def test_root_path_and_empty_target_set_do_not_obstruct() -> None:
+    root = GitPath.parse("")
+    assert _path_obstructs_target_tree(root, {P("src/store")}) is False
+    assert _path_obstructs_target_tree(P("src/store/local.txt"), frozenset()) is False
+    assert _path_obstructs_target_tree(root, frozenset()) is False
+    assert _path_obstructs_target_tree(P("store"), {P("storehouse")}) is False
+    assert _path_obstructs_target_tree(P("storehouse"), {P("store")}) is False
+    assert _path_obstructs_target_tree(P("src/storehouse/local.txt"), {P("src/store")}) is False
 
 
 def test_reset_would_obstruct_untracked_true_for_ancestor_collision_without_mutation(tmp_path: Path) -> None:

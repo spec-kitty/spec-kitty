@@ -16,7 +16,7 @@ behaviour (see the WP09 ADR for the rationale).
    versions leave the flag set after step 1.
 3. Remove the resolved sparse-checkout pattern file (``missing_ok=True``).
 4. ``git checkout HEAD -- .`` — hydrate any paths the sparse filter hid.
-5. ``git status --porcelain`` — assert the working tree is clean.
+5. ``git status`` — assert the working tree is clean.
 
 Public API
 ----------
@@ -43,6 +43,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from kernel.git import GitCommandError, status_entries
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutScanReport,
     SparseCheckoutState,
@@ -133,45 +134,39 @@ class SparseCheckoutRemediationReport:
 # ---------------------------------------------------------------------------
 
 
-def _is_dirty(path: Path) -> tuple[bool, str]:
-    """Return (dirty, porcelain_output) for ``path``.
+_DIRTY_TREE_DETAIL = "dirty working tree detected; remediation refused to avoid clobbering uncommitted work. Commit or stash and retry."
 
-    A path is "dirty" when ``git status --porcelain`` returns a non-empty
-    result. Missing / non-git paths are treated as clean (empty porcelain)
-    because there is nothing to remediate there; downstream steps will fail
-    on git invocation if that assumption is wrong, and the user will see a
-    normal ``error_step`` rather than a confusing dirty-tree refusal.
+
+def _dirty_refusal_detail(path: Path) -> str | None:
+    """Why ``path`` blocks remediation, or ``None`` when it is clean.
+
+    A path blocks when ``git status`` reports at least one entry. This guards
+    the destructive ``git checkout HEAD -- .`` step, so a probe that *fails* on
+    an existing path blocks too, with its own message: a failed read can never
+    prove the tree clean (fail closed), and it must not be reported as a dirty
+    tree the operator would then look for in vain. Only a path that does not
+    exist is clean, because there is nothing to remediate there.
     """
+    if not path.exists():
+        return None
     try:
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=str(path),
-            capture_output=True,
-            text=True,
-            check=False,
+        dirty = bool(status_entries(path, untracked=None))
+    except GitCommandError as exc:
+        return (
+            f"could not read git status in {path} ({exc}); remediation refused because "
+            "an unreadable working tree cannot be proven clean. Fix the repository state and retry."
         )
-    except (OSError, subprocess.SubprocessError):
-        # If we cannot even probe status, treat as clean so that the normal
-        # five-step path runs and surfaces a precise git error.
-        return False, ""
-    if result.returncode != 0:
-        # Non-zero exit without usable porcelain: same rationale as above.
-        return False, ""
-    porcelain = result.stdout
-    return bool(porcelain.strip()), porcelain
+    return _DIRTY_TREE_DETAIL if dirty else None
 
 
-def _dirty_refusal_result(path: Path) -> SparseCheckoutRemediationResult:
-    """Build the refusal result used when any target is dirty."""
+def _dirty_refusal_result(path: Path, detail: str) -> SparseCheckoutRemediationResult:
+    """Build the refusal result used when any target is dirty or unreadable."""
     return SparseCheckoutRemediationResult(
         path=path,
         success=False,
         steps_completed=(),
         error_step=None,
-        error_detail=(
-            "dirty working tree detected; remediation refused to avoid "
-            "clobbering uncommitted work. Commit or stash and retry."
-        ),
+        error_detail=detail,
         dirty_before_remediation=True,
     )
 
@@ -291,15 +286,20 @@ def _run_remediation_steps(
 
     # Step 5: verify clean. NFR-003 — 100% of successful remediations leave
     # the tree clean.
-    verify = _run_git(["status", "--porcelain"], path)
-    if verify.returncode != 0 or verify.stdout.strip():
-        detail = verify.stdout if verify.stdout.strip() else verify.stderr
+    try:
+        leftover = status_entries(path, untracked=None)
+        failure_detail = "\n".join(entry.display() for entry in leftover)
+    except GitCommandError as exc:
+        # Guard: a failing probe cannot prove the tree clean, so fail closed.
+        leftover = ()
+        failure_detail = exc.stderr or str(exc)
+    if leftover or failure_detail:
         return SparseCheckoutRemediationResult(
             path=path,
             success=False,
             steps_completed=tuple(completed),
             error_step=STEP_VERIFY_CLEAN,
-            error_detail=detail.strip() or None,
+            error_detail=failure_detail.strip() or None,
             dirty_before_remediation=False,
         )
     completed.append(STEP_VERIFY_CLEAN)
@@ -364,19 +364,17 @@ def remediate(
 
     # All-or-nothing dirty-tree pre-check. We probe EVERY target before
     # touching any of them.
-    dirty_found = False
-    for path, _state, _is_wt in targets:
-        dirty, _porcelain = _is_dirty(path)
-        if dirty:
-            dirty_found = True
-            break
+    refusal_detail = next(
+        (detail for path, _state, _is_wt in targets if (detail := _dirty_refusal_detail(path)) is not None),
+        None,
+    )
 
-    if dirty_found:
+    if refusal_detail is not None:
         # FR-005: refuse on EVERY path, not just the dirty one, so operators
         # see the full scope that would have been touched.
-        primary_refusal = _dirty_refusal_result(targets[0][0])
+        primary_refusal = _dirty_refusal_result(targets[0][0], refusal_detail)
         worktree_refusals = tuple(
-            _dirty_refusal_result(p) for p, _s, _w in targets[1:]
+            _dirty_refusal_result(p, refusal_detail) for p, _s, _w in targets[1:]
         )
         return SparseCheckoutRemediationReport(
             primary_result=primary_refusal,

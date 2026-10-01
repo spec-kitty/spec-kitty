@@ -33,8 +33,9 @@ resting correctness on it was the latent hazard this CAS closes.
 
 from __future__ import annotations
 
+import enum
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -44,21 +45,17 @@ from pathlib import Path
 # the one layer reachable from both plumbing and application, so the malformed
 # *definition* (``decode_meta``/``MetaDecodeError``) and the VCS-lock comparator
 # (absent != present-but-null, C-005) live there and are consumed here.
+from kernel.git import GitCommandError, GitPath, StatusEntry, status_entries, tree_paths
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
 
 # Basename of the mission metadata file whose VCS-lock-only changes are tolerated.
 _META_FILENAME: str = "meta.json"
 
-# Marker substring :func:`_dirty_entries` appends to an untracked/ignored entry it
-# flags as a reset-hard obstruction (as opposed to a tracked-change entry, appended
-# raw with no suffix). :func:`reset_would_obstruct_untracked` matches on this marker
-# to ask ONLY the obstruction question through :func:`_dirty_entries` -- not "is
-# anything at all dirty" -- without re-deriving the classification itself (INV-3;
-# a second module-level ``git status --porcelain``-parsing predicate is exactly the
-# regression ``tests/architectural/test_destructive_op_routing.py`` (T019) guards
-# against).
-_RESET_OBSTRUCTION_MARKER: str = "would be overwritten by reset --hard to "
+# Text appended to an untracked/ignored entry flagged as a reset-hard obstruction.
+# The verdict itself is typed (:class:`_DirtyReason`); this is display only.
+_RESET_OBSTRUCTION_NOTE: str = "would be overwritten by reset --hard to "
+_REMOVAL_NOTE: str = "untracked local file would be discarded by worktree removal"
 
 # Sentinel for the short OID displayed when a ref has no current value yet.
 _UNBORN: str = "<unborn>"
@@ -218,36 +215,26 @@ def _list_worktrees(repo_root: Path, env: dict[str, str] | None) -> list[_Worktr
     return entries
 
 
-def _target_tree_paths(repo_root: Path, new_sha: str, env: dict[str, str] | None) -> set[str]:
+def _target_tree_paths(repo_root: Path, new_sha: str, env: dict[str, str] | None) -> frozenset[GitPath]:
     """Return tracked paths present at ``new_sha``."""
-    result = _run_git(repo_root, ["ls-tree", "-r", "--name-only", new_sha], env=env)
-    if result.returncode != 0:
-        raise RefAdvanceError(f"Could not inspect target tree {new_sha}: {result.stderr.strip() or result.stdout.strip()}")
-    return {line for line in result.stdout.splitlines() if line}
+    try:
+        return tree_paths(repo_root, new_sha, env=env)
+    except GitCommandError as exc:
+        raise RefAdvanceError(f"Could not inspect target tree {new_sha}: {exc}") from exc
 
 
-def _porcelain_path(line: str) -> str:
-    """Extract the path field from a porcelain v1 status line."""
-    path = line[3:]
-    if " -> " in path:
-        path = path.rsplit(" -> ", 1)[1]
-    return path.rstrip("/")
-
-
-def _path_obstructs_target_tree(path: str, target_paths: set[str]) -> bool:
+def _path_obstructs_target_tree(path: GitPath, target_paths: Collection[GitPath]) -> bool:
     """Return True when an untracked/ignored path may be clobbered by reset.
 
     A reset clobbers *path* when the target tree has that exact path, a path
-    inside it, or a path that is one of its ancestors. The ancestor case is a
-    tracked directory replaced by a tracked file: ignored ``src/store/local.txt``
-    is destroyed when the incoming tree contains file ``src/store`` (#5400).
-    Matches use slash-delimited components, so ``store`` does not obstruct
-    ``storehouse``. An empty local path never obstructs.
+    inside it (#5392: ignored directory ``src/local data/`` and incoming
+    ``src/local data/notes.txt``), or one of its ancestors (#5400: ignored
+    ``src/store/local.txt`` and incoming file ``src/store``). Paths compare by
+    component (:meth:`GitPath.overlaps`), never as text, so ``store`` does not
+    obstruct ``storehouse`` and a path git would print quoted still matches.
+    The repository root never obstructs.
     """
-    if not path:
-        return False
-    as_directory = f"{path}/"
-    return any(target == path or target.startswith(as_directory) or path.startswith(f"{target}/") for target in target_paths)
+    return any(path.overlaps(target) for target in target_paths)
 
 
 def _decode_meta_named(raw: str, *, source: str) -> dict[str, object]:
@@ -312,16 +299,61 @@ def _meta_change_is_vcs_lock_only(
     return is_vcs_lock_only_change(committed_meta, worktree_meta)
 
 
+class _DirtyReason(enum.Enum):
+    """Why :func:`_dirty_entries` reports an entry; callers decide on this, never on message text."""
+
+    TRACKED = "tracked"
+    """A staged/unstaged change against a tracked path."""
+    OBSTRUCTION = "obstruction"
+    """An untracked/ignored path a ``reset --hard`` to the target tree would overwrite."""
+    REMOVAL = "removal"
+    """An untracked file a ``worktree remove --force`` would discard."""
+
+
+def _status_for_dirty_check(worktree: Path, env: dict[str, str] | None) -> list[StatusEntry]:
+    """Tracked changes and every untracked *file* (``status.showUntrackedFiles`` ignored), plus collapsed ignored entries.
+
+    Untracked files are listed individually so a residue classifier sees
+    ``newdir/status.json`` rather than ``newdir/``. Ignored entries stay
+    collapsed (``!! .venv/``): expanding them would list every file of a build
+    tree and they need only a path-overlap test.
+    """
+    entries = list(status_entries(worktree, untracked="all", env=env))
+    entries += [entry for entry in status_entries(worktree, ignored=True, untracked="normal", env=env) if entry.is_ignored]
+    return entries
+
+
 def _dirty_entries(
     worktree: Path,
     env: dict[str, str] | None,
     *,
     new_sha: str,
-    target_paths: set[str],
+    target_paths: Collection[GitPath],
     is_residue: Callable[[str], bool] | None = None,
     treat_untracked_as_dirty: bool = False,
 ) -> list[str]:
-    """Return porcelain entries that a ``reset --hard`` would destroy.
+    """The display lines of :func:`_dirty_verdicts` (for messages; never decide on them)."""
+    verdicts = _dirty_verdicts(
+        worktree,
+        env,
+        new_sha=new_sha,
+        target_paths=target_paths,
+        is_residue=is_residue,
+        treat_untracked_as_dirty=treat_untracked_as_dirty,
+    )
+    return [line for _, line in verdicts]
+
+
+def _dirty_verdicts(
+    worktree: Path,
+    env: dict[str, str] | None,
+    *,
+    new_sha: str,
+    target_paths: Collection[GitPath],
+    is_residue: Callable[[str], bool] | None = None,
+    treat_untracked_as_dirty: bool = False,
+) -> list[tuple[_DirtyReason, str]]:
+    """Return typed ``(reason, display line)`` pairs for the entries that a ``reset --hard`` would destroy.
 
     Most untracked/ignored files survive ``git reset --hard``, but an
     untracked or ignored path that obstructs a tracked path in ``new_sha`` is
@@ -365,35 +397,53 @@ def _dirty_entries(
             exemption entirely (git-plumbing default: nothing is toolchain
             churn without an injected classifier).
     """
-    result = _run_git(worktree, ["status", "--porcelain", "--ignored"], env=env)
-    if result.returncode != 0:
-        raise RefAdvanceError(f"Could not inspect worktree state at {worktree}: {result.stderr.strip() or result.stdout.strip()}")
-    dirty: list[str] = []
-    for line in result.stdout.splitlines():
-        if not line.strip():
-            continue
-        path = _porcelain_path(line)
-        if is_residue is not None and is_residue(path):
-            continue
-        if line.startswith("??"):
-            if treat_untracked_as_dirty:
-                dirty.append(f"{line} (untracked local file would be discarded by worktree removal)")
-                continue
-            if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(f"{line} ({_RESET_OBSTRUCTION_MARKER}{new_sha[:12]})")
-            continue
-        if line.startswith("!!"):
-            if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(f"{line} ({_RESET_OBSTRUCTION_MARKER}{new_sha[:12]})")
-            continue
-        # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
-        # VCS lock is a regenerable stamp, not destructive local state: the
-        # resync discards it and the next claim rewrites it (#2795 / C-010). A
-        # genuine meta edit still falls through and blocks (no false-open).
-        if Path(path).name == _META_FILENAME and _meta_change_is_vcs_lock_only(worktree, path, env):
-            continue
-        dirty.append(line)
+    try:
+        entries = _status_for_dirty_check(worktree, env)
+    except GitCommandError as exc:
+        raise RefAdvanceError(f"Could not inspect worktree state at {worktree}: {exc}") from exc
+    dirty: list[tuple[_DirtyReason, str]] = []
+    for entry in entries:
+        reason = _dirty_reason(
+            worktree,
+            env,
+            entry,
+            new_sha=new_sha,
+            target_paths=target_paths,
+            is_residue=is_residue,
+            treat_untracked_as_dirty=treat_untracked_as_dirty,
+        )
+        if reason is not None:
+            dirty.append(reason)
     return dirty
+
+
+def _dirty_reason(
+    worktree: Path,
+    env: dict[str, str] | None,
+    entry: StatusEntry,
+    *,
+    new_sha: str,
+    target_paths: Collection[GitPath],
+    is_residue: Callable[[str], bool] | None,
+    treat_untracked_as_dirty: bool,
+) -> tuple[_DirtyReason, str] | None:
+    """The typed verdict and display line for *entry*, or ``None`` when a reset leaves it alone (see :func:`_dirty_verdicts`)."""
+    path = str(entry.path)
+    if is_residue is not None and is_residue(path):
+        return None
+    if entry.is_untracked and treat_untracked_as_dirty:
+        return _DirtyReason.REMOVAL, f"{entry.display()} ({_REMOVAL_NOTE})"
+    if entry.is_untracked or entry.is_ignored:
+        if _path_obstructs_target_tree(entry.path, target_paths):
+            return _DirtyReason.OBSTRUCTION, f"{entry.display()} ({_RESET_OBSTRUCTION_NOTE}{new_sha[:12]})"
+        return None
+    # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
+    # VCS lock is a regenerable stamp, not destructive local state: the
+    # resync discards it and the next claim rewrites it (#2795 / C-010). A
+    # genuine meta edit still falls through and blocks (no false-open).
+    if entry.path.name == _META_FILENAME and _meta_change_is_vcs_lock_only(worktree, path, env):
+        return None
+    return _DirtyReason.TRACKED, entry.display()
 
 
 def reset_would_obstruct_untracked(
@@ -414,28 +464,28 @@ def reset_would_obstruct_untracked(
 
     This is the PUBLIC seam for a caller outside this module (the ``merge/``
     layer, INV-3) to ask that obstruction question without reaching into this
-    module's private helpers. It delegates entirely to :func:`_dirty_entries` --
+    module's private helpers. It delegates entirely to :func:`_dirty_verdicts` --
     the single obstruction authority this module already reuses for
     :func:`advance_branch_ref` -- and simply asks whether any of the entries it
     returns are one it tagged as a reset-hard obstruction (``??``/``!!``
-    entries matching :data:`_RESET_OBSTRUCTION_MARKER`), ignoring tracked-change
+    entries whose typed reason is :attr:`_DirtyReason.OBSTRUCTION`), ignoring tracked-change
     entries: this seam answers only "would the reset clobber untracked/ignored
     local state", not "is the worktree dirty" in general -- callers that also
     need the tracked-change question (e.g. :func:`specify_cli.consolidation.preflight
     .is_pure_behind_head_lag`) answer it separately (``git diff --quiet``
-    against their own base). No new ``git status --porcelain``-parsing
-    predicate is introduced (T019 of
-    ``tests/architectural/test_destructive_op_routing.py``).
+    against their own base). It reads status through ``kernel.git``; no
+    porcelain parsing lives outside ``src/kernel/git/``
+    (``tests/architectural/test_git_path_listing_owner.py``).
 
     Fail-closed: any git error (non-zero exit) or unexpected exception returns
     True -- a reset whose safety could not be proven is never treated as safe.
     """
     try:
         target_paths = _target_tree_paths(repo_root, ref, env)
-        dirty = _dirty_entries(repo_root, env, new_sha=ref, target_paths=target_paths)
+        verdicts = _dirty_verdicts(repo_root, env, new_sha=ref, target_paths=target_paths)
     except Exception:
         return True
-    return any(_RESET_OBSTRUCTION_MARKER in entry for entry in dirty)
+    return any(reason is _DirtyReason.OBSTRUCTION for reason, _ in verdicts)
 
 
 def _checkouts_ready_for(

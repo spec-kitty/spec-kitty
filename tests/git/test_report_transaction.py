@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitPath
 from specify_cli.git.report_transaction import _dirty_paths, _index
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -25,4 +26,4 @@ def test_rename_keeps_both_unusual_path_endpoints(tmp_path: Path):
     assert _dirty_paths(tmp_path) == {old, new}
     entries = _index(tmp_path, "analysis-report.md")
     assert len(entries) == 1
-    assert entries[0].endswith(new.encode())
+    assert entries[0].path == GitPath.parse(new)

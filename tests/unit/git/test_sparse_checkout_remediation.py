@@ -465,7 +465,8 @@ class TestStepFailures:
         def _fake_run(
             cmd: list[str], *args: object, **kwargs: object
         ) -> subprocess.CompletedProcess[str]:
-            if isinstance(cmd, list) and cmd[:3] == ["git", "status", "--porcelain"]:
+            # The kernel.git status query runs ``git status --porcelain=v1 -z``.
+            if isinstance(cmd, list) and cmd[:2] == ["git", "status"] and "--porcelain=v1" in cmd:
                 status_call_count["n"] += 1
                 # First call is the pre-check — return clean.
                 # Subsequent calls are the step-5 verify — return dirty.
@@ -474,8 +475,8 @@ class TestStepFailures:
                 return subprocess.CompletedProcess(
                     args=cmd,
                     returncode=0,
-                    stdout=" M README.md\n",
-                    stderr="",
+                    stdout=b" M README.md\0",
+                    stderr=b"",
                 )
             return real_run(cmd, *args, **kwargs)  # type: ignore[arg-type]
 
@@ -490,6 +491,43 @@ class TestStepFailures:
         # Previous four steps should have been recorded as completed.
         assert STEP_SPARSE_DISABLE in result.primary_result.steps_completed
         assert STEP_REFRESH_WORKING_TREE in result.primary_result.steps_completed
+        assert STEP_VERIFY_CLEAN not in result.primary_result.steps_completed
+
+    def test_verify_probe_failure_fails_closed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failing post-refresh ``git status`` cannot prove the tree clean."""
+        repo = tmp_path / "r"
+        _init_repo_with_commit(repo)
+        _enable_sparse_with_pattern(repo, ["README.md"])
+
+        report = scan_repo(repo)
+
+        import specify_cli.git.sparse_checkout_remediation as rmod
+
+        real_run = subprocess.run
+        status_call_count = {"n": 0}
+
+        def _fake_run(
+            cmd: list[str], *args: object, **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            if isinstance(cmd, list) and cmd[:2] == ["git", "status"] and "--porcelain=v1" in cmd:
+                status_call_count["n"] += 1
+                if status_call_count["n"] == 1:
+                    return real_run(cmd, *args, **kwargs)  # type: ignore[arg-type]
+                return subprocess.CompletedProcess(
+                    args=cmd, returncode=128, stdout=b"", stderr=b"fatal: probe exploded\n"
+                )
+            return real_run(cmd, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(rmod.subprocess, "run", _fake_run)
+
+        result = remediate(report, interactive=False)
+
+        assert result.primary_result.success is False
+        assert result.primary_result.error_step == STEP_VERIFY_CLEAN
+        assert result.primary_result.error_detail is not None
+        assert "probe exploded" in result.primary_result.error_detail
         assert STEP_VERIFY_CLEAN not in result.primary_result.steps_completed
 
 
