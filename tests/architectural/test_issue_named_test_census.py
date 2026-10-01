@@ -29,7 +29,10 @@ _ISSUE_NAMED = re.compile(r"^test_(?:issue|repro)_\d{3,}")
 # test_issue_3931_lane_restore_preserves_local_files.py, landed by #3931 after
 # the pin without the required bump. A reviewed keep-verdict (the contract's
 # visible-bump path); folding/renaming it belongs to the #3931 move-task line.
-_HIGH_WATER = 83
+# 2026-10-01: bumped 83 -> 84 for tests/charter/test_issue_5409_anti_pattern_activation.py,
+# the issue-pinned red-first regression required by ADR 2026-07-17-1 for the #5409
+# anti-pattern activation fix. A reviewed keep-verdict (legitimate issue-named repro).
+_HIGH_WATER = 84
 
 
 def _is_issue_named(filename: str) -> bool:
