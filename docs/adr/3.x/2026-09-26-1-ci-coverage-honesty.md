@@ -3,6 +3,7 @@ title: 'ADR: a green main/nightly must mean the tests actually ran'
 description: 'CI now enforces coverage honesty — dark-suite enrolment, foreign-coverage and src-reachability guards, a nightly run-all lane, and release gated on a green nightly for that SHA.'
 status: Accepted
 date: '2026-09-26'
+updated: '2026-10-01'
 ---
 
 ## Context and Problem Statement
@@ -81,3 +82,73 @@ Make "green ⇒ the tests actually ran" an enforced property, in four parts:
 - **Leave per-push selection as-is and rely on maintainers noticing.** Rejected —
   that is the status quo #5034 documents as failing: reds accumulated invisibly and
   surfaced only as landing-pass tax on unrelated PRs.
+
+## Amendment (2026-10-01) — nightly architectural backstop, sharded battery, CI worker policy (mission ci-runtime-stabilisation, #5510)
+
+This amendment appends to the accepted text above and does not edit it. It corrects one
+Consequences claim, records what the mission `ci-runtime-stabilisation` shipped, and links
+the contracts that hold the details:
+[router two-authority amendment](../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md),
+[battery partition](../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/battery-partition.md).
+
+### Context
+
+This amends the first Consequences bullet, "A green **nightly** now means the full suite
+ran". That statement did not hold for `tests/architectural`. Before this amendment the
+nightly reached the battery only through the interpreter shard that runs the
+`fast or unit` selection, which is **18.6%** of the battery (the SC-003 baseline measured by
+the mission). A red architectural gate outside that selection could therefore sit behind a
+green nightly. Two open issues name the gap: [#4708](https://github.com/spec-kitty/spec-kitty/issues/4708)
+("CI must actually execute the whole test suite") and
+[#3265](https://github.com/spec-kitty/spec-kitty/issues/3265) (no unfiltered `main` backstop,
+folded into this mission). The per-PR battery was also a single slow job that every code PR
+waited on.
+
+### Decision
+
+1. **A nightly architectural backstop.** `ci-nightly.yml` gains the job
+   `architectural-backstop`. It runs the full per-PR battery base command
+   (`tests/architectural`, the base marker expression and the same deselects) with no
+   partition plugin, on Python 3.12, with a 40-minute timeout, so it does not depend on the
+   partition or gate-selection code being correct. It is listed in `nightly-summary.needs`.
+   A red run fails the nightly conclusion, which `scripts/ci/release_nightly_gate.py` already
+   reads for the release SHA, and it escalates through `scripts/ci/nightly_escalation.py`
+   under the suite key `architectural`: one deduplicated `priority:P0` issue per key,
+   triaged on file (type Bug, labels `priority:P0` and `from:ci`, milestone, and a native
+   sub-issue link under [#5106](https://github.com/spec-kitty/spec-kitty/issues/5106)).
+2. **A sharded per-PR battery with an always-on fast gate.** The battery is an always-on
+   `architectural-fast` job plus `architectural-heavy` as one job key with a two-leg
+   `include:` matrix (`--battery-part 1/2` and `2/2`). The registry
+   `.github/ci-module-registry.yml` (`special_tiers.architectural`) is the single declaration
+   of the fast roster, the shard count, the worker count and the base selection. The workflows
+   carry literal copies of the worker count, the base marker expression and the deselects, and
+   pin tests (`tests/ci/test_xdist_worker_policy.py` and the partition proof) keep those
+   copies equal to the registry. Per-file timings in `.github/ci-shard-timings.json`
+   feed the shared selector `scripts/ci/shard_select.py`. A static partition proof requires
+   fast, leg 1 and leg 2 to be pairwise disjoint and to cover the base selection exactly.
+3. **A CI worker policy.** Battery legs, the fast gate, the backstop and the Packs corpus job
+   pass a literal `-n 4` and no `-q`, so xdist prints `created: 4/4 workers`.
+   `tests/ci/test_xdist_worker_policy.py` fails on `-n auto` in those jobs. Local
+   `make test-*` targets keep `-n auto`.
+4. **A `ci_config` path group.** CI-configuration paths (workflows, composite actions,
+   `scripts/ci/**`, `pytest.ini`, `pyproject.toml`, `Makefile`, the registry and the timings
+   file) select the heavy battery and nothing else. This is amendment A1 of the linked
+   contract. It reverses, for the battery only, the earlier rulings that CI-config changes
+   gate no router job.
+
+### Consequences
+
+- The corrected guarantee holds for the architectural battery: a green nightly now means the
+  full battery ran, because the backstop executes the whole per-PR base selection in one
+  plain pytest invocation. Interpreter diversity stays with the interpreter matrix shards.
+- The backstop is judged on its own job conclusion. Main's nightly is red at the time of this
+  amendment for unrelated reasons (P0s #5418, #5505, #5506 and #5507), so the overall nightly
+  conclusion cannot show the backstop's health by itself.
+- The per-PR battery stays a non-required check, as ADR 2026-09-23-1 requires. Both the
+  `architectural-fast` job and the `architectural-heavy` legs are in the `needs` of
+  `router-gate`, so a red in either turns the required `router gate` red. None of these jobs
+  is itself a required context (a path-scoped job is never required, per ADR 2026-09-23-1).
+- Measurements for the mission's non-functional requirements are recorded in the mission
+  evidence file `kitty-specs/ci-runtime-stabilisation-01M3TZH6/evidence/ci-measurements.md`
+  (the orchestrator writes it at closeout, after the PR's CI and the dispatched runs; at the time of this
+  amendment it does not exist yet).

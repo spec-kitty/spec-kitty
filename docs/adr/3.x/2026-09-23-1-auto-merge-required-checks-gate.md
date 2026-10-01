@@ -3,7 +3,7 @@ title: 'ADR: Auto-Merge Gates on the Terminal CI Aggregators — main Required S
 description: 'main now requires the router and CI Modules terminal gates as status checks, plus repo auto-merge, so GitHub auto-merge waits for real green instead of merging on one fast check.'
 status: Accepted
 date: '2026-09-23'
-updated: '2026-09-23'
+updated: '2026-10-01'
 ---
 
 ## Context and Problem Statement
@@ -92,3 +92,70 @@ corrected to the three PR-posting gates.
 - This does not alter the [`2026-07-17-1`](2026-07-17-1-red-main-is-honest-ci-is-release-authority.md)
   invariant that mainline CI is the release authority; it strengthens the *pre-merge*
   application of the same honesty principle.
+
+## Amendment (2026-10-01) — skip-if-green on ready-for-review (mission ci-runtime-stabilisation, #5510)
+
+This amendment appends to the accepted text above and does not edit it. The set of required
+contexts is unchanged: `Clean install verification`, `router gate` and `CI Modules gate`.
+`CI Aggregate gate` stays deliberately not required. Details are in the contracts
+[green match](../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/green-match.md)
+and [router two-authority amendment](../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md)
+(amendment A4).
+
+### Decision
+
+A required gate may now pass on matched prior-run evidence, under exactly one condition: a
+`pull_request` run with the action `ready_for_review` for which a completed, successful run of
+the **same workflow** exists, with a non-expired marker for the identical **tested key**.
+
+- **The tested key** is `(workflow file, PR number, head SHA, base SHA)`, where the base SHA is
+  the first parent of the merge commit the run actually tested. It is bound through the commits
+  API, and the second parent must equal the PR head. The `base.sha` the Actions API reports on a
+  run is not used, because it shows the PR's current base, not the tested one.
+- **Markers.** Every executing `pull_request` run uploads an artifact named
+  `ci-tested-key-pr<N>-base-<sha>`. A run that skipped uploads
+  `ci-green-match-run-<id>-attempt-<n>` and is never itself a match candidate, so skips do not
+  chain. Both artifacts carry the same small JSON body written by
+  `scripts/ci/green_match.py` (`pr`, `head`, `base`, `merge_sha`, `workflow`, `run_id`,
+  `run_attempt` and `decision`, which is `run` or `skip`).
+- **Effect.** The selection jobs of the router (`changes`), CI Modules (`generate-matrix`) and
+  Packs (`changes`) suppress their path-filter step. Every path-gated job then skips, and
+  `router gate` and `CI Modules gate` still post success on the PR head. This is event-level
+  selection-step suppression, not a third CI path routing authority: no job `if:`, `needs:` or
+  `changes` output expression mentions it, and `scripts/ci/gate_selection.py` does not model it.
+- **CI Aggregate.** `collect` runs `scripts/ci/green_match.py effective-source` first. When the
+  source run carries a skip marker, it re-points to the matched CI Modules run after re-verifying
+  head SHA, workflow, event, success and tested identity, and fails closed otherwise
+  ("re-run CI Modules to execute"). Fleet Verdict still binds by the skip run's display title.
+
+### Never suppressed
+
+Push, `workflow_dispatch`, `workflow_call` and schedule events; any other `pull_request` action;
+any attempt after the first; a prior run that failed, was cancelled or is still in progress; a
+moved base (a different tested key); a merge ref that cannot be bound to a tested key; and any
+lookup error (HTTP, network, JSON or a missing key). A lookup error runs normally and emits a
+`::warning::`. A skip marker from an earlier attempt of the same run is ignored, because markers
+bind to their attempt.
+
+### Escape hatch
+
+Re-run the workflow. Attempt 2 always executes in full and Aggregate does not re-point.
+
+### Consequences and recorded limits
+
+- **Fail-safe direction.** The selection step never skips on doubt, and Aggregate never passes on
+  doubt.
+- **Trust surface.** For the router and Packs, the match rests on the tested-key artifact name
+  plus run metadata (same workflow, same head SHA, `pull_request` event, success, non-expired
+  artifact). `decide` matches on the tested-key artifact name only and does not read the JSON
+  body. The body is self-reported by the run that wrote it, so it is not trusted and does not
+  prove what the run executed. CI Modules is
+  stronger, because Aggregate re-verifies the matched run's identity from its immutable merge
+  ref. A hardening follow-up that strengthens the router and Packs identity check is planned and
+  is not part of this mission.
+- **Recorded residuals.** On a skip run the always-on lanes and `prose-scan` still run, and
+  `tests (docs)` still runs on a prose-only skip run, because `prose-scan` is not suppressed.
+  Sonar's informational per-change upload may repeat on a skip run. All three are accepted.
+- **Evidence caveat.** The Aggregate half was verified offline against recorded API fixtures
+  inside the mission, and live verification follows the merge, because `workflow_run` executes
+  `main`'s copy of the workflow file.

@@ -85,7 +85,7 @@
       "wp": null
     },
     "#3265": {
-      "evidence_ref": "Nightly architectural-backstop job (FR-001)",
+      "evidence_ref": "ci-nightly.yml architectural-backstop runs the full per-PR battery base; tests/ci/test_nightly_architectural_backstop.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP04"
     },
     "#3315": {
-      "evidence_ref": "Partial: corpus single owner (FR-009, WP09/WP10)",
+      "evidence_ref": "Partial (corpus residue): Packs sole advisory corpus owner + router tests (corpus-blocking) for the 40 orphans (WP09/WP10); tests/ci/test_corpus_select.py, tests/ci/test_corpus_blocking_home.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,7 +105,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP09"
     },
     "#3463": {
@@ -145,7 +145,7 @@
       "wp": null
     },
     "#4351": {
-      "evidence_ref": "Verify the status aggregate tests are collected by a CI job; evidence in WP19",
+      "evidence_ref": "tests/unit/status/test_mission_status_aggregate.py collected (52 node ids) by the registry unit module row \u2192 module-tests (unit shard 1/1)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,7 +153,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "verified-already-fixed",
       "wp": "WP19"
     },
     "#4365": {
@@ -217,7 +217,7 @@
       "wp": null
     },
     "#4729": {
-      "evidence_ref": "Verify the integration-next nightly tier is wired (1e290b09ae); evidence in WP19",
+      "evidence_ref": "commit 1e290b09ae: ci-nightly.yml integration-next job in nightly-summary.needs",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -225,7 +225,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "verified-already-fixed",
       "wp": "WP19"
     },
     "#4851": {
@@ -265,7 +265,7 @@
       "wp": null
     },
     "#5086": {
-      "evidence_ref": "Partial: consolidation recapture only; remainder stays on #5086",
+      "evidence_ref": "Partial: consolidation row split to 2 shards with recaptured timings; remainder stays on #5086",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -273,11 +273,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#5092": {
-      "evidence_ref": "AC2 only: loud timing-length mismatch (FR-005)",
+      "evidence_ref": "AC2: loud ::warning:: + step-summary on timing-length mismatch in scripts/ci/shard_select.py; tests/ci/test_shard_select.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -285,7 +285,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#5098": {
@@ -469,7 +469,7 @@
       "wp": null
     },
     "#5510": {
-      "evidence_ref": "Mission umbrella issue; closed by the mission PR",
+      "evidence_ref": "Mission ci-runtime-stabilisation-01M3TZH6 (all 19 WPs approved)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -477,7 +477,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP19"
     },
     "#5511": {

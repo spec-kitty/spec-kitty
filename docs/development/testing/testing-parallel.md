@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-01'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -276,6 +276,38 @@ time PWHEADLESS=1 .venv/bin/pytest tests/ -m timing -n0 -q
 # 5. Real home untouched: mtime/inode unchanged (or path still absent) after the run.
 ls -la ~/.spec-kitty 2>/dev/null
 ```
+
+## CI worker policy and the nightly architectural backstop
+
+This section is for maintainers and CI operators who read a battery job log or edit a
+battery command. It records what mission `ci-runtime-stabilisation`
+([#5510](https://github.com/spec-kitty/spec-kitty/issues/5510)) changed; the local recipes
+above are unchanged.
+
+- **CI passes a literal `-n 4`.** On the 4-vCPU hosted runner `-n auto` resolved to the
+  physical core count (2), so the battery ran on half of the available parallelism. Four
+  battery-class commands now pass `-n 4 --dist loadfile`: the always-on
+  `architectural-fast` job, each leg of `architectural-heavy`, the nightly
+  `architectural-backstop`, and the Packs corpus suite. The value equals
+  `special_tiers.architectural.workers` in `.github/ci-module-registry.yml`.
+- **`-q` is not passed to those commands.** With `-q`, xdist does not print its worker
+  banner. Without it, the job log carries the line `created: 4/4 workers`, which is the
+  evidence that four workers started. If you add `-q` back, that evidence disappears.
+- **A static guard holds both rules.** `tests/ci/test_xdist_worker_policy.py` fails on
+  `-n auto`, on a worker count that differs from the registry, and on `-q` in those
+  commands. It reads the workflow files, so it needs no CI run.
+- **Local targets keep `-n auto`.** `make test-fast` and `make test-full` run on machines
+  with an unknown core count, so the literal is a CI-runner fact and not a local
+  recommendation. The `-n auto` recipes in this page stay correct.
+- **The nightly backstop.** `ci-nightly.yml` job `architectural-backstop` runs the full
+  battery base selection (`tests/architectural` with the base marker expression and the same
+  deselects) in one plain pytest invocation, with no partition plugin, on Python 3.12 with a
+  40-minute timeout. It exists so that a green nightly means the whole battery ran, which was
+  not true when the nightly reached the battery only through the `fast or unit` interpreter
+  shard. It is part of `nightly-summary`. A red run fails the nightly conclusion that the
+  release gate reads, and it escalates to a deduplicated, triaged P0 issue under the suite
+  key `architectural`. The decision is recorded in the amendment to
+  [ADR 2026-09-26-1](../../adr/3.x/2026-09-26-1-ci-coverage-honesty.md).
 
 ## CI shard-topology mission status
 
