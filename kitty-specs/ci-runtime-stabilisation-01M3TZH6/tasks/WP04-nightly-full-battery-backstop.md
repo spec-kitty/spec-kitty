@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: issue-5510-ci-runtime-stabilisation
 merge_target_branch: issue-5510-ci-runtime-stabilisation
 branch_strategy: Planning artifacts for this mission were generated on issue-5510-ci-runtime-stabilisation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-5510-ci-runtime-stabilisation unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-ci-runtime-stabilisation-01M3TZH6
+base_commit: af3835c061b70b593dea46f98b26fdda168f977c
+created_at: '2026-10-01T08:56:35.825886+00:00'
 subtasks:
 - T014
 - T015
@@ -448,3 +451,4 @@ Record exact commands and pass/fail counts in the Activity Log and the PR's *Tes
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+- 2026-10-01T09:08:37Z – claude – shell_pid=1510448 – WP04 implemented. Red-first: 677ebbc246 test file red on base (9 failed/2 passed: no architectural-backstop job). Green on tip: tests/ci/test_nightly_architectural_backstop.py + exit-code honesty, headroom, escalation, fork-guard, release-gate, env-pinning = 270 passed. Arch gates (interpreter_shard_coverage needs-test, module_shard_registry, marker_job_completeness, gate_coverage_runner_prefix, dual_mode_contract) 60 passed; out_of_matrix_evidence/suite_jobs_gate_blocking/performance_marker_guard/no_duplicate_suite_execution/workflow_coherence/ci_router_transcription_guards/ci_module_wiring/release_ci_ownership green; shard coverage + module_length 36 passed after uv sync --all-extras (initial 13 collection errors were a stale fresh-worktree venv, not the change). tests/ci+tests/release fast tier 869 passed. ruff check/format/mypy clean; pinning inventory --check exit 0. FR-001 collect-only reference count of battery base: 3394/3602 tests collected (208 deselected). Live nightly run is an orchestrator closeout measurement (C-011): no workflow dispatched by this agent; run id and backstop job conclusion/duration to be recorded by the orchestrator. Only command parity claimed; fast+S1+S2=base is WP06. T017: release_nightly_gate.py reads ci-nightly run conclusion; no wiring needed, documented in job comment. Untouched: ci-module-registry.yml, release_nightly_gate.py, nightly_escalation.py.

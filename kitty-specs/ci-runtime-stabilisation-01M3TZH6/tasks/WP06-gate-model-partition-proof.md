@@ -5,6 +5,7 @@ dependencies:
 - WP05
 requirement_refs:
 - FR-004
+- FR-010
 - C-001
 - C-002
 planning_base_branch: issue-5510-ci-runtime-stabilisation
@@ -24,12 +25,14 @@ agent_profile: python-pedro
 authoritative_surface: tests/architectural/
 create_intent:
 - tests/architectural/test_battery_partition_proof.py
+- tests/architectural/test_gate_os_tier.py
 - scripts/ci/battery_partition_plugin.py
 execution_mode: code_change
 model: claude-sonnet-5-5
 owned_files:
 - tests/architectural/_gate_coverage.py
 - tests/architectural/test_battery_partition_proof.py
+- tests/architectural/test_gate_os_tier.py
 - pyproject.toml
 - scripts/ci/battery_partition_plugin.py
 role: implementer
@@ -98,9 +101,16 @@ This WP:
 3. Proves the plugin's per-file keep/ignore decision equals the model's part sets (D-24).
 4. Handles the companions: the ruff-format exclude for `_gate_coverage.py`, and pinning-inventory
    regeneration.
+5. Provides the **OS-family tier model** FR-010 (WP15) consumes (D-14; moved here from WP15
+   T061 so `_gate_coverage.py` has a single owner in this mission): `Gate.runs_on`, the
+   reusable-workflow splice carrying the delegate's `runs-on`, `os_family`, and an OS-family
+   tier function + per-tier shard counts that replace the dead `fast-tests` /
+   `integration-tests` job-name prefixes (T024 steps 8–11). WP15 does **not** edit
+   `_gate_coverage.py`.
 
 Done means FR-004's proof obligations from `contracts/battery-partition.md` are met
-statically, C-001 holds (no architectural test is lost or added), the red-first test is red
+statically, C-001 holds (C-001 superset: no architectural test is lost; WP06 adds
+`test_gate_os_tier.py` and the partition proof), the red-first test is red
 on the planning base and green on the tip, and the inventory is regenerated.
 
 ## Context & Constraints
@@ -123,7 +133,8 @@ on the planning base and green on the tip, and the inventory is regenerated.
   still run one unpartitioned battery. The live proof must therefore hold in **both** states
   (see T023). Do not edit `ci-router.yml`.
 - **D-28**: keep `_gate_coverage.py` changes minimal (the field, the parse, the selection,
-  collection forwarding, one cached part-file helper). The proof logic lives in the new test
+  collection forwarding, one cached part-file helper, plus the OS-family tier model of T024
+  steps 8–11). The proof logic lives in the new test
   file. FR-010 logic goes to WP15's `_live_uniqueness.py`.
 - **Roster placement — this WP does not edit the registry**: research.md R1 §4b row 33 puts
   "the partition test" in the fast roster (it calls it `test_battery_partition.py`). This WP
@@ -147,7 +158,7 @@ on the planning base and green on the tip, and the inventory is regenerated.
 | Real collection | `collect_job_nodeids` :1910 | `sys.executable -m pytest --collect-only -q -p no:cacheprovider -o addopts= <paths> --ignore=… -m …`, cwd = repo |
 | Workflow models | `load_workflow_models()` :2155 | |
 | Format exclude | `pyproject.toml:883` `"tests/architectural/_gate_coverage.py"` in `[tool.ruff.format].exclude` | shrink-only ratchet: `tests/architectural/test_ruff_format_exclude_ratchet.py` |
-| Pinning inventory | `scripts/ci/derive_pinning_inventory.py` (`--check`, `--stdout`) → `tests/release/pinning_rule_inventory.json`; gate `tests/release/test_pinning_inventory_fresh.py` | 3 rules in `_gate_coverage.py` with **line numbers** (`WORKFLOW_FILES` :118, `NON_EMITTER_JOBS`, `_COMPOSITE_ROUTING`, plus module/docstring rows). **Already stale on the base on 2026-10-01**: the derivation adds a `test_pytest_ini_timeout_default.py::<module-docstring>` row |
+| Pinning inventory | `scripts/ci/derive_pinning_inventory.py` (`--check`, `--stdout`) → `tests/release/pinning_rule_inventory.json`; gate `tests/release/test_pinning_inventory_fresh.py` | 3 rules in `_gate_coverage.py` with **line numbers** (`WORKFLOW_FILES` :118, `NON_EMITTER_JOBS`, `_COMPOSITE_ROUTING`, plus module/docstring rows). Green on base `bc826fcbcb` (#5523 closed by `e3794ded2d`, D-37) |
 | Battery base today | `ci-router.yml` job `architectural-heavy` | `tests/architectural`, `-m "not performance and not stress and not timing"`, 4 `--deselect` = the always-on lanes' files (`terminology`: `test_no_legacy_terminology.py`; `layer-rules`: `test_layer_rules.py` + `test_pyproject_shape.py`; `archive-freeze`: `test_archive_root_byte_identical.py`) |
 
 ## Branch Strategy
@@ -196,12 +207,14 @@ on the planning base and green on the tip, and the inventory is regenerated.
      half-migrated router (fast partitioned, heavy not) fails on disjointness.
 
      **The single-unpartitioned-gate shape branch is transitional.** Mark it with a comment
-     naming WP12 (e.g. `# TRANSITIONAL (WP12 T052 deletes): pre-partition router tolerated`).
-     Once the router is partitioned the tolerance is a hole — a regression back to one
-     unpartitioned battery would pass. **WP12 owns this file after you** (it depends on WP06) and
-     its T052 deletes the branch and adds a positive control that a lone unpartitioned gate is
-     reported, so the shape rule becomes "partitioned family only". Keep the branch isolated (one `if`, one message) so
-     that deletion is a small, obvious diff.
+     naming its remover (e.g. `# TRANSITIONAL (post-consolidation orchestrator fold deletes,
+     tasks.md closeout): pre-partition router tolerated`). Once the router is partitioned (WP12)
+     the tolerance is a hole — a regression back to one unpartitioned battery would pass. No
+     other WP owns this file after you (WP12 and WP15 do not edit it — lane split); the
+     **post-consolidation orchestrator fold (tasks.md closeout)** deletes the branch on the
+     mission branch after lane consolidation and adds a positive control that a lone
+     unpartitioned gate is reported, so the shape rule becomes "partitioned family only". Keep
+     the branch isolated (one `if`, one message) so that deletion is a small, obvious diff.
   4. Positive controls. Write tmp fixture workflows, parse them with `gc.parse_workflow(tmp)`,
      and feed them to the **same** function:
      - `test_missing_leg_is_reported_as_file_in_no_set`: fast + `1/2` only;
@@ -227,7 +240,7 @@ on the planning base and green on the tip, and the inventory is regenerated.
     `--battery-part ${{ matrix.shard }}`. That is exactly the shape WP12 ships.
   - Avoid the inventory subject literals in this file.
 
-### Subtask T024 – `Gate.partition` and part-aware selection in `_gate_coverage`
+### Subtask T024 – `Gate.partition`, part-aware selection and OS-family tiers in `_gate_coverage`
 
 - **Purpose**: make the gate model evaluate the literal `--battery-part` command (D-02), so
   the proof, the duplicate-suite ledger (WP12) and FR-010 (WP15) see legs as disjoint.
@@ -277,7 +290,63 @@ on the planning base and green on the tip, and the inventory is regenerated.
      the plugin must treat `--ignore=<file>` as `--deselect <file>` and skip the worker check under
      `--collect-only`. If it fails on either rule, the fix belongs in WP05's plugin (raise it with
      the orchestrator), never in a looser call here.
-- **Files**: `tests/architectural/_gate_coverage.py`.
+
+  **OS-family tier model (D-14; moved here from WP15 T061 — WP15 consumes it and never edits
+  `_gate_coverage.py`).** Today the same-tier relation is vacuous: `_gate_tier` (≈ :2458) keys
+  tiers on the job-name prefixes `_FAST_TIER_PREFIX = "fast-tests"` /
+  `_INTEGRATION_TIER_PREFIX = "integration-tests"` (≈ :1999-2000), which no live job carries
+  (R2 F11). Tiers must be keyed on **OS family only**: module rows run on Python 3.11 and
+  router/Packs jobs on 3.12 (R2 F8), so an interpreter-keyed tier would hide exactly the
+  router-vs-module duplicates.
+
+  8. **Red-first (ATDD): write the OS-tier tests before any model change.** Create
+      `tests/architectural/test_gate_os_tier.py` (static, no collection) and commit it **red** before
+      steps 9–11. Record the red on the lane tip: `gc.os_family` / `gc.gate_os_tier` do not exist,
+      and the spliced `ci-modules.yml::test` gate has `runs_on` None. Tests:
+      `test_splice_carries_the_delegate_runs_on_when_the_caller_has_none` — a tmp `.github`
+      with `workflows/caller.yml` (job `uses: ./.github/workflows/delegate.yml`) and a one-job
+      `delegate.yml` with `runs-on: ubuntu-24.04` → spliced job `runs-on == "ubuntu-24.04"`
+      and the parsed gate's `gate_os_tier == "linux"`; the no-overwrite case (a caller with
+      its own `runs-on` keeps it); an `os_family` table test (incl. `${{ matrix.os }}` → `None`);
+      `test_os_tier_counts_flag_a_same_os_double_run` (two synthetic gates with
+      `runs_on="ubuntu-24.04"` selecting one node → count 2 in `"linux"`; a `windows-latest`
+      gate selecting it lands in `"windows"`); and a live check that every
+      `ci-modules.yml::test` gate from `gc.parse_workflow` has `runs_on` set and tiers to
+      `"linux"`; plus the D-14 interpreter-split pin
+      `test_module_rows_on_311_and_router_packs_on_312_share_one_os_tier` (live: module rows on
+      Python 3.11 and router/Packs jobs on 3.12 fall in the same OS tier, so an interpreter-keyed
+      tier can never hide a router-vs-module duplicate). `mypy --strict` + ruff clean.
+      WP15's copy of the interpreter-split pin (T061 step 3) is a **consumer pin** over
+      `_live_uniqueness.py`; this file owns the model-level pin.
+  9. `Gate`: add `runs_on: str | None = field(default=None, compare=False)` as the last field
+     (after `partition`), so every existing constructor keeps working and `Gate` equality is
+     unchanged (consumers compare parsed gates with hand-built ones). Populate it in
+     `parse_workflow` from the job's `runs-on`, matrix-substituted with the same `mvars` used
+     for the run text.
+  10. **Carry the delegate's `runs-on` through the splice.** `_splice_local_uses` (≈ :1261)
+     builds `merged = dict(job)` and only appends the delegate's `steps`, so a reusable-workflow
+     caller (`ci-modules.yml::test`, which cannot declare `runs-on`) parses with
+     `runs_on = None` and its tier would be unresolvable (WP15 fails closed on an untiered
+     per-change gate). In the delegate branch set `merged["runs-on"] = delegate_job["runs-on"]`
+     **only when the caller job has no `runs-on`** (never overwrite a caller value; the
+     single-delegate-job assert already guarantees one source).
+  11. Add `os_family(runs_on: str | None) -> str | None`: `ubuntu-*` → `"linux"`,
+      `windows-*` → `"windows"`, `macos-*` → `"macos"`, anything else (including an unresolved
+      `${{ … }}`) → `None`. Add the re-keyed tier function `gate_os_tier(gate) -> str | None`
+      (`os_family(gate.runs_on)`) and the per-tier counting
+      `os_tier_shard_counts(gates, universe) -> dict[str, dict[str, int]]`
+      (`nodeid -> {tier: count}`, keyed by OS tier; pure over a caller-supplied universe; reuse
+      `CompiledGate`, no collection). Docstrings: NFR-003 → per-OS-tier, D-14.
+      A single comment line `# TRANSITIONAL (closeout fold (c) deletes the legacy prefix-tier helpers below)`
+      directly above the legacy block is allowed; fold (c)'s deletion check is scoped to code
+      symbols, so that comment does not count as a surviving legacy reference.
+      **Leave the legacy `_FAST_TIER_PREFIX` / `_INTEGRATION_TIER_PREFIX` / `_gate_tier` /
+      `shard_counts_for_test` / `same_tier_shard_counts` untouched**: their only consumer,
+      `test_same_tier_uniqueness.py`, is owned by WP15 (another lane) and must stay green
+      unchanged here. WP15 re-targets that file onto `gate_os_tier` / `os_tier_shard_counts`;
+      the post-consolidation orchestrator fold (tasks.md closeout) then deletes the dead legacy
+      helpers.
+- **Files**: `tests/architectural/_gate_coverage.py`, `tests/architectural/test_gate_os_tier.py` (new).
 - **Parallel?**: No (after T023).
 - **Notes**:
   - Importing `scripts.ci.*` from `tests/architectural/` has precedent:
@@ -315,7 +384,9 @@ on the planning base and green on the tip, and the inventory is regenerated.
 - **Parallel?**: No (after T024).
 - **Notes**: D-25 serialises edits to `_gate_coverage.py`, `_ci_integrity_oracle.py` and
   `test_no_duplicate_suite_execution.py`. Make sure no other in-flight lane holds
-  `_gate_coverage.py` (WP15 comes after you).
+  `_gate_coverage.py`. This WP is its only owner in the mission (WP15 consumes the T024
+  OS-family tier model and never edits the file); the only later edit is the post-consolidation
+  orchestrator fold that deletes the legacy prefix-tier helpers (tasks.md closeout).
 
 ### Subtask T026 – Plugin enumeration equals the model's (D-24)
 
@@ -351,6 +422,7 @@ on the planning base and green on the tip, and the inventory is regenerated.
 
 ```bash
 uv run --frozen pytest tests/architectural/test_battery_partition_proof.py -q --durations=5   # must stay well under the 10 s roster budget
+uv run --frozen pytest tests/architectural/test_gate_os_tier.py -q   # T024 steps 8-11 (OS-family tier model)
 # Consumers of _gate_coverage (specific gate files, never the whole directory):
 uv run --frozen pytest tests/architectural/test_no_duplicate_suite_execution.py \
   tests/architectural/test_gate_coverage_runner_prefix.py tests/architectural/test_marker_job_completeness.py \
@@ -360,9 +432,10 @@ uv run --frozen pytest tests/architectural/test_no_duplicate_suite_execution.py 
 uv run --frozen pytest tests/ci/test_battery_partition_plugin.py tests/ci/test_shard_select.py -q   # WP05/WP02 tests stay green
 uv run --frozen pytest tests/release/test_pinning_inventory_fresh.py -q
 make test-fast
-uv run --frozen ruff check tests/architectural/_gate_coverage.py tests/architectural/test_battery_partition_proof.py
+uv run --frozen ruff check tests/architectural/_gate_coverage.py tests/architectural/test_battery_partition_proof.py tests/architectural/test_gate_os_tier.py
 uv run --frozen ruff format --check .
 uv run --frozen mypy tests/architectural/test_battery_partition_proof.py
+uv run --frozen mypy --strict tests/architectural/test_gate_os_tier.py
 uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q
 ```
 
@@ -379,7 +452,8 @@ the consumer.
   the cached helpers.
 - **The proof is vacuous on today's router** (one gate): the shape branch is exercised by the
   fixture-workflow controls, and WP12 makes the live family three gates. WP12's reviewer
-  re-runs this file, and WP12 T052 removes the transitional one-unpartitioned-gate tolerance.
+  re-runs this file, and the post-consolidation orchestrator fold (tasks.md closeout) removes
+  the transitional one-unpartitioned-gate tolerance.
 - **Proof file not yet in the fast roster**: expected until WP14 adds row 33. Do not edit
   the registry here.
 
@@ -397,7 +471,12 @@ the consumer.
   reformat. The inventory was regenerated with an Activity Log rationale (this WP is the first
   inventory regeneration in the mission; its diff holds only this WP's line shifts — no #3143
   row, which is already on the base, D-37).
-- The transitional one-unpartitioned-gate branch is isolated and commented for WP12's removal.
+- The transitional one-unpartitioned-gate branch is isolated and commented for removal by the
+  post-consolidation orchestrator fold (tasks.md closeout).
+- OS-family tier model (T024 steps 8–11): `Gate.runs_on` populated (matrix-substituted) and
+  excluded from `Gate` equality; the splice carries the delegate's `runs-on` only when the
+  caller has none; every live `ci-modules.yml::test` gate is tiered `linux`; the legacy
+  prefix-tier helpers are untouched and `test_same_tier_uniqueness.py` is green unchanged.
 - `collect_job_nodeids` on a partitioned gate returns the part's node ids (T024 step 7), also
   under `GITHUB_ACTIONS=true`.
 - `.github/ci-module-registry.yml` is untouched (WP14 adds the proof to the roster).

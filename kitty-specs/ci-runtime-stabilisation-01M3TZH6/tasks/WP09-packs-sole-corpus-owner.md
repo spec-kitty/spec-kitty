@@ -236,7 +236,7 @@ Do not run the corpus suite or `tests/architectural` whole locally. Evidence com
 - **Transitional ungated `corpus` outlives WP10** — WP10's red-first test asserts `corpus` is not in the exemption set; reviewers of WP10 check the entry is gone.
 - **Fleet verdict red on an advisory failure** — job-level `continue-on-error`, not step-level.
 - **Unmatched-src fan-out silently dropped** — truth-table row and superset probe pin it.
-- **Corpus ratchets on data-only diffs become advisory** (`test_bare_prose_corpus_ratchet`, `test_transition_guard_shrink_only` run blocking only through the code-scoped battery) — this is inside the operator-accepted FR-009 downgrade; the 35 tests with no other blocking home get WP10's job.
+- **Corpus ratchets on data-only diffs become advisory** (`test_bare_prose_corpus_ratchet`, `test_transition_guard_shrink_only` run blocking only through the code-scoped battery) — this is inside the operator-accepted FR-009 downgrade; the orphaned corpus tests with no other blocking home get WP10's job.
 - **Pinning inventory churn** — add tests, never rename pinned rules; regenerate.
 
 ## Review Guidance

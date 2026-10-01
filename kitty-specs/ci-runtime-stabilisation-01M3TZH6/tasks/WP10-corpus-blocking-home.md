@@ -1,6 +1,6 @@
 ---
 work_package_id: WP10
-title: Blocking home for the 35 corpus tests
+title: Blocking home for the orphaned corpus tests
 dependencies:
 - WP09
 requirement_refs:
@@ -36,7 +36,7 @@ task_type: implement
 tracker_refs: []
 ---
 
-# Work Package Prompt: WP10 – Blocking home for the 35 corpus tests
+# Work Package Prompt: WP10 – Blocking home for the orphaned corpus tests
 
 ## ⚡ Do This First: Load Agent Profile
 

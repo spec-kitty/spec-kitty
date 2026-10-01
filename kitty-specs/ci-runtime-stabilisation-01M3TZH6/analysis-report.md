@@ -4,87 +4,90 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: ci-runtime-stabilisation-01M3TZH6
 mission_id: 01M3TZH6ZRJAR1SCMVQH8PXHFJ
-generated_at: '2026-10-01T07:34:09.768394+00:00'
+generated_at: '2026-10-01T11:56:08.429012+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/spec.md
-    sha256: 88cbe882efa7509e612b49941cecf61c432c62cc275b7b61dde79668b3260827
+    sha256: 143bcaffbc91e228bc00f996a4196b85b2284ff7c1e5171ac86048896ba630eb
   plan.md:
     path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/plan.md
-    sha256: c82eda08bb6ba4a5375cfc529b483b27a39cbb122ac88b37d92ce90493b501a4
+    sha256: 32bba728b68948e3d7b228e350c2d0f5593fb726710ceecae331bc3326b7dc49
   tasks.md:
     path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks.md
-    sha256: b9362d291a3c1e16c486a34dbfffd4599bb2fa542c48e1a8705fb274d316be28
+    sha256: c9dc4a6e662b370128a48a4dba569e1751f2eb598cea9fa94a27874ec8a02598
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 69c63e91ae27a02b0c07b48939f72198b0d2654ed5bee42e3d6bc1d5d4e71a6e
 verdict: ready
 issue_counts:
+  medium: 3
+  low: 6
   high: 0
-  low: 1
   critical: 0
-  medium: 0
   info: 0
 findings:
 - id: C1
   severity: low
   category: duplication
-  summary: Three create_intent paths are declared by both the creating WP and a downstream WP (shard_select.py + test (WP01/WP02), battery_partition_plugin.py (WP05/WP06), test_battery_partition_proof.py (WP06/WP12)); finalize-tasks rejects removing them (literal-path zero-match) and each pair is dependency-ordered in lane-a — accepted, tool-mandated.
+  summary: Accepted, tool-mandated create_intent duplicates of owned_files (now also WP06 test_gate_os_tier.py).
+- id: D1
+  severity: medium
+  category: traceability
+  summary: WP06 requirement_refs omit FR-010 although WP06 now delivers the OS-tier re-key half of FR-010.
+- id: D2
+  severity: medium
+  category: charter-atdd
+  summary: WP06 T024 OS-tier tests (step 11) come after implementation steps 8-10; the D-14 interpreter-split pin would be green on arrival in WP15.
+- id: D3
+  severity: medium
+  category: process-gap
+  summary: Post-consolidation folds (a)/(b)/(c) have no WP, review lane or gate; skipping (a) leaves the FR-004 hole, skipping (c) leaves dead helpers.
+- id: D4
+  severity: low
+  category: terminology
+  summary: tasks.md closeout calls the target branch issue-5510-ci-runtime-stabilisation 'the mission branch' (mission_branch is kitty/mission-…).
+- id: D5
+  severity: low
+  category: inconsistency
+  summary: WP19 still says 'final regeneration' of the pinning inventory; closeout folds (b)/(c) regenerate again.
+- id: D6
+  severity: low
+  category: single-authority-transitional
+  summary: Legacy prefix-tier helpers coexist with gate_os_tier until fold (c); acceptable as transitional but unmarked.
+- id: D7
+  severity: low
+  category: design-drift
+  summary: change_triggered classifier stays in a test module imported by _live_uniqueness.py (single authority holds; shape differs from research D-14).
+- id: D8
+  severity: low
+  category: inconsistency
+  summary: WP06 Done-means says no architectural test is added, but WP06 adds test_gate_os_tier.py (C-001 is a superset rule).
 ---
 
 ## Specification Analysis Report
 
-**Mission**: `ci-runtime-stabilisation-01M3TZH6` (#5510) · **Branch**: `issue-5510-ci-runtime-stabilisation` · **Date**: 2026-10-01
+**Scope:** delta re-analysis of the lane-split re-ownership (`git diff 1d1f2a3a99..HEAD` over tasks.md, WP06/08/12/14/15 and lanes.json), by an independent read-only reviewer-renata delegate. Lanes verified: lane-a {WP01,02,03,05,06,14}, lane-h {WP07,08,09,10,12,18}, lane-i {WP15}; lanes equal owned-files overlap components; lane graph acyclic; 0 dangling cross-WP references; 0 owned-file gaps. WP14's battery-parts invocation verified against WP02's shipped CLI.
 
-Three analysis passes were run by an independent reviewer-renata delegate (non-remediating); the orchestrator applied the remediations between passes.
+| ID | Sev | Location | Summary | Disposition |
+|---|---|---|---|---|
+| C1 | low | WP frontmatter | Tool-mandated create_intent duplicates | Accepted |
+| D1 | medium | WP06 frontmatter | FR-010 ref missing | Fix in WP06 before it is claimed |
+| D2 | medium | WP06 T024 | OS-tier tests not red-first | Fix in WP06 before it is claimed (tests first; interpreter-split pin moves to test_gate_os_tier.py) |
+| D3 | medium | tasks.md closeout | Folds ungated | Orchestrator closeout checklist: empty TRANSITIONAL/legacy-symbol rg check before PR, independent review of fold commits, fold SHAs cited in FR-004/FR-008 acceptance rows |
+| D4 | low | tasks.md closeout | Branch naming | Folds apply on target branch issue-5510-ci-runtime-stabilisation after consolidate (recorded in orchestrator checklist) |
+| D5 | low | WP19 | Stale "final regeneration" | Fix in WP19 prompt |
+| D6 | low | WP06 step 10 | Unmarked transitional coexistence | Allow one-line TRANSITIONAL marker; fold (c) rg scoped to code |
+| D7 | low | WP15 T063 | Classifier in test module | Accepted; optional follow-up after consolidation |
+| D8 | low | WP06 Done-means | Wording | Fix in WP06 |
 
-- **Pass 1** (20 findings: 1 critical, 1 high, 8 medium, 10 low) — D1 WP19 lacked a red-first test; F1 FR-010 wording contradicted D-14; F2–F6, B1, E1, C1 mediums; lows. Remediated in commits 06112998e8 (spec/plan/research/data-model/contracts) and 0290798f09 (tasks); C1 rejected by `finalize-tasks` and accepted.
-- **Pass 2** (9 findings: 1 critical, 1 high, 1 medium, 6 low) — all pass-1 findings verified resolved; new: H1 WP03/WP11/WP12/WP13 lacked the charter Pre-existing Failure Reporting Rule (must open/cite a GitHub issue); G1 WP03 kept the superseded NFR-006 bound; G2 quickstart stale; I1–I5 label collision, stale cross-references, missing waiver path, US3 AS4 vs SC-005 residual, no source of ≥ 3 consolidation runs. Remediated in b401118 (spec, quickstart) and c421ce9e25 (tasks.md global rule + WP03/04/10/11/12/13/19 and the ATDD label in WP01/02/04/07/14/16); verified by grep.
-- **Final state** (this report): only C1 remains (low, accepted).
-
-| ID | Category | Severity | Location(s) | Summary | Recommendation |
-|----|----------|----------|-------------|---------|----------------|
-| C1 | Duplication | LOW | WP02, WP06, WP12 `create_intent` | Downstream WPs re-declare create intent for files an upstream WP creates; the tool requires it for not-yet-existing owned paths. | No action; dependency order in lane-a removes write-conflict risk. |
-
-### Coverage Summary
-
-| Requirement Key | Has Task? | Task IDs | Notes |
-|-----------------|-----------|----------|-------|
-| FR-001 | Yes | WP04 (T014–T017), WP06 | Joint evidence: command parity + partition proof |
-| FR-002 | Yes | WP04, WP09 (T040), WP12 (T049, T053) | Literal `-n 4` guard |
-| FR-003 | Yes | WP05 (T020), WP12 (T051), WP14 (T029) | Always-on (DM 01M3V1FAQV07WJF3RYAFN9J7GC) |
-| FR-004 | Yes | WP02, WP05, WP06, WP12, WP14 | Positive control |
-| FR-005 | Yes | WP01, WP02, WP05 (T018) | Production path |
-| FR-006 | Yes | WP13 | Dead-symbol half gated on PR #5503 (C-007) |
-| FR-007 | Yes | WP07 | `.github/actions/**` included |
-| FR-008 | Yes | WP08 | Stress home verified |
-| FR-009 | Yes | WP09, WP10 | Advisory = accepted C-001 exception |
-| FR-010 | Yes | WP15 | D-14 wording |
-| FR-011 | Yes | WP16, WP17, WP18 | Aggregate half offline + post-merge follow-up |
-| FR-012 | Yes | WP03 | |
-| FR-013 | Yes | WP05, WP12, WP19 | |
-| FR-014 | Yes | WP19 (T077 red-first) | |
-| NFR-001…NFR-006 | Yes | WP03, WP11, WP12, WP14, WP15 + orchestrator closeout | C-011 evidence |
-| C-001…C-010 | Yes / global | see tasks.md global rules and WP refs | C-006 negative constraint |
-| C-011 | Closeout | Orchestrator | D-35 |
-| SC-001…SC-006 | Yes | WP04, WP07, WP12, WP15, WP18 + closeout | |
+**Coverage:** FR-004 (WP06, WP12, WP14 + fold a), FR-008 (WP08 + fold b), FR-010 (WP15 + WP06), NFR-004/SC-004 (WP15); no requirement lost coverage. 37 requirements accounted for.
 
 ### Charter Alignment Issues
-
-None remaining. ATDD-First (every implementation WP incl. WP19 opens red-first), NO_FULL_HEAVY_SUITES_IN_MISSION, single canonical authority, architectural gate discipline, campsite-first, Pre-existing Failure Reporting Rule (now in tasks.md global rules and WP03/11/12/13), terminology canon — all satisfied.
-
-### Unmapped Tasks
-
-None. Campsite/enabler subtasks (T005, T035 prose, T066, T082) trace to decision-log rows and issue-matrix verdicts.
+ATDD-first (D2) and single authority (D6/D7, transitional) — dispositions above; resolved before WP06 starts.
 
 ### Metrics
-
-- Total requirements: 37 (14 FR, 6 NFR, 11 C, 6 SC)
-- Total tasks: 82 subtasks across 19 work packages
-- Coverage: 37/37 accounted for (34/37 by explicit `requirement_refs`; C-006 negative, C-009 global, C-011 closeout)
-- Ambiguity count: 0 · Duplication count: 1 (accepted) · Critical issues: 0
+Critical 0 · High 0 · Medium 3 · Low 6.
 
 ### Next Actions
-
-- Ready for `/spec-kitty.implement`; implementation is held until PR #5503 merges (operator instruction), then rebase and drift-check.
+Proceed with WP05 (lane-a) and WP07 (lane-h); apply D1/D2/D5/D6/D8 to the WP06/WP19 prompts before they are claimed; D3/D4 tracked in the orchestrator closeout checklist.

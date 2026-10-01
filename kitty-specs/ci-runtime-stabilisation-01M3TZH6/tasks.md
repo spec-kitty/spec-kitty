@@ -1,7 +1,7 @@
 # Tasks: CI runtime stabilisation
 
 **Mission**: `ci-runtime-stabilisation-01M3TZH6` · **Issue**: #5510 · **Branch**: `issue-5510-ci-runtime-stabilisation`
-**Inputs**: [spec.md](spec.md), [plan.md](plan.md) (Implementation Concern Map IC-01…IC-12 + post-plan folds), [research.md](research.md) (decision log D-01…D-36 — governs), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
+**Inputs**: [spec.md](spec.md), [plan.md](plan.md) (Implementation Concern Map IC-01…IC-12 + post-plan folds), [research.md](research.md) (decision log D-01…D-37 — governs), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
 
 Subtask completion is event-sourced: record it with `spec-kitty agent tasks mark-status Txxx --status done`. The rows below are references, not checkboxes.
 
@@ -12,9 +12,10 @@ Subtask completion is event-sourced: record it with `spec-kitty agent tasks mark
 - **Lane discipline**: in a lane worktree always use `uv run --frozen …`; never `git stash`.
 - **Pinned-file companions (D-20, D-25)**: reformatting a file listed in `[tool.ruff.format].exclude` requires dropping it from the exclude in the same commit.
 - **Pinning-inventory rule (stated once; prompts defer to it)**: `tests/release/pinning_rule_inventory.json` is regenerated (`scripts/ci/derive_pinning_inventory.py`, then `--check`) — never hand-merged; on a lane conflict, regenerate — **only** by:
-  - the lane-a WPs that edit pinned files — **WP06, WP08, WP09, WP10, WP12, WP15** — as an out-of-map companion with a one-line rationale. **WP06 is the first** regenerator (the base inventory is fresh since main `e3794ded2d` closed #5523 — research D-37 — so any `--check` delta is the regenerating WP's own line shifts);
-  - **WP19**, which does the final regeneration on the final tip.
-  **WP01, WP16, WP17 and every non-lane-a WP (WP04, WP11, WP13) NEVER regenerate it**: they run `--check`/`--stdout`, confirm their diff adds no new delta, and record any delta in their Activity Log for WP19. (WP07 edits `_ci_integrity_oracle.py`, which carries no inventory rule; it runs `--check` only.)
+  - the WPs that edit pinned files — lane-a **WP06** (`_gate_coverage.py`, its only WP owner); router lane **WP08, WP09, WP10, WP12** (`test_no_duplicate_suite_execution.py`) — as an out-of-map companion with a one-line rationale. **WP06 is the first** regenerator (the base inventory is fresh since main `e3794ded2d` closed #5523 — research D-37 — so any `--check` delta is the regenerating WP's own line shifts);
+  - **WP19**, which does the final regeneration on the final tip;
+  - the **post-consolidation orchestrator folds** (see Orchestrator closeout), which edit pinned files on the mission branch after lane consolidation and regenerate once more.
+  **WP01, WP16, WP17 and every other WP (WP02, WP03, WP04, WP05, WP07, WP11, WP13, WP14, WP15, WP18) NEVER regenerate it**: they run `--check`/`--stdout`, confirm their diff adds no new delta, and record any delta in their Activity Log for WP19. (WP07 edits `_ci_integrity_oracle.py`, which carries no inventory rule; it runs `--check` only.)
 - **Anchor by job name, not only line number** — research anchors match the current base, but every lane edit shifts them.
 - **Pre-existing failures (charter Pre-existing Failure Reporting Rule — binding)**: a red you did not cause and that is also red on the planning base must, before you continue past it, have a GitHub issue — cite the existing one (e.g. nightly P0s #5418/#5505/#5506/#5507) or open one (command, failure summary, why it is pre-existing) — and be cited in the Activity Log. Never just "note it and move on".
 - **Pinning inventory is green on the base**: `tests/release/test_pinning_inventory_fresh.py` / `derive_pinning_inventory.py --check` pass on `bc826fcbcb` (#5523 fixed by `e3794ded2d` and CLOSED; issue-matrix verdict verified-already-fixed — D-37). A `--check` delta on your tip is therefore yours: a non-regenerating WP records it for WP19; a regenerating WP folds it.
@@ -28,10 +29,30 @@ Selector/registry chain : WP01 → WP02 → WP03 → WP05
 Router chain            : WP07 → WP08 → WP09 → WP10 → WP12 → WP18
 Battery reshaping joins : WP04, WP06, WP10, WP11, WP14 → WP12
 Uniqueness              : WP06, WP12 → WP15
-Skip-if-green           : WP16 → WP17 → WP18
+Skip-if-green           : WP16 → WP17 → WP18   (WP18 depends on WP12, WP17)
 Independent day-one     : WP04, WP07, WP11, WP13, WP16
 Docs (last)             : all → WP19
+Post-consolidation folds: (orchestrator, mission branch, after lane consolidation) — see closeout
 ```
+
+**Intended lanes** — lanes are connected components of `owned_files` overlap; cross-lane
+dependencies are fine as long as the lane graph stays acyclic:
+
+- **lane-a** (selector/registry): WP01, WP02, WP03, WP05, WP06, WP14. WP06 is the only WP
+  that owns `_gate_coverage.py` and `test_battery_partition_proof.py` (it also provides the
+  OS-family tier model WP15 consumes).
+- **Router lane**: WP07, WP08, WP09, WP10, WP12, WP18 — shares `ci-router.yml` (and
+  `test_no_duplicate_suite_execution.py` for WP08–WP12).
+- **WP15 lane** (own lane): owns only `_live_uniqueness.py` and `test_same_tier_uniqueness.py`;
+  depends on WP06 (lane-a) and WP12 (router lane). Nothing depends on WP15 except WP19.
+- WP04, WP11, WP13, WP16, WP17, WP19 are placed by their own ownership.
+- WP12 does **not** own the partition proof; WP15 does **not** own `_gate_coverage.py`,
+  `test_battery_partition_proof.py` or `test_no_duplicate_suite_execution.py` (it imports
+  `change_triggered` / `NON_CHANGE_TRIGGER_EVENTS` from it); WP18 does **not** own
+  `test_no_duplicate_suite_execution.py`.
+- Cross-lane cleanups (the partition proof's transitional branch; WP08's directory pre-check;
+  the dead legacy prefix-tier helpers) are **post-consolidation orchestrator folds**, not WP
+  work — see Orchestrator closeout.
 
 ---
 
@@ -102,12 +123,12 @@ T022 `capture_shard_timings.py --suite architectural --from-junit` + tests (WP05
 
 **Goal**: FR-004 — `_gate_coverage` gains a partition field evaluating literal `--battery-part` commands; a static test proves fast ∪ S1 ∪ S2 = base, pairwise disjoint, with an injected-unassigned-file positive control. **Priority**: P1. **Prompt**: [tasks/WP06-gate-model-partition-proof.md](tasks/WP06-gate-model-partition-proof.md) (~445 lines)
 
-T023 Red-first: partition-proof test with positive control (injected unassigned file fails); the "one unpartitioned battery gate" shape branch is transitional — WP12 T052 deletes it (WP06)
-T024 `_gate_coverage.Gate` partition field + `battery_parts` via the shared selector; test that `collect_job_nodeids` on a partitioned gate returns the part's node ids (no UsageError / exit 4) (WP06)
+T023 Red-first: partition-proof test with positive control (injected unassigned file fails); the "one unpartitioned battery gate" shape branch is transitional — a post-consolidation orchestrator fold (tasks.md closeout) deletes it once WP12 has partitioned the router (WP06)
+T024 `_gate_coverage.Gate` partition field + `battery_parts` via the shared selector; test that `collect_job_nodeids` on a partitioned gate returns the part's node ids (no UsageError / exit 4); OS-family tier model for WP15 (D-14, moved from WP15 T061): `Gate.runs_on` (not in equality), `_splice_local_uses` carries the delegate's `runs-on` when the caller has none, `os_family` / `gate_os_tier` / `os_tier_shard_counts` replacing the dead `fast-tests`/`integration-tests` prefix tiers (legacy helpers left for the closeout fold), unit tests in new `test_gate_os_tier.py` (WP06)
 T025 Format-exclude companion and pinning-inventory regeneration (WP06)
 T026 Prove the plugin's enumeration equals the model's (D-24 equality test) (WP06)
 
-**Dependencies**: WP05. Does **not** edit `.github/ci-module-registry.yml` (WP14 adds the proof to the fast roster). Co-owns `scripts/ci/battery_partition_plugin.py` only to export an existing loader / pure keep-decision helper (behaviour-preserving) — this shared ownership also keeps WP05 → WP06 → WP14 → WP12 in one execution lane.
+**Dependencies**: WP05. Sole WP owner of `_gate_coverage.py` and `test_battery_partition_proof.py` (lane-a). Does **not** edit `.github/ci-module-registry.yml` (WP14 adds the proof to the fast roster). Co-owns `scripts/ci/battery_partition_plugin.py` only to export an existing loader / pure keep-decision helper (behaviour-preserving) — this shared ownership also keeps WP05 → WP06 → WP14 → WP12 in one execution lane.
 
 ### WP14 — Battery per-file timings seed and fast-roster budgets
 
@@ -136,7 +157,7 @@ T033 Confirm `test_gate_selection_authority.py`, `test_ci_quality_path_filters.p
 
 **Goal**: FR-008 — delete router `tests (cli)`, `tests (status)`, `tests (consolidation)`; router-gate `needs` and ledger rows; repoint tests asserting `tests-consolidation`; the 2 stress tests are homed by the nightly `stress` lane (verify). **Priority**: P2. **Prompt**: [tasks/WP08-remove-router-module-path-jobs.md](tasks/WP08-remove-router-module-path-jobs.md) (~257 lines)
 
-T034 Red-first: ledger / dual-mode tests asserting the three jobs are absent, plus a deliberate directory-level structural pre-check in `test_no_duplicate_suite_execution.py` that WP15 T062 subsumes and removes (WP08)
+T034 Red-first: ledger / dual-mode tests asserting the three jobs are absent, plus a deliberate directory-level structural pre-check in `test_no_duplicate_suite_execution.py` that WP15's live check subsumes and a post-consolidation orchestrator fold (tasks.md closeout) removes (WP08)
 T035 Delete the jobs, `needs` entries, ledger rows; fix stale `tests-cli` prose (`test_ci_collection_completeness.py`, `scripts/verify_shard_3115.sh`) (WP08)
 T036 Repoint tests that asserted `tests-consolidation`; update `test_local_gate_parity.py` (WP08)
 T037 Verify the 2 stress tests are collected by the nightly stress lane; record it (WP08)
@@ -155,7 +176,7 @@ T042 Pack-manifest test: deselect from corpus, widen its blocking job trigger (W
 
 **Dependencies**: WP08.
 
-### WP10 — Blocking home for the 35 corpus tests
+### WP10 — Blocking home for the orphaned corpus tests
 
 **Goal**: D-13/D-22 — router `tests (corpus-blocking)` job gated on the `corpus` group running exactly the orphaned node ids — 40 on base `bc826fcbcb` (35 at planning; #5503 added five round-trip tests, D-37; whole-file marker selection would be 403); Packs deselects them; `corpus` stays a gated group; ledger + `router-gate.needs`. **Priority**: P2. **Prompt**: [tasks/WP10-corpus-blocking-home.md](tasks/WP10-corpus-blocking-home.md) (~261 lines)
 
@@ -184,20 +205,20 @@ T048 Output contract (`peak_rss_bytes=… source=…`) documented in the module 
 T049 Red-first: worker-policy guard (`-n 4` literal for battery legs, fast job, backstop, Packs corpus; fails on `-n auto`) (WP12)
 T050 Red-first: router shape tests — fast job always-on, heavy matrix legs `1/2`,`2/2`, router-gate needs; registry ↔ router: `fast_gate.job == "architectural-fast"`, `shard_count == len(include)`, `workers ==` literal `-n` (WP12)
 T051 `architectural-fast` job + `MUST_RUN_ALWAYS_ON_GATES` + ledger row (WP12)
-T052 `architectural-heavy` 2-leg matrix; `HEAVY_BATTERY_GATE` model kept; deselects unchanged; per-leg duplicate-suite counting; delete the partition proof's transitional one-unpartitioned-gate branch (WP12)
+T052 `architectural-heavy` 2-leg matrix; `HEAVY_BATTERY_GATE` model kept; deselects unchanged; per-leg duplicate-suite counting; the partition proof is not edited here — a post-consolidation orchestrator fold (tasks.md closeout) removes its transitional branch (WP12)
 T053 Wire memory sampler + junit upload + timeouts ≤ 30 on fast and legs (WP12)
 T054 Companion tests: `test_dual_mode_contract.py`, `tests/ci/test_ci_module_wiring.py`, `test_gate_selection_authority.py`; regenerate pinning inventory (WP12)
 
-**Dependencies**: WP04, WP06, WP10, WP11, WP14.
+**Dependencies**: WP04, WP06, WP10, WP11, WP14. Router lane; does **not** own `test_battery_partition_proof.py` (its transitional branch is removed by a post-consolidation orchestrator fold, tasks.md closeout). The registry ↔ router equalities (T050) live in `tests/ci/test_ci_module_wiring.py`.
 
 ### WP13 — Per-file caching of duplicated scans
 
-**Goal**: FR-006 — per-file cached pure function keyed on (resolved root, selection inputs) returning immutable findings, cleared at file end, in `test_interpreter_shard_coverage.py` and `test_clock_call_ban.py`; mutation/self-mutation tests call the uncached primitive. Dead-symbol files: **verified covered by PR #5503** (merged; `_real_tree_inputs` `functools.lru_cache(maxsize=1)` session cache at `test_no_dead_symbols.py:1166`; `test_refresh_dead_symbol_hashes.py` deleted) — no edit here (C-007, D-37). **Priority**: P3. **Prompt**: [tasks/WP13-per-file-scan-caching.md](tasks/WP13-per-file-scan-caching.md) (~399 lines)
+**Goal**: FR-006 — per-file cached pure function keyed on (resolved root, selection inputs) returning immutable findings, cleared at file end, in `test_interpreter_shard_coverage.py` and `test_clock_call_ban.py`; mutation/self-mutation tests call the uncached primitive. Dead-symbol file: PR #5503 (merged) supplies the `_real_tree_inputs` `functools.lru_cache(maxsize=1)` walk cache at `test_no_dead_symbols.py:1166`. That cache has process lifetime and holds the trees and source for all of `src/`. WP13 owns `test_no_dead_symbols.py` and adds the module-scoped autouse `cache_clear()` finalizer with a red-first test, so no syntax tree outlives its file (FR-006, R3 §2.2). Accepted cost: M11 loses its cross-file cache hit, ~30 s on that worker. `test_refresh_dead_symbol_hashes.py` was deleted by #5503 (C-007, D-37). **Priority**: P3. **Prompt**: [tasks/WP13-per-file-scan-caching.md](tasks/WP13-per-file-scan-caching.md) (~478 lines)
 
-T055 Red-first: cache-bypass tests (self-mutation scans see their own tmp tree; cache hit count == 1 for duplicate requests) + production path: both REAL consumer pairs driven through a counting fake of the uncached primitive, one call per distinct key (WP13)
+T055 Red-first: cache-bypass tests (self-mutation scans see their own tmp tree; cache hit count == 1 for duplicate requests) + production path: both REAL consumer pairs driven through a counting fake of the uncached primitive, one call per distinct key + `test_real_tree_inputs_cleared_at_file_end` (dead-symbol finalizer registered with module scope; clears via a stub) (WP13)
 T056 Cache in `test_interpreter_shard_coverage.py` (`collect_job_nodeids` duplicates) (WP13)
 T057 Cache in `test_clock_call_ban.py` (duplicate scan pair) (WP13)
-T058 Measure before/after per-file durations (single-file runs); record the #5503 "verified covered" disposition (WP13)
+T058 Dead-symbol file-end finalizer (`_clear_real_tree_inputs` → `_real_tree_inputs.cache_clear()`), verify every `_real_tree_inputs()` consumer; measure before/after per-file durations (single-file runs); record the dead-symbol disposition (WP13)
 
 **Dependencies**: none.
 
@@ -205,15 +226,15 @@ T058 Measure before/after per-file durations (single-file runs); record the #550
 
 ### WP15 — Live cross-job test-set uniqueness
 
-**Goal**: FR-010/NFR-004 — new `tests/architectural/_live_uniqueness.py` (one collect-only + per-job marker filtering; module rows and battery legs expanded via the shared selector; OS-family tiers); restore live assertions in `test_same_tier_uniqueness.py` with a reasoned shrink-only allowlist (≤ 10, expected 4); move `change_triggered`/`NON_CHANGE_TRIGGER_EVENTS` out of `test_no_duplicate_suite_execution.py`; runtime ≤ ~55 s. **Priority**: P2. **Prompt**: [tasks/WP15-live-cross-job-uniqueness.md](tasks/WP15-live-cross-job-uniqueness.md) (~314 lines)
+**Goal**: FR-010/NFR-004 — new `tests/architectural/_live_uniqueness.py` (one collect-only + per-job marker filtering; module rows and battery legs expanded via the shared selector; OS-family tiers); restore live assertions in `test_same_tier_uniqueness.py` with a reasoned shrink-only allowlist (≤ 10, expected 4); import `change_triggered`/`NON_CHANGE_TRIGGER_EVENTS` from `test_no_duplicate_suite_execution.py` (not moved; WP15 does not own that file); consume WP06's OS-family tiers (WP15 edits neither `_gate_coverage.py` nor the partition proof); runtime ≤ ~55 s. **Priority**: P2. **Prompt**: [tasks/WP15-live-cross-job-uniqueness.md](tasks/WP15-live-cross-job-uniqueness.md) (~314 lines)
 
 T059 Red-first on the merge-base: the restored live check fails on main's workflows (router cli/status/consolidation/corpus overlaps); archive `.github` whole (splicing reads `.github/actions`); record the red (WP15)
 T060 `_live_uniqueness.py`: collection, per-job filter, expansion, pairwise overlap (WP15)
-T061 Re-key tiers (`_gate_tier` dead prefixes) to live per-PR jobs, OS-family only; `_splice_local_uses` carries the delegate's `runs-on` when the caller has none (+ unit test) (WP15)
-T062 Restore live assertions + allowlist (reasoned, shrink-only, cap 10) + positive control (injected overlapping job); remove WP08's T034 directory guard (subsumed) (WP15)
-T063 Move `change_triggered` helpers; regenerate pinning inventory; runtime measurement (WP15)
+T061 Consume WP06's OS-family tiers (`gate_os_tier` / `os_tier_shard_counts`, provided by WP06 T024 incl. the delegate `runs-on` splice); re-target the synthetic same-tier tests off the legacy prefix helpers; interpreter-split test (D-14) (WP15)
+T062 Restore live assertions + allowlist (reasoned, shrink-only, cap 10) + positive controls (injected overlapping job; retired router duplicate shape); the partition proof's transitional branch and WP08's T034 directory guard are left for the post-consolidation orchestrator folds (tasks.md closeout) (WP15)
+T063 Import (not move) the `change_triggered` helpers from `test_no_duplicate_suite_execution.py`; pinning inventory `--check` only (WP15 edits no pinned file); runtime measurement (WP15)
 
-**Dependencies**: WP06, WP12.
+**Dependencies**: WP06, WP12. Own lane; owns only `_live_uniqueness.py` and `test_same_tier_uniqueness.py`.
 
 ## Phase 7 — Skip-if-green on ready-for-review
 
@@ -247,9 +268,9 @@ T072 Red-first: workflow-shape tests (helper step first; filter step conditional
 T073 Router `changes` wiring (WP18)
 T074 Packs `changes` wiring (WP18)
 T075 CI Modules `generate-matrix` wiring (WP18)
-T076 Golden lane / fork-guard / router-gate tests stay green; record a follow-up for live Aggregate verification post-merge (WP18)
+T076 Golden lane / fork-guard / router-gate tests stay green (`test_no_duplicate_suite_execution.py` run, not edited); record a follow-up for live Aggregate verification post-merge (WP18)
 
-**Dependencies**: WP12, WP17.
+**Dependencies**: WP12, WP17. Router lane.
 
 ## Phase 8 — Documentation and decision records
 
@@ -272,6 +293,37 @@ T082 Verify and evidence #4351 and #4729 (verified-already-fixed): `tests/unit/s
 
 - **C-011 evidence file**: `kitty-specs/ci-runtime-stabilisation-01M3TZH6/evidence/ci-measurements.md`, written by the **orchestrator** after the mission PR's own CI runs and the dispatched router runs (`mode=pr` and `mode=full`) and the nightly backstop dispatch. It records **≥ 3 run IDs per NFR-001…NFR-006 (for NFR-006 dispatch `ci-modules.yml -f mode=full` ×3 or use three nightly `full-module-matrix` runs) and for SC-001 / SC-002** (SC-001 = pipeline start → conclusion of the last battery job; SC-002 = pipeline start → fast gate job conclusion), each with the measured value against its target, plus any operator waiver for an NFR-003 slowest-test breach (inputs: the measurements WP03, WP04, WP12, WP13 and WP15 put in their Activity Logs; WP12 carries SC-001/SC-002 in its `requirement_refs`).
 - No work package writes this file (it lives under `kitty-specs/`, D-35); WP19's ADR amendments only cite it by path.
+- **Post-consolidation orchestrator folds** — applied by the orchestrator on the mission branch
+  (`issue-5510-ci-runtime-stabilisation`) **after lane consolidation and before the mission PR**,
+  as one commit per fold, each red-first where it adds a control. They exist because each cleanup
+  spans two lanes (removing it inside a WP would join lanes and create a lane-dependency cycle):
+  - **(a) Partition proof — delete the transitional branch.** In
+    `tests/architectural/test_battery_partition_proof.py` (WP06) delete the shape branch WP06
+    marked `# TRANSITIONAL …` that tolerates "exactly one unpartitioned battery gate" (and its
+    control pinning the tolerance, if any), so the rule is "every gate partitioned, partitions ==
+    `{fast} ∪ {i/n}`"; add `test_lone_unpartitioned_battery_gate_is_reported` (fixture workflow
+    with one unpartitioned battery job → a shape message, via the same `partition_violations`).
+    Precondition: WP12's partitioned router is on the branch; the live proof stays green over the
+    three partitioned gates; no collection added (10 s fast-roster budget).
+  - **(b) Remove WP08's temporary directory-overlap pre-check** from
+    `tests/architectural/test_no_duplicate_suite_execution.py` (the self-contained T034 block:
+    `module_owned_test_dirs`, `router_dirs_owned_by_a_module`,
+    `test_router_runs_no_module_owned_test_tree`, `test_router_module_tree_guard_flags_a_planted_job`).
+    Precondition: WP15's live check, incl. its node-level twin
+    `test_retired_router_duplicate_shape_is_reported`, is on the branch and green — if not, do not
+    remove (never leave FR-008 unguarded). Keep the per-change classifier (`change_triggered`,
+    `NON_CHANGE_TRIGGER_EVENTS`, …) — `_live_uniqueness.py` imports it.
+  - **(c) Delete the dead legacy prefix-tier helpers** in `tests/architectural/_gate_coverage.py`
+    (`_FAST_TIER_PREFIX`, `_INTEGRATION_TIER_PREFIX`, `_gate_tier`, `shard_counts_for_test`,
+    `same_tier_shard_counts`), left in place by WP06 because their only consumer
+    (`test_same_tier_uniqueness.py`) lived in WP15's lane. Precondition: `rg` shows no remaining
+    consumer after WP15 re-targeted its tests onto `gate_os_tier` / `os_tier_shard_counts`.
+  - Folds (b) and (c) edit pinned files: regenerate `tests/release/pinning_rule_inventory.json`
+    (`scripts/ci/derive_pinning_inventory.py`, then `--check`, `tests/release/test_pinning_inventory_fresh.py`).
+    Run `test_battery_partition_proof.py`, `test_no_duplicate_suite_execution.py`,
+    `test_same_tier_uniqueness.py`, `test_gate_os_tier.py`, `test_marker_job_completeness.py`
+    and `test_ruff_format_exclude_ratchet.py` (specific files, C-009), and record them in the PR's
+    *Tests run*.
 
 ---
 

@@ -270,7 +270,9 @@ static check:
          "files_measured": len(derived["seed"]), "captured_at": now_utc_iso(),
          "known_drift": "post-census #5503 (D-37): test_no_dead_symbols.py rewritten after the window; "
                         "test_dead_symbol_allowlist_{loader,contract}.py post-census (formula-only seed; "
-                        "contract measured ~30 s local single-file); test_refresh_dead_symbol_hashes.py deleted",
+                        "contract measured ~30 s local single-file; WP13's file-end cache_clear() finalizer on "
+                        "_real_tree_inputs removes M11's cross-file cache hit, ~30 s more on that worker); "
+                        "test_refresh_dead_symbol_hashes.py deleted",
          "superseded_by": "scripts/ci/capture_shard_timings.py --suite architectural --from-junit (D-29)",
      }
      out = merge_battery_capture(payload, "architectural", derived["seed"], provenance)
@@ -317,10 +319,20 @@ static check:
      CI-config rows (25-32 of the R1 table) first — never the census-red rows — and record why.
   4. Compute and record the predicted legs:
      ```bash
+     # WP02 shipped the CLI without --registry (YAML stays out of the stdlib module):
+     # pass the base paths/deselects and the roster from the registry explicitly, e.g.
      uv run --frozen python -m scripts.ci.shard_select battery-parts \
-       --registry .github/ci-module-registry.yml --timings .github/ci-shard-timings.json --root .
+       --path tests/architectural \
+       --deselect tests/architectural/test_no_legacy_terminology.py \
+       --deselect tests/architectural/test_layer_rules.py \
+       --deselect tests/architectural/test_pyproject_shape.py \
+       --deselect tests/architectural/test_archive_root_byte_identical.py \
+       --roster <file listing the fast-roster paths, one per line> \
+       --timings <JSON file: path -> seconds, extracted from ci-shard-timings.json battery key> \
+       --shards 2 --root .
      ```
-     (or the equivalent `battery_parts(...)` call if WP02 did not add the CLI). Expect two legs of
+     (or call `scripts.ci.shard_select.battery_parts(...)` directly from a short Python snippet
+     that reads the registry + timings — the same function WP05's plugin uses). Expect two legs of
      ≈ 1,130-1,175 worker-s each (post-#5503 key set) and a fast part ≈ 266 worker-s.
   5. Add a comment under `shards:` in the registry: the seed provenance in one line, the predicted
      loads (fast / 1/2 / 2/2 worker-s), the expected wall time (≈ load ÷ ~2.9 effective cores
@@ -371,7 +383,9 @@ python3 -c "import json,yaml; json.load(open('.github/ci-shard-timings.json')); 
   reporting; refresh via junit.
 - **Post-census cost drift (D-37)** — `test_dead_symbol_allowlist_contract.py` (≈ 30 s local, seeded
   ≈ 0.5 s) and the rewritten `test_no_dead_symbols.py`: recorded as `known_drift`, ≤ ~5 % of one
-  leg; the first junit refresh replaces them.
+  leg; the first junit refresh replaces them. WP13's file-end finalizer on `_real_tree_inputs`
+  means M11 never reuses the gate file's walk, even on a shared worker (~30 s on that worker).
+  The `known_drift` string names this too.
 
 ## Review Guidance
 

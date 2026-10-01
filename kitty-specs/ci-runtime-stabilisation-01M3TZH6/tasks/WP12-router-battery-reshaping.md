@@ -39,7 +39,6 @@ agent_profile: python-pedro
 authoritative_surface: .github/workflows/
 create_intent:
 - tests/ci/test_xdist_worker_policy.py
-- tests/architectural/test_battery_partition_proof.py
 execution_mode: code_change
 model: claude-sonnet-5-5
 owned_files:
@@ -50,7 +49,6 @@ owned_files:
 - tests/ci/test_ci_module_wiring.py
 - tests/architectural/test_gate_selection_authority.py
 - tests/ci/test_xdist_worker_policy.py
-- tests/architectural/test_battery_partition_proof.py
 role: implementer
 tags: []
 task_type: implement
@@ -452,15 +450,14 @@ protection is unchanged.
      appears exactly once in the file's own text. The heavy legs share **one** text line, so
      `ci-router.yml` hosts several suite jobs and is not selected. Confirm the derived host is
      still found (run the mutation-1/2/3 tests).
-  5. **Close the partition proof's transitional tolerance** (`tests/architectural/test_battery_partition_proof.py`,
-     owned here after WP06): delete the shape branch WP06 marked
-     `# TRANSITIONAL (WP12 T052 deletes)` that accepted "exactly one unpartitioned gate", so the
-     shape rule is "every gate partitioned, partitions == `{fast} ∪ {i/n}`". Add the positive
-     control `test_lone_unpartitioned_battery_gate_is_reported` (fixture workflow with one
-     unpartitioned battery job → a shape message), calling the same `partition_violations`.
-     The live test must stay green over the three partitioned gates. Do this in the same commit
-     as the router reshape, so the tolerance never outlives the unpartitioned router.
-- **Files**: `.github/workflows/ci-router.yml`, `tests/architectural/test_no_duplicate_suite_execution.py`, `tests/architectural/test_battery_partition_proof.py`.
+  5. **Do not edit the partition proof** (`tests/architectural/test_battery_partition_proof.py`
+     is owned by WP06 only — not by this WP; lane split, owned_files disjointness). Its
+     transitional "exactly one unpartitioned gate" shape branch, marked by WP06, still accepts
+     the fully partitioned router this WP produces, so the live proof stays green over the three
+     partitioned gates. **The transitional branch is removed by a post-consolidation orchestrator
+     fold (tasks.md closeout)** on the mission branch after lane consolidation, once this router
+     shape has landed, together with its positive control.
+- **Files**: `.github/workflows/ci-router.yml`, `tests/architectural/test_no_duplicate_suite_execution.py`.
 - **Parallel?**: No.
 - **Notes**:
   - The router gate needs no other change. The legs post two API rows with distinct display
@@ -506,7 +503,8 @@ protection is unchanged.
      - `test_ci_router_transcription_guards.py`;
      - `test_ci_quality_path_filters.py`;
      - `test_workflow_coherence.py`;
-     - `test_battery_partition_proof.py` (WP06), now over three partitioned gates;
+     - `test_battery_partition_proof.py` (WP06; run it, do not edit it — its
+       transitional-branch removal is a post-consolidation orchestrator fold, tasks.md closeout), now over three partitioned gates;
      - `test_module_shard_registry.py` (WP05's pins, unchanged by this WP: schema, trigger,
        and base == every `gc.Gate` of `shards.job`, which now iterates both legs). The
        `fast_gate.job`, `shard_count == len(include)` and `workers ==` literal `-n` equalities are
@@ -612,8 +610,9 @@ Record the exact commands and the pass/fail counts in the Activity Log and the P
   name contains `${{ matrix.shard }}`, and artifact names use `label`.
 - `HEAVY_BATTERY_GATE` is still a single string. `gate_selection.py`, `_gate_coverage.py`,
   the registry, `packs.yml`, `ci-nightly.yml` and `pytest.ini` are untouched.
-- The partition proof's transitional one-unpartitioned-gate branch is gone and
-  `test_lone_unpartitioned_battery_gate_is_reported` is green.
+- `tests/architectural/test_battery_partition_proof.py` is untouched by this WP and green over
+  the three partitioned gates (its transitional branch is removed by the post-consolidation orchestrator fold, tasks.md
+  closeout — not here).
 - `test_registry_battery_entry_matches_the_router_shape` pins `fast_gate.job`,
   `shard_count == len(include)` and `workers ==` the literal `-n`.
 - `MUST_RUN_ALWAYS_ON_GATES`, `router-gate.needs` and the ledger row are all updated. Per-leg
