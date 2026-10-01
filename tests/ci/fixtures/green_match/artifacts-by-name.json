@@ -1,0 +1,15 @@
+{
+  "total_count": 1,
+  "artifacts": [
+    {
+      "id": 11144351521,
+      "name": "selected-modules",
+      "expired": false,
+      "created_at": "2026-10-01T06:15:51Z",
+      "workflow_run": {
+        "id": 36823737462,
+        "head_sha": "a5cd2d26a5f9384d639a9eea0d6cae8afdaf1506"
+      }
+    }
+  ]
+}
