@@ -124,7 +124,7 @@ def test_docs_only_diff_local_parity_matches_ci_zero_shards(router: Router) -> N
 
 
 def test_single_module_src_diff_local_parity_matches_ci(router: Router) -> None:
-    """A single-module `src/**` diff selects that module's shard + always-on gates, identically."""
+    """A single-module `src/**` diff selects that module's group + the battery + always-on gates, identically."""
     from scripts.ci.local_gate_parity import resolve_selection
 
     paths = ["src/specify_cli/consolidation/executor.py"]
@@ -132,7 +132,8 @@ def test_single_module_src_diff_local_parity_matches_ci(router: Router) -> None:
     local_selection = resolve_selection(paths, router=router)
 
     assert local_selection == ci_selection
-    assert "tests-consolidation" in local_selection.selected_code_shards
+    assert "architectural-heavy" in local_selection.selected_code_shards
+    assert local_selection.matched_groups == frozenset({"consolidation"})
     assert {"terminology", "layer-rules"} <= local_selection.selected_jobs
 
 

@@ -75,11 +75,10 @@ def test_corpus_only_diff_selects_zero_code_shards(router: Router) -> None:
     assert not selection.unmatched_src
 
 
-def test_src_group_diff_selects_its_shard_and_heavy_arch(router: Router) -> None:
-    """A change confined to one src group selects that group's shard + the heavy battery."""
+def test_src_group_diff_selects_its_group_and_heavy_arch(router: Router) -> None:
+    """A change confined to one src group matches that group and selects the heavy battery."""
     selection = select_gates(["src/specify_cli/consolidation/executor.py"], router=router)
     assert selection.matched_groups == frozenset({"consolidation"})
-    assert "tests-consolidation" in selection.selected_code_shards
     assert "architectural-heavy" in selection.selected_code_shards
 
 
@@ -132,7 +131,7 @@ def test_authority_parses_the_yaml_not_a_hardcoded_map(tmp_path: Path) -> None:
     the answer tracks the file proves there is one authority: the file, parsed.
     """
     baseline = select_gates(["src/specify_cli/consolidation/x.py"])
-    assert "tests-consolidation" in baseline.selected_code_shards
+    assert "consolidation" in baseline.matched_groups and not baseline.unmatched_src
 
     # Remove the whole `consolidation` filter block from a temp copy → `consolidation` no longer matches.
     text = DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")

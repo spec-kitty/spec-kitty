@@ -33,8 +33,8 @@ being confirmed to pass against the real lazy-lookup implementation.
 accepted "``make test-full``-only" gap (the ``tests/specify_cli/cli`` entry,
 "Accepted named gap: the residual behavioral files in this tree remain
 ``make test-full``-only"). No per-PR or nightly automation ever selected that
-directory -- ``ci-router.yml``'s hardcoded ``tests-cli`` job runs
-``pytest tests/cli -q`` (the literal top-level path, not the
+directory -- the ``cli`` module row's mirror (``pytest tests/cli``; the former
+``ci-router.yml`` ``tests-cli`` job was removed by FR-008) is the top-level path (not the
 ``tests/specify_cli/cli`` mirror), and the diff-scoped per-PR matrix
 (``.github/workflows/module-tests.yml`` via ``.github/ci-module-registry.yml``)
 has no ``test_dirs`` override for the ``cli`` module, so it falls back to

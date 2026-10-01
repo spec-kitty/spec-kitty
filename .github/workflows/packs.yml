@@ -20,9 +20,16 @@
 #
 # - **Built-in lane** (`packs/built-in/**`, PUBLIC, ships in the wheel): regen
 #   `--check`, DRG `regenerate-graph --check`, the pack-manifest freshness +
-#   authored-only guard, the `-m corpus` suite (`--cov=src/doctrine`), and the
-#   Claude Code plugin build + `claude plugin validate --strict` (zero errors
-#   AND warnings).
+#   authored-only guard, the `-m corpus` suite, and the Claude Code plugin
+#   build + `claude plugin validate --strict` (zero errors AND warnings). The
+#   corpus suite is the SOLE, ADVISORY owner of `-m corpus` (FR-009; router
+#   `tests (corpus)` retired) EXCEPT the 40 node-ids with no other blocking per-PR
+#   home, which run blocking in router `tests (corpus-blocking)` (D-13/D-22) and
+#   are deselected here: `--cov=charter.offering`, four workers, trigger
+#   = `built_in` UNION the router-derived `corpus` selection
+#   (scripts/ci/corpus_select.py -> gate_selection.select_gates, never a
+#   second glob list); advisory = job-level continue-on-error, outside
+#   `packs-gate.needs`.
 # - **Internal lane** (`packs/internal/**`, MAINTAINER-only, NEVER ships):
 #   `spec-kitty doctrine org validate` (DRG-fragment validity + `refines`-edge
 #   resolution + `org-charter.yaml` required-id validation), plus the
@@ -74,8 +81,15 @@ jobs:
     outputs:
       built_in: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.built_in }}
       internal: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.internal }}
+      # FR-009: the corpus lane trigger, a superset of the deleted router `tests (corpus)`
+      # job's (computed by scripts/ci/corpus_select.py via the single gate-selection authority).
+      corpus: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.corpus.outputs.selected }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Full history: the corpus-selection step below does a plain `git diff`
+          # against the PR base, which a shallow clone would not contain.
+          fetch-depth: 0
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
@@ -95,6 +109,36 @@ jobs:
               - 'src/charter/offering/drg/**'
             internal:
               - 'packs/internal/**'
+      - name: Install PyYAML (corpus selection only, no editable install)
+        shell: bash
+        run: |
+          pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
+      - name: Corpus selection via the single gate-selection authority (FR-009)
+        id: corpus
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          MODE: ${{ inputs.mode || 'pr' }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -uo pipefail
+          # A plain `git diff --name-only` (never a second dorny group: the
+          # router's own `corpus` group is the one encoding, read through
+          # scripts/ci/gate_selection.py). Only a pull_request has a usable base;
+          # a missing/zero base or a git error leaves the outcome != success and
+          # corpus_select.py fails closed to `selected=true`.
+          files_json="[]"
+          outcome="failure"
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ] && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            if diff_output="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null)"; then
+              files_json="$(printf '%s\n' "$diff_output" | python3 -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
+              outcome="success"
+            fi
+          fi
+          export CHANGED_FILES="$files_json" CHANGED_OUTCOME="$outcome"
+          python3 scripts/ci/corpus_select.py --mode "$MODE" --event "$EVENT_NAME"
 
   # ===========================================================================
   # Built-in lane (PUBLIC, packs/built-in/** — ships in the wheel).
@@ -142,7 +186,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
-    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    # Fires on every trigger the advisory corpus lane fires on, so deselecting
+    # this guard from the corpus run (FR-009) weakens nothing.
+    if: ${{ needs.changes.outputs.built_in == 'true' || needs.changes.outputs.corpus == 'true' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -153,11 +199,15 @@ jobs:
           uv run --frozen pytest tests/architectural/test_pack_manifest_no_author_edit.py -q
 
   built-in-corpus-suite:
-    name: built-in / -m corpus suite (--cov=src/doctrine)
+    name: built-in / -m corpus suite (advisory)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [changes]
-    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    if: ${{ needs.changes.outputs.built_in == 'true' || needs.changes.outputs.corpus == 'true' }}
+    # Advisory per FR-009 / operator decision DM 01M3V027T8WF0CR3D1B8VY2VZ0: the
+    # sole corpus owner must not turn the PR red. JOB-level (not step-level)
+    # continue-on-error: ci-fleet-verdict reads the Packs workflow-run conclusion.
+    continue-on-error: true
     steps:
       # fetch-depth: 0 — the corpus suite includes the shrink-only ratchet
       # (test_transition_guard_shrink_only), which walks history to the EXP port
@@ -177,9 +227,18 @@ jobs:
           # corpus exit-5 floor (#3008): "no tests collected" is a failure,
           # never a silent pass — do not swallow the exit code. Run parallel
           # (--dist loadfile, per-worker HOME isolation via conftest): ~1400
-          # corpus tests serial overran the 20-min timeout (the job was
-          # cancelled), mirroring the ci-router tests-corpus fix.
-          uv run --frozen pytest -m "corpus and not windows_ci" -n auto --dist loadfile --cov=src/doctrine --cov-report=term-missing -q
+          # corpus tests serial overran the 20-min timeout. Literal `-n 4`, no
+          # `-q`, so the log shows `created: 4/4 workers` (FR-002). The blocking
+          # pack-manifest guard (built-in-pack-manifest) is deselected here: it
+          # fires on every trigger this job fires on. The 40 corpus node-ids with no
+          # other blocking per-PR home run BLOCKING in the router's
+          # `tests (corpus-blocking)` job (D-13/D-22) and are deselected here (the
+          # three --deselect selections below) so nothing runs twice.
+          uv run --frozen pytest -m "corpus and not windows_ci" -n 4 --dist loadfile --deselect tests/architectural/test_pack_manifest_no_author_edit.py --deselect tests/contract/test_example_round_trip.py --deselect tests/integration/test_mission_review_contract_gate.py --deselect tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance --cov=charter.offering --cov-report=term-missing
+      - name: Advisory corpus failure notice
+        if: failure()
+        run: |
+          echo "::warning::corpus suite failed (advisory, FR-009) -- this does not block packs gate or router gate"
 
   built-in-plugin-validate:
     name: built-in / plugin build + claude plugin validate --strict
@@ -255,7 +314,6 @@ jobs:
       - built-in-regen-check
       - built-in-drg-check
       - built-in-pack-manifest
-      - built-in-corpus-suite
       - built-in-plugin-validate
       - internal-org-validate
       - internal-packaging-safety
