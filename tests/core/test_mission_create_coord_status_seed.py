@@ -16,12 +16,14 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import cast
 
 import pytest
 
-from mission_runtime import MissionTopology
+from mission_runtime import MissionArtifactKind, MissionTopology, kind_is_coordination_residue
 from specify_cli.core import mission_creation
-from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.mission_creation import _status_homes_on_coordination, create_mission_core
+from specify_cli.core.owned_mission import OwnedCreateRoot
 
 from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
@@ -136,3 +138,17 @@ def test_status_log_residue_accepts_only_status_logs_under_kitty_specs(tmp_path:
     assert not is_residue("kitty-specs")
     assert not is_residue(_STATUS_LOG)
     assert not is_residue("kitty-specs/missing")
+
+
+@pytest.mark.parametrize("topology", list(MissionTopology))
+def test_seed_gate_agrees_with_canonical_partition_predicate(topology: MissionTopology) -> None:
+    """``_status_homes_on_coordination`` must stay derived from the single
+    partition authority (``kind_is_coordination_residue``), not a hand-rolled
+    re-derivation -- else a future STATUS_STATE re-home could split-brain the
+    create-time seed gate against the write side (#5440 SSOT fold)."""
+    assert _status_homes_on_coordination(topology, owned=None) == kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, topology)
+    # A non-None ``owned`` always forces the primary home, regardless of topology
+    # or what the canonical predicate would say on its own. The function only
+    # checks `owned is None`, so a bare sentinel stands in for a real validated
+    # `OwnedCreateRoot` (which needs a full owned-checkout fixture to mint).
+    assert _status_homes_on_coordination(topology, owned=cast(OwnedCreateRoot, object())) is False

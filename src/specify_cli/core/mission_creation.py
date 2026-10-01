@@ -24,10 +24,10 @@ from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     MissionTopology,
+    kind_is_coordination_residue,
     placement_seam,
     resolve_create_time_write_target,
     resolve_placement_only,
-    routes_through_coordination,
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, has_unborn_head, is_git_repo
@@ -696,6 +696,11 @@ def _status_log_residue(worktree: Path) -> Callable[[str], bool]:
     may report it as a collapsed untracked directory (``kitty-specs/``), so a
     reported path is residue only when every file under it is a status log
     inside ``kitty-specs/``.
+
+    NOTE: the residue check matches on ``_STATUS_EVENTS_FILENAME`` alone (no
+    ``status.json`` leg) because create only ever emits the append-only log --
+    it never writes a ``status.json`` snapshot -- so ``status.events.jsonl`` is
+    the only STATUS_STATE residue a failed create can leave behind.
     """
 
     def is_residue(path: str) -> bool:
@@ -1206,13 +1211,18 @@ class _Scaffold:
 def _status_homes_on_coordination(topology: MissionTopology, owned: OwnedCreateRoot | None) -> bool:
     """True when the create seeds the status log on the coordination surface (#5440).
 
-    ``status.events.jsonl`` is ``MissionArtifactKind.STATUS_STATE``, a COORD-partition
-    kind: for a coordination-routed topology (the ONE canonical predicate,
-    :func:`mission_runtime.routes_through_coordination`) its home is the
-    coordination branch, never the target branch. An owned create is
-    ``single_branch`` by construction, so it keeps the primary home.
+    ``status.events.jsonl`` is ``MissionArtifactKind.STATUS_STATE``. Its
+    coord-vs-primary home is derived from the single partition authority
+    :func:`mission_runtime.kind_is_coordination_residue` (kind + topology) rather
+    than hand-rolling the predicate from :func:`mission_runtime.routes_through_coordination`
+    alone -- that half ignores the kind side and silently assumes STATUS_STATE is
+    a coordination-placement kind. Deriving from the canonical predicate keeps
+    this create-time gate in lockstep with ``_PLACEMENT_ARTIFACT_KINDS`` (the
+    NFR-004 "swappable locus"): re-homing STATUS_STATE there now flips this gate
+    for free instead of needing a matching edit here. An owned create is
+    ``single_branch`` by construction, so it keeps the primary home regardless.
     """
-    return owned is None and routes_through_coordination(topology)
+    return owned is None and kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, topology)
 
 
 def _seed_coordination_status_dir(resolved_root: Path, mission_slug: str, mid8: str) -> tuple[Path, Path] | None:
