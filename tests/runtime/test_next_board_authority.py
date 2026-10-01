@@ -4,11 +4,14 @@ Holds the P0 board-authority parity tests (review-reject re-dispatch, coord
 implement dispatch, the blocked floor, snapshot immutability and the
 single-authority negative guard) plus the two composed-guard fail-closed
 direct-call tests. They drive the REAL engine against real on-disk mission
-scaffolds (``tests/runtime/_next_mission_scaffold.py``) and never touch the
-#2531 two-run parity oracle (``tests/runtime/test_bridge_parity.py`` /
-``tests/runtime/_bridge_oracle.py``), so the oracle stays retirable in
-isolation (#5116) and these tests never pay for its module-scoped
-``ledger_results`` fixture.
+scaffolds (``tests/runtime/_next_mission_scaffold.py``) and never couple to a
+heavy characterization oracle or any wide-scoped fixture, so these tests stay
+cheap. The #2531 two-run parity oracle (``test_bridge_parity.py``) and its
+``_bridge_oracle`` helper — which this independence was built to let us retire
+in isolation (#5116) — have both since been retired as spent characterization
+scaffolds (#5346). The guard stands on as a *reintroduction ban*: it keeps the
+board-authority tests from re-coupling to an oracle-shaped module or a
+module-scoped ``ledger_results``-shaped fixture.
 
 The guard tests at the top of this module keep that independence
 non-fakeable: they scan this module and the scaffold for any oracle import or
@@ -53,8 +56,8 @@ _THIS_MODULE = Path(__file__).resolve()
 _SCAFFOLD_MODULE = _THIS_MODULE.parent / "_next_mission_scaffold.py"
 _REPO_ROOT = _THIS_MODULE.parents[2]
 
-_ORACLE_MODULES: frozenset[str] = frozenset({"tests.runtime._bridge_oracle", "tests.runtime.test_bridge_parity"})
-_ORACLE_SUBMODULE_NAMES: frozenset[str] = frozenset({"_bridge_oracle", "test_bridge_parity"})
+_ORACLE_MODULES: frozenset[str] = frozenset({"tests.runtime._bridge_oracle"})
+_ORACLE_SUBMODULE_NAMES: frozenset[str] = frozenset({"_bridge_oracle"})
 _WIDE_FIXTURE_SCOPES: frozenset[str] = frozenset({"module", "package", "session"})
 _ORACLE_FIXTURE_NAME = "ledger_results"
 
@@ -181,9 +184,9 @@ def test_oracle_coupling_scan_flags_planted_imports() -> None:
     """Self-mutation: the same scanner the guard uses flags each planted coupling."""
     planted = {
         "from-oracle": "from tests.runtime._bridge_oracle import canonical\n",
-        "import-parity": "import tests.runtime.test_bridge_parity\n",
+        "import-oracle": "import tests.runtime._bridge_oracle\n",
         "from-package": "from tests.runtime import _bridge_oracle\n",
-        "local-import": "def f() -> None:\n    from tests.runtime.test_bridge_parity import ledger_results\n",
+        "local-import": "def f() -> None:\n    from tests.runtime._bridge_oracle import canonical\n",
         "module-fixture": ("import pytest\n\n\n@pytest.fixture(scope='module')\ndef heavy() -> int:\n    return 1\n"),
         "session-fixture": ("from pytest import fixture\n\n\n@fixture(scope='session')\ndef heavy() -> int:\n    return 1\n"),
     }

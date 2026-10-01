@@ -69,9 +69,8 @@ D-OP-9 matcher :func:`tests.architectural._content_identity.partition_findings`.
 dicts (the ints in ``test_timing_coverage_invariant.py::BASELINE_FUNCTIONAL_
 ASSERTIONS`` are counts, not lines); function-local containers; the SHA-pinned
 / non-authoritative YAMLs ``census/spec_kitty_home_pin_anchor.yaml`` and
-``charter_path_literal_allowlist.yaml``; the dormant
-``tests/runtime/_bridge_oracle.py`` pin (outside the ``tests/architectural/``
-scan universe); prose evidence such as ``"decision.py:401; empty stdout"``.
+``charter_path_literal_allowlist.yaml``; prose evidence such as
+``"decision.py:401; empty stdout"``.
 * **YAML** — a field-name rule over the YAML allow-list
   ``inline_meta_read_allowlist.yaml``: an int is permitted ONLY as a ``line`` locator (documented
   non-authoritative — no comparison/membership/count logic reads it), a
