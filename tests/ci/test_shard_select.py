@@ -11,6 +11,7 @@ heredoc's algorithm copied verbatim — for every registry row at its
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import random
@@ -26,11 +27,18 @@ import yaml
 from scripts.ci.shard_select import (
     EXIT_NO_TESTS,
     MODULE_SELECTION_MARKER_EXPR,
+    BatteryPartition,
+    WeightResolution,
+    battery_parts,
+    enumerate_base_files,
+    escape_workflow_command_message,
     lpt_assign,
     lpt_loads,
     main,
-    positional_weights,
+    report_mismatch,
+    resolve_file_weights,
     resolve_module_test_dirs,
+    resolve_positional_weights,
 )
 
 pytestmark = pytest.mark.fast
@@ -72,12 +80,12 @@ def _reference_select(node_ids: list[str], timing_durations: list[float], total:
 
 
 def _production_items(node_ids: list[str], timing_durations: list[float]) -> list[tuple[str, float]]:
-    """Pair ids with weights through the SHIPPED ``positional_weights`` (what the CLI runs).
+    """Pair ids with weights through the SHIPPED ``resolve_positional_weights`` (what the CLI runs).
 
     Deliberately not a re-implementation: the characterization must fail if the
     shipped weighting drifts from the frozen oracle.
     """
-    return list(zip(node_ids, positional_weights(node_ids, timing_durations), strict=True))
+    return list(zip(node_ids, resolve_positional_weights(node_ids, timing_durations).weights, strict=True))
 
 
 def _registry_rows() -> list[dict[str, Any]]:
@@ -175,25 +183,24 @@ def test_marker_constant_value() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# positional_weights (the production weighting, incl. the silent fallback)
+# resolve_positional_weights (the production weighting; the fallback is loud since WP02)
 # --------------------------------------------------------------------------- #
 
 
 def test_positional_weights_returns_the_committed_durations_when_the_counts_line_up() -> None:
     durations = [3.5, 0.25, 9.0]
-    assert positional_weights(["a::1", "b::2", "c::3"], durations) == durations
-
-
-def test_positional_weights_does_not_alias_the_input_list() -> None:
-    durations = [1.0, 2.0]
-    weights = positional_weights(["a::1", "b::2"], durations)
-    weights.append(99.0)
-    assert durations == [1.0, 2.0]
+    resolution = resolve_positional_weights(["a::1", "b::2", "c::3"], durations)
+    assert list(resolution.weights) == durations
+    assert not resolution.mismatch
+    assert resolution.reason is None
 
 
 @pytest.mark.parametrize("durations", [[], [2.0], [2.0, 3.0, 4.0]])
 def test_positional_weights_degrades_to_uniform_on_a_length_mismatch(durations: list[float]) -> None:
-    assert positional_weights(["a::1", "b::2"], durations) == [1.0, 1.0]
+    resolution = resolve_positional_weights(["a::1", "b::2"], durations)
+    assert resolution.weights == (1.0, 1.0)
+    assert resolution.mismatch
+    assert resolution.reason == f"{len(durations)} committed durations vs 2 collected \N{EM DASH} uniform weights"
 
 
 # --------------------------------------------------------------------------- #
@@ -404,3 +411,489 @@ def test_the_module_entry_point_exits_with_the_selector_status(tmp_path: Path) -
     )  # fmt: skip
     assert result.returncode == 64
     assert result.stdout.startswith("::error::module-tests: no test directory found for module 'ghost'")
+
+
+# --------------------------------------------------------------------------- #
+# WP02 / T006 -- FR-005: the mismatch is loud, in both granularities
+# --------------------------------------------------------------------------- #
+
+_WARNING_PREFIX = "::warning title=shard timings::"
+_SUMMARY_ENV = "GITHUB_STEP_SUMMARY"
+
+
+def _warning_lines(out: str) -> list[str]:
+    return [line for line in out.splitlines() if line.startswith(_WARNING_PREFIX)]
+
+
+def test_module_mode_length_mismatch_keeps_uniform_weights_but_warns_and_writes_the_step_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(5)]
+    fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
+    fx.write_timings("alpha", [9.0, 1.0, 5.0])
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv(_SUMMARY_ENV, str(summary))
+
+    assert main(fx.argv("alpha", "2/3")) == 0
+
+    # assignment unchanged: uniform weights, exactly the legacy selector's result
+    assert fx.out.read_text(encoding="utf-8").splitlines() == _reference_select(node_ids, [1.0] * 5, 3, 2)
+    warnings = _warning_lines(capsys.readouterr().out)
+    assert len(warnings) == 1
+    assert "alpha" in warnings[0]
+    assert "3 committed" in warnings[0]
+    assert "5 collected" in warnings[0]
+    summary_lines = summary.read_text(encoding="utf-8").splitlines()
+    assert len(summary_lines) == 1
+    assert "alpha" in summary_lines[0]
+    assert "3 committed" in summary_lines[0]
+
+
+def test_module_mode_agreeing_counts_print_no_warning_and_write_no_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(4)]
+    fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
+    fx.write_timings("alpha", [4.0, 3.0, 2.0, 1.0])
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv(_SUMMARY_ENV, str(summary))
+
+    assert main(fx.argv("alpha", "1/2")) == 0
+
+    assert _warning_lines(capsys.readouterr().out) == []
+    assert not summary.exists()
+
+
+def test_module_mode_warns_even_when_no_step_summary_is_configured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    fx = _fixture(tmp_path, monkeypatch, "alpha", [f"tests/alpha/test_a.py::t{i}" for i in range(5)])
+    fx.write_timings("alpha", [1.0])
+    monkeypatch.delenv(_SUMMARY_ENV, raising=False)
+
+    assert main(fx.argv("alpha", "1/1")) == 0
+
+    assert len(_warning_lines(capsys.readouterr().out)) == 1
+    assert sorted(p.name for p in tmp_path.iterdir() if p.suffix == ".md") == []
+
+
+def test_node_collection_failure_fails_the_selector_instead_of_shipping_a_partial_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pins ``check=True`` in ``_collect_node_ids`` (WP01 review carry-over).
+
+    A collection error exits pytest non-zero; its stdout may still list the node
+    ids collected before the error, so ignoring the status would silently ship a
+    partial selection.
+    """
+    fx = _fixture(tmp_path, monkeypatch, "alpha", ["tests/alpha/test_a.py::t0"])
+    fx.python.write_text("#!/bin/sh\necho 'tests/alpha/test_a.py::t0'\necho 'ERROR collecting tests/alpha/test_b.py'\nexit 2\n", encoding="utf-8")
+
+    with pytest.raises(subprocess.CalledProcessError):
+        main(fx.argv("alpha", "1/1"))
+    assert not fx.out.exists()
+
+
+def test_escape_workflow_command_message_escapes_percent_and_line_breaks() -> None:
+    assert escape_workflow_command_message("100% a\r\nb\nc") == "100%25 a%0D%0Ab%0Ac"
+    assert escape_workflow_command_message("plain") == "plain"
+
+
+def test_report_mismatch_is_silent_for_an_agreeing_resolution(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv(_SUMMARY_ENV, str(summary))
+    stream = io.StringIO()
+    report_mismatch(WeightResolution(weights=(1.0,), missing=(), stale=(), reason=None), label="module x", stream=stream)
+    assert stream.getvalue() == ""
+    assert not summary.exists()
+
+
+def test_report_mismatch_escapes_the_annotation_and_appends_one_summary_line(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    summary = tmp_path / "summary.md"
+    summary.write_text("earlier line\n", encoding="utf-8")
+    monkeypatch.setenv(_SUMMARY_ENV, str(summary))
+    stream = io.StringIO()
+    resolution = WeightResolution(weights=(1.0,), missing=(), stale=(), reason="50% off\nsecond line")
+
+    report_mismatch(resolution, label="module x", stream=stream)
+
+    assert stream.getvalue() == f"{_WARNING_PREFIX}module x: 50%25 off%0Asecond line\n"
+    assert summary.read_text(encoding="utf-8").splitlines() == ["earlier line", "- shard timings \N{EM DASH} module x: 50% off second line"]
+
+
+def test_report_mismatch_lists_at_most_ten_missing_and_stale_names_plus_counts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_SUMMARY_ENV, raising=False)
+    missing = tuple(f"m{i:02d}.py" for i in range(12))
+    stale = tuple(f"s{i:02d}.py" for i in range(11))
+    stream = io.StringIO()
+
+    report_mismatch(WeightResolution(weights=(), missing=missing, stale=stale, reason="why"), label="battery", stream=stream)
+
+    out = stream.getvalue()
+    assert "12 missing" in out
+    assert "11 stale" in out
+    assert "m09.py" in out
+    assert "m10.py" not in out
+    assert "s09.py" in out
+    assert "s10.py" not in out
+
+
+def test_report_mismatch_message_is_the_reason_then_missing_then_stale_joined_by_semicolons(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_SUMMARY_ENV, raising=False)
+    stream = io.StringIO()
+
+    report_mismatch(WeightResolution(weights=(), missing=("m.py",), stale=("s.py",), reason="why"), label="battery", stream=stream)
+
+    assert stream.getvalue() == f"{_WARNING_PREFIX}battery: why; 1 missing: m.py; 1 stale: s.py\n"
+
+
+def test_report_mismatch_elides_with_an_ellipsis_only_beyond_ten_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_SUMMARY_ENV, raising=False)
+    exactly_ten = tuple(f"m{i:02d}.py" for i in range(10))
+    eleven = tuple(f"m{i:02d}.py" for i in range(11))
+    ten_stream, eleven_stream = io.StringIO(), io.StringIO()
+
+    report_mismatch(WeightResolution(weights=(), missing=exactly_ten, stale=(), reason="why"), label="battery", stream=ten_stream)
+    report_mismatch(WeightResolution(weights=(), missing=eleven, stale=(), reason="why"), label="battery", stream=eleven_stream)
+
+    assert ten_stream.getvalue().endswith("m09.py\n")
+    assert eleven_stream.getvalue().endswith("m09.py, ...\n")
+
+
+def test_report_mismatch_summary_line_is_newline_terminated_so_lines_do_not_run_together(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv(_SUMMARY_ENV, str(summary))
+    resolution = WeightResolution(weights=(), missing=(), stale=("s.py",), reason="why")
+
+    report_mismatch(resolution, label="battery", stream=io.StringIO())
+    report_mismatch(resolution, label="module x", stream=io.StringIO())
+
+    assert summary.read_text(encoding="utf-8") == (
+        "- shard timings \N{EM DASH} battery: why; 1 stale: s.py\n- shard timings \N{EM DASH} module x: why; 1 stale: s.py\n"
+    )
+
+
+# --- file granularity ------------------------------------------------------ #
+
+
+def test_file_weights_give_untimed_files_the_median_of_the_known_base_file_weights() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py", "c.py"], {"a.py": 10.0, "b.py": 30.0, "z.py": 5.0})
+    assert resolution.weights == (10.0, 30.0, 20.0)
+    assert resolution.missing == ("c.py",)
+    assert resolution.stale == ("z.py",)
+    assert resolution.mismatch
+
+
+def test_file_weights_with_no_timings_are_uniform_and_say_so() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py"], {})
+    assert resolution.weights == (1.0, 1.0)
+    assert resolution.reason is not None
+    assert "no timings for this key" in resolution.reason
+    assert resolution.missing == ("a.py", "b.py")
+
+
+def test_file_weights_with_only_stale_timings_count_as_no_timings() -> None:
+    resolution = resolve_file_weights(["a.py"], {"z.py": 99.0})
+    assert resolution.weights == (1.0,)
+    assert resolution.stale == ("z.py",)
+    assert "no timings for this key" in str(resolution.reason)
+
+
+def test_file_weights_never_go_uniform_when_some_timings_exist() -> None:
+    files = [f"f{i}.py" for i in range(10)]
+    resolution = resolve_file_weights(files, {"f3.py": 7.5})
+    assert resolution.weights == tuple(7.5 for _ in files)
+    assert len(resolution.missing) == 9
+
+
+def test_file_weights_agreeing_keys_are_not_a_mismatch() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py"], {"a.py": 1.0, "b.py": 2.0})
+    assert resolution.weights == (1.0, 2.0)
+    assert not resolution.mismatch
+    assert resolution.missing == ()
+    assert resolution.stale == ()
+
+
+def test_file_weights_fill_is_the_median_not_the_mean_of_a_skewed_known_set() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py", "c.py", "d.py"], {"a.py": 1.0, "b.py": 2.0, "c.py": 100.0})
+    assert resolution.weights == (1.0, 2.0, 100.0, 2.0)  # mean would give 34.33...
+
+
+def test_file_weights_flag_stale_only_keys_as_a_mismatch_without_changing_the_weights() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py"], {"a.py": 1.0, "b.py": 2.0, "gone.py": 5.0})
+    assert resolution.weights == (1.0, 2.0)
+    assert resolution.stale == ("gone.py",)
+    assert resolution.missing == ()
+    assert resolution.mismatch
+    assert resolution.reason == "0 files without a timing get the median 1.5s; 1 stale timing keys"
+
+
+def test_file_weights_flag_missing_only_files_as_a_mismatch_with_no_stale_keys() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py", "c.py"], {"a.py": 1.0, "b.py": 3.0})
+    assert resolution.weights == (1.0, 3.0, 2.0)
+    assert resolution.missing == ("c.py",)
+    assert resolution.stale == ()
+    assert resolution.mismatch
+    assert resolution.reason == "1 files without a timing get the median 2s; 0 stale timing keys"
+
+
+def test_file_weights_report_stale_keys_sorted_and_missing_files_in_input_order() -> None:
+    stale_keys = [f"stale_{i}.py" for i in "jhfdbacegi"]  # set iteration order is hash-random; ten keys make an accidental sort negligible
+    resolution = resolve_file_weights(["b.py", "a.py", "d.py", "c.py"], {"a.py": 1.0, "b.py": 1.0, **dict.fromkeys(stale_keys, 1.0)})
+    assert resolution.missing == ("d.py", "c.py")
+    assert resolution.stale == tuple(sorted(stale_keys))
+
+
+def test_report_mismatch_names_only_the_stale_keys_for_a_stale_only_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_SUMMARY_ENV, raising=False)
+    stream = io.StringIO()
+
+    report_mismatch(resolve_file_weights(["a.py", "b.py"], {"a.py": 1.0, "b.py": 2.0, "gone.py": 5.0}), label="battery", stream=stream)
+
+    lines = stream.getvalue().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith(f"{_WARNING_PREFIX}battery: ")
+    assert "1 stale: gone.py" in lines[0]
+    assert "missing" not in lines[0].replace("without a timing", "")
+
+
+def test_report_mismatch_names_only_the_missing_files_for_a_missing_only_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_SUMMARY_ENV, raising=False)
+    stream = io.StringIO()
+
+    report_mismatch(resolve_file_weights(["a.py", "b.py", "c.py"], {"a.py": 1.0, "b.py": 3.0}), label="battery", stream=stream)
+
+    line = stream.getvalue().strip()
+    assert "1 missing: c.py" in line
+    assert "stale:" not in line
+
+
+def test_file_weights_median_ignores_stale_keys() -> None:
+    resolution = resolve_file_weights(["a.py", "b.py", "c.py"], {"a.py": 2.0, "b.py": 4.0, "z1.py": 1000.0, "z2.py": 1000.0, "z3.py": 1000.0})
+    assert resolution.weights == (2.0, 4.0, 3.0)
+
+
+# --- enumeration ----------------------------------------------------------- #
+
+_SYNTHETIC_TREE: dict[str, str] = {
+    "pkg/test_a.py": "def test_a():\n    pass\n",
+    "pkg/b_test.py": "def test_b():\n    pass\n",
+    "pkg/sub/test_c.py": "def test_c():\n    pass\n",
+    "pkg/conftest.py": "",
+    "pkg/_helper.py": "def test_helper_should_not_count():\n    pass\n",
+    "pkg/_fixtures/test_fixture_like.py": "def test_fixture_like():\n    pass\n",
+    "pkg/.hidden/test_d.py": "def test_d():\n    pass\n",
+    "pkg/__pycache__/test_e.cpython-312.pyc": "",
+    "pkg/data/test_f.txt": "def test_f():\n    pass\n",
+}
+
+
+def _write_tree(root: Path, tree: dict[str, str]) -> None:
+    for rel, body in tree.items():
+        target = root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+
+
+def _pytest_collected_files(cwd: Path, *args: str) -> list[str]:
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", *args, "--collect-only", "-q", "-p", "no:cacheprovider"],
+        cwd=cwd, capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    return sorted({line.split("::", 1)[0] for line in proc.stdout.splitlines() if "::" in line})
+
+
+def test_enumerate_base_files_follows_pytests_default_collection_rules(tmp_path: Path) -> None:
+    _write_tree(tmp_path, _SYNTHETIC_TREE)
+
+    enumerated = enumerate_base_files(["pkg"], deselect=("pkg/b_test.py",), root=tmp_path)
+
+    assert enumerated == ("pkg/_fixtures/test_fixture_like.py", "pkg/sub/test_c.py", "pkg/test_a.py")
+    # encode pytest's behaviour, not our belief about it
+    assert list(enumerated) == _pytest_collected_files(tmp_path, "pkg", "--deselect", "pkg/b_test.py")
+
+
+def test_enumerate_base_files_keeps_suffix_style_test_files_without_a_deselect(tmp_path: Path) -> None:
+    _write_tree(tmp_path, _SYNTHETIC_TREE)
+    enumerated = enumerate_base_files(["pkg"], root=tmp_path)
+    assert "pkg/b_test.py" in enumerated
+    assert list(enumerated) == _pytest_collected_files(tmp_path, "pkg")
+
+
+def test_enumerate_base_files_ignores_node_level_deselects_and_accepts_file_arguments(tmp_path: Path) -> None:
+    _write_tree(tmp_path, _SYNTHETIC_TREE)
+    enumerated = enumerate_base_files(["pkg/test_a.py", "pkg/_helper.py", "pkg/sub"], deselect=("pkg/test_a.py::test_a",), root=tmp_path)
+    assert enumerated == ("pkg/sub/test_c.py", "pkg/test_a.py")
+
+
+def test_enumerate_base_files_is_sorted_and_deduplicated_across_overlapping_paths(tmp_path: Path) -> None:
+    _write_tree(tmp_path, _SYNTHETIC_TREE)
+    enumerated = enumerate_base_files(["pkg/sub", "pkg"], root=tmp_path)
+    assert list(enumerated) == sorted(set(enumerated))
+
+
+_BATTERY_PATH = "tests/architectural"
+_BATTERY_BASE_DESELECTS = (
+    "tests/architectural/test_no_legacy_terminology.py",
+    "tests/architectural/test_layer_rules.py",
+    "tests/architectural/test_pyproject_shape.py",
+    "tests/architectural/test_archive_root_byte_identical.py",
+)
+#: Enumerated files that legitimately define zero tests (so pytest lists no item for them).
+_ENUMERATED_FILES_WITH_NO_TESTS: tuple[str, ...] = ()
+
+
+@pytest.mark.slow
+def test_battery_enumeration_equals_what_pytest_really_collects() -> None:
+    """The exact contract the battery partition proof (WP05/WP06) relies on."""
+    deselects = [arg for path in _BATTERY_BASE_DESELECTS for arg in ("--deselect", path)]
+    collected = set(_pytest_collected_files(_REPO_ROOT, _BATTERY_PATH, *deselects))
+    enumerated = set(enumerate_base_files([_BATTERY_PATH], deselect=_BATTERY_BASE_DESELECTS, root=_REPO_ROOT))
+
+    assert enumerated - set(_ENUMERATED_FILES_WITH_NO_TESTS) == collected
+    assert collected, "collection produced nothing -- the comparison would be vacuous"
+
+
+# --- battery_parts --------------------------------------------------------- #
+
+
+def _battery_inputs() -> tuple[list[str], list[str], dict[str, float]]:
+    base = [f"t/test_{i:02d}.py" for i in range(12)]
+    roster = ["t/test_00.py", "t/test_05.py"]
+    timings = {f"t/test_{i:02d}.py": float(w) for i, w in zip((1, 2, 3, 4, 6, 7, 8, 9), (9, 8, 7, 6, 5, 4, 3, 2), strict=True)}
+    return base, roster, timings
+
+
+def test_battery_parts_partition_the_base_into_fast_and_numbered_shards() -> None:
+    base, roster, timings = _battery_inputs()
+
+    result = battery_parts(base, roster, 2, timings)
+
+    assert isinstance(result, BatteryPartition)
+    assert set(result.parts) == {"fast", "1/2", "2/2"}
+    assert result.parts["fast"] == frozenset(roster)
+    parts = list(result.parts.values())
+    assert sum(len(p) for p in parts) == len(base), "parts must be pairwise disjoint"
+    assert frozenset().union(*parts) == frozenset(base)
+    heavy, light = sorted((result.loads["1/2"], result.loads["2/2"]), reverse=True)
+    assert (heavy - light) / heavy <= 0.20
+
+
+def test_battery_parts_are_deterministic_under_shuffled_input_order() -> None:
+    base, roster, timings = _battery_inputs()
+    expected = battery_parts(base, roster, 3, timings)
+    rng = random.Random(_RANDOM_SEED)
+    for _ in range(25):
+        shuffled_base = rng.sample(base, len(base))
+        shuffled_roster = rng.sample(roster, len(roster))
+        shuffled_timings = dict(rng.sample(sorted(timings.items()), len(timings)))
+        assert battery_parts(shuffled_base, shuffled_roster, 3, shuffled_timings).parts == expected.parts
+
+
+def test_battery_parts_loads_come_from_the_same_placement_as_the_parts() -> None:
+    base, roster, timings = _battery_inputs()
+    result = battery_parts(base, roster, 2, timings)
+    weight = dict(zip(sorted(set(base) - set(roster)), result.resolution.weights, strict=True))
+    for key in ("1/2", "2/2"):
+        assert result.loads[key] == pytest.approx(sum(weight[f] for f in result.parts[key]))
+
+
+def test_battery_parts_reports_the_weight_resolution_loudly_inputs() -> None:
+    base, roster, timings = _battery_inputs()
+    result = battery_parts(base, roster, 2, {**timings, "t/test_gone.py": 3.0})
+    assert result.resolution.stale == ("t/test_gone.py",)
+    assert result.resolution.mismatch
+
+
+def test_battery_parts_reject_a_roster_entry_outside_the_base() -> None:
+    base, _, timings = _battery_inputs()
+    with pytest.raises(ValueError, match=r"t/test_99\.py"):
+        battery_parts(base, ["t/test_99.py"], 2, timings)
+
+
+@pytest.mark.parametrize("shard_count", [0, -1])
+def test_battery_parts_reject_a_shard_count_below_one(shard_count: int) -> None:
+    base, roster, timings = _battery_inputs()
+    with pytest.raises(ValueError, match="shard_count"):
+        battery_parts(base, roster, shard_count, timings)
+
+
+def test_battery_parts_with_everything_on_the_fast_roster_has_empty_numbered_shards() -> None:
+    result = battery_parts(["a.py"], ["a.py"], 2, {})
+    assert result.parts == {"fast": frozenset({"a.py"}), "1/2": frozenset(), "2/2": frozenset()}
+    assert result.loads == {"1/2": 0.0, "2/2": 0.0}
+
+
+def test_battery_parts_cli_prints_each_part_with_its_file_count_and_load(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write_tree(tmp_path, {f"t/test_{i}.py": "def test_x():\n    pass\n" for i in range(4)})
+    roster = tmp_path / "fast.txt"
+    roster.write_text("t/test_0.py\n", encoding="utf-8")
+    timings = tmp_path / "file-timings.json"
+    timings.write_text(json.dumps({"t/test_1.py": 3.0, "t/test_2.py": 2.0, "t/test_3.py": 1.0}), encoding="utf-8")
+
+    code = main(["battery-parts", "--path", "t", "--roster", str(roster), "--timings", str(timings), "--shards", "2", "--root", str(tmp_path)])
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "fast: 1 files" in out
+    assert "1/2: 1 files" in out
+    assert "2/2: 2 files" in out
+
+
+_BATTERY_WARNING_PREFIX = "::warning title=shard timings::battery:"
+
+
+def _battery_cli_argv(tmp_path: Path, timings: dict[str, float]) -> list[str]:
+    _write_tree(tmp_path, {f"t/test_{i}.py": "def test_x():\n    pass\n" for i in range(4)})
+    roster = tmp_path / "fast.txt"
+    roster.write_text("t/test_0.py\n", encoding="utf-8")
+    timings_file = tmp_path / "file-timings.json"
+    timings_file.write_text(json.dumps(timings), encoding="utf-8")
+    return ["battery-parts", "--path", "t", "--roster", str(roster), "--timings", str(timings_file), "--shards", "2", "--root", str(tmp_path)]
+
+
+def test_battery_parts_cli_is_loud_on_a_file_timing_mismatch(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    argv = _battery_cli_argv(tmp_path, {"t/test_1.py": 3.0, "t/test_2.py": 2.0, "t/stale_removed.py": 9.0})
+
+    code = main(argv)
+
+    out = capsys.readouterr().out
+    assert code == 0
+    warnings = [line for line in out.splitlines() if line.startswith(_BATTERY_WARNING_PREFIX)]
+    assert len(warnings) == 1
+    assert "t/test_3.py" in warnings[0]
+    assert "t/stale_removed.py" in warnings[0]
+    summary_lines = summary.read_text(encoding="utf-8").splitlines()
+    assert len(summary_lines) == 1
+    assert summary_lines[0].startswith("- shard timings") and "battery:" in summary_lines[0]
+    assert "1/2: " in out  # the partition still prints after the warning
+
+
+def test_battery_parts_cli_is_loud_on_stale_only_timing_keys(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    argv = _battery_cli_argv(tmp_path, {"t/test_1.py": 3.0, "t/test_2.py": 2.0, "t/test_3.py": 1.0, "t/stale_removed.py": 9.0})
+
+    code = main(argv)
+
+    out = capsys.readouterr().out
+    assert code == 0
+    warnings = [line for line in out.splitlines() if line.startswith(_BATTERY_WARNING_PREFIX)]
+    assert len(warnings) == 1
+    assert "1 stale: t/stale_removed.py" in warnings[0]
+    assert "missing" not in warnings[0].replace("without a timing", "")
+    summary_lines = summary.read_text(encoding="utf-8").splitlines()
+    assert len(summary_lines) == 1
+    assert "t/stale_removed.py" in summary_lines[0]
+    assert "1/2: " in out
+
+
+def test_battery_parts_cli_is_silent_when_every_file_has_a_timing(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    argv = _battery_cli_argv(tmp_path, {"t/test_1.py": 3.0, "t/test_2.py": 2.0, "t/test_3.py": 1.0})
+
+    code = main(argv)
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "::warning" not in out
+    assert not summary.exists()

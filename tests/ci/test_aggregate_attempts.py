@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from fnmatch import fnmatchcase
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 
-from tests.ci.test_aggregate_source import ROOT, source_fixture
+from tests.ci.test_aggregate_source import ROOT, git, source_fixture
 
 pytestmark = pytest.mark.fast
 
@@ -81,24 +84,47 @@ def skipped_matrix_placeholder() -> dict:
     }
 
 
-def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, event: str = "workflow_run") -> subprocess.CompletedProcess[str]:
-    repo, run, _ = source_fixture(tmp_path)
-    run.update(run_attempt=2, status="completed", conclusion="success")
-    for record in artifacts:
-        record["workflow_run"].setdefault("head_sha", run["head_sha"])
-    for record in jobs:
-        record.setdefault("head_sha", run["head_sha"])
-    api = tmp_path / "api.json"
-    api.write_text(
-        json.dumps(
-            {
-                "repos/spec-kitty/spec-kitty/actions/runs/42/attempts/2": run,
-                "repos/spec-kitty/spec-kitty/actions/runs/42/attempts/2/jobs?per_page=100": [{"jobs": jobs[:1]}, {"jobs": jobs[1:]}],
-                "repos/spec-kitty/spec-kitty/actions/runs/42/artifacts?per_page=100": [{"artifacts": artifacts[:1]}, {"artifacts": artifacts[1:]}],
-            }
-        )
-    )
-    bindir = tmp_path / "bin"
+Record = dict[str, Any]
+REPOSITORY = "spec-kitty/spec-kitty"
+SKIP_RUN_ID = 41
+MATCHED_RUN_ID, MATCHED_RUN_ATTEMPT = 42, 2
+SKIP_RUN_STARTED_AT = "2026-09-09T00:30:00Z"
+EFFECTIVE_SOURCE_OUTPUT = "effective-source-output"
+REPOINT_ADVICE = "re-run CI Modules to execute"
+
+
+def api_key(path: str) -> str:
+    """The exact endpoint string the fake ``gh`` keys its responses on."""
+    return f"repos/{REPOSITORY}/{path}"
+
+
+def green_match_marker(run_id: int, attempt: int, created_at: str = "2026-09-09T00:40:00Z") -> Record:
+    return {"id": 901, "name": f"ci-green-match-run-{run_id}-attempt-{attempt}", "expired": False, "created_at": created_at, "workflow_run": {"id": SKIP_RUN_ID}}
+
+
+def selected_modules_record() -> Record:
+    return {"id": 900, "name": "selected-modules", "expired": False, "created_at": "2026-09-09T00:35:00Z", "workflow_run": {"id": SKIP_RUN_ID}}
+
+
+def skip_run_scenario(repo: Path, run: Record, run_id: int) -> tuple[Record, Record]:
+    """A CI Modules skip run with the matched run's tested identity but its own merge commit.
+
+    Same parents, different message: a different SHA that names the same
+    ``(pr, head, base)``, so the comparison is proven to be on tested identity.
+    """
+    matched_merge = run["referenced_workflows"][0]["sha"]
+    base, head = (git(repo, "rev-parse", f"{matched_merge}^{n}") for n in (1, 2))
+    tree = git(repo, "rev-parse", f"{matched_merge}^{{tree}}")
+    skip_merge = git(repo, "commit-tree", tree, "-p", base, "-p", head, "-m", "skip run merge")
+    git(repo, "update-ref", "refs/spec-kitty-tests/skip-merge", skip_merge)
+    skip = copy.deepcopy(run)
+    skip["id"], skip["run_attempt"], skip["run_started_at"] = run_id, 1, SKIP_RUN_STARTED_AT
+    skip["referenced_workflows"] = [dict(skip["referenced_workflows"][0], sha=skip_merge, path=f"{REPOSITORY}/.github/workflows/module-tests.yml@{skip_merge}")]
+    commits = {merge: {"parents": [{"sha": base}, {"sha": head}]} for merge in (matched_merge, skip_merge)}
+    return skip, {api_key(f"git/commits/{merge}"): value for merge, value in commits.items()}
+
+
+def write_fake_gh(bindir: Path) -> None:
     bindir.mkdir()
     gh = bindir / "gh"
     gh.write_text(
@@ -108,19 +134,99 @@ def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, event: s
         "print('\\n'.join(json.dumps(page) for page in result) if isinstance(result, list) else json.dumps(result))\n"
     )
     gh.chmod(0o755)
+
+
+def build_api(
+    repo: Path,
+    run: Record,
+    artifacts: list[Record],
+    jobs: list[Record],
+    source_run_id: int,
+    artifacts_by_run: dict[int, list[Record]] | None,
+    extra_api: Record | None,
+) -> dict[str, Any]:
+    pages = [{"jobs": jobs[:1]}, {"jobs": jobs[1:]}]
+    api: dict[str, Any] = {
+        api_key(f"actions/runs/{MATCHED_RUN_ID}/attempts/{MATCHED_RUN_ATTEMPT}"): run,
+        api_key(f"actions/runs/{MATCHED_RUN_ID}/attempts/{MATCHED_RUN_ATTEMPT}/jobs?per_page=100"): pages,
+        api_key(f"actions/runs/{MATCHED_RUN_ID}/artifacts?per_page=100"): [{"artifacts": artifacts[:1]}, {"artifacts": artifacts[1:]}],
+    }
+    if source_run_id != MATCHED_RUN_ID:
+        skip, commits = skip_run_scenario(repo, run, source_run_id)
+        api[api_key(f"actions/runs/{source_run_id}/attempts/1")] = skip
+        api[api_key(f"actions/runs/{source_run_id}/attempts/1/jobs?per_page=100")] = pages
+        api[api_key(f"actions/runs/{source_run_id}/artifacts?per_page=100")] = [
+            {"artifacts": [selected_modules_record(), green_match_marker(MATCHED_RUN_ID, MATCHED_RUN_ATTEMPT)]}
+        ]
+        api.update(commits)
+    for run_id, listing in (artifacts_by_run or {}).items():
+        api[api_key(f"actions/runs/{run_id}/artifacts?per_page=100")] = [{"artifacts": listing}]
+    api.update(extra_api or {})
+    return api
+
+
+def resolve_effective_source(
+    steps: list[Record], repo: Path, env: dict[str, str], tmp_path: Path, trigger: tuple[int, int]
+) -> subprocess.CompletedProcess[str] | None:
+    """Run the shipped effective-source step and thread its real outputs into ``env``.
+
+    This models ``${{ steps.effective-source.outputs.* }}`` honestly: the values
+    come from the executed step's own ``$GITHUB_OUTPUT``, never from a constant.
+    Returns the failed process when the step fails (``collect`` stops there).
+    """
+    step = next((s for s in steps if s.get("id") == "effective-source"), None)
+    if step is None:
+        env.update(SOURCE_RUN_ID=str(trigger[0]), SOURCE_RUN_ATTEMPT=str(trigger[1]))
+        return None
+    out = tmp_path / EFFECTIVE_SOURCE_OUTPUT
+    step_env = dict(env, TRIGGER_RUN_ID=str(trigger[0]), TRIGGER_RUN_ATTEMPT=str(trigger[1]), GH_TOKEN="dummy", GITHUB_OUTPUT=str(out))
+    result = subprocess.run(["bash", "-c", step["run"]], cwd=repo, env=step_env, capture_output=True, text=True)
+    if result.returncode:
+        return result
+    outputs = dict(line.split("=", 1) for line in out.read_text().splitlines())
+    env.update(SOURCE_RUN_ID=outputs["run-id"], SOURCE_RUN_ATTEMPT=outputs["run-attempt"])
+    return None
+
+
+def collect(
+    tmp_path: Path,
+    artifacts: list[Record],
+    jobs: list[Record],
+    *,
+    event: str = "workflow_run",
+    source_run_id: int = MATCHED_RUN_ID,
+    extra_api: Record | None = None,
+    artifacts_by_run: dict[int, list[Record]] | None = None,
+    patch_api: Callable[[dict[str, Any]], None] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    repo, run, _ = source_fixture(tmp_path)
+    run.update(run_attempt=MATCHED_RUN_ATTEMPT, status="completed", conclusion="success")
+    for record in artifacts:
+        record["workflow_run"].setdefault("head_sha", run["head_sha"])
+    for record in jobs:
+        record.setdefault("head_sha", run["head_sha"])
+    api_data = build_api(repo, run, artifacts, jobs, source_run_id, artifacts_by_run, extra_api)
+    if patch_api:
+        patch_api(api_data)
+    api = tmp_path / "api.json"
+    api.write_text(json.dumps(api_data))
+    bindir = tmp_path / "bin"
+    write_fake_gh(bindir)
     (repo / "scripts").symlink_to(ROOT / "scripts", target_is_directory=True)
     output = tmp_path / "outputs"
     env = dict(
         os.environ,
         PATH=f"{bindir}:{Path(sys.executable).parent}:{os.environ['PATH']}",
         FAKE_API=str(api),
-        SOURCE_RUN_ID="42",
-        SOURCE_RUN_ATTEMPT="2",
-        SOURCE_REPOSITORY="spec-kitty/spec-kitty",
+        SOURCE_REPOSITORY=REPOSITORY,
         RUNNER_TEMP=str(tmp_path),
         GITHUB_OUTPUT=str(output),
     )
     steps = yaml.safe_load((ROOT / ".github/workflows/ci-aggregate.yml").read_text())["jobs"]["collect"]["steps"]
+    trigger = (source_run_id, MATCHED_RUN_ATTEMPT if source_run_id == MATCHED_RUN_ID else 1)
+    failed = resolve_effective_source(steps, repo, env, tmp_path, trigger)
+    if failed:
+        return failed
     prepare = next(s for s in steps if s.get("name", "").startswith("Prepare exact source"))
     result = subprocess.run(["bash", "-c", prepare["run"]], cwd=repo, env=env, capture_output=True, text=True)
     if result.returncode:
@@ -352,3 +458,104 @@ def test_empty_selection_cannot_download_a_sentinel_named_artifact(tmp_path: Pat
     result = collect(tmp_path, [forged], [job("kernel", 1), job("charter", 2)])
     assert result.returncode != 0, "collector accepted unselected coverage from the sentinel-named artifact"
     assert "registry-expected shard(s) missing" in result.stdout
+
+
+# --- skip-if-green re-point (mission ci-runtime-stabilisation, FR-011) -------------------------
+
+
+def _read_source_run_id(tmp_path: Path) -> int:
+    return int(json.loads((tmp_path / "repo/out/aggregate/source/source.json").read_text())["run_id"])
+
+
+def _matched_evidence() -> tuple[list[Record], list[Record]]:
+    return [artifact("kernel", 1, 1), artifact("charter", 1, 2), artifact("charter", 2, 3)], [job("kernel", 1), job("charter", 2)]
+
+
+@pytest.mark.parametrize("event", ["workflow_run", "workflow_dispatch"])
+def test_green_match_source_is_repointed_to_the_matched_run(tmp_path: Path, event: str) -> None:
+    """A skip run (41) carries a marker naming 42/2; Aggregate reads 42/2 (A1; A3 for a dispatch replay)."""
+    artifacts, jobs = _matched_evidence()
+
+    result = collect(tmp_path, artifacts, jobs, event=event, source_run_id=SKIP_RUN_ID)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "resolved 2/2" in result.stdout
+    assert _read_source_run_id(tmp_path) == MATCHED_RUN_ID
+    effective = dict(line.split("=", 1) for line in (tmp_path / EFFECTIVE_SOURCE_OUTPUT).read_text().splitlines())
+    assert (effective["run-id"], effective["run-attempt"], effective["repointed"]) == ("42", "2", "true")
+
+
+def _break_matched_failed(api: dict[str, Any]) -> None:
+    api[api_key("actions/runs/42/attempts/2")]["conclusion"] = "failure"
+
+
+def _break_missing_run(api: dict[str, Any]) -> None:
+    del api[api_key("actions/runs/42/attempts/2")]
+
+
+def _break_different_head(api: dict[str, Any]) -> None:
+    api[api_key("actions/runs/42/attempts/2")]["head_sha"] = "b" * 40
+
+
+def _break_different_workflow(api: dict[str, Any]) -> None:
+    api[api_key("actions/runs/42/attempts/2")]["path"] = ".github/workflows/ci-router.yml"
+
+
+def _break_different_tested_base(api: dict[str, Any]) -> None:
+    matched = api[api_key("actions/runs/42/attempts/2")]
+    commit = api[api_key(f"git/commits/{matched['referenced_workflows'][0]['sha']}")]
+    commit["parents"][0] = {"sha": "c" * 40}
+
+
+def _break_two_markers(api: dict[str, Any]) -> None:
+    listing = api[api_key(f"actions/runs/{SKIP_RUN_ID}/artifacts?per_page=100")]
+    listing[0]["artifacts"].append(dict(green_match_marker(43, 1), id=902))
+
+
+UNVERIFIABLE_MARKERS = {
+    "missing-run": _break_missing_run,
+    "matched-failed": _break_matched_failed,
+    "different-head": _break_different_head,
+    "different-workflow": _break_different_workflow,
+    "different-tested-base": _break_different_tested_base,
+    "two-markers": _break_two_markers,
+}
+
+
+@pytest.mark.parametrize("case", sorted(UNVERIFIABLE_MARKERS))
+def test_unverifiable_green_match_fails_collect(tmp_path: Path, case: str) -> None:
+    """An unverifiable marker is never an empty-selection green: collect fails and says what to do (A1)."""
+    artifacts, jobs = _matched_evidence()
+
+    result = collect(tmp_path, artifacts, jobs, source_run_id=SKIP_RUN_ID, patch_api=UNVERIFIABLE_MARKERS[case])
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert REPOINT_ADVICE in result.stdout + result.stderr
+    assert not (tmp_path / "repo/out/aggregate/source/source.json").exists()
+
+
+def test_marker_from_an_earlier_attempt_does_not_repoint(tmp_path: Path) -> None:
+    """A marker uploaded before the requested attempt started is not this attempt's decision (A4)."""
+    own_artifacts = [dict(artifact("kernel", 1, 11), workflow_run={"id": SKIP_RUN_ID}), dict(artifact("charter", 1, 12), workflow_run={"id": SKIP_RUN_ID})]
+    own_jobs = [dict(job("kernel", 1), run_id=SKIP_RUN_ID, run_attempt=1), dict(job("charter", 1), run_id=SKIP_RUN_ID, run_attempt=1)]
+    stale_marker = green_match_marker(MATCHED_RUN_ID, MATCHED_RUN_ATTEMPT, created_at="2026-09-09T00:10:00Z")
+
+    result = collect(tmp_path, own_artifacts, own_jobs, source_run_id=SKIP_RUN_ID, artifacts_by_run={SKIP_RUN_ID: [stale_marker, *own_artifacts]})
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "resolved 2/2" in result.stdout
+    assert _read_source_run_id(tmp_path) == SKIP_RUN_ID
+    assert "repointed=false" in (tmp_path / EFFECTIVE_SOURCE_OUTPUT).read_text().splitlines()
+
+
+def test_no_marker_source_is_byte_identical_to_today(tmp_path: Path) -> None:
+    """A source without a marker passes through effective-source unchanged (A2)."""
+    artifacts, jobs = _matched_evidence()
+
+    result = collect(tmp_path, artifacts, jobs)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "resolved 2/2" in result.stdout
+    assert _read_source_run_id(tmp_path) == MATCHED_RUN_ID
+    effective = (tmp_path / EFFECTIVE_SOURCE_OUTPUT).read_text().splitlines()
+    assert effective[:3] == ["run-id=42", "run-attempt=2", "repointed=false"]
