@@ -310,6 +310,19 @@ def test_immutable_reference_must_bind_the_source_head(tmp_path: Path) -> None:
     assert "tested merge parents" in result.stderr
 
 
+def test_tested_identity_matches_prepare_source(tmp_path: Path) -> None:
+    """``green_match`` and ``prepare_source`` share one binding authority (D-27)."""
+    from scripts.ci.green_match import bind_tested_base, merge_reference
+
+    repo, run, _ = source_fixture(tmp_path)
+    result = run_source(repo, run)
+    assert result.returncode == 0, result.stderr
+    source = json.loads((repo / "out/aggregate/source/source.json").read_text())
+    merge, number = merge_reference(run, "spec-kitty/spec-kitty")
+    base = bind_tested_base(git(repo, "show", "-s", "--format=%P", merge).split(), run["head_sha"])
+    assert (merge, number, base) == (source["tested_sha"], source["pr_number"], source["base_sha"])
+
+
 CRITICAL_EXAMPLES = (
     "src/kernel/nested/example.py",
     "src/charter/activation/example.py",
