@@ -686,6 +686,114 @@ class TestRejectionAfterApproval:
 
 
 # ---------------------------------------------------------------------------
+# TestDocumentedRejectionSignal (#2267)
+# ---------------------------------------------------------------------------
+
+_REJECT_REF = "review-cycle://mission/drs/{wp}/review-cycle-{n}.md"
+
+
+def _documented_rejection_mission(tmp_path: Path) -> None:
+    """Three WPs, each rejected through a documented path, plus one clean WP.
+
+    WP01: reviewer claims, then ``move-task --to planned --force
+    --review-feedback-file`` out of ``in_review``.
+    WP02: reviewer rejects out of ``for_review`` without claiming (``--force``).
+    WP03: rejected twice out of ``in_progress`` (no ``--force``), as the
+    in-repo mission ``worktree-owned-root-3328-01KZRG01`` records it.
+    """
+    rework = [("planned", "in_progress", {}), ("in_progress", "for_review", {})]
+    wp01 = [
+        *rework,
+        ("for_review", "in_review", {}),
+        ("in_review", "planned", {"force": True, "review_ref": _REJECT_REF.format(wp="WP01", n=1)}),
+        *rework,
+        ("for_review", "in_review", {}),
+        ("in_review", "approved", {}),
+    ]
+    wp02 = [
+        *rework,
+        ("for_review", "planned", {"force": True, "review_ref": _REJECT_REF.format(wp="WP02", n=1)}),
+        *rework,
+        ("for_review", "in_review", {}),
+        ("in_review", "approved", {}),
+    ]
+    wp03 = [
+        ("planned", "in_progress", {}),
+        ("in_progress", "planned", {"review_ref": _REJECT_REF.format(wp="WP03", n=1)}),
+        ("planned", "in_progress", {}),
+        ("in_progress", "planned", {"review_ref": _REJECT_REF.format(wp="WP03", n=2)}),
+        *rework,
+        ("for_review", "in_review", {}),
+        ("in_review", "approved", {}),
+    ]
+    events: list[dict] = []
+    n = 0
+    for wp_id, moves in (("WP01", wp01), ("WP02", wp02), ("WP03", wp03)):
+        for from_lane, to_lane, extra in moves:
+            n += 1
+            events.append(_ev(n, wp_id, from_lane, to_lane, **extra))
+    for from_lane, to_lane in _CLEAN_RUN:
+        n += 1
+        events.append(_ev(n, "WP04", from_lane, to_lane))
+    _write_mission(tmp_path, "documented-rejections", 3, events)
+
+
+class TestDocumentedRejectionSignal:
+    """A documented review rejection is reported once, as a review loop (#2267)."""
+
+    @pytest.mark.regression
+    def test_documented_rejection_is_reported_once_as_review_loop(self, tmp_path: Path) -> None:
+        """#2267: no guard-bypass, lane-bounce or undocumented-rework echo of a rejection."""
+        _documented_rejection_mission(tmp_path)
+
+        record = generate_retrospective("documented-rejections", make_policy(), tmp_path)
+
+        by_wp: dict[str, list[GenFinding]] = {}
+        for finding in record.not_helpful:
+            by_wp.setdefault(finding.summary.split()[0], []).append(finding)
+        assert sorted(by_wp) == ["WP01", "WP02", "WP03"], record.not_helpful
+        for wp_id, expected in (("WP01", 1), ("WP02", 1), ("WP03", 2)):
+            assert [(f.category, f.summary) for f in by_wp[wp_id]] == [
+                ("review_loop", f"{wp_id} required {expected} rejection cycle(s) before approval")
+            ], f"{wp_id} documented rejection reported more than once: {by_wp[wp_id]}"
+        assert [h.summary for h in record.helped] == ["WP04 completed without rejection cycles"]
+
+    def test_undocumented_force_and_reentry_still_reported(self, tmp_path: Path) -> None:
+        """Non-vacuity: feedback-free forcing and re-entry keep their findings."""
+        events: list[dict] = []
+        n = 0
+        for from_lane, to_lane, extra in [
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            # ``move-task --force`` without feedback stamps the ``force-override``
+            # sentinel (tasks_transition_core); it is not a feedback pointer.
+            (
+                "for_review",
+                "planned",
+                {"actor": "user", "force": True, "reason": "start over", "review_ref": "force-override"},
+            ),
+            ("planned", "in_progress", {}),
+            ("in_progress", "for_review", {}),
+            ("for_review", "in_review", {}),
+            ("in_review", "approved", {}),
+        ]:
+            n += 1
+            events.append(_ev(n, "WP01", from_lane, to_lane, **extra))
+        _write_mission(tmp_path, "undocumented-rework", 4, events)
+
+        record = generate_retrospective("undocumented-rework", make_policy(), tmp_path)
+
+        summaries = {(f.category, f.summary) for f in record.not_helpful}
+        assert ("process", "WP01 had 1 lane bounce(s) before approval") in summaries
+        assert ("process", "WP01 required 1 --force override(s) during workflow") in summaries
+        assert (
+            "implementation",
+            "WP01 re-entered in_progress 1 time(s) without a documented review rejection",
+        ) in summaries
+        assert not any(category == "review_loop" for category, _ in summaries)
+
+
+# ---------------------------------------------------------------------------
 # TestFindingsStatus
 # ---------------------------------------------------------------------------
 
