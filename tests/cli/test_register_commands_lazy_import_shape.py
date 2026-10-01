@@ -6,10 +6,7 @@ Relocated here from ``tests/performance/`` in WP06 review cycle 2
 guard must live in a directory a per-PR CI shard actually selects, per
 Ruling 4 (``reviews/spec.ruling.md``) -- ``tests/performance/`` is
 nightly-only. This file lives in the top-level ``tests/cli/`` directory,
-which is selected by BOTH authorities: ``.github/workflows/ci-router.yml``'s
-hardcoded ``tests-cli`` job (``if: needs.changes.outputs.cli == 'true'``,
-``uv run --frozen pytest tests/cli -q`` -- no marker filter, so an unmarked
-test like this one always runs there) AND the diff-scoped per-PR matrix in
+which is selected by the diff-scoped per-PR matrix in
 ``.github/workflows/ci-modules.yml`` (module-tests.yml) for the ``cli``
 module (``.github/ci-module-registry.yml``'s ``cli`` row has no
 ``test_dirs`` override, so it falls back to the ``tests/{module}`` mirror,
@@ -20,9 +17,8 @@ since it carries neither marker).
 
 Deliberately NOT ``tests/specify_cli/cli/`` (where WP05's own
 ``test_lazy_command_imports.py`` lives): that directory is not the ``cli``
-module's default per-PR mirror and is not what
-``ci-router.yml``'s ``tests-cli`` job invokes (``pytest tests/cli -q``, the
-literal top-level path).
+module's default per-PR mirror and is not the
+``cli`` module row's literal top-level ``tests/cli`` path.
 
 This is a test-file relocation only (WP06-C1-001's remediation): no CI
 workflow, router filter, or module registry edit, staying inside Ruling 4's

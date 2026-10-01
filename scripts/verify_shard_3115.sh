@@ -447,6 +447,7 @@ log "  --cov         : ON (--cov=src/specify_cli/sync)"
 # ---------------------------------------------------------------------------
 ## Same disclosed `-q`-for-`-v` swap as the sync shard above, for the same reason.
 CLI_OUT="${OUT_DIR}/cli.out"
+# fast-tests-cli (ci-quality.yml) and the later router tests-cli job are both retired; the cli module row is the live executor (FR-008).
 if ! run_shard "cli (fast-tests-cli)" "${CLI_OUT}" \
   tests/cli/ tests/specify_cli/cli/ -m "fast and not windows_ci" -v --tb=short \
   -n auto --dist loadfile \

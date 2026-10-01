@@ -127,6 +127,8 @@ item 3 below).
 
 from __future__ import annotations
 
+import contextlib
+import json
 import re
 import shutil
 from pathlib import Path
@@ -135,6 +137,7 @@ from typing import Any, NamedTuple
 import pytest
 import yaml
 
+from scripts.ci.shard_select import resolve_module_test_dirs
 from tests.architectural import _gate_coverage as gc
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
@@ -255,15 +258,12 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "it exactly once."
     ),
     ("ci-router.yml", "architectural-heavy"): "Path-routed lane: the architectural pole.",
-    ("ci-router.yml", "tests-consolidation"): "Path-routed lane: tests/consolidation.",
-    ("ci-router.yml", "tests-status"): "Path-routed lane: tests/status.",
-    ("ci-router.yml", "tests-cli"): "Path-routed lane: tests/cli.",
     ("ci-router.yml", "tests-docs"): "Path-routed lane: tests/docs.",
-    ("ci-router.yml", "tests-corpus"): "Path-routed lane: the corpus marker family.",
     ("ci-router.yml", "tests-e2e"): "Path-routed lane: tests/e2e.",
+    ("ci-router.yml", "tests-corpus-blocking"): "Path-routed lane: the 40 corpus tests with no other blocking home (D-13/D-22); Packs deselects exactly these.",
     ("ci-windows.yml", "windows-critical"): ("Platform lane: the windows_ci marker family, which no Linux gate can run."),
     ("packs.yml", "built-in-pack-manifest"): "Packs lane: the pack-manifest guard.",
-    ("packs.yml", "built-in-corpus-suite"): "Packs lane: the built-in corpus suite.",
+    ("packs.yml", "built-in-corpus-suite"): "Packs lane: corpus suite, sole owner bar the 40 blocking node-ids; advisory (continue-on-error), FR-009.",
     ("packs.yml", "internal-packaging-safety"): "Packs lane: the wheel-contents guard.",
 }
 
@@ -1826,3 +1826,87 @@ def test_faultinjection_direct_commands_are_not_reported(tmp_path: Path) -> None
     (workflows / "ci-direct.yml").write_text(workflow, encoding="utf-8")
 
     assert command_indirection_offenders(workflows_dir=workflows) == []
+
+
+# ---------------------------------------------------------------------------
+# >>> FR-008 DIRECTORY-LEVEL PRE-CHECK (WP08) -- TEMPORARY, ONE SELF-CONTAINED BLOCK <<<
+#
+# No ci-router.yml job may run a test DIRECTORY that a module-registry row
+# already owns: the module row is the per-PR executor, so a router job over the
+# same tree is a duplicate (research R2 F6: tests-consolidation / tests-status /
+# tests-cli re-ran 1,460 / 1,311 / 889 node-ids). WP15's node-level live check
+# subsumes this guard; it is removed by the post-consolidation orchestrator fold
+# (tasks.md closeout), so nothing else may build on these helpers.
+# ---------------------------------------------------------------------------
+MODULE_REGISTRY = gc.REPO_ROOT / ".github" / "ci-module-registry.yml"
+ROUTER_WORKFLOW_NAME = "ci-router.yml"
+
+
+def module_owned_test_dirs(registry_path: Path) -> dict[str, tuple[str, ...]]:
+    """module -> its test dirs: registry ``test_dirs`` when declared, else ``tests/<module>``.
+
+    Delegates to ``scripts.ci.shard_select.resolve_module_test_dirs`` (the
+    consumer's own rule, C-010: one resolver). That resolver checks directory
+    existence relative to the working directory, so it runs from the repo root.
+    """
+    registry = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    owned: dict[str, tuple[str, ...]] = {}
+    with contextlib.chdir(gc.REPO_ROOT):
+        for row in registry["modules"]:
+            declared = json.dumps(row.get("test_dirs") or [])
+            owned[row["module"]] = tuple(resolve_module_test_dirs(row["module"], declared))
+    return owned
+
+
+def _dir_positionals(paths: list[str]) -> list[str]:
+    """Directory positionals only: file (``*.py``) and node (``::``) selections are FR-010's domain."""
+    return [p.rstrip("/") for p in paths if not p.endswith(".py") and "::" not in p]
+
+
+def _trees_overlap(positional: str, owned: str) -> bool:
+    return positional == owned or positional.startswith(f"{owned}/") or owned.startswith(f"{positional}/")
+
+
+def router_dirs_owned_by_a_module(router_path: Path, registry_path: Path) -> dict[str, list[tuple[str, str]]]:
+    """ci-router.yml job -> [(positional dir, owning module)] for directory positionals only."""
+    owned = module_owned_test_dirs(registry_path)
+    offenders: dict[str, list[tuple[str, str]]] = {}
+    for gate in gc.parse_workflow(router_path):
+        for positional in _dir_positionals(gate.paths):
+            for module, dirs in owned.items():
+                if any(_trees_overlap(positional, d) for d in dirs):
+                    pair = (positional, module)
+                    if pair not in offenders.setdefault(gate.job, []):
+                        offenders[gate.job].append(pair)
+    return {job: pairs for job, pairs in offenders.items() if pairs}
+
+
+def test_router_runs_no_module_owned_test_tree() -> None:
+    """FR-008: the module row is the per-PR executor; no router job re-runs its tree."""
+    offenders = router_dirs_owned_by_a_module(gc.WORKFLOWS_DIR / ROUTER_WORKFLOW_NAME, MODULE_REGISTRY)
+    assert not offenders, f"ci-router.yml jobs re-run a module-owned test tree; the module row is the per-PR executor, delete the router job (FR-008): {offenders}"
+
+
+def test_router_module_tree_guard_flags_a_planted_job(tmp_path: Path) -> None:
+    """Positive control: a job re-added under a NEW name over a module-owned tree is reported."""
+    router = tmp_path / ROUTER_WORKFLOW_NAME
+    router.write_text(
+        "name: planted\n"
+        "on:\n  pull_request:\n"
+        "jobs:\n"
+        "  tests-planted:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: uv run --frozen pytest tests/kernel -q\n"
+        "  node-level:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: uv run --frozen pytest tests/kernel/test_x.py::test_y tests/cli/test_z.py -q\n"
+        "  marker-only:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        '      - run: uv run --frozen pytest -m "corpus" -q\n',
+        encoding="utf-8",
+    )
+
+    assert router_dirs_owned_by_a_module(router, MODULE_REGISTRY) == {"tests-planted": [("tests/kernel", "kernel")]}

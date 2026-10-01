@@ -88,12 +88,14 @@ MUST_RUN_ALWAYS_ON_GATES = frozenset(
 #: :data:`HEAVY_BATTERY_NON_SRC_GROUPS`.
 HEAVY_BATTERY_GATE = "architectural-heavy"
 
-#: Non-src routing groups the heavy battery ALSO gates on (spec-kitty#5168):
-#: ``architectural`` -- tests/architectural has no module row, so the battery is
-#: its only per-PR home. (``ci`` deliberately gates no router job, #4386.)
+#: Non-src routing groups the heavy battery ALSO gates on:
+#: ``architectural`` (spec-kitty#5168) -- tests/architectural has no module row, so
+#: the battery is its only per-PR home; ``ci_config`` (FR-007, contract amendment
+#: A1) -- the CI configuration the battery's gates guard. (``ci`` still
+#: deliberately gates no router job, #4386.)
 #: Enumerated here so the wiring stays an exact-equality assertion rather than a
 #: ``>=`` that would let a group drift in.
-HEAVY_BATTERY_NON_SRC_GROUPS: frozenset[str] = frozenset({"architectural"})
+HEAVY_BATTERY_NON_SRC_GROUPS: frozenset[str] = frozenset({"architectural", "ci_config"})
 
 
 class OracleVacuousError(AssertionError):

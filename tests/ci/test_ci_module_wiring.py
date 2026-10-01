@@ -25,8 +25,9 @@ silently rot back:
 
 This file lives in ``tests/ci`` on purpose: it runs via the ``ci`` module
 shard on every PR — including a PR that touches ONLY CI-infrastructure paths,
-which is exactly the PR shape whose wiring it guards. The architectural
-battery's heavy job is gated on src-backed groups, so it would skip such a PR.
+which is exactly the PR shape whose wiring it guards. A CI-infrastructure-only
+PR now also runs the heavy architectural battery, through the sibling non-src
+``ci_config`` group (FR-007); ``ci`` itself still gates no router job.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ import yaml
 
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
 from scripts.ci.prose_only import reduced_paths
+from tests.architectural import _gate_coverage as gc
 
 pytestmark = pytest.mark.fast
 
@@ -125,7 +127,8 @@ def test_ci_infra_only_diffs_route_to_the_named_group(router: Router) -> None:
     Before #4386 these path families matched NO filter group -- a PR rewriting
     a workflow, the script it runs, and the tests guarding both selected zero
     routing groups and zero code shards, so nothing path-visible in the router
-    even noticed the change.
+    even noticed the change. The sibling ``ci_config`` group (FR-007) co-matches
+    these paths and is what selects the architectural battery.
     """
     for paths in (
         ["scripts/ci/gate_selection.py"],
@@ -134,7 +137,7 @@ def test_ci_infra_only_diffs_route_to_the_named_group(router: Router) -> None:
         [".github/workflows/sonar.yml", "scripts/ci/sonarcloud_branch_review.sh"],
     ):
         selection = select_gates(paths, router=router)
-        assert selection.matched_groups == frozenset({_MODULE}), (
+        assert selection.matched_groups == frozenset({_MODULE, "ci_config"}), (
             f"a CI-infrastructure diff {paths} must route to the named {_MODULE!r} group, got {sorted(selection.matched_groups)}"
         )
         assert not selection.unmatched_src, "CI-infrastructure paths are not src and must never trip the src catch-all"
@@ -168,8 +171,8 @@ def test_ci_group_gates_no_router_job_and_stays_out_of_the_catch_all(router: Rou
 def test_ci_infra_diff_alongside_src_change_keeps_the_src_routing(router: Router) -> None:
     """A mixed CI-infra + src diff selects both families' routing unchanged."""
     selection = select_gates(["scripts/ci/gate_selection.py", "src/specify_cli/consolidation/executor.py"], router=router)
-    assert selection.matched_groups == frozenset({"ci", "consolidation"})
-    assert "tests-consolidation" in selection.selected_code_shards
+    assert selection.matched_groups == frozenset({"ci", "ci_config", "consolidation"})
+    assert "architectural-heavy" in selection.selected_code_shards
     assert not selection.unmatched_src
 
 
@@ -331,8 +334,6 @@ _ALWAYS_ON_JOB_NAMES = (
 
 _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
 
-_CODE_SHARD_JOB_NAMES = ("tests-consolidation", "tests-status", "tests-cli")
-
 _BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
     "changes.consolidation": False,
     "changes.auth": False,
@@ -356,7 +357,83 @@ _BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
     "changes.specify_cli_runtime": False,
     "changes.docs": False,
     "changes.architectural": False,
+    "changes.ci_config": False,
 }
+
+
+#: FR-008 (mission ci-runtime-stabilisation-01M3TZH6, WP08): these per-group router
+#: jobs re-ran trees the ci-modules.yml module rows already own. Re-adding ANY one of
+#: them under the same name is red here. Re-adding the duplicate under a NEW name is
+#: caught by the directory guard in tests/architectural/test_no_duplicate_suite_execution.py
+#: (transitional: a closeout fold removes it) and by the FR-010 cross-job uniqueness
+#: live check (WP15), which is the lasting authority.
+_REMOVED_DUPLICATE_ROUTER_JOBS = ("tests-consolidation", "tests-status", "tests-cli")
+
+
+@pytest.mark.parametrize("job", _REMOVED_DUPLICATE_ROUTER_JOBS)
+def test_removed_duplicate_router_job_stays_absent(router_workflow: dict[str, Any], router: Router, job: str) -> None:
+    """FR-008: the job is gone from the jobs map, the gate's ``needs``, and the parsed router."""
+    jobs = router_workflow["jobs"]
+
+    assert job not in jobs
+    assert job not in jobs["router-gate"]["needs"]
+    assert job not in router.job_gates
+    assert job not in router.code_shard_jobs
+
+
+def _nightly_gate(job: str) -> gc.Gate:
+    gates = [gate for gate in gc.parse_workflow(gc.WORKFLOWS_DIR / "ci-nightly.yml") if gate.job == job]
+    assert len(gates) == 1, f"ci-nightly.yml job {job!r} must run exactly one pytest selection, found {len(gates)}"
+    return gates[0]
+
+
+def _nightly_job_env(job: str) -> dict[str, Any]:
+    workflow = yaml.safe_load((gc.WORKFLOWS_DIR / "ci-nightly.yml").read_text(encoding="utf-8"))
+    return dict(workflow["jobs"][job].get("env") or {})
+
+
+def _marker_terms(marker_expr: str | None) -> set[str]:
+    return set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", marker_expr or "")) - {"and", "or", "not"}
+
+
+# T037 is a static (workflow-YAML) pin on purpose: this module is ``fast`` and runs per PR
+# on the ``ci`` module shard, so it must not spawn ``pytest --collect-only`` subprocesses.
+# The collect-only counts for the removed router trees are recorded in the WP08 Activity Log.
+
+
+def test_nightly_stress_lane_is_whole_tree_so_it_covers_the_removed_router_trees() -> None:
+    """FR-008 / T037: the stress tests that lost their per-PR router run keep a nightly home.
+
+    The removed ``tests-status`` job ran stress-marked tests under ``tests/status`` (no ``-m``).
+    The module rows exclude the stress marker (C-005), so the nightly ``stress`` job must
+    select them. The property pinned (not a fixed node list): the nightly stress selection
+    is path-less and ignore-less -- i.e. the whole ``tests`` tree, which contains
+    ``tests/status``, ``tests/cli`` and ``tests/consolidation`` -- and its marker
+    expression selects ``stress``. Narrowing it by a path or an ignore reds this.
+    """
+    gate = _nightly_gate("stress")
+
+    assert gate.paths == [], "the nightly stress lane must stay whole-tree, or the removed trees' stress tests fall outside it"
+    assert gate.ignores == [], "an --ignore on the nightly stress lane can drop the removed trees' stress tests"
+    assert "stress" in _marker_terms(gate.marker_expr)
+    assert "not stress" not in (gate.marker_expr or "")
+
+
+def test_nightly_performance_lane_runs_the_removed_router_trees_performance_tests() -> None:
+    """FR-008 / T037: the router skipped these (no ``SPEC_KITTY_RUN_PERFORMANCE``); nightly runs them.
+
+    ``conftest.py`` skips ``performance``-marked tests unless ``SPEC_KITTY_RUN_PERFORMANCE=1``,
+    so the env var on the nightly ``performance`` job is what actually executes them: pin
+    it, together with the whole-tree ``-m performance`` selection.
+    """
+    gate = _nightly_gate("performance")
+
+    assert gate.paths == []
+    assert gate.ignores == []
+    assert gate.marker_expr == "performance"
+    assert _nightly_job_env("performance").get("SPEC_KITTY_RUN_PERFORMANCE") == "1", (
+        "without SPEC_KITTY_RUN_PERFORMANCE=1 the nightly performance lane selects the tests but conftest skips them all"
+    )
 
 
 def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(router: Router, router_workflow: dict[str, Any]) -> None:
@@ -388,7 +465,8 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     assert jobs["architectural-heavy"]["needs"] == ["changes", "prose-scan"]
     assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
 
-    for shard in _CODE_SHARD_JOB_NAMES:
+    assert router.code_shard_jobs, "non-vacuity: at least the battery is a code shard"
+    for shard in sorted(router.code_shard_jobs):
         assert jobs[shard]["needs"] == ["changes", "prose-scan"]
         assert _eval_gh_if(jobs[shard]["if"], context) is False
 
@@ -403,11 +481,10 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     assert "prose-scan" in jobs["router-gate"]["needs"]
     assert jobs["router-gate"]["if"] == f"${{{{ {_FORK_GUARD} && always() && !cancelled() }}}}"
 
-    # Explicitly untouched: tests-corpus, tests-e2e, and the `changes` job's
+    # Explicitly untouched: tests-e2e, and the `changes` job's
     # own outputs (no `prose_only` output was added under `changes` -- FR-007
     # / the WP02 correction: `prose-scan` is a separate job, never a step
     # inside `changes`).
-    assert jobs["tests-corpus"]["needs"] == ["changes"]
     assert jobs["tests-e2e"]["needs"] == ["changes"]
     assert "prose_only" not in jobs["changes"]["outputs"]
 
@@ -421,9 +498,6 @@ def test_golden_architectural_only_pr_runs_the_heavy_battery_and_no_code_shard(r
     context["prose-scan.prose_only"] = False
 
     assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-consolidation"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
 
 
@@ -439,7 +513,25 @@ def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow
     context["prose-scan.prose_only"] = False
 
     assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-consolidation"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
     assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+
+
+def test_golden_ci_config_only_pr_runs_the_heavy_battery_and_no_code_shard(router_workflow: dict[str, Any]) -> None:
+    """FR-007 golden: a CI-configuration-only PR runs the heavy battery and no src-scoped shard."""
+    jobs = router_workflow["jobs"]
+    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context["changes.ci_config"] = True
+    context["prose-scan.prose_only"] = False
+
+    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+
+
+def test_golden_prose_only_ci_script_still_down_routes_the_battery(router_workflow: dict[str, Any]) -> None:
+    """C-002 golden: the prose-only subtraction still drops the battery for the new group."""
+    jobs = router_workflow["jobs"]
+    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context["changes.ci_config"] = True
+    context["prose-scan.prose_only"] = True
+
+    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is False

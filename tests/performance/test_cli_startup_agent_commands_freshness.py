@@ -25,8 +25,8 @@ before merge" requirement. T020 now lives in
 ``tests/specify_cli/runtime/test_agent_commands_freshness_precheck_shape.py``
 (selected by the ``specify_cli_runtime`` module's per-PR matrix leaf). T021
 now lives in ``tests/cli/test_register_commands_lazy_import_shape.py``
-(selected by both ``ci-router.yml``'s hardcoded ``tests-cli`` job and the
-``cli`` module's per-PR matrix leaf). THIS file keeps only T022 -- the
+(selected by the ``cli`` module's per-PR matrix leaf; the former
+``ci-router.yml`` ``tests-cli`` job was removed by FR-008). THIS file keeps only T022 -- the
 wall-clock tier is correctly homed here: ``tests/performance/`` IS the
 intended nightly-only lane for a ``@pytest.mark.performance``-marked
 wall-clock assertion (C-002's cadence discipline: this guard must never

@@ -15,7 +15,7 @@ investigate-squad-findings.md, R-WP01-a and R-WP01-b):
 2. **Marker-completeness (R-WP01-a).** ``pytest -m corpus`` selecting zero
    tests already fails loudly (pytest exit 5 -> job FAILS). But a corpus
    reader that is simply never given ``pytest.mark.corpus`` is neither run
-   by ``fast-tests-corpus`` NOR caught by that exit-5 floor -- it just
+   by the corpus lane NOR caught by that exit-5 floor -- it just
    silently never re-runs on a corpus-only change. The literal M4 form
    ("every path a ``@corpus`` test reads is matched by the corpus globs") is
    NOT statically computable: readers reach data through loaders/fixtures
@@ -32,12 +32,22 @@ the producer. The marker-completeness half below stays unchanged.
 
 from __future__ import annotations
 
+import itertools
+import os
 import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+
+from scripts.ci.corpus_select import corpus_selected
+from scripts.ci.gate_selection import load_router, select_gates
+from tests.architectural import _gate_coverage as gc
+from tests.ci.test_ci_module_wiring import _eval_gh_if
 
 pytestmark = pytest.mark.architectural
 
@@ -56,25 +66,13 @@ def test_corpus_changes_trigger_reduced_ci_quality_live() -> None:
     for event in ("pull_request", "push"):
         assert "paths" not in on_section[event]
 
-# The authoritative corpus glob set (T001 on.paths / T002 dorny filter) --
-# discrete lines only: GitHub `on.paths` does not support `{a,b}` brace
-# expansion, so both trigger surfaces enumerate every glob individually.
+
+# The corpus glob set, derived from the LIVE router `corpus` filter group -- the
+# one source (C-003, FR-009): Packs reads it through scripts/ci/corpus_select.py,
+# so a hand-maintained copy here would be a second encoding.
 # Never add bare `kitty-specs/**` or `status.events.jsonl` (C-001) -- that
 # would fire on routine WP status-event churn.
-_CORPUS_GLOBS = frozenset(
-    {
-        "packs/**",
-        "kitty-specs/**/spec.md",
-        "kitty-specs/**/plan.md",
-        "kitty-specs/**/tasks/**",
-        "kitty-specs/**/contracts/**",
-        "kitty-specs/**/acceptance-matrix.json",
-        ".kittify/charter/**",
-        ".kittify/glossaries/**",
-        ".kittify/doctrine/**",
-        ".kittify/release/downstream-verified.json",
-    }
-)
+_CORPUS_GLOBS = frozenset(load_router().filters["corpus"])
 
 # The corpus data ROOTS every glob above must collectively cover -- a
 # coarser, independent second cut at the same coverage claim that would
@@ -86,7 +84,8 @@ _CORPUS_DATA_ROOTS = (
     ".kittify/charter/",
     ".kittify/glossaries/",
     ".kittify/doctrine/",
-    ".kittify/release/downstream-verified.json",
+    # (`.kittify/release/downstream-verified.json` was dropped: it is not a tracked
+    # file and is not in the router corpus group.)
 )
 
 # Curated registry (R-WP01-a): every test module that reads the real,
@@ -193,14 +192,6 @@ _CORPUS_MARKED_MODULES = frozenset(
 )
 
 
-
-
-
-
-
-
-
-
 def test_every_corpus_data_root_is_covered_by_a_trigger_glob() -> None:
     """Reader-root coverage (decidable proxy for M4): every declared corpus
     data root must be the prefix of at least one corpus trigger glob."""
@@ -264,15 +255,176 @@ def test_corpus_marked_registry_is_non_empty() -> None:
     assert len(_CORPUS_MARKED_MODULES) > 0
 
 
-
-
-
-
-
-
 def test_corpus_marker_is_registered_in_pytest_ini() -> None:
     """T005: the ``corpus`` marker must be registered (pytest.ini, not
     pyproject.toml -- its [tool.pytest.ini_options] block is intentionally
     empty and would be dead config)."""
     pytest_ini = (_REPO_ROOT / "pytest.ini").read_text(encoding="utf-8")
     assert "\n    corpus:" in pytest_ini
+
+
+# ---------------------------------------------------------------------------
+# FR-009 (WP09): Packs is the SOLE, ADVISORY owner of the `-m corpus` suite.
+#
+# The router's own `corpus` filter group is the one source of the trigger set
+# (C-003); Packs must select the corpus lane on a SUPERSET of it, through the
+# shared `scripts/ci/corpus_select.py` helper, and must be advisory on every
+# verdict surface (job-level continue-on-error, outside packs-gate.needs).
+# ---------------------------------------------------------------------------
+
+_PACKS = gc.WORKFLOWS_DIR / "packs.yml"
+_ROUTER = gc.WORKFLOWS_DIR / "ci-router.yml"
+_CORPUS_JOB = "built-in-corpus-suite"
+_MANIFEST_JOB = "built-in-pack-manifest"
+_MANIFEST_TEST = "tests/architectural/test_pack_manifest_no_author_edit.py"
+_UNMATCHED_SRC_PROBE = "src/specify_cli/__unmapped_probe__/x.py"
+_SELECTION_STEP_ID = "corpus"
+_NULL_SHA = "0" * 40
+# The one canonical job trigger the advisory corpus run AND the blocking
+# pack-manifest guard share: built-in OR the router-derived corpus selection.
+_TRIGGER_OUTPUTS = ("changes.built_in", "changes.corpus")
+
+
+def _packs_jobs() -> dict[str, Any]:
+    return yaml.safe_load(_PACKS.read_text(encoding="utf-8"))["jobs"]
+
+
+def _trigger_truth_table(raw_if: object) -> dict[tuple[bool, bool], bool]:
+    """Evaluate a job ``if:`` over every (built_in, corpus) output combination with the shared GitHub-``if:`` evaluator."""
+    return {
+        (built_in, corpus): _eval_gh_if(str(raw_if), {"changes.built_in": built_in, "changes.corpus": corpus})
+        for built_in, corpus in itertools.product((False, True), repeat=2)
+    }
+
+
+def _assert_trigger_is_built_in_or_corpus(raw_if: object, job: str) -> None:
+    """The job runs iff `built_in` OR `corpus` is true -- by evaluation, never by substring.
+
+    A substring check accepts an inverted trigger (`!= 'true' && ...`) or one that
+    dropped `built_in`; the truth table does not.
+    """
+    expected = {(built_in, corpus): built_in or corpus for built_in, corpus in itertools.product((False, True), repeat=2)}
+    assert _trigger_truth_table(raw_if) == expected, f"{job}: `if:` must evaluate to built_in OR corpus over {_TRIGGER_OUTPUTS}, got {raw_if!r}"
+
+
+def _probe_for_glob(glob: str) -> str:
+    """A concrete tracked-looking path matched by *glob* (``**/`` -> ``m/``, trailing ``**`` -> a file)."""
+    probe = glob.replace("**/", "m/")
+    if probe.endswith("**"):
+        probe = probe[:-2] + "probe.md"
+    assert "*" not in probe, f"cannot derive a probe path from {glob!r}"
+    return probe
+
+
+@pytest.mark.parametrize("glob", sorted(_CORPUS_GLOBS))
+def test_packs_corpus_lane_covers_every_router_corpus_trigger(glob: str) -> None:
+    """For each glob of the LIVE router `corpus` group, Packs selects the lane too."""
+    probe = _probe_for_glob(glob)
+    assert "corpus" in select_gates([probe]).matched_groups, f"{probe!r} (from {glob!r}) is not in the router corpus group"
+    assert corpus_selected([probe], router=load_router()) is True, f"Packs would not select the corpus lane for {probe!r}"
+
+
+def test_packs_corpus_lane_covers_unmatched_src_fanout_and_full_mode() -> None:
+    router = load_router()
+    assert select_gates([_UNMATCHED_SRC_PROBE]).unmatched_src is True
+    assert corpus_selected([_UNMATCHED_SRC_PROBE], router=router) is True
+    assert corpus_selected(["docs/x.md"], router=router, mode="full") is True
+
+
+def test_packs_corpus_trigger_wiring_folds_full_push_and_the_shared_helper() -> None:
+    jobs = _packs_jobs()
+    expr = jobs["changes"]["outputs"]["corpus"]
+    assert "inputs.mode == 'full'" in expr
+    assert "github.event_name == 'push'" in expr
+    assert "steps.corpus.outputs.selected" in expr
+    _assert_trigger_is_built_in_or_corpus(jobs[_CORPUS_JOB]["if"], _CORPUS_JOB)
+
+
+def test_packs_corpus_lane_is_advisory_and_sole_owner() -> None:
+    jobs = _packs_jobs()
+    # JOB-level continue-on-error: the fleet verdict reads the Packs run conclusion.
+    assert jobs[_CORPUS_JOB].get("continue-on-error") is True, "the Packs corpus job must be advisory"
+    assert _CORPUS_JOB not in jobs["packs-gate"]["needs"], "an advisory corpus job must stay out of packs-gate.needs"
+    duplicates = [
+        gate.label() for gate in gc.parse_workflow(_ROUTER) if gate.marker_expr and re.search(r"(?<!not )\bcorpus\b", gate.marker_expr) and not gate.paths
+    ]
+    assert not duplicates, f"a whole-tree router corpus run duplicates the sole Packs owner: {duplicates}"
+
+
+def test_packs_corpus_command_shape_four_workers_live_cov_no_quiet() -> None:
+    job = _packs_jobs()[_CORPUS_JOB]
+    run_text = "\n".join(str(step.get("run", "")) for step in job["steps"])
+    pytest_line = next(line for line in run_text.splitlines() if "pytest" in line and "corpus" in line)
+    assert "-n 4" in pytest_line and "-n auto" not in pytest_line
+    assert " -q" not in pytest_line, "no -q: the log must show `created: 4/4 workers`"
+    assert "--cov=charter.offering" in pytest_line
+    assert "--cov=src/doctrine" not in pytest_line
+    assert any(step.get("if") == "failure()" and "::warning::" in str(step.get("run", "")) for step in job["steps"]), "advisory failure notice step missing"
+
+
+def test_pack_manifest_guard_fires_on_every_trigger_the_corpus_lane_fires_on() -> None:
+    jobs = _packs_jobs()
+    _assert_trigger_is_built_in_or_corpus(jobs[_MANIFEST_JOB]["if"], _MANIFEST_JOB)
+    # The actual safety invariant: the blocking guard fires on EXACTLY the triggers the corpus lane fires on.
+    assert _trigger_truth_table(jobs[_MANIFEST_JOB]["if"]) == _trigger_truth_table(jobs[_CORPUS_JOB]["if"])
+    corpus_gate = next(g for g in gc.parse_workflow(_PACKS) if g.job == _CORPUS_JOB)
+    assert _MANIFEST_TEST in corpus_gate.ignores, "the advisory corpus run must deselect the blocking pack-manifest guard"
+
+
+def _run_selection_step(tmp_path: Path, *, event: str, changed_path: str) -> str:
+    """Execute the Packs `corpus` selection step's REAL `run:` text in a throwaway git repo; return `selected`."""
+    changes = _packs_jobs()["changes"]
+    step = next(s for s in changes["steps"] if s.get("id") == _SELECTION_STEP_ID)
+    script = str(step["run"]).replace("python3 scripts/ci/corpus_select.py", f"{sys.executable} {_REPO_ROOT / 'scripts' / 'ci' / 'corpus_select.py'}")
+    git = shutil.which("git")
+    bash = shutil.which("bash")
+    assert git and bash
+
+    hermetic_git = {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}  # never inherit the developer's gpgsign/hooks
+
+    def run_git(*args: str) -> str:
+        done = subprocess.run([git, *args], cwd=tmp_path, check=True, capture_output=True, text=True, env={**os.environ, **hermetic_git})
+        return done.stdout.strip()
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    run_git("init", "-q")
+    run_git("config", "user.email", "ci@example.invalid")
+    run_git("config", "user.name", "ci")
+    (tmp_path / "README.md").write_text("base\n", encoding="utf-8")
+    run_git("add", "-A")
+    run_git("commit", "-q", "-m", "base")
+    base = run_git("rev-parse", "HEAD")
+    target = tmp_path / changed_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("changed\n", encoding="utf-8")
+    run_git("add", "-A")
+    run_git("commit", "-q", "-m", "change")
+    head = run_git("rev-parse", "HEAD")
+
+    github_output = tmp_path / "github_output.txt"
+    env = {
+        **{k: v for k, v in os.environ.items() if k in {"PATH", "HOME", "LANG", "LC_ALL"}},
+        "EVENT_NAME": event,
+        "BASE_SHA": base if event == "pull_request" else _NULL_SHA,
+        "HEAD_SHA": head,
+        "MODE": "pr",
+        "PYTHONPATH": str(_REPO_ROOT),
+        "GITHUB_OUTPUT": str(github_output),
+        **hermetic_git,
+    }
+    subprocess.run([bash, "-c", script], cwd=tmp_path, env=env, check=True, capture_output=True, text=True)
+    outputs = dict(line.split("=", 1) for line in github_output.read_text(encoding="utf-8").splitlines())
+    return outputs["selected"]
+
+
+def test_packs_selection_step_computes_the_diff_on_pull_request_and_fails_closed_otherwise(tmp_path: Path) -> None:
+    """Behavioural pin: the step must really diff a pull_request, not fail closed to `true` for everyone.
+
+    A prose-only pull_request selects nothing; the same diff on a push (no usable
+    base) must fail closed to `true`; a corpus path on a pull_request still selects.
+    If the `pull_request` guard on the diff is mutated away the first case flips to
+    `true` and every PR silently runs the advisory corpus suite.
+    """
+    assert _run_selection_step(tmp_path / "pr_prose", event="pull_request", changed_path="docs/unrelated-note.md") == "false"
+    assert _run_selection_step(tmp_path / "pr_corpus", event="pull_request", changed_path="packs/built-in/probe.md") == "true"
+    assert _run_selection_step(tmp_path / "push", event="push", changed_path="docs/unrelated-note.md") == "true"
