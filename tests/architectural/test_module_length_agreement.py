@@ -119,7 +119,6 @@ _SCRIPTS_CI_DIR = _REPO_ROOT / "scripts" / "ci"
 # a count-preserving swap (fix one module, sneak `charter` in) cannot mask a
 # real regression in the module this mission actually recaptured.
 _MISMATCH_ALLOWLIST: dict[str, str] = {
-    "consolidation": "committed=782 collected=804 (2026-09-22 baseline as `merge`, renamed by #3080; predates spec-kitty#4865, never recaptured by this mission)",
     "missions": "committed=633 collected=319 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "post_merge": "committed=100 collected=123 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "release": "committed=86 collected=253 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
@@ -148,7 +147,7 @@ _MISMATCH_ALLOWLIST: dict[str, str] = {
 # mismatch could not instead be fixed by recapturing the module. Recapturing
 # a module and deleting its entry shrinks both this constant's headroom and
 # `len(_MISMATCH_ALLOWLIST)` together, and is always welcome.
-_BASELINE_ALLOWLIST_COUNT = 20
+_BASELINE_ALLOWLIST_COUNT = 18
 
 
 # spec-kitty#5189 interim relief: a committed/collected count drift no longer
@@ -396,6 +395,42 @@ def test_charter_is_not_allowlisted_and_agrees(
             f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
             strict=_strict_mode(),
         )
+
+
+@pytest.mark.fast
+def test_consolidation_registry_row_is_split(_live_registry_state: dict[str, Any]) -> None:
+    """#5510 FR-012 (partial #5086): the consolidation row is split AND no longer allow-listed.
+
+    The strict length-agreement gate above is env-gated (per-PR drift is only a warning since
+    #5189), so this unconditional registry-only pin is what makes the FR-012 deliverable fail
+    closed: a recapture alone (timings 782 -> 1617) cannot turn it green -- only the registry's
+    `shard_count >= 2` can, and re-adding consolidation to the allowlist turns it red again.
+    """
+    assert "consolidation" not in _MISMATCH_ALLOWLIST, (
+        "`consolidation` must not be in _MISMATCH_ALLOWLIST (#5510 FR-012): its timings were recaptured "
+        "so the committed list length equals the consumer's live collection."
+    )
+    rows = [row for row in _live_registry_state["modules"] if row["module"] == "consolidation"]
+    assert len(rows) == 1, f"expected exactly one `consolidation` registry row, found {len(rows)}"
+    shard_count = rows[0].get("shard_count", 1)
+    assert shard_count >= 2, (
+        f"consolidation registry row has shard_count={shard_count}; #5510 FR-012 requires >= 2 so the "
+        "longest module pipeline is split into measured-time-balanced shards."
+    )
+
+
+@pytest.mark.fast
+def test_allowlist_baseline_is_tight() -> None:
+    """The shrink-only baseline must equal the allowlist size, so a fix always lowers it.
+
+    `test_allowlist_does_not_exceed_baseline` only bounds from above: after a module leaves the
+    allowlist a stale, higher baseline would silently re-grant headroom for a new mismatch
+    (#5510 FR-012 took consolidation out: 19 -> 18 entries, baseline 20 -> 18).
+    """
+    assert len(_MISMATCH_ALLOWLIST) == _BASELINE_ALLOWLIST_COUNT, (
+        f"_BASELINE_ALLOWLIST_COUNT ({_BASELINE_ALLOWLIST_COUNT}) must equal len(_MISMATCH_ALLOWLIST) "
+        f"({len(_MISMATCH_ALLOWLIST)}); lower the constant in the same commit that removes an entry."
+    )
 
 
 @pytest.mark.fast
