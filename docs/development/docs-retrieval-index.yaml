@@ -3826,6 +3826,7 @@ pages:
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
     - {slug: "spec-kitty-doctor-provenance", text: "spec-kitty doctor provenance", level: 2}
     - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
+    - {slug: "spec-kitty-doctor-run-index", text: "spec-kitty doctor run-index", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
     - {slug: "spec-kitty-doctor-skills", text: "spec-kitty doctor skills", level: 2}
     - {slug: "spec-kitty-doctor-sparse-checkout", text: "spec-kitty doctor sparse-checkout", level: 2}
