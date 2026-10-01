@@ -8,11 +8,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from kernel.git import GitPath, StatusEntry
 from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
-from specify_cli.task_utils import support as th
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration]
