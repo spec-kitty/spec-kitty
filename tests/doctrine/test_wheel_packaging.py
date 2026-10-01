@@ -13,9 +13,6 @@ pytestmark = [pytest.mark.slow, pytest.mark.non_sandbox, pytest.mark.corpus]  # 
 # fixtures from tests/cross_cutting/packaging/conftest.py.
 # They are discovered via conftest.py fixture resolution because pytest
 # collects fixtures from all conftest.py files in the test tree.
-#
-# If these fixtures are NOT found, it means this test file is being run
-# in isolation. Use the fallback fixtures below.
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Pre-move built-in home: before mission relocate-builtin-doctrine-packs-01KYT87F the
@@ -28,24 +25,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # itself to ``charter/offering/`` in the wheel, so the (still-absent) legacy path
 # is checked at its current package prefix.
 LEGACY_BUILTIN_DIR = "charter/offering/" + "agent_profiles" + "/built-in/"
-
-
-def _build_wheel_fallback(tmpdir: str) -> Path:
-    """Fallback wheel builder for when conftest fixtures are not available."""
-    result = subprocess.run(
-        [__import__("sys").executable, "-m", "build", "--wheel", "--outdir", tmpdir],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"Wheel build failed: {result.stderr}")
-
-    wheels = sorted(Path(tmpdir).glob("spec_kitty_cli-*.whl"))
-    if not wheels:
-        pytest.skip("No wheel generated")
-    return wheels[-1]
 
 
 @pytest.fixture

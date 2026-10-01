@@ -31,10 +31,13 @@ import multiprocessing as mp
 import os
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = [pytest.mark.stress, pytest.mark.slow, pytest.mark.git_repo]
 
@@ -49,6 +52,11 @@ MID8 = "01J6STRSS"
 MISSION_ID = "01J6STRSS00000000000000000"  # 26-char placeholder ULID
 COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MID8}"
 FEATURE_DIRNAME = f"{MISSION_SLUG}-{MID8}"
+
+#: SC-12's wall-clock budget for the concurrent-emit workload (RK-3: split
+#: out of the correctness test below into its own ``timing`` test so a slow
+#: runner never turns a correctness assertion into a wall-clock flake).
+_SC12_BUDGET_SECONDS = 60.0
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -175,14 +183,25 @@ def _emitter_count() -> int:
     return max(2, min(n, 50))
 
 
-@pytest.mark.timeout(120)
-def test_concurrent_emits_produce_valid_event_log(stress_repo: Path) -> None:
-    """N concurrent emitters → N events, all valid, all unique, ordered.
+@dataclass(frozen=True)
+class _EmitRun:
+    """Result of one concurrent-emit workload run, shared by both tests below."""
 
-    "Ordered" here means: the snapshot reduced from the event log matches
-    the per-WP terminal lane each worker emitted. We do NOT assert a
-    specific interleaving — the lock only guarantees serialization of
-    each transaction, not a deterministic ordering across processes.
+    results: list[dict[str, Any]]
+    duration: float
+    n: int
+    wp_ids: list[str]
+    events_path: Path
+
+
+def _run_concurrent_emits(stress_repo: Path) -> _EmitRun:
+    """Fan N emitters out concurrently and time the whole burst.
+
+    Holds the pool map and the timing only — every functional assertion
+    over the resulting event log stays in
+    ``test_concurrent_emits_produce_valid_event_log`` (pinned verbatim by
+    ``tests/architectural/test_timing_coverage_invariant.py``), so this
+    helper's only job is producing the raw materials both tests need.
     """
     n = _emitter_count()
     wp_ids = [f"WP{i:02d}" for i in range(1, n + 1)]
@@ -196,19 +215,44 @@ def test_concurrent_emits_produce_valid_event_log(stress_repo: Path) -> None:
         results = pool.map(_emit_one, args)
     duration = time.monotonic() - started
 
+    # Inspect the event log — it lives on the coord worktree, not the
+    # repo_root. CoordinationWorkspace.resolve created it under
+    # .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/.
+    coord_worktree = stress_repo / ".worktrees" / f"{FEATURE_DIRNAME}-coord"
+    feature_dir = coord_worktree / "kitty-specs" / FEATURE_DIRNAME
+    events_path = feature_dir / "status.events.jsonl"
+
+    return _EmitRun(results=results, duration=duration, n=n, wp_ids=wp_ids, events_path=events_path)
+
+
+@pytest.mark.timeout(120)
+def test_concurrent_emits_produce_valid_event_log(stress_repo: Path) -> None:
+    """N concurrent emitters → N events, all valid, all unique, ordered.
+
+    "Ordered" here means: the snapshot reduced from the event log matches
+    the per-WP terminal lane each worker emitted. We do NOT assert a
+    specific interleaving — the lock only guarantees serialization of
+    each transaction, not a deterministic ordering across processes.
+
+    Correctness only (RK-3): the SC-12 wall-clock budget is asserted
+    separately by ``test_concurrent_emits_meet_sc12_budget`` below, so a
+    slow runner can never turn this test's functional coverage into a
+    wall-clock flake.
+    """
+    run = _run_concurrent_emits(stress_repo)
+    n = run.n
+    wp_ids = run.wp_ids
+    events_path = run.events_path
+
     # 1. Every worker reported success.
-    failures = [r for r in results if not r["ok"]]
+    failures = [r for r in run.results if not r["ok"]]
     assert not failures, (
         f"{len(failures)} of {n} concurrent emitters failed: "
         f"{[(r['wp_id'], r.get('error')) for r in failures]}"
     )
 
-    # 2. Inspect the event log — it lives on the coord worktree, not the
-    #    repo_root. CoordinationWorkspace.resolve created it under
-    #    .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/.
-    coord_worktree = stress_repo / ".worktrees" / f"{FEATURE_DIRNAME}-coord"
-    feature_dir = coord_worktree / "kitty-specs" / FEATURE_DIRNAME
-    events_path = feature_dir / "status.events.jsonl"
+    # 2. The event log must exist.
+    coord_worktree = events_path.parent.parent.parent
     assert events_path.exists(), (
         f"status.events.jsonl missing at {events_path}. "
         f"Coord worktree contents: "
@@ -254,10 +298,20 @@ def test_concurrent_emits_produce_valid_event_log(stress_repo: Path) -> None:
         f"unexpected={seen_wps - set(wp_ids)}"
     )
 
-    # 6. SC-12 timing budget. Don't fail the test on a slow runner — but
-    #    leave evidence in the report.
-    if duration > 60.0:  # pragma: no cover — environment-dependent
-        pytest.skip(
-            f"stress completed but exceeded 60s budget ({duration:.1f}s); "
-            f"runner is slow — passing for correctness, skipping SLA assertion"
-        )
+
+@pytest.mark.timing
+@pytest.mark.timeout(120)
+def test_concurrent_emits_meet_sc12_budget(stress_repo: Path) -> None:
+    """SC-12: N concurrent emitters complete within the 60s wall-clock budget.
+
+    Split out of the correctness test (RK-3, option b): a bare
+    ``pytest.fail``/``pytest.skip`` on a wall-clock budget breach inside the
+    correctness test would turn an environment-dependent measurement into a
+    flake the flakiness policy forbids (no retry-to-green). This test is the
+    honest, standalone home for that budget, marked ``timing`` (and
+    inheriting ``stress`` from the module ``pytestmark`` above) so it only
+    runs where wall-clock timing is meaningful — the nightly stress job — and
+    never blocks an ordinary PR run.
+    """
+    run = _run_concurrent_emits(stress_repo)
+    assert_timing_budget(run.duration, _SC12_BUDGET_SECONDS, name="duration")

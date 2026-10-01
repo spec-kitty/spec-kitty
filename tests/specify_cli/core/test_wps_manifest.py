@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
 
@@ -390,7 +391,6 @@ class TestCheckConcernRefsCoverage:
 
     def test_wps_schema_accepts_plan_concern_fields(self) -> None:
         """The documented JSON schema accepts the Pydantic manifest fields."""
-        jsonschema = pytest.importorskip("jsonschema")
         schema = json.loads(
             Path("src/specify_cli/schemas/wps.schema.json").read_text(encoding="utf-8")
         )

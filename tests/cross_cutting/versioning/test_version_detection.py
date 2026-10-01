@@ -23,6 +23,12 @@ from tests.test_isolation_helpers import get_installed_version, get_venv_python
 
 pytestmark = [pytest.mark.integration]
 
+#: Unreadable package metadata is always a defect (a declared-dependency /
+#: stale-venv condition, FR-004) — never a platform limitation — so every
+#: site that used to skip on it now fails loudly with this shared message.
+_PKG_METADATA_UNAVAILABLE_MSG = "Package metadata not available"
+
+
 def run_venv_python(code: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
@@ -37,7 +43,7 @@ def run_venv_python(code: str) -> subprocess.CompletedProcess[str]:
 def get_venv_module_version() -> str:
     result = run_venv_python("import specify_cli; print(specify_cli.__version__)")
     if result.returncode != 0:
-        pytest.skip(f"Could not import module version: {result.stderr}")
+        pytest.fail(f"Could not import module version: {result.stderr}")
     return result.stdout.strip()
 
 
@@ -72,7 +78,7 @@ class TestVersionReading:
         try:
             metadata_version = get_venv_metadata_version()
         except Exception as exc:
-            pytest.skip(f"Could not read package metadata: {exc}")
+            pytest.fail(f"Could not read package metadata: {exc}")
 
         # Versions should match
         assert module_version == metadata_version, (
@@ -85,7 +91,7 @@ class TestVersionReading:
         try:
             metadata_version = get_venv_metadata_version()
         except Exception as exc:
-            pytest.skip(f"Could not read package metadata: {exc}")
+            pytest.fail(f"Could not read package metadata: {exc}")
 
         # Run CLI command
         result = run_cli_version()
@@ -103,7 +109,7 @@ class TestVersionReading:
 
             init_file = Path(specify_cli.__file__)
         except Exception as exc:
-            pytest.skip(f"Could not locate __init__.py: {exc}")
+            pytest.fail(f"Could not locate __init__.py: {exc}")
 
         init_content = init_file.read_text()
 
@@ -148,7 +154,7 @@ class TestVersionConsistency:
         try:
             pkg_version = get_venv_metadata_version()
         except Exception as exc:
-            pytest.skip(f"Package metadata not available: {exc}")
+            pytest.fail(f"{_PKG_METADATA_UNAVAILABLE_MSG}: {exc}")
         assert pkg_version, "Should get version from metadata"
         assert isinstance(pkg_version, str), "Metadata version should be string"
 
@@ -174,7 +180,7 @@ class TestVersionConsistency:
         try:
             metadata_version = get_venv_metadata_version()
         except Exception:
-            pytest.skip("Package metadata not available")
+            pytest.fail(_PKG_METADATA_UNAVAILABLE_MSG)
 
         # Method 3: CLI command
         result = run_cli_version()
@@ -236,10 +242,10 @@ class TestVersionUpdateWorkflow:
             package_root = Path(specify_cli.__file__).parent.parent.parent
             pyproject = package_root / "pyproject.toml"
         except Exception:
-            pytest.skip("Could not locate pyproject.toml")
+            pytest.fail("Could not locate pyproject.toml")
 
         if not pyproject.exists():
-            pytest.skip("pyproject.toml not found")
+            pytest.fail("pyproject.toml not found")
 
         content = pyproject.read_text()
 
@@ -298,7 +304,7 @@ class TestRegressionPrevention:
         try:
             metadata_version = get_venv_metadata_version()
         except Exception:
-            pytest.skip("Package metadata not available")
+            pytest.fail(_PKG_METADATA_UNAVAILABLE_MSG)
 
         # This is the regression test - if someone hardcodes the version again,
         # this test will fail because module version won't match metadata
@@ -318,7 +324,7 @@ class TestRegressionPrevention:
         try:
             metadata_version = get_venv_metadata_version()
         except Exception:
-            pytest.skip("Package metadata not available")
+            pytest.fail(_PKG_METADATA_UNAVAILABLE_MSG)
 
         result = run_cli_version()
         assert result.returncode == 0, f"--version failed: {result.stderr}"
@@ -364,7 +370,7 @@ class TestPackageMetadataIntegrity:
         try:
             pkg_version = get_venv_metadata_version()
         except Exception:
-            pytest.skip("Package metadata not available")
+            pytest.fail(_PKG_METADATA_UNAVAILABLE_MSG)
 
         try:
             parsed = Version(pkg_version)

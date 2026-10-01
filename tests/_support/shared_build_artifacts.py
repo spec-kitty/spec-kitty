@@ -67,9 +67,28 @@ def default_wheel_sdist_builder(outdir: Path) -> None:
     fixture in ``tests/conftest.py`` stays a thin shell with no nested
     definitions (the conftest definition-order guard pins that file's
     definition names).
+
+    Runs with ``--no-isolation``: ``build`` and ``hatchling`` are both pinned
+    in the ``test`` extra for exactly this, so a synced venv already has
+    everything the build needs and the build step itself never reaches out
+    to the network for an isolated build environment (FR-004 — the only
+    remaining failure mode for *this step* is a genuine product/packaging
+    defect, not a transient network condition). This claim is scoped to the
+    build: the sibling ``installed_wheel_venv`` fixture (``tests/conftest.py``)
+    still runs ``pip install`` against the wheel this produces, which does
+    resolve from the index, so an offline run fails there instead.
     """
     result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
+        [
+            sys.executable,
+            "-m",
+            "build",
+            "--no-isolation",
+            "--wheel",
+            "--sdist",
+            "--outdir",
+            str(outdir),
+        ],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
@@ -79,7 +98,7 @@ def default_wheel_sdist_builder(outdir: Path) -> None:
 
 
 class SharedBuildError(RuntimeError):
-    """The wheel/sdist build itself failed; callers turn this into a skip."""
+    """The wheel/sdist build itself failed; callers fail loudly with this error (FR-004)."""
 
 
 def run_scoped_shared_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
@@ -314,8 +333,8 @@ def _publish_once(
                     time.sleep(retry_delay_s)
     except LockAcquireTimeout as error:
         # Queueing behind another worker's build is expected; a timed-out wait
-        # must flow down the same path as any other build failure (skip), not
-        # escape as a collection ERROR.
+        # must flow down the same path as any other build failure (a loud
+        # fail since FR-004), not escape as a collection ERROR.
         raise SharedBuildError(f"timed out after {lock_timeout_s}s waiting for the {dir_name} lock") from error
     published_after_rename = inspect(shared_dir)
     if published_after_rename is None:

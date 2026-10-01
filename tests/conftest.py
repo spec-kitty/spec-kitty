@@ -232,21 +232,23 @@ def pytest_configure(config: pytest.Config) -> None:
 
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
 
-    # #3213: set the SaaS-sync feature flag ONCE, collection-wide, before any test
-    # module is imported. Import-time ``@pytest.mark.skipif(not
-    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates are evaluated at
-    # collection, which the per-test autouse ``_enable_saas_sync_feature_flag``
-    # fixture (a setup-time monkeypatch) is too late to satisfy. Previously six
-    # docs/architectural modules set it at import via their own
-    # ``os.environ.setdefault``, so whether the gate fired depended on whether
-    # one of those modules happened to be collected — ``pytest tests/ -m
-    # regression`` enforced it, ``pytest tests/regression`` did not. Setting it
-    # here is the single collection-time authority, so a given node's skip/run
-    # decision is the same under every selection. (Historically this also
-    # re-exposed the then-open #2782 P0 red under ``pytest tests/regression``;
-    # #2782 has since been resolved and its reproduction retired, so nothing in
-    # ``tests/regression`` is red today — but the invariant still governs every
-    # other import-time SaaS-sync gate.)
+    # History (#3213): set the SaaS-sync feature flag ONCE, collection-wide,
+    # before any test module is imported. The flag is now a process-global
+    # runtime kill switch read by ``saas_sync_config.py`` / ``saas_readiness.py``
+    # — a module-level ``os.environ.setdefault`` anywhere else would pollute
+    # every later test in the same worker process with whatever value that
+    # module happened to set, regardless of what the current selection
+    # actually collected. Previously six docs/architectural modules set it at
+    # import via their own ``os.environ.setdefault``, so whether a given
+    # test saw the flag enabled depended on whether one of those modules
+    # happened to be collected first — ``pytest tests/ -m regression``
+    # enforced it, ``pytest tests/regression`` did not. Setting it here is the
+    # single collection-time authority, so every test sees the same value
+    # regardless of selection. (Historically this also re-exposed the
+    # then-open #2782 P0 red under ``pytest tests/regression``; #2782 has
+    # since been resolved and its reproduction retired, so nothing in
+    # ``tests/regression`` is red today. ``test_saas_sync_gate_selection_invariance.py``
+    # is the gate that bans a module-level write from reintroducing this.)
     os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
@@ -322,14 +324,16 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     # Performance chokepoint (env-gated, mirrors quarantine). A single-shot
     # wall-clock budget test is cold-start / shared-runner bound, so it is held
     # out of every normal PR/blocking run — it can never turn main red or block
-    # an unrelated PR. The proper out-of-band harness (Monte-Carlo
-    # iterate-and-aggregate, off the PR path) is tracked in #3595; it sets
-    # SPEC_KITTY_RUN_PERFORMANCE=1 to run these for real.
+    # an unrelated PR. The live out-of-band harness is the nightly performance
+    # job (`.github/workflows/ci-nightly.yml`), which sets
+    # SPEC_KITTY_RUN_PERFORMANCE=1 at job level to run these for real
+    # (#3595, closed, is the historical provenance for this chokepoint).
     apply_performance_skip = os.environ.get("SPEC_KITTY_RUN_PERFORMANCE") != "1"
     skip_performance = pytest.mark.skip(
         reason="performance: single-shot wall-clock budget test held out of "
         "normal runs (cold-start/runner-bound). Set SPEC_KITTY_RUN_PERFORMANCE=1 "
-        "to run it; the out-of-band perf harness is tracked in #3595."
+        "to run it; the nightly performance job "
+        "(.github/workflows/ci-nightly.yml) is the live out-of-band harness."
     )
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
@@ -1231,7 +1235,10 @@ def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
     ``tests/architectural/test_home_owner_behaviour.py``.
     """
     if not _build_tool_available():
-        pytest.skip("python -m build not available")
+        pytest.fail(
+            "python -m build not available — `build` is a declared test extra; re-sync the venv (uv sync --frozen --all-extras)",
+            pytrace=False,
+        )
 
     try:
         return ensure_shared_build_artifacts(
@@ -1239,7 +1246,7 @@ def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
             default_wheel_sdist_builder,
         )
     except SharedBuildError as error:
-        pytest.skip(str(error))
+        pytest.fail(f"wheel/sdist build failed: {error}", pytrace=False)
 
 
 @pytest.fixture(scope="session")
@@ -1257,7 +1264,7 @@ def installed_wheel_venv(
         text=True,
     )
     if result.returncode != 0:
-        pytest.skip(f"Failed to create venv: {result.stderr}")
+        pytest.fail(f"Failed to create venv: {result.stderr}", pytrace=False)
 
     pip = venv_dir / "bin" / "pip"
     python = venv_dir / "bin" / "python"
@@ -1265,7 +1272,7 @@ def installed_wheel_venv(
         pip = venv_dir / "Scripts" / "pip.exe"
         python = venv_dir / "Scripts" / "python.exe"
     if not pip.exists():
-        pytest.skip("pip not found in venv")
+        pytest.fail("pip not found in venv", pytrace=False)
 
     result = subprocess.run(
         [str(pip), "install", str(wheel)],
@@ -1273,7 +1280,7 @@ def installed_wheel_venv(
         text=True,
     )
     if result.returncode != 0:
-        pytest.skip(f"Failed to install wheel: {result.stderr}")
+        pytest.fail(f"Failed to install wheel: {result.stderr}", pytrace=False)
 
     return {"pip": pip, "python": python, "venv_dir": venv_dir, "wheel": wheel}
 

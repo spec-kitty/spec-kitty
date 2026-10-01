@@ -30,6 +30,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -342,7 +343,6 @@ def test_fixture_e_no_charter_is_clean_no_op(
 
 def test_report_matches_schema(fixture_b_no_derivatives: Path, migration: Any) -> None:
     """Emitted JSON matches contracts/migration-report.schema.json."""
-    jsonschema = pytest.importorskip("jsonschema")
     schema = json.loads(_CONTRACTS_SCHEMA_PATH.read_text("utf-8"))
     result = migration.apply(fixture_b_no_derivatives)
     report = _decode_report(result)
@@ -354,7 +354,6 @@ def test_report_matches_schema_for_no_charter(
     fixture_e_no_charter: Path, migration: Any
 ) -> None:
     """The no-charter shape also satisfies the schema."""
-    jsonschema = pytest.importorskip("jsonschema")
     schema = json.loads(_CONTRACTS_SCHEMA_PATH.read_text("utf-8"))
     result = migration.apply(fixture_e_no_charter)
     report = _decode_report(result)

@@ -108,7 +108,7 @@ test = [
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
     "build>=1.0.0",  # Required for distribution tests (wheel building)
-    "hatchling>=1.27.0",  # Already a [build-system] requirement; pinned here so it's importable outside build isolation. (charter-code-topology-01M152G1, S5: its prior sole rationale, tests/doctrine/test_hatch_build.py's in-process BuildHookInterface coverage of the dormant doctrine wheel, was deleted with the dormant spec-kitty-doctrine wheel groundwork per MAP-BUILD -- kept as a lockfile-neutral no-op rather than risk uv.lock drift for a redundant-but-harmless test-extra pin.)
+    "hatchling>=1.27.0",  # Already a [build-system] requirement; pinned here so it's importable outside build isolation. (charter-code-topology-01M152G1, S5: its prior sole rationale, tests/doctrine/test_hatch_build.py's in-process BuildHookInterface coverage of the dormant doctrine wheel, was deleted with the dormant spec-kitty-doctrine wheel groundwork per MAP-BUILD. Kept anyway -- test-suite-remediation-01M3SSDW's WP04 made this pin load-bearing: tests/_support/shared_build_artifacts.py builds with `--no-isolation`, so this pin plus `build` are now the only source of the backend; dropping it would reintroduce an isolated, network-reaching build.)
     "mutmut>=3.5.0",  # Mutation testing
     "pytestarch>=4.0.0",  # Architectural dependency testing (ADR 2026-03-27-1)
 ]

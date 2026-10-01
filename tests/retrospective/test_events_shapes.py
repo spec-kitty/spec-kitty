@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
+from spec_kitty_events import retrospective as upstream_retrospective
 
 from specify_cli.retrospective.events import (
     RETROSPECTIVE_EVENT_NAMES,
@@ -285,9 +286,6 @@ class TestProposalRejectedPayload:
 
 
 class TestRetroEventNames:
-    def test_contains_exactly_eight_names(self) -> None:
-        assert len(RETROSPECTIVE_EVENT_NAMES) == 8
-
     def test_contains_expected_names(self) -> None:
         expected = {
             "retrospective.requested",
@@ -304,19 +302,21 @@ class TestRetroEventNames:
     def test_is_frozenset(self) -> None:
         assert isinstance(RETROSPECTIVE_EVENT_NAMES, frozenset)
 
-    def test_matches_upstream_registry_when_available(self) -> None:
-        try:
-            from spec_kitty_events import retrospective as upstream_retrospective
-        except ImportError:  # pragma: no cover - dependency is required in normal installs
-            pytest.skip("spec_kitty_events is not importable")
-
+    def test_matches_upstream_registry(self) -> None:
+        # spec_kitty_events is a declared dependency (pyproject.toml pins
+        # spec-kitty-events>=10.4.0), which already ships RETROSPECTIVE_EVENT_NAMES —
+        # both its absence and an unimportable module are a stale-venv defect
+        # (FR-004), not a platform condition, so neither is a skip any more.
         upstream_names = getattr(
             upstream_retrospective,
             "RETROSPECTIVE_EVENT_NAMES",
             None,
         )
-        if upstream_names is None:
-            pytest.skip("spec_kitty_events package is older than retrospective 4.1")
+        assert upstream_names is not None, (
+            "spec_kitty_events.retrospective is missing RETROSPECTIVE_EVENT_NAMES; "
+            "the declared floor spec-kitty-events>=10.4.0 ships it — re-sync the "
+            "venv (uv sync --frozen --all-extras)"
+        )
 
         assert upstream_names == RETROSPECTIVE_EVENT_NAMES
 

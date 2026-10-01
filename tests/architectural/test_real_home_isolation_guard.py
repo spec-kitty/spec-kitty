@@ -1,22 +1,20 @@
 """Architectural guard: no real ``~/.spec-kitty`` mutation under xdist (T007).
 
 Mission ``test-suite-acceleration``, SC-006 / E1 I2: *no test reads, writes, or
-truncates the real ``Path.home()/.spec-kitty`` under xdist*. WP04 delivers the
-per-worker HOME/state isolation autouse fixture that makes this true; this guard
-is the executable regression test that **fails the build** if that guarantee
-regresses once WP04 lands.
+truncates the real ``Path.home()/.spec-kitty`` under xdist*. The per-worker
+HOME/state isolation autouse fixture (WP04, shipped long ago) makes this true;
+this guard is the executable regression test that **fails the build** if that
+guarantee ever regresses.
 
-Ordering constraint (WP02 merges before WP04): this file must merge GREEN on a
-branch where WP04's isolation fixture is **not yet present**, then *bite* once
-WP04 lands. It therefore:
+Isolation is required on every branch this guard runs on. It therefore:
 
 1. Detects whether per-worker home isolation is active by running a tiny probe
    test in a ``-n auto`` subprocess. Each worker writes the ``Path.home()`` it
    resolves to into a parent-supplied temp dir; the parent reads those files
-   back. If the workers resolve to the developer's *real* home, isolation is
-   absent → :func:`pytest.skip` with a clear reason (pre-WP04). The probe never
-   writes to the real home, so skipping is safe.
-2. Once isolation is active (workers resolve to per-worker temp homes), records
+   back. If any worker resolves to the developer's *real* home, isolation has
+   regressed and the guard **fails**, naming the offending worker homes. The
+   probe never writes to the real home, so detection itself is always safe.
+2. Once isolation is confirmed active (workers resolve to per-worker temp homes), records
    the real ``~/.spec-kitty`` state (absent, or mtime+size of a sentinel),
    drives a representative parallel selection that touches ``Path.home()``, and
    asserts the real sentinel is unchanged/absent afterward.
@@ -58,24 +56,17 @@ _SENTINEL_RELPATH = ".spec-kitty/.home_isolation_guard_sentinel"
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-_SKIP_PRE_WP04 = (
-    "Per-worker HOME isolation (WP04) is not active on this branch: xdist "
-    "workers still resolve Path.home() to the real home. This guard skips "
-    "cleanly pre-WP04 (SC-006) and will bite once WP04's isolation fixture "
-    "lands. No real-home mutation was performed by this probe."
-)
-
-# Distinct from _SKIP_PRE_WP04: this is NOT "isolation absent" — it is "the
+# This is NOT "isolation absent" — it is "the
 # file transport produced no worker homes at all". That means xdist did not
 # run the probe (unavailable / collection error) OR the transport itself broke.
-# Conflating it with the pre-WP04 skip would let a future transport breakage
+# Conflating this with a soft skip would let a future transport breakage
 # silently disarm the guard, so we surface it as a hard failure.
 _NO_WORKER_HOMES = (
     "Home-isolation detection probe produced NO worker homes under -n auto. "
     "The file transport (worker writes Path.home() to a parent-supplied dir) "
     "observed nothing: xdist did not run the probe, or the transport is "
-    "broken. This is NOT a pre-WP04 skip — it would silently disarm the "
-    "SC-006 guard. stdout:\n{stdout}\nstderr:\n{stderr}"
+    "broken. This is a hard failure, not a skip — a skip here would silently "
+    "disarm the SC-006 guard. stdout:\n{stdout}\nstderr:\n{stderr}"
 )
 
 
@@ -198,8 +189,9 @@ def _detect_worker_homes(out_dir: Path) -> tuple[list[str], subprocess.Completed
 
     The probe only writes to the parent-supplied *out_dir* and reads
     ``Path.home()`` — it never writes to the real home — so detection is safe
-    pre-WP04. Returns ``(worker_homes, completed_process)`` so callers can both
-    inspect the homes and surface subprocess diagnostics on failure.
+    regardless of whether per-worker HOME isolation (WP04) is active. Returns
+    ``(worker_homes, completed_process)`` so callers can both inspect the
+    homes and surface subprocess diagnostics on failure.
     """
     result = _run_probe(out_dir, parallel=True, write_sentinel=False)
     return _read_worker_homes(out_dir), result
@@ -227,18 +219,21 @@ def test_detection_transport_observes_worker_home() -> None:
         "worker->parent channel is broken (the exact regression this test "
         f"guards against).\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
-    # Pre-WP04 the worker resolves to the real home; once WP04 lands it resolves
-    # to a per-worker temp home. Either way the transport must surface *a* home —
-    # that is the property under test here, independent of WP04.
+    # Before WP04 landed, the worker resolved to the real home; now it
+    # resolves to a per-worker temp home. Either way the transport must
+    # surface *a* home — that is the property under test here, independent
+    # of whether per-worker HOME isolation is active.
     assert all(home for home in worker_homes)
 
 
 def test_no_real_home_mutation_under_xdist() -> None:
     """The real ``~/.spec-kitty`` sentinel is untouched by an xdist run (SC-006).
 
-    Skips cleanly when WP04 isolation is not yet active (pre-WP04). Once active,
-    it captures the real sentinel's state, runs a parallel selection that writes
-    a sentinel via ``Path.home()``, and asserts the real path is unchanged.
+    Isolation is required on this branch (WP04 shipped long ago): asserts every
+    observed xdist worker resolved ``Path.home()`` away from the real home,
+    then captures the real sentinel's state, runs a parallel selection that
+    writes a sentinel via ``Path.home()``, and asserts the real path is
+    unchanged.
     """
     real_home = Path(os.environ[_REAL_HOME_ENV_VAR])
 
@@ -253,26 +248,21 @@ def test_no_real_home_mutation_under_xdist() -> None:
         stdout=detect_result.stdout, stderr=detect_result.stderr
     )
 
-    if not _isolation_active_from_homes(worker_homes, str(real_home)):
-        # Detection worked (we observed homes) and they equal the real home →
-        # WP04 isolation is genuinely not active yet. Clean, contingent skip.
-        pytest.skip(_SKIP_PRE_WP04)
+    assert _isolation_active_from_homes(worker_homes, str(real_home)), (
+        "Per-worker HOME isolation (WP04) has regressed: at least one xdist "
+        f"worker resolved Path.home() to the real home ({real_home!r}). "
+        f"Observed worker homes: {worker_homes!r}."
+    )
 
-    # WP04-gated body: only reachable once isolation lands (workers redirected).
-    # Pre-WP04 the skip above fires, so this block is intentionally uncovered on
-    # this branch — exactly like ratchet.py's real-pytest runner body. Its
-    # decision/compare logic is exercised pure-unit via _sentinel_unchanged and
-    # _isolation_active_from_homes above; the proof it BITES under simulated
-    # isolation is in the handoff note.
-    _assert_real_sentinel_untouched(real_home)  # pragma: no cover
+    _assert_real_sentinel_untouched(real_home)
 
 
-def _assert_real_sentinel_untouched(real_home: Path) -> None:  # pragma: no cover
-    """Post-isolation body: drive a parallel sentinel write and assert no real-home churn.
+def _assert_real_sentinel_untouched(real_home: Path) -> None:
+    """Drive a parallel sentinel write and assert no real-home churn.
 
-    Extracted so the WP04-gated path is a single named, excluded unit; it cannot
-    run pre-WP04 (the caller skips before reaching it). Covered for real once
-    WP04's isolation fixture lands and the skip transitions to an assertion.
+    Extracted as a single named unit so the isolation-mutation assertion has a
+    dedicated home; always reachable now that WP04's isolation fixture has
+    shipped and isolation is required, not merely detected-and-skipped.
     """
     real_sentinel = real_home / _SENTINEL_RELPATH
 
