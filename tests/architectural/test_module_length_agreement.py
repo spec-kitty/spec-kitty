@@ -96,6 +96,9 @@ from typing import Any
 
 import pytest
 
+import scripts.ci.shard_select as _shard_select
+from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR as _CONSUMER_MARKER_EXPR
+
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -103,12 +106,10 @@ _REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
 _TIMINGS_PATH = _REPO_ROOT / ".github" / "ci-shard-timings.json"
 _SCRIPTS_CI_DIR = _REPO_ROOT / "scripts" / "ci"
 
-# Mirrors `.github/workflows/module-tests.yml`'s "Select this shard's tests"
-# step's `pytest ... --collect-only -q` invocation verbatim. This MUST stay
-# byte-identical to the consumer's own marker expression, or this stops being
-# "what does the consumer actually collect" and quietly reverts to a
-# self-validating check against a different selection.
-_CONSUMER_MARKER_EXPR = "not performance and not stress"
+# The consumer's own marker expression, imported from the single shared
+# selector authority (`scripts/ci/shard_select.py`, C-010) -- this gate must
+# measure exactly what `module-tests.yml`'s select step collects, so it may not
+# carry a copy that could drift.
 
 # Frozen, shrink-only baseline (Standing Order #2): every module known to
 # mismatch as of 2026-09-22 -- the day this gate was minted -- with the
@@ -395,6 +396,12 @@ def test_charter_is_not_allowlisted_and_agrees(
             f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
             strict=_strict_mode(),
         )
+
+
+@pytest.mark.fast
+def test_consumer_marker_is_the_shared_selector_constant_not_a_copy() -> None:
+    """Identity, not equality: re-pinning the literal would be a second copy (C-010)."""
+    assert _CONSUMER_MARKER_EXPR is _shard_select.MODULE_SELECTION_MARKER_EXPR
 
 
 @pytest.mark.fast

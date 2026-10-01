@@ -48,6 +48,17 @@
 # Produces NO single merged `coverage.xml` — consumers (diff-cover here,
 # sonar.yml nightly) merge per-basename `coverage-*.xml` files as needed
 # (Sonar merges server-side via a comma-joined reportPaths list).
+#
+# SKIP-IF-GREEN RE-POINT (mission ci-runtime-stabilisation, FR-011). A CI
+# Modules skip run (a `ready_for_review` run whose tested identity already went
+# green) executes no shards and carries a `ci-green-match-run-<id>-attempt-<n>`
+# artifact naming the run it matched. The first `collect` step,
+# `effective-source`, re-verifies that marker (head, workflow, event, success
+# and tested identity), then every later source-run reference aggregates the
+# matched attempt instead. An unverifiable marker FAILS `collect` ("re-run CI
+# Modules to execute"), never an empty-selection green. A source without a
+# marker is aggregated exactly as before. `run-name` deliberately stays bound
+# to the skip run, because Fleet Verdict binds the aggregate by that title.
 
 name: CI Aggregate
 run-name: "CI Aggregate source ${{ github.event.workflow_run.id || inputs.source_run_id }} attempt ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}"
@@ -108,11 +119,25 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
+      - name: Resolve the effective source run (skip-if-green re-point; mission ci-runtime-stabilisation FR-011)
+        id: effective-source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          TRIGGER_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TRIGGER_RUN_ID" =~ ^[1-9][0-9]*$ && "$TRIGGER_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          python3 scripts/ci/green_match.py effective-source --transport gh \
+            --repository "$SOURCE_REPOSITORY" --run-id "$TRIGGER_RUN_ID" --attempt "$TRIGGER_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
       - name: Prepare exact source registry and diff (data only; trusted checkout stays in place)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_RUN_ID: ${{ steps.effective-source.outputs.run-id }}
+          SOURCE_RUN_ATTEMPT: ${{ steps.effective-source.outputs.run-attempt }}
           SOURCE_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
@@ -149,8 +174,8 @@ jobs:
         id: select-current
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_RUN_ID: ${{ steps.effective-source.outputs.run-id }}
+          SOURCE_RUN_ATTEMPT: ${{ steps.effective-source.outputs.run-attempt }}
           SOURCE_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
@@ -169,7 +194,7 @@ jobs:
           name: selected-modules
           path: out/aggregate/selected
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          run-id: ${{ steps.effective-source.outputs.run-id }}
 
       - name: Install PyYAML (registry parsing only, no editable install needed)
         # Moved ahead of the poll step below (PR-MERGED-001): wait_for_artifacts.py
@@ -191,8 +216,8 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
-          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_RUN_ID: ${{ steps.effective-source.outputs.run-id }}
+          SOURCE_RUN_ATTEMPT: ${{ steps.effective-source.outputs.run-attempt }}
           SOURCE_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
@@ -209,7 +234,7 @@ jobs:
           path: out/aggregate/current
           merge-multiple: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          run-id: ${{ steps.effective-source.outputs.run-id }}
 
       - name: Find the most-recent successful "CI Modules" run (stale-artefact fallback source)
         id: last-success

@@ -760,3 +760,53 @@ def test_ci_aggregate_embeds_stale_fallback_and_collision_guard_language() -> No
     assert has_fallback, "ci-aggregate.yml must implement the stale-artefact fallback for a shard that did not re-run"
     has_collision_guard = "collision" in text or "duplicate" in text
     assert has_collision_guard, "ci-aggregate.yml must guard a basename collision rather than silently dropping data"
+
+
+# ---------------------------------------------------------------------------
+# Skip-if-green re-point (mission ci-runtime-stabilisation, FR-011, WP17)
+# ---------------------------------------------------------------------------
+_EFFECTIVE_SOURCE_OUTPUTS = "steps.effective-source.outputs."
+_TRIGGER_RUN_REFERENCES = ("github.event.workflow_run.id", "inputs.source_run_id", "github.event.workflow_run.run_attempt", "inputs.source_run_attempt")
+_AGGREGATE_RUN_NAME = (
+    "CI Aggregate source ${{ github.event.workflow_run.id || inputs.source_run_id }}"
+    " attempt ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}"
+)
+
+
+def _collect_steps() -> list[dict[str, Any]]:
+    steps: list[dict[str, Any]] = _aggregate_yaml()["jobs"]["collect"]["steps"]
+    return steps
+
+
+def test_ci_aggregate_collect_resolves_effective_source_first() -> None:
+    """The first step after checkout resolves the effective source run through the WP16 helper."""
+    steps = [step for step in _collect_steps() if "actions/checkout" not in str(step.get("uses", ""))]
+    assert steps[0].get("id") == "effective-source", (
+        f"the first non-checkout collect step must be effective-source, found {steps[0].get('id') or steps[0].get('name')!r}"
+    )
+    assert "scripts/ci/green_match.py effective-source" in steps[0]["run"]
+
+
+def test_ci_aggregate_collect_reads_source_only_through_effective_source() -> None:
+    """No collect step reads the trigger's run id/attempt except effective-source (a missed reference would mix runs)."""
+    env_refs: list[str] = []
+    run_id_refs: list[str] = []
+    for step in _collect_steps():
+        if step.get("id") == "effective-source":
+            continue
+        values = [*map(str, step.get("env", {}).values()), str(step.get("with", {}).get("run-id", ""))]
+        for value in values:
+            assert not any(reference in value for reference in _TRIGGER_RUN_REFERENCES), (
+                f"step {step.get('id') or step.get('name')!r} reads the trigger run directly: {value!r}"
+            )
+        assert not {"TRIGGER_RUN_ID", "TRIGGER_RUN_ATTEMPT"} & set(step.get("env", {})), "TRIGGER_RUN_* belongs to effective-source only"
+        env_refs += [str(value) for key, value in step.get("env", {}).items() if key in {"SOURCE_RUN_ID", "SOURCE_RUN_ATTEMPT"}]
+        if "run-id" in step.get("with", {}) and step.get("id") != "download-previous":
+            run_id_refs.append(str(step["with"]["run-id"]))
+    assert len(env_refs) >= 6 and len(run_id_refs) >= 2, f"gate went vacuous: {len(env_refs)} env refs, {len(run_id_refs)} run-id refs"
+    assert all(_EFFECTIVE_SOURCE_OUTPUTS in value for value in [*env_refs, *run_id_refs]), "every source-run reference must read steps.effective-source.outputs.*"
+
+
+def test_ci_aggregate_run_name_stays_bound_to_the_trigger() -> None:
+    """Fleet Verdict binds the aggregate by the skip run's own display title (fleet_verdict.py): never re-point it."""
+    assert _aggregate_yaml()["run-name"] == _AGGREGATE_RUN_NAME
