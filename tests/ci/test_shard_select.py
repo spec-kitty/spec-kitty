@@ -26,6 +26,7 @@ import yaml
 
 from scripts.ci.shard_select import (
     EXIT_NO_TESTS,
+    EXIT_USAGE,
     MODULE_SELECTION_MARKER_EXPR,
     BatteryPartition,
     WeightResolution,
@@ -35,6 +36,7 @@ from scripts.ci.shard_select import (
     lpt_assign,
     lpt_loads,
     main,
+    parse_shard,
     report_mismatch,
     resolve_file_weights,
     resolve_module_test_dirs,
@@ -373,6 +375,35 @@ def test_main_reports_a_missing_test_directory_with_the_error_annotation_and_exi
     assert not fx.argv_log.exists(), "must not run the collector when there is nothing to collect"
 
 
+@pytest.mark.parametrize(("shard", "expected"), [("1/1", (1, 1)), ("1/3", (1, 3)), ("3/3", (3, 3)), ("2/10", (2, 10))])
+def test_parse_shard_accepts_one_based_indices_up_to_the_total(shard: str, expected: tuple[int, int]) -> None:
+    assert parse_shard(shard) == expected
+
+
+@pytest.mark.parametrize("shard", ["0/2", "3/2", "1/0", "0/0", "-1/2", "1/-2", "1", "", "/", "1/", "/2", "a/b", "1/2/3", " 1/2", "1.0/2"])
+def test_parse_shard_rejects_anything_but_i_over_n_with_1_le_i_le_n(shard: str) -> None:
+    """``0/2`` must not silently pick the last bin via ``[-1]`` and ``3/2`` must not IndexError."""
+    with pytest.raises(ValueError, match="1 <= i <= n"):
+        parse_shard(shard)
+
+
+@pytest.mark.parametrize("shard", ["0/2", "3/2", "1/0", "x/y", "2"])
+def test_main_rejects_a_malformed_shard_with_a_usage_error_and_selects_nothing(
+    shard: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fx = _fixture(tmp_path, monkeypatch, "alpha", ["tests/alpha/test_a.py::t0", "tests/alpha/test_a.py::t1"])
+
+    code = main(fx.argv("alpha", shard))
+
+    assert code == EXIT_USAGE == 2
+    assert code != EXIT_NO_TESTS
+    out = capsys.readouterr().out
+    assert out.startswith("::error::module-tests: ")
+    assert repr(shard) in out
+    assert not fx.out.exists(), "a bad shard must never write a selection"
+    assert not fx.argv_log.exists(), "must not run the collector for an invalid shard"
+
+
 def test_main_reports_zero_collected_tests_with_the_error_annotation_and_exit_64(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -677,6 +708,9 @@ _SYNTHETIC_TREE: dict[str, str] = {
     "pkg/sub/test_c.py": "def test_c():\n    pass\n",
     "pkg/conftest.py": "",
     "pkg/_helper.py": "def test_helper_should_not_count():\n    pass\n",
+    # pytest has no private-prefix rule: `*_test.py` matches, so this IS collected.
+    "pkg/_private_test.py": "def test_private():\n    pass\n",
+    "pkg/_test_private.py": "def test_private_prefix_form():\n    pass\n",
     "pkg/_fixtures/test_fixture_like.py": "def test_fixture_like():\n    pass\n",
     "pkg/.hidden/test_d.py": "def test_d():\n    pass\n",
     "pkg/__pycache__/test_e.cpython-312.pyc": "",
@@ -704,7 +738,7 @@ def test_enumerate_base_files_follows_pytests_default_collection_rules(tmp_path:
 
     enumerated = enumerate_base_files(["pkg"], deselect=("pkg/b_test.py",), root=tmp_path)
 
-    assert enumerated == ("pkg/_fixtures/test_fixture_like.py", "pkg/sub/test_c.py", "pkg/test_a.py")
+    assert enumerated == ("pkg/_fixtures/test_fixture_like.py", "pkg/_private_test.py", "pkg/sub/test_c.py", "pkg/test_a.py")
     # encode pytest's behaviour, not our belief about it
     assert list(enumerated) == _pytest_collected_files(tmp_path, "pkg", "--deselect", "pkg/b_test.py")
 
@@ -907,3 +941,37 @@ def test_battery_parts_cli_is_silent_when_every_file_has_a_timing(tmp_path: Path
     assert code == 0
     assert "::warning" not in out
     assert not summary.exists()
+
+
+def _shard_info_step() -> dict[str, Any]:
+    workflow = yaml.safe_load(_MODULE_TESTS_WORKFLOW.read_text(encoding="utf-8"))
+    steps = next(job["steps"] for job in workflow["jobs"].values() if any(s.get("id") == "shard-info" for s in job.get("steps", [])))
+    return next(step for step in steps if step.get("id") == "shard-info")
+
+
+def _run_shard_info(tmp_path: Path, shard: str) -> subprocess.CompletedProcess[str]:
+    output = tmp_path / "github_output"
+    output.write_text("", encoding="utf-8")
+    env = {"PATH": os.environ["PATH"], "SHARD": shard, "MODULE": "m", "ROOTS": "r", "COV_TARGET": "c", "GITHUB_OUTPUT": str(output)}
+    return subprocess.run(["bash", "-c", _shard_info_step()["run"]], env=env, capture_output=True, text=True, check=False)
+
+
+@pytest.mark.parametrize("shard", ["$(touch pwned)/2", "1/2; id", "0/2", "1/0", "a/b", "12", ""])
+def test_shard_info_refuses_a_malformed_shard_input(tmp_path: Path, shard: str) -> None:
+    """``inputs.shard`` feeds later steps; anything but ``N/M`` with positive integers fails the step."""
+    result = _run_shard_info(tmp_path, shard)
+    assert result.returncode == 1
+    assert "::error::module-tests: shard must be N/M" in result.stdout
+
+
+def test_shard_info_accepts_a_well_formed_shard_input(tmp_path: Path) -> None:
+    result = _run_shard_info(tmp_path, "3/12")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "github_output").read_text(encoding="utf-8").splitlines() == ["idx=3", "total=12", "slug=3-of-12"]
+
+
+def test_select_step_reads_the_shard_through_env_not_expression_interpolation() -> None:
+    workflow = yaml.safe_load(_MODULE_TESTS_WORKFLOW.read_text(encoding="utf-8"))
+    select = next(step for job in workflow["jobs"].values() for step in job.get("steps", []) if step.get("id") == "select")
+    assert "steps.shard-info.outputs" not in select["run"]
+    assert select["env"]["SHARD_IDX"] == "${{ steps.shard-info.outputs.idx }}"

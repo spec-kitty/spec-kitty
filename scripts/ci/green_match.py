@@ -39,6 +39,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import quote
 
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
@@ -63,6 +64,7 @@ REASON_RE_RUN = "re-run-never-suppressed"
 REASON_NO_GREEN_RUN = "no-green-run-for-key"
 REASON_MATCHED = "matched-green-run"
 REASON_LOOKUP_FAILED = "lookup-failed"
+REASON_HEAD_NOT_UNIQUE = "head-not-unique-to-pr"
 
 UNBOUND_PARENTS_MESSAGE = "tested merge parents do not bind the source run head"
 NO_MERGE_REFERENCE_MESSAGE = "source run lacks one immutable PR merge workflow reference"
@@ -111,6 +113,7 @@ class EventMeta:
     # unknown never matches.
     head_ref: str = ""
     head_repository: str = ""
+    base_ref: str = ""
 
 
 @dataclass(frozen=True)
@@ -245,14 +248,16 @@ def _has_marker(markers: Mapping[int, frozenset[str]], run_id: int, name: str) -
 
 
 def _bound_to_event(run: RunMeta, event: EventMeta) -> bool:
-    """The run belongs to THIS pull request: same head branch, head repository and PR number.
+    """The run's own identity matches this pull request's head and lists this PR number.
 
     The tested-key marker NAME is uploaded by a PR-controlled run, so on its own it
-    proves nothing about which PR produced it: a second PR on the same head SHA
-    (different base, modified workflow) could upload a forged name. The run object's
-    own identity is the binding. ``pull_requests`` is empty for fork PRs and for runs
-    GitHub no longer associates with the PR; empty or unknown means no match, so such
-    a run executes normally (fail-safe).
+    proves nothing about which PR produced it. This is the first of two bindings: the
+    run must share the event's head branch and head repository, and its
+    ``pull_requests`` must list this PR. That field is NOT proof of authorship: GitHub
+    fills it live with every open PR whose head matches, so a second PR from the same
+    branch (a different base, a modified workflow) lists both numbers. The second
+    binding, ``head_is_unique``, closes that. ``pull_requests`` is empty for fork PRs;
+    empty or unknown means no match, so such a run executes normally (fail-safe).
     """
     return (
         bool(event.head_ref)
@@ -261,6 +266,37 @@ def _bound_to_event(run: RunMeta, event: EventMeta) -> bool:
         and run.head_repository == event.head_repository
         and event.pr_number in run.pull_numbers
     )
+
+
+def head_is_unique(event: EventMeta, pulls: Any) -> bool:
+    """The head names exactly one PR ever opened from it, and that PR is this one.
+
+    ``pulls`` is the ``pulls?head=<owner>:<ref>&state=all&per_page=100`` listing. With
+    ``state=all`` a PR closed since still counts, so a forged second PR cannot be
+    hidden by closing it. Fail-safe: anything but exactly one well-formed entry for
+    this PR (a second PR, none, a non-list, or a full page that may hide more) is False.
+    """
+    if not isinstance(pulls, list) or len(pulls) != 1 or not isinstance(pulls[0], Mapping):
+        return False
+    pull = pulls[0]
+    base = pull.get("base")
+    head = pull.get("head")
+    return (
+        type(pull.get("number")) is int
+        and pull["number"] == event.pr_number
+        and bool(event.base_ref)
+        and isinstance(base, Mapping)
+        and base.get("ref") == event.base_ref
+        and isinstance(head, Mapping)
+        and head.get("sha") == event.head_sha
+    )
+
+
+def _head_pulls_path(event: EventMeta) -> str:
+    if not (event.head_ref and event.head_repository):
+        raise LookupFailure("event head identity is unknown")
+    owner = event.head_repository.split("/", 1)[0]
+    return f"pulls?head={quote(owner, safe='')}:{quote(event.head_ref, safe='/')}&state=all&per_page=100"
 
 
 def _is_candidate(run: RunMeta, event: EventMeta) -> bool:
@@ -282,8 +318,13 @@ def decide(
     tested: TestedKey | None,
     candidates: Sequence[RunMeta],
     markers: Mapping[int, frozenset[str]],
+    head_unique: Callable[[], bool] | None = None,
 ) -> Skip | Run:
-    """Skip only when a prior green run for the same tested key proves the work was done."""
+    """Skip only when a prior green run for the same tested key proves the work was done.
+
+    ``head_unique`` is consulted only once a candidate matches; it reports whether the
+    head identifies exactly this PR (``head_is_unique``). Absent or False means Run.
+    """
     if event.event_name != PULL_REQUEST:
         return Run(REASON_NOT_A_PULL_REQUEST, "")
     if tested is None:
@@ -296,6 +337,8 @@ def decide(
     eligible = sorted((run for run in candidates if _is_candidate(run, event)), key=lambda run: run.id, reverse=True)
     for run in eligible:
         if _has_marker(markers, run.id, key_marker):
+            if head_unique is None or not head_unique():
+                return Run(REASON_HEAD_NOT_UNIQUE, key_marker)
             return Skip(REASON_MATCHED, f"ci-green-match-run-{run.id}-attempt-{run.run_attempt}", run)
     return Run(REASON_NO_GREEN_RUN, key_marker)
 
@@ -334,14 +377,9 @@ def _decide(event: EventMeta, transport: Transport | None) -> tuple[Skip | Run, 
         if tested is None or isinstance(early, Skip) or early.reason != REASON_NO_GREEN_RUN:
             return early, tested
         candidates, markers = _gather_candidates(event, tested, api)
-        return decide(event, tested, candidates, markers), tested
+        return decide(event, tested, candidates, markers, lambda: head_is_unique(event, api.get(_head_pulls_path(event)))), tested
     except _LOOKUP_ERRORS as error:
         return Run(f"{REASON_LOOKUP_FAILED}: {type(error).__name__}", tested.marker_name if tested else ""), tested
-
-
-def decide_from_api(event: EventMeta, transport: Transport | None = None) -> Skip | Run:
-    """``decide`` over live API lookups; any lookup error becomes ``Run`` (never a skip)."""
-    return _decide(event, transport)[0]
 
 
 # ----------------------------------------------------------- effective-source (pure)
@@ -525,6 +563,7 @@ def event_from_environment(environ: Mapping[str, str], workflow_file: str) -> Ev
         repository=repository,
         head_ref=str(pull_request["head"].get("ref") or ""),
         head_repository=str(head_repo.get("full_name") or ""),
+        base_ref=str((pull_request.get("base") or {}).get("ref") or ""),
     )
 
 

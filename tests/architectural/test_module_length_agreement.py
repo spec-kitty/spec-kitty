@@ -82,16 +82,14 @@ so a missing artefact reds for the right reason.
 
 from __future__ import annotations
 
-import importlib.util
+import contextlib
 import json
 import os
 import subprocess
 import sys
 import warnings
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 import pytest
@@ -104,7 +102,6 @@ pytestmark = [pytest.mark.architectural]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
 _TIMINGS_PATH = _REPO_ROOT / ".github" / "ci-shard-timings.json"
-_SCRIPTS_CI_DIR = _REPO_ROOT / "scripts" / "ci"
 
 # The consumer's own marker expression, imported from the single shared
 # selector authority (`scripts/ci/shard_select.py`, C-010) -- this gate must
@@ -217,57 +214,24 @@ def _committed_length(timings: dict[str, Any], module: str) -> int:
     return len(values)
 
 
-@lru_cache(maxsize=1)
-def _load_capture_shard_timings_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    """Load ``scripts/ci/capture_shard_timings.py`` by file path.
+def _resolve_test_dirs(registry: dict[str, Any], module: str) -> tuple[str, ...]:
+    """The SHARD's own test-directory resolution, imported -- never reimplemented (C-010).
 
-    ``scripts/ci`` is not an importable package from this test's own import
-    root, so a bare ``import`` needs a directory on ``sys.path`` first. This
-    repo already settled on ``importlib.util.spec_from_file_location`` as the
-    canonical technique for that exact integration point --
-    ``tests/ci/test_capture_shard_timings.py``'s ``_load_module()`` (which
-    itself mirrors ``tests/ci/test_sonar_project_version.py``) -- specifically
-    to avoid a second mechanism mutating global ``sys.path``. Mirrored here
-    rather than reimplemented, per DIRECTIVE_044 (Canonical Sources and
-    Unification). Cached (``lru_cache``) because `_resolve_test_dirs` is
-    called once per registry module inside the session-scoped
-    `_collected_counts` fixture loop -- this keeps the module load to once per
-    session, matching what the prior `sys.path.insert` + bare `import` did via
-    Python's own `sys.modules` cache. The single ``monkeypatch`` argument
-    (the same ``pytest.MonkeyPatch.context()`` instance across the whole
-    `_collected_counts` loop) is part of the cache key, which is exactly what
-    keeps this a session-lifetime cache rather than fragmenting per call.
+    ``module-tests.yml`` resolves its directories through
+    ``scripts.ci.shard_select.resolve_module_test_dirs``; so does the recorder
+    (``capture_shard_timings.resolve_test_dirs`` delegates to it). This gate compares
+    the recorder's committed lengths against what the SHARD collects, so it resolves
+    through the shard's authority directly: resolving through the recorder would
+    check the recorder against itself. The resolver's ``isdir`` checks are
+    cwd-relative, so they are anchored at the repository root.
     """
-    spec = importlib.util.spec_from_file_location("capture_shard_timings", _SCRIPTS_CI_DIR / "capture_shard_timings.py")
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    # Register BEFORE exec: `@dataclass` resolves `sys.modules[cls.__module__]`
-    # while processing the class body, and an unregistered by-path module makes
-    # that lookup return None (AttributeError at import, on 3.11) -- same
-    # reasoning as `tests/ci/test_capture_shard_timings.py`'s `_load_module()`.
-    monkeypatch.setitem(sys.modules, spec.name, module)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _resolve_test_dirs(registry: dict[str, Any], module: str, monkeypatch: pytest.MonkeyPatch) -> tuple[str, ...]:
-    """The consumer's own test-directory resolution, imported -- never reimplemented.
-
-    `scripts/ci/capture_shard_timings.resolve_test_dirs` already mirrors
-    `module-tests.yml`'s precedence exactly (an explicit registry `test_dirs`
-    list is preferred over the `tests/{module}` default). Reimplementing that
-    precedence a third time here would risk exactly the kind of silent
-    divergence this gate exists to catch elsewhere.
-    """
-    _capture = _load_capture_shard_timings_module(monkeypatch)
-
-    result = _capture.resolve_test_dirs(registry, module)
-    # `_capture` is loaded by file path (see `_load_capture_shard_timings_module`'s docstring),
-    # so mypy sees its attributes as `Any` and cannot narrow this call's return type on its own.
-    # A runtime check (rather than a blind `cast`) keeps this test failing loudly, for the right
-    # reason, if the consumer's own `resolve_test_dirs` ever changes its return shape.
-    assert isinstance(result, tuple) and all(isinstance(item, str) for item in result), f"resolve_test_dirs returned unexpected shape: {result!r}"
-    return result
+    row = next((entry for entry in registry.get("modules", []) if entry.get("module") == module), None)
+    assert row is not None, f"module {module!r} is not a row in {_REGISTRY_PATH.name}"
+    declared = [str(entry) for entry in (row.get("test_dirs") or [])]
+    with contextlib.chdir(_REPO_ROOT):
+        resolved = tuple(_shard_select.resolve_module_test_dirs(module, json.dumps(declared)))
+    assert resolved, f"module {module!r} resolves to no existing test directory (declared: {declared}, mirror: tests/{module})"
+    return resolved
 
 
 def _live_collected_count(test_dirs: tuple[str, ...]) -> int:
@@ -335,12 +299,8 @@ def _live_timings_state() -> dict[str, Any]:
 def _collected_counts(_live_registry_state: dict[str, Any]) -> dict[str, int]:
     """Live-collect every registry module exactly once per pytest session."""
     counts: dict[str, int] = {}
-    # Session-scoped: not the function-scoped `monkeypatch` fixture, which a
-    # session-scoped fixture cannot depend on.
-    with pytest.MonkeyPatch.context() as mp:
-        for module in _registry_modules(_live_registry_state):
-            test_dirs = _resolve_test_dirs(_live_registry_state, module, mp)
-            counts[module] = _live_collected_count(test_dirs)
+    for module in _registry_modules(_live_registry_state):
+        counts[module] = _live_collected_count(_resolve_test_dirs(_live_registry_state, module))
     return counts
 
 
@@ -437,6 +397,25 @@ def test_allowlist_baseline_is_tight() -> None:
 def test_consumer_marker_is_the_shared_selector_constant_not_a_copy() -> None:
     """Identity, not equality: re-pinning the literal would be a second copy (C-010)."""
     assert _CONSUMER_MARKER_EXPR is _shard_select.MODULE_SELECTION_MARKER_EXPR
+
+
+@pytest.mark.fast
+def test_test_dirs_resolve_through_the_shard_resolver_not_the_recorder(monkeypatch: pytest.MonkeyPatch) -> None:
+    """C-010: the gate checks the RECORDER against the SHARD, so it must resolve dirs the shard's way.
+
+    Resolving through ``capture_shard_timings`` would check the recorder against itself.
+    """
+    calls: list[tuple[str, str]] = []
+
+    def _spy(module: str, registry_test_dirs_json: str) -> list[str]:
+        calls.append((module, registry_test_dirs_json))
+        return ["tests/unit"]
+
+    monkeypatch.setattr(_shard_select, "resolve_module_test_dirs", _spy)
+    registry = {"modules": [{"module": "alpha", "test_dirs": ["tests/a"]}]}
+
+    assert _resolve_test_dirs(registry, "alpha") == ("tests/unit",)
+    assert calls == [("alpha", json.dumps(["tests/a"]))]
 
 
 @pytest.mark.fast

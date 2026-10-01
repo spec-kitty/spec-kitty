@@ -867,7 +867,7 @@ special_tiers:
     # the plugin scripts/ci/battery_partition_plugin.py reads it at runtime (--battery-part).
     trigger: code_scoped        # pinned against gate_selection: shards.job is a code-shard job
     deserialized: true
-    workers: 4                  # CI only (C-005); the literal `-n 4` lands in the workflows with WP12
+    workers: 4                  # CI only (C-005); the battery workflows pass the literal `-n 4`
     base:
       paths: [tests/architectural]
       marker: "not performance and not stress and not timing"

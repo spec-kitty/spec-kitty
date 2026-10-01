@@ -36,7 +36,7 @@ workflow this module declines to call change-triggered is dropped from every
 assertion in it, silently, while the non-vacuity floor stays green. So
 :func:`change_triggered` is a closed world in the other direction -- it
 enumerates the events that are *not* per-change
-(:data:`NON_CHANGE_TRIGGER_EVENTS` plus a tags-only push) and treats everything
+(:data:`_workflow_jobs.NON_CHANGE_TRIGGER_EVENTS` plus a tags-only push) and treats everything
 else as in scope, including trigger spellings and ``on:`` shapes it cannot
 parse. The first draft of this module inverted that and lost nine spellings,
 ``on: [push, pull_request]`` among them; the exclusion set is now pinned by
@@ -105,7 +105,7 @@ item 3 below).
    ``xvfb-run`` / ``timeout N`` / ``<path>/pytest`` spellings now resolve, so
    they can no longer trip even this deny-list -- but it did not close the
    class.
-2. :data:`NON_CHANGE_TRIGGER_EVENTS` is now the only allow-list left in the
+2. :data:`_workflow_jobs.NON_CHANGE_TRIGGER_EVENTS` is now the only allow-list left in the
    module. Each of its four rows widens the blind spot by one event, which is
    why the exclusion ledger pins which live workflows they actually exclude.
 3. **Command-position indirection is refused, not closed** (WP06/T029b -- the
@@ -137,6 +137,11 @@ import pytest
 import yaml
 
 from tests.architectural import _gate_coverage as gc
+from tests.architectural._workflow_jobs import (
+    change_triggered,
+    enumerate_workflows,
+    normalized_triggers,
+)
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
@@ -157,41 +162,6 @@ RETIRING_JOB_VIA = "make test-fast"
 # workflow_run chain fires once per change, so a suite execution parked there
 # duplicates just as surely as one in the pull_request workflow itself.
 REPORTING_HOST_WORKFLOW = "ci-aggregate.yml"
-
-# Events that do NOT put a workflow on the per-change path.
-#
-# This is a CLOSED WORLD by deliberate inversion. An allow-list of per-change
-# events fails OPEN: every trigger spelling it has not heard of -- and
-# ``on: [push, pull_request]``, the most ordinary spelling in GitHub Actions, is
-# one of them -- silently drops its workflow out of every assertion in this
-# module. The two errors do not cost the same. A workflow wrongly called
-# per-change costs one reviewed ledger row; a workflow wrongly called NOT
-# per-change is invisible, which is exactly the "gate stays green while the tree
-# violates the property" failure this battery exists to make unrepeatable. So
-# anything not named here -- an unrecognised event, an ``on:`` block in a shape
-# this module cannot parse, a missing ``on:`` block -- counts as change-triggered.
-#
-# Every row below widens the blind spot and must earn its place:
-#   ``schedule``          a cron run is not a change (ci-nightly, sonar).
-#   ``workflow_dispatch`` a human-initiated run is not a change.
-#   ``workflow_call``     a reusable workflow has no triggers of its own; it is
-#                         spliced into its caller by ``load_spliced_workflow``,
-#                         so counting it standalone would double-count THE
-#                         matrix (module-tests.yml).
-#   ``release``           a publication event, like the tags-only push below.
-NON_CHANGE_TRIGGER_EVENTS: frozenset[str] = frozenset({"schedule", "workflow_dispatch", "workflow_call", "release"})
-
-# ``on.push`` keys that make a push a per-change event. Only a tags-only push
-# (``release.yml``) is exempt: tags are publication refs, whereas branch and
-# path filters select *changes*. A ``push:`` with no filters at all fires on
-# every push and is per-change too.
-PER_CHANGE_PUSH_FILTERS: tuple[str, ...] = (
-    "branches",
-    "branches-ignore",
-    "paths",
-    "paths-ignore",
-    "tags-ignore",
-)
 
 # Live workflows deliberately outside the per-change scan, each with the reason
 # it is not a change execution.
@@ -339,74 +309,6 @@ ACTIONS_DIR = gc.REPO_ROOT / ".github" / "actions"
 # ---------------------------------------------------------------------------
 # Pure relations
 # ---------------------------------------------------------------------------
-
-
-def normalized_triggers(data: dict[Any, Any]) -> dict[str, Any] | None:
-    """A workflow's ``on:`` block as ``event -> config``, or ``None`` if unreadable.
-
-    GitHub accepts three spellings -- a mapping, a list (``on: [push,
-    pull_request]``) and a bare string (``on: push``) -- and YAML 1.1 parses the
-    bare key ``on`` as the boolean ``True``, so the block also arrives under
-    either key depending on the loader's mood. The parameter is therefore
-    ``dict[Any, Any]`` and not ``dict[str, Any]``: a parsed workflow genuinely
-    does NOT have string keys throughout, and annotating it as if it did made
-    the ``data.get(True)`` lookup below an overload error under ``mypy
-    --strict`` (WP06/T029b -- no CI workflow runs mypy, so a green pipeline was
-    never evidence this was fine).
-
-    ``None`` means "this module does not understand the block". It is NOT the
-    same as "the block declares nothing": :func:`change_triggered` resolves it
-    to *visible*, never to *skipped*.
-    """
-    section = data.get("on", data.get(True))
-    if isinstance(section, dict):
-        return {str(event): config for event, config in section.items()}
-    if isinstance(section, str):
-        return {section: None}
-    if isinstance(section, list) and all(isinstance(item, str) for item in section):
-        return dict.fromkeys(section)
-    return None
-
-
-def push_is_per_change(config: Any) -> bool:
-    """Whether an ``on.push`` configuration fires per change.
-
-    Only a tags-only push is exempt. A bare ``push:``, a ``push:`` filtered by
-    branches or paths, and a ``push:`` of an unrecognised shape all fire per
-    change -- the last by the same fail-closed rule as everything else here.
-    """
-    if not isinstance(config, dict):
-        return True
-    if any(config.get(key) for key in PER_CHANGE_PUSH_FILTERS):
-        return True
-    return not config.get("tags")
-
-
-def change_triggered(path: Path) -> bool:
-    """Whether *path* runs once per change -- FAILING CLOSED on anything unfamiliar.
-
-    A workflow that is not change-triggered is invisible to every assertion in
-    this module, so "I could not classify this" must resolve to *visible*. The
-    workflow is excluded only when EVERY event it declares is a known
-    non-per-change event (:data:`NON_CHANGE_TRIGGER_EVENTS`, plus a tags-only
-    push); one unrecognised event, an unparseable ``on:`` block or no ``on:``
-    block at all puts it back in scope.
-    """
-    data = gc.load_spliced_workflow(path)
-    events = normalized_triggers(data) if isinstance(data, dict) else None
-    if not events:
-        return True
-    return any(push_is_per_change(config) if event == "push" else event not in NON_CHANGE_TRIGGER_EVENTS for event, config in events.items())
-
-
-def enumerate_workflows(workflows_dir: Path) -> list[Path]:
-    """Every workflow file in *workflows_dir*, read from the DIRECTORY.
-
-    Not from a closed list. ``_gate_coverage.WORKFLOW_FILES`` is an allowlist of
-    files known to run the suite; a net-new file is by definition not in it, and
-    a rule anchored to it would exempt exactly the case mutation 4 injects.
-    """
-    return sorted(workflows_dir.glob("*.yml")) + sorted(workflows_dir.glob("*.yaml"))
 
 
 def suite_invocations_per_leg(workflows_dir: Path, *, makefile: Path | None = None) -> dict[LegKey, int]:

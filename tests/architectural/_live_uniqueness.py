@@ -16,8 +16,8 @@ selection engine (:class:`_gate_coverage.CompiledGate`, D-044) -- no second auth
   run on Python 3.11 and the router / Packs jobs on 3.12, so an interpreter-keyed tier would
   put exactly the router-vs-module duplicates in different tiers and hide them.
 * **One per-change classifier** (C-010): :func:`change_triggered` and
-  :func:`enumerate_workflows` are imported from ``test_no_duplicate_suite_execution``, where
-  they live; the ledger test never imports this module (no cycle).
+  :func:`enumerate_workflows` are imported from :mod:`tests.architectural._workflow_jobs`, the
+  helper the duplicate-suite battery uses too -- never from a test module.
 
 ``python -m tests.architectural._live_uniqueness --workflows-dir DIR --summary`` prints every
 same-tier overlap (``pair -> count``) with NO allowlist and exits 1 when any exists: it is the
@@ -40,7 +40,7 @@ import yaml
 
 from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR, resolve_module_test_dirs
 from tests.architectural import _gate_coverage as gc
-from tests.architectural.test_no_duplicate_suite_execution import change_triggered, enumerate_workflows
+from tests.architectural._workflow_jobs import advisory_jobs, change_triggered, enumerate_workflows
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -53,6 +53,7 @@ __all__ = [
     "JobKey",
     "LiveJob",
     "OverlapAllowance",
+    "blocking_jobs",
     "expand_gate",
     "group_jobs",
     "label_of",
@@ -64,6 +65,7 @@ __all__ = [
     "reject_battery_internal_allowances",
     "stale_allowances",
     "uncovered_overlaps",
+    "unhomed",
 ]
 
 # ``(workflow, job, row-or-leg)``: the row is a registry module name for ``ci-modules.yml::test``
@@ -191,6 +193,17 @@ def per_change_jobs(workflows_dir: Path = gc.WORKFLOWS_DIR, registry_path: Path 
     return group_jobs(gates, rows)
 
 
+def blocking_jobs(jobs: Sequence[LiveJob], workflows_dir: Path = gc.WORKFLOWS_DIR) -> list[LiveJob]:
+    """The *jobs* that can fail the change: every job whose workflow does not declare it advisory.
+
+    Advisory = ``continue-on-error`` on the job, its reusable delegate, or a suite-running
+    step (:func:`_workflow_jobs.advisory_jobs`). A test only an advisory job selects has no
+    blocking home: its red never reaches the PR verdict.
+    """
+    advisory = {(path.name, name) for path in enumerate_workflows(workflows_dir) for name in advisory_jobs(path)}
+    return [job for job in jobs if (job.key[0], job.key[1]) not in advisory]
+
+
 # ---------------------------------------------------------------------------
 # Selection and overlap
 # ---------------------------------------------------------------------------
@@ -199,6 +212,13 @@ def per_change_jobs(workflows_dir: Path = gc.WORKFLOWS_DIR, registry_path: Path 
 def selected_by_job(jobs: Sequence[LiveJob], universe: Sequence[gc.TestRecord]) -> dict[JobKey, frozenset[str]]:
     """Node-ids each job selects: one ``CompiledGate`` evaluation per job over the one universe."""
     return {job.key: gc._selected_nodeids(job.gates, universe) for job in jobs}
+
+
+def unhomed(marker: str, jobs: Sequence[LiveJob], universe: Sequence[gc.TestRecord]) -> frozenset[str]:
+    """Node-ids carrying *marker* that none of *jobs* selects (``CompiledGate`` over the one universe)."""
+    marked = [record for record in universe if marker in record["markers"]]
+    selected = gc._selected_nodeids([gate for job in jobs for gate in job.gates], marked)
+    return frozenset(record["nodeid"] for record in marked) - selected
 
 
 def pairwise_overlaps(jobs: Sequence[LiveJob], selected: Mapping[JobKey, frozenset[str]]) -> Overlaps:

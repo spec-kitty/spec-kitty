@@ -372,6 +372,17 @@ def test_stop_does_not_signal_a_pid_that_is_not_the_sampler(tmp_path: Path, fake
         bystander.wait()
 
 
+@pytest.mark.parametrize("raw_pid", ["0", "1"])
+def test_stop_never_signals_pid_zero_or_one(tmp_path: Path, raw_pid: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``kill(0, ...)`` signals our own process group and ``kill(1, ...)`` targets init; neither is a sampler."""
+    sent: list[int] = []
+    monkeypatch.setattr(mod.os, "kill", lambda pid, sig: sent.append(pid))
+    out = tmp_path / "ms.json"
+    (tmp_path / "ms.json.pid").write_text(raw_pid, encoding="utf-8")
+    mod._terminate_sampler(out)
+    assert sent == []
+
+
 def test_pid_is_sampler_identity_check(tmp_path: Path) -> None:
     assert mod._pid_is_sampler(os.getpid()) is False  # pytest, not the sampler
     assert mod._pid_is_sampler(2**22 + 12345) is True  # no /proc entry -> cannot verify -> proceed

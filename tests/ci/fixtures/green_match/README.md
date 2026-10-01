@@ -26,3 +26,12 @@ listed its PR (run 36895215854: `{base, head, id, number, url}`), with the numbe
 head SHA set to this fixture's PR. Negative contract rows (forged-from-other-PR, different head
 branch, different head repository, missing or empty `pull_requests`) derive from this object
 by replacing one field.
+
+`pulls-by-head.json` is the head-uniqueness listing. It was recorded with
+`gh api 'repos/spec-kitty/spec-kitty/pulls?head=spec-kitty:fix/nightly-reds-5505-5506-5507&state=all&per_page=100'`
+(2026-10-01) and trimmed with `jq` to `number`, `state`, `base.ref`, `base.sha`, `head.ref`,
+`head.sha` and `head.repo.full_name`. The recorded `head.sha` is the PR's final head, so it is
+set to this fixture's `HEAD`. The "second PR on the same head" object that the negative rows
+add (`other_pull()` in `test_green_match.py`) is synthesized over this recorded PR object: a
+different `number`, `state: closed` and a different `base.ref`. The shape is recorded; those
+values are synthesized.

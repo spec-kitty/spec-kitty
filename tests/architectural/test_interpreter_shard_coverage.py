@@ -51,6 +51,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import functools
+import inspect
 import itertools
 import os
 import re
@@ -576,13 +577,16 @@ def _collect_memo(
     """Collect one selection's node-ids ONCE per file (FR-006).
 
     Keyed on the selection-relevant fields only (``Gate`` is mutable and
-    unhashable, and ``gate.job`` does not change what is collected). The value
-    is an immutable tuple of node-id strings -- findings, never collected items.
+    unhashable, and ``gate.job`` does not change what is collected). ``repo_root``
+    is part of the key AND is the root the collection actually runs under (it is
+    passed through to ``collect_job_nodeids``), so the key can never name a
+    different tree than the one collected. The value is an immutable tuple of
+    node-id strings -- findings, never collected items.
     ``collect_job_nodeids`` is resolved from module globals at CALL time, so a
     test that monkeypatches it still wins.
     """
     gate = Gate(workflow="ci-nightly.yml", job="<memo>", shard=None, paths=list(paths), ignores=list(ignores), marker_expr=marker_expr)
-    return tuple(collect_job_nodeids(gate))
+    return tuple(collect_job_nodeids(gate, repo_root))
 
 
 def _memo_collect(gate: Gate) -> list[str]:
@@ -714,7 +718,7 @@ def _install_fake_collect_job_nodeids(
     -- runs against the small synthetic world instead of shelling out to a
     real (slow) pytest collection."""
 
-    def _fake(gate: Gate) -> list[str]:
+    def _fake(gate: Gate, repo_root: Path | None = None) -> list[str]:
         if gate.job == _FULL_SELECTION_GATE.job:
             return sorted(full_ids)
         return sorted(per_shard_ids.get(gate.job, set()))
@@ -811,7 +815,7 @@ def _install_counting_collector(
     """
     calls: dict[_SelectionKey, int] = {}
 
-    def _counting(gate: Gate) -> list[str]:
+    def _counting(gate: Gate, repo_root: Path | None = None) -> list[str]:
         key = _selection_key(gate)
         calls[key] = calls.get(key, 0) + 1
         return sorted(ids_by_selection.get(key, set()))
@@ -887,6 +891,65 @@ def test_real_consumers_collect_each_selection_once(monkeypatch: pytest.MonkeyPa
     assert {key: count for key, count in calls.items() if count != 1} == {}, f"a consumer that bypasses the memo collects a selection twice (FR-006): {calls}"
 
 
+@pytest.mark.usefixtures("isolated_collect_memo")
+def test_collect_memo_is_released_by_the_module_finalizer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-006: the module-scoped finalizer empties the collection memo at file end.
+
+    The finalizer's generator is driven directly (set-up half, then teardown
+    half) over a warmed memo; the isolation fixture guarantees the real memo is
+    empty again afterwards. Deleting the ``cache_clear()`` call from the fixture
+    leaves the memo populated and fails this test.
+    """
+    world = _consistent_fake_world()
+    _install_counting_collector(monkeypatch, world)
+    for key in world:
+        _collect_memo(REPO_ROOT.resolve(), *key)
+    assert _collect_memo.cache_info().currsize == len(world), "sanity: the memo is warm"
+
+    finalizer = inspect.unwrap(_clear_collect_memo)()
+    assert next(finalizer) is None
+    assert _collect_memo.cache_info().currsize == len(world), "set-up must not clear the memo; only teardown does"
+    with pytest.raises(StopIteration):
+        next(finalizer)
+
+    assert _collect_memo.cache_info().currsize == 0
+
+
+@pytest.mark.usefixtures("isolated_collect_memo")
+def test_memo_collect_passes_the_keyed_root_to_the_collector(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The memo key's ``repo_root`` is the root the collector actually runs under, never an unused label."""
+    seen_roots: list[Path | None] = []
+
+    def _recording(gate: Gate, repo_root: Path | None = None) -> list[str]:
+        seen_roots.append(repo_root)
+        return ["a::t"]
+
+    monkeypatch.setattr(sys.modules[__name__], "collect_job_nodeids", _recording)
+    gate = _shard_gate(INTERPRETER_SHARDS[0])
+    other_root = Path("/nonexistent/other-root")
+
+    _memo_collect(gate)
+    _collect_memo(other_root, tuple(gate.paths), tuple(gate.ignores), gate.marker_expr)
+
+    assert seen_roots == [REPO_ROOT.resolve(), other_root], seen_roots
+
+
+@pytest.mark.usefixtures("isolated_collect_memo")
+def test_memo_collect_does_not_share_entries_between_gates_differing_only_in_ignores(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two gates identical but for ``ignores`` are different selections: each collects, neither is served the other's ids."""
+    base = _shard_gate(INTERPRETER_SHARDS[0])
+    plain = dataclasses.replace(base, paths=["tests/unit"], ignores=[])
+    narrowed = dataclasses.replace(base, paths=["tests/unit"], ignores=["tests/unit/slow"])
+    world = {_selection_key(plain): {"plain::t"}, _selection_key(narrowed): {"narrowed::t"}}
+    calls = _install_counting_collector(monkeypatch, world)
+
+    assert _memo_collect(plain) == ["plain::t"]
+    assert _memo_collect(narrowed) == ["narrowed::t"]
+    assert _memo_collect(plain) == ["plain::t"]
+
+    assert sum(calls.values()) == 2, f"each distinct selection collects exactly once, got {calls}"
+
+
 def test_the_isolation_leaves_an_empty_memo_after_a_test_seeds_the_real_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pin: a test that warms the memo UNDER THE REAL KEYS leaves nothing behind -- also when it raises."""
     world = _consistent_fake_world()
@@ -917,7 +980,7 @@ def test_the_isolation_leaves_an_empty_memo_after_a_test_seeds_the_real_keys(mon
 # ---------------------------------------------------------------------------
 
 _EMPTY_COLLECTION_PLUGIN = """
-def _collects_nothing(gate):
+def _collects_nothing(gate, repo_root=None):
     return []
 
 

@@ -151,6 +151,10 @@ jobs:
         run: |
           set -euo pipefail
           shard="$SHARD"
+          if [[ ! "$shard" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]]; then
+            echo "::error::module-tests: shard must be N/M with positive integers, got '$shard'"
+            exit 1
+          fi
           idx="${shard%%/*}"
           total="${shard##*/}"
           slug="${idx}-of-${total}"
@@ -172,6 +176,8 @@ jobs:
         env:
           MODULE: ${{ inputs.module }}
           TEST_DIRS: ${{ inputs.test_dirs }}
+          SHARD_IDX: ${{ steps.shard-info.outputs.idx }}
+          SHARD_TOTAL: ${{ steps.shard-info.outputs.total }}
         run: |
           set -euo pipefail
           venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
@@ -183,7 +189,7 @@ jobs:
           # within a shard (the suite is not intra-shard xdist-safe).
           "$venv_python" -m scripts.ci.shard_select module \
             --module "$MODULE" \
-            --shard "${{ steps.shard-info.outputs.idx }}/${{ steps.shard-info.outputs.total }}" \
+            --shard "$SHARD_IDX/$SHARD_TOTAL" \
             --test-dirs "$TEST_DIRS" \
             --python "$venv_python" \
             --out shard_tests.txt

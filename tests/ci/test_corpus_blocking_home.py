@@ -1,23 +1,26 @@
-"""Red-first pins for the blocking home of the orphaned corpus tests (WP10, D-13/D-22).
+"""The blocking per-PR home of corpus tests (WP10, D-13/D-22; live since the #5510 arch fold).
 
-Packs owns the ``-m corpus`` suite as ADVISORY (FR-009). That left 40 corpus-marked
-node-ids with no other blocking per-PR home: the whole of
-``tests/contract/test_example_round_trip.py`` and
-``tests/integration/test_mission_review_contract_gate.py`` (both trees are outside
-the module matrix) plus the single ``performance``-marked class
-``tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance`` (the other
-363 corpus tests of that file are already run by the ``charter`` module row).
+Packs owns the ``-m corpus`` suite as ADVISORY (FR-009: job-level ``continue-on-error``).
+A corpus test that no OTHER non-advisory per-PR job selects therefore has no blocking home:
+its red never reaches the PR verdict. D-22 gives those orphans one required router job,
+``tests (corpus-blocking)``, gated only on the router ``corpus`` group, and Packs' advisory
+corpus run deselects exactly that job's selections so nothing executes twice. At the time of
+writing the orphans are the whole of ``tests/contract/test_example_round_trip.py`` and
+``tests/integration/test_mission_review_contract_gate.py`` (both outside the module matrix)
+plus the ``performance``-marked class ``TestShippedProfilesPerformance`` (the module shard
+marker deselects it from the ``charter`` row).
 
-D-22 gives them one required router job, ``tests (corpus-blocking)``, gated only on the
-router ``corpus`` group, and Packs' advisory corpus run deselects exactly those
-selections so nothing executes twice. This module pins that from REAL collection
-(``gc.collect_job_nodeids``, the established authority) -- never a hand count:
-
-* the 40 are selected by exactly one required router job, and by it alone;
-* no advisory job (the Packs corpus run) selects any of them;
-* no module-matrix row selects any of them;
-* ``corpus`` is a gated filter group again (WP09's transitional exemption is gone);
-* the job's ``if:`` is evaluated semantically, not by substring.
+* **Live, never a snapshot** (:func:`test_every_corpus_test_has_a_blocking_per_pr_home`):
+  the orphans are computed from one real collection -- corpus-marked tests minus those any
+  non-advisory per-change job selects (:func:`_live_uniqueness.blocking_jobs`, the same
+  per-change job model and ``CompiledGate`` selection the uniqueness gate uses) -- and must
+  be exactly the corpus-blocking job's selection. A new corpus test anywhere only Packs
+  reaches goes red here. Positive controls plant a synthetic orphan and prove the advisory
+  exclusion is load-bearing.
+* **Derived wiring pins** (fast, real ``--collect-only`` over the job's own selections):
+  the job's selections are READ from ``ci-router.yml``, never restated; exactly one router job
+  selects them, no Packs job does, Packs deselects each one individually, no module row runs
+  them, ``corpus`` is a gated filter group, and the job's ``if:`` is evaluated semantically.
 """
 
 from __future__ import annotations
@@ -32,6 +35,7 @@ import yaml
 from scripts.ci.coverage_guard_lib import registry_rows, resolve_test_dirs
 from scripts.ci.gate_selection import load_router
 from tests.architectural import _gate_coverage as gc
+from tests.architectural import _live_uniqueness as lu
 from tests.architectural import test_workflow_coherence
 from tests.ci._gh_if import BASE_CONTEXT_ALL_FALSE, eval_gh_if
 
@@ -40,32 +44,33 @@ pytestmark = pytest.mark.fast
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 
+_ROUTER = "ci-router.yml"
 _JOB = "tests-corpus-blocking"
+_JOB_KEY: lu.JobKey = (_ROUTER, _JOB, None)
+_CORPUS_MARKER = "corpus"
 _PERFORMANCE_CLASS = "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
-_BLOCKING_SELECTION: tuple[str, ...] = (
-    "tests/contract/test_example_round_trip.py",
-    "tests/integration/test_mission_review_contract_gate.py",
-    _PERFORMANCE_CLASS,
-)
 _MARKER = "corpus and not windows_ci"
-_EXPECTED_COUNT = 40
 _PACKS_CORPUS_JOB = "built-in-corpus-suite"
+_PACKS_CORPUS_KEY: lu.JobKey = ("packs.yml", _PACKS_CORPUS_JOB, None)
 _MODULE_MARKER_RE = re.compile(r'-m\s+"(?P<expr>[^"]+)"')
+_FINDINGS_SHOWN = 10
+
+
+def _blocking_selection() -> tuple[str, ...]:
+    """The corpus-blocking job's positional selections, READ from ``ci-router.yml`` (never restated)."""
+    return tuple(_gate_of(_ROUTER, _JOB).paths)
 
 
 def _selection_probe(marker_expr: str | None) -> gc.Gate:
-    """A probe gate over the three blocking selections under *marker_expr*."""
-    return gc.Gate(workflow="probe", job="probe", shard=None, paths=list(_BLOCKING_SELECTION), marker_expr=marker_expr)
+    """A probe gate over the blocking job's selections under *marker_expr*."""
+    return gc.Gate(workflow="probe", job="probe", shard=None, paths=list(_blocking_selection()), marker_expr=marker_expr)
 
 
 @pytest.fixture(scope="module")
 def expected_nodeids() -> frozenset[str]:
     """The REAL collected node-ids of the blocking selection under the corpus marker."""
     nodeids = frozenset(gc.collect_job_nodeids(_selection_probe(_MARKER)))
-    assert len(nodeids) == _EXPECTED_COUNT, (
-        f"the corpus-blocking selection collects {len(nodeids)} node-ids, expected {_EXPECTED_COUNT}: "
-        "a corpus test was added to or removed from one of the three selections -- update _EXPECTED_COUNT consciously"
-    )
+    assert nodeids, "non-vacuity: the corpus-blocking job's selections must collect corpus tests"
     return nodeids
 
 
@@ -73,7 +78,7 @@ _collected_by_marker: dict[str | None, frozenset[str]] = {}
 
 
 def _collected_under(marker_expr: str | None) -> frozenset[str]:
-    """Real node-ids of the three selections under *marker_expr* (cached per marker)."""
+    """Real node-ids of the blocking job's selections under *marker_expr* (cached per marker)."""
     if marker_expr not in _collected_by_marker:
         _collected_by_marker[marker_expr] = frozenset(gc.collect_job_nodeids(_selection_probe(marker_expr)))
     return _collected_by_marker[marker_expr]
@@ -122,17 +127,17 @@ def _router_jobs() -> dict[str, Any]:
 def test_exactly_one_required_router_job_selects_the_orphans(expected_nodeids: frozenset[str]) -> None:
     selecting = _selecting_jobs("ci-router.yml", expected_nodeids)
 
-    assert set(selecting) == {_JOB}, f"the 40 must be selected by exactly one router job, got {sorted(selecting)}"
-    assert selecting[_JOB] == expected_nodeids, "the corpus-blocking job must select ALL 40 node-ids"
+    assert set(selecting) == {_JOB}, f"the orphans must be selected by exactly one router job, got {sorted(selecting)}"
+    assert selecting[_JOB] == expected_nodeids, "the corpus-blocking job must select ALL of its corpus node-ids"
     assert _JOB in _router_jobs()["router-gate"]["needs"], "the corpus-blocking job must be in router-gate.needs (that is what makes it blocking)"
 
 
-def test_the_blocking_job_runs_the_corpus_marker_over_exactly_the_three_selections() -> None:
-    gate = _gate_of("ci-router.yml", _JOB)
+def test_the_blocking_job_runs_the_corpus_marker_over_explicit_selections() -> None:
+    gate = _gate_of(_ROUTER, _JOB)
 
     assert gate.marker_expr == _MARKER
-    assert sorted(gate.paths) == sorted(_BLOCKING_SELECTION)
-    assert not gate.ignores, "the blocking job deselects nothing: it must run all 40"
+    assert gate.paths, "the blocking job must name its selections (an empty path list would run the whole tree)"
+    assert not gate.ignores, "the blocking job deselects nothing: it must run every orphan it names"
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +149,7 @@ def test_no_advisory_job_selects_the_orphans(expected_nodeids: frozenset[str]) -
         workflow="probe",
         job="probe",
         shard=None,
-        paths=list(_BLOCKING_SELECTION),
+        paths=list(_blocking_selection()),
         ignores=list(corpus_gate.ignores),
         marker_expr=corpus_gate.marker_expr,
     )
@@ -155,10 +160,10 @@ def test_no_advisory_job_selects_the_orphans(expected_nodeids: frozenset[str]) -
     assert _selecting_jobs("packs.yml", expected_nodeids) == {}, "no Packs job may select a blocking node-id"
 
 
-def test_packs_deselects_each_of_the_three_selections_individually(expected_nodeids: frozenset[str]) -> None:
+def test_packs_deselects_each_blocking_selection_individually(expected_nodeids: frozenset[str]) -> None:
     """Dropping any ONE deselect leaks exactly that selection's node-ids back into Packs."""
     corpus_gate = _gate_of("packs.yml", _PACKS_CORPUS_JOB)
-    for dropped in _BLOCKING_SELECTION:
+    for dropped in _blocking_selection():
         remaining = [entry for entry in corpus_gate.ignores if entry != dropped]
         assert len(remaining) == len(corpus_gate.ignores) - 1, f"Packs must deselect {dropped!r} exactly once"
         probe = gc.Gate(workflow="probe", job="probe", shard=None, paths=[dropped], ignores=remaining, marker_expr=_MARKER)
@@ -207,3 +212,81 @@ def test_the_blocking_job_if_is_evaluated_semantically() -> None:
     for group in ("docs", "architectural", "ci_config", "cli"):
         other = {**all_false, f"changes.{group}": True}
         assert eval_gh_if(job["if"], other) is False, f"{group} alone must not select the corpus-blocking job"
+
+
+# ---------------------------------------------------------------------------
+# live: every corpus test has a blocking per-PR home
+# ---------------------------------------------------------------------------
+def _blocking_home_gaps(jobs: list[lu.LiveJob], universe: list[gc.TestRecord]) -> tuple[frozenset[str], frozenset[str]]:
+    """``(unhomed, double_homed)`` corpus node-ids over *universe*.
+
+    *unhomed*: corpus tests no non-advisory per-change job selects at all (the corpus-blocking
+    job included) -- they run only in an advisory lane, or nowhere. *double_homed*: tests the
+    corpus-blocking job selects although another non-advisory job already runs them.
+    """
+    blocking = lu.blocking_jobs(jobs)
+    home = [job for job in blocking if job.key == _JOB_KEY]
+    assert home, f"{lu.label_of(_JOB_KEY)} must be a non-advisory per-change job"
+    orphans = lu.unhomed(_CORPUS_MARKER, [job for job in blocking if job.key != _JOB_KEY], universe)
+    corpus = [record for record in universe if _CORPUS_MARKER in record["markers"]]
+    homed_by_job = lu.selected_by_job(home, corpus)[_JOB_KEY]
+    return orphans - homed_by_job, homed_by_job - orphans
+
+
+@pytest.fixture(scope="module")
+def live_jobs() -> list[lu.LiveJob]:
+    return lu.per_change_jobs()
+
+
+@pytest.fixture(scope="module")
+def live_universe() -> list[gc.TestRecord]:
+    return gc.collect_universe()
+
+
+@pytest.mark.slow
+def test_every_corpus_test_has_a_blocking_per_pr_home(live_jobs: list[lu.LiveJob], live_universe: list[gc.TestRecord]) -> None:
+    """Live: corpus tests minus every non-advisory per-change selection == the corpus-blocking job's selection."""
+    corpus = [record for record in live_universe if _CORPUS_MARKER in record["markers"]]
+    assert corpus, "non-vacuity: the live universe must carry corpus-marked tests"
+    unhomed, double_homed = _blocking_home_gaps(live_jobs, live_universe)
+
+    assert not unhomed, (
+        f"{len(unhomed)} corpus test(s) have no blocking per-PR home (only the advisory Packs lane, or nothing, runs them); "
+        f"add their file to {lu.label_of(_JOB_KEY)} and deselect it from Packs: {sorted(unhomed)[:_FINDINGS_SHOWN]}"
+    )
+    assert not double_homed, (
+        f"{lu.label_of(_JOB_KEY)} selects {len(double_homed)} corpus test(s) another blocking job already runs "
+        f"(double execution): {sorted(double_homed)[:_FINDINGS_SHOWN]}"
+    )
+
+
+def _planted_record(relpath: str, *markers: str) -> gc.TestRecord:
+    return {"nodeid": f"{relpath}::test_planted", "relpath": relpath, "markers": [_CORPUS_MARKER, *markers]}
+
+
+_PLANTED_ORPHAN = _planted_record("tests/planted_corpus/test_orphan.py")
+
+
+def test_positive_control_a_corpus_test_only_packs_reaches_is_reported(live_jobs: list[lu.LiveJob]) -> None:
+    """A corpus test outside every blocking job (Packs, advisory, still selects it) goes red."""
+    packs = [job for job in live_jobs if job.key == _PACKS_CORPUS_KEY]
+    assert lu.selected_by_job(packs, [_PLANTED_ORPHAN])[_PACKS_CORPUS_KEY], "control premise: the advisory Packs run selects the plant"
+
+    unhomed, double_homed = _blocking_home_gaps(live_jobs, [_PLANTED_ORPHAN])
+
+    assert unhomed == {_PLANTED_ORPHAN["nodeid"]}
+    assert not double_homed
+
+
+def test_positive_control_the_advisory_exclusion_is_load_bearing(live_jobs: list[lu.LiveJob]) -> None:
+    """Counting the advisory Packs job as a home (the old ``_gate_coverage`` view) would hide the plant."""
+    assert lu.unhomed(_CORPUS_MARKER, live_jobs, [_PLANTED_ORPHAN]) == frozenset(), "every job, advisory included, homes it"
+    assert lu.unhomed(_CORPUS_MARKER, lu.blocking_jobs(live_jobs), [_PLANTED_ORPHAN]) == {_PLANTED_ORPHAN["nodeid"]}
+    assert _PACKS_CORPUS_KEY not in {job.key for job in lu.blocking_jobs(live_jobs)}, "Packs' corpus run is advisory"
+
+
+def test_negative_control_a_corpus_test_in_a_blocking_selection_is_homed(live_jobs: list[lu.LiveJob]) -> None:
+    """A new corpus test inside the job's selections is homed by it -- no frozen count to bump."""
+    planted = _planted_record(next(entry for entry in _blocking_selection() if "::" not in entry))
+
+    assert _blocking_home_gaps(live_jobs, [planted]) == (frozenset(), frozenset())

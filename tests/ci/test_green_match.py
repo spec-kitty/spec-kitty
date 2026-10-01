@@ -35,6 +35,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "green_match"
 REPOSITORY = "spec-kitty/spec-kitty"
 HEAD = "a5cd2d26a5f9384d639a9eea0d6cae8afdaf1506"
 HEAD_REF = "fix/nightly-reds-5505-5506-5507"
+BASE_REF = "main"
 BASE = "ecb5dd914af5de025b00cadeabb2bbc32066ed02"
 MERGE = "a8f4ac8c897fee4067d20ddfb5552a03a1650d27"
 OTHER_BASE = "f" * 40
@@ -64,8 +65,22 @@ def make_event(**overrides: Any) -> green_match.EventMeta:
         repository=REPOSITORY,
         head_ref=HEAD_REF,
         head_repository=REPOSITORY,
+        base_ref=BASE_REF,
     )
     return dataclasses.replace(base, **overrides)
+
+
+def unique_pulls() -> list[dict[str, Any]]:
+    """The recorded ``pulls?head=`` listing: exactly this PR (see the fixtures README)."""
+    return list(load("pulls-by-head.json"))
+
+
+def other_pull(**overrides: Any) -> dict[str, Any]:
+    """A second PR from the same head, synthesized over the recorded PR object."""
+    pull: dict[str, Any] = json.loads(json.dumps(unique_pulls()[0]))
+    pull.update(number=PR + 1, state="closed", base=dict(pull["base"], ref="release/b2"))
+    pull.update(overrides)
+    return pull
 
 
 def make_candidate(**overrides: Any) -> green_match.RunMeta:
@@ -111,6 +126,8 @@ class Row:
     kind: type
     reason: str
     marker: str
+    # The ``pulls?head=`` listing the uniqueness check sees; ``None`` means the recorded unique one.
+    head_pulls: Any = None
 
 
 def run_row(
@@ -166,15 +183,34 @@ ROWS["N16c-different-head-repository"] = run_row(candidate={"head_repository": "
 ROWS["N16d-pull-requests-not-listed"] = run_row(candidate={"pull_numbers": ()}, reason=NO_GREEN)
 ROWS["N16e-event-head-ref-unknown"] = run_row(event={"head_ref": ""}, candidate={"head_branch": ""}, reason=NO_GREEN)
 ROWS["N16f-event-head-repository-unknown"] = run_row(event={"head_repository": ""}, candidate={"head_repository": ""}, reason=NO_GREEN)
-ROWS["P1b-other-pr-listed-alongside"] = Row(
-    {},
-    KEY,
-    [dataclasses.replace(GOOD, pull_numbers=(PR + 1, PR))],
-    GOOD_MARKERS,
-    green_match.Skip,
-    "matched-green-run",
-    f"ci-green-match-run-{GOOD.id}-attempt-{GOOD.run_attempt}",
-)
+# Uniqueness: ``pull_requests`` is live (every open PR with this head), so the head itself must name one PR.
+HEAD_NOT_UNIQUE = "head-not-unique-to-pr"
+
+
+def uniqueness_row(pulls: Any, *, kind: type = green_match.Run, **overrides: Any) -> Row:
+    """A matching candidate (marker present, bound to this PR) whose head listing is ``pulls``."""
+    cand = dataclasses.replace(GOOD, pull_numbers=(PR + 1, PR))
+    reason, marker = (
+        ("matched-green-run", f"ci-green-match-run-{GOOD.id}-attempt-{GOOD.run_attempt}") if kind is green_match.Skip else (HEAD_NOT_UNIQUE, KEY.marker_name)
+    )
+    return Row(overrides.get("event", {}), KEY, [cand], GOOD_MARKERS, kind, reason, marker, pulls)
+
+
+ROWS["P1b-other-pr-listed-alongside"] = uniqueness_row([unique_pulls()[0], other_pull(state="open")])
+ROWS["P1c-other-closed-pr-on-the-same-head"] = uniqueness_row([unique_pulls()[0], other_pull()])
+ROWS["N17-only-other-pr-on-the-head"] = uniqueness_row([other_pull()])
+ROWS["N17b-no-pr-on-the-head"] = uniqueness_row([])
+ROWS["N17c-head-listing-not-a-list"] = uniqueness_row({"message": "Not Found"})
+ROWS["N17d-head-listing-entry-not-an-object"] = uniqueness_row(["5509"])
+ROWS["N17e-full-page-may-hide-more"] = uniqueness_row([unique_pulls()[0]] * 100)
+ROWS["N17f-base-ref-differs"] = uniqueness_row([dict(unique_pulls()[0], base={"ref": "release/b2"})])
+ROWS["N17g-base-ref-missing"] = uniqueness_row([{k: v for k, v in unique_pulls()[0].items() if k != "base"}])
+ROWS["N17h-head-sha-differs"] = uniqueness_row([dict(unique_pulls()[0], head=dict(unique_pulls()[0]["head"], sha="1" * 40))])
+ROWS["N17i-head-missing"] = uniqueness_row([{k: v for k, v in unique_pulls()[0].items() if k != "head"}])
+ROWS["N17j-number-is-a-string"] = uniqueness_row([dict(unique_pulls()[0], number=str(PR))])
+ROWS["N17k-number-is-a-bool"] = uniqueness_row([dict(unique_pulls()[0], number=True)])
+ROWS["N17l-event-base-ref-unknown"] = uniqueness_row([dict(unique_pulls()[0], base={"ref": ""})], event={"base_ref": ""})
+ROWS["P1d-exactly-this-pr-on-the-head"] = uniqueness_row(unique_pulls(), kind=green_match.Skip)
 ROWS["P1-single-match"] = Row({}, KEY, [GOOD], GOOD_MARKERS, green_match.Skip, "matched-green-run", f"ci-green-match-run-{GOOD.id}-attempt-{GOOD.run_attempt}")
 ROWS["P2-newest-of-many"] = Row(
     {},
@@ -188,7 +224,9 @@ ROWS["P2-newest-of-many"] = Row(
 
 
 def evaluate(row: Row) -> green_match.Skip | green_match.Run:
-    return green_match.decide(make_event(**row.event), row.tested, row.candidates, row.markers)
+    event = make_event(**row.event)
+    pulls = unique_pulls() if row.head_pulls is None else row.head_pulls
+    return green_match.decide(event, row.tested, row.candidates, row.markers, lambda: green_match.head_is_unique(event, pulls))
 
 
 @pytest.mark.parametrize("row", [pytest.param(row, id=name) for name, row in ROWS.items()])
@@ -253,6 +291,21 @@ def test_decide_mutation_control_each_identity_binding_conjunct_carries_the_deci
     assert isinstance(evaluate(ROWS[row]), green_match.Skip)
 
 
+@pytest.mark.parametrize("name", [name for name in ROWS if name.startswith(("P1b", "P1c", "N17"))])
+def test_decide_mutation_control_head_uniqueness_check_carries_the_decision(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dropping the uniqueness check lets every ambiguous-head row go green wrongly (Skip)."""
+    assert isinstance(evaluate(ROWS[name]), green_match.Run)
+    monkeypatch.setattr(green_match, "head_is_unique", lambda event, pulls: True)
+    assert isinstance(evaluate(ROWS[name]), green_match.Skip)
+
+
+def test_decide_without_a_uniqueness_check_never_skips() -> None:
+    row = ROWS["P1-single-match"]
+    result = green_match.decide(make_event(), row.tested, row.candidates, row.markers)
+    assert isinstance(result, green_match.Run)
+    assert (result.reason, result.marker) == (HEAD_NOT_UNIQUE, KEY.marker_name)
+
+
 @pytest.mark.parametrize("name", [name for name in ROWS if name.startswith("N16")])
 def test_decide_mutation_control_identity_binding_as_a_whole(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(evaluate(ROWS[name]), green_match.Run)
@@ -288,6 +341,7 @@ class FakeTransport:
 
 CANDIDATES_PATH = f"actions/workflows/{WORKFLOW}/runs?event=pull_request&head_sha={HEAD}&status=success&per_page=100"
 COMMIT_PATH = f"git/commits/{MERGE}"
+PULLS_PATH = f"pulls?head=spec-kitty:{HEAD_REF}&state=all&per_page=100"
 
 
 def marker_path(run_id: int, name: str) -> str:
@@ -299,19 +353,62 @@ def api_routes(**overrides: Any) -> dict[str, Any]:
         COMMIT_PATH: load("commit-merge-5509.json"),
         CANDIDATES_PATH: load("workflow-runs-by-head.json"),
         marker_path(GOOD.id, KEY.marker_name): {"artifacts": [artifact_record(KEY.marker_name)]},
+        PULLS_PATH: unique_pulls(),
     }
     routes.update(overrides)
     return routes
 
 
 def decide_api(transport: FakeTransport, **event: Any) -> green_match.Skip | green_match.Run:
-    return green_match.decide_from_api(make_event(**event), transport)
+    # ``_decide`` is the exact function the ``decide`` command (``_decide_command``) runs in production.
+    return green_match._decide(make_event(**event), transport)[0]
 
 
 def test_api_p1_end_to_end_over_recorded_shapes() -> None:
     result = decide_api(FakeTransport(api_routes()))
     assert isinstance(result, green_match.Skip)
     assert (result.reason, result.marker) == ("matched-green-run", f"ci-green-match-run-{GOOD.id}-attempt-1")
+
+
+def test_api_head_listing_is_requested_only_once_a_candidate_matches() -> None:
+    matched = FakeTransport(api_routes())
+    assert isinstance(decide_api(matched), green_match.Skip)
+    assert matched.requested.count(PULLS_PATH) == 1
+    unmatched = FakeTransport(api_routes(**{marker_path(GOOD.id, KEY.marker_name): {"artifacts": []}}))
+    assert isinstance(decide_api(unmatched), green_match.Run)
+    assert PULLS_PATH not in unmatched.requested
+
+
+def test_api_second_pr_from_the_same_branch_blocks_the_skip_even_after_it_closed() -> None:
+    """A write-access attacker's PR 2 (other base, forged marker) lists [N, N+1] on the run; once closed it lists [N]."""
+    run = recorded_run()
+    run["pull_requests"] = [dict(run["pull_requests"][0], number=PR + 1), run["pull_requests"][0]]
+    routes = routes_with_run(run)
+    routes[PULLS_PATH] = [unique_pulls()[0], other_pull()]
+    result = decide_api(FakeTransport(routes))
+    assert isinstance(result, green_match.Run)
+    assert (result.reason, result.marker) == (HEAD_NOT_UNIQUE, KEY.marker_name)
+    routes[PULLS_PATH] = unique_pulls()
+    assert isinstance(decide_api(FakeTransport(routes)), green_match.Skip)
+
+
+def test_api_head_listing_error_runs_normally() -> None:
+    result = decide_api(FakeTransport(api_routes(**{PULLS_PATH: green_match.LookupFailure("gh API request failed (exit 1)")})))
+    assert isinstance(result, green_match.Run)
+    assert result.reason.startswith("lookup-failed: ")
+    assert result.marker == KEY.marker_name
+
+
+def test_api_head_listing_path_is_url_encoded() -> None:
+    odd = "feat/a b#c&d"
+    event = make_event(head_ref=odd, head_repository="Some-Owner/repo")
+    assert green_match._head_pulls_path(event) == "pulls?head=Some-Owner:feat/a%20b%23c%26d&state=all&per_page=100"
+
+
+@pytest.mark.parametrize("event", [{"head_ref": ""}, {"head_repository": ""}], ids=["no-ref", "no-repository"])
+def test_head_listing_path_needs_a_known_head(event: dict[str, str]) -> None:
+    with pytest.raises(green_match.LookupFailure):
+        green_match._head_pulls_path(make_event(**event))
 
 
 def test_api_n10_expired_marker_runs() -> None:
@@ -744,7 +841,10 @@ def test_cli_effective_source_rejects_a_source_run_that_is_not_the_requested_att
 def decide_env(tmp_path: Path, *, action: str = "ready_for_review", event_name: str = "pull_request", attempt: str = "1") -> dict[str, str]:
     payload = tmp_path / "event.json"
     payload.write_text(
-        json.dumps({"action": action, "pull_request": {"number": PR, "head": {"sha": HEAD, "ref": HEAD_REF, "repo": {"full_name": REPOSITORY}}}}), encoding="utf-8"
+        json.dumps(
+            {"action": action, "pull_request": {"number": PR, "head": {"sha": HEAD, "ref": HEAD_REF, "repo": {"full_name": REPOSITORY}}, "base": {"ref": BASE_REF}}}
+        ),
+        encoding="utf-8",
     )
     return {
         "GITHUB_EVENT_NAME": event_name,
@@ -797,7 +897,7 @@ def test_cli_decide_run_records_the_tested_key_marker(tmp_path: Path) -> None:
 
 def test_event_from_environment_reads_the_head_identity(tmp_path: Path) -> None:
     event = green_match.event_from_environment(decide_env(tmp_path), WORKFLOW)
-    assert (event.head_ref, event.head_repository) == (HEAD_REF, REPOSITORY)
+    assert (event.head_ref, event.head_repository, event.base_ref) == (HEAD_REF, REPOSITORY, BASE_REF)
 
 
 @pytest.mark.parametrize("head", [{"sha": HEAD}, {"sha": HEAD, "ref": HEAD_REF, "repo": None}], ids=["no-ref-no-repo", "head-repo-deleted"])
@@ -815,6 +915,14 @@ def test_cli_decide_forged_other_pr_run_runs_and_records_the_marker(tmp_path: Pa
     assert run_decide(tmp_path, decide_env(tmp_path), FakeTransport(routes_with_run(forged))) == 0
     outputs = read_outputs(tmp_path)
     assert (outputs["skip"], outputs["reason"], outputs["marker"]) == ("false", NO_GREEN, KEY.marker_name)
+
+
+def test_cli_decide_second_pr_on_the_same_head_runs_and_records_the_marker(tmp_path: Path) -> None:
+    routes = api_routes(**{PULLS_PATH: [unique_pulls()[0], other_pull()]})
+    assert run_decide(tmp_path, decide_env(tmp_path), FakeTransport(routes)) == 0
+    outputs = read_outputs(tmp_path)
+    assert (outputs["skip"], outputs["reason"], outputs["marker"]) == ("false", HEAD_NOT_UNIQUE, KEY.marker_name)
+    assert (tmp_path / "markers" / f"{KEY.marker_name}.json").exists()
 
 
 def test_cli_decide_non_pull_request_writes_no_marker(tmp_path: Path) -> None:

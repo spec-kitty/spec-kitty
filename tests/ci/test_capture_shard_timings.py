@@ -30,6 +30,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 import yaml
@@ -125,10 +126,50 @@ def test_module_resolving_to_no_existing_directory_raises(capture_shard_timings:
         capture_shard_timings.resolve_test_dirs(registry, "ghost")
 
 
+def test_resolution_delegates_to_the_shard_select_authority(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C-010: the recorder resolves through ``shard_select.resolve_module_test_dirs``, never a copy."""
+    calls: list[tuple[str, str]] = []
+
+    def _spy(module: str, registry_test_dirs_json: str) -> list[str]:
+        calls.append((module, registry_test_dirs_json))
+        return ["tests/unit"]
+
+    monkeypatch.setattr(capture_shard_timings, "resolve_module_test_dirs", _spy)
+    registry = {"modules": [{"module": "alpha", "test_dirs": ["tests/a", "tests/b"]}]}
+
+    assert capture_shard_timings.resolve_test_dirs(registry, "alpha") == ("tests/unit",)
+    assert calls == [("alpha", json.dumps(["tests/a", "tests/b"]))]
+
+
+def test_vanished_declared_dirs_fall_back_to_the_mirror_like_the_consumer(capture_shard_timings: ModuleType) -> None:
+    """The consumer's precedence, not a private one: no existing declared dir -> the ``tests/<module>`` mirror."""
+    registry = {"modules": [{"module": "unit", "test_dirs": ["tests/does-not-exist"]}]}
+    assert capture_shard_timings.resolve_test_dirs(registry, "unit") == ("tests/unit",)
+
+
+def test_resolution_is_independent_of_the_working_directory(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The shared resolver tests ``os.path.isdir`` relative to cwd; the recorder anchors it at the repo root."""
+    monkeypatch.chdir(tmp_path)
+    assert capture_shard_timings.resolve_test_dirs({"modules": [{"module": "unit"}]}, "unit") == ("tests/unit",)
+
+
+def test_every_registry_row_resolves_exactly_as_the_shard_does(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live: for every registry row the recorder's dirs equal what ``module-tests.yml`` collects."""
+    from scripts.ci.shard_select import resolve_module_test_dirs
+
+    registry = yaml.safe_load((_REPO_ROOT / ".github" / "ci-module-registry.yml").read_text(encoding="utf-8"))
+    monkeypatch.chdir(_REPO_ROOT)
+    rows = registry["modules"]
+    assert rows, "non-vacuity: the registry must carry module rows"
+    for row in rows:
+        expected = tuple(resolve_module_test_dirs(row["module"], json.dumps(row.get("test_dirs") or [])))
+        assert capture_shard_timings.resolve_test_dirs(registry, row["module"]) == expected, row["module"]
+
+
 # ---------------------------------------------------------------------------
 # merge_capture — the three parallel tables stay in lockstep
 # ---------------------------------------------------------------------------
-def _capture(capture_shard_timings: ModuleType, module: str, durations: tuple[float, ...]):
+def _capture(capture_shard_timings: ModuleType, module: str, durations: tuple[float, ...]) -> Any:
     return capture_shard_timings.ModuleCapture(
         module=module,
         test_dirs=("tests/unit",),
@@ -283,13 +324,14 @@ def test_classname_prefers_the_longest_prefix_when_both_match(capture_shard_timi
     assert capture_shard_timings.resolve_junit_classname("tests.x.TestY", base) == "tests/x.py"
 
 
-def test_junit_file_seconds_sums_testcase_time_per_file(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
+def test_junit_capture_sums_testcase_time_per_file(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
     one = _write_junit(
         tmp_path, "one.xml", ("tests.architectural.test_a", 1.5), ("tests.architectural.test_a.TestY", 0.25), ("tests.architectural.sub.test_c", 2.0)
     )
     two = _write_junit(tmp_path, "two.xml", ("tests.architectural.test_a", 0.5), ("tests.architectural.test_b", 3.0))
-    seconds = capture_shard_timings.junit_file_seconds([one, two], _BASE)
-    assert seconds == {"tests/architectural/test_a.py": 2.25, "tests/architectural/sub/test_c.py": 2.0, "tests/architectural/test_b.py": 3.0}
+    capture = capture_shard_timings.junit_capture([one, two], _BASE)
+    assert capture.unresolved == 0
+    assert capture.seconds == {"tests/architectural/test_a.py": 2.25, "tests/architectural/sub/test_c.py": 2.0, "tests/architectural/test_b.py": 3.0}
 
 
 def test_unresolved_testcases_are_counted_never_guessed(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
@@ -297,7 +339,6 @@ def test_unresolved_testcases_are_counted_never_guessed(capture_shard_timings: M
     capture = capture_shard_timings.junit_capture([xml], _BASE)
     assert capture.seconds == {"tests/architectural/test_a.py": 1.0}
     assert capture.unresolved == 2
-    assert capture_shard_timings.junit_file_seconds([xml], _BASE) == capture.seconds
 
 
 def test_median_across_runs_uses_only_the_runs_a_file_appears_in(capture_shard_timings: ModuleType) -> None:
@@ -326,7 +367,7 @@ def _battery_provenance(**overrides: object) -> dict[str, object]:
 
 
 def test_merge_battery_capture_replaces_both_battery_tables_together(capture_shard_timings: ModuleType) -> None:
-    payload = {
+    payload: dict[str, Any] = {
         "module_test_durations": {"unit": [1.0]},
         "module_capture_provenance": {"unit": {"run_id": "x"}},
         "battery_file_durations": {"architectural": {"old.py": 9.0}, "other": {"k": 1.0}},

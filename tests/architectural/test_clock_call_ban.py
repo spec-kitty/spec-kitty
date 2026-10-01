@@ -36,6 +36,7 @@ from __future__ import annotations
 import ast
 import contextlib
 import functools
+import inspect
 import os
 import re
 import subprocess
@@ -652,3 +653,29 @@ def test_a_memo_seeding_test_cannot_green_wash_a_following_real_consumer(tmp_pat
 
     assert result.returncode == 1, f"the consumer was served the seed test's fake findings and passed on a real violation:\n{result.stdout}{result.stderr}"
     assert re.search(r"^FAILED \S+::test_no_banned_wall_clock_call_outside_the_door", result.stdout, re.MULTILINE), result.stdout
+
+
+def test_tree_call_sites_cache_is_released_by_the_module_finalizer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-006: the module-scoped finalizer empties the whole-tree scan cache at file end.
+
+    The finalizer's generator is driven directly (set-up half, then teardown
+    half) against a stub cache, so the real ``_tree_call_sites`` is never cleared
+    mid-file. Deleting the ``cache_clear()`` call from the fixture leaves the stub
+    populated and fails this test.
+    """
+
+    @functools.cache
+    def _stub() -> int:
+        return 1
+
+    _stub()
+    assert _stub.cache_info().currsize == 1
+    monkeypatch.setattr(sys.modules[__name__], "_tree_call_sites", _stub)  # resolved at call time by the fixture
+
+    finalizer = inspect.unwrap(_clear_tree_call_sites)()
+    assert next(finalizer) is None
+    assert _stub.cache_info().currsize == 1, "set-up must not clear the cache; only teardown does"
+    with pytest.raises(StopIteration):
+        next(finalizer)
+
+    assert _stub.cache_info().currsize == 0

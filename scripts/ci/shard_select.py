@@ -33,6 +33,7 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import statistics
 import subprocess
 import sys
@@ -46,6 +47,7 @@ __all__ = [
     "DEFAULT_PYTHON_FILES",
     "DEFAULT_TIMINGS_PATH",
     "EXIT_NO_TESTS",
+    "EXIT_USAGE",
     "MODULE_SELECTION_MARKER_EXPR",
     "NORECURSE_DIR_PATTERNS",
     "BatteryPartition",
@@ -56,6 +58,7 @@ __all__ = [
     "lpt_assign",
     "lpt_loads",
     "main",
+    "parse_shard",
     "report_mismatch",
     "resolve_file_weights",
     "resolve_module_test_dirs",
@@ -69,6 +72,9 @@ MODULE_SELECTION_MARKER_EXPR: Final = "not performance and not stress"
 
 #: Exit status for "nothing to select" -- the legacy heredoc's value.
 EXIT_NO_TESTS: Final = 64
+
+#: Exit status for a malformed command line (a bad ``--shard``): argparse's own usage-error status.
+EXIT_USAGE: Final = 2
 
 DEFAULT_TIMINGS_PATH: Final = ".github/ci-shard-timings.json"
 DEFAULT_OUT_PATH: Final = "shard_tests.txt"
@@ -91,7 +97,6 @@ _MAX_NAMES_LISTED: Final = 10
 _FAST_PART: Final = "fast"
 _NO_TIMINGS_REASON: Final = "no timings for this key \N{EM DASH} uniform weights"
 _CONFTEST: Final = "conftest.py"
-_PRIVATE_PREFIX: Final = "_"
 
 
 def _least_loaded(loads: Sequence[float]) -> int:
@@ -224,7 +229,8 @@ def _is_norecurse_dir(name: str) -> bool:
 
 
 def _is_collectable_test_file(name: str, python_files: Sequence[str]) -> bool:
-    if name == _CONFTEST or name.startswith(_PRIVATE_PREFIX):
+    # pytest has no private-prefix rule: with the default ``python_files`` an ``_x_test.py`` IS collected.
+    if name == _CONFTEST:
         return False
     return any(fnmatch.fnmatchcase(name, pattern) for pattern in python_files)
 
@@ -252,7 +258,7 @@ def enumerate_base_files(
 
     Mirrors pytest's default collection: it walks each of *paths* under *root*,
     skips :data:`NORECURSE_DIR_PATTERNS`, keeps basenames matching *python_files*
-    and drops ``conftest.py`` and ``_``-prefixed files. Only whole-file *deselect*
+    and drops ``conftest.py``. Only whole-file *deselect*
     entries apply; a node-level entry (containing ``::``) removes tests, not a
     file, so it cannot change the file set and is ignored here.
     """
@@ -337,9 +343,21 @@ def _load_durations(timings_path: str, module: str) -> list[float]:
     return list(timings.get("module_test_durations", {}).get(module, []))
 
 
-def _parse_shard(shard: str) -> tuple[int, int]:
-    idx_text, _, total_text = shard.partition("/")
-    return int(idx_text), int(total_text)
+_SHARD_SPEC: Final = re.compile(r"([0-9]+)/([0-9]+)")
+
+
+def parse_shard(shard: str) -> tuple[int, int]:
+    """Parse a 1-based ``i/n`` shard spec (``1 <= i <= n``); raise :class:`ValueError` otherwise.
+
+    ``0/2`` would otherwise select the last bin through ``[-1]`` and ``3/2`` would raise an
+    ``IndexError``; both are a mis-wired matrix row and must fail loudly instead.
+    """
+    match = _SHARD_SPEC.fullmatch(shard)
+    if match:
+        idx, total = int(match.group(1)), int(match.group(2))
+        if 1 <= idx <= total:
+            return idx, total
+    raise ValueError(f"shard {shard!r} is not 'i/n' with 1 <= i <= n")
 
 
 def _error(message: str) -> int:
@@ -348,7 +366,11 @@ def _error(message: str) -> int:
 
 
 def _select_module(args: argparse.Namespace) -> int:
-    idx, total = _parse_shard(args.shard)
+    try:
+        idx, total = parse_shard(args.shard)
+    except ValueError as exc:
+        print(f"::error::{_LOG_PREFIX}: {exc}")
+        return EXIT_USAGE
     test_dirs = resolve_module_test_dirs(args.module, args.test_dirs)
     if not test_dirs:
         return _error(f"no test directory found for module {args.module!r} (looked for tests/{args.module} or the registry's test_dirs)")

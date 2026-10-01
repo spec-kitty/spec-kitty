@@ -31,6 +31,7 @@ import yaml
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
 from scripts.ci.prose_only import prose_only_pr_verdict
 from tests.architectural import _ci_integrity_oracle as oracle
+from tests.ci._gh_if import eval_gh_value
 
 pytestmark = pytest.mark.fast
 
@@ -132,16 +133,70 @@ def test_ci_config_gates_only_the_battery() -> None:
     assert {job for job, groups in load_router().job_gates.items() if _GROUP in groups} == gated
 
 
-def test_ci_config_is_a_top_level_changes_output_with_the_non_src_fold() -> None:
-    """The output folds like ``architectural``; it never reads the push event."""
-    match = re.search(r"^\s+ci_config: (\$\{\{.*\}\})$", _ROUTER_TEXT, re.MULTILINE)
+def _ci_config_fold_expr(text: str = _ROUTER_TEXT) -> str:
+    """The raw ``changes.outputs.ci_config`` expression from a router workflow text."""
+    return str(yaml.safe_load(text)["jobs"]["changes"]["outputs"][_GROUP])
 
-    assert match, "ci-router.yml `changes.outputs` must expose ci_config"
-    fold = match.group(1)
-    assert "inputs.mode == 'full'" in fold
-    assert "steps.unmatched.outputs.unmatched == 'true'" in fold
-    assert "steps.filter.outputs.ci_config" in fold
-    assert "github.event_name" not in fold
+
+def _fold_context(mode: str, unmatched: str, filter_value: str) -> dict[str, str]:
+    return {
+        "inputs.mode": mode,
+        "steps.unmatched.outputs.unmatched": unmatched,
+        f"steps.filter.outputs.{_GROUP}": filter_value,
+    }
+
+
+#: One truth-table row: the three inputs the fold reads and the output GitHub must produce.
+_FoldRow = tuple[str, str, str, str]
+
+
+def _fold_rows() -> list[_FoldRow]:
+    """Every input combination: full mode, the unmatched catch-all, the ci_config filter verdict."""
+    return [
+        (mode, unmatched, flt, "true" if (mode == "full" or unmatched == "true") else flt)
+        for mode in ("full", "pr", "")
+        for unmatched in ("true", "false")
+        for flt in ("true", "false")
+    ]
+
+
+_FOLD_ROWS = _fold_rows()
+_FOLD_PARAMS = [pytest.param(*row, id=f"mode={row[0] or 'empty'}-unmatched={row[1]}-filter={row[2]}") for row in _FOLD_ROWS]
+
+
+@pytest.mark.parametrize(("mode", "unmatched", "filter_value", "expected"), _FOLD_PARAMS)
+def test_ci_config_output_folds_like_architectural_semantically(mode: str, unmatched: str, filter_value: str, expected: str) -> None:
+    """Full mode or an unmatched src change forces ``true``; otherwise the filter verdict passes through.
+
+    Evaluated with GitHub value semantics (not substring checks), so ``||`` -> ``&&`` or a dropped
+    term goes red. The context models no ``github.event_name``: an expression that starts reading
+    the push event fails the evaluator's unmodeled-context assertion (the fold never reads it).
+    """
+    context = _fold_context(mode, unmatched, filter_value)
+
+    assert eval_gh_value(_ci_config_fold_expr(), context) == expected
+
+
+def test_ci_config_fold_matches_the_architectural_fold_on_the_whole_truth_table() -> None:
+    """The sibling non-src group folds identically (the A1 ``like architectural`` claim, semantically)."""
+    outputs = yaml.safe_load(_ROUTER_TEXT)["jobs"]["changes"]["outputs"]
+    for mode, unmatched, flt, _expected in _FOLD_ROWS:
+        ci_config = eval_gh_value(str(outputs[_GROUP]), _fold_context(mode, unmatched, flt))
+        arch_context = {**_fold_context(mode, unmatched, flt), "steps.filter.outputs.architectural": flt}
+        assert ci_config == eval_gh_value(str(outputs["architectural"]), arch_context)
+
+
+@pytest.mark.parametrize("which", [0, 1], ids=["inner-or", "outer-or"])
+def test_ci_config_fold_or_to_and_mutation_is_caught_by_the_truth_table(which: int) -> None:
+    """Mutation control: turning either ``||`` of the live fold into ``&&`` must disagree with the table."""
+    live = _ci_config_fold_expr()
+    positions = [match.start() for match in re.finditer(re.escape("||"), live)]
+    assert len(positions) == 2, "the fold has exactly two || operators"
+    cut = positions[which]
+    mutated = live[:cut] + "&&" + live[cut + 2 :]
+    disagreements = [row for row in _FOLD_ROWS if eval_gh_value(mutated, _fold_context(*row[:3])) != row[3]]
+
+    assert disagreements, "the truth table must go red when a || of the fold becomes &&"
 
 
 def test_unmapped_src_change_still_runs_everything_with_ci_config_selected(router: Router) -> None:

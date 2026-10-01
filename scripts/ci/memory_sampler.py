@@ -432,7 +432,8 @@ def _terminate_sampler(out: Path) -> None:
     if raw is None or not raw.strip().isdigit():
         return
     pid = int(raw.strip())
-    if not _pid_is_sampler(pid):
+    # pid 0 / 1 would signal our own process group / init, never a sampler.
+    if pid <= 1 or not _pid_is_sampler(pid):
         return
     try:
         os.kill(pid, signal.SIGTERM)

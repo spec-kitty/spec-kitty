@@ -122,8 +122,23 @@ jobs:
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # On a pull_request this job runs PR code next to `actions: read`, so the token must not stay in
+          # .git/config. On push (trusted main, no PR code) dorny/paths-filter fetches the base commit over
+          # git and needs it; every other step here is API- or local-git-only.
+          persist-credentials: ${{ github.event_name != 'pull_request' }}
       - name: Skip-if-green on ready-for-review (selection-step suppression; FR-011)
         id: green
+        if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
+        continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/green_match.py decide --workflow ci-router.yml --marker-dir "$RUNNER_TEMP/green-match"
+      - name: Record the tested-key marker (every other pull_request action; never skips)
+        id: green-key
+        if: github.event_name == 'pull_request' && github.event.action != 'ready_for_review'
         continue-on-error: true
         # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
         timeout-minutes: 3
@@ -296,12 +311,12 @@ jobs:
             echo "unmatched=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Upload the skip-if-green marker (tested key or matched run)
-        if: steps.green.outputs.marker != ''
+        if: steps.green.outputs.marker != '' || steps.green-key.outputs.marker != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ steps.green.outputs.marker }}
+          name: ${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}
           # BY OUTPUT NAME, never the whole directory: a stale JSON body must not ride along.
-          path: ${{ runner.temp }}/green-match/${{ steps.green.outputs.marker }}.json
+          path: ${{ runner.temp }}/green-match/${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}.json
           retention-days: 30
           if-no-files-found: error
           # A re-run attempt re-uploads under the same name; the default would fail it.
