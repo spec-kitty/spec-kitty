@@ -717,11 +717,11 @@ out_of_matrix_test_dirs:
 
 - reason: >-
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
-    grep, analysis/evidence/pop_b_marker_grep.txt): both pytest.mark.performance and
-    pytest.mark.stress VERIFIED present. Real marker homes are ci-nightly.yml's
-    performance-and-e2e job (-m performance and -m "stress and not windows_ci",
-    #3595/#4698) -- no per-PR lane selects this directory; not a disguised snapshot
-    (#2979 class).
+    grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.performance VERIFIED
+    present. Real marker home is ci-nightly.yml's performance-and-e2e job
+    (-m performance, #3595/#4698) -- no per-PR lane selects this directory; not a
+    disguised snapshot (#2979 class). The directory's only stress-marked file was
+    the dashboard CLI accuracy test, removed with the bundled dashboard (#5530).
   dirs:
   - tests/cross_cutting
 

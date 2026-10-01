@@ -12100,6 +12100,11 @@ pages:
     divio_type: "explanation"
     abstract: "Check mission progress from the CLI and review your git operation history."
     anchors: []
+  - path: "docs/guides/how-to/monitoring/use-dashboard.md"
+    title: "The Bundled Dashboard Was Removed"
+    divio_type: "how-to"
+    abstract: "The spec-kitty dashboard command and its local web UI were removed in 4.0.0rc5; check mission status from the CLI instead."
+    anchors: []
   - path: "docs/guides/how-to/monitoring/use-operation-history.md"
     title: "Use Operation History"
     divio_type: "how-to"

@@ -152,7 +152,7 @@ to any other container.
 The Dashboard reads mission state through the **Mission Status Read API**, the read
 contract of the Event Store. The API (planned, #5528) has two granularities: an overview
 built from the ledger, and a per-mission WP detail. The CLI-bundled implementation
-(`src/specify_cli/dashboard/`) has been removed (#5530); the Dashboard container now
+(the former `specify_cli.dashboard` package) has been removed (#5530); the Dashboard container now
 lives outside the CLI. A replacement UI, in its own repository, is an external
 consumer of that contract
 ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),

@@ -163,7 +163,7 @@ moves:
   - { from: ["docs/how-to/uninstall.md"], to: "docs/guides/how-to/installation/uninstall.md", reason: "WP13 reconcile: mover subdivision rename" }
   - { from: ["docs/how-to/upgrade-cli.md"], to: "docs/guides/how-to/installation/upgrade-cli.md", reason: "WP13 reconcile: mover subdivision rename" }
   - { from: ["docs/how-to/upgrade-project.md"], to: "docs/guides/how-to/installation/upgrade-project.md", reason: "WP13 reconcile: mover subdivision rename" }
-  - { from: ["docs/how-to/use-dashboard.md"], to: "docs/guides/how-to/monitoring/index.md", reason: "WP13 reconcile: mover subdivision rename; page removed with the bundled dashboard (#5530), redirect to the monitoring index" }
+  - { from: ["docs/how-to/use-dashboard.md"], to: "docs/guides/how-to/monitoring/use-dashboard.md", reason: "WP13 reconcile: mover subdivision rename" }
   - { from: ["docs/how-to/use-operation-history.md"], to: "docs/guides/how-to/monitoring/use-operation-history.md", reason: "WP13 reconcile: mover subdivision rename" }
   - { from: ["docs/how-to/use-retrospective-learning.md"], to: "docs/guides/how-to/governance/use-retrospective-learning.md", reason: "WP13 reconcile: mover subdivision rename" }
   - { from: ["docs/how-to/use-wps-yaml-manifest.md"], to: "docs/guides/how-to/missions/use-wps-yaml-manifest.md", reason: "WP13 reconcile: mover subdivision rename" }
@@ -280,7 +280,7 @@ moves:
   - { from: ["docs/guides/uninstall.md"], to: "docs/guides/how-to/installation/uninstall.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
   - { from: ["docs/guides/upgrade-cli.md"], to: "docs/guides/how-to/installation/upgrade-cli.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
   - { from: ["docs/guides/upgrade-project.md"], to: "docs/guides/how-to/installation/upgrade-project.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
-  - { from: ["docs/guides/use-dashboard.md"], to: "docs/guides/how-to/monitoring/index.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename; page removed with the bundled dashboard (#5530), redirect to the monitoring index" }
+  - { from: ["docs/guides/use-dashboard.md"], to: "docs/guides/how-to/monitoring/use-dashboard.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
   - { from: ["docs/guides/use-operation-history.md"], to: "docs/guides/how-to/monitoring/use-operation-history.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
   - { from: ["docs/guides/use-retrospective-learning.md"], to: "docs/guides/how-to/governance/use-retrospective-learning.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
   - { from: ["docs/guides/use-wps-yaml-manifest.md"], to: "docs/guides/how-to/missions/use-wps-yaml-manifest.md", reason: "WP13 reconcile: mover subdivision/dated-prefix rename" }
