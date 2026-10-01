@@ -1,0 +1,249 @@
+---
+title: 'ADR: a mission status read API replaces the CLI-bundled dashboard (extract and replace)'
+description: 'Remove the bundled dashboard daemon; keep one read-only mission status API with an overview and a detail granularity that external UIs consume (#645).'
+status: Proposed
+date: '2026-10-01'
+---
+
+**Status:** Proposed. D-1 and D-2 record a direction the operator stated on 2026-10-01 and
+are **Accepted**. D-3 to D-8 are architect amendments that wait for operator ratification.
+
+**Date:** 2026-10-01
+
+**Deciders:** Stijn Dejongh (operator). Analysis by `architect-alphonso`.
+
+**Technical Story:** epic [#645](https://github.com/spec-kitty/spec-kitty/issues/645)
+(Stable Application API Surface), its children #956 (registry and cache), #957 (mission and
+WP resources, `WorkPackageAssignment`), #2789 (`--since` cursor reads) and #460 (transport);
+dashboard defects #4520, #4767, #4768 and #4769; roadmap
+[direction update 2026-10-01](../../plans/4-0-0-milestone-roadmap.md).
+
+---
+
+## Context and Problem Statement
+
+The CLI ships a local web dashboard in `src/specify_cli/dashboard/`: about 9.4k lines of
+Python, JavaScript, CSS and HTML. `spec-kitty dashboard` starts it as a detached daemon. The
+daemon records itself in `.kittify/.dashboard`, scans for a free port and kills stale
+processes. The browser polls `/api/features` once a second
+(`static/dashboard/dashboard.js:1749`). Each poll rescans every mission and re-reduces each
+`status.events.jsonl`, with no cache (`scanner.py:895`, #4520: 9–10 s per scan on this
+repository's 436 missions). The daemon has open trust defects: it SIGKILLs a recycled PID
+(#4767), leaks its shutdown token through `/api/health` (#4768), and does no Host or Origin
+check, so DNS rebinding can read the whole API (#4769).
+
+The bigger problem is architectural. Mission and work package (WP) state reaches consumers
+along several independent paths, and nothing checks that they agree (#645, "Why"):
+
+- The dashboard computes mission state in its presentation layer. `_derive_mission_status`,
+  `_derive_next_action` and `build_mission_registry` live in `dashboard/scanner.py:219`,
+  `:249` and `:565`. `dashboard --json` (`cli/commands/dashboard.py:44`) serves the same
+  registry.
+- `orchestrator-api mission-state` and `list-ready` reduce through `reduce(read_events(...))`
+  (`orchestrator_api/commands.py:1165`, `:1226`). That function is the wall-clock
+  `reduce_parsed` reducer (`status/reducer.py:175-183`). The dashboard reads through
+  `materialize_snapshot` (`status/reducer.py:367`), which is the Lamport `reduce_shared_state`
+  reduction. Two external read surfaces therefore use the two different reducers that
+  CLAUDE.md's "reducer duality" note describes. *Inferred:* they can disagree when events
+  are concurrent (#4941).
+- `agent tasks status --json` (`cli/commands/agent/tasks.py:1419`) builds a third board.
+- The living architecture docs already record the gap: "Dashboard reads filesystem directly
+  rather than through Event Store interface"
+  ([implementation mapping](../../architecture/04_implementation_mapping/README.md),
+  Divergence Notes 4).
+
+On 2026-10-01 the operator proposed two things. First, remove the dashboard but keep a read
+path to mission status. Second, expose that read path at two granularities: a high-level
+status built from the ledger and events, and a detail view with WP content, status and
+assignment. An external dashboard can then pick the granularity it needs.
+
+## Decision Drivers
+
+- **Single canonical authority** (`DIRECTIVE_044`): one read surface, backed by one service
+  layer, which every consumer reads through (#645, "Intended effect").
+- **Bounded contexts** (`DIRECTIVE_031`): status reads belong to the status domain, not to a
+  UI. Governance and glossary views belong to their own contexts.
+- **The adapter-seam rule** (roadmap direction update, rule 2): the CLI core does not talk to
+  external systems. A UI is a consumer, not part of the core.
+- **Local-first, read-only:** the read path must work offline, with hosted drain off, and
+  must never write.
+- **Modulith first:** keep the module in-process today, with a boundary that can be
+  extracted later into another package or repository.
+
+## Considered Options
+
+1. **Keep and harden the bundled dashboard.** Fix #4767–#4769, add the #956 cache and adopt
+   FastAPI (#460).
+2. **Remove the dashboard and let consumers read files and `events tail`.** Ship no read API.
+3. **Remove the dashboard and keep a mission status read API with two granularities,
+   in-process plus CLI `--json`** (chosen).
+4. **Remove the dashboard and ship a mission status HTTP service in the CLI.** This would be
+   a slimmer server that keeps the daemon.
+
+## Decision Outcome
+
+**Chosen option:** Option 3. It meets every driver. It keeps the operator's two granularities
+and moves the logic the dashboard holds today behind the status boundary. It also drops the
+daemon and the poll-and-rescan cost from the CLI.
+
+- **D-1 (Accepted): remove the CLI-bundled dashboard by extract-and-replace.** The server,
+  daemon, static UI, `spec-kitty dashboard` command, `/spec-kitty.dashboard` slash command
+  and the `spk-admin-dashboard` skill are removed. A replacement UI is built in its own
+  repository as an ordinary consumer. "Extract and replace" means two things. Domain logic
+  now in `dashboard/scanner.py` moves into the read API first. Each route is then given a
+  new home (table below) before anything is deleted.
+- **D-2 (Accepted): keep a read path, the Mission Status Read API, at two granularities.**
+  - **Overview** (low detail, many missions): for each mission, its identity (`mission_id`,
+    `mid8`, slug, friendly name, display number), lane counts, weighted progress, a derived
+    lifecycle status, the latest event, and a change cursor.
+  - **Detail** (one mission): each WP's authored plan and resolved runtime state, kept
+    separate. That covers lane, assignment (agent, profile, role, model), dependencies and
+    readiness, review evidence, and the WP's event history. The WP prompt body is returned
+    only on request.
+- **D-3 (Proposed): each granularity maps onto a read model that already exists. The API
+  composes these models and never re-derives them.**
+
+  | Granularity | Reads | Existing read model |
+  |---|---|---|
+  | Overview | `meta.json` and `status.events.jsonl` only, no WP files | `materialize_snapshot` (`status/reducer.py:367`) gives lane summary; `compute_weighted_progress` (`status/progress.py:119`); identity resolution; `TailCursor` (`status/tail_reader.py:342`) gives the change cursor |
+  | Detail | plus `tasks/WP*.md` frontmatter and body | `reconstruct_wp_view` (`status/wp_view.py:256`), which never conflates authored and resolved state; the dependency graph and `dependency_readiness_for_wp` |
+
+  Every read goes through the coordination-aware status read surface: the
+  `_read_path_resolver` and `MissionStatus.load` path. Callers never rebuild paths. The
+  contract carries a schema version, as #2789 requires. Its types must not reuse the name
+  `MissionStatus`, because the aggregate root at `status/aggregate.py:168` already owns it.
+- **D-4 (Proposed): the first form is an in-process query module plus CLI `--json` verbs.
+  It is not an HTTP endpoint.** The API has one typed, versioned query function per
+  granularity. Each function has one CLI `--json` verb that a non-Python consumer can call
+  as a subprocess. The CLI wheel ships no server, daemon, port or PID file. Choosing a
+  transport such as HTTP, OpenAPI or a change feed belongs to the consumer repository
+  (#460 moves with it). A consumer running a server imports the module or shells out to
+  the verb. Change detection comes from polling the overview cursor and then
+  `events tail --json` (#3858). It does not come from the in-process status fan-out, which
+  runs only while a CLI command runs.
+- **D-5 (Proposed): fold existing surfaces into the API instead of duplicating them.**
+  - `dashboard --json` becomes the overview verb.
+  - `agent tasks status --json` renders from the detail query.
+  - `orchestrator-api mission-state` and `list-ready` keep their verbs and envelopes (the
+    contract is owned by #5231) but compute through the read API. This also moves them onto
+    the Lamport reducer.
+  - `events tail --json` stays as the change feed, and the overview exposes its cursor.
+  - The TypedDicts in `dashboard/api_types.py` seed the contract types, renamed to the
+    Mission canon (#957 shapes): `/api/features` and `FeatureItem` become missions.
+  - An architectural gate fails any display or external consumer that reduces status itself,
+    using the shrink-only allowlist pattern (#645 acceptance). Domain-internal reducers such
+    as consolidation, migrations and gates are out of scope for that gate.
+- **D-6 (Proposed): the API is read-only and independent of drain.** It never calls the
+  writing `materialize()`, never refreshes derived views, never takes a lock, and returns the
+  same answer whether hosted drain is on or off. It is a pull over the committed ledger. The
+  produce/drain decoupling is push-side and gets its own ADR (roadmap next step 3). Neither
+  decision blocks the other.
+- **D-7 (Proposed): placement in the layer chain.** The module lives in the `specify_cli`
+  layer, next to the status domain it reads. The read models it composes are there already
+  (`status/`, `missions/_read_path_resolver.py`, `mission_metadata`). Placing it in
+  `runtime` or `mission_runtime` would add edges to their shrink-only outbound ledgers
+  (`tests/architectural/test_layer_rules.py`). The contract types depend only on the
+  standard library, so they can be extracted later into a client package without bringing
+  the CLI along.
+- **D-8 (Proposed): order of work.**
+  1. Build the API and its contract tests.
+  2. Re-point the orchestrator-api reads, `tasks status` and the dashboard handlers to the API.
+  3. Land the bypass gate.
+  4. Deprecate `spec-kitty dashboard` for one release.
+  5. Run an upgrade migration that removes the installed slash command and skill, touching
+     only manifest-owned paths (charter, "User Customization Preservation").
+  6. Delete `src/specify_cli/dashboard/`.
+
+  `verify --diagnostics` imports `dashboard.diagnostics` (`cli/commands/verify.py:20`), so
+  that module moves first. None of this gates 4.0.0 GA.
+
+**Where today's dashboard routes go** (`dashboard/handlers/router.py`):
+
+| Route | New home |
+|---|---|
+| `/api/features`, `/api/kanban/<id>` | This API: overview and detail |
+| `/api/research/`, `/api/contracts/`, `/api/checklists/`, `/api/artifact/`, `/api/dossier/` | Mission artifact reads. Planning artifacts are files, not events. A follow-up assigns their read surface (mission dossier or artifact placement); this ADR does not |
+| `/api/charter`, `/api/charter-lint`, `/api/glossary-health`, `/api/glossary-terms`, `/glossary` | Governance and glossary contexts (#954, #955). Not this API |
+| `/api/diagnostics` | `verify --diagnostics` |
+| `/api/health`, `/api/shutdown` | Removed with the daemon |
+
+### Consequences
+
+#### Positive
+
+- One read authority replaces four ad-hoc readers that use two different reducers.
+- The CLI loses a daemon, its PID-file and kill-sweep defects (#4767–#4769), and the per-poll
+  rescan (#4520). Those issues close when the dashboard is deleted, not by hardening it.
+- External UIs, MCP adapters and SDKs get a documented, versioned contract and can choose a
+  granularity.
+- The boundary is ready for extraction: contract types without dependencies, in-process today.
+
+#### Negative
+
+- Until a replacement UI ships, users have no browser kanban. `agent tasks status` is the
+  interim view.
+- Removal needs a deprecation release and an upgrade migration for 17 agent surfaces.
+- Mission artifact and governance views lose their only UI until their own read surfaces land.
+
+#### Neutral
+
+- The `orchestrator-api` lifecycle verbs and their contract are unchanged.
+- The landscape's Dashboard container stays as a concept. Only its in-repo implementation
+  leaves ([landscape](../../architecture/00_landscape/README.md)).
+
+### Confirmation
+
+- Contract tests pin the overview and detail shapes and their schema version.
+- On the same fixture mission, the orchestrator-api reads, `tasks status --json` and the
+  overview and detail queries agree.
+- The bypass gate stays green and its allowlist only shrinks.
+- The overview of a mission reads no `tasks/` files (asserted by a test).
+- `src/specify_cli/dashboard/` is gone and `pyproject.toml` ships no server dependency.
+
+## Pros and Cons of the Options
+
+### Option 1: keep and harden
+
+**Pros:** no user-visible gap. **Cons:** keeps a daemon and a UI in the CLI core, against
+the adapter-seam rule. Needs security, cache and transport work (#4791, #956, #460) on a
+surface the operator wants out. Does not fix the duplicate read paths.
+
+### Option 2: files and `events tail` only
+
+**Pros:** least code. **Cons:** every consumer re-implements reduction, the read-path
+resolution for the coordination topology, and the authored/resolved WP split. That is the
+divergence #645 exists to end. It is a shadow path by construction.
+
+### Option 3: in-process read API plus CLI `--json` (chosen)
+
+**Pros:** a single authority, no daemon, extractable later, and both granularities served
+from existing read models. **Cons:** consumers that are not Python pay a subprocess per
+call. That cost is acceptable because change detection uses the cursor, not a rescan.
+
+### Option 4: HTTP service in the CLI
+
+**Pros:** browser-friendly. **Cons:** reintroduces the daemon lifecycle and the trust model
+of #4767–#4769 in a new form. It also decides the transport for consumers who should own
+it.
+
+## Open questions (operator)
+
+1. **Name.** "Runtime status" names three things already: `src/runtime/` (the control
+   loop), `src/specify_cli/runtime/` (agent assets) and WP runtime state. This ADR uses
+   **Mission Status Read API**. Confirm or rename it before the module is created
+   (`DIRECTIVE_032`).
+2. **Interim risk.** #4767 (P1) and #4769 (P1) affect a surface that still ships. If
+   deletion does not land in the next release, should the dashboard get a minimal Host
+   allow-list and PID-identity fix in the meantime, or be disabled by default?
+3. **Charter.** "Dashboard must support 100+ work packages without lag" (charter,
+   Performance and Scale) refers to the dashboard. It needs a charter amendment that
+   restates it as a read-API budget.
+
+## More Information
+
+- [API & Dashboard domain plan](../../plans/domains/api-dashboard-domain-plan.md): the
+  durable plan for #645 and #650, updated to point here.
+- [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md): Strangler prep lane.
+- [Status model](../../architecture/status-model.md): the event log and reducers.
+- [ADR 2026-09-26-3](../3.x/2026-09-26-3-hosted-interaction-opt-in.md): drain posture. The
+  produce/drain amendment is a separate 4.x ADR.

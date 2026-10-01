@@ -2,7 +2,7 @@
 title: System Landscape (living)
 description: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-01'
 audience: docs/context/audience/internal/system-architect.md
 ---
 # System Landscape (living)
@@ -31,7 +31,7 @@ implementation-agnostic:
 | Container (concept) | Current implementation | Could also be |
 |---|---|---|
 | Control Plane | CLI (`spec-kitty` commands) | TUI, web app, IDE plugin |
-| Dashboard | `spec-kitty dashboard` (local browser kanban) | SaaS web view, IDE panel |
+| Dashboard | `spec-kitty dashboard` (local browser kanban), slated for removal; the Mission Status Read API is the read contract a replacement consumes ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md)) | External UI in its own repository, SaaS web view, IDE panel |
 | Kitty-core | Python modules (specify, plan, tasks) | Same — domain logic |
 | Event Store | Filesystem (JSONL, frontmatter, meta.json) | Database, cloud event store |
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
@@ -148,6 +148,14 @@ Kitty-core. Writes lifecycle and execution events back to the Event Store.
 Read-only visibility surface. Reads from the Event Store to present a kanban
 view of mission progress, WP status, and execution history. Has no write path
 to any other container.
+
+The Dashboard reads mission state through the **Mission Status Read API**, the read
+contract of the Event Store. The API has two granularities: an overview built from the
+ledger, and a per-mission WP detail. The CLI-bundled implementation
+(`src/specify_cli/dashboard/`) is slated for removal. A replacement UI is an external
+consumer of that contract
+([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+proposed).
 
 ### Agent Tool Connectors
 

@@ -168,6 +168,8 @@ they no longer gate GA.*
 
    STRANGLER PREP (4.x line, does NOT gate GA)
        #645 stable application API  ──▶  charter imports move onto it  ──▶  charter ships alone
+       #645 mission status read API  ──▶  readers fold onto it ──▶  bundled dashboard removed
+         (overview + detail)                                     (external UI consumes it)
        produce / drain decoupling    ──▶  adapter module as pub/sub seam ──▶  external UI and
                                                                               other consumers
        #1619 one execution context (CLI 4.x stable)
@@ -187,7 +189,11 @@ they no longer gate GA.*
    class #1619 exists to remove; watch whether that class keeps refilling the gate.
 2. **Strangler prep is the 4.x structural work.** #645 is the precondition for shipping the
    charter separately; produce/drain decoupling is the precondition for any external
-   consumer, hosted or local.
+   consumer, hosted or local. The Mission Status Read API ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed) is
+   #645's read facet. It gives an external UI an overview and a detail view of mission
+   status. Once every reader folds onto it, the CLI-bundled dashboard can be removed.
+   It is a pull over the committed ledger, so it does not wait for produce/drain
+   decoupling.
 3. **Hosted work is frozen, not cancelled.** Nothing on that lane is deleted; it waits.
 4. **Quality debt is a standing campsite epic**, deliberately outside the blocking graph
    (same pattern as 3.2.x's #1931). It burns down opportunistically per touched file; it
@@ -243,6 +249,10 @@ convergence-settle lane.
 - **Open:** **#645** (Epic: Stable Application API Surface — UI / CLI / MCP / SDK — one
   versioned surface all four consumers build against), **#901** (Epic: Spec Kitty 4.0 central
   `/spec-kitty` governed front door).
+- **Direction (2026-10-01):** #645's read facet is the **Mission Status Read API**, which
+  has an overview and a detail granularity. The CLI-bundled dashboard is removed by
+  extract-and-replace, and a replacement UI is built in its own repository ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+  proposed). Removing it also closes the dashboard daemon defects (#4520, #4767–#4769).
 - **Closed:** #3837 (orchestrator-api design-phase verbs: specify/plan/tasks/analyze +
   decision resolution).
 
@@ -308,9 +318,9 @@ frozen hosted lane.*
 4. **No new shadow path.** Every landing routes onto an existing authority. No
    re-introduction of the retired sync transport, and no module other than the adapter seam
    talks to an external system.
-5. **(Post-rc) Strangler prep is dispositioned.** #645 (stable API), the produce/drain
-   decoupling, and #901 (governed front door) either land or are re-milestoned to the 4.x
-   line with rationale.
+5. **(Post-rc) Strangler prep is dispositioned.** #645 (stable API, including the Mission
+   Status Read API and the dashboard removal), the produce/drain decoupling, and #901
+   (governed front door) either land or are re-milestoned to the 4.x line with rationale.
 6. **(Post-rc) Quality-debt series dispositioned.** #1928's 4.0.0 children (#4299–#4305, #2969,
    #2970) are burned down or explicitly re-milestoned; the security children (#4304, #2970)
    close or are adjudicated (false-positive rulings recorded).
@@ -360,8 +370,11 @@ frozen hosted lane.*
    `status/adapters.py` and `core/hosted_posture.py`.
 4. **Inventory the `specify_cli` → `charter` imports** against #645 and set a shrink-only
    ratchet on them, so the charter can ship on its own.
-5. **Hold #901 and the #1928 debt series on the post-rc tail.**
-6. **Re-run this synthesis at each rc bump** — verify the open book against a fresh
+5. **Ratify [ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md)** (name, transport, order of work). Then file the tracking issue for
+   the read API and the dashboard removal under #645, and settle the interim mitigation
+   for #4767 and #4769 while the dashboard still ships. None of this gates GA.
+6. **Hold #901 and the #1928 debt series on the post-rc tail.**
+7. **Re-run this synthesis at each rc bump** — verify the open book against a fresh
    `gh issue list --repo spec-kitty/spec-kitty --milestone "4.0.0 release scope" --state all`
    before acting.
 
