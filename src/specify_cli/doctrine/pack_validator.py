@@ -59,6 +59,7 @@ return, and render findings. Their types and direct module access are unchanged.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -87,7 +88,9 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.merge import _EndpointResolutionError, _resolve_edge_endpoint
 from charter.offering.drg.org_pack_loader import (
+    ORG_PLURAL_TO_SINGULAR_KIND,
     OrgPackMissingError,
     OrgPackParseError,
     OrgPackSchemaError,
@@ -1257,6 +1260,127 @@ def _urn_to_plural(urn: str) -> tuple[str, str] | None:
     return plural, artifact_id
 
 
+def _fold_augmentation_edges(
+    edges: Iterable[tuple[str, str, str]],
+    source_path: Path,
+    intent: dict[str, dict[str, tuple[dict[str, str], Path]]],
+    augmentation_relations: set[str],
+) -> None:
+    """Fold ``(source, target, relation)`` triples into *intent* in place.
+
+    Shared by the ``drg/*.graph.yaml`` glob loop and the ``drg/fragment.yaml``
+    branch of :func:`_collect_fragment_edge_intent` (#5494), so both authoring
+    surfaces populate the same precedence-table input through one code path.
+    """
+    for source_urn, target_urn, relation in edges:
+        if relation not in augmentation_relations:
+            continue
+        source = _urn_to_plural(source_urn)
+        target = _urn_to_plural(target_urn)
+        if source is None or target is None:
+            continue
+        plural, art_id = source
+        if plural not in _AUGMENTATION_PLURAL_KINDS:
+            continue
+        record = intent.setdefault(plural, {}).setdefault(art_id, ({}, source_path))[0]
+        record[relation] = target[1]
+
+
+def _collect_fragment_yaml_edges(
+    drg_dir: Path,
+) -> list[tuple[str, str, str]] | None:
+    """Read ``(source, target, relation)`` triples from ``drg/fragment.yaml``.
+
+    Reuses the single org-fragment loading authority (:func:`load_org_pack`,
+    #4189 single-loader direction) — the same one :func:`_validate_org_fragment`
+    calls — rather than a second YAML parser. Best-effort: a fragment that
+    fails to load returns ``None`` (no edges to fold) because
+    ``_validate_org_fragment`` already surfaces the load error as a finding.
+    Returns ``None`` (not ``[]``) when no ``fragment.yaml`` exists, so callers
+    can distinguish "nothing to fold" from "empty edges list".
+
+    Endpoints are qualified to ``kind:id`` before they are returned
+    (:func:`_qualify_fragment_edge`), so a bare-id endpoint — a documented
+    valid spelling the runtime resolver accepts — folds like the qualified
+    form instead of being dropped by :func:`_urn_to_plural` (#5494).
+    """
+    fragment_yaml = drg_dir / "fragment.yaml"
+    if not fragment_yaml.exists():
+        return None
+    try:
+        fragment = load_org_pack(
+            pack_name=drg_dir.parent.name, pack_root=drg_dir.parent, layer_index=1
+        )
+    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError):
+        return None
+    # Mint fragment-local URNs exactly as the runtime bridge does
+    # (``merge._bridge_org_node_to_drg_node``: ``<singular_kind>:<id>``).
+    node_id_to_urn = {
+        node.id: f"{ORG_PLURAL_TO_SINGULAR_KIND[node.kind]}:{node.id}"
+        for node in fragment.nodes
+        if node.kind in ORG_PLURAL_TO_SINGULAR_KIND
+    }
+    qualified = (
+        _qualify_fragment_edge(edge.source, edge.target, edge.relation, node_id_to_urn)
+        for edge in fragment.edges
+    )
+    return [edge for edge in qualified if edge is not None]
+
+
+def _qualify_fragment_endpoint(
+    raw: str,
+    node_id_to_urn: Mapping[str, str],
+    bare_fallback_kind: str | None,
+) -> str | None:
+    """Qualify one ``drg/fragment.yaml`` endpoint to a ``kind:id`` URN (#5494).
+
+    Rules 1 (fragment-local bare id) and 2 (fully-qualified URN) are the
+    canonical runtime resolver's own — :func:`_resolve_edge_endpoint` is
+    called with an empty built-in index rather than re-implemented here.
+
+    Rule 3 (a bare id bound against the built-in layer) is replaced by its
+    validator analogue: a bare *target* takes the source's kind
+    (*bare_fallback_kind*). Augmentation relations are same-kind, so an
+    existing built-in still binds, and a missing one reaches the
+    precedence table's ``unknown_target`` error — the validator's
+    counterpart of the runtime's ``unresolved_edge_endpoint`` — instead of
+    being dropped.
+
+    Returns ``None`` (the edge is not folded) for a bare non-local source
+    (no kind to borrow) or an endpoint the resolver refuses as malformed.
+    """
+    try:
+        resolved: str = _resolve_edge_endpoint(raw, node_id_to_urn, ())
+    except _EndpointResolutionError:
+        if bare_fallback_kind is None or ":" in raw:
+            return None
+        return f"{bare_fallback_kind}:{raw}"
+    return resolved
+
+
+def _qualify_fragment_edge(
+    source: str,
+    target: str,
+    relation: str,
+    node_id_to_urn: Mapping[str, str],
+) -> tuple[str, str, str] | None:
+    """Qualify both endpoints of one fragment edge, source first.
+
+    The source is resolved first so a bare target can borrow its kind
+    (:func:`_qualify_fragment_endpoint`). Returns ``None`` when either
+    endpoint cannot be qualified.
+    """
+    source_urn = _qualify_fragment_endpoint(source, node_id_to_urn, None)
+    if source_urn is None:
+        return None
+    target_urn = _qualify_fragment_endpoint(
+        target, node_id_to_urn, source_urn.partition(":")[0]
+    )
+    if target_urn is None:
+        return None
+    return source_urn, target_urn, relation
+
+
 def _collect_fragment_edge_intent(
     drg_dir: Path,
 ) -> FragmentIntent:
@@ -1269,6 +1393,14 @@ def _collect_fragment_edge_intent(
     same-ID/unknown-target precedence here (it neither suppresses nor conflicts
     with augmentation intent). Best-effort: unparseable fragments are skipped
     (``_validate_drg`` surfaces those load errors).
+
+    Two authoring surfaces are folded into one ``intent`` mapping (#5494):
+    ``drg/*.graph.yaml`` (the original shape) and ``drg/fragment.yaml`` (the
+    org-fragment shape the runtime actually reads via ``load_org_pack``,
+    since ``*.graph.yaml`` alone is a hard ``drg_root_graph_missing`` error
+    per #3387). The record path stored with the intent (``fragment_path``)
+    is always the file the edge was authored in, so messages name the right
+    file.
     """
     from charter.offering.drg.models import Relation
 
@@ -1285,19 +1417,22 @@ def _collect_fragment_edge_intent(
             graph = load_graph(fragment)
         except (DRGLoadError, DRGGraphSchemaError):
             continue
-        for edge in graph.edges:
-            relation = edge.relation.value
-            if relation not in augmentation_relations:
-                continue
-            source = _urn_to_plural(edge.source)
-            target = _urn_to_plural(edge.target)
-            if source is None or target is None:
-                continue
-            plural, art_id = source
-            if plural not in _AUGMENTATION_PLURAL_KINDS:
-                continue
-            record = intent.setdefault(plural, {}).setdefault(art_id, ({}, fragment))[0]
-            record[relation] = target[1]
+        _fold_augmentation_edges(
+            ((edge.source, edge.target, edge.relation.value) for edge in graph.edges),
+            fragment,
+            intent,
+            augmentation_relations,
+        )
+
+    org_fragment_edges = _collect_fragment_yaml_edges(drg_dir)
+    if org_fragment_edges is not None:
+        _fold_augmentation_edges(
+            org_fragment_edges,
+            drg_dir / "fragment.yaml",
+            intent,
+            augmentation_relations,
+        )
+
     return intent
 
 

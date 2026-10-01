@@ -391,16 +391,26 @@ def _write_pack_tactic(
     return p
 
 
-def _has_built_in_doctrine() -> bool:
-    """Whether the live shipped doctrine is resolvable in this environment."""
-    try:
-        from charter.activation.catalog import resolve_doctrine_root
-    except ModuleNotFoundError:
-        return False
-    try:
-        return (resolve_doctrine_root() / "tactics" / "built-in").is_dir()
-    except (RuntimeError, OSError):
-        return False
+def _assert_built_in_fixture_tactic_present() -> None:
+    """Fail loudly if the fixture built-in tactic ever disappears.
+
+    Packs always ship (``charter.offering.pack_paths.built_in_dir`` fails
+    closed with ``PackRootNotFound`` when the built-in tree is absent), so a
+    "skip if absent" probe around this fixture was always either dead or
+    masking a real bug (#5346/#5353). This precondition assert replaces that
+    probe: it never skips, it fails the test with a clear message naming the
+    missing fixture path. Module-local (not imported from
+    ``tests/specify_cli/doctrine/test_pack_validator.py``, which owns its own
+    copy) per the WP01 T002 guidance.
+    """
+    from charter.offering.artifact_kinds import ArtifactKind
+    from charter.offering.pack_paths import built_in_dir
+
+    path = built_in_dir(ArtifactKind.TACTIC) / f"{_BUILT_IN_TACTIC_ID}.tactic.yaml"
+    assert path.is_file(), (
+        f"fixture tactic {_BUILT_IN_TACTIC_ID!r} missing from shipped "
+        f"built-ins at {path}"
+    )
 
 
 class TestStep4_PackValidatorVocabulary:
@@ -408,8 +418,7 @@ class TestStep4_PackValidatorVocabulary:
         self, tmp_path: Path
     ) -> None:
         """Step 4 setup: same-ID with NO intent -> reworded advisory."""
-        if not _has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
+        _assert_built_in_fixture_tactic_present()
 
         from specify_cli.doctrine.pack_validator import validate_pack
 
@@ -436,8 +445,7 @@ class TestStep4_PackValidatorVocabulary:
         self, tmp_path: Path
     ) -> None:
         """Inline ``enhances`` is retired; DRG fragment edges own relationships."""
-        if not _has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
+        _assert_built_in_fixture_tactic_present()
 
         from specify_cli.doctrine.pack_validator import validate_pack
 
@@ -460,8 +468,7 @@ class TestStep4_PackValidatorVocabulary:
         self, tmp_path: Path
     ) -> None:
         """``enhances: <bogus-id>`` -> hard ``unknown_target`` ERROR (FR-012)."""
-        if not _has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
+        _assert_built_in_fixture_tactic_present()
 
         from specify_cli.doctrine.pack_validator import validate_pack
 
@@ -555,8 +562,7 @@ class TestStep5_NoShippedLayerLabel:
         self, tmp_path: Path
     ) -> None:
         """``pack validate --json`` must not surface ``"shipped"``."""
-        if not _has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
+        _assert_built_in_fixture_tactic_present()
 
         from specify_cli.doctrine.pack_validator import (
             render_validation_result,

@@ -13,6 +13,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.pack_paths import built_in_dir
 from specify_cli.doctrine.pack_validator import (
     ValidationResult,
     _check_profile_skipped_diagnostics,
@@ -349,6 +351,23 @@ class TestValidatePack:
 _BUILT_IN_TACTIC_ID = "adversarial-qa-handoff"
 
 
+def _assert_built_in_fixture_tactic_present() -> None:
+    """Fail loudly if the fixture built-in tactic ever disappears.
+
+    Packs always ship (``charter.offering.pack_paths.built_in_dir`` fails
+    closed with ``PackRootNotFound`` when the built-in tree is absent), so a
+    "skip if absent" probe around this fixture was always either dead or
+    masking a real bug (#5346/#5353). This precondition assert replaces that
+    probe: it never skips, it fails the test with a clear message naming the
+    missing fixture path.
+    """
+    path = built_in_dir(ArtifactKind.TACTIC) / f"{_BUILT_IN_TACTIC_ID}.tactic.yaml"
+    assert path.is_file(), (
+        f"fixture tactic {_BUILT_IN_TACTIC_ID!r} missing from shipped "
+        f"built-ins at {path}"
+    )
+
+
 def _write_tactic(
     pack_dir: Path,
     *,
@@ -380,6 +399,15 @@ def _write_tactic(
 
 
 def _write_drg_intent(pack_dir: Path, *, artifact_id: str, relation: str) -> Path:
+    """Write a ``drg/*.graph.yaml``-shaped intent edge.
+
+    Retained only for :func:`test_drg_only_fragment_no_pack_root_graph_fires_error`-adjacent
+    coverage: one case still needs a ``*.graph.yaml`` fixture (paired with
+    ``validate_pack(pack_dir, check_drg_root=False)``) so the
+    ``_DRG_GRAPH_GLOB`` path of ``_collect_fragment_edge_intent`` stays
+    covered (#5346/#5353 T003). The runtime authoring shape is
+    ``drg/fragment.yaml`` — see :func:`_write_fragment_intent`.
+    """
     drg = pack_dir / "drg"
     drg.mkdir(parents=True, exist_ok=True)
     path = drg / "intent.graph.yaml"
@@ -401,34 +429,76 @@ def _write_drg_intent(pack_dir: Path, *, artifact_id: str, relation: str) -> Pat
     return path
 
 
+def _write_fragment_intent(
+    pack_dir: Path,
+    *,
+    artifact_id: str,
+    relation: str,
+    source: str | None = None,
+    target: str | None = None,
+    declare_node: bool = False,
+) -> Path:
+    """Write a ``drg/fragment.yaml`` augmentation edge.
+
+    This is the org-fragment shape the runtime actually reads (via
+    ``charter.offering.drg.org_pack_loader.load_org_pack``), unlike
+    ``drg/*.graph.yaml`` (:func:`_write_drg_intent`), which is a hard error
+    since #3387 (``drg_root_graph_missing``). Pins #5494 (#5346/#5353 T003).
+
+    ``source`` / ``target`` default to the fully-qualified ``tactic:<id>``
+    spelling; pass a bare id to exercise the bare-endpoint forms the runtime
+    resolver (``charter.offering.drg.merge._resolve_edge_endpoint``) accepts.
+    ``declare_node`` emits a ``nodes:`` entry for *artifact_id* (kind
+    ``tactics``) so a bare endpoint binds fragment-locally (rule 1).
+    """
+    drg = pack_dir / "drg"
+    drg.mkdir(parents=True, exist_ok=True)
+    path = drg / "fragment.yaml"
+    edge_source = source if source is not None else f"tactic:{artifact_id}"
+    edge_target = target if target is not None else f"tactic:{artifact_id}"
+    nodes_block = (
+        f"nodes:\n  - id: {artifact_id}\n    kind: tactics\n    title: Org variant\n"
+        if declare_node
+        else "nodes: []\n"
+    )
+    path.write_text(
+        nodes_block
+        + textwrap.dedent(
+            f"""\
+            edges:
+              - source: {edge_source}
+                target: {edge_target}
+                relation: {relation}
+            """
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 @pytest.mark.unit
 class TestIntentAwareCollision:
     """WP06 precedence table — `enhances` / `overrides` advisory + error logic.
 
-    Tests assume the live shipped doctrine is on disk (the worktree's
-    ``src/charter/offering/.../built-in`` tree). The shared fixture
-    :data:`_BUILT_IN_TACTIC_ID` points at a known built-in. When the shipped
-    root cannot be resolved the intent-aware pass degrades to a no-op and the
-    tests skip themselves explicitly.
+    Tests exercise against the live shipped doctrine on disk (the worktree's
+    ``packs/built-in/tactics`` tree). The shared fixture
+    :data:`_BUILT_IN_TACTIC_ID` points at a known built-in. Packs always
+    ship, so the ``_built_in_fixture_tactic_present`` autouse fixture asserts
+    the precondition loudly instead of skipping when it cannot be met.
     """
 
-    def _has_built_in_doctrine(self) -> bool:
-        try:
-            from charter.activation.catalog import resolve_doctrine_root
-        except ModuleNotFoundError:
-            return False
-        try:
-            return (resolve_doctrine_root() / "tactics" / "built-in").is_dir()
-        except (RuntimeError, OSError):
-            return False
+    @pytest.fixture(autouse=True)
+    def _built_in_fixture_tactic_present(self) -> None:
+        _assert_built_in_fixture_tactic_present()
 
     def test_enhances_suppresses_collision_advisory(self, tmp_path: Path) -> None:
-        """Case 4: declared `enhances` against a valid built-in -> no advisory."""
-        if not self._has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
+        """Case 4: declared `enhances` against a valid built-in -> no advisory.
 
+        Regression coverage for #5494: the declaration lives in
+        ``drg/fragment.yaml``, the shape the runtime reads.
+        """
         _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
-        _write_drg_intent(
+        _write_fragment_intent(
             tmp_path,
             artifact_id=_BUILT_IN_TACTIC_ID,
             relation="enhances",
@@ -448,12 +518,13 @@ class TestIntentAwareCollision:
         )
 
     def test_overrides_suppresses_collision_advisory(self, tmp_path: Path) -> None:
-        """Case 4: declared `overrides` against a valid built-in -> no advisory."""
-        if not self._has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
+        """Case 4: declared `overrides` against a valid built-in -> no advisory.
 
+        Regression coverage for #5494: the declaration lives in
+        ``drg/fragment.yaml``, the shape the runtime reads.
+        """
         _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
-        _write_drg_intent(
+        _write_fragment_intent(
             tmp_path,
             artifact_id=_BUILT_IN_TACTIC_ID,
             relation="overrides",
@@ -478,9 +549,6 @@ class TestIntentAwareCollision:
         Message MUST mention `field-merge` and recommend BOTH
         `enhances: <id>` and `overrides: <id>`.
         """
-        if not self._has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
-
         _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
 
         result = validate_pack(tmp_path)
@@ -523,9 +591,6 @@ class TestIntentAwareCollision:
 
     def test_enhances_unknown_target_errors(self, tmp_path: Path) -> None:
         """Case 3: `enhances` references unknown built-in -> `unknown_target` ERROR."""
-        if not self._has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
-
         _write_tactic(
             tmp_path,
             artifact_id="org-only-tactic",
@@ -547,9 +612,6 @@ class TestIntentAwareCollision:
 
     def test_overrides_unknown_target_errors(self, tmp_path: Path) -> None:
         """Case 2: `overrides` references unknown built-in -> `unknown_target` ERROR."""
-        if not self._has_built_in_doctrine():
-            pytest.skip("shipped doctrine not on disk in this environment")
-
         _write_tactic(
             tmp_path,
             artifact_id="org-only-tactic",
@@ -589,6 +651,187 @@ class TestIntentAwareCollision:
         assert payload["ok"] is False
         categories = {e.get("category") for e in payload["errors"]}
         assert "intent_conflict" in categories, payload
+
+    @pytest.mark.parametrize(
+        ("relation", "expect_collision_absent"),
+        [
+            ("enhances", True),
+            ("overrides", True),
+            (None, False),
+        ],
+    )
+    def test_fragment_yaml_augmentation_intent_suppresses_same_id_collision(
+        self,
+        tmp_path: Path,
+        relation: str | None,
+        expect_collision_absent: bool,
+    ) -> None:
+        """Regression test for #5494 (FR-005).
+
+        `drg/fragment.yaml` augmentation intent — the org-fragment shape the
+        runtime actually reads via ``load_org_pack`` — must suppress the
+        `same_id_collision` advisory exactly like `drg/*.graph.yaml` intent
+        does. Before the fix, `_collect_fragment_edge_intent` only read
+        `drg/*.graph.yaml` (a shape that is a hard `drg_root_graph_missing`
+        error since #3387), so no DRG shape validated clean with declared
+        intent.
+
+        The `relation=None` arm (no `drg/fragment.yaml` at all) is a
+        positive control: it asserts the advisory IS present, proving the
+        absence assertion in the other two arms is not vacuous.
+        """
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+        if relation is not None:
+            _write_fragment_intent(
+                tmp_path, artifact_id=_BUILT_IN_TACTIC_ID, relation=relation
+            )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        drg_root_missing = [
+            e for e in result.errors if e.category == "drg_root_graph_missing"
+        ]
+        assert drg_root_missing == [], drg_root_missing
+        collision_advisories = [
+            a
+            for a in result.advisories
+            if a.artifact_id == _BUILT_IN_TACTIC_ID
+            and a.category == "same_id_collision"
+        ]
+        if expect_collision_absent:
+            assert collision_advisories == [], (
+                f"drg/fragment.yaml {relation!r} intent must suppress "
+                f"same_id_collision. Saw: {collision_advisories}"
+            )
+        else:
+            assert collision_advisories, (
+                "With no drg/fragment.yaml declared, same_id_collision MUST "
+                "still fire (positive control, proves the absence assertion "
+                "above is not vacuous)."
+            )
+
+    def test_graph_yaml_augmentation_intent_still_covered(
+        self, tmp_path: Path
+    ) -> None:
+        """One `drg/*.graph.yaml`-shaped case stays covered (T003 step 5).
+
+        ``_collect_fragment_edge_intent``'s original ``_DRG_GRAPH_GLOB`` path
+        must keep working alongside the new ``drg/fragment.yaml`` path added
+        for #5494. Uses ``check_drg_root=False`` because a bare
+        ``drg/*.graph.yaml`` pack (no pack-root graph) is otherwise a hard
+        ``drg_root_graph_missing`` error since #3387 — orthogonal to this
+        assertion.
+        """
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+        _write_drg_intent(
+            tmp_path, artifact_id=_BUILT_IN_TACTIC_ID, relation="enhances"
+        )
+
+        result = validate_pack(tmp_path, check_drg_root=False)
+
+        assert result.ok is True, result.errors
+        collision_advisories = [
+            a
+            for a in result.advisories
+            if a.artifact_id == _BUILT_IN_TACTIC_ID
+            and a.category == "same_id_collision"
+        ]
+        assert collision_advisories == [], collision_advisories
+
+    @pytest.mark.parametrize("relation", ["enhances", "overrides"])
+    @pytest.mark.parametrize(
+        ("source", "target", "declare_node"),
+        [
+            pytest.param(
+                _BUILT_IN_TACTIC_ID, _BUILT_IN_TACTIC_ID, True, id="bare-both-declared"
+            ),
+            pytest.param(
+                _BUILT_IN_TACTIC_ID,
+                f"tactic:{_BUILT_IN_TACTIC_ID}",
+                True,
+                id="bare-source-declared",
+            ),
+            pytest.param(
+                f"tactic:{_BUILT_IN_TACTIC_ID}",
+                _BUILT_IN_TACTIC_ID,
+                False,
+                id="bare-target-builtin",
+            ),
+        ],
+    )
+    def test_fragment_yaml_bare_id_endpoints_suppress_same_id_collision(
+        self,
+        tmp_path: Path,
+        relation: str,
+        source: str,
+        target: str,
+        declare_node: bool,
+    ) -> None:
+        """Bare-id ``drg/fragment.yaml`` endpoints carry intent too (#5494 residual).
+
+        The runtime resolver (``charter.offering.drg.merge._resolve_edge_endpoint``)
+        binds a bare endpoint to a fragment-local node (rule 1) or to a
+        unique built-in (rule 3), so these spellings are valid declared
+        intent and must suppress ``same_id_collision`` exactly like the
+        fully-qualified form pinned by
+        :meth:`test_fragment_yaml_augmentation_intent_suppresses_same_id_collision`.
+        The positive control there (no fragment -> advisory fires) keeps the
+        absence assertion here non-vacuous.
+        """
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+        _write_fragment_intent(
+            tmp_path,
+            artifact_id=_BUILT_IN_TACTIC_ID,
+            relation=relation,
+            source=source,
+            target=target,
+            declare_node=declare_node,
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        collision_advisories = [
+            a
+            for a in result.advisories
+            if a.artifact_id == _BUILT_IN_TACTIC_ID
+            and a.category == "same_id_collision"
+        ]
+        assert collision_advisories == [], (
+            f"bare-id drg/fragment.yaml {relation!r} intent "
+            f"({source!r} -> {target!r}) must suppress same_id_collision. "
+            f"Saw: {collision_advisories}"
+        )
+
+    @pytest.mark.parametrize("relation", ["enhances", "overrides"])
+    def test_fragment_yaml_bare_unknown_target_is_unknown_target(
+        self, tmp_path: Path, relation: str
+    ) -> None:
+        """Negative control: a bare typo'd target is resolved, not dropped.
+
+        A bare target takes the source's kind, so ``bogus-id`` reaches the
+        existing ``unknown_target`` error — the validator analogue of the
+        runtime's ``unresolved_edge_endpoint``. Before the fix the edge was
+        silently dropped and the pack validated ``ok=True``.
+        """
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+        _write_fragment_intent(
+            tmp_path,
+            artifact_id=_BUILT_IN_TACTIC_ID,
+            relation=relation,
+            target="bogus-id",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False, result.advisories
+        unknown_errors = [e for e in result.errors if e.category == "unknown_target"]
+        assert unknown_errors, (
+            f"bare typo'd {relation!r} target MUST emit unknown_target. "
+            f"Errors: {result.errors}"
+        )
+        assert "bogus-id" in unknown_errors[0].message
 
 
 class TestRenderValidationResult:
