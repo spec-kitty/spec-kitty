@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 4
+verdicts:
+  - id: SPEC-ARCH-012
+    verdict: confirmed
+    reason: The cited reader functions are private scanner functions slated for deletion by #5545, and the spec's R-2 and FR-019 cover only dangling citations, not a helper that silently becomes a copy.
+  - id: SPEC-ARCH-013
+    verdict: confirmed
+    reason: D-8 and the catalogue lifecycle-marker row name no event-type allow-list or source for missionId and at, and D-8 hides annotations while the history kinds include annotation.
+  - id: SPEC-ARCH-014
+    verdict: confirmed
+    reason: D-10 says only that colon-encoded strings match the handle pattern and never says which of the four fields a plain string maps into.
+  - id: SPEC-ARCH-015
+    verdict: confirmed
+    reason: scanner.py _derive_next_action returns two strings or None while the catalogue and the spec text say three.
+  - id: SPEC-ARCH-016
+    verdict: confirmed
+    reason: The Reflexivity paragraph lists what is unchanged but names no preserved surfaces such as the vendored events contract or orchestrator-api, and says nothing about the separate aggregate topology vocabulary.
+  - id: SPEC-ARCH-018
+    verdict: confirmed
+    reason: ci-router.yml corpus glob includes kitty-specs/**/tasks/** whereas the spec's Reflexivity paragraph says kitty-specs/** is excluded, so the blast radius across in-flight Missions is understated.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: Real friendly_name '~/.kittify Runtime Centralization' and WP titles starting with '/tmp' trip the FR-012 scan while the catalogue forbids null for those fields and FR-019 allows zero exclusions.

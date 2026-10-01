@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "FR-017 and D-16 item 6 now add both workflows to PR_WORKFLOWS and the ci-fleet-verdict workflow_run list, update test_fleet_verdict expectations, add the fleet_main tags-only skip (matching main_workflows' real raise on non-branches/paths keys), and name both test files as gates; C-003/SC-008 amended."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "CL-2 bullet 3 is reworded to the realised parity-script form, states the literal reading is not built, and the PR-body confirmation item is added; D-16 names the alternative."
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: "D-3 makes x-derived a structured {rule, inputs} value, FR-010 resolves every input like x-source, fails empty rule/inputs, prints both counts, and plants violations."
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: "D-19 and the runner table assign every Python check to contracts/tools/ scripts run by the contracts workflow (path filter covers README/CHANGELOG), with corpus-marked unit tests; README structural check moved out of tests/ci."
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: "pytest.ini edit dropped; FR-017, C-003 and SC-008 now say the gate requires only registry rows and pytest.ini is not edited."
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: "FR-019 pins every figure in own-directory mode (pure function of the tree), uses coordination-aware read only for payloads with same-directory equality, and requires confirmation from a tests-corpus log marking spec figures indicative."
+  - id: SPEC-FRESH-007
+    status: resolved
+    reason: "Bare 'corpus lane', 'dependency lane' and similar CI uses are gone; remaining bare 'lane' occurrences are glossary/frontmatter field names or compounds."
+  - id: SPEC-FRESH-008
+    status: resolved
+    reason: "SC-001, SC-003 and SC-007 prose lists now match the Traceability table (FR-006 in both, NFR-003 and NFR-005 present)."

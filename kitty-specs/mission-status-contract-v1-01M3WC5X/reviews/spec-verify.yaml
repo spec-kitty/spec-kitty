@@ -1,0 +1,131 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+- id: SPEC-GOV-001
+  status: resolved
+  reason: D-16 and FR-017/FR-020/FR-022 now fix tests-corpus as the single blocking home, state that the pull_request dry run is change-triggered and runs no pytest, and require no ledger row (or an owner/rationale/exit
+    row if one is ever added); CL-2 bullet 3 is reconciled by a non-pytest parity script and an explicit pointer to D-16.
+- id: SPEC-GOV-002
+  status: resolved
+  reason: FR-001 replaces the markdownlint claim with a Node-free Python structural heading check under tests/ci with a planted fixture and zero-heading failure, and states the existing npx job is advisory
+    and not relied on (consistent with C-005).
+- id: SPEC-GOV-003
+  status: resolved
+  reason: FR-019 reads through MissionStatus.load with a counted, shrink-only deviation for the 36 CoordinationBranchDeleted Missions, D-4 records the reducer limit as a pre-existing defect with a public
+    upstream issue under C-009, floors are re-measured at implement time, and FR-019 asserts wpTotal equality and lists every file/snapshot disagreement (the 3125 figure matches the checkout).
+- id: SPEC-GOV-004
+  status: resolved
+  reason: Terminology, R-9 and C-007 now use the glossary's code lane and repo-root lane, keep execution lane only as a stated umbrella tied to execution-lanes.md, and record that the glossary was checked.
+- id: SPEC-GOV-006
+  status: resolved
+  reason: 'The Clarifications preamble now states that CL-1 to CL-4 are maintainer decisions recorded in the spec (not quotes of #5558 or the design comment) to be confirmed via the PR body, and CL-10 and
+    the gate analysis moved to derived decisions D-15 and D-16 with Standing Order 5 as authority.'
+- id: SPEC-GOV-007
+  status: resolved
+  reason: The catalogue and FR-006 restrict history to transition kind only and D-8 states the same rule for history and the stream, removing the annotation/lifecycle contradiction.
+- id: SPEC-GOV-010
+  status: resolved
+  reason: D-10 restricts the actor projection to {tool, role, profile}, excludes model from actor, and subjects authored.model and assignment.model to the handle pattern, null-on-mismatch and leak scan.
+- id: SPEC-GOV-011
+  status: resolved
+  reason: Terminology now names the clash with the glossary phase term, keeps the field name phases with an explicit distinction required in the README, and cites the orchestration.md seven-lane entry as
+    known drift with the canonical glossary surface named.
+- id: SPEC-ARCH-001
+  status: resolved
+  reason: D-16 item 5 and FR-019/FR-020/SC-007 scope the exactly-once invariant to pull_request diffs without packs built_in paths, state that built-in-corpus-suite also runs the test on push to main and
+    mixed diffs, and require collect-only evidence for every corpus-selecting job (packs.yml timeout 20 and router 10 confirmed).
+- id: SPEC-ARCH-003
+  status: resolved
+  reason: 'FR-017 now requires the canonical fork guard on every root job with no EXEMPT_WORKFLOWS addition, states the fleet-verdict decision and its consequence, and records the 17+2 of 20 workflow count
+    with rebase re-verification (verified: EXEMPT_WORKFLOWS holds only release.yml, 17 workflow files exist).'
+- id: SPEC-ARCH-004
+  status: resolved
+  reason: FR-020 now requires the distinct token top-level contracts/** (confirmed absent from pytest.ini line 86 today), drops the faithful-mirror claim, and D-16 item 1 states _CORPUS_GLOBS and ci_retirement_scrub.json
+    are ungated documentation, with SC-008 consistent.
+- id: SPEC-ARCH-005
+  status: resolved
+  reason: D-16 item 1 and FR-020 require the single-line pytestmark or decorator form and a registry row for every new tests/contract module including helper unit tests.
+- id: SPEC-ARCH-006
+  status: resolved
+  reason: FR-019 requires one parametrised case per Mission plus explicit timeout marks with recorded rationale on corpus-level tests, and NFR-001 adds a 60 second per-test cap measured against the 240
+    second pytest.ini ceiling.
+- id: SPEC-ARCH-007
+  status: resolved
+  reason: NFR-007 replaces the unmeasurable 90 percent claim with checkable behaviour (a direct unit test per projection helper function, controls exercising each branch) plus a non-gating local --cov run
+    pasted in the PR.
+- id: SPEC-ARCH-010
+  status: resolved
+  reason: D-5 writes the lifecycle rule explicitly over statusLaneCounts (matching scanner _derive_mission_status order and quirks), states the file-count vs snapshot input difference, and restricts pinned
+    comparison to Missions where the sets agree while listing and counting the rest.
+- id: SPEC-ARCH-011
+  status: resolved
+  reason: FR-005 now gives explicit implement/review/specify/plan/tasks phase rules with unit tests per branch, and the catalogue defines readyToStart for every status lane as x-derived without citing the
+    orchestrator-api command.
+- id: SPEC-ARCH-012
+  status: resolved
+  reason: FR-019 now names which public readers are used, has the test-side helper carry contract-description-owned rules covered by branch unit tests and a pinned expected-output fixture from the original
+    derivation at a recorded commit that always runs, and defines missionCount as the overview record count with the registry as cross-check only.
+- id: SPEC-ARCH-013
+  status: resolved
+  reason: FR-007 adds an explicit projection table (row kind to stream kind or dropped), an allow-list of seven lifecycle event types, sources for missionId (meta.json identity, never aggregate_id), at
+    (timestamp for lifecycle rows) and eventId (event_id verified present on lifecycle rows), and drops unknown kinds.
+- id: SPEC-ARCH-014
+  status: resolved
+  reason: D-10 specifies the mapping per stored form (dict copied field by field through the handle filter; matching plain string becomes tool without splitting colon forms; anything else all-null) with
+    an example per form and reality-check assertions for e-mail, user and finalize-tasks.
+- id: SPEC-ARCH-015
+  status: resolved
+  reason: The nextAction row and FR-011 now say two prose strings or null and note that both embed the Mission slug.
+- id: SPEC-ARCH-016
+  status: resolved
+  reason: The Reflexivity paragraph lists the preserved surfaces with no new write path, Out of Scope excludes MissionStatus.topology, and the README AC requires the note that the Topology enum is unrelated
+    to it.
+- id: SPEC-ARCH-018
+  status: resolved
+  reason: Reflexivity and R-4 now state the blast radius (every Mission work-package PR runs the whole-corpus check, including mid-flight Missions) and add a triage rule with a pre-approved exclusion path
+    (issue, owner, drain date, printed).
+- id: SPEC-VERIFY-001
+  status: resolved
+  reason: 'D-14 and FR-012 split strings into authored, strict and human-text classes with concrete per-class regexes; I checked that the human-text patterns do not match the real cases ~/.kittify Runtime
+    Centralization and /tmp burn-down: sync, which are named pass controls, and redaction is substring-based and printed so non-null fields stay valid.'
+- id: SPEC-VERIFY-002
+  status: resolved
+  reason: FR-025 now has rows for layout, citation, example/orphan, event-mapping, enum pinning, pin/checksum, guard tests and the rest, each with a cannot-do-its-job condition, plus a general minimum-input-count
+    rule for every guard test.
+- id: SPEC-VERIFY-004
+  status: resolved
+  reason: FR-006 now requires a snapshot-equality assertion against an independent re-read of materialize_snapshot, with a positive control fixture (frontmatter differing from the event log) and a negative
+    control (payload patched with the frontmatter value).
+- id: SPEC-VERIFY-005
+  status: resolved
+  reason: FR-004 names the total sort key (createdAt descending, then missionId ascending) asserted on the built list, explicitly disclaims the untestable same-order claim, and requires a trapped-read test
+    over tasks/WP*.md for the no-WP-read claim.
+- id: SPEC-VERIFY-008
+  status: resolved
+  reason: D-18 fixes the GET /events request shape (optional missionId, streamCursor query parameter and Last-Event-ID in a specified string form, live-only unscoped, 30 second heartbeat comment), FR-007
+    maps resume refusals to the verified ResumeRefused reasons, and the open questions are reduced to OQ-1 only.
+- id: SPEC-VERIFY-009
+  status: resolved
+  reason: D-17 and FR-022 define the pull_request dry run as looping over every discovered module with a derived candidate tag, add a publish-step guard test that evaluates the if condition for four event
+    shapes and fails on zero publish steps, and specify GitHub filter glob semantics with a slash-differing tag test.
+- id: SPEC-VERIFY-010
+  status: resolved
+  reason: FR-010 now requires AST resolution of def, class and assignment names (or YAML/JSON key paths) instead of text match, defines depth-complete traversal including $ref-only properties, asserts cited
+    equals the self-computed total, and adds nested and comment-only planted fixtures plus a reuse report.
+- id: SPEC-VERIFY-011
+  status: resolved
+  reason: FR-012 adds a text-level scan over every contracts/ file and test fixture files (including promptMarkdown in examples) with a marked planted-fixture allowlist and a zero-files floor, and C-006
+    excepts the standard co-author trailer.
+- id: SPEC-VERIFY-012
+  status: resolved
+  reason: A Traceability section maps every SC to FR ids and every FR 001-025 is covered (checked), the FR table's blanket no column became a named-evidence column, SC-008 is explicitly conditional, and
+    NFR-001 is a recorded reviewer-checked measurement; only a cosmetic header-vs-table mismatch for SC-001 remains.
+- id: SPEC-VERIFY-014
+  status: resolved
+  reason: FR-018 adds Gradle strict dependency verification with a committed verification-metadata.xml and a tampered-checksum fixture, and the Validate and Bundle rows in FR-025 add JVM absent, Gradle
+    absent and plugin resolution failure.
+- id: SPEC-VERIFY-016
+  status: resolved
+  reason: D-18 and FR-007 specify per-Mission ordering only, live-only initial connection, consumer action on log-truncated (discard cursor, re-read detail), and tolerance for unknown enum values inside
+    a known kind (the truncation cursor-reset behaviour matches tail_reader.py).

@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 6
+verdicts:
+  - id: SPEC-VERIFY-010
+    verdict: confirmed
+    reason: FR-010 only says a symbol is "not found in the cited file" and never defines the traversal depth, so substring matching and top-level-only coverage both satisfy the text.
+  - id: SPEC-VERIFY-011
+    verdict: confirmed
+    reason: FR-012 scans only example and payload string values while NFR-004 and C-006 promise zero leaks across the whole contract tree and commit messages, a real coverage gap.
+  - id: SPEC-VERIFY-012
+    verdict: confirmed
+    reason: No SC cites an FR id, the FR table has a blanket "no" for no-op passable, and SC-008 itself admits "no-op passable - yes".
+  - id: SPEC-VERIFY-013
+    verdict: refuted
+    reason: The spec deliberately records the baseline at implement start (R-3, C-009, an Edge Case, SC-010 requiring the PR body to list it), so the baseline is already handled and a concrete red list cannot be known at spec time.
+  - id: SPEC-VERIFY-014
+    verdict: confirmed
+    reason: FR-018 demands a sha256 only for downloaded binaries and distributions, so Gradle plugin and transitive dependency resolution is unpinned and has no failure-matrix row.
+  - id: SPEC-VERIFY-015
+    verdict: refuted
+    reason: The finding itself says the spec is sound and the fragility is only hypothetical future edits, so it is not a defect in the spec.
+  - id: SPEC-VERIFY-016
+    verdict: confirmed
+    reason: FR-007 and D-8 do not specify cross-Mission ordering, consumer cursor handling on a truncation event, or unknown enum values inside a known event kind, and only OQ-3 defers the unscoped-stream resume question.

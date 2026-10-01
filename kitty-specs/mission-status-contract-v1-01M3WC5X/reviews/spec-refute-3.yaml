@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 3
+verdicts:
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: test_fork_guard requires a guard on every push/schedule/workflow_run workflow outside EXEMPT_WORKFLOWS (only release.yml), spec.md never mentions fork guards, PR_WORKFLOWS excludes the new files, and 17 workflow files exist against a ceiling of 20.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: pytest.ini line 86 already contains contracts/** so the AC is vacuous, and _CORPUS_GLOBS includes downstream-verified.json while no test compares it to the router.
+  - id: SPEC-ARCH-005
+    verdict: confirmed
+    reason: The regex has no DOTALL and needs pytestmark and pytest.mark.corpus on one line, so a multi-line list is missed, and the spec states no such constraint.
+  - id: SPEC-ARCH-006
+    verdict: confirmed
+    reason: pytest.ini sets timeout=240, and FR-019/NFR-001 describe one test over every Mission with only a job-timeout headroom check and no per-test budget.
+  - id: SPEC-ARCH-007
+    verdict: confirmed
+    reason: Coverage config maps only src/ and NFR-007 names no job that measures tests/contract helper coverage.
+  - id: SPEC-ARCH-010
+    verdict: confirmed
+    reason: _derive_mission_status takes kanban_stats built from WP*.md files via _KANBAN_COLUMN_FOR_LANE, not snapshot lane counts, so D-5's "unchanged semantics" over statusLaneCounts is not literally true where the file and snapshot sets differ.
+  - id: SPEC-ARCH-011
+    verdict: confirmed
+    reason: get_workflow_status has no review key and never returns complete for implement, and list-ready skips non-not_started WPs, while FR-005 defers the derivation rules to the unwritten schema description.

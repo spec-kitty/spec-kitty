@@ -1,0 +1,449 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: SPEC-ARCH-001
+    lens: CI-gate interplay
+    severity: 4
+    title: "Exactly-once invariant ignores packs.yml, which also runs the whole corpus marker per change"
+    evidence:
+      - artifact: "spec.md CL-2 (required end state), FR-019 last bullet, FR-020 Exactly-once bullet, SC-007"
+      - code: ".github/workflows/packs.yml:155-182"
+      - code: ".github/workflows/packs.yml:40-43"
+      - code: ".github/workflows/packs.yml:74"
+      - code: ".github/workflows/ci-router.yml:680-710"
+      - code: "tests/architectural/test_no_duplicate_suite_execution.py:262-266"
+    claim: >-
+      The spec says the reality check must run in exactly one blocking per-change job on any change
+      touching contracts/**, and names only the router tests-corpus job. packs.yml job
+      built-in-corpus-suite also runs `pytest -m "corpus and not windows_ci"` over the whole tree (no
+      directory filter). Its `built_in` output is forced true on every push to main and in full mode,
+      and is true on PRs touching packs/built-in/**, tests/doctrine/** and other listed paths. So a
+      corpus-marked test already executes in two per-change jobs on every push to main (router
+      tests-corpus plus packs built-in-corpus-suite), and on any mixed PR. Both jobs are authorised in
+      the duplicate-execution ledger. The CL-2 invariant "never two" is therefore unachievable as
+      written for push events and mixed diffs. FR-019 ("a real verdict in every job that selects the
+      corpus marker, including jobs with no JVM") also silently omits this second JVM-less,
+      --cov=src/doctrine job.
+    remediation: >-
+      Scope the invariant to what is achievable and testable, for example "on a pull_request diff that
+      touches contracts/** and no packs lane path, the test id executes in exactly one blocking job
+      (router tests-corpus)". State explicitly that packs.yml built-in-corpus-suite and push-to-main
+      runs also collect the module by design, and that the module must therefore pass in both jobs
+      (no JVM, --cov=src/doctrine). Update the FR-020 evidence step to list every job whose pytest
+      expression selects `corpus` (router tests-corpus and packs built-in-corpus-suite) and to verify
+      them with collect-only.
+
+  - id: SPEC-ARCH-002
+    lens: CI-gate interplay
+    severity: 3
+    title: "FR-020 placement shapes contradict C-003 / SC-008 / FR-017 and FR-022's pull_request dry run"
+    evidence:
+      - artifact: "spec.md FR-020 Exactly-once bullet (both shapes), FR-017, C-003, SC-008, FR-022 first bullet, OQ-2"
+      - code: "tests/architectural/test_no_duplicate_suite_execution.py:241-268"
+      - code: "tests/architectural/test_no_duplicate_suite_execution.py:374"
+    claim: >-
+      Shape B (contracts workflow runs pytest on a change event) requires "the router's corpus job
+      deselects the test". That is a second edit to ci-router.yml and changes an existing job's marker
+      or command line, which FR-017, C-003 and SC-008 forbid ("adds exactly one glob line", "No
+      existing job's ... marker expression changes"). Shape A says the contracts workflow runs the
+      reality check "only on non-change events (the release workflow's dry run and tag run)", but
+      FR-022 and OQ-2 give the release workflow a path-filtered pull_request trigger for the dry run.
+      The duplicate-execution gate treats any workflow with a pull_request trigger as change-triggered,
+      so a reality-check step in that dry run is a per-change suite execution that needs a ledger row
+      and is a second per-change run beside the router job. The two shapes are not mutually
+      consistent with the rest of the spec.
+    remediation: >-
+      Pick shape A as the only supported shape and say so: the reality check runs only in the router
+      corpus job per change, and no job in contracts.yml or the release workflow's pull_request path
+      invokes pytest (the dry run proves bundle plus sha256sum only, with the bundle-versus-resolver
+      parity check done by a non-pytest script if OQ-1 chooses option b). Delete shape B, or if it is
+      kept, amend C-003/SC-008/FR-017 to permit the router deselect edit and re-state the invariant.
+      Add a guard assertion that the release workflow's pull_request path contains no pytest
+      invocation.
+
+  - id: SPEC-ARCH-003
+    lens: CI-gate interplay
+    severity: 3
+    title: "Hidden per-workflow gates not named: fork guard, fleet verdict, workflow-count ceiling"
+    evidence:
+      - artifact: "spec.md FR-017, FR-022, CL-2 point 3 (names only test_workflow_coherence / WORKFLOW_FILES)"
+      - code: "tests/ci/test_fork_guard.py:34"
+      - code: "tests/ci/test_fork_guard.py:65"
+      - code: "scripts/ci/fleet_verdict.py:37-47"
+      - code: ".github/workflows/ci-fleet-verdict.yml:5"
+      - code: "tests/architectural/test_module_shard_registry.py:403-410"
+      - code: ".github/ci-module-registry.yml:11"
+    claim: >-
+      (a) test_fork_guard parametrises over every workflow file whose triggers include schedule, push
+      or workflow_run, and requires a canonical fork guard conjunct on each root job unless the file is
+      in EXEMPT_WORKFLOWS. FR-017 (push to main) and FR-022 (tag push) create two such workflows; the
+      spec never requires the guard or an exemption, so tests/ci goes red in the same PR. (b) The
+      fleet verdict only observes the workflows in PR_WORKFLOWS and the workflow_run list; neither
+      the contracts workflow nor the release workflow is in them, so a red contracts check never
+      produces the PR verdict comment or main-red issue, and it is not in router-gate. FR-017 calls
+      the checks protective but does not say whether they are meant to be visible to the fleet verdict.
+      (c) test_reusable_workflow_ceiling_respected counts all *.yml files against a ceiling of 20; 17
+      exist today, so two new files leave one slot, and open CI PRs may consume it.
+    remediation: >-
+      Add to FR-017/FR-022: root jobs carry the repository fork-guard conjunct (or the release
+      workflow is added to EXEMPT_WORKFLOWS with a reason, as release.yml is), pinned by the existing
+      guard. Decide and state whether contracts.yml is added to PR_WORKFLOWS and the fleet-verdict
+      workflow_run list (a trusted default-branch edit, so record it as a post-merge close-out step) or
+      is deliberately advisory. Record the workflow-file count (19 of 20) in the plan and re-verify
+      after rebasing on #5545 and #5557.
+
+  - id: SPEC-ARCH-004
+    lens: CI-gate interplay
+    severity: 3
+    title: "pytest.ini marker AC is already satisfied (vacuous); the corpus-glob mirror claim is false"
+    evidence:
+      - artifact: "spec.md CL-2 point 1, FR-020 second bullet, SC-008"
+      - code: "pytest.ini:86"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:64-76"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:204-208"
+      - code: "tests/release/ci_retirement_scrub.json:277-290"
+      - code: ".github/workflows/ci-router.yml:177-187"
+    claim: >-
+      The corpus marker description in pytest.ini already contains the literal text `contracts/**`
+      (it refers to the kitty-specs mission contracts leaf). The AC "pytest.ini's corpus marker
+      description names contracts/**" is therefore passable by a no-op, and after the edit the same
+      token would mean two different trees. Separately, the spec says _CORPUS_GLOBS must "stay a
+      faithful mirror of the router". It is not one today: _CORPUS_GLOBS lists
+      .kittify/release/downstream-verified.json, which the router filter does not, and no test
+      compares the set with the router. The only mechanical check is the data-root prefix test, so the
+      "documented glob set" edit is unenforced. The router corpus group is also transcribed in
+      ci_retirement_scrub.json under non_src_router_groups.corpus, a third unreferenced mirror that
+      SC-008 ("exactly one glob line") does not account for.
+    remediation: >-
+      Reword the AC to a checkable string, for example the description must contain "top-level
+      contracts/**" and "kitty-specs/**/contracts/**" as distinct tokens. Drop the "faithful mirror"
+      claim, or add a router-versus-_CORPUS_GLOBS equality assertion (reading the router through
+      scripts/ci/gate_selection.py) in the same PR, reconciling downstream-verified.json. Decide
+      explicitly whether ci_retirement_scrub.json non_src_router_groups.corpus gets the same glob (it
+      is not gated, so say it is documentation only) and amend SC-008 accordingly.
+
+  - id: SPEC-ARCH-005
+    lens: CI-gate interplay
+    severity: 2
+    title: "Corpus registry detection is a single-line regex; helper tests also each need a registry row"
+    evidence:
+      - artifact: "spec.md CL-2 first bullet ('module-level pytestmark entry or a decorator'), FR-020 last bullet, NFR-007"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:223-226"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:246-258"
+    claim: >-
+      _CORPUS_MARK_APPLICATION_RE matches `pytestmark = ...pytest.mark.corpus` only when both appear on
+      the same line. A multi-line `pytestmark = [` list (a normal formatter result once a list grows)
+      is not detected, so the registry equality test reports the module as missing from disk even
+      though it is marked. The spec allows "a module-level pytestmark entry" without this
+      constraint. The last FR-020 bullet also says any new test in tests/contract carries corpus, which
+      means every helper unit-test module added for NFR-007 must also be added to
+      _CORPUS_MARKED_MODULES.
+    remediation: >-
+      State that the marker is applied as a single-line `pytestmark = [pytest.mark.contract,
+      pytest.mark.corpus]` (as tests/contract/test_example_round_trip.py does) or by decorator, and
+      that every new tests/contract test module, including helper-unit tests, is added to the
+      registry in the same change. Verify with the named gate file run.
+
+  - id: SPEC-ARCH-006
+    lens: CI-gate interplay
+    severity: 2
+    title: "NFR-001 ignores the 240 s per-test timeout and a single-worker loadfile run"
+    evidence:
+      - artifact: "spec.md NFR-001, FR-019 (one test over every Mission)"
+      - code: "pytest.ini:35"
+      - code: "tests/architectural/test_pytest_ini_timeout_default.py:1-12"
+      - code: ".github/workflows/ci-router.yml:680-710"
+    claim: >-
+      The reality check measures at most 120 s and is "not asserted inside the test", but pytest.ini
+      carries a hard per-test timeout of 240 s (pinned by a gate). If the test is one function
+      looping over 538 Missions, it runs on one xdist worker under --dist loadfile beside about 1400
+      other corpus tests on a 10 minute job, with only 2x margin to the per-test ceiling. Corpus
+      growth or a slow runner turns into a timeout that names no Mission.
+    remediation: >-
+      Require one parametrised test case per Mission (also what FR-019's failure message naming needs),
+      or an explicit per-test timeout mark with a recorded rationale. Record the measured runtime
+      against the 240 s ceiling, not only the job timeout.
+
+  - id: SPEC-ARCH-007
+    lens: CI-gate interplay
+    severity: 3
+    title: "NFR-007 90 percent coverage of test-helper code has no measurement path"
+    evidence:
+      - artifact: "spec.md NFR-007, FR-019 (helper under tests/contract/)"
+      - code: "pyproject.toml:2937-2944"
+      - code: ".github/workflows/ci-aggregate.yml:290-291"
+      - code: ".github/workflows/ci-router.yml:710"
+    claim: >-
+      The repository's coverage tooling measures src (the coverage paths map src/, the diff-cover gate
+      scores changed critical-path lines from module shards, and the router corpus job runs without
+      --cov). A helper under tests/contract/ is outside every measured subject, so "line and branch
+      coverage of at least 90 percent of the new test-helper code" cannot be shown by any existing
+      job, and the spec names none.
+    remediation: >-
+      Name the measurement (for example a non-blocking `pytest --cov=<helper package> --cov-branch
+      --cov-fail-under=90` step run locally and its output pasted in the PR) or replace the AC with
+      checkable behaviour: every projection helper function has a direct unit test, and the planted
+      positive and negative controls of FR-019 exercise each branch.
+
+  - id: SPEC-ARCH-008
+    lens: Data-shape grounding
+    severity: 4
+    title: "Real corpus strings trip the FR-012 path scan on a non-null field (WP title) and on free-text fields"
+    evidence:
+      - artifact: "spec.md FR-012 second bullet (value scan: starts with / or contains a temp-directory segment), D-14, FR-019 (zero exclusions), catalogue row title (Null: no)"
+      - code: "src/specify_cli/dashboard/scanner.py:953-962"
+      - code: "src/specify_cli/status/models.py:285-305"
+      - code: "src/specify_cli/status/models.py:428-445"
+      - code: "src/specify_cli/status/reducer.py:114-115"
+    claim: >-
+      Scanning this checkout: about 10 committed work package titles begin with or contain "/tmp"
+      (nine begin with "/", for example "/tmp burn-down: ..." in the tmp-literal-offender-burndown
+      mission), so the contract's absolute-path value scan flags them. `title` is required non-null,
+      and D-14 only allows projecting a failing "structured" string to null, so the check either fails
+      on day one with the mandated zero exclusions or nulls a required field. Event free text has the
+      same shape: about 29 transition `reason` values contain path-like text, and 9 `review_ref` /
+      `evidence.review.reference` values are absolute temp paths (the legacy free-text reference the
+      spec says review.latestResult.reference exposes). The catalogue marks review.latestResult
+      reference, history reason and override reason without a nullable policy, so the projection of
+      those strings is undefined.
+    remediation: >-
+      Decide per field and write it into the spec: either title is exempt from the path scan like
+      promptMarkdown (documented as authored text) or the scan targets path-shaped whole values only;
+      and mark every free-text string field (reason, reference, override.reason, cancellation.reason,
+      history reason) nullable with the same D-14 projection rule. Add the corpus facts (titles
+      starting with "/tmp", absolute review references) to the FR-019 positive controls so the rule is
+      exercised by real data, not assumed.
+
+  - id: SPEC-ARCH-009
+    lens: Data-shape grounding
+    severity: 3
+    title: "Work package enumeration is undefined; the 3000-WP floor fails under the event-sourced count"
+    evidence:
+      - artifact: "spec.md FR-019 floors, SC-002, D-4, Edge Cases (event-less WP reads null status lane), catalogue rows wpTotal / workPackages / title"
+      - code: "src/specify_cli/status/progress.py:201"
+      - code: "src/specify_cli/dashboard/scanner.py:707"
+    claim: >-
+      On this checkout there are 3125 tasks/WP*.md files (3121 distinct mission/WP ids), 2936 work
+      packages with transition events (the snapshot set that D-4 defines wpTotal over), 214 files with
+      no events, and 29 evented work packages with no file. The FR-019 floor "at least 3000 work
+      packages validated" holds only if the enumerator is file-based or a union; under the snapshot
+      enumerator that D-4 and wpTotal imply it fails (2936). A file-based list also makes
+      `workPackages.length` differ from `wpTotal`, and the 29 file-less work packages have no source
+      for the non-null `title`.
+    remediation: >-
+      State the enumerator once (recommended: the union of snapshot work packages and tasks files,
+      keyed by wpId), define wpTotal consistently with the list length or document why they differ,
+      give `title` a fallback for file-less work packages (the wpId) and make the floor refer to that
+      enumerator. Record the three counts (3125 files, 2936 snapshot, 214 and 29 differences) as the
+      survey numbers behind the floor.
+
+  - id: SPEC-ARCH-010
+    lens: Data-shape grounding
+    severity: 3
+    title: "lifecycleStatus is specified over nine lanes but the existing derivation is a five-column, file-count one"
+    evidence:
+      - artifact: "spec.md D-5, D-4, CL-8 (no grouping), FR-019 (uses 'the lifecycle derivation')"
+      - code: "src/specify_cli/dashboard/scanner.py:36-46"
+      - code: "src/specify_cli/dashboard/scanner.py:219-246"
+      - code: "src/specify_cli/dashboard/scanner.py:681-725"
+    claim: >-
+      D-5 says lifecycleStatus "re-expresses the existing derivation over the nine-status-lane counts
+      with unchanged semantics, quirks included". The existing function takes kanban_stats, whose
+      columns come from _KANBAN_COLUMN_FOR_LANE (claimed and in_progress become doing, in_review
+      becomes for_review, blocked becomes planned, canceled becomes done) and whose total counts
+      tasks/WP*.md files with a non-genesis lane, not snapshot work packages. Re-expressing it over
+      statusLaneCounts is a different function wherever the file set and the snapshot set differ (214
+      and 29 work packages here), so "unchanged semantics" is false, and the column mapping that CL-8
+      keeps out of the contract is in fact required to state the rule.
+    remediation: >-
+      Write the derivation in the schema description as an explicit rule over statusLaneCounts (which
+      lanes count as active, planned and terminal) and state the input set (snapshot, per D-4). Then
+      require the reality check to compare lifecycleStatus with the scanner's derivation only on
+      Missions where file and snapshot sets agree, and list the Missions where they disagree as a
+      documented, counted difference rather than silently different behaviour.
+
+  - id: SPEC-ARCH-011
+    lens: Data-shape grounding
+    severity: 3
+    title: "phases (implement and review) and readyToStart have no reader; their rules are not specified"
+    evidence:
+      - artifact: "spec.md FR-005 second bullet, catalogue rows phases and readyToStart, FR-019 reader list"
+      - code: "src/specify_cli/dashboard/scanner.py:365-390"
+      - code: "src/specify_cli/orchestrator_api/commands.py:1250-1271"
+    claim: >-
+      The only phase reader, get_workflow_status, returns four keys (specify, plan, tasks, implement)
+      with implement set to in_progress when the kanban artifact exists and never complete; there is no
+      review key. The contract needs five phases with pending, in_progress and complete, and says
+      implement and review derive from status lanes, but gives no rule (FR-005 defers it to "the
+      schema description"). readyToStart cites an inline filter in the orchestrator-api list-ready
+      command that only evaluates work packages whose progress bucket is not_started; there is no
+      defined value for any other work package, and it duplicates readiness.satisfied. The reality
+      check can only validate these by a test-side re-implementation.
+    remediation: >-
+      Put the derivation rules in the spec (for example implement is pending when no work package left
+      planned, in_progress when any is active, complete when all are terminal; review likewise from
+      for_review/in_review/approved) and mark them x-derived, or mark both fields x-provisional.
+      Define readyToStart for every status lane (false when not planned) or drop it in favour of
+      readiness.satisfied plus statusLane. Remove the orchestrator_api command as a cited source.
+
+  - id: SPEC-ARCH-012
+    lens: Canonical source
+    severity: 3
+    title: "The reality check's 'today's readers' include private, inline and soon-deleted code, so it may test its own helper"
+    evidence:
+      - artifact: "spec.md FR-019 first bullet, FR-010 third bullet, R-2, Edge Cases (Dangling citations)"
+      - code: "src/specify_cli/dashboard/scanner.py:219"
+      - code: "src/specify_cli/dashboard/scanner.py:249"
+      - code: "src/specify_cli/dashboard/scanner.py:565-612"
+      - code: "src/specify_cli/orchestrator_api/commands.py:1250-1271"
+    claim: >-
+      FR-019 lists the readers as materialize_snapshot, the meta.json key whitelist,
+      compute_weighted_progress, reconstruct_wp_view, dependency_readiness_for_wp, "the lifecycle
+      derivation" and the tail reader, and puts the projection in a test helper with no src module
+      (C-002). Three of those are not public seams: the lifecycle derivation, next action and meta
+      whitelist are private functions in the dashboard scanner (_derive_mission_status,
+      _derive_next_action, _read_dashboard_feature_meta), and readyToStart is inline in a CLI command.
+      #5545 deletes the scanner. After that the helper must carry its own copy of these derivations,
+      and the check silently becomes a test of the copy: a parallel source, which directive 044 treats
+      as a violation. R-2 only covers citations that dangle, not readers that vanish. The
+      missionCount citation (build_mission_registry) also counts pseudo-key orphans, scans
+      .worktrees copies and collapses duplicate ids, so equality with the overview list holds only
+      on the current clean corpus.
+    remediation: >-
+      State for each derived field which function the helper imports (private imports from the
+      scanner are acceptable now) and what replaces it if #5545 lands first. Add a spec requirement
+      that the helper's copy of any derivation is covered by a parity test against the original while
+      the original exists, and that deleting the original converts it to a pinned expected-output test
+      from the corpus. Define missionCount as the number of overview records, with the registry only
+      as a cross-check on the clean corpus.
+
+  - id: SPEC-ARCH-013
+    lens: Data-shape grounding
+    severity: 3
+    title: "Event stream kinds do not cover the real row shapes; lifecycle marker has no defined source mapping"
+    evidence:
+      - artifact: "spec.md D-8, D-9, FR-007, catalogue Events table (Mission lifecycle marker row)"
+      - code: "src/specify_cli/status/lifecycle_events.py:75-104"
+      - code: "src/specify_cli/status/tail_reader.py:314-315"
+    claim: >-
+      The committed logs contain 14 non-transition row kinds in four envelopes. Lifecycle rows use
+      timestamp, aggregate_id, event_type and payload (not at); aggregate_id is the Mission ULID only
+      for MissionCreated (it is the slug for SpecifyStarted and others, and the work package id for
+      WPCreated). DecisionPointOpened and DecisionPointResolved (about 390 rows) carry only at,
+      event_id, event_type and payload. RetrospectiveCaptured uses `type`, and ReviewerSelfApproval and
+      RetrospectiveCaptureFailed also exist. D-8 requires "at least" three projected kinds and the
+      catalogue's lifecycle marker lists missionId, eventType and at, but the spec does not say
+      which event types project to the marker, where missionId comes from (aggregate_id is wrong for
+      most), where `at` comes from, or that all other kinds are dropped rather than forwarded.
+      WP history also lists kind annotation and lifecycle, while D-8 says annotations are not exposed.
+    remediation: >-
+      Add a projection table: row kind to stream kind or "dropped", with the source field of missionId
+      (the Mission's meta.json identity, never aggregate_id), of at (timestamp for lifecycle rows)
+      and an explicit allow-list of lifecycle event types. State that unknown row kinds are dropped.
+      Reconcile D-8 with the history kinds (history exposes names only; stream does not).
+
+  - id: SPEC-ARCH-014
+    lens: Data-shape grounding
+    severity: 3
+    title: "Actor projection (D-10) does not say how a plain-string actor maps to {tool, role, profile, model}"
+    evidence:
+      - artifact: "spec.md D-10, FR-012 third bullet, catalogue rows actor / assignment / implementerOfRecord / review"
+      - code: "src/specify_cli/status/models.py:114-159"
+    claim: >-
+      The source actor is either a four-key dict or a plain string ("codex", a colon-encoded string,
+      "finalize-tasks", "user", an e-mail address; 27k string and 3.8k dict actors in the committed
+      logs). The existing reader goes only one way (actor_identity_str collapses a dict to its tool).
+      The spec projects both to an object with four nullable handles, and says a colon-encoded string
+      "matches" the handle pattern, but not whether it is split into the four fields or stored whole in
+      one of them. Different implementers would produce different payloads, and the reality check
+      cannot assert either.
+    remediation: >-
+      Specify the mapping: dict is copied field by field through the handle filter; a plain string
+      that passes the handle pattern becomes `tool` with role, profile and model null (colon forms are
+      not split), and any other string becomes all-null. Add one example per source form and assert
+      the e-mail and "user" cases in the reality check.
+
+  - id: SPEC-ARCH-015
+    lens: Data-shape grounding
+    severity: 1
+    title: "nextAction citation says three prose strings; the function returns two plus null"
+    evidence:
+      - artifact: "spec.md catalogue row nextAction ('three prose strings or null'); data-shapes grounding says 3 outcomes"
+      - code: "src/specify_cli/dashboard/scanner.py:249-273"
+    claim: >-
+      _derive_next_action returns the review-and-accept string, the consolidate string, or None: two
+      strings. The catalogue transcribed the grounding document's "3 outcomes" as three strings.
+      Both strings also embed the Mission slug, which is fine for leaks but should be said.
+    remediation: >-
+      Change the row to "two prose strings (review then accept; consolidate) or null", and note the
+      slug embedding.
+
+  - id: SPEC-ARCH-016
+    lens: Contracts
+    severity: 2
+    title: "Preserved surfaces are not stated, and a second 'topology' vocabulary exists in the status domain"
+    evidence:
+      - artifact: "spec.md C-002, Reflexivity paragraph, Out of Scope; catalogue row topology"
+      - code: "src/specify_cli/status/aggregate.py:168-190"
+      - code: "src/mission_runtime/context.py:44-56"
+      - code: "tests/contract/conftest.py:12-22"
+    claim: >-
+      The spec says no event schema, meta.json, CLI or migration change, but never states that the
+      vendored spec_kitty_events contract (specify_cli/core/upstream_contract.json, loaded by
+      tests/contract/conftest.py), the orchestrator-api command surface, doctrine schemas and mission
+      step contracts are untouched and not re-described by the new contract. The catalogue also cites
+      orchestrator_api for readyToStart. Separately, MissionStatus.topology in the status aggregate
+      uses a different two-value vocabulary (legacy, coordination) from the five-value Topology
+      enum cited from mission_runtime; the spec does not say the former is out of scope, which invites
+      a mis-cite.
+    remediation: >-
+      Add one sentence to Reflexivity/Out of Scope listing the preserved surfaces (vendored events
+      contract, orchestrator-api surface, doctrine schemas, mission step contracts) and stating the
+      contract introduces no new write path to any of them. Add a README note that the Topology enum
+      is the stored meta.json shape and is unrelated to MissionStatus.topology.
+
+  - id: SPEC-ARCH-017
+    lens: Canonical source
+    severity: 3
+    title: "Markdown lint AC conflicts with Node-free C-005 and the existing job is non-blocking"
+    evidence:
+      - artifact: "spec.md FR-001 second bullet, FR-024, C-005, FR-017 (no npx/npm/yarn/pnpm in workflow)"
+      - code: ".github/workflows/ci-router.yml:418-425"
+      - code: ".markdownlint-cli2.jsonc:1-10"
+    claim: >-
+      FR-001 and FR-024 require "a markdown lint of the README and both CHANGELOG.md files passes under
+      the repository's .markdownlint-cli2.jsonc". The only runner of that config is the router
+      markdownlint job, which executes `npx --yes markdownlint-cli2 "**/*.md" || true`: Node-based
+      and non-blocking, so it passes whatever the content. A new Node invocation in the contracts
+      tooling would violate C-005 and FR-017's guard, and relying on the existing job makes the AC
+      vacuous.
+    remediation: >-
+      Restate the AC as: the files are clean under the router markdownlint job (advisory today, so
+      record the output in the PR), or add a Node-free check of the specific rules that matter. Do not
+      invoke markdownlint-cli2 from the contracts workflow or its tests.
+
+  - id: SPEC-ARCH-018
+    lens: Reflexivity
+    severity: 2
+    title: "The reality check reaches every in-flight Mission PR because tasks/** is already a corpus glob"
+    evidence:
+      - artifact: "spec.md Reflexivity paragraph, R-4, FR-019 (zero exclusions, whole kitty-specs corpus)"
+      - code: ".github/workflows/ci-router.yml:177-187"
+      - code: "src/specify_cli/mission_metadata.py:226-246"
+    claim: >-
+      The spec notes the coupling but treats it as unrelated PRs "occasionally" failing. In fact the
+      router corpus glob already includes kitty-specs/**/tasks/**, spec.md, plan.md and
+      acceptance-matrix.json, so every Mission work-package PR in this repository runs the corpus job
+      and therefore the whole-corpus reality check against the live data of every other Mission,
+      including Missions mid-flight with partial frontmatter or a mission_number sentinel (the
+      identity reader raises on a non-numeric string). A data defect in an unrelated in-flight Mission
+      then blocks the PR of a different Mission, and the spec's only remedy is a drain-dated exclusion
+      that needs an issue.
+    remediation: >-
+      State this blast radius explicitly in Reflexivity, and add a triage rule: a failure naming a
+      Mission other than those the PR touches is first classified as contract gap, reader defect or
+      data defect and routed to that Mission's owner within the PR conversation, with the exclusion
+      path (issue, owner, drain date) pre-approved so a stranger's PR is not stuck.

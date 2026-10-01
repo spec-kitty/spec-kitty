@@ -1,0 +1,79 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: SPEC-FRESH-001
+    lens: code-claims
+    severity: 4
+    title: "Fleet verdict claim is wrong: a new pull_request workflow outside PR_WORKFLOWS makes applicable_workflows raise"
+    evidence:
+      - artifact: "spec.md § FR-017 (Fleet verdict bullet), § D-16 item 6, § C-003, § SC-008"
+      - code: "scripts/ci/fleet_verdict.py:52-75 (seen = every workflow with a pull_request trigger; raises ValueError 'PR workflow inventory changed' when seen != PR_WORKFLOWS)"
+      - code: "tests/ci/test_fleet_verdict.py:102-103 and :125 (assert applicable_workflows(ROOT, ...) == PR_WORKFLOWS-derived set; assert the workflow_run list equals PR_WORKFLOWS plus the aggregate)"
+      - code: "scripts/ci/fleet_main.py:39-52 (main_workflows iterates PR_WORKFLOWS)"
+    claim: "The spec says neither new workflow is added to PR_WORKFLOWS or to the ci-fleet-verdict workflow_run list, and that the only consequence is a missing fleet comment. Both new workflows carry a pull_request trigger (FR-017, FR-022). applicable_workflows adds every pull_request-triggered workflow file to seen and raises ValueError when seen differs from PR_WORKFLOWS. So the stated design fails tests/ci/test_fleet_verdict.py on this PR and, once merged, breaks the fleet verdict computation for every PR. The 'observe only the workflows named there' premise in D-16 item 6 is false."
+    remediation: "Replace the Fleet verdict bullet and D-16 item 6: either (a) add both workflows to PR_WORKFLOWS in scripts/ci/fleet_verdict.py and to the workflow_run list of ci-fleet-verdict.yml, update the matching expectations in tests/ci/test_fleet_verdict.py, and amend C-003/SC-008 and the PR-body wording (a path-filtered workflow is required only when its paths match, which applicable_workflows already handles); or (b) drop the pull_request trigger from the new workflows, which contradicts D-17 and the in-PR dry run. State the chosen option and name tests/ci/test_fleet_verdict.py as a gate file to run."
+  - id: SPEC-FRESH-002
+    lens: scope-fidelity
+    severity: 3
+    title: "CL-2 maintainer decision is reinterpreted as its opposite, with the reinterpretation filed as a derived decision"
+    evidence:
+      - artifact: "spec.md § CL-2 third bullet ('The new path-filtered contracts workflow also runs the reality check')"
+      - artifact: "spec.md § D-16 Chosen shape and § FR-017 ('Neither new workflow invokes pytest ... on any event')"
+    claim: "CL-2 is labelled a binding maintainer decision, and its third bullet says the contracts workflow runs the reality check. D-16, a reviewable derived decision, resolves the tension by making the workflow run a parity script and no reality check at all, so the maintainer's bullet is not implemented as written. CL-1 to CL-4 are also asserted as maintainer decisions with no public citation, so a reader cannot tell whether the maintainer accepts this reading."
+    remediation: "Reword CL-2 bullet 3 to the realised form ('the contracts workflow proves the reality check's contract resolution equals the CI bundle; the reality check itself runs once, in tests-corpus'), and add an explicit line to the PR-body confirmation list asking the maintainer to confirm that reading, with the alternative (pytest in the contracts workflow plus a priced ledger row and a deselection from tests-corpus) named."
+  - id: SPEC-FRESH-003
+    lens: acceptance-non-vacuity
+    severity: 3
+    title: "x-derived satisfies the citation check with free text, so SC-004 can be met without citing anything"
+    evidence:
+      - artifact: "spec.md § D-3, § FR-010 (first two bullets), § SC-004"
+    claim: "FR-010 fails a property that has neither x-source nor x-derived, and resolves only x-source symbols. D-3 says an x-derived value carries the x-source of each input, but no check requires the inputs to exist, be non-empty, or resolve. A property annotated with any x-derived string passes with cited == total, and the reuse report only counts x-source reuse. The set of properties exempt from code grounding (lifecycleStatus, phases, readyToStart, missionCount, blockedCount, lastActivityAt, and more) can grow unchecked."
+    remediation: "Specify x-derived as a structured value (rule text plus a non-empty list of input citations) and have the citation check resolve each input exactly like x-source, fail on an empty rule or empty inputs, print the x-derived count beside the x-source count, and list x-derived properties in the PR body. Add a planted violation (x-derived with no inputs; x-derived input naming a missing symbol) to the FR-010 and FR-025 matrix rows."
+  - id: SPEC-FRESH-004
+    lens: ci-placement
+    severity: 3
+    title: "Python-implemented contract checks have no assigned execution home, and the README structural check is not selected by contracts-only changes"
+    evidence:
+      - artifact: "spec.md § FR-001 second bullet ('a Python test under tests/ci/'), § FR-017 (no pytest in either workflow), § FR-020 last bullet, § FR-025 matrix"
+      - code: ".github/workflows/ci-router.yml:203-205 (ci filter group is scripts/ci/** and .github/workflows/** only)"
+      - code: ".github/ci-module-registry.yml:381-408 (tests/ci row is the module-matrix home)"
+    claim: "The layout check, citation check, leak scan, enum pinning, example and event-mapping checks are specified as Python checks, but neither new workflow may run pytest and only the reality check is placed in tests-corpus. The README/CHANGELOG structural check is explicitly a tests/ci test, yet a PR (or push) that edits only contracts/README.md or contracts/mission-status/CHANGELOG.md selects the corpus job (once the glob is added) and not the tests/ci module, so the check does not run on exactly the edits it guards. The FR-021 requirement that each check has a real CI run is unsatisfiable without a stated runner."
+    remediation: "Add a requirement table row per Python-implemented check naming its runner: either non-pytest scripts (for example under a new contracts-owned scripts directory, with their own unit tests) invoked by the contracts workflow, or corpus-marked tests in tests/contract (registry row each, fast single-line pytestmark). Move the README/CHANGELOG structural check out of tests/ci or have the contracts workflow run it as a script. Note that scripts under scripts/ci/ select the tests/ci module and tests/ci tests that guard workflows are fine where they are."
+  - id: SPEC-FRESH-005
+    lens: code-claims
+    severity: 2
+    title: "pytest.ini marker-description edit is justified by a gate that does not check it"
+    evidence:
+      - artifact: "spec.md § FR-017 second bullet ('marker description that the corpus-trigger gate requires'), § FR-020 second bullet ('which makes the check non-vacuous')"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:241-248 (only asserts the marker is registered; nothing reads the description text)"
+      - code: "pytest.ini:86 (the existing description)"
+    claim: "No gate requires the 'top-level contracts/**' token, and the check that its absence would make non-vacuous does not exist. The edit to a cross-cutting file (pytest.ini) is therefore unmotivated by a gate, is not named in C-002, C-003 or SC-008, and would be a free-floating requirement with no failing test."
+    remediation: "Either drop the pytest.ini description edit, or keep it and add the test that asserts the token (a planted removal fails it) to the gate-file edits in FR-020, and list pytest.ini as a permitted edit in C-003 and SC-008. Correct the FR-017 sentence so it says the gate requires only the registry rows."
+  - id: SPEC-FRESH-006
+    lens: reproducibility
+    severity: 2
+    title: "Environment-dependent counts are pinned from a developer checkout, but the reader's source differs between local and CI"
+    evidence:
+      - artifact: "spec.md § FR-019 first bullet (36 Missions with CoordinationBranchDeleted, 'measured on the CI checkout') and fourth bullet (52 disagreements, shrink-only ceiling), § D-4, § Assumptions"
+      - code: "src/specify_cli/status/aggregate.py:337-352 (coord-aware load path; falls back only on CoordinationBranchDeleted)"
+    claim: "MissionStatus.load reads the coordination copy when the coordination branch exists and fails otherwise, so which status source a Mission is read from, and hence the snapshot counts, the disagreement list and the pinned expected-output fixture, depend on which branches exist in the clone (this checkout has local coordination branches; a CI clone does not). The spec reports the 36/52/2936 figures as measured here while calling them CI ceilings, so a ceiling can pass locally and fail in tests-corpus or the reverse."
+    remediation: "Require the ceilings and floors to be measured from a tests-corpus job log (fetch-depth 0, no local coordination branches) at implement start, require the helper to resolve each Mission's read directory deterministically, or require the reality check to run identically with and without local coordination branches (one test per mode), and state which figures in the spec are indicative only."
+  - id: SPEC-FRESH-007
+    lens: terminology
+    severity: 1
+    title: "Bare 'lane' still used for non-status meanings despite the 'never uses the bare word lane' promise"
+    evidence:
+      - artifact: "spec.md § Terminology (lane bullet), § Edge Cases (Router reshaping), § Reflexivity, § Assumptions, § R-1, § R-5 ('corpus lane', 'unrelated lane'), § Catalogue readiness row ('dependency lane')"
+    claim: "'corpus lane', 'the lane' (CI routing) and 'dependency lane' appear as bare 'lane' with a CI or status-lane meaning, which the Terminology section says the spec avoids; C-007 forbids conflating them."
+    remediation: "Use 'corpus job' / 'corpus selection' for the CI sense and 'dependency status lane' (or 'dependency's status lane') in the readiness row."
+  - id: SPEC-FRESH-008
+    lens: cross-reference
+    severity: 1
+    title: "SC prose and the Traceability table disagree on which requirements each SC evidences"
+    evidence:
+      - artifact: "spec.md § SC-001 ('FR-001 to FR-009' vs table omitting FR-006), § SC-003 (text omits NFR-003 which the table lists), § SC-007 (text omits NFR-005 which the table lists)"
+    claim: "The two mappings of the same relationship differ, so the 'the table is the check' sentence cannot be trusted to match the SC text."
+    remediation: "Make the SC heading lists and the table identical (drop FR-006 from the SC-001 range or add it to the table; add NFR-003 to SC-003 text and NFR-005 to SC-007 text)."

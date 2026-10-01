@@ -1,0 +1,209 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+- id: SPEC-FRESH2-001
+  lens: non-vacuity
+  severity: 3
+  title: Resolver-parity script is the only link between the reality check and the CI bundle but has no
+    fail-loud row, planted-violation AC or SC
+  evidence:
+  - artifact: spec.md § D-16 Chosen shape, FR-019 (last-but-one bullet), OQ-1
+  - artifact: spec.md § FR-025 fail-loud matrix and FR-021 check list (no resolver-parity entry; it appears
+      only in the runner table)
+  - artifact: spec.md § D-15 enumerated check list (no parity)
+  claim: After this revision the reality check runs only in JVM-less corpus jobs and never against the
+    contract the contracts workflow builds. Everything that ties it to the CI bundle is the non-pytest
+    parity script. That script has no row in the FR-025 matrix, is not in the FR-021 list of checks needing
+    a planted violation with an asserted message, has no minimum-input floor (schemas, paths, refs compared),
+    and maps to no SC. A parity script that compares two empty or truncated documents, or that skips on
+    a missing resolver, would pass vacuously while the stated guarantee (reality check validated against
+    the shipped contract) is lost. It also does not say where the script gets the test-side resolver from
+    (contracts/tools importing from tests/ is an unstated coupling, and it must never import pytest).
+  remediation: Add a resolver-parity row to the FR-025 matrix (zero documents, zero paths or schemas compared,
+    resolver missing, divergence -> non-zero exit naming the first differing JSON pointer), add it to
+    FR-021 and D-15 lists with a planted divergent-resolver fixture run by the negative-test job, state
+    where the resolver lives and that the script and the reality check import the same one, and cite it
+    in an SC (SC-002 or SC-003).
+- id: SPEC-FRESH2-002
+  lens: non-vacuity
+  severity: 3
+  title: No-pytest guard over contracts/tools/ is assigned to tests/ci, which D-19 says never runs on
+    a contracts-only edit
+  evidence:
+  - artifact: 'spec.md § D-19 (last sentence: nothing in tests/ci that must run on an edit confined to
+      contracts/)'
+  - artifact: spec.md § FR-025 guard-tests row (no pytest in the new workflows and contracts/tools/) and
+      runner table row 'Guard tests ... pytest in tests/ci/, selected by the module-matrix ci row'
+  - code: .github/ci-module-registry.yml:375-376 (ci row roots are scripts/ci/** and .github/workflows/**)
+  claim: The guard that scans contracts/tools/ scripts for pytest is placed in tests/ci/, whose per-PR
+    executor is the ci module row selected only by scripts/ci/** and .github/workflows/** edits. A PR
+    that only adds or edits a contracts/tools/*.py script that imports or shells out to pytest selects
+    neither that row nor (via the added glob) any tests/ci module, so the guard does not run on exactly
+    the edits it protects. This contradicts D-19's own placement rule and makes the 'no second pytest
+    execution' invariant unguarded for the contracts/tools half.
+  remediation: 'Split the guard: keep the workflow-file half in tests/ci, and make the contracts/tools
+    no-pytest scan a contracts/tools script (run by the contracts workflow) plus its tests/contract unit-test
+    module, or run it inside the layout check. Update the runner table accordingly.'
+- id: SPEC-FRESH2-003
+  lens: scope
+  severity: 3
+  title: Fleet-machinery edit list (fleet_main.py, ci-fleet-verdict.yml, two test files) is driven only
+    by giving the release workflow a pull_request trigger; no alternative is recorded
+  evidence:
+  - artifact: spec.md § FR-017 fleet verdict bullet (a)-(d), C-003, SC-008, D-17
+  - code: scripts/ci/fleet_main.py:39-49 (main_workflows raises on any push key other than branches and
+      paths)
+  - code: scripts/ci/fleet_verdict.py:37-75 (PR_WORKFLOWS inventory)
+  claim: 'The edit to scripts/ci/fleet_main.py (production CI code), the tags-only skip, and the test_fleet_main
+    case exist solely because the release workflow carries both a tag push and a pull_request dry-run
+    trigger, making it a PR_WORKFLOWS member. CL-4 requires a dry-run that is green in the PR, not that
+    it live in the same workflow file as the tag trigger. Keeping the release workflow tag and workflow_dispatch
+    only (not a PR_WORKFLOWS member, no fleet_main change, no tags-only test) and running the dry run
+    as a job of the contracts workflow (sharing the build steps) would cut one PR_WORKFLOWS entry, one
+    workflow_run name, the fleet_main edit and one test file edit, and would not need a pull_request trigger
+    on a publishing workflow. The spec presents the listed edits as ''minimal'' without recording that
+    this alternative was weighed, against the stated minimal-edit intent of C-003 and SC-008 and with
+    #5557 open.'
+  remediation: 'Record in D-16/D-17 why the dry run must live in the release workflow, or switch to the
+    alternative above and shrink C-003/SC-008 to the contracts workflow only (one PR_WORKFLOWS entry,
+    one workflow_run name, test updates). If kept, state the cost accepted: an edit to scripts/ci/fleet_main.py.'
+- id: SPEC-FRESH2-004
+  lens: fidelity-to-code
+  severity: 2
+  title: 'C-003 and R-1 misstate which shared files #5557 and #5545 touch and miss the real conflict surface;
+    the glob/data-roots documentation edit is unnecessary'
+  evidence:
+  - artifact: 'spec.md § C-003 (''PR #5557 (open) touches both files, and #5545 has merged and edited
+      them''), R-1 file list, D-16 item 1, FR-020 second bullet'
+  - code: gh pr 5557 file list includes tests/architectural/test_ci_corpus_trigger_completeness.py (rewrites
+      _CORPUS_GLOBS to load_router().filters['corpus']) and adds tests/ci/test_corpus_blocking_home.py;
+      it touches none of scripts/ci/fleet_verdict.py, fleet_main.py, ci-fleet-verdict.yml, tests/ci/test_fleet_*.py
+  - code: gh pr 5545 file list has no fleet file
+  claim: 'C-003 says #5557 touches ''both files'' (referent unclear) and that #5545 edited ''them'' (the
+    fleet files); neither PR edits the fleet files. R-1 lists #5557''s edited files but omits test_ci_corpus_trigger_completeness.py,
+    which this Mission also edits and which #5557 rewrites so that _CORPUS_GLOBS is derived from the live
+    router. The spec''s edit adding contracts/** and contracts/ to _CORPUS_GLOBS and _CORPUS_DATA_ROOTS
+    is described by the spec itself as documentation that no test reads, so it is a pure conflict risk
+    with no gate behind it (the gate needs only the registry rows).'
+  remediation: 'Rewrite C-003 to name the files each PR really touches; add test_ci_corpus_trigger_completeness.py
+    and #5557''s new test_corpus_blocking_home.py to R-1; drop the _CORPUS_GLOBS/_CORPUS_DATA_ROOTS documentation
+    edit (registry rows only) and amend FR-020/D-16 item 1.'
+- id: SPEC-FRESH2-005
+  lens: contradiction
+  severity: 3
+  title: CL-2 is recorded as a binding maintainer decision, yet the revision declares its literal reading
+    'not what is built'
+  evidence:
+  - artifact: spec.md § Clarifications intro ('bind the spec ... a reviewer checks against them rather
+      than re-opening them'), CL-2 third bullet, D-16 Chosen shape
+  claim: The Clarifications section says CL-1..CL-4 are maintainer decisions that are not to be re-opened,
+    then CL-2's third bullet says the literal reading (the contracts workflow also runs the reality check)
+    'is not what is built' and substitutes a derived design (parity script, test only in tests-corpus).
+    A derived decision overrides a recorded maintainer decision, and confirmation is deferred to a PR-body
+    question. Downstream FRs (FR-017, FR-020, SC-007) are written to the substitute, so a maintainer who
+    picks the literal reading invalidates them.
+  remediation: Mark CL-2 bullet 3 explicitly as 'maintainer decision, realised by derived deviation D-16,
+    pending maintainer confirmation' in one place, list the FRs/SCs that change if the literal reading
+    is chosen, and keep the intro's 'not re-opened' claim from covering it.
+- id: SPEC-FRESH2-006
+  lens: weakened-ac
+  severity: 2
+  title: SC-003/FR-021 demand a linked real failing CI run for every check, but the runner table accepts
+    in-module planted cases for guard tests and the reality check
+  evidence:
+  - artifact: spec.md § SC-003 ('none is demonstrated only by a local run')
+  - artifact: 'spec.md § FR-021 first bullet (evidence is real CI output: negative-test job or linked
+      throwaway commits)'
+  - artifact: spec.md § runner table, columns 'CI evidence of failure' for Reality check ('the controls
+      inside the module') and Guard tests ('each guard's own planted cases')
+  claim: Guard tests and the reality check are in the FR-021 list, which requires a linked failing run,
+    while the runner table names in-test planted cases as their evidence. Those cases pass in a green
+    run and show no failing run. The two statements cannot both hold, and an implementer can satisfy the
+    table and fail SC-003, or the reverse.
+  remediation: 'Align them: either require throwaway-commit failing runs for the guard tests and the reality
+    check too, or change FR-021/SC-003 to say in-test planted cases (green run asserting the failure)
+    count as the evidence for pytest-based checks.'
+- id: SPEC-FRESH2-007
+  lens: ambiguity
+  severity: 2
+  title: Release dry-run planted fixture module has no stated location and would be discovered as a real
+    module
+  evidence:
+  - artifact: spec.md § D-17 ('A planted mismatch is a fixture module whose CHANGELOG lacks the version
+      heading'; dry run loops over every module discovered under contracts/)
+  - artifact: spec.md § FR-022 first and second bullets
+  - artifact: spec.md § FR-016 last bullet (baseline fixtures kept 'outside any path validated as a real
+      module')
+  claim: FR-016 explicitly places its fixture pair outside module discovery; D-17 and FR-022 do not. A
+    fixture module that sits where modules are discovered makes the real PR dry run (and layout, validate
+    and lint checks) fail on the planted defect; one placed outside needs a stated way for the negative-test
+    job to point the dry-run logic at it. Without this the dry run's negative proof is either red on every
+    run or unspecified.
+  remediation: State the fixture location (outside module discovery, for example under contracts/tools/
+    fixtures) and that the dry-run script takes a module root parameter so the negative-test job can target
+    it, with the clean control on the same fixture.
+- id: SPEC-FRESH2-008
+  lens: contradiction
+  severity: 2
+  title: FR-017 path-filter guard cannot hold for the release workflow
+  evidence:
+  - artifact: spec.md § FR-017 first bullet (every trigger path-filtered to contracts/** plus exactly
+      the workflow's own path and .github/CODEOWNERS; guard over 'the new workflow files')
+  - artifact: spec.md § FR-022 first bullet (tag trigger, workflow_dispatch, pull_request filtered to
+      contracts/** and its own file)
+  claim: The guard is specified over both new workflow files, but the release workflow has a tag-push
+    trigger (not path-filterable) and workflow_dispatch, and its pull_request filter must not include
+    .github/CODEOWNERS ('exactly' contradicts it). As written the guard either fails the release workflow
+    or must be silently special-cased.
+  remediation: Scope the 'path-filtered to contracts/**' rule to the contracts workflow and to the release
+    workflow's pull_request trigger only, state the allowed extra path per file (CODEOWNERS only for the
+    contracts workflow), and say tag and dispatch triggers are checked by the namespace and publish-step
+    guards instead.
+- id: SPEC-FRESH2-009
+  lens: correctness
+  severity: 3
+  title: Reality check is selected by tests-corpus only when contracts/** or kitty-specs data change,
+    not when the readers it validates or its own test and helper change
+  evidence:
+  - artifact: spec.md § FR-020 first bullet, D-16 Chosen shape, Edge case 'Router reshaping', SC-007
+  - code: .github/workflows/ci-router.yml:177-186 (corpus filter globs; no tests/contract/** and no src
+      status paths)
+  claim: The one added glob (contracts/**) means the test runs on contract edits and on spec/plan/tasks
+    edits, but a PR that edits src/specify_cli/status/** (the readers the contract is meant to track),
+    the test-side helper, or tests/contract/test_mission_status_reality.py selects module shards and not
+    tests-corpus. Reader drift that breaks the contract is therefore caught only after merge (push to
+    main). That is the failure the reality check exists to prevent, and constraint C-003 forbids adding
+    the paths. The spec states the exactly-once invariant but never records this selection gap or accepts
+    it.
+  remediation: Add a risk row stating the gap and the accepted mitigation (push-to-main and nightly coverage),
+    or have the plan decide whether to add tests/contract/test_mission_status_reality.py and its helper
+    to the router glob (amending C-003/SC-008) and name the reader paths that remain uncovered.
+- id: SPEC-FRESH2-010
+  lens: terminology-drift
+  severity: 1
+  title: Fleet test expectation for the docs diff misstated
+  evidence:
+  - artifact: spec.md § FR-017 fleet verdict bullet (d)
+  - code: tests/ci/test_fleet_verdict.py:101-108
+  claim: (d) says the expected set for both the pyproject.toml diff and the docs/example.md diff is 'PR_WORKFLOWS
+    minus the two new workflows'. The docs case already subtracts release-readiness.yml and check-spec-kitty-events-alignment.yml,
+    so the expected value there is the existing expression minus those two and minus the two new workflows.
+  remediation: Reword (d) to say the existing expected sets additionally exclude the two new path-filtered
+    workflows.
+- id: SPEC-FRESH2-011
+  lens: orphan-reference
+  severity: 1
+  title: D-9 and D-12 are not cited from any requirement; one-way references and a generic 'operator'
+    wording
+  evidence:
+  - artifact: spec.md § D-9, D-12 (D-12 says 'see FR-016'; FR-016 does not cite D-12; D-9 cited nowhere)
+  - artifact: spec.md § FR-012 row and the residual-risk bullet (the word 'operator' used for repository
+      operators and for a person whose OS name was recorded)
+  claim: D-1..D-19 are all defined, but D-9 and D-12 have no inbound citation, so a reviewer following
+    FR-012 or FR-016 never reaches them. The word 'operator' appears twice in a public spec in unrelated
+    senses.
+  remediation: Cite D-9 from FR-012/FR-007 and D-12 from FR-016; replace 'operator' with 'maintainer'
+    or 'user' in the two places.

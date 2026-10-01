@@ -1,0 +1,218 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: SPEC-GOV-001
+    lens: Clarification fidelity
+    severity: 4
+    title: CL-2 requires the contracts workflow to run the reality check, but FR-020 offers a shape where it does not, and mislabels the release dry run as a non-change event
+    evidence:
+      - artifact: "spec.md § CL-2 bullet 3 ('The new path-filtered contracts workflow also runs the reality check, without running it twice')"
+      - artifact: "spec.md § FR-020 'Exactly-once' ('if the plan does not [add a pytest job], the contracts workflow runs the reality check only on non-change events (the release workflow's dry run and tag run)')"
+      - artifact: "spec.md § FR-022 and OQ-2 (the dry run is also a path-filtered pull_request run)"
+      - code: "tests/architectural/test_no_duplicate_suite_execution.py:241 (AUTHORIZED_PER_CHANGE_SUITE_JOBS; pull_request-triggered jobs that reach pytest count as per-change)"
+      - code: ".kittify/charter/charter.md:91 (Standing Order 5: a transient allowlist is priced debt, prefer the empty-allowlist shape)"
+    claim: >
+      The binding decision is that BOTH the router corpus job and the new contracts workflow run the reality check, with exactly-once
+      semantics. CL-2 itself then restates this as a mere invariant ("not a specific job layout"), and FR-020 allows a layout in which
+      the contracts workflow never runs it on a change. That drops half of the decision. The alternative also contradicts FR-022/OQ-2:
+      the release dry run is specified as a path-filtered pull_request run, which the duplicate-suite gate treats as change-triggered,
+      so it is NOT a "non-change event" and would need its own AUTHORIZED_PER_CHANGE_SUITE_JOBS row (priced debt under the charter)
+      or would double-run the test.
+    remediation: >
+      State in CL-2/FR-020 which single job is the blocking per-change home and that the contracts workflow also exercises the test
+      (for example by running it as the dry-run/contracts job while the router corpus job deselects that node id, or the reverse).
+      Remove the "only on non-change events" sentence or correct it to account for the pull_request-triggered dry run. If an
+      AUTHORIZED_PER_CHANGE_SUITE_JOBS row is added, require an owner, rationale and exit condition per Standing Order 5.
+  - id: SPEC-GOV-002
+    lens: Directive
+    severity: 4
+    title: The markdown-lint acceptance criterion contradicts the Node-free constraint, and the only existing markdown lint job is advisory
+    evidence:
+      - artifact: "spec.md § FR-001 ('A markdown lint of the README and both CHANGELOG.md files passes under the repository's .markdownlint-cli2.jsonc'), § FR-024, § NFR-007"
+      - artifact: "spec.md § CL-6 and C-005 (no Node, npm, npx anywhere in tooling, workflows or tests); CL-10 (silent success forbidden)"
+      - code: ".github/workflows/ci-router.yml:425 (run: npx --yes markdownlint-cli2 \"**/*.md\" || true)"
+    claim: >
+      markdownlint-cli2 is a Node tool. The only place this repository runs it is the router's markdownlint job, which uses npx and
+      ends in "|| true", so it can never fail. The criterion is therefore either unsatisfiable under C-005 (a new Node step) or
+      vacuously satisfied by a job that cannot go red, which is exactly the silent success CL-10 forbids.
+    remediation: >
+      Either carve an explicit, narrow exception to C-005 for a pinned markdownlint step in the contracts workflow (with checksum or
+      lockfile pin, fail-loud, a planted-violation proof per FR-021), or replace the criterion with a Node-free structural check of the
+      README and CHANGELOG headings and drop the claim that the repository's markdownlint config is enforced. Do not rely on the
+      existing advisory job as evidence.
+  - id: SPEC-GOV-003
+    lens: Directive
+    severity: 4
+    title: Reality check and contract pin primary-checkout reads and a snapshot count that the ADR's single read surface and a reproducible reducer defect make wrong
+    evidence:
+      - artifact: "spec.md § D-4 (wpTotal = len(snapshot.work_packages)), § D-5, § Edge Cases 'Field absent from real data' (many Missions have no log on the primary checkout and read as draft), § FR-019 (floors: at least 3000 work packages), § SC-002"
+      - code: "docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md:103-114 (D-3: the API composes existing read models and never re-derives them; every read goes through the coordination-aware read surface MissionStatus.load / _read_path_resolver, callers never rebuild paths)"
+      - code: "src/specify_cli/status/aggregate.py:194 and :340 (MissionStatus.load uses the _read_path_resolver)"
+      - code: "src/specify_cli/status/reducer.py (no handling of WPCreated or TasksCompleted rows; 218 committed event logs contain WPCreated)"
+    claim: >
+      Verified on this checkout: calling materialize_snapshot on the 218 Missions whose logs hold WPCreated rows gives a snapshot whose
+      work package count differs from the number of tasks/WP*.md files in 20 of them (several give 0 for 3 to 8 files). Across the corpus
+      the snapshot yields 2936 work packages against 3019 WP files, below the FR-019 / SC-002 floor of 3000. The spec explains
+      mismatches as "a work package with a file but no events", but here the events exist and the reducer drops them. D-4 and D-5 then
+      pin the defective numbers (and the primary-only "draft" reading of coordination Missions) as v1 behaviour. This also departs from the
+      charter's single-canonical-authority principle and ADR D-3, which route status through the coordination-aware surface rather than
+      materialising from the primary directory. The 3125-file figure quoted as survey data does not match this checkout (3019).
+    remediation: >
+      Make the reality check read through MissionStatus.load (or state in the plan why not, recorded against ADR D-3). Record the
+      reducer gap as a known pre-existing defect with a public upstream issue (charter Pre-existing Failure Reporting Rule) and either
+      derive wpTotal from a source that survives it or pin it explicitly and keep the floor honest (set floors from counts re-measured
+      at implement time, not survey time). Add an AC that the reality check asserts wpTotal equals the WP file count or names each
+      exception.
+  - id: SPEC-GOV-004
+    lens: Terminology
+    severity: 3
+    title: The spec coins "execution lane" and says no glossary term exists, but the glossary already defines "code lane" and "repo-root lane"
+    evidence:
+      - artifact: "spec.md § Terminology ('execution lane is not yet a glossary term'), § R-9, § C-007"
+      - code: "docs/context/topology.md:41 (### Repo-root lane) and :54 (### Code lane), plus :24 and :50 cross-links to the Lane term"
+      - code: "docs/architecture/execution-lanes.md (existing prose use of the phrase)"
+    claim: >
+      The repository glossary already separates the status meaning (Lane) from the execution meaning (code lane; repo-root lane for
+      single_branch). The spec introduces a third name, "execution lane", defined as whatever lanes.json holds, which spans both glossary
+      terms. R-9's mitigation ("adding the glossary term is out of scope") is therefore based on an incomplete glossary check, and the
+      contract/README will teach a term the glossary does not use.
+    remediation: >
+      Use the glossary vocabulary (code lane, repo-root lane) in the spec, README and contract descriptions; keep "execution lane" only as
+      a stated umbrella phrase tied to docs/architecture/execution-lanes.md, or drop it. Update R-9 and C-007 to record that the
+      glossary was checked and which terms were found.
+  - id: SPEC-GOV-005
+    lens: Directive
+    severity: 3
+    title: The five-value Topology enum (with "unknown") and the explicit rejection of the runtime default create a second authority next to the glossary's four-value Topology
+    evidence:
+      - artifact: "spec.md § CL-8 (topology five values), § D-11, § FR-008"
+      - code: "docs/context/topology.md:19 (Exactly four values; a mission with no stored topology is read as lanes at runtime)"
+      - code: "src/mission_runtime/context.py:44-56 (MissionTopology has four members; from_stored returns None for unusable values)"
+    claim: >
+      The five-value vocabulary is a maintainer decision (CL-8) and stands, but D-11 deliberately diverges from the glossary and the
+      runtime reading, and the spec nowhere says where the divergence is recorded. The charter says reconcile rather than add a second
+      authority. If the glossary page is edited, the Contextive generator sync gate engages, which the spec's out-of-scope list does not
+      mention.
+    remediation: >
+      Add to FR-008/D-11 that "unknown" is a contract-level projection (not a stored MissionTopology value), document the mapping in the
+      README, and either add a one-line cross-reference in docs/context/topology.md (regenerating the Contextive files and naming that
+      in scope and in the PR) or state explicitly that the glossary is left untouched and why.
+  - id: SPEC-GOV-006
+    lens: Clarification fidelity
+    severity: 3
+    title: CL-10 and the CL-2 gate analysis are presented as binding maintainer decisions but are author or charter derivations, and CL-1 to CL-4 have no public provenance
+    evidence:
+      - artifact: "spec.md § Clarifications preamble ('binding maintainer and design decisions ... fixed before this spec was written'), CL-10, CL-2 numbered list 1-4"
+      - artifact: "spec.md § C-006 (no reference to a private discussion)"
+      - code: "issue #5558 body and the design comment on #5528 (read via gh): neither contains the draft-until-acknowledged rule, the tag name, the corpus-marker placement or the dry-run decision; the only comment on #5558 is a claim line"
+    claim: >
+      The issue and the design comment carry the design (layout, tooling, slice, vocabularies, leak rules) but not Q1-Q4. CL-1..CL-4 are
+      attributed to the maintainer with no public place a reader can verify them, which conflicts with the spirit of C-006. CL-10
+      (silent success is forbidden) and the four-point analysis of what the architectural gates demand are the spec author's reading of
+      the charter and code, yet sit inside the "not options for a reviewer to re-litigate" block, which shields author choices from review.
+    remediation: >
+      Link the public source for each of CL-1..CL-4 (post them as a comment on #5558 or #5528 and cite it) or label them as
+      author-proposed pending acknowledgement. Move CL-10 and the CL-2 gate analysis to the derived decisions (D-n) or cite Standing
+      Order 5 / the non-vacuity doctrine as their authority.
+  - id: SPEC-GOV-007
+    lens: Clarification fidelity
+    severity: 3
+    title: WP history exposes annotation entries although D-8 withholds annotation rows from the event stream as free-text and leak-prone
+    evidence:
+      - artifact: "spec.md § Contract Field Catalogue, Work package row 'history' (kind: transition, annotation, lifecycle; reason; deltaKeys)"
+      - artifact: "spec.md § D-8 ('Annotation and retrospective rows are not exposed in v1'), § D-9, § CL-8 (no absolute paths or e-mail addresses)"
+    claim: >
+      The two derived decisions contradict each other: annotation rows are excluded from events because they carry free-text notes and
+      absolute record paths, but the work package history array lists annotation as a kind with a free-text reason. An implementer cannot
+      tell which wins, and the leak guarantee in CL-8 depends on it.
+    remediation: >
+      Pick one: remove "annotation" (and "lifecycle" if it carries retrospective rows) from the history kinds in v1, or define a projected
+      annotation shape with no free text and add it to D-8. Update FR-006 to name the history kinds and the leak scan coverage.
+  - id: SPEC-GOV-008
+    lens: Ledger
+    severity: 3
+    title: Known open reader defects that affect this contract are not accounted for in the spec's risks
+    evidence:
+      - artifact: "spec.md § Risks R-1..R-13, § Edge Cases 'Readers that write', § FR-012 and D-10 (actor projection)"
+      - code: "SPEC-KITTY-LEDGER.md (workspace root) entries on: schema-5 finalizer events ignored by materialize_snapshot (empty status.json); a query-only next call mutating tracked status.json; a reviewer approval recorded as actor user nulling the agent binding"
+      - code: "src/specify_cli/status/reducer.py (no WPCreated / TasksCompleted handling; see SPEC-GOV-003)"
+    claim: >
+      The reducer gap is reproducible here (see SPEC-GOV-003) and this Mission's own directory will hit it after finalize-tasks, so the
+      spec's reflexivity section is incomplete. The "Readers that write" edge case cites a past incident without recording that the
+      query-path write is a tracked open defect. The actor-null-agent defect changes what assignment.agent will contain for real
+      Missions. The ledger itself is private workspace material, so the spec cannot cite its ids.
+    remediation: >
+      Add risk rows that describe each behaviour in public terms (and cite a public upstream issue where one exists), each with a
+      verdict: pinned as v1 behaviour, excluded, or asserted by the reality check. Extend the reflexivity paragraph to say this
+      Mission's own post-finalize snapshot is part of the corpus.
+  - id: SPEC-GOV-009
+    lens: Directive
+    severity: 2
+    title: Charter campsite, tracer-file and pre-existing-failure obligations are not carried into the spec
+    evidence:
+      - artifact: "spec.md § C-009, § R-3, § C-010"
+      - code: ".kittify/charter/charter.md:79-90 (Standing Orders 2 and 3), :560-562 (Pre-existing Failure Reporting Rule: open a GitHub issue before treating failures as accepted baseline)"
+    claim: >
+      C-010 carries red-first, but nothing requires opening with a behaviour-preserving campsite pass on the surfaces about to change
+      (ci-router.yml and the three architectural gate files named in FR-020) or seeding the three tracer files. C-009 and R-3 say
+      pre-existing reds are "recorded ... and reported" but not that the charter requires a GitHub issue to be opened first.
+    remediation: >
+      Add one constraint (or an AC in the plan hand-off) for the opening campsite step and the tracer files, and reword C-009/R-3 to
+      require an issue per pre-existing failure with the command, summary and attribution reasoning.
+  - id: SPEC-GOV-010
+    lens: Clarification fidelity
+    severity: 2
+    title: D-10 actor projection adds a model handle and a tool handle beyond the binding "agent, profile and role handles"
+    evidence:
+      - artifact: "spec.md § CL-8 ('Actors are agent, profile and role handles') vs § D-10 ({tool, role, profile, model})"
+    claim: >
+      The binding wording names three handles. D-10 projects four, including model, which is also a place the status domain has
+      recorded identifying strings. This quietly widens the exposed surface relative to the decision.
+    remediation: >
+      Either restrict the projection to the three named handles, or record in D-10 that tool is the agent handle and that model is an
+      addition requested for review, with the leak scan and the null-on-mismatch rule applying to it explicitly.
+  - id: SPEC-GOV-011
+    lens: Terminology
+    severity: 2
+    title: 'Mission phase collides with the glossary term phase, and two glossary surfaces disagree on the lane list'
+    evidence:
+      - artifact: "spec.md § Terminology ('Mission phase', 'Phase label'), § FR-005"
+      - code: ".kittify/glossaries/spec_kitty_core.yaml:358 (phase: grouping container for mission primitives, not the enforcement unit)"
+      - code: ".kittify/glossaries/spec_kitty_core.yaml:203 (lane lists nine states) versus docs/context/orchestration.md:166 (Lane lists seven, applicable 1.x/2.x)"
+    claim: >
+      The glossary's phase means a grouping container for mission primitives; the contract's phases are the five workflow steps. The
+      spec defines its own meaning without noting the clash. Separately, the spec's claim that the glossary lane term lists the nine
+      values is true only of one of two glossary surfaces; the docs/context page that feeds the Contextive files lists seven.
+    remediation: >
+      Name the glossary conflict in the Terminology section and either rename the contract concept (for example workflowSteps) or
+      define it explicitly as distinct from glossary phase. State which glossary surface is canonical for lane and cite the stale one as
+      a known drift rather than as agreement.
+  - id: SPEC-GOV-012
+    lens: Scope
+    severity: 2
+    title: Risk R-11 leaves open an edit to router classification scripts that contradicts the "exactly one glob line" scope guard
+    evidence:
+      - artifact: "spec.md § SC-008 (adds exactly one glob line to ci-router.yml), § C-003, § R-11 (the plan reads prose_only.py and gate_selection.py and pins any behaviour that changes)"
+      - code: ".github/workflows/ci-router.yml:176-186 (corpus filter group)"
+    claim: >
+      R-11 anticipates a behaviour change in the prose-only classification and a pinning guard, which may require touching scripts/ci or
+      adding tests outside the stated minimal-edit envelope. SC-008 and C-003 are phrased as absolute, so an implementer meeting R-11
+      has no sanctioned path.
+    remediation: >
+      Add to C-003 that any behaviour change found under R-11 is first recorded in the plan with the smallest pinning test, and that
+      edits to scripts/ci remain out of scope unless the plan justifies them; otherwise state the expected classification result now.
+  - id: SPEC-GOV-013
+    lens: Public-repo
+    severity: 1
+    title: FR-012 wording alludes to private downstream repositories
+    evidence:
+      - artifact: "spec.md § FR-012 ('an operator of private ones')"
+    claim: >
+      The story phrase hints at private repositories; it adds nothing to the requirement and C-006 asks for no references to private
+      material. The rest of the spec is clean: no absolute paths, e-mail addresses or chat references were found, only public handles,
+      issue numbers and the public ADR.
+    remediation: >
+      Reword to "as a maintainer of a public repository, I want no absolute path and no e-mail address in any payload, event or example".

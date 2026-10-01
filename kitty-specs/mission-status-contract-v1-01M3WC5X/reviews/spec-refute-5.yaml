@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 5
+verdicts:
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: Line 100 and FR-021 list layout check and pin/checksum verification as must-fail-loud checks, yet the FR-025 binding matrix has no rows for them, for example orphan checks or the guard tests.
+  - id: SPEC-VERIFY-003
+    verdict: refuted
+    reason: FR-021 requires a real failing run on a planted violation and FR-025 rows demand non-zero exit, so an exit-0 tool configuration would fail the mandated proof; the message-only reading misquotes FR-021 ("not merely because it exited non-zero").
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: FR-006 says the reality check detects frontmatter-sourced payloads, but FR-019 validates only against the schema and defines no snapshot-equality comparison, so schema-valid stale values pass.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: FR-004 same-order and no-WP-read criteria name no observable (no sort key, no read trap) in a contract-only Mission with no server, so prose alone satisfies them.
+  - id: SPEC-VERIFY-006
+    verdict: refuted
+    reason: The fixture escape for floors is deliberate (Edge Cases line 196, R-4 triage) and FR-019 records the floors with survey numbers, so the claimed vacuity is a stated design choice rather than an unhandled gap.
+  - id: SPEC-VERIFY-008
+    verdict: confirmed
+    reason: FR-007 requires resume examples without defining the request parameter or cursor encoding, OQ-3 leaves resume scope open, and OQ-2 asks the plan to choose a pull_request trigger that FR-022 already mandates.
+  - id: SPEC-VERIFY-009
+    verdict: confirmed
+    reason: FR-022 requires tag-rule checks in the dry run yet a pull_request event has no tag and the module is only "selected"; publication-unreachability is only an OQ-2 constraint with no AC or guard test.
