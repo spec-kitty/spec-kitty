@@ -25,6 +25,7 @@ import contextlib
 import json
 import subprocess
 from kernel.clock import UTC, datetime, now_utc, parse_iso, parse_stamp, timedelta
+from kernel.git import status_entries
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -281,14 +282,8 @@ def _uncommitted_target_files(repo_root: Path, mission_slug: str, files: list[Pa
     targeted = [f for f in files if not is_coord_residue_churn(f, mission_slug=mission_slug, topology=topology)]
     if not targeted:
         return []
-    changed = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all", "--", *(str(f) for f in targeted)],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    return targeted if changed.strip() else []
+    entries = status_entries(repo_root, pathspecs=tuple(str(f) for f in targeted), untracked="all")
+    return targeted if entries else []
 
 
 def _maybe_auto_commit(
