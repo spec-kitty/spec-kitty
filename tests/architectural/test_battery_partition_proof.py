@@ -7,9 +7,10 @@ The router runs the battery as ``--battery-part fast`` plus one leg per shard. T
 module proves, **from the literal commands the workflow runs**, that
 
 * every battery gate carries the registry ``base`` selection (paths, marker, deselects);
-* the legs are exactly ``fast`` + ``1/n`` ... ``n/n``, each once (or, transitionally,
-  one unpartitioned gate);
-* ``fast`` U every shard == the base files (completeness) and no file is in two legs
+* the legs are exactly ``fast`` + ``1/n`` ... ``n/n``, each once (a lone unpartitioned
+  battery gate is a violation);
+* ``fast`` U every shard == the base files (completeness, checked against an enumeration
+  independent of the part sets) and no file is in two legs
   (disjointness); ``fast`` is exactly ``roster & base``;
 * the registry ``base.deselect`` is exactly the files the always-on architectural
   lanes own (C-002).
@@ -26,6 +27,7 @@ spawns pytest; the one collection-based test lives in
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Final
@@ -48,6 +50,9 @@ _PLUGIN_ARGS: Final = "-p scripts.ci.battery_partition_plugin"
 _INJECTED: Final = "tests/architectural/test_zz_injected_unassigned.py"
 _FAST: Final = "fast"
 _MAX_REPORTED: Final = 10
+_STRING_LITERAL: Final = re.compile(r"'[^']*'|\"[^\"]*\"")
+_CONTEXT_REF: Final = re.compile(r"[A-Za-z_][\w-]*(?:\.[\w-]+)*(?:\(\))?")
+_FORK_GUARD_REFS: Final = frozenset({"github.repository", "github.event_name", "always()", "cancelled()", "true", "false"})
 
 FilesOf = Callable[[gc.Gate], frozenset[str]]
 
@@ -78,12 +83,23 @@ def _expected_partitions(shard_count: int) -> list[str]:
 
 
 def _model_files_of(gate: gc.Gate) -> frozenset[str]:
-    """The files one gate selects: its part, or the whole base when unpartitioned."""
-    return gc.battery_part_files(gate.partition) if gate.partition else gc.battery_base_files()
+    """The files one gate selects: its part, or the whole (independently enumerated) base when unpartitioned."""
+    return gc.battery_part_files(gate.partition) if gate.partition else _reference_base_files(_spec())
 
 
 def _battery_family(workflow: Path) -> list[gc.Gate]:
     return [gate for gate in gc.parse_workflow(workflow) if gate.paths == [_BATTERY_ROOT]]
+
+
+def _is_fork_guard_only(condition: object) -> bool:
+    """True for no ``if:`` or one that reads only ``github.repository`` / ``github.event_name`` (plus ``always()``/``cancelled()``).
+
+    Any other context reference (``needs.*``, ``inputs.*``, ``github.event.*``, ``steps.*`` ...)
+    makes the job conditional, so its files are not owned unconditionally.
+    """
+    text = str(condition or "")
+    refs = _CONTEXT_REF.findall(_STRING_LITERAL.sub("''", text.replace("${{", " ").replace("}}", " ")))
+    return all(ref in _FORK_GUARD_REFS for ref in refs)
 
 
 def _always_on_files(workflow: Path) -> frozenset[str]:
@@ -92,7 +108,7 @@ def _always_on_files(workflow: Path) -> frozenset[str]:
     owned: set[str] = set()
     for gate in gc.parse_workflow(workflow):
         files_only = bool(gate.paths) and all(p.startswith(f"{_BATTERY_ROOT}/") and p.endswith(".py") for p in gate.paths)
-        always_on = "needs." not in str(jobs[gate.job].get("if") or "")
+        always_on = _is_fork_guard_only(jobs[gate.job].get("if"))
         if files_only and always_on and gate.partition is None:
             owned.update(gate.paths)
     return frozenset(owned)
@@ -111,19 +127,17 @@ def _argument_violations(family: Sequence[gc.Gate], base: BaseSelection) -> list
     return problems
 
 
-def _is_lone_unpartitioned_gate(family: Sequence[gc.Gate]) -> bool:
-    return len(family) == 1 and family[0].partition is None
-
-
 def _shape_violations(family: Sequence[gc.Gate], shard_count: int) -> list[str]:
     if not family:
         return ["no architectural battery gate found in the workflow"]
-    # TRANSITIONAL (post-consolidation orchestrator fold deletes, tasks.md closeout): pre-partition router tolerated
-    if _is_lone_unpartitioned_gate(family):
-        return []
     partitions = [gate.partition for gate in family]
     if None in partitions:
-        return [f"mixed partitioned and unpartitioned battery gates: {[gate.label() for gate in family]}"]
+        kind = (
+            "unpartitioned battery gate(s) (every battery run must carry --battery-part)"
+            if all(part is None for part in partitions)
+            else "mixed partitioned and unpartitioned battery gates"
+        )
+        return [f"{kind}: {[gate.label() for gate in family]}"]
     expected = _expected_partitions(shard_count)
     problems = [f"battery partition {part} is missing" for part in expected if part not in partitions]
     problems += [f"battery partition {part} appears {partitions.count(part)} times" for part in sorted({p for p in partitions if partitions.count(p) > 1}, key=str)]
@@ -201,10 +215,11 @@ def partition_violations(
 
 
 def _violations_for(family: Sequence[gc.Gate], *, files_of: FilesOf = _model_files_of, base_files: frozenset[str] | None = None) -> list[str]:
+    """Completeness is checked against ``_reference_base_files`` (``shard_select.enumerate_base_files``), never the union of the parts."""
     spec = _spec()
     return partition_violations(
         family,
-        gc.battery_base_files() if base_files is None else base_files,
+        _reference_base_files(spec) if base_files is None else base_files,
         files_of,
         shard_count=spec.shard_count,
         roster=frozenset(spec.roster_paths),
@@ -331,14 +346,44 @@ def test_always_on_lanes_exclude_code_scoped_partitioned_and_directory_gates(tmp
     assert _always_on_files(workflow) == {"tests/architectural/test_owned.py", "tests/architectural/test_guarded.py"}
 
 
+@pytest.mark.parametrize(
+    ("condition", "expected"),
+    [
+        (None, True),
+        ("github.repository == 'o/r'", True),
+        ("${{ (github.repository == 'o/r' || github.event_name == 'pull_request') && always() && !cancelled() }}", True),
+        ("needs.changes.outputs.x == 'true'", False),
+        ("${{ inputs.run_arch }}", False),
+        ("github.event.pull_request.draft == false", False),
+        ("github.repository == 'o/r' && steps.probe.outputs.ok == 'true'", False),
+        ("github.event_name == 'needs.changes'", True),
+    ],
+)
+def test_fork_guard_only_shape(condition: str | None, expected: bool) -> None:
+    assert _is_fork_guard_only(condition) is expected
+
+
+def test_always_on_lanes_exclude_non_needs_conditional_jobs(tmp_path: Path) -> None:
+    text = (
+        "on: push\njobs:\n"
+        "  lane-input:\n    runs-on: ubuntu-24.04\n    if: inputs.run_arch\n    steps:\n      - run: uv run --frozen pytest tests/architectural/test_input.py -q\n"
+        "  lane-owned:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: uv run --frozen pytest tests/architectural/test_owned.py -q\n"
+    )
+    workflow = tmp_path / "lanes.yml"
+    workflow.write_text(text, encoding="utf-8")
+    assert _always_on_files(workflow) == {"tests/architectural/test_owned.py"}
+
+
 def test_empty_family_is_reported() -> None:
     assert any("no architectural battery gate" in p for p in _violations_for([]))
 
 
-def test_lone_unpartitioned_gate_is_tolerated_while_the_router_is_unpartitioned(tmp_path: Path) -> None:
+def test_lone_unpartitioned_gate_is_a_violation(tmp_path: Path) -> None:
     family = _battery_family(_workflow(tmp_path, fast=False, shards=[], unpartitioned_heavy=True))
     assert [gate.partition for gate in family] == [None]
-    assert _violations_for(family) == []
+    problems = _violations_for(family)
+    assert any(p.startswith("unpartitioned battery gate(s)") for p in problems)
+    assert not any(p.startswith("mixed") for p in problems)
 
 
 # ---------------------------------------------------------------------------
@@ -346,8 +391,23 @@ def test_lone_unpartitioned_gate_is_tolerated_while_the_router_is_unpartitioned(
 # ---------------------------------------------------------------------------
 def test_injected_unassigned_file_is_reported(tmp_path: Path) -> None:
     family = _battery_family(_workflow(tmp_path, fast=True, shards=["1/2", "2/2"]))
-    problems = _violations_for(family, base_files=gc.battery_base_files() | {_INJECTED})
+    problems = _violations_for(family, base_files=_reference_base_files(_spec()) | {_INJECTED})
     assert any(_INJECTED in p and "are in no leg" in p for p in problems)
+
+
+def test_part_dropping_bug_in_the_model_cannot_pass_the_live_proof(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mutation: the model drops one file from a shard AND derives its base from those same parts."""
+    victim = sorted(gc.battery_part_files("1/2"))[0]
+    real_part = gc.battery_part_files
+    parts = _expected_partitions(_spec().shard_count)
+
+    def dropping_part(partition: str) -> frozenset[str]:
+        return real_part(partition) - {victim}
+
+    monkeypatch.setattr(gc, "battery_part_files", dropping_part)
+    monkeypatch.setattr(gc, "battery_base_files", lambda: frozenset().union(*(dropping_part(part) for part in parts)))
+    problems = _violations_for(_battery_family(_ROUTER))
+    assert any(victim in p and "are in no leg" in p for p in problems)
 
 
 def test_roster_file_leaked_into_a_shard_is_reported(tmp_path: Path) -> None:
@@ -378,7 +438,7 @@ def test_roster_entry_outside_the_base_is_reported(tmp_path: Path) -> None:
     spec = _spec()
     problems = partition_violations(
         family,
-        gc.battery_base_files(),
+        _reference_base_files(spec),
         _model_files_of,
         shard_count=spec.shard_count,
         roster=frozenset(spec.roster_paths) | {_INJECTED},
@@ -393,7 +453,7 @@ def test_deselect_not_owned_by_an_always_on_lane_is_reported(tmp_path: Path) -> 
     spec = _spec()
     problems = partition_violations(
         family,
-        gc.battery_base_files(),
+        _reference_base_files(spec),
         _model_files_of,
         shard_count=spec.shard_count,
         roster=frozenset(spec.roster_paths),

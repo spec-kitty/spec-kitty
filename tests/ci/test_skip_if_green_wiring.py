@@ -28,12 +28,7 @@ from typing import Any
 import pytest
 import yaml
 
-from tests.ci.test_ci_module_wiring import (
-    _eval_gh_if,
-    _GhIfEvaluator,
-    _strip_expr_wrapper,
-    _tokenize_gh_if,
-)
+from tests.ci._gh_if import GhIfEvaluator, eval_gh_if, strip_expr_wrapper, tokenize_gh_if
 
 pytestmark = pytest.mark.fast
 
@@ -83,8 +78,8 @@ def _steps_by_id(job: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
 # --- a small evaluator for step ``if:`` expressions (reuses the router golden evaluator) -----
 
 
-class _StepIfEvaluator(_GhIfEvaluator):
-    """``_GhIfEvaluator``'s recursive descent, over ``<context path> ==/!= '<literal>'`` terms."""
+class _StepIfEvaluator(GhIfEvaluator):
+    """``GhIfEvaluator``'s recursive descent, over ``<context path> ==/!= '<literal>'`` terms."""
 
     def __init__(self, tokens: list[str], values: Mapping[str, str]) -> None:
         super().__init__(tokens, {})
@@ -99,7 +94,7 @@ class _StepIfEvaluator(_GhIfEvaluator):
 
 
 def _eval_step_if(raw_if: str, values: Mapping[str, str]) -> bool:
-    return _StepIfEvaluator(_tokenize_gh_if(_strip_expr_wrapper(raw_if)), values).evaluate()
+    return _StepIfEvaluator(tokenize_gh_if(strip_expr_wrapper(raw_if)), values).evaluate()
 
 
 #: Context under which a path-gated step would otherwise run (a normal pull request).
@@ -231,7 +226,7 @@ def _skip_context_outputs(job: Mapping[str, Any]) -> dict[str, str]:
     for value in job["outputs"].values():
         for ref in re.findall(r"steps\.[\w-]+\.outputs\.[\w-]+", str(value)):
             context[ref] = ""
-    return {name: _OutputExpr(_strip_expr_wrapper(str(value)), context).evaluate() for name, value in job["outputs"].items()}
+    return {name: _OutputExpr(strip_expr_wrapper(str(value)), context).evaluate() for name, value in job["outputs"].items()}
 
 
 # --- the checks ------------------------------------------------------------------------------
@@ -364,13 +359,13 @@ def test_router_skip_context_turns_every_path_gated_job_off() -> None:
     context = _context_from_outputs("changes", _skip_context_outputs(workflow["jobs"]["changes"]))
 
     # prose-scan is NOT suppressed (it computes prose_only itself): evaluate both ways.
-    still_on_not_prose = {name for name, raw in gated.items() if _eval_gh_if(raw, {**context, "prose-scan.prose_only": False})}
+    still_on_not_prose = {name for name, raw in gated.items() if eval_gh_if(raw, {**context, "prose-scan.prose_only": False})}
     assert still_on_not_prose == set(), f"a path-gated router job survives a skip run: {still_on_not_prose}"
 
     # D-35 residual, pinned EXACTLY: on a prose-only skip run, `tests-docs` (docs || prose_only)
     # still runs because prose-scan is not suppressed. Any new leak reds this test instead of
     # joining a silent allowlist.
-    still_on_prose = {name for name, raw in gated.items() if _eval_gh_if(raw, {**context, "prose-scan.prose_only": True})}
+    still_on_prose = {name for name, raw in gated.items() if eval_gh_if(raw, {**context, "prose-scan.prose_only": True})}
     assert still_on_prose == {"tests-docs"}
 
 
@@ -403,7 +398,7 @@ def test_packs_skip_context_turns_every_path_gated_job_off() -> None:
     gated = _gated_jobs(workflow, "changes")
     assert {"built-in-regen-check", "built-in-corpus-suite", "internal-org-validate"} <= set(gated)
     context = _context_from_outputs("changes", _skip_context_outputs(workflow["jobs"]["changes"]))
-    leaked = {name for name, raw in gated.items() if _eval_gh_if(raw, context)}
+    leaked = {name for name, raw in gated.items() if eval_gh_if(raw, context)}
     assert leaked == set(), f"a path-gated packs job survives a skip run: {leaked}"
 
 

@@ -160,8 +160,8 @@ def test_battery_class_commands_use_the_registry_worker_count() -> None:
 
 
 def test_the_registry_worker_count_is_four() -> None:
-    """The literal this guard compares against is the registry fact, not a hard-coded 4."""
-    assert _registry_workers() >= 1
+    """The registry worker count is exactly 4, matching the literal ``-n 4`` the workflows carry."""
+    assert _registry_workers() == 4
 
 
 def _mutate_run_scripts(workflows: dict[str, dict[str, Any]], workflow: str, job_key: str, old: str, new: str) -> None:

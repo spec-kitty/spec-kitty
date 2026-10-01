@@ -878,7 +878,6 @@ exclude = [
     "tests/architectural/test_bridge_cores_import_boundary.py",
     "tests/architectural/test_charter_facades_reexport_doctrine.py",
     "tests/architectural/test_ci_collection_completeness.py",
-    "tests/architectural/test_ci_corpus_trigger_completeness.py",
     "tests/architectural/test_clock_import_ban.py",
     "tests/architectural/test_compat_shims.py",
     "tests/architectural/test_coord_read_residuals_closeout.py",

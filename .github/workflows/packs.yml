@@ -105,6 +105,8 @@ jobs:
       - name: Skip-if-green on ready-for-review (selection-step suppression; FR-011)
         id: green
         continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/green_match.py decide --workflow packs.yml --marker-dir "$RUNNER_TEMP/green-match"

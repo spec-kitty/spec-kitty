@@ -18,7 +18,7 @@ import re
 import stat
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +34,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "green_match"
 
 REPOSITORY = "spec-kitty/spec-kitty"
 HEAD = "a5cd2d26a5f9384d639a9eea0d6cae8afdaf1506"
+HEAD_REF = "fix/nightly-reds-5505-5506-5507"
 BASE = "ecb5dd914af5de025b00cadeabb2bbc32066ed02"
 MERGE = "a8f4ac8c897fee4067d20ddfb5552a03a1650d27"
 OTHER_BASE = "f" * 40
@@ -61,6 +62,8 @@ def make_event(**overrides: Any) -> green_match.EventMeta:
         run_attempt=1,
         workflow_file=WORKFLOW,
         repository=REPOSITORY,
+        head_ref=HEAD_REF,
+        head_repository=REPOSITORY,
     )
     return dataclasses.replace(base, **overrides)
 
@@ -72,7 +75,7 @@ def make_candidate(**overrides: Any) -> green_match.RunMeta:
 
 def artifact_record(name: str, *, expired: bool = False, created_at: str = "2026-10-01T06:15:51Z", run_id: int = 0) -> dict[str, Any]:
     """A synthesized artifact record: recorded shape, only name/expired/created_at changed."""
-    record = json.loads(json.dumps(load("artifacts-by-name.json")["artifacts"][0]))
+    record: dict[str, Any] = json.loads(json.dumps(load("artifacts-by-name.json")["artifacts"][0]))
     record.update(name=name, expired=expired, created_at=created_at)
     if run_id:
         record["workflow_run"]["id"] = run_id
@@ -156,6 +159,22 @@ ROWS["N14-other-workflow"] = run_row(candidate={"path": ".github/workflows/ci-mo
 ROWS["N14b-other-head"] = run_row(candidate={"head_sha": "1" * 40}, reason=NO_GREEN)
 ROWS["N14c-other-event"] = run_row(candidate={"event": "push"}, reason=NO_GREEN)
 ROWS["N14d-other-repository"] = run_row(candidate={"repository": "someone/else"}, reason=NO_GREEN)
+# Identity binding: the marker NAME is PR-controlled, so the run object must belong to THIS PR.
+ROWS["N16-forged-from-other-pr"] = run_row(candidate={"pull_numbers": (PR + 1,)}, reason=NO_GREEN)
+ROWS["N16b-different-head-branch"] = run_row(candidate={"head_branch": "attacker/forged"}, reason=NO_GREEN)
+ROWS["N16c-different-head-repository"] = run_row(candidate={"head_repository": "someone/fork"}, reason=NO_GREEN)
+ROWS["N16d-pull-requests-not-listed"] = run_row(candidate={"pull_numbers": ()}, reason=NO_GREEN)
+ROWS["N16e-event-head-ref-unknown"] = run_row(event={"head_ref": ""}, candidate={"head_branch": ""}, reason=NO_GREEN)
+ROWS["N16f-event-head-repository-unknown"] = run_row(event={"head_repository": ""}, candidate={"head_repository": ""}, reason=NO_GREEN)
+ROWS["P1b-other-pr-listed-alongside"] = Row(
+    {},
+    KEY,
+    [dataclasses.replace(GOOD, pull_numbers=(PR + 1, PR))],
+    GOOD_MARKERS,
+    green_match.Skip,
+    "matched-green-run",
+    f"ci-green-match-run-{GOOD.id}-attempt-{GOOD.run_attempt}",
+)
 ROWS["P1-single-match"] = Row({}, KEY, [GOOD], GOOD_MARKERS, green_match.Skip, "matched-green-run", f"ci-green-match-run-{GOOD.id}-attempt-{GOOD.run_attempt}")
 ROWS["P2-newest-of-many"] = Row(
     {},
@@ -203,6 +222,42 @@ def test_decide_mutation_control_candidate_filter_carries_the_decision(name: str
     assert isinstance(evaluate(row), green_match.Run)
     monkeypatch.setattr(green_match, "_is_candidate", lambda run, event: True)
     assert isinstance(evaluate(row), green_match.Skip)
+
+
+def _binding_without(dropped: str) -> Callable[[green_match.RunMeta, green_match.EventMeta], bool]:
+    """``_bound_to_event`` with exactly one conjunct removed (the mutant under test)."""
+    conjuncts: dict[str, Callable[[green_match.RunMeta, green_match.EventMeta], bool]] = {
+        "head_branch": lambda run, event: bool(event.head_ref) and run.head_branch == event.head_ref,
+        "head_repository": lambda run, event: bool(event.head_repository) and run.head_repository == event.head_repository,
+        "pull_request": lambda run, event: event.pr_number in run.pull_numbers,
+    }
+    kept = [check for name, check in conjuncts.items() if name != dropped]
+    return lambda run, event: all(check(run, event) for check in kept)
+
+
+@pytest.mark.parametrize(
+    ("dropped", "row"),
+    [
+        pytest.param("pull_request", "N16-forged-from-other-pr", id="drop-pr-number-check"),
+        pytest.param("pull_request", "N16d-pull-requests-not-listed", id="drop-pr-listed-check"),
+        pytest.param("head_branch", "N16b-different-head-branch", id="drop-head-branch-check"),
+        pytest.param("head_branch", "N16e-event-head-ref-unknown", id="drop-head-branch-non-empty-check"),
+        pytest.param("head_repository", "N16c-different-head-repository", id="drop-head-repository-check"),
+        pytest.param("head_repository", "N16f-event-head-repository-unknown", id="drop-head-repository-non-empty-check"),
+    ],
+)
+def test_decide_mutation_control_each_identity_binding_conjunct_carries_the_decision(dropped: str, row: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dropping any one new conjunct lets the forged-run row go green wrongly (Skip)."""
+    assert isinstance(evaluate(ROWS[row]), green_match.Run)
+    monkeypatch.setattr(green_match, "_bound_to_event", _binding_without(dropped))
+    assert isinstance(evaluate(ROWS[row]), green_match.Skip)
+
+
+@pytest.mark.parametrize("name", [name for name in ROWS if name.startswith("N16")])
+def test_decide_mutation_control_identity_binding_as_a_whole(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert isinstance(evaluate(ROWS[name]), green_match.Run)
+    monkeypatch.setattr(green_match, "_bound_to_event", lambda run, event: True)
+    assert isinstance(evaluate(ROWS[name]), green_match.Skip)
 
 
 # ---------------------------------------------------------------------- fake transport
@@ -296,14 +351,92 @@ def test_api_malformed_commit_payload_is_never_a_skip(bad: dict[str, Any]) -> No
     assert isinstance(result, green_match.Run)
 
 
-def test_api_n15_fork_pr_decides_from_the_event_payload_alone() -> None:
-    """The recorded run object carries an empty ``pull_requests``; the helper never reads it."""
-    run = load("workflow-runs-by-head.json")["workflow_runs"][0]
-    assert "pull_requests" not in run
-    result = decide_api(FakeTransport(api_routes(**{marker_path(GOOD.id, KEY.marker_name): {"artifacts": []}})))
+def recorded_run(**overrides: Any) -> dict[str, Any]:
+    """The recorded CI Router run object, with named top-level fields replaced."""
+    return dict(load("workflow-runs-by-head.json")["workflow_runs"][0], **overrides)
+
+
+def routes_with_run(run: dict[str, Any]) -> dict[str, Any]:
+    return api_routes(**{CANDIDATES_PATH: {"workflow_runs": [run]}})
+
+
+def test_recorded_run_carries_the_identity_fields_the_binding_reads() -> None:
+    run = recorded_run()
+    assert (run["head_branch"], run["head_repository"]["full_name"], [pr["number"] for pr in run["pull_requests"]]) == (HEAD_REF, REPOSITORY, [PR])
+
+
+@pytest.mark.parametrize(
+    "forged",
+    [
+        pytest.param({"pull_requests": [dict(recorded_run()["pull_requests"][0], number=PR + 1)]}, id="forged-from-other-pr"),
+        pytest.param({"head_branch": "attacker/forged-workflow"}, id="different-head-branch"),
+        pytest.param({"head_repository": {"full_name": "attacker/spec-kitty"}}, id="different-head-repository"),
+        pytest.param({"head_repository": None}, id="head-repository-deleted"),
+        pytest.param({"pull_requests": []}, id="pull-requests-empty-fork-pr"),
+        pytest.param({"pull_requests": None}, id="pull-requests-null"),
+        pytest.param({"pull_requests": "nope"}, id="pull-requests-wrong-type"),
+        pytest.param({"pull_requests": [{"id": 1}, "x", {"number": True}]}, id="pull-requests-malformed-entries"),
+        pytest.param({"head_branch": None}, id="head-branch-null"),
+    ],
+)
+def test_api_forged_candidate_run_with_a_matching_marker_name_still_runs(forged: dict[str, Any]) -> None:
+    """The marker name is attacker-writable; the candidate run's own identity must bind it to this PR."""
+    run = recorded_run()
+    run.update(forged)
+    result = decide_api(FakeTransport(routes_with_run(run)))
     assert isinstance(result, green_match.Run)
     assert (result.reason, result.marker) == (NO_GREEN, KEY.marker_name)
-    assert "pull_requests" not in SCRIPT.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("missing", ["pull_requests", "head_branch", "head_repository"])
+def test_api_candidate_run_missing_an_identity_field_entirely_runs(missing: str) -> None:
+    run = recorded_run()
+    del run[missing]
+    result = decide_api(FakeTransport(routes_with_run(run)))
+    assert isinstance(result, green_match.Run)
+    assert result.reason == NO_GREEN
+
+
+def test_api_event_without_a_head_identity_never_skips() -> None:
+    assert isinstance(decide_api(FakeTransport(api_routes()), head_ref="", head_repository=""), green_match.Run)
+
+
+def test_api_fork_pr_event_matches_only_a_run_bound_to_the_fork_head() -> None:
+    """A fork PR's run object lists no pull_requests, so it never matches (the PR is not provable): it runs."""
+    fork = "contributor/spec-kitty"
+    run = recorded_run(head_repository={"full_name": fork}, pull_requests=[])
+    result = decide_api(FakeTransport(routes_with_run(run)), head_repository=fork)
+    assert isinstance(result, green_match.Run)
+    assert result.reason == NO_GREEN
+
+
+def test_run_meta_from_api_reads_the_identity_fields() -> None:
+    meta = green_match.RunMeta.from_api(recorded_run())
+    assert (meta.head_branch, meta.head_repository, meta.pull_numbers) == (HEAD_REF, REPOSITORY, (PR,))
+    bare = recorded_run()
+    for field in ("head_branch", "head_repository", "pull_requests"):
+        del bare[field]
+    meta = green_match.RunMeta.from_api(bare)
+    assert (meta.head_branch, meta.head_repository, meta.pull_numbers) == ("", "", ())
+
+
+# WP16 mutation survivors: an artifact record without ``expired`` is not a live marker.
+
+
+def test_live_marker_names_ignores_records_missing_expired() -> None:
+    record = artifact_record(KEY.marker_name)
+    del record["expired"]
+    assert green_match.live_marker_names({"artifacts": [record]}) == frozenset()
+    assert green_match.live_marker_names({"artifacts": [artifact_record(KEY.marker_name)]}) == frozenset({KEY.marker_name})
+    assert green_match.live_marker_names({"artifacts": [dict(artifact_record(KEY.marker_name), expired=None)]}) == frozenset()
+
+
+def test_api_marker_record_missing_expired_runs() -> None:
+    record = artifact_record(KEY.marker_name)
+    del record["expired"]
+    result = decide_api(FakeTransport(api_routes(**{marker_path(GOOD.id, KEY.marker_name): {"artifacts": [record]}})))
+    assert isinstance(result, green_match.Run)
+    assert (result.reason, result.marker) == (NO_GREEN, KEY.marker_name)
 
 
 def test_api_early_exits_make_no_candidate_lookups() -> None:
@@ -410,7 +543,7 @@ def fetch_matched(overrides: dict[str, Any] | None = None) -> Callable[[int, int
     return fetch
 
 
-def identity_by_run(matched_key: green_match.TestedKey = MATCHED_KEY) -> Callable[[dict[str, Any]], green_match.TestedKey]:
+def identity_by_run(matched_key: green_match.TestedKey = MATCHED_KEY) -> Callable[[Mapping[str, Any]], green_match.TestedKey]:
     keys = {SOURCE_ID: KEY, MATCHED["id"]: matched_key}
     return lambda run: keys[run["id"]]
 
@@ -420,7 +553,7 @@ def resolve(
     source: dict[str, Any] | None = None,
     artifacts: list[dict[str, Any]] | None = None,
     matched: Callable[[int, int], dict[str, Any]] | None = None,
-    identity: Callable[..., green_match.TestedKey] | None = None,
+    identity: Callable[[Mapping[str, Any]], green_match.TestedKey] | None = None,
 ) -> green_match.Effective:
     return green_match.effective_source(
         source or make_source(),
@@ -451,6 +584,13 @@ def test_A2_no_marker_is_returned_unchanged(artifacts: list[dict[str, Any]]) -> 
         pytest.param({"matched": lambda run_id, attempt: (_ for _ in ()).throw(green_match.LookupFailure("gone"))}, "gone", id="A1-lookup-raises"),
         pytest.param({"matched": fetch_matched({"conclusion": "failure"})}, "success", id="A1-not-success"),
         pytest.param({"matched": fetch_matched({"status": "in_progress", "conclusion": None})}, "completed", id="A1-not-completed"),
+        pytest.param({"matched": fetch_matched({"status": "in_progress"})}, "not completed", id="A1-not-completed-yet-concluded-success"),
+        pytest.param({"matched": fetch_matched({"status": "queued", "conclusion": "success"})}, "not completed", id="A1-queued-yet-concluded-success"),
+        pytest.param({"matched": fetch_matched({"repository": {"full_name": "someone/else"}})}, "repository differs", id="A1-different-repository"),
+        pytest.param({"matched": fetch_matched({"repository": None})}, "repository differs", id="A1-matched-repository-missing"),
+        pytest.param(
+            {"source": make_source(repository=None), "matched": fetch_matched({"repository": None})}, "repository differs", id="A1-both-repositories-missing"
+        ),
         pytest.param({"matched": fetch_matched({"head_sha": "1" * 40})}, "head", id="A1-different-head"),
         pytest.param({"matched": fetch_matched({"path": ".github/workflows/ci-router.yml"})}, "workflow", id="A1-different-workflow"),
         pytest.param({"matched": fetch_matched({"event": "push"})}, "event", id="A1-different-event"),
@@ -569,6 +709,28 @@ def test_cli_effective_source_transport_failure_exits_1(capsys: pytest.CaptureFi
     assert "re-run CI Modules to execute" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("payload", [[], "text", 7, None], ids=["list", "string", "number", "null"])
+def test_cli_effective_source_non_object_source_payload_is_an_error_line_not_a_traceback(payload: Any, capsys: pytest.CaptureFixture[str]) -> None:
+    routes = effective_routes(artifacts=[])
+    routes[f"actions/runs/{SOURCE_ID}/attempts/1"] = payload
+    assert green_match.main(effective_argv(), transport=FakeTransport(routes)) == 1
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err.startswith("::error::green-match source could not be verified (gh API response was not a JSON object)")
+    assert out.err.rstrip().endswith("; re-run CI Modules to execute")
+    assert "Traceback" not in out.err
+
+
+@pytest.mark.parametrize("payload", [[], "text", None], ids=["list", "string", "null"])
+def test_cli_effective_source_non_object_commit_payload_exits_1_with_an_error_line(payload: Any, capsys: pytest.CaptureFixture[str]) -> None:
+    routes = effective_routes(artifacts=[marker()])
+    routes[f"git/commits/{SOURCE_MERGE}"] = payload
+    assert green_match.main(effective_argv(), transport=FakeTransport(routes)) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("::error::green-match source could not be verified (")
+    assert "Traceback" not in err
+
+
 def test_cli_effective_source_rejects_a_source_run_that_is_not_the_requested_attempt(capsys: pytest.CaptureFixture[str]) -> None:
     routes = effective_routes(artifacts=[])
     routes[f"actions/runs/{SOURCE_ID}/attempts/1"] = dict(make_source(), run_attempt=2)
@@ -581,7 +743,9 @@ def test_cli_effective_source_rejects_a_source_run_that_is_not_the_requested_att
 
 def decide_env(tmp_path: Path, *, action: str = "ready_for_review", event_name: str = "pull_request", attempt: str = "1") -> dict[str, str]:
     payload = tmp_path / "event.json"
-    payload.write_text(json.dumps({"action": action, "pull_request": {"number": PR, "head": {"sha": HEAD}}}), encoding="utf-8")
+    payload.write_text(
+        json.dumps({"action": action, "pull_request": {"number": PR, "head": {"sha": HEAD, "ref": HEAD_REF, "repo": {"full_name": REPOSITORY}}}}), encoding="utf-8"
+    )
     return {
         "GITHUB_EVENT_NAME": event_name,
         "GITHUB_EVENT_PATH": str(payload),
@@ -629,6 +793,28 @@ def test_cli_decide_run_records_the_tested_key_marker(tmp_path: Path) -> None:
     body = json.loads((tmp_path / "markers" / f"{KEY.marker_name}.json").read_text(encoding="utf-8"))
     assert body["decision"] == "run"
     assert body["base"] == BASE
+
+
+def test_event_from_environment_reads_the_head_identity(tmp_path: Path) -> None:
+    event = green_match.event_from_environment(decide_env(tmp_path), WORKFLOW)
+    assert (event.head_ref, event.head_repository) == (HEAD_REF, REPOSITORY)
+
+
+@pytest.mark.parametrize("head", [{"sha": HEAD}, {"sha": HEAD, "ref": HEAD_REF, "repo": None}], ids=["no-ref-no-repo", "head-repo-deleted"])
+def test_event_from_environment_unknown_head_identity_is_empty_and_never_skips(tmp_path: Path, head: dict[str, Any]) -> None:
+    env = decide_env(tmp_path)
+    Path(env["GITHUB_EVENT_PATH"]).write_text(json.dumps({"action": "ready_for_review", "pull_request": {"number": PR, "head": head}}), encoding="utf-8")
+    event = green_match.event_from_environment(env, WORKFLOW)
+    assert not (event.head_ref and event.head_repository)
+    assert run_decide(tmp_path, env, FakeTransport(api_routes())) == 0
+    assert read_outputs(tmp_path)["skip"] == "false"
+
+
+def test_cli_decide_forged_other_pr_run_runs_and_records_the_marker(tmp_path: Path) -> None:
+    forged = recorded_run(pull_requests=[dict(recorded_run()["pull_requests"][0], number=PR + 1)])
+    assert run_decide(tmp_path, decide_env(tmp_path), FakeTransport(routes_with_run(forged))) == 0
+    outputs = read_outputs(tmp_path)
+    assert (outputs["skip"], outputs["reason"], outputs["marker"]) == ("false", NO_GREEN, KEY.marker_name)
 
 
 def test_cli_decide_non_pull_request_writes_no_marker(tmp_path: Path) -> None:

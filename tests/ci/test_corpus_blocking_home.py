@@ -33,7 +33,7 @@ from scripts.ci.coverage_guard_lib import registry_rows, resolve_test_dirs
 from scripts.ci.gate_selection import load_router
 from tests.architectural import _gate_coverage as gc
 from tests.architectural import test_workflow_coherence
-from tests.ci.test_ci_module_wiring import _BASE_CONTEXT_ALL_FALSE, _eval_gh_if
+from tests.ci._gh_if import BASE_CONTEXT_ALL_FALSE, eval_gh_if
 
 pytestmark = pytest.mark.fast
 
@@ -201,9 +201,9 @@ def test_the_blocking_job_if_is_evaluated_semantically() -> None:
     job = _router_jobs()[_JOB]
     assert job["needs"] == ["changes"]
 
-    all_false = {**_BASE_CONTEXT_ALL_FALSE, "changes.corpus": False}
-    assert _eval_gh_if(job["if"], {**all_false, "changes.corpus": True}) is True
-    assert _eval_gh_if(job["if"], all_false) is False
+    all_false = {**BASE_CONTEXT_ALL_FALSE, "changes.corpus": False}
+    assert eval_gh_if(job["if"], {**all_false, "changes.corpus": True}) is True
+    assert eval_gh_if(job["if"], all_false) is False
     for group in ("docs", "architectural", "ci_config", "cli"):
         other = {**all_false, f"changes.{group}": True}
-        assert _eval_gh_if(job["if"], other) is False, f"{group} alone must not select the corpus-blocking job"
+        assert eval_gh_if(job["if"], other) is False, f"{group} alone must not select the corpus-blocking job"

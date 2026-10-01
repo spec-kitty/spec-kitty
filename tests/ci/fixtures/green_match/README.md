@@ -17,5 +17,12 @@ yet. Tests synthesize those artifact records from the **shape** recorded in
 `artifacts-by-name.json`, changing only `name`, `expired` and `created_at`.
 The names are synthesized; the shapes are recorded.
 
-`pull_requests` is emptied in the run fixture on purpose: the helper never
-reads that field (it is a live projection of the PR, and empty for fork PRs).
+`workflow-runs-by-head.json` also carries the run identity fields the candidate
+binding reads (`head_branch`, `head_repository.full_name`, `pull_requests[].number`).
+`head_branch` and `head_repository` are recorded from the live run. The recorded run's
+`pull_requests` is `[]` today (a live projection that GitHub empties once the PR is merged),
+so its content is synthesized over the shape recorded from a live CI Router run that still
+listed its PR (run 36895215854: `{base, head, id, number, url}`), with the number, branch and
+head SHA set to this fixture's PR. Negative contract rows (forged-from-other-PR, different head
+branch, different head repository, missing or empty `pull_requests`) derive from this object
+by replacing one field.

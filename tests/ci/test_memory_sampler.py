@@ -15,6 +15,7 @@ import ast
 import importlib.util
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -280,6 +281,26 @@ def test_sample_loop_writes_state_atomically(tmp_path: Path, fake_proc: FakeProc
     assert sorted(p.name for p in tmp_path.iterdir() if p.name.startswith("state.json")) == ["state.json"]
 
 
+def test_sample_restores_the_process_sigterm_handler(tmp_path: Path, fake_proc: FakeProc) -> None:
+    """The in-process ``sample`` run must not leave its SIGTERM handler installed (pytest owns it)."""
+    before = signal.getsignal(signal.SIGTERM)
+    argv = ["sample", "--out", str(tmp_path / "s.json"), "--interval", "0", "--max-samples", "1", "--proc-root", str(fake_proc.proc)]
+    assert mod.main(argv) == 0
+    assert signal.getsignal(signal.SIGTERM) is before
+
+
+def test_sample_restores_the_sigterm_handler_when_the_loop_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    before = signal.getsignal(signal.SIGTERM)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("loop failed")
+
+    monkeypatch.setattr(mod, "_take_sample", boom)
+    assert mod.main(["sample", "--out", str(tmp_path / "s.json"), "--interval", "0", "--max-samples", "1"]) == 0
+    assert "loop failed" in capsys.readouterr().out
+    assert signal.getsignal(signal.SIGTERM) is before
+
+
 def _pid_gone(pid: int) -> bool:
     """True when ``pid`` no longer runs (a zombie awaiting its reaper counts as gone)."""
     try:
@@ -332,6 +353,28 @@ def test_start_then_stop_round_trip(tmp_path: Path, fake_proc: FakeProc) -> None
     assert len(report) == 1
     assert f"peak_rss_bytes={4 * _GIB} source=meminfo" in report[0]
     assert _poll(lambda: _pid_gone(pid)), "sampler child still running after stop"
+
+
+def test_stop_does_not_signal_a_pid_that_is_not_the_sampler(tmp_path: Path, fake_proc: FakeProc) -> None:
+    """A stale pid file naming an unrelated live process must not get SIGTERM (pid reuse)."""
+    if not Path("/proc/self/cmdline").exists():
+        pytest.skip("identity check needs /proc")
+    bystander = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        out = tmp_path / "ms.json"
+        out.write_text(mod.to_json(_state(pid=0)), encoding="utf-8")
+        (tmp_path / "ms.json.pid").write_text(str(bystander.pid), encoding="utf-8")
+        argv = ["stop", "--out", str(out), "--proc-root", str(fake_proc.proc), "--sys-root", str(fake_proc.sys_root)]
+        assert mod.main(argv) == 0
+        assert bystander.poll() is None, "stop signalled a process that is not the sampler"
+    finally:
+        bystander.kill()
+        bystander.wait()
+
+
+def test_pid_is_sampler_identity_check(tmp_path: Path) -> None:
+    assert mod._pid_is_sampler(os.getpid()) is False  # pytest, not the sampler
+    assert mod._pid_is_sampler(2**22 + 12345) is True  # no /proc entry -> cannot verify -> proceed
 
 
 def test_stop_without_start_degrades_to_a_warning_and_exit_zero(tmp_path: Path, fake_proc: FakeProc) -> None:

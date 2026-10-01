@@ -47,7 +47,7 @@ import yaml
 from scripts.ci.corpus_select import corpus_selected
 from scripts.ci.gate_selection import load_router, select_gates
 from tests.architectural import _gate_coverage as gc
-from tests.ci.test_ci_module_wiring import _eval_gh_if
+from tests.ci._gh_if import eval_gh_if
 
 pytestmark = pytest.mark.architectural
 
@@ -55,8 +55,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CI_QUALITY = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
 
 
-def _load_workflow() -> dict[str, Any]:
-    return yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
+def _load_workflow() -> dict[Any, Any]:
+    return dict(yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8")))
 
 
 def test_corpus_changes_trigger_reduced_ci_quality_live() -> None:
@@ -286,13 +286,13 @@ _TRIGGER_OUTPUTS = ("changes.built_in", "changes.corpus")
 
 
 def _packs_jobs() -> dict[str, Any]:
-    return yaml.safe_load(_PACKS.read_text(encoding="utf-8"))["jobs"]
+    return dict(yaml.safe_load(_PACKS.read_text(encoding="utf-8"))["jobs"])
 
 
 def _trigger_truth_table(raw_if: object) -> dict[tuple[bool, bool], bool]:
     """Evaluate a job ``if:`` over every (built_in, corpus) output combination with the shared GitHub-``if:`` evaluator."""
     return {
-        (built_in, corpus): _eval_gh_if(str(raw_if), {"changes.built_in": built_in, "changes.corpus": corpus})
+        (built_in, corpus): eval_gh_if(str(raw_if), {"changes.built_in": built_in, "changes.corpus": corpus})
         for built_in, corpus in itertools.product((False, True), repeat=2)
     }
 

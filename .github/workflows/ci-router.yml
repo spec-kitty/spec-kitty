@@ -71,7 +71,8 @@ jobs:
   changes:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
-    # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize` precedent).
+    # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize`
+    # precedent).
     permissions:
       contents: read
       actions: read
@@ -124,6 +125,8 @@ jobs:
       - name: Skip-if-green on ready-for-review (selection-step suppression; FR-011)
         id: green
         continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/green_match.py decide --workflow ci-router.yml --marker-dir "$RUNNER_TEMP/green-match"
