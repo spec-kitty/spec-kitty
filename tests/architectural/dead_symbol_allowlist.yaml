@@ -1073,6 +1073,11 @@ entries:
   category: category_c_doctor_auto_discovery_seam
   rationale: Reached only via doctor.py's dynamic ``getattr(module, "register")`` auto-discovery, the
     same reach path as ``_env_file_doctor::register``.
+- module: specify_cli.cli.commands._run_index_doctor
+  name: register
+  category: category_c_doctor_auto_discovery_seam
+  rationale: Reached only via doctor.py's dynamic ``getattr(module, "register")`` auto-discovery, the
+    same reach path as ``_provenance_doctor::register`` (#5390 ``doctor run-index``).
 - module: specify_cli.lanes.branch_naming
   name: LEGACY_FAILOVER_SUPPRESS_ENV
   category: category_c_branch_naming_failover_seam
@@ -1386,6 +1391,15 @@ widened_grandfathered_470:
       its own delete-or-keep call.
   - module: runtime.next.runtime_bridge_cores
     name: evaluate_guards
+  - module: runtime.next.runtime_bridge_io
+    name: save_feature_runs
+    note: 'intentionally-retained narrow I/O port (#5390 run-index port): its last
+      intra-module caller (the ``get_or_start_run`` index write) now writes through
+      ``run_index.save_index`` directly, which tokenizes + locks. Kept as a thin
+      delegate over ``run_index.write_index_file`` for the existing monkeypatch seam
+      and test symmetry with its sibling ``load_feature_runs`` (which still has a
+      live src/ caller via ``runtime_bridge._load_feature_runs``); exercised directly
+      by tests/runtime/test_bridge_io.py.'
   - module: specify_cli.agent_tasks_ports
     name: default_ports
   - module: specify_cli.ast_analysis.imports

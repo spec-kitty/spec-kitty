@@ -118,6 +118,7 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "doctor ops": ((), 1, "outside"),
     "doctor provenance": ((), 1, "outside"),
     "doctor review-cycle-reconcile": ((), 1, "outside"),
+    "doctor run-index": ((), 1, "outside"),
     "doctor shim-registry": ((), 2, "outside"),
     "doctor skills": ((), 2, "outside"),
     "doctor state-roots": ((), 1, "outside"),
