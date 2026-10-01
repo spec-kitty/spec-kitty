@@ -148,7 +148,8 @@ It does **not** see:
    at all — evades both the method-name rules (the callee is a bare ``Name``,
    not ``.post``/``.patch``/``.request``) and ``_transmits_a_body`` (`:295-306`),
    which requires ``headers`` **and** a body keyword to be present before it
-   will call a bare-``Name`` callee a sink. `#3113`: the guard's own bite-test
+   will call a bare-``Name`` callee a sink. `#5493` (accepted residual of
+   `#3113`, closed COMPLETED 2026-08-02): the guard's own bite-test
    (`test_scanner_detects_each_sink_shape`) exercised only the kwargs form of
    the injected-transport shape, so it would have certified a scanner that was
    blind to this one — a negative control that only tests the shape you
@@ -169,12 +170,13 @@ It does **not** see:
    acceptance criteria a non-zero count is itself the outcome: **the matcher is
    left alone.** What catches this shape is review, and the file-keyed
    allowlist if the sink lands in a file nobody has reasoned about.
-   ``test_scanner_detects_each_sink_shape`` carries both of `#3113`'s
-   positional cases pinned as ``pytest.xfail(..., strict=True)``, naming this
-   limit.
+   ``test_scanner_detects_each_sink_shape`` pins both positional cases of
+   the open residual `#5493` (split from the closed `#3113`) as
+   ``pytest.mark.xfail(..., strict=True)``, naming this limit.
 
 Spec: FR-002, FR-003, FR-019, FR-025-FR-032, C-003. `#3113` (FR-013, FR-014,
-FR-015) adds limit 8 above; cross-referenced one-directionally against
+FR-015; closed COMPLETED 2026-08-02) adds limit 8 above, re-pointed to the
+open residual `#5493`; cross-referenced one-directionally against
 ``kitty-specs/journal-project-consent-3030-01KYKWQS/egress-inventory.md``,
 which belongs to a closed mission and is not edited by this change (C-010).
 
@@ -963,7 +965,8 @@ class TestGuardBites:
                 id="injected-transport-positional-url-name",
                 marks=pytest.mark.xfail(
                     reason=(
-                        "#3113 case (A): all-positional injected transport whose first "
+                        "#5493 case (A) (accepted residual of #3113, closed COMPLETED "
+                        "2026-08-02): all-positional injected transport whose first "
                         "argument name IS in _URL_ARG_NAMES. _transmits_a_body requires "
                         "headers= AND a body keyword (:295-306), so an all-positional call "
                         "is invisible regardless of argument names. This is limit 8 in the "
@@ -986,10 +989,11 @@ class TestGuardBites:
                 id="injected-transport-positional-non-url-name",
                 marks=pytest.mark.xfail(
                     reason=(
-                        "#3113 case (B) -- THE ADOPTION GATE: all-positional injected "
+                        "#5493 case (B) -- THE ADOPTION GATE (accepted residual of #3113, "
+                        "closed COMPLETED 2026-08-02): all-positional injected "
                         "transport whose argument names (post, u, payload, meta) are "
                         "OUTSIDE _URL_ARG_NAMES. A matcher that passed (A) above but failed "
-                        "this case would still be blind in exactly the way #3113 is about, "
+                        "this case would still be blind in exactly the way #5493 is about, "
                         "because _attr_tail returns node.id verbatim for a bare Name "
                         "(:266-272) -- (A) alone would certify a blind matcher. Same "
                         "limit-8 gap as (A); same FR-015 non-adoption decision (non-zero "
@@ -1013,7 +1017,8 @@ class TestGuardBites:
     def test_positional_transport_strict_xfail_landmines_disposition_still_pending(
         self,
     ) -> None:
-        """WP06 (T028/T030, FR-015 fix-before-wiring): re-validate the two #3113
+        """WP06 (T028/T030, FR-015 fix-before-wiring): re-validate the two
+        #5493 (accepted residual of #3113, closed COMPLETED 2026-08-02)
         strict-xfail landmines on the current tree.
 
         Re-validated in isolation: both ``injected-transport-positional-*``
@@ -1022,9 +1027,9 @@ class TestGuardBites:
         non-zero false positives over ``src/``) still holds, so the gap is
         still genuinely open. This guard pins that disposition: it fails if
         either case's marker is dropped, stops being ``strict=True``, or loses
-        its ``#3113`` tracking reference without the underlying gap actually
-        closing (``strict=True`` on the parametrized test itself already
-        catches an unexpected XPASS).
+        its ``#5493`` tracking reference (the open residual issue) without the
+        underlying gap actually closing (``strict=True`` on the parametrized
+        test itself already catches an unexpected XPASS).
         """
         marks = getattr(type(self).test_scanner_detects_each_sink_shape, "pytestmark", [])
         parametrize_marks = [m for m in marks if m.name == "parametrize"]
@@ -1037,7 +1042,7 @@ class TestGuardBites:
         }
         for case_id, xfail_mark in xfail_params.items():
             assert xfail_mark.kwargs.get("strict") is True, case_id
-            assert "#3113" in xfail_mark.kwargs.get("reason", ""), case_id
+            assert "#5493" in xfail_mark.kwargs.get("reason", ""), case_id
 
     def test_unlisted_sender_is_reported_with_its_seam(self, tmp_path: Path) -> None:
         """The whole collection path reds on a synthetic un-allowlisted sender."""

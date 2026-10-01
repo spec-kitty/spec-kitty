@@ -22,12 +22,6 @@ from specify_cli.migration.mission_state import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
-def _has_events_5() -> bool:
-    import spec_kitty_events
-
-    return Version(spec_kitty_events.__version__) >= Version("5.0.0")
-
-
 def _write_json(path: Path, data: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -157,11 +151,6 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     quarantine_text = quarantine.read_text(encoding="utf-8")
     assert "DecisionPointOpened" not in quarantine_text
     assert "RetrospectiveCaptured" not in quarantine_text
-
-    if not _has_events_5():
-        with pytest.raises(MissionStateDryRunError, match="requires spec-kitty-events >= 5.0.0"):
-            teamspace_dry_run(repo, mission="042-historical-shape")
-        return
 
     dry_run = teamspace_dry_run(repo, mission="042-historical-shape")
 
@@ -627,10 +616,24 @@ def test_deterministic_repair_ids_follow_fork_seed_material(tmp_path: Path) -> N
     assert _read_json(mission_a / "meta.json")["mission_id"] != _read_json(mission_b / "meta.json")["mission_id"]
 
 
-def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_path: Path) -> None:
-    if not _has_events_5():
-        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+def test_teamspace_dry_run_refuses_events_package_below_required_floor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The product refusal at ``mission_state.py``'s ``_load_events_contract``
+    (``REQUIRED_EVENTS_PACKAGE = Version("5.0.0")``) is the only test of that
+    branch now that ``#932``'s unreachable local-floor guard is gone (the real
+    floor is ``spec-kitty-events>=10.4.0``, so the branch never fires on the
+    live install). ``_load_events_contract`` is the first thing
+    ``teamspace_dry_run`` calls, before any repo read, so no seeded fixture is
+    needed here.
+    """
+    import spec_kitty_events
 
+    monkeypatch.setattr(spec_kitty_events, "__version__", "4.9.0")
+
+    with pytest.raises(MissionStateDryRunError, match=r"requires spec-kitty-events >="):
+        teamspace_dry_run(tmp_path, mission="001-any")
+
+
+def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_path: Path) -> None:
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-needs-repair"
     mission.mkdir(parents=True)
@@ -687,9 +690,6 @@ def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_
 
 
 def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tmp_path: Path) -> None:
-    if not _has_events_5():
-        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
-
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-historical-done"
     mission.mkdir(parents=True)
@@ -746,9 +746,6 @@ def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tm
 
 
 def test_teamspace_dry_run_synthesizes_missing_historical_approval_evidence(tmp_path: Path) -> None:
-    if not _has_events_5():
-        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
-
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-historical-approval"
     mission.mkdir(parents=True)

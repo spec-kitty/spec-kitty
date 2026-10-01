@@ -10,19 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from packaging.version import Version
 from pydantic import ValidationError
 
 from specify_cli.migration.mission_state import FORBIDDEN_LEGACY_KEYS, repair_repo, teamspace_dry_run
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-
-def _has_events_5() -> bool:
-    import spec_kitty_events
-
-    return Version(spec_kitty_events.__version__) >= Version("5.0.0")
 
 
 def _write_json(path: Path, data: dict[str, object]) -> None:
@@ -166,7 +159,6 @@ def _find_forbidden_keys(value: Any) -> list[str]:
     return findings
 
 
-@pytest.mark.skipif(not _has_events_5(), reason="TeamSpace rehearsal requires spec-kitty-events >= 5.0.0")
 def test_teamspace_mission_state_rehearsal_is_deterministic_across_clones(tmp_path: Path) -> None:
     """Exercise the #932 launch rehearsal path on two cloned historical repos."""
     from spec_kitty_events import Event

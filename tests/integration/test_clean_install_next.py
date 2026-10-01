@@ -27,8 +27,6 @@ from pathlib import Path
 
 import pytest
 
-from tests._support.shared_package_deferral import clean_install_acceptance_deferred
-
 pytestmark = [pytest.mark.distribution, pytest.mark.integration, pytest.mark.git_repo]
 
 
@@ -56,10 +54,6 @@ def _venv_bin(venv_dir: Path, name: str) -> Path:
     return venv_dir / "bin" / name
 
 
-@pytest.mark.skipif(
-    clean_install_acceptance_deferred(),
-    reason="clean-venv wheel installation is deferred until #828's shared packages are published",
-)
 def test_clean_install_next_runs_without_runtime(tmp_path: Path) -> None:
     """End-to-end: install spec-kitty-cli into a clean venv, run ``next``.
 

@@ -45,7 +45,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from packaging.version import Version
 
 from specify_cli.audit import run_audit
 from specify_cli.audit.models import AuditOptions
@@ -63,12 +62,6 @@ BLOCKED_SLUG = "audit-blocking-mission"
 _LEGACY_MISSION_ID = "01KWNP7Q8R9TVWXY2Z3A4B5C00"
 _BLOCKED_MISSION_ID = "01KWNP7Q8R9TVWXY2Z3A4B5C11"
 _CORRUPT_STATUS_ROW = "this is not valid json{{{\n"
-
-
-def _has_events_5() -> bool:
-    import spec_kitty_events
-
-    return Version(spec_kitty_events.__version__) >= Version("5.0.0")
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -186,7 +179,6 @@ def test_repair_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> N
     assert LEGACY_SLUG in serialized and BLOCKED_SLUG in serialized
 
 
-@pytest.mark.skipif(not _has_events_5(), reason="TeamSpace dry-run requires spec-kitty-events >= 5.0.0")
 def test_dry_run_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> None:
     """SC-002/003: the REAL ``TeamspaceDryRunReport.to_json()`` carries per-mission
     error records (dry-run parity), obtainable without an audit-manifest read.
@@ -267,7 +259,6 @@ def test_fix_is_idempotent_e2e(tmp_path: Path) -> None:
 # ── CRITICAL: the dry-run refusal is preserved (additive-only guarantee) ─────
 
 
-@pytest.mark.skipif(not _has_events_5(), reason="TeamSpace dry-run requires spec-kitty-events >= 5.0.0")
 def test_dry_run_still_refuses_audit_blocking_mission_e2e(tmp_path: Path) -> None:
     """CRITICAL: ``teamspace_dry_run`` STILL refuses (b) — before AND after --fix.
 

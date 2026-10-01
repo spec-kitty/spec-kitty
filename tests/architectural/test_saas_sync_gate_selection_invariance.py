@@ -1,23 +1,38 @@
-"""#3213 — the SaaS-sync feature flag is a single collection-time authority.
+"""``SPEC_KITTY_ENABLE_SAAS_SYNC`` is a single collection-time authority.
 
-Import-time ``@pytest.mark.skipif(not os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))``
-gates are evaluated at *collection*. If any test
-module sets that flag at import via its own module-level
-``os.environ.setdefault(...)``, the gate's decision depends on whether that
-module happens to be collected in the current selection — so the SAME node
-skips under ``pytest tests/regression`` but runs under ``pytest tests/ -m
-regression``. That selection-dependence is the #3213 defect.
+**Live premise (post-#3980).** Product still reads
+``SPEC_KITTY_ENABLE_SAAS_SYNC`` at *runtime* as a process-global opt-out kill
+switch (``src/specify_cli/core/saas_sync_config.py:28``,
+``src/specify_cli/tracker/saas_readiness.py``). A module-level write of that
+flag — e.g. ``os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"`` at import time
+— therefore pollutes every later test in the same worker process, whatever
+selection collected that module: the flag is a process-wide variable, not a
+test-scoped one, so the pollution outlives the module that set it and reaches
+tests that never asked for it. No other gate in this suite bans a module-scope
+env write in ``tests/``, so retiring this one would remove the only guard
+against that class of pollution (C-002).
+
+**History.** The flag was originally gated here against import-time
+``@pytest.mark.skipif(not os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))``
+selection-dependence (#3213): such gates are evaluated at *collection*, so a
+module setting the flag at import via its own module-level
+``os.environ.setdefault(...)`` made the gate's decision depend on whether that
+module happened to be collected in the current selection — the SAME node
+skipped under ``pytest tests/regression`` but ran under ``pytest tests/ -m
+regression``. Zero such import-time ``skipif`` gates remain in this codebase
+today; the premise above is what makes this guard still load-bearing.
 
 The fix makes ``tests/conftest.py``'s ``pytest_configure`` the single authority
 that sets the flag once, collection-wide, before any module import. These two
 guards pin that authority:
 
-1. the flag IS set at collection time (so import-time gates see a stable value);
+1. the flag IS set at collection time (so any runtime reader, including the
+   opt-out kill switch above, sees a stable value);
 2. NO test module re-introduces a module-level write of the flag (which would
-   restore the selection-dependence).
+   restore the cross-test pollution).
 
-Note: with the flag consistently set, every import-time SaaS-sync gate makes the
-same skip/run decision under ``pytest tests/regression`` and ``pytest tests/ -m
+Note: with the flag consistently set, every runtime reader of it makes the
+same decision under ``pytest tests/regression`` and ``pytest tests/ -m
 regression`` — that is the intended, honest effect. (Historically this also
 re-exposed the then-open #2782 P0 red under ``pytest tests/regression``; #2782
 has since been resolved and its reproduction retired, so nothing in
@@ -45,12 +60,16 @@ _ALLOWED_RELPATHS = {Path("conftest.py")}
 
 
 def test_flag_is_set_at_collection_time() -> None:
-    """``pytest_configure`` set the flag before any module import (#3213)."""
+    """``pytest_configure`` sets the flag before any module import, so the
+    runtime kill-switch readers (``saas_sync_config.py``,
+    ``saas_readiness.py``) see a consistent value regardless of collection
+    order (history: #3213)."""
     import os
 
     assert os.environ.get(_FLAG) == "1", (
         f"{_FLAG} must be set collection-wide by tests/conftest.py "
-        "pytest_configure so import-time skipif gates are selection-invariant."
+        "pytest_configure, or the runtime kill-switch readers see an "
+        "inconsistent value depending on collection order."
     )
 
 
@@ -116,12 +135,14 @@ def _is_flag_constant(expr: ast.expr) -> bool:
 
 
 def test_no_test_module_sets_the_flag_at_import_time() -> None:
-    """Only tests/conftest.py may set the flag; module-level writes bring back
-    the #3213 selection-dependence."""
+    """Only tests/conftest.py may set the flag; a module-level write pollutes
+    every later test in the same worker process via the runtime kill-switch
+    readers (history: #3213 was the selection-dependence precursor)."""
     offenders = _module_level_flag_writers()
     assert not offenders, (
-        f"These test modules set {_FLAG} at import time, which makes import-time "
-        "skipif gates depend on the current selection (#3213). Remove the "
+        f"These test modules set {_FLAG} at import time, which pollutes every "
+        "later test in the same worker process via the runtime kill-switch "
+        "readers in saas_sync_config.py / saas_readiness.py. Remove the "
         "module-level write; the flag is set collection-wide in "
         "tests/conftest.py pytest_configure:\n"
         + "\n".join(f"    - {o}" for o in sorted(offenders))

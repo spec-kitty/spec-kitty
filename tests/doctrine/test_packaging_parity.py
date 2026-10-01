@@ -37,8 +37,6 @@ from pathlib import Path
 
 import pytest
 
-from tests._support.shared_package_deferral import clean_install_acceptance_deferred
-
 pytestmark = [pytest.mark.distribution, pytest.mark.integration, pytest.mark.git_repo, pytest.mark.corpus]
 
 _THIS = Path(__file__).resolve()
@@ -183,10 +181,6 @@ def _venv_python(venv_dir: Path) -> Path:
     return venv_dir / "bin" / "python"
 
 
-@pytest.mark.skipif(
-    clean_install_acceptance_deferred(),
-    reason="clean-venv wheel installation is deferred until #828's shared packages are published",
-)
 def test_clean_venv_install_imports_and_resolves_built_in(
     built_artifacts: tuple[Path, Path],
     tmp_path: Path,
