@@ -30,12 +30,31 @@ zero overlap" -- which the frozen-baseline layer cannot express without one
 manually-regenerated snapshot file per shard (reintroducing the exact
 committed-data-can-drift-from-live-reality hazard ledger SK-247 already
 burned this mission's sibling on, one layer up).
+
+Per-file collection memo (FR-006): the two real consumers
+(``test_no_shard_collects_zero_tests`` and the union test) both need every
+shard's collected node-ids, and each collection is a pytest subprocess. They
+share ONE collection per distinct selection through ``_collect_memo``: a
+``functools.cache`` keyed on ``(resolved repo root, paths, ignores,
+marker_expr)`` -- never on ``gate.job`` or the unhashable ``Gate`` -- holding
+node-id FINDINGS (an immutable tuple of strings), not collected items or
+syntax trees. Its lifetime is the file: ``_clear_collect_memo`` empties it at
+module teardown, and under ``--dist loadfile`` that is "once per file". The
+mutation controls never use the memo: they call
+``_coverage_completeness_violations`` without ``collect`` and so reach the
+(monkeypatched) uncached primitive ``collect_job_nodeids``, resolved from
+module globals at call time.
 """
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import functools
 import itertools
+import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -62,7 +81,7 @@ from tests.architectural._interpreter_shard_roster import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator, Sequence
 
 pytestmark = [pytest.mark.architectural]
 
@@ -547,12 +566,65 @@ def test_nightly_summary_needs_check_fails_when_a_shard_is_dropped() -> None:
     assert missing == {victim}, f"removing {victim!r} from nightly-summary.needs must surface as the ONLY missing key, got {missing}"
 
 
+@functools.cache
+def _collect_memo(
+    repo_root: Path,
+    paths: tuple[str, ...],
+    ignores: tuple[str, ...],
+    marker_expr: str | None,
+) -> tuple[str, ...]:
+    """Collect one selection's node-ids ONCE per file (FR-006).
+
+    Keyed on the selection-relevant fields only (``Gate`` is mutable and
+    unhashable, and ``gate.job`` does not change what is collected). The value
+    is an immutable tuple of node-id strings -- findings, never collected items.
+    ``collect_job_nodeids`` is resolved from module globals at CALL time, so a
+    test that monkeypatches it still wins.
+    """
+    gate = Gate(workflow="ci-nightly.yml", job="<memo>", shard=None, paths=list(paths), ignores=list(ignores), marker_expr=marker_expr)
+    return tuple(collect_job_nodeids(gate))
+
+
+def _memo_collect(gate: Gate) -> list[str]:
+    """Memoised drop-in for ``collect_job_nodeids`` used by the REAL consumers only."""
+    return list(_collect_memo(REPO_ROOT.resolve(), tuple(gate.paths), tuple(gate.ignores), gate.marker_expr))
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _clear_collect_memo() -> Iterator[None]:
+    """Bound the memo to this file: nothing outlives it on the worker (FR-006)."""
+    yield
+    _collect_memo.cache_clear()
+
+
+@contextlib.contextmanager
+def _isolated_collect_memo() -> Iterator[None]:
+    """Hand a test an EMPTY memo and leave it EMPTY, however the test ends.
+
+    Every test that seeds or exercises ``_collect_memo`` runs inside this, so a
+    real consumer that runs after it in the same process (explicit node ids,
+    ``--lf``/``--ff``, reordering) can never be judged against that test's
+    synthetic world.
+    """
+    _collect_memo.cache_clear()
+    try:
+        yield
+    finally:
+        _collect_memo.cache_clear()
+
+
+@pytest.fixture
+def isolated_collect_memo() -> Iterator[None]:
+    with _isolated_collect_memo():
+        yield
+
+
 def test_no_shard_collects_zero_tests() -> None:
     """FR-005: a shard whose selector collects 0 node-ids fails loudly,
     naming the empty shard -- never a silent pass."""
     empty: list[str] = []
     for shard in INTERPRETER_SHARDS:
-        nodeids = collect_job_nodeids(_shard_gate(shard))
+        nodeids = _memo_collect(_shard_gate(shard))
         if not nodeids:
             empty.append(shard.job_key)
     assert not empty, f"shard(s) collected 0 tests: {empty} (FR-005 -- a shard must never be silently vacuous)"
@@ -560,6 +632,7 @@ def test_no_shard_collects_zero_tests() -> None:
 
 def _coverage_completeness_violations(
     shards: tuple[InterpreterShard, ...],
+    collect: Callable[[Gate], Sequence[str]] | None = None,
 ) -> tuple[set[str], set[str], set[str]]:
     """The PRODUCTION coverage-completeness computation for FR-004/NFR-002/SC-003.
 
@@ -573,9 +646,14 @@ def _coverage_completeness_violations(
     and/or a monkeypatched ``collect_job_nodeids``) call this SAME function --
     a mutation test that never reaches this code cannot prove anything
     (WP01-R1-001).
+
+    ``collect`` defaults to the uncached ``collect_job_nodeids``, resolved from
+    module globals at call time so a monkeypatched fake wins. Only the real
+    consumer passes the per-file memo (FR-006); the mutation controls never do.
     """
-    full_ids = set(collect_job_nodeids(_FULL_SELECTION_GATE))
-    per_shard: dict[str, set[str]] = {shard.job_key: set(collect_job_nodeids(_shard_gate(shard))) for shard in shards}
+    collect = collect or collect_job_nodeids
+    full_ids = set(collect(_FULL_SELECTION_GATE))
+    per_shard: dict[str, set[str]] = {shard.job_key: set(collect(_shard_gate(shard))) for shard in shards}
 
     union_ids: set[str] = set()
     overlap_ids: set[str] = set()
@@ -599,7 +677,7 @@ def test_shard_union_equals_full_selection_with_zero_gap_and_zero_overlap() -> N
     On failure, names the specific missing/duplicated node id(s) (spec.md
     Edge Cases).
     """
-    missing_ids, extra_ids, overlap_ids = _coverage_completeness_violations(INTERPRETER_SHARDS)
+    missing_ids, extra_ids, overlap_ids = _coverage_completeness_violations(INTERPRETER_SHARDS, collect=_memo_collect)
 
     assert not missing_ids, f"{len(missing_ids)} node id(s) collected by the full selection but by NO shard: {sorted(missing_ids)[:10]}"
     assert not extra_ids, f"{len(extra_ids)} node id(s) collected by a shard but NOT by the full selection: {sorted(extra_ids)[:10]}"
@@ -706,3 +784,187 @@ def test_roster_diff_fails_when_a_shard_is_deleted_from_the_job_list() -> None:
     target = BaselineTarget(slug=victim, workflow="ci-nightly.yml", job=victim)
     with pytest.raises(RuntimeError, match=victim):
         gates_for_target(scratch_gates, target)
+
+
+# ---------------------------------------------------------------------------
+# FR-006 (ci-runtime-stabilisation, WP13): each distinct selection is collected
+# ONCE per file. These tests pin the three properties that make the per-file
+# memo safe: duplicate requests compute once, the mutation controls never see a
+# memoised real-tree result, and the two REAL consumers actually go through it.
+# ---------------------------------------------------------------------------
+
+_SelectionKey = tuple[tuple[str, ...], tuple[str, ...], str | None]
+
+
+def _selection_key(gate: Gate) -> _SelectionKey:
+    return (tuple(gate.paths), tuple(gate.ignores), gate.marker_expr)
+
+
+def _install_counting_collector(
+    monkeypatch: pytest.MonkeyPatch,
+    ids_by_selection: dict[_SelectionKey, set[str]],
+) -> dict[_SelectionKey, int]:
+    """Install a fake ``collect_job_nodeids`` keyed on the SELECTION (never ``gate.job``).
+
+    Returns the live per-selection call counter, so a consumer that bypasses the
+    memo shows a count of 2.
+    """
+    calls: dict[_SelectionKey, int] = {}
+
+    def _counting(gate: Gate) -> list[str]:
+        key = _selection_key(gate)
+        calls[key] = calls.get(key, 0) + 1
+        return sorted(ids_by_selection.get(key, set()))
+
+    monkeypatch.setattr(sys.modules[__name__], "collect_job_nodeids", _counting)
+    return calls
+
+
+def _consistent_fake_world() -> dict[_SelectionKey, set[str]]:
+    """Disjoint shards whose union is the full selection, keyed by selection."""
+    per_shard = _synthetic_world_ids(INTERPRETER_SHARDS)
+    world = {_selection_key(_shard_gate(shard)): per_shard[shard.job_key] for shard in INTERPRETER_SHARDS}
+    world[_selection_key(_FULL_SELECTION_GATE)] = set().union(*per_shard.values())
+    return world
+
+
+@pytest.mark.usefixtures("isolated_collect_memo")
+def test_collect_memo_invokes_the_collector_once_per_selection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Equal keys collect once; a different ``ignores`` is a different selection; the value is immutable."""
+    key_a = (("tests/unit",), (), "fast or unit")
+    key_b = (("tests/unit",), ("tests/unit/slow",), "fast or unit")
+    calls = _install_counting_collector(monkeypatch, {key_a: {"a::t"}, key_b: {"b::t"}})
+
+    first = _collect_memo(REPO_ROOT.resolve(), *key_a)
+    again = _collect_memo(REPO_ROOT.resolve(), *key_a)
+    other = _collect_memo(REPO_ROOT.resolve(), *key_b)
+
+    assert sum(calls.values()) == 2, f"two distinct selections must collect exactly twice, got {calls}"
+    assert _collect_memo.cache_info().hits == 1
+    assert isinstance(first, tuple)
+    assert first == again == ("a::t",)
+    assert other == ("b::t",)
+
+
+@pytest.mark.usefixtures("isolated_collect_memo")
+def test_mutation_controls_bypass_the_memo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A warm memo (world A) must never serve the mutation controls (world B)."""
+    world_a = _consistent_fake_world()
+    _install_counting_collector(monkeypatch, world_a)
+    for key in world_a:
+        _collect_memo(REPO_ROOT.resolve(), *key)
+    assert _collect_memo.cache_info().currsize == len(world_a), "sanity: the memo is warm"
+
+    per_shard_ids = _synthetic_world_ids(INTERPRETER_SHARDS)
+    full_ids: set[str] = set().union(*per_shard_ids.values())
+    victim = INTERPRETER_SHARDS[0].job_key
+    dropped_id = sorted(per_shard_ids[victim])[0]
+    world_b = {job_key: (ids - {dropped_id} if job_key == victim else set(ids)) for job_key, ids in per_shard_ids.items()}
+    _install_fake_collect_job_nodeids(monkeypatch, world_b, full_ids)
+
+    missing_ids, extra_ids, overlap_ids = _coverage_completeness_violations(INTERPRETER_SHARDS)
+
+    assert missing_ids == {dropped_id}, f"the uncached primitive must report world B's gap, got {missing_ids}"
+    assert not extra_ids
+    assert not overlap_ids
+
+
+@pytest.mark.usefixtures("isolated_collect_memo")
+@pytest.mark.parametrize("zero_first", [True, False], ids=["zero-test-first", "union-first"])
+def test_real_consumers_collect_each_selection_once(monkeypatch: pytest.MonkeyPatch, zero_first: bool) -> None:
+    """Production path: the two REAL consumers share one collection per distinct selection, in either order."""
+    world = _consistent_fake_world()
+    calls = _install_counting_collector(monkeypatch, world)
+
+    if zero_first:
+        test_no_shard_collects_zero_tests()
+        test_shard_union_equals_full_selection_with_zero_gap_and_zero_overlap()
+    else:
+        test_shard_union_equals_full_selection_with_zero_gap_and_zero_overlap()
+        test_no_shard_collects_zero_tests()
+
+    assert set(calls) == set(world), "every shard gate plus the full-selection gate is collected"
+    assert {key: count for key, count in calls.items() if count != 1} == {}, f"a consumer that bypasses the memo collects a selection twice (FR-006): {calls}"
+
+
+def test_the_isolation_leaves_an_empty_memo_after_a_test_seeds_the_real_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin: a test that warms the memo UNDER THE REAL KEYS leaves nothing behind -- also when it raises."""
+    world = _consistent_fake_world()
+    _install_counting_collector(monkeypatch, world)
+    with _isolated_collect_memo():
+        for key in world:
+            _collect_memo(REPO_ROOT.resolve(), *key)
+        assert _collect_memo.cache_info().currsize == len(world), "sanity: the synthetic world is in the memo"
+    assert _collect_memo.cache_info().currsize == 0
+
+    def _seed_then_fail() -> None:
+        with _isolated_collect_memo():
+            for key in world:
+                _collect_memo(REPO_ROOT.resolve(), *key)
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        _seed_then_fail()
+    assert _collect_memo.cache_info().currsize == 0, "an erroring test must not leave its world behind either"
+
+
+# ---------------------------------------------------------------------------
+# Order independence of the per-file memo (FR-006 must not weaken the gate).
+# A test that warms ``_collect_memo`` under the REAL selection keys with a
+# synthetic world must leave it empty, or a real consumer that runs after it in
+# the same process (explicit node ids, ``--lf``/``--ff``, reordering) is judged
+# against the fake world and the FR-004/FR-005 coverage gate passes vacuously.
+# ---------------------------------------------------------------------------
+
+_EMPTY_COLLECTION_PLUGIN = """
+def _collects_nothing(gate):
+    return []
+
+
+def pytest_collection_modifyitems(items):
+    for module in {item.module for item in items}:
+        if hasattr(module, "collect_job_nodeids"):
+            module.collect_job_nodeids = _collects_nothing
+"""
+
+_THIS_FILE = Path(__file__).as_posix()
+_ZERO_TEST_CONSUMER_NODE = f"{_THIS_FILE}::test_no_shard_collects_zero_tests"
+_MEMO_SEED_NODES = (
+    f"{_THIS_FILE}::test_mutation_controls_bypass_the_memo",
+    f"{_THIS_FILE}::test_real_consumers_collect_each_selection_once[zero-test-first]",
+    f"{_THIS_FILE}::test_real_consumers_collect_each_selection_once[union-first]",
+)
+
+
+def _run_pytest_with_empty_collection(tmp_path: Path, *node_ids: str) -> subprocess.CompletedProcess[str]:
+    """Run ``node_ids`` in ONE fresh pytest process whose real collector finds nothing (a real FR-005 violation)."""
+    plugin_dir = tmp_path / "plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "empty_collection_plugin.py").write_text(_EMPTY_COLLECTION_PLUGIN, encoding="utf-8")
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(plugin_dir), str(REPO_ROOT)])}
+    return subprocess.run(
+        [sys.executable, "-m", "pytest", "-p", "empty_collection_plugin", "-p", "no:cacheprovider", "-o", "addopts=", "-q", "-rf", *node_ids],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+
+
+def test_an_empty_real_collection_still_fails_the_zero_test_consumer_alone(tmp_path: Path) -> None:
+    """Control: with a collector that finds nothing the real consumer is red on its own (the harness is not vacuous)."""
+    result = _run_pytest_with_empty_collection(tmp_path, _ZERO_TEST_CONSUMER_NODE)
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "collected 0 tests" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("seed_node", _MEMO_SEED_NODES, ids=lambda node: node.split("::", 1)[1])
+def test_a_memo_seeding_test_cannot_green_wash_a_following_real_consumer(tmp_path: Path, seed_node: str) -> None:
+    """FR-006 regression: seed-test THEN real consumer, one process -- the consumer must still go red."""
+    result = _run_pytest_with_empty_collection(tmp_path, seed_node, _ZERO_TEST_CONSUMER_NODE)
+
+    assert result.returncode == 1, f"the consumer was served the seed test's fake world and passed on a real violation:\n{result.stdout}{result.stderr}"
+    assert re.search(r"^FAILED \S+::test_no_shard_collects_zero_tests", result.stdout, re.MULTILINE), result.stdout
