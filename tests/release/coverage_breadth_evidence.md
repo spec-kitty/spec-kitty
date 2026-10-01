@@ -9,6 +9,13 @@
 > 14.2 s respectively — their actual breadth overhead is ≈2.2 s, not 32.4 s. The conclusion is
 > unchanged; only the denominator moved.
 
+> **Job-name footnote (#5510, added 2026-10-01).** Section 8 names the
+> `architectural-heavy` job as it existed when this evidence was measured. Since mission
+> `ci-runtime-stabilisation` that job is a two-leg matrix (`--battery-part 1/2` and `2/2`)
+> beside an always-on `architectural-fast` job. The battery still emits no coverage artefact
+> (no `--cov`, no upload), so section 8's "Measured marginal contribution: 0 statements" conclusion is
+> unchanged. The measured prose below is deliberately not edited.
+
 **Mission** `sonar-per-pr-coverage-reuse-01M2FR32` · **WP01** · FR-013 / FR-016 / NFR-002 / NFR-009
 · measured 2026-09-14 at `576801bc0249171bb037e4ccdc5ccbe66c186ba7`
 (branch `kitty/mission-sonar-per-pr-coverage-reuse-01M2FR32-lane-a`).

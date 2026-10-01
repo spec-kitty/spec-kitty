@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-01'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -534,18 +534,24 @@ been fixed, the end-state is stated instead of the trap.
   re-export block in `agent/tasks.py`. Expect this as a fold on PRs that
   touch decomposed command modules.
 - **CI-only architectural gates land late.** Repo-wide gates (terminology,
-  shim retirement, seam boundaries) run in the
-  `integration-tests-core-misc (architectural)` shard — a PR can pass every
-  fast shard and fail ~40 minutes later. Run `tests/architectural/` locally
-  on the rebased tip before declaring a branch green.
+  shim retirement, seam boundaries) run in the architectural battery: the
+  always-on `architectural fast gates (ratchet/census, always-on)` job and the
+  two `architectural battery (heavy, code-scoped)` legs (`1/2` and `2/2`). A PR
+  can pass every module shard and still fail in a heavy leg later. Run the
+  specific `tests/architectural/` gate files your diff implicates on the rebased
+  tip before declaring a branch green; do not sweep the whole directory
+  (`NO_FULL_HEAVY_SUITES_IN_MISSION`, see
+  [known friction points](../reference/known-friction-points.md)).
 - **Shard path-filters mask pre-existing failures.** The `changes` filter
-  skips shards like `fast-tests-cli` on PRs that do not touch those paths, so
+  skips shards such as `module-tests (cli shard 1/2)` on PRs that do not touch
+  those paths, so
   a pre-existing red only surfaces on the first PR that does — the innocent
   PR wears the failure. Classify it as pre-existing (bin three of
   [step 4](#4-classify-every-red-check)), not as the PR's defect.
   **Your own folds trigger this too:** a fold that touches a new path un-skips
   that path's shard, so the pass surfaces reds the PR never caused. On
   2026-08-04 a fold under `cli/commands/agent/` un-skipped `fast-tests-agent`
+  (the then-current job name; the agent tests now run in the `agent` module row of `ci-modules.yml`)
   and exposed a golden-contract drift that reproduced cleanly on
   `abca7ec96`. Re-classify after each batch of folds, not only at the start.
 - **File-scoped linters lint the whole file, not your diff.** `markdownlint`

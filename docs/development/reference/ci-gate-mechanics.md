@@ -43,8 +43,41 @@ Two habits defuse most of this class:
   when you name it directly.
 - Before declaring a branch green, run the architectural gate files your change
   implicates over the **rebased tip**. Do not sweep the whole
-  `tests/architectural/` directory in mission work ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml)); CI's
-  `architectural-heavy` job runs the full battery on code PRs.
+  `tests/architectural/` directory in mission work ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml)); CI runs
+  the whole battery for you: the always-on `architectural-fast` job plus the two
+  `architectural-heavy` legs on code and CI-config PRs.
+
+Since mission `ci-runtime-stabilisation` ([#5510](https://github.com/spec-kitty/spec-kitty/issues/5510)),
+five things about that pipeline are worth knowing before you read a red check:
+
+- **The battery has three parts.** `architectural-fast` is always on (docs-only PRs
+  included). Its roster of deterministic ratchet and census gates is held in
+  `.github/ci-module-registry.yml` under `special_tiers.architectural.fast_gate`,
+  with a per-file budget. `architectural-heavy` is one job key with a two-leg
+  matrix (`--battery-part 1/2` and `2/2`). The three parts are file-disjoint and
+  together cover the base selection exactly, which
+  `tests/architectural/test_battery_partition_proof.py` proves statically.
+- **CI-config changes select the heavy battery.** The router path group
+  `ci_config` (workflows, composite actions, `scripts/ci/**`, `pytest.ini`,
+  `pyproject.toml`, `Makefile`, the registry and the shard timings file) gates the
+  heavy battery and no other job.
+- **Corpus tests have one advisory owner.** `packs.yml` runs the `-m corpus`
+  suite as the advisory job `built-in / -m corpus suite (advisory)`. The 40
+  corpus node-ids that have no other blocking per-PR home run blocking in the
+  router job `tests (corpus-blocking)`. The router jobs `tests (cli)`,
+  `tests (status)`, `tests (consolidation)` and `tests (corpus)` no longer exist;
+  the `cli`, `status` and `consolidation` module rows in `ci-modules.yml` are now
+  their only homes.
+- **A nightly backstop runs the whole battery.** `ci-nightly.yml` job
+  `architectural-backstop` executes the full base selection with no partition
+  plugin, so a green nightly means the battery ran (see the amendment to
+  [ADR 2026-09-26-1](../../adr/3.x/2026-09-26-1-ci-coverage-honesty.md)).
+- **A `ready_for_review` run can skip on prior evidence.** When the same workflow
+  already went green for the identical tested key, the selection step is
+  suppressed and the required gates post success. A re-run always executes. See
+  [Skip-if-green on ready-for-review](#skip-if-green-on-ready-for-review) below
+  and the amendment to
+  [ADR 2026-09-23-1](../../adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md).
 
 The rest of this page groups gates by the change that trips them.
 
@@ -111,13 +144,15 @@ not line up with the shard that is supposed to run it.
 
 ### New `contracts/*.md` YAML blocks need a round-trip skip marker
 
-- **Trips it:** the corpus shard (`tests-corpus`, driven by
-  `ci-router.yml`) runs `tests/contract/test_example_round_trip.py`, which walks
+- **Trips it:** the router job `tests (corpus-blocking)` (job key
+  `tests-corpus-blocking` in `ci-router.yml`) runs
+  `tests/contract/test_example_round_trip.py`, which walks
   **every** `kitty-specs/*/contracts/*.md` and collects each fenced ` ```yaml `
   block as a contract-example case. A block in a non-legacy file that is neither
   executable nor marked as an illustration fails.
 - **Symptom:** `test_contract_example_round_trip[...MISSING_FRONTMATTER]` fails,
-  reddening the corpus shard. A local run of `tests/ci` + `tests/architectural`
+  reddening `tests (corpus-blocking)`. The Packs advisory corpus job deselects
+  this file, so a red here is blocking, not advisory. A local run of `tests/ci` + `tests/architectural`
   (the obvious blast radius for a CI change) does **not** cover
   `tests/contract/`, so illustrative YAML passes locally and only reds on CI.
 - **Fix / repro:** tag each YAML block with one of, as its first line inside the
@@ -150,9 +185,10 @@ not line up with the shard that is supposed to run it.
 ## The architectural gate battery
 
 Adding new `src/` symbols and new test files trips a battery of architectural
-gates that each pass in isolation but only surface together on CI's
-architectural shards (a long-running job whose failure short-circuits the router
-gate). Pre-run the targeted gate files before pushing. A useful invocation base
+gates that each pass in isolation but only surface together in CI's
+architectural jobs: the always-on `architectural-fast` job and the two legs of
+`architectural-heavy` (a code-scoped job whose failure reds the router gate).
+Pre-run the targeted gate files before pushing. A useful invocation base
 for these is `PYTHONPATH=src -o addopts=""` so collection matches CI.
 
 - **Dead-symbol gate** (`tests/architectural/test_no_dead_symbols.py`): a new
@@ -182,6 +218,66 @@ for these is `PYTHONPATH=src -o addopts=""` so collection matches CI.
   dependencies than a local checkout. An absolute module-count or import-count
   assertion (`len(modules) <= N`) passes locally and false-reds on CI. Assert a
   specific module's presence or absence, never an absolute count.
+
+### Fast roster, shard legs, and the partition proof
+
+The battery base selection is `tests/architectural` with the marker expression
+`not performance and not stress and not timing`, minus the four files that other
+always-on lanes own (`test_no_legacy_terminology.py`, `test_layer_rules.py`,
+`test_pyproject_shape.py`, `test_archive_root_byte_identical.py`). It runs as:
+
+| Part | Job (display name) | Selection | When |
+| --- | --- | --- | --- |
+| Fast | `architectural fast gates (ratchet/census, always-on)` | `--battery-part fast`: the registry roster | every PR shape |
+| Heavy leg 1 | `architectural battery (heavy, code-scoped) 1/2` | `--battery-part 1/2` | code, `ci_config` or `architectural` path changes, not prose-only |
+| Heavy leg 2 | `architectural battery (heavy, code-scoped) 2/2` | `--battery-part 2/2` | same as leg 1 |
+| Backstop | `Architectural battery backstop (nightly-only, #5510)` | the base, no partition flag | nightly |
+
+- **The roster is registry-held.** Each entry in
+  `special_tiers.architectural.fast_gate.roster` carries a path, a
+  `budget_seconds` and a reason. A file earns a roster slot only if it is a
+  deterministic static gate, so a new slow or CLI-round-trip file belongs in the
+  heavy legs. The budgets are checked statically against the committed timings by
+  `tests/ci/test_battery_roster_budgets.py`, never against wall-clock time.
+- **Adding or moving a battery test file** needs no workflow edit: the plugin
+  `scripts/ci/battery_partition_plugin.py` assigns each file to exactly one part
+  from the per-file timings in `.github/ci-shard-timings.json`. A file with no
+  timing gets the median weight, and a timing-set mismatch prints a `::warning::`
+  rather than silently using uniform weights.
+- **A partition-proof red** means a file is in two parts or in none. The proof
+  (`tests/architectural/test_battery_partition_proof.py`) evaluates the three
+  literal `--battery-part` commands, so fix the roster or the timings, not the
+  proof.
+- **Worker count** is a literal `-n 4` in every CI battery command; see
+  [CI worker policy](../testing/testing-parallel.md#ci-worker-policy-and-the-nightly-architectural-backstop).
+
+### Skip-if-green on ready-for-review
+
+When a draft PR is marked ready for review, the head SHA has usually already been
+tested. The selection jobs (router `changes`, CI Modules `generate-matrix`, Packs
+`changes`) therefore run `scripts/ci/green_match.py decide` first. It suppresses
+the path-filter step, and so every path-gated job, only when all of these hold:
+
+- the event is a `pull_request` with the action `ready_for_review`, on the first
+  attempt of the run;
+- a completed, successful run of the same workflow exists for the same head SHA;
+- that run carries a non-expired marker artifact `ci-tested-key-pr<N>-base-<sha>`
+  for the identical tested key `(workflow file, PR, head SHA, first parent of the
+  merge commit the run tested)`.
+
+The required contexts `router gate` and `CI Modules gate` still post success. On a
+skip run the always-on lanes and `prose-scan` still run, and `tests (docs)` still
+runs on a prose-only PR.
+
+- **Symptom of a surprise skip:** a `ready_for_review` run finished with every path-gated
+  shard skipped, and the step summary names a matched run.
+- **Escape hatch:** re-run the workflow. Attempt 2 always executes.
+- **Never suppressed:** push, `workflow_dispatch`, `workflow_call`, schedule, any
+  other `pull_request` action, a failed, cancelled or in-progress prior run, a
+  moved base, and any lookup error (the helper runs normally and warns).
+- **CI Aggregate** re-points to the matched CI Modules run after re-verifying it,
+  and fails with "re-run CI Modules to execute" if it cannot. Re-run CI Modules,
+  not Aggregate.
 
 ### Moving or renaming a symbol that is dead-symbol allowlisted
 
