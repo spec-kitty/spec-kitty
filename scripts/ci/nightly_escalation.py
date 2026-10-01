@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Escalate a red nightly suite into a deduped ``priority:P0`` issue (FR-007).
+"""Escalate a red nightly suite into a deduped, triaged ``priority:P0`` issue (FR-007).
 
 The nightly workflow (``.github/workflows/ci-nightly.yml``) runs its expensive
 suites run-all-regardless (``if: always()`` + terminal fail-loud, #4212). A red
@@ -17,6 +17,14 @@ Contract (research.md D6):
   run. INV-5: at most one open issue per key.
 - ``--conclusion success`` -> if an open issue with the key exists, comment that
   the suite recovered and close it.
+- **Triage on file (#5517)**: every issue a red files (or bumps) is triaged the
+  way a maintainer would by hand: native issue type ``Bug``, labels
+  ``priority:P0`` + ``from:ci``, milestone :data:`MILESTONE_TITLE` (resolved to
+  its number by title through the API), and a native sub-issue link under
+  :data:`PARENT_ISSUE_NUMBER`. A bumped issue is back-filled with whichever of
+  these it lacks; a field a human already set is never overridden. Each step
+  degrades on its own: a failed (or silently dropped) step never blocks filing
+  or the other steps, and is reported as a ``::warning::`` annotation.
 - **Mainline-only (#5169/#5172/#5265)**: only a run on ``refs/heads/main``
   may open, bump or close a P0. A ``workflow_dispatch`` on an unmerged branch
   is a diagnostic run -- its red is not main's red, and its green must never
@@ -45,7 +53,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol, cast
 
 _API_ROOT = "https://api.github.com"
@@ -53,6 +61,9 @@ _MARKER_TEMPLATE = "<!-- nightly-escalation-key: {key} -->"
 _P0_LABEL = "priority:P0"
 _ISSUE_TITLE_TEMPLATE = "Nightly suite red: {key}"
 _RUN_LINK_UNKNOWN = "(run link unavailable)"
+_ISSUES_PATH = "issues"
+_WARNING_TITLE = "Nightly escalation triage"
+_PUSH_ACCESS_HINT = "the token may lack push access"
 
 EXIT_OK = 0
 
@@ -61,6 +72,16 @@ CONCLUSION_FAILURE = "failure"
 
 # The only ref whose nightly verdict may touch a standing P0 (open/bump/close).
 MAINLINE_REF = "refs/heads/main"
+
+# Triage every escalation issue receives (#5517): the convention the
+# hand-triaged nightly reds set (#5045, #5049, #5311, #5417-#5419, #5505-#5507).
+BUG_ISSUE_TYPE = "Bug"
+FROM_CI_LABEL = "from:ci"
+ESCALATION_LABELS: tuple[str, ...] = (_P0_LABEL, FROM_CI_LABEL)
+# Resolved to a milestone number by title at run time, never hard-coded as a number.
+MILESTONE_TITLE = "4.0.0 release scope"
+# "Test suite friction: red-on-main & stale tests" -- the parent of every nightly red.
+PARENT_ISSUE_NUMBER = 5106
 
 
 class EscalationError(RuntimeError):
@@ -121,6 +142,109 @@ class IssueClient(Protocol):
 
     def close_issue(self, number: int) -> dict[str, Any]: ...
 
+    def add_labels(self, number: int, labels: Sequence[str]) -> list[dict[str, Any]]: ...
+
+    def set_issue_type(self, number: int, type_name: str) -> dict[str, Any]: ...
+
+    def find_milestone_number(self, title: str) -> int | None: ...
+
+    def set_milestone(self, number: int, milestone_number: int) -> dict[str, Any]: ...
+
+    def add_sub_issue(self, parent_number: int, sub_issue_id: int) -> dict[str, Any]: ...
+
+
+# ---------------------------------------------------------------------------
+# Triage (#5517): each step fills one missing field, verifies GitHub kept it,
+# and raises EscalationError otherwise. GitHub silently DROPS labels, type and
+# milestone it will not let the caller set, so a 2xx alone is not proof.
+# ---------------------------------------------------------------------------
+def _emit_warning(message: str) -> None:
+    """Report a degraded step loudly: a ``::warning::`` annotation on the run."""
+    print(f"::warning title={_WARNING_TITLE}::{message}", file=sys.stderr)
+
+
+def _label_names(labels: Any) -> set[str]:
+    if not isinstance(labels, list):
+        return set()
+    return {str(label.get("name")) if isinstance(label, dict) else str(label) for label in labels}
+
+
+def _field_name(issue: Any, field: str, attribute: str) -> str | None:
+    """Return ``issue[field][attribute]`` (e.g. the type's name), or ``None``."""
+    value = issue.get(field) if isinstance(issue, dict) else None
+    return value.get(attribute) if isinstance(value, dict) else None
+
+
+def _ensure_labels(client: IssueClient, number: int, issue: dict[str, Any]) -> None:
+    missing = [label for label in ESCALATION_LABELS if label not in _label_names(issue.get("labels"))]
+    if not missing:
+        return
+    applied = _label_names(client.add_labels(number, missing))
+    dropped = [label for label in missing if label not in applied]
+    if dropped:
+        raise EscalationError(f"GitHub did not apply label(s) {dropped} ({_PUSH_ACCESS_HINT})")
+
+
+def _ensure_issue_type(client: IssueClient, number: int, issue: dict[str, Any]) -> None:
+    if issue.get("type"):
+        return  # a type is already set; never override a human's triage
+    updated = client.set_issue_type(number, BUG_ISSUE_TYPE)
+    if _field_name(updated, "type", "name") != BUG_ISSUE_TYPE:
+        raise EscalationError(f"GitHub accepted the request but did not set type {BUG_ISSUE_TYPE!r} ({_PUSH_ACCESS_HINT})")
+
+
+def _ensure_milestone(client: IssueClient, number: int, issue: dict[str, Any]) -> None:
+    if issue.get("milestone"):
+        return  # a milestone is already set; never override a human's triage
+    milestone_number = client.find_milestone_number(MILESTONE_TITLE)
+    if milestone_number is None:
+        raise EscalationError(f"no open milestone titled {MILESTONE_TITLE!r}")
+    updated = client.set_milestone(number, milestone_number)
+    if _field_name(updated, "milestone", "title") != MILESTONE_TITLE:
+        raise EscalationError(f"GitHub accepted the request but did not set milestone {MILESTONE_TITLE!r} ({_PUSH_ACCESS_HINT})")
+
+
+def _ensure_parent(client: IssueClient, number: int, issue: dict[str, Any]) -> None:
+    if issue.get("parent_issue_url"):
+        return  # already a sub-issue of some parent; never re-parent it
+    issue_id = issue.get("id")
+    # sub_issue_id is the issue's numeric database id, NOT its number.
+    if not isinstance(issue_id, int) or isinstance(issue_id, bool):
+        raise EscalationError(f"issue #{number} carries no numeric database id to link")
+    client.add_sub_issue(PARENT_ISSUE_NUMBER, issue_id)
+
+
+_TriageStep = Callable[[IssueClient, int, dict[str, Any]], None]
+_TRIAGE_STEPS: tuple[tuple[str, _TriageStep], ...] = (
+    ("labels", _ensure_labels),
+    ("issue type", _ensure_issue_type),
+    ("milestone", _ensure_milestone),
+    (f"parent #{PARENT_ISSUE_NUMBER}", _ensure_parent),
+)
+# A malformed API response surfaces as one of these; it degrades one step, never the filing.
+_TRIAGE_FAILURES = (EscalationError, LookupError, TypeError, ValueError, AttributeError)
+
+
+def triage_issue(client: IssueClient, issue: dict[str, Any], *, warn: Callable[[str], None] = _emit_warning) -> list[str]:
+    """Fill in the escalation triage ``issue`` lacks; return the names of failed steps.
+
+    Every step runs independently: a failure is reported through ``warn`` and
+    the remaining steps still run. Nothing here can undo or abort the filing.
+    """
+    number = int(issue["number"])
+    failed: list[str] = []
+    for step_name, step in _TRIAGE_STEPS:
+        try:
+            step(client, number, issue)
+        except _TRIAGE_FAILURES as exc:
+            warn(f"issue #{number} is filed, but setting its {step_name} failed: {exc}. Triage that field by hand.")
+            failed.append(step_name)
+    return failed
+
+
+def _triage_note(failed: list[str]) -> str:
+    return f" (triage incomplete: {', '.join(failed)})" if failed else ""
+
 
 def run_escalation(
     client: IssueClient,
@@ -129,6 +253,7 @@ def run_escalation(
     conclusion: str,
     ref: str | None,
     run_url: str | None = None,
+    warn: Callable[[str], None] = _emit_warning,
 ) -> str:
     """Apply the dedup/open/close policy for one suite; return a human summary.
 
@@ -136,6 +261,8 @@ def run_escalation(
     with a fake client to cover create / update-existing / close-on-green.
     ``ref`` is required (no default) so no caller can bypass the mainline
     gate by omission: a non-mainline ref returns before the client is touched.
+    A filed or bumped issue is then triaged (:func:`triage_issue`); a triage
+    failure is reported through ``warn`` and noted in the summary, never raised.
     """
     if not escalation_allowed(ref):
         return _non_mainline_summary(suite_key, ref)
@@ -147,13 +274,15 @@ def run_escalation(
         if existing is not None:
             number = int(existing["number"])
             client.comment_on_issue(number, _recurrence_comment(suite_key, run_url))
-            return f"updated existing escalation issue #{number} for {suite_key!r}"
+            failed = triage_issue(client, existing, warn=warn)
+            return f"updated existing escalation issue #{number} for {suite_key!r}{_triage_note(failed)}"
         created = client.create_issue(
             title=issue_title(suite_key),
             body=issue_body(suite_key, run_url),
-            labels=[_P0_LABEL],
+            labels=list(ESCALATION_LABELS),
         )
-        return f"created escalation issue #{int(created['number'])} for {suite_key!r}"
+        failed = triage_issue(client, created, warn=warn)
+        return f"created escalation issue #{int(created['number'])} for {suite_key!r}{_triage_note(failed)}"
 
     if conclusion != CONCLUSION_SUCCESS:
         # Defense-in-depth (FIND-3, #5034): the CLI's argparse `choices`
@@ -183,6 +312,10 @@ class GitHubIssueClient:
             raise EscalationError("no GitHub token available")
         self._repository = repository
         self._token = token
+        self._repo_url = f"{_API_ROOT}/repos/{repository}"
+
+    def _issue_url(self, number: int) -> str:
+        return f"{self._repo_url}/{_ISSUES_PATH}/{number}"
 
     def _request(self, method: str, url: str, payload: dict[str, Any] | None = None) -> Any:
         data = json.dumps(payload).encode() if payload is not None else None
@@ -223,16 +356,36 @@ class GitHubIssueClient:
         return min(matches, key=lambda item: int(item["number"]))
 
     def create_issue(self, *, title: str, body: str, labels: Sequence[str]) -> dict[str, Any]:
-        url = f"{_API_ROOT}/repos/{self._repository}/issues"
+        url = f"{self._repo_url}/{_ISSUES_PATH}"
         return cast("dict[str, Any]", self._request("POST", url, {"title": title, "body": body, "labels": list(labels)}))
 
     def comment_on_issue(self, number: int, body: str) -> dict[str, Any]:
-        url = f"{_API_ROOT}/repos/{self._repository}/issues/{number}/comments"
-        return cast("dict[str, Any]", self._request("POST", url, {"body": body}))
+        return cast("dict[str, Any]", self._request("POST", f"{self._issue_url(number)}/comments", {"body": body}))
 
     def close_issue(self, number: int) -> dict[str, Any]:
-        url = f"{_API_ROOT}/repos/{self._repository}/issues/{number}"
-        return cast("dict[str, Any]", self._request("PATCH", url, {"state": "closed"}))
+        return cast("dict[str, Any]", self._request("PATCH", self._issue_url(number), {"state": "closed"}))
+
+    def add_labels(self, number: int, labels: Sequence[str]) -> list[dict[str, Any]]:
+        return cast("list[dict[str, Any]]", self._request("POST", f"{self._issue_url(number)}/labels", {"labels": list(labels)}))
+
+    def set_issue_type(self, number: int, type_name: str) -> dict[str, Any]:
+        return cast("dict[str, Any]", self._request("PATCH", self._issue_url(number), {"type": type_name}))
+
+    def find_milestone_number(self, title: str) -> int | None:
+        # One page of open milestones: a repository keeps far fewer than 100 open.
+        result = self._request("GET", f"{self._repo_url}/milestones?state=open&per_page=100")
+        milestones = result if isinstance(result, list) else []
+        for milestone in milestones:
+            if isinstance(milestone, dict) and milestone.get("title") == title:
+                return int(milestone["number"])
+        return None
+
+    def set_milestone(self, number: int, milestone_number: int) -> dict[str, Any]:
+        return cast("dict[str, Any]", self._request("PATCH", self._issue_url(number), {"milestone": milestone_number}))
+
+    def add_sub_issue(self, parent_number: int, sub_issue_id: int) -> dict[str, Any]:
+        url = f"{self._issue_url(parent_number)}/sub_issues"
+        return cast("dict[str, Any]", self._request("POST", url, {"sub_issue_id": sub_issue_id}))
 
 
 def _redact(text: str, token: str) -> str:
