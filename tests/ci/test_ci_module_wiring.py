@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +45,7 @@ import yaml
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
 from scripts.ci.prose_only import reduced_paths
 from tests.architectural import _gate_coverage as gc
+from tests.ci.test_xdist_worker_policy import _worker_value
 
 pytestmark = pytest.mark.fast
 
@@ -191,7 +194,7 @@ _REAL_CODE_BASE_SRC = "def g(x=1):\n    return x\n"
 _REAL_CODE_HEAD_SRC = "def g(x=2):\n    return x\n"
 
 
-def _fixed_blob_getter(blobs: dict[str, tuple[str | None, str | None]]) -> Any:
+def _fixed_blob_getter(blobs: Mapping[str, tuple[str | None, str | None]]) -> Any:
     """A `blob_getter` closed over a fixed base/head-source table (no git IO)."""
 
     def _get(path: str) -> tuple[str | None, str | None]:
@@ -228,7 +231,7 @@ def test_reduced_paths_keeps_a_mixed_diff_unreduced(router: Router) -> None:
 
 @pytest.fixture(scope="module")
 def router_workflow() -> dict[str, Any]:
-    return yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8"))
+    return dict(yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")))
 
 
 # --- a tiny, from-first-principles GitHub Actions `if:` boolean evaluator --
@@ -330,6 +333,7 @@ _ALWAYS_ON_JOB_NAMES = (
     "layer-rules",
     "archive-freeze",
     "docs-lint",
+    "architectural-fast",
 )
 
 _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
@@ -535,3 +539,164 @@ def test_golden_prose_only_ci_script_still_down_routes_the_battery(router_workfl
     context["prose-scan.prose_only"] = True
 
     assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+
+
+# --- WP12 (FR-002/003/004, NFR-001/003/005): the router battery reshaping --------
+#
+# ``architectural-fast`` is an always-on job (the registry-held fast roster) and
+# ``architectural-heavy`` is ONE job key with a static two-leg ``include:`` matrix. The
+# registry <-> router equalities WP05 could not pin (the jobs did not exist yet) live here.
+
+_FAST_JOB = "architectural-fast"
+_HEAVY_JOB = "architectural-heavy"
+_SAMPLER_START = "scripts.ci.memory_sampler start"
+_SAMPLER_STOP = "scripts.ci.memory_sampler stop"
+_UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+_FAST_TIMEOUT_MAX_MINUTES = 10
+_LEG_TIMEOUT_MAX_MINUTES = 30
+_BATTERY_BASE_MARKER = "not performance and not stress and not timing"
+
+
+def _architectural_registry() -> dict[str, Any]:
+    payload = yaml.safe_load(_REGISTRY_PATH.read_text(encoding="utf-8"))
+    return dict(payload["special_tiers"]["architectural"])
+
+
+def _heavy_legs(jobs: dict[str, Any]) -> list[dict[str, Any]]:
+    return list(jobs[_HEAVY_JOB]["strategy"]["matrix"]["include"])
+
+
+def _step_index(job: dict[str, Any], *, run_contains: str | None = None, uses_prefix: str | None = None) -> int:
+    for index, step in enumerate(job["steps"]):
+        if run_contains is not None and run_contains in str(step.get("run", "")):
+            return index
+        if uses_prefix is not None and str(step.get("uses", "")).startswith(uses_prefix):
+            return index
+    raise AssertionError(f"no step matching run~{run_contains!r} / uses~{uses_prefix!r}")
+
+
+def _router_battery_gates() -> dict[str, list[gc.Gate]]:
+    by_job: dict[str, list[gc.Gate]] = {_FAST_JOB: [], _HEAVY_JOB: []}
+    for gate in gc.parse_workflow(DEFAULT_ROUTER_PATH):
+        if gate.job in by_job:
+            by_job[gate.job].append(gate)
+    return by_job
+
+
+def _pytest_token_lines(job: dict[str, Any]) -> list[list[str]]:
+    """The tokenised pytest command lines of *job* (matrix-substituted per leg)."""
+    lines: list[list[str]] = []
+    legs = ((job.get("strategy") or {}).get("matrix") or {}).get("include") or [{}]
+    for leg in legs:
+        for step in job["steps"]:
+            if isinstance(step.get("run"), str):
+                for logical in gc.join_continuations(gc.substitute_matrix(step["run"], leg)):
+                    if gc.suite_invocations(logical):
+                        lines.append(shlex.split(logical))
+    return lines
+
+
+def test_architectural_heavy_is_a_two_leg_include_matrix(router_workflow: dict[str, Any]) -> None:
+    jobs = router_workflow["jobs"]
+    job = jobs[_HEAVY_JOB]
+    strategy = job["strategy"]
+
+    assert strategy["fail-fast"] is False, "deterministic gates: a red leg must not hide the other leg's reds (literal, not mode-keyed)"
+    shard_count = int(_architectural_registry()["shards"]["shard_count"])
+    legs = _heavy_legs(jobs)
+    assert [leg["shard"] for leg in legs] == [f"{i}/{shard_count}" for i in range(1, shard_count + 1)]
+    for leg in legs:
+        assert re.fullmatch(r"[A-Za-z0-9._-]+", leg["label"]), f"leg label {leg['label']!r} must be filesystem/artifact safe"
+    assert job["needs"] == ["changes", "prose-scan"]
+
+
+def test_battery_leg_display_names_are_distinct(router_workflow: dict[str, Any]) -> None:
+    """Two legs sharing one display name collide in ``router_gate._parse_conclusions`` (a red can be overwritten)."""
+    jobs = router_workflow["jobs"]
+    legs = _heavy_legs(jobs)
+    names = {gc.substitute_matrix(jobs[_HEAVY_JOB]["name"], leg) for leg in legs}
+
+    assert "${{ matrix.shard }}" in jobs[_HEAVY_JOB]["name"]
+    assert len(names) == len(legs), f"leg display names collide: {sorted(names)}"
+    assert jobs[_FAST_JOB]["name"] not in names
+
+
+def test_battery_commands_are_partitioned_and_plugin_loaded(router_workflow: dict[str, Any]) -> None:
+    by_job = _router_battery_gates()
+    registry = _architectural_registry()
+    base = registry["base"]
+
+    fast = by_job[_FAST_JOB]
+    assert [gate.partition for gate in fast] == ["fast"]
+    legs = by_job[_HEAVY_JOB]
+    shard_count = int(registry["shards"]["shard_count"])
+    assert sorted(gate.partition or "" for gate in legs) == sorted(f"{i}/{shard_count}" for i in range(1, shard_count + 1))
+    assert {gate.shard for gate in legs} == {gate.partition for gate in legs}
+
+    for gate in [*fast, *legs]:
+        assert gate.paths == base["paths"], gate.label()
+        assert gate.marker_expr == base["marker"] == _BATTERY_BASE_MARKER, gate.label()
+        assert sorted(gate.ignores) == sorted(base["deselect"]), gate.label()
+
+    for job_key in (_FAST_JOB, _HEAVY_JOB):
+        run_text = "\n".join(str(s.get("run", "")) for s in router_workflow["jobs"][job_key]["steps"])
+        assert "python -m pytest" in run_text, job_key
+        assert "-p scripts.ci.battery_partition_plugin" in run_text, job_key
+    heavy_text = "\n".join(str(s.get("run", "")) for s in router_workflow["jobs"][_HEAVY_JOB]["steps"])
+    assert "--battery-part ${{ matrix.shard }}" in heavy_text
+    fast_text = "\n".join(str(s.get("run", "")) for s in router_workflow["jobs"][_FAST_JOB]["steps"])
+    assert "--battery-part fast" in fast_text
+
+
+@pytest.mark.parametrize("job_key", [_FAST_JOB, _HEAVY_JOB])
+def test_battery_jobs_sample_memory_and_upload_junit(router_workflow: dict[str, Any], job_key: str) -> None:
+    job = router_workflow["jobs"][job_key]
+    pytest_step = _step_index(job, run_contains="-m pytest")
+    start = _step_index(job, run_contains=_SAMPLER_START)
+    stop = _step_index(job, run_contains=_SAMPLER_STOP)
+    upload = _step_index(job, uses_prefix=_UPLOAD_ARTIFACT_PIN)
+
+    assert start < pytest_step < stop, "the sampler starts before and stops after the suite"
+    assert job["steps"][stop].get("if") == "always()", "the peak-memory report must run on a red suite too"
+    assert job["steps"][upload].get("if") == "always()", "the junit must upload on a red suite too"
+    assert "--junitxml=out/reports/" in job["steps"][pytest_step]["run"]
+    assert "out/reports" in str(job["steps"][upload]["with"]["path"])
+    if job_key == _HEAVY_JOB:
+        assert "${{ matrix.label }}" in job["steps"][upload]["with"]["name"], "per-leg artifact names must not collide"
+        assert "${{ matrix.label }}" in job["steps"][pytest_step]["run"], "per-leg junit file names must not collide"
+
+
+def test_battery_job_timeouts(router_workflow: dict[str, Any]) -> None:
+    """NFR-003: the pytest-ini per-test timeout stays authoritative; the job timeouts only bound the lane."""
+    jobs = router_workflow["jobs"]
+
+    assert jobs[_FAST_JOB]["timeout-minutes"] <= _FAST_TIMEOUT_MAX_MINUTES
+    assert jobs[_HEAVY_JOB]["timeout-minutes"] <= _LEG_TIMEOUT_MAX_MINUTES
+
+
+def test_registry_battery_entry_matches_the_router_shape(router_workflow: dict[str, Any]) -> None:
+    """The registry facts WP05 deliberately left to the jobs' author: they exist now."""
+    jobs = router_workflow["jobs"]
+    registry = _architectural_registry()
+
+    assert registry["fast_gate"]["job"] == _FAST_JOB
+    assert _FAST_JOB in jobs
+    assert registry["shards"]["job"] == _HEAVY_JOB
+    assert int(registry["shards"]["shard_count"]) == len(_heavy_legs(jobs))
+    workers = str(registry["workers"])
+    for job_key in (_FAST_JOB, _HEAVY_JOB):
+        lines = _pytest_token_lines(jobs[job_key])
+        assert lines, f"{job_key}: no pytest line parsed"
+        for tokens in lines:
+            assert _worker_value(tokens) == workers, (job_key, tokens)
+
+
+def test_golden_docs_only_pr_runs_the_fast_battery_but_not_the_legs(router_workflow: dict[str, Any]) -> None:
+    """C-002 / FR-003: a docs-only PR still pays the ~2-min fast roster, never the legs."""
+    jobs = router_workflow["jobs"]
+    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context["prose-scan.prose_only"] = False
+
+    assert _eval_gh_if(jobs[_HEAVY_JOB]["if"], context) is False
+    assert jobs[_FAST_JOB]["if"] == _FORK_GUARD
+    assert "needs" not in jobs[_FAST_JOB], "no needs: the fast job starts at pipeline start (NFR-002)"

@@ -131,6 +131,7 @@ import contextlib
 import json
 import re
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -145,6 +146,8 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 # ``(workflow file name, job name)`` -- job names are unique only WITHIN a
 # workflow, so the pair is the key (``_gate_coverage.JobKey``).
 JobKey = tuple[str, str]
+# (workflow file, job key, matrix-leg ``shard`` label or None): one authorised execution each.
+LegKey = tuple[str, str, str | None]
 
 MAKEFILE = gc.REPO_ROOT / "Makefile"
 CI_QUALITY_NAME = "ci-quality.yml"
@@ -225,12 +228,14 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
     "sonar.yml": "schedule + workflow_dispatch: the nightly informational SonarCloud scan.",
 }
 
-# An authorised job runs the suite exactly once. A second invocation inside an
+# An authorised job runs the suite exactly once PER LEG (a leg is one static
+# `include:` matrix entry, labelled by its `shard` variable; a job with no
+# matrix is one leg). A second invocation inside an
 # already-authorised job is the cheapest evasion available to someone who has
 # read this ledger -- append one `run:` step to a job that is already allowed --
 # so it is refused by construction rather than by a per-job count nobody
 # maintains.
-AUTHORIZED_SUITE_INVOCATIONS_PER_JOB = 1
+AUTHORIZED_SUITE_INVOCATIONS_PER_JOB = 1  # per matrix leg (a job without a matrix is one leg)
 
 # The authorised per-change suite matrix (contract §C5: "the set of
 # change-triggered jobs that execute the suite must equal exactly the matrix").
@@ -257,7 +262,16 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "The heavy battery deselects this file, so a code PR still executes "
         "it exactly once."
     ),
-    ("ci-router.yml", "architectural-heavy"): "Path-routed lane: the architectural pole.",
+    ("ci-router.yml", "architectural-fast"): (
+        "Always-on lane: the registry-held fast roster of deterministic ratchet/census gates (FR-003). "
+        "Pairwise disjoint with both architectural-heavy legs via --battery-part (proven by "
+        "test_battery_partition_proof.py), so no battery test runs twice."
+    ),
+    ("ci-router.yml", "architectural-heavy"): (
+        "Path-routed lane: the architectural battery as two file-partitioned matrix legs "
+        "(--battery-part 1/2, 2/2), each one execution; pairwise disjoint with each other and with "
+        "architectural-fast (proven by test_battery_partition_proof.py)."
+    ),
     ("ci-router.yml", "tests-docs"): "Path-routed lane: tests/docs.",
     ("ci-router.yml", "tests-e2e"): "Path-routed lane: tests/e2e.",
     ("ci-router.yml", "tests-corpus-blocking"): "Path-routed lane: the 40 corpus tests with no other blocking home (D-13/D-22); Packs deselects exactly these.",
@@ -398,27 +412,60 @@ def enumerate_workflows(workflows_dir: Path) -> list[Path]:
     return sorted(workflows_dir.glob("*.yml")) + sorted(workflows_dir.glob("*.yaml"))
 
 
-def suite_executing_jobs(workflows_dir: Path, *, makefile: Path | None = None) -> dict[JobKey, int]:
-    """Change-triggered jobs that execute the suite -> how many times each does.
+def suite_invocations_per_leg(workflows_dir: Path, *, makefile: Path | None = None) -> dict[LegKey, int]:
+    """Change-triggered suite executions, counted per ``(workflow, job, leg)``.
+
+    A leg is one static ``include:`` entry of a job's matrix, labelled by its ``shard``
+    variable (``None`` for a job with no matrix). A matrix runs the same step once per
+    leg, so counting the job's gates as a whole would charge a two-leg job twice for
+    running the suite exactly once per leg.
 
     Detection is delegated wholesale to ``_gate_coverage.parse_workflow``: a
     directly-anchored ``pytest``, a ``make`` target whose recipe reaches pytest,
     and an in-repo shell script that reaches pytest all count identically. That
     is what makes mutations 1-3 the same finding in three costumes.
     """
-    counts: dict[JobKey, int] = {}
+    counts: dict[LegKey, int] = {}
     for path in enumerate_workflows(workflows_dir):
         if not change_triggered(path):
             continue
         for gate in gc.parse_workflow(path, makefile=makefile):
-            key = (path.name, gate.job)
+            key = (path.name, gate.job, gate.shard)
             counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def suite_executing_jobs(workflows_dir: Path, *, makefile: Path | None = None) -> dict[JobKey, int]:
+    """Change-triggered jobs that execute the suite -> how many times each LEG does.
+
+    The ledger authorises one execution per leg, so a job's count is the maximum over
+    its legs: a two-leg matrix whose legs each run the suite once is ``1``, while one
+    leg running it twice is ``2`` (the duplicate the guard exists to refuse).
+    """
+    counts: dict[JobKey, int] = {}
+    for (workflow, job, _leg), count in suite_invocations_per_leg(workflows_dir, makefile=makefile).items():
+        counts[(workflow, job)] = max(counts.get((workflow, job), 0), count)
     return counts
 
 
 def unauthorized_suite_jobs(workflows_dir: Path, *, makefile: Path | None = None) -> dict[JobKey, int]:
     """Suite-executing jobs outside the authorised matrix -- the duplicates."""
     return {key: count for key, count in suite_executing_jobs(workflows_dir, makefile=makefile).items() if key not in AUTHORIZED_PER_CHANGE_SUITE_JOBS}
+
+
+def repeated_authorized_suite_jobs(
+    workflows_dir: Path,
+    *,
+    makefile: Path | None = None,
+    authorized: Mapping[JobKey, str] | None = None,
+) -> dict[JobKey, int]:
+    """Authorised jobs whose suite execution count exceeds :data:`AUTHORIZED_SUITE_INVOCATIONS_PER_JOB`.
+
+    The one comparison both the live guard and its matrix-leg fault injections use.
+    """
+    ledger = AUTHORIZED_PER_CHANGE_SUITE_JOBS if authorized is None else authorized
+    live = suite_executing_jobs(workflows_dir, makefile=makefile)
+    return {key: count for key, count in live.items() if key in ledger and count > AUTHORIZED_SUITE_INVOCATIONS_PER_JOB}
 
 
 def top_level_conjuncts(condition: str | bool | None) -> list[str]:
@@ -957,8 +1004,7 @@ def test_no_authorized_job_executes_the_suite_more_than_once() -> None:
     the duplicate without touching the ledger at all. Membership authorises one
     execution, not a budget.
     """
-    live = suite_executing_jobs(gc.WORKFLOWS_DIR)
-    repeated = {key: count for key, count in live.items() if key in AUTHORIZED_PER_CHANGE_SUITE_JOBS and count > AUTHORIZED_SUITE_INVOCATIONS_PER_JOB}
+    repeated = repeated_authorized_suite_jobs(gc.WORKFLOWS_DIR)
     assert not repeated, f"authorised jobs executing the suite more than once: {repeated}"
 
 
@@ -979,6 +1025,51 @@ def test_repeated_suite_step_in_an_authorized_job_is_detected(tmp_path: Path) ->
     # A NEW job in an existing authorised workflow is the workflow-granular
     # ledger's blind spot; the (workflow, job) key catches it.
     assert ("ci-router.yml", "terminology-extra") in unauthorized_suite_jobs(workflows)
+
+
+# A static ``include:`` matrix runs the same step once per leg. The ledger authorises one
+# suite execution PER LEG (WP12 / D-20), so a job whose every leg runs the suite once counts
+# as one, and a leg that runs it twice is still the cheap evasion the guard above exists for.
+MATRIX_WORKFLOW_NAME = "ci-matrix-fixture.yml"
+MATRIX_JOB: JobKey = (MATRIX_WORKFLOW_NAME, "battery")
+MATRIX_PREAMBLE = """\
+name: matrix fixture
+on:
+  pull_request:
+jobs:
+  battery:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - shard: '1/2'
+          - shard: '2/2'
+    steps:
+"""
+MATRIX_SUITE_STEP = "      - run: pytest tests/architectural --battery-part ${{ matrix.shard }}\n"
+
+
+def matrix_workflows(tmp_path: Path, *, suite_steps: int) -> Path:
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / MATRIX_WORKFLOW_NAME).write_text(MATRIX_PREAMBLE + MATRIX_SUITE_STEP * suite_steps, encoding="utf-8")
+    return workflows
+
+
+def test_matrix_legs_each_running_the_suite_once_count_as_one(tmp_path: Path) -> None:
+    workflows = matrix_workflows(tmp_path, suite_steps=1)
+    ledger = {MATRIX_JOB: "fixture"}
+
+    assert suite_executing_jobs(workflows) == {MATRIX_JOB: 1}
+    assert repeated_authorized_suite_jobs(workflows, authorized=ledger) == {}
+
+
+def test_a_matrix_leg_running_the_suite_twice_is_detected(tmp_path: Path) -> None:
+    workflows = matrix_workflows(tmp_path, suite_steps=2)
+    ledger = {MATRIX_JOB: "fixture"}
+
+    assert suite_executing_jobs(workflows) == {MATRIX_JOB: 2}
+    assert repeated_authorized_suite_jobs(workflows, authorized=ledger) == {MATRIX_JOB: 2}
 
 
 # ---------------------------------------------------------------------------

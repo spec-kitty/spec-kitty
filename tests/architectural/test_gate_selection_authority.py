@@ -105,9 +105,28 @@ def test_full_mode_runs_everything(router: Router) -> None:
 
 def test_fast_arch_gates_are_always_on_and_selected_even_for_docs(router: Router) -> None:
     """The fast always-on arch gates carry no filter group and always run."""
-    assert {"terminology", "layer-rules"} <= router.always_on_jobs
+    assert {"terminology", "layer-rules", "architectural-fast"} <= router.always_on_jobs
     selection = select_gates(["docs/x.md"], router=router)
-    assert {"terminology", "layer-rules"} <= selection.selected_jobs
+    assert {"terminology", "layer-rules", "architectural-fast"} <= selection.selected_jobs
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["docs/x.md", ".github/workflows/ci-router.yml", "src/specify_cli/consolidation/executor.py"],
+)
+def test_fast_battery_job_is_always_on_and_never_a_code_shard(router: Router, path: str) -> None:
+    """FR-003 (#5510): ``architectural-fast`` carries no filter group, so it runs on every PR shape.
+
+    It must never join the code-scoped cone: that would let a docs-only PR skip it, and the
+    ratchet/census gates it holds exist to run on exactly that shape.
+    """
+    assert "architectural-fast" in router.always_on_jobs
+    assert "architectural-fast" not in router.code_shard_jobs
+
+    selection = select_gates([path], router=router)
+
+    assert "architectural-fast" in selection.selected_jobs
+    assert "architectural-fast" not in selection.selected_code_shards
 
 
 def test_authority_is_consistent_with_the_two_hand_sources(router: Router) -> None:

@@ -1,20 +1,544 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
+  "event_count": 138,
+  "last_event_id": "01M3W17ZACC1HMRNKJW2C98T8N",
+  "materialized_at": "2026-10-01T15:27:34.653869+00:00",
   "mission_number": "",
-  "mission_slug": "",
+  "mission_slug": "ci-runtime-stabilisation-01M3TZH6",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 16,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 0
+    "planned": 2
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M3VCSXA18TASYJ57ZA9N7V6S",
+      "last_transition_at": "2026-10-01T09:30:22.401126+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Selector extracted to scripts/ci/shard_select.py; characterization over all 21 registry rows identical; one-off real-collection cmp identical for kernel, next 1/2, next 2/2, glossary",
+        "Cycle 2: closed review findings 1 (characterization now drives shipped positional_weights; direct positional_weights tests) and 2 (resolve_module_test_dirs, main() end-to-end incl. byte-exact --out, final stdout line, uniform fallback, both exit-64 paths, python -m entry). Each mutation (uniform weights, dropped isdir filter, trailing newline, exit 64->0, dropped :: filter, off-by-one shard) now red. mypy needs --explicit-package-bases.",
+        "Review passed (cycle 2): d8e0f8f99b closes both cycle-1 blockers. Characterization now drives shipped positional_weights; resolve_module_test_dirs, main() end to end (byte-exact --out, stdout line, uniform fallback x3, both exit-64 ::error:: paths, python -m entry point) covered. 12/13 mutations killed incl. all 4 cycle-1 survivors; check=True->False survives (non-blocking, follow-up). tests/ci 935 passed; 5 arch gate files 154 passed 1 skipped; length-agreement -m fast 16 passed; ruff/format/mypy --strict/pinning --check clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1715942,
+      "shell_pid_created_at": "1790846778.39",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M3VHFXMMCH8QDY603K2FBDTN",
+      "last_transition_at": "2026-10-01T10:52:17.940875+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: loud mismatch (annotation+step summary), file weights (median), enumerate_base_files, battery_parts + battery-parts CLI, check=True pinned, length-gate imports shared marker",
+        "Cycle 2: fixed 3 blockers (fast markers restored: -m fast 17 = 16 base + new; median-vs-mean pinned by skewed-set test, mean mutation red; battery-parts CLI loudness tested, deleting report_mismatch red). Manual enumeration smoke: 235 files. WP14 NOTE: battery-parts CLI flags are --path/--deselect/--roster/--timings/--shards/--root (no --registry; YAML stays out of the stdlib selector) - WP14 should adapt or call battery_parts(...) directly.",
+        "Cycle 3: closed the cycle-2 finding (shard_select.py resolve_file_weights 'if missing or stale' -> 'if missing' mutant now killed by stale-only/missing-only/CLI tests; production unchanged; commit 19dab4ad00). Self-mutation sweep: 62 mutants over weight/mismatch/report code (predicate booleans, stale/missing swaps, sort order, median variants, message parts and joiner, 10-name elision boundary, escape chain, summary append/newline, battery wiring); 6 initial survivors (stale sort order, '; ' joiner, ellipsis boundary x2, summary trailing newline) closed with tests; 1 equivalent mutant (count vs len(names)). Enumeration smoke: 235 files. Verification: tests/ci/test_shard_select.py + architectural test_module_length_agreement/test_module_shard_registry 128 passed; make test-fast 2172 passed/5 skipped (env var not exported); ruff/format/mypy --strict clean. DEVIATION for WP14: battery-parts CLI flags are --path/--deselect/--roster/--timings/--shards/--root (no --registry; YAML stays out of the stdlib module) - WP14 must adapt its invocation.",
+        "Review passed (cycle 3): cycle-2 survivor (if missing or stale -> if missing) now killed by 3 tests incl. battery-parts CLI stale-only; cycle-1 mutants (median->mean, battery/module report_mismatch deletion) still killed; fast marker on allowlist ratchet intact (17/20). tests/ci 1107 passed; arch length-agreement+shard-registry 38 passed; make test-fast 2172 passed/5 skipped; ruff/format/mypy --strict/C901 clean. Non-blocking: Activity Log still lacks the battery-parts CLI signature deviation note for WP14 (its --registry invocation must adapt) and the 235 enumeration smoke."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2060889,
+      "shell_pid_created_at": "1790851334.01",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VMBM23XD38F9RCP2NED5GJ",
+      "last_transition_at": "2026-10-01T11:42:22.787375+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: consolidation shard_count 2; recapture 1615 tests (run landing-5510-consolidation-split, exit 0, 507.3 s); LPT-2 bins [253.7, 253.7] s skew 0.00%; allowlist 19->18, baseline 20->18 + tight-baseline pin. NFR-006 to measure on CI: 'module-tests (consolidation shard 1/2)' and '(2/2)', >=3 runs, p90<=15 min, shards within 25%, run IDs in Mission evidence file (C-011). Live count is 1615 (prompt said 1617). Strict-mode reds for charter/agent are pre-existing: #5536. Capture was done in a plain clone because test_profile_charter_e2e fails inside linked worktrees (charter write refusal).",
+        "Review passed: FR-012 split verified. Red-first: test_consolidation_registry_row_is_split red at a24582b6c7 and d53529ed99, green from 5c64b246a1; strict gate lists ('consolidation',782,1615) at a24582b6c7, absent at tip. Timings: only consolidation's 4 entries changed; 1615 == live collect-only; selection 'not performance and not stress'; exit_code 0; run-id landing-5510-consolidation-split. Shard selector dry-run 807+808, disjoint, union = full set, loads 253.66/253.66 s. Mutations (shard_count->1, re-allowlist, baseline->20, timings len-1 strict) all red. Baseline 18 == len(allowlist). Clone capture faithful (CI is a non-linked checkout; test_profile_charter_e2e linked-worktree refusal is environmental, test untouched since #3080). charter/agent strict drift pre-existing, #5536 open. Shared file test_module_length_agreement.py also edited by WP02 (same lane, sequential, no conflict). Targeted suites 74+209+22 passed; make test-fast 2172 passed/5 skipped; ruff/format/mypy strict clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2387323,
+      "shell_pid_created_at": "1790853956.58",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VC11N5GDW2YMGKG30RCQH8",
+      "last_transition_at": "2026-10-01T09:16:47.653939+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: architectural-backstop job (command parity with per-PR battery base), wiring + honesty pins, red-first test; live nightly run left to orchestrator closeout",
+        "Review passed: red-first 677ebbc246 red at its own commit (9 failed/2 passed, missing job) and green on tip; backstop command byte-equal to ci-router architectural-heavy base (path, marker, 4 deselects) minus -q, -n 4, plugin-free, no --battery-part; 3.12 pin, fetch-depth 0, canonical fork guard, timeout 40 >= ceil((25:09+0:30)*1.5)=39 with headroom comment; escalation --suite-key architectural main-ref gated with :-1 sentinel; terminal fail-loud with no exit-5 exemption; no continue-on-error so a red fails the run conclusion that release_nightly_gate reads; in nightly-summary.needs + echo; _DIRECTORY_LANES extended. Only command parity claimed (WP06 owns partition half). Collect-only reference 3394/3602 reproduced. ci-module-registry.yml, release_nightly_gate.py, nightly_escalation.py untouched. Tests: 270 + 60 + 198 passed (1 skip), ruff/format/mypy clean, pinning inventory --check 0. Live nightly dispatch deferred to orchestrator closeout (C-011)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1591470,
+      "shell_pid_created_at": "1790845751.9",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VRKWYE517ZSV0DFE469BKV",
+      "last_transition_at": "2026-10-01T12:56:48.334207+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: battery partition plugin (every-process part + digest cross-check + self-check + fail-closed validation), truthful special_tiers.architectural (33-file roster), registry pin tests, capture_shard_timings --suite architectural --from-junit. Collect-only smoke on live base: fast 678 + 1/2 1440 + 2/2 1288 = 3406 == base 3406 (uniform-weight FR-005 warning expected until WP14 seeds timings). Mutation sweep: 96 plugin + 42 capture mutants, all killed after closing 12 survivors with tests.",
+        "Review passed (reviewer-renata): red-first reproduced at d7c2c24126 (plugin test ImportError; capture+registry 35 failed/42 passed); tip targeted tests/ci 310 passed, 3 arch gate files 59 passed, make test-fast 2172 passed/5 skipped; ruff/format/C901(<=10)/pinning --check clean; mypy --strict clean per file. Real-battery collect-only: fast 678 + 1/2 1440 + 2/2 1288 = 3406 == base, node ids disjoint, union == base. -n 2 runs really execute; independent probe (workers forced not to ignore) trips the self-check (rc 1, ::error naming files). ignore_collect returns True only for enumerated foreign files, never False; one enumeration + one selector (C-010); --ignore==--deselect and collect-only worker-check skip have subprocess cases; registry has no always_on/trigger groups/nightly key, 33 roster paths inside base, budgets <=90. Non-blocking: mypy on both files in one call hits a namespace duplicate-module error (each file alone or --explicit-package-bases is clean); -k/--ignore-glob not validated against base; roster-outside-base ValueError surfaces as INTERNALERROR not UsageError (still fail-closed, statically pinned); the 4 deselected files are collected then deselected in every part (collection cost only)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2821977,
+      "shell_pid_created_at": "1790858736.29",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VWJY0EZ5Q0NTYTYZ2E5F6W",
+      "last_transition_at": "2026-10-01T14:06:10.958660+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: Gate.partition + part-aware selects + forwarded collection (D-02/D-24), static three-way proof with controls, OS-family tier model (runs_on, splice, os_family, gate_os_tier, os_tier_shard_counts); collect-only 678+1510+1288=3476 equals unpartitioned; inventory regenerated (line shifts only, out-of-map rationale D-20/D-25); mutation sweep 38 mutants, survivors closed",
+        "Review passed: red-first verified (8f751529f9: 31 failed/4 passed on AttributeErrors for missing partition model; b7232ddb42: 26 failed); tip green 68 static + 2 slow; collect-only 678+1510+1288=3476 independently reproduced; mutations (drop forwarding, drop splice runs-on) caught; consumers + plugin/shard_select/inventory/terminology 440 passed; ruff/format/mypy --strict clean; pyproject and registry untouched. Shared files: scripts/ci/battery_partition_plugin.py co-owned with WP05 (export-only, WP05 tests unchanged); pinning_rule_inventory.json regenerated out-of-map (D-20/D-25). Notes for WP14/closeout: slow collect test in proof file is not excluded by the battery base marker so it runs in the fast roster (~6s); live completeness reference is gc.battery_base_files (union of parts), independently anchored only by the D-24 test; _always_on_files treats any non-needs if as always-on."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3174471,
+      "shell_pid_created_at": "1790862985.73",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VPQFZWKX6ZPB56KA1JE287",
+      "last_transition_at": "2026-10-01T12:23:48.988585+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: ci_config non-src group + battery if: term + oracle constant + wiring pins; red-first 15F/14P -> green; mutation-proven",
+        "Review passed (reviewer-renata): red-first independently reproduced (33edc1ff4b vs base router: 15 failed/14 passed); tip 159 passed (tests/ci targeted), 158 passed+1 skip (8 arch gate files), make test-fast 2172 passed; pinning --check exit 0. ci_config globs == contract A1 exactly; non-src, absent from unmatched loop; only architectural-heavy gated; single outer prose_only AND kept (C-002, intended per US4 AS2/R2: only docstring/comment-only scripts/ci/*.py is subtracted, code edits are not prose-only); gate_selection.py, registry, scrub file, ci group and its #4386 pin untouched (C-003); C-008 run-all green. Mutations: drop if-term (15 red), drop filter group (14), drop oracle const (4), typo glob (3), ci_config in unmatched loop (1) all red. Non-blocking: no pin enforces 'ci_config gates ONLY the battery' (gating tests-e2e on ci_config survives); 4 pre-existing mypy --strict errors in test_ci_module_wiring.py (unchanged vs base); red output not in Activity Log. Shared-file note: ci-router.yml is edited in sequence by WP08/09/10/12/18 on lane-h."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2614516,
+      "shell_pid_created_at": "1790856661.24",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP08": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M3VSKHZ9CFQ07T6798E17ZMF",
+      "last_transition_at": "2026-10-01T13:14:05.673458+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 3 router jobs removed; guard red-first; stress/perf nightly homes verified by real collect-only tests; ci_config exact-set pin; test-fast 2172 passed",
+        "Cycle 2: closed review-1 findings 1-4. (1) T037 live guard is now static (workflow-YAML), no subprocess collect in the fast module (tests/ci module 0.66s); (2) tautological performance re-collect deleted; nightly performance job env SPEC_KITTY_RUN_PERFORMANCE=1 + whole-tree -m performance pinned (mutation: drop env -> red); (3) stress pin is a property (path-less, ignore-less, selects stress; mutations: add path -> red, marker timing -> red), no fixed 2-node list; (4) comment reworded as transitional, points at FR-010 live check (WP15). Cycle-1 behaviour unchanged.",
+        "Review passed (cycle 2): findings 1-4 closed. T037 now static workflow-YAML pins (no subprocess; tests/ci/test_ci_module_wiring.py 18 passed in 0.67s, fast-consistent); nightly performance pins SPEC_KITTY_RUN_PERFORMANCE=1 + path/ignore-less -m performance; stress pin is a property. 6 mutations on ci-nightly.yml all red (perf env 0, stress path, stress marker timing, stress --ignore, perf 'performance and not slow', stress 'not stress'). T037 record (reviewer-reproduced collect-only over tests/cli tests/status tests/consolidation): stress 2, performance 7, timing 0, windows_ci 3; nightly 'stress' job collects both status stress node-ids (34 stress total); nightly 'performance' job runs the 7. Three router jobs absent; router gate needs invariant green. Arch gates 198 passed/1 skipped; tests/ci 1320 passed; pinning fresh; make test-fast 2172 passed; ruff/format clean; mypy: no new errors (4 pre-existing)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2896219,
+      "shell_pid_created_at": "1790859830.47",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    },
+    "WP09": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M3VW30Q391YBDY838SBHB8XR",
+      "last_transition_at": "2026-10-01T13:57:29.443480+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Packs sole advisory corpus owner: corpus_select.py via select_gates; job continue-on-error, out of packs-gate.needs, -n 4, --cov=charter.offering; router tests-corpus deleted; corpus group transitionally ungated (D-22, WP10 removes). Out-of-map: tests/ci/test_ci_module_wiring.py, tests/release/pinning_rule_inventory.json (regen). Stale prose for WP19: .github/ci-module-registry.yml (tests/contract reason names router 'tests (corpus)'), docs/development/reference/ci-gate-mechanics.md:114 (tests-corpus), tests/architectural/test_same_tier_uniqueness.py fast-tests-corpus remnants. Evidence from PR's own Packs run (4/4 workers line) pending.",
+        "Cycle 2: closed review findings 1-3. (1) Packs corpus job if: and (2) pack-manifest job if: are now pinned by evaluation over the full (built_in, corpus) truth table via the shared _eval_gh_if evaluator, and the two jobs must evaluate identically. (3) the selection step's real run: text is executed in a throwaway git repo (pull_request prose-only -> false, pull_request corpus path -> true, push -> true). Mutation evidence (each red, reverted, none committed): M1 corpus if inverted -> 2 failed; M2 built_in dropped from corpus if -> 2 failed; M3 manifest if inverted (== 'false' && ...) -> 1 failed; M4 EVENT_NAME pull_request guard mutated -> 1 failed. Tests: new file 21 passed; tests/ci 1381 passed; ruff check/format clean. Commit 3a9808dda9. mypy on the test file reports only 3 pre-existing baseline errors (also at HEAD) plus transitive ones from tests/ci/test_ci_module_wiring.py. Non-blocking 4/5/6 unchanged (WP10 must land with WP09; concurrency note for WP19).",
+        "Cycle 3: regenerated pinning inventory (_CI_QUALITY 49->55, derive --check exit 0, freshness test green); selection-step test git env hermetic (GIT_CONFIG_GLOBAL=/dev/null, NOSYSTEM).",
+        "Review passed (cycle 3): pinning inventory regenerated (_CI_QUALITY 49->55 only), derive --check exit 0, test_pinning_inventory_fresh + corpus file 26 passed; hermetic git env proven non-vacuous (pre-fix red under hostile gpgsign global config, tip green); 2 packs.yml mutations caught; ruff/format clean, no new mypy errors."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP09:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3168083,
+      "shell_pid_created_at": "1790862881.98",
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    },
+    "WP10": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VY1GNTHSTVQSSPEZ758KZT",
+      "last_transition_at": "2026-10-01T14:31:37.402955+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: tests (corpus-blocking) router job (40 node-ids), Packs deselects them, corpus re-gated; 5 mutations killed",
+        "Review passed: red-first d37fa0a094 fails 6/7 for the right reasons, tip green. Re-collected: router job selects exactly 40; Packs advisory selection (1503) intersect 40 = 0, and Packs-old minus Packs-new == the 40 exactly; whole-file 403; perf class 1. Router if: identical to retired tests-corpus (corpus output folds full/unmatched-src); gate_selection selects it for packs/kitty-specs/unmapped-src. corpus re-gated, transitional entry removed. 11 mutation probes all killed. Inventory --check 0. Targeted 132+165+53+5 passed, make test-fast 2172 passed. mypy 4 errors pre-existing in imported test_ci_module_wiring.py (#5535)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP10:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3310823,
+      "shell_pid_created_at": "1790864150.59",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done"
+      }
+    },
+    "WP11": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VC3FZF3J5CCEG2FYRCQYCW",
+      "last_transition_at": "2026-10-01T09:18:07.855615+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: stdlib-only memory sampler (start/stop/sample), 27 tests green, ruff/format/mypy strict clean",
+        "Review passed (reviewer-renata): red-first 6d267f464b errors 27/27 (module missing), tip 27/27 green; stdlib-only sampler verified on system python3 3.12 (start detaches into own session, stop SIGTERMs + prints REPORT_KEYS line, exit 0 on stale pid / missing /proc / no start / corrupt state); ruff+format+mypy --strict clean, max complexity <=5, no clock calls, no noqa; clock-ban + import-guard gates 61 passed, pinning inventory 5 passed; CLI contract matches WP12 T051/T053 (start/stop --out, peak_rss_bytes= line). No live caller by design (WP12 wires it). Non-blocking: in-process sample tests leak the sampler SIGTERM handler into the pytest process (restore previous handler in _run_sample or monkeypatch signal.signal in tests); pid file is SIGTERMed without identity check (low risk, per-job RUNNER_TEMP)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP11:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1610619,
+      "shell_pid_created_at": "1790845891.4",
+      "subtasks": {
+        "T046": "done",
+        "T047": "done",
+        "T048": "done"
+      }
+    },
+    "WP12": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3W166T1JKYSGVWHF6CP3RQS",
+      "last_transition_at": "2026-10-01T15:26:36.865981+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP12 ready: architectural-fast (always-on) + architectural-heavy 2-leg include matrix, literal -n 4, no -q, sampler+junit+timeouts, per-leg suite counting w/ fault-injection pair, oracle/ledger/needs/golden companions, worker-policy guard. Out-of-map: tests/release/pinning_rule_inventory.json regenerated via derive script (ledger edit shifts pinned lines). Evidence runs (NFR-001/2/3/5) pending dispatch: orchestrator records in evidence/ci-measurements.md.",
+        "Review passed (reviewer-renata): red-first verified on scratch checkouts (0f68f4cf72: 22 T049/T050 reds; cadbcb095c: fault-injection pair red 2!=1, 4!=2); tip green. architectural-fast always-on (fork guard only, no needs; runs on docs/prose-only), heavy if: byte-identical (eval: ci_config/src/architectural True; docs-only, prose-only False), 2-leg static include matrix, fail-fast false, -n 4, no -q, sampler start pre-uv-sync / stop if:always(), per-leg junit, timeouts 10/30. Partition collect-only fast 726 + 1/2 1562 + 2/2 1212 = base 3500; live proof over 3 partitioned gates, transitional lone-unpartitioned branch not exercised. Per-leg counting correct and non-vacuous. 15/16 YAML/count mutations red (oracle-set entry removal survives: it is the expectation itself; always-on still pinned by golden+gate-selection tests). Frozen files untouched; inventory --check 0; ruff/format/mypy --strict/C901 clean; make test-fast 2172 passed. Shared ci-router.yml sequenced in lane-h per D-30; inventory regen out-of-map rationale recorded. NFR evidence pending orchestrator dispatch (C-011)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP12:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3501485,
+      "shell_pid_created_at": "1790866845.84",
+      "subtasks": {
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done"
+      }
+    },
+    "WP13": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M3VF7K75M5564JKN7TW3T7XD",
+      "last_transition_at": "2026-10-01T10:12:47.973622+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-006 done: per-file _collect_memo (shard coverage), _tree_call_sites (clock call ban), _clear_real_tree_inputs finalizer (dead symbols; #5503 cache + WP13 finalizer, hash-refresh file deleted by #5503). Red-first 9 tests red->green. Before/after: shard consumers 62.3+38.0s -> 36.4+25.1s; clock 25.9+24.8s -> 26.5s+<1s; dead-symbols 81.6s -> 82.3s (walk once). Reverse check done. Pre-existing mypy x3 at test_interpreter_shard_coverage.py _scratch_gates_with (cite #1928); stale-venv respx fixed via uv sync.",
+        "Cycle 2: fixed FR-006 memo pollution (isolation context/fixture over every memo-seeding test; red-first subprocess order-dependence regressions da1dd2e210, fix 087a27acda). Pre-existing mypy errors in test_interpreter_shard_coverage.py::_scratch_gates_with filed as #5535 (identical on base bf8e66b232).",
+        "Review passed (cycle 2): FR-006 memo isolation fixed. Red-first da1dd2e210 regression tests fail on cycle-1 code (seed+consumer 2 passed 0.38s on a real violation) and pass on tip. Planted src/ wall-clock offender: consumer now FAILS in every seed/consumer ordering; shard seed tests + real consumers do real collection (59s, not 0.4s). Every memo-touching test isolated via usefixtures/context manager; ruff+format clean; mypy only the 3 pre-existing errors tracked by #5535. 55/55 pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP13:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1851948,
+      "shell_pid_created_at": "1790848815.34",
+      "subtasks": {
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done"
+      }
+    },
+    "WP14": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VYB8HQQC39RXN8QB133C5D",
+      "last_transition_at": "2026-10-01T14:36:56.759141+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Battery timings seeded (238 files, 68 census logs); roster budgets = max(10,ceil(1.5 x seed)); row 33 added, slow collect test split out; predicted fast 269.4 / 1/2 1126.6 / 2/2 1126.5 worker-s; out-of-map: test_battery_partition_proof*.py split, shard_select.battery_parts stale-key fix + test",
+        "Review passed: red-first f8b4361ba9 (6 real-data failed, 9 controls green) -> 15/15 green at tip; seed independently re-derived from all 68 census logs + fresh collect-only: 238/238 values match (0 mismatches), job ids == log set; only battery_file_durations + battery_capture_provenance added to ci-shard-timings.json (all existing keys byte-identical); every roster budget == max(10,ceil(1.5*seed)), roster 34 files sum 269.4 <= 300, row 33 present; real-data mutations (seed over budget, sum over cap, untimed roster file) each red. Shard-select fix: reverting it reds the new test; an injected stale key and a missing key are still reported loudly; tip partition has 0 stale/0 missing. Split slow collect test lands in heavy leg 1/2, not fast (collect-only 717+1562+1197=3476 == base). Coordination: out-of-map edits to WP02-owned scripts/ci/shard_select.py(+test) and WP06-owned test_battery_partition_proof.py (verbatim move to *_collect.py), same lane-a. Non-blocking: corpus out-of-matrix prose in registry describes the post-WP09/WP10 state (corpus-blocking job lives in lane-h, not yet in lane-a); WP file Activity Log not appended (loads recorded in registry comment + handoff note). Tests: make test-fast 2172 passed/5 skipped; tests/ci 1299 passed; targeted arch gates 185 passed/1 skipped + collect/marker gates 10 passed; ruff/format/mypy --strict clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP14:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3370994,
+      "shell_pid_created_at": "1790864781.07",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP15": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3V3HTTNR8JTP2QNYDV9CE78",
+      "last_transition_at": "2026-10-01T06:48:40.533191+00:00"
+    },
+    "WP16": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VCMTKDEQN9DG33E6V7JT15",
+      "last_transition_at": "2026-10-01T09:27:35.789116+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: green_match.py (decide + effective-source, stdlib-only, A4 stale-attempt marker closed via created_at >= run_started_at, record for WP19 ADR amendment); aggregate_source.py now imports shared bind_tested_base/merge_reference; 122 green_match + 211 ci tests green; ruff/format/mypy --strict clean; pinning inventory --check green, not regenerated; gh transport only (no urllib).",
+        "Review passed: red-first 406a15b309 ImportError on parent tree (green_match + aggregate identity test), green at tip (122 green_match tests; 240 targeted ci; 35 arch gates; 125 aggregate_source consumers). Contract rows N1-N15/P1-P2/A1-A5 each a named param row asserting type+reason+marker; 41 mutation probes, 37 killed, 4 survivors practically equivalent (vm-repo: matched run fetched under the same repos/ path; status==completed redundant with conclusion==success; expired missing-key; head after equality check) - recommend adding rows. bind_tested_base binds first parent + second==head, 40-hex; effective-source re-verifies id/attempt, path, event, completed, success, head, identity and exits 1. No clock, stdlib-only (-I -S bare run + AST guard), ruff/format/mypy --strict/C901 clean, pinning --check green. aggregate_source diff = import + 2 call sites, messages byte-identical. Dead code: decide/effective-source CLI callers are WP17/WP18 (planned); shared binding live via aggregate_source.py. No shared-file overlap with WP17/WP18 owned_files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP16:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1641356,
+      "shell_pid_created_at": "1790846255.47",
+      "subtasks": {
+        "T064": "done",
+        "T065": "done",
+        "T066": "done",
+        "T067": "done",
+        "T068": "done"
+      }
+    },
+    "WP17": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M3VEDSAQ9AXC8YYD8RHJHED1",
+      "last_transition_at": "2026-10-01T09:58:42.263446+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: effective-source step + 6 value re-points in ci-aggregate.yml collect; harness + static pins; run-name/concurrency untouched. Live verification is post-merge (workflow_run runs main's copy); pinning inventory --check green, not regenerated.",
+        "Review passed: effective-source step (green_match.py effective-source --transport gh --repository/--run-id/--attempt) first after checkout; all 6 collect source-run refs (3 env blocks x2 + 2 run-id) re-pointed; only remaining trigger reads are run-name, concurrency, job if:, resolve-mode event, last-success TRIGGER_JSON, sonar-pr, aggregate-gate (all justified). Red-first verified (10 red at 6a264a7a5c, 2 red at 9744603d37 on base workflow). Mutation probes (|| true, fallback-to-trigger, one reverted run-id, one reverted env, run-name repoint) each caught. Targeted: 221+229+68+90 passed; make test-fast 2172 passed; ruff/format clean; pinning inventory --check green. Live verification post-merge (WP18)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP17:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1795374,
+      "shell_pid_created_at": "1790847991.58",
+      "subtasks": {
+        "T069": "done",
+        "T070": "done",
+        "T071": "done"
+      }
+    },
+    "WP18": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01M3W17ZACC1HMRNKJW2C98T8N",
+      "last_transition_at": "2026-10-01T15:27:34.653869+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3556050,
+      "shell_pid_created_at": "1790868427.1"
+    },
+    "WP19": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3V3HY9GC3G98EEVCP08TA8M",
+      "last_transition_at": "2026-10-01T06:48:44.080768+00:00"
+    }
+  }
 }
