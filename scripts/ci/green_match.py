@@ -68,6 +68,7 @@ UNBOUND_PARENTS_MESSAGE = "tested merge parents do not bind the source run head"
 NO_MERGE_REFERENCE_MESSAGE = "source run lacks one immutable PR merge workflow reference"
 REPOINT_FAILURE_ADVICE = "re-run CI Modules to execute"
 MALFORMED_JSON_MESSAGE = "gh API response was not valid JSON"
+NON_OBJECT_PAYLOAD_MESSAGE = "gh API response was not a JSON object"
 
 
 class LookupFailure(Exception):
@@ -105,6 +106,11 @@ class EventMeta:
     run_attempt: int
     workflow_file: str
     repository: str
+    # The PR's head branch and head repository, from the (trusted) event payload.
+    # A candidate run must be bound to the same ones; empty means "unknown", and
+    # unknown never matches.
+    head_ref: str = ""
+    head_repository: str = ""
 
 
 @dataclass(frozen=True)
@@ -133,6 +139,9 @@ class RunMeta:
     head_sha: str
     html_url: str
     repository: str
+    head_branch: str = ""
+    head_repository: str = ""
+    pull_numbers: tuple[int, ...] = ()
 
     @classmethod
     def from_api(cls, raw: Mapping[str, Any]) -> RunMeta:
@@ -146,7 +155,17 @@ class RunMeta:
             head_sha=str(raw["head_sha"]),
             html_url=str(raw.get("html_url", "")),
             repository=str(raw["repository"]["full_name"]),
+            head_branch=str(raw.get("head_branch") or ""),
+            head_repository=str((raw.get("head_repository") or {}).get("full_name") or ""),
+            pull_numbers=_pull_numbers(raw.get("pull_requests")),
         )
+
+
+def _pull_numbers(listed: Any) -> tuple[int, ...]:
+    """PR numbers a run object lists; anything malformed lists none (fail-safe: no match)."""
+    if not isinstance(listed, list):
+        return ()
+    return tuple(entry["number"] for entry in listed if isinstance(entry, Mapping) and type(entry.get("number")) is int)
 
 
 @dataclass(frozen=True)
@@ -206,8 +225,8 @@ def merge_reference(run: Mapping[str, Any], repository: str) -> tuple[str, int]:
     return str(tested), int(match.group(1))
 
 
-def _parent_shas(commit: Mapping[str, Any]) -> list[str]:
-    parents = commit.get("parents")
+def _parent_shas(commit: Any) -> list[str]:
+    parents = commit.get("parents") if isinstance(commit, Mapping) else None
     if not isinstance(parents, list) or not all(isinstance(parent, Mapping) and isinstance(parent.get("sha"), str) for parent in parents):
         raise ValueError(UNBOUND_PARENTS_MESSAGE)
     return [parent["sha"] for parent in parents]
@@ -225,8 +244,27 @@ def _has_marker(markers: Mapping[int, frozenset[str]], run_id: int, name: str) -
     return name in markers.get(run_id, frozenset())
 
 
+def _bound_to_event(run: RunMeta, event: EventMeta) -> bool:
+    """The run belongs to THIS pull request: same head branch, head repository and PR number.
+
+    The tested-key marker NAME is uploaded by a PR-controlled run, so on its own it
+    proves nothing about which PR produced it: a second PR on the same head SHA
+    (different base, modified workflow) could upload a forged name. The run object's
+    own identity is the binding. ``pull_requests`` is empty for fork PRs and for runs
+    GitHub no longer associates with the PR; empty or unknown means no match, so such
+    a run executes normally (fail-safe).
+    """
+    return (
+        bool(event.head_ref)
+        and run.head_branch == event.head_ref
+        and bool(event.head_repository)
+        and run.head_repository == event.head_repository
+        and event.pr_number in run.pull_numbers
+    )
+
+
 def _is_candidate(run: RunMeta, event: EventMeta) -> bool:
-    """A completed, successful, same-workflow ``pull_request`` run for this head (never this run)."""
+    """A completed, successful, same-workflow ``pull_request`` run for this PR and head (never this run)."""
     return (
         run.id != event.run_id
         and run.path == f".github/workflows/{event.workflow_file}"
@@ -235,6 +273,7 @@ def _is_candidate(run: RunMeta, event: EventMeta) -> bool:
         and run.conclusion == SUCCESS
         and run.head_sha == event.head_sha
         and run.repository == event.repository
+        and _bound_to_event(run, event)
     )
 
 
@@ -337,7 +376,7 @@ def _verify_matched(source_run: Mapping[str, Any], matched: Mapping[str, Any], m
         (matched.get("status") == COMPLETED, "matched run is not completed"),
         (matched.get("conclusion") == SUCCESS, "matched run did not conclude with success"),
         (matched.get("head_sha") == source_run.get("head_sha"), "matched run head differs from the source run head"),
-        (matched_repository == source_repository, "matched run repository differs from the source run repository"),
+        (matched_repository is not None and matched_repository == source_repository, "matched run repository differs from the source run repository"),
     )
     for passed, message in checks:
         if not passed:
@@ -471,6 +510,7 @@ def event_from_environment(environ: Mapping[str, str], workflow_file: str) -> Ev
     payload = json.loads(Path(environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
     pull_request = payload["pull_request"]
     head, merge = str(pull_request["head"]["sha"]), environ["GITHUB_SHA"]
+    head_repo = pull_request["head"].get("repo") or {}
     if not (FULL_SHA.fullmatch(head) and FULL_SHA.fullmatch(merge) and REPOSITORY_PATTERN.fullmatch(repository)):
         raise ValueError("event identity is malformed")
     return EventMeta(
@@ -483,6 +523,8 @@ def event_from_environment(environ: Mapping[str, str], workflow_file: str) -> Ev
         run_attempt=int(environ["GITHUB_RUN_ATTEMPT"]),
         workflow_file=workflow_file,
         repository=repository,
+        head_ref=str(pull_request["head"].get("ref") or ""),
+        head_repository=str(head_repo.get("full_name") or ""),
     )
 
 
@@ -543,6 +585,8 @@ def _effective_command(args: argparse.Namespace, transport: Transport | None) ->
     try:
         api = transport if transport is not None else GhTransport(args.repository)
         source = api.get(f"actions/runs/{args.run_id}/attempts/{args.attempt}")
+        if not isinstance(source, Mapping):
+            raise EffectiveSourceError(NON_OBJECT_PAYLOAD_MESSAGE)
         if (source.get("id"), source.get("run_attempt")) != (args.run_id, args.attempt):
             raise EffectiveSourceError("source run is not the requested run attempt")
         artifacts = api.get_all(f"actions/runs/{args.run_id}/artifacts?per_page=100", "artifacts")

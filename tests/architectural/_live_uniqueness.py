@@ -61,6 +61,7 @@ __all__ = [
     "pairwise_overlaps",
     "per_change_jobs",
     "selected_by_job",
+    "reject_battery_internal_allowances",
     "stale_allowances",
     "uncovered_overlaps",
 ]
@@ -241,6 +242,24 @@ def _covering_index(
     return None
 
 
+def reject_battery_internal_allowances(allowlist: Sequence[OverlapAllowance], jobs: Sequence[LiveJob]) -> None:
+    """Raise when an allowance could cover a pair whose BOTH sides are battery legs.
+
+    Overlaps inside the architectural battery (``architectural-fast`` and the
+    ``architectural-heavy`` legs) are the partition proof's business and are never
+    allowlisted; an entry naming a battery leg (or the battery family) on both sides would
+    silently excuse a broken partition, so it is refused outright rather than ignored.
+    """
+    battery_labels = {job.label for job in jobs if job.family == BATTERY_FAMILY}
+    battery_sides = battery_labels | {BATTERY_FAMILY}
+    for allowance in allowlist:
+        if allowance.job_a in battery_sides and allowance.job_b_family in battery_sides:
+            raise ValueError(
+                f"allowance {allowance.job_a!r} x {allowance.job_b_family!r} covers a pair of architectural-battery jobs; "
+                "overlaps inside the battery are the partition proof's business and must never be allowlisted",
+            )
+
+
 def _classify(
     overlaps: Overlaps,
     allowlist: Sequence[OverlapAllowance],
@@ -248,6 +267,7 @@ def _classify(
     records: Mapping[str, gc.TestRecord],
 ) -> tuple[Overlaps, set[int]]:
     """Split overlaps into the uncovered remainder; also return which allowlist indices fired."""
+    reject_battery_internal_allowances(allowlist, jobs)
     by_key = {job.key: job for job in jobs}
     uncovered: dict[tuple[JobKey, JobKey], set[str]] = {}
     used: set[int] = set()

@@ -2112,9 +2112,6 @@ _WHOLE_DIR_SUFFIX = "/**"
 _ANY_SRC_GROUP = "any_src"
 # Marker name whose positive presence identifies an architectural-suite gate.
 _ARCH_MARKER = "architectural"
-# Gate-tier prefixes for the same-tier uniqueness relation (NFR-003).
-_FAST_TIER_PREFIX = "fast-tests"
-_INTEGRATION_TIER_PREFIX = "integration-tests"
 
 # NFR-001 wallclock baseline (live CI run 28705381819, research §2.2). Probe
 # measurements, not tree-derivable — committed so the SC-003/NFR-001 ceiling is
@@ -2627,62 +2624,7 @@ def os_tier_shard_counts(
     return counts
 
 
-# TRANSITIONAL (closeout fold (c) deletes the legacy prefix-tier helpers below)
-# --- Same-tier shard-uniqueness relation (NFR-003) -------------------------
-
-
-def _gate_tier(gate: Gate) -> str | None:
-    """Tier of a gate for same-tier uniqueness: ``fast`` / ``integration`` / None."""
-    if gate.job.startswith(_FAST_TIER_PREFIX):
-        return "fast"
-    if gate.job.startswith(_INTEGRATION_TIER_PREFIX):
-        return "integration"
-    return None
-
-
-def shard_counts_for_test(
-    test: TestRecord,
-    tiered_gates: Sequence[tuple[CompiledGate, str]],
-) -> dict[str, int]:
-    """Count fast-tier / integration-tier shards that select one test (NFR-003).
-
-    ``tiered_gates`` is a pre-built ``[(CompiledGate, tier), ...]``. Same-tier
-    uniqueness means each count should be ``<= 1``; a test selected by two fast
-    shards (or two integration shards) is a same-tier double-run.
-    """
-    relpath, nodeid, markers = test["relpath"], test["nodeid"], set(test["markers"])
-    fast = integration = 0
-    for compiled, tier in tiered_gates:
-        if not compiled.selects(relpath, nodeid, markers):
-            continue
-        if tier == "fast":
-            fast += 1
-        else:
-            integration += 1
-    return {"count_fast_shards": fast, "count_integration_shards": integration}
-
-
-def same_tier_shard_counts(
-    gates: Sequence[Gate],
-    universe: Sequence[TestRecord],
-) -> dict[str, dict[str, int]]:
-    """``nodeid -> {count_fast_shards, count_integration_shards}`` (NFR-003).
-
-    Pure over its inputs (the caller supplies the collected ``universe`` via
-    :func:`collect_universe`), so this module performs no collection side effect.
-    Distinct from the report-only cross-tier duplicate count in :func:`analyze`:
-    this counts *within* a tier, where the invariant is uniqueness (``<= 1``),
-    not intentional overlap.
-    """
-    tiered_gates: list[tuple[CompiledGate, str]] = [
-        (CompiledGate(gate), tier)
-        for gate in gates
-        if (tier := _gate_tier(gate)) is not None
-    ]
-    return {
-        test["nodeid"]: shard_counts_for_test(test, tiered_gates)
-        for test in universe
-    }
+# --- Cross-job disjointness (GC-2) ------------------------------------------
 
 
 def _selected_nodeids(gates: Sequence[Gate], universe: Sequence[TestRecord]) -> frozenset[str]:
@@ -2710,7 +2652,7 @@ def cross_job_disjoint_selection(
     parallel sync pool's selection. Pure over its inputs (``universe`` supplied
     by the caller via :func:`collect_universe`) and reuses
     :class:`CompiledGate`/``selects()`` — the same evaluator
-    :func:`shard_counts_for_test` uses — rather than a second selection engine
+    :func:`os_tier_shard_counts` uses — rather than a second selection engine
     (D-044/C-003).
     """
     return _selected_nodeids(job_a_gates, universe) & _selected_nodeids(job_b_gates, universe)

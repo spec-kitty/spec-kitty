@@ -45,6 +45,7 @@ import yaml
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
 from scripts.ci.prose_only import reduced_paths
 from tests.architectural import _gate_coverage as gc
+from tests.ci._gh_if import BASE_CONTEXT_ALL_FALSE, eval_gh_if
 from tests.ci.test_xdist_worker_policy import _worker_value
 
 pytestmark = pytest.mark.fast
@@ -234,94 +235,6 @@ def router_workflow() -> dict[str, Any]:
     return dict(yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")))
 
 
-# --- a tiny, from-first-principles GitHub Actions `if:` boolean evaluator --
-#
-# The golden tests below must not merely grep for the guard text this WP
-# wrote; they evaluate the REAL `if:` string under a synthetic `needs`
-# context using ordinary boolean semantics (`&&` binds tighter than `||`,
-# parentheses group), the same subset ci-router.yml's job gates use
-# (`needs.<job>.outputs.<name> == 'true'` / `!= 'true'`).
-
-_COND_RE = re.compile(r"needs\.([A-Za-z0-9_-]+)\.outputs\.([A-Za-z0-9_]+)\s*(==|!=)\s*'true'")
-
-
-def _strip_expr_wrapper(raw: str) -> str:
-    text = raw.strip()
-    if text.startswith("${{") and text.endswith("}}"):
-        text = text[3:-2].strip()
-    return text
-
-
-def _tokenize_gh_if(expr: str) -> list[str]:
-    tokens: list[str] = []
-    for chunk in re.findall(r"\(|\)|&&|\|\||[^()&|]+", expr):
-        stripped = chunk.strip()
-        if stripped:
-            tokens.append(stripped)
-    return tokens
-
-
-class _GhIfEvaluator:
-    """Recursive-descent evaluator: `or_expr := and_expr ('||' and_expr)*`,
-    `and_expr := atom ('&&' atom)*`, `atom := '(' or_expr ')' | condition`."""
-
-    def __init__(self, tokens: list[str], context: dict[str, bool]) -> None:
-        self._tokens = tokens
-        self._pos = 0
-        self._context = context
-
-    def evaluate(self) -> bool:
-        value = self._or_expr()
-        assert self._pos == len(self._tokens), f"unconsumed if: tokens: {self._tokens[self._pos :]!r}"
-        return value
-
-    def _or_expr(self) -> bool:
-        value = self._and_expr()
-        while self._peek() == "||":
-            self._advance()
-            value = self._and_expr() or value
-        return value
-
-    def _and_expr(self) -> bool:
-        value = self._atom()
-        while self._peek() == "&&":
-            self._advance()
-            value = self._atom() and value
-        return value
-
-    def _atom(self) -> bool:
-        token = self._peek()
-        if token == "(":
-            self._advance()
-            value = self._or_expr()
-            assert self._peek() == ")", f"unbalanced parens in if: near {self._tokens[self._pos :]!r}"
-            self._advance()
-            return value
-        assert token is not None, "ran out of if: tokens"
-        self._advance()
-        return self._eval_condition(token)
-
-    def _peek(self) -> str | None:
-        return self._tokens[self._pos] if self._pos < len(self._tokens) else None
-
-    def _advance(self) -> None:
-        self._pos += 1
-
-    def _eval_condition(self, text: str) -> bool:
-        match = _COND_RE.fullmatch(text.strip())
-        assert match, f"unmodeled if: condition fragment: {text!r}"
-        job, name, op = match.group(1), match.group(2), match.group(3)
-        key = f"{job}.{name}"
-        assert key in self._context, f"golden test context does not model {key!r}"
-        value = self._context[key]
-        return value if op == "==" else not value
-
-
-def _eval_gh_if(raw_if: str, context: dict[str, bool]) -> bool:
-    tokens = _tokenize_gh_if(_strip_expr_wrapper(raw_if))
-    return _GhIfEvaluator(tokens, context).evaluate()
-
-
 _ALWAYS_ON_JOB_NAMES = (
     "ruff",
     "commit-msg",
@@ -338,39 +251,11 @@ _ALWAYS_ON_JOB_NAMES = (
 
 _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
 
-_BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
-    "changes.consolidation": False,
-    "changes.auth": False,
-    "changes.missions": False,
-    "changes.post_merge": False,
-    "changes.release": False,
-    "changes.status": False,
-    "changes.review": False,
-    "changes.next": False,
-    "changes.lanes": False,
-    "changes.dashboard": False,
-    "changes.upgrade": False,
-    "changes.cli": False,
-    "changes.charter": False,
-    "changes.agent": False,
-    "changes.kernel": False,
-    "changes.glossary": False,
-    "changes.execution_context": False,
-    "changes.core_misc": False,
-    "changes.unit": False,
-    "changes.specify_cli_runtime": False,
-    "changes.docs": False,
-    "changes.architectural": False,
-    "changes.ci_config": False,
-}
-
-
 #: FR-008 (mission ci-runtime-stabilisation-01M3TZH6, WP08): these per-group router
 #: jobs re-ran trees the ci-modules.yml module rows already own. Re-adding ANY one of
 #: them under the same name is red here. Re-adding the duplicate under a NEW name is
-#: caught by the directory guard in tests/architectural/test_no_duplicate_suite_execution.py
-#: (transitional: a closeout fold removes it) and by the FR-010 cross-job uniqueness
-#: live check (WP15), which is the lasting authority.
+#: caught by the FR-010 cross-job uniqueness live check (WP15,
+#: tests/architectural/test_same_tier_uniqueness.py), which is the lasting authority.
 _REMOVED_DUPLICATE_ROUTER_JOBS = ("tests-consolidation", "tests-status", "tests-cli")
 
 
@@ -460,22 +345,22 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     # ci-router.yml side: evaluate the REAL if: strings under a synthetic
     # context where merge/status/cli are all lit (as a multi-group
     # prose-only diff would) and prose_only is proven true.
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.consolidation"] = True
     context["changes.status"] = True
     context["changes.cli"] = True
     context["prose-scan.prose_only"] = True
 
     assert jobs["architectural-heavy"]["needs"] == ["changes", "prose-scan"]
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
 
     assert router.code_shard_jobs, "non-vacuity: at least the battery is a code shard"
     for shard in sorted(router.code_shard_jobs):
         assert jobs[shard]["needs"] == ["changes", "prose-scan"]
-        assert _eval_gh_if(jobs[shard]["if"], context) is False
+        assert eval_gh_if(jobs[shard]["if"], context) is False
 
     assert jobs["tests-docs"]["needs"] == ["changes", "prose-scan"]
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is True
 
     # Always-on lanes carry only the fork guard (tests/ci/test_fork_guard.py),
     # which is a no-op on the core repository: no prose_only term.
@@ -497,12 +382,12 @@ def test_golden_architectural_only_pr_runs_the_heavy_battery_and_no_code_shard(r
     """#5168 golden: a PR touching only ``tests/architectural/**`` runs the heavy
     battery (the directory's only per-PR home) and no src-scoped code shard."""
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.architectural"] = True
     context["prose-scan.prose_only"] = False
 
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is False
 
 
 def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow: dict[str, Any]) -> None:
@@ -512,33 +397,33 @@ def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow
     no-op for a non-prose diff.
     """
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.consolidation"] = True
     context["prose-scan.prose_only"] = False
 
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is False
 
 
 def test_golden_ci_config_only_pr_runs_the_heavy_battery_and_no_code_shard(router_workflow: dict[str, Any]) -> None:
     """FR-007 golden: a CI-configuration-only PR runs the heavy battery and no src-scoped shard."""
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.ci_config"] = True
     context["prose-scan.prose_only"] = False
 
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is False
 
 
 def test_golden_prose_only_ci_script_still_down_routes_the_battery(router_workflow: dict[str, Any]) -> None:
     """C-002 golden: the prose-only subtraction still drops the battery for the new group."""
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.ci_config"] = True
     context["prose-scan.prose_only"] = True
 
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
 
 
 # --- WP12 (FR-002/003/004, NFR-001/003/005): the router battery reshaping --------
@@ -551,6 +436,7 @@ _FAST_JOB = "architectural-fast"
 _HEAVY_JOB = "architectural-heavy"
 _SAMPLER_START = "scripts.ci.memory_sampler start"
 _SAMPLER_STOP = "scripts.ci.memory_sampler stop"
+_SETUP_UV_PREFIX = "astral-sh/setup-uv@"
 _UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 _FAST_TIMEOUT_MAX_MINUTES = 10
 _LEG_TIMEOUT_MAX_MINUTES = 30
@@ -656,7 +542,11 @@ def test_battery_jobs_sample_memory_and_upload_junit(router_workflow: dict[str, 
     stop = _step_index(job, run_contains=_SAMPLER_STOP)
     upload = _step_index(job, uses_prefix=_UPLOAD_ARTIFACT_PIN)
 
+    setup_uv = _step_index(job, uses_prefix=_SETUP_UV_PREFIX)
+    uv_sync = _step_index(job, run_contains="uv sync")
+
     assert start < pytest_step < stop, "the sampler starts before and stops after the suite"
+    assert start < setup_uv and start < uv_sync, "the sampler must start before setup-uv / uv sync so the peak includes the install footprint"
     assert job["steps"][stop].get("if") == "always()", "the peak-memory report must run on a red suite too"
     assert job["steps"][upload].get("if") == "always()", "the junit must upload on a red suite too"
     assert "--junitxml=out/reports/" in job["steps"][pytest_step]["run"]
@@ -694,9 +584,9 @@ def test_registry_battery_entry_matches_the_router_shape(router_workflow: dict[s
 def test_golden_docs_only_pr_runs_the_fast_battery_but_not_the_legs(router_workflow: dict[str, Any]) -> None:
     """C-002 / FR-003: a docs-only PR still pays the ~2-min fast roster, never the legs."""
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["prose-scan.prose_only"] = False
 
-    assert _eval_gh_if(jobs[_HEAVY_JOB]["if"], context) is False
+    assert eval_gh_if(jobs[_HEAVY_JOB]["if"], context) is False
     assert jobs[_FAST_JOB]["if"] == _FORK_GUARD
     assert "needs" not in jobs[_FAST_JOB], "no needs: the fast job starts at pipeline start (NFR-002)"

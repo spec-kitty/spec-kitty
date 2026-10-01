@@ -145,14 +145,20 @@ Re-run the workflow. Attempt 2 always executes in full and Aggregate does not re
 
 - **Fail-safe direction.** The selection step never skips on doubt, and Aggregate never passes on
   doubt.
-- **Trust surface.** For the router and Packs, the match rests on the tested-key artifact name
-  plus run metadata (same workflow, same head SHA, `pull_request` event, success, non-expired
-  artifact). `decide` matches on the tested-key artifact name only and does not read the JSON
-  body. The body is self-reported by the run that wrote it, so it is not trusted and does not
-  prove what the run executed. CI Modules is
-  stronger, because Aggregate re-verifies the matched run's identity from its immutable merge
-  ref. A hardening follow-up that strengthens the router and Packs identity check is planned and
-  is not part of this mission.
+- **Trust surface.** The tested-key artifact name is written by a PR-controlled run, so on its
+  own it proves nothing about which PR produced it: a second PR on the same head SHA, with a
+  modified workflow on a different base, could upload a forged name. `decide` therefore matches
+  a candidate run only when the run object itself is bound to this pull request: same workflow
+  file, `pull_request` event, success, same head SHA and repository, plus the same head branch
+  and head repository as the event payload, and the PR number listed in the run's
+  `pull_requests`. The artifact must also be non-expired. Any doubt runs normally: an empty or
+  missing `pull_requests` (for example a fork PR), a missing head branch or head repository, or
+  an unknown identity on the event side is a non-match, so those PRs always execute in full.
+  `decide` still does not read the marker JSON body, which is self-reported and proves nothing
+  about what the run executed. CI Modules is stronger still, because Aggregate re-verifies the
+  matched run's identity from its immutable merge ref. The `green` step carries
+  `timeout-minutes: 3` in all three workflows, so a stalled `gh` cannot delay the run; a timeout
+  runs normally.
 - **Recorded residuals.** On a skip run the always-on lanes and `prose-scan` still run, and
   `tests (docs)` still runs on a prose-only skip run, because `prose-scan` is not suppressed.
   Sonar's informational per-change upload may repeat on a skip run. All three are accepted.

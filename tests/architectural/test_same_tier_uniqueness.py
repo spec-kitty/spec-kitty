@@ -208,6 +208,7 @@ def test_allowlist_entries_are_reasoned_live_and_capped(
         assert (entry.scope_marker is None) != (not entry.scope_files), f"allowance {entry.job_a} must set exactly one of scope_marker / scope_files"
         assert entry.job_a in labels, f"allowance names {entry.job_a!r}, which is not a live per-change job label"
         assert entry.job_b_family in sides, f"allowance names {entry.job_b_family!r}, which is neither a live job label nor a family"
+    lu.reject_battery_internal_allowances(ALLOWLIST, jobs)
     stale = lu.stale_allowances(overlaps, ALLOWLIST, jobs, records)
     assert not stale, f"stale allowances (they cover no live overlapping node; delete them): {[(a.job_a, a.job_b_family) for a in stale]}"
     assert len(ALLOWLIST) <= _ALLOWLIST_CEILING <= _ALLOWLIST_HARD_CAP, (
@@ -309,8 +310,8 @@ def test_retired_router_duplicate_shape_is_reported(
 ) -> None:
     """The pre-Mission router job ``tests-cli`` (``pytest tests/cli``) against the expanded ``cli`` row is reported.
 
-    The permanent node-level twin of the FR-010 merge-base red, and of the router lane's directory-level
-    pre-check (``router_dirs_owned_by_a_module``): it names the shape on the real ``cli`` row, with real nodes.
+    The permanent node-level twin of the FR-010 merge-base red: it names the shape on the real ``cli`` row,
+    with real nodes.
     """
     workflow = tmp_path / "ci-router.yml"
     workflow.write_text(_RETIRED_ROUTER_JOB, encoding="utf-8")
@@ -324,6 +325,40 @@ def test_stale_allowance_is_reported(jobs: list[lu.LiveJob], overlaps: lu.Overla
     """An allowance naming a pair that never overlaps covers nothing, so it is stale."""
     ghost = lu.OverlapAllowance("ci-router.yml::terminology", _BATTERY, "corpus", _NO_FILES, "ghost control", "#5510")
     assert lu.stale_allowances(overlaps, (*ALLOWLIST, ghost), jobs, records)[-1] == ghost
+
+
+_BATTERY_FAST_LABEL = "ci-router.yml::architectural-fast[fast]"
+_BATTERY_HEAVY_LABEL = "ci-router.yml::architectural-heavy[1/2]"
+
+
+@pytest.mark.parametrize(
+    ("job_a", "job_b_family"),
+    [
+        (_BATTERY_HEAVY_LABEL, _BATTERY),
+        (_BATTERY_HEAVY_LABEL, _BATTERY_FAST_LABEL),
+        (_BATTERY_HEAVY_LABEL, "ci-router.yml::architectural-heavy[2/2]"),
+        (_BATTERY, _BATTERY_FAST_LABEL),
+    ],
+    ids=["heavy-vs-family", "heavy-vs-fast", "heavy-vs-heavy", "family-vs-fast"],
+)
+def test_battery_internal_allowance_is_rejected(
+    job_a: str,
+    job_b_family: str,
+    jobs: list[lu.LiveJob],
+    overlaps: lu.Overlaps,
+    records: dict[str, gc.TestRecord],
+) -> None:
+    """Positive control: an allowance whose BOTH sides are battery legs is refused by every classifier entry point."""
+    planted = lu.OverlapAllowance(job_a, job_b_family, None, frozenset({"tests/architectural/test_layer_rules.py"}), "planted battery-internal control", "#5510")
+    with pytest.raises(ValueError, match="architectural-battery"):
+        lu.uncovered_overlaps(overlaps, (*ALLOWLIST, planted), jobs, records)
+    with pytest.raises(ValueError, match="architectural-battery"):
+        lu.stale_allowances(overlaps, (*ALLOWLIST, planted), jobs, records)
+
+
+def test_battery_versus_non_battery_allowance_is_still_accepted(jobs: list[lu.LiveJob]) -> None:
+    """Only battery x battery is refused: the shipped battery-vs-Packs entries must keep validating."""
+    lu.reject_battery_internal_allowances(ALLOWLIST, jobs)
 
 
 # ---------------------------------------------------------------------------

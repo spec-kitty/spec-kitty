@@ -350,7 +350,16 @@ def _run_sample(args: argparse.Namespace) -> int:
     def _on_term(_signum: int, _frame: FrameType | None) -> None:
         stop_event.set()
 
-    signal.signal(signal.SIGTERM, _on_term)
+    previous = signal.signal(signal.SIGTERM, _on_term)
+    try:
+        return _sample_loop(args, out, proc_root, stop_event)
+    finally:
+        # Restore the caller's handler: in-process callers (tests) must not keep ours.
+        if previous is not None:
+            signal.signal(signal.SIGTERM, previous)
+
+
+def _sample_loop(args: argparse.Namespace, out: Path, proc_root: Path, stop_event: threading.Event) -> int:
     origin = time.monotonic()
     state = initial_state(os.getpid())
     taken = 0
@@ -406,12 +415,25 @@ def _pid_running(pid: int) -> bool:
     return stat is None or stat.rsplit(")", 1)[-1].split()[:1] != ["Z"]
 
 
+def _pid_is_sampler(pid: int) -> bool:
+    """False only when ``/proc/<pid>/cmdline`` is readable and is not this sampler.
+
+    Guards against a stale pid file whose pid was reused by an unrelated process. Where
+    ``/proc`` offers no answer (non-Linux, vanished pid) the identity cannot be disproved,
+    so the caller proceeds as before.
+    """
+    raw = _read_text(Path(f"/proc/{pid}/cmdline"))
+    return raw is None or _SELF_MODULE in raw
+
+
 def _terminate_sampler(out: Path) -> None:
     """SIGTERM the recorded sampler and wait a bounded number of polls for it to exit."""
     raw = _read_text(_pid_path(out))
     if raw is None or not raw.strip().isdigit():
         return
     pid = int(raw.strip())
+    if not _pid_is_sampler(pid):
+        return
     try:
         os.kill(pid, signal.SIGTERM)
     except OSError:
