@@ -8,7 +8,7 @@
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
 | T001 | Red-first #2267 repro through `generate_retrospective` over a documented-rejection event log | WP01 | |
-| T002 | Create `specify_cli/status/review_rejection.py` (feedback + backward-move + rejection predicates) with unit tests | WP01 | |
+| T002 | Create `specify_cli/review/rejection_signal.py` (feedback + backward-move + rejection predicates) with unit tests | WP01 | |
 | T003 | Route the generator's rejection / lane-friction detectors through the predicate | WP01 | |
 | T004 | Exclude documented rejections from the force-override detector | WP01 | |
 | T005 | Count only undocumented `in_progress` re-entries in the implementation-cycle detector; update finding wording | WP01 | |
@@ -23,7 +23,7 @@
 **Priority**: P1. **Dependencies**: none. **Estimated prompt size**: ~150 lines.
 
 T001 Red-first #2267 repro through `generate_retrospective` (WP01)
-T002 Create `specify_cli/status/review_rejection.py` with unit tests (WP01)
+T002 Create `specify_cli/review/rejection_signal.py` with unit tests (WP01)
 T003 Route rejection / lane-friction detectors through the predicate (WP01)
 T004 Exclude documented rejections from the force-override detector (WP01)
 T005 Count only undocumented re-entries in the implementation-cycle detector (WP01)

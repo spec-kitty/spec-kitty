@@ -26,14 +26,15 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/retrospective/
 create_intent:
-- src/specify_cli/status/review_rejection.py
-- tests/status/test_review_rejection.py
+- src/specify_cli/review/rejection_signal.py
+- tests/review/test_rejection_signal.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/specify_cli/status/review_rejection.py
+- src/specify_cli/review/rejection_signal.py
 - src/specify_cli/retrospective/generator.py
-- tests/status/test_review_rejection.py
+- src/specify_cli/review/cycle.py
+- tests/review/test_rejection_signal.py
 - tests/retrospective/test_generator.py
 - tests/specify_cli/retrospect/test_event_log_mining.py
 role: implementer
@@ -50,7 +51,7 @@ Load `python-pedro` (implementer) before starting.
 
 ## Objectives & Success Criteria
 
-- One status-owned predicate decides "documented review rejection" (FR-001).
+- One review-owned predicate decides "documented review rejection" (FR-001).
 - A backward rework move carrying review feedback out of `for_review`, `in_review`, `in_progress`, `approved` or `done` is a rejection (FR-002).
 - `--force` findings exclude documented rejections (FR-003).
 - Implementation-cycle findings count only re-entries with no documented rejection since the previous entry (FR-004).
@@ -66,14 +67,14 @@ Load `python-pedro` (implementer) before starting.
 ## Subtasks
 
 - **T001** Add a `@pytest.mark.regression` test pinned to #2267 in `tests/retrospective/test_generator.py` that writes a mission with documented rejections (out of `in_review` with `--force`, out of `for_review` with `--force`, out of `in_progress`) and asserts: one `review_loop` finding per WP, no force-override, no lane-bounce, no implementation-cycle finding. Must be RED on the base.
-- **T002** Create `src/specify_cli/status/review_rejection.py`: `has_documented_review_feedback`, `BACKWARD_REWORK_MOVES`, `is_backward_rework_move`, `is_documented_review_rejection`. Move the generator's `_has_review_feedback` / `_BACKWARD_LANE_MOVES` there (no duplicate left behind). Unit tests in `tests/status/test_review_rejection.py`.
+- **T002** Create `src/specify_cli/review/rejection_signal.py`: `has_documented_review_feedback`, `BACKWARD_REWORK_MOVES`, `is_backward_rework_move`, `is_documented_review_rejection`. Move the generator's `_has_review_feedback` / `_BACKWARD_LANE_MOVES` there (no duplicate left behind). Unit tests in `tests/review/test_rejection_signal.py`.
 - **T003** `_is_review_rejection_event` / `_is_lane_friction_event` delegate to the predicate.
 - **T004** `_is_force_override_event` returns False for documented rejections.
 - **T005** `_detect_implementation_cycles` walks events in order and counts re-entries not licensed by a preceding documented rejection; update the finding text to say "re-entered in_progress N time(s) without a documented review rejection".
 
 ## Test surface
 
-`tests/retrospective/test_generator.py`, `tests/specify_cli/retrospect/test_event_log_mining.py`, `tests/status/test_review_rejection.py`, `tests/retrospective/`, `tests/specify_cli/retrospective/`, plus `make test-fast`. No heavy suites.
+`tests/retrospective/test_generator.py`, `tests/specify_cli/retrospect/test_event_log_mining.py`, `tests/review/test_rejection_signal.py`, `tests/retrospective/`, `tests/specify_cli/retrospective/`, plus `make test-fast`. No heavy suites.
 
 ## Activity Log
 

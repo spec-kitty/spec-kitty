@@ -5,14 +5,14 @@
 
 ## Summary
 
-Move the "is this lane event a documented review rejection?" decision out of the retrospective generator into one status-owned module, widen it to every backward rework move that carries review feedback, and make the four readers consume it: the generator's rejection, lane-friction, force-override and implementation-cycle detectors, and consolidate's hollow-review `force_count` check.
+Move the "is this lane event a documented review rejection?" decision out of the retrospective generator into one review-owned module (`specify_cli/review/rejection_signal.py`), widen it to every backward rework move that carries review feedback, and make the four readers consume it: the generator's rejection, lane-friction, force-override and implementation-cycle detectors, and consolidate's hollow-review `force_count` check.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+
 **Primary Dependencies**: none new; `specify_cli.status.verdict_vocab.is_changes_requested` (existing)
 **Storage**: reads `status.events.jsonl` and `status.json` (no format change)
-**Testing**: pytest; targeted files `tests/retrospective/test_generator.py`, `tests/specify_cli/retrospect/test_event_log_mining.py`, a new `tests/status/test_review_rejection.py`, the consolidate hollow-review tests; plus `make test-fast`
+**Testing**: pytest; targeted files `tests/retrospective/test_generator.py`, `tests/specify_cli/retrospect/test_event_log_mining.py`, a new `tests/review/test_rejection_signal.py`, the consolidate hollow-review tests; plus `make test-fast`
 **Target Platform**: CLI (Linux/macOS/Windows)
 **Project Type**: single
 **Performance Goals**: N/A (one extra linear pass over the event log at consolidate)
@@ -21,7 +21,7 @@ Move the "is this lane event a documented review rejection?" decision out of the
 
 ## Charter Check
 
-- Single canonical authority: the predicate moves to `specify_cli/status/` so the retrospective and consolidation packages read one definition instead of the generator owning a private copy that consolidate cannot see. PASS.
+- Single canonical authority: the predicate moves to `specify_cli/review/` (next to the review-ref sentinel vocabulary it must honour; `status` cannot import `review`) so the retrospective and consolidation packages read one definition instead of the generator owning a private copy that consolidate cannot see. PASS.
 - Architectural alignment: `consolidation` and `retrospective` already import from `specify_cli.status`; no new edge. PASS.
 - ATDD / red-first: each WP opens with an issue-pinned `@pytest.mark.regression` repro that is red on the base. PASS.
 - Terminology: Mission / WP; "lane bounce" and "review loop" wording kept as-is in finding text except where it was wrong. PASS.
@@ -30,7 +30,7 @@ Move the "is this lane event a documented review rejection?" decision out of the
 ## Design
 
 ```
-status/review_rejection.py          (new, canonical)
+review/rejection_signal.py          (new, canonical; reads review.cycle sentinels)
   has_documented_review_feedback(ev)   <- moved from generator._has_review_feedback
   BACKWARD_REWORK_MOVES                <- moved from generator._BACKWARD_LANE_MOVES (+ for_review/in_progress sources kept)
   is_backward_rework_move(ev)
@@ -54,6 +54,7 @@ Decisions:
 - **D-2 Force-override count.** A forced documented rejection is counted only by the `review_loop` finding. Remaining force transitions keep the existing wording.
 - **D-3 Implementation cycles.** The finding now reports *undocumented* re-entries; its summary/details say so. The first entry is never counted. A documented rejection licenses exactly one following re-entry.
 - **D-4 Hollow-review.** Subtract forced documented rejections read from the event log; an unreadable log subtracts nothing (fail toward warning).
+- **D-6 Sentinels are not feedback (post-tasks squad).** `force-override`, `action-review-claim`, legacy `workflow-review-claim` and synthetic `review:<WP>` refs are markers minted when no feedback artifact exists; they never make a move a rejection.
 - **D-5 Out of scope.** Refusing `approved → in_progress` (issue comment, ask 2) changes the lane matrix (C-001); reported on the issue, not implemented.
 
 ## Project Structure
@@ -71,10 +72,11 @@ kitty-specs/retrospect-rejection-signal-01M3W27M/
 ### Source Code (repository root)
 
 ```
-src/specify_cli/status/review_rejection.py        (new)
+src/specify_cli/review/rejection_signal.py        (new)
+src/specify_cli/review/cycle.py                   (legacy `workflow-review-claim` sentinel)
 src/specify_cli/retrospective/generator.py        (detectors)
 src/specify_cli/consolidation/preflight.py        (hollow-review)
-tests/status/test_review_rejection.py              (new)
+tests/review/test_rejection_signal.py              (new)
 tests/retrospective/test_generator.py
 tests/specify_cli/retrospect/test_event_log_mining.py
 tests/consolidation/ (hollow-review collector tests)
@@ -93,7 +95,7 @@ No charter violations.
 
 - **Purpose**: Give the project one definition of a documented review rejection and make the retrospective detectors read it.
 - **Relevant requirements**: FR-001, FR-002, FR-003, FR-004
-- **Affected surfaces**: `src/specify_cli/status/review_rejection.py`, `src/specify_cli/retrospective/generator.py`
+- **Affected surfaces**: `src/specify_cli/review/rejection_signal.py`, `src/specify_cli/review/cycle.py`, `src/specify_cli/retrospective/generator.py`
 - **Sequencing/depends-on**: none
 - **Risks**: the generator lazy-imports `specify_cli.status` to break an import cycle; the new module must be imported lazily there too.
 

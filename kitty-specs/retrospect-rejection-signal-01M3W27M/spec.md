@@ -80,7 +80,7 @@ At `spec-kitty consolidate`, the hollow-review warning no longer counts `--force
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | One rejection predicate | As a maintainer, I want one status-owned predicate that says whether a lane event is a documented review rejection (a backward rework move carrying review feedback) so that every consumer classifies the same event the same way. | High | Open | [build] | no |
+| FR-001 | One rejection predicate | As a maintainer, I want one review-owned predicate that says whether a lane event is a documented review rejection (a backward rework move carrying review feedback) so that every consumer classifies the same event the same way. | High | Open | [build] | no |
 | FR-002 | Rejection from any review-adjacent lane | As an operator, I want a backward move carrying review feedback out of `for_review`, `in_review`, `in_progress`, `approved` or `done` counted as a review rejection so that a rejection the reviewer issued without claiming is not a lane bounce. | High | Open | [build] | no |
 | FR-003 | Force findings exclude documented rejections | As an operator, I want the force-override finding to count only `--force` transitions that are not documented review rejections so that the standard rejection path is not reported as a guard bypass. | High | Open | [build] | no |
 | FR-004 | Cycle findings exclude documented rework | As an operator, I want an `in_progress` re-entry that follows a documented rejection treated as expected rework so that the implementation-cycles finding only reports undocumented rework. | High | Open | [build] | no |
@@ -103,7 +103,7 @@ At `spec-kitty consolidate`, the hollow-review warning no longer counts `--force
 
 ### Key Entities
 
-- **Documented review rejection**: a lane event that moves a WP backward into `planned`, `claimed` or `in_progress` and carries review feedback (`review_ref`, a structured changes-requested review evidence, or non-empty string evidence).
+- **Documented review rejection**: a lane event that moves a WP backward into `planned`, `claimed` or `in_progress` and carries review feedback (a resolvable `review_ref`, a structured changes-requested review evidence, or non-empty string evidence). Operational sentinels (`force-override`, `action-review-claim`, `workflow-review-claim`) and synthetic `review:<WP>` markers are not feedback.
 - **Force override**: an operator `--force` lane transition that is not a bootstrap event, not a no-op, and not a documented review rejection.
 - **Undocumented re-entry**: an entry into `in_progress` from `planned`/`claimed`, after the first, that is not preceded by a documented review rejection since the previous entry.
 

@@ -27,6 +27,8 @@ owned_files:
 - src/specify_cli/consolidation/preflight.py
 - tests/consolidation/test_hollow_review_warnings.py
 - docs/changelog/CHANGELOG.md
+- src/specify_cli/review/rejection_signal.py
+- tests/review/test_rejection_signal.py
 role: implementer
 tags: []
 task_type: implement
