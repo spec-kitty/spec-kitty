@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: issue-5510-ci-runtime-stabilisation
 merge_target_branch: issue-5510-ci-runtime-stabilisation
 branch_strategy: Planning artifacts for this mission were generated on issue-5510-ci-runtime-stabilisation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-5510-ci-runtime-stabilisation unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-ci-runtime-stabilisation-01M3TZH6
+base_commit: c318df2354fb9e47458fe4576ea64f79839edd27
+created_at: '2026-10-01T08:57:38.571131+00:00'
 subtasks:
 - T055
 - T056
@@ -26,6 +29,7 @@ model: claude-sonnet-5-5
 owned_files:
 - tests/architectural/test_interpreter_shard_coverage.py
 - tests/architectural/test_clock_call_ban.py
+- tests/architectural/test_no_dead_symbols.py
 role: implementer
 tags: []
 task_type: implement
@@ -93,26 +97,36 @@ Done means:
 - The red-first tests (T055) are red on the planning base and green on the tip.
 - The second consumer in each file drops to under 1 s, measured with single-file
   `--durations` runs (T058).
-- Dead-symbol files: **verified covered by PR #5503** (merged into main before base
-  `bc826fcbcb`; research D-37). `tests/architectural/test_no_dead_symbols.py:1166-1167` is
-  `@functools.lru_cache(maxsize=1)` on `_real_tree_inputs()`, which runs `_walk_modules()` once
-  per worker process and serves every real-tree consumer (`:1728`, `:1979`, and
-  `test_dead_symbol_allowlist_contract.py`'s M11 test). `test_refresh_dead_symbol_hashes.py` and
-  `_refresh_dead_symbol_hashes.py` no longer exist. FR-006 for the dead-symbol files is closed
-  with that record; this WP edits no dead-symbol file (C-007).
+- Dead-symbol file: **the once-per-file cache comes from PR #5503; this WP adds its file-end
+  finalizer** (research D-37, R3 §2.2). PR #5503 merged into main before base `bc826fcbcb`.
+  `tests/architectural/test_no_dead_symbols.py:1166-1167` is `@functools.lru_cache(maxsize=1)`
+  on `_real_tree_inputs()`. It runs `_walk_modules()` once, but its lifetime is the **worker
+  process**. The cached `RealTreeInputs.corpus` holds a `CorpusModule` for every `src/` module,
+  and each one keeps the `ast.Module` and the full source (`tests/architectural/_symbol_key.py`
+  ≈:151-153). So the syntax trees for all of `src/` stay resident on that worker after the file
+  finishes. That breaks FR-006 ("findings, not syntax trees"). R3 §2.2 accepted the tree cache
+  only as a reasoned exception, bounded to the file by a module-scoped `cache_clear()`
+  finalizer. T058 restores that finalizer, and T055 adds its red-first test.
+  `test_refresh_dead_symbol_hashes.py` and `_refresh_dead_symbol_hashes.py` no longer exist
+  (deleted by #5503), so there is nothing to do there.
 
 ## Context & Constraints
 
-- **Read first**: in `research.md`, decision row D-17, then R3 §2 "FR-006 — Per-file caching
+- **Read first**: in `research.md`, decision rows D-17 and D-37 (D-37 supersedes D-17's
+  dead-symbol clause), then R3 §2 "FR-006 — Per-file caching
   of repeated scans" (2.1 measurements, 2.2 design, 2.4 alternatives, 2.5 red-first tests,
   2.6 C-007 sequencing). Then `spec.md` (US6, FR-006, edge case "caches hold findings, not
   syntax trees"), `plan.md` IC-10 and `.kittify/charter/charter.md` (Standing Order #5:
   architectural gate discipline; ATDD-first).
-- **#5503 has merged; no overlap**: its diff (`git diff ecb5dd914a bc826fcbcb`) contains
-  neither owned file — `test_interpreter_shard_coverage.py`, `test_clock_call_ban.py`,
-  `_gate_coverage.py`, `_clock_gate_scan.py` and `tests/_support/wall_clock_assertions.py` are
+- **#5503 has merged (C-007 satisfied)**: its diff (`git diff ecb5dd914a bc826fcbcb`) does not
+  touch `test_interpreter_shard_coverage.py`, `test_clock_call_ban.py`, `_gate_coverage.py`,
+  `_clock_gate_scan.py` or `tests/_support/wall_clock_assertions.py`. Those files are
   byte-identical across the rebase, so every anchor below still holds (re-verified 2026-10-01
-  on `bc826fcbcb`). Leave `tests/conftest.py` and the dead-symbol files alone.
+  on `bc826fcbcb`). #5503 rewrote `test_no_dead_symbols.py`. Its anchors below were read on
+  `bc826fcbcb`. Because #5503 is already on the base, editing the file is now sequenced after
+  #5503, as C-007 requires. The only edit in that file is the file-end finalizer and its test.
+  Leave `tests/conftest.py`, `_symbol_key.py`, `_dead_symbol_allowlist.py` and
+  `test_dead_symbol_allowlist_contract.py` alone.
 - **Why not cache inside `_gate_coverage.collect_job_nodeids`**: many other files run
   collections under tmp roots and monkeypatches, so the blast radius is too wide (R3 §2.4).
   `_gate_coverage.py` is also a pinned, format-excluded file that WP06/WP15 edit (D-25).
@@ -122,9 +136,9 @@ Done means:
   worker's next file (NFR-005 headroom).
 - **C-009**: run each owned file individually. Never run `tests/architectural` as a whole,
   and never `make test-full`.
-- **Formatting**: neither owned file is in `[tool.ruff.format].exclude`, so normal
+- **Formatting**: no owned file is in `[tool.ruff.format].exclude`, so normal
   `ruff format` applies.
-- **Pinning inventory**: neither file contains the inventory subject literals
+- **Pinning inventory**: no owned file contains the inventory subject literals
   (`ci-quality.yml`, `sonarcloud`, `make test-fast`). Keep it that way, and no regeneration
   is needed.
 - **Terminology**: "Mission", never "feature". Never bare "routing".
@@ -145,6 +159,11 @@ Done means:
 | | planted-offender tests (≈:218-427) | never touch the real tree |
 | Violation type | `tests/_support/wall_clock_assertions.py:2437` | `@dataclass(frozen=True, order=True) WallClockCallViolation(line, call, suggestion)`: hashable, immutable |
 | Scan scope | `tests/architectural/_clock_gate_scan.py` | `REPO_ROOT`, `SCAN_ROOTS = (src, tests, scripts)`, `iter_python_files() -> list[Path]` (shared with `test_clock_import_ban.py`; do not change) |
+| `test_no_dead_symbols.py` (2422 lines, on `bc826fcbcb`) | `@functools.lru_cache(maxsize=1)` `def _real_tree_inputs() -> RealTreeInputs` (:1166-1167) | process lifetime, never cleared; `functools` already imported (:116); no autouse fixture in the file today |
+| | `RealTreeInputs.corpus: Mapping[str, CorpusModule]` (:1160) | `CorpusModule.tree: ast.Module` + `.source: str` (`_symbol_key.py:151-152`): every `src/` tree stays resident |
+| | module docstring (:65-66), `RealTreeInputs` docstring (:1149), `_real_tree_inputs` docstring (:1168) | say "once per (test) session"; change to "once per file" |
+| | in-file consumers of `_real_tree_inputs()` | `:1499` `test_no_public_symbol_in_all_is_unimported`; `:1728` `test_walk_modules_widening_contributes_on_live_tree`; `:1979` `test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist`; `:2086` `test_auto_exempt_disjoint_from_hand_allowlist`; `:2203` `test_bite_k_full_keyability_hand_and_auto_exempt`; `:2325-2326` `test_real_tree_inputs_are_read_only` (asserts `inputs is _real_tree_inputs()` inside one test, so it still holds); `:2344` `test_m13_corpus_floor_reds_on_a_quarter_of_the_modules`; `:2363` `test_m11c_gate_reads_the_widened_section_it_is_given` |
+| Cross-file consumer (not owned) | `test_dead_symbol_allowlist_contract.py:197` M11 `test_m11_gate_reads_the_allowlist_file_it_is_given` → `gate._real_tree_inputs()` | today it gets a cache hit when it runs after the gate file in the same process. After the finalizer it walks `src/` again (~30 s more on that worker). Its docstring (:188-193) already expects one walk per xdist worker. Do not edit it. |
 
 ## Branch Strategy
 
@@ -205,8 +224,23 @@ Done means:
        every path in `scan.iter_python_files()` was scanned **exactly once** across the pair
        (counter values all 1, key set == the file list) — a consumer still calling the
        primitive directly shows 2.
-  3. Run both files' new tests and confirm they are **red**. Record that in the Activity Log.
-- **Files**: both owned files.
+  3. In `test_no_dead_symbols.py` (R3 §2.5 "Post-#5503" test), add
+     `test_real_tree_inputs_cleared_at_file_end(request, monkeypatch)`. It is red today because
+     no finalizer exists.
+     - **Registration**: the autouse fixture `_clear_real_tree_inputs` is in
+       `request.fixturenames`, and its fixture definition has module scope
+       (`request._fixturemanager.getfixturedefs("_clear_real_tree_inputs", request.node)[-1].scope == "module"`,
+       or the pytest-version-equivalent lookup).
+     - **Behaviour, without dropping the real cache mid-file**: the fixture's teardown
+       delegates to a plain helper `_release_real_tree_inputs()`. That helper resolves
+       `_real_tree_inputs` from module globals **at call time** and calls its `cache_clear()`.
+       Monkeypatch `_real_tree_inputs` with a fresh `functools.lru_cache(maxsize=1)` stub, warm
+       it (`cache_info().currsize == 1`), call `_release_real_tree_inputs()`, and assert
+       `currsize == 0`. Never call `cache_clear()` on the real cache inside a test: that would
+       force a second `src/` walk (~30 s+) for every later consumer in the file.
+  4. Run the three files' new tests and confirm they are **red**. Record that in the Activity
+     Log. Run `test_no_dead_symbols.py` single-file only (≈149 s; C-009 allows single files).
+- **Files**: all three owned files.
 - **Parallel?**: No (first commit).
 - **Notes**:
   - Each test clears the memo first, so test order and xdist placement cannot leak state.
@@ -285,51 +319,79 @@ Done means:
   - The `ValueError` guard makes the key honest: the cached relpaths are relative to
     `scan.REPO_ROOT`, so a call naming another root must not get them.
 
-### Subtask T058 – Measure before/after; record the #5503 disposition
+### Subtask T058 – Dead-symbol file-end finalizer; measure before/after
 
-- **Purpose**: evidence that the duplicate cost is gone (US6 independent test), and the
-  C-007 disposition for the dead-symbol files.
+- **Purpose**: bound the #5503 tree cache to its file (FR-006, R3 §2.2). Then show that the
+  duplicate cost is gone (US6 independent test).
 - **Steps**:
-  1. **Before** (on the planning base, one file at a time; C-009 allows single files):
+  1. **Finalizer** in `test_no_dead_symbols.py`. Put it next to `_real_tree_inputs()` (≈:1166):
+     ```python
+     def _release_real_tree_inputs() -> None:
+         """Drop the real-tree inputs (trees + source of all of src/) when this file finishes (FR-006)."""
+         _real_tree_inputs.cache_clear()  # module global, resolved at CALL time
+
+
+     @pytest.fixture(autouse=True, scope="module")
+     def _clear_real_tree_inputs() -> Iterator[None]:
+         yield
+         _release_real_tree_inputs()
+     ```
+     Import `Iterator` from `collections.abc`. Keep `lru_cache(maxsize=1)` and
+     `RealTreeInputs` unchanged. Within the file, every consumer still shares one walk, so
+     `test_real_tree_inputs_are_read_only` (:2325-2326) still holds. Update the three
+     "once per (test) session" docstrings (:65-66, :1149, :1168) to "once per file, cleared at
+     file end by `_clear_real_tree_inputs`". Say why: the cache holds `CorpusModule` trees and
+     source, the one reasoned exception to "findings, not trees", and bounded to the file.
+  2. **Verify every consumer**. Run
+     `grep -n "_real_tree_inputs()" tests/architectural/test_no_dead_symbols.py tests/architectural/test_dead_symbol_allowlist_contract.py`.
+     The hits must match the anchor table: in-file `:1499`, `:1728`, `:1979`, `:2086`, `:2203`,
+     `:2325-2326`, `:2344`, `:2363`, and cross-file M11 at `test_dead_symbol_allowlist_contract.py:197`.
+     The line numbers move by the size of your insertion. Confirm with
+     `-n0 --durations=12` that `_walk_modules` runs once for the whole file.
+  3. **Expected cost (accepted)**: M11 loses its cross-file cache hit. Today, when
+     `test_dead_symbol_allowlist_contract.py` runs after the gate file in the same process, it
+     reuses the walk. After the finalizer it walks `src/` again, ~30 s more on that worker. Under
+     CI's `--dist loadfile` it usually already pays that on its own worker (its docstring
+     :188-193), so the battery-level effect is small. WP14's `known_drift` note records it.
+  4. **Before** (on the planning base, one file at a time; C-009 allows single files):
      ```bash
      uv run --frozen pytest tests/architectural/test_interpreter_shard_coverage.py -n0 --durations=12 -q
      uv run --frozen pytest tests/architectural/test_clock_call_ban.py -n0 --durations=12 -q
      ```
      Record the two consumers' durations per file. Reference values (R3 §2.1, 32-core host):
      33.95 s + 58.76 s, and 22.70 s + 23.10 s.
-  2. **After**, the same commands on the WP tip. Expect the second consumer at < 1 s, or
+  5. **After**, the same commands on the WP tip. Expect the second consumer at < 1 s, or
      reduced by the duplicated share for the union test, which still collects the full
-     selection once. Record wall time and the per-test lines.
-  3. Check that every self-mutation / mutation test still passes, **and** still fails when its
+     selection once. Record wall time and the per-test lines. Also record a single-file
+     `test_no_dead_symbols.py -n0 --durations=12` wall time before/after. It should not change
+     (one walk either way).
+  6. Check that every self-mutation / mutation test still passes, **and** still fails when its
      injected violation is present. Temporarily break `_coverage_completeness_violations`'s
      overlap detection locally, confirm the mutation tests go red, then revert. Do the same for
      the clock gate's exemption partition. Record that the reverse check was performed. Do not commit it.
-  4. Record the dead-symbol disposition (#5503 is merged; no conditional remains). Write in the
-     Activity Log: "FR-006 dead-symbol files: verified covered by PR #5503 —
-     `tests/architectural/test_no_dead_symbols.py:1166` `@functools.lru_cache(maxsize=1)` on
-     `_real_tree_inputs()` (one `_walk_modules()` per worker process); hash-refresh file deleted
-     (C-007, D-37)". Confirm the anchor with
-     `grep -n "lru_cache" tests/architectural/test_no_dead_symbols.py` (no test run needed). The
-     orchestrator carries this into the issue matrix and WP19 evidence. Do **not** edit
-     `test_no_dead_symbols.py` (not in `owned_files`). The R3 §2.2 module-scoped
-     `cache_clear()` finalizer is **not** part of #5503 (the cache has process lifetime); it is
-     a memory-hygiene follow-up the orchestrator owns (D-37), judged against WP11's sampler
-     readings — not a WP13 task.
-- **Files**: none (evidence goes in the Activity Log).
-- **Parallel?**: No (after T056/T057).
+  7. Record the dead-symbol disposition in the Activity Log: "FR-006 dead-symbol file: the
+     once-per-file walk comes from PR #5503 (`_real_tree_inputs` `lru_cache(maxsize=1)`). WP13 adds
+     the module-scoped `_clear_real_tree_inputs` finalizer (R3 §2.2). The hash-refresh file was
+     deleted by #5503 (C-007, D-37)." The orchestrator carries this into the issue matrix and
+     WP19 evidence.
+- **Files**: `tests/architectural/test_no_dead_symbols.py`. Evidence goes in the Activity Log.
+- **Parallel?**: Step 1 can run in parallel with T056/T057 (different file). Steps 4-7 run after
+  T056/T057.
 - **Notes**: CI timings are about 2× local. The NFR-001/NFR-003 effect is judged later from
-  WP12's battery runs, not here.
+  WP12's battery runs, and NFR-005 from WP11's sampler readings, not here.
 
 ## Test Strategy
 
 ```bash
 uv run --frozen pytest tests/architectural/test_interpreter_shard_coverage.py -q
 uv run --frozen pytest tests/architectural/test_clock_call_ban.py tests/architectural/test_clock_import_ban.py -q
+uv run --frozen pytest tests/architectural/test_no_dead_symbols.py -q                   # single file, ≈149 s
+uv run --frozen pytest tests/architectural/test_dead_symbol_allowlist_contract.py -q    # M11 cross-file consumer, ≈30 s
 uv run --frozen pytest tests/architectural/test_no_manual_global_state_mutation.py -q   # monkeypatch discipline gate
 make test-fast
-uv run --frozen ruff check tests/architectural/test_interpreter_shard_coverage.py tests/architectural/test_clock_call_ban.py
-uv run --frozen ruff format --check tests/architectural/test_interpreter_shard_coverage.py tests/architectural/test_clock_call_ban.py
-uv run --frozen mypy tests/architectural/test_interpreter_shard_coverage.py tests/architectural/test_clock_call_ban.py
+uv run --frozen ruff check tests/architectural/test_interpreter_shard_coverage.py tests/architectural/test_clock_call_ban.py tests/architectural/test_no_dead_symbols.py
+uv run --frozen ruff format --check tests/architectural/test_interpreter_shard_coverage.py tests/architectural/test_clock_call_ban.py tests/architectural/test_no_dead_symbols.py
+uv run --frozen mypy tests/architectural/test_interpreter_shard_coverage.py tests/architectural/test_clock_call_ban.py tests/architectural/test_no_dead_symbols.py
 ```
 
 Also run the T058 `--durations` commands. If mypy reports errors in lines you did not touch,
@@ -341,31 +403,44 @@ classify them as pre-existing (baseline-red gotcha) and note them. Your new code
 - **A self-mutation test silently reads the real tree**: T055's bypass tests, plus the
   call-time resolution of `collect_job_nodeids`, plus the root guard in `_tree_call_sites`.
 - **Cache keyed on an unhashable `Gate`**: key on the tuple of selection fields only.
-- **Memory growth at 4 workers**: findings only, cleared at file end. The node-id tuples are
-  a few MB at most.
+- **Memory growth at 4 workers**: the two new caches hold findings only and are cleared at file
+  end. The node-id tuples are a few MB at most. The dead-symbol tree cache (the one reasoned
+  exception) is now bounded to its file by `_clear_real_tree_inputs`. Before WP13 it stayed
+  resident for the worker's lifetime.
+- **Finalizer clears the real cache mid-file**: T055's behaviour check drives a monkeypatched
+  stub through `_release_real_tree_inputs()`, never the real `cache_clear()`.
 - **Order dependence between tests**: every new test clears first, and the module fixture
   clears last.
-- **#5503 already merged** (D-37): no file overlap; only the C-007 record (T058 step 4) remains.
+- **#5503 already merged** (D-37, C-007): the only dead-symbol edit is the finalizer, sequenced
+  after #5503. The lost M11 cross-file cache hit (~30 s on that worker) is accepted and recorded
+  in WP14's `known_drift`.
 
 ## Review Guidance
 
-- Red on the planning base (helpers missing), green on the tip. Check this by running the
-  new tests on the base.
+- Red on the planning base (helpers/finalizer missing), green on the tip. Check this by running
+  the new tests on the base, including `test_real_tree_inputs_cleared_at_file_end`.
 - The cache keys contain no `gate.job` and no mutable objects. The return values are tuples.
-  Both files have a module-scoped autouse clear.
+  All three files have a module-scoped autouse clear. In `test_no_dead_symbols.py` it is
+  `_clear_real_tree_inputs` → `_release_real_tree_inputs()` → `_real_tree_inputs.cache_clear()`.
+  No test clears the real cache mid-file.
+- Every `_real_tree_inputs()` consumer (in-file `:1499`, `:1728`, `:1979`, `:2086`, `:2203`,
+  `:2325-2326`, `:2344`, `:2363`; cross-file M11 `test_dead_symbol_allowlist_contract.py:197`;
+  base line numbers) still passes, and `_walk_modules` runs once per file.
 - The two production-path tests drive the REAL consumer tests (not only the memo helper)
   through a counting fake of the uncached primitive and assert one call per distinct key / file.
 - The mutation tests and `test_stale_exemption_removal_reds_the_gate` still reach the
-  uncached primitive. The implementer recorded the reverse check (T058 step 3).
-- No edits to `_gate_coverage.py`, `_clock_gate_scan.py`, `tests/conftest.py` or any
-  dead-symbol file.
-- The before/after durations and the #5503 "verified covered" disposition (with the `:1166`
-  `lru_cache` anchor) are recorded.
+  uncached primitive. The implementer recorded the reverse check (T058 step 6).
+- No edits to `_gate_coverage.py`, `_clock_gate_scan.py`, `tests/conftest.py`, `_symbol_key.py`,
+  `_dead_symbol_allowlist.py` or `test_dead_symbol_allowlist_contract.py`. The edit to
+  `test_no_dead_symbols.py` is only the finalizer, its test and the docstring lines.
+- The before/after durations and the dead-symbol disposition (#5503 cache + WP13 finalizer)
+  are recorded.
 - Confirm the implementer ran mypy as well as pytest on the changed test sources and that
   its diagnostics passed.
-- **Definition of Done**: FR-006 is satisfied for the two in-scope files, with measured
-  removal of the duplicate cost. C-007 is honoured with a recorded disposition for the
-  dead-symbol files.
+- **Definition of Done**: FR-006 is satisfied for all three files. The two duplicated scans are
+  cached as findings, with the duplicate cost measured as gone. The #5503 dead-symbol tree cache
+  is cleared at file end, so no syntax tree outlives its file. C-007 is honoured: the edit is
+  sequenced after #5503 and the disposition is recorded.
 
 ## Activity Log
 

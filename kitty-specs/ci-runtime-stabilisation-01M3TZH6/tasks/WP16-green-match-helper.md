@@ -7,6 +7,9 @@ requirement_refs:
 planning_base_branch: issue-5510-ci-runtime-stabilisation
 merge_target_branch: issue-5510-ci-runtime-stabilisation
 branch_strategy: Planning artifacts for this mission were generated on issue-5510-ci-runtime-stabilisation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-5510-ci-runtime-stabilisation unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-ci-runtime-stabilisation-01M3TZH6
+base_commit: 2f90d8a61632f0a910015806a7e0d325e5a43546
+created_at: '2026-10-01T08:58:04.980223+00:00'
 subtasks:
 - T064
 - T065

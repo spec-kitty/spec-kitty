@@ -154,7 +154,7 @@ Acceptance anchors:
 
 Read, in order:
 
-- `research.md`: the decision log D-01…D-36 (D-19, D-25, D-32, D-33, D-34 govern this WP), then
+- `research.md`: the decision log D-01…D-37 (D-19, D-25, D-32, D-33, D-34 govern this WP), then
   R3 §4.1–§4.6 (the amendment convention and per-file guidance).
 - `spec.md` (FR-001…FR-014, SC-001…SC-006); `contracts/` (all three files);
   `plan.md` IC-12.
@@ -220,7 +220,8 @@ Live anchors, verified 2026-10-01 (re-verified post-rebase on `bc826fcbcb`, D-37
   and gated by `tests/release/test_pinning_inventory_fresh.py`. It is **green on base
   `bc826fcbcb`**: main's `e3794ded2d` added the #3143 entry for
   `tests/architectural/test_pytest_ini_timeout_default.py::<module-docstring>` and #5523 is
-  CLOSED (issue-matrix verdict verified-already-fixed; D-37). Your final regeneration therefore
+  CLOSED (issue-matrix verdict verified-already-fixed; D-37). Your final WP regeneration (the
+  orchestrator's closeout folds (b)/(c) regenerate again after consolidation) therefore
   covers only this mission's own line shifts.
 
 Constraints:
@@ -462,7 +463,8 @@ Constraints:
   3. Run the terminology guard over the footnote, as in T080.
 - **Files**: `tests/release/pinning_rule_inventory.json` (generated),
   `tests/release/coverage_breadth_evidence.md`.
-- **Parallel?**: Last, on the final tip.
+- **Parallel?**: Last, on the final tip. This is the final WP regeneration; the orchestrator's
+  closeout folds (b)/(c) regenerate again after consolidation.
 - **Notes**:
   - `coverage_breadth_baseline.json` is its machine-readable companion and is not touched.
   - If the regeneration produces a delta from a WP outside this mission (an upstream drift on

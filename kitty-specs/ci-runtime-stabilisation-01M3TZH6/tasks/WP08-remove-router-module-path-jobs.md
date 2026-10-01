@@ -126,7 +126,7 @@ Done means:
 
 ### Subtask T034 – Red-first: no router job may re-run a module-owned test directory
 
-- **Purpose**: A generic structural guard that is red on today's router and stays a guard against re-adding the duplicate under a different job name until WP15's node-level FR-010 live check subsumes it (FR-008 "no-op passable: no"; WP15 T062 removes this guard — see Notes).
+- **Purpose**: A generic structural guard that is red on today's router and stays a guard against re-adding the duplicate under a different job name until WP15's node-level FR-010 live check subsumes it (FR-008 "no-op passable: no"; a post-consolidation orchestrator fold (tasks.md closeout) removes this guard — see Notes).
 - **Steps**:
   1. In `tests/architectural/test_no_duplicate_suite_execution.py` add a helper and a test (near the ledger tests):
      ```python
@@ -145,7 +145,7 @@ Done means:
 - **Files**: `tests/architectural/test_no_duplicate_suite_execution.py`.
 - **Parallel?**: No — first commit.
 - **Notes**: Keep helpers pure and ≤ 15 complexity. This file is pinned (D-20): regenerate the pinning inventory after editing (T036 step 5).
-- **Lifetime — a deliberate structural pre-check, subsumed by WP15.** This directory-level guard exists so FR-008 is red-first and guarded *now*, before the node-level FR-010 live check lands. WP15 owns the same file after you (dependency-ordered: WP15 depends on WP12, which depends on WP08) and its T062 removes this guard, its helpers and its positive control (or folds them into `_live_uniqueness.py`). Keep it self-contained (the three helpers + two tests, one block, a comment naming "WP15 T062 subsumes this") so that removal is a clean diff, and do not build other tests on its helpers.
+- **Lifetime — a deliberate structural pre-check, subsumed by WP15.** This directory-level guard exists so FR-008 is red-first and guarded *now*, before the node-level FR-010 live check lands. WP15 does **not** own this file (it only imports the per-change classifier from it); the removal of this guard, its helpers and its positive control is a post-consolidation orchestrator fold (tasks.md closeout), applied on the mission branch after lane consolidation once WP15's live check exists. Keep it self-contained (the three helpers + two tests, one block, a comment naming "WP15's live check subsumes this; removed by the post-consolidation orchestrator fold") so that removal is a clean diff, and do not build other tests on its helpers.
 
 ### Subtask T035 – Delete the jobs, `needs` entries, ledger rows; fix stale prose
 
@@ -223,7 +223,7 @@ bash -n scripts/verify_shard_3115.sh
 - `router gate` name and `test_router_gate_step_wiring_and_needs_invariant_are_pinned` unchanged and green.
 - T037 counts recorded (2 stress / 7 performance / 0 timing / 3 windows_ci) with the nightly job names.
 - Pinning inventory fresh; out-of-map edits carry rationale lines.
-- The T034 guard is one self-contained block marked "WP15 T062 subsumes this"; no other test depends on its helpers.
+- The T034 guard is one self-contained block marked as subsumed by WP15's live check and removed by the post-consolidation orchestrator fold (tasks.md closeout); no other test depends on its helpers.
 - Definition of Done: FR-008 satisfied; C-001 holds (no test lost a per-change home except the 2 stress tests, which move to their documented nightly home).
 
 ## Activity Log

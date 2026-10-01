@@ -6,6 +6,44 @@
   "target_branch": "issue-5510-ci-runtime-stabilisation",
   "lanes": [
     {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP05",
+        "WP06",
+        "WP14"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/ci-shard-timings.json",
+        ".github/workflows/ci-charter-shard-recapture.yml",
+        ".github/workflows/module-tests.yml",
+        "pyproject.toml",
+        "scripts/ci/battery_partition_plugin.py",
+        "scripts/ci/capture_shard_timings.py",
+        "scripts/ci/recapture_charter_shard_timings.py",
+        "scripts/ci/shard_select.py",
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/test_battery_partition_proof.py",
+        "tests/architectural/test_gate_os_tier.py",
+        "tests/architectural/test_module_length_agreement.py",
+        "tests/architectural/test_module_shard_registry.py",
+        "tests/ci/test_battery_partition_plugin.py",
+        "tests/ci/test_battery_roster_budgets.py",
+        "tests/ci/test_capture_shard_timings.py",
+        "tests/ci/test_shard_select.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
       "lane_id": "lane-b",
       "wp_ids": [
         "WP04"
@@ -49,7 +87,8 @@
       ],
       "write_scope": [
         "tests/architectural/test_clock_call_ban.py",
-        "tests/architectural/test_interpreter_shard_coverage.py"
+        "tests/architectural/test_interpreter_shard_coverage.py",
+        "tests/architectural/test_no_dead_symbols.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -98,59 +137,33 @@
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-a",
+      "lane_id": "lane-h",
       "wp_ids": [
-        "WP01",
-        "WP02",
-        "WP03",
-        "WP05",
-        "WP06",
         "WP07",
         "WP08",
         "WP09",
         "WP10",
-        "WP14",
         "WP12",
-        "WP15",
         "WP18"
       ],
       "write_scope": [
-        ".github/ci-module-registry.yml",
-        ".github/ci-shard-timings.json",
-        ".github/workflows/ci-charter-shard-recapture.yml",
         ".github/workflows/ci-modules.yml",
         ".github/workflows/ci-router.yml",
-        ".github/workflows/module-tests.yml",
         ".github/workflows/packs.yml",
-        "pyproject.toml",
-        "scripts/ci/battery_partition_plugin.py",
-        "scripts/ci/capture_shard_timings.py",
         "scripts/ci/corpus_select.py",
-        "scripts/ci/recapture_charter_shard_timings.py",
-        "scripts/ci/shard_select.py",
         "scripts/verify_shard_3115.sh",
         "tests/architectural/_ci_integrity_oracle.py",
-        "tests/architectural/_gate_coverage.py",
-        "tests/architectural/_live_uniqueness.py",
-        "tests/architectural/test_battery_partition_proof.py",
         "tests/architectural/test_ci_collection_completeness.py",
         "tests/architectural/test_ci_corpus_trigger_completeness.py",
         "tests/architectural/test_dual_mode_contract.py",
         "tests/architectural/test_gate_selection_authority.py",
         "tests/architectural/test_local_gate_parity.py",
-        "tests/architectural/test_module_length_agreement.py",
-        "tests/architectural/test_module_shard_registry.py",
         "tests/architectural/test_no_duplicate_suite_execution.py",
-        "tests/architectural/test_same_tier_uniqueness.py",
         "tests/architectural/test_workflow_coherence.py",
-        "tests/ci/test_battery_partition_plugin.py",
-        "tests/ci/test_battery_roster_budgets.py",
-        "tests/ci/test_capture_shard_timings.py",
         "tests/ci/test_ci_config_battery_routing.py",
         "tests/ci/test_ci_module_wiring.py",
         "tests/ci/test_corpus_blocking_home.py",
         "tests/ci/test_corpus_select.py",
-        "tests/ci/test_shard_select.py",
         "tests/ci/test_skip_if_green_wiring.py",
         "tests/ci/test_xdist_worker_policy.py"
       ],
@@ -162,11 +175,31 @@
         "workspace"
       ],
       "depends_on_lanes": [
+        "lane-a",
         "lane-b",
         "lane-c",
         "lane-f"
       ],
       "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP15"
+      ],
+      "write_scope": [
+        "tests/architectural/_live_uniqueness.py",
+        "tests/architectural/test_same_tier_uniqueness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-h"
+      ],
+      "parallel_group": 3
     },
     {
       "lane_id": "lane-g",
@@ -197,15 +230,17 @@
         "lane-c",
         "lane-d",
         "lane-e",
-        "lane-f"
+        "lane-f",
+        "lane-h",
+        "lane-i"
       ],
-      "parallel_group": 3
+      "parallel_group": 4
     }
   ],
-  "computed_at": "2026-10-01T08:43:17.685019+00:00",
+  "computed_at": "2026-10-01T11:51:29.460912+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "b51753f0428a14d7588307634e2b982bc196236d",
+  "planning_commit_sha": "44b78db8403f1f06a454bcad4c5f512747834d79",
   "collapse_report": {
     "events": [
       {
@@ -239,18 +274,6 @@
         "evidence": "overlapping globs: 'scripts/ci/battery_partition_plugin.py' vs 'scripts/ci/battery_partition_plugin.py'; WP06 depends on WP05"
       },
       {
-        "wp_a": "WP06",
-        "wp_b": "WP12",
-        "rule": "write_scope_overlap",
-        "evidence": "overlapping globs: 'tests/architectural/test_battery_partition_proof.py' vs 'tests/architectural/test_battery_partition_proof.py'; WP12 depends on WP06"
-      },
-      {
-        "wp_a": "WP06",
-        "wp_b": "WP15",
-        "rule": "write_scope_overlap",
-        "evidence": "overlapping globs: 'tests/architectural/_gate_coverage.py' vs 'tests/architectural/_gate_coverage.py'; WP15 depends on WP06"
-      },
-      {
         "wp_a": "WP07",
         "wp_b": "WP08",
         "rule": "write_scope_overlap",
@@ -281,10 +304,10 @@
         "evidence": "overlapping globs: '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml'"
       }
     ],
-    "total_merges": 12,
+    "total_merges": 10,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "write_scope_overlap": 12
+      "write_scope_overlap": 10
     }
   }
 }
