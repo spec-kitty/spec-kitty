@@ -308,10 +308,10 @@ class TestIdMappingWideningNonVacuous:
 
         real_resolve_config_id = cascade_shared_mod.resolve_config_id
 
-        def _resolve_config_id_without_org_roots(urn, *, doctrine_root, org_roots=None, layer_roots=None):
+        def _resolve_config_id_without_org_roots(urn, *, doctrine_root, org_roots=None, layer_roots=None, resolution_pass=None):
             del org_roots  # pre-T008 shape: never received the chain.
             return real_resolve_config_id(
-                urn, doctrine_root=doctrine_root, layer_roots=layer_roots
+                urn, doctrine_root=doctrine_root, layer_roots=layer_roots, resolution_pass=resolution_pass
             )
 
         monkeypatch.setattr(
