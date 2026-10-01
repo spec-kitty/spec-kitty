@@ -1,0 +1,119 @@
+{
+  "mission_slug": "test-suite-remediation-01M3SSDW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "planted-break re-run by independent reviewer",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP01-doctrine-probe-unmask-and-fragment-intent-fix/review-cycle-1.md (9 masked tests now execute; 44->57)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:07.229320+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "planted-break + covering-guard re-run by independent reviewer",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP02-closed-issue-markers/review-cycle-1.md (#3113->#5493, #932/#828 retired, sync gate re-cited)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:09.941993+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "planted-break re-run + lane-collection registry check",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP03-quarantine-removal-and-lane-relocation/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:12.598065+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "planted-break re-run by independent reviewer (WP04) + relocation map (WP05)",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP04-errors-fail-instead-of-skipping/review-cycle-1.md; kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP05-contract-round-trip-relocation-map/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:15.299697+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "red-first regression test through pre-existing entry point",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP01-doctrine-probe-unmask-and-fragment-intent-fix/review-cycle-1.md (#5494 red d4250e9266 -> fix 6775faea9d)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:18.044301+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "planted-break + covering-guard re-runs (WP06 c2, WP07, WP14)",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP06-5346-consolidation-trio/review-cycle-2.md; kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP07-5346-compat-surface-and-copied-literals/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:20.718525+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "neutral + violation plant re-runs (WP08 c2, WP09)",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP08-fr007-architectural-and-call-site-counts/review-cycle-2.md; kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP09-fr007-corpus-and-registry-counts/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:23.381644+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "git-history check of kept ratchets (WP14 disposition table) + per-WP neutral plants",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP14-size-ratchet-rows-and-keys-floor/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:26.054201+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "11 adversarial plants old-vs-new gate + parity digest c86703f3 293/91 (WP10-WP15)",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP12-dead-symbol-gate-rekey/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:28.746983+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "withdrawn by decision DM-01M3SVDP (ADR 2026-09-14-1, C-008); no gate added, verified by review",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/spec.md FR-010 row; kitty-specs/test-suite-remediation-01M3SSDW/tasks/WP14-size-ratchet-rows-and-keys-floor/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:31.463721+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "every WP review re-ran planted breaks / covering guards (>=6 FIX, >=2 RETIRE mission-wide)",
+      "evidence": "kitty-specs/test-suite-remediation-01M3SSDW/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T00:06:34.230844+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

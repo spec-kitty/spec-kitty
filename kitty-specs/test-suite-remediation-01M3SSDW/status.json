@@ -1,0 +1,261 @@
+{
+  "event_count": 120,
+  "last_event_id": "01M3TCSTHK1VRZW4G8BG1FW0EY",
+  "materialized_at": "2026-10-01T00:11:05.139830+00:00",
+  "mission_number": "",
+  "mission_slug": "test-suite-remediation-01M3SSDW",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 15,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCS5YTR0YA31SZ09KQQ26V",
+      "last_transition_at": "2026-10-01T00:10:44.058607+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 76652,
+      "shell_pid_created_at": "1790801543.38"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCS7EBT957RDZ3V55T3E2E",
+      "last_transition_at": "2026-10-01T00:10:45.579957+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 76652,
+      "shell_pid_created_at": "1790801543.38"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCS8XXN7DJJBNPHW0ZNRC8",
+      "last_transition_at": "2026-10-01T00:10:47.102006+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 76652,
+      "shell_pid_created_at": "1790801543.38"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSAD353YZH1FENGZVEJDE",
+      "last_transition_at": "2026-10-01T00:10:48.611831+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 76652,
+      "shell_pid_created_at": "1790801543.38"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSBW2JW6A8EZ7WCDWGGZA",
+      "last_transition_at": "2026-10-01T00:10:50.114362+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 368918,
+      "shell_pid_created_at": "1790804974.43"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSDB27QRV2CR3QYN3ZHD6",
+      "last_transition_at": "2026-10-01T00:10:51.618800+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 418413,
+      "shell_pid_created_at": "1790805411.86"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSESWN83013EGFB2EHGZP",
+      "last_transition_at": "2026-10-01T00:10:53.116670+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 241748,
+      "shell_pid_created_at": "1790803831.29"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSG8N34BT6K7WADZKNSVF",
+      "last_transition_at": "2026-10-01T00:10:54.613884+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP08:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 519485,
+      "shell_pid_created_at": "1790807184.3"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSHQDDHSCCT1PH9JKA9N0",
+      "last_transition_at": "2026-10-01T00:10:56.109215+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP09:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 272267,
+      "shell_pid_created_at": "1790804118.67"
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSK62BX25Y0GQXXN5RG83",
+      "last_transition_at": "2026-10-01T00:10:57.602904+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP10:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 76652,
+      "shell_pid_created_at": "1790801543.38"
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSMN4K5CHFXSHNTKYWG3V",
+      "last_transition_at": "2026-10-01T00:10:59.109004+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP11:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 199411,
+      "shell_pid_created_at": "1790803385.47"
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSP3W9DRW89E317F9SP05",
+      "last_transition_at": "2026-10-01T00:11:00.604067+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP12:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 491499,
+      "shell_pid_created_at": "1790806233.92"
+    },
+    "WP13": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSQKHSZKMM32KRNPNFD7D",
+      "last_transition_at": "2026-10-01T00:11:02.129132+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP13:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 569269,
+      "shell_pid_created_at": "1790810242.8"
+    },
+    "WP14": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSS2T8THE5SCSZJZA406Z",
+      "last_transition_at": "2026-10-01T00:11:03.642745+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP14:20260930",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 569269,
+      "shell_pid_created_at": "1790810242.8"
+    },
+    "WP15": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3TCSTHK1VRZW4G8BG1FW0EY",
+      "last_transition_at": "2026-10-01T00:11:05.139830+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP15:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 626838,
+      "shell_pid_created_at": "1790811909.13"
+    }
+  }
+}
