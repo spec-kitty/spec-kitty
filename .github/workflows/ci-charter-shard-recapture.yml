@@ -66,9 +66,9 @@
 #   * an already-open recapture PR is NOT refreshed -- while one is open the
 #     publish step skips (it never force-pushes a branch with an open PR),
 #     so further `charter` drift waits until that PR merges or is closed;
-#   * the capture selects `-m "not performance"` while the length gate
-#     collects `-m "not performance and not stress"` -- equivalent today only
-#     because no charter/doctrine test is `stress`-marked (latent risk).
+#   * the capture and the length gate share one marker expression
+#     (`scripts/ci/shard_select.MODULE_SELECTION_MARKER_EXPR`, #5510), so the
+#     recorded length is the length the gate collects (resolved).
 #
 # The `schedule` trigger firing on its own, and the recapture job actually
 # opening a PR against the real `main` and running normal per-PR CI, are only

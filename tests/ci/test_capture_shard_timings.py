@@ -217,3 +217,16 @@ def test_script_help_works_without_installed_package(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "--run-id" in result.stdout
+
+
+def test_capture_selects_with_the_shared_marker_constant(capture_shard_timings: ModuleType) -> None:
+    """Capture and ``module-tests.yml`` share one marker authority (C-010, #5510).
+
+    The drifted ``"not performance"`` copy recorded lists the consumer never
+    collects for any module with ``stress`` tests, degrading it to uniform weights.
+    """
+    from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR
+
+    assert capture_shard_timings.SELECTION_MARKER_EXPR == MODULE_SELECTION_MARKER_EXPR
+    argv = capture_shard_timings._pytest_argv(("tests/x",))
+    assert argv[argv.index("-m") + 1] == MODULE_SELECTION_MARKER_EXPR

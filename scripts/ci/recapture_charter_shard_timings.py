@@ -57,15 +57,10 @@ Known limitations (#5271 landing pass)
   that PR merges, the open PR still carries the older length. The next scheduled run
   after it merges (or is closed) recaptures from scratch; until then the strict
   ``strict-shard-timings-check`` job stays red. Refresh by closing the stale PR.
-* Latent selection mismatch: the capture mechanism selects with
-  ``capture_shard_timings.SELECTION_MARKER_EXPR`` (``-m "not performance"``) while the
-  per-PR length-agreement gate collects with ``_CONSUMER_MARKER_EXPR``
-  (``-m "not performance and not stress"``,
-  ``tests/architectural/test_module_length_agreement.py``). They agree today only
-  because no ``tests/charter``/``tests/doctrine`` test carries the ``stress`` marker;
-  the first one that does would make every recapture record a length the gate never
-  collects, so the drift could never converge. Align the two expressions before
-  marking any ``charter`` test ``stress``.
+* Selection alignment: the capture and the per-PR length-agreement gate share one
+  marker expression, ``scripts/ci/shard_select.MODULE_SELECTION_MARKER_EXPR``
+  (``-m "not performance and not stress"``, #5510), so the recorded length is the
+  length the gate collects.
 
 Every decision is a pure, injectable function, unit-tested red-first with no real
 ``gh``/``git``/network call: :func:`has_drift` (FR-006, length-only -- a raw file diff
