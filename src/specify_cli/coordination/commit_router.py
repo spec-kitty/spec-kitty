@@ -1002,7 +1002,8 @@ def _stage_artifacts_in_coord_worktree(
     - Skipping ``MissionArtifactKind.STATUS_STATE`` files (WP13 retired the former
       ``COORD_OWNED_STATUS_FILES`` frozenset onto this single-source kind check) —
       STATUS-partition files authored directly in the coord worktree, never copied
-      from a stale primary (#1589).
+      from a stale primary (#1589). A primary-path status file whose coord twin
+      is uncommitted resolves to that twin, committed in place (#5513).
     - Skipping the re-homed ``analysis-report.md`` (FR-003) — see the loop body.
     - Skipping worktrees-nested paths (#FR-035).
     - Residue cleanup for ``primary_paths_created_this_invocation`` (R6 / #1814).
@@ -1034,6 +1035,16 @@ def _stage_artifacts_in_coord_worktree(
         # authored directly in the coord worktree and must never be copied from a
         # stale primary.
         if kind_for_mission_file(rel) is MissionArtifactKind.STATUS_STATE:
+            # #5513: a status log named by its PRIMARY path is never copied, but its
+            # coordination twin is committed in place when the twin carries the
+            # uncommitted change. Skipping it outright reported
+            # ``no_op_already_committed`` while the coord log stayed dirty. A clean
+            # twin stays skipped, so a primary-only change still classifies as
+            # wrong-surface below. A twin the caller also named directly is
+            # committed through the in-place branch above, never twice.
+            twin = coord_worktree / rel
+            if twin not in files and _is_uncommitted_in_worktree(coord_worktree, rel):
+                coord_files.append(twin)
             continue
         # FR-003 (coord-commit-integrity): ``analysis-report.md`` was re-homed
         # COORD→PRIMARY — it lands on the primary ``target_branch`` and is NEVER
@@ -1254,6 +1265,17 @@ _stage_finalize_artifacts_in_coord_worktree = _stage_artifacts_in_coord_worktree
 def _any_path_absent(paths: tuple[Path, ...]) -> bool:
     """Return True iff any path in *paths* does not exist on disk."""
     return any(not path.exists() for path in paths)
+
+
+def _is_uncommitted_in_worktree(worktree: Path, rel: Path) -> bool:
+    """True iff *rel* exists in *worktree* and carries uncommitted content there (#5513).
+
+    An unreadable status raises ``GitCommandError`` rather than reading as clean,
+    the same guard ``_paths_uncommitted_in_primary`` keeps (FR-013).
+    """
+    if not (worktree / rel).is_file():
+        return False
+    return bool(status_entries(worktree, pathspecs=(rel.as_posix(),), untracked=None))
 
 
 def _paths_uncommitted_in_primary(repo_root: Path, files: tuple[Path, ...]) -> bool:
