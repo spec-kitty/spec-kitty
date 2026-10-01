@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M3W2EWH7EFT9F7BSJYJMJJ9Q",
-  "materialized_at": "2026-10-01T15:48:49.831877+00:00",
+  "event_count": 3,
+  "last_event_id": "01M3W2GMGKX6DCFRRAQ7VQK0Q7",
+  "materialized_at": "2026-10-01T15:49:47.156024+00:00",
   "mission_number": "",
   "mission_slug": "retrospect-rejection-signal-01M3W27M",
   "mission_type": "software-dev",
@@ -10,20 +10,26 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M3W2ET1PAHY2DA6GBRPHC3YC",
-      "last_transition_at": "2026-10-01T15:48:47.286115+00:00"
+      "lane": "claimed",
+      "last_event_id": "01M3W2GMGKX6DCFRRAQ7VQK0Q7",
+      "last_transition_at": "2026-10-01T15:49:47.156024+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer"
     },
     "WP02": {
       "actor": "finalize-tasks",
