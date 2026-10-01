@@ -246,7 +246,7 @@ def test_composition_advances_one_documentation_step(isolated_repo: Path) -> Non
     first = decide_next_via_runtime(
         "test-operator",
         "demo-docs-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
     documentation_actions = {
@@ -336,7 +336,7 @@ def test_paired_invocation_lifecycle_is_recorded(isolated_repo: Path) -> None:
     decide_next_via_runtime(
         "test-operator",
         "demo-docs-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
     decide_next_via_runtime(
@@ -461,7 +461,7 @@ def test_missing_artifact_blocks_with_structured_failure(
     decide_next_via_runtime(
         "test-operator",
         "demo-docs-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
 
@@ -616,7 +616,7 @@ def test_full_advancement_through_six_actions(isolated_repo: Path) -> None:
     first = decide_next_via_runtime(
         "test-operator",
         "demo-docs-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
     assert first.mission == "documentation", (

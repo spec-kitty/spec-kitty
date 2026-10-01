@@ -234,7 +234,7 @@ def test_research_advances_one_composed_step(isolated_repo: Path) -> None:
     first = decide_next_via_runtime(
         "test-operator",
         "demo-research-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
     assert first.step_id == "scoping", f"Expected scoping as first step; got {first.step_id!r}. If this is 'specify' the planner is using software-dev defaults."
@@ -292,7 +292,7 @@ def test_paired_invocation_lifecycle_recorded(isolated_repo: Path) -> None:
     decide_next_via_runtime(
         "test-operator",
         "demo-research-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
     decide_next_via_runtime(
@@ -375,7 +375,7 @@ def test_missing_artifact_blocks_advancement_with_structured_error(
     decide_next_via_runtime(
         "test-operator",
         "demo-research-walk",
-        "needs_initialization",
+        "success",
         isolated_repo,
     )
 
