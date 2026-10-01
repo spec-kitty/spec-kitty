@@ -87,6 +87,25 @@ def _healable_entries(project_path: Path) -> list[tuple[str, str]]:
     return healable
 
 
+def _planned_changes(index: dict[str, Any], project_path: Path) -> list[str]:
+    """Heal every absolute ``run_dir`` entry in ``index`` in place; return the changelog.
+
+    Shared by the dry-run preview and the real write so both compute the same
+    healed values from the same entry data.
+    """
+    changes: list[str] = []
+    for key, entry in index.items():
+        if not isinstance(entry, dict):
+            continue
+        run_dir = entry.get("run_dir")
+        if not (isinstance(run_dir, str) and run_dir and _is_absolute(run_dir)):
+            continue
+        new_value = _healed_token(run_dir, project_path)
+        changes.append(f"{FEATURE_RUNS_FILENAME}[{key}].run_dir: {run_dir} -> {new_value}")
+        entry["run_dir"] = new_value
+    return changes
+
+
 def describe_leaks(project_path: Path) -> list[str]:
     """Human-readable description of every absolute-``run_dir`` leak (read-only).
 
@@ -118,18 +137,17 @@ class HealRunIndexPathsMigration(BaseMigration):
         return False, f"no absolute run_dir found in .kittify/runtime/{FEATURE_RUNS_FILENAME}"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        index = _load_index(project_path)
-        changes: list[str] = []
-        for key, entry in index.items():
-            if not isinstance(entry, dict):
-                continue
-            run_dir = entry.get("run_dir")
-            if not (isinstance(run_dir, str) and run_dir and _is_absolute(run_dir)):
-                continue
-            new_value = _healed_token(run_dir, project_path)
-            changes.append(f"{FEATURE_RUNS_FILENAME}[{key}].run_dir: {run_dir} -> {new_value}")
-            if not dry_run:
-                entry["run_dir"] = new_value
-        if changes and not dry_run:
-            run_index.write_index_file(run_index.feature_runs_path(project_path), index)
+        # dry-run is read-only — never take the single-locked-writer lock, never write.
+        if dry_run:
+            index = _load_index(project_path)
+            return MigrationResult(success=True, changes_made=_planned_changes(index, project_path))
+
+        # Real write: hold the index lock for the whole read-modify-write so a
+        # `migrate`/`upgrade` racing a live `spec-kitty next` cannot clobber the
+        # single locked writer invariant (#5389). Re-read under the lock.
+        with run_index.index_lock(project_path):
+            index = _load_index(project_path)
+            changes = _planned_changes(index, project_path)
+            if changes:
+                run_index.write_index_file(run_index.feature_runs_path(project_path), index)
         return MigrationResult(success=True, changes_made=changes)

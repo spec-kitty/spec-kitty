@@ -79,6 +79,38 @@ def test_apply_dry_run_reports_without_writing(tmp_path: Path) -> None:
     assert run_index.feature_runs_path(repo).read_bytes() == before
 
 
+def test_apply_takes_the_index_lock_for_its_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = tmp_path / "repo"
+    _write_index(repo, {"01A": {"run_id": "r1", "run_dir": "/x/.kittify/runtime/runs/r1", "mission_id": "01A"}})
+
+    calls: list[str] = []
+
+    class _RecordingLock:
+        def __enter__(self) -> _RecordingLock:
+            calls.append("enter")
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            calls.append("exit")
+
+    def _fake_index_lock(repo_root: Path) -> _RecordingLock:
+        return _RecordingLock()
+
+    monkeypatch.setattr(run_index, "index_lock", _fake_index_lock)
+
+    result = HealRunIndexPathsMigration().apply(repo)
+    assert result.success
+    assert len(result.changes_made) == 1
+    assert calls == ["enter", "exit"], "a real (non-dry-run) apply() must enter the index lock"
+
+    # dry-run is read-only: it must NOT enter the lock.
+    calls.clear()
+    _write_index(repo, {"01A": {"run_id": "r1", "run_dir": "/x/.kittify/runtime/runs/r1", "mission_id": "01A"}})
+    dry_result = HealRunIndexPathsMigration().apply(repo, dry_run=True)
+    assert dry_result.changes_made
+    assert calls == [], "a dry-run apply() must not enter the index lock"
+
+
 def test_describe_leaks_matches_detect(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _write_index(repo, {"01A": {"run_id": "r1", "run_dir": "/x/.kittify/runtime/runs/r1", "mission_id": "01A"}})
