@@ -196,14 +196,8 @@ def _caller_ref_refusal(
     if not isinstance(caller_verdict, Refused):
         return None
     explicit_coord_branch = _coordination_branch_from_meta(repo_root, mission_slug, mid8)
-    can_recover_to_coord_branch = (
-        caller_verdict.error_code == PROTECTED_BRANCH_REFUSED
-        and explicit_coord_branch == coord_branch
-    )
-    allow_coord_resolution_to_report_missing_branch = (
-        caller_verdict.error_code == DESTINATION_REF_NOT_FOUND
-        and destination_ref == coord_branch
-    )
+    can_recover_to_coord_branch = caller_verdict.error_code == PROTECTED_BRANCH_REFUSED and explicit_coord_branch == coord_branch
+    allow_coord_resolution_to_report_missing_branch = caller_verdict.error_code == DESTINATION_REF_NOT_FOUND and destination_ref == coord_branch
     if can_recover_to_coord_branch or allow_coord_resolution_to_report_missing_branch:
         return None
     return caller_verdict
@@ -461,6 +455,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 destination_ref=destination_ref,
                 operation=operation,
                 capability=capability,
+                owned=owned,
             )
             if caller_refusal is not None:
                 return caller_refusal
