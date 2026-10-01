@@ -250,9 +250,9 @@ it.
 
 ## Open questions (operator)
 
-1. **Name.** "Runtime status" names three things already: `src/runtime/` (the control
-   loop), `src/specify_cli/runtime/` (agent assets) and WP runtime state. This ADR uses
-   **Mission Status Read API**. Confirm or rename it before the module is created
+1. **Name.** Resolved 2026-10-01: the operator ratified **Mission Status Read API**.
+   "Runtime status" was rejected because it already names three things: `src/runtime/`
+   (the control loop), `src/specify_cli/runtime/` (agent assets) and WP runtime state
    (`DIRECTIVE_032`).
 2. **Interim risk.** Resolved 2026-10-01: the dashboard is deleted first (amended D-8),
    which closes #4767, #4768 and #4769.
