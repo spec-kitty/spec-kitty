@@ -60,6 +60,42 @@ def test_apply_reanchors_absolute_and_leaves_relative_untouched(tmp_path: Path) 
     assert healed["01A"]["run_id"] == "r1" and healed["01A"]["mission_id"] == "01A"
 
 
+def test_out_of_tree_heal_reanchors_on_canonical_run_id_not_path_basename(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _write_index(
+        repo,
+        {
+            "01A": {
+                "run_id": "CANONICAL123",
+                "run_dir": "/some/other/project/.kittify/runtime/runs/STALE_LEAF",
+                "mission_id": "01A",
+            }
+        },
+    )
+    result = HealRunIndexPathsMigration().apply(repo)
+    assert result.success
+    assert len(result.changes_made) == 1
+
+    healed = _read_index(repo)
+    # re-anchored on the entry's own run_id, NOT the foreign path's trailing component
+    assert healed["01A"]["run_dir"] == ".kittify/runtime/runs/CANONICAL123"
+
+
+def test_out_of_tree_heal_falls_back_to_path_basename_when_run_id_absent(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _write_index(
+        repo,
+        {"01A": {"run_dir": "/some/other/project/.kittify/runtime/runs/STALE_LEAF", "mission_id": "01A"}},
+    )
+    result = HealRunIndexPathsMigration().apply(repo)
+    assert result.success
+    assert len(result.changes_made) == 1
+
+    healed = _read_index(repo)
+    # no run_id on the entry: defensive fallback to the path's own trailing component
+    assert healed["01A"]["run_dir"] == ".kittify/runtime/runs/STALE_LEAF"
+
+
 def test_apply_is_idempotent(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _write_index(repo, {"01A": {"run_id": "r1", "run_dir": "/x/.kittify/runtime/runs/r1", "mission_id": "01A"}})

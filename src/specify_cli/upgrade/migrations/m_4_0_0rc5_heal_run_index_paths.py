@@ -50,7 +50,7 @@ def _run_id_basename(value: str) -> str:
     return PurePosixPath(value).name
 
 
-def _healed_token(value: str, project_path: Path) -> str:
+def _healed_token(value: str, project_path: Path, *, run_id: str | None) -> str:
     """The portable token an absolute ``run_dir`` should heal to.
 
     - An absolute path **inside** ``project_path`` (an in-place upgrade, possibly
@@ -59,15 +59,19 @@ def _healed_token(value: str, project_path: Path) -> str:
       relocated to a nonexistent directory (pre-PR review IMPORTANT-1).
     - An absolute path **outside** ``project_path`` (a copied/moved index pointing
       at the original folder, or a foreign/cross-OS path) is re-anchored to this
-      repo's canonical run store by run id — the run store location
-      (``.kittify/runtime/runs/<run_id>``) is fixed, so the copy/move carried the
-      run directory to exactly that path.
+      repo's canonical run store, keyed by the entry's own canonical ``run_id`` —
+      the run store location (``.kittify/runtime/runs/<run_id>``) is fixed, so the
+      copy/move carried the run directory to exactly that path. The ``run_dir``
+      path's own trailing component is only a fallback for an entry that (legacy
+      data) carries no ``run_id`` — trusting it as primary would re-anchor to the
+      wrong directory whenever a foreign index's leaf diverged from its run id.
     """
     tokenized = run_index.serialize_run_dir(value, project_path)
     if _is_absolute(tokenized):
         # serialize_run_dir left an out-of-tree/foreign absolute unchanged (C2):
-        # re-anchor it to this repo's run store by run id.
-        return (_RUNS_TOKEN_PREFIX / _run_id_basename(value)).as_posix()
+        # re-anchor it to this repo's run store by the entry's canonical run_id.
+        anchor = run_id if isinstance(run_id, str) and run_id else _run_id_basename(value)
+        return (_RUNS_TOKEN_PREFIX / anchor).as_posix()
     return tokenized
 
 
@@ -100,7 +104,7 @@ def _planned_changes(index: dict[str, Any], project_path: Path) -> list[str]:
         run_dir = entry.get("run_dir")
         if not (isinstance(run_dir, str) and run_dir and _is_absolute(run_dir)):
             continue
-        new_value = _healed_token(run_dir, project_path)
+        new_value = _healed_token(run_dir, project_path, run_id=entry.get("run_id"))
         changes.append(f"{FEATURE_RUNS_FILENAME}[{key}].run_dir: {run_dir} -> {new_value}")
         entry["run_dir"] = new_value
     return changes
