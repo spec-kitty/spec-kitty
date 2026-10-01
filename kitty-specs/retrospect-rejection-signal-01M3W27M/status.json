@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M3W2ET1PAHY2DA6GBRPHC3YC",
-  "materialized_at": "2026-10-01T15:48:47.286115+00:00",
+  "event_count": 2,
+  "last_event_id": "01M3W2EWH7EFT9F7BSJYJMJJ9Q",
+  "materialized_at": "2026-10-01T15:48:49.831877+00:00",
   "mission_number": "",
   "mission_slug": "retrospect-rejection-signal-01M3W27M",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -24,6 +24,13 @@
       "lane": "planned",
       "last_event_id": "01M3W2ET1PAHY2DA6GBRPHC3YC",
       "last_transition_at": "2026-10-01T15:48:47.286115+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3W2EWH7EFT9F7BSJYJMJJ9Q",
+      "last_transition_at": "2026-10-01T15:48:49.831877+00:00"
     }
   }
 }
