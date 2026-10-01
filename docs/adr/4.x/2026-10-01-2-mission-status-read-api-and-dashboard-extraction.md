@@ -105,7 +105,7 @@ daemon and the poll-and-rescan cost from the CLI.
 
   | Granularity | Reads | Existing read model |
   |---|---|---|
-  | Overview | `meta.json` and `status.events.jsonl` only, no WP files | `materialize_snapshot` (`status/reducer.py:367`) gives lane summary; `compute_weighted_progress` (`status/progress.py:119`); identity resolution; `TailCursor` (`status/tail_reader.py:342`) gives the change cursor |
+  | Overview | `meta.json` and `status.events.jsonl` only, no WP files | `materialize_snapshot` (`status/reducer.py:367`) gives lane summary; `compute_weighted_progress` (`status/progress.py:119`); identity resolution; `TailCursor` (`status/tail_reader.py:60`) gives the change cursor |
   | Detail | plus `tasks/WP*.md` frontmatter and body | `reconstruct_wp_view` (`status/wp_view.py:256`), which never conflates authored and resolved state; the dependency graph and `dependency_readiness_for_wp` |
 
   Every read goes through the coordination-aware status read surface: the
