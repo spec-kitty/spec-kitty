@@ -146,19 +146,37 @@ Re-run the workflow. Attempt 2 always executes in full and Aggregate does not re
 - **Fail-safe direction.** The selection step never skips on doubt, and Aggregate never passes on
   doubt.
 - **Trust surface.** The tested-key artifact name is written by a PR-controlled run, so on its
-  own it proves nothing about which PR produced it: a second PR on the same head SHA, with a
-  modified workflow on a different base, could upload a forged name. `decide` therefore matches
-  a candidate run only when the run object itself is bound to this pull request: same workflow
-  file, `pull_request` event, success, same head SHA and repository, plus the same head branch
-  and head repository as the event payload, and the PR number listed in the run's
-  `pull_requests`. The artifact must also be non-expired. Any doubt runs normally: an empty or
-  missing `pull_requests` (for example a fork PR), a missing head branch or head repository, or
-  an unknown identity on the event side is a non-match, so those PRs always execute in full.
-  `decide` still does not read the marker JSON body, which is self-reported and proves nothing
-  about what the run executed. CI Modules is stronger still, because Aggregate re-verifies the
-  matched run's identity from its immutable merge ref. The `green` step carries
-  `timeout-minutes: 3` in all three workflows, so a stalled `gh` cannot delay the run; a timeout
-  runs normally.
+  own it proves nothing about which PR produced it. `decide` binds a match in two steps, and
+  only the pair is trusted.
+  - *Run identity.* The candidate run must be the same workflow file, `pull_request` event,
+    success, head SHA and repository, with the same head branch and head repository as the event
+    payload, and its `pull_requests` must list this PR. That list is not proof of authorship:
+    GitHub fills it live with every open PR whose head matches. A second PR from the same
+    branch, with a different base and a modified workflow, runs the same head SHA, head branch
+    and head repository and lists both PR numbers (and only this one again once it closes).
+  - *Head uniqueness.* Once a candidate matches, `decide` calls
+    `GET pulls?head=<owner>:<ref>&state=all&per_page=100` and skips only when that returns
+    exactly one PR, numbered this PR, with the event's base ref and head SHA. `state=all` makes a
+    closed second PR still count. Zero, two or more, a full page (a possible second page), a
+    malformed entry, an unknown event base ref and any API error all run normally.
+  - Any other doubt also runs normally: empty or missing `pull_requests` (for example a fork
+    PR, which therefore always executes in full), a missing head branch or head repository, or
+    an unknown event-side identity.
+  - *Residual.* The listing is a point-in-time read. A forged candidate run must already be
+    completed and green to be matched, so its PR exists well before the read; the only gap is
+    GitHub's own propagation delay in listing a just-opened PR. The marker JSON body is still
+    not read: it is self-reported and proves nothing about what the run executed. CI Modules
+    is stronger, because Aggregate re-verifies the matched run's identity from its immutable
+    merge ref.
+  - *Event guard and token.* The `green` step has a step-level `if:` for `pull_request` with
+    action `ready_for_review`, so a PR that only edits the helper to print `skip=true` cannot skip
+    on any other action: the step does not run. A sibling `green-key` step runs the same helper on
+    every other `pull_request` action solely to record the tested-key marker; nothing reads its
+    skip answer. The selection-job checkout also sets `persist-credentials: false` while PR code
+    runs (on push, the router keeps it because `dorny/paths-filter` fetches over git there).
+    This is not a boundary against a PR that edits the workflow file itself.
+  - The `green` step carries `timeout-minutes: 3` in all three workflows, so a stalled `gh`
+    cannot delay the run; a timeout runs normally.
 - **Recorded residuals.** On a skip run the always-on lanes and `prose-scan` still run, and
   `tests (docs)` still runs on a prose-only skip run, because `prose-scan` is not suppressed.
   Sonar's informational per-change upload may repeat on a skip run. All three are accepted.

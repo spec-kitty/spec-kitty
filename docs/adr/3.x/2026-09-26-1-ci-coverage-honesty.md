@@ -141,14 +141,11 @@ waited on.
 - The corrected guarantee holds for the architectural battery: a green nightly now means the
   full battery ran, because the backstop executes the whole per-PR base selection in one
   plain pytest invocation. Interpreter diversity stays with the interpreter matrix shards.
-- The backstop is judged on its own job conclusion. Main's nightly is red at the time of this
-  amendment for unrelated reasons (P0s #5418, #5505, #5506 and #5507), so the overall nightly
-  conclusion cannot show the backstop's health by itself.
+- The backstop is judged on its own job conclusion. The overall nightly conclusion also
+  reflects unrelated suites, so it cannot show the backstop's health by itself.
 - The per-PR battery stays a non-required check, as ADR 2026-09-23-1 requires. Both the
   `architectural-fast` job and the `architectural-heavy` legs are in the `needs` of
   `router-gate`, so a red in either turns the required `router gate` red. None of these jobs
   is itself a required context (a path-scoped job is never required, per ADR 2026-09-23-1).
 - Measurements for the mission's non-functional requirements are recorded in the mission
-  evidence file `kitty-specs/ci-runtime-stabilisation-01M3TZH6/evidence/ci-measurements.md`
-  (the orchestrator writes it at closeout, after the PR's CI and the dispatched runs; at the time of this
-  amendment it does not exist yet).
+  evidence file `kitty-specs/ci-runtime-stabilisation-01M3TZH6/evidence/ci-measurements.md`.

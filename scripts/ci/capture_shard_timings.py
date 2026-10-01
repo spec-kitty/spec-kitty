@@ -56,6 +56,7 @@ default follows the committed ``<label>-durations-<UTC timestamp>`` convention).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import statistics
 import sys
@@ -77,7 +78,6 @@ __all__ = [
     "capture_module",
     "generate_run_id",
     "junit_capture",
-    "junit_file_seconds",
     "main",
     "median_across_runs",
     "merge_battery_capture",
@@ -96,7 +96,7 @@ from kernel.clock import datetime, now_utc_compact_stamp, now_utc_iso  # noqa: E
 # path; this script also runs bare (``python -I -S``), where cwd is not on it.
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR  # noqa: E402
+from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR, resolve_module_test_dirs  # noqa: E402
 
 REGISTRY_PATH = REPO_ROOT / ".github" / "ci-module-registry.yml"
 TIMINGS_PATH = REPO_ROOT / ".github" / "ci-shard-timings.json"
@@ -106,11 +106,6 @@ TIMINGS_PATH = REPO_ROOT / ".github" / "ci-shard-timings.json"
 #: consumer to uniform weights. ``scripts/ci/shard_select.py`` is the authority;
 #: this name is kept for the recapture script, the tests and the provenance field.
 SELECTION_MARKER_EXPR = MODULE_SELECTION_MARKER_EXPR
-
-#: Known dual-test-tree modules, mirroring ``module-tests.yml``'s own fallback
-#: (the doctrine test tree did not move when ``src/doctrine/`` was absorbed into
-#: ``src/charter/offering/``).
-_EXTRA_TEST_DIRS: dict[str, tuple[str, ...]] = {"charter": ("tests/doctrine",)}
 
 _MODULE_DURATIONS_KEY = "module_test_durations"
 _MODULE_COUNT_KEY = "module_test_count"
@@ -200,9 +195,11 @@ def generate_run_id(label: str = "wp02", *, now: datetime | None = None) -> str:
 def resolve_test_dirs(registry: dict[str, Any], module: str) -> tuple[str, ...]:
     """The test directories ``module-tests.yml`` would select for *module*.
 
-    Mirrors the consumer's precedence exactly: an explicit registry ``test_dirs``
-    list is **preferred over** — never unioned with — the ``tests/{module}``
-    default, and only existing directories survive.
+    Resolution is delegated to ``shard_select.resolve_module_test_dirs`` -- the
+    resolver the shard itself runs (C-010: one authority, never a mirrored copy).
+    This adapter only finds the registry row, anchors the resolver's
+    cwd-relative ``isdir`` checks at the repository root, and refuses a module
+    that resolves to nothing rather than capturing an empty list.
     """
     row = next((entry for entry in registry.get("modules", []) if entry.get("module") == module), None)
     if row is None:
@@ -210,10 +207,10 @@ def resolve_test_dirs(registry: dict[str, Any], module: str) -> tuple[str, ...]:
         raise KeyError(msg)
 
     declared = [str(entry) for entry in (row.get("test_dirs") or [])]
-    candidates = declared or [f"tests/{module}", *_EXTRA_TEST_DIRS.get(module, ())]
-    resolved = tuple(entry for entry in candidates if (REPO_ROOT / entry).is_dir())
+    with contextlib.chdir(REPO_ROOT):
+        resolved = tuple(resolve_module_test_dirs(module, json.dumps(declared)))
     if not resolved:
-        msg = f"module {module!r} resolves to no existing test directory (candidates: {candidates})"
+        msg = f"module {module!r} resolves to no existing test directory (declared: {declared}, mirror: tests/{module})"
         raise FileNotFoundError(msg)
     return resolved
 
@@ -319,11 +316,6 @@ def junit_capture(xml_paths: Iterable[Path], base_files: Collection[str]) -> Jun
                 continue
             seconds[file] = seconds.get(file, 0.0) + float(case.get("time", 0.0))
     return JunitCapture({file: round(value, _ROUNDING_PLACES) for file, value in seconds.items()}, unresolved)
-
-
-def junit_file_seconds(xml_paths: Iterable[Path], base_files: Collection[str]) -> dict[str, float]:
-    """Per-file seconds for one run's junit files (see :func:`junit_capture`)."""
-    return junit_capture(xml_paths, base_files).seconds
 
 
 def median_across_runs(runs: Sequence[Mapping[str, float]]) -> dict[str, float]:

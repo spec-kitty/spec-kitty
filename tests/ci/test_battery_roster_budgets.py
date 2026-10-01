@@ -36,6 +36,7 @@ _PROVENANCE_TABLE: Final = "battery_capture_provenance"
 _REQUIRED_PROVENANCE: Final = ("producer", "captured_at", "selection", "workers", "files_measured")
 _MAX_LEG_SKEW: Final = 0.20  # same ceiling the module skew gate uses
 _MAX_STALE_KEY_FRACTION: Final = 0.10
+_MAX_UNTIMED_BASE_FRACTION: Final = 0.10
 _BUDGET_FLOOR_SECONDS: Final = 10
 _BUDGET_MULTIPLIER: Final = 1.5
 
@@ -92,6 +93,16 @@ def stale_key_problems(timings: Mapping[str, float], base_files: Sequence[str]) 
     stale = sorted(key for key in timings if key not in base)
     if len(stale) > _MAX_STALE_KEY_FRACTION * len(timings):
         return [f"{len(stale)} of {len(timings)} timing keys name no base file (> {_MAX_STALE_KEY_FRACTION:.0%}): {stale[:5]} ... -- refresh the table"]
+    return []
+
+
+def untimed_base_problems(missing: Sequence[str], base_files: Sequence[str]) -> list[str]:
+    """Base files with no timing; the selector fills them with the median and warns, so a few new
+    test files must not red every PR (the #5189 drift precedent). Past a tenth of the base the
+    prediction stops meaning anything and the table needs a recapture."""
+    if len(missing) > _MAX_UNTIMED_BASE_FRACTION * len(base_files):
+        share = f"{len(missing)} of {len(base_files)} base files have no timing (> {_MAX_UNTIMED_BASE_FRACTION:.0%})"
+        return [f"{share}: {sorted(missing)[:5]} ... -- recapture the table"]
     return []
 
 
@@ -175,7 +186,7 @@ def test_predicted_legs_balanced(capsys: pytest.CaptureFixture[str]) -> None:
     with capsys.disabled():
         print(f"\npredicted loads (worker-s): fast={fast_load:.1f} " + " ".join(f"{leg}={load:.1f}" for leg, load in partition.loads.items()))
     assert leg_balance_problems(partition.loads) == []
-    assert not partition.resolution.missing, f"base files without a timing: {sorted(partition.resolution.missing)[:5]}"
+    assert untimed_base_problems(sorted(partition.resolution.missing), _base_files(spec)) == []
 
 
 def test_timing_keys_are_base_files_or_reported() -> None:
@@ -247,6 +258,12 @@ def test_control_mass_rename_hides_no_stale_keys() -> None:
     base = [f"tests/architectural/test_{i}.py" for i in range(9)]
     assert stale_key_problems(timings, base) == []
     assert stale_key_problems(timings, base[:8]) != []
+
+
+def test_control_untimed_base_files_tolerated_up_to_a_tenth() -> None:
+    base = [f"tests/architectural/test_{i}.py" for i in range(20)]
+    assert untimed_base_problems(base[:2], base) == []
+    assert untimed_base_problems(base[:3], base) != []
 
 
 def test_control_budget_rule_is_floor_then_one_and_a_half_times() -> None:

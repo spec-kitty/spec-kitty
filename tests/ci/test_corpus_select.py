@@ -154,6 +154,17 @@ def test_main_fails_closed_on_unparseable_changed_files(monkeypatch: pytest.Monk
     assert out == "selected=true\n"
 
 
+@pytest.mark.parametrize(
+    "files",
+    [[1, 2], ["docs/x.md", 1], ["docs/x.md", None], [["docs/x.md"]], [{"path": "docs/x.md"}], [True]],
+    ids=["all-ints", "one-int-among-strings", "one-null-among-strings", "nested-list", "object-item", "bool"],
+)
+def test_main_fails_closed_on_a_json_list_with_any_non_string_item(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, files: list[Any]) -> None:
+    """A parseable list is still unusable unless EVERY item is a path string; the docs-only strings must not win."""
+    _, out = _run_main(monkeypatch, tmp_path, ["--mode", "pr", "--event", "pull_request"], files=files, outcome="success")
+    assert out == "selected=true\n"
+
+
 def test_main_push_and_full_always_select(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _, pushed = _run_main(monkeypatch, tmp_path, ["--mode", "pr", "--event", "push"], files=["docs/x.md"], outcome="success")
     assert pushed == "selected=true\n"

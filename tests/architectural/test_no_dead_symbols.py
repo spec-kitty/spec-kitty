@@ -117,6 +117,7 @@ from __future__ import annotations
 import ast
 import copy
 import functools
+import inspect
 import sys
 from collections.abc import Iterator, Mapping
 from collections.abc import Set as AbstractSet
@@ -2442,17 +2443,15 @@ def test_bite_j_gate_single_alias_sibling_edit_zero_false_red() -> None:
         assert result.stale == [], [finding.render() for finding in result.stale]
 
 
-def test_real_tree_inputs_cleared_at_file_end(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_real_tree_inputs_cleared_at_file_end(monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-006: the walk's trees + source are bounded to this file by a module-scoped finalizer.
 
-    Registration is checked on the real fixture; behaviour is driven through a
-    stub cache so the real ``_real_tree_inputs`` is never cleared mid-file (that
-    would force a second ``src/`` walk for every later consumer).
+    The finalizer's generator is driven directly (set-up half, then teardown
+    half) against a stub cache, so the real ``_real_tree_inputs`` is never cleared
+    mid-file (that would force a second ``src/`` walk for every later consumer).
+    Deleting the release call from the fixture, or from ``_release_real_tree_inputs``,
+    leaves the stub populated and fails this test.
     """
-    assert "_clear_real_tree_inputs" in request.fixturenames
-    definitions = request._fixturemanager.getfixturedefs("_clear_real_tree_inputs", request.node)
-    assert definitions, "the autouse finalizer fixture must be defined"
-    assert definitions[-1].scope == "module"
 
     @functools.lru_cache(maxsize=1)
     def _stub() -> int:
@@ -2460,8 +2459,12 @@ def test_real_tree_inputs_cleared_at_file_end(request: pytest.FixtureRequest, mo
 
     _stub()
     assert _stub.cache_info().currsize == 1
-    monkeypatch.setattr(sys.modules[__name__], "_real_tree_inputs", _stub)
+    monkeypatch.setattr(sys.modules[__name__], "_real_tree_inputs", _stub)  # resolved at call time by the release
 
-    _release_real_tree_inputs()
+    finalizer = inspect.unwrap(_clear_real_tree_inputs)()
+    assert next(finalizer) is None
+    assert _stub.cache_info().currsize == 1, "set-up must not clear the cache; only teardown does"
+    with pytest.raises(StopIteration):
+        next(finalizer)
 
     assert _stub.cache_info().currsize == 0

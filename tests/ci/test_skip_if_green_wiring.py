@@ -28,7 +28,7 @@ from typing import Any
 import pytest
 import yaml
 
-from tests.ci._gh_if import GhIfEvaluator, eval_gh_if, strip_expr_wrapper, tokenize_gh_if
+from tests.ci._gh_if import GhIfEvaluator, eval_gh_if, eval_gh_value, strip_expr_wrapper, tokenize_gh_if
 
 pytestmark = pytest.mark.fast
 
@@ -48,7 +48,7 @@ FILTER_FED_WORKFLOWS = [("ci-router.yml", "changes"), ("packs.yml", "changes")]
 GREEN_SKIP_FOLD_STEPS = {("ci-modules.yml", "generate-matrix"): "build"}
 
 UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"  # v7.0.1
-MARKER_EXPR = "${{ steps.green.outputs.marker }}"
+MARKER_EXPR = "${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}"
 SKIP_GUARD_KEY = "steps.green.outputs.skip"
 
 _STEP_REF = re.compile(r"steps\.([\w-]+)\.outputs")
@@ -154,71 +154,6 @@ def _exempt(workflow: str, job: str) -> frozenset[str]:
     return frozenset({step}) if step else frozenset()
 
 
-# --- a tiny GitHub expression evaluator for the job ``outputs:`` fold ------------------------
-
-_EXPR_TOKEN = re.compile(r"\s*(\|\||&&|==|!=|\(|\)|'[^']*'|[A-Za-z0-9_.\-]+)")
-
-
-class _OutputExpr:
-    """``||`` / ``&&`` / ``==`` over string literals and context references (GitHub semantics:
-    ``a && b`` is ``b`` when ``a`` is truthy else ``a``; ``a || b`` is ``a`` when truthy else
-    ``b``; the empty string is falsy)."""
-
-    def __init__(self, text: str, context: Mapping[str, str]) -> None:
-        self._tokens = _EXPR_TOKEN.findall(text)
-        assert "".join(self._tokens).replace(" ", "") == re.sub(r"\s+", "", text), f"unlexable expression: {text!r}"
-        self._pos = 0
-        self._context = context
-
-    def evaluate(self) -> str:
-        value = self._or()
-        assert self._pos == len(self._tokens), f"unconsumed tokens: {self._tokens[self._pos :]!r}"
-        return str(value)
-
-    def _peek(self) -> str | None:
-        return self._tokens[self._pos] if self._pos < len(self._tokens) else None
-
-    def _take(self) -> str:
-        token = str(self._tokens[self._pos])
-        self._pos += 1
-        return token
-
-    def _or(self) -> str | bool:
-        value = self._and()
-        while self._peek() == "||":
-            self._take()
-            right = self._and()
-            value = value if value else right
-        return value
-
-    def _and(self) -> str | bool:
-        value = self._cmp()
-        while self._peek() == "&&":
-            self._take()
-            right = self._cmp()
-            value = right if value else value
-        return value
-
-    def _cmp(self) -> str | bool:
-        left = self._operand()
-        if self._peek() in {"==", "!="}:
-            op = self._take()
-            right = self._operand()
-            return (left == right) == (op == "==")
-        return left
-
-    def _operand(self) -> str | bool:
-        token = self._take()
-        if token == "(":
-            value = self._or()
-            assert self._take() == ")"
-            return value
-        if token.startswith("'"):
-            return token[1:-1]
-        assert token in self._context, f"expression context does not model {token!r}"
-        return self._context[token]
-
-
 def _skip_context_outputs(job: Mapping[str, Any]) -> dict[str, str]:
     """Each job output on a skip run: every step output is the empty string (steps skipped),
     on a ``pull_request`` event whose ``inputs.mode`` is empty."""
@@ -226,10 +161,24 @@ def _skip_context_outputs(job: Mapping[str, Any]) -> dict[str, str]:
     for value in job["outputs"].values():
         for ref in re.findall(r"steps\.[\w-]+\.outputs\.[\w-]+", str(value)):
             context[ref] = ""
-    return {name: _OutputExpr(strip_expr_wrapper(str(value)), context).evaluate() for name, value in job["outputs"].items()}
+    return {name: eval_gh_value(str(value), context) for name, value in job["outputs"].items()}
 
 
 # --- the checks ------------------------------------------------------------------------------
+
+
+def _event_context(event_name: str, action: str = "") -> dict[str, str]:
+    return {"github.event_name": event_name, "github.event.action": action}
+
+
+PULL_REQUEST_ACTIONS = ("ready_for_review", "synchronize", "opened", "reopened")
+NON_PULL_REQUEST_EVENTS = ("push", "workflow_dispatch", "schedule")
+
+
+def _runs_on_event(step: Mapping[str, Any], event_name: str, action: str = "") -> bool:
+    """Semantic evaluation of the step's own ``if:`` for one event (never a text match)."""
+    assert "if" in step, "the step must carry an event guard"
+    return _eval_step_if(str(step["if"]), _event_context(event_name, action))
 
 
 @pytest.mark.parametrize(("workflow", "job_id"), SELECTION_JOBS)
@@ -238,11 +187,57 @@ def test_green_step_runs_first_after_checkout(workflow: str, job_id: str) -> Non
     assert str(steps[0].get("uses", "")).startswith("actions/checkout@"), "checkout must stay the first step"
     green = steps[1]
     assert green.get("id") == "green", "the green step must be the first step after checkout"
-    assert "if" not in green, "the green step must always run"
     assert f"python3 scripts/ci/green_match.py decide --workflow {workflow}" in green["run"]
     assert green["continue-on-error"] is True
+    assert green["timeout-minutes"] == 3, "a stalled gh must not delay the run"
     assert green["env"]["GH_TOKEN"] == "${{ github.token }}"
     assert '--marker-dir "$RUNNER_TEMP/green-match"' in green["run"]
+
+
+@pytest.mark.parametrize(("workflow", "job_id"), SELECTION_JOBS)
+def test_green_step_only_runs_on_ready_for_review(workflow: str, job_id: str) -> None:
+    """A PR that edits the helper to print ``skip=true`` cannot skip on any other action: the step never runs."""
+    green = _job(workflow, job_id)["steps"][1]
+    assert _runs_on_event(green, "pull_request", "ready_for_review") is True
+    for action in ("synchronize", "opened", "reopened"):
+        assert _runs_on_event(green, "pull_request", action) is False, action
+    for event in NON_PULL_REQUEST_EVENTS:
+        assert _runs_on_event(green, event) is False, event
+
+
+@pytest.mark.parametrize(("workflow", "job_id"), SELECTION_JOBS)
+def test_green_key_step_records_the_marker_everywhere_green_does_not_run(workflow: str, job_id: str) -> None:
+    """Every executing pull_request run must still upload its tested-key marker, but can never skip."""
+    steps = _job(workflow, job_id)["steps"]
+    green, key = steps[1], steps[2]
+    assert key.get("id") == "green-key"
+    assert key["run"] == green["run"]
+    assert (key["continue-on-error"], key["timeout-minutes"], key["env"]) == (green["continue-on-error"], 3, green["env"])
+    for action in PULL_REQUEST_ACTIONS:
+        assert _runs_on_event(key, "pull_request", action) is (action != "ready_for_review"), action
+        assert _runs_on_event(green, "pull_request", action) is (action == "ready_for_review"), action
+    for event in NON_PULL_REQUEST_EVENTS:
+        assert _runs_on_event(key, event) is False, event
+    # Nothing may consume the key step's skip answer: it exists for the marker only.
+    assert "steps.green-key.outputs.skip" not in str(_job(workflow, job_id))
+
+
+@pytest.mark.parametrize(("workflow", "job_id"), SELECTION_JOBS)
+def test_selection_checkout_does_not_persist_the_token_while_pr_code_runs(workflow: str, job_id: str) -> None:
+    """The job holds ``actions: read`` and runs PR code; no later step authenticates git (local diff/show, API-only steps)."""
+    job = _job(workflow, job_id)
+    checkout = job["steps"][0]
+    persist = checkout["with"]["persist-credentials"]
+    pull_request = _event_context("pull_request", "synchronize")
+    if isinstance(persist, bool):
+        assert persist is False
+    else:
+        # Router: dorny/paths-filter fetches the base over git on push (trusted main), so only a PR drops the token.
+        assert _eval_step_if(str(persist), pull_request) is False
+        assert _eval_step_if(str(persist), _event_context("push")) is True
+    for step in job["steps"][1:]:
+        run = str(step.get("run", ""))
+        assert not re.search(r"\bgit\s+(push|fetch|pull|clone|ls-remote|remote)\b", run), f"{step.get('name')}: authenticated git needs persisted credentials"
 
 
 @pytest.mark.parametrize(("workflow", "job_id"), SELECTION_JOBS)
@@ -296,9 +291,10 @@ def test_marker_artifact_is_uploaded(workflow: str, job_id: str) -> None:
     assert index > green_index
     assert upload["uses"].startswith(UPLOAD_ARTIFACT_PIN)
     # The upload runs for a marker (executing PR run or skip run) and for nothing else.
-    marker_condition = {"steps.green.outputs.marker": "x"}
-    assert _eval_step_if(str(upload["if"]), marker_condition) is True
-    assert _eval_step_if(str(upload["if"]), {"steps.green.outputs.marker": ""}) is False
+    for source in ("steps.green.outputs.marker", "steps.green-key.outputs.marker"):
+        context = {"steps.green.outputs.marker": "", "steps.green-key.outputs.marker": "", source: "x"}
+        assert _eval_step_if(str(upload["if"]), context) is True, source
+    assert _eval_step_if(str(upload["if"]), {"steps.green.outputs.marker": "", "steps.green-key.outputs.marker": ""}) is False
     with_ = upload["with"]
     # BY OUTPUT NAME, never the whole directory: a stale JSON body must not ride along.
     assert with_["path"] == f"${{{{ runner.temp }}}}/green-match/{MARKER_EXPR}.json"

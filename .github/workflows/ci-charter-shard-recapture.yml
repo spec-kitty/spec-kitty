@@ -24,12 +24,10 @@
 #   * `strict-shard-timings-check`: runs the architectural length-agreement
 #     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
 #     failure for `charter` (and `agent` and `consolidation`, the other
-#     non-allowlisted modules) on a real, scheduled cadence -- nothing in `ci-nightly.yml`
-#     runs `tests/architectural` today (its `full-module-matrix` job only
-#     expands `.github/ci-module-registry.yml`'s `modules[]` rows, and that
-#     registry's own `out_of_matrix_test_dirs` explicitly excludes
-#     `tests/architectural`), so without this job WP01's per-PR demotion
-#     would be a silent removal of the exact-count gate, not a relocation.
+#     non-allowlisted modules) on a real, scheduled cadence -- `ci-nightly.yml`'s
+#     `architectural-backstop` runs the battery but without
+#     `SPEC_KITTY_STRICT_SHARD_TIMINGS`, so without this job WP01's per-PR
+#     demotion would be a silent removal of the exact-count gate, not a relocation.
 #
 # These two jobs are DELIBERATELY INDEPENDENT -- no `needs:` edge between
 # them, mirroring `ci-nightly.yml`'s own independent `performance`/`e2e`/

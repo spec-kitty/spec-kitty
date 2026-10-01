@@ -28,13 +28,13 @@ import types
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 import yaml
 
 from scripts.ci import battery_partition_plugin as plugin
-from scripts.ci.capture_shard_timings import junit_file_seconds
+from scripts.ci.capture_shard_timings import junit_capture
 from scripts.ci.shard_select import battery_parts, enumerate_base_files
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -151,7 +151,7 @@ class _Run:
         return self.proc.stdout + self.proc.stderr
 
     def executed(self, base_files: Sequence[str]) -> frozenset[str]:
-        return frozenset(junit_file_seconds([self.junit], base_files))
+        return frozenset(junit_capture([self.junit], base_files).seconds)
 
 
 def _make_tree(root: Path, **kwargs: Any) -> _Tree:
@@ -897,17 +897,27 @@ def test_verify_worker_digest_accepts_equal_and_refuses_different() -> None:
         plugin.verify_worker_digest(state, {})
 
 
-class _FakeReport:
-    def __init__(self, nodeid: str, duration: float = 0.1, when: str = "call") -> None:
-        self.nodeid = nodeid
-        self.duration = duration
-        self.when = when
+_Phase = Literal["setup", "call", "teardown"]
+
+
+def _FakeReport(nodeid: str, duration: float = 0.1, when: _Phase = "call") -> pytest.TestReport:
+    """A real ``TestReport`` carrying only what the runtime hook reads (nodeid, duration, phase)."""
+    return pytest.TestReport(
+        nodeid=nodeid,
+        location=(nodeid.split("::")[0], 0, nodeid),
+        keywords={},
+        outcome="passed",
+        longrepr=None,
+        when=when,
+        duration=duration,
+    )
 
 
 @pytest.mark.fast
 def test_runtime_records_every_report_phase_under_the_file() -> None:
     runtime = plugin.BatteryRuntime(_state({"a.py"}, {"a.py"}))
-    for when in ("setup", "call", "teardown"):
+    phases: tuple[_Phase, ...] = ("setup", "call", "teardown")
+    for when in phases:
         runtime.pytest_runtest_logreport(_FakeReport("a.py::t", 1.0, when))
     assert runtime.stats.file_seconds == {"a.py": 3.0}
 
