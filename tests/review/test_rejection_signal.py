@@ -5,8 +5,6 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.review.rejection_signal import (
-    BACKWARD_REWORK_MOVES,
-    has_documented_review_feedback,
     is_backward_rework_move,
     is_documented_review_rejection,
 )
@@ -26,7 +24,7 @@ _REF = "review-cycle://mission/WP01/review-cycle-1.md"
     ],
 )
 def test_documented_feedback_is_recognised(event: dict) -> None:
-    assert has_documented_review_feedback(event) is True
+    assert is_documented_review_rejection({"from_lane": "in_review", "to_lane": "planned", **event}) is True
 
 
 @pytest.mark.parametrize(
@@ -47,7 +45,7 @@ def test_documented_feedback_is_recognised(event: dict) -> None:
     ],
 )
 def test_markers_and_approvals_are_not_feedback(event: dict) -> None:
-    assert has_documented_review_feedback(event) is False
+    assert is_documented_review_rejection({"from_lane": "in_review", "to_lane": "planned", **event}) is False
 
 
 @pytest.mark.parametrize(
@@ -88,7 +86,3 @@ def test_backward_move_without_feedback_is_not_a_rejection() -> None:
     event = {"from_lane": "for_review", "to_lane": "planned", "force": True, "review_ref": "force-override"}
     assert is_backward_rework_move(event) is True
     assert is_documented_review_rejection(event) is False
-
-
-def test_backward_moves_end_in_implementation_lanes() -> None:
-    assert {to for _, to in BACKWARD_REWORK_MOVES} == {"planned", "claimed", "in_progress"}

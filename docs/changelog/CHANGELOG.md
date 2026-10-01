@@ -108,6 +108,10 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 
 ### Fixed
 
+- **A documented review rejection is now reported once, as a review loop** (#2267).
+  - **Before:** `retrospect create` reported each `move-task --to planned --force --review-feedback-file` rejection up to three times: as a `--force` override that "typically indicates the runtime guard failed", as a lane bounce when the reviewer rejected from `for_review` or `in_progress` without claiming the work package, and as rework "not captured as a documented review rejection". `consolidate`'s "Hollow reviews detected" warning counted the same forced rejections towards its `force_count` threshold, so it named the most-reviewed work packages.
+  - **After:** a backward move that carries a review-feedback pointer is a review rejection wherever the reviewer issued it, and feeds only the `review_loop` finding. The force-override finding counts only `--force` moves without feedback, the implementation-cycle finding reports only `in_progress` re-entries that no documented rejection explains, and the hollow-review warning discounts forced documented rejections. A `force-override`, `action-review-claim` or synthetic `review:<WP>` marker is not feedback, so a forced move carrying one is still reported.
+
 - **`spec-kitty accept` now commits status rows it leaves in the coordination worktree** (#5513).
   - **Before:** on a coordination-topology mission, the commit router dropped a status log (`status.events.jsonl` / `status.json`) named by its primary-checkout path and reported it as already committed when the change existed only in the coordination worktree. `accept` exited cleanly with those status rows uncommitted, where a later coordination teardown could lose them.
   - **After:** the router commits the coordination copy in place, under the status lock. It still never copies the primary copy over it, and a change that exists only in the primary checkout is still refused as a wrong-surface write.

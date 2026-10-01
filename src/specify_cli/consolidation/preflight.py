@@ -550,6 +550,39 @@ def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
     return implementer != reviewer
 
 
+def _documented_rejection_force_counts(feature_dir: Path, wp_set: set[str]) -> dict[str, int]:
+    """Count forced documented review rejections per WP in the event log (#2267).
+
+    ``move-task --to planned --force --review-feedback-file`` is the standard
+    rejection path, so every documented rejection raises the reducer's
+    ``force_count``. Those transitions are evidence of review, not of its
+    absence. Lines are deduped by ``event_id`` as the reducer dedupes them;
+    an absent or unreadable log yields no discount (fail toward warning).
+    """
+    from specify_cli.review.rejection_signal import is_documented_review_rejection
+
+    events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    try:
+        raw_lines = events_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    seen: set[str] = set()
+    counts: dict[str, int] = {}
+    for raw_line in raw_lines:
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or not event.get("force") or event.get("wp_id") not in wp_set:
+            continue
+        event_id = str(event.get("event_id") or "")
+        if (event_id and event_id in seen) or not is_documented_review_rejection(event):
+            continue
+        seen.add(event_id)
+        counts[event["wp_id"]] = counts.get(event["wp_id"], 0) + 1
+    return counts
+
+
 def _collect_force_count_warnings(
     feature_dir: Path,
     wp_set: set[str],
@@ -558,10 +591,11 @@ def _collect_force_count_warnings(
     """Append force_count>=2 warnings from ``status.json`` (WP05 split helper).
 
     Behavior-preserving extraction of the status-snapshot scan formerly inlined
-    in ``_collect_hollow_review_warnings`` (FR-005, keeps CC <= 15) -- plus one
-    additive guard (item #9): a WP whose approving actor is positively
+    in ``_collect_hollow_review_warnings`` (FR-005, keeps CC <= 15) -- plus two
+    additive guards. Item #9: a WP whose approving actor is positively
     confirmed distinct from its implementing actor is not a hollow review,
-    even with a high force_count, so it is not warned about here.
+    even with a high force_count. #2267: forced documented review rejections
+    are discounted, so the count reflects only undocumented forcing.
     """
     status_path = feature_dir / _STATUS_FILENAME
     if not status_path.exists():
@@ -573,6 +607,7 @@ def _collect_force_count_warnings(
     work_packages = status.get("work_packages", {}) if isinstance(status, dict) else {}
     if not isinstance(work_packages, dict):
         return
+    discounts = _documented_rejection_force_counts(feature_dir, wp_set)
     for wp_id in sorted(wp_set):
         wp_state = work_packages.get(wp_id, {})
         if not isinstance(wp_state, dict):
@@ -581,6 +616,7 @@ def _collect_force_count_warnings(
             force_count = int(wp_state.get("force_count", 0))
         except (TypeError, ValueError):
             force_count = 0
+        force_count = max(force_count - discounts.get(wp_id, 0), 0)
         if force_count >= 2 and not _independent_reviewer_confirmed(feature_dir, wp_id):
             warnings.setdefault(wp_id, []).append(f"force_count={force_count}")
 

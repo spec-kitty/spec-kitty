@@ -37,8 +37,6 @@ from specify_cli.review.cycle import is_non_resolvable_review_ref
 from specify_cli.status import Lane, is_changes_requested
 
 __all__ = [
-    "BACKWARD_REWORK_MOVES",
-    "has_documented_review_feedback",
     "is_backward_rework_move",
     "is_documented_review_rejection",
 ]
@@ -48,7 +46,7 @@ _REWORK_TARGETS = (Lane.PLANNED.value, Lane.CLAIMED.value, Lane.IN_PROGRESS.valu
 #: Backward moves into an implementation lane. ``move-task --to <lane> --force``
 #: can rewind from any lane, including terminal ``done`` (#3687), so every
 #: rewind out of a later lane counts.
-BACKWARD_REWORK_MOVES: frozenset[tuple[str, str]] = frozenset(
+_BACKWARD_REWORK_MOVES: frozenset[tuple[str, str]] = frozenset(
     {
         (source, target)
         for source, targets in (
@@ -67,7 +65,7 @@ def _is_documented_pointer(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip()) and not is_non_resolvable_review_ref(value.strip())
 
 
-def has_documented_review_feedback(event: Mapping[str, Any]) -> bool:
+def _has_documented_review_feedback(event: Mapping[str, Any]) -> bool:
     """True when a lane event carries a resolvable review-feedback pointer."""
     if _is_documented_pointer(event.get("review_ref")):
         return True
@@ -82,9 +80,9 @@ def has_documented_review_feedback(event: Mapping[str, Any]) -> bool:
 
 def is_backward_rework_move(event: Mapping[str, Any]) -> bool:
     """True when the event moves a WP backward into an implementation lane."""
-    return (event.get("from_lane", ""), event.get("to_lane", "")) in BACKWARD_REWORK_MOVES
+    return (event.get("from_lane", ""), event.get("to_lane", "")) in _BACKWARD_REWORK_MOVES
 
 
 def is_documented_review_rejection(event: Mapping[str, Any]) -> bool:
     """True when the event is a backward rework move carrying documented feedback."""
-    return is_backward_rework_move(event) and has_documented_review_feedback(event)
+    return is_backward_rework_move(event) and _has_documented_review_feedback(event)
