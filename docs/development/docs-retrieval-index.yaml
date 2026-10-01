@@ -3330,6 +3330,24 @@ pages:
     - {slug: "supersession", text: "Supersession", level: 2}
     - {slug: "non-goals", text: "Non-goals", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md"
+    title: "ADR: a mission status read API replaces the CLI-bundled dashboard (extract and replace)"
+    divio_type: "none"
+    abstract: "Remove the bundled dashboard daemon; keep one read-only mission status API with an overview and a detail granularity that external UIs consume (#645)."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-keep-and-harden", text: "Option 1: keep and harden", level: 3}
+    - {slug: "option-2-files-and-events-tail-only", text: "Option 2: files and `events tail` only", level: 3}
+    - {slug: "option-3-in-process-read-api-plus-cli-json-chosen", text: "Option 3: in-process read API plus CLI `--json` (chosen)", level: 3}
+    - {slug: "option-4-http-service-in-the-cli", text: "Option 4: HTTP service in the CLI", level: 3}
+    - {slug: "open-questions-operator", text: "Open questions (operator)", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -13157,9 +13175,10 @@ pages:
   - path: "docs/plans/4-0-0-milestone-roadmap.md"
     title: "4.0.0 Milestone — Roadmap"
     divio_type: "explanation"
-    abstract: "Roadmap for the active 4.0.0 cycle: four goal themes, the epic dependency spine, per-theme progress and exit criteria, and watch items through the post-rc structural tail."
+    abstract: "Roadmap for the 4.0.0 cycle: the 2026-10-01 direction update (hosted work off the critical path), dependency spine, exit criteria and watch items."
     anchors:
     - {slug: "intent-of-4-0-0", text: "Intent of 4.0.0", level: 2}
+    - {slug: "direction-update-2026-10-01-hosted-collaboration-is-off-the-critical-path", text: "Direction update (2026-10-01): hosted collaboration is off the critical path", level: 2}
     - {slug: "release-posture", text: "Release posture", level: 2}
     - {slug: "drift-since-the-declaration-convergence-re-homing", text: "Drift since the declaration (convergence re-homing)", level: 2}
     - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
