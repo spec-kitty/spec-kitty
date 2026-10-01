@@ -62,8 +62,11 @@ Mechanics
   *name* is not an ``__all__`` member and is used within its own
   defining module (see above).
 
-The real-tree walk runs once per test session (:func:`_real_tree_inputs`,
-read-only views), however many tests in this file consume it.
+The real-tree walk runs once per file (:func:`_real_tree_inputs`, read-only
+views), however many tests in this file consume it, and is released at file
+end by the module-scoped ``_clear_real_tree_inputs`` fixture (FR-006): the
+cached inputs hold every ``src/`` syntax tree and its source, the one reasoned
+exception to "caches hold findings, not trees", bounded to this file.
 
 Tests under ``tests/`` are deliberately NOT counted as callers -- a
 symbol exercised only by its own unit tests is functionally dead in the
@@ -114,7 +117,8 @@ from __future__ import annotations
 import ast
 import copy
 import functools
-from collections.abc import Mapping
+import sys
+from collections.abc import Iterator, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from pathlib import Path
@@ -1146,8 +1150,8 @@ def _compute_offenders(
 class RealTreeInputs:
     """Everything the gate derives from one walk of ``src/``, as read-only views.
 
-    Built once per session by :func:`_real_tree_inputs` and shared by every
-    real-tree test in this file. The mappings are ``MappingProxyType`` views
+    Built once per file by :func:`_real_tree_inputs` (cleared at file end by
+    ``_clear_real_tree_inputs``) and shared by every real-tree test in this file. The mappings are ``MappingProxyType`` views
     and the caller sets are frozensets, so no test can mutate the cached walk
     (adding a caller to ``per_symbol`` would silently rescue dead symbols for
     every later real-tree test on the same worker). The collision-index
@@ -1165,7 +1169,11 @@ class RealTreeInputs:
 
 @functools.lru_cache(maxsize=1)
 def _real_tree_inputs() -> RealTreeInputs:
-    """Walk ``src/`` once per session and return the read-only :class:`RealTreeInputs`.
+    """Walk ``src/`` once per file and return the read-only :class:`RealTreeInputs`.
+
+    The result keeps every ``src/`` syntax tree and its source resident -- the
+    one reasoned exception to "caches hold findings, not trees" (FR-006). It is
+    bounded to this file: ``_clear_real_tree_inputs`` clears it at module teardown.
 
     Never monkeypatch the walker and then call this: the cache would either
     serve the full tree (a false green) or keep the partial tree for the real
@@ -1181,6 +1189,18 @@ def _real_tree_inputs() -> RealTreeInputs:
         star_targets=frozenset(star_targets),
         collision_index=MappingProxyType(classify_collisions(corpus)),
     )
+
+
+def _release_real_tree_inputs() -> None:
+    """Drop the real-tree inputs (trees + source of all of ``src/``) when this file finishes (FR-006)."""
+    _real_tree_inputs.cache_clear()  # module global, resolved at CALL time
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _clear_real_tree_inputs() -> Iterator[None]:
+    """Release the cached ``src/`` walk at file end so no syntax tree outlives its file."""
+    yield
+    _release_real_tree_inputs()
 
 
 @dataclass(frozen=True)
@@ -1725,7 +1745,7 @@ def test_walk_modules_widening_contributes_on_live_tree() -> None:
     contributes at least one non-`__all__` public name somewhere on the
     actual `src/` tree.
     """
-    inputs = _real_tree_inputs()  # built by the real _walk_modules(), cached once per session (G7)
+    inputs = _real_tree_inputs()  # built by the real _walk_modules(), cached once per file (G7)
     decls, all_literal_decls = inputs.decls, inputs.all_literal_decls
     widened_contribution = sum(len(decls[mod] - all_literal_decls.get(mod, frozenset())) for mod in decls)
     assert widened_contribution > 0, (
@@ -1976,7 +1996,7 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
     sees them via the now-wired :func:`_imports_by_target` -- driven
     through the REAL live ``src/`` corpus, not a fixture.
     """
-    inputs = _real_tree_inputs()  # the real _walk_modules() + _imports_by_target(), cached once per session (G7)
+    inputs = _real_tree_inputs()  # the real _walk_modules() + _imports_by_target(), cached once per file (G7)
     decls, per_symbol = inputs.decls, inputs.per_symbol
     submodule_index = _submodule_index(per_symbol)
 
@@ -2317,13 +2337,13 @@ def test_gone_hint_names_every_candidate_new_home() -> None:
 
 
 def test_real_tree_inputs_are_read_only() -> None:
-    """F-06 -- the session-cached walk cannot be mutated by a test.
+    """F-06 -- the file-cached walk cannot be mutated by a test.
 
     A test that added a caller to the cached ``per_symbol`` would silently
     rescue dead symbols for every later real-tree test on the same worker.
     """
     inputs = _real_tree_inputs()
-    assert inputs is _real_tree_inputs(), "the real-tree walk must be cached for the session"
+    assert inputs is _real_tree_inputs(), "the real-tree walk must be cached for the file"
     for mapping in (inputs.decls, inputs.all_literal_decls, inputs.corpus, inputs.per_symbol, inputs.collision_index):
         assert isinstance(mapping, MappingProxyType)
     assert isinstance(inputs.star_targets, frozenset)
@@ -2339,7 +2359,7 @@ def test_m13_corpus_floor_reds_on_a_quarter_of_the_modules() -> None:
 
     Driven through the same ``_corpus_floor_shortfall`` the real gate asserts
     on, over a truncated COPY of the cached walk (never a monkeypatched walker,
-    which would poison or bypass the session cache).
+    which would poison or bypass the per-file cache).
     """
     live = _real_tree_inputs().all_literal_decls
     assert _corpus_floor_shortfall(live) == [], "control: the live corpus meets the floor"
@@ -2420,3 +2440,28 @@ def test_bite_j_gate_single_alias_sibling_edit_zero_false_red() -> None:
         result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.home", "B")))
         assert result.offenders == [], f"B must not be caught: {source!r}"
         assert result.stale == [], [finding.render() for finding in result.stale]
+
+
+def test_real_tree_inputs_cleared_at_file_end(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-006: the walk's trees + source are bounded to this file by a module-scoped finalizer.
+
+    Registration is checked on the real fixture; behaviour is driven through a
+    stub cache so the real ``_real_tree_inputs`` is never cleared mid-file (that
+    would force a second ``src/`` walk for every later consumer).
+    """
+    assert "_clear_real_tree_inputs" in request.fixturenames
+    definitions = request._fixturemanager.getfixturedefs("_clear_real_tree_inputs", request.node)
+    assert definitions, "the autouse finalizer fixture must be defined"
+    assert definitions[-1].scope == "module"
+
+    @functools.lru_cache(maxsize=1)
+    def _stub() -> int:
+        return 1
+
+    _stub()
+    assert _stub.cache_info().currsize == 1
+    monkeypatch.setattr(sys.modules[__name__], "_real_tree_inputs", _stub)
+
+    _release_real_tree_inputs()
+
+    assert _stub.cache_info().currsize == 0
