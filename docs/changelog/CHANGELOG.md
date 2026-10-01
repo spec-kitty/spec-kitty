@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-09-30'
+updated: '2026-10-01'
 ---
 # Changelog
 
@@ -107,6 +107,9 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 
 ### Fixed
 
+- **`spec-kitty doctrine pack validate` no longer reports a spurious `same_id_collision` advisory when a pack declares its augmentation intent in `drg/fragment.yaml`** (#5494).
+  - **Before:** the validator read intent only from `drg/*.graph.yaml` (a shape the validator itself has rejected since #3387) and ignored `drg/fragment.yaml`, the shape the runtime actually loads. A pack that correctly declared an `enhances` or `overrides` edge in `drg/fragment.yaml` was still warned that its artifact collided with a built-in of the same id. An edge whose endpoints use bare node ids was dropped altogether, so a misspelled bare target passed validation even though the runtime refuses it.
+  - **After:** the validator reads `drg/fragment.yaml` intent through the same pack loader the runtime uses, and resolves bare-id endpoints by the runtime's rules. Declared augmentation suppresses the advisory, and a bare target that names no known artifact is reported as `unknown_target`.
 - **`spec-kitty retrospect create` and `backfill` now auto-commit coordination-topology missions, and never commit to a protected branch** (#5353). **Before:** on a `coord` or `lanes_with_coord` mission git refused the add from the repository root, so nothing was committed; on other missions the record landed on whatever branch was checked out, protected `main` included. **After:** the auto-commit goes through the standard mission commit router. The event log of a coordination-topology mission is committed on the coordination branch; the record, and the event log of other missions, on the target branch. `backfill` commits one mission at a time. On a protected target such as `main` the record is left uncommitted (exit 0) with a warning naming the files and saying to commit them from a feature branch through a pull request. Nothing new to commit is silent; other failures still warn.
 - **`spec-kitty retrospect create` and `backfill` write the `RetrospectiveCaptured` event to the mission's canonical event log** (#5353). **Before:** the event (and `RetrospectiveCaptureFailed` / `RetrospectiveSkipped` from `backfill`) was appended to the repository root checkout's copy of `status.events.jsonl`, so on a coordination-topology mission it never reached the coordination branch and was left uncommitted. **After:** the event is written to the same event log the command commits, as resolved by the canonical status surface. `spec-kitty agent retrospect synthesize --fabricate-empty` resolves its `RetrospectiveCaptured` event the same way, so the fabricated-record path no longer strands its event on the primary copy either.
 - **`spec-kitty agent retrospect synthesize --proposal-id` no longer applies pending or rejected proposals** (#5353). **Before:** `--proposal-id` replaced the accepted-only selection, so naming a pending or rejected proposal planned it, and with `--apply` applied it. **After:** `--proposal-id` only narrows the accepted proposals. An id that is pending, rejected or not in the record is refused with exit 1 before anything is planned or applied; the error names each id and its status, and under `--json` stderr carries `{"error": "proposal_not_accepted", "detail", "proposal_ids", "statuses"}`. On a generator-shaped record (the shape `retrospect create` writes), every id is refused as `unsupported_generator_record`, the `--json` error too. With `--fabricate-empty`, the message says the empty record was written.
@@ -294,6 +297,7 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 
 ### Internal
 
+- The test suite's green now means the tests ran: tests that skipped on every run or cited closed issues now run or point at open ones, exact-count pins became invariants proven by planted breaks, and the dead-symbol allowlist is keyed by `(module, name)` in `tests/architectural/dead_symbol_allowlist.yaml` (ADR `2026-10-01-1`) (#5346, #5353).
 - **The PR-body validator ships as a maintainer-only asset** (`packs/internal/assets/validate-pr-body.py`). It checks a PR body against the five-section contract in `docs/development/how-to/pr-landing.md` and `.github/PULL_REQUEST_TEMPLATE.md`, and with `--verify-discovery --expected-head <sha>` re-runs the Blast-radius `git grep` and compares the `Files:` list. It is not shipped to consumers.
 
 - About 5,000 lines of dead `src/` code were removed, following the 2026-09-30 dead-code review: the unused `specify_cli.proof`, `specify_cli.auth.websocket` and `specify_cli.charter_runtime.facade` packages, the `runtime.next._internal_runtime` re-export modules, leftovers of the retired sync transport (the `sync_dossier` and `ensure_daemon` parameters, `Event`/`LamportClock`, `RuntimeRoot.sync_dir`/`daemon_dir`), and symbols the review marked dead with high confidence. The dead-code gate allowlists shrink with them. No command behaves differently.
