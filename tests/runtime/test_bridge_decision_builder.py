@@ -450,52 +450,20 @@ def test_runtime_bridge_has_zero_raw_decision_constructions() -> None:
 
 
 def test_runtime_bridge_materializes_every_former_decision_site() -> None:
-    """29 pre-extraction ``Decision(...)`` sites collapsed via the 4x
-    triad (12 sites -> 4 calls) into 21 ``_materialize_decision(...)`` call
-    sites (29 - 8 = 21; each triad saves 2 calls by folding its
-    prompt-file-None / step / InvalidStepDecision-except trio into one
-    ``kind=step`` envelope call). A regression on this exact count catches a
-    silent re-introduction of an open-coded ``Decision(...)`` construction
-    that bypasses the builder.
-
-    22nd site (#801, PR #845): the ``_dn_bootstrap`` merged-mission
-    short-circuit materializes its terminal decision through the builder —
-    a legitimate site routed through ``_materialize_decision``. #2947 then
-    added the committed-authority merged-mission
-    short-circuit, whose two verdicts (``kind=terminal`` and the
-    conflict/stale-workspace case) are emitted from
-    ``_merged_mission_short_circuit``. Later EXP routing contributes one more
-    legitimate site, making the live count 24. Mission
-    runtime-advance-guard-topology-wp-completion-01M1W6VZ (#3884, FR-010) adds
-    the 25th: ``_dn_dependency_gate``'s new sibling
-    ``except MissionSelectorAmbiguous`` arm (alongside the existing
-    ``except CanonicalStatusNotFoundError`` arm), converting an ambiguous
-    ``mission_slug`` handle into a structured ``blocked`` Decision through the
-    same builder rather than letting the exception propagate uncaught. Mission
-    advancing-next-board-unification (#4980, #4975) adds the 26th and 27th: the
-    board-authority-backed WP-iteration selector routes its ``kind=blocked``
-    (no-actionable-WP / coord-read fail-closed recovery) and re-dispatch
-    ``kind=step`` envelopes through the same builder in
-    ``_build_wp_iteration_decision`` / ``_map_wp_step_decision``, replacing the
-    bare ``_state_to_action`` divergence. All go
-    through ``_materialize_decision``; the zero-open-coded-``Decision``
-    invariant is unchanged. A regression on this exact count catches a silent
-    re-introduction of an open-coded ``Decision(...)`` construction that
-    bypasses the builder.
-
-    #5255 adds the 28th site: query mode materializes a read-only blocked
-    decision when status references a missing or inconsistent primary task,
-    rather than returning file-derived progress that omits that WP.
-
-    owned-checkout-lifecycle-authority WP11 (#4867, FR-012) adds the 29th:
-    ``_dn_bootstrap``'s ``except CoordinationWorkspaceUnavailable`` arm
-    materializes a typed ``blocked`` decision (``error_code ==
-    OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE``) instead of
-    letting the coordination-workspace probe failure escape uncaught."""
+    """FR-007 (WP08 F3): the builder is actually used — at least one
+    ``_materialize_decision(...)`` call site exists in ``runtime_bridge.py``.
+    Re-pinned 7 times as the call count grew site-by-site (21 -> 29); the
+    real invariant this WP's own exact count does NOT re-derive is "zero
+    open-coded ``Decision(...)`` construction", pinned exactly by
+    :func:`test_runtime_bridge_has_zero_raw_decision_constructions` above —
+    THAT test is what catches a silent re-introduction of a bare
+    ``Decision(...)`` bypassing the builder, not this floor."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
     materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
-    assert len(materialize_calls) == 29
+    assert len(materialize_calls) >= 1, (
+        "non-vacuity: the builder must actually be used at least once; the real invariant is the zero-open-coded-Decision check above"
+    )
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:

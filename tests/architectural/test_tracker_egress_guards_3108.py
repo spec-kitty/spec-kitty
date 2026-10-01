@@ -944,9 +944,10 @@ EXPECTED_ENCLOSING_FUNCTIONS = frozenset(
         "_check_sync_readiness",
     }
 )
-EXPECTED_ENCLOSING_COUNT = 5
 #: Five, not four: ``cli/commands/tracker.py::_check_sync_readiness`` contributes its own audited
-#: call expression. Both numbers are asserted separately and both are exact. An implementer who
+#: call expression. This is a genuine contract cardinality (F12b KEEP, FR-007/#3108/#3030): each
+#: extra call expression is a new egress point that must be reviewed, so this number moves only
+#: with a real, audited egress-site change -- never to nudge a red run green. An implementer who
 #: reads "five call sites" as something derived rather than counted writes a renderer that loops
 #: over ``EgressDestination``, which G5 rejects because the loop variable is an ``ast.Name``, not
 #: a literal member.
@@ -1149,13 +1150,12 @@ def test_g4_exactly_five_enclosing_functions_and_five_call_expressions() -> None
     bundle_b = "\nIf Bundle B moved these call sites, update this membership set -- do not let it fall to zero."
     assert real.enclosing == EXPECTED_ENCLOSING_FUNCTIONS, (
         f"G4: the enclosing-function set changed.\n"
-        f"  expected ({EXPECTED_ENCLOSING_COUNT}): {sorted(EXPECTED_ENCLOSING_FUNCTIONS)}\n"
+        f"  expected ({len(EXPECTED_ENCLOSING_FUNCTIONS)}): {sorted(EXPECTED_ENCLOSING_FUNCTIONS)}\n"
         f"  found ({len(real.enclosing)}):    {sorted(real.enclosing)}\n"
         f"  symmetric difference: {sorted(real.enclosing ^ EXPECTED_ENCLOSING_FUNCTIONS)}\n"
         f"  call expressions: {real.call_count} (expected {EXPECTED_CALL_EXPRESSION_COUNT})\n"
         f"{real.describe()}{bundle_b}"
     )
-    assert len(real.enclosing) == EXPECTED_ENCLOSING_COUNT, f"G4: expected {EXPECTED_ENCLOSING_COUNT} enclosing functions, found {len(real.enclosing)}{bundle_b}"
     assert real.call_count == EXPECTED_CALL_EXPRESSION_COUNT, (
         f"G4: expected exactly {EXPECTED_CALL_EXPRESSION_COUNT} call expressions "
         f"(three local sites, the hosted helper, and the CLI pre-flight), found {real.call_count}:\n"
@@ -1232,7 +1232,7 @@ def test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink() -> None:
         print(
             f"[G4] mutant killed ({label}): control 2/2 -> mutant {len(combined.enclosing)}/{combined.call_count}; "
             f"folded onto src/ that is {len(real.enclosing) + 1} enclosing / {real.call_count + delta_calls} calls "
-            f"vs expected {EXPECTED_ENCLOSING_COUNT}/{EXPECTED_CALL_EXPRESSION_COUNT}; forms={forms}"
+            f"vs expected {len(EXPECTED_ENCLOSING_FUNCTIONS)}/{EXPECTED_CALL_EXPRESSION_COUNT}; forms={forms}"
         )
     print(f"[G4] KILLED-PIN COUNT: {killed}/3")
 

@@ -28,8 +28,12 @@ def test_seed_map_has_complete_nonpending_dispositions(monkeypatch: pytest.Monke
     module = _load_module(monkeypatch)
     census_map = module.load_map(_MAP_PATH)
 
-    assert len(census_map.clusters) == 74
-    assert sum(len(cluster.commits) for cluster in census_map.clusters) == 800
+    # Non-vacuity floor, not an absolute count: the committed census map only
+    # ever grows (5 upward re-pins on ``clusters`` and 5 on the commit total),
+    # so a legitimate new cluster/commit needs 0 edits here (NFR-003). The
+    # real per-cluster commit-count contract is the covering guard below
+    # (``test_seed_map_census_counts_match_commit_lists``).
+    assert len(census_map.clusters) >= 1
     assert all(cluster.disposition != "PENDING" for cluster in census_map.clusters)
 
 

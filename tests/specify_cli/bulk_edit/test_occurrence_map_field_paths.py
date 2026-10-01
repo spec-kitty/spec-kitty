@@ -2,11 +2,10 @@
 
 ``exceptions[]`` matches by *path glob* alone. Mission B2's exemptions are
 *field*-scoped, and the two do not line up: many of its GOVERNANCE
-files also carry MIGRATE entries, and most RAW_MATERIAL files do too (at
-#5367: 13 of 25 GOVERNANCE files and 7 of 10 RAW_MATERIAL files overlap
-MIGRATE; the pinned counts live in the asserts below, re-derived from the
-canonical measurement tool — see
-``scripts/doctrine/inline_reference_inventory.py``). No file-level cut
+files also carry MIGRATE entries, and most RAW_MATERIAL files do too
+(#5367). The asserts below check this relationally against the canonical
+measurement tool — see ``scripts/doctrine/inline_reference_inventory.py`` —
+rather than pinning an exact count. No file-level cut
 separates the MIGRATE occurrences from the GOVERNANCE + RAW ones, so the
 guardrail cannot express its own mission.
 
@@ -33,7 +32,7 @@ import copy
 import importlib.util
 import sys
 import types
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -438,64 +437,32 @@ class TestB2RealExemptionSet:
         assert omap.field_path_exceptions == []
         assert omap.categories["serialized_keys"]["action"] == "manual_review"
 
-    def test_governance_occurrences_and_files_match_sc011(
+    def test_governance_and_raw_material_occurrences_have_the_sc011_shape(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Re-derive SC-011's headline numbers — never hardcode them twice.
+        """Shape invariants over the shipped doctrine corpus, not counts.
 
-        The two occurrence totals below are cardinality contracts: SC-011 states
-        them as *quantities* ("188 GOVERNANCE occurrences across 17 files"), and
-        the claim the criterion makes is about the size of the exemption set a
-        field-path map has to be able to express, not about which individual
-        ``(file, field, detail)`` triples make it up. Naming the triples here
-        would restate ``inline_reference_inventory``'s output rather than pin
-        the criterion, and the per-triple contract is already asserted by
+        SC-011 is an *archived* mission's measurement of the corpus at
+        authoring time ("188 GOVERNANCE occurrences across 17 files") — an
+        archived measurement, not a live cardinality contract. The archived
+        spec itself is never edited (C-006); the mistaken claim is corrected
+        here, where it is actually asserted. What SC-011's own
+        inexpressibility argument needs is only that the GOVERNANCE and
+        RAW_MATERIAL dispositions are each non-empty and land on the file
+        shapes the field-path exception mechanism has to be able to express
+        — agent profiles for GOVERNANCE, styleguides/toolguides for
+        RAW_MATERIAL — and that the GOVERNANCE/MIGRATE overlap (the harder
+        half of the argument, where a single file needs per-field
+        disposition rather than a file-level exclusion) is itself non-empty
+        and confined to agent profiles. None of this depends on how many
+        profiles, styleguides or toolguides the corpus currently ships, so a
+        legitimate new profile or styleguide needs 0 edits here (NFR-003).
+
+        The per-triple contract — every real GOVERNANCE (file, field) pair
+        is individually expressible as a field-path exception — is asserted
+        separately by
         ``test_every_real_governance_field_is_expressible_as_field_path_exception``
-        below, which iterates every real ``(path, field_name)`` pair. The *file*
-        sets are a different matter and are pinned by name — a file leaving
-        GOVERNANCE while another joins is exactly the drift a count cannot see.
-
-        NOTE (mission doctrine-drg-silent-drop-boundary-01M0PE7E, #3629 p1): the
-        GOVERNANCE occurrence total dropped from 224 to 92 when the retired
-        ``context-sources.*`` profile surface was removed. GOVERNANCE now counts
-        only ``directive-references`` codes (the ``context-sources`` sibling keys
-        it also counted no longer exist). The GOVERNANCE *file* set is unchanged
-        — the 24 built-in profiles that carry ``directive-references`` — because
-        every profile that authored ``context-sources`` also authored
-        ``directive-references``. The minutes-mahad enhancement then adds two
-        profile directive references, moving the occurrence total from 92 to 94
-        without changing that file set.
-
-        NOTE (mission nightly-drift-reds-01M3M14S, R8/WP04, #5258): re-derived
-        against the current corpus, two more independent drifts landed on top
-        of the drupal-pack baseline (94 -> 100 / 14 -> 21) recorded above:
-        ``3e3bcb4da`` added a ``directive-references: [..., "053"]`` entry to
-        ``planner-priti`` (DIRECTIVE_053's inbound edge, ledger entry (23) in
-        ``test_extractor_projection.py``) — GOVERNANCE 100 -> 101, file set
-        UNCHANGED (``planner-priti`` already carried ``directive-references``).
-        ``414bbe89b`` (#5203) removed dead ``src/doctrine`` path references from
-        ``python-conventions.styleguide.yaml`` and
-        ``deployable-skill-authoring.styleguide.yaml`` — RAW_MATERIAL 21 -> 19;
-        ``python-conventions`` loses its only RAW_MATERIAL entry entirely and
-        drops out of both the file set and the RAW/MIGRATE overlap below (it
-        still carries MIGRATE entries, so it stays in ``migrate_files``, just
-        not in ``raw_files`` any more). This WP's own R7 fix — the curated
-        ``procedure:disciplined-defect-diagnosis --suggests--> DIRECTIVE_052``
-        edge added in ``_CURATED_ARTIFACT_EDGES`` — touches neither surface:
-        it is a pure DRG edge between an already-shipped procedure and an
-        already-shipped directive, not a profile ``directive-references`` entry
-        or a styleguide/toolguide path reference, so GOVERNANCE/RAW_MATERIAL
-        are unaffected by it.
-
-        NOTE (mission nightly-census-and-timeout-headroom-01M3PM2S, #5367):
-        ``3e09226f`` (#5324) added 7 RAW_MATERIAL entries. Six were bare-id
-        ``references: [DIRECTIVE_051, supply-chain-install-safety]`` on the
-        three supply-chain toolguides; they minted no DRG edge and violated ADR
-        2026-07-26-1, so that mission removed them. The 7th,
-        ``common-docs`` -> ``packs/built-in/assets/docs_structural_lint.config.yaml``,
-        is a legitimate non-artefact data file (the lint policy moved there on
-        purpose) -> RAW 19 -> 20; ``common-docs`` joins ``raw_files`` and the
-        RAW/MIGRATE overlap.
+        below and is untouched by this shape check.
         """
         inv = _load_inventory_module(monkeypatch)
         inventory = inv.collect()
@@ -508,123 +475,33 @@ class TestB2RealExemptionSet:
             e.path for e in inventory.entries if e.disposition == inv.MIGRATE
         }
 
-        # Occurrences (SC-011's own units) — see the docstring. 224 -> 92 after
-        # the context-sources removal, then 92 -> 94 for minutes-mahad's two
-        # additional directive references, then the drupal doctrine pack
-        # (drupal-dries profile + drupal-conventions/drupal-security-performance
-        # styleguides + drupal-review-checks toolguide) moved GOVERNANCE 94 -> 100
-        # and RAW_MATERIAL 14 -> 21, then planner-priti -> DIRECTIVE_053
-        # (``3e3bcb4da``) moved GOVERNANCE 100 -> 101, then #5203
-        # (``414bbe89b``) moved RAW_MATERIAL 21 -> 19, then ``3e09226f`` (#5324)
-        # moved it 19 -> 20 (common-docs' lint config; #5367).
-        assert len(gov) == 101
-        assert len(raw) == 20
-        # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
-        # this WP's context section; SC-011's wording conflates the two).
-        assert gov_files == {
-            f"agent_profiles/{name}.agent.yaml"
-            for name in (
-                "analyst-annie",
-                "architect-alphonso",
-                "comms-cleo",
-                "curator-carla",
-                "debugger-debbie",
-                "designer-dagmar",
-                "diagram-daisy",
-                "doctrine-daphne",
-                "drupal-dries",
-                "frontend-freddy",
-                "generic-agent",
-                "implementer-ivan",
-                "java-jenny",
-                "lexical-larry",
-                "minutes-mahad",
-                "node-norris",
-                "paula-patterns",
-                "planner-priti",
-                "python-pedro",
-                "randy-reducer",
-                "researcher-robbie",
-                "retrospective-facilitator",
-                "reviewer-renata",
-                "scribe-sally",
-                "synthesizer-sam",
-            )
-        }, "the GOVERNANCE file set moved — 25 built-in agent profiles (17 original + 7 writing/comms via #3234 + drupal-dries from the drupal pack)"
-        assert raw_files == {
-            f"styleguides/{name}.styleguide.yaml"
-            for name in (
-                "common-docs",
-                "deployable-skill-authoring",
-                "divio-type-discipline",
-                "drupal-conventions",
-                "drupal-security-performance",
-                "plain-language",
-                "planning-and-tracking",
-                "test-desiderata-and-boundaries",
-                "writing/kitty-glossary-writing",
-            )
-        } | {
-            "toolguides/drupal-review-checks.toolguide.yaml",
-        }, (
-            "the RAW_MATERIAL file set moved — SC-011's built-in styleguides plus "
-            "the drupal doctrine pack (2 styleguides + 1 toolguide), minus "
-            "python-conventions (#5203, 414bbe89b, removed its only dead "
-            "src/doctrine path reference; it still carries MIGRATE entries, so "
-            "it survives in migrate_files, just not here), plus common-docs "
-            "(#5324, 3e09226f: its lint config is a legitimate non-artefact "
-            "data file)"
-        )
-        # Post-consolidation (mission doctrine-drg-silent-drop-boundary): the
-        # retired ``context-sources.directives`` used to add a MIGRATE entry to
-        # EVERY governed profile, so the original "every GOVERNANCE file also
-        # carries MIGRATE" universal subset held. With ``context-sources`` gone,
-        # the governed profiles split cleanly: 12 still carry BOTH a GOVERNANCE
-        # (``directive-references``) and a MIGRATE (``tactic-references``) field
-        # in the same file — these are the ones the field-path inexpressibility
-        # argument still targets and are named here — and 12 now carry ONLY the
-        # GOVERNANCE field (a file-level exclusion suffices for those). Naming
-        # the overlap by file pins the drift a bare subset check would miss.
-        # (drupal-dries, from the drupal doctrine pack, carries both -> 13.)
-        assert gov_files & migrate_files == {
-            f"agent_profiles/{name}.agent.yaml"
-            for name in (
-                "architect-alphonso",
-                "comms-cleo",
-                "debugger-debbie",
-                "drupal-dries",
-                "frontend-freddy",
-                "implementer-ivan",
-                "java-jenny",
-                "lexical-larry",
-                "node-norris",
-                "paula-patterns",
-                "python-pedro",
-                "randy-reducer",
-                "reviewer-renata",
-            )
-        }, "the GOVERNANCE/MIGRATE overlap (profiles carrying both a governed and a migrated field) moved"
-        # The overlap is the harder half of the same argument: these files need
-        # per-field disposition, so name them rather than count them.
-        # (drupal-conventions + drupal-security-performance from the drupal pack;
-        # common-docs from #5324 / 3e09226f — it carries MIGRATE path refs too.)
-        assert raw_files & migrate_files == {
-            f"styleguides/{name}.styleguide.yaml"
-            for name in (
-                "common-docs",
-                "divio-type-discipline",
-                "drupal-conventions",
-                "drupal-security-performance",
-                "plain-language",
-                "planning-and-tracking",
-                "test-desiderata-and-boundaries",
-            )
-        }, (
-            "the RAW_MATERIAL/MIGRATE overlap moved — python-conventions dropped "
-            "out (#5203, 414bbe89b): it lost its only RAW_MATERIAL entry, so it "
-            "is no longer in raw_files at all and cannot be in this intersection; "
-            "common-docs joined it (#5324, 3e09226f)"
-        )
+        # Non-vacuity: the corpus must actually exercise both dispositions,
+        # or the inexpressibility argument this WP exists to fix has nothing
+        # to point at.
+        assert gov and raw
+
+        # Every GOVERNANCE occurrence is a ``directive-references`` entry on
+        # a built-in agent profile — the governance closure's seed surface
+        # (``src/charter/resolver.py``).
+        assert all(PurePosixPath(path).match("agent_profiles/*.agent.yaml") for path in gov_files), gov_files
+
+        # Every RAW_MATERIAL occurrence is a path string carried by a
+        # styleguide or toolguide — the non-artefact files the doctrine
+        # README sanctions carrying (module docstring above ``collect``).
+        assert all(
+            path.startswith("styleguides/") or path.startswith("toolguides/")
+            for path in raw_files
+        ), raw_files
+
+        # The GOVERNANCE/MIGRATE overlap is the harder half of SC-011's
+        # argument: a file carrying BOTH a governed and a migrated field
+        # needs per-field disposition, not a file-level exclusion. It must
+        # be non-empty (some profile really does carry both) and confined
+        # to agent profiles, which keeps the overlap's target set
+        # non-vacuous without naming its members.
+        overlap = gov_files & migrate_files
+        assert overlap
+        assert all(PurePosixPath(path).match("agent_profiles/*.agent.yaml") for path in overlap), overlap
 
     def test_every_real_governance_field_is_expressible_as_field_path_exception(
         self,

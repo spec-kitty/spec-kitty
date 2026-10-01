@@ -59,14 +59,14 @@ def test_assign_anchor_ids_handles_collisions_with_numeric_suffix_in_seed_order(
     assert result[2]["definition"] == "third"
 
 
-def test_real_glossary_seed_yields_104_unique_anchor_ids() -> None:
+def test_real_glossary_seed_yields_one_unique_anchor_per_term() -> None:
     from scripts.docs.generate_kitty_specs_docs import parse_glossary_seed
 
-    terms = assign_anchor_ids(parse_glossary_seed(GLOSSARY_SEED))
-    # Re-pinned 104 -> 103 (2026-08-28, mission charter-authority-flip / #3664):
-    # the governing `doctrine` term was folded into the single canonical `charter`
-    # term, so the seed now carries exactly one fewer unique anchor id.
-    assert len(terms) == 103
+    parsed = parse_glossary_seed(GLOSSARY_SEED)
+    terms = assign_anchor_ids(parsed)
+    assert parsed
+    # Relational, not absolute: no term is dropped by anchor assignment.
+    assert len(terms) == len(parsed)
     anchor_ids = [t["anchor_id"] for t in terms]
     assert len(set(anchor_ids)) == len(anchor_ids), "real glossary seed must not collide today"
 
@@ -95,10 +95,15 @@ def _term(surface: str, anchor_id: str, definition: str = "def") -> glossary_lin
 
 
 def test_load_link_terms_from_real_seed() -> None:
+    from scripts.docs.generate_kitty_specs_docs import parse_glossary_seed
+
+    # The real seed never contains a term with a blank surface (anchor_id is
+    # always populated by assign_anchor_ids' fallback), so load_link_terms'
+    # surface/anchor_id filter is a no-op against it: the count matches the
+    # raw parse directly, with no need to duplicate glossary_linker.py's
+    # filter condition here.
     terms = glossary_linker.load_link_terms(GLOSSARY_SEED)
-    # Re-pinned 104 -> 103 (2026-08-28, mission charter-authority-flip / #3664):
-    # `doctrine` governing term folded into the canonical `charter` term (-1 term).
-    assert len(terms) == 103
+    assert len(terms) == len(parse_glossary_seed(GLOSSARY_SEED))
     assert all(t.surface and t.anchor_id for t in terms)
 
 

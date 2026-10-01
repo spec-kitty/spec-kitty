@@ -113,20 +113,20 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
 
 
 @pytest.mark.parametrize(
-    ("module_rel", "callee", "expected_sites"),
+    ("module_rel", "callee"),
     [
         # (b) legacy workflow commit. coord-authority-trio-degod-01KX7094 WP02
         # (T009) relocated the sibling baseline-artifact commit call site into
         # ``workflow_executor.implement_capture_baseline`` -- see the adjacent
         # ``workflow_executor.py`` parametrize entry below for its capability
         # parity (moved call site, same STANDARD assertion, unchanged).
-        ("cli/commands/agent/workflow.py", "safe_commit", 1),
-        ("cli/commands/agent/workflow_executor.py", "safe_commit", 1),
+        ("cli/commands/agent/workflow.py", "safe_commit"),
+        ("cli/commands/agent/workflow_executor.py", "safe_commit"),
         # (d) move-task / mark-status / map-requirements auto-commits now route
         # through the canonical ``commit_for_mission`` router (WP07 / #2058 / FR-006);
         # the single ``safe_commit`` site they share lives in the router and must
         # still assert STANDARD (refused on a protected destination).
-        ("coordination/commit_router.py", "safe_commit", 1),
+        ("coordination/commit_router.py", "safe_commit"),
         # (c) finalize-tasks canonical seeding (both finalize surfaces) — the
         # #2056 decomposition relocated these seeding call sites out of the
         # ``mission`` god module into the ``mission_finalize`` seam. The raw
@@ -134,25 +134,20 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # ``_bootstrap_canonical_state_via_mission`` patch-seam wrapper (which
         # forwards ``capability`` as a variable, not a surface literal); every
         # wrapper call site resolves to STANDARD (refused on a protected
-        # destination). Re-pinned 2 -> 4 (2026-09-30, landing #5405 / #5403):
-        # ``fix(finalize): make planning refresh atomic and fail closed``
-        # (505c6aeeb5) added two ``refresh_bootstrap_result`` call sites that
-        # both default to STANDARD; the count pin was never joined, so this test
-        # was red on main. Re-pinned 4 -> 3 (2026-09-30, #5100): the second of
-        # those sites was a duplicate re-plan fallback, replaced by a fail-closed
-        # refusal. The per-site protected-refusal assertion below still checks
-        # every remaining site (each is STANDARD); only the count changed.
-        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 3),
+        # destination). The per-site protected-refusal assertion below checks
+        # every site (each is STANDARD), so the exact call-site count no
+        # longer needs its own pin.
+        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission"),
         # Wave 2 degod (#2305) relocated the finalize-tasks family out of the
         # tasks.py shim; its canonical-seeding call site now lives in
         # tasks_finalize.py (routed ``_tasks.bootstrap_canonical_state(...)`` —
         # the AST counter matches attribute calls, so the capability parity
         # still drives the real site).
-        ("cli/commands/agent/tasks_finalize.py", "bootstrap_canonical_state", 1),
+        ("cli/commands/agent/tasks_finalize.py", "bootstrap_canonical_state"),
     ],
 )
 def test_status_bookkeeping_call_sites_are_refused_on_protected_destination(
-    module_rel: str, callee: str, expected_sites: int
+    module_rel: str, callee: str
 ) -> None:
     """No ordinary bookkeeping call site may assert a protected-flow capability.
 
@@ -164,11 +159,7 @@ def test_status_bookkeeping_call_sites_are_refused_on_protected_destination(
     """
     module_path = _SPECIFY_CLI_SRC / module_rel
     capabilities = _capabilities_at_call_sites(module_path, callee)
-    assert len(capabilities) == expected_sites, (
-        f"expected {expected_sites} {callee} call site(s) in {module_rel}, "
-        f"found {len(capabilities)} — update this parity test alongside the "
-        "call-site change"
-    )
+    assert capabilities, f"no {callee} call site found in {module_rel} — the parity test would pass vacuously"
 
     target = CommitTarget(ref="main")
     protected = ProtectionState(is_protected=True)

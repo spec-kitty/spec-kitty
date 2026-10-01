@@ -107,8 +107,7 @@ def _render_for_agent(agent: str, command: str) -> str:
     committed baseline exactly.
     """
     template_path = TEMPLATES_DIR / command / "prompt.md"
-    if not template_path.exists():
-        pytest.skip(f"Template file missing: {template_path}")
+    assert template_path.is_file(), f"Template file missing: {template_path}"
 
     config = AGENT_COMMAND_CONFIG[agent]
     with patch(
@@ -221,16 +220,20 @@ def test_toml_command_output_is_parseable(agent: str, command: str) -> None:
 
 
 def test_non_migrated_agents_count() -> None:
-    """Exactly 13 agents are in AGENT_COMMAND_CONFIG.
+    """NON_MIGRATED_AGENTS matches the canonical slash-command key registry.
 
-    Count rose to 13 when PR #626 registered Kiro as a first-class slash-command
-    agent, then fell back to 12 when Mission #136 deprecated Roo (Roo Code shut
-    down 2026-05-15, constraint C-007 — see ``specify_cli.core.config``), and rose
-    to 13 again when LLxprt Code registered as a TOML slash-command agent.
-    Command-skill agents remain absent (they use the Agent Skills pipeline — see
-    AGENT_SKILL_CONFIG).
+    Cross-registry relation, not a re-pinned count: every command-file agent
+    in ``AGENT_COMMAND_CONFIG`` (this module's ``NON_MIGRATED_AGENTS``) must
+    have exactly one slash-command directory in the canonical
+    ``specify_cli.agent_utils.directories.AGENT_DIRS``/``AGENT_DIR_TO_KEY``
+    registry, and vice versa — command-skill agents (codex, vibe, pi, letta)
+    remain absent from both (they use the Agent Skills pipeline — see
+    AGENT_SKILL_CONFIG). A legitimate new agent, registered consistently in
+    both registries, needs 0 edits here (NFR-003).
     """
-    assert len(NON_MIGRATED_AGENTS) == 13, f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: {NON_MIGRATED_AGENTS}"
+    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
+
+    assert set(NON_MIGRATED_AGENTS) == set(AGENT_DIR_TO_KEY.values())
 
 
 def test_codex_not_in_agent_command_config() -> None:

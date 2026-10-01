@@ -61,10 +61,13 @@ bookkeeping, neither touching ``computer.py``/``runner.py``:
    ``remediation`` to ``None`` in ``computer.py`` without declaring it in
    ``_EXEMPT_STATES``, then dropped ``_REMEDIATION_STATE_FLOOR`` to match
    the smaller discovered count. Both individual floor assertions stayed
-   green while a state silently lost all effectiveness coverage. Fixed by
-   pinning ``_REMEDIATION_STATE_FLOOR + _EXEMPTION_FLOOR == 7`` in
-   ``test_exemption_set_size_is_pinned`` — a state may legally MOVE between
-   the two floors, but the total must never shrink unnoticed.
+   green while a state silently lost all effectiveness coverage. Fixed at
+   the time by pinning ``_REMEDIATION_STATE_FLOOR + _EXEMPTION_FLOOR == 7``
+   — a state may legally MOVE between the two floors, but the total must
+   never shrink unnoticed. WP08 later retired that floor-sum pin in favor
+   of the stronger per-site partition check, ``test_every_construction_site_is_partitioned``
+   (see its own docstring); ``test_exemption_set_meets_floor`` now asserts
+   only its own ``>= _EXEMPTION_FLOOR`` non-vacuity floor.
 2. ``_EXEMPT_STATES`` was keyed on ``(layer, lineno)`` — the one property
    this WP already proved unstable. A non-uniform line shift (e.g.
    reordering producer functions) could land a *different*, still
@@ -136,7 +139,7 @@ def _discover_producers() -> tuple[str, ...]:
     Derived from ``compute_freshness``'s own AST body — not a hand-copied
     list that can silently drift (T002). Removing a producer call from
     ``compute_freshness`` shrinks this tuple and turns
-    ``test_producer_floor_is_pinned`` red.
+    ``test_producer_meets_floor`` red.
     """
     source = inspect.getsource(_computer_module.compute_freshness)
     tree = ast.parse(source)
@@ -147,10 +150,60 @@ def _discover_producers() -> tuple[str, ...]:
     return tuple(dict.fromkeys(names))  # de-duplicated, first-seen order
 
 
-def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], ...]:
-    """Return ``(lineno, producer_function_name, state_value)`` for every
-    ``FreshnessSubState(...)`` construction in ``computer.py`` whose
-    ``remediation=`` keyword is a non-``None`` literal.
+def _classify_freshness_substate_call(
+    node: ast.Call,
+    function_name: str,
+    module_string_constants: dict[str, str],
+) -> tuple[int, str, str, bool]:
+    """Classify ONE ``FreshnessSubState(...)`` call site as ``(lineno,
+    function_name, state_value, has_remediation)``.
+
+    Extracted from :func:`_discover_freshness_substate_sites` to keep that
+    walker's own cyclomatic complexity down (NFR-005) — this is the per-call
+    decision, the walker is only the module-wide traversal that finds calls.
+
+    Fails closed: a construction whose ``state=`` value cannot be read as a
+    string literal raises rather than silently skipping the site — a walker
+    that skips an unreadable site would silently shrink the per-site
+    partition (FR-007 F11) it exists to make exhaustive.
+    """
+    state_value: str | None = None
+    has_remediation = False
+    remediation_lineno: int | None = None
+    for kw in node.keywords:
+        if kw.arg == "state" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            state_value = kw.value.value
+        elif kw.arg == "remediation" and (
+            (isinstance(kw.value, ast.Constant) and kw.value.value is not None) or (isinstance(kw.value, ast.Name) and kw.value.id in module_string_constants)
+        ):
+            # ``kw.value.lineno`` (not ``node.lineno``, which is the call's
+            # opening line) so the reported line matches where
+            # ``remediation=...`` actually reads in a multi-line call — this
+            # is what makes the contract's cited line numbers (:309, :318,
+            # ...) line up with what this discovers.
+            has_remediation = True
+            remediation_lineno = kw.value.lineno
+    if state_value is None:
+        raise AssertionError(
+            f"FreshnessSubState(...) construction at line {node.lineno} in "
+            f"{function_name} has no readable state= string literal — the "
+            "per-site partition (FR-007 F11) must fail closed rather than "
+            "silently skip an unclassifiable site"
+        )
+    lineno = remediation_lineno if remediation_lineno is not None else node.lineno
+    return lineno, function_name, state_value, has_remediation
+
+
+def _discover_freshness_substate_sites() -> tuple[tuple[int, str, str, bool], ...]:
+    """Return ``(lineno, producer_function_name, state_value,
+    has_remediation)`` for EVERY ``FreshnessSubState(...)`` construction site
+    in ``computer.py`` — not only the remediation-emitting ones.
+
+    This is the single AST walker (DIRECTIVE_043: one walk, not duplicated)
+    the per-site partition (``test_every_construction_site_is_partitioned``)
+    and the emitting-only views below
+    (:func:`_discover_remediation_emitting_states_full`,
+    :func:`_discover_remediation_emitting_states`) both derive from.
 
     AST-derived over the whole module (producers call helper functions —
     e.g. ``_synthesized_drg_graph_state`` — that are not textually nested
@@ -160,12 +213,11 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
     caller that merely delegates to it).
 
     ``producer_function_name`` and ``state_value`` are read from the
-    ``state=`` keyword that is always a sibling of ``remediation=`` on the
-    same call (confirmed by inspection of every branch in
-    ``computer.py``). This pair is the semantically stable identity WP03
-    cycle 2 uses to key ``_EXEMPT_STATES`` — see the module docstring's
-    cycle-2 addendum for why the lineno alone is not a safe key across an
-    arbitrary code reorder.
+    ``state=``/``remediation=`` keywords, always siblings on the same call
+    (confirmed by inspection of every branch in ``computer.py``). This pair
+    is the semantically stable identity WP03 cycle 2 uses to key
+    ``_EXEMPT_STATES`` — see the module docstring's cycle-2 addendum for
+    why the lineno alone is not a safe key across an arbitrary code reorder.
     """
     source = inspect.getsource(_computer_module)
     tree = ast.parse(source)
@@ -187,7 +239,7 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
         for target in node.targets
         if isinstance(target, ast.Name)
     }
-    results: list[tuple[int, str, str]] = []
+    results: list[tuple[int, str, str, bool]] = []
     for func_node in tree.body:
         if not isinstance(func_node, ast.FunctionDef):
             continue
@@ -196,25 +248,17 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
                 continue
             if node.func.id != "FreshnessSubState":
                 continue
-            remediation_lineno: int | None = None
-            state_value: str | None = None
-            for kw in node.keywords:
-                if kw.arg == "remediation" and (
-                    (isinstance(kw.value, ast.Constant) and kw.value.value is not None)
-                    or (isinstance(kw.value, ast.Name) and kw.value.id in module_string_constants)
-                ):
-                    # ``kw.value.lineno`` (not ``node.lineno``, which is the
-                    # call's opening line) so the reported line matches
-                    # where ``remediation=...`` actually reads in a
-                    # multi-line call — this is what makes the contract's
-                    # cited line numbers (:309, :318, ...) line up with
-                    # what this discovers.
-                    remediation_lineno = kw.value.lineno
-                elif kw.arg == "state" and isinstance(kw.value, ast.Constant):
-                    state_value = kw.value.value
-            if remediation_lineno is not None and state_value is not None:
-                results.append((remediation_lineno, func_node.name, state_value))
+            results.append(_classify_freshness_substate_call(node, func_node.name, module_string_constants))
     return tuple(sorted(results))
+
+
+def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], ...]:
+    """Thin emitting-only projection of
+    :func:`_discover_freshness_substate_sites` (same AST walk, not
+    duplicated) — ``(lineno, producer_function_name, state_value)`` for
+    every remediation-emitting site.
+    """
+    return tuple((lineno, function, state) for lineno, function, state, has_remediation in _discover_freshness_substate_sites() if has_remediation)
 
 
 def _discover_remediation_emitting_states() -> tuple[int, ...]:
@@ -225,7 +269,7 @@ def _discover_remediation_emitting_states() -> tuple[int, ...]:
     Thin lineno projection of :func:`_discover_remediation_emitting_states_full`
     (same AST walk, not duplicated). Deleting or neutering a
     remediation-emitting branch shrinks this tuple and turns
-    ``test_remediation_state_floor_is_pinned`` red (C-EFF-4).
+    ``test_remediation_state_meets_floor`` red (C-EFF-4).
     """
     return tuple(lineno for lineno, _function, _state in _discover_remediation_emitting_states_full())
 
@@ -299,17 +343,26 @@ _EXEMPT_STATES: frozenset[tuple[str, str]] = frozenset(
 # sites (synthesized_drg) = 7. The :318/:357-equivalent sites (`invalid` /
 # cascading `stale`) still emit `remediation=None` and are declared exempt
 # above rather than counted here — WP03, a deliberate reviewed change (was
-# 7, then 5). Update this floor deliberately, in the same change, when a
-# state is legitimately added or removed — never to nudge a red run green.
+# 7, then 5).
+#
+# WP08 (FR-007 F11): a floor over SITES (non-vacuity), not a pin — the
+# actual coverage guarantee is the per-site partition
+# (`test_every_construction_site_is_partitioned`), which cannot be defeated
+# by dropping this floor to match a shrunk count (the old `== 9` sum's own
+# exploit). Update deliberately, in the same change, when a state is
+# legitimately added — never to nudge a red run green.
 _REMEDIATION_STATE_FLOOR = 7
 
 # `_compute_charter_source`, `_compute_synced_bundle`, `_compute_synthesized_drg`
-# (R-005). Update deliberately, in the same change, if a producer is added.
+# (R-005). WP08 (FR-007 F11): a floor over sites (non-vacuity), not a pin.
+# Update deliberately, in the same change, if a producer is added.
 _PRODUCER_FLOOR = 3
 
-# Pinned so a check failing C-EFF-1 cannot be moved into `_EXEMPT_STATES` to
-# make this module pass — that would silently shrink coverage. Update
-# deliberately, in the same change, alongside the review that adds a member.
+# WP08 (FR-007 F11): a floor over sites (non-vacuity), not a pin — the
+# per-site partition (`test_every_construction_site_is_partitioned`) is the
+# actual coverage guarantee; a check failing C-EFF-1 being moved into
+# `_EXEMPT_STATES` to dodge a red run now fails that partition's
+# disjointness check directly, not only this floor.
 #
 # WP03: 0 -> 2, a deliberate reviewed change. WP02 proved exhaustively that
 # `_compute_charter_source`'s `invalid` state and `_compute_synced_bundle`'s
@@ -320,61 +373,34 @@ _PRODUCER_FLOOR = 3
 _EXEMPTION_FLOOR = 2
 
 
-def test_remediation_state_floor_is_pinned() -> None:
+def test_remediation_state_meets_floor() -> None:
     discovered = _discover_remediation_emitting_states()
-    assert len(discovered) == _REMEDIATION_STATE_FLOOR, (
-        "NFR-001: remediation-emitting state count drifted from the pinned "
-        f"floor ({_REMEDIATION_STATE_FLOOR}); found {len(discovered)} at lines "
-        f"{discovered}. If this drift is legitimate, update the floor "
-        "deliberately in this same change."
+    assert len(discovered) >= _REMEDIATION_STATE_FLOOR, (
+        f"NFR-001: remediation-emitting site count dropped below the non-vacuity floor ({_REMEDIATION_STATE_FLOOR}); found {len(discovered)} at lines {discovered}."
     )
 
 
-def test_producer_floor_is_pinned() -> None:
+def test_producer_meets_floor() -> None:
     producers = _discover_producers()
-    assert len(producers) == _PRODUCER_FLOOR, (
-        f"NFR-001: check-producer count drifted from the pinned floor ({_PRODUCER_FLOOR}); found {len(producers)}: {producers}."
+    assert len(producers) >= _PRODUCER_FLOOR, (
+        f"NFR-001: check-producer count dropped below the non-vacuity floor ({_PRODUCER_FLOOR}); found {len(producers)}: {producers}."
     )
 
 
-def test_exemption_set_size_is_pinned() -> None:
-    assert len(_EXEMPT_STATES) == _EXEMPTION_FLOOR, (
-        "C-EFF-4: exemption-set size drifted from the pinned floor "
-        f"({_EXEMPTION_FLOOR}); found {len(_EXEMPT_STATES)}: {sorted(_EXEMPT_STATES)}. "
-        "Moving a failing check into the exemption set to dodge a red run "
-        "must itself turn this red (spec US1 Acceptance Scenario 3) — update "
-        "the floor only as a deliberate, reviewed act."
+def test_exemption_set_meets_floor() -> None:
+    assert len(_EXEMPT_STATES) >= _EXEMPTION_FLOOR, (
+        f"C-EFF-4: exemption-set size dropped below the non-vacuity floor ({_EXEMPTION_FLOOR}); found {len(_EXEMPT_STATES)}: {sorted(_EXEMPT_STATES)}."
     )
-    # C-EFF-4 / NFR-001, review cycle 1 required change 1: the two floors
-    # above are pinned independently, but nothing yet asserted their SUM —
-    # the reviewer demonstrated a working exploit that defeats both
-    # individual pins at once: turn a real remediation-emitting state's
-    # `remediation=` into `None` in `computer.py` WITHOUT declaring it in
-    # `_EXEMPT_STATES` (so `_EXEMPTION_FLOOR` never moves), then drop
-    # `_REMEDIATION_STATE_FLOOR` to match the now-smaller AST-derived count
-    # and delete its `_CASES` entry. Both floor assertions above stay
-    # green — each was kept in lockstep with its own (now-wrong) count —
-    # while a real, previously-covered state silently vanishes from all
-    # effectiveness coverage, with no exemption declared and no red
-    # anywhere. A state legitimately MOVING between "emits a remediation"
-    # and "exempt" (exactly WP03's own 7/0 -> 5/2 change) must stay legal;
-    # a state being LOST from both buckets at once must not. Pinning the
-    # sum to the original 7-state census (R-005 / WP01) makes the second
-    # case impossible without the pin itself catching it. `7` is not
-    # expected to change casually — if it ever does (a state is added to or
-    # removed from the census entirely, not merely moved between buckets),
-    # update it deliberately, in this same reviewed change, exactly like
-    # either floor above.
-    # WP03 cycle 3 (review finding): the sum invariant above pins the COUNT of
-    # exempt states but not their IDENTITY. Both currently-exempt states already
-    # emit `remediation=None` in `computer.py`, so neither ever appears in
-    # `_discover_remediation_emitting_states_full()` — which means `_EXEMPT_STATES`'
-    # *values* are inert with respect to every other assertion here. A reviewer
-    # demonstrated the exploit: swap one legitimate member for a real, still-
-    # effective `(function, state)` pair, drop the matching `_CASES` entry, and
-    # the module goes 13 -> 12 tests ALL GREEN with real coverage silently gone,
-    # while the floors and the sum all still hold. Pinning the exact set closes
-    # it: changing WHICH states are exempt is now, like changing how many, a
+    # WP03 cycle 3 (review finding): a state's COUNT alone does not pin its
+    # IDENTITY. Both currently-exempt states already emit `remediation=None`
+    # in `computer.py`, so neither ever appears in
+    # `_discover_remediation_emitting_states_full()` — which means
+    # `_EXEMPT_STATES`' *values* are inert with respect to every other
+    # assertion here. A reviewer demonstrated the exploit: swap one
+    # legitimate member for a real, still-effective `(function, state)`
+    # pair, drop the matching `_CASES` entry, and the module goes green
+    # with real coverage silently gone. Pinning the exact set closes it:
+    # changing WHICH states are exempt is now, like changing how many, a
     # deliberate act this assertion forces into the diff.
     expected_exempt = frozenset(
         {
@@ -391,24 +417,39 @@ def test_exemption_set_size_is_pinned() -> None:
         "does have a working remediation, excluding it from C-EFF-1 testing."
     )
 
-    # H3 (#2831 HIGH finding) genuinely grew the total: `_compute_charter_source`'s
-    # and `_compute_synced_bundle`'s `missing` branches each split into an F1 call
-    # site (`spec-kitty charter generate --no-from-interview`) and a distinct F2
-    # call site (`spec-kitty upgrade --yes`) so a legacy bundle's content is no
-    # longer silently discarded by a shared, wrong remediation. That is +2 real
-    # call sites (7 -> 9) -- not a state moving between the floor and the
-    # exemption set, which is exactly the case this assertion exists to tell
-    # apart from an accidental shrink. Updated deliberately, in this same
-    # reviewed change, per this test's own documented escape hatch below.
-    assert _REMEDIATION_STATE_FLOOR + _EXEMPTION_FLOOR == 9, (
-        "NFR-001/C-EFF-4: the remediation-emitting floor and the exemption "
-        f"floor drifted apart from the known total — {_REMEDIATION_STATE_FLOOR} "
-        f"+ {_EXEMPTION_FLOOR} != 9. A state may legitimately move between "
-        "remediation-emitting coverage and _EXEMPT_STATES (bump one floor, "
-        "drop the other, in the same change) but must never be lost from "
-        "both at once. If the total genuinely changed, update `9` "
-        "deliberately, in this same reviewed change."
-    )
+
+def test_every_construction_site_is_partitioned() -> None:
+    """FR-007 F11 (WP08) — per-site partition, replacing the pinned
+    floor-sum (`_REMEDIATION_STATE_FLOOR + _EXEMPTION_FLOOR == 9`) this WP
+    retires.
+
+    Every ``FreshnessSubState(...)`` construction site in ``computer.py``
+    must fall into exactly one of three buckets: it emits a remediation, it
+    is a documented passing state (``_PASS_STATES``), or it is a declared,
+    reviewed exemption (``_EXEMPT_STATES``).
+
+    A pair-level check (grouping two call sites that happen to share one
+    ``(function, state)`` identity) can be defeated by neutering only ONE of
+    the two sites while the pair as a whole still looks "emitting" — e.g.
+    ``_compute_charter_source``'s two ``missing`` sites (:522, :528) share
+    the pair ``("_compute_charter_source", "missing")``; neutering only one
+    of them would still show that pair as emitting overall. This partition
+    checks every SITE independently, so neutering either one fails on that
+    site alone (WP08 B2, the split-site exploit the old ``== 9`` sum caught
+    only by accident, and only at the aggregate level).
+    """
+    sites = _discover_freshness_substate_sites()
+    for lineno, function, state, has_remediation in sites:
+        assert has_remediation or state in _PASS_STATES or (function, state) in _EXEMPT_STATES, (
+            f"construction site not covered by the partition: line {lineno} "
+            f"in {function} (state={state!r}) neither emits a remediation, "
+            "is a documented passing state, nor is declared exempt "
+            f"(lineno={lineno}, function={function}, state={state})"
+        )
+
+    emitting_pairs = {(function, state) for _lineno, function, state, has_remediation in sites if has_remediation}
+    disjointness_violations = emitting_pairs & _EXEMPT_STATES
+    assert not disjointness_violations, f"disjointness violated: {sorted(disjointness_violations)} are declared exempt but also emit a remediation at some site"
 
 
 # ---------------------------------------------------------------------------

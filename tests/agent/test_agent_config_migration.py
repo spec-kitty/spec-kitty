@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pytest
 
+from specify_cli.agent_utils.directories import AGENT_DIRS
 from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
@@ -78,11 +79,10 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 slash-command agents (fallback).
-        # Count went 12 post roo removal (2026-05-15, C-007) and back to 13 when
-        # llxprt registered; command-skill agents use AGENT_SKILL_CONFIG and are
-        # not listed in AGENT_DIRS.
-        assert len(agent_dirs) == 13
+        # Fallback returns the canonical registry wholesale, so pin the
+        # relation rather than a count that drifts every time an agent is
+        # added or removed from AGENT_DIRS.
+        assert agent_dirs == list(AGENT_DIRS)
         assert (".claude", "commands") in agent_dirs
         assert (".opencode", "command") in agent_dirs
         assert (".kiro", "prompts") in agent_dirs
@@ -98,9 +98,9 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 slash-command agents (fallback for empty).
-        # See test_fallback_to_all_agents_when_no_config for count history.
-        assert len(agent_dirs) == 13
+        # Fallback for empty config also returns the canonical registry
+        # wholesale; see test_fallback_to_all_agents_when_no_config.
+        assert agent_dirs == list(AGENT_DIRS)
 
 
 class TestMigrationRespectsConfig:
@@ -232,10 +232,15 @@ class TestAgentDirMapping:
 
     def test_agent_dir_to_key_complete(self):
         """Verify all agents have key mappings."""
-        # All 13 slash-command agents should be mapped (roo removed 2026-05-15,
-        # C-007; llxprt added) — command-skill agents use AGENT_SKILL_CONFIG,
-        # not AGENT_DIR_TO_KEY.
-        assert len(AGENT_DIR_TO_KEY) == 13
+        # Cross-registry relation, not a re-pinned count: AGENT_DIR_TO_KEY's
+        # key set must exactly match the canonical AGENT_DIRS directory set
+        # (the slash-command dirs of `specify_cli.agent_utils.directories`
+        # are the authority — command-skill agents use AGENT_SKILL_CONFIG,
+        # not AGENT_DIR_TO_KEY). A legitimate new agent, added consistently to
+        # both registries, needs 0 edits here (NFR-003).
+        from specify_cli.agent_utils.directories import AGENT_DIRS
+
+        assert set(AGENT_DIR_TO_KEY) == {agent_dir for agent_dir, _subdir in AGENT_DIRS}
 
         # Verify special mappings
         assert AGENT_DIR_TO_KEY[".github"] == "copilot"
