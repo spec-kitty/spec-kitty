@@ -87,6 +87,10 @@ nodes:
     kind: tactics
     title: "Spec Kitty Gate Non-Vacuity Exemplar Audit"
     body_path: tactics/spec-kitty-gate-non-vacuity-exemplar.tactic.yaml
+  - id: spec-kitty-ratchet-cost
+    kind: tactics
+    title: "Spec Kitty Ratchet Cost (allowlist ratchets are priced debt)"
+    body_path: tactics/spec-kitty-ratchet-cost.tactic.yaml
   # Backlog-triage doctrine moved from built-in: these are
   # maintainer/tracker-backlog specifics, not repository-agnostic product
   # doctrine, so they never shipped to consumers correctly. The tactic was
@@ -206,6 +210,9 @@ edges:
     relation: refines
   - source: spec-kitty-gate-non-vacuity-exemplar
     target: "tactic:architectural-gate-non-vacuity"
+    relation: refines
+  - source: spec-kitty-ratchet-cost
+    target: "tactic:frozen-baseline-shrink-only-ratchet"
     relation: refines
   # Backlog-triage authoring chain (moved from built-in). Ported
   # verbatim from the built-in tactic.graph.yaml / procedure.graph.yaml edge

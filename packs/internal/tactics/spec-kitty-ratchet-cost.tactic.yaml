@@ -1,0 +1,46 @@
+schema_version: "1.0"
+id: spec-kitty-ratchet-cost
+name: Spec Kitty Ratchet Cost (allowlist ratchets are priced debt)
+purpose: >
+  Records why, in this repository, a shrink-only allowlist ratchet is expensive
+  debt rather than a neutral safety net, and what a maintainer does about it.
+  Refines the built-in frozen-baseline-shrink-only-ratchet tactic with the
+  owner's ruling of 2026-09-30 and ADR
+  docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md.
+steps:
+  - title: Price the ratchet before adding or keeping it
+    description: >
+      Every allowlist entry is re-scanned on every CI run, on every pull request
+      and every nightly, so each ratchet costs money for as long as it exists.
+      It also keeps a known defect alive in the codebase. The owner's ruling
+      (Stijn, 2026-09-30): "we should start considering them very expensive
+      debt. As they cost us money on every single CI run." Treat a ratchet as a
+      running cost, not as the end state of a mission.
+  - title: Close with an empty allowlist
+    description: >
+      The default closing state of a defect-class gate is an empty-allowlist
+      invariant. Add a new gate only when it can start empty, or in the same
+      mission that drains it. When a transient allowlist is unavoidable, give it
+      a tracker issue, a named owner, and an exit date, and record it in
+      tests/architectural/_baselines.yaml.
+    examples:
+      - "Mission git-paths-are-data-01M3SSXR ships tests/architectural/test_git_path_listing_owner.py with an empty allowlist; the non-listing git runners it could not drain became a follow-up issue (#5475), not allowlist entries."
+  - title: Drain existing ratchets as campsite work
+    description: >
+      When a mission touches a surface covered by a non-empty ratchet, drain the
+      entries in that surface as campsite work (charter standing order 2). A
+      ratchet with no owner or exit date is a finding to raise, not a baseline to
+      re-pin.
+failure_modes:
+  - "Ratchet shipped as the fix: a mission closes a defect class by freezing its offenders and moves on, leaving a per-run CI cost with no owner."
+  - "Re-pin instead of drain: a baseline is lowered or re-pinned by hand while the remaining entries have no exit date."
+notes: >
+  Relates to, and does not supersede, ADR
+  docs/adr/3.x/2026-09-14-1-census-floor-ratchet-adjudication.md, which
+  adjudicated four specific census ratchets. This tactic sets the standing
+  cost rule for all of them.
+references:
+  - name: Frozen-Baseline Shrink-Only Ratchet
+    type: tactic
+    id: frozen-baseline-shrink-only-ratchet
+    when: The repository-agnostic mechanics this tactic prices.

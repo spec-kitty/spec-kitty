@@ -44,6 +44,11 @@ steps:
       `frozen-baseline-shrink-only-ratchet` tactic (referenced below) — follow it
       rather than restating it here.
 
+      Keep the sanctioned owner (the canonical surface itself) separate from
+      grandfathered exceptions. Exceptions are transient debt with a per-run
+      cost: prefer draining them so the gate closes with no exceptions left,
+      as an empty-allowlist invariant.
+
       Typical shape: a module-level _ALLOWLIST frozenset; the comparison at
       "if rel in _ALLOWLIST: continue" skips sanctioned files and flags all
       others. A numeric companion lives in the shared baseline file.

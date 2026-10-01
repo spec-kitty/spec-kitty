@@ -2,6 +2,10 @@
 
 > Created: 2026-01-27
 > Version: 1.4.0
+> Updated: 2026-09-30 — allowlist ratchets are priced debt (ADR `2026-09-30-1`,
+> owner ruling): Standing Order #5 no longer names a shrink-only allowlist as part
+> of the fix and prefers an empty-allowlist invariant; Burn-down Policy (a) gives
+> every baseline entry an owner and a drain date.
 > Updated: 2026-09-30 — re-anchored Architecture: Branch and Release Strategy to the
 > active 4.x line (4.0.0 rc-stage); the 3.x section still read "current version 3.x
 > (3.1.0a3+)", which led docs updates to treat 3.2.x as the live cycle.
@@ -88,11 +92,14 @@ the cheapest point in the lifecycle.
    through the pre-existing entry point; require live evidence over "looks fixed";
    use realistic data; never retry-to-green. → `DIRECTIVE_041`, `DIRECTIVE_034`.
 5. **Architectural gate discipline.** Close defect classes by construction with a
-   NON-VACUOUS call-site gate (concrete floor + self-mutation test + shrink-only
-   allowlist); a gate-unmask cannot self-validate. After merge, run the full
-   arch-gate sweep with a cross-base pre-existing check. → `DIRECTIVE_043`,
+   NON-VACUOUS call-site gate (concrete floor + self-mutation test); prefer an
+   empty-allowlist invariant, and add a gate only when it can start empty or in the
+   mission that drains it. Any transient allowlist is priced debt (it re-runs on
+   every CI run and keeps a known defect alive): give it an issue, an owner and an
+   exit date, and drain it. A gate-unmask cannot self-validate. After merge, run the
+   full arch-gate sweep with a cross-base pre-existing check. → `DIRECTIVE_043`,
    `architectural-gate-non-vacuity`, `frozen-baseline-shrink-only-ratchet`,
-   `post-merge-arch-gate-adjudication`.
+   `post-merge-arch-gate-adjudication`; ADR `2026-09-30-1`.
 6. **Canonical sources & unification.** Use canonical templates/skills/CLI, never
    improvise or copy an older mission; chase unification, not parity; a missing
    command is a gap to file upstream; guard the terminology canon. → `DIRECTIVE_044`,
@@ -637,7 +644,9 @@ authority_paths:
 
 (a) Every mutable architectural allowlist is governed by a baseline in
 `tests/architectural/_baselines.yaml`. Growth above baseline **FAILS CI**;
-shrinkage WARNS (informational, non-fatal).
+shrinkage WARNS (informational, non-fatal). A baseline entry is debt: it names a
+tracker issue, an owner and a drain date, and it is removed when it reaches zero.
+A gate with no allowlist needs no baseline entry (ADR `2026-09-30-1`).
 
 (b) `test_no_dead_modules._CATEGORY_7_GRANDFATHERED` (Cat-7) shrinks by ≥2
 entries per major release; **target 0 by 4.0**.

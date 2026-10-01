@@ -61,8 +61,11 @@ steps:
       in the baseline comment: the category MUST shrink by a minimum number of
       entries per major release, with an explicit target of zero by a stated
       version. Record this policy in the baseline file comment and verify compliance
-      at each release cut. Categories without a burn-down policy are permitted to
-      accumulate indefinitely.
+      at each release cut. Name an owner (a person or a tracker ticket) and an exit
+      date for every non-zero category. A category without a burn-down policy
+      accumulates indefinitely, which is the failure this step exists to prevent.
+      When the count reaches zero, remove the allowlist and keep the gate as an
+      empty-allowlist invariant rather than a zero-valued baseline entry.
     examples:
       - "# Per the burn-down policy, this category MUST shrink by >= 2 entries per major release; target = 0 by 4.0."
 failure_modes:
@@ -71,7 +74,15 @@ failure_modes:
   - "No burn-down policy on technical-debt categories: entries accumulate indefinitely with no stated target or review cadence."
   - "Ratchet not run in CI: the comparison is only local; CI does not catch baseline violations."
   - "Baseline file not committed with the allowlist change: the PR adds an allowlist entry but updates the baseline in a follow-up, creating a window where CI is red."
+  - "Ratchet kept as a permanent fixture: a category with no owner or exit date keeps paying its per-run cost and keeps its defects alive long after the work that introduced it has ended."
+  - "New gate started with a populated allowlist: prefer draining the class first so the gate starts empty, or land the gate together with the work that drains it."
 notes: >
+  A ratchet is debt, not a fixture. Every entry is re-checked on every run, so
+  it has a recurring cost for as long as it lives, and each entry keeps a known
+  defect in the codebase. Prefer draining the allowlist to empty and keeping the
+  gate as an empty-allowlist invariant. When a transient ratchet is unavoidable,
+  give it an owner and an exit date.
+
   Typical shape: one committed baseline file records per-test, per-category
   allowlist sizes, and a meta-test loads the baseline and compares live sizes,
   failing on growth and warning on shrinkage.

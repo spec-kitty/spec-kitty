@@ -43,7 +43,8 @@ packs/internal/
 │   └── spec-kitty-tracker-labels.styleguide.yaml    # this repo's label scheme (refines planning-and-tracking)
 ├── tactics/
 │   ├── branded-deliverable.tactic.yaml              # when and how to produce a branded document
-│   └── spec-kitty-gate-non-vacuity-exemplar.tactic.yaml  # exemplar audit (refines architectural-gate-non-vacuity)
+│   ├── spec-kitty-gate-non-vacuity-exemplar.tactic.yaml  # exemplar audit (refines architectural-gate-non-vacuity)
+│   └── spec-kitty-ratchet-cost.tactic.yaml          # ratchets cost CI money on every run (refines frozen-baseline-shrink-only-ratchet)
 ├── toolguides/
 │   ├── branded-document-generation.toolguide.yaml   # the branded-PDF pipeline manifest
 │   ├── BRANDED_DOCUMENT_GENERATION.md               # its how-to guide

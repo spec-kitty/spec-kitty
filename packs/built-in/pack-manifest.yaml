@@ -705,7 +705,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/anti-corruption-layer.tactic.yaml
   provenance_path:
-- content_hash: c8a5a50963699c7a02ee3219d2ff112e5b5510a24fa6a9473f69b17646a8982f
+- content_hash: bb8a85f3c2fb4d5add881f4ff59c6aee4119bdc34b35eb2012d859d09caace23
   id: architectural-gate-non-vacuity
   kind: tactic
   path: tactics/architectural-gate-non-vacuity.tactic.yaml
@@ -910,7 +910,7 @@ constituents:
   kind: tactic
   path: tactics/testing/formalized-constraint-testing.tactic.yaml
   provenance_path:
-- content_hash: 837726d523c040034b039261ce5dcad5189c5ea84043e3fffca74083ae179b6e
+- content_hash: 16369579e5cbd93f8d3816841e89ef63f2a97749c9f10df3e533c6191fda14a9
   id: frozen-baseline-shrink-only-ratchet
   kind: tactic
   path: tactics/frozen-baseline-shrink-only-ratchet.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 8d4a3372c2b86403adbc21b5a63f341eafe5cd6101ae8ebfb8224a2a10b39d7f
+manifest_hash: 714b8764d4b355096899ae064d0ff5fbe0bffd6b4fb9105aab48bb5805433c82
 schema_version: '1'
 source_type: built-in
 source_url:
