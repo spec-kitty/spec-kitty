@@ -1,0 +1,306 @@
+{
+  "event_count": 63,
+  "last_event_id": "01M3T72837X2NASN1BN23CVCVJ",
+  "materialized_at": "2026-09-30T22:30:49.703483+00:00",
+  "mission_number": "210",
+  "mission_slug": "git-paths-are-data-01M3SSXR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T7174E29HBR2QWKFHXSVZA",
+      "last_transition_at": "2026-09-30T22:30:15.950233+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "kernel.git package + census; 81 kernel tests (100% cov), 110 census/layer/topology gate tests green",
+        "Review findings 1-8 folded in 12d5e8fb (dead-symbol exports, repo-relative listings, -- after revs, tree_entry dir/, typed truncation error, stderr decode, census blind spots); 150 tests green incl. test_no_dead_symbols"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7464,
+      "shell_pid_created_at": "1790794914.93",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T71F5990PWSEB6CB8HD0M7",
+      "last_transition_at": "2026-09-30T22:30:24.169784+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red repro 78ff5533, PR #5437 cherry-picked 251f4e82, migration 2551859c; half-by-half proof recorded; 374 blast-radius tests green",
+        "Review folds 0be07439: typed dirty verdict, safe display, untracked=all, real-git entry-point tests"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 17901,
+      "shell_pid_created_at": "1790797055.57",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T71KS0P47HFJ178ZW5D1M3",
+      "last_transition_at": "2026-09-30T22:30:28.896563+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Merge-seam sites migrated to kernel.git; census 0; real-git quoted-path tests added",
+        "Review folds d2645066: both-sides rename exemption, fail-closed projection/invariant, planning_recency guard"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18555,
+      "shell_pid_created_at": "1790797088.03",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T71QZ3DYA7JXEPZFM82452",
+      "last_transition_at": "2026-09-30T22:30:33.187905+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Migrated 10 src sites to kernel.git; census 0; real-git quoted-path tests added",
+        "Review folds 91793215: fail-closed sparse probe, literal unstage, rename deltas, message pin"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18555,
+      "shell_pid_created_at": "1790797088.03",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T71W1ZTJBM3GZHEE9SYR9B",
+      "last_transition_at": "2026-09-30T22:30:37.375913+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Agent command sites migrated to kernel.git.status_entries; census 0; targeted suites green",
+        "Review folds 73398585: fail-closed byproduct snapshots, finalize seam, both-sides renames"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18555,
+      "shell_pid_created_at": "1790797088.03",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T71ZYD98JR2V5S3SEPZ244",
+      "last_transition_at": "2026-09-30T22:30:41.357621+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "CLI command sites migrated to kernel.git; census 0; real-git tests added",
+        "Review folds 47b3048d: per-path dead-code attribution, fail-closed acceptance, typed fixtures"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18555,
+      "shell_pid_created_at": "1790797088.03",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T723Y7W5JAXGNK8BQC4ZWZ",
+      "last_transition_at": "2026-09-30T22:30:45.447821+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP07: 14 policy/post-merge/preflight/creation/migration/upgrade sites moved to kernel.git; census 0; quoted-path real-git tests added",
+        "Review folds d2c7a7b0: stale worktrees, subdirectory projects, guard order"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18555,
+      "shell_pid_created_at": "1790797088.03",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T72837X2NASN1BN23CVCVJ",
+      "last_transition_at": "2026-09-30T22:30:49.703483+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Class gate (census over src minus kernel.git, 0 hits, base 119/51 files); T019 folded; not_run flag; dead shim removed",
+        "Class gate green with empty allowlist (base 119 hits/51 files, now 0); review folds applied"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31951,
+      "shell_pid_created_at": "1790805260.03",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3T71B38RW6KZ6W99GPKBTM6",
+      "last_transition_at": "2026-09-30T22:30:20.008740+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR 4.x 2026-09-30-1, charter SO5 + burn-down (a), built-in tactic caveats, internal ratchet-cost tactic, manifest regenerated; docs/doctrine/packaging checks green",
+        "Review passed: ADR under 4.x, charter SO5 and burn-down (a) amended, pack tiers respected, manifest regenerated, checks green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20260930",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7966,
+      "shell_pid_created_at": "1790794962.21",
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "baseline_merge_commit": "f649756c010867d1e0d2b5760b3fa79652701cf4",
+  "created_at": "2026-09-30T18:41:12.596596+00:00",
+  "flattened": false,
+  "friendly_name": "Git paths are data, not text",
+  "merged_at": "2026-09-30T22:30:14.153875+00:00",
+  "merged_commit": "dd27d626dd7d2773bd3158e96cff230dccd79b1f",
+  "mid8": "01M3SSXR",
+  "mission_id": "01M3SSXRCTK4Z5T54VWB4CSMEX",
+  "mission_number": 210,
+  "mission_slug": "git-paths-are-data-01M3SSXR",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two release-blocking bugs (#5392, #5400) let consolidate silently destroy ignored local files: one when git quotes a path containing a space, one when a tracked directory is replaced by a file. Both come from every caller running git and parsing its text output by hand. This mission gives git path handling one shared owner so callers ask what they need and never parse git text, fixes both bugs through it, migrates every path-listing caller, and records that allowlist ratchets are priced debt that must be drained.",
+  "purpose_tldr": "Consolidation never overwrites or deletes a user's ignored local file because git printed its path in an unexpected shape.",
+  "slug": "git-paths-are-data-01M3SSXR",
+  "status_phase": "1",
+  "target_branch": "claude/git-path-remediation-rnrzfz",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-30T19:01:59.081799+00:00"
+}

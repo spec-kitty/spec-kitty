@@ -1,0 +1,103 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-30T18:41:32.150782Z",
+      "decision_id": "01M3SSYCZP47HX0VDVNFCXRV7Z",
+      "final_answer": "Every path-listing call site (status --porcelain, ls-files, ls-tree, --name-only, --name-status); plain git runners go to a follow-up issue",
+      "input_key": "migration_boundary",
+      "mission_id": "01M3SSXRCTK4Z5T54VWB4CSMEX",
+      "mission_slug": "git-paths-are-data-01M3SSXR",
+      "opened_by": "cli",
+      "options": [
+        "Every path-listing call site (status --porcelain, ls-files, ls-tree, --name-only, --name-status); plain git runners go to a follow-up issue",
+        "Every git argv in src",
+        "Only ref_advance",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which git call sites does this mission migrate onto the shared git module?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:41:50.657239Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.migration-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T18:41:35.027473Z",
+      "decision_id": "01M3SSYFSKFE7Q7Q81XXTFGB44",
+      "final_answer": "Typed path queries live in kernel/git (status entries, tree paths, changed paths); specify_cli/core/vcs holds the domain-level queries for specify_cli callers",
+      "input_key": "plumbing_query_home",
+      "mission_id": "01M3SSXRCTK4Z5T54VWB4CSMEX",
+      "mission_slug": "git-paths-are-data-01M3SSXR",
+      "opened_by": "cli",
+      "options": [
+        "Typed path queries live in kernel/git (status entries, tree paths, changed paths); specify_cli/core/vcs holds the domain-level queries for specify_cli callers",
+        "Relax NFR-004 so ref_advance may import specify_cli/core/vcs",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "ref_advance must import zero specify_cli (NFR-004). Where do the queries it needs live?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:41:53.573775Z",
+      "resolved_by": null,
+      "slot_key": "specify.design.plumbing-query-home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T18:41:38.051718Z",
+      "decision_id": "01M3SSYJR31BC18KBK2RJP0VWX",
+      "final_answer": "Carry its commit (cherry-pick -x, authorship kept) and its tests as the oracle; re-express the predicate on GitPath",
+      "input_key": "pr_5437_handling",
+      "mission_id": "01M3SSXRCTK4Z5T54VWB4CSMEX",
+      "mission_slug": "git-paths-are-data-01M3SSXR",
+      "opened_by": "cli",
+      "options": [
+        "Carry its commit (cherry-pick -x, authorship kept) and its tests as the oracle; re-express the predicate on GitPath",
+        "Ignore it and write fresh tests",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does the mission treat external PR #5437 (point fix for #5400)?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:41:56.661854Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.pr-5437",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-30T18:41:41.254570Z",
+      "decision_id": "01M3SSYNW6M5WTW4A9KR05EMBM",
+      "final_answer": "New 4.x ADR + charter amendment (standing order 5 and Burn-down Policy); generic caveat in built-in ratchet tactic, CI-cost rationale in internal pack; this mission gate closes with an empty allowlist",
+      "input_key": "ratchet_ruling",
+      "mission_id": "01M3SSXRCTK4Z5T54VWB4CSMEX",
+      "mission_slug": "git-paths-are-data-01M3SSXR",
+      "opened_by": "cli",
+      "options": [
+        "New 4.x ADR + charter amendment (standing order 5 and Burn-down Policy); generic caveat in built-in ratchet tactic, CI-cost rationale in internal pack; this mission gate closes with an empty allowlist",
+        "ADR only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How is the ratchets-are-priced-debt ruling recorded?",
+      "rationale": null,
+      "resolved_at": "2026-09-30T18:41:59.692870Z",
+      "resolved_by": null,
+      "slot_key": "specify.governance.ratchet-ruling",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3SSXRCTK4Z5T54VWB4CSMEX",
+  "version": 1
+}

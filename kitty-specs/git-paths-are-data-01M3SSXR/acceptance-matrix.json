@@ -1,0 +1,149 @@
+{
+  "mission_slug": "git-paths-are-data-01M3SSXR",
+  "mission_number": "210",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5392.py (red on base b99f6f41, green after WP02); tests/git/test_ref_advance_git_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:33:37.007921+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/terminus/test_repro_5400.py; tests/git/test_ref_advance_obstructions.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:33:43.311742+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/kernel/git/runner.py + listing.py; tests/kernel/test_git_runner.py, tests/kernel/test_git_listing.py, tests/git/test_kernel_git_real.py (100% coverage of src/kernel/git)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:33:49.414992+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_git_paths.py (GitPath component equality/overlaps; store vs storehouse)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:33:55.725819+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_git_listing.py (StatusEntry, rename orig_path, arrow-named files)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:01.948168+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_git_listing.py; tests/git/test_kernel_git_real.py (status_entries, tree_paths, changed_paths/entries, commit_paths, log_paths, tracked_paths, index_entries, is_tracked)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:08.420615+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/git/ref_advance.py on kernel.git; tests/git/test_ref_advance_git_paths.py incl. destructive_guard and restore_branch_ref entry points",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:14.911468+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_git_path_listing_owner.py: census 119 hits/51 files at base b99f6f41, 0 now",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:20.933799+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_git_path_listing_owner.py (empty allowlist, planted-hit per form, floor, positive/negative controls)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:26.763247+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "document_review",
+      "evidence": "https://github.com/spec-kitty/spec-kitty/issues/5475",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:32.358381+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "document_review",
+      "evidence": "docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:38.498045+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "document_review",
+      "evidence": ".kittify/charter/charter.md standing order 5 + Burn-down (a); packs/built-in tactics caveats; packs/internal/tactics/spec-kitty-ratchet-cost.tactic.yaml",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:44.340929+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "document_review",
+      "evidence": "kitty-specs/git-paths-are-data-01M3SSXR/research/design-decisions.md (per-WP FR-013 classifications); real-git tests in tests/**/test_*_git_paths.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:49.988806+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/kernel/git/listing.py --literal-pathspecs and -- terminator; tests/kernel/test_git_listing.py, tests/git/test_kernel_git_real.py (file named main)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-30T22:34:56.272947+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
