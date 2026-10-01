@@ -596,6 +596,21 @@
       "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
     },
     {
+      "rule": "tests/architectural/test_pytest_ini_timeout_default.py::<module-docstring>",
+      "file": "tests/architectural/test_pytest_ini_timeout_default.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        7
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
       "rule": "tests/architectural/test_quarantine_marker.py::<module-docstring>",
       "file": "tests/architectural/test_quarantine_marker.py",
       "scope": "<module-docstring>",
