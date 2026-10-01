@@ -3316,6 +3316,22 @@ pages:
     - {slug: "status-conventions", text: "Status Conventions", level: 2}
     - {slug: "template", text: "Template", level: 2}
     - {slug: "index", text: "Index", level: 2}
+  - path: "docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md"
+    title: "ADR: allowlist ratchets are priced debt"
+    divio_type: "none"
+    abstract: "Accepted: an allowlist ratchet costs CI money on every run and keeps a known defect alive, so it is owned, time-boxed and drained; a defect-class gate closes with no allowlist."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "1-keep-shrink-only-ratchets", text: "1. Keep shrink-only ratchets", level: 3}
+    - {slug: "2-ban-allowlists-entirely", text: "2. Ban allowlists entirely", level: 3}
+    - {slug: "3-priced-debt-empty-by-default-chosen", text: "3. Priced debt, empty by default (chosen)", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/2026-10-01-1-dead-symbol-allowlist-module-name-identity.md"
     title: "ADR: dead-symbol allowlist identity is (module, name)"
     divio_type: "none"
