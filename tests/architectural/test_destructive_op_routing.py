@@ -17,17 +17,25 @@ is closed BY CONSTRUCTION, not by reviewer goodwill:
    not a hand-copied snapshot -- and shrink-only: a site disappearing from
    source is a (non-failing) prompt to trim the allowlist; a NEW raw literal
    outside both the guard and the allowlist fails the gate.
-2. **T019 -- no new parallel dirty predicate.** The guard reuses
-   ``ref_advance._dirty_entries`` (data-model.md); this asserts no NEW
-   module-level ``git status --porcelain``-parsing "is dirty" predicate was
-   introduced in the ``git``/``merge``/``coordination``/``core/vcs`` seams
-   beyond the pre-existing, curated baseline.
-3. **T020 -- self-mutation (non-vacuity).** Both scans are proven to
-   actually bite: a planted, un-rationalized destructive-command literal (or
-   a planted new dirty predicate) is detected by the SAME scanner the primary
-   gates use, and separately, temporarily dropping one real entry from each
-   frozen baseline reproduces the exact failure the primary gate would raise
-   for a genuine regression -- proving the diff logic itself is not vacuous.
+2. **T019 -- retired (folded into the git-path class gate).** T019 used to
+   scan the ``git``/``consolidation``/``coordination``/``core/vcs`` seams for a
+   new ``git status --porcelain`` "is dirty" predicate against a curated
+   ``_KNOWN_DIRTY_PREDICATES`` registry. Mission ``git-paths-are-data`` (#5392)
+   moved every path listing behind ``kernel.git``, and
+   ``test_git_path_listing_owner.py`` now refuses a ``status --porcelain`` argv
+   (and every other path-listing argv or output split) anywhere under ``src/``
+   outside ``src/kernel/git/``, with an empty allowlist. That subsumes the
+   scan, so it and its registry are deleted (ADR
+   ``2026-09-30-1-allowlist-ratchets-are-priced-debt``: a registry is priced
+   debt, and a class gate replaces it). The guard still reuses
+   ``ref_advance._dirty_entries`` (data-model.md), which asks
+   ``kernel.git.status_entries``; no replacement registry of call sites exists.
+3. **T020 -- self-mutation (non-vacuity).** The T018 scan is proven to
+   actually bite: a planted, un-rationalized destructive-command literal is
+   detected by the SAME scanner the primary gate uses, and separately,
+   temporarily dropping one real entry from the frozen allowlist reproduces
+   the exact failure the primary gate would raise for a genuine regression --
+   proving the diff logic itself is not vacuous.
 
 ``git stash push`` census (user-content-preservation epic #4915, finding #1
 of #4946, folded into PR #4936): PR #4936's #4888 fix already removed
@@ -87,12 +95,10 @@ from tests.architectural._destructive_op_census import (
     describe_unexpected,
     diff_against_allowlist,
     drop_one_entry,
-    enclosing_qualname,
     iter_py_files,
     module_string_constants,
     ordered_subsequence,
     parse,
-    parse_with_source,
     read_sources,
     render_census_key,
     scan_planted_source,
@@ -433,83 +439,6 @@ def test_live_worktree_removal_sites_route_through_the_guard() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T019 -- no new parallel dirty predicate
-# ---------------------------------------------------------------------------
-
-_DIRTY_PREDICATE_SEAM_DIRS: tuple[Path, ...] = (
-    SPECIFY_CLI_ROOT / "git",
-    SPECIFY_CLI_ROOT / "consolidation",
-    SPECIFY_CLI_ROOT / "coordination",
-    SPECIFY_CLI_ROOT / "core" / "vcs",
-)
-
-#: Pre-existing (as of this mission's base) ``git status --porcelain``-parsing
-#: "is dirty" functions in the merge/vcs/coordination/git seam, PLUS the
-#: reused ``_dirty_entries`` primitive. ``git/destructive_guard.py`` (the
-#: WP01 guard) deliberately carries ZERO entries here: it calls
-#: ``ref_advance._dirty_entries`` rather than parsing porcelain itself
-#: (INV-3) -- a new porcelain-parsing function appearing there or anywhere
-#: else in these seams beyond this set is exactly the regression T019 guards
-#: against.
-_KNOWN_DIRTY_PREDICATES: frozenset[str] = frozenset(
-    {
-        "specify_cli/consolidation/git_probes.py::_raw_porcelain_status",
-        "specify_cli/consolidation/git_probes.py::_paths_have_status_changes",
-        "specify_cli/git/ref_advance.py::_dirty_entries",
-        "specify_cli/coordination/transaction.py::BookkeepingTransaction._worktree_has_pending_changes",
-        "specify_cli/coordination/commit_router.py::_paths_uncommitted_in_primary",
-        "specify_cli/core/vcs/git.py::GitVCS.get_workspace_info",
-        "specify_cli/core/vcs/git.py::GitVCS.detect_conflicts",
-        "specify_cli/core/vcs/git.py::GitVCS.has_conflicts",
-        # Pre-existing, unrelated problem domain (sparse-checkout remediation,
-        # not merge/worktree-removal safety) -- predates this mission.
-        "specify_cli/git/sparse_checkout_remediation.py::_is_dirty",
-        "specify_cli/git/sparse_checkout_remediation.py::_run_remediation_steps",
-    }
-)
-
-
-def _status_porcelain_hits(path: Path) -> list[tuple[int, str]]:
-    """``(lineno, qualname)`` for every ``git status --porcelain`` argv
-    literal in *path* -- deliberately NOT ``git worktree list --porcelain``
-    (a different subcommand, listing worktrees rather than checking
-    dirtiness), tagged with its enclosing function/method's qualname."""
-    source, tree = parse_with_source(path)
-    consts = module_string_constants(tree)
-    hits: list[tuple[int, str]] = []
-    for node in _ast.walk(tree):
-        if isinstance(node, (_ast.List, _ast.Tuple)) and ordered_subsequence(argv_tokens(node, consts), "status", "--porcelain"):
-            hits.append((node.lineno, enclosing_qualname(source, node.lineno)))
-    return hits
-
-
-def _scan_dirty_predicates() -> set[str]:
-    found: set[str] = set()
-    for seam_root in _DIRTY_PREDICATE_SEAM_DIRS:
-        for py_file in iter_py_files(seam_root):
-            rel = py_file.relative_to(SRC_ROOT).as_posix()
-            for _lineno, qualname in _status_porcelain_hits(py_file):
-                found.add(f"{rel}::{qualname}")
-    return found
-
-
-def test_no_new_parallel_dirty_predicate_beyond_known_baseline() -> None:
-    """INV-3/NFR-006: no NEW ``git status --porcelain``-parsing 'is dirty'
-    predicate was introduced in the git/merge/coordination/core-vcs seams
-    beyond the pre-existing, curated baseline (which already reuses
-    ``ref_advance._dirty_entries`` rather than duplicating it)."""
-    live = _scan_dirty_predicates()
-    unexpected = live - _KNOWN_DIRTY_PREDICATES
-    assert not unexpected, (
-        "New `git status --porcelain`-parsing 'is dirty' predicate "
-        "introduced in the merge/vcs/coordination/git seam beyond the "
-        "reused ref_advance._dirty_entries + WP01 guard (INV-3/NFR-006). "
-        "Reuse _dirty_entries (via destructive_guard.assert_worktree_clean "
-        f"/ guarded_worktree_remove) instead of hand-rolling another: {sorted(unexpected)}"
-    )
-
-
-# ---------------------------------------------------------------------------
 # T020 -- self-mutation (non-vacuity) proof, both directions, for both gates.
 # ---------------------------------------------------------------------------
 
@@ -592,56 +521,6 @@ def test_removing_an_allowlist_entry_reproduces_a_gate_failure() -> None:
         "did not reproduce a gate failure against the live tree. The primary "
         "routing gate is vacuous -- investigate diff_against_allowlist / "
         "_census_keys before trusting a green run."
-    )
-
-
-def test_predicate_scan_detects_a_planted_new_predicate(tmp_path: Path) -> None:
-    """A planted, brand-new porcelain-parsing 'is dirty' function is caught
-    by the exact scanner the primary no-new-predicate gate runs."""
-    hits = scan_planted_source(
-        tmp_path,
-        "planted_predicate.py",
-        "import subprocess\n\n\n"
-        "def _is_worktree_dirty(path):\n"
-        "    result = subprocess.run(\n"
-        '        ["git", "status", "--porcelain"], cwd=path, capture_output=True\n'
-        "    )\n"
-        "    return bool(result.stdout)\n",
-        _status_porcelain_hits,
-    )
-    assert [qualname for _lineno, qualname in hits] == ["_is_worktree_dirty"], (
-        f"Non-vacuity failure: the predicate scanner did not detect a planted new dirty predicate. Got: {hits!r}."
-    )
-
-
-def test_predicate_scan_does_not_flag_worktree_list(tmp_path: Path) -> None:
-    """Control: ``git worktree list --porcelain`` (a different subcommand,
-    never an 'is dirty' check) must not be flagged."""
-    hits = scan_planted_source(
-        tmp_path,
-        "planted_worktree_list.py",
-        'import subprocess\n\n\ndef _list_worktrees(repo_root):\n    return subprocess.run(["git", "-C", str(repo_root), "worktree", "list", "--porcelain"])\n',
-        _status_porcelain_hits,
-    )
-    assert hits == []
-
-
-def test_removing_a_known_predicate_reproduces_a_gate_failure() -> None:
-    """Non-vacuity (T020): temporarily dropping ONE real entry from the
-    known-predicate baseline and re-scanning the ACTUAL seam directories
-    reproduces exactly the failure
-    ``test_no_new_parallel_dirty_predicate_beyond_known_baseline`` would
-    raise for a genuine new-predicate regression."""
-    live = _scan_dirty_predicates()
-    victim = next(iter(_KNOWN_DIRTY_PREDICATES))
-    shrunk_baseline = _KNOWN_DIRTY_PREDICATES - {victim}
-
-    unexpected = live - shrunk_baseline
-
-    assert victim in unexpected, (
-        f"Self-mutation check failed: removing {victim!r} from the known-"
-        "predicate baseline did not reproduce a gate failure against the "
-        "live seam scan -- the no-new-predicate check is vacuous."
     )
 
 

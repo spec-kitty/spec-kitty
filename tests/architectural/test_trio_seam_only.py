@@ -456,25 +456,10 @@ def find_banned_io_calls(source: str) -> list[_IoViolation]:
 _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
-        qualname="_SubprocessGitPort.status_porcelain",
-        token_substring="subprocess . run (",
-        occurrence=None,
-        rationale=(
-            "_SubprocessGitPort.status_porcelain -- the module docstring names "
-            "this class 'the ONE git-subprocess I/O boundary in this module -- "
-            "a thin adapter, not decision logic', isolated behind the injectable "
-            "GitPort Protocol so every decision function above it can be tested "
-            "with a fake port."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="specify_cli/cli/commands/implement_cores.py",
         qualname="_SubprocessGitPort.show_blob",
         token_substring="subprocess . run (",
         occurrence=None,
-        rationale=(
-            "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as status_porcelain above; the second (and last) subprocess call in the module."
-        ),
+        rationale=("_SubprocessGitPort.show_blob -- the injected-port I/O boundary; the last subprocess call in the module (status reads go through kernel.git)."),
     ),
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
