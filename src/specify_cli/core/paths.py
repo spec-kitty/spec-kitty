@@ -306,7 +306,7 @@ def lint_report_path(repo_root: Path) -> Path:
     """Return the canonical path of the repo-global charter-lint decay report.
 
     The lint engine writes ``<repo_root>/.kittify/lint-report.json``; the
-    dashboard tile and the dossier stager read it back. This accessor is the
+    dossier stager reads it back. This accessor is the
     single source of truth for that location — no caller should re-compose the
     ``.kittify`` / filename literals by hand (#2628 SSOT fold).
     """

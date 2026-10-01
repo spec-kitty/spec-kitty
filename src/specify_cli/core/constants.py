@@ -13,7 +13,7 @@ RETROSPECTIVE_FILENAME = "retrospective.yaml"
 
 # Canonical filename for the repo-global charter-lint decay report, written to
 # ``<repo_root>/.kittify/lint-report.json`` by the lint engine and read back by
-# the dashboard tile and the dossier stager.  All path-composition sites MUST
+# the dossier stager.  All path-composition sites MUST
 # use ``core.paths.lint_report_path`` / this constant; bare literals are
 # forbidden (#2628 SSOT fold).
 LINT_REPORT_FILENAME = "lint-report.json"
