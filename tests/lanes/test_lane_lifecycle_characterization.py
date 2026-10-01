@@ -83,14 +83,17 @@ class TestGuard1PollutionCheck:
         the fail-toward-flag invariant this guard preserves."""
         assert is_coord_residue_churn(_rel(basename), mission_slug=_SLUG) is False
 
-    def test_remedy_pathspec_is_currently_the_blanket_kitty_specs_restore(self, tmp_path: Path) -> None:
-        """Pin the remedy shape: the guidance restores the *whole*
-        ``kitty-specs/`` tree, not just the flagged PRIMARY-partition paths.
+    def test_remedy_pathspec_is_file_scoped_to_the_flagged_paths(self, tmp_path: Path) -> None:
+        """Pin the remedy shape: the ``git restore`` recipe is narrowed to the
+        flagged PRIMARY-partition paths, restored from the merge-base — not a
+        blanket restore of the whole ``kitty-specs/`` tree from the planning tip.
 
-        The blanket restore is the current, safe behaviour (it can only over-
-        restore, never leave pollution on the lane); this pin makes any future
-        narrowing to the specific flagged ``is_primary_artifact_kind`` paths a
-        visible, deliberate delta rather than a silent change.
+        #3931 made exactly the "visible, deliberate delta" the prior blanket-restore
+        characterization anticipated: the old whole-tree restore could delete
+        lane-local files the planning branch never carried, so the remedy now names
+        only the offending files and restores them from
+        ``$(git merge-base HEAD <base>)``. The separate ``safe-commit kitty-specs/``
+        cleanup line (a commit recipe, not a restore) is unchanged.
         """
         from specify_cli.core.constants import KITTY_SPECS_DIR
         from specify_cli.cli.commands.agent.tasks_parsing_validation import (
@@ -119,10 +122,13 @@ class TestGuard1PollutionCheck:
 
         assert guidance is not None, "guard must emit remedy guidance when it flags a file"
         remedy = "\n".join(guidance)
-        # Blanket restore of the entire kitty-specs tree (current behaviour):
-        assert f"-- {KITTY_SPECS_DIR}/" in remedy
-        # And crucially NOT narrowed to the specific flagged path:
-        assert f"-- {flagged}" not in remedy
+        # File-scoped restore of the flagged path, from the merge-base (#3931):
+        assert f"--staged --worktree -- {flagged}" in remedy
+        assert "--source $(git merge-base HEAD mission-base)" in remedy
+        # The old blanket whole-tree restore recipe is gone:
+        assert f"--staged --worktree -- {KITTY_SPECS_DIR}/\n" not in remedy
+        # The safe-commit cleanup recipe (a commit, not a restore) still names the dir:
+        assert f"safe-commit {KITTY_SPECS_DIR}/" in remedy
 
 
 # ---------------------------------------------------------------------------
