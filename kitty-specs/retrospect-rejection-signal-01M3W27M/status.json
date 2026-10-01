@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M3W473QWG8RGTM8GCC277A91",
-  "materialized_at": "2026-10-01T16:19:32.220514+00:00",
+  "event_count": 6,
+  "last_event_id": "01M3W47JSHGMZ7YRR52XD9CE77",
+  "materialized_at": "2026-10-01T16:19:47.633287+00:00",
   "mission_number": "",
   "mission_slug": "retrospect-rejection-signal-01M3W27M",
   "mission_type": "software-dev",
@@ -12,10 +12,10 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 2,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -28,6 +28,9 @@
       "last_event_id": "01M3W473QWG8RGTM8GCC277A91",
       "last_transition_at": "2026-10-01T16:19:32.220514+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Work committed (c0d40911..d6ecec3b); no claim base recorded because implement was blocked by #5550"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "subtasks": {
@@ -39,11 +42,17 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M3W2EWH7EFT9F7BSJYJMJJ9Q",
-      "last_transition_at": "2026-10-01T15:48:49.831877+00:00"
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01M3W47JSHGMZ7YRR52XD9CE77",
+      "last_transition_at": "2026-10-01T16:19:47.633287+00:00",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }
