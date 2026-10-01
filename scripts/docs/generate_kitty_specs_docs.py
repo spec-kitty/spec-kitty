@@ -15,10 +15,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "kitty-specs"
 GLOSSARY_SEED = ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
-GLOSSARY_TEMPLATE = ROOT / "src" / "specify_cli" / "dashboard" / "templates" / "glossary.html"
-GLOSSARY_STATIC_DIR = ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard"
-GLOSSARY_CSS = GLOSSARY_STATIC_DIR / "glossary.css"
-GLOSSARY_JS = GLOSSARY_STATIC_DIR / "glossary.js"
+# The glossary page assets used to live in the bundled dashboard; they moved
+# here, as docs-site-only assets, when the dashboard was deleted (#5530).
+GLOSSARY_PAGE_DIR = ROOT / "scripts" / "docs" / "glossary_page"
+GLOSSARY_TEMPLATE = GLOSSARY_PAGE_DIR / "glossary.html"
+GLOSSARY_CSS = GLOSSARY_PAGE_DIR / "glossary.css"
+GLOSSARY_JS = GLOSSARY_PAGE_DIR / "glossary.js"
 DEST = ROOT / "docs" / "kitty-specs"
 
 LANES = ["planned", "doing", "for_review", "approved", "done"]
@@ -886,11 +888,9 @@ def assign_anchor_ids(terms: list[dict[str, str | float]]) -> list[dict[str, str
 def glossary_page(_mission_list: list[Mission]) -> str:
     terms = assign_anchor_ids(parse_glossary_seed(GLOSSARY_SEED))
     template = GLOSSARY_TEMPLATE.read_text(encoding="utf-8")
-    # The dashboard's own CSP (script-src/style-src 'self', src/specify_cli/dashboard/csp.py)
-    # forced the template's styling and behaviour out to same-origin glossary.css/glossary.js
-    # (#71). The static docs site has no dashboard server to serve those from, so this
-    # generator inlines both back into the page it writes, same as when they lived in the
-    # template directly.
+    # The retired dashboard's CSP (#71) forced the template's styling and behaviour out to
+    # same-origin glossary.css/glossary.js. The static docs site has no server to serve
+    # those from, so this generator inlines both back into the page it writes.
     css = GLOSSARY_CSS.read_text(encoding="utf-8")
     script = GLOSSARY_JS.read_text(encoding="utf-8")
     static_loader = f"""

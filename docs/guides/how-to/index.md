@@ -15,6 +15,6 @@ Task-oriented guides for getting a specific job done. Pick the concern that matc
 - [Run a Mission](missions/index.md) — Author and drive a mission from specification through plan, tasks, implementation, review, and merge.
 - [Governance & Doctrine](governance/index.md) — Set up a project charter, synthesize doctrine, manage the glossary, and run governed missions.
 - [Parallel & Multi-Agent Work](collaboration/index.md) — Coordinate multiple agents, worktrees, orchestrators, and dependencies across parallel work packages.
-- [Dashboard & History](monitoring/index.md) — Watch mission progress on the real-time kanban dashboard and review your git operation history.
+- [Status & History](monitoring/index.md) — Check mission progress from the CLI and review your git operation history.
 - [Recovery & Troubleshooting](recovery/index.md) — Recover from implementation crashes and interrupted merges, and troubleshoot merge failures.
 - [Scenario Walkthroughs](scenarios/index.md) — End-to-end, role-based walkthroughs showing how real teams and solo developers run Spec Kitty.

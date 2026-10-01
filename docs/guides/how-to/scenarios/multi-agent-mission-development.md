@@ -51,4 +51,4 @@ A lead architect coordinates several AI agents — each playing to its strength 
 
 - Web and mobile chat surfaces upgraded with consistent reliability guarantees.
 - Zero merge conflicts — agents respected prompt-file boundaries.
-- Dashboard snapshot exported for the sprint report.
+- `spec-kitty agent tasks status --json` snapshot exported for the sprint report.

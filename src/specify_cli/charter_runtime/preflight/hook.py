@@ -7,10 +7,10 @@ These helpers implement the rules in
 |-------------------------|---------------|--------------------------------------------------|
 | spec-kitty next         | emit warnings + continue | print blocked_reason, exit 1, NO mutation |
 | spec-kitty implement WP | emit warnings + continue | abort BEFORE worktree/.kittify writes     |
-| dashboard serve / start | persist advisory + start | start server, persist blocked_reason       |
+| next (query mode)       | log + continue           | log blocked_reason + continue (read-only) |
 
 The helpers are intentionally CLI-side (typer-aware): they are the shared
-glue between the three consumer entry points and ``run_charter_preflight``.
+glue between the consumer entry points and ``run_charter_preflight``.
 The runner itself stays framework-free.
 
 Boundary heal caveat (WP04, charter-synthesize-reconciliation-01KZJQN6): when
@@ -21,7 +21,8 @@ non-destructive guarantee is not a "never refuses" guarantee: orphaned
 (backing-artifact-deleted) content and an unparseable on-disk doctrine
 overlay still make the heal fail. When that happens it surfaces here exactly
 like any other preflight failure — printed ``blocked_reason`` + exit 1 (or,
-for the dashboard, a warning banner), never a silently-coerced ``passed=True``.
+for the read-only warn-only path, a logged warning), never a silently-coerced
+``passed=True``.
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 __all__ = [
     "emit_advisory_warnings",
     "run_preflight_or_abort",
-    "run_preflight_for_dashboard",
+    "run_preflight_warn_only",
 ]
 
 
@@ -143,22 +144,17 @@ def run_preflight_or_abort(
     raise typer.Exit(1)
 
 
-def run_preflight_for_dashboard(
+def run_preflight_warn_only(
     repo_root: Path,
     *,
-    consumer: str = "dashboard",
+    consumer: str = "next",
 ) -> CharterPreflightResult:
-    """Run charter preflight without aborting; dashboard always starts.
+    """Run charter preflight without aborting; the caller always continues.
 
-    Implements the dashboard side of the caller contract (T025): the
-    server is allowed to come up even when preflight fails, but the
-    ``blocked_reason`` MUST be surfaced to the SPA so the operator sees a
-    critical banner instead of silently consuming stale doctrine.
-
-    ``spec-kitty next`` in query mode (no ``--result``) is read-only and
-    reuses this warn-and-continue path. #4731: it passes its own
-    ``consumer`` so the surfaced log line names the command the operator
-    actually ran, instead of hardcoding ``dashboard``.
+    Read-only consumers use this warn-and-continue path: ``spec-kitty next``
+    in query mode (no ``--result``) logs a failed preflight and keeps going
+    instead of exiting. #4731: callers pass their own ``consumer`` so the
+    surfaced log line names the command the operator actually ran.
 
     Args:
         repo_root: Repository root used to load the config flag.

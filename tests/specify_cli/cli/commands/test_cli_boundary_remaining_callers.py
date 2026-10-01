@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import typer
 from typer.testing import CliRunner
-from specify_cli.cli.commands import archive, dashboard, materialize, verify
+from specify_cli.cli.commands import archive, materialize, verify
 
 
-@pytest.mark.parametrize("name", ["archive-create", "archive-list", "materialize", "dashboard", "verify"])
+@pytest.mark.parametrize("name", ["archive-create", "archive-list", "materialize", "verify"])
 def test_missing_project_json(name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     if name.startswith("archive"):
@@ -19,7 +19,7 @@ def test_missing_project_json(name: str, tmp_path: Path, monkeypatch: pytest.Mon
         args = ["create", "missing", "--by", "test", "--reason", "test"] if name == "archive-create" else ["list"]
     else:
         app = typer.Typer()
-        commands: dict[str, Callable[..., Any]] = {"materialize": materialize.materialize, "dashboard": dashboard.dashboard, "verify": verify.verify_setup}
+        commands: dict[str, Callable[..., Any]] = {"materialize": materialize.materialize, "verify": verify.verify_setup}
         app.command()(commands[name])
         args = []
     result = CliRunner().invoke(app, [*args, "--json"])
@@ -47,19 +47,6 @@ def test_missing_mission_json(name: str, tmp_path: Path, monkeypatch: pytest.Mon
     result = CliRunner().invoke(app, [*args, "--json"])
     assert result.exit_code == (2 if name == "archive" else 1)
     assert json.loads(result.stdout)["error"]["code"] == "mission_not_found"
-
-
-def test_dashboard_empty_registry_keeps_success_shape(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import subprocess
-
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / ".kittify").mkdir()
-    monkeypatch.chdir(tmp_path)
-    app = typer.Typer()
-    app.command()(dashboard.dashboard)
-    result = CliRunner().invoke(app, ["--json"])
-    assert result.exit_code == 0, result.output
-    assert json.loads(result.stdout) == {"missions": {}, "display_order": []}
 
 
 def test_archive_nonterminal_refusal_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

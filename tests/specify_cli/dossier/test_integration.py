@@ -793,21 +793,9 @@ class TestDossierHTTPAPI:
     """End-to-end HTTP API integration tests.
 
     Tests verify that critical P0/P1 bugs are fixed:
-    - Router has dossier routes
     - load_snapshot() argument order is correct
     - Manifest blocking semantics work
     """
-
-    def test_router_dossier_routes_present(self):
-        """Verify dossier routes are registered in router.
-
-        P0 bug fix: Router was missing /api/dossier/* routes causing 404.
-        """
-        from specify_cli.dashboard.handlers.router import DashboardRouter
-
-        # Check that DashboardRouter has handle_dossier method
-        assert hasattr(DashboardRouter, "handle_dossier")
-        assert callable(DashboardRouter.handle_dossier)
 
     def test_load_snapshot_argument_order_fixed(self):
         """Verify load_snapshot() has correct argument order.

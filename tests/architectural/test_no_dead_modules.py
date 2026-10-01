@@ -199,6 +199,9 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
         "specify_cli.upgrade.migrations.m_unify_charter_activation_finalize",
         "specify_cli.upgrade.migrations.m_3_2_0rc43_retire_profile_context_command",
+        # #5530: removes the retired dashboard command files and runtime state;
+        # auto-discovered, never statically imported.
+        "specify_cli.upgrade.migrations.m_4_0_0rc5_retire_bundled_dashboard",
         # doctrine-drg-silent-drop-boundary (#3629): consumer-project migration
         # that consolidates context-sources.* onto the *-references fields;
         # auto-discovered, never statically imported.

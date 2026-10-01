@@ -12,9 +12,8 @@ sections straight off disk (INV-3: no governance/directives DECISION reads
 ``sync()`` / ``ensure_charter_bundle_fresh()`` are RETAINED -- signatures and
 ``SyncResult`` contract unchanged -- because other charter-layer modules
 (``context.py``, ``specify_cli.charter_runtime.freshness.computer``, the
-``charter sync`` CLI command, the dashboard, and the bundle-migration
-upgrader) still call them for canonical-root resolution and the
-``charter.md`` staleness check. ``sync()`` no longer extracts or writes
+``charter sync`` CLI command and the bundle-migration upgrader) still call
+them for canonical-root resolution and the ``charter.md`` staleness check. ``sync()`` no longer extracts or writes
 anything; it always reports ``synced=False`` / ``files_written=[]``.
 """
 

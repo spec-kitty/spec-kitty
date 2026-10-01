@@ -66,7 +66,7 @@ dependencies = [
     "ruamel.yaml>=0.18.0",
     "pydantic>=2.0",
     "packaging>=23.0",
-    "psutil>=5.9.0",  # Cross-platform process management for dashboard
+    "psutil>=5.9.0",  # Cross-platform process management
     # spec-kitty-events / spec-kitty-tracker: public shared-package
     # dependencies. Their public-surface contracts are pinned in
     # tests/contract/spec_kitty_events_consumer/ and
@@ -103,7 +103,6 @@ test = [
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
     "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "pytest-xdist>=3.8.0",  # Parallelize large CI shards with --dist loadfile
-    "pytest-playwright>=0.7.0",  # Headless browser e2e driver for tests/ui/ (issue #1008); Chromium installed via `playwright install chromium`, never committed
     "respx>=0.21.1",  # HTTPX mocking for auth transport tests (feature 080)
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
@@ -515,7 +514,6 @@ exclude = [
     "src/specify_cli/cli/commands/charter/sync.py",
     "src/specify_cli/cli/commands/charter_bundle.py",
     "src/specify_cli/cli/commands/config_cmd.py",
-    "src/specify_cli/cli/commands/dashboard.py",
     "src/specify_cli/cli/commands/dispatch.py",
     "src/specify_cli/cli/commands/docs.py",
     "src/specify_cli/cli/commands/doctrine.py",
@@ -569,15 +567,6 @@ exclude = [
     "src/specify_cli/core/subtask_rows.py",
     "src/specify_cli/core/vcs/detection.py",
     "src/specify_cli/core/wps_manifest.py",
-    "src/specify_cli/dashboard/diagnostics.py",
-    "src/specify_cli/dashboard/handlers/base.py",
-    "src/specify_cli/dashboard/handlers/glossary.py",
-    "src/specify_cli/dashboard/handlers/lint.py",
-    "src/specify_cli/dashboard/handlers/router.py",
-    "src/specify_cli/dashboard/handlers/static.py",
-    "src/specify_cli/dashboard/lifecycle.py",
-    "src/specify_cli/dashboard/scanner.py",
-    "src/specify_cli/dashboard/templates/__init__.py",
     "src/specify_cli/decisions/ownership.py",
     "src/specify_cli/decisions/verify.py",
     "src/specify_cli/distribution/simple_index.py",
@@ -595,7 +584,6 @@ exclude = [
     "src/specify_cli/doctrine_synthesizer/apply.py",
     "src/specify_cli/doctrine_synthesizer/conflict.py",
     "src/specify_cli/dossier/__init__.py",
-    "src/specify_cli/dossier/api.py",
     "src/specify_cli/dossier/models.py",
     "src/specify_cli/drg_writers/registry.py",
     "src/specify_cli/events/decision_log.py",
@@ -1152,7 +1140,6 @@ exclude = [
     "tests/cli/test_mission_brief.py",
     "tests/cli/test_mission_type_malformed_yaml_cli_boundary.py",
     "tests/cli_gate/test_ci_determinism.py",
-    "tests/cli_gate/test_dashboard_modes.py",
     "tests/cli_gate/test_doctor_modes.py",
     "tests/cli_gate/test_legacy_version_checker_removed.py",
     "tests/cli_gate/test_nested_safe_commands.py",
@@ -1190,13 +1177,11 @@ exclude = [
     "tests/coordination/test_write_seam_adoption.py",
     "tests/core/test_adapters.py",
     "tests/core/test_dependency_parser.py",
-    "tests/core/test_loopback_http.py",
     "tests/core/test_mission_create_activation_gate.py",
     "tests/core/test_mission_creation_identity.py",
     "tests/core/test_paths_coverage_supplements.py",
     "tests/core/test_worktree_symlink_fallback.py",
     "tests/core/test_wps_manifest.py",
-    "tests/cross_cutting/dashboard/test_dashboard_bug_117_lifecycle.py",
     "tests/cross_cutting/encoding/test_encoding_validation_cli.py",
     "tests/cross_cutting/misc/test_plan_validation.py",
     "tests/cross_cutting/misc/test_template_compliance.py",
@@ -1209,7 +1194,6 @@ exclude = [
     "tests/cross_cutting/versioning/test_upgrade_version_update.py",
     "tests/cross_cutting/versioning/test_version_detection.py",
     "tests/cross_cutting/versioning/test_version_fallback.py",
-    "tests/dashboard/test_duplicate_prefix_rendering.py",
     "tests/docs/_publish_manifest_helpers.py",
     "tests/docs/diagram_drift/binding_table.py",
     "tests/docs/diagram_drift/guard.py",
@@ -1376,10 +1360,8 @@ exclude = [
     "tests/doctrine_synthesizer/test_conflict_failclosed.py",
     "tests/doctrine_synthesizer/test_path_traversal_rejection.py",
     "tests/doctrine_synthesizer/test_provenance.py",
-    "tests/dossier/test_api.py",
     "tests/dossier/test_determinism.py",
     "tests/dossier/test_events.py",
-    "tests/dossier/test_http_runtime.py",
     "tests/dossier/test_indexer.py",
     "tests/dossier/test_manifest_guard_parity.py",
     "tests/dossier/test_models.py",
@@ -1466,7 +1448,6 @@ exclude = [
     "tests/integration/test_coord_loop_workspace.py",
     "tests/integration/test_coord_topology_smoke.py",
     "tests/integration/test_custom_mission_runtime_walk.py",
-    "tests/integration/test_dashboard_counters.py",
     "tests/integration/test_deferral_enforcement_and_disclosure.py",
     "tests/integration/test_documentation_runtime_walk.py",
     "tests/integration/test_dossier_snapshot_no_self_block.py",
@@ -2039,11 +2020,6 @@ exclude = [
     "tests/specify_cli/core/test_worktree.py",
     "tests/specify_cli/core/test_wps_manifest.py",
     "tests/specify_cli/core/test_write_surface_resolver_foundation.py",
-    "tests/specify_cli/dashboard/test_dashboard_csp.py",
-    "tests/specify_cli/dashboard/test_dashboard_wording.py",
-    "tests/specify_cli/dashboard/test_glossary_handler.py",
-    "tests/specify_cli/dashboard/test_lint_tile_handler.py",
-    "tests/specify_cli/dashboard/test_scanner_snapshot_reads.py",
     "tests/specify_cli/decisions/test_emit.py",
     "tests/specify_cli/decisions/test_ownership_3111.py",
     "tests/specify_cli/decisions/test_service_idempotency.py",
@@ -2308,7 +2284,6 @@ exclude = [
     "tests/status/test_agent_status_emit_cli.py",
     "tests/status/test_aggregate_coord_deleted_contract.py",
     "tests/status/test_aggregate_surface_resolution.py",
-    "tests/status/test_dashboard_status_parity.py",
     "tests/status/test_derived_view_slug_traversal.py",
     "tests/status/test_doctor_husks.py",
     "tests/status/test_doctor_uninitialized.py",
@@ -2347,18 +2322,6 @@ exclude = [
     "tests/tasks/test_pre_commit_wp_guard_unit.py",
     "tests/tasks/test_tasks_2x_unit.py",
     "tests/tasks/test_tasks_support.py",
-    "tests/test_dashboard/__init__.py",
-    "tests/test_dashboard/test_api_charter.py",
-    "tests/test_dashboard/test_api_handler.py",
-    "tests/test_dashboard/test_charter_chokepoint_regression.py",
-    "tests/test_dashboard/test_dashboard_preflight.py",
-    "tests/test_dashboard/test_diagnostics.py",
-    "tests/test_dashboard/test_imports.py",
-    "tests/test_dashboard/test_lifecycle.py",
-    "tests/test_dashboard/test_scanner.py",
-    "tests/test_dashboard/test_scanner_mission_id.py",
-    "tests/test_dashboard/test_static.py",
-    "tests/test_dashboard/test_templates.py",
     "tests/test_frontmatter_dup_key.py",
     "tests/test_isolation_helpers.py",
     "tests/test_template/test_asset_generator.py",
@@ -2623,7 +2586,7 @@ follow_imports = "normal"
 # core.errors defines the StructuredError base every typed error family
 # subclasses; under the ``specify_cli.*`` skip above it resolves as ``Any`` and
 # every subclass declaration reads "Class cannot subclass StructuredError (has
-# type Any)" (e.g. dashboard/server.py's PortUnavailableError and friends).
+# type Any)".
 # It imports only ``typing``, so following it cannot drag bootstrap errors
 # into a narrow check — same shape as the protection_policy entry (issue
 # #3719), and it must likewise stay after the ``specify_cli.*`` skip.
@@ -2734,13 +2697,6 @@ module = [
     "specify_cli.cli.ui",
     "specify_cli.core.context_validation",
     "specify_cli.core.mission_detection",
-    "specify_cli.dashboard.diagnostics",
-    "specify_cli.dashboard.handlers.api",
-    "specify_cli.dashboard.handlers.base",
-    "specify_cli.dashboard.handlers.mission_runs",
-    "specify_cli.dashboard.lifecycle",
-    "specify_cli.dashboard.scanner",
-    "specify_cli.dossier.api",
     "specify_cli.dossier.indexer",
     "specify_cli.dossier.manifest",
     "specify_cli.dossier.models",
@@ -2862,7 +2818,6 @@ pytest_add_cli_args = [
     "--ignore=tests/release/",
     "--ignore=tests/architecture/",
     "--ignore=tests/docs/",
-    "--ignore=tests/test_dashboard/",
     # The three entries below are mutmut-sandbox-only workarounds. This entire list lives in
     # [tool.mutmut] pytest_add_cli_args, which is passed exclusively when mutmut forks pytest —
     # plain `pytest` invocations are unaffected and will still collect these directories.
@@ -2900,7 +2855,6 @@ also_copy = [
     "src/specify_cli/tracker/",  # Copy tracker
     "src/specify_cli/events/",  # Copy events
     "src/specify_cli/dossier/",  # Copy dossier
-    "src/specify_cli/dashboard/",  # Copy dashboard
     "src/specify_cli/orchestrator_api/",  # Copy orchestrator API
     "src/specify_cli/templates/",  # Copy templates
     "src/specify_cli/mission_v1/",  # Copy mission v1

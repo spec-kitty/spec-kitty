@@ -6,7 +6,9 @@ date: '2026-10-01'
 ---
 
 **Status:** Proposed. D-1 and D-2 record a direction the operator stated on 2026-10-01 and
-are **Accepted**. D-3 to D-8 are architect amendments that wait for operator ratification.
+are **Accepted**. D-8 was **amended and accepted** later on 2026-10-01: the operator moved
+deletion to the front (see D-8). D-3 to D-7 are architect amendments that wait for operator
+ratification.
 
 **Date:** 2026-10-01
 
@@ -86,12 +88,14 @@ assignment. An external dashboard can then pick the granularity it needs.
 and moves the logic the dashboard holds today behind the status boundary. It also drops the
 daemon and the poll-and-rescan cost from the CLI.
 
-- **D-1 (Accepted): remove the CLI-bundled dashboard by extract-and-replace.** The server,
-  daemon, static UI, `spec-kitty dashboard` command, `/spec-kitty.dashboard` slash command
-  and the `spk-admin-dashboard` skill are removed. A replacement UI is built in its own
-  repository as an ordinary consumer. "Extract and replace" means two things. Domain logic
-  now in `dashboard/scanner.py` moves into the read API first. Each route is then given a
-  new home (table below) before anything is deleted.
+- **D-1 (Accepted): remove the CLI-bundled dashboard.** The server, daemon, static UI,
+  `spec-kitty dashboard` command, `/spec-kitty.dashboard` slash command and the
+  `spk-admin-dashboard` skill are removed. A replacement UI is built in its own repository
+  as an ordinary consumer. The original plan was extract-and-replace: move the domain logic
+  in `dashboard/scanner.py` into the read API and rehome every route before deleting
+  anything. The amended D-8 deletes first instead; the read API and the route rehoming then
+  build the replacement read path from the remaining read models, and the deleted code
+  stays recoverable from git history.
 - **D-2 (Accepted): keep a read path, the Mission Status Read API, at two granularities.**
   - **Overview** (low detail, many missions): for each mission, its identity (`mission_id`,
     `mid8`, slug, friendly name, display number), lane counts, weighted progress, a derived
@@ -122,13 +126,13 @@ daemon and the poll-and-rescan cost from the CLI.
   `events tail --json` (#3858). It does not come from the in-process status fan-out, which
   runs only while a CLI command runs.
 - **D-5 (Proposed): fold existing surfaces into the API instead of duplicating them.**
-  - `dashboard --json` becomes the overview verb.
+  - The overview verb replaces the deleted `dashboard --json`.
   - `agent tasks status --json` renders from the detail query.
   - `orchestrator-api mission-state` and `list-ready` keep their verbs and envelopes (the
     contract is owned by #5231) but compute through the read API. This also moves them onto
     the Lamport reducer.
   - `events tail --json` stays as the change feed, and the overview exposes its cursor.
-  - The TypedDicts in `dashboard/api_types.py` seed the contract types, renamed to the
+  - The TypedDicts in the deleted `dashboard/api_types.py` (recover from git history) seed the contract types, renamed to the
     Mission canon (#957 shapes): `/api/features` and `FeatureItem` become missions.
   - An architectural gate fails any display or external consumer that reduces status itself,
     using the shrink-only allowlist pattern (#645 acceptance). Domain-internal reducers such
@@ -145,26 +149,40 @@ daemon and the poll-and-rescan cost from the CLI.
   (`tests/architectural/test_layer_rules.py`). The contract types depend only on the
   standard library, so they can be extracted later into a client package without bringing
   the CLI along.
-- **D-8 (Proposed): order of work.**
-  1. Build the API and its contract tests.
-  2. Re-point the orchestrator-api reads, `tasks status` and the dashboard handlers to the API.
-  3. Land the bypass gate.
-  4. Deprecate `spec-kitty dashboard` for one release.
-  5. Run an upgrade migration that removes the installed slash command and skill, touching
-     only manifest-owned paths (charter, "User Customization Preservation").
-  6. Delete `src/specify_cli/dashboard/`.
+- **D-8 (Amended and accepted 2026-10-01): order of work. Delete first.** The operator
+  reversed the original order, which put deletion last, after the read API, the reader
+  re-pointing and the route rehoming. Reason: the dashboard carries open P1 security
+  defects (#4767, #4769) and its replacement does not gate 4.0.0 GA. If the new UI does not
+  arrive in time, the code is restored from git.
+  1. Delete `src/specify_cli/dashboard/`, `spec-kitty dashboard`, the slash command and the
+     skill, with an upgrade migration that removes the installed command files and the
+     dashboard's runtime files, touching only paths it can prove are package-owned (version
+     marker or managed path; charter, "User Customization Preservation"), and stops a
+     dashboard server an older CLI left running when its command line proves it (#5530).
+  2. Build the Mission Status Read API and its contract tests (#5528).
+  3. Re-point the orchestrator-api reads and `tasks status` to the API (#5532).
+  4. Assign read surfaces to the former artifact and governance routes (#5533).
+  5. Land the bypass gate.
 
-  `verify --diagnostics` imports `dashboard.diagnostics` (`cli/commands/verify.py:20`), so
-  that module moves first. None of this gates 4.0.0 GA.
+  `verify-setup --diagnostics` imported `dashboard.diagnostics`; that module moved to
+  `specify_cli/diagnostics/project.py` without its dashboard health probe. The docs site's
+  glossary page assets moved to `scripts/docs/glossary_page/`. There is no deprecation
+  release. None of this gates 4.0.0 GA.
 
-**Where today's dashboard routes go** (`dashboard/handlers/router.py`):
+  The original order (Proposed, superseded): build the API, re-point readers and dashboard
+  handlers, land the bypass gate, deprecate `spec-kitty dashboard` for one release, run the
+  removal migration, then delete the package.
+
+**Where the deleted dashboard's routes go** (former `dashboard/handlers/router.py`). With
+deletion first, these are the homes the follow-ups build; until then the routes have no
+replacement:
 
 | Route | New home |
 |---|---|
 | `/api/features`, `/api/kanban/<id>` | This API: overview and detail |
 | `/api/research/`, `/api/contracts/`, `/api/checklists/`, `/api/artifact/`, `/api/dossier/` | Mission artifact reads. Planning artifacts are files, not events. A follow-up assigns their read surface (mission dossier or artifact placement); this ADR does not |
 | `/api/charter`, `/api/charter-lint`, `/api/glossary-health`, `/api/glossary-terms`, `/glossary` | Governance and glossary contexts (#954, #955). Not this API |
-| `/api/diagnostics` | `verify --diagnostics` |
+| `/api/diagnostics` | `verify-setup --diagnostics` |
 | `/api/health`, `/api/shutdown` | Removed with the daemon |
 
 ### Consequences
@@ -182,7 +200,11 @@ daemon and the poll-and-rescan cost from the CLI.
 
 - Until a replacement UI ships, users have no browser kanban. `agent tasks status` is the
   interim view.
-- Removal needs a deprecation release and an upgrade migration for 17 agent surfaces.
+- Removal ships without a deprecation release; an upgrade migration cleans the 17 agent
+  surfaces.
+- Until the read API lands, external readers have `agent tasks status --json`,
+  `orchestrator-api mission-state` and `events tail --json`, which still use the two
+  reducers the Context section describes.
 - Mission artifact and governance views lose their only UI until their own read surfaces land.
 
 #### Neutral
@@ -228,13 +250,12 @@ it.
 
 ## Open questions (operator)
 
-1. **Name.** "Runtime status" names three things already: `src/runtime/` (the control
-   loop), `src/specify_cli/runtime/` (agent assets) and WP runtime state. This ADR uses
-   **Mission Status Read API**. Confirm or rename it before the module is created
+1. **Name.** Resolved 2026-10-01: the operator ratified **Mission Status Read API**.
+   "Runtime status" was rejected because it already names three things: `src/runtime/`
+   (the control loop), `src/specify_cli/runtime/` (agent assets) and WP runtime state
    (`DIRECTIVE_032`).
-2. **Interim risk.** #4767 (P1) and #4769 (P1) affect a surface that still ships. If
-   deletion does not land in the next release, should the dashboard get a minimal Host
-   allow-list and PID-identity fix in the meantime, or be disabled by default?
+2. **Interim risk.** Resolved 2026-10-01: the dashboard is deleted first (amended D-8),
+   which closes #4767, #4768 and #4769.
 3. **Charter.** "Dashboard must support 100+ work packages without lag" (charter,
    Performance and Scale) refers to the dashboard. It needs a charter amendment that
    restates it as a read-API budget.

@@ -1,21 +1,21 @@
-"""Project diagnostics helpers for the dashboard."""
+"""Project diagnostics behind ``spec-kitty verify --diagnostics``.
+
+Moved out of the retired bundled dashboard package (#5530); the dashboard
+health probe went with the dashboard.
+"""
 
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
 from charter.activation.mission_type_key import read_mission_type
-from typing import Any
+
+if TYPE_CHECKING:
+    from specify_cli.manifest import WorktreeStatus
 
 __all__ = ["run_diagnostics"]
-
-
-def _ensure_specify_cli_on_path() -> None:
-    """Ensure the repository root (src directory) is on sys.path for fallback imports."""
-    candidate = Path(__file__).resolve().parents[2]  # .../src
-    if str(candidate) not in sys.path:
-        sys.path.insert(0, str(candidate))
 
 
 def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
@@ -31,7 +31,8 @@ def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     # rc3 M5 (FR-002): canonical field only via the one shared reader — the
     # legacy `mission` fallback is retired.
     if meta:
-        return read_mission_type(meta)
+        mission_type: str | None = read_mission_type(meta)
+        return mission_type
     return None
 
 
@@ -54,15 +55,14 @@ def _detect_git_branch(project_dir: Path, diagnostics: dict[str, Any]) -> None:
 
 def _collect_current_feature(
     feature_dir: Path | None,
-    worktree_status: object,
+    worktree_status: WorktreeStatus,
     diagnostics: dict[str, Any],
-    AcceptanceError: type,
 ) -> None:
     """Populate diagnostics['current_feature'] from the provided feature_dir."""
     try:
         mission_slug: str | None = feature_dir.name if feature_dir is not None else None
         if mission_slug:
-            feature_status = worktree_status.get_feature_status(mission_slug.strip())  # type: ignore[attr-defined]
+            feature_status = worktree_status.get_feature_status(mission_slug.strip())
             diagnostics["current_feature"] = {
                 "detected": True,
                 "name": mission_slug.strip(),
@@ -74,7 +74,7 @@ def _collect_current_feature(
                 "artifacts_in_main": feature_status["artifacts_in_main"],
                 "artifacts_in_worktree": feature_status["artifacts_in_worktree"],
             }
-    except (AcceptanceError, Exception) as exc:  # type: ignore[misc]
+    except Exception as exc:  # best-effort probe: report the failure, never abort the diagnostics run
         diagnostics["current_feature"] = {"detected": False, "error": str(exc)}
 
 
@@ -89,11 +89,9 @@ def _build_observations(
     if diagnostics["git_branch"] == primary and diagnostics["in_worktree"]:
         observations.append("Unusual: In worktree but on main branch")
     current_feature = diagnostics.get("current_feature") or {}
-    if current_feature.get("detected") and current_feature.get("state") == "in_development":
-        if not current_feature.get("worktree_exists"):
-            observations.append(
-                f"Feature {current_feature.get('name')} has no worktree but has development artifacts"
-            )
+    in_development = current_feature.get("detected") and current_feature.get("state") == "in_development"
+    if in_development and not current_feature.get("worktree_exists"):
+        observations.append(f"Mission {current_feature.get('name')} has no worktree but has development artifacts")
     if total_missing > 0:
         observations.append(f"Mission integrity: {total_missing} expected files not found")
     if worktree_summary.get("active_worktrees", 0) > 5:
@@ -101,66 +99,10 @@ def _build_observations(
     return observations
 
 
-def _collect_dashboard_health(
-    kittify_dir: Path,
-    project_dir: Path,
-    diagnostics: dict[str, Any],
-) -> dict[str, Any]:
-    """Return a dashboard health dict and append any issues to diagnostics['issues']."""
-    dashboard_file = kittify_dir / ".dashboard"
-    health: dict[str, Any] = {"metadata_exists": dashboard_file.exists(), "can_start": None, "startup_test": None}
-
-    if not dashboard_file.exists():
-        try:
-            from ..dashboard.lifecycle import ensure_dashboard_running, stop_dashboard
-            url, port, _ = ensure_dashboard_running(project_dir, background_process=False)
-            health.update({"can_start": True, "startup_test": "SUCCESS", "test_url": url, "test_port": port})
-            try:
-                stop_dashboard(project_dir)
-            except Exception:
-                pass
-        except Exception as e:
-            health.update({"can_start": False, "startup_test": "FAILED", "startup_error": str(e)})
-            diagnostics["issues"].append(f"Dashboard cannot start: {e}")
-        return health
-
-    try:
-        from ..dashboard.lifecycle import _check_dashboard_health, _is_process_alive, _parse_dashboard_file
-        url, port, token, pid = _parse_dashboard_file(dashboard_file)
-        health.update({"url": url, "port": port, "pid": pid, "has_pid": pid is not None})
-        if port:
-            is_healthy = _check_dashboard_health(port, project_dir, token)
-            health["responding"] = is_healthy
-            if not is_healthy:
-                diagnostics["issues"].append(f"Dashboard metadata exists but not responding on port {port}")
-                if pid:
-                    try:
-                        if _is_process_alive(pid):
-                            diagnostics["issues"].append(f"Dashboard process (PID {pid}) is alive but not responding")
-                        else:
-                            diagnostics["issues"].append(f"Dashboard process (PID {pid}) is dead - stale metadata file")
-                    except Exception:
-                        pass
-    except Exception as e:
-        health["parse_error"] = str(e)
-        diagnostics["issues"].append(f"Dashboard metadata file corrupted: {e}")
-
-    return health
-
-
 def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
-    try:
-        from ..manifest import FileManifest, WorktreeStatus  # type: ignore
-        from ..acceptance import AcceptanceError
-    except (ImportError, ValueError):
-        try:
-            from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import AcceptanceError
-        except ImportError:
-            _ensure_specify_cli_on_path()
-            from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import AcceptanceError
+    # Imported lazily so callers (and tests) can substitute lightweight stubs.
+    from specify_cli.manifest import FileManifest, WorktreeStatus
 
     kittify_dir = project_dir / ".kittify"
     mission_type = _resolve_mission_from_feature(feature_dir) if feature_dir is not None else None
@@ -179,7 +121,6 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
         "worktree_overview": {},
         "current_feature": {},
         "all_features": [],
-        "dashboard_health": {},
         "observations": [],
         "issues": [],
     }
@@ -213,11 +154,11 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> di
         for s in [worktree_status.get_feature_status(slug)]
     ]
 
-    _collect_current_feature(feature_dir, worktree_status, diagnostics, AcceptanceError)
+    _collect_current_feature(feature_dir, worktree_status, diagnostics)
 
     from specify_cli.core.git_ops import resolve_primary_branch
+
     primary = resolve_primary_branch(project_dir)
     diagnostics["observations"] = _build_observations(diagnostics, primary, worktree_summary, total_missing)
-    diagnostics["dashboard_health"] = _collect_dashboard_health(kittify_dir, project_dir, diagnostics)
 
     return diagnostics

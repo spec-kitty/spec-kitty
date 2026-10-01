@@ -105,7 +105,6 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "context list": ((), 1, "outside"),
     "context mission-resolve": (("--wp", "missing"), 1, "outside"),
     "context mission-show": (("--context", "missing"), 1, "outside"),
-    "dashboard": ((), 1, "outside"),
     "doctor command-files": ((), 1, "outside"),
     "doctor contracts": ((), 2, "outside"),
     "doctor coordination": ((), 1, "outside"),

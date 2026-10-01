@@ -9,7 +9,6 @@ related:
 - docs/guides/how-to/missions/handle-dependencies.md
 - docs/guides/how-to/missions/implement-work-package.md
 - docs/guides/how-to/collaboration/run-external-orchestrator.md
-- docs/guides/how-to/monitoring/use-dashboard.md
 ---
 # How to Develop in Parallel with Multiple Agents
 
@@ -19,7 +18,7 @@ Parallel development lets you move independent work packages (WPs) at the same t
 
 - Shorten delivery time by running independent WPs concurrently.
 - Keep changes isolated to avoid accidental cross-contamination.
-- Use the dashboard to coordinate and rebalance work in real time.
+- Use `spec-kitty agent tasks status` to coordinate and rebalance work.
 
 ## Prerequisites
 
@@ -78,7 +77,7 @@ cd <workspace path printed by the command>
 - Start with dependency-free WPs, then fan out.
 - Communicate when base WPs complete so dependents can start.
 - Keep each agent in its own resolved execution workspace path.
-- Use workflow commands to keep lane history and dashboard accurate.
+- Use workflow commands to keep lane history and status output accurate.
 
 ## Monitoring Parallel Work
 
@@ -94,7 +93,7 @@ Or in your agent:
 spec-kitty agent tasks status
 ```
 
-Use the dashboard to monitor lane movement and agent activity in real time.
+Re-run it (or add `--json` for tooling) to follow lane movement as agents progress.
 
 ---
 
@@ -108,7 +107,6 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 
 - [Handle Dependencies](../missions/handle-dependencies.md) - Managing WP dependencies
 - [Implement a work package](../missions/implement-work-package.md) - Starting a WP
-- [Use the Dashboard](../monitoring/use-dashboard.md) - Monitor parallel progress
 
 ## Background
 

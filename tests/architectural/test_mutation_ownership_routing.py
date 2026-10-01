@@ -782,6 +782,7 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         "upgrade/migrations/m_2_1_2_remove_release_skill.py",
         "upgrade/migrations/m_2_2_0_profile_context_deployment.py",
         "upgrade/migrations/m_3_2_0rc43_retire_profile_context_command.py",
+        "upgrade/migrations/m_4_0_0rc5_retire_bundled_dashboard.py",
         "upgrade/migrations/m_0_6_7_ensure_missions.py",
         "upgrade/migrations/m_unify_charter_activation_finalize.py",
     }

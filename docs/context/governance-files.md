@@ -94,7 +94,7 @@ supported redirection mechanism, and it points at a `charter.yaml` file, not at 
 
 `spec-kitty charter sync` is retained for its canonical-root resolution and the internal
 `ensure_charter_bundle_fresh()` staleness check that other charter-layer modules still call — the
-`charter sync` CLI command itself, the dashboard, and the bundle-migration upgrader all depend on
+`charter sync` CLI command itself and the bundle-migration upgrader both depend on
 its signature. It performs **no extraction** any more: it always reports `synced=False` and
 `files_written=[]`, because there is nothing left to derive from `charter.md`. Running
 `spec-kitty charter sync` after a hand edit to `charter.yaml` is a harmless no-op, not a required

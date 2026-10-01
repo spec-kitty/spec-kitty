@@ -16,7 +16,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"
 SPK_SKILLS = {
     "spk-admin-agent-config",
-    "spk-admin-dashboard",
     "spk-admin-git-workflow",
     "spk-admin-setup-doctor",
     "spk-admin-upgrade",

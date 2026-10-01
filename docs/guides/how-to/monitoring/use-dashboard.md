@@ -1,90 +1,23 @@
 ---
-title: How to Use the Spec Kitty Dashboard
-description: Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages.
-doc_status: active
-updated: '2026-06-03'
+title: The Bundled Dashboard Was Removed
+description: The spec-kitty dashboard command and its local web UI were removed in 4.0.0rc5; check mission status from the CLI instead.
+doc_status: deprecated
+updated: '2026-10-01'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
-- docs/guides/how-to/collaboration/parallel-development.md
-- docs/guides/how-to/missions/review-work-package.md
+- docs/guides/how-to/monitoring/index.md
 ---
-# How to Use the Spec Kitty Dashboard
+# The Bundled Dashboard Was Removed
 
-The dashboard provides live, project-wide visibility into work packages, lanes, and agent activity. Start it on demand whenever you want to inspect progress.
+The `spec-kitty dashboard` command, the `/spec-kitty.dashboard` slash command and the local web dashboard were removed in 4.0.0rc5 ([#5530](https://github.com/spec-kitty/spec-kitty/issues/5530)). `spec-kitty upgrade` removes the leftover command files and stops a dashboard server that is still running.
 
-## Starting the Dashboard
-
-```bash
-spec-kitty dashboard
-# or
-/spec-kitty.dashboard
-```
-
-If the dashboard isn't already running, Spec Kitty starts it in the background. Add `--open` if you want it to launch in your browser immediately:
+To see where every work package stands, run:
 
 ```bash
-spec-kitty dashboard --open
+spec-kitty agent tasks status --mission <handle>
 ```
 
-## Dashboard URL
+Add `--json` for machine-readable output; external tools can use `spec-kitty orchestrator-api mission-state`. A read-only Mission Status Read API ([#5528](https://github.com/spec-kitty/spec-kitty/issues/5528)) is planned, with a replacement UI in its own repository.
 
-Spec Kitty records the active dashboard URL in `.kittify/.dashboard`. If the browser doesn't open automatically, copy the URL from that file.
-
-## Dashboard Views
-
-### Kanban Board
-
-The kanban board mirrors the lane workflow (`planned -> doing -> for_review -> in_review -> approved -> done`). `approved` means review passed and merge pending; `done` means merged/integrated.
-
-![Spec Kitty Dashboard - Kanban Board View](../../../assets/dashboard-kanban.png)
-
-### Feature Overview
-
-The overview summarizes feature progress, artifacts, and worktrees.
-
-![Spec Kitty Dashboard - Feature Overview](../../../assets/dashboard-overview.png)
-
-## Custom Port
-
-If you need a specific port, pass `--port`:
-
-```bash
-spec-kitty dashboard --port 8080
-```
-
-If the port is taken, Spec Kitty finds the next available port.
-
-## Stopping the Dashboard
-
-```bash
-spec-kitty dashboard --kill
-```
-
-This stops the background process and clears the `.kittify/.dashboard` metadata.
-
-## Dashboard Auto-Start
-
-`spec-kitty init` does not auto-start the dashboard in the current `3.2` flow. If dashboard metadata is missing or stale, run `spec-kitty dashboard` again to recreate it.
-
----
-
-## Command Reference
-
-- [CLI Commands](../../../api/cli-commands.md) - Dashboard commands
-- [Slash Commands](../../../api/slash-commands.md) - `/spec-kitty.dashboard`
-
-## See Also
-
-- [Parallel Development](../collaboration/parallel-development.md) - Monitor multi-agent work
-- [Review a work package](../missions/review-work-package.md) - Track review status
-
-## Background
-
-- [Kanban Workflow](../../../architecture/kanban-workflow.md) - Lane system explained
-- [Multi-Agent Orchestration](../../../architecture/multi-agent-orchestration.md) - Agent coordination
-
-## Getting Started
-
-- [Your First Mission](../../tutorials/your-first-mission.md) - See dashboard in action
-- [Claude Code Integration](../../tutorials/claude-code-integration.md) - Dashboard with Claude
+See [Status & History](index.md) for the other monitoring guides.

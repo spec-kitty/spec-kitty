@@ -28,6 +28,6 @@ New here? Start with **[When to Use Spec Kitty Modes](when-to-use-modes.md)** to
 - [Run a Mission](how-to/missions/index.md) — Author and drive a mission from specification through plan, tasks, implementation, review, and merge.
 - [Governance & Doctrine](how-to/governance/index.md) — Set up a project charter, synthesize doctrine, manage the glossary, and run governed missions.
 - [Parallel & Multi-Agent Work](how-to/collaboration/index.md) — Coordinate multiple agents, worktrees, orchestrators, and dependencies across parallel work packages.
-- [Dashboard & History](how-to/monitoring/index.md) — Watch mission progress on the real-time kanban dashboard and review your git operation history.
+- [Status & History](how-to/monitoring/index.md) — Check mission progress from the CLI and review your git operation history.
 - [Recovery & Troubleshooting](how-to/recovery/index.md) — Recover from implementation crashes and interrupted merges, and troubleshoot merge failures.
 - [Scenario Walkthroughs](how-to/scenarios/index.md) — End-to-end, role-based walkthroughs showing how real teams and solo developers run Spec Kitty.

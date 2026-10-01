@@ -102,16 +102,6 @@
       "census_evidence": "known-live"
     },
     {
-      "group": "dashboard",
-      "roots": [
-        "src/specify_cli/dashboard/**"
-      ],
-      "cov_targets": [
-        "specify_cli.dashboard"
-      ],
-      "census_evidence": "known-live"
-    },
-    {
       "group": "upgrade",
       "roots": [
         "src/specify_cli/upgrade/**"

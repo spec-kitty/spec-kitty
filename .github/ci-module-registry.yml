@@ -105,31 +105,6 @@ modules:
   - specify_cli.lanes
   tier: standard
   shard_count: 1
-- module: dashboard
-  roots:
-  - src/specify_cli/dashboard/**
-  cov_targets:
-  - specify_cli.dashboard
-  tier: standard
-  # DUAL test tree (spec-kitty#4369): the module's tests live in BOTH
-  # tests/dashboard/ AND tests/test_dashboard/ -- the second tree (API
-  # handler, scanner, mission-id, server suites) was previously invisible to
-  # every shard: the mirrored-dir fallback only ever looked at
-  # tests/dashboard, so tests written there could neither fail a PR nor
-  # contribute coverage evidence. The explicit test_dirs list claims both
-  # trees. Measured basis (supplemental run recorded in
-  # ci-shard-timings.json, 2026-09-14): 247 collected, 246 passed + 1
-  # skipped, 14.7s serial wall, slowest single test 2.0s -- shard_count
-  # stays 1, far inside the 30m shard budget, so no nightly marker split
-  # is needed.
-  # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/dashboard (the secondary
-  # tests/specify_cli/** mirror) as a THIRD tree onto this row -- re-measured the
-  # combined module (not just the new tree) in T010 to keep skew accurate.
-  shard_count: 1
-  test_dirs:
-  - tests/dashboard
-  - tests/test_dashboard
-  - tests/specify_cli/dashboard
 - module: upgrade
   roots:
   - src/specify_cli/upgrade/**
@@ -476,12 +451,6 @@ out_of_matrix_test_dirs:
 
 
 - reason: >-
-    Browser-backed Playwright UI guards: ci-nightly.yml's -m e2e lane (PWHEADLESS=1) is
-    their home; no per-PR lane installs browsers, so they are deliberately nightly-only.
-  dirs:
-  - tests/ui
-
-- reason: >-
     Secondary tests/specify_cli/** tree; its command-path/latency parity is covered by
     the cli module mirror (tests/cli) and the always-on architectural CLI-reference
     gate. The one repo-invariant unique to it -- completion-manifest freshness (help
@@ -748,14 +717,13 @@ out_of_matrix_test_dirs:
 
 - reason: >-
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
-    grep, analysis/evidence/pop_b_marker_grep.txt): both pytest.mark.performance and
-    pytest.mark.stress VERIFIED present. Real marker homes are ci-nightly.yml's
-    performance-and-e2e job (-m performance and -m "stress and not windows_ci",
-    #3595/#4698) -- no per-PR lane selects this directory; not a disguised snapshot
-    (#2979 class).
+    grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.performance VERIFIED
+    present. Real marker home is ci-nightly.yml's performance-and-e2e job
+    (-m performance, #3595/#4698) -- no per-PR lane selects this directory; not a
+    disguised snapshot (#2979 class). The directory's only stress-marked file was
+    the dashboard CLI accuracy test, removed with the bundled dashboard (#5530).
   dirs:
   - tests/cross_cutting
-  - tests/cross_cutting/dashboard
 
 - reason: >-
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence

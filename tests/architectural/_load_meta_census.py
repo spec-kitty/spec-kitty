@@ -191,8 +191,6 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # restored to match ``main``.)
     ("src/specify_cli/core/paths.py", "load_meta_fail_closed"): (1, "authority"),
     ("src/specify_cli/core/vcs/detection.py", "_get_locked_vcs_from_feature"): (2, "silent-by-contract"),
-    ("src/specify_cli/dashboard/scanner.py", "_read_dashboard_feature_meta"): (1, "silent-by-contract"),
-    ("src/specify_cli/dashboard/scanner.py", "_read_mission_identity"): (1, "silent-by-contract"),
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),

@@ -82,7 +82,6 @@ Verify that the working environment meets runtime requirements.
 - Current working directory is the repository root (not a subdirectory)
 - Active branch is correct for the current workflow stage
 - If using worktrees, the worktree is properly linked
-- Dashboard can be reached (if applicable)
 - Runtime configuration in `.kittify/config.yaml` is present and valid
 
 **Commands:**
@@ -110,7 +109,6 @@ Common patterns include:
 - **Missing wrapper root** -- slash commands not available
 - **Manifest drift** -- skill files were manually edited
 - **Runtime not found** -- `.kittify/` directory missing or corrupted
-- **Dashboard not starting** -- port conflict or process crash
 
 **How to diagnose:**
 
@@ -140,7 +138,6 @@ Apply deterministic recovery steps for each identified issue.
 | Missing skill root | `spec-kitty doctor skills --fix` |
 | Manifest drift | `spec-kitty doctor skills --fix` |
 | Runtime not found | `spec-kitty init . --ai <agent>` |
-| Dashboard not starting | `spec-kitty dashboard` |
 | Corrupted config | Back up and remove `.kittify/config.yaml`, then run `spec-kitty init . --ai <agent>` |
 
 **Commands:**
@@ -151,9 +148,6 @@ spec-kitty init . --ai <agent>
 
 # Targeted skill repair (preserves existing config)
 spec-kitty doctor skills --fix
-
-# Restart dashboard
-spec-kitty dashboard
 ```
 
 **Expected outcome:** After recovery, `spec-kitty doctor skills --json` reports no

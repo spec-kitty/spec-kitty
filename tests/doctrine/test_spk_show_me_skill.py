@@ -252,7 +252,6 @@ def test_bundled_guide_matches_canonical_toolguide(filename: str) -> None:
         "src/charter/offering/skills/spec-kitty/SKILL.md",
         "src/charter/offering/skills/spk-mission-specify/SKILL.md",
         "src/charter/offering/skills/spk-mission-plan/SKILL.md",
-        "src/charter/offering/skills/spk-admin-dashboard/SKILL.md",
         "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md",
         "packs/built-in/missions/mission-steps/software-dev/plan/prompt.md",
         "packs/built-in/missions/mission-steps/plan/specify/prompt.md",

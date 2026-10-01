@@ -8,7 +8,6 @@ type: how-to
 related:
 - docs/guides/how-to/missions/accept-and-merge.md
 - docs/guides/how-to/missions/implement-work-package.md
-- docs/guides/how-to/monitoring/use-dashboard.md
 ---
 # How to review a work package
 
@@ -200,7 +199,6 @@ spec-kitty agent tasks status --mission <slug>
 
 - [Implement a work package](implement-work-package.md) - Required before review
 - [Accept and Merge](accept-and-merge.md) - After all WPs pass review
-- [Use the Dashboard](../monitoring/use-dashboard.md) - Monitor review status
 
 ## Background
 

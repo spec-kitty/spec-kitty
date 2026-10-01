@@ -72,7 +72,7 @@ def _bypass_preflight_and_context(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda *_a, **_kw: ok,
     )
     monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_warn_only",
         lambda *_a, **_kw: ok,
     )
     _fake_ctx = CurrentContext(

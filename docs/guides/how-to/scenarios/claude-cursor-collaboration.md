@@ -87,7 +87,7 @@ JWT tokens for sessions, bcrypt for password hashing.
 - Keep a shared log in `kitty-specs/<feature>/collaboration-notes.md`
 - Use git worktree status (`git worktree list`) to confirm both agents operate in the same branch
 - When switching ownership, use `spec-kitty agent action implement WP##` to update lane and shell PID metadata
-- Monitor the dashboard to see which agent is working on which task in real-time
+- Run `spec-kitty agent tasks status` to see which agent is working on which task
 
 ## Agent Strengths
 - **Claude:** Specification writing, planning, research, documentation, complex problem-solving

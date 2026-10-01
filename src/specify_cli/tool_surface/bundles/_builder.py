@@ -20,7 +20,7 @@ from .model import PreparedBundle, StagedFile
 from .projection import apply_staging, confined_output, json_bytes, prepare_staging, staging_root, write_staged_file
 
 # Minimum number of canonical command skills required in a complete bundle.
-MIN_SKILL_COUNT = 15
+MIN_SKILL_COUNT = 14
 
 # Semver pattern: MAJOR.MINOR.PATCH (patch may include pre-release suffix).
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+")

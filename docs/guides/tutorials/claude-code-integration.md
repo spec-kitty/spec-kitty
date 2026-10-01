@@ -18,7 +18,7 @@ related:
 _Stylized splash — the detective's case board is decorative. The opinionated workflow phases are in the sections below._
 
 > [!TIP]
-> For CLI prompt launch, worktree lanes, and dashboard lockstep, see [Claude Code Workflow](claude-code-workflow.md).
+> For CLI prompt launch, worktree lanes, and status lockstep, see [Claude Code Workflow](claude-code-workflow.md).
 
 ## Why Claude Code + Spec Kitty?
 
@@ -57,8 +57,8 @@ claude
 /spec-kitty.implement
 # Claude implements first task, moves it through kanban lanes
 
-# 5. Watch live dashboard
-# Open the dashboard URL shown after init to see real-time progress
+# 5. Check progress
+# Run `spec-kitty agent tasks status` to see where each work package stands
 ```
 
 ---
@@ -127,7 +127,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 
 **Why This Matters**:
 - Claude focuses on ONE thing at a time
-- Progress is visible (dashboard shows review-passed and merged task counts separately)
+- Progress is visible (`spec-kitty agent tasks status` shows review-passed and merged task counts separately)
 - You can pause/resume without losing context
 
 ---
@@ -149,7 +149,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 ```
 
 **What You See:**
-- Dashboard updates in real-time as tasks move through lanes
+- `spec-kitty agent tasks status` reflects each lane move
 - Activity log shows: "WP01 moved planned → doing (by Claude Code)"
 - Clear visibility into progress (3 approved, 2 in review, 5 planned)
 
@@ -242,12 +242,12 @@ Claude: [implements exactly what's in spec]
 7. **blocked** - Blocked by dependency or issue
 8. **canceled** - Permanently abandoned
 
-The dashboard displays 5 columns: Planned, Doing, For Review, Approved, Done.
+`spec-kitty agent tasks status` groups work packages by lane.
 
 **How Enforced**: Every WP has `lane:` in frontmatter. Commands auto-update lanes.
 
 **Why This Matters:**
-- Dashboard shows 3 in "doing" = too many parallel tasks, focus!
+- Status shows 3 in "doing" = too many parallel tasks, focus!
 - Agent A does implementation, Agent B does review (clean handoff)
 - Historical record: "WP03 took 3 transitions (sent back to planned twice)"
 
@@ -337,17 +337,20 @@ and WebSocket for live reload. Dark mode toggle.
 
 ---
 
-## Live Dashboard Integration
+## Status Tracking
 
-### Starting the Dashboard
+### Checking Status
 
-`spec-kitty init` no longer auto-starts the dashboard in the current `3.2` flow. Start it when you want it:
+The bundled local web dashboard has been removed. Check progress from the CLI instead:
 
 ```bash
-spec-kitty dashboard --open
+spec-kitty agent tasks status          # human-readable lane board
+spec-kitty agent tasks status --json   # machine-readable
 ```
 
-### What You See in Real-Time
+A read-only Mission Status Read API ([#5528](https://github.com/spec-kitty/spec-kitty/issues/5528)) is planned as the contract for a replacement UI, which will live in its own repository.
+
+### What You See
 
 **Kanban Board:**
 ```
@@ -395,7 +398,7 @@ cursor
 **Why This Works:**
 - Both agents see same `tasks/*.md` files
 - Frontmatter `lane:` field coordinates them
-- Dashboard shows both agents' activity
+- `spec-kitty agent tasks status` shows both agents' activity
 - No race conditions (file-based locking via git)
 
 ---
@@ -435,7 +438,7 @@ cd .worktrees/002-payment-flow
 cursor
 /spec-kitty.implement
 
-# Dashboard shows BOTH features progressing
+# `spec-kitty agent tasks status --mission <slug>` shows each Mission progressing
 ```
 
 ---
@@ -476,15 +479,6 @@ ls .claude/commands/
 spec-kitty upgrade  # Regenerates commands
 ```
 
-### Dashboard won't open
-
-**Cause**: Port 33333 in use
-**Fix**:
-```bash
-spec-kitty dashboard --kill  # Stop existing dashboard
-spec-kitty dashboard         # Restart
-```
-
 ---
 
 ## Key Commands Reference
@@ -505,7 +499,7 @@ spec-kitty dashboard         # Restart
 |---------|-------------|--------------|
 | `spec-kitty init` | New project | Initialize Spec Kitty in project |
 | `spec-kitty upgrade` | After pip upgrade | Apply migrations, fix templates |
-| `spec-kitty dashboard` | Anytime | Open live kanban dashboard |
+| `spec-kitty agent tasks status` | Anytime | Show the lane-based status board |
 | `spec-kitty verify-setup` | Troubleshooting | Check tools and project health |
 
 ---
@@ -557,9 +551,9 @@ Encode your team's quality standards once:
 
 2. **Always `cd .worktrees/001-feature`**
    - Slash commands need feature context
-   - Dashboard needs to know which feature you're in
+   - Status commands need to know which Mission you're in
 
-3. **Use the dashboard**
+3. **Check status often**
    - Catches: "Wait, why are 3 tasks in 'doing'?"
    - Insight: "WP05 failed review twice, might need redesign"
 
@@ -579,11 +573,11 @@ Encode your team's quality standards once:
 
 3. **Manually edit lane metadata**
    - Use workflow commands to advance lanes
-   - Preserves history and dashboard accuracy
+   - Preserves history and status accuracy
 
-4. **Ignore dashboard warnings**
+4. **Ignore stale-work warnings**
    - "Task stuck in 'doing' for 2 days" = blocked work
-   - Dashboard catches what you miss
+   - `spec-kitty agent tasks status` flags stale WPs you might miss
 
 ---
 
@@ -622,22 +616,15 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 - ✅ **Single agent**: 1-10 work packages per feature
 - ✅ **Multiple agents**: 2-3 agents working on different features simultaneously
 - ✅ **Large features**: Up to 30 work packages decomposed and tracked
-- ✅ **Parallel features**: 5 active worktrees tracked in single dashboard
-
-### Dashboard Performance
-
-- Updates every 1-2 seconds
-- Handles 100+ work packages across all features
-- Poll-based live updates (browser fetches on an interval, no WebSocket)
+- ✅ **Parallel missions**: 5 active worktrees tracked via per-Mission status
 
 ---
 
 ## Next Steps
 
 1. **Try the Quick Start** - 5 minute hands-on experience
-2. **Review Dashboard Guide** - [Use the Dashboard](../how-to/monitoring/use-dashboard.md)
-3. **Read Full Workflow** - [Getting Started Tutorial](getting-started.md)
-4. **Explore Advanced Features** - [Multi-Agent Orchestration](../../architecture/multi-agent-orchestration.md)
+2. **Read Full Workflow** - [Getting Started Tutorial](getting-started.md)
+3. **Explore Advanced Features** - [Multi-Agent Orchestration](../../architecture/multi-agent-orchestration.md)
 
 ---
 
@@ -648,7 +635,6 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 **Common Issues**:
 - Template bundling bug → Upgrade to v0.10.9+
 - Slash commands not found → Check you're in project/worktree
-- Dashboard won't open → Kill existing instance first
 
 **Documentation**:
 - [Spec-Driven Development](../../architecture/spec-driven-development.md)
@@ -671,7 +657,7 @@ AI coding agents are pattern-matching machines. Without specs:
 1. **Specification** = Pattern to match
 2. **Plan** = Architecture constraints
 3. **Tasks** = Focused context windows
-4. **Dashboard** = Progress visibility
+4. **Status** = Progress visibility
 
 **Result**: Claude Code (or any agent) stays focused, builds systematically, and you maintain oversight without micromanaging.
 
@@ -680,7 +666,6 @@ The opinionated workflow isn't arbitrary - it's specifically designed around how
 ## Related How-To Guides
 
 - [Install Spec Kitty](../how-to/installation/install-spec-kitty.md)
-- [Use the Dashboard](../how-to/monitoring/use-dashboard.md)
 - [Non-Interactive Init](../how-to/installation/non-interactive-init.md)
 
 ## Reference

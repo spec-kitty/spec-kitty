@@ -3806,7 +3806,6 @@ pages:
     - {slug: "spec-kitty-context-mission-resolve", text: "spec-kitty context mission-resolve", level: 2}
     - {slug: "spec-kitty-context-mission-show", text: "spec-kitty context mission-show", level: 2}
     - {slug: "spec-kitty-cutover-guard", text: "spec-kitty cutover-guard", level: 2}
-    - {slug: "spec-kitty-dashboard", text: "spec-kitty dashboard", level: 2}
     - {slug: "spec-kitty-dispatch", text: "spec-kitty dispatch", level: 2}
     - {slug: "spec-kitty-docs", text: "spec-kitty docs", level: 2}
     - {slug: "spec-kitty-docs-query", text: "spec-kitty docs query", level: 2}
@@ -4039,7 +4038,7 @@ pages:
   - path: "docs/api/environment-variables.md"
     title: "Environment Variables Reference"
     divio_type: "none"
-    abstract: "Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, dashboard, and test configuration."
+    abstract: "Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration."
     anchors:
     - {slug: "runtime-and-installation", text: "Runtime and Installation", level: 2}
     - {slug: "spec-kitty-home", text: "SPEC_KITTY_HOME", level: 3}
@@ -4363,7 +4362,6 @@ pages:
     - {slug: "spec-kitty-accept", text: "/spec-kitty.accept", level: 2}
     - {slug: "spec-kitty-consolidate", text: "/spec-kitty.consolidate", level: 2}
     - {slug: "spec-kitty-status", text: "/spec-kitty.status", level: 2}
-    - {slug: "spec-kitty-dashboard", text: "/spec-kitty.dashboard", level: 2}
     - {slug: "spec-kitty-charter", text: "/spec-kitty.charter", level: 2}
     - {slug: "spec-kitty-research", text: "/spec-kitty.research", level: 2}
     - {slug: "spec-kitty-analyze", text: "/spec-kitty.analyze", level: 2}
@@ -4492,7 +4490,7 @@ pages:
     - {slug: "loop-b-execution-coordination-orchestration-event-store-connectors", text: "Loop B: Execution Coordination (Orchestration ↔ Event Store → Connectors)", level: 3}
     - {slug: "loop-c-governance-user-charter-doctrine", text: "Loop C: Governance (User → Charter → Doctrine)", level: 3}
     - {slug: "loop-c-action-context-bootstrap-agent-charter-doctrine", text: "Loop C': action context bootstrap (Agent → Charter → Doctrine)", level: 3}
-    - {slug: "loop-d-visibility-dashboard-event-store", text: "Loop D: Visibility (Dashboard ← Event Store)", level: 3}
+    - {slug: "loop-d-visibility-status-read-event-store", text: "Loop D: Visibility (Status read ← Event Store)", level: 3}
     - {slug: "loop-e-external-projection-orchestration-tracker", text: "Loop E: External Projection (Orchestration → Tracker)", level: 3}
     - {slug: "level-3-components-modules", text: "Level 3 — Components → Modules", level: 2}
     - {slug: "tiered-template-resolution-pipeline", text: "Tiered Template Resolution Pipeline", level: 3}
@@ -9870,7 +9868,6 @@ pages:
     - {slug: "3-known-mixed-usage-to-reconcile", text: "3. Known mixed-usage / to-reconcile", level: 2}
     - {slug: "3-1-primary-contradiction-kittify-config-yaml", text: "3.1 Primary contradiction: `.kittify/config.yaml`", level: 3}
     - {slug: "3-2-secondary-pack-assembler-py-dual-use", text: "3.2 Secondary: `pack_assembler.py` dual-use", level: 3}
-    - {slug: "3-3-dashboard-handlers-glossary-py-ambiguous-import", text: "3.3 `dashboard/handlers/glossary.py` ambiguous import", level: 3}
     - {slug: "4-aspirational-rule-not-yet-enforced", text: "4. Aspirational rule (not yet enforced)", level: 2}
     - {slug: "5-quick-reference", text: "5. Quick reference", level: 2}
   - path: "docs/context/audience/external/architect-evaluator.md"
@@ -10402,7 +10399,7 @@ pages:
     - {slug: "why-this-matters", text: "Why This Matters", level: 3}
     - {slug: "the-philosophical-break-from-spec-kit", text: "The Philosophical Break from Spec Kit", level: 3}
     - {slug: "why-this-approach-works-better-for-ai-agents", text: "Why This Approach Works Better for AI Agents", level: 3}
-    - {slug: "real-time-progress-tracking-with-integrated-kanban", text: "Real-Time Progress Tracking with Integrated Kanban", level: 2}
+    - {slug: "progress-tracking-with-kanban-lanes", text: "Progress Tracking with Kanban Lanes", level: 2}
     - {slug: "the-sdd-workflow-in-practice", text: "The SDD Workflow in Practice", level: 2}
     - {slug: "interactive-discovery-comes-first", text: "Interactive Discovery Comes First", level: 3}
     - {slug: "why-sdd-matters-now", text: "Why SDD Matters Now", level: 2}
@@ -11051,12 +11048,10 @@ pages:
   - path: "docs/development/testing/ui-e2e.md"
     title: "UI End-to-End Tests (Playwright)"
     divio_type: "how-to"
-    abstract: "How to boot the synthetic dashboard fixture and write a Playwright e2e test that regression-guards Mission dashboard UI rendering."
+    abstract: "Lessons for browser-driven UI regression tests; the in-repo dashboard Playwright suite was removed with the dashboard (#5530)."
     anchors:
-    - {slug: "running-the-suite-locally", text: "Running the suite locally", level: 2}
-    - {slug: "how-the-hermetic-fixture-works", text: "How the hermetic fixture works", level: 2}
-    - {slug: "writing-another-e2e-test-copy-template", text: "Writing another e2e test (copy-template)", level: 2}
-    - {slug: "ci", text: "CI", level: 2}
+    - {slug: "why-browser-driven-tests", text: "Why browser-driven tests", level: 2}
+    - {slug: "lessons-to-carry-into-any-future-ui-suite", text: "Lessons to carry into any future UI suite", level: 2}
   - path: "docs/development/testing/write-time-dependent-tests.md"
     title: "Write Time-Dependent Tests"
     divio_type: "how-to"
@@ -11649,11 +11644,10 @@ pages:
     - {slug: "2-missing-wrapper-root", text: "2. Missing wrapper root", level: 3}
     - {slug: "3-manifest-drift", text: "3. Manifest drift", level: 3}
     - {slug: "4-runtime-not-found", text: "4. Runtime not found", level: 3}
-    - {slug: "5-dashboard-not-starting", text: "5. Dashboard not starting", level: 3}
-    - {slug: "6-stale-agent-configuration", text: "6. Stale agent configuration", level: 3}
-    - {slug: "7-corrupted-config-file", text: "7. Corrupted config file", level: 3}
-    - {slug: "8-worktree-linkage-broken", text: "8. Worktree linkage broken", level: 3}
-    - {slug: "9-shared-package-imports-resolve-as-a-namespace-package", text: "9. Shared package imports resolve as a namespace package", level: 3}
+    - {slug: "5-stale-agent-configuration", text: "5. Stale agent configuration", level: 3}
+    - {slug: "6-corrupted-config-file", text: "6. Corrupted config file", level: 3}
+    - {slug: "7-worktree-linkage-broken", text: "7. Worktree linkage broken", level: 3}
+    - {slug: "8-shared-package-imports-resolve-as-a-namespace-package", text: "8. Shared package imports resolve as a namespace package", level: 3}
     - {slug: "safety-warning-remove-orphaned-and-shared-directories", text: "Safety warning: --remove-orphaned and shared directories", level: 2}
     - {slug: "quick-reference-recovery-table", text: "Quick-reference recovery table", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
@@ -12102,27 +12096,15 @@ pages:
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/monitoring/index.md"
-    title: "Dashboard & History"
+    title: "Status & History"
     divio_type: "explanation"
-    abstract: "Watch mission progress on the real-time kanban dashboard and review your git operation history."
+    abstract: "Check mission progress from the CLI and review your git operation history."
     anchors: []
   - path: "docs/guides/how-to/monitoring/use-dashboard.md"
-    title: "How to Use the Spec Kitty Dashboard"
+    title: "The Bundled Dashboard Was Removed"
     divio_type: "how-to"
-    abstract: "Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages."
-    anchors:
-    - {slug: "starting-the-dashboard", text: "Starting the Dashboard", level: 2}
-    - {slug: "dashboard-url", text: "Dashboard URL", level: 2}
-    - {slug: "dashboard-views", text: "Dashboard Views", level: 2}
-    - {slug: "kanban-board", text: "Kanban Board", level: 3}
-    - {slug: "feature-overview", text: "Feature Overview", level: 3}
-    - {slug: "custom-port", text: "Custom Port", level: 2}
-    - {slug: "stopping-the-dashboard", text: "Stopping the Dashboard", level: 2}
-    - {slug: "dashboard-auto-start", text: "Dashboard Auto-Start", level: 2}
-    - {slug: "command-reference", text: "Command Reference", level: 2}
-    - {slug: "see-also", text: "See Also", level: 2}
-    - {slug: "background", text: "Background", level: 2}
-    - {slug: "getting-started", text: "Getting Started", level: 2}
+    abstract: "The spec-kitty dashboard command and its local web UI were removed in 4.0.0rc5; check mission status from the CLI instead."
+    anchors: []
   - path: "docs/guides/how-to/monitoring/use-operation-history.md"
     title: "Use Operation History"
     divio_type: "how-to"
@@ -12195,20 +12177,20 @@ pages:
   - path: "docs/guides/how-to/scenarios/agency-client-demo.md"
     title: "Agency Client Transparency Workflow"
     divio_type: "how-to"
-    abstract: "Give agency clients live, read-only visibility into Spec Kitty mission progress through the kanban dashboard without exposing any source code."
+    abstract: "Give agency clients read-only visibility into Spec Kitty mission progress through status reports without exposing any source code."
     anchors:
     - {slug: "setup", text: "Setup", level: 2}
-    - {slug: "1-expose-dashboard-to-client", text: "1. Expose Dashboard to Client", level: 3}
+    - {slug: "1-share-status-with-the-client", text: "1. Share Status with the Client", level: 3}
     - {slug: "2-what-client-sees", text: "2. What Client Sees", level: 3}
     - {slug: "client-meeting-patterns", text: "Client Meeting Patterns", level: 2}
     - {slug: "sprint-planning-meeting", text: "Sprint Planning Meeting", level: 3}
-    - {slug: "daily-standup-async-via-dashboard", text: "Daily Standup (Async via Dashboard)", level: 3}
+    - {slug: "daily-standup-async-via-status-reports", text: "Daily Standup (Async via Status Reports)", level: 3}
     - {slug: "weekly-review-meeting", text: "Weekly Review Meeting", level: 3}
     - {slug: "trust-building-workflow", text: "Trust-Building Workflow", level: 2}
     - {slug: "problem-how-do-i-know-you-re-making-progress", text: "Problem: \"How do I know you're making progress?\"", level: 3}
     - {slug: "example-timeline", text: "Example Timeline", level: 3}
     - {slug: "client-communication", text: "Client Communication", level: 2}
-    - {slug: "explaining-the-dashboard", text: "Explaining the Dashboard", level: 3}
+    - {slug: "explaining-the-status-report", text: "Explaining the Status Report", level: 3}
     - {slug: "setting-expectations", text: "Setting Expectations", level: 3}
     - {slug: "advanced-client-collaboration", text: "Advanced: Client Collaboration", level: 2}
     - {slug: "allow-client-to-review-work", text: "Allow Client to Review Work", level: 3}
@@ -12273,20 +12255,6 @@ pages:
     - {slug: "7-acceptance-merge-either-agent", text: "7. Acceptance & Merge (Either Agent)", level: 3}
     - {slug: "coordination-tips", text: "Coordination Tips", level: 2}
     - {slug: "agent-strengths", text: "Agent Strengths", level: 2}
-  - path: "docs/guides/how-to/scenarios/dashboard-driven-development.md"
-    title: "Dashboard-Driven Development"
-    divio_type: "how-to"
-    abstract: "Run delivery from the Spec Kitty kanban dashboard as the single source of truth for a product trio of product manager, designer, and tech lead."
-    anchors:
-    - {slug: "setup", text: "Setup", level: 2}
-    - {slug: "team-roles", text: "Team Roles", level: 2}
-    - {slug: "daily-loop", text: "Daily Loop", level: 2}
-    - {slug: "1-morning-alignment-9-00-am", text: "1. Morning Alignment (9:00 AM)", level: 3}
-    - {slug: "2-assign-work-packages-9-30-am", text: "2. Assign Work Packages (9:30 AM)", level: 3}
-    - {slug: "3-midday-review-1-00-pm", text: "3. Midday Review (1:00 PM)", level: 3}
-    - {slug: "4-evening-recap-5-00-pm", text: "4. Evening Recap (5:00 PM)", level: 3}
-    - {slug: "dashboard-features-used", text: "Dashboard Features Used", level: 2}
-    - {slug: "tips", text: "Tips", level: 2}
   - path: "docs/guides/how-to/scenarios/index.md"
     title: "Scenario Walkthroughs"
     divio_type: "explanation"
@@ -12303,12 +12271,11 @@ pages:
   - path: "docs/guides/how-to/scenarios/parallel-implementation-tracking.md"
     title: "Parallel Implementation Tracking"
     divio_type: "how-to"
-    abstract: "Track several agents implementing a roadmap in parallel and give leadership continuous visibility through the Spec Kitty dashboard and activity logs."
+    abstract: "Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and activity logs."
     anchors:
     - {slug: "setup", text: "Setup", level: 2}
     - {slug: "steps", text: "Steps", level: 2}
     - {slug: "reporting", text: "Reporting", level: 2}
-    - {slug: "dashboard-features-for-tracking", text: "Dashboard Features for Tracking", level: 2}
   - path: "docs/guides/how-to/scenarios/research-mission-example.md"
     title: "Deep Research Mission Workflow"
     divio_type: "how-to"
@@ -12341,7 +12308,7 @@ pages:
   - path: "docs/guides/how-to/scenarios/solo-developer-workflow.md"
     title: "Solo Developer Workflow"
     divio_type: "how-to"
-    abstract: "Iterate quickly as a solo developer using Spec Kitty with a single AI agent while keeping systematic tracking and visual progress on the dashboard."
+    abstract: "Iterate quickly as a solo developer using Spec Kitty with a single AI agent while keeping systematic tracking and status visibility."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "complete-workflow", text: "Complete Workflow", level: 2}
@@ -12355,7 +12322,7 @@ pages:
     - {slug: "7-self-review", text: "7. Self-Review", level: 3}
     - {slug: "8-validate-ship", text: "8. Validate & Ship", level: 3}
     - {slug: "9-start-next-feature", text: "9. Start Next Feature", level: 3}
-    - {slug: "dashboard-benefits-for-solo-developers", text: "Dashboard Benefits for Solo Developers", level: 2}
+    - {slug: "status-tracking-benefits-for-solo-developers", text: "Status Tracking Benefits for Solo Developers", level: 2}
     - {slug: "time-estimates", text: "Time Estimates", level: 2}
     - {slug: "tips-for-solo-developers", text: "Tips for Solo Developers", level: 2}
     - {slug: "common-solo-developer-questions", text: "Common Solo Developer Questions", level: 2}
@@ -12377,7 +12344,7 @@ pages:
     - {slug: "terminal-2-week-1-tuesday-while-feature-a-is-in-progress", text: "Terminal 2 (Week 1, Tuesday - While Feature A is in progress)", level: 3}
     - {slug: "mission-c-payment-integration", text: "Mission C: Payment Integration", level: 2}
     - {slug: "terminal-3-week-2-monday-both-a-and-b-still-in-progress", text: "Terminal 3 (Week 2, Monday - Both A and B still in progress)", level: 3}
-    - {slug: "dashboard-view-all-three-missions", text: "Dashboard View: All Three Missions", level: 2}
+    - {slug: "status-view-all-three-missions", text: "Status View: All Three Missions", level: 2}
     - {slug: "working-across-missions", text: "Working Across Missions", level: 2}
     - {slug: "switch-context-instantly", text: "Switch Context Instantly", level: 3}
     - {slug: "compare-implementations", text: "Compare Implementations", level: 3}
@@ -12391,7 +12358,7 @@ pages:
     - {slug: "2-parallel-testing", text: "2. Parallel Testing", level: 3}
     - {slug: "3-no-branch-confusion", text: "3. No Branch Confusion", level: 3}
     - {slug: "4-side-by-side-comparison", text: "4. Side-by-Side Comparison", level: 3}
-    - {slug: "5-dashboard-coordination", text: "5. Dashboard Coordination", level: 3}
+    - {slug: "5-status-coordination", text: "5. Status Coordination", level: 3}
     - {slug: "advanced-shared-code-between-missions", text: "Advanced: Shared Code Between Missions", level: 2}
     - {slug: "problem-both-missions-need-same-util", text: "Problem: Both missions need same util", level: 3}
     - {slug: "solution-1-merge-mission-a-first", text: "Solution 1: Merge Mission A First", level: 3}
@@ -12453,9 +12420,9 @@ pages:
     - {slug: "opinion-3-kanban-lanes-are-required", text: "Opinion 3: Kanban Lanes Are Required", level: 3}
     - {slug: "real-world-claude-code-workflow", text: "Real-World Claude Code Workflow", level: 2}
     - {slug: "scenario-build-a-markdown-preview-feature", text: "Scenario: \"Build a Markdown Preview Feature\"", level: 3}
-    - {slug: "live-dashboard-integration", text: "Live Dashboard Integration", level: 2}
-    - {slug: "starting-the-dashboard", text: "Starting the Dashboard", level: 3}
-    - {slug: "what-you-see-in-real-time", text: "What You See in Real-Time", level: 3}
+    - {slug: "status-tracking", text: "Status Tracking", level: 2}
+    - {slug: "checking-status", text: "Checking Status", level: 3}
+    - {slug: "what-you-see", text: "What You See", level: 3}
     - {slug: "advanced-multi-agent-handoff", text: "Advanced: Multi-Agent Handoff", level: 2}
     - {slug: "scenario-claude-implements-cursor-reviews", text: "Scenario: Claude Implements, Cursor Reviews", level: 3}
     - {slug: "common-patterns", text: "Common Patterns", level: 2}
@@ -12466,7 +12433,6 @@ pages:
     - {slug: "slash-commands-not-found", text: "\"Slash commands not found\"", level: 3}
     - {slug: "scripts-not-found-error", text: "\"Scripts not found\" error", level: 3}
     - {slug: "claude-ignores-slash-commands", text: "Claude ignores slash commands", level: 3}
-    - {slug: "dashboard-won-t-open", text: "Dashboard won't open", level: 3}
     - {slug: "key-commands-reference", text: "Key Commands Reference", level: 2}
     - {slug: "cli-commands-outside-claude", text: "CLI Commands (Outside Claude)", level: 3}
     - {slug: "advanced-workflows", text: "Advanced Workflows", level: 2}
@@ -12481,7 +12447,6 @@ pages:
     - {slug: "with-ides", text: "With IDEs", level: 3}
     - {slug: "performance-at-scale", text: "Performance at Scale", level: 2}
     - {slug: "tested-scenarios", text: "Tested Scenarios", level: 3}
-    - {slug: "dashboard-performance", text: "Dashboard Performance", level: 3}
     - {slug: "next-steps", text: "Next Steps", level: 2}
     - {slug: "getting-help", text: "Getting Help", level: 2}
     - {slug: "why-this-workflow-works", text: "Why This Workflow Works", level: 2}
@@ -12491,13 +12456,13 @@ pages:
   - path: "docs/guides/tutorials/claude-code-workflow.md"
     title: "Claude Code Workflow"
     divio_type: "tutorial"
-    abstract: "End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard."
+    abstract: "End-to-end guide for running Spec Kitty with the Claude Code CLI and lane-based status tracking."
     anchors:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
     - {slug: "workflow-overview", text: "Workflow Overview", level: 2}
     - {slug: "setup-checklist", text: "Setup Checklist", level: 2}
     - {slug: "running-claude-against-prompts", text: "Running Claude Against Prompts", level: 2}
-    - {slug: "dashboard-integration", text: "Dashboard Integration", level: 2}
+    - {slug: "status-integration", text: "Status Integration", level: 2}
     - {slug: "recommended-automation", text: "Recommended Automation", level: 2}
     - {slug: "troubleshooting-claude-sessions", text: "Troubleshooting Claude Sessions", level: 2}
     - {slug: "merge-and-cleanup", text: "Merge and Cleanup", level: 2}
@@ -13018,7 +12983,7 @@ pages:
     - {slug: "1-1-installation-and-version", text: "1.1 Installation and Version", level: 3}
     - {slug: "1-2-mission-lifecycle-software-dev", text: "1.2 Mission Lifecycle (software-dev)", level: 3}
     - {slug: "1-3-status-model", text: "1.3 Status Model", level: 3}
-    - {slug: "1-4-local-dashboard", text: "1.4 Local Dashboard", level: 3}
+    - {slug: "1-4-local-status-view", text: "1.4 Local Status View", level: 3}
     - {slug: "1-5-merge-system-feature-017", text: "1.5 Merge System (Feature 017)", level: 3}
     - {slug: "section-2-authentication-and-sync", text: "Section 2: Authentication and Sync", level: 2}
     - {slug: "2-1-cli-authentication", text: "2.1 CLI Authentication", level: 3}
@@ -13050,8 +13015,8 @@ pages:
     - {slug: "7-1-account-emails-existing", text: "7.1 Account Emails (Existing)", level: 3}
     - {slug: "7-2-workflow-notification-emails", text: "7.2 Workflow Notification Emails", level: 3}
     - {slug: "7-3-email-preferences", text: "7.3 Email Preferences", level: 3}
-    - {slug: "section-8-dashboard-parity-local-vs-saas", text: "Section 8: Dashboard Parity (Local vs SaaS)", level: 2}
-    - {slug: "8-1-visual-comparison", text: "8.1 Visual Comparison", level: 3}
+    - {slug: "section-8-status-parity-local-cli-vs-saas", text: "Section 8: Status Parity (Local CLI vs SaaS)", level: 2}
+    - {slug: "8-1-status-comparison", text: "8.1 Status Comparison", level: 3}
     - {slug: "8-2-brand-token-verification", text: "8.2 Brand Token Verification", level: 3}
     - {slug: "section-9-api-and-integration-contracts", text: "Section 9: API and Integration Contracts", level: 2}
     - {slug: "9-1-rest-api", text: "9.1 REST API", level: 3}

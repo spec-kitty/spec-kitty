@@ -277,7 +277,7 @@ Creates: WP01 (PostgreSQL analysis), WP02 (MongoDB analysis),
 
 4. **Parallel Research**
    - Multiple agents can research different aspects
-   - Dashboard shows research progress
+   - `spec-kitty agent tasks status` shows research progress
    - Work packages prevent duplication
 
 ## Tips for Research Mission

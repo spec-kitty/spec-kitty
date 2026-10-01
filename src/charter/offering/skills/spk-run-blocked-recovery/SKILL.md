@@ -5,7 +5,7 @@ description: "Recover from Spec Kitty blocked runtime states, missing artifacts,
 
 # spk-run-blocked-recovery
 
-Use this skill when `next`, review, accept, merge, sync, or dashboard output
+Use this skill when `next`, review, accept, merge, or sync output
 shows a blocker.
 
 ## Flow

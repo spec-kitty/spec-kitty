@@ -2040,7 +2040,6 @@ _PRE_MISSION_MAPPED_SRC_DIRS: frozenset[str] = frozenset(
         "consolidation",
         "coordination",
         "core",
-        "dashboard",
         "delivery",
         "doctrine_synthesizer",
         "event_journal",

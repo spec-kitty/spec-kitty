@@ -1098,7 +1098,7 @@ class TestConstants:
         assert "llxprt" not in SUPPORTED_AGENTS
 
     def test_canonical_commands_count(self) -> None:
-        assert len(CANONICAL_COMMANDS) == 15
+        assert len(CANONICAL_COMMANDS) == 14
 
     def test_canonical_commands_match_consumer_registry(self) -> None:
         from specify_cli.shims.registry import CONSUMER_SKILLS

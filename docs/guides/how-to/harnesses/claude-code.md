@@ -27,7 +27,7 @@ related:
 Per the [supported-harnesses matrix](../../../api/supported-harnesses.md), Claude Code uses the slash-command mechanism. Spec Kitty installs:
 
 - **Directory:** `.claude/commands/`
-- **Files:** `spec-kitty.specify.md`, `spec-kitty.plan.md`, `spec-kitty.tasks.md`, `spec-kitty.implement.md`, `spec-kitty.review.md`, `spec-kitty.accept.md`, `spec-kitty.merge.md`, `spec-kitty.dashboard.md`, `spec-kitty.status.md`, `spec-kitty.charter.md`, `spec-kitty.analyze.md`, `spec-kitty.research.md`, plus the `spec-kitty.tasks-*` helpers.
+- **Files:** `spec-kitty.specify.md`, `spec-kitty.plan.md`, `spec-kitty.tasks.md`, `spec-kitty.implement.md`, `spec-kitty.review.md`, `spec-kitty.accept.md`, `spec-kitty.merge.md`, `spec-kitty.status.md`, `spec-kitty.charter.md`, `spec-kitty.analyze.md`, `spec-kitty.research.md`, plus the `spec-kitty.tasks-*` helpers.
 
 Each file is a Claude Code slash-command definition; the agent surfaces them as `/spec-kitty.<command>` in chat.
 

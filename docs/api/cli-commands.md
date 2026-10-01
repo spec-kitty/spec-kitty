@@ -28,7 +28,6 @@ Terminology note:
 ## Practical Usage
 
 - [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 - [Upgrade to 0.11.0](../guides/how-to/installation/install-and-upgrade.md)
 
 ## Command Internals
@@ -1526,27 +1525,6 @@ _Diff-scoped fail-closed cut-over gate (pre-merge required check)._
 │                             a PR file list).                                 │
 │ --json                      Emit the guard verdict as structured JSON.       │
 │ --help        -h            Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty dashboard
-
-```
- Usage: spec-kitty dashboard [OPTIONS]
-
- Open or stop the Spec Kitty dashboard.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --port          INTEGER  Preferred port for the dashboard (falls back to the │
-│                          first available port).                              │
-│ --kill                   Stop the running dashboard for this project and     │
-│                          clear its metadata.                                 │
-│ --open                   Open dashboard URL in your default browser          │
-│                          (disabled by default).                              │
-│ --json                   Print the mission registry as JSON (keyed by        │
-│                          mission_id) and exit. Does not start the dashboard  │
-│                          server.                                             │
-│ --help  -h               Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6216,7 +6194,7 @@ _Tracker synchronization commands_
 │ --check-files                Check mission file integrity [default: True]    │
 │ --check-tools                Check for installed development tools           │
 │                              [default: True]                                 │
-│ --diagnostics                Show detailed diagnostics with dashboard health │
+│ --diagnostics                Show detailed project diagnostics               │
 │ --help         -h            Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

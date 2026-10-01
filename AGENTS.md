@@ -696,7 +696,7 @@ unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
 
 ## Other Notes
 
-Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`). The suite is documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend it instead of asserting UI behavior from API responses alone.
+Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). The bundled dashboard and its Playwright guard (`tests/ui/test_dashboard_wp_modal.py`) were removed in #5530; any future UI, including the replacement built on the Mission Status Read API, carries its own browser-driven suite following [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) (`PWHEADLESS=1 .venv/bin/python -m pytest <suite> -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`).
 
 ---
 

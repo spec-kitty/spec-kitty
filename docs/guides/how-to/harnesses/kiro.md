@@ -44,7 +44,7 @@ upstream package primitive is documented and smoke-tested. Continue using the
 Per the [supported-harnesses matrix](../../../api/supported-harnesses.md), Kiro uses the prompt-file mechanism. Spec Kitty installs:
 
 - **Directory:** `.kiro/prompts/`
-- **Files:** the `spec-kitty.*` prompt set (specify, plan, tasks, implement, review, accept, merge, dashboard, status, charter, analyze, research).
+- **Files:** the `spec-kitty.*` prompt set (specify, plan, tasks, implement, review, accept, merge, status, charter, analyze, research).
 
 ## Canonical invocation
 

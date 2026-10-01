@@ -539,54 +539,6 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/dashboard/scanner.py",
-        qualname="_resolve_identity_primary_first",
-        token_substring="primary_dir = resolve_planning_read_dir (",
-        occurrence=None,
-        rationale=(
-            "Ledger :423: named explicitly in research.md's hard-cases list; "
-            "this site already catches (ValueError, MissionSelectorAmbiguous) "
-            "with an explicit 'the dashboard scan must never crash' comment. "
-            "Kept lenient module-wide."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/dashboard/scanner.py",
-        qualname="_resolve_planning_dir_primary_first",
-        token_substring="candidate = resolve_planning_read_dir (",
-        occurrence=None,
-        rationale=("Ledger :461: same dashboard/scanner.py module-wide leniency doctrine as :423 above."),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/dossier/api.py",
-        qualname="DossierAPIHandler.handle_dossier_overview",
-        token_substring="candidate_feature_dir_for_mission ( self . repo_root , mission_slug )",
-        occurrence=None,
-        rationale=(
-            "Ledger :227 (ambiguous -- reviewer confirm): feeds "
-            "dossier.snapshot.load_snapshot -- not a MissionArtifactKind-mapped "
-            "artifact. Already treats 'not found' as an expected outcome "
-            "(error_response(..., 404)); an external/SaaS-facing read endpoint "
-            "('SaaS import-compatible') that should not start raising "
-            "CoordinationBranchDeleted for a mission whose coord branch was "
-            "later consolidated away (a plausible steady state post-merge)."
-        ),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/dossier/api.py",
-        qualname="DossierAPIHandler.handle_dossier_snapshot_export",
-        token_substring="candidate_feature_dir_for_mission ( self . repo_root , mission_slug )",
-        occurrence=None,
-        rationale=("Ledger :397: same dossier/api.py leniency doctrine as :227 above -- feeds the identical snapshot cache read."),
-    ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/dossier/api.py",
-        qualname="DossierAPIHandler._load_dossier",
-        token_substring="candidate_feature_dir_for_mission ( self . repo_root , mission_slug )",
-        occurrence=None,
-        rationale=("Ledger :435: same dossier/api.py leniency doctrine as :227/:397 above -- the shared internal loader all three public handlers route through."),
-    ),
-    ContentDescriptor(
         rel_path="src/specify_cli/retrospective/summary.py",
         qualname="_read_proposal_events",
         token_substring="candidate_feature_dir_for_mission ( project_path , mission_slug )",

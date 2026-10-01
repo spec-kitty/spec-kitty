@@ -29,7 +29,6 @@ owns:
   - tests/review/test_lock.py
   - tests/runtime/next/test_import_paths.py
   - tests/terminus/conftest.py
-  - tests/ui/conftest.py
   - tests/unit/convergence/test_census_status.py
   - tests/upgrade/preview_support/write_observer.py
   - tests/upgrade/test_symlinked_ignore_guard.py
@@ -68,12 +67,6 @@ rows:
     count: 1
     class: subprocess-entry
     reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
-  - file: tests/ui/conftest.py
-    qualname: "pytest_configure"
-    kind: os.environ
-    count: 1
-    class: process-bootstrap
-    reason: "Process-wide isolation setup that must run before any fixture, at the process/session boundary itself."
   - file: tests/upgrade/preview_support/write_observer.py
     qualname: "main"
     kind: sys.argv

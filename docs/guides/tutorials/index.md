@@ -16,5 +16,5 @@ Learning-oriented walkthroughs. Start here if you are new to Spec Kitty and want
 - [Multi-Agent Parallel Development](multi-agent-workflow.md) — Tutorial for Multi-Agent Parallel Development in Spec Kitty 3.2: Learn how to coordinate multiple AI agents working on different work packages simultaneously.
 - [Orchestrator Quickstart](orchestrator-quickstart.md) — Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
 - [Claude Code + Spec Kitty Integration Guide](claude-code-integration.md) — Tutorial for Claude Code + Spec Kitty Integration Guide in Spec Kitty 3.2: Claude Code + Spec Kitty Integration Guide.
-- [Claude Code Workflow](claude-code-workflow.md) — End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard.
+- [Claude Code Workflow](claude-code-workflow.md) — End-to-end guide for running Spec Kitty with the Claude Code CLI and lane-based status tracking.
 - [Tutorial: Governed Charter Workflow End-to-End](charter-governed-workflow.md) — A guided tour connecting charter setup, doctrine synthesis, a governed mission run, and the retrospective loop into one journey.

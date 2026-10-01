@@ -184,7 +184,6 @@ Spec-driven development with Spec Kitty enables parallel work:
 ## How-To Guides
 
 - [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Reference
 

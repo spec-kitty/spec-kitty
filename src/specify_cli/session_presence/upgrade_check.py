@@ -167,5 +167,5 @@ if __name__ == "__main__":
     # transitive import reading it crashes on Windows before this ever
     # gets a chance to run). Legitimately fire-and-forget: `refresh_cache_once`
     # already never raises, so no readiness probe or log routing is needed
-    # here the way the dashboard's detached child requires.
+    # here.
     refresh_cache_once()

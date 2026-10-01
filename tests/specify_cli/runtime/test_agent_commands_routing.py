@@ -223,7 +223,6 @@ def test_current_version_lock_does_not_mask_partial_global_commands(
     for command in (
         "accept",
         "consolidate",
-        "dashboard",
         "implement",
         "review",
         "status",
@@ -242,7 +241,6 @@ def test_current_version_lock_does_not_mask_partial_global_commands(
         "spec-kitty.analyze.md",
         "spec-kitty.charter.md",
         "spec-kitty.consolidate.md",
-        "spec-kitty.dashboard.md",
         "spec-kitty.implement.md",
         "spec-kitty.plan.md",
         "spec-kitty.research.md",

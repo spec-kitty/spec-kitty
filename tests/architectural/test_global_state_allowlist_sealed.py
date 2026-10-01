@@ -44,7 +44,7 @@ pytestmark = pytest.mark.architectural
 #: Frozen at the post-sweep counts. Shrink-only: lower a
 #: cap when a site is converted; never raise it.
 SEALED_CLASS_CAPS: Final[Mapping[str, int]] = {
-    "process-bootstrap": 6,
+    "process-bootstrap": 5,
     "subprocess-entry": 12,
     "leak-sentinel": 2,
     "deferred-01M3EW3Z": 4,

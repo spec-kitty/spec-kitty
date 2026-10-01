@@ -5,11 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spec Kitty — Canonical Glossary</title>
 <link rel="stylesheet" href="/static/dashboard/glossary.css">
-<!-- CSP conformance (csp.py sends style-src 'self' / script-src 'self'):
-     this template must carry no inline style or script source of any kind —
-     no inline blocks, no style= attributes. Styles live in glossary.css,
-     behaviour in glossary.js (regression guard:
-     tests/specify_cli/dashboard/test_glossary_page_csp.py). -->
+<!-- Docs-site template: scripts/docs/generate_kitty_specs_docs.py replaces the
+     glossary.css/glossary.js tags above and below with the inlined assets.
+     Keep it free of inline style or script source (it was written for a
+     strict CSP and the generator relies on those exact tags). -->
 </head>
 <body>
 

@@ -1,6 +1,6 @@
 ---
 title: Claude Code Workflow
-description: End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard.
+description: End-to-end guide for running Spec Kitty with the Claude Code CLI and lane-based status tracking.
 doc_status: active
 updated: '2026-08-11'
 type: tutorial
@@ -11,7 +11,7 @@ related:
 ---
 # Claude Code Workflow
 
-Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. This guide explains how to integrate the Claude CLI, wire the prompts, and keep the **Claude dashboard automation** in lockstep with the Spec Kitty kanban view.
+Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. This guide explains how to integrate the Claude CLI, wire the prompts, and keep **Claude automation** in lockstep with Spec Kitty's lane-based status.
 
 ## Prerequisites
 
@@ -75,11 +75,11 @@ claude -p "$(cat kitty-specs/001-systematic-recognizer-enhancement/tasks/WP02-sy
 
 Claude will use the template metadata to understand scope, file boundaries, and Definition of Done.
 
-## Dashboard Integration
+## Status Integration
 
-- Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `in_review`, `approved`, `done`, `blocked`, and `canceled`; `approved` means review passed and merge pending, while `done` means merged/integrated.
+- Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface immediately in `spec-kitty agent tasks status`. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `in_review`, `approved`, `done`, `blocked`, and `canceled`; `approved` means review passed and merge pending, while `done` means merged/integrated.
 - Each lane move records `agent` and `shell_pid` as event metadata in `status.events.jsonl`—Claude should still add an ISO 8601 entry to the prompt file's **Activity Log** summarizing what changed.
-- When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
+- When Claude finishes a work package, use the workflow command to move it to `for_review` so the status log and reviewers stay in sync:
   ```bash
   spec-kitty agent action review WP02
   ```
@@ -88,7 +88,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 1. **Claude session bootstrapper:** Script that reads `meta.json` for the friendly mission name and injects it into Claude’s context.
 2. **Claude completion validator:** Automatically checks that Claude’s output modifies only the allowed files referenced in the prompt.
-3. **Claude dashboard notifier:** Sends Claude’s status updates to a team Slack channel whenever a work package changes lanes.
+3. **Claude status notifier:** Sends Claude’s status updates to a team Slack channel whenever a work package changes lanes.
 4. **Checklist watcher:** Parse `kitty-specs/<mission-slug>/checklists/` and block Claude from moving prompts to `done` when acceptance criteria are unchecked.
 
 ## Troubleshooting Claude Sessions
@@ -97,7 +97,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 |---------|-------|-----|
 | Claude asks for missing context | Prompt not in `in_progress` lane yet | Move prompt to `in_progress` (or `doing` alias) via action commands so metadata is injected |
 | Claude edits unexpected files | Prompt instructions unclear | Refine `tasks.md` and regenerate prompt |
-| Dashboard shows stale lane | Prompt moved manually | Always use `spec-kitty agent action` commands for lane transitions |
+| Status shows stale lane | Prompt moved manually | Always use `spec-kitty agent action` commands for lane transitions |
 | Claude session interrupted | CLI lost connection | Resume by re-running Claude against the same prompt file; the activity log in the WP frontmatter tracks prior progress |
 
 ## Merge and Cleanup
@@ -121,13 +121,12 @@ Once Claude (and any partner agents) finish the mission:
 
 - Mix Claude with Cursor or Gemini by generating commands for multiple agents during `spec-kitty init`.
 - Keep the multi-agent playbook handy: [Multi-Agent Parallel Development](multi-agent-workflow.md).
-- Review the dashboard monitoring workflow in [`Use the Dashboard`](../how-to/monitoring/use-dashboard.md).
+- Check progress at any time with `spec-kitty agent tasks status` (see [Status & History](../how-to/monitoring/index.md)).
 
 ## Related How-To Guides
 
 - [Install Spec Kitty](../how-to/installation/install-spec-kitty.md)
 - [Non-Interactive Init](../how-to/installation/non-interactive-init.md)
-- [Use the Dashboard](../how-to/monitoring/use-dashboard.md)
 
 ## Reference
 

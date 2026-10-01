@@ -31,7 +31,7 @@ def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda *_args, **_kwargs: result,
     )
     monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_warn_only",
         lambda *_args, **_kwargs: result,
     )
 
@@ -277,7 +277,7 @@ class TestQueryModeOutput:
             return CharterPreflightResult(passed=True, checks=[], warnings=["structured advisory"])
 
         monkeypatch.setattr(
-            "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+            "specify_cli.charter_runtime.preflight.hook.run_preflight_warn_only",
             noisy_preflight,
         )
 

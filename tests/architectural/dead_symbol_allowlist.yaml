@@ -404,21 +404,6 @@ entries:
     schema/lineage/hash public API, declared now but not wired to production callers until the deferred
     integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
     suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
-- module: specify_cli.dashboard.csp
-  name: DASHBOARD_CSP
-  category: category_a_slice_f_deferred
-  rationale: 'M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant. send_csp_header()
-    is wired into all 35 send_response() sites (WIRE-M2-02), so the module is no longer an orphan, but
-    the DASHBOARD_CSP constant is only consumed inside send_csp_header()''s own body, never imported by
-    name from another src/ module. TODO(triage): drop from __all__ if no direct consumer of the raw string
-    ever appears.'
-- module: specify_cli.dashboard.server
-  name: BackgroundPortReportError
-  category: category_a_slice_f_deferred
-  rationale: '#577: deliberately exported typed failure contract for callers that need to distinguish
-    detached-child startup failures. No runtime caller catches it yet. TODO(triage): wire the first caller
-    or drop from __all__ (FR-303).'
-  issue: '#577'
 - module: specify_cli.doctrine.builtin_manifest
   name: GENERATED_BY
   category: category_a_slice_f_deferred
@@ -740,60 +725,6 @@ entries:
 - module: specify_cli.core.worktree_topology
   name: WPTopologyEntry
   category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: ArtifactDirectoryFile
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: ArtifactInfo
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: CurrentFeatureDetected
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: CurrentFeatureNotDetected
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: DashboardHealthInfo
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: DiagnosticsErrorResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: DiagnosticsFeatureStatus
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: DiagnosticsResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: ErrorResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: FeaturesListErrorResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: FileIntegrity
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: KanbanStats
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: MissionRecord
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: ResearchArtifact
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: WorkflowStatus
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.api_types
-  name: WorktreeInfo
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.lifecycle
-  name: _write_dashboard_file
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dashboard.templates
-  name: get_dashboard_html
-  category: category_b_grandfathered_legacy
 - module: specify_cli.doctrine.org_charter
   name: GovernancePolicy
   category: category_b_grandfathered_legacy
@@ -808,24 +739,6 @@ entries:
   category: category_b_grandfathered_legacy
 - module: specify_cli.doctrine.pack_assembler
   name: ConflictItem
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dossier.api
-  name: ArtifactDetailResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dossier.api
-  name: ArtifactListItem
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dossier.api
-  name: ArtifactListResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dossier.api
-  name: DossierHandlerAdapter
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dossier.api
-  name: DossierOverviewResponse
-  category: category_b_grandfathered_legacy
-- module: specify_cli.dossier.api
-  name: SnapshotExportResponse
   category: category_b_grandfathered_legacy
 - module: specify_cli.frontmatter
   name: get_field

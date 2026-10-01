@@ -220,7 +220,7 @@ uv run spec-kitty charter status --provenance
 **Synopsis**: `spec-kitty charter sync [OPTIONS]`
 
 **Description**: Retained for canonical-root resolution and the internal freshness check
-(`ensure_charter_bundle_fresh()`) that other charter-layer modules — the dashboard, the
+(`ensure_charter_bundle_fresh()`) that other charter-layer modules — the
 bundle-migration upgrader, and `charter context` — still call through this module. `sync` no
 longer extracts anything: the prose→triad scrape (`charter.md` → `governance.yaml` /
 `directives.yaml` / `metadata.yaml`) is retired now that `governance`/`directives` are

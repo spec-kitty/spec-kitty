@@ -170,7 +170,7 @@ def run_charter_preflight(
         auto_refresh: When ``True`` AND the worktree has no uncommitted
             generated artifacts, attempt the safe refresh sequence.
         allow_missing_charter: Treat a canonically missing charter stack as
-            advisory. Dashboard, next, and implement enable this for projects
+            advisory. ``next`` and ``implement`` enable this for projects
             that have no charter source or synced bundle and whose synthesized
             layer is either absent or built-in-only. Stale, invalid, or other
             partial state still fails closed.
@@ -178,7 +178,7 @@ def run_charter_preflight(
             itself does not change behaviour based on ``strict`` — the CLI
             wrapper translates ``passed=False`` + ``strict=True`` into exit
             code 1.  Kept in the signature so callers (``spec-kitty next``,
-            ``implement``, dashboard) can forward their own ``strict``
+            ``implement``) can forward their own ``strict``
             config without an extra branch.
 
     Returns:
@@ -392,7 +392,7 @@ def _advisory_missing_charter_result(
 
     #3971: the ``warnings`` list is de-duplicated at birth
     (:func:`ambient_warning.dedupe_warnings`) so every consumer — the stderr
-    seam, the dashboard's persisted banner, the JSON contract — receives a
+    seam, the JSON contract — receives a
     duplicate-free list without each having to re-filter.
     """
     return CharterPreflightResult(

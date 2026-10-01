@@ -81,7 +81,6 @@ def test_contract_runtime_entries_complete():
 
     entries = get_runtime_gitignore_entries()
     assert len(entries) >= 4, f"Expected at least 4 runtime entries, got {len(entries)}"  # noqa: PLR2004
-    assert ".kittify/.dashboard" in entries
     assert ".kittify/merge-state.json" in entries
     assert ".kittify/encoding-provenance/" in entries
     assert ".kittify/runtime/" in entries

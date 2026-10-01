@@ -1,6 +1,6 @@
 ---
 title: Environment Variables Reference
-description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, dashboard, and test configuration.
+description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
 doc_status: active
 updated: '2026-09-26'
 related:
@@ -169,7 +169,7 @@ spec-kitty merge
 
     ```bash
     # Scoped to one invocation
-    SPEC_KITTY_ENABLE_SAAS_SYNC=0 spec-kitty dashboard
+    SPEC_KITTY_ENABLE_SAAS_SYNC=0 spec-kitty agent tasks status
 
     # Scoped to this repo only — write once, no per-shell export
     echo 'SPEC_KITTY_ENABLE_SAAS_SYNC=0' >> .kittify/.kitty.env

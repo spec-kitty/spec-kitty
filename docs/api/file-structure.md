@@ -175,7 +175,6 @@ my-project/
 │       ├── spec-kitty.accept.md
 │       ├── spec-kitty.merge.md
 │       ├── spec-kitty.status.md
-│       ├── spec-kitty.dashboard.md
 │       ├── spec-kitty.charter.md
 │       ├── spec-kitty.research.md
 │       └── spec-kitty.analyze.md

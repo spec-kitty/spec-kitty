@@ -160,7 +160,7 @@ class TestCollectOriginsBasic:
 
         # Dynamic discovery falls back to hardcoded lists when package not available
         assert len(template_entries) >= 4  # At least the 4 fallback templates
-        assert len(command_entries) >= 8  # At least the 8 fallback commands
+        assert len(command_entries) >= 7  # At least the 7 fallback commands (dashboard removed, #5530)
         assert len(mission_entries) >= 3  # At least software-dev, research, documentation
         assert len(file_entries) >= 1  # AGENTS.md
 

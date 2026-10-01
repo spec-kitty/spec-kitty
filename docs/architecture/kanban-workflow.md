@@ -584,7 +584,6 @@ Work paused due to external dependency, then resumed.
 
 ## How-To Guides
 
-- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 - [Sync Workspaces](../guides/how-to/collaboration/sync-workspaces.md)
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
 

@@ -17,7 +17,7 @@ on:
       - 'scripts/docs/redirect_stub_generator.py'
       - 'scripts/docs/redirect_map.yaml'
       - 'scripts/docs/redirect_baseline_urls.json'
-      - 'src/specify_cli/dashboard/templates/glossary.html'
+      - 'scripts/docs/glossary_page/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 

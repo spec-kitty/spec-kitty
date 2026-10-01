@@ -44,6 +44,24 @@ _RETIRED_PATHS = (
     "src/specify_cli/migration/envelope_seam.py",
     "src/specify_cli/cli/commands/agent/setup_plan_hosted.py",
     "src/specify_cli/cli/commands/agent/setup_plan_hosted_effects.py",
+    # The bundled local dashboard (``spec-kitty dashboard``) and its generator
+    # skill were removed in #5530; the retiring migration
+    # (``m_4_0_0rc5_retire_bundled_dashboard.py``) and the ``skills/retired.py``
+    # registry entry for it are the sanctioned survivors and stay off this list.
+    "src/specify_cli/dashboard",
+    "src/specify_cli/cli/commands/dashboard.py",
+    "src/specify_cli/charter_runtime/preflight/dashboard_warning.py",
+    "src/charter/offering/skills/spk-admin-dashboard",
+    "tests/test_dashboard",
+    "tests/dashboard",
+    "tests/specify_cli/dashboard",
+    "tests/cross_cutting/dashboard",
+    "tests/ui/test_dashboard_wp_modal.py",
+    "tests/cli_gate/test_dashboard_modes.py",
+    "tests/status/test_dashboard_status_parity.py",
+    "tests/integration/test_dashboard_counters.py",
+    "tests/regressions/test_issue_71_dashboard_empty.py",
+    "tests/architectural/test_no_process_name_wide_dashboard_kill.py",
     "tests/sync",
     "tests/delivery",
     "tests/event_journal",
@@ -101,6 +119,13 @@ _BANNED_IMPORT_PREFIXES = (
     _SPECIFY_CLI + "team_projection",
     _SPECIFY_CLI + "core.batch_partition",
     _SPECIFY_CLI + "migration.envelope_seam",
+    # Bundled local dashboard (#5530) — subsumes every ``specify_cli.dashboard.*``
+    # submodule; the retiring migration's cmdline-match string constant
+    # (``_SERVER_MODULE``) is a plain string, not an AST-matchable import/
+    # import_module/setattr/patch call, so it never trips this scanner.
+    _SPECIFY_CLI + "dashboard",
+    _SPECIFY_CLI + "cli.commands.dashboard",
+    _SPECIFY_CLI + "charter_runtime.preflight.dashboard_warning",
     "websockets",
     # Mission dead-port-disposition-01M1TZVN (FR-004): the mission-DSL v1 runtime and
     # its state-machine library are retired everywhere, not only on the mission_v1
@@ -119,6 +144,10 @@ _RETIRED_CLI_PREFIXES = (
     ("doctor", _ORPHAN_DAEMONS),
     ("doctor", _RESTART_DAEMON),
     ("team-projection",),
+    # The local bundled ``spec-kitty dashboard`` command (#5530) — not the
+    # hosted Team Kitty SaaS dashboard, which is a web surface, never a CLI
+    # command, so it cannot collide with this prefix.
+    ("dashboard",),
 )
 _REQUIRED_CLI_PATHS = {
     ("tracker", "sync", "publish"),

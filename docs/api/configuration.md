@@ -312,7 +312,7 @@ with `spec-kitty moments drain status [--json]`. See
 
 `.kittify/config.yaml` → `ledger.projection` (bool, default `true`): gates only the automatic
 refresh of the derived, gitignored execution-state projection under
-`.kittify/derived/<mission>/` — the local dashboard's query source. It never gates the lane ledger
+`.kittify/derived/<mission>/` — a local read-side query source. It never gates the lane ledger
 (`status.events.jsonl`), its commit, the committed status snapshot, the decision ledger
 (`decisions/`), the runtime run journal, or invocation records — those are a non-optional floor
 under every setting (FR-010).

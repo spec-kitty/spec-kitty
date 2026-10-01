@@ -62,8 +62,8 @@ def is_claiming_process_alive(pid: int, baseline: str | None) -> bool:
     """PID-reuse-aware liveness for a claim (companion to :func:`is_process_alive`).
 
     Keeps :func:`is_process_alive`'s ``(pid) -> bool`` signature frozen (many
-    consumers — review/lock, sync/owner, sync/daemon, dashboard/lifecycle —
-    depend on it staying stable); this companion is consumed only by
+    consumers — review/lock, sync/owner, sync/daemon — depend on it staying
+    stable); this companion is consumed only by
     ``stale_detection``'s claim-liveness check.
 
     Gated on ``baseline`` being present (D3a, additive degradation):

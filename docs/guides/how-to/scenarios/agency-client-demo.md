@@ -1,6 +1,6 @@
 ---
 title: Agency Client Transparency Workflow
-description: Give agency clients live, read-only visibility into Spec Kitty mission progress through the kanban dashboard without exposing any source code.
+description: Give agency clients read-only visibility into Spec Kitty mission progress through status reports without exposing any source code.
 doc_status: active
 updated: '2026-08-10'
 type: how-to
@@ -9,26 +9,24 @@ audience: docs/context/audience/external/product-manager-evaluator.md
 
 # Agency Client Transparency Workflow
 
-Use Spec Kitty's dashboard to provide live development visibility to clients without exposing code.
+Use Spec Kitty's lane-based status output to provide development visibility to clients without exposing code.
 
 ## Setup
 
-### 1. Expose Dashboard to Client
+### 1. Share Status with the Client
 ```bash
-# Option A: Ngrok tunnel (recommended for demos)
-ngrok http 3000
-# Share the ngrok URL with client: https://abc123.ngrok.io
+# Human-readable lane board for the Mission
+spec-kitty agent tasks status
 
-# Option B: Tailscale (recommended for ongoing projects)
-# Install Tailscale, share MagicDNS name
-
-# Option C: VPN/Direct access
-# Client connects to your network, accesses http://your-ip:3000
+# Machine-readable snapshot to paste into a report or shared doc
+spec-kitty agent tasks status --json > status-report.json
 ```
 
+The bundled local web dashboard has been removed. A read-only Mission Status Read API ([#5528](https://github.com/spec-kitty/spec-kitty/issues/5528)) is planned as the contract for a replacement UI, which will live in its own repository. Until then, share status output and spec artifacts directly.
+
 ### 2. What Client Sees
-- **Kanban board** - Tasks moving through lanes in real-time
-- **Feature cards** - Titles and progress percentages
+- **Lane board** - Tasks grouped by lane
+- **Mission summary** - Titles and progress
 - **Artifact links** - Access to spec.md (requirements) and plan.md (architecture)
 - **Agent assignments** - Which developer/AI is working on what
 - **No code** - Only specifications and task status, not implementation
@@ -53,15 +51,15 @@ Build a customer dashboard showing:
 2. **Walk through** user stories and acceptance criteria
 3. **Client feedback** → Update spec.md live
 4. **Confirm scope** → Resolve open questions directly in `spec.md` before planning
-5. **Show dashboard** → Client sees feature card appear
+5. **Show status** → Client sees the new Mission appear in `spec-kitty agent tasks status`
 
 **After Meeting:**
-- Client bookmarks dashboard URL
+- Client receives the next status report
 - Sees tasks appear in "planned" lane as you run `/spec-kitty.tasks`
 
-### Daily Standup (Async via Dashboard)
+### Daily Standup (Async via Status Reports)
 
-**Client checks dashboard daily:**
+**Client reviews the daily status report:**
 - **Morning:** Sees tasks moved to "doing" lane
 - **Afternoon:** Watches progress (tasks moving to "review")
 - **No email needed:** Visual progress replaces status update requests
@@ -74,11 +72,11 @@ Build a customer dashboard showing:
 ### Weekly Review Meeting
 
 **Agenda:**
-1. **Filter dashboard** by completed work (done lane)
+1. **Review status** for completed work (done lane)
 2. **Demo features** from completed work packages
 3. **Show velocity** - "We completed 8 work packages this week"
 4. **Review upcoming** - Show "planned" lane for next week
-5. **Export evidence** - Share spec.md and dashboard screenshots
+5. **Export evidence** - Share spec.md and status reports
 
 ## Trust-Building Workflow
 
@@ -89,8 +87,8 @@ Build a customer dashboard showing:
 - Client calls asking "are you done yet?"
 - Screenshots of code (client can't understand)
 
-**With Spec Kitty Dashboard:**
-- Client sees real-time task movement
+**With Spec Kitty status reports:**
+- Client sees task movement
 - Activity logs prove work is happening
 - Spec artifacts explain what's being built
 - No need to ask for updates
@@ -102,7 +100,7 @@ Build a customer dashboard showing:
 /spec-kitty.specify
 Create admin panel for content moderation...
 ```
-Client sees: Feature "003-admin-panel" appears in dashboard
+Client sees: Mission "003-admin-panel" appears in the status report
 
 **Monday 11 AM:**
 ```text
@@ -132,10 +130,10 @@ Client sees: Feature marked complete, demo scheduled
 
 ## Client Communication
 
-### Explaining the Dashboard
+### Explaining the Status Report
 
 **To Client:**
-> "We use Spec Kitty to give you real-time visibility. Here's what you're seeing:
+> "We use Spec Kitty to give you regular visibility. Here's what you're seeing:
 >
 > - **Blue (Planned):** Work we'll do next
 > - **Yellow (Doing):** What we're actively building
@@ -154,7 +152,7 @@ Client sees: Feature marked complete, demo scheduled
 **What to clarify:**
 - Tasks in "doing" might sit there a while (complex work)
 - "Review" means internal QA, not client approval (unless you want that)
-- Dashboard updates real-time but work happens in bursts
+- Status changes as work happens, which is often in bursts
 
 ## Advanced: Client Collaboration
 
@@ -182,8 +180,8 @@ spec-kitty agent action implement WP01
 Export these for client reports:
 
 ```bash
-# 1. Feature completion percentage (from dashboard)
-curl http://localhost:3000/api/features | jq '.[] | {slug, completion}'
+# 1. Mission state and WP lanes (machine-readable)
+spec-kitty orchestrator-api mission-state --mission <slug>
 
 # 2. Tasks completed this week
 grep "lane=done" kitty-specs/*/tasks/done/*.md | wc -l
@@ -200,29 +198,28 @@ grep "lane=done" kitty-specs/*/tasks/done/*.md | wc -l
 - Client surprised by deliverables not matching expectations
 
 **"After Spec Kitty:"**
-- Client checks dashboard independently
+- Client reads status reports independently
 - Zero status update requests
 - Spec.md alignment prevents scope surprises
-- Client references dashboard in their own meetings
+- Client references status reports in their own meetings
 
 ## Tips for Agencies
 
-1. **Brand the dashboard** - Add agency logo to dashboard (future feature)
-2. **Screenshot automation** - Daily dashboard screenshots to Slack/email
-3. **Spec.md templates** - Standardize how you write specifications
-4. **Charter per client** - Different quality standards for different clients
-5. **Dashboard as sales tool** - Show prospects live projects
+1. **Status automation** - Post daily `spec-kitty agent tasks status` output to Slack/email
+2. **Spec.md templates** - Standardize how you write specifications
+3. **Charter per client** - Different quality standards for different clients
+4. **Status reports as sales tool** - Show prospects how projects are tracked
 
 ## Common Questions
 
-**Q: Can clients break anything in the dashboard?**
-A: No, dashboard is read-only. They see status, can't change it.
+**Q: Can clients break anything through a status report?**
+A: No, status output is read-only. They see status, can't change it.
 
 **Q: What if client wants to hide certain features?**
 A: Use separate projects for client-visible vs internal work.
 
-**Q: Can multiple clients share a dashboard?**
+**Q: Can multiple clients share a status report?**
 A: Not recommended - use separate project instances per client.
 
-**Q: How do we bill based on dashboard activity?**
+**Q: How do we bill based on tracked activity?**
 A: Activity logs show timestamps - export for time tracking integration.

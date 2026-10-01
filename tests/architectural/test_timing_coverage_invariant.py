@@ -191,11 +191,6 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
     "tests/charter/test_resolved_mission_type_context.py": {"'template_set' not in bundle.__dict__": 1, "bundle.action_sequence": 1},
     "tests/cli/commands/test_reconcile.py": {"result.is_parity": 1},
     "tests/core/test_upgrade_probe_and_notifier.py": {"cache_path.exists()": 1},
-    "tests/cross_cutting/dashboard/test_dashboard_cli_accuracy.py": {
-        "_manifest_ints([entry['port'] for entry in entries]) == set(ports)": 1,
-        "process.returncode == 0": 1,
-    },
-    "tests/cross_cutting/dashboard/test_dashboard_encoding_resilience.py": {"content is not None": 1, "error is None": 1},
     "tests/cross_cutting/encoding/test_encoding_validation_functional.py": {"len(results) == 100": 1},
     "tests/cross_cutting/misc/test_performance.py": {"result.success": 2},
     "tests/doctor/test_identity_audit.py": {"all((s.state == 'assigned' for s in states))": 1, "ambiguous == {}": 1, "dupes == {}": 1, "len(states) == 200": 1},
@@ -383,7 +378,8 @@ def test_functional_assertion_coverage_does_not_regress(relpath: str) -> None:
 
 def test_baseline_covers_every_canonical_mixed_source_file() -> None:
     """Guards the baseline table itself against silent shrinkage (C-005)."""
-    assert len(BASELINE_FUNCTIONAL_ASSERTIONS) == 62, "baseline must cover all 62 unique #4015 MIXED source files"
+    # 62 at #4015; the two tests/cross_cutting/dashboard files left with the bundled dashboard (#5530).
+    assert len(BASELINE_FUNCTIONAL_ASSERTIONS) == 60, "baseline must cover all 60 surviving #4015 MIXED source files"
     empty = [relpath for relpath, counts in BASELINE_FUNCTIONAL_ASSERTIONS.items() if not counts]
     assert not empty, f"every #4015 MIXED file must record >=1 functional assertion: {empty}"
 

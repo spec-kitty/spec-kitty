@@ -35,7 +35,6 @@ SHIM_DESCRIPTIONS: dict[str, str] = {
     "accept": "Validate an approved mission before merge",
     "consolidate": "Consolidate an accepted mission",
     "status": "Show mission and work package status",
-    "dashboard": "Open the mission dashboard",
     "tasks-finalize": "Finalize a mission's work packages",
 }
 
@@ -80,7 +79,6 @@ def _canonical_command(command: str, agent_name: str, arg_placeholder: str) -> s
         "accept": "spec-kitty agent mission accept {args}",
         "status": "spec-kitty agent tasks status {args}",
         "consolidate": "spec-kitty consolidate {args}",
-        "dashboard": "spec-kitty dashboard {args}",
         "tasks-finalize": "spec-kitty agent mission finalize-tasks {args}",
     }
     template = _COMMAND_MAP.get(command)

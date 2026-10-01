@@ -123,7 +123,7 @@ WP02 has dependencies. Use: spec-kitty agent action implement WP02 --agent <name
 
 - Keep dependencies minimal to maximize parallelism.
 - Choose the most foundational WP as the base when there are multiple dependencies.
-- Use the workflow commands to keep lane changes and dashboards accurate.
+- Use the workflow commands to keep lane changes and status views accurate.
 
 ---
 

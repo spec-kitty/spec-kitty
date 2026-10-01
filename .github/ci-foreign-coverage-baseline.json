@@ -29,7 +29,6 @@
     "review": 0.939394,
     "next": 0.826087,
     "lanes": 0.944444,
-    "dashboard": 0.814815,
     "upgrade": 0.845238,
     "cli": 0.887097,
     "charter": 0.93253,
@@ -83,7 +82,6 @@
   "excluded_data_packages": [
     "charter.activation.corpus",
     "charter.activation.packs",
-    "specify_cli.dashboard.templates",
     "specify_cli.skills.data"
   ]
 }

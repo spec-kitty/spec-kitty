@@ -126,7 +126,6 @@ _MISMATCH_ALLOWLIST: dict[str, str] = {
     "review": "committed=535 collected=537 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "next": "committed=1588 collected=559 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "lanes": "committed=318 collected=456 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "dashboard": "committed=375 collected=376 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "upgrade": "committed=733 collected=874 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "cli": "committed=2704 collected=682 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     # `agent` removed (ci-coverage-honesty WP02): enrolling tests/specify_cli/agent_utils into

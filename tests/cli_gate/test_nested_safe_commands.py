@@ -40,7 +40,7 @@ class TestBuildCommandPath:
     def test_flag_only_invocation_falls_back(self) -> None:
         """When argv has only flags, falls back to invoked_subcommand."""
         with patch.object(sys, "argv", ["spec-kitty", "--help"]):
-            assert _build_command_path("dashboard") == ("dashboard",)
+            assert _build_command_path("doctor") == ("doctor",)
 
     def test_no_args_no_subcommand(self) -> None:
         with patch.object(sys, "argv", ["spec-kitty"]):
@@ -57,7 +57,7 @@ class TestBuildCommandPath:
     def test_argv_mismatch_falls_back_to_invoked_subcommand(self) -> None:
         """When argv[1] disagrees (pytest context), falls back to invoked_subcommand."""
         with patch.object(sys, "argv", ["/usr/bin/pytest", "tests/cli_gate/foo.py"]):
-            assert _build_command_path("dashboard") == ("dashboard",)
+            assert _build_command_path("doctor") == ("doctor",)
             assert _build_command_path("status") == ("status",)
 
     def test_no_invoked_subcommand_no_argv_subcommand(self) -> None:

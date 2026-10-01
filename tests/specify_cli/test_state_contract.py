@@ -206,7 +206,6 @@ def test_runtime_gitignore_entries_exact():
     entries = get_runtime_gitignore_entries()
     expected = [
         ".agents/skills/",
-        ".kittify/.dashboard",
         ".kittify/charter/context-state.json",
         ".kittify/derived/",
         ".kittify/dossiers/",
@@ -418,7 +417,6 @@ def test_section_a_project_surfaces_present():
     expected = {
         "project_config",
         "project_metadata",
-        "dashboard_control",
         "workspace_context",
         "merge_resume_state",
         "runtime_feature_index",

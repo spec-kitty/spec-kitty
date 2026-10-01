@@ -18,12 +18,11 @@ invariant across the WHOLE live-consumer set at once:
   returned before ``validate_issue_matrix`` ever ran for exactly this
   mission shape -- a static import check would not have caught that).
 
-Scope boundary (m2 / E2, WP06 prompt "Context"): the dashboard (net-new
-build, follow-up #3068, parent epic #650) and ``policy/merge_gates.py``
-(net-new reader, WP08/FR-004) are explicitly NOT migration targets -- they
-were never ``.md`` consumers, so they are excluded from every assertion set
-below by construction, and the exclusion itself is pinned at the bottom of
-this file so a future edit cannot silently fold them back in.
+Scope boundary (m2 / E2, WP06 prompt "Context"): ``policy/merge_gates.py``
+(net-new reader, WP08/FR-004) is explicitly NOT a migration target -- it was
+never a ``.md`` consumer, so it is excluded from every assertion set below by
+construction. (The bundled dashboard was the other excluded surface until it
+was deleted, #5530.)
 """
 
 from __future__ import annotations
@@ -311,11 +310,3 @@ def test_merge_gates_is_a_net_new_json_reader_not_a_migration_target() -> None:
     assert "load_issue_matrix" in text  # net-new reader, JSON-first by construction
 
 
-def test_dashboard_is_excluded_pending_followup_3068() -> None:
-    """The dashboard (net-new build, #3068, parent epic #650) is out of
-    scope for this migration -- pin that the excluded surface exists and is
-    not part of the live-consumer set enumerated above.
-    """
-    dashboard_dir = _SRC_ROOT / "dashboard"
-    assert dashboard_dir.exists()  # sanity: the excluded surface really exists
-    assert not any(dashboard_dir in module_path.parents for module_path in _LIVE_CONSUMER_MODULES)

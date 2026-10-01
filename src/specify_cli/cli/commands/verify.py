@@ -17,7 +17,7 @@ from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
-from specify_cli.dashboard.diagnostics import run_diagnostics
+from specify_cli.diagnostics.project import run_diagnostics
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.verify_enhanced import run_enhanced_verify
@@ -79,7 +79,7 @@ def verify_setup(
     json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format for AI agents")] = False,
     check_files: Annotated[bool, typer.Option("--check-files", help="Check mission file integrity")] = True,
     check_tools: Annotated[bool, typer.Option("--check-tools", help="Check for installed development tools")] = True,
-    diagnostics: Annotated[bool, typer.Option("--diagnostics", help="Show detailed diagnostics with dashboard health")] = False,
+    diagnostics: Annotated[bool, typer.Option("--diagnostics", help="Show detailed project diagnostics")] = False,
 ) -> None:
     """Verify that the current environment matches Spec Kitty expectations."""
     output_data: dict[str, object] = {}
@@ -274,39 +274,6 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:  # noqa
 [bold]Total Features:[/bold] {worktree_overview.get("total_features", 0)}
 """
     console.print(Panel(worktree_info.strip(), title="Worktrees", border_style="cyan"))
-
-    # Dashboard health
-    dashboard_health = diag.get("dashboard_health", {})
-    metadata_exists = dashboard_health.get("metadata_exists", False)
-    startup_test = dashboard_health.get("startup_test")
-
-    if metadata_exists:
-        responding = dashboard_health.get("responding", False)
-        dashboard_info = f"""
-[bold]Metadata File:[/bold] {"[green]Exists[/green]" if metadata_exists else "[red]Missing[/red]"}
-[bold]Port:[/bold] {dashboard_health.get("port", "Unknown")}
-[bold]Process PID:[/bold] {dashboard_health.get("pid", "Not tracked")}
-[bold]Responding:[/bold] {"[green]Yes[/green]" if responding else "[red]No[/red]"}
-"""
-        if not responding:
-            dashboard_info += "[red]⚠️  Dashboard is not responding - may need restart[/red]\n"
-    else:
-        # No dashboard - show startup test results
-        if startup_test == "SUCCESS":
-            dashboard_info = f"""
-[bold]Status:[/bold] [green]Can start successfully[/green]
-[bold]Test Port:[/bold] {dashboard_health.get("test_port", "N/A")}
-"""
-        elif startup_test == "FAILED":
-            dashboard_info = f"""
-[bold]Status:[/bold] [red]Cannot start[/red]
-[bold]Error:[/bold] {dashboard_health.get("startup_error", "Unknown")}
-[red]⚠️  Dashboard startup is broken for this project[/red]
-"""
-        else:
-            dashboard_info = "[yellow]Dashboard not running (startup not tested)[/yellow]"
-
-    console.print(Panel(dashboard_info.strip(), title="Dashboard Health", border_style="cyan"))
 
     # Current feature
     current_feature = diag.get("current_feature", {})
