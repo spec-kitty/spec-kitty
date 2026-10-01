@@ -107,6 +107,9 @@ This release candidate renames `spec-kitty merge` to `spec-kitty consolidate` an
 
 ### Fixed
 
+- **`spec-kitty accept` now commits status rows it leaves in the coordination worktree** (#5513).
+  - **Before:** on a coordination-topology mission, the commit router dropped a status log (`status.events.jsonl` / `status.json`) named by its primary-checkout path and reported it as already committed when the change existed only in the coordination worktree. `accept` exited cleanly with those status rows uncommitted, where a later coordination teardown could lose them.
+  - **After:** the router commits the coordination copy in place, under the status lock. It still never copies the primary copy over it, and a change that exists only in the primary checkout is still refused as a wrong-surface write.
 - **`spec-kitty doctrine pack validate` no longer reports a spurious `same_id_collision` advisory when a pack declares its augmentation intent in `drg/fragment.yaml`** (#5494).
   - **Before:** the validator read intent only from `drg/*.graph.yaml` (a shape the validator itself has rejected since #3387) and ignored `drg/fragment.yaml`, the shape the runtime actually loads. A pack that correctly declared an `enhances` or `overrides` edge in `drg/fragment.yaml` was still warned that its artifact collided with a built-in of the same id. An edge whose endpoints use bare node ids was dropped altogether, so a misspelled bare target passed validation even though the runtime refuses it.
   - **After:** the validator reads `drg/fragment.yaml` intent through the same pack loader the runtime uses, and resolves bare-id endpoints by the runtime's rules. Declared augmentation suppresses the advisory, and a bare target that names no known artifact is reported as `unknown_target`.
