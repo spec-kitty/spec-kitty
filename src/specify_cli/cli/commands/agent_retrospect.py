@@ -312,6 +312,7 @@ def _create_empty_retrospective_record(
             repo_root,
             provenance_kind="explicit_create",
             actor=lifecycle_actor,
+            event_log_dir=_canonical_events_dir(repo_root, mission_slug, canonical_path.parent),
         )
     except Exception:  # noqa: BLE001
         # Non-fatal: record write already succeeded.

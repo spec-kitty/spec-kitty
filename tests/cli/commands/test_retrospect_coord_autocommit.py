@@ -26,8 +26,10 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent_retrospect import _create_empty_retrospective_record
 from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.coordination.surface_resolver import resolve_status_surface
+from specify_cli.retrospective.schema import ActorRef
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status.emit import emit_status_transition
 from tests.terminus.conftest import CoordMission, build_coord_mission
@@ -217,6 +219,41 @@ def test_backfill_emit_skipped_appends_to_the_coordination_log(tmp_path: Path, c
     assert skip["reason"] == "already_exists"
     coord_log = (coord_root / events_rel).read_text(encoding="utf-8")
     assert _event_types(coord_log).count("RetrospectiveSkipped") == 1
+    assert (repo / events_rel).read_text(encoding="utf-8") == primary_log_before
+
+
+def test_fabricate_empty_record_writes_the_captured_event_to_the_coordination_surface(
+    tmp_path: Path, canonical_home: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ``synthesize --fabricate-empty`` record builder must write its ``RetrospectiveCaptured``
+    row to the canonical (coordination) log, not the primary copy.
+
+    ``_create_empty_retrospective_record`` is the sibling of the ``create`` / ``backfill`` emit
+    callers; leaving its ``emit_captured`` without an ``event_log_dir`` reintroduces the #1735
+    split-brain the seam cures (event appended to the primary home while reads route through the
+    coordination surface). The emit is best-effort and uncommitted, so the witness is which on-disk
+    log gains the row. Exercised through the real helper on a real coord mission — RED before the
+    one-line fold (event → primary), GREEN after (event → coordination surface).
+    """
+    mission, coord_root = _completed_coord_mission(tmp_path, target_branch=_UNPROTECTED_TARGET)
+    repo = mission.repo
+    events_rel = f"kitty-specs/{mission.slug}/status.events.jsonl"
+    primary_log_before = (repo / events_rel).read_text(encoding="utf-8")
+
+    monkeypatch.chdir(repo)
+    with patch(_FANOUT_EDGE):
+        _create_empty_retrospective_record(
+            repo_root=repo,
+            mission_id=mission.mission_id,
+            mission_slug=mission.slug,
+            feature_dir=repo / "kitty-specs" / mission.slug,
+            actor=ActorRef(kind="agent", id="agent"),
+        )
+
+    # The canonical (coordination) log gained exactly one RetrospectiveCaptured row.
+    coord_log = (coord_root / events_rel).read_text(encoding="utf-8")
+    assert _event_types(coord_log).count("RetrospectiveCaptured") == 1
+    # Nothing was stranded in the primary checkout's copy of the log.
     assert (repo / events_rel).read_text(encoding="utf-8") == primary_log_before
 
 
