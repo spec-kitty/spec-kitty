@@ -932,7 +932,6 @@ exclude = [
     "tests/architectural/test_review_claim_no_frontmatter.py",
     "tests/architectural/test_saas_sync_gate_selection_invariance.py",
     "tests/architectural/test_safe_commit_import_boundary.py",
-    "tests/architectural/test_same_tier_uniqueness.py",
     "tests/architectural/test_session_reaper.py",
     "tests/architectural/test_shim_registry_schema.py",
     "tests/architectural/test_spec_kitty_home_pin_budget.py",
