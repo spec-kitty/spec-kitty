@@ -144,7 +144,7 @@ _MISMATCH_ALLOWLIST: dict[str, str] = {
 # mismatch could not instead be fixed by recapturing the module. Recapturing
 # a module and deleting its entry shrinks both this constant's headroom and
 # `len(_MISMATCH_ALLOWLIST)` together, and is always welcome.
-_BASELINE_ALLOWLIST_COUNT = 18
+_BASELINE_ALLOWLIST_COUNT = 17
 
 
 # spec-kitty#5189 interim relief: a committed/collected count drift no longer
