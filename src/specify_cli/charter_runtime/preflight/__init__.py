@@ -2,7 +2,7 @@
 
 This package implements ``spec-kitty charter preflight`` (FR-006, FR-007,
 FR-008) and the matching callable ``run_charter_preflight(...)`` consumed
-by ``spec-kitty next``, ``spec-kitty implement``, and the dashboard.
+by ``spec-kitty next`` and ``spec-kitty implement``.
 
 Public surface:
 

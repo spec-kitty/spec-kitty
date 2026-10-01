@@ -3,9 +3,8 @@
 Pins the load-bearing contract for :func:`specify_cli.status.reconstruct_wp_view`
 and the reroute of the three hand-rolled snapshot gates onto it:
 
-* **SC-007 parity** — the dashboard scanner row, the ``agent tasks status``
-  board runtime fields, and :class:`~specify_cli.task_utils.support.WorkPackage`
-  return the SAME resolved runtime state for one WP, because they share one
+* **SC-007 parity** — the ``agent tasks status`` board runtime fields and
+  :class:`~specify_cli.task_utils.support.WorkPackage` return the SAME resolved runtime state for one WP, because they share one
   reconstruction path.
 * **SC-008 latest-actual + byte-stability** — implement-claim (P1/M1) then
   review-claim (P2/M2) reconstructs the CURRENT actual (P2/M2, latest-wins) with
@@ -13,8 +12,6 @@ and the reroute of the three hand-rolled snapshot gates onto it:
 * **Tolerate-absent (INV-7)** — a never-reclaimed WP yields a populated
   ``authored`` group and an EMPTY ``resolved`` group; the authored value NEVER
   appears in the ``resolved`` group (no masquerade).
-* **Presentation-fields-not-swallowed** — the dashboard row still carries
-  ``title`` / ``prompt_markdown`` / ``prompt_path`` after the reroute.
 
 Fixtures seed synthetic event logs (the real dogfood re-seed rides ``feat``, not
 this lane) via the production emit seams.
@@ -490,25 +487,21 @@ def _seed_parity_mission(tmp_path: Path) -> tuple[Path, Path]:
     return feature_dir, wp_file
 
 
-def test_three_consumers_return_same_resolved_state(tmp_path: Path) -> None:
-    """SC-007: dashboard scanner row, ``agent tasks status`` board row, and
-    ``WorkPackage`` surface the SAME resolved runtime state for one WP -- because
-    they all reconstruct through the ONE ``reconstruct_wp_view`` reader."""
+def test_two_consumers_return_same_resolved_state(tmp_path: Path) -> None:
+    """SC-007: the ``agent tasks status`` board row and ``WorkPackage`` surface
+    the SAME resolved runtime state for one WP -- because they both reconstruct through the ONE ``reconstruct_wp_view`` reader."""
     from specify_cli.cli.commands.agent.tasks_status_cmd import _st_runtime_row
-    from specify_cli.dashboard.scanner import _process_wp_file
 
     feature_dir, wp_file = _seed_parity_mission(tmp_path)
     view = reconstruct_wp_view(feature_dir, _WP_ID)
 
-    scanner_row = _process_wp_file(wp_file, tmp_path, "planned", status_dir=feature_dir)
-    assert scanner_row is not None
     board_row = _st_runtime_row(feature_dir, _WP_ID)
     wp = _make_work_package(wp_file)
 
     # Every dynamic field comes from the same reconstructed resolved group.
-    assert scanner_row["lane"] == board_row["lane"] == wp.lane == view.resolved.lane == "claimed"
-    assert scanner_row["agent"] == board_row["agent"] == wp.agent == view.resolved.agent == "snapshot-agent"
-    assert scanner_row["assignee"] == board_row["assignee"] == wp.assignee == view.resolved.assignee == "snapshot-assignee"
+    assert board_row["lane"] == wp.lane == view.resolved.lane == "claimed"
+    assert board_row["agent"] == wp.agent == view.resolved.agent == "snapshot-agent"
+    assert board_row["assignee"] == wp.assignee == view.resolved.assignee == "snapshot-assignee"
     assert board_row["shell_pid"] == wp.shell_pid == view.resolved.shell_pid == "99999"
     assert (
         board_row["shell_pid_created_at"]
@@ -517,15 +510,12 @@ def test_three_consumers_return_same_resolved_state(tmp_path: Path) -> None:
         == "2026-01-01T00:00:00+00:00"
     )
     assert board_row["subtasks"] == wp.subtasks == view.resolved.subtasks
-    assert scanner_row["subtasks"] == list(view.authored.subtasks)
-    assert scanner_row["subtasks_total"] == len(view.authored.subtasks) == 2
-    assert scanner_row["subtasks_done"] == 1
     assert board_row["review"] == wp.review == view.resolved.review
-    assert scanner_row["agent_profile"] == board_row["resolved_agent_profile"] == wp.agent_profile == "resolver-profile"
-    assert scanner_row["agent_profile_version"] == board_row["resolved_agent_profile_version"] == wp.agent_profile_version == "1.0"
-    assert scanner_row["role"] == board_row["resolved_role"] == wp.role == "implementer"
-    assert scanner_row["model"] == board_row["resolved_model"] == wp.model == "resolver-model"
-    assert scanner_row["provider"] == board_row["resolved_provider"] == wp.provider == "resolver-provider"
+    assert board_row["resolved_agent_profile"] == wp.agent_profile == "resolver-profile"
+    assert board_row["resolved_agent_profile_version"] == wp.agent_profile_version == "1.0"
+    assert board_row["resolved_role"] == wp.role == "implementer"
+    assert board_row["resolved_model"] == wp.model == "resolver-model"
+    assert board_row["resolved_provider"] == wp.provider == "resolver-provider"
 
 
 def test_board_authored_profile_is_distinct_from_resolved(tmp_path: Path) -> None:
@@ -584,64 +574,3 @@ def test_workpackage_reads_runtime_from_separate_status_partition(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_scanner_row_still_carries_presentation_fields(tmp_path: Path) -> None:
-    """The reader is identity/runtime ONLY: after the reroute the dashboard row
-    still carries ``title`` / ``prompt_markdown`` / ``prompt_path`` (the reader did
-    not swallow them)."""
-    from specify_cli.dashboard.scanner import _process_wp_file
-
-    feature_dir, wp_file = _seed_parity_mission(tmp_path)
-    row = _process_wp_file(wp_file, tmp_path, "planned", status_dir=feature_dir)
-    assert row is not None
-    assert row["title"] == "Core WP"  # from the "# Work Package Prompt:" header
-    assert "Body text." in row["prompt_markdown"]
-    assert row["prompt_path"].endswith("WP01-core.md")
-
-
-def test_scanner_subtask_progress_is_bounded_by_authored_roster(tmp_path: Path) -> None:
-    """Orphan snapshot IDs do not enlarge the authored subtask roster."""
-    from specify_cli.dashboard.scanner import _process_wp_file
-
-    feature_dir, wp_file = _seed_parity_mission(tmp_path)
-    emit_inner_state_changed(
-        feature_dir,
-        _WP_ID,
-        WPInnerStateDelta(subtasks={"T1": Lane.DONE, "T2": Lane.DONE, "T3": Lane.CLAIMED}),
-        actor="fixture",
-        mission_slug=_MISSION_SLUG,
-        at="2026-01-01T00:00:03+00:00",
-    )
-    row = _process_wp_file(wp_file, tmp_path, "planned", status_dir=feature_dir)
-    assert row is not None
-    assert row["subtasks"] == ["T001", "T002"]
-    assert row["subtasks_total"] == 2
-    assert row["subtasks_done"] == 1
-
-
-def test_scanner_keeps_empty_actual_separate_from_authored(tmp_path: Path) -> None:
-    """A never-reclaimed WP exposes empty actuals and labelled authored intent."""
-    from specify_cli.dashboard.scanner import _process_wp_file
-
-    feature_dir = _make_feature_dir(tmp_path)  # legacy/no event log, flag OFF
-    wp_file = _write_wp_file(feature_dir)
-    # A finalized-but-empty event log so the scanner's canonical-status guard is
-    # satisfied and it degrades to empty resolved (never-reclaimed).
-    (feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
-
-    row = _process_wp_file(wp_file, tmp_path, "planned", status_dir=feature_dir)
-    assert row is not None
-    # ``agent``/``assignee`` are runtime slots re-pointed to the reduced snapshot
-    # (IC-03/IC-06 field reduction) — with no event log there is no runtime agent
-    # and NO authored fallback (the frontmatter ``agent`` is inert).
-    assert row["agent"] == ""
-    assert row["agent_profile"] == ""
-    assert row["role"] == ""
-    assert row["model"] == ""
-    assert row["authored_agent_profile"] == _AUTHORED_PROFILE
-    assert row["authored_role"] == _AUTHORED_ROLE
-    assert row["authored_model"] == _AUTHORED_MODEL
-
-    # But the reader's resolved GROUP is empty -- no masquerade in the data model.
-    view = reconstruct_wp_view(feature_dir, _WP_ID)
-    assert view.resolved.is_empty
-    assert view.resolved.agent_profile is None

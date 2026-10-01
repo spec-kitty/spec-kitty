@@ -35,7 +35,6 @@ SEEDED_SAFE_PATHS = [
     ("upgrade",),
     ("init",),
     ("status",),
-    ("dashboard",),
     ("doctor",),
     ("help",),
     ("version",),

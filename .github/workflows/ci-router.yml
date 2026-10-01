@@ -67,7 +67,6 @@ jobs:
       review: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.review }}
       next: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.next }}
       lanes: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.lanes }}
-      dashboard: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.dashboard }}
       upgrade: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade }}
       cli: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli }}
       charter: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter }}
@@ -128,8 +127,6 @@ jobs:
               - 'src/mission_runtime/**'
             lanes:
               - 'src/specify_cli/lanes/**'
-            dashboard:
-              - 'src/specify_cli/dashboard/**'
             upgrade:
               - 'src/specify_cli/upgrade/**'
             cli:
@@ -231,7 +228,6 @@ jobs:
             "${{ steps.filter.outputs.review }}" \
             "${{ steps.filter.outputs.next }}" \
             "${{ steps.filter.outputs.lanes }}" \
-            "${{ steps.filter.outputs.dashboard }}" \
             "${{ steps.filter.outputs.upgrade }}" \
             "${{ steps.filter.outputs.cli }}" \
             "${{ steps.filter.outputs.charter }}" \
@@ -567,7 +563,6 @@ jobs:
       needs.changes.outputs.review == 'true' ||
       needs.changes.outputs.next == 'true' ||
       needs.changes.outputs.lanes == 'true' ||
-      needs.changes.outputs.dashboard == 'true' ||
       needs.changes.outputs.upgrade == 'true' ||
       needs.changes.outputs.cli == 'true' ||
       needs.changes.outputs.charter == 'true' ||

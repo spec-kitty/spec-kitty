@@ -3,7 +3,7 @@
 Reads ``preflight.enabled`` and ``preflight.auto_refresh`` from
 ``.kittify/config.yaml``. The contract
 in ``contracts/charter-preflight-json.md`` § "Hook caller contract" says
-every consumer (``next``, ``implement``, ``dashboard``) MUST read this flag
+every consumer (``next``, ``implement``) MUST read this flag
 and pass it to :func:`run_charter_preflight`. A consumer MUST NOT pass
 ``auto_refresh=True`` unconditionally — so the loader's default is
 ``False``.

@@ -134,8 +134,7 @@ def test_file_reader_parity_with_shared_seam(name: str, meta: dict[str, Any], tm
 IN_SCOPE_READER_MODULES: tuple[str, ...] = (
     "src/specify_cli/mission.py",
     "src/charter/activation/mission_type_profiles.py",
-    "src/specify_cli/dashboard/handlers/features.py",
-    "src/specify_cli/dashboard/diagnostics.py",
+    "src/specify_cli/diagnostics/project.py",
     "src/specify_cli/mission_metadata.py",
     "src/specify_cli/retrospective/generator.py",
     "src/specify_cli/retrospective/reader.py",

@@ -40,7 +40,6 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spk-admin-setup-doctor`: install and repair.
 - `spk-admin-agent-config`: agent setup.
 - `spk-admin-upgrade`: upgrade and migrations.
-- `spk-admin-dashboard`: status and dashboard.
 - `spk-admin-git-workflow`: git and worktree workflows.
 
 ## Team

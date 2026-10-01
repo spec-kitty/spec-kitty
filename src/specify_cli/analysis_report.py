@@ -264,8 +264,7 @@ def _charter_path(repo_root: Path) -> tuple[Path | None, Path]:
     # when charter.yaml has not been compiled yet -- a project that authored
     # a charter but has not run `charter sync`/compile must still get a
     # staleness input keyed on its actual charter content, matching the
-    # yaml-or-md presence gate in dashboard/charter_path.py and
-    # charter.activation.context (C-003). Only when NEITHER file exists is staleness
+    # yaml-or-md presence gate in charter.activation.context (C-003). Only when NEITHER file exists is staleness
     # input absent.
     #
     # FR-007: returns (charter_path, canonical_root) instead of a bare

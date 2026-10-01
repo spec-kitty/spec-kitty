@@ -201,7 +201,7 @@ All spec-kitty commands work the same way on PowerShell and Bash:
 spec-kitty agent action implement WP01 --agent claude --mission <handle>  # Moves to in_progress
 spec-kitty agent tasks move-task WP01 --to for_review --mission <handle>  # Completion step
 spec-kitty verify-setup
-spec-kitty dashboard
+spec-kitty agent tasks status
 ```
 
 The CLI is cross-platform and handles path differences automatically.

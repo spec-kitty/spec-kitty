@@ -307,10 +307,9 @@ _DYNAMIC_RUNTIME_FIELDS: frozenset[str] = frozenset(
 #: (``wp_snapshot_state(...).agent``) is NOT flagged.
 _FRONTMATTER_READ_CALLS: frozenset[str] = frozenset({"read_wp_frontmatter"})
 
-#: The reader-authority roots walked for the derivation. ``dashboard`` is
-#: included (#2816) so the D-09 scanner class — the motivating pre-reroute
-#: bypass — is actually covered: re-pointing a snapshot read there back to
-#: ``read_wp_frontmatter(...).<field>`` must turn this invariant red.
+#: The reader-authority roots walked for the derivation. ``dashboard`` was
+#: included (#2816) for the D-09 scanner class until the bundled dashboard
+#: was deleted (#5530).
 #: ``agent_utils``/``review``/``post_merge`` (WP05, T027) extend coverage to
 #: the review-cycle-verdict reader family this mission collapsed
 #: (``agent_utils/status.py::show_kanban_status``,
@@ -321,7 +320,6 @@ _READER_AUTHORITY_ROOTS = (
     "cli",
     "core",
     "task_utils",
-    "dashboard",
     "agent_utils",
     "review",
     "post_merge",

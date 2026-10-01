@@ -140,7 +140,7 @@ spec-kitty charter context --action specify|plan|implement|review [--json]
 ## sync
 
 Retained for canonical-root resolution and back-compat call sites (the
-dashboard, the bundle-migration upgrader, `charter context`). Performs no
+bundle-migration upgrader, `charter context`). Performs no
 extraction any more — `governance`/`directives` are hand-authored sections
 directly inside `charter.yaml`, not derived from `charter.md`. Every
 invocation is a no-op.

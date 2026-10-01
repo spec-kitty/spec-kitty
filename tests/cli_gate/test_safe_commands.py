@@ -40,7 +40,6 @@ _SAFE_COMMANDS: list[tuple[str, str]] = [
     ("migrate", "migrate"),
     ("init", "init"),
     ("status", "status"),
-    ("dashboard", "dashboard"),
     ("doctor", "doctor"),
 ]
 

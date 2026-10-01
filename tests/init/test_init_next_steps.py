@@ -102,7 +102,7 @@ def test_init_next_steps_names_spec_kitty_next(
 
     # #4123: both non-git warning surfaces name the full affected command
     # set, not just "agent" — the user's next command after init is often
-    # `dashboard` or `dispatch`, and those need git too. Whitespace and the
+    # `dispatch` or `next`, and those need git too. Whitespace and the
     # next-steps panel's ``│`` borders are normalized out because Rich wraps
     # these long lines at console width.
     flat_output = " ".join(output.replace("│", " ").split())
@@ -110,11 +110,11 @@ def test_init_next_steps_names_spec_kitty_next(
         "Expected the non-git VCS warning in init console output.\n"
         f"Actual console output:\n{output}"
     )
-    assert "`spec-kitty agent`, `dashboard`, `dispatch`, `next`, or `implement` commands" in flat_output, (
+    assert "`spec-kitty agent`, `dispatch`, `next`, or `implement` commands" in flat_output, (
         "The non-git VCS warning must name the full affected command set (#4123).\n"
         f"Actual console output:\n{output}"
     )
-    assert "agent, dashboard, dispatch, next, and implement commands" in flat_output, (
+    assert "agent, dispatch, next, and implement commands" in flat_output, (
         "The required next-step must name the full affected command set (#4123).\n"
         f"Actual console output:\n{output}"
     )

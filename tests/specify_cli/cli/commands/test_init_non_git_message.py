@@ -93,8 +93,8 @@ def test_init_in_non_git_dir_emits_actionable_message(
     assert "1. Enter the project:" in output
     assert "2. Required:" in output
     assert "Git: not initialized" in output
-    assert "spec-kitty dashboard" in output
-    assert output.index("spec-kitty dashboard") > output.index("Optional")
+    assert "spec-kitty agent tasks status" in output
+    assert output.index("spec-kitty agent tasks status") > output.index("Optional")
 
     # Scaffold completed: .kittify/ exists, .git/ was NOT auto-created.
     assert (target / ".kittify").is_dir()

@@ -315,8 +315,6 @@ CRITICAL_EXAMPLES = (
     "src/charter/activation/example.py",
     "src/specify_cli/status/nested/example.py",
     "src/specify_cli/lanes/branch_naming.py",
-    "src/specify_cli/dashboard/handlers/nested/example.py",
-    "src/specify_cli/dashboard/scanner.py",
     "src/specify_cli/consolidation/nested/example.py",
     "src/runtime/next/nested/example.py",
     "src/mission_runtime/nested/example.py",

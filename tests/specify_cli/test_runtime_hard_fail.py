@@ -124,15 +124,6 @@ class TestEventLogAbsent:
         with pytest.raises(CanonicalStatusNotFoundError):
             get_lane_from_frontmatter(wp_path)
 
-    def test_dashboard_count_wps_by_lane_raises(self, tmp_path: Path) -> None:
-        """Dashboard _count_wps_by_lane should propagate CanonicalStatusNotFoundError."""
-        from specify_cli.dashboard.scanner import _count_wps_by_lane
-
-        feature_dir = _make_feature_dir(tmp_path)
-        tasks_dir = feature_dir / "tasks"
-        with pytest.raises(CanonicalStatusNotFoundError):
-            _count_wps_by_lane(tasks_dir)
-
 
 # ---------------------------------------------------------------------------
 # Scenario 2: Event log exists, WP missing -> "uninitialized"
@@ -193,17 +184,6 @@ class TestEventLogExistsWPMissing:
         (feature_dir / EVENTS_FILENAME).write_text("", encoding="utf-8")
         assert has_event_log(feature_dir)
         assert get_wp_lane(feature_dir, "WP01") == "uninitialized"
-
-    def test_dashboard_count_excludes_uninitialized_wps(self, tmp_path: Path) -> None:
-        """Dashboard excludes WPs not yet seeded in the event log."""
-        from specify_cli.dashboard.scanner import _count_wps_by_lane
-
-        feature_dir = _make_feature_dir(tmp_path)
-        _write_event(feature_dir, "WP01", "in_progress", from_lane="planned")
-        tasks_dir = feature_dir / "tasks"
-        counts = _count_wps_by_lane(tasks_dir)
-        assert counts["doing"] == 1  # WP01 (in_progress -> doing display)
-        assert counts["planned"] == 0  # WP02 is genesis/uninitialized and not displayed
 
 
 # ---------------------------------------------------------------------------

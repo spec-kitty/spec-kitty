@@ -46,7 +46,7 @@ def _stub_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort", _ok
     )
     monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard", _ok
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_warn_only", _ok
     )
 
 

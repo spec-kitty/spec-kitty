@@ -1,19 +1,17 @@
-"""Causal mid8 seam and live dashboard-scanner contracts.
+"""Causal mid8 seam contracts.
 
 Copied expressions for aggregate, doctor, implement, and allocator were
 retired; their live consumers and the canonical branch-naming seam are covered
-by dedicated suites. This module keeps the real scanner entry point and the
-negative inline-slice invariant.
+by dedicated suites. This module keeps the negative inline-slice invariant.
+(The dashboard-scanner contract left with the bundled dashboard, #5530.)
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
-from specify_cli.dashboard.scanner import build_mission_registry
 from specify_cli.lanes.branch_naming import resolve_mid8
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -42,53 +40,6 @@ class TestResolveMid8Contracts:
         assert resolve_mid8(SLUG_WITH_TAIL, mission_id=SHORT_ID) == ""
 
 
-class TestScannerContract:
-    """``dashboard/scanner.py:438`` — the ``None`` (not ``""``) contract.
-
-    HEAD: ``None if is_pseudo else (mission_id[:8] if mission_id else None)``.
-    Routed: ``None if is_pseudo else (resolve_mid8(...) or None)``.
-    Exercised end-to-end through ``build_mission_registry`` against real
-    meta.json fixtures so the ``None`` (not ``""``) registry contract is pinned.
-    """
-
-    @staticmethod
-    def _write_mission(specs_dir: Path, slug: str, meta: dict[str, object] | None) -> None:
-        mission_dir = specs_dir / slug
-        mission_dir.mkdir(parents=True)
-        if meta is not None:
-            (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-
-    def test_assigned_mission_records_mid8_string(self, tmp_path: Path) -> None:
-        specs = tmp_path / "kitty-specs"
-        self._write_mission(
-            specs,
-            SLUG_WITH_TAIL,
-            {"mission_id": FULL_ULID, "mission_number": 7},
-        )
-        registry = build_mission_registry(tmp_path)
-        record = registry[FULL_ULID]
-        # HEAD literal: FULL_ULID[:8] == "01KV7SFD"
-        assert record["mid8"] == "01KV7SFD"
-
-    def test_legacy_pseudo_key_records_none_mid8(self, tmp_path: Path) -> None:
-        specs = tmp_path / "kitty-specs"
-        # No mission_id but a mission_number → legacy pseudo key, mid8 is None.
-        self._write_mission(specs, "legacy-thing", {"mission_number": 3})
-        registry = build_mission_registry(tmp_path)
-        record = registry["legacy:legacy-thing"]
-        # HEAD literal: None (pseudo short-circuit), NOT "".
-        assert record["mid8"] is None
-
-    def test_orphan_pseudo_key_records_none_mid8(self, tmp_path: Path) -> None:
-        specs = tmp_path / "kitty-specs"
-        # No meta.json at all → orphan pseudo key, mid8 is None.
-        self._write_mission(specs, "orphan-thing", None)
-        registry = build_mission_registry(tmp_path)
-        record = registry["orphan:orphan-thing"]
-        # HEAD literal: None, NOT "".
-        assert record["mid8"] is None
-
-
 def test_no_inline_mid8_slices_remain_after_routing() -> None:
     """Verification-by-deletion guard: the routed modules carry no inline
     ``mission_id[:8]`` derivation.
@@ -102,10 +53,9 @@ def test_no_inline_mid8_slices_remain_after_routing() -> None:
     guards below cover ``doctor.py`` too.
     """
     src_root = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
-    # aggregate, scanner, implement, allocator, doctor: no bare ``mission_id[:8]``.
+    # aggregate, implement, allocator, doctor: no bare ``mission_id[:8]``.
     for rel in (
         "status/aggregate.py",
-        "dashboard/scanner.py",
         "cli/commands/implement.py",
         "lanes/worktree_allocator.py",
         "cli/commands/doctor.py",

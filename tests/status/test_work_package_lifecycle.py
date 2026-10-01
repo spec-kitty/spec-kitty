@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from kernel.clock import now_utc, now_utc_iso, timedelta
-from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize_snapshot, reduce
 from specify_cli.status.store import (
@@ -707,10 +706,6 @@ def test_actors_compatible_treats_generic_placeholder_as_unclaimed(generic_curre
     # Without the allowance, a generic placeholder still fails raw equality --
     # proving the True result above comes from the allowance, not a no-op.
     assert _actors_compatible(generic_current, "claude", allow_generic_existing=False) is False
-
-
-def test_claimed_lane_surfaces_as_doing_in_dashboard() -> None:
-    assert _KANBAN_COLUMN_FOR_LANE[Lane.CLAIMED] == "doing"
 
 
 def test_start_implementation_resume_is_not_regated_when_dependency_regresses(tmp_path: Path) -> None:

@@ -14,7 +14,6 @@ from charter.encoding_recovery import CP1252_CODEC
 
 __all__ = [
     "sanitize_markdown_text",
-    "sanitize_file",
     "detect_problematic_characters",
     "PROBLEMATIC_CHARS",
 ]

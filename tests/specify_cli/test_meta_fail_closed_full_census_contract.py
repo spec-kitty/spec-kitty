@@ -64,8 +64,7 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
         "src/specify_cli/consolidation/baseline.py",
         "src/specify_cli/consolidation/executor.py",
         "src/specify_cli/consolidation/ordering.py",
-        "src/specify_cli/dashboard/diagnostics.py",
-        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/diagnostics/project.py",
         "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
         "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
         "src/specify_cli/cli/commands/agent/mission_repair.py",
@@ -138,8 +137,8 @@ def _drive_merge_baseline_soft(feature_dir: Path) -> Any:
     return _recorded_baseline_from_working_meta(feature_dir)
 
 
-def _drive_dashboard(feature_dir: Path) -> Any:
-    from specify_cli.dashboard.diagnostics import _resolve_mission_from_feature
+def _drive_diagnostics(feature_dir: Path) -> Any:
+    from specify_cli.diagnostics.project import _resolve_mission_from_feature
 
     return _resolve_mission_from_feature(feature_dir)
 
@@ -259,7 +258,7 @@ def _routed_readers() -> list[RoutedReader]:
     return [
         RoutedReader("merge", "baseline.record_baseline_merge_commit", _drive_merge_baseline, _RAISES_DOMAIN, BaselineMergeCommitError),
         RoutedReader("merge", "baseline._recorded_baseline_from_working_meta", _drive_merge_baseline_soft, _RETURNS, expected=""),
-        RoutedReader("dashboard", "diagnostics._resolve_mission_from_feature", _drive_dashboard, _RETURNS, expected=None),
+        RoutedReader("diagnostics", "project._resolve_mission_from_feature", _drive_diagnostics, _RETURNS, expected=None),
         RoutedReader("cli", "mission_type._safe_load_meta", _drive_cli_mission_type, _RETURNS, expected=None),
         RoutedReader("cli", "_identity_audit._read_stored_topology", _drive_cli_identity_audit, _RETURNS),
         RoutedReader("cli/agent", "mission_setup_plan._resolve_plan_template", _drive_cli_agent_setup_plan, _RAISES_TYPED),

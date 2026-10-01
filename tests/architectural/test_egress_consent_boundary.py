@@ -608,25 +608,8 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
             "about every sink-bearing file under src/ — complementary, not redundant."
         ),
     ),
-    # specify_cli/dashboard/handlers/api.py RETIRED (E4 re-homing, planning epic #4):
-    # its only transmit primitive was the /api/sync/trigger proxy urlopen; the
-    # route was deleted rather than gated, so the file holds no sink and is off
-    # the allowlist entirely.
-    "specify_cli/dashboard/lifecycle.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="E18",
-        note="Localhost dashboard health probe and shutdown/control endpoints.",
-    ),
-    # specify_cli/dashboard/server.py (#4125, fix round 2): the detached-spawn
-    # readiness probe GETs the child's /api/health on 127.0.0.1 to verify the
-    # listener serves this project's identity (project_path + token) — the
-    # same loopback contract lifecycle.py's row above covers, on the spawn
-    # side of the same boundary. Sends no payload beyond the GET itself.
-    "specify_cli/dashboard/server.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="E18",
-        note="Localhost detached-child readiness probe: GET /api/health on 127.0.0.1 to verify the listener's project identity (#4125).",
-    ),
+    # specify_cli/dashboard/{handlers/api,lifecycle,server}.py RETIRED: the
+    # bundled dashboard and its loopback control plane were deleted (#5530).
 }
 
 #: Ratcheted in ``_baselines.yaml`` as

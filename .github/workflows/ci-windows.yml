@@ -42,7 +42,6 @@ jobs:
               - 'tests/policy/test_hook_installer_execution.py'
               - 'tests/regressions/test_issue_101_utf8_startup.py'
               - 'tests/regressions/test_issue_105_hook_python_lookup.py'
-              - 'tests/regressions/test_issue_71_dashboard_empty.py'
               - 'tests/review/test_baseline.py'
               - 'tests/runtime/test_home_unit.py'
               - 'tests/specify_cli/cli/commands/test_charter_generate_autotrack.py'

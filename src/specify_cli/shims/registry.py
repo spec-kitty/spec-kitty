@@ -34,7 +34,6 @@ CONSUMER_SKILLS: frozenset[str] = frozenset(
         "accept",
         "consolidate",
         "status",
-        "dashboard",
         "analyze",
         "research",
         "charter",
@@ -77,7 +76,6 @@ CLI_DRIVEN_COMMANDS: frozenset[str] = frozenset(
         "accept",
         "consolidate",
         "status",
-        "dashboard",
         "tasks-finalize",
     }
 )

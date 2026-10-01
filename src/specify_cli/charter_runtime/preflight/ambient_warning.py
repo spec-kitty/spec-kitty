@@ -17,7 +17,7 @@ This module is the single authority for both halves of the #3971 fix:
 * :func:`dedupe_warnings` — stable-order, first-occurrence de-duplication
   of a warnings list. Applied where the list is born (the runner's
   advisory-result construction), so every consumer — the stderr seam, the
-  dashboard's persisted banner, the JSON contract — sees a duplicate-free
+  JSON contract — sees a duplicate-free
   list without each having to re-filter.
 * :func:`render_ambient_warning` — one-line rendering of the single
   surfaced instance with its scope attached. The concrete remedy stays

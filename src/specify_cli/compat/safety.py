@@ -100,7 +100,7 @@ def _dry_run_is_safe(invocation: _InvocationProtocol) -> Safety:
 #
 # Seed entries cover all commands that must remain accessible when the CLI
 # detects a schema mismatch.  Later mission packages may override entries
-# for "dashboard" and "doctor" with mode predicates.
+# for "doctor" with mode predicates.
 # ---------------------------------------------------------------------------
 SAFETY_REGISTRY: dict[tuple[str, ...], SafetyPredicate | None] = {
     # Remediation path — must always be reachable
@@ -114,9 +114,6 @@ SAFETY_REGISTRY: dict[tuple[str, ...], SafetyPredicate | None] = {
     ("init",): None,
     # Read-only introspection commands
     ("status",): None,
-    # Dashboard — initially unconditionally safe; a later mission package
-    # replaces this with a mode predicate once mode-awareness is implemented.
-    ("dashboard",): None,
     # Doctor — initially unconditionally safe; a later mission package
     # replaces this with a mode predicate once mode-awareness is implemented.
     ("doctor",): None,
@@ -153,7 +150,7 @@ def register_safety(
 
     Updating an existing entry replaces the prior predicate.  This is
     intentional: later mission packages use this to swap in mode-aware
-    predicates for ``dashboard`` and ``doctor``.
+    predicates for ``doctor``.
     """
     if isinstance(command_path, str):
         command_path = (command_path,)

@@ -52,7 +52,7 @@ def _build_command_path(invoked_subcommand: str | None = None) -> tuple[str, ...
         _build_command_path("agent") -> ("agent", "mission", "branch-context")
 
         sys.argv = ["spec-kitty", "--help"]
-        _build_command_path("dashboard") -> ("dashboard",)  # fallback to invoked_subcommand
+        _build_command_path("doctor") -> ("doctor",)  # fallback to invoked_subcommand
 
         _build_command_path(None) -> ()
     """

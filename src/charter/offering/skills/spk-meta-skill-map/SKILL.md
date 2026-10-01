@@ -22,7 +22,7 @@ Families:
 - `spk-run-*`: runtime advancement, program orchestration, implementation,
   review, and blockers.
 - `spk-gate-*`: accept, merge, mission review, and retrospectives.
-- `spk-admin-*`: setup, configuration, upgrades, dashboard/status.
+- `spk-admin-*`: setup, configuration, upgrades.
 - `spk-team-*`: auth, sync, tracker, connectors.
 - `spk-doctrine-*`: charter, glossary, SPDD, profiles, visual communication,
   and bulk-edit policy.

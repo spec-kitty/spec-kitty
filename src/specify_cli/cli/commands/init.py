@@ -918,7 +918,7 @@ def init(  # noqa: C901
             _console.print(
                 "[yellow]Target is not a git repository.[/yellow] "
                 "After init, run `git init` in the target before using "
-                "`spec-kitty agent`, `dashboard`, `dispatch`, `next`, or `implement` commands."
+                "`spec-kitty agent`, `dispatch`, `next`, or `implement` commands."
             )
     except VCSNotFoundError:
         # git not available - not an error, just informational
@@ -1276,7 +1276,7 @@ def init(  # noqa: C901
         steps_lines.append(f"{step_num}. Stay in this project directory.")
         step_num += 1
     if not inside_git:
-        steps_lines.append(f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent, dashboard, dispatch, next, and implement commands")
+        steps_lines.append(f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent, dispatch, next, and implement commands")
         step_num += 1
 
     primary_agent = _primary_next_step_agent(selected_agents)
@@ -1288,7 +1288,7 @@ def init(  # noqa: C901
     steps_lines.append("")
     steps_lines.append("[dim]Optional[/dim]")
     steps_lines.append(f"- [cyan]{_agent_command_token(primary_agent, 'charter')}[/cyan] - add project governance when needed")
-    steps_lines.append("- [cyan]spec-kitty dashboard[/cyan] - open local project dashboard")
+    steps_lines.append("- [cyan]spec-kitty agent tasks status[/cyan] - show mission and work package status")
     steps_lines.append("- [cyan]spec-kitty retrospect summary[/cyan] - review learning status after merge")
     steps_lines.append(f"- [cyan]{_agent_command_token(primary_agent, 'analyze')}[/cyan] - check artifact alignment")
     steps_lines.append("")

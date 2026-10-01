@@ -67,17 +67,6 @@ class TestAdoptedFamiliesInheritBase:
         # Family-specific behaviour preserved.
         assert err.is_deterministic is True
 
-    def test_port_unavailable_error_adopts_base(self) -> None:
-        from specify_cli.dashboard.server import PortUnavailableError
-
-        assert issubclass(PortUnavailableError, StructuredError)
-        err = PortUnavailableError("no ports")
-        assert err.error_code == "DASHBOARD_PORT_UNAVAILABLE"
-        assert err.to_dict() == {
-            "error_code": "DASHBOARD_PORT_UNAVAILABLE",
-            "message": "no ports",
-        }
-
     def test_mission_runtime_error_adopts_base(self) -> None:
         from runtime.next._internal_runtime.schema import (
             MissionRuntimeError,

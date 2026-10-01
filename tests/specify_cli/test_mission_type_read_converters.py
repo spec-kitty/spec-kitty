@@ -3,14 +3,13 @@
 Each converted reader resolves the mission type through the one shared
 ``read_mission_type`` seam: the canonical ``mission_type`` field only (no legacy
 ``mission`` fallback, FR-002) and no silent ``software-dev`` default (FR-003).
-The dashboard pin is the FR-005 visible change (AC-1).
+(The dashboard pin, FR-005 AC-1, left with the bundled dashboard, #5530.)
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
@@ -28,7 +27,7 @@ class TestFeatureDirReaders:
 
     @pytest.mark.parametrize(
         "module",
-        ["specify_cli.dashboard.diagnostics", "specify_cli.verify_enhanced"],
+        ["specify_cli.diagnostics.project", "specify_cli.verify_enhanced"],
     )
     def test_canonical_resolves_legacy_and_typeless_do_not(self, module: str, tmp_path: Path) -> None:
         import importlib
@@ -62,33 +61,3 @@ class TestMissionMetadataReadPath:
 
         identity = resolve_mission_identity(_write_meta(tmp_path / "m", {"mission_slug": "m", "mission_type": "research"}))
         assert identity.mission_type == "research"
-
-
-class TestDashboardFeaturesVisibleChange:
-    """FR-005 / AC-1: the dashboard reads the canonical field, not legacy."""
-
-    def _resolve(self, project_dir: Path, meta: dict[str, object]) -> str:
-        from specify_cli.dashboard.handlers import features
-
-        captured: dict[str, str] = {}
-
-        def _fake_get_mission_by_name(name: str, _kittify: Path):  # noqa: ANN202
-            captured["name"] = name
-            raise features.MissionError("stub")  # force the Unknown branch deterministically
-
-        with (
-            mock.patch.object(features, "resolve_active_feature", return_value={"name": "f", "meta": meta}),
-            mock.patch.object(features, "get_mission_by_name", _fake_get_mission_by_name),
-        ):
-            features._resolve_active_mission_context(project_dir)
-        return captured["name"]
-
-    def test_canonical_field_is_read(self, tmp_path: Path) -> None:
-        assert self._resolve(tmp_path, {"mission_type": "research"}) == "research"
-
-    def test_legacy_only_is_typeless_not_software_dev(self, tmp_path: Path) -> None:
-        # Previously read meta.get("mission", "software-dev") → "software-dev".
-        assert self._resolve(tmp_path, {"mission": "software-dev"}) == ""
-
-    def test_absent_is_typeless(self, tmp_path: Path) -> None:
-        assert self._resolve(tmp_path, {}) == ""

@@ -587,7 +587,6 @@ _COMMAND_SURFACE_PHRASE_BASELINE: frozenset[str] = frozenset(
         "src/specify_cli/cli/commands/review/ERROR_CODES.md",
         "src/specify_cli/cli/commands/upgrade.py",
         "src/specify_cli/coordination/workspace.py",
-        "src/specify_cli/dashboard/scanner.py",
         "src/specify_cli/dossier/rebaseline.py",
         "src/specify_cli/mission_metadata.py",
         "src/specify_cli/post_merge/retrospective_terminus.py",

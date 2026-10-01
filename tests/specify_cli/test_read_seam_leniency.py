@@ -6,8 +6,8 @@ Ledger authority: ``docs/development/read-side-seam-classification.md`` (§ WP06
   ``coordination/status_transition.py`` (3), ``decisions/service.py`` (1),
   ``review/cycle.py`` (1).
 - **stay-lenient** (leave bypass; WP08 allow-list descriptors below):
-  ``dashboard/scanner.py``, ``status/aggregate.py``, ``retrospective/summary.py``,
-  ``dossier/api.py``. ``retrospective/writer.py`` has zero real call sites.
+  ``status/aggregate.py``, ``retrospective/summary.py`` (``dashboard/scanner.py``
+  and ``dossier/api.py`` left with the bundled dashboard, #5530). ``retrospective/writer.py`` has zero real call sites.
 """
 
 from __future__ import annotations
@@ -21,9 +21,7 @@ import pytest
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.coordination import status_transition
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-from specify_cli.dashboard import scanner
 from specify_cli.decisions import service as decisions_service
-from specify_cli.dossier import api as dossier_api
 from specify_cli.retrospective import summary as retrospective_summary
 from specify_cli.review import cycle as review_cycle
 from specify_cli.status import aggregate as status_aggregate
@@ -86,19 +84,6 @@ def _seed_repo(tmp_path: Path, *, deleted_coord: bool) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_scanner_identity_and_planning_helpers_tolerate_deleted_coord(
-    tmp_path: Path,
-) -> None:
-    """Dashboard scan helpers must return, not raise, when the coord branch is gone."""
-    mission_dir = _seed_repo(tmp_path, deleted_coord=True)
-
-    identity = scanner._resolve_identity_primary_first(tmp_path, mission_dir)
-    planning = scanner._resolve_planning_dir_primary_first(tmp_path, mission_dir)
-
-    assert identity == (MISSION_ID, None)
-    assert planning.resolve() == mission_dir.resolve()
-
-
 def test_aggregate_find_meta_path_tolerates_deleted_coord(tmp_path: Path) -> None:
     """Stay-lenient ``_find_meta_path`` must not raise on a deleted coord declaration."""
     mission_dir = _seed_repo(tmp_path, deleted_coord=True)
@@ -118,23 +103,6 @@ def test_retrospective_summary_proposal_counts_tolerate_deleted_coord(
     counts = retrospective_summary._read_proposal_events(tmp_path, MISSION_DIR_NAME)
 
     assert counts == (0, 0, 0)
-
-
-def test_dossier_api_endpoints_tolerate_deleted_coord(tmp_path: Path) -> None:
-    """Dossier SaaS-facing reads must not surface CoordinationBranchDeleted."""
-    _seed_repo(tmp_path, deleted_coord=True)
-    handler = dossier_api.DossierAPIHandler(tmp_path)
-
-    overview = handler.handle_dossier_overview(MISSION_DIR_NAME)
-    export = handler.handle_dossier_snapshot_export(MISSION_DIR_NAME)
-    dossier = handler._load_dossier(MISSION_DIR_NAME)
-
-    assert isinstance(overview, dict)
-    assert overview.get("status_code") == 404
-    assert "error" in overview
-    assert isinstance(export, dict)
-    assert export.get("status_code") == 404
-    assert dossier is None
 
 
 # ---------------------------------------------------------------------------

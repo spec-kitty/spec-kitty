@@ -4,7 +4,7 @@ These types are the **callable surface** consumed by:
 
 * the typer CLI command (``spec-kitty charter preflight``);
 * the session-start hook callable ``run_charter_preflight(...)`` used by
-  ``spec-kitty next``, ``spec-kitty implement``, and the dashboard.
+  ``spec-kitty next`` and ``spec-kitty implement``.
 
 The JSON shape produced by :py:meth:`CharterPreflightResult.to_dict` and
 :py:meth:`CharterPreflightResult.to_json` is the binding contract documented
@@ -50,7 +50,7 @@ class CharterPreflightCheck:
             ``synced_bundle``, ``synthesized_drg``).
         state: Outcome of the check.  See :data:`CheckState`.
         detail: Human-readable explanation surfaced verbatim in CLI output
-            and dashboards.
+            and JSON output.
         remediation: Exact recovery command, or ``None`` when no action is
             required.  When ``state`` is ``fresh``, ``skipped``, or
             ``built_in_only`` this MUST be ``None``.

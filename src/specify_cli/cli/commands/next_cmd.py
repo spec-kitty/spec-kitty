@@ -217,7 +217,7 @@ def next_step(
     # FR-006 caller contract: charter preflight runs BEFORE any state
     # mutation. On failure, print blocked_reason and exit 1 — the runtime
     # decision engine is never entered. Query mode (result is None) is
-    # read-only and follows the dashboard's "log + warn + continue" path
+    # read-only and follows the warn-only "log + warn + continue" path
     # so that operators can inspect mission state in repos whose charter
     # has not yet been synthesized (e.g., fresh clones, test envs).
     from pathlib import Path as _Path
@@ -519,15 +519,15 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
 
     from specify_cli.charter_runtime.preflight.hook import (
         emit_advisory_warnings,
-        run_preflight_for_dashboard,
+        run_preflight_warn_only,
     )
 
-    # Query mode is read-only: warn-and-continue, like dashboard. #4731: the
-    # shared helper is told which consumer is running it, so a failed preflight
-    # is logged as next's, not the dashboard's.
+    # Query mode is read-only: warn-and-continue. #4731: the shared helper is
+    # told which consumer is running it, so a failed preflight is logged as
+    # next's.
     stdout_redirect = contextlib.redirect_stdout(sys.stderr) if json_output else contextlib.nullcontext()
     with stdout_redirect:
-        result = run_preflight_for_dashboard(repo_root, consumer="next")
+        result = run_preflight_warn_only(repo_root, consumer="next")
     # #3971: scope the single surfaced ambient warning to this consumer.
     emit_advisory_warnings(result, consumer="next", repo_root=repo_root)
 

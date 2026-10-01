@@ -95,7 +95,6 @@ class TestAllCliDrivenCommands:
         "accept": "spec-kitty agent mission accept",
         "status": "spec-kitty agent tasks status",
         "consolidate": "spec-kitty consolidate",
-        "dashboard": "spec-kitty dashboard",
         "tasks-finalize": "spec-kitty agent mission finalize-tasks",
     }
 

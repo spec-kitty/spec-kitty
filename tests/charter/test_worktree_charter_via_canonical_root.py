@@ -174,26 +174,6 @@ def test_chokepoint_from_worktree_points_at_main_checkout(tmp_path: Path) -> Non
     )
 
 
-def test_dashboard_charter_path_from_worktree_points_at_main(tmp_path: Path) -> None:
-    """Dashboard reader invoked from a worktree returns the main
-    checkout's charter.md path, not a worktree-local stub.
-    """
-    from specify_cli.dashboard.charter_path import resolve_project_charter_path
-
-    main_root = _init_main_checkout(tmp_path / "main").resolve()
-    worktree_root = _add_linked_worktree(
-        main_root,
-        (tmp_path / "worktree-c").resolve(),
-        "feature/worktree-c",
-    ).resolve()
-    _clear_resolver_cache()
-
-    path = resolve_project_charter_path(worktree_root)
-    assert path is not None
-    expected = main_root / ".kittify" / "charter" / "charter.md"
-    assert path == expected, f"dashboard charter_path={path} (expected {expected})"
-
-
 def test_worktree_bundle_never_materializes_locally(tmp_path: Path) -> None:
     """Regression guard: invoking the chokepoint from a worktree never
     writes anything into the worktree's own ``.kittify/charter/`` tree.

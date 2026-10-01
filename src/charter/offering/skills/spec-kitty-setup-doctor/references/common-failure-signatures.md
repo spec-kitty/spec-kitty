@@ -88,26 +88,7 @@ cloned without running init, or the user is in a subdirectory.
 
 ---
 
-## 5. Dashboard Not Starting
-
-**Symptom:** Dashboard URL is not accessible after initialization. Browser shows
-connection refused or timeout.
-
-**Cause:** Port conflict with another process, dashboard process crashed, or the
-dashboard was never started.
-
-**Recovery:**
-
-```bash
-spec-kitty dashboard
-```
-
-If the port is in use, the dashboard will report the conflict. Stop the
-conflicting process or let the dashboard auto-select an available port.
-
----
-
-## 6. Stale Agent Configuration
+## 5. Stale Agent Configuration
 
 **Symptom:** `spec-kitty agent config status` shows orphaned agent directories
 (directories exist on disk but are not listed in `config.yaml`), or configured
@@ -128,7 +109,7 @@ spec-kitty agent config sync
 
 ---
 
-## 7. Corrupted Config File
+## 6. Corrupted Config File
 
 **Symptom:** `spec-kitty` commands fail with YAML parse errors referencing
 `.kittify/config.yaml`.
@@ -153,7 +134,7 @@ write was interrupted mid-operation.
 
 ---
 
-## 8. Worktree Linkage Broken
+## 7. Worktree Linkage Broken
 
 **Symptom:** `spec-kitty implement` fails with "worktree not found" or git
 reports detached worktree references.
@@ -176,7 +157,7 @@ spec-kitty implement WP01
 
 ---
 
-## 9. Shared Package Import Resolves As Namespace Package
+## 8. Shared Package Import Resolves As Namespace Package
 
 **Symptom:** Test collection or CLI startup fails with:
 

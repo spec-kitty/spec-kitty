@@ -50,7 +50,6 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         "src/specify_cli/release/changelog.py",
         "src/specify_cli/missions/_read_path_resolver.py",
         "src/specify_cli/manifest.py",
-        "src/specify_cli/dashboard/scanner.py",
         "src/specify_cli/audit/engine.py",
         "src/specify_cli/cli/commands/validate_tasks.py",
         "src/specify_cli/cli/commands/validate_encoding.py",

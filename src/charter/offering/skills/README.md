@@ -50,7 +50,7 @@ Families:
 - `spk-run-*`: runtime-next, program orchestration, implementation/review
   loops, single-WP review, blocked recovery.
 - `spk-gate-*`: accept, merge, mission review, retrospective.
-- `spk-admin-*`: setup, agent config, upgrade, dashboard/status.
+- `spk-admin-*`: setup, agent config, upgrade.
 - `spk-team-*`: auth, sync, tracker, connectors.
 - `spk-doctrine-*`: charter, glossary, SPDD, profile load, bulk-edit policy.
 - `spk-doctrine-show-me`: compact visual communication grounded in diagram doctrine.
@@ -89,7 +89,6 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-admin-setup-doctor` | Install and repair |
 | `spk-admin-agent-config` | Agent setup |
 | `spk-admin-upgrade` | Upgrade and migrations |
-| `spk-admin-dashboard` | Status and dashboard |
 | `spk-admin-git-workflow` | Git and worktree workflows |
 | `spk-team-auth` | Auth and accounts |
 | `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |

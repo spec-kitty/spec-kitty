@@ -318,7 +318,9 @@ test_egress_consent_boundary:
   # auth/OAuth class — the machine/CI client_credentials exchange POSTs the
   # ServicePrincipal credential pair to /oauth/token. Credential traffic,
   # same class as device_code.py/refresh.py/revoke.py; no project data.
-  egress_allowlist_files: 17
+  # 17 -> 15 (#5530): the bundled dashboard was deleted, taking its two
+  # loopback-control rows (dashboard/lifecycle.py, dashboard/server.py) with it.
+  egress_allowlist_files: 15
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

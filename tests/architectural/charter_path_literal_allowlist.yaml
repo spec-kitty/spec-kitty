@@ -356,21 +356,7 @@ charter_path_literals:
   literal: "charter.md"
   clause: "b"
   token: "if charter_md . exists ( ) :"
-  rationale: "Staleness-input fallback documented in the comment directly above (FR-004): keys on charter.yaml first, falls back to charter.md only when charter.yaml has not yet been compiled, mirroring the yaml-or-md presence gate in dashboard/charter_path.py and charter.activation.context (C-003)."
-- file: src/specify_cli/dashboard/charter_path.py
-  qualname: resolve_project_charter_presence
-  line: 102
-  literal: "charter.md"
-  clause: "b"
-  token: "if charter_md_path . exists ( ) :"
-  rationale: "FR-003 (#3150) documented yaml-preferred, md-fallback presence probe: charter.yaml is checked first and returned when present; this branch only covers the pre-compile case so 'no charter' does not falsely fire for authored-but-uncompiled projects."
-- file: src/specify_cli/dashboard/charter_path.py
-  qualname: resolve_project_charter_path
-  line: 154
-  literal: "charter.md"
-  clause: "b"
-  token: "if charter_path . exists ( ) :"
-  rationale: "Function's own docstring: 'Per C-001, charter.md stays a readable secondary prose source and is never retargeted to charter.yaml' -- callers needing a presence signal instead use resolve_project_charter_presence above."
+  rationale: "Staleness-input fallback documented in the comment directly above (FR-004): keys on charter.yaml first, falls back to charter.md only when charter.yaml has not yet been compiled, mirroring the yaml-or-md presence gate in charter.activation.context (C-003)."
 - file: src/specify_cli/retrospective/gate.py
   qualname: _charter_authorizes_autonomous_skip
   line: 147

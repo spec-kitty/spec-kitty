@@ -225,12 +225,6 @@ def _register_cutover_guard(app: typer.Typer) -> None:
     app.command(name="cutover-guard", help="Diff-scoped fail-closed cut-over gate (pre-merge required check).")(cutover_guard_module.cutover_guard)
 
 
-def _register_dashboard(app: typer.Typer) -> None:
-    from . import dashboard as dashboard_module
-
-    app.command()(dashboard_module.dashboard)
-
-
 def _register_doctor(app: typer.Typer) -> None:
     from . import doctor as doctor_module
 
@@ -574,7 +568,6 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_charter,
     _register_context,
     _register_cutover_guard,
-    _register_dashboard,
     _register_doctor,
     _register_doctrine,
     _register_docs,
@@ -630,7 +623,6 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "charter": _register_charter,
     "context": _register_context,
     "cutover-guard": _register_cutover_guard,
-    "dashboard": _register_dashboard,
     "doctor": _register_doctor,
     "doctrine": _register_doctrine,
     "docs": _register_docs,

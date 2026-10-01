@@ -42,7 +42,6 @@ _FALLBACK_COMMAND_NAMES = [
     "review.md",
     "accept.md",
     "merge.md",
-    "dashboard.md",
 ]
 
 

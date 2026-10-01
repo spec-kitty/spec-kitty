@@ -96,7 +96,6 @@ PROMPT_BACKED_COMMANDS: tuple[str, ...] = (
 #: Commands installed as thin Agent Skills that delegate to the canonical CLI.
 CLI_WRAPPER_COMMANDS: tuple[str, ...] = (
     "consolidate",
-    "dashboard",
     "status",
 )
 
@@ -107,13 +106,11 @@ assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), "Command-skill installer
 
 _CLI_WRAPPER_DESCRIPTIONS: dict[str, str] = {
     "consolidate": "Consolidate an accepted mission",
-    "dashboard": "Open the mission dashboard",
     "status": "Show mission and work package status",
 }
 
 _CLI_WRAPPER_COMMANDS: dict[str, str] = {
     "consolidate": "spec-kitty consolidate",
-    "dashboard": "spec-kitty dashboard",
     "status": "spec-kitty agent tasks status",
 }
 

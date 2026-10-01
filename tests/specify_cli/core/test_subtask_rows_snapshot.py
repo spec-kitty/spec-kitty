@@ -4,8 +4,8 @@ The lane-transition guard's subtask-completion authority is the reduced
 event-log ``subtasks`` slot — NOT the ``- [ ] T###`` markdown checkbox, which
 the cutover retires as an incoherent proxy (research D-13: a raw checkbox edit
 without ``mark-status`` showed frozen progress). This file is the NON-VACUOUS
-proof that the rerouted guard and the dashboard read the snapshot, and that the
-migration seed reader is left intact.
+proof that the rerouted guard reads the snapshot, and that the migration seed
+reader is left intact.
 
 Discipline (reviewer guidance):
 
@@ -35,9 +35,8 @@ from specify_cli.core.subtask_rows import (
     iter_wp_section_subtask_rows,
     unchecked_subtask_ids_from_snapshot,
 )
-from specify_cli.dashboard.scanner import _wp_subtask_progress
 from specify_cli.migration.backfill_runtime_state import _subtasks_from_tasks_md
-from specify_cli.status import emit_inner_state_changed, reconstruct_wp_view
+from specify_cli.status import emit_inner_state_changed
 from specify_cli.status.models import Lane, Status, WPInnerStateDelta
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -242,38 +241,6 @@ def test_fail_closed_on_silent_snapshot_blocks(tmp_path: Path) -> None:
         "an authored roster with no snapshot completion must fail-closed (block "
         f"every id), not fall open to complete; got {result!r}"
     )
-
-
-# ---------------------------------------------------------------------------
-# T054.6 — the dashboard progress badge reads the snapshot, updates on a
-# mark-status emit, and is UNCHANGED by a raw checkbox edit (D-13 closed).
-# ---------------------------------------------------------------------------
-
-
-def test_dashboard_progress_reads_snapshot_not_checkboxes(tmp_path: Path) -> None:
-    feature_dir = _seed_feature_dir(tmp_path, tasks_md=_TASKS_MD_NO_CHECKBOXES)
-    _write_wp_file(feature_dir, "WP01", ["T001", "T002", "T003"])
-    # The snapshot ``subtasks`` slot is a per-subtask merge; the badge total is
-    # the emitted-subtask count (WP11 semantics). Seed the full roster.
-    _emit_subtasks(
-        feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.IN_PROGRESS, "T003": Lane.PLANNED}
-    )
-
-    view = reconstruct_wp_view(feature_dir, "WP01")
-    assert _wp_subtask_progress(view) == (1, 3)
-
-    # A real mark-status style emit moves the badge (per-subtask merge)...
-    _emit_subtasks(feature_dir, "WP01", {"T002": Lane.DONE})
-    view = reconstruct_wp_view(feature_dir, "WP01")
-    assert _wp_subtask_progress(view) == (2, 3)
-
-    # ...but a raw checkbox edit to tasks.md does NOT (snapshot is the sole
-    # authority — the D-13 incoherence is gone).
-    (feature_dir / "tasks.md").write_text(
-        "## WP01 - repro\n- [x] T003 gamma\n", encoding="utf-8"
-    )
-    view = reconstruct_wp_view(feature_dir, "WP01")
-    assert _wp_subtask_progress(view) == (2, 3)
 
 
 # ---------------------------------------------------------------------------

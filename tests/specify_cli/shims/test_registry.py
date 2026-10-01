@@ -40,7 +40,6 @@ class TestConsumerSkills:
             "accept",
             "consolidate",
             "status",
-            "dashboard",
             "analyze",
             "research",
             "charter",
@@ -127,7 +126,6 @@ class TestCliDrivenCommands:
             "accept",
             "consolidate",
             "status",
-            "dashboard",
             "tasks-finalize",
         ],
     )

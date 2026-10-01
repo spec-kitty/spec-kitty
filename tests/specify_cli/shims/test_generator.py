@@ -45,9 +45,6 @@ class TestCanonicalCommand:
         cmd = _canonical_command("consolidate", "claude", "$ARGUMENTS")
         assert cmd == "spec-kitty consolidate $ARGUMENTS"
 
-    def test_dashboard(self) -> None:
-        cmd = _canonical_command("dashboard", "claude", "$ARGUMENTS")
-        assert cmd == "spec-kitty dashboard $ARGUMENTS"
 
     def test_tasks_finalize(self) -> None:
         cmd = _canonical_command("tasks-finalize", "claude", "$ARGUMENTS")
@@ -254,12 +251,12 @@ class TestGenerateAllShims:
                 f"Prompt-driven skill '{skill}' should not get a command file"
             )
 
-    def test_generates_exactly_seven_files_per_agent(self, tmp_path: Path) -> None:
+    def test_generates_exactly_six_files_per_agent(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])
         (tmp_path / ".claude" / "commands").mkdir(parents=True)
         written = generate_all_shims(tmp_path)
         assert len(written) == len(CLI_DRIVEN_COMMANDS)
-        assert len(CLI_DRIVEN_COMMANDS) == 7
+        assert len(CLI_DRIVEN_COMMANDS) == 6
 
     def test_files_have_direct_commands(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])

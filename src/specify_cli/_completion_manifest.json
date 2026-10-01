@@ -618,11 +618,6 @@
    "hidden": false,
    "deprecated": false
   },
-  "dashboard": {
-   "help": "Open or stop the Spec Kitty dashboard.",
-   "hidden": false,
-   "deprecated": false
-  },
   "dispatch": {
    "help": "Dispatch a request to a governed Op (canonical surface).",
    "hidden": false,

@@ -97,27 +97,6 @@ ALLOWLIST: tuple[ContentDescriptor, ...] = (
         "so there is no loop-shaped case to discriminate -- the CLI exit-code verdict is "
         "identical on every interpreter.",
     ),
-    # `(STATIC_DIR / relative_path).resolve()` on an operator-supplied dashboard
-    # URL path: on 3.11/3.12 a symlink loop raises RuntimeError, which this
-    # catches and maps to a 404 (`safe_path = None`). On 3.13+ resolve() no
-    # longer raises: it returns a path still inside the loop, which then
-    # PASSES the very next `relative_to(static_root)` containment check
-    # (a looping path resolved under STATIC_DIR is still, textually, under
-    # STATIC_DIR) -- the 404 instead comes from the `not safe_path.is_file()`
-    # check just after, because a looping path is never a file on any
-    # interpreter. Both interpreters refuse to serve, but via two DIFFERENT
-    # checks; `handle_static` has two `try:` statements, so `occurrence=0`
-    # (source order) selects this one.
-    ContentDescriptor(
-        "src/specify_cli/dashboard/handlers/static.py",
-        "StaticHandler.handle_static",
-        "try :",
-        0,
-        "3.11/3.12 raises RuntimeError (caught here, mapped to 404); on 3.13+ resolve() returns a "
-        "path still inside the loop, which PASSES the relative_to containment check right after -- "
-        "the 404 there instead comes from the following `not safe_path.is_file()` check, since a "
-        "looping path is never a file on any interpreter. Both converge on 404, via different checks.",
-    ),
     # False positive (WP04 prompt names this explicitly): `ProtectionPolicy.resolve(repo_root)`
     # is a classmethod that resolves a protection POLICY object from config,
     # not a filesystem path -- there is no `Path.resolve()`/`os.path.realpath`

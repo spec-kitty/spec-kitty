@@ -5,10 +5,9 @@ A project with a stale semver ``spec_kitty.version`` field but a compatible
 The compat.planner (schema-version authority) is now the single authority per
 C-008; the legacy semver checker is no longer invoked from command handlers.
 
-Concretely this test checks that:
-1. The dashboard command handler no longer imports check_version_compatibility.
-2. check_schema_version does NOT raise SystemExit for dashboard against a project
-   whose metadata.yaml has a very old spec_kitty.version but a compatible schema.
+Concretely this test checks that check_schema_version does NOT raise SystemExit
+for a safe command against a project whose metadata.yaml has a very old
+spec_kitty.version but a compatible schema.
 """
 
 from __future__ import annotations
@@ -35,32 +34,19 @@ def fixture_project_old_semver_compat_schema(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_dashboard_not_blocked_by_old_semver_field(
+def test_doctor_not_blocked_by_old_semver_field(
     fixture_project_old_semver_compat_schema: Path,
 ) -> None:
-    """dashboard with old spec_kitty.version but compatible schema_version exits 0.
+    """doctor with old spec_kitty.version but compatible schema_version exits 0.
 
     Regression: legacy check_version_compatibility compared the semver field and
     could hard-block with 'CLI newer than project' even when schema was compatible.
-    After FIX 1 that checker is no longer called from the dashboard handler.
+    After FIX 1 that checker is no longer called from the schema gate.
     """
     # Must not raise SystemExit — the gate should ALLOW this command.
     check_schema_version(
         fixture_project_old_semver_compat_schema,
-        invoked_subcommand="dashboard",
+        invoked_subcommand="doctor",
     )
 
 
-def test_check_version_compatibility_not_imported_in_dashboard() -> None:
-    """dashboard.py must not import check_version_compatibility (FIX 1 contract)."""
-    import importlib
-    import ast
-    import inspect
-
-    import specify_cli.cli.commands.dashboard as dashboard_mod
-
-    source = inspect.getsource(dashboard_mod)
-    assert "check_version_compatibility" not in source, (
-        "dashboard.py still references check_version_compatibility — "
-        "the legacy semver checker must be removed (C-008 single authority)."
-    )

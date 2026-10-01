@@ -85,7 +85,7 @@ from specify_cli.compat.planner import (
 )
 
 # ---------------------------------------------------------------------------
-# WP10 — Mode-aware safety predicates for dashboard and doctor
+# WP10 — Mode-aware safety predicates for doctor and orchestrator-api
 # ---------------------------------------------------------------------------
 # Option A wiring: importing `compat` triggers predicate registration once.
 # This is safe and non-invasive: register_mode_predicates() is idempotent

@@ -30,7 +30,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 **When writing ANY markdown, JSON, YAML, CSV, or code files, use ONLY UTF-8 compatible characters.**
 
-### What to Avoid (Will Break the Dashboard)
+### What to Avoid (Breaks Mission Tooling)
 
 ❌ **Windows-1252 smart quotes**: " " ' ' (from Word/Outlook/Office)
 ❌ **Em/en dashes and special punctuation**: — –
@@ -40,7 +40,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 ❌ **Degree symbol**: ° (0xB0 in Windows-1252)
 ❌ **Copy/paste from Microsoft Office** without cleaning
 
-**Real examples that crashed the dashboard:**
+**Real examples that broke mission tooling:**
 
 - "User's favorite mission" → "User's favorite mission" (smart quote)
 - "Price: $100 ± $10" → "Price: $100 +/- $10"
@@ -71,7 +71,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 4. Run `spec-kitty validate-encoding --mission <mission-id>` to check
 5. Run `spec-kitty validate-encoding --mission <mission-id> --fix` to auto-repair
 
-**Failure to follow this rule causes the dashboard to render blank pages.**
+**Failure to follow this rule makes Spec Kitty commands fail to read your mission files.**
 
 ### Auto-Fix Available
 

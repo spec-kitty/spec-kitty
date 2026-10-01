@@ -56,7 +56,7 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda *_args, **_kwargs: result,
     )
     monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_warn_only",
         lambda *_args, **_kwargs: result,
     )
 

@@ -137,16 +137,6 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="spec-kitty init or upgrade",
     ),
     StateSurface(
-        name="dashboard_control",
-        path_pattern=".kittify/.dashboard",
-        root=StateRoot.PROJECT,
-        format=StateFormat.TEXT,
-        authority=AuthorityClass.LOCAL_RUNTIME,
-        git_class=GitClass.IGNORED,
-        owner_module="dashboard lifecycle",
-        creation_trigger="spec-kitty dashboard start",
-    ),
-    StateSurface(
         name="workspace_context",
         path_pattern=".kittify/workspaces/<feature>-<WP>.json",
         root=StateRoot.PROJECT,

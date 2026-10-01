@@ -129,19 +129,6 @@ def test_build_charter_context_auto_syncs_on_fresh_clone(tmp_path: Path) -> None
     _assert_charter_yaml_resolved(repo_root)
 
 
-def test_resolve_project_charter_path_auto_syncs_on_fresh_clone(tmp_path: Path) -> None:
-    """FR-004 reader: dashboard ``resolve_project_charter_path`` goes through chokepoint."""
-    from specify_cli.dashboard.charter_path import resolve_project_charter_path
-
-    repo_root = _fresh_clone_fixture(tmp_path).resolve()
-    _clear_resolver_cache()
-
-    charter_path = resolve_project_charter_path(repo_root)
-    assert charter_path is not None, "charter_path resolved to None despite charter present"
-    assert charter_path.exists()
-    _assert_charter_yaml_resolved(repo_root)
-
-
 def test_load_governance_config_auto_syncs_on_fresh_clone(tmp_path: Path) -> None:
     """FR-004 reader: ``load_governance_config`` reads charter.yaml's governance section."""
     from charter.activation.sync import load_governance_config

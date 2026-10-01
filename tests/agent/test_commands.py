@@ -16,7 +16,6 @@ from tests.lane_test_utils import write_single_lane_manifest
 pytestmark = pytest.mark.fast
 
 accept_module = importlib.import_module("specify_cli.cli.commands.accept")
-dashboard_module = importlib.import_module("specify_cli.cli.commands.dashboard")
 merge_module = importlib.import_module("specify_cli.cli.commands.consolidate")
 # Mission #2057 relocated target-branch validation into the merge ``preflight``
 # seam; ``_validate_target_branch`` resolves ``run_command`` from that module's
@@ -55,7 +54,6 @@ def test_cli_help_lists_extracted_commands() -> None:
     assert result.exit_code == 0
     for name in [
         "research",
-        "dashboard",
         "accept",
         "merge",
         "verify-setup",
@@ -154,29 +152,6 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
     assert captured["plan_json"] is True
     assert captured["tasks_feature"] == "001-demo"
     assert captured["tasks_json"] is True
-
-
-def test_dashboard_kill_stops_instance(monkeypatch, tmp_path: Path) -> None:
-    call_record: dict[str, Path] = {}
-    json_modes: list[bool] = []
-
-    def fake_project_root(*, json_output: bool = False) -> Path:
-        json_modes.append(json_output)
-        return tmp_path
-
-    monkeypatch.setattr(dashboard_module, "get_project_root_or_exit", fake_project_root)
-
-    def fake_stop(project_root: Path) -> tuple[bool, str]:
-        call_record["root"] = project_root
-        return True, "Dashboard stopped"
-
-    monkeypatch.setattr(dashboard_module, "stop_dashboard", fake_stop)
-
-    result = runner.invoke(cli_app, ["dashboard", "--kill"])
-    assert result.exit_code == 0
-    assert json_modes == [False]
-    assert call_record["root"] == tmp_path
-    assert "Dashboard stopped" in result.stdout
 
 
 def test_research_with_no_template_does_not_fabricate_artifacts(monkeypatch, tmp_path: Path) -> None:
