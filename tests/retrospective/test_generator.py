@@ -317,17 +317,19 @@ class TestFindingsClassification:
         assert "escape hatch" in finding.details
         assert "Recurring use suggests the normal review path is blocked" in finding.details
 
-    def test_mid_with_backward_moves_has_lane_friction(self) -> None:
-        """Backward moves without reviewer feedback are process friction, not rejections."""
+    def test_mid_with_reviewer_notes_is_review_loop(self) -> None:
+        """for_review rewinds carrying reviewer notes are review loops (#2267).
+
+        The reviewer sent WP02/WP03 back without claiming into in_review; the
+        rewind still carries feedback, so it is a rejection, not lane friction.
+        """
         policy = make_policy()
         record = generate_retrospective(MID_WITH_REJECTIONS, policy, FIXTURES_ROOT)
 
-        not_helpful_wps = {f.summary for f in record.not_helpful}
-        assert any("WP02" in s for s in not_helpful_wps), "WP02 lane friction expected"
-        assert any("WP03" in s for s in not_helpful_wps), "WP03 lane friction expected"
-        assert len(record.not_helpful) == 2
-        assert {f.category for f in record.not_helpful} == {"process"}
-        assert all("rejection" not in f.summary.lower() for f in record.not_helpful)
+        assert sorted((f.category, f.summary) for f in record.not_helpful) == [
+            ("review_loop", "WP02 required 1 rejection cycle(s) before approval"),
+            ("review_loop", "WP03 required 1 rejection cycle(s) before approval"),
+        ]
 
     def test_mid_with_lane_friction_clean_wps_in_helped(self) -> None:
         """WPs with no backward movement are still notable by contrast."""
@@ -359,15 +361,15 @@ class TestFindingsClassification:
         assert "FR-007" in unmapped_fr_ids, "FR-007 should be flagged as unmapped"
         assert "FR-008" in unmapped_fr_ids, "FR-008 should be flagged as unmapped"
 
-    def test_large_with_gaps_has_lane_friction(self) -> None:
-        """large-with-gaps: WP02 and WP04 had backward moves without reviewer feedback."""
+    def test_large_with_gaps_has_review_loops(self) -> None:
+        """large-with-gaps: WP02 and WP04 were sent back with reviewer notes (#2267)."""
         policy = make_policy()
         record = generate_retrospective(LARGE_WITH_GAPS, policy, FIXTURES_ROOT)
 
         not_helpful_wps = {f.summary for f in record.not_helpful}
         assert any("WP02" in s for s in not_helpful_wps)
         assert any("WP04" in s for s in not_helpful_wps)
-        assert {f.category for f in record.not_helpful} == {"process"}
+        assert {f.category for f in record.not_helpful} == {"review_loop"}
 
     def test_all_findings_have_evidence_refs(self) -> None:
         """Every finding must carry ≥1 evidence_ref that resolves to top-level evidence_refs."""
@@ -624,7 +626,8 @@ class TestRejectionAfterApproval:
         )
         not_helpful_summaries = {f.summary for f in record.not_helpful}
         assert "WP02 required 1 rejection cycle(s) before approval" in not_helpful_summaries
-        assert "WP02 needed 2 implementation cycles" in not_helpful_summaries
+        # The re-entry after the documented rejection is expected rework (#2267).
+        assert not any("in_progress" in summary for summary in not_helpful_summaries)
 
     def test_multi_impl_cycle_wp_excluded_from_helped(self, tmp_path: Path) -> None:
         """Belt-and-suspenders: >1 impl cycle excludes a WP from helped (#3687).
@@ -678,11 +681,13 @@ class TestRejectionAfterApproval:
         not_helpful_wps = {f.summary.split()[0] for f in record.not_helpful}
         assert "WP02" in helped_wps, "WP02 clean completion expected in helped"
         assert "WP01" not in helped_wps, (
-            f"#3687 contradiction: WP01 needed 2 implementation cycles yet appears "
+            f"#3687 contradiction: WP01 re-entered in_progress undocumented yet appears "
             f"in helped ({record.helped})"
         )
         assert helped_wps & not_helpful_wps == set()
-        assert "WP01 needed 2 implementation cycles" in {f.summary for f in record.not_helpful}
+        assert "WP01 re-entered in_progress 1 time(s) without a documented review rejection" in {
+            f.summary for f in record.not_helpful
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -760,9 +765,7 @@ class TestDocumentedRejectionSignal:
 
     def test_undocumented_force_and_reentry_still_reported(self, tmp_path: Path) -> None:
         """Non-vacuity: feedback-free forcing and re-entry keep their findings."""
-        events: list[dict] = []
-        n = 0
-        for from_lane, to_lane, extra in [
+        moves = [
             ("planned", "in_progress", {}),
             ("in_progress", "for_review", {}),
             # ``move-task --force`` without feedback stamps the ``force-override``
@@ -776,9 +779,8 @@ class TestDocumentedRejectionSignal:
             ("in_progress", "for_review", {}),
             ("for_review", "in_review", {}),
             ("in_review", "approved", {}),
-        ]:
-            n += 1
-            events.append(_ev(n, "WP01", from_lane, to_lane, **extra))
+        ]
+        events = [_ev(n, "WP01", from_lane, to_lane, **extra) for n, (from_lane, to_lane, extra) in enumerate(moves, 1)]
         _write_mission(tmp_path, "undocumented-rework", 4, events)
 
         record = generate_retrospective("undocumented-rework", make_policy(), tmp_path)

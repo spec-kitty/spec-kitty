@@ -325,65 +325,27 @@ def _next_proposal_id(counter: list[int]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _has_review_feedback(event: dict[str, Any]) -> bool:
-    """Return True when a lane event carries documented review feedback."""
-    # Lazy import (cycle-breaker; see module note above _LOGGER).
-    from specify_cli.status import is_changes_requested
-
-    if event.get("review_ref"):
-        return True
-    evidence = event.get("evidence")
-    if isinstance(evidence, dict):
-        review = evidence.get("review")
-        if isinstance(review, dict):
-            return bool(review.get("reference")) and is_changes_requested(
-                review.get("verdict")
-            )
-    return isinstance(evidence, str) and bool(evidence.strip())
-
-
-_BACKWARD_LANE_MOVES: frozenset[tuple[str, str]] = frozenset({
-    ("for_review", "planned"),
-    ("for_review", "in_progress"),
-    ("for_review", "claimed"),
-    ("in_review", "planned"),
-    ("in_review", "in_progress"),
-    ("in_review", "claimed"),
-    ("in_progress", "planned"),
-    ("in_progress", "claimed"),
-    # Rejection after approval: ``approved -> planned`` / ``approved -> in_progress``
-    # are documented rework edges of the lane matrix (docs/architecture/
-    # status-model.md), and ``move-task --to <lane> --force`` can rewind from any
-    # lane — including terminal ``done`` — so all rewinds out of ``approved`` and
-    # ``done`` toward implementation lanes count as backward moves (#3687).
-    ("approved", "planned"),
-    ("approved", "in_progress"),
-    ("approved", "claimed"),
-    ("done", "planned"),
-    ("done", "in_progress"),
-    ("done", "claimed"),
-})
-
-
 def _is_backward_lane_event(event: dict[str, Any]) -> bool:
-    return (event.get("from_lane", ""), event.get("to_lane", "")) in _BACKWARD_LANE_MOVES
+    # Lazy import (cycle-breaker; see module note above _LOGGER).
+    from specify_cli.review.rejection_signal import is_backward_rework_move
+
+    return is_backward_rework_move(event)
 
 
 def _is_review_rejection_event(event: dict[str, Any]) -> bool:
-    """A documented reviewer-feedback rewind out of in_review or approved.
+    """A backward rework move carrying documented review feedback (#2267).
 
-    Rewinds out of ``in_review`` are the classic rejection; rewinds out of
-    ``approved`` are rejection-after-approval (a later verification pass sent
-    an already-approved WP back, e.g. ``move-task --to planned --force
-    --review-feedback-file <path>``).  Both count as rejections only when the
-    event carries documented review feedback; feedback-free force rewinds out
-    of ``approved`` are lane friction (#3687).
+    One predicate, owned by :mod:`specify_cli.review.rejection_signal`, so a
+    rejection the reviewer issued from ``for_review`` or ``in_progress``
+    (no ``in_review`` claim) counts the same as one out of ``in_review`` or
+    ``approved`` (#3687). Feedback-free rewinds, and rewinds whose
+    ``review_ref`` is an operational sentinel such as ``force-override``,
+    stay lane friction.
     """
-    return (
-        event.get("from_lane", "") in ("in_review", "approved")
-        and event.get("to_lane", "") in ("planned", "in_progress", "claimed")
-        and _has_review_feedback(event)
-    )
+    # Lazy import (cycle-breaker; see module note above _LOGGER).
+    from specify_cli.review.rejection_signal import is_documented_review_rejection
+
+    return is_documented_review_rejection(event)
 
 
 def _is_lane_friction_event(event: dict[str, Any]) -> bool:
@@ -393,9 +355,9 @@ def _is_lane_friction_event(event: dict[str, Any]) -> bool:
 def _detect_rejection_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
     """Return a mapping of wp_id -> rejection_cycle_count.
 
-    A rejection cycle is a documented reviewer-feedback rewind out of
-    in_review or approved.  Earlier for_review rewinds and feedback-free
-    force moves are lane friction, not review rejections.
+    A rejection cycle is a backward rework move carrying documented review
+    feedback (#2267).  Feedback-free rewinds are lane friction, not review
+    rejections.
     """
     rejection_counts: dict[str, int] = {}
     for event in events:
@@ -458,15 +420,20 @@ def _is_force_override_event(event: dict[str, Any]) -> bool:
     """Return True if this event is a meaningful operator-driven --force override.
 
     Excludes finalize-tasks / bootstrap synthetic events whose force=True is a
-    structural artifact, not an override.  Also excludes no-op transitions
-    (from_lane == to_lane) which carry no signal.
+    structural artifact, not an override, and no-op transitions
+    (from_lane == to_lane) which carry no signal.  Also excludes documented
+    review rejections: the state machine requires ``--force`` to send a WP
+    back with ``--review-feedback-file``, and that event already feeds the
+    ``review_loop`` finding (#2267).
     """
     if not event.get("force"):
         return False
     actor = str(event.get("actor", "")).lower()
     if actor in _BOOTSTRAP_ACTORS:
         return False
-    return event.get("from_lane") != event.get("to_lane")
+    if event.get("from_lane") == event.get("to_lane"):
+        return False
+    return not _is_review_rejection_event(event)
 
 
 def _detect_force_overrides(events: list[dict[str, Any]]) -> dict[str, int]:
@@ -569,28 +536,48 @@ def _detect_arbiter_overrides(events: list[dict[str, Any]]) -> dict[str, int]:
     return counts
 
 
-def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
-    """Count distinct planned→in_progress (or claimed→in_progress) cycles per WP.
+def _undocumented_reentries(wp_events: list[dict[str, Any]]) -> int:
+    """Count one WP's in_progress re-entries no documented rejection explains.
 
-    A WP that needs >1 implementation cycle indicates rework that didn't
-    surface as a documented review rejection.  Bootstrap and synthetic
-    transitions are excluded.
+    The first planned/claimed -> in_progress entry is the normal cycle.  A
+    documented review rejection licenses the next re-entry; a rejection that
+    lands in in_progress itself (``in_review -> in_progress``) is that
+    re-entry, so it consumes its own licence (#2267).
     """
     from specify_cli.status import Lane as _Lane  # cycle-breaker; see module note
-    counts: dict[str, int] = {}
+
+    entries = 0
+    undocumented = 0
+    licensed = False
+    for event in wp_events:
+        if str(event.get("actor", "")).lower() in _BOOTSTRAP_ACTORS:
+            continue
+        if _is_review_rejection_event(event):
+            licensed = event.get("to_lane") != _Lane.IN_PROGRESS
+            continue
+        if event.get("from_lane") in (_Lane.PLANNED, _Lane.CLAIMED) and event.get("to_lane") == _Lane.IN_PROGRESS:
+            entries += 1
+            if entries > 1 and not licensed:
+                undocumented += 1
+            licensed = False
+    return undocumented
+
+
+def _detect_implementation_cycles(events: list[dict[str, Any]]) -> dict[str, int]:
+    """Count in_progress re-entries per WP that no documented rejection explains.
+
+    A WP that re-enters implementation without a documented review rejection
+    indicates rework the review loop did not capture.  Re-entries that follow
+    a documented rejection are expected rework (#2267).  Bootstrap and
+    synthetic transitions are excluded.
+    """
+    by_wp: dict[str, list[dict[str, Any]]] = {}
     for event in events:
         wp_id = event.get("wp_id", "")
-        if not wp_id:
-            continue
-        actor = str(event.get("actor", "")).lower()
-        if actor in _BOOTSTRAP_ACTORS:
-            continue
-        from_lane = event.get("from_lane", "")
-        to_lane = event.get("to_lane", "")
-        if from_lane in (_Lane.PLANNED, _Lane.CLAIMED) and to_lane == _Lane.IN_PROGRESS:
-            counts[wp_id] = counts.get(wp_id, 0) + 1
-    # Only WPs with MORE THAN ONE cycle are interesting (the first cycle is normal).
-    return {wp: n for wp, n in counts.items() if n > 1}
+        if wp_id:
+            by_wp.setdefault(wp_id, []).append(event)
+    counts = {wp_id: _undocumented_reentries(wp_events) for wp_id, wp_events in by_wp.items()}
+    return {wp_id: n for wp_id, n in counts.items() if n > 0}
 
 
 def _collect_fr_references(wp_files: list[tuple[str, str]], declared_frs: set[str]) -> dict[str, set[str]]:
@@ -731,18 +718,18 @@ def _build_event_mining_findings(
             )
         )
 
-    # Multi-cycle implementations → not_helpful
+    # Undocumented implementation re-entries → not_helpful
     for wp_id, count in sorted(_detect_implementation_cycles(events).items()):
         ev_id = ev_reg.add_event_range(events_rel, "implementation_cycles", f"impl_cycles_{wp_id}")
         not_helpful.append(
             GenFinding(
                 id=_next_finding_id("n", finding_id_counters),
                 category="implementation",
-                summary=f"{wp_id} needed {count} implementation cycles",
+                summary=f"{wp_id} re-entered in_progress {count} time(s) without a documented review rejection",
                 details=(
-                    f"WP {wp_id} entered in_progress {count} times. Multiple implementation "
-                    "cycles suggest rework not captured as a documented review rejection; "
-                    "the WP scope or contract may need refinement."
+                    f"WP {wp_id} went back into implementation {count} time(s) with no "
+                    "documented review rejection before it. That rework was not captured "
+                    "by the review loop; the WP scope or contract may need refinement."
                 ),
                 evidence_refs=[ev_id],
             )
@@ -1205,10 +1192,10 @@ def _build_findings(
     has_ingestor_content = bool(
         workflow_failures_text or analysis_report_text or review_report_text
     )
-    # A WP that needed >1 implementation cycle already carries a not_helpful
-    # finding; it must never also appear in helped, whatever the lane-history
-    # taxonomy says (#3687 — the two detectors use different definitions of
-    # "this WP had rework", and helped must lose every disagreement).
+    # A WP with an undocumented implementation re-entry already carries a
+    # not_helpful finding; it must never also appear in helped, whatever the
+    # lane-history taxonomy says (#3687 — e.g. a blocked -> planned rewind is
+    # no backward rework move, and helped must lose every disagreement).
     clean_wps = [
         wp
         for wp in sorted(done_wps)
@@ -1248,8 +1235,8 @@ def _build_findings(
                 category="review_loop",
                 summary=f"{wp_id} required {count} rejection cycle(s) before approval",
                 details=(
-                    f"WP {wp_id} was sent back from review/approval to an earlier "
-                    f"lane {count} time(s)."
+                    f"WP {wp_id} was sent back to an earlier lane with documented "
+                    f"review feedback {count} time(s)."
                 ),
                 evidence_refs=[ev_id],
             )

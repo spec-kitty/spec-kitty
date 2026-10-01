@@ -46,7 +46,9 @@ logger = logging.getLogger(__name__)
 # FR-004 (kernel-clock-single-door WP03): defined once on the door
 # (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT), imported above; call sites here
 # are untouched (package remediation is WP13c's job).
-REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
+#: ``workflow-review-claim`` is the legacy spelling of ``action-review-claim``
+#: still present in older event logs (#2267).
+REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim", "workflow-review-claim"})
 
 #: #4327: synthetic approval/rejection tokens ``move-task`` mints when no real
 #: pointer exists (``review:<WP>``, ``approval:<WP>``, ``auto-approval:<WP>:<date>``).
