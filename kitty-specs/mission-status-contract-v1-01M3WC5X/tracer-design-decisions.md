@@ -52,14 +52,19 @@ loud, single allowed "no baseline" state.
 Matches the repository's other path-filtered workflows and leaves the release-branch expectation
 in `tests/ci/test_fleet_verdict.py` unchanged.
 
-## DD-8: opening campsite commit is one test file
+## DD-8: opening campsite commit is one test file, and only if the count holds
 
-Hoist the repeated pair of path-filtered workflow names in
-`tests/ci/test_fleet_verdict.py::test_all_existing_pr_workflows_are_registered` into one constant
-the three assertions use. Chosen because that function is the one FR-017 must edit, and because
-it avoids the pinning-inventory subjects so no new inventory rule appears. Rejected as grab-bag
-items: the stale `_CORPUS_GLOBS` documentation (open PR #5557 rewrites the file), the `ruff.toml`
-legacy baseline (unrelated), any `src/` debt (C-002).
+Hoist the whole-string literal `".github/workflows"`, which appears five times in
+`tests/ci/test_fleet_verdict.py` (twice in `test_new_pr_workflow_fails_closed`, once in
+`test_reporter_trigger_covers_every_registered_workflow_and_reruns`, twice in `replay_fixture`),
+into one module constant. Two of those functions are the ones FR-017 exercises, and the literal
+avoids the pinning-inventory subjects so no new inventory rule appears. The first draft named a
+repeated pair of workflow names in `test_all_existing_pr_workflows_are_registered`; that was false
+(the pair occurs once there) and is withdrawn. Drop rule: if the re-count after the implement-start
+rebase finds fewer than three occurrences, the opening commit is none and the PR body says no
+domain-matched debt was found. Rejected as grab-bag items: the stale `_CORPUS_GLOBS` documentation
+(open PR #5557 rewrites the file), the `ruff.toml` legacy baseline (unrelated), any `src/` debt
+(C-002).
 
 ## DD-9: a hidden byte-for-byte gate is part of the gate set
 
@@ -90,23 +95,57 @@ README-only edit still runs the structure check, as D-19 requires.
 Spec rows citing the removed dashboard scanner are replaced as follows (full table in `plan.md`):
 lifecycle derivation, next action, workflow phases, mission count and the registry cross-check
 become contract-owned `x-derived` rules with cited contract-field or status-domain inputs;
-friendly name cites `MissionIdentity` in `specify_cli/mission_metadata.py`; title, phase label,
-authored lists and prompt body cite `read_authored_wp_frontmatter` and `WPMetadata` in
-`specify_cli/status/wp_metadata.py`; subtask progress is `x-derived` from `WPView.subtasks`;
-accepted, merged and discarded stamps cite the metadata module. Not corrected here: stale
+friendly name cites the `friendly_name` key in `MissionMetaRequired` (`specify_cli/mission_metadata.py`;
+`MissionIdentity` has no such field); title, phase label, authored lists and prompt body cite
+`read_authored_wp_frontmatter` and `WPMetadata` in `specify_cli/status/wp_metadata.py`; subtask
+progress is `x-derived` from `ResolvedGroup.subtasks` (reached as `WPView.resolved.subtasks`;
+`WPView` has no `subtasks` attribute); accepted and merged stamps cite `MissionMetaOptional` and the
+stamping functions `record_acceptance` and `record_baseline_merge_commit`; `discarded_at` is stamped by
+`record_discard` and declared in no TypedDict. The seven-type lifecycle allow-list is contract-owned (a
+subset of the twelve-member `LIFECYCLE_EVENT_TYPES`) and the difference is printed on every run. These
+corrections are binding; `spec.md` stays unedited. Not corrected here: stale
 line-number cites inside the Proposed read-API ADR (history, C-011), and two spec mentions of
 paths that do not exist on this checkout (`tests/ci/test_corpus_blocking_home.py`, from open PR
 #5557; `.kittify/release/downstream-verified.json`, a documentation-only glob).
 
 ## DD-14: charter and CLAUDE.md drift on merge enforcement; charter wins
 
-Probed read-only: no branch protection, no rulesets. "Enforced" in this plan means a red job the
-fleet verdict reads, not a GitHub required check; CODEOWNERS review is advisory.
+Probed read-only: no branch protection, no rulesets. The plan uses three tiers and never "enforced"
+without one: tier 1 is a job that is a `needs` of `router-gate`, `modules-gate` or `aggregate-gate`;
+tier 2 is a job whose workflow the fleet verdict reads but whose red turns no terminal gate red (all
+the new contracts jobs); tier 3 is local discipline. No tier is a GitHub required check, so even
+tier 1 stops a merge only because the merge agent declines a red gate. CODEOWNERS review is advisory.
 
-## DD-15: UI early-start is the end of IC-04; pin-grade is the end of IC-09
+## DD-15: the end of IC-04 is an unvalidated preview; stable is a green contracts run; pin-grade is the end of IC-09
 
-Earlier partial points exist at the end of IC-02 and IC-03. After the early-start point only
-additive or nullability-relaxing changes are allowed, each logged in the module CHANGELOG.
+At the end of IC-04 only the Python resolver and the examples test have read the split contract, so
+that point carries no stability promise. The stable marker is the first green contracts-workflow run
+with the client smoke green on the real split root; pin-grade is the end of IC-09. After the preview
+point the commitment is a process one: shape changes are announced in the module CHANGELOG under
+`Pre-release shape change`, unless the #5528 acknowledgement requests otherwise (CL-1). Making a
+property optional or nullable is breaking for generated clients, so "additive or nullability
+relaxing" is withdrawn as a safety claim. Refs go out as tags outside the release namespaces, not as
+commit hashes, because the plan rebases and compacts history.
+
+## DD-16: IC-07 is split so a workflow skeleton can run the bundler-fidelity spike early
+
+CI is the only place the JVM tools run, and the workflow was originally authored last, after
+IC-01 and IC-05 had built on the resolver. IC-07a (skeleton, shared-CI edits, spike) now follows IC-01
+directly and its recorded result gates IC-05 and IC-07b; IC-08 keeps the remaining jobs, release
+workflow, guards and negative tests.
+
+## DD-17: planted leak fixtures are built at run time
+
+Leak-class plants (host paths, e-mail addresses, forbidden property names) are assembled from
+fragments by `contracts/tools/fixture_builder.py` into a temporary root; only clean controls are
+committed. The text-level leak scan therefore has no exempt directory or marker line, and the plan's
+"no allowlist" statement holds (C-006).
+
+## DD-18: contract releases are created with `--latest=false`
+
+A GitHub Release for a contract tag would otherwise be a candidate for the repository's Latest
+marker. `--prerelease` is added only for a prerelease semver. The guard test asserts the flags, the
+dry run prints the argument list, and the operator verifies the Latest release after merge.
 
 - (append during implement and review)
 

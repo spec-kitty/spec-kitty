@@ -23,6 +23,11 @@ Entries are short and dated; the entry is written when the friction happens.
   Standing rule from here on: planning and implementation use `materialize_snapshot` or
   `read_events` only; the reality check (FR-019) additionally hashes every tracked file under
   `kitty-specs/` before and after, so a writer cannot slip back in unnoticed.
+  **Disposition of the documented-example trap.** The CLAUDE.md "Status Model Patterns" example
+  presents `materialize` as a read call; it is a writer. That is a documentation defect outside
+  C-002's `src/` scope and is not folded into this Mission and not edited here (CLAUDE.md is untouched).
+  It is recorded as a friction and ledger candidate and handed to the orchestrator for a ledger entry
+  or a doc fix by a separate change.
 - **F-2 (2026-10-01, mission create) - topology derived `lanes`, not `single_branch`.**
   `spec-kitty agent mission create` run with a non-primary `--start-branch` on 4.0.0rc5 derived
   topology `lanes` (recorded in `meta.json`). The `sk` hub predicts `single_branch` for this
@@ -34,10 +39,15 @@ Entries are short and dated; the entry is written when the friction happens.
 - **F-3 (2026-10-01, mission create) - scaffold commit message violates the terminology canon.**
   `agent mission create` auto-commits with the subject
   `Add scaffold for feature mission-status-contract-v1-01M3WC5X` (legacy wording quoted verbatim;
-  the canonical term is Mission). Known ledger item SK-64: commitlint ignores that shape on
-  purpose and the terminology guard does not read commit messages, so no gate fails; it is a
-  wording defect in the tool. Handled at PR prep by the history-compaction step, which rewrites
-  the subject to canonical wording. Not fixable from this Mission (C-002: no `src/` change).
+  the canonical term is Mission). The `commitlint.config.cjs` ignore list covers
+  `(Add|Update) (meta|spec|tasks|plan) for (feature|mission)`; the word "scaffold" is **not** in that
+  alternation, so the subject is outside the ignore list. No gate fails for a different reason: the
+  `commit-msg` job in `ci-router.yml` only prints commit subjects and ends in `|| true`, so it never
+  runs commitlint and cannot fail (ledger entry SK-246, open). The older ledger entry SK-64 was
+  retracted and replaced (its real finding is a gap in the tool-commit ignore list), so it is not the
+  reason either. The terminology guard does not read commit messages. It is a wording defect in the
+  tool. Handled at PR prep by the history-compaction step, which rewrites the subject to canonical
+  wording. Not fixable from this Mission (C-002: no `src/` change).
 - **F-4 (2026-10-01, planning) - `make ci-parity` shells out to bare `uv run`.**
   The Makefile target runs `uv run --frozen python scripts/ci/local_gate_parity.py`. Bare `uv run`
   re-syncs the environment, which this checkout's rules forbid (a hand-built `.venv` is destroyed
@@ -54,7 +64,9 @@ Entries are short and dated; the entry is written when the friction happens.
   (`ci-quality.yml`, the retired job id, `make test-fast`) is a newly discovered rule with a null
   disposition, which also reds it. Neither the spec nor the charter mentions this gate. Plan
   response: regenerate the inventory with its own script in the same WP (never hand-edit), keep the
-  gate in the named-file set, and keep new text free of the three subjects.
+  gate in the named-file set, and keep new text free of the three subjects. Where it runs: only when
+  `tests/release/**` is in the diff (the `release` module shard, selected through the test mirror), so
+  a diff touching only `scripts/ci/` and `tests/ci/` never runs it; regeneration is the author's duty.
 - **F-6 (2026-10-01, planning) - the tracer-file location differs between doctrine and sibling missions.**
   The `mission-tracer-files` procedure says `traces/tooling-friction.md` etc. Both layouts exist
   in `kitty-specs/`: 83 Mission directories carry a `traces/` subdirectory and 57 carry flat
@@ -65,14 +77,16 @@ Entries are short and dated; the entry is written when the friction happens.
   `java`, `gradle`, `vacuum`, `oasdiff` and `go` are all absent from the PATH here. The contracts
   workflow's tool jobs can therefore only be exercised in CI; every Python tool is runnable
   locally. Consequence for the plan: the Gradle/vacuum/oasdiff WP has a slow, CI-only feedback loop
-  and opens with a bundler-fidelity spike (see `research.md`, R-3) so a surprise surfaces early.
+  and opens with a bundler-fidelity spike (see `research.md`, R-3) behind a minimal workflow
+  skeleton (IC-07a), so a surprise surfaces early and before the content checks are built.
 - **F-8 (2026-10-01, planning) - the charter and CLAUDE.md disagree about merge enforcement.**
   Charter: "Nothing on GitHub enforces this workflow: there is no branch protection or required
   review." CLAUDE.md "Branches and CI": "GitHub branch protection and review requirements enforce
   the repository workflow". Read-only probes of the default branch return 404 for branch
   protection and an empty list for rulesets, so the charter is right. The charter wins; this plan
-  uses "enforced" to mean "a job whose red turns a router or aggregate gate red and is read by the
-  fleet verdict", never "a GitHub required check". CLAUDE.md drift flagged, not fixed here.
+  uses "enforced" only with a tier: tier 1 is a job that is a `needs` of a terminal gate (a router,
+  modules or aggregate gate), tier 2 is fleet-reported only, tier 3 is local; never "a GitHub required
+  check". CLAUDE.md drift flagged, not fixed here.
 - **F-9 (2026-10-01, planning) - the committed `MissionCreated` event carries a git e-mail identity.**
   `status.events.jsonl` of this Mission (written by the tool at create time) holds the operator's
   noreply git identity in `MissionCreated.payload.actor`. C-006 forbids e-mail addresses in files
@@ -88,6 +102,11 @@ Entries are short and dated; the entry is written when the friction happens.
   A subshell-in-background form (`( cmd > file; echo ) &`) returned immediately and the output file
   stayed empty; the run had to be repeated with the harness's own background mode. Cost: one
   wasted baseline run (about 70 s).
+- **F-12 (2026-10-01, plan review) - a plan citation was transcribed from the spec, not read.**
+  The plan named `MissionIdentity` as the source of `friendly_name`, `accepted_at` and `merged_at`,
+  `WPView.subtasks` and a "seven lifecycle constants" set; the code has them on `MissionMetaRequired`,
+  `MissionMetaOptional`, `ResolvedGroup.subtasks` and a twelve-member `LIFECYCLE_EVENT_TYPES`. Corrected
+  in plan section (l) by reading each symbol. Lesson: cite by symbol and read the declaring file.
 - (append during implement and review)
 
 ## Assess at close

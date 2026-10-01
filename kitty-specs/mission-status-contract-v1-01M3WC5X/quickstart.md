@@ -48,12 +48,16 @@ PWHEADLESS=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
   tests/architectural/test_module_shard_registry.py \
   tests/architectural/test_gate_selection_authority.py \
   tests/architectural/test_ci_router_transcription_guards.py \
+  tests/architectural/test_no_legacy_terminology.py \
   tests/ci/test_fork_guard.py tests/ci/test_fleet_verdict.py tests/ci/test_fleet_main.py \
+  tests/ci/test_prose_only.py tests/ci/test_ci_module_wiring.py \
   tests/ci/test_contracts_workflows.py tests/ci/test_contracts_routing.py \
-  tests/release/test_pinning_inventory_fresh.py
+  tests/release
 ```
 
-Baseline at planning: the pre-existing subset of that list (all but the two router-derivation guards and the two new `tests/ci/` files) was 265 passed, 1 skipped, 0 failed. After editing `scripts/ci/fleet_verdict.py` or the two fleet test files, regenerate the derived inventory with `python3 scripts/ci/derive_pinning_inventory.py` (never by hand) and re-run the freshness test.
+`tests/release` is the whole directory (15 test modules), not only the inventory freshness test: the regenerated inventory selects the `release` module shard, which runs all of it. A pull request that edits only `scripts/ci/` and `tests/ci/` would never run the freshness test, so regeneration is the author's job, not CI's.
+
+Baseline at planning: only eight of those files were measured (265 passed, 1 skipped, 0 failed): the four architectural gates, the three `tests/ci/` fleet and fork files, and `tests/release/test_pinning_inventory_fresh.py`. The rest (the two router-derivation guards, terminology, prose-only, module wiring, the other `tests/release` modules, the docs files and the commands below) are measured at implement start, before the first change, so a red can be classed pre-existing or introduced. After editing `scripts/ci/fleet_verdict.py` or the two fleet test files, regenerate the derived inventory with `python3 scripts/ci/derive_pinning_inventory.py` (never by hand) and re-run the freshness test.
 
 ## Which jobs a path set selects (read-only)
 
@@ -68,6 +72,22 @@ PY
 ```
 
 This is the same single authority the router uses; with the `contracts/**` glob present a contracts-only path set selects `tests-corpus` and no module shard.
+
+## Docs gates and the cutover guard (read-only)
+
+This Mission edits a docs page and the changelog, so the always-on `docs-lint` and the routed `tests-docs` run in CI. The changelog entry goes to `docs/changelog/CHANGELOG.md` (the root `CHANGELOG.md` is a symlink; edit the target in place), in American spelling and the house entry shape.
+
+```bash
+.venv/bin/python -m scripts.docs.check_spelling
+.venv/bin/python -m scripts.docs.check_changelog_style
+PWHEADLESS=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
+  tests/docs/test_docs_index_freshness.py tests/docs/test_docs_index.py \
+  tests/docs/test_docs_freshness_invariant.py tests/docs/test_changelog_style.py \
+  tests/docs/test_check_spelling.py
+.venv/bin/spec-kitty cutover-guard --base-ref origin/main
+```
+
+If a new `##` heading is added to `docs/development/reference/ci-gate-mechanics.md`, regenerate the committed index with `python -m scripts.docs.docs_index --write` (never by hand). Record the `cutover-guard` verdict at implement start and at PR prep.
 
 ## Lint and format (whole repository, as CI runs them)
 
@@ -86,3 +106,7 @@ Checksum code needs a one-line `# noqa: TID251` with a file-integrity justificat
 ```
 
 Paste the output in the PR body. No CI job measures this; it is local discipline.
+
+## Reader authors: the reality check is not selected by a reader edit
+
+A pull request that edits a status reader, or only `tests/contract/**`, selects no job that runs the reality check; the push-to-`main` run of `built-in-corpus-suite` is the net. Run it locally before pushing such a change: `PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_mission_status_reality.py`. The same one-line command goes in `contracts/README.md` beside the reader-author warning.

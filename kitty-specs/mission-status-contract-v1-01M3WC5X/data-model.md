@@ -15,6 +15,10 @@ Phase 1 output of the plan. The authoritative field catalogue is the spec's "Con
 | Page cursor | opaque token | `contracts/_shared/` | No schema relationship to the stream cursor. |
 | Problem | n/a | `contracts/_shared/` (`application/problem+json`) | The only non-2xx body. |
 
+## Citation sources (binding corrections to the spec)
+
+The spec's source names are corrected as follows; `spec.md` is not edited and this table, with plan section (l), governs. `friendlyName`: the `friendly_name` key declared in `MissionMetaRequired` (`specify_cli/mission_metadata.py`); `MissionIdentity` has no such field (it has `mission_slug`, `mission_number`, `mission_type`, `mission_id`). `acceptedAt`, `mergedAt`: `accepted_at` and `merged_at`, declared in `MissionMetaOptional`; stamped by `record_acceptance` (`mission_metadata.py`) and `record_baseline_merge_commit` (`specify_cli/consolidation/baseline.py`). `discardedAt`: stamped by `record_discard` in `mission_metadata.py` and declared in neither TypedDict, so its citation names the raw mapping returned by `load_meta` and the `discarded_at` key. `subtaskProgress`: done and total from `ResolvedGroup.subtasks` (the event-sourced mapping reached as `WPView.resolved.subtasks`); `WPView` has no `subtasks` attribute and `AuthoredGroup.subtasks` (authored ids) is not used.
+
 ## Vocabularies (closed, ungrouped)
 
 - **StatusLane** (nine display values): planned, claimed, in_progress, for_review, in_review, approved, done, blocked, canceled. Source: the `Lane` enum in `specify_cli/status/models.py` (it also carries `genesis` and `uninitialized`, which are not display values: an event-less work package reads as a null `statusLane`, and `statusLaneCounts` has exactly the nine keys, all required).
@@ -44,7 +48,7 @@ Pinned quirks: a Mission whose only remaining work packages are blocked reads as
 | implement | `wpTotal` above 0 and every work package is for_review, in_review, approved, done or canceled | any work package has left planned or blocked | no work package has left planned or blocked (including zero work packages) | `derived_from_status_lanes` |
 | review | `wpTotal` above 0 and every work package is done or canceled | any work package is for_review, in_review, approved or done | none of those | `derived_from_status_lanes` |
 
-Implement is evaluated before review. The seven lifecycle event type constants are in `specify_cli/status/lifecycle_events.py`.
+Implement is evaluated before review. The phase rules read six marker constants, `SPECIFY_STARTED`, `SPECIFY_COMPLETED`, `PLAN_STARTED`, `PLAN_COMPLETED`, `TASKS_STARTED` and `TASKS_COMPLETED`, defined in `specify_cli/status/lifecycle_events.py`.
 
 **readyToStart**: true only when `statusLane` is `planned` and the readiness result (`dependency_readiness_for_wp` in `specify_cli/core/dependency_graph.py`) is satisfied; false for every other lane, including null. **blockedCount**: `statusLaneCounts.blocked`. **lastActivityAt**: the maximum work package `lastTransitionAt`. **missionCount** (project): the number of overview records.
 
@@ -65,6 +69,8 @@ Implement is evaluated before review. The seven lifecycle event type constants a
 | status transition (has `to_lane`) | `status-transition` | `meta.json` `mission_id` | row `at` | row `event_id` |
 | lifecycle row whose `event_type` is MissionCreated, SpecifyStarted, SpecifyCompleted, PlanStarted, PlanCompleted, TasksStarted or TasksCompleted | `mission-lifecycle` | `meta.json` `mission_id` | row `timestamp` | row `event_id` |
 | anything else (annotations, WPCreated, ReviewerSelfApproval, decision-point rows, retrospective rows, unknown kinds) | dropped, counted per event type, never forwarded | | | |
+
+The seven-type lifecycle allow-list (`MISSION_CREATED` plus the six phase markers) is **contract-owned**: it is a set owned by the projection helper and the contract's event mapping, not a constant in `lifecycle_events.py`, whose `LIFECYCLE_EVENT_TYPES` has twelve members (the seven plus `PROJECT_INITIALIZED`, `WP_CREATED`, `REVIEWER_SELF_APPROVAL`, `MISSION_REOPENED`, `FOLLOW_UP_RECORDED`). A type added upstream later is dropped by design; `event_mapping_check` and the reality check print `LIFECYCLE_EVENT_TYPES` minus the allow-list on every run so a new type is a visible, deliberate drop.
 
 `missionId` never comes from `aggregate_id`. A third kind, `log-truncated`, is emitted by the (future) reader when the tail reader signals truncation (`size_shrink` or `content_mismatch`), with a reset cursor at offset 0 and the empty digest.
 
