@@ -443,5 +443,5 @@ test_owned_checkout_single_authority:
 # count, per the loader module's own docstring). Charter Burn-down Policy (a):
 # first cap on the (module, name) dead-symbol allowlist.
 test_no_dead_symbols:
-  allowlist_entries: 293  # justification: first cap (Burn-down (a)) on the (module, name) dead-symbol allowlist introduced by test-suite-remediation-01M3SSDW (#5346); value = live count at landing.
-  widened_grandfathered_470: 91  # justification: RK-6 ruling -- the widened #470 grandfathered list (moved into this YAML by WP11) is also a mutable architectural allowlist (Burn-down (a)); capped with a second leaf in the same section so no new top-level key is needed; value = live count at landing.
+  allowlist_entries: 294  # justification: first cap (Burn-down (a)) on the (module, name) dead-symbol allowlist introduced by test-suite-remediation-01M3SSDW (#5346); value = live count at landing. +1 (293->294) for `_run_index_doctor::register` (#5390), reached only via doctor.py's dynamic auto-discovery like its `_provenance_doctor::register` sibling.
+  widened_grandfathered_470: 92  # justification: RK-6 ruling -- the widened #470 grandfathered list (moved into this YAML by WP11) is also a mutable architectural allowlist (Burn-down (a)); capped with a second leaf in the same section so no new top-level key is needed; value = live count at landing. +1 (91->92) for `runtime_bridge_io::save_feature_runs` (#5390), a retained external/test-symmetry compat seam left without a src caller by the RunIndex port.

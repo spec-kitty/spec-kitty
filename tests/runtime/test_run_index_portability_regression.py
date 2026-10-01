@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import multiprocessing as mp
-import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -133,7 +132,8 @@ def test_run_index_never_persists_an_absolute_run_dir(tmp_path: Path) -> None:
 
 
 def _concurrent_start_worker(barrier: Any, repo_root_str: str, slug: str) -> None:
-    os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
+    # SPEC_KITTY_NO_UPGRADE_CHECK is set by the parent (monkeypatch) and inherited
+    # through the fork context, so the worker needs no os.environ mutation of its own.
     import contextlib  # noqa: PLC0415
 
     from runtime.next import runtime_bridge_io as io  # noqa: PLC0415
@@ -143,10 +143,13 @@ def _concurrent_start_worker(barrier: Any, repo_root_str: str, slug: str) -> Non
     io.get_or_start_run(slug, Path(repo_root_str), _MISSION_TYPE)
 
 
-def test_concurrent_distinct_mission_starts_retain_every_registration(tmp_path: Path) -> None:
+def test_concurrent_distinct_mission_starts_retain_every_registration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5389 (two-process): concurrent ``next`` starts of distinct missions must
     all survive in the run index. RED pre-fix (unlocked read-modify-write → lost
     update); deterministically GREEN post-fix (the lock serializes the writes)."""
+    # Set in the parent so the forked workers inherit it (no per-worker os.environ
+    # mutation — keeps the sealed subprocess-entry global-state class at its cap).
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
     repo = tmp_path / "repo"
     count = 2  # "two starts suffice" (#5389); a true two-process concurrent start
     missions = [(f"race-{i}", f"01RACE{i:020d}") for i in range(count)]

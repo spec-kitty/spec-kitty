@@ -28,7 +28,6 @@ owns:
   - tests/init/test_init_minimal_integration.py
   - tests/review/test_lock.py
   - tests/runtime/next/test_import_paths.py
-  - tests/runtime/test_run_index_portability_regression.py
   - tests/terminus/conftest.py
   - tests/unit/convergence/test_census_status.py
   - tests/upgrade/preview_support/write_observer.py
@@ -65,12 +64,6 @@ rows:
   - file: tests/glossary/bench_chokepoint.py
     qualname: "<module>"
     kind: sys.path
-    count: 1
-    class: subprocess-entry
-    reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
-  - file: tests/runtime/test_run_index_portability_regression.py
-    qualname: "_concurrent_start_worker"
-    kind: os.environ
     count: 1
     class: subprocess-entry
     reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
