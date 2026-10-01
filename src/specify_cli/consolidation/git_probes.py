@@ -15,12 +15,20 @@ import contextlib
 import re
 import subprocess
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.console import Console
 
+from kernel.git import (
+    GitCommandError,
+    StatusEntry,
+    changed_entries,
+    commit_paths,
+    status_entries,
+    tree_entry,
+)
 from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.constants import KITTIFY_DIR
@@ -94,51 +102,41 @@ def path_is_under_worktrees(path: Path) -> bool:
     return bool(is_under_worktrees_segment(path))
 
 
-def _raw_porcelain_status(repo_root: Path) -> tuple[int, str]:
-    """Return ``(returncode, raw_stdout)`` for ``git status --porcelain``.
+def _raw_porcelain_status(repo_root: Path) -> tuple[int, tuple[StatusEntry, ...]]:
+    """Return ``(returncode, entries)`` for ``git status --porcelain`` in *repo_root*.
 
-    Reads stdout RAW (not via ``run_command``) so the leading status column of
-    each porcelain line is preserved. Porcelain v1 emits ``XY<space>PATH`` (a
-    fixed 3-char prefix); for a tracked file that is modified-but-not-staged X
-    is a space (``" M path"``). ``run_command``'s whole-output ``.strip()`` would
-    remove the leading space of the *first* line only, shifting its columns so
-    ``_classify_porcelain_lines`` rejects it (``line[2] != " "``) and silently
-    drops the first divergent path. The post-merge working-tree invariant MUST
-    see every divergent line, so it reads porcelain via this helper instead.
+    The entries are typed :class:`~kernel.git.StatusEntry` records read from
+    NUL-delimited output, so a path git would quote (a space, non-ASCII) and the
+    leading status column of a modified-but-not-staged file (``" M path"``) are
+    carried as data rather than re-parsed from a rendered line. The post-merge
+    working-tree invariant MUST see every divergent entry, including the first.
 
-    Mirrors the raw-read pattern documented in
-    :func:`specify_cli.cli.commands.implement._feature_dir_status_entries`.
+    A failed ``git status`` is reported as ``(git's exit code, ())`` so the one
+    caller that reads it (the post-merge invariant) refuses the merge through its
+    own restore-and-exit path (fail closed) instead of crashing with a traceback.
     """
-    import subprocess as _subprocess
-
-    result = _subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    return result.returncode, result.stdout
+    try:
+        return 0, status_entries(repo_root, untracked=None)
+    except GitCommandError as exc:
+        return exc.returncode, ()
 
 
 def _classify_porcelain_lines(
-    lines: list[str],
+    entries: Sequence[StatusEntry],
     expected_paths: set[str],
     *,
     residue_predicate: Callable[[str], bool] | None = None,
-) -> tuple[list[str], int]:
-    """Classify ``git status --porcelain`` lines into offending vs ignored.
+) -> tuple[list[StatusEntry], int]:
+    """Classify ``git status --porcelain`` entries into offending vs ignored.
 
-    Returns a 2-tuple ``(offending_lines, skipped_untracked_count)`` where:
+    Returns a 2-tuple ``(offending_entries, skipped_untracked_count)`` where:
 
-    * ``offending_lines`` — lines that represent unexpected divergence from HEAD
+    * ``offending_entries`` — entries that represent unexpected divergence from HEAD
       (tracked modifications, deletions, renames, …).
-    * ``skipped_untracked_count`` — number of ``??`` (untracked) lines that were
+    * ``skipped_untracked_count`` — number of ``??`` (untracked) entries that were
       silently dropped because untracked files cannot diverge from HEAD.
 
-    Lines whose path component is in *expected_paths* are dropped because the
+    Entries whose path is in *expected_paths* are dropped because the
     immediately-following safe_commit will persist those files and they are
     therefore expected to be dirty at this point in the flow.
 
@@ -160,31 +158,35 @@ def _classify_porcelain_lines(
     this owner-module leg; only the self-bookkeeping check moved, not the residue
     leg — callers still supply their own topology-aware ``residue_predicate``.)
 
-    Lines that do not match porcelain v1 shape (two status chars + space + path)
-    are silently ignored to avoid false positives from mocked test output.
+    Paths are compared as data (``str(entry.path)`` and, for a rename or copy,
+    ``str(entry.orig_path)``), never re-parsed from a rendered line, so a path
+    git would quote is matched exactly like any other. A rename is exempt only
+    when both its new and its source path are exempt; otherwise the source
+    deletion would be hidden behind an expected destination.
     """
     from specify_cli.coordination.coherence import is_self_bookkeeping_churn
 
-    offending: list[str] = []
+    def _is_exempt(path_part: str) -> bool:
+        if path_part in expected_paths:
+            return True
+        if residue_predicate is not None and residue_predicate(path_part):
+            return True
+        return bool(is_self_bookkeeping_churn(path_part))
+
+    offending: list[StatusEntry] = []
     skipped_untracked = 0
-    for line in lines:
-        if not line.strip():
-            continue
-        # Porcelain v1: two status chars + space + path (minimum 4 chars).
-        if len(line) < 4 or line[2] != " ":
-            continue
-        status_code = line[:2]
-        if status_code == "??":
+    for entry in entries:
+        if entry.is_untracked:
             skipped_untracked += 1
             continue  # untracked files cannot diverge from HEAD
-        path_part = line[3:].strip()
-        if path_part in expected_paths:
+        # A rename/copy is exempt only when BOTH sides are: exempting on the
+        # new path alone would hide the deletion of the source path.
+        sides = [str(entry.path)]
+        if entry.orig_path is not None:
+            sides.append(str(entry.orig_path))
+        if all(_is_exempt(side) for side in sides):
             continue
-        if residue_predicate is not None and residue_predicate(path_part):
-            continue
-        if is_self_bookkeeping_churn(path_part):
-            continue
-        offending.append(line)
+        offending.append(entry)
     return offending, skipped_untracked
 
 
@@ -268,19 +270,16 @@ def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
                 candidate = candidate.relative_to(repo_root)
         normalized.append(str(candidate))
 
-    ret_status, out_status, err_status = run_command(
-        ["git", "status", "--porcelain", "--", *normalized],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret_status != 0:
+    try:
+        return bool(status_entries(repo_root, pathspecs=normalized, untracked=None))
+    except GitCommandError as exc:
+        # Guard: an unreadable status counts as "changed" (fail closed) so the
+        # bookkeeping commit is attempted rather than skipped.
         logger.warning(
             "Could not inspect post-merge bookkeeping paths before commit: %s",
-            (err_status or "").strip(),
+            exc.stderr.strip(),
         )
         return True
-    return bool((out_status or "").strip())
 
 
 def _is_git_repo(path: Path) -> bool:
@@ -515,25 +514,11 @@ def changed_paths_in_range(repo_root: Path, base: str, tip: str) -> list[tuple[s
     any git error (fail-closed; mirrors :func:`commits_in_range`), so the squash
     content axis REFUSEs on an unevaluable window rather than passing vacuously.
     """
-    ret, out, err = run_command(
-        ["git", "diff", "--name-status", "--no-renames", f"{base}..{tip}"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git diff --name-status {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
-    changes: list[tuple[str, str]] = []
-    for line in out.splitlines():
-        if not line.strip():
-            continue
-        parts = line.split("\t", 1)
-        if len(parts) != 2:
-            continue
-        status, path = parts[0].strip(), parts[1].strip()
-        if status and path:
-            changes.append((status, path))
-    return changes
+    try:
+        entries = changed_entries(repo_root, f"{base}..{tip}")
+    except GitCommandError as exc:
+        raise GitProbeError(f"git diff --name-status {base}..{tip} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+    return [(entry.status, str(entry.path)) for entry in entries]
 
 
 def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
@@ -554,22 +539,12 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
     (fail-OPEN). Raising here routes the caller into the existing
     ``GitProbeError`` REFUSE path instead.
     """
-    import subprocess as _subprocess
-
     if not sha:
         return []
-    result = _subprocess.run(
-        ["git", "show", "--name-only", "--format=", "--no-renames", sha],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        raise GitProbeError(f"git show --name-only {sha} failed (exit {result.returncode}): {(result.stderr or '').strip()}")
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    try:
+        return [str(path) for path in commit_paths(repo_root, sha)]
+    except GitCommandError as exc:
+        raise GitProbeError(f"git show --name-only {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
 
 
 def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
@@ -592,22 +567,15 @@ def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
     could not be read" must never be conflated — the former is legitimate
     content the verifier may need to FAIL on, the latter must REFUSE.
     """
-    ret, out, err = run_command(
-        ["git", "ls-tree", ref, "--", path],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git ls-tree {ref} -- {path} failed (exit {ret}): {(err or '').strip()}")
-    line = (out or "").strip()
-    if not line:
-        return None  # genuinely absent at this ref — not a probe failure
-    header, _tab, _tail = line.partition("\t")
-    fields = header.split()
-    if len(fields) < 3:
-        raise GitProbeError(f"git ls-tree {ref} -- {path} produced unparsable output: {line!r}")
-    return fields[2]
+    try:
+        entry = tree_entry(repo_root, ref, path)
+    except GitCommandError as exc:
+        raise GitProbeError(f"git ls-tree {ref} -- {path} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
+    except ValueError as exc:
+        # A path that is not repository-relative can never be recorded in a tree.
+        raise GitProbeError(f"git ls-tree {ref} -- {path} refused: {exc}") from exc
+    # A present path yields its entry; an absent one is a genuine ``None`` state.
+    return None if entry is None else entry.oid
 
 
 def is_merge_commit(repo_root: Path, sha: str) -> bool:

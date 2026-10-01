@@ -15,12 +15,18 @@ from unittest.mock import patch
 
 import pytest
 
+from kernel.git import GitCommandError, GitPath, StatusEntry
 from specify_cli.consolidation import git_probes
 
 # The subprocess-backed probes below spawn real ``git`` on a tmp repo, so this
 # file is an integration test that requires a git repo (Rule 1) and must NOT
 # carry ``fast`` (Rule 2 — subprocess work would poison the inner-loop profile).
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _porcelain_entries(lines: list[str]) -> list[StatusEntry]:
+    """Typed entries for plain ``XY path`` porcelain lines (no renames; blank lines skipped)."""
+    return [StatusEntry(xy=line[:2], path=GitPath.parse(line[3:].rstrip("/")), is_directory=line.endswith("/")) for line in lines if line.strip()]
 
 
 # --- path_is_under_worktrees -----------------------------------------------
@@ -63,23 +69,21 @@ def test_classify_porcelain_lines_buckets_correctly() -> None:
         " M src/changed.py",  # tracked modification -> offending
         "?? untracked.txt",  # untracked -> skipped, counted
         "M  kitty-specs/x.md",  # staged, but expected -> dropped
-        "",  # blank -> ignored
-        "bad",  # malformed shape -> ignored
         " D removed.py",  # deletion -> offending
     ]
-    offending, skipped = git_probes._classify_porcelain_lines(lines, expected_paths={"kitty-specs/x.md"})
-    assert offending == [" M src/changed.py", " D removed.py"]
+    offending, skipped = git_probes._classify_porcelain_lines(_porcelain_entries(lines), expected_paths={"kitty-specs/x.md"})
+    assert [entry.display() for entry in offending] == [" M src/changed.py", " D removed.py"]
     assert skipped == 1
 
 
 def test_classify_porcelain_lines_residue_predicate_drops_residue() -> None:
     lines = [" M kitty-specs/m/status.json", " M src/real.py"]
     offending, skipped = git_probes._classify_porcelain_lines(
-        lines,
+        _porcelain_entries(lines),
         expected_paths=set(),
         residue_predicate=lambda p: p.startswith("kitty-specs/"),
     )
-    assert offending == [" M src/real.py"]
+    assert [entry.display() for entry in offending] == [" M src/real.py"]
     assert skipped == 0
 
 
@@ -126,12 +130,13 @@ def test_has_branch_ref_true_false() -> None:
 
 
 def test_paths_have_status_changes_detects_dirty_and_clean(tmp_path: Path) -> None:
-    with patch.object(git_probes, "run_command", return_value=(0, " M a.py\n", "")):
+    with patch.object(git_probes, "status_entries", return_value=tuple(_porcelain_entries([" M a.py"]))):
         assert git_probes._paths_have_status_changes(tmp_path, [tmp_path / "a.py"])
-    with patch.object(git_probes, "run_command", return_value=(0, "", "")):
+    with patch.object(git_probes, "status_entries", return_value=()):
         assert not git_probes._paths_have_status_changes(tmp_path, [tmp_path / "a.py"])
     # git failure -> conservative True.
-    with patch.object(git_probes, "run_command", return_value=(1, "", "err")):
+    failure = GitCommandError(argv=("status",), cwd=tmp_path, returncode=1, stderr="err")
+    with patch.object(git_probes, "status_entries", side_effect=failure):
         assert git_probes._paths_have_status_changes(tmp_path, [tmp_path / "a.py"])
 
 
@@ -189,9 +194,9 @@ def test_raw_porcelain_status_preserves_leading_column(tmp_path: Path) -> None:
     subprocess.run(["git", "commit", "-qm", "init"], cwd=repo, check=True)
     # Modify the tracked file without staging -> porcelain " M a.txt".
     (repo / "a.txt").write_text("two\n", encoding="utf-8")
-    rc, out = git_probes._raw_porcelain_status(repo)
+    rc, entries = git_probes._raw_porcelain_status(repo)
     assert rc == 0
-    assert out.startswith(" M a.txt"), repr(out)
+    assert [(entry.xy, str(entry.path)) for entry in entries] == [(" M", "a.txt")]
 
 
 # --- squash-content probes (T015 / #5013) — blob_id_at, changed_paths_in_range,

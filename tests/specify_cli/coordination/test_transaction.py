@@ -25,6 +25,7 @@ from typing import Any
 import pytest
 
 import specify_cli.coordination.transaction as transaction_module
+from kernel.git import GitCommandError
 from specify_cli.coordination.transaction import (
     BookkeepingCommitFailed,
     BookkeepingDoubleEventId,
@@ -951,15 +952,13 @@ def test_worktree_has_pending_changes_fails_open_when_git_unreadable(
         txn.append_event(_make_event("WP01", "claimed"))
         assert txn._staged_paths
 
-        def _unreadable_status(
-            *_args: Any, **_kwargs: Any
-        ) -> subprocess.CompletedProcess[str]:
-            return subprocess.CompletedProcess(
-                args=[], returncode=128, stdout="", stderr="fatal: not a git repository",
+        def _unreadable_status(*_args: Any, **_kwargs: Any) -> tuple[()]:
+            raise GitCommandError(
+                argv=("status",), cwd=repo, returncode=128, stderr="fatal: not a git repository",
             )
 
         with monkeypatch.context() as m:
-            m.setattr(transaction_module.subprocess, "run", _unreadable_status)
+            m.setattr("specify_cli.coordination.transaction.status_entries", _unreadable_status)
             assert txn._worktree_has_pending_changes() is True
 
         txn.commit("status: cleanup after fail-open probe")

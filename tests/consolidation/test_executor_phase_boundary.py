@@ -22,12 +22,16 @@ from unittest.mock import patch
 import pytest
 import typer
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands import consolidate as shim
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.baseline import BaselineMergeCommitError
 from specify_cli.consolidation.state import ConsolidationState
 
 pytestmark = pytest.mark.fast
+
+
+_UNEXPECTED = StatusEntry(xy=" M", path=GitPath.parse("src/unexpected.py"))
 
 
 def _make_run(tmp_path: Path, *, done_marked_before_target: bool = False) -> ex._MergeRunState:
@@ -100,7 +104,7 @@ def test_locked_driver_calls_phases_in_frozen_order() -> None:
         "_phase_bake_and_pre_target_done(run)",
         "_phase_mission_to_target(run)",
         "_phase_capture_and_baseline(run)",
-        "_phase_record_done_and_project(run)",
+        "_phase_record_done_and_project_or_roll_back(run)",
         "_phase_porcelain_invariant(run)",
         "_phase_commit_and_assert(run)",
     ]
@@ -214,8 +218,8 @@ def test_porcelain_invariant_violation_restores_then_exits(tmp_path: Path) -> No
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"orig"}
 
     with (
-        patch.object(ex, "_raw_porcelain_status", lambda *_a, **_k: (0, " M src/unexpected.py\n")),
-        patch.object(ex, "_classify_porcelain_lines", lambda *_a, **_k: ([" M src/unexpected.py"], 0)),
+        patch.object(ex, "_raw_porcelain_status", lambda *_a, **_k: (0, (_UNEXPECTED,))),
+        patch.object(ex, "_classify_porcelain_lines", lambda *_a, **_k: ([_UNEXPECTED], 0)),
         patch.object(
             ex,
             "restore_generated_artifact_snapshots",

@@ -28,6 +28,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.agent.tasks import (
     _filter_runtime_state_paths,
     _validate_ready_for_review,
@@ -95,17 +96,13 @@ def test_is_dossier_snapshot_filter_strips_only_snapshots() -> None:
 
 def test_filter_runtime_state_paths_drops_dossier_snapshot() -> None:
     """The shared porcelain filter must drop dossier snapshots (belt-and-suspenders)."""
-    porcelain = "\n".join(
-        [
-            " M src/foo.py",
-            "?? kitty-specs/x/.kittify/dossiers/x/snapshot-latest.json",
-            " M README.md",
-        ]
+    entries = (
+        StatusEntry(xy=" M", path=GitPath.parse("src/foo.py")),
+        StatusEntry(xy="??", path=GitPath.parse("kitty-specs/x/.kittify/dossiers/x/snapshot-latest.json")),
+        StatusEntry(xy=" M", path=GitPath.parse("README.md")),
     )
-    filtered = _filter_runtime_state_paths(porcelain)
-    assert "snapshot-latest.json" not in filtered
-    assert "src/foo.py" in filtered
-    assert "README.md" in filtered
+    filtered = {str(entry.path) for entry in _filter_runtime_state_paths(entries)}
+    assert filtered == {"src/foo.py", "README.md"}
 
 
 # ---------------------------------------------------------------------------

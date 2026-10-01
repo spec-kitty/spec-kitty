@@ -32,6 +32,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final, Literal, Protocol, runtime_checkable
 
+from kernel.git import status_entries
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -92,6 +93,7 @@ class _ProtectionPolicyProtocol(Protocol):
     """
 
     def is_protected(self, ref: str) -> bool: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -770,9 +772,7 @@ def _group_files_by_partition(
         else:
             primary_files.append(file)
 
-    caller_partition_holds_everything = (
-        caller_is_primary and not coord_files
-    ) or (not caller_is_primary and not primary_files)
+    caller_partition_holds_everything = (caller_is_primary and not coord_files) or (not caller_is_primary and not primary_files)
     if caller_partition_holds_everything:
         # Every file lands in the caller's own partition — the historical
         # fast path: no extra resolve_placement_only call, byte-identical to
@@ -961,9 +961,7 @@ def _resolve_mid8(repo_root: Path, mission_slug: str) -> str | None:
         from specify_cli.mission_metadata import load_meta
         from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
         raw_mid = meta.get("mission_id") if meta else None
         if not isinstance(raw_mid, str) or len(raw_mid) < 8:
@@ -1104,9 +1102,7 @@ def _stage_artifacts_in_coord_worktree(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_planning_placement(
-    repo_root: Path, mission_slug: str, *, kind: MissionArtifactKind
-) -> CommitTarget:
+def _resolve_planning_placement(repo_root: Path, mission_slug: str, *, kind: MissionArtifactKind) -> CommitTarget:
     """Resolve the single planning-phase :class:`CommitTarget` for ``mission_slug``.
 
     WP05 / FR-003 / C-GUARD-3a (#1784): the ONE destination authority for every
@@ -1279,14 +1275,9 @@ def _paths_uncommitted_in_primary(repo_root: Path, files: tuple[Path, ...]) -> b
             rel = path.resolve().relative_to(repo_root.resolve())
         except ValueError:
             continue
-        proc = subprocess.run(
-            ["git", "status", "--porcelain", "--", str(rel)],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.stdout.strip():
+        # Guard (FR-013): an unreadable status must not read as "clean" and let a
+        # wrong-surface no-op pass as benign, so ``GitCommandError`` propagates.
+        if status_entries(repo_root, pathspecs=(rel.as_posix(),), untracked=None):
             return True
     return False
 

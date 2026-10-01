@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from kernel.git import changed_paths, run_git, tracked_paths
 from specify_cli.ast_analysis.imports import (
     assignment_lists_dunder_all,
     import_binds_name,
@@ -302,15 +303,9 @@ def _extract_changed_symbols(
     These are the symbols that assertions might reference and that may now be stale.
     """
     # Get list of changed Python source files, excluding tests/ directory.
-    diff_output = _git_run(
-        ["diff", "--name-only", base_ref, head_ref, "--", "*.py"],
-        cwd=repo_root,
-    )
-    changed_files = [
-        line.strip()
-        for line in diff_output.splitlines()
-        if line.strip() and not line.strip().startswith("tests/")
-    ]
+    # Default rename detection (as ``git diff --name-only``); ``*.py`` is a
+    # real glob, so it is passed as one. NUL-delimited, so a quoted file is seen.
+    changed_files = [str(path) for path in changed_paths(repo_root, base_ref, head_ref, renames=True, pathspecs=("*.py",), glob=True) if path.parts[0] != "tests"]
 
     symbols: list[_SourceSymbol] = []
 
@@ -809,16 +804,13 @@ def run_check(
 
     # Step 3: enumerate test files.
     try:
-        ls_output = _git_run(
-            ["ls-files", "tests/"],
-            cwd=repo_root,
-        )
-        test_files = [
-            repo_root / line.strip()
-            for line in ls_output.splitlines()
-            if line.strip().endswith(".py")
-        ]
+        # ``tracked_paths`` yields repository-root-relative paths, so resolve
+        # them against the repository top level (``repo_root`` may be a subdirectory).
+        top_level = Path(run_git(repo_root, "rev-parse", "--show-toplevel").stdout.decode("utf-8", "replace").strip())
+        test_files = [top_level / str(path) for path in tracked_paths(repo_root, pathspecs=("tests/",)) if path.name.endswith(".py")]
     except RuntimeError:
+        # Advisory (this analyzer reports, it does not gate): GitCommandError is
+        # a RuntimeError, and a failed listing scans no test files.
         test_files = []
 
     # Step 4: scan each test file.

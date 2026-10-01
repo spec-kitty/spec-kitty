@@ -5,6 +5,9 @@ Exercises _classify_porcelain_lines() to verify that:
 - Tracked modifications/deletions are offending (T003)
 - Mixed lines produce the correct split (T004)
 - expected_paths exemption works (T005)
+
+Entries are typed ``StatusEntry`` records (NUL-delimited porcelain), so the former
+"malformed line is ignored" case cannot occur and is gone.
 """
 
 from __future__ import annotations
@@ -14,12 +17,18 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.consolidate import (
     _classify_porcelain_lines,
     _refresh_primary_checkout_after_merge,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _porcelain_entries(lines: list[str]) -> list[StatusEntry]:
+    """Typed entries for plain ``XY path`` porcelain lines (no renames; blank lines skipped)."""
+    return [StatusEntry(xy=line[:2], path=GitPath.parse(line[3:].rstrip("/")), is_directory=line.endswith("/")) for line in lines if line.strip()]
 
 
 def test_classify_untracked_lines_returns_empty_offending() -> None:
@@ -29,7 +38,7 @@ def test_classify_untracked_lines_returns_empty_offending() -> None:
         "kitty-specs/test/status.events.jsonl",
         "kitty-specs/test/status.json",
     }
-    offending, skipped = _classify_porcelain_lines(lines, expected)
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), expected)
     assert offending == []
     assert skipped == 3
 
@@ -37,24 +46,24 @@ def test_classify_untracked_lines_returns_empty_offending() -> None:
 def test_classify_tracked_modification_is_offending() -> None:
     """' M' lines for tracked files are offending."""
     lines = [" M src/specify_cli/some_module.py"]
-    offending, skipped = _classify_porcelain_lines(lines, set())
-    assert offending == [" M src/specify_cli/some_module.py"]
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), set())
+    assert [entry.display() for entry in offending] == [" M src/specify_cli/some_module.py"]
     assert skipped == 0
 
 
 def test_classify_mixed_untracked_and_tracked() -> None:
     """Mix of ?? and ' M': tracked line is offending, untracked is not."""
     lines = ["?? .claude/", " M src/specify_cli/some_module.py"]
-    offending, skipped = _classify_porcelain_lines(lines, set())
-    assert offending == [" M src/specify_cli/some_module.py"]
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), set())
+    assert [entry.display() for entry in offending] == [" M src/specify_cli/some_module.py"]
     assert skipped == 1
 
 
 def test_classify_deletion_is_offending() -> None:
     """' D' lines are offending."""
     lines = [" D src/specify_cli/old_module.py"]
-    offending, skipped = _classify_porcelain_lines(lines, set())
-    assert offending == [" D src/specify_cli/old_module.py"]
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), set())
+    assert [entry.display() for entry in offending] == [" D src/specify_cli/old_module.py"]
     assert skipped == 0
 
 
@@ -62,7 +71,7 @@ def test_classify_expected_path_not_offending() -> None:
     """Paths in expected_paths are not offending regardless of status code."""
     lines = [" M kitty-specs/feat/status.events.jsonl"]
     expected = {"kitty-specs/feat/status.events.jsonl"}
-    offending, skipped = _classify_porcelain_lines(lines, expected)
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), expected)
     assert offending == []
     assert skipped == 0
 
@@ -70,19 +79,8 @@ def test_classify_expected_path_not_offending() -> None:
 def test_classify_empty_lines_ignored() -> None:
     """Empty and whitespace-only lines are silently dropped."""
     lines = ["", "   ", " M src/specify_cli/some_module.py"]
-    offending, skipped = _classify_porcelain_lines(lines, set())
-    assert offending == [" M src/specify_cli/some_module.py"]
-
-
-def test_classify_malformed_lines_ignored() -> None:
-    """Lines that don't match porcelain v1 shape are silently skipped."""
-    lines = ["M src/foo.py", "AB", "?? valid_untracked/"]
-    offending, skipped = _classify_porcelain_lines(lines, set())
-    # 'M src/foo.py' has no space at index 2 → skipped (malformed)
-    # 'AB' is too short (len < 4) → skipped
-    # '?? valid_untracked/' is untracked → skipped_untracked
-    assert offending == []
-    assert skipped == 1  # only the ?? line
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), set())
+    assert [entry.display() for entry in offending] == [" M src/specify_cli/some_module.py"]
 
 
 def test_classify_multiple_untracked_directories() -> None:
@@ -96,7 +94,7 @@ def test_classify_multiple_untracked_directories() -> None:
         "?? .kiro/",
         "?? .opencode/",
     ]
-    offending, skipped = _classify_porcelain_lines(lines, set())
+    offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), set())
     assert offending == []
     assert skipped == 7
 

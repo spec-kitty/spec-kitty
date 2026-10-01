@@ -125,9 +125,15 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         if "update-index" in cmd and "--refresh" in cmd:
             # Allow caller to simulate divergence via non-zero return.
             return (refresh_returncode, "", "stat info differs")
-        if "status" in cmd and "--porcelain" in cmd:
-            return (0, "", "")
         return (0, "", "")
+
+    def fake_status_entries(cwd, **kwargs):  # noqa: ANN001, ANN202
+        # The post-merge invariant reads status through the kernel.git typed query
+        # (``git status --porcelain=v1 -z``), not ``run_command``; log it in the
+        # same call log so the ordering assertion still sees the status check, and
+        # report a clean tree like the old mocked empty porcelain output.
+        call_log.append(("git", "status", "--porcelain=v1", "-z"))
+        return ()
 
     patches = [
         patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
@@ -148,6 +154,7 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         # git update-index --refresh) lives in the git_probes seam; spy its
         # run_command into the same call log so the FR-003 assertion still sees it.
         patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
+        patch("specify_cli.consolidation.git_probes.status_entries", side_effect=fake_status_entries),
         patch("specify_cli.consolidation.executor.has_remote", return_value=False),
         patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
         patch("specify_cli.consolidation.executor.clear_state"),
@@ -226,7 +233,7 @@ class TestPostMergeIndexRefresh:
 
         hard_reset_idx = _idx(lambda cmd: "reset" in cmd and "--hard" in cmd and "HEAD" in cmd)
         refresh_idx = _idx(lambda cmd: "update-index" in cmd and "--refresh" in cmd)
-        status_idx = _idx(lambda cmd: "status" in cmd and "--porcelain" in cmd)
+        status_idx = _idx(lambda cmd: "status" in cmd and any(a.startswith("--porcelain") for a in cmd))
 
         assert hard_reset_idx >= 0 and refresh_idx >= 0 and status_idx >= 0, (
             f"Missing one of hard-reset/refresh/status in call log: {call_log!r}"
@@ -247,7 +254,7 @@ class TestPostMergeIndexRefresh:
         # refresh_returncode=1 simulates "stat info differs" — must not raise.
         call_log = _drive_merge(tmp_path, slug, refresh_returncode=1)
         # safe_commit should still have been wired (proxy: status check ran).
-        assert any("status" in c and "--porcelain" in c for c in call_log), (
+        assert any("status" in c and any(a.startswith("--porcelain") for a in c) for c in call_log), (
             "Merge aborted before reaching the post-merge invariant check, "
             "indicating that a divergent `update-index --refresh` was treated "
             "as fatal. FR-003 requires it to be informational."

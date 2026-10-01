@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 import typer
 
+from kernel.git import GitCommandError, GitPath, StatusEntry
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.post_merge.stale_assertions import (
@@ -30,6 +31,11 @@ from specify_cli.post_merge.stale_assertions import (
 )
 
 pytestmark = pytest.mark.fast
+
+
+def _modified(path: str) -> StatusEntry:
+    """A worktree-modified tracked path as the typed porcelain entry."""
+    return StatusEntry(xy=" M", path=GitPath.parse(path))
 
 
 def _make_run(
@@ -541,6 +547,53 @@ def test_phase_record_done_restores_on_project_failure(tmp_path: Path) -> None:
     assert restored == [{tmp_path / "x": b"o"}]
 
 
+def _unreadable_window() -> GitCommandError:
+    return GitCommandError(argv=("rev-list", "a..b"), cwd=Path("."), returncode=128, stderr="fatal: bad revision")
+
+
+def test_phase_record_done_refuses_when_projection_window_unreadable(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """FR-013: an unreadable coord window after the target advanced is a refusal, not a traceback."""
+    run = _make_run(tmp_path, done_marked_before_target=True)
+    run.final_bookkeeping_snapshots = {tmp_path / "x": b"o"}
+    restored: list[object] = []
+    with (
+        patch.object(ex, "_project_status_bookkeeping_to_target", side_effect=_unreadable_window()),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
+        pytest.raises(typer.Exit) as excinfo,
+    ):
+        ex._phase_record_done_and_project(run)
+    assert excinfo.value.exit_code == 1
+    assert isinstance(excinfo.value.__cause__, GitCommandError)
+    assert restored == [{tmp_path / "x": b"o"}]
+    out = capsys.readouterr().out
+    assert "could not be read" in out
+    assert "Nothing was torn down" in out
+
+
+def test_record_done_refusal_rolls_back_through_the_single_authority(tmp_path: Path) -> None:
+    run = _make_run(tmp_path)
+    run.state.reconciliation_passed_target_sha = "anchor"
+    with (
+        patch.object(ex, "_phase_record_done_and_project", side_effect=typer.Exit(1)),
+        patch.object(ex, "_report_rollback") as rollback_mock,
+        pytest.raises(typer.Exit),
+    ):
+        ex._phase_record_done_and_project_or_roll_back(run)
+    rollback_mock.assert_called_once_with(run, anchor_before="anchor")
+
+
+@pytest.mark.parametrize("error", [typer.Exit(0), RuntimeError("raw")])
+def test_record_done_wrapper_rolls_back_only_on_a_refusal(tmp_path: Path, error: BaseException) -> None:
+    run = _make_run(tmp_path)
+    with (
+        patch.object(ex, "_phase_record_done_and_project", side_effect=error),
+        patch.object(ex, "_report_rollback") as rollback_mock,
+        pytest.raises(type(error)),
+    ):
+        ex._phase_record_done_and_project_or_roll_back(run)
+    rollback_mock.assert_not_called()
+
+
 def test_phase_record_done_success_sets_target_paths(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     events_p = tmp_path / "e.jsonl"
@@ -551,23 +604,28 @@ def test_phase_record_done_success_sets_target_paths(tmp_path: Path) -> None:
     assert run.target_status_path == status_p
 
 
-# --- _phase_porcelain_invariant: git-status-failed skip ----------------------
+# --- _phase_porcelain_invariant: git-status-failed refuses (fail closed) -----
 
 
-def test_phase_porcelain_skips_when_git_status_fails(tmp_path: Path) -> None:
+def test_phase_porcelain_refuses_when_git_status_fails(tmp_path: Path) -> None:
+    """FR-013: an unreadable working tree is not a clean one — refuse through the
+    same restore-and-exit path a violated invariant takes (re-pinned from the
+    former fail-open "check skipped" warning)."""
     run = _make_run(tmp_path)
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(1, "")),
+        patch.object(ex, "_raw_porcelain_status", return_value=(1, ())),
         patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
+        pytest.raises(typer.Exit) as exc,
     ):
         ex._phase_porcelain_invariant(run)
-    restore_mock.assert_not_called()
+    assert exc.value.exit_code == 1
+    restore_mock.assert_called_once_with(run.final_bookkeeping_snapshots)
 
 
 def test_phase_porcelain_clean_tree_passes(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(0, "")),
+        patch.object(ex, "_raw_porcelain_status", return_value=(0, ())),
         patch.object(ex, "_classify_porcelain_lines", return_value=([], 0)),
         patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
@@ -643,7 +701,7 @@ def test_phase_porcelain_folds_restored_gate_artifact_into_expected_paths(
     restored_path = tmp_path / "some" / "random" / "file.json"
     run.gate_artifact_restored_paths = [restored_path]
     with patch.object(
-        ex, "_raw_porcelain_status", return_value=(0, " M some/random/file.json")
+        ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))
     ):
         ex._phase_porcelain_invariant(run)  # must not raise typer.Exit
 
@@ -655,7 +713,7 @@ def test_phase_porcelain_flags_unrestored_unexpected_path(tmp_path: Path) -> Non
     run = _make_run(tmp_path)
     with (
         patch.object(
-            ex, "_raw_porcelain_status", return_value=(0, " M some/random/file.json")
+            ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))
         ),
         pytest.raises(typer.Exit) as exc,
     ):

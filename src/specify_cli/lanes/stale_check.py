@@ -58,6 +58,7 @@ def check_lane_staleness(
         return StaleCheckResult(is_stale=False)
 
     # Files changed in mission since merge-base.
+    # FR-013: advisory only — a failed diff reads as "not stale"; nothing is written or skipped on it.
     mission_files = set(git_diff_names(repo_root, merge_base, mission_branch))
 
     if not mission_files:

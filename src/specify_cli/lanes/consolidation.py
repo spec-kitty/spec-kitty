@@ -14,6 +14,7 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
+from kernel.git import GitCommandError, changed_paths
 from mission_runtime import MissionArtifactKind, placement_seam
 import os
 import subprocess
@@ -816,15 +817,12 @@ def _unmerged_paths(
     env: dict[str, str],
 ) -> tuple[str, ...]:
     """Return deterministic repo-relative paths still unresolved in the index."""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", "--diff-filter=U", "-z"],
-        cwd=str(worktree),
-        capture_output=True,
-        env=env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Could not inspect squash merge conflicts: {result.stderr.decode(errors='replace').strip()}")
-    return tuple(sorted(os.fsdecode(raw_path) for raw_path in result.stdout.split(b"\0") if raw_path))
+    try:
+        unmerged = changed_paths(worktree, diff_filter="U", env=env)
+    except GitCommandError as exc:
+        # Guard: the caller refuses the merge when the conflict set is unknown.
+        raise RuntimeError(f"Could not inspect squash merge conflicts: {exc.stderr.strip()}") from exc
+    return tuple(sorted(str(path) for path in unmerged))
 
 
 def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, str]) -> bool:

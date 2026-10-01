@@ -25,6 +25,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
@@ -232,8 +233,6 @@ def _paths_with_uncommitted_changes(repo_root: Path, paths: list[Path]) -> tuple
     ``safe_commit``) so a symlinked ``repo_root`` cannot raise ``ValueError`` out
     of ``Path.relative_to`` and abort the merge/close.
     """
-    from specify_cli.core.git_ops import run_command  # noqa: PLC0415
-
     resolved_root = repo_root.resolve()
     dirty: list[Path] = []
     for path in paths:
@@ -246,13 +245,13 @@ def _paths_with_uncommitted_changes(repo_root: Path, paths: list[Path]) -> tuple
             # to the absolute path, which git accepts inside the worktree).
             with contextlib.suppress(ValueError):
                 rel = str(path.resolve().relative_to(resolved_root))
-        ret, out, _ = run_command(
-            ["git", "status", "--porcelain", "--", rel],
-            capture=True,
-            check_return=False,
-            cwd=repo_root,
-        )
-        if ret == 0 and out.strip():
+        try:
+            entries = status_entries(repo_root, pathspecs=(rel,), untracked=None)
+        except GitCommandError:
+            # Advisory (module contract: fail-open, MUST NOT raise): a probe that
+            # failed reports the path as not dirty, exactly as before.
+            continue
+        if entries:
             dirty.append(path)
     return tuple(dirty)
 

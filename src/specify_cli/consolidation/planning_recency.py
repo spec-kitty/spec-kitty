@@ -31,7 +31,8 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from mission_runtime import is_primary_artifact_kind, kind_for_mission_file
-from specify_cli.core.vcs.git import git_diff_names, git_merge_base
+from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.core.vcs.git import git_diff_names_checked, git_merge_base
 
 __all__ = ["target_newer_primary_artifacts"]
 
@@ -45,6 +46,20 @@ def _is_primary_planning_path(rel: str) -> bool:
     """
     kind = kind_for_mission_file(rel)
     return kind is not None and is_primary_artifact_kind(kind)
+
+
+def _diff_names_or_refuse(repo: Path, base: str, head: str) -> tuple[str, ...]:
+    """Paths changed in ``base..head``; raise :class:`GitProbeError` when git fails.
+
+    Guard (FR-013): an unreadable diff must not read as "nothing changed" — an
+    empty target-side set would let the squash overwrite target-newer PRIMARY
+    artifacts in silence. ``GitProbeError`` is a ``RuntimeError``, the failure
+    class the lane-consolidation merge already refuses on.
+    """
+    names = git_diff_names_checked(repo, base, head)
+    if names is None:
+        raise GitProbeError(f"git diff {base}..{head} failed in {repo}; cannot tell which planning artifacts the target advanced")
+    return tuple(names)
 
 
 def _last_commit_committer_date(repo: Path, ref: str, rel: str) -> int | None:
@@ -103,8 +118,8 @@ def target_newer_primary_artifacts(
     merge_base = git_merge_base(repo, target_ref, source_ref)
     if merge_base is None:
         return []
-    target_changed = set(git_diff_names(repo, merge_base, target_ref))
-    source_changed = set(git_diff_names(repo, merge_base, source_ref))
+    target_changed = set(_diff_names_or_refuse(repo, merge_base, target_ref))
+    source_changed = set(_diff_names_or_refuse(repo, merge_base, source_ref))
 
     candidates = target_changed if changed_paths is None else set(changed_paths)
 

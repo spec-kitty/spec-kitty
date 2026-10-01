@@ -32,6 +32,7 @@ import contextlib
 import json
 import subprocess
 from kernel.clock import now_utc_iso
+from kernel.git import StatusEntry
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -676,12 +677,12 @@ class TestLegacyPlanningOnlyMetaInvariant:
         classified_lines: list[str] = []
 
         def classify_without_meta_membership(
-            lines: list[str], expected_paths: set[str], **kwargs: object
-        ) -> tuple[list[str], int]:
+            lines: list[StatusEntry], expected_paths: set[str], **kwargs: object
+        ) -> tuple[list[StatusEntry], int]:
             # Drop the F2 membership to recreate the pre-fix expected_paths.
             # Forward any keyword-only args (e.g. ``residue_predicate``) intact so
             # this spy stays signature-agnostic to the production classifier.
-            classified_lines.extend(lines)
+            classified_lines.extend(entry.display() for entry in lines)
             return real_classify(lines, expected_paths - {meta_rel}, **kwargs)
 
         def is_self_bookkeeping_churn_without_meta(path: object) -> bool:

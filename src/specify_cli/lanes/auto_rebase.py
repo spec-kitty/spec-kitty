@@ -32,6 +32,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.git import GitCommandError, changed_entries, changed_paths, tree_paths
 from kernel.locks import MachineFileLock
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.consolidation import (
@@ -162,16 +163,13 @@ def _run(
 
 def _list_conflicted_files(worktree: Path) -> list[Path]:
     """Return absolute paths to files currently in conflict in ``worktree``."""
-    result = _run(["git", "diff", "--name-only", "--diff-filter=U"], worktree)
-    if result.returncode != 0:
+    try:
+        conflicted = changed_paths(worktree, diff_filter="U", env=_make_merge_env())
+    except GitCommandError:
+        # Advisory: the caller aborts the merge fail-closed on an empty list
+        # ("git merge failed without conflicts"), so a failed probe never passes.
         return []
-    paths: list[Path] = []
-    for line in result.stdout.splitlines():
-        name = line.strip()
-        if not name:
-            continue
-        paths.append(worktree / name)
-    return paths
+    return [worktree / str(path) for path in conflicted]
 
 
 def _relative_path(file_path: Path, worktree: Path) -> str:
@@ -489,15 +487,14 @@ def _status_artifact_paths_from_ref(
     worktree: Path,
     ref: str,
 ) -> tuple[set[str], str | None]:
-    result = _run(
-        ["git", "ls-tree", "-r", "--name-only", ref, "--", KITTY_SPECS_DIR],
-        worktree,
-    )
-    if result.returncode != 0:
-        return set(), result.stderr.strip() or result.stdout.strip()
+    try:
+        tree = tree_paths(worktree, ref, pathspecs=[KITTY_SPECS_DIR], env=_make_merge_env())
+    except GitCommandError as exc:
+        # Guard: reported to the caller as an error string, which refuses.
+        return set(), exc.stderr.strip() or str(exc)
     return {
         rel_path
-        for rel_path in result.stdout.splitlines()
+        for rel_path in map(str, tree)
         if _is_status_events_path(rel_path) or _is_status_json_path(rel_path)
     }, None
 
@@ -559,20 +556,18 @@ def _refuse_preexisting_lane_status_deletions(
 
 
 def _staged_status_artifact_dirs(worktree: Path) -> tuple[set[Path], str | None]:
-    result = _run(["git", "diff", "--name-status", "--cached"], worktree)
-    if result.returncode != 0:
-        return set(), result.stderr.strip() or result.stdout.strip()
+    try:
+        staged = changed_entries(worktree, cached=True, renames=True, env=_make_merge_env())
+    except GitCommandError as exc:
+        # Guard: reported to the caller as an error string, which refuses.
+        return set(), exc.stderr.strip() or str(exc)
 
     feature_dirs: set[Path] = set()
-    for raw in result.stdout.splitlines():
-        fields = raw.strip().split("\t")
-        if not fields:
-            continue
-        status = fields[0]
-        rel_paths = fields[1:] or [status]
+    for entry in staged:
+        rel_paths = [str(entry.path)] if entry.orig_path is None else [str(entry.orig_path), str(entry.path)]
         for rel_path in rel_paths:
             if _is_status_events_path(rel_path):
-                if status.startswith(("D", "R")):
+                if entry.status.startswith(("D", "R")):
                     return set(), (
                         f"{RULE_ID_STATUS_EVENTS}: refusing staged deletion "
                         f"of {rel_path}"

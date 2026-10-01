@@ -16,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from kernel.git import changed_paths as git_changed_paths
+from kernel.git import run_git
 from mission_runtime import MissionArtifactKind, kind_for_mission_file, placement_seam
 
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
@@ -83,9 +85,7 @@ def _target_bookkeeping_status_paths(
     """
     safe_mission_slug = _validate_mission_slug_path_segment(mission_slug)
     target_feature_dir = (
-        placement_seam(main_repo, safe_mission_slug).read_dir(_TARGET_SURFACE_KIND)
-        if is_under_worktrees_segment(status_feature_dir)
-        else status_feature_dir
+        placement_seam(main_repo, safe_mission_slug).read_dir(_TARGET_SURFACE_KIND) if is_under_worktrees_segment(status_feature_dir) else status_feature_dir
     )
     safe_target_feature_dir = ensure_within_directory(target_feature_dir, main_repo)
     return (
@@ -117,9 +117,7 @@ def _assert_status_path_within_target_surface(
     """
     assert_safe_path_segment(mission_slug)
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    surface_root = placement_seam(repo_resolved, mission_slug).read_dir(
-        _TARGET_SURFACE_KIND
-    ).resolve(strict=False)
+    surface_root = placement_seam(repo_resolved, mission_slug).read_dir(_TARGET_SURFACE_KIND).resolve(strict=False)
     contained: Path = ensure_within_any(candidate, roots=[surface_root])
     return contained
 
@@ -154,11 +152,7 @@ def _assert_status_surface_path_is_trusted(
     # any containment check, then reject — pre-resolution — a path that escapes the
     # root its segment claims. Hardens the write path against a traversal/symlink
     # surface that would otherwise only be caught after ``.resolve()`` (#2043 Sonar).
-    status_candidate = (
-        status_feature_dir
-        if status_feature_dir.is_absolute()
-        else repo_resolved / status_feature_dir
-    ).absolute()
+    status_candidate = (status_feature_dir if status_feature_dir.is_absolute() else repo_resolved / status_feature_dir).absolute()
     segment_claims_worktrees = is_under_worktrees_segment(status_candidate)
     claimed_root = worktrees_root if segment_claims_worktrees else specs_root
     try:
@@ -356,11 +350,7 @@ def _project_status_bookkeeping_to_target(
     try:
         if union_events_bytes is not None:
             trusted_target_events_path.write_bytes(union_events_bytes)
-            trusted_target_status_path.write_bytes(
-                _rematerialize_status_snapshot(
-                    union_events_bytes, trusted_target_events_path.parent
-                )
-            )
+            trusted_target_status_path.write_bytes(_rematerialize_status_snapshot(union_events_bytes, trusted_target_events_path.parent))
         elif source_status_bytes is not None:
             trusted_target_status_path.write_bytes(source_status_bytes)
     except OSError:
@@ -403,15 +393,14 @@ def _resolve_ref_sha(main_repo: Path, ref: str) -> str:
 
 
 def _post_checkpoint_commit_shas(main_repo: Path, checkpoint_sha: str, coord_ref: str) -> list[str]:
-    """SHAs reachable from ``coord_ref`` but not ``checkpoint_sha`` (bounded window)."""
-    ret, out, _err = run_command(
-        ["git", "rev-list", f"{checkpoint_sha}..{coord_ref}"],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    if ret != 0:
-        return []
+    """SHAs reachable from ``coord_ref`` but not ``checkpoint_sha`` (bounded window).
+
+    Guard (FR-013): an empty list means "no post-checkpoint coord commits", which
+    skips the projection entirely, so a failed ``rev-list`` must not read as
+    empty — :class:`~kernel.git.GitCommandError` propagates, the same failure
+    class as :func:`_post_checkpoint_mission_paths`.
+    """
+    out = run_git(main_repo, "rev-list", f"{checkpoint_sha}..{coord_ref}").stdout.decode("ascii", "replace")
     return [line for line in out.splitlines() if line.strip()]
 
 
@@ -436,14 +425,11 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     the coord-partition bookkeeping this projection exists to carry.
     """
     mission_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
-    ret, out, _err = run_command(
-        ["git", "diff", "--name-only", checkpoint_sha, coord_ref, "--", mission_prefix],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    if ret != 0:
-        return []
+    # Guard (FR-013): this list decides which coord commits' files are carried onto
+    # the target before the coord branch is torn down, so an unreadable diff must
+    # not read as "nothing to project" — ``GitCommandError`` propagates. renames=True
+    # keeps the old argv's default rename detection.
+    post_checkpoint_changes = git_changed_paths(main_repo, checkpoint_sha, coord_ref, renames=True, pathspecs=(mission_prefix,))
     from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
 
     # DENYLIST (WP10 integration fix). Project every coord-owned bookkeeping path a
@@ -471,9 +457,9 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     excluded_kinds = {MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX}
     status_and_primary_basenames = {_STATUS_EVENTS_FILENAME, _STATUS_FILENAME, "meta.json"}
     paths: list[str] = []
-    for line in out.splitlines():
-        candidate = line.strip()
-        if not candidate or not candidate.startswith(mission_prefix):
+    for changed in post_checkpoint_changes:
+        candidate = str(changed)
+        if not candidate.startswith(mission_prefix):
             continue
         if Path(candidate).name in status_and_primary_basenames:
             continue
@@ -589,9 +575,7 @@ def _projected_path_content_matches(
         return False
     target_bytes: bytes | None = _read_git_blob_bytes(main_repo, target_ref, repo_rel)
     base_bytes: bytes | None = _read_git_blob_bytes(main_repo, checkpoint_sha, repo_rel)
-    pre_squash_target_bytes: bytes | None = _read_git_blob_bytes(
-        main_repo, pre_squash_target_ref, repo_rel
-    )
+    pre_squash_target_bytes: bytes | None = _read_git_blob_bytes(main_repo, pre_squash_target_ref, repo_rel)
     if pre_squash_target_bytes == base_bytes:
         return target_bytes == coord_bytes
     try:

@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kernel.git import GitCommandError, log_paths
+
 if TYPE_CHECKING:
     from .models import ExecutionLane, LanesManifest
 
@@ -137,35 +139,23 @@ def _has_qualifying_commit_since_claim_base(
     """True iff ``base_sha..HEAD`` in *write_checkout* touches a path OUTSIDE
     the status/issue-matrix/``.kittify`` exclusion set.
 
-    Uses ``git log -z --pretty=format: --name-only`` (an EMPTY commit-metadata
-    format) so the output is pure changed-path entries with no commit-hash
-    lines to disambiguate -- avoids the hash-vs-path ambiguity a
-    ``--format=%H --name-only`` scan would carry. ``-z`` NUL-terminates the
-    entries and disables ``core.quotePath`` quoting, so a non-ASCII or
-    special-character path is compared raw against the exclusion prefixes
-    (a quoted ``".kittify/caf\\303\\251.yaml"`` no longer starts with
-    ``.kittify/`` and would otherwise count as implementation work).
+    The changed paths come from :func:`kernel.git.log_paths`, which reads
+    NUL-separated (``-z``) output -- no ``core.quotePath`` quoting, so a
+    non-ASCII or special-character path is compared raw against the exclusion
+    prefixes -- and runs with ``--no-renames``: a move out of an implementation
+    path into an excluded one (``src/x.py`` -> ``.kittify/x.py``) lists BOTH
+    the deleted origin and the new path, so the origin still counts as
+    implementation work.
     Fail-closed: a non-resolvable range (bad SHA, detached/corrupt checkout)
     returns ``False`` -- the gate refuses rather than passing vacuously.
     """
-    import subprocess
-
-    result = subprocess.run(
-        ["git", "log", "-z", "--pretty=format:", "--name-only", f"{base_sha}..HEAD"],
-        cwd=str(write_checkout),
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
+    try:
+        touched = log_paths(write_checkout, f"{base_sha}..HEAD")
+    except GitCommandError:
+        # Guard: an unreadable range must refuse, never pass vacuously.
         return False
     excluded_prefixes = _status_only_excluded_prefixes(mission_slug)
-    for raw_path in result.stdout.split(b"\0"):
-        if not raw_path:
-            continue
-        path = raw_path.decode("utf-8", errors="surrogateescape")
-        if not path.startswith(excluded_prefixes):
-            return True
-    return False
+    return any(not str(path).startswith(excluded_prefixes) for path in touched)
 
 
 def _evaluate_repo_root_lane_gate(

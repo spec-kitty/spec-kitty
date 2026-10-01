@@ -22,12 +22,12 @@ matrix's delete/rename rows point here.
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 from typing import Final
 from uuid import uuid4
 
 from kernel.clock import now_utc
+from kernel.git import GitCommandError, numstat_entries, status_entries
 
 from .bindings import resolve_bindings
 from .kinds import WorkEmissionKind
@@ -122,37 +122,32 @@ def _collect_changes(repo_root: Path) -> list[tuple[FileOperation, str, str | No
     ``git diff --numstat`` where the path is tracked. Untracked files
     report no deltas (their content length is not diff metadata).
     """
-    status = _git(repo_root, "status", "--porcelain=v1", "-z")
-    if status is None:
+    try:
+        entries = status_entries(repo_root, untracked=None, optional_locks=False, timeout=_GIT_BUDGET_S)
+    except GitCommandError:
+        # Advisory observation: a failed probe publishes nothing rather than guessing.
         return []
-    numstat = _git(repo_root, "diff", "HEAD", "--numstat", "-z")
-    deltas = _parse_numstat(numstat)
+    try:
+        deltas = {str(stat.path): (stat.added or 0, stat.deleted or 0) for stat in numstat_entries(repo_root, "HEAD", timeout=_GIT_BUDGET_S)}
+    except GitCommandError:
+        # Advisory: byte deltas are optional metadata (for example no HEAD yet).
+        deltas = {}
 
     changes: list[tuple[FileOperation, str, str | None, int, int]] = []
-    # -z output: NUL-separated entries; a rename entry is
-    # "XY <old>\0<new>\0" (two NUL-separated fields after the status).
-    fields = [field for field in status.split("\0") if field]
-    index = 0
-    while index < len(fields) and len(changes) < MAX_WATCHED_PATHS * 2:
-        entry = fields[index]
-        if len(entry) < 4:
-            index += 1
-            continue
-        code, current_path = entry[:2], entry[3:]
-        operation, is_rename = _operation_from_code(code)
-        # porcelain -z rename entries are "XY <new>\0<orig>": the entry names
-        # the destination, the following NUL field names the origin.
-        path, destination = current_path, None
-        if is_rename:
-            if index + 1 < len(fields):
-                destination = current_path
-                path = fields[index + 1]
-                index += 1
-            else:
-                operation = FileOperation.EDIT
-        added, removed = deltas.get(path, (0, 0))
+    for entry in entries[: MAX_WATCHED_PATHS * 2]:
+        operation, is_rename = _operation_from_code(entry.xy)
+        # A rename entry names the destination (``entry.path``) and carries the
+        # origin (``entry.orig_path``); the observation's ``path`` is the origin.
+        path, destination = str(entry.path), None
+        if is_rename and entry.orig_path is not None:
+            destination = path
+            path = str(entry.orig_path)
+        elif is_rename:
+            operation = FileOperation.EDIT
+        # A rename observation carries no byte deltas (the origin path is gone
+        # from the diff); every other operation looks its path up.
+        added, removed = (0, 0) if destination is not None else deltas.get(path, (0, 0))
         changes.append((operation, path, destination, added, removed))
-        index += 1
     return changes
 
 
@@ -168,46 +163,3 @@ def _operation_from_code(code: str) -> tuple[FileOperation, bool]:
     if "A" in combined or "?" in combined:
         return FileOperation.CREATE, False
     return FileOperation.EDIT, False
-
-
-def _parse_numstat(raw: str | None) -> dict[str, tuple[int, int]]:
-    """Parse ``git diff --numstat -z`` into {path: (added, removed)}."""
-    if not raw:
-        return {}
-    deltas: dict[str, tuple[int, int]] = {}
-    fields = [field for field in raw.split("\0") if field]
-    index = 0
-    while index < len(fields):
-        field = fields[index]
-        parts = field.split("\t")
-        if len(parts) >= 3:
-            added = _int_or_zero(parts[0])
-            removed = _int_or_zero(parts[1])
-            deltas[parts[2]] = (added, removed)
-        index += 1
-    return deltas
-
-
-def _int_or_zero(raw: str) -> int:
-    try:
-        return int(raw)
-    except ValueError:
-        return 0
-
-
-def _git(repo_root: Path, *args: str) -> str | None:
-    """One bounded git invocation; ``None`` on any failure."""
-    try:
-        completed = subprocess.run(
-            ["git", *args],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            timeout=_GIT_BUDGET_S,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    if completed.returncode != 0:
-        return None
-    return completed.stdout

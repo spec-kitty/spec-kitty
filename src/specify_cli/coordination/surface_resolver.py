@@ -57,6 +57,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import kernel.paths as kernel_paths
+from kernel.git import GitCommandError, tree_paths
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -818,17 +819,11 @@ def coord_branch_has_committed_artifact(
         return False
     subtree = f"kitty-specs/{mission_slug}/"
     try:
-        result = subprocess.run(
-            ["git", "-C", str(repo_root), "ls-tree", "-r", "--name-only", coord_branch, "--", subtree],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-    except OSError:
+        committed = tree_paths(repo_root, coord_branch, pathspecs=(subtree,))
+    except GitCommandError:
+        # Fail closed: an unreadable ref or an absent git binary reads as "present".
         return True
-    if result.returncode != 0:
-        return True
-    return any(line.rsplit("/", 1)[-1] in basenames for line in result.stdout.splitlines())
+    return any(path.name in basenames for path in committed)
 
 
 def _artifact_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]:

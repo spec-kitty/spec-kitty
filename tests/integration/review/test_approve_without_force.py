@@ -25,6 +25,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.agent.tasks import (
     _RUNTIME_STATE_DENY_LIST,
     _filter_runtime_state_paths,
@@ -123,17 +124,21 @@ def test_deny_list_is_fixed_named_tuple() -> None:
 
 
 def test_filter_strips_review_lock_line() -> None:
-    porcelain = "?? .spec-kitty/review-lock.json\n M src/feature.py"
-    filtered = _filter_runtime_state_paths(porcelain)
-    assert ".spec-kitty/review-lock.json" not in filtered
-    assert "src/feature.py" in filtered
+    entries = (
+        StatusEntry(xy="??", path=GitPath.parse(".spec-kitty/review-lock.json")),
+        StatusEntry(xy=" M", path=GitPath.parse("src/feature.py")),
+    )
+    filtered = [str(entry.path) for entry in _filter_runtime_state_paths(entries)]
+    assert filtered == ["src/feature.py"]
 
 
 def test_filter_preserves_non_denylisted_paths() -> None:
-    porcelain = "?? src/feature.py\n M docs/note.md"
-    filtered = _filter_runtime_state_paths(porcelain)
-    assert "src/feature.py" in filtered
-    assert "docs/note.md" in filtered
+    entries = (
+        StatusEntry(xy="??", path=GitPath.parse("src/feature.py")),
+        StatusEntry(xy=" M", path=GitPath.parse("docs/note.md")),
+    )
+    filtered = [str(entry.path) for entry in _filter_runtime_state_paths(entries)]
+    assert filtered == ["src/feature.py", "docs/note.md"]
 
 
 # ---------------------------------------------------------------------------

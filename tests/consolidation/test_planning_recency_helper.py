@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.consolidation import planning_recency
+from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.planning_recency import target_newer_primary_artifacts
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -216,3 +218,15 @@ def _commit_dated(repo: Path, rel: str, content: str, message: str, iso: str) ->
         text=True,
         env={**os.environ, "GIT_COMMITTER_DATE": iso, "GIT_AUTHOR_DATE": iso},
     )
+
+
+def test_unreadable_diff_refuses_instead_of_reporting_nothing_target_newer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-013: a failed ``git diff`` must not read as "target advanced nothing" —
+    that empty set would let the squash overwrite target-newer PRIMARY artifacts."""
+    repo = _init_repo(tmp_path)
+    _run(["git", "branch", SOURCE], repo)
+    _commit(repo, SPEC_REL, "# Spec\n\ntarget newer\n", "refine spec on target")
+    monkeypatch.setattr(planning_recency, "git_diff_names_checked", lambda *_a, **_k: None)
+
+    with pytest.raises(GitProbeError, match="git diff"):
+        target_newer_primary_artifacts(repo, TARGET, SOURCE)

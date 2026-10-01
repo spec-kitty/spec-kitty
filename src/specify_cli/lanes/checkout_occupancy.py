@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+from kernel.git import GitPath
 from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
 
 __all__ = ["dirty_paths", "in_progress_wps_in_write_checkout"]
@@ -126,12 +127,19 @@ def in_progress_wps_in_write_checkout(
     return occupied
 
 
-def _is_owned_path(path: str, owned_prefixes: Sequence[str]) -> bool:
-    """True when *path* is, or is nested under, one of *owned_prefixes*."""
+def _is_owned_path(path: GitPath, owned_prefixes: Sequence[str]) -> bool:
+    """True when *path* is, or is nested under, one of *owned_prefixes*.
+
+    A prefix ending in ``/`` owns the directory and everything below it (a
+    collapsed untracked directory entry equal to the directory is owned too);
+    any other prefix owns exactly that path. Comparison is by path component.
+    """
     for prefix in owned_prefixes:
-        if path == prefix:
-            return True
-        if prefix.endswith("/") and path.startswith(prefix):
+        owned = GitPath.parse(prefix)
+        if prefix.endswith("/"):
+            if owned.contains(path):
+                return True
+        elif path == owned:
             return True
     return False
 
@@ -139,23 +147,24 @@ def _is_owned_path(path: str, owned_prefixes: Sequence[str]) -> bool:
 def dirty_paths(write_checkout: Path, *, owned_prefixes: Sequence[str]) -> list[str]:
     """Return changed paths in *write_checkout*, excluding *owned_prefixes*.
 
-    Reuses the worktree allocator's single ``git status --porcelain`` vehicle
-    (:func:`specify_cli.lanes.worktree_allocator._git_status_porcelain_lines`)
+    Reuses the worktree allocator's single ``git status`` vehicle
+    (:func:`specify_cli.lanes.worktree_allocator._git_status_entries`)
     instead of duplicating its subprocess call. A path equal to, or nested
     under (prefix ending in ``/``), any of *owned_prefixes* -- spec-kitty's
     own status/runtime artifacts, e.g. ``kitty-specs/<slug>/status.events.jsonl``,
     ``kitty-specs/<slug>/status.json``, ``.kittify/`` -- is never reported as
     dirty; the caller decides the concrete prefix list (NFR-004: names what
-    it excludes).
+    it excludes). A rename reports its new path.
+
+    Raises:
+        RuntimeError: ``git status`` failed (fail closed); the shared vehicle
+            wraps the underlying :class:`~kernel.git.GitCommandError`.
     """
-    from specify_cli.lanes.worktree_allocator import _git_status_porcelain_lines
+    from specify_cli.lanes.worktree_allocator import _git_status_entries
 
     paths: list[str] = []
-    for line in _git_status_porcelain_lines(write_checkout):
-        # Porcelain short format: "XY PATH" (a rename reads "XY OLD -> NEW").
-        raw = line[3:] if len(line) > 3 else line.strip()
-        path = raw.split(" -> ", 1)[-1].strip()
-        if not path or _is_owned_path(path, owned_prefixes):
+    for entry in _git_status_entries(write_checkout):
+        if not entry.path.parts or _is_owned_path(entry.path, owned_prefixes):
             continue
-        paths.append(path)
+        paths.append(f"{entry.path}/" if entry.is_directory else str(entry.path))
     return paths

@@ -57,6 +57,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.git_ops import has_remote, run_command
 from kernel.clock import now_utc_iso
+from kernel.git import GitCommandError
 from specify_cli.core.paths import (
     MissionMetaReadError,
     RetentionDecision,
@@ -1826,6 +1827,8 @@ def _phase_record_done_and_project(run: _MergeRunState) -> None:
         # Coord-reachable live strand: OUTSIDE the done_marked_before_target guard,
         # after the target advanced — MUST be markable (#2786-shape site 701).
         _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots, error=exc)
+        if isinstance(exc, GitCommandError):
+            _refuse_unreadable_projection_window(exc)
         raise
     run.target_events_path = target_events_path
     run.target_status_path = target_status_path
@@ -1845,6 +1848,41 @@ def _phase_record_done_and_project(run: _MergeRunState) -> None:
     # a clean merge's own cutover commit from tripping the CAS.
     if coord_ref is not None:
         run.coord_tip_after_projection = _resolve_ref_sha(run.main_repo, coord_ref)
+
+
+def _refuse_unreadable_projection_window(exc: GitCommandError) -> NoReturn:
+    """Turn an unreadable coordination window into a refusal (FR-013).
+
+    The post-checkpoint projection runs AFTER ``_phase_mission_to_target``
+    advanced the target, so a failed ``rev-list``/diff over the coordination
+    window must not escape as a traceback: it exits non-zero so the driver's
+    :func:`_phase_record_done_and_project_or_roll_back` rolls the target back
+    through the single rollback authority, the same shape as
+    :func:`_squash_projected_paths_or_refuse`.
+    """
+    console.print(
+        "\n[red]Error:[/red] Consolidation refused: the coordination bookkeeping "
+        f"window to project onto the target could not be read ({escape(str(exc))}). "
+        f"{_NOTHING_TORN_DOWN}; re-run `spec-kitty consolidate --resume`."
+    )
+    raise typer.Exit(1) from exc
+
+
+def _phase_record_done_and_project_or_roll_back(run: _MergeRunState) -> None:
+    """Run :func:`_phase_record_done_and_project`; roll back on a refusal.
+
+    The target already advanced when this phase runs, so a non-zero
+    ``typer.Exit`` (an unreadable projection window) restores every snapshotted
+    branch through :func:`_report_rollback` — the same door the reconciliation
+    gate uses — instead of leaving the target advanced past a failed projection.
+    """
+    anchor_before = run.state.reconciliation_passed_target_sha
+    try:
+        _phase_record_done_and_project(run)
+    except typer.Exit as exc:
+        if exc.exit_code:
+            _report_rollback(run, anchor_before=anchor_before)
+        raise
 
 
 def _run_birth_cutover(run: _MergeRunState) -> None:
@@ -2014,8 +2052,14 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     """WP05/T007 FR-014: post-merge working-tree invariant before the housekeeping commit."""
     _ret_status, _out_status = _raw_porcelain_status(run.main_repo)
     if _ret_status != 0:
-        console.print(f"[yellow]Warning:[/yellow] post-merge invariant check skipped: git status --porcelain returned {_ret_status}")
-        return
+        # Guard (FR-013): an unreadable working tree is not a clean one. Refuse
+        # exactly like a violated invariant instead of skipping the check.
+        console.print(
+            "[red]Error:[/red] Post-merge working-tree invariant could not be checked: "
+            f"git status --porcelain returned {_ret_status}. Run `git status` to investigate before retrying."
+        )
+        _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots)
+        raise typer.Exit(1)
 
     expected_paths: set[str] = set()
     if run.baseline_meta_path is not None:
@@ -2035,18 +2079,18 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
         # gate agrees with every other gate on what is spec-kitty-generated churn.
         return is_toolchain_generated_churn(path_part, mission_slug=run.mission_slug)
 
-    offending_lines, _skipped_untracked = _classify_porcelain_lines(
-        (_out_status or "").splitlines(),
+    offending_entries, _skipped_untracked = _classify_porcelain_lines(
+        _out_status,
         expected_paths,
         residue_predicate=_is_coord_residue,
     )
-    if not offending_lines:
+    if not offending_entries:
         return
 
     console.print("[red]Error:[/red] Post-merge working-tree invariant violated. The following paths diverge from HEAD unexpectedly:")
-    for line in offending_lines:
-        console.print(f"  {line}")
-    deleted_or_modified = any(len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M")) for line in offending_lines)
+    for entry in offending_entries:
+        console.print(f"  {entry.display()}")
+    deleted_or_modified = any(entry.worktree in ("D", "M") or entry.index in ("D", "M") for entry in offending_entries)
     if deleted_or_modified:
         console.print("\nThis may indicate a sparse-checkout or filter-driver issue. Run\n  spec-kitty doctor sparse-checkout --fix\nbefore retrying the merge.")
     else:
@@ -2768,6 +2812,27 @@ def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
     _refresh_primary_checkout_after_merge(run.main_repo, target_branch)
 
 
+def _squash_projected_paths_or_refuse(run: _MergeRunState, checkpoint_sha: str, coord_ref: str) -> tuple[str, ...]:
+    """Return the projected bookkeeping paths the squash content proof must check.
+
+    Guard (FR-013): an unreadable coord window must never escape as a traceback
+    AFTER the reconciliation PASS anchor was saved — that would skip the
+    caller's rollback and leave a PASS anchor a later ``--abort`` trusts. A
+    :class:`~kernel.git.GitCommandError` is converted into the same refusal
+    (message + ``typer.Exit(1)``) as a content-proof REFUSE, so the caller's
+    ``_report_rollback`` runs exactly as it does for that REFUSE.
+    """
+    try:
+        return tuple(_post_checkpoint_mission_paths(run.main_repo, run.mission_slug, checkpoint_sha, coord_ref))
+    except GitCommandError as exc:
+        console.print(
+            "\n[red]Error:[/red] SQUASH reconciliation refused: the projected "
+            f"coordination bookkeeping window could not be read ({escape(str(exc))}). "
+            f"{_NOTHING_TORN_DOWN}; re-run `spec-kitty consolidate --resume`."
+        )
+        raise typer.Exit(1) from exc
+
+
 def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     """SQUASH content proof (WP10 integration / S-D + WP07 handoff).
 
@@ -2794,7 +2859,7 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     checkpoint = run.coord_checkpoint
     if checkpoint is None:
         return
-    projected_paths = tuple(_post_checkpoint_mission_paths(run.main_repo, run.mission_slug, checkpoint.sha, checkpoint.ref))
+    projected_paths = _squash_projected_paths_or_refuse(run, checkpoint.sha, checkpoint.ref)
     if not projected_paths:
         return
     pre_squash_target_ref = run.target_expected_old_sha
@@ -3778,7 +3843,7 @@ def _run_lane_based_consolidation_locked(
         _phase_mission_to_target(run)
         _switch_write_checkout_after_single_branch_landing(run)
         _phase_capture_and_baseline(run)
-        _phase_record_done_and_project(run)
+        _phase_record_done_and_project_or_roll_back(run)
         _phase_porcelain_invariant(run)
         _phase_commit_and_assert(run)
     else:

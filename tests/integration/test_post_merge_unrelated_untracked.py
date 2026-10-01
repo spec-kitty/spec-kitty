@@ -28,6 +28,7 @@ from pathlib import Path
 import pytest
 import typer
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.consolidate import (
     _classify_porcelain_lines,
     _run_lane_based_consolidation,
@@ -40,12 +41,17 @@ from tests._support.git_cli import git_out
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
+def _porcelain_entries(lines: list[str]) -> list[StatusEntry]:
+    """Typed entries for plain ``XY path`` porcelain lines (no renames; blank lines skipped)."""
+    return [StatusEntry(xy=line[:2], path=GitPath.parse(line[3:].rstrip("/")), is_directory=line.endswith("/")) for line in lines if line.strip()]
+
+
 class TestClassifyPorcelainLines:
     """Pin the contract on the helper directly."""
 
     def test_untracked_worktrees_dir_dropped(self):
         lines = ["?? .worktrees/scratch/", "?? tmp.txt"]
-        offending, skipped = _classify_porcelain_lines(lines, expected_paths=set())
+        offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), expected_paths=set())
         assert offending == [], f"Untracked entries must be silently dropped (FR-004), got: {offending!r}"
         assert skipped == 2
 
@@ -55,7 +61,7 @@ class TestClassifyPorcelainLines:
             " M kitty-specs/test/status.json",
         ]
         offending, _ = _classify_porcelain_lines(
-            lines,
+            _porcelain_entries(lines),
             expected_paths={
                 "kitty-specs/test/status.events.jsonl",
                 "kitty-specs/test/status.json",
@@ -67,10 +73,10 @@ class TestClassifyPorcelainLines:
         """No silent suppression: a tracked change outside the allowlist must surface."""
         lines = [" M src/unexpected_file.py"]
         offending, _ = _classify_porcelain_lines(
-            lines,
+            _porcelain_entries(lines),
             expected_paths={"kitty-specs/test/status.events.jsonl"},
         )
-        assert offending == [" M src/unexpected_file.py"], (
+        assert [entry.display() for entry in offending] == [" M src/unexpected_file.py"], (
             "Tracked diverging changes outside expected_paths MUST be reported. FR-004 forbids silent suppression of operator-supplied tracked changes."
         )
 
@@ -81,8 +87,8 @@ class TestClassifyPorcelainLines:
             "?? scratch.txt",
             " D src/important.py",  # tracked deletion — must surface
         ]
-        offending, skipped = _classify_porcelain_lines(lines, expected_paths=set())
-        assert offending == [" D src/important.py"]
+        offending, skipped = _classify_porcelain_lines(_porcelain_entries(lines), expected_paths=set())
+        assert [entry.display() for entry in offending] == [" D src/important.py"]
         assert skipped == 2
 
 
@@ -128,7 +134,7 @@ class TestMergeToleratesUntrackedFiles:
         # the merge. Untracked noise is tolerated; the tracked modification is not.
         monkeypatch.setattr(
             "specify_cli.consolidation.executor._raw_porcelain_status",
-            lambda _repo_root: (0, "?? .worktrees/\n M src/operator_change.py\n"),
+            lambda _repo_root: (0, _porcelain_entries(["?? .worktrees/", " M src/operator_change.py"])),
         )
 
         with pytest.raises(typer.Exit) as excinfo:

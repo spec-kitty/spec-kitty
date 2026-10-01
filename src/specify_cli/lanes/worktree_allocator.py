@@ -17,6 +17,7 @@ policy registered so it cannot see ``status.events.jsonl`` or
 
 from __future__ import annotations
 
+from kernel.git import GitCommandError, StatusEntry, changed_paths, status_entries
 from mission_runtime import MissionArtifactKind, MissionTopology, assert_topology_matches_manifest, placement_seam
 import subprocess
 from dataclasses import dataclass
@@ -1296,26 +1297,24 @@ def allocate_lane_worktree(
     return worktree_path, branch
 
 
-def _wp_task_file_conflict_paths(merge_stdout: str) -> list[str]:
-    """Extract ``tasks/WP*.md`` conflict paths from a git-merge conflict report.
+def _wp_task_file_conflict_paths(worktree_path: Path, env: dict[str, str]) -> list[str] | None:
+    """The ``tasks/WP*.md`` paths left unmerged by the open planning-commit merge.
 
-    #4889 T006 (belt-and-braces for #4905): a plain ``git merge`` conflict
-    report includes a line per conflicting path, e.g. ``CONFLICT (add/add):
-    Merge conflict in kitty-specs/<slug>/tasks/WP01-foo.md``. This is a
-    minimal, best-effort text scan (not a duplicate of the real #4905 fix,
-    which is WP02's commit-routing partition) -- it only names the path so
-    :class:`PlanningCommitMergeConflictError` can point at the right root
-    cause instead of a bare git conflict dump. Returns an empty list when no
-    such line is present (the overwhelming majority of conflicts, which stay
-    on the existing generic diagnostic).
+    #4889 T006 (belt-and-braces for #4905): names the conflicting WP task
+    files so :class:`PlanningCommitMergeConflictError` can point at the right
+    root cause instead of a bare git conflict dump. Read from the index
+    (``kernel.git.changed_paths(diff_filter="U")``, the unmerged set) while the
+    merge is still open -- never scraped from git's human ``CONFLICT ... Merge
+    conflict in`` text. The index also names modify/delete conflicts, which
+    that text never did. Returns ``[]`` when no WP task file conflicts (the
+    overwhelming majority of conflicts, which stay on the generic diagnostic)
+    and ``None`` when the conflict state could not be read.
     """
-    return sorted(
-        {
-            line.split("Merge conflict in", 1)[1].strip()
-            for line in merge_stdout.splitlines()
-            if "CONFLICT" in line and "Merge conflict in" in line and "tasks/WP" in line
-        }
-    )
+    try:
+        unmerged = changed_paths(worktree_path, diff_filter="U", env=env)
+    except GitCommandError:
+        return None
+    return sorted({str(path) for path in unmerged if path.parts[-2:-1] == ("tasks",) and path.name.startswith("WP")})
 
 
 def _merge_recorded_planning_commit(
@@ -1441,12 +1440,13 @@ def _merge_recorded_planning_commit(
         # #4889 T006: capture the WP-task-file diagnostic BEFORE aborting --
         # the conflict markers only exist in ``merge.stdout`` while the merge
         # is still open.
-        wp_task_conflicts = _wp_task_file_conflict_paths(merge.stdout)
+        wp_task_conflicts = _wp_task_file_conflict_paths(worktree_path, env)
         # #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is not a
         # real conflict — regenerate it from the union-merged event log and
         # complete the merge, instead of failing closed on a disposable snapshot.
-        # Genuine (human-authored) conflicts still fall through to abort + raise.
-        if not wp_task_conflicts and reconcile_derived_status_snapshot_conflicts(worktree_path, env):
+        # Genuine (human-authored) conflicts still fall through to abort + raise,
+        # and so does an unreadable conflict state (``None``: fail closed).
+        if wp_task_conflicts == [] and reconcile_derived_status_snapshot_conflicts(worktree_path, env):
             completed = subprocess.run(
                 ["git", "commit", "--no-edit"],
                 cwd=str(worktree_path),
@@ -1790,24 +1790,23 @@ def _ensure_branch_exists(
     _create_branch_from(repo_root, branch, fallback_parent)
 
 
-def _git_status_porcelain_lines(worktree_path: Path) -> list[str]:
-    """Run ``git status --porcelain`` in *worktree_path* and return its output lines.
+def _git_status_entries(worktree_path: Path) -> tuple[StatusEntry, ...]:
+    """Return ``git status`` entries for *worktree_path* (typed, NUL-safe).
 
     The single low-level ``git status`` vehicle shared by
     :func:`_validate_worktree_clean` (dirty-or-not, this module) and
     :func:`specify_cli.lanes.checkout_occupancy.dirty_paths` (which paths,
     filtered by spec-kitty ownership, #5100 T018) -- so the two never issue a
     second, independently-drifting ``git status`` subprocess call.
+
+    Raises:
+        RuntimeError: git failed (fail closed: a guard never reads a failed
+            probe as a clean checkout).
     """
-    result = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"git status failed in {worktree_path}: {result.stderr.strip()}")
-    return result.stdout.splitlines()
+    try:
+        return status_entries(worktree_path, untracked=None)
+    except GitCommandError as exc:
+        raise RuntimeError(f"git status failed in {worktree_path}: {exc.stderr.strip()}") from exc
 
 
 def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
@@ -1816,7 +1815,7 @@ def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
     This prevents a WP from inheriting dirty state from a prior WP
     in the same lane.
     """
-    if _git_status_porcelain_lines(worktree_path):
+    if _git_status_entries(worktree_path):
         raise DirtyWorktreeError(f"Lane {lane_id} worktree at {worktree_path} has uncommitted changes. Commit or stash before starting the next WP.")
 
 
