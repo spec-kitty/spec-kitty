@@ -45,7 +45,7 @@
     },
     "WP02": {
       "actor": "stijn-dejongh",
-      "agent": "claude",
+      "agent": "stijn-dejongh",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -54,7 +54,8 @@
       "last_transition_at": "2026-10-01T16:36:36.587453+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Work committed (20db55eb..d6ecec3b); no claim base recorded because implement was blocked by #5550"
+        "Work committed (20db55eb..d6ecec3b); no claim base recorded because implement was blocked by #5550",
+        "Approved by Stijn (human-in-charge) in the project thread, 2026-10-01T16:35Z: 'Go ahead'"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
