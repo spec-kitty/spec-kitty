@@ -1857,7 +1857,6 @@ exclude = [
     "tests/specify_cli/cli/commands/agent/test_tasks_mark_status_seam.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_move_task_authority_staging.py",
-    "tests/specify_cli/cli/commands/agent/test_tasks_move_task_degod.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_baseline_read.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_escape_hatch.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py",
