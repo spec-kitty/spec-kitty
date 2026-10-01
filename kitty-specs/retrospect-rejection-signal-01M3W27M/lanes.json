@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "retrospect-rejection-signal-01M3W27M",
+  "mission_id": "01M3W27MCR4KCMHFAQHQN7DXBQ",
+  "mission_branch": "claude/issue-2267-77kxtr",
+  "target_branch": "claude/issue-2267-77kxtr",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/consolidation/preflight.py",
+        "src/specify_cli/retrospective/generator.py",
+        "src/specify_cli/status/review_rejection.py",
+        "tests/consolidation/test_hollow_review_warnings.py",
+        "tests/retrospective/test_generator.py",
+        "tests/specify_cli/retrospect/test_event_log_mining.py",
+        "tests/status/test_review_rejection.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-01T15:48:51.114100+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e30ba00f997b9e6180744afb3b1a4f5617ca99de"
+}
