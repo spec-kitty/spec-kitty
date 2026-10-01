@@ -3316,6 +3316,20 @@ pages:
     - {slug: "status-conventions", text: "Status Conventions", level: 2}
     - {slug: "template", text: "Template", level: 2}
     - {slug: "index", text: "Index", level: 2}
+  - path: "docs/adr/4.x/2026-10-01-1-dead-symbol-allowlist-module-name-identity.md"
+    title: "ADR: dead-symbol allowlist identity is (module, name)"
+    divio_type: "none"
+    abstract: "Accepted: dead-symbol allowlist entries are keyed (module, name) in a schema-checked YAML file; body hashes are computed at runtime only and never persisted."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "supersession", text: "Supersession", level: 2}
+    - {slug: "non-goals", text: "Non-goals", level: 2}
+    - {slug: "links", text: "Links", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -10602,11 +10616,13 @@ pages:
   - path: "docs/development/how-to/add-architectural-gate-exemption.md"
     title: "Add an exemption to an architectural gate"
     divio_type: "how-to"
-    abstract: "How to exempt a source site from a tests/architectural gate by content, never by line number, for hand-curated allowlists and census gates."
+    abstract: "How to exempt a source site from a tests/architectural gate by content, never by line number: hand-curated allowlists, census gates and the dead-symbol YAML."
     anchors:
     - {slug: "1-identify-which-kind-of-allowlist-the-gate-uses", text: "1. Identify which kind of allowlist the gate uses", level: 2}
     - {slug: "2a-hand-curated-gate-add-a-content-descriptor", text: "2a. Hand-curated gate: add a content descriptor", level: 2}
     - {slug: "2b-census-gate-add-a-censuskey", text: "2b. Census gate: add a `CensusKey`", level: 2}
+    - {slug: "2c-dead-symbol-gate-add-a-yaml-entry", text: "2c. Dead-symbol gate: add a YAML entry", level: 2}
+    - {slug: "declaring-a-new-category", text: "Declaring a new category", level: 3}
     - {slug: "3-verify", text: "3. Verify", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/compress-mission-history.md"
@@ -10789,7 +10805,7 @@ pages:
     - {slug: "new-contracts-md-yaml-blocks-need-a-round-trip-skip-marker", text: "New `contracts/*.md` YAML blocks need a round-trip skip marker", level: 3}
     - {slug: "the-pre-review-gate-can-run-the-full-suite-and-hang", text: "The pre-review gate can run the full suite and hang", level: 3}
     - {slug: "the-architectural-gate-battery", text: "The architectural gate battery", level: 2}
-    - {slug: "renaming-a-symbol-whose-body-is-allowlisted", text: "Renaming a symbol whose body is allowlisted", level: 3}
+    - {slug: "moving-or-renaming-a-symbol-that-is-dead-symbol-allowlisted", text: "Moving or renaming a symbol that is dead-symbol allowlisted", level: 3}
     - {slug: "the-ruff-format-exclude-ratchet-has-a-twin", text: "The `ruff format` exclude ratchet has a twin", level: 3}
     - {slug: "a-scanner-that-swallows-a-parse-failure-reds-the-parse-fail-closed-gate", text: "A scanner that swallows a parse failure reds the parse fail-closed gate", level: 3}
     - {slug: "router-path-filters-are-the-tail-of-a-guarded-ssot-chain", text: "Router path filters are the tail of a guarded SSOT chain", level: 3}

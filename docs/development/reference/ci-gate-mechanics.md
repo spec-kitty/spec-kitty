@@ -2,7 +2,7 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-01'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -183,13 +183,27 @@ for these is `PYTHONPATH=src -o addopts=""` so collection matches CI.
   assertion (`len(modules) <= N`) passes locally and false-reds on CI. Assert a
   specific module's presence or absence, never an absolute count.
 
-### Renaming a symbol whose body is allowlisted
+### Moving or renaming a symbol that is dead-symbol allowlisted
 
-Renaming or editing a symbol tracked in the dead-symbol allowlist stales its
-content hash (the allowlist keys entries by a body hash). Refresh it with the
-project's dead-symbol hash-refresh tool, which is fail-closed — it only refreshes
-entries that are still genuinely dead and never adds new ones. Never weaken the
-gate to get past it.
+The dead-symbol allowlist lives in `tests/architectural/dead_symbol_allowlist.yaml`
+and is keyed by `(module, name)`: `module` is the module whose `__all__` declares
+the name. No body hash is stored
+([ADR 2026-10-01-1](../../adr/4.x/2026-10-01-1-dead-symbol-allowlist-module-name-identity.md)).
+
+- **Editing the body** of an allowlisted symbol costs nothing: no allowlist edit.
+- **Renaming or moving** one makes the gate report the old entry `GONE` (for a
+  move, with a "probably moved to `X`" hint) and the new location as an
+  offender. Update `module:` or `name:` of that entry in the YAML file.
+- **Adding an entry** needs a declared `category_*`, a rationale (its own or
+  inherited from the category -- see
+  [declaring a new category](../how-to/add-architectural-gate-exemption.md#declaring-a-new-category)),
+  an `issue` where the category sets `requires_issue: true`, and a raised
+  `test_no_dead_symbols` leaf in `tests/architectural/_baselines.yaml`
+  (`allowlist_entries`, or `widened_grandfathered_470` for the widened section).
+  Both leaves are shrink-only caps. Try wiring the symbol, dropping it from
+  `__all__` or deleting it first.
+
+Never weaken the gate to get past it.
 
 ### The `ruff format` exclude ratchet has a twin
 

@@ -1,8 +1,8 @@
 ---
 title: Add an exemption to an architectural gate
-description: How to exempt a source site from a tests/architectural gate by content, never by line number, for hand-curated allowlists and census gates.
+description: 'How to exempt a source site from a tests/architectural gate by content, never by line number: hand-curated allowlists, census gates and the dead-symbol YAML.'
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-10-01'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -27,6 +27,7 @@ anywhere under `tests/architectural/`, and its own exemption set is pinned empty
 |---|---|---|---|
 | Hand-curated | join allowlist, kernel/doctrine import exemptions, os-detect / lock-ban / clock `_exemptions/*.txt` | content descriptor | **fails** the gate |
 | Census | destructive-op, mutation-ownership, overwrite-ownership gates | `CensusKey(...)` | **warns** only |
+| Dead-symbol YAML | `test_no_dead_symbols.py` via `tests/architectural/dead_symbol_allowlist.yaml` | `(module, name)` entry with a category and rationale | **fails** the gate |
 
 ## 2a. Hand-curated gate: add a content descriptor
 
@@ -64,6 +65,53 @@ identical operation in the same function therefore becomes a new, unexpected sit
 the gate. If the gate is registered in `tests/architectural/_baselines.yaml` (for example the
 mutation-ownership gate's `destructive_op_allowlist`), raise that ceiling in the same change and justify it in review.
 Baselines are shrink-only by default.
+
+## 2c. Dead-symbol gate: add a YAML entry
+
+First try to wire the symbol, drop it from `__all__`, or delete it. If an exemption is
+genuinely warranted, append an entry under `entries:` in
+`tests/architectural/dead_symbol_allowlist.yaml`:
+
+```yaml
+- module: specify_cli.example.module   # the module whose __all__ declares the name
+  name: ExampleSymbol
+  category: category_c_example         # must be declared under categories:
+  rationale: why this public symbol has no src/ caller yet  # optional -- see below
+  issue: '#1234'                       # required where the category sets requires_issue: true
+```
+
+An entry's `rationale:` is optional: if omitted, the gate falls back to its
+category's rationale (loader rule L6 — the *effective* rationale is never
+empty, but an entry does not have to restate its category's reason). Give an
+entry its own `rationale:` only when this specific symbol needs a reason
+beyond the category's.
+
+The loader (`tests/architectural/_dead_symbol_allowlist.py`) refuses unknown keys
+(never add `line:` or `body_hash:`), a present-but-empty rationale, an undeclared category, a
+duplicate `(module, name)`, and a declared category with no entries. In the same change,
+raise the `test_no_dead_symbols: allowlist_entries` leaf in
+`tests/architectural/_baselines.yaml` by one and justify it in review. The widened
+`widened_grandfathered_470` section has its own leaf.
+
+### Declaring a new category
+
+A new `category_*` is declared under `categories:`, with its own required rationale and
+`requires_issue` policy:
+
+```yaml
+categories:
+  category_x_example:
+    rationale: a one-line reason every entry in this category shares
+    requires_issue: false   # true forces every entry (and the widened section) to carry issue:
+```
+
+Rule L9 refuses a category with no entries (no tombstones): declare the category and its
+first entry in the same change, and delete the category once its last entry is removed.
+
+A body edit to an allowlisted symbol needs no allowlist edit. A move or rename is
+reported as a `GONE` entry plus a new offender; update the entry's `module:` or `name:`.
+See [CI and Architectural Gate Mechanics](../reference/ci-gate-mechanics.md#moving-or-renaming-a-symbol-that-is-dead-symbol-allowlisted)
+and the [identity ADR](../../adr/4.x/2026-10-01-1-dead-symbol-allowlist-module-name-identity.md).
 
 ## 3. Verify
 

@@ -2,7 +2,7 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-01'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -44,3 +44,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 
 | Date | Title |
 | --- | --- |
+| 2026-10-01 | [dead-symbol allowlist identity is (module, name)](2026-10-01-1-dead-symbol-allowlist-module-name-identity.md) |
