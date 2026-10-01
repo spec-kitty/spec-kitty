@@ -11,7 +11,10 @@ captured) rather than guessed or derived from file counts, with inter-shard
 skew held to <=20% (NFR-005).
 
 Also asserts the T043 heavy-pole de-serialization decisions are encoded: the
-architectural pole always-on and de-serialized, and — after
+architectural pole de-serialized and described truthfully by
+``special_tiers.architectural`` (WP05, FR-013: a code-scoped battery with a
+fast roster and file-partitioned shards, every fact pinned against its other
+authority -- never the old ``always_on: true``), and — after
 ci-coverage-honesty-01M3CZVN WP03 (spec-kitty#4729) — that the dead
 ``integration_tests_next`` tier is RETIRED and its heavy-pole corpus is instead
 wired into ci-nightly.yml's ``integration-next`` job (both roots, by directory,
@@ -40,7 +43,10 @@ from typing import Any
 
 import pytest
 
-from scripts.ci.shard_select import lpt_loads
+from scripts.ci.gate_selection import load_router
+from scripts.ci.shard_select import enumerate_base_files, lpt_loads
+from tests.architectural import _gate_coverage as gc
+from tests.architectural._ci_integrity_oracle import HEAVY_BATTERY_GATE
 
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
@@ -317,9 +323,7 @@ def test_timings_excluded_dirs_are_documented() -> None:
 
 # ---------------------------------------------------------------------------
 # T043 (repointed by ci-coverage-honesty-01M3CZVN WP03 T011, spec-kitty#4729):
-# heavy-pole de-serialization encoded. The architectural pole stays always-on +
-# de-serialized with no filter group (WP07's fast/heavy split in ci-router.yml).
-# The formerly-asserted `integration_tests_next` special tier is now RETIRED --
+# The formerly-asserted `integration_tests_next` special tier is RETIRED --
 # it declared the tests/integration/** + tests/next/** heavy pole but was
 # invoked by no workflow (the #4729 honesty gap). This gate no longer requires
 # that dead tier to exist; instead it asserts the tier is GONE (a re-declaration
@@ -327,7 +331,7 @@ def test_timings_excluded_dirs_are_documented() -> None:
 # ci-nightly.yml's `integration-next` job (both roots, by directory, in
 # nightly-summary.needs) -- deleted-and-rehomed, never silently dropped.
 # ---------------------------------------------------------------------------
-def test_special_tiers_encode_heavy_pole_deserialization() -> None:
+def test_retired_integration_tier_is_rehomed_in_the_nightly_workflow() -> None:
     registry = _load_registry()
     special = registry.get("special_tiers", {})
     assert special, "registry declares no special_tiers (T043 de-serialization must be encoded, not left to prose)"
@@ -336,12 +340,6 @@ def test_special_tiers_encode_heavy_pole_deserialization() -> None:
         "special_tiers.integration_tests_next was retired (spec-kitty#4729); its wired home is now "
         "ci-nightly.yml's `integration-next` job -- do not re-declare the dead tier"
     )
-
-    architectural = special.get("architectural")
-    assert architectural is not None, "special_tiers.architectural is missing"
-    assert architectural.get("always_on") is True, "architectural pole must be encoded as always-on (no filter group)"
-    assert architectural.get("deserialized") is True, "architectural pole must be encoded as de-serialized"
-    assert architectural.get("filter_group") in (None, ""), "the architectural pole must add NO filter group (consistent with WP07's fast/heavy split)"
 
     # The retired tier's heavy pole must be wired, not merely deleted: the
     # nightly `integration-next` job runs BOTH roots by directory (not
@@ -361,6 +359,131 @@ def test_special_tiers_encode_heavy_pole_deserialization() -> None:
     )
     summary_needs = jobs.get("nightly-summary", {}).get("needs", [])
     assert "integration-next" in summary_needs, "integration-next must be in nightly-summary.needs or its red never surfaces in the aggregator"
+
+
+# ---------------------------------------------------------------------------
+# WP05 / T021 (FR-013, D-26): `special_tiers.architectural` states only facts with
+# no other home, and every fact it does state is pinned against its authority --
+# the registry can never again silently contradict the workflow (the old
+# `always_on: true` was false since #5168 and was itself pinned by a test).
+# Workflow-side equality for the fast job, the matrix legs and the worker count is
+# NOT asserted here: `architectural-fast` and the matrix do not exist until WP12
+# (WP06's partition proof pins `shard_count` against the legs; WP12's worker-policy
+# test pins `-n 4`). A tolerant "if the job exists" branch would be a green-wash.
+# ---------------------------------------------------------------------------
+_ARCHITECTURAL_KEYS = {"trigger", "deserialized", "workers", "base", "fast_gate", "shards"}
+_ARCHITECTURAL_BASE_KEYS = {"paths", "marker", "deselect"}
+_ARCHITECTURAL_FAST_GATE_KEYS = {"job", "max_file_budget_seconds", "max_total_measured_seconds", "roster"}
+_ARCHITECTURAL_SHARDS_KEYS = {"job", "shard_count", "granularity", "timings_key"}
+_ROSTER_ENTRY_KEYS = {"path", "budget_seconds", "reason"}
+_ALWAYS_ON_ARCHITECTURAL_LANES = ("terminology", "layer-rules", "archive-freeze")
+_ROUTER_WORKFLOW = _WORKFLOWS_DIR / "ci-router.yml"
+
+
+def _architectural() -> dict[str, Any]:
+    entry = _load_registry().get("special_tiers", {}).get("architectural")
+    assert isinstance(entry, dict), "special_tiers.architectural is missing"
+    return entry
+
+
+def _is_positive_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def test_special_tiers_architectural_schema() -> None:
+    entry = _architectural()
+    assert set(entry) == _ARCHITECTURAL_KEYS, (
+        f"special_tiers.architectural keys {sorted(entry)} != {sorted(_ARCHITECTURAL_KEYS)}: no always_on, filter_group, note, "
+        "non_src_filter_groups or nightly_backstop (D-26: only facts with no other home)"
+    )
+    assert entry["deserialized"] is True
+    assert _is_positive_int(entry["workers"]), "workers must be an int >= 1"
+
+    base = entry["base"]
+    assert set(base) == _ARCHITECTURAL_BASE_KEYS
+    assert base["paths"] and all(isinstance(path, str) and path for path in base["paths"])
+    assert isinstance(base["marker"], str) and base["marker"]
+    assert base["deselect"] and len(set(base["deselect"])) == len(base["deselect"])
+    assert all(isinstance(path, str) and path.endswith(".py") and "::" not in path for path in base["deselect"]), "base.deselect holds whole files only"
+
+    shards = entry["shards"]
+    assert set(shards) == _ARCHITECTURAL_SHARDS_KEYS
+    assert isinstance(shards["job"], str) and shards["job"]
+    assert _is_positive_int(shards["shard_count"]) and shards["shard_count"] >= 2
+    assert shards["granularity"] == "file"
+    assert isinstance(shards["timings_key"], str) and shards["timings_key"]
+
+    fast = entry["fast_gate"]
+    assert set(fast) == _ARCHITECTURAL_FAST_GATE_KEYS
+    assert isinstance(fast["job"], str) and fast["job"]
+    assert _is_positive_int(fast["max_file_budget_seconds"])
+    assert _is_positive_int(fast["max_total_measured_seconds"])
+    roster = fast["roster"]
+    assert roster, "the fast roster must not be empty (a fast gate that runs nothing is vacuous)"
+    for item in roster:
+        assert set(item) == _ROSTER_ENTRY_KEYS, f"roster entry keys: {item}"
+        assert isinstance(item["path"], str) and item["path"]
+        assert isinstance(item["reason"], str) and item["reason"].strip()
+        assert _is_positive_int(item["budget_seconds"])
+        assert item["budget_seconds"] <= fast["max_file_budget_seconds"], f"{item['path']} budget exceeds max_file_budget_seconds"
+    paths = [item["path"] for item in roster]
+    assert len(set(paths)) == len(paths), "roster paths must be unique"
+
+
+def test_special_tiers_architectural_trigger_matches_gate_selection() -> None:
+    entry = _architectural()
+    router = load_router()
+    assert entry["trigger"] == "code_scoped"
+    assert entry["shards"]["job"] == HEAVY_BATTERY_GATE
+    assert entry["shards"]["job"] in router.code_shard_jobs, "the battery must be a code-shard job in the router (trigger: code_scoped)"
+    assert entry["shards"]["job"] not in router.always_on_jobs, "an always-on battery would contradict `trigger: code_scoped`"
+
+
+def _router_pytest_paths(job: str) -> set[str]:
+    return {path for gate in gc.parse_workflow(_ROUTER_WORKFLOW) if gate.job == job for path in gate.paths}
+
+
+def test_special_tiers_architectural_base_matches_router_commands() -> None:
+    entry = _architectural()
+    base = entry["base"]
+    heavy_gates = [gate for gate in gc.parse_workflow(_ROUTER_WORKFLOW) if gate.job == entry["shards"]["job"]]
+    assert heavy_gates, f"ci-router.yml has no pytest gate for job {entry['shards']['job']!r}"
+    for gate in heavy_gates:
+        assert gate.paths == base["paths"], f"{gate.label()}: paths {gate.paths} != registry base.paths {base['paths']}"
+        assert gate.marker_expr == base["marker"], f"{gate.label()}: marker {gate.marker_expr!r} != registry base.marker"
+        assert set(gate.ignores) == set(base["deselect"]), f"{gate.label()}: deselects {sorted(gate.ignores)} != registry base.deselect"
+
+    always_on_paths: set[str] = set()
+    for lane in _ALWAYS_ON_ARCHITECTURAL_LANES:
+        lane_paths = _router_pytest_paths(lane)
+        assert lane_paths, f"always-on lane {lane!r} runs no pytest path (the deselect union would be vacuous)"
+        always_on_paths |= lane_paths
+    assert set(base["deselect"]) == always_on_paths, "base.deselect must equal the union of the always-on architectural lanes' pytest paths"
+
+
+def test_fast_roster_is_inside_the_base() -> None:
+    entry = _architectural()
+    base = entry["base"]
+    enumerated = set(enumerate_base_files(base["paths"], deselect=base["deselect"], root=_REPO_ROOT))
+    assert enumerated, "the base enumerates no files (vacuous)"
+    outside = [item["path"] for item in entry["fast_gate"]["roster"] if item["path"] not in enumerated]
+    assert not outside, f"roster entries outside the enumerated base (missing, renamed or deselected files): {outside}"
+
+
+def test_base_deselect_files_exist() -> None:
+    missing = [path for path in _architectural()["base"]["deselect"] if not (_REPO_ROOT / path).is_file()]
+    assert not missing, f"base.deselect names files that do not exist: {missing}"
+
+
+def test_architectural_out_of_matrix_reason_names_the_battery_not_a_stale_always_on_claim() -> None:
+    registry = _load_registry()
+    reasons = [entry["reason"] for entry in registry["out_of_matrix_test_dirs"] if "tests/architectural" in entry["dirs"]]
+    assert len(reasons) == 1
+    reason = " ".join(reasons[0].split())
+    assert "special_tiers.architectural" in reason
+    assert "fast roster" in reason
+    assert "double-run" in reason
+    assert "full tests/architectural tree" not in reason
 
 
 # ---------------------------------------------------------------------------
