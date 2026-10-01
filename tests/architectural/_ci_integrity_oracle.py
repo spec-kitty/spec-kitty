@@ -71,6 +71,10 @@ RUNTIME_EVIDENCE_BOUNDARY = (
 #: ``archive-freeze`` (#4365) is here so a docs-only PR that rewrites archived
 #: dossiers can never again merge without meeting the archive freeze — the
 #: gap #4260 slipped through (the heavy battery is code-scoped).
+#: ``architectural-fast`` (FR-003, #5510) is the always-on fast roster of
+#: deterministic ratchet / census gates, run as ``--battery-part fast``: disjoint
+#: from the two code-scoped ``architectural-heavy`` legs by construction (the
+#: partition proof), so a docs-only PR still meets those gates in minutes.
 MUST_RUN_ALWAYS_ON_GATES = frozenset(
     {
         "ruff",
@@ -80,6 +84,7 @@ MUST_RUN_ALWAYS_ON_GATES = frozenset(
         "layer-rules",
         "archive-freeze",
         "docs-lint",
+        "architectural-fast",
     },
 )
 

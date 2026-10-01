@@ -41,6 +41,13 @@
 # not be picked back up by pytest collection. Swept before the corpus suite
 # runs. tests/architectural/test_pycache_sweep.py (T072) pins this step's
 # behaviour directly against the on-disk YAML.
+#
+# Skip-if-green (FR-011, D-30): an EVENT-LEVEL selection-step suppression, like the fork guard --
+# NOT a third CI path routing authority. On a `ready_for_review` event whose tested key already
+# has a green run, the `green` step of the `changes` job (scripts/ci/green_match.py) suppresses
+# the filter and corpus-selection steps, so every lane job skips and `packs-gate` posts success.
+# No job `if:`, `needs:` or `changes.outputs` expression mentions it
+# (contracts/router-two-authority-amendment.md A4).
 name: Packs
 
 on:
@@ -77,6 +84,11 @@ jobs:
   # ---------------------------------------------------------------------------
   changes:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
+    # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize` precedent).
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     outputs:
       built_in: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.built_in }}
@@ -90,8 +102,15 @@ jobs:
           # Full history: the corpus-selection step below does a plain `git diff`
           # against the PR base, which a shallow clone would not contain.
           fetch-depth: 0
+      - name: Skip-if-green on ready-for-review (selection-step suppression; FR-011)
+        id: green
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/green_match.py decide --workflow packs.yml --marker-dir "$RUNNER_TEMP/green-match"
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
+        if: steps.green.outputs.skip != 'true'
         with:
           filters: |
             built_in:
@@ -110,11 +129,13 @@ jobs:
             internal:
               - 'packs/internal/**'
       - name: Install PyYAML (corpus selection only, no editable install)
+        if: steps.green.outputs.skip != 'true'
         shell: bash
         run: |
           pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
       - name: Corpus selection via the single gate-selection authority (FR-009)
         id: corpus
+        if: steps.green.outputs.skip != 'true'
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -139,6 +160,18 @@ jobs:
           fi
           export CHANGED_FILES="$files_json" CHANGED_OUTCOME="$outcome"
           python3 scripts/ci/corpus_select.py --mode "$MODE" --event "$EVENT_NAME"
+
+      - name: Upload the skip-if-green marker (tested key or matched run)
+        if: steps.green.outputs.marker != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.green.outputs.marker }}
+          # BY OUTPUT NAME, never the whole directory: a stale JSON body must not ride along.
+          path: ${{ runner.temp }}/green-match/${{ steps.green.outputs.marker }}.json
+          retention-days: 30
+          if-no-files-found: error
+          # A re-run attempt re-uploads under the same name; the default would fail it.
+          overwrite: true
 
   # ===========================================================================
   # Built-in lane (PUBLIC, packs/built-in/** — ships in the wheel).
