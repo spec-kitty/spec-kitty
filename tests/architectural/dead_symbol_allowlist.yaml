@@ -1,0 +1,1615 @@
+# Dead-symbol allowlist for tests/architectural/test_no_dead_symbols.py (#5346, FR-009).
+#
+# Identity is (module, name): `module` is the __all__-declaring module, `name` the bare
+# symbol name. Body edits cost 0 edits here; a move or rename is reported stale.
+# Schema and rules L1-L10: tests/architectural/_dead_symbol_allowlist.py (the only reader).
+# Decision record: see docs/adr/4.x (dead-symbol allowlist identity).
+#
+# THIS ALLOWLIST IS A RATCHET. Its size is capped in _baselines.yaml only. Do not add an entry
+# as a reflex: wire the symbol, drop it from __all__, or delete it first.
+# Never add `line:` or `body_hash:` fields; the loader refuses them.
+
+schema_version: 1
+categories:
+  category_a_slice_f_deferred:
+    rationale: A. Slice F charter+kernel deferred. Pre-existing public symbols in ``src/charter/`` + ``src/kernel/``
+      whose ``__all__`` membership was inherited from before WP02 and whose lack of runtime callers reflects
+      a "library written but never wired" situation carried over from earlier missions. A future mission
+      MUST either wire each from a runtime caller, remove it from ``__all__``, or delete the symbol entirely.
+      Target = 0 by Slice G.
+    requires_issue: false
+  category_b_grandfathered_legacy:
+    rationale: 'B. Grandfathered legacy (out of WP02 scope). Pre-existing public symbols across ``src/charter/offering/``
+      + ``src/specify_cli/`` whose ``__all__`` membership predates the WP02 symbol-level gate. WP02 was
+      scoped to ``src/charter/`` + ``src/kernel/`` per C-007/FR-121, so these entries were inherited as-is
+      into the ratchet baseline. Per the Slice F ratchet policy (C-004), this category MAY only shrink:
+      growth requires an entry in ``_baselines.yaml`` plus a ``# justification:`` comment and a follow-up
+      tracker ticket (FR-303). relocation-hardened-dead-code-scanners-01KX958P WP02: two stale entries
+      dropped (FR-006): ``charter_activate_app`` / ``charter_deactivate_app``
+      no longer exist. ``UnifiedBundleMigration`` / ``RefreshOrientationBlockMigration`` moved to the
+      T013 structural auto-exempt (the ``_is_registered_migration_class`` ``@MigrationRegistry.register``
+      class detector in ``tests/architectural/test_no_dead_symbols.py``); a dead helper or constant
+      elsewhere in the same ``m_*.py`` file is still caught (DoD e).'
+    requires_issue: false
+  category_c_wp_in_flight_charter_scope:
+    rationale: C. WP-in-flight Slice F charter symbols.
+    requires_issue: false
+  category_c_guarded_read_reparent_2899:
+    rationale: 'C. #2899 guarded-read re-parent collateral. ``UnknownWorkflowError`` was re-parented ``Exception``
+      -> ``GuardedReadError`` so the global CLI error-presentation hook renders an unknown workflow id
+      cleanly instead of as a traceback (mission cli-error-surface-seam, #2899 / #4746). It is a genuine
+      PUBLIC exception -- declared in ``workflow_registry.__all__``, raised by ``get_workflow``, and propagated
+      per FR-015 (no silent fallback) -- with no cross-module ``src/`` caller. On ``main`` it passed via
+      the ``(Exception)``-base T013 exception auto-exemption, which the new ``GuardedReadError`` base
+      no longer matches. Content-tier key; burns down if the re-parenting is reconsidered or a cross-module
+      caller is added. Follow-up: #2899.'
+    requires_issue: false
+  category_c_wp_in_flight_coordination_branch:
+    rationale: 'C. Mission #1348 coordination-branch atomic event log. Public helper symbols for missions/coordination-branch
+      topology; each is exercised by integration + unit tests, with production wiring tracked under Priivacy-ai/spec-kitty#1355
+      / #1356.'
+    requires_issue: false
+  category_c_wp_in_flight_topology_authority:
+    rationale: C. WP-in-flight topology authority seam (mission 01KTYGTE). ``ResolvedStatusSurface`` is
+      the return type of the already-wired ``resolve_status_surface_with_anchor``; callers consume the
+      value, not the name. No follow-up tracker -- lone remaining transitive-consumption entry.
+    requires_issue: false
+  category_c_wp_in_flight_unified_mission_step:
+    rationale: 'C. WP-in-flight unified MissionStep model (mission 01KSWJVX). Public surface for the unified
+      ``MissionStep``/mission-type model, shipped ahead of production callers landing in later WPs of
+      the same mission family. Follow-up tracker: mission-internal WP03/WP04/WP05.'
+    requires_issue: false
+  category_c_wp_in_flight_charter_activation:
+    rationale: 'C. WP-in-flight charter-pack activation layer (01KSYE4V). New public symbols across charter/doctrine/specify_cli
+      whose only callers today are the test suite or later WPs still in development. Follow-up tracker:
+      mission-internal WP06/WP08 (CLI wiring).'
+    requires_issue: false
+  category_c_org_doctrine_closeout:
+    rationale: C. org-doctrine close-out (mission-authored public surface). Public charter/doctrine API
+      symbols awaiting production callers that ship in later WPs of the same mission family, or intentionally
+      discoverable public surface that is only test-exercised today. Re-derived each cycle, not a standing
+      tracker (the mission owns them).
+    requires_issue: false
+  category_c_upstream_session_presence:
+    rationale: 'C. Upstream session-presence public surface (pre-existing on main). Two module-level constants
+      used internally by ``UpgradeChecker`` but with no import-site caller in src/ yet. NOT this mission''s
+      code -- surfaced only because the mission''s ``src/specify_cli/status/`` changes triggered the ``core_misc``
+      path filter. Follow-up: wire or prune when callers land.'
+    requires_issue: false
+  category_c_quality_debt_1928:
+    rationale: 'C. Quality-debt epic #1928. ``PathValidationError`` is the public exception raised by
+      ``validate_mission_paths(..., strict=True)``; the sole runtime caller invokes it non-strict. Deliberate
+      public API. Tracked under #1928 (FR-303).'
+    requires_issue: false
+  category_c_operator_config_public_api:
+    rationale: 'C. operator-config public API (mission operator-config-ergonomics). Three symbols authored
+      by the operator-config-ergonomics mission (landed via #3506) that are deliberate, contract-declared
+      public API but have no static src/ importer yet -- the same "public-but-unwired" shape as #1928
+      above: * ``UnresolvedEnvTokenError`` -- raised only on the ``inject_defaults=False`` expansion policy
+      (env-expander.md C-EXP-2/4); no current caller uses that policy, so nothing in src/ catches it yet.
+      * ``OperatorEnvFileUnreadableError`` -- fail-loud error raised by the pre-import env-file loader;
+      it propagates to CLI startup and is caught nowhere by design (fail-loud, C-LDR-3). * ``RedactedVar``
+      -- public return-element type of ``redact()``; callers iterate the returned list without importing
+      the class name. Manufacturing a fake src/ importer is the anti-pattern this gate warns against,
+      so they are allow-listed. Wire-or-prune tracked under #3508 (FR-303).'
+    requires_issue: false
+  category_c_mission_type_uncaught_propagation_surface:
+    rationale: 'C. mission-type uncaught propagation surface (mission cli-boundary-robustness). ``MissionTypeEmptyActionSequenceError``
+      (WP06, FR-004) is raised twice intra-module (``resolve_mission_type_context`` / the layered-roster
+      resolver) but, by design, is NEVER caught by name at any src/ call site -- ``charter/activation/mission_type_profiles.py::activate.py``''s
+      ``UnknownMissionTypeError`` handler explicitly narrows to that sibling exception ONLY, letting this
+      one propagate uncaught to the CLI boundary (spec.md Edge Cases: "must surface that resolution failure
+      rather than silently treating ''cannot resolve'' as ''no steps were removed''" -- see the comment
+      at ``charter/activate.py``''s ``except UnknownMissionTypeError:`` block). The gate''s import-based
+      caller detector has no way to see a deliberately-uncaught ``raise`` as a reference, same fail-loud
+      shape as ``OperatorEnvFileUnreadableError`` above. Only test code names it (via ``pytest.raises``).
+      Wire-or-prune tracked under #4600 (FR-303).'
+    requires_issue: false
+  category_c_doctor_auto_discovery_seam:
+    rationale: 'C. doctor auto-discovery seam (mission operator-config-ergonomics). All six symbols are
+      LIVE, not dead -- the gate only counts cross-file src/ ``__all__`` importers, and both reach-paths
+      here are invisible to it: * each ``register(app)`` is invoked by doctor.py''s ``_auto_discover_doctor_
+      siblings()`` via ``getattr(module, "register")`` (a dynamic string lookup, mirroring the migration
+      ``auto_discover_migrations`` seam); * each ``run_*`` is called intra-module by its own ``register``
+      shell. Manufacturing a fake src/ importer is the anti-pattern this gate warns against, so they are
+      allow-listed (same rationale as the branch-naming failover seam below). The eventual root fix is
+      a structural auto-exempt for the doctor-register seam, mirroring ``_is_registered_migration_class``
+      so future ``_*_doctor.py`` siblings never need a hand entry -- tracked in #3508.'
+    requires_issue: false
+  category_c_branch_naming_failover_seam:
+    rationale: C. Branch-naming legacy-failover seam. Both symbols are LIVE -- the gate only counts cross-file
+      src/ ``__all__`` importers, so a test-only hook and an intra-module env read are invisible to it
+      (NOT dead). Manufacturing a fake src/ importer is the anti-pattern this gate warns against, so they
+      are allow-listed instead.
+    requires_issue: false
+  category_c_merge_decomp_shim_reexport_2057:
+    rationale: 'C. Merge god-module decomposition shim re-exports (mission #2057). The ``cli/commands/merge.py``
+      god-module was decomposed into cohesive seams under ``specify_cli/consolidation/`` (behavior-preserving
+      refactor). FR-006 mandates the thin command shim re-export every relocated symbol so existing importers
+      keep working with zero import edits. relocation-hardened-dead-code-scanners-01KX958P WP02: 59 of
+      the 65 pure re-export names (``specify_cli.cli.commands.consolidate::*``) are now covered by the
+      T013 structural auto-exempt (``_is_reexport_shim_symbol``) -- each resolves via a single-alias ``ImportFrom``
+      whose origin definition has a live caller elsewhere. ``BaselineMergeCommitError`` stays hand-listed
+      because its bare name is a LIVE COLLISION bare_name (escalated to the module_path tier by the FR-005
+      classifier) -- collision bare_names are never auto-exempt (T012''s escalate-or-fail-close path must
+      see them). The 13 seam-INTERNAL helpers stay hand-listed too: they are locally DEFINED (not re-exported)
+      in their seam module, just lacking a cross-file src/ caller after the decomposition moved the consuming
+      call to a sibling seam -- a different shape than a re-export shim.'
+    requires_issue: false
+  category_b_t001_unblinded:
+    rationale: B. T001-unblinded symbols (WP01 harden-dead-symbol-gate). The T001 bug in ``_extract_all_literal``
+      caused any module with a top-level ``ast.AnnAssign`` before ``__all__`` to be silently zeroed. WP01
+      fixed the parser; these symbols surfaced as offenders for the first time. Grandfathered at the same
+      "investigate + wire/prune/delete" policy as ``category_b_grandfathered_legacy``. Burns down when
+      each symbol is wired, removed from ``__all__``, or deleted (FR-303).
+    requires_issue: false
+  category_c_mission_type_drg_edges_facade_reexport:
+    rationale: 'C. mission-type-drg-edges (#2677) charter.drg facade re-export. ``charter.drg`` is a contract-required
+      FACADE module: the ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
+      ``charter-facade-modules.md`` Symbol table mandate it re-export ``load_graph`` so consumers reach
+      the DRG loader through ``charter.drg.*`` -- an invariant independently enforced by ``test_charter_facades_reexport_doctrine``.
+      WP03 of this mission rerouted the LAST in-``src/`` consumer of ``charter.drg.load_graph`` to ``load_built_in_graph``,
+      so the contract-required re-export now has no cross-file src/ caller (removing it would break the
+      facade gate -- two-gate tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
+      locations; ``charter.drg`` + ``charter.offering.drg`` share a body_hash), so the FR-005 classifier
+      escalates it to the module_path tier and it is deliberately NOT covered by ``_is_reexport_shim_symbol``
+      (escalated keys are hand-curated by design). Tracker: #2677 (FR-303).'
+    requires_issue: false
+  category_c_urn_resolution_lane:
+    rationale: 'C. mission-step-creatability (01KXQA6R) WP07 URN resolution lane. ``resolve_template_by_urn``
+      / ``TemplateURNError`` are the by-URN compatibility-contract lane for template resolution (C-004,
+      ``contracts/name-urn-resolution.md``). WP07''s scope is FR-010-bound to "add the lane + a by-URN==by-name
+      equivalence test only" -- wiring a real production consumer is explicitly out of scope for this
+      WP. The real consumer (`charter context --include template:<id>`) lands in a later mission/WP, so
+      these two names are exported but currently have zero production importers. Follow-up tracker: #2761.'
+    requires_issue: false
+  category_c_wp_in_flight_charter_yaml_io_write_helper:
+    rationale: 'C. consolidate-charter-bundle WP01 shared write-helper vocabulary. ``charter.activation.charter_yaml_io.update_charter_yaml_section``
+      (the INV-9 single writer all three charter.yaml mutators -- activation_engine.commit_plan, pack_manager.merge_defaults,
+      compiler.write_compiled_charter -- route through) IS wired with a live src/ caller. ``OWNED_SECTIONS``
+      (the public vocabulary of section names callers may name) and ``UnknownCharterYamlSectionError``
+      (the typed error the helper raises for an unrecognised section) are the module''s public *contract*
+      surface for that call, but every current caller passes a literal section string rather than importing
+      the vocabulary/exception to validate against -- so neither symbol itself has a cross-file src/ importer
+      yet. Library- primitive, test-exercised (tests/charter/test_charter_yaml_io.py validates both the
+      accepted-section vocabulary and the raised-on-unknown contract). WP07 (consolidate-charter-bundle-01KXSYB9,
+      #2773) declines to force an artificial caller (e.g. a defensive pre-check duplicating the helper''s
+      own validation) purely to satisfy this gate. Follow-up tracker: #2773 (wire a real caller, e.g.
+      a CLI/validation surface that echoes ``OWNED_SECTIONS`` back to an operator, or fold the two symbols
+      out of ``__all__`` in a dedicated follow-up).'
+    requires_issue: false
+  category_c_scope_source_factory_constructed:
+    rationale: C. scopesource-gate-followup-01KY6S9P WP04 single-factory-construction hub. ``resolve_scope_source``
+      constructs ``DeclaredCommandScopeSource`` in-module and callers consume it through the structural
+      ``ScopeSource`` port.
+    requires_issue: false
+  category_c_lifecycle_gate_execution_context_2841:
+    rationale: 'C. lifecycle-gate-execution-context (#1834/#2885/#2795/#2882) forward seams. Mission ``lifecycle-gate-execution-context``
+      (FR-303 dead-symbol case, no new tracker ticket) landed some surfaces still awaiting a real cross-module
+      caller: * ``acceptance/execution_context.py::SurfaceHeadResolver`` is a ``Callable[[Path], str]``
+      type alias used ONLY as the annotation on ``GateExecutionContext.assert_at_ref``''s ``head_of``
+      parameter -- the C5 ref-agreement gate (``gates_core._assert_ref_agreement``, wired into the ACCEPT-phase
+      acceptance-matrix gate) calls ``assert_at_ref()`` with the default resolver and never needs to inject
+      a substitute in production, so this alias is exercised only by the direct unit tests that inject
+      a fake ``head_of`` for ``tests/acceptance/test_gate_execution_context.py``''s isolated-method cases.
+      A type alias consumed purely as a signature annotation is never a ``from ... import`` site by construction.
+      * ``acceptance/post_consolidation.py`` (``verify_deferred_invariants`` / ``PostConsolidationResult``
+      / ``PostConsolidationViolation`` / ``InvariantViolation``) is WP06/T031''s Op, dispatched ad hoc
+      via ``spec-kitty dispatch`` -- by design "there is no new CLI verb and no call-in from merge/executor.py"
+      (module docstring; zero ``merge/`` coupling is a load-bearing contract constraint, C7) and ``scripts/ci/check_dangling_deferrals.py``
+      is deliberately "zero-coupled to src/specify_cli" (its own docstring) so it duplicates the wire
+      value instead of importing this module. A plain library function with a real, documented caller
+      (docs/guides/accept-and-merge.md #deferred-invariants-and-the-post-consolidation-gate) that is never
+      a static ``src/`` import by design. * ``cli/commands/archive.py`` (``create`` / ``list_archives``)
+      were formerly hand-allowlisted here as Typer command callbacks registered by the ``@app.command(...)``
+      decorator; the real runtime caller is Typer''s own dispatch against ``archive_module.app`` (wired
+      in ``cli/commands/__init__.py``), never a ``from ... import create`` site. Removed (#470): now covered
+      by the ``_is_typer_command_definition`` T013 structural auto-exemption, per the disjointness invariant
+      (auto_exempt ∩ hand_allowlist = ∅ -- see ``test_auto_exempt_disjoint_from_hand_allowlist``).'
+    requires_issue: false
+  category_c_delivery_rail_forward_api:
+    rationale: 'C. Delivery-rail forward API (mission doctrine-delivery-reachability-01KYMXD6). The delivery-rail
+      public API built by mission ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel reachability
+      helpers (``src/charter/offering/drg/reachability.py``) and the WP07 activation-partition helpers
+      (``src/charter/activation/pack_context.py``). WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK``
+      — the planned "walk-update" fast-follow itself): this mission wired the *profile* channel. ``profile_channel_reachable``
+      (never in this frozenset) and ``agent_profile_seed_urns`` (retired below) now have a genuine runtime
+      caller in ``src/charter/offering/agent_profiles/repository.py``, so they are no longer forward-only.
+      The remaining eight symbols are a DIFFERENT concern — the charter-activation partition helpers and
+      the *action*-channel reachability helpers — for which this mission builds no ``src/`` consumer;
+      they stay allowlisted-with-note. They are exercised today only by their own unit tests — no ``src/``
+      caller reaches them yet. Each is a deliberate, ``__all__``-curated public symbol — the forward contract
+      a later mission consumes from runtime ``src/``. This is the "library authored ahead of its runtime
+      caller" shape the gate flags, deliberately deferred here rather than deleted (deletion would forfeit
+      mission-built API with a live forward story). Follow-up tracker: Priivacy-ai/spec-kitty#3063 (the
+      deferred reachability/ delivery decision surface; see docs/plans/doctrine/delivery-reachability-wiring-table.md).
+      Target = 0 once a later mission wires each remaining helper from a runtime caller. The WP15 progressive-disclosure
+      module (``src/charter/activation/progressive_disclosure.py``) is a DIFFERENT case, landing-fold-corrected
+      (PR #3070, E1): its delivery entry points (``build_disclosure_payload``, ``collect_typed_artifacts``,
+      ``requires_closure``) ARE wired -- ``charter.activation.context`` calls them directly -- so they
+      carry no allowlist entry at all; the gate''s
+      module-attribute detector recognises the caller and never flags them. The module''s remaining helpers
+      (``bare_id``, ``edge_to_reference``, ``outbound_references``, ``link_references``, ``reconstruct_urns``,
+      ``artifact_to_dict``, and the ``DELIVERY_INLINE``/``DELIVERY_LINK``/``STATED_DEFAULT_WHEN`` constants)
+      were previously over-exported in ``__all__`` with no external importer, which made the gate mislabel
+      live, intra-module-only implementation detail as "unwired forward API". They were demoted out of
+      ``__all__`` instead (they remain ordinary module-level names -- ``__all__`` only governs ``import
+      *``, and nothing does that here) and so no longer need an allowlist entry either: only genuinely
+      public, genuinely unwired API stays allowlisted below. ``partition_delivery`` is the one progressive-disclosure
+      symbol that is both: still public (``__all__``-declared, per its own forward-API docstring) and
+      has zero ``src/`` callers today.'
+    requires_issue: false
+  category_c_charter_facade_forward_api_01kzpdsr:
+    rationale: 'C. WP-in-flight charter facade forward API (01KZPDSR WP03). Mission ``doctrine-public-api-surface-01KZPDSR``
+      WP03 built the sanctioned ``charter.*`` doors (``charter.assets`` / ``charter.model_routing`` /
+      ``charter.missions`` / ``charter.glossary_packs`` / ``charter.spdd_reasons`` plus the widened ``charter.drg``
+      cluster) that let WP05–WP07 migrate runtime off direct ``doctrine.*`` imports (FR-003, NFR-002,
+      contract C2). Those consumer WPs depend on WP03 and have NOT landed in this lane, so each new facade
+      re-export currently has no cross-file ``src/`` caller. Every symbol below is a contract-required
+      facade re-export (``test_charter_facades_reexport_doctrine`` independently enforces the object-identity
+      + ``__all__`` membership these entries would otherwise let a refactor drop). Each is a LIVE-COLLISION
+      bare_name (the same name lives in the doctrine origin ``__all__`` and, for the PUBLIC ones, in ``charter.offering.api``
+      too), so the FR-005 classifier escalates it to the module_path tier and it is deliberately NOT covered
+      by the content-tier ``_is_reexport_shim_symbol`` auto-exempt — escalated keys are hand-curated by
+      design (DoD i). Same status as the ``category_c_mission_type_drg_edges_facade_reexport`` category above. THIS
+      RATCHET SHRINKS as WP05–WP07 wire runtime onto each door: when a facade symbol gains a real ``src/``
+      caller, its entry MUST be removed here (the stale-ratchet check reds if it lingers). Tracker: mission
+      ``doctrine-public-api-surface-01KZPDSR`` WP05/WP06/WP07 (FR-303).'
+    requires_issue: false
+  category_c_charter_authority_flip_forward_api:
+    rationale: 'C. charter-authority-flip (01M14RB3) forward public API (#3664). Two intentional public
+      symbols landed by the doctrine->charter governing-term flip that have no cross-file `src/` caller
+      yet, both content-tier (unique bare_name, no live collision): * ``charter.activation.interview::InterviewAnswersRegressionError``
+      -- raised by ``write_interview_answers(..., fail_closed_on_regression=True)``. That opt-in flag
+      has no production caller today: the only caller is ``tests/charter/test_answers_migration.py`` (which
+      asserts on the error directly), and the answers-migration script ``scripts/migrate_charter_interview_answers.py``
+      deliberately does NOT use this writer at all -- it does byte-preserving anchored substitution to
+      survive the archive-freeze gate. So this is test-only forward public API, exposed by design so that
+      future/external migration callers can catch it. * ``charter.activation.sync::LegacyGovernanceKeyWarning``
+      -- the ``UserWarning`` subclass ``_warn_legacy_governance_key_once()`` raises internally (same module,
+      so invisible to the cross-file caller graph); ``tests/charter/ test_governance_key_compat.py`` asserts
+      on it via ``pytest.warns(...)``. Public by design so any consumer can filter/assert on the specific
+      warning class rather than a bare ``UserWarning``.'
+    requires_issue: false
+  category_c_path_conventions_forward_api:
+    rationale: 'C. mission-type-canonical-source-01M302V9 path_conventions forward API (#3831/#4088, FR-303).
+      ``charter.offering.missions.models::VALID_PATH_KEYS`` / ``::validate_path_conventions`` land the
+      canonical ``path_conventions`` charter doctrine slot ahead of its wiring: per the ADR (``docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md``),
+      the slot is a forward-declared, additive extension point on the charter ``MissionType`` model --
+      its producers are downstream consumer org packs and the #2652-deferred built-in convergence, neither
+      of which lands in this PR. Content-tier: ``VALID_PATH_KEYS`` also exists as a legacy, non- ``__all__``
+      (widened-scope only) module-level constant in ``specify_cli/mission.py``, which is invisible to
+      the gate''s live collision index (``classify_collisions`` only walks statically-declared ``__all__``
+      membership) -- so no module_path escalation is needed here. Remove this entry once a real src/ caller
+      lands (FR-303 tracker: #2652).'
+    requires_issue: false
+  category_c_fsm_write_path_unsafe_door:
+    rationale: 'C. fsm-write-path-integrity-01M1TZV6 WP03 raw-append door (FR-010). ``specify_cli.status._unsafe``
+      is the enumerated, gate-facing door for the raw ``status.events.jsonl`` append primitives (they
+      left the ``status`` facade so no runtime module can reach them without appearing in the shrink-only
+      ``ALLOWED_CALLERS`` census). Two of its public names have no cross-file ``src/`` caller BY DESIGN:
+      * ``specify_cli.status._unsafe::ALLOWED_CALLERS`` -- consumed only by the architectural gate ``tests/architectural/test_status_unsafe_allowlist.py``
+      (every door importer must be in it; it must stay a subset of the test''s committed BASELINE). A
+      runtime caller would defeat its purpose. * ``specify_cli.status._unsafe::append_event`` -- the unverified
+      single-row primitive, re-exported because the write-gates contract names every raw primitive on
+      this door; production writers use the ``_verified`` / ``_atomic`` variants, so its only importers
+      are tests (14 files) that seed event logs through the sanctioned door. Module-path tier: the alias
+      text collides with ``glossary``''s unrelated ``append_event`` re-export. Tracked with the mission''s
+      census-gate-rule note (#3895); drop these entries if the door is ever folded back or ``append_event``
+      retired.'
+    requires_issue: false
+  category_d_charter_code_topology_relocation_forward_api:
+    rationale: 'D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664).
+      Three symbols surfaced by the src/doctrine/ -> src/charter/offering/ package relocation (mission
+      ``charter-code-topology-01M152G1``, PR #3664). (A fourth casualty of the same relocation, ``charter.activation.pack_context::
+      normalize_activation_identifier``, was NOT a new entry here -- it already had a Category C allowlist
+      row above (historical: under the pre-#5346 ``(bare_name, body_hash)`` scheme, the relocation changed
+      that row''s body_hash, so the row was re-pinned in place rather than duplicated; under the current
+      ``(module, name)`` identity this class of churn no longer applies).) None of
+      the three below is dead: each is exported by design for a consumer outside this specific cross-file
+      caller graph, verified before allow-listing (never a blanket suppression): * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
+      -- raised internally by the module''s own legacy-key compat warn-once helper (same module, so invisible
+      to the cross-file caller graph), same shape as the established ``charter.activation.sync::LegacyGovernanceKeyWarning``
+      / ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning`` precedent above: public by design
+      so a consumer can filter/assert on the specific warning class. Asserted on via ``pytest.warns(...)``
+      in ``tests/runtime/test_bridge_io.py``, ``tests/runtime/test_resolver_unit.py``, and ``tests/unit/mission_loader/test_command.py``.
+      * ``kernel.doctrine_root::CANONICAL_DOCTRINE_DIRNAME`` -- the CR-07 canonical per-project doctrine-artifact
+      dirname (``"charter-packs"``, replacing legacy ``.kittify/doctrine/``). The module''s own docstring
+      is explicit that this is M2 (read-side dual-root resolver) groundwork only: "M3 performs the actual
+      on-disk data move and flips write call sites over; nothing in this module writes or moves any file."
+      No write call site exists yet anywhere in ``src/`` (grepped: zero hits for the literal ``"charter-packs"``
+      outside this module) -- genuinely forward API for the not-yet-landed M3 cutover, not a dropped caller.
+      * ``kernel.doctrine_root::LegacyDoctrineRootWarning`` -- same "legacy compat warn-once, same-module
+      raise, public for external filtering" shape as ``LegacyOrgPackDoctrineKeyWarning`` above.'
+    requires_issue: false
+  category_e_charter_activation_split_forward_api:
+    rationale: 'E. charter-activation-split forward API (#806). EXPERIMENTAL deliberately retains its
+      replay semantics, so these restored upstream helpers are public but currently unwired. TODO(triage):
+      #925 owns their wire-or-prune disposition.'
+    requires_issue: false
+  category_c_team_kitty_launch_defaults_3980:
+    rationale: 'C. team-kitty-launch-defaults 3980 forward API. The #3980 launch-defaults flip introduced
+      the canonical env-name constants in ``specify_cli.core.env`` and kept ``sync_active()`` as the contract-pinned
+      armed predicate (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/ contracts/saas_rollout.md``
+      v3). None has a cross-file ``src/`` caller yet: * the three ``core.env`` constants are consumed
+      by their own module''s gate functions (``sync_kill_switch_active`` / ``pre_review_gate_skip_reason``
+      / ``moment_handlers_disabled_reason``) and imported by tests (``tests/specify_cli/core/test_env.py``,
+      the agent-command conftest), but the parallel literal name lists in ``core/secret_redaction.py``
+      and ``upgrade/migrations/m_3_2_8_provision_kitty_env.py`` predate the constants and still hardcode
+      the strings. * ``sync_active()``''s last runtime caller (the owned-checkout ``OWNED_SYNC_UNSUPPORTED``
+      refusal) was removed by #3980 itself; the contract still requires its kill-switch/disarm test coverage,
+      and the launch table names it as the ``SPEC_KITTY_SYNC_DISABLE`` consumer. TODO(triage): #3980 post-launch
+      — wire the literal-list sites to the constants, and either wire a ``sync_active()`` consumer (the
+      kill-switch fold into readiness/tracker gating) or retire it with the next contract version bump,
+      then drop these entries.'
+    requires_issue: false
+  category_c_live_work_capture_public_surface:
+    rationale: 'C. Live Work capture layer public surface (#4268). The new ``specify_cli.live_work`` package
+      (spec-kitty#4268, Live Work harness capture): its runtime callers are the ``live-work`` CLI command
+      group and the retrospective-outcome fanout, which consume the adapter, publisher, coalescer, watcher
+      and bindings seams. The twelve symbols below are the layer''s *public constants and predicates*
+      — the vocabulary its tests pin and its follow-up wiring (factory dispatch install, e2e capture-to-paint
+      qualification, spec-kitty#4268''s acceptance evidence) consumes by name; none has a second src/
+      importer yet. TODO(triage): wire the first by-name consumer or drop from __all__ (FR-303).'
+    requires_issue: false
+  category_d_live_work_authored_public_surface:
+    rationale: 'D. Live Work authored-message service surface (#4269). The ``specify_cli.live_work.authored``
+      service (spec-kitty#4269, authored publish/reply/read/inbox): its runtime callers are the ``zeitgeist
+      send/reply/read/inbox`` CLI commands and the MCP ``zeitgeist_*`` tools, which import the service
+      functions, the typed error and the outcome enum by name. The three symbols below are the service''s
+      *result type and wire bounds* — the vocabulary its tests pin and the e2e A-question->B-reply qualification
+      (e2e#452) consumes by name; none has a second src/ importer yet. TODO(triage): wire the first by-name
+      consumer or drop from __all__ (FR-303, spec-kitty#4269).'
+    requires_issue: false
+  category_c_terminus_reconciliation_5001:
+    rationale: 'C. Terminus reconciliation gate + merge-coord integrity (#5001). The terminus/merge-coord
+      integrity spine (Epic #5001) lands its public vocabulary ahead of every external caller: today each
+      symbol is exercised intra-module (the wired `route_terminus`/`VerifyResult`/claim-builder call chains)
+      and by the WP06 reconciliation test suite (tests/consolidation/test_reconciliation.py), not yet
+      imported from a second src/ module. External consumers land with the Epic #5001 follow-ups.'
+    requires_issue: false
+entries:
+- module: charter.activation._catalog_miss
+  name: CharterCatalogMissError
+  category: category_a_slice_f_deferred
+- module: charter.activation._catalog_miss
+  name: CharterCatalogMissWarning
+  category: category_a_slice_f_deferred
+- module: charter.activation.activations
+  name: ALLOWED_MISSION_TYPES
+  category: category_a_slice_f_deferred
+- module: charter.activation.activations
+  name: REGISTERED_TRIGGERS
+  category: category_a_slice_f_deferred
+- module: charter.activation.compact
+  name: CompactView
+  category: category_a_slice_f_deferred
+- module: charter.activation.compact
+  name: extract_section_anchors
+  category: category_a_slice_f_deferred
+- module: charter.activation.synthesizer.manifest
+  name: compute_manifest_hash
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: charter.activation.synthesizer.write_pipeline
+  name: StagedArtifact
+  category: category_a_slice_f_deferred
+- module: charter.offering.drg.org_pack_config
+  name: ensure_pack_identity
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.dashboard.csp
+  name: DASHBOARD_CSP
+  category: category_a_slice_f_deferred
+  rationale: 'M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant. send_csp_header()
+    is wired into all 35 send_response() sites (WIRE-M2-02), so the module is no longer an orphan, but
+    the DASHBOARD_CSP constant is only consumed inside send_csp_header()''s own body, never imported by
+    name from another src/ module. TODO(triage): drop from __all__ if no direct consumer of the raw string
+    ever appears.'
+- module: specify_cli.dashboard.server
+  name: BackgroundPortReportError
+  category: category_a_slice_f_deferred
+  rationale: '#577: deliberately exported typed failure contract for callers that need to distinguish
+    detached-child startup failures. No runtime caller catches it yet. TODO(triage): wire the first caller
+    or drop from __all__ (FR-303).'
+  issue: '#577'
+- module: specify_cli.doctrine.builtin_manifest
+  name: GENERATED_BY
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.builtin_manifest
+  name: MANIFEST_FILENAME
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.builtin_manifest
+  name: build_builtin_manifest
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.builtin_manifest
+  name: enumerate_constituents
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_lineage
+  name: PackLineageCycleError
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_lineage
+  name: UnresolvedDoctrinePackError
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_lineage
+  name: UnresolvedPackParentError
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_lineage
+  name: resolve_accompanying_doctrine_pack
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_lineage
+  name: resolve_pack_lineage_order
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: CharterProfile
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: HASH_EXCLUDED_FIELDS
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: SCHEMA_VERSION
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: absorb_synthesis_manifest
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: compute_pack_manifest_hash
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: counts_by_kind
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: load_pack_manifest
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.doctrine.pack_manifest
+  name: sort_constituents
+  category: category_a_slice_f_deferred
+  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
+    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
+    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
+    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
+- module: specify_cli.status.lifecycle_events
+  name: append_lifecycle_event
+  category: category_a_slice_f_deferred
+  rationale: 'M2 canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers
+    that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.'
+- module: specify_cli.status.migrate_lifecycle_envelope
+  name: MigrationAction
+  category: category_a_slice_f_deferred
+  rationale: 'M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+    yet. TODO(triage): wire or drop from __all__.'
+- module: specify_cli.status.migrate_lifecycle_envelope
+  name: MigrationManifest
+  category: category_a_slice_f_deferred
+  rationale: 'M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+    yet. TODO(triage): wire or drop from __all__.'
+- module: specify_cli.status.migrate_lifecycle_envelope
+  name: MigrationRowResult
+  category: category_a_slice_f_deferred
+  rationale: 'M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+    yet. TODO(triage): wire or drop from __all__.'
+- module: charter.encoding_recovery
+  name: EncodingRecoveryResult
+  category: category_b_grandfathered_legacy
+  rationale: 'the return type of :func:`charter.encoding_recovery.recover` (the canonical encoding-recovery
+    detector, #4962/#4968 WP01). Its sole cross-module caller (``specify_cli.acceptance._recover_normalized_text``)
+    consumes the returned instance purely via attribute access (``.ambiguous``/``.text``/``.normalization_applied``/
+    ``.source_encoding``/``.confidence``) -- legitimate duck-typed usage that never imports the dataclass
+    by name, so it has no ``ImportFrom`` site for this gate to see. Exercised directly by ``tests/charter/test_encoding_recovery.py``.'
+- module: charter.offering.missions.models
+  name: IDENTIFIER_PATTERN
+  category: category_b_grandfathered_legacy
+- module: charter.offering.missions.models
+  name: Mission
+  category: category_b_grandfathered_legacy
+- module: charter.offering.shared
+  name: ConflictType
+  category: category_b_grandfathered_legacy
+- module: charter.offering.shared
+  name: GlossaryScope
+  category: category_b_grandfathered_legacy
+- module: charter.offering.shared
+  name: SenseRef
+  category: category_b_grandfathered_legacy
+- module: charter.offering.shared
+  name: Severity
+  category: category_b_grandfathered_legacy
+- module: charter.offering.shared
+  name: TermSurface
+  category: category_b_grandfathered_legacy
+- module: glossary.semantic_events
+  name: SemanticConflictRecord
+  category: category_b_grandfathered_legacy
+- module: kernel.clock
+  name: FrozenClock
+  category: category_b_grandfathered_legacy
+  rationale: 'FrozenClock/SystemClock are the genuine public injectable-clock API (Clock protocol''s real
+    implementation + deterministic test double). By design production code reads only the DEFAULT_CLOCK
+    singleton (never SystemClock/FrozenClock by name), so there is no non-test src/ caller to wire; tests
+    across kernel/agent/upgrade/specify_cli inject FrozenClock directly and DEFAULT_CLOCK is instantiated
+    from SystemClock at module load. Kept public (not pruned from __all__) because both are load-bearing
+    constructor targets for the SC-002 single-injection-point idiom documented in kernel/clock.py''s own
+    module + class docstrings (kernel-clock-single-door, PR #3305).'
+- module: kernel.clock
+  name: SystemClock
+  category: category_b_grandfathered_legacy
+  rationale: 'FrozenClock/SystemClock are the genuine public injectable-clock API (Clock protocol''s real
+    implementation + deterministic test double). By design production code reads only the DEFAULT_CLOCK
+    singleton (never SystemClock/FrozenClock by name), so there is no non-test src/ caller to wire; tests
+    across kernel/agent/upgrade/specify_cli inject FrozenClock directly and DEFAULT_CLOCK is instantiated
+    from SystemClock at module load. Kept public (not pruned from __all__) because both are load-bearing
+    constructor targets for the SC-002 single-injection-point idiom documented in kernel/clock.py''s own
+    module + class docstrings (kernel-clock-single-door, PR #3305).'
+- module: kernel.locks
+  name: STALE_AFTER_S_DEFAULT
+  category: category_b_grandfathered_legacy
+- module: runtime.next.discovery
+  name: ClaimablePreview
+  category: category_b_grandfathered_legacy
+- module: specify_cli.acceptance
+  name: AcceptanceMode
+  category: category_b_grandfathered_legacy
+- module: specify_cli.acceptance
+  name: EncodingBackupCollisionError
+  category: category_b_grandfathered_legacy
+  rationale: 'a legitimate public exception on the accept encoding-backup surface: defined and raised
+    internally by ``_write_recovered_artifact`` when ``--normalize-encoding`` finds a pre-existing backup
+    sibling it must never silently overwrite, and part of the documented accept encoding-backup contract
+    exercised by ``tests/regressions/test_issue_4968_accept_encoding.py`` (#4962/#4968). ``__all__``-declared
+    but only ever caught within the same module''s own ``except AcceptanceError`` handler, so it has no
+    cross-module ``src/`` caller for this gate to see.'
+- module: specify_cli.auth.refresh_transaction
+  name: RefreshResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: DoctorReport
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: Finding
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: LockSummary
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: ServerSessionStatus
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: SessionSummary
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: assemble_report
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: compute_exit_code
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: render_report
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._auth_doctor
+  name: render_report_json
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._branch_strategy_gate
+  name: GateDecision
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands._branch_strategy_gate
+  name: GateOutcome
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands.implement
+  name: _ensure_vcs_in_meta
+  category: category_b_grandfathered_legacy
+- module: specify_cli.cli.commands.implement
+  name: find_wp_file
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: ClassifierRule
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: RULES
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: Resolution
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: r_default_manual
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: r_init_imports_union
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: r_pyproject_deps_union
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: r_urls_list_union
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.conflict_classifier
+  name: r_uvlock_regenerate
+  category: category_b_grandfathered_legacy
+- module: specify_cli.consolidation.state
+  name: MergeAmbiguousStateError
+  category: category_b_grandfathered_legacy
+  rationale: 'Still unwired from a second src/ module today; external consumers land with the Epic #5001
+    follow-ups.'
+  issue: '#5001'
+- module: specify_cli.consolidation.state
+  name: detect_git_merge_state
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.context_validation
+  name: CurrentContext
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.context_validation
+  name: ExecutionContext
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.context_validation
+  name: detect_execution_context
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.context_validation
+  name: get_current_context
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.git_ops
+  name: BranchResolution
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.git_preflight
+  name: GitPreflightIssue
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.git_preflight
+  name: GitPreflightResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.upgrade_probe
+  name: DEFAULT_TIMEOUT_S
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.upgrade_probe
+  name: PYPI_JSON_URL
+  category: category_b_grandfathered_legacy
+  rationale: 'restored upstream public endpoint contract (#798); probe_pypi consumes it in this module,
+    but no other src/ module imports the constant by name. TODO(triage): wire a direct consumer or remove
+    it from __all__ if the public contract no longer needs it.'
+  issue: '#798'
+- module: specify_cli.core.worktree_topology
+  name: FeatureTopology
+  category: category_b_grandfathered_legacy
+- module: specify_cli.core.worktree_topology
+  name: WPTopologyEntry
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: ArtifactDirectoryFile
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: ArtifactInfo
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: CurrentFeatureDetected
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: CurrentFeatureNotDetected
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: DashboardHealthInfo
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: DiagnosticsErrorResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: DiagnosticsFeatureStatus
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: DiagnosticsResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: ErrorResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: FeaturesListErrorResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: FileIntegrity
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: KanbanStats
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: MissionRecord
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: ResearchArtifact
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: WorkflowStatus
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.api_types
+  name: WorktreeInfo
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.lifecycle
+  name: _write_dashboard_file
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dashboard.templates
+  name: get_dashboard_html
+  category: category_b_grandfathered_legacy
+- module: specify_cli.doctrine.org_charter
+  name: GovernancePolicy
+  category: category_b_grandfathered_legacy
+- module: specify_cli.doctrine.org_charter
+  name: REQUIRED_KIND_FIELDS
+  category: category_b_grandfathered_legacy
+- module: specify_cli.doctrine.org_charter
+  name: apply_org_charter_pre_fill
+  category: category_b_grandfathered_legacy
+- module: specify_cli.doctrine.pack_assembler
+  name: AssemblyResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.doctrine.pack_assembler
+  name: ConflictItem
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dossier.api
+  name: ArtifactDetailResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dossier.api
+  name: ArtifactListItem
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dossier.api
+  name: ArtifactListResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dossier.api
+  name: DossierHandlerAdapter
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dossier.api
+  name: DossierOverviewResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.dossier.api
+  name: SnapshotExportResponse
+  category: category_b_grandfathered_legacy
+- module: specify_cli.frontmatter
+  name: get_field
+  category: category_b_grandfathered_legacy
+- module: specify_cli.frontmatter
+  name: validate_frontmatter
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout
+  name: SparseCheckoutKind
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout
+  name: _reset_session_warning_state
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout
+  name: scan_path
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: STEP_REFRESH_WORKING_TREE
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: STEP_REMOVE_PATTERN_FILE
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: STEP_SPARSE_DISABLE
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: STEP_UNSET_CONFIG
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: STEP_USER_DECLINED
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: STEP_VERIFY_CLEAN
+  category: category_b_grandfathered_legacy
+- module: specify_cli.git.sparse_checkout_remediation
+  name: SparseCheckoutRemediationReport
+  category: category_b_grandfathered_legacy
+- module: specify_cli.intake.brief_writer
+  name: CrossFilesystemWriteError
+  category: category_b_grandfathered_legacy
+- module: specify_cli.intake.brief_writer
+  name: atomic_write_bytes
+  category: category_b_grandfathered_legacy
+- module: specify_cli.intake.brief_writer
+  name: atomic_write_text
+  category: category_b_grandfathered_legacy
+- module: specify_cli.invocation.projection_policy
+  name: POLICY_TABLE
+  category: category_b_grandfathered_legacy
+- module: specify_cli.invocation.projection_policy
+  name: ProjectionRule
+  category: category_b_grandfathered_legacy
+- module: specify_cli.lanes.lifecycle_sync
+  name: LANE_AUTO_REBASE_FAILED
+  category: category_b_grandfathered_legacy
+- module: specify_cli.mission_brief
+  name: IntakeFileMissingError
+  category: category_b_grandfathered_legacy
+- module: specify_cli.mission_brief
+  name: IntakeFileUnreadableError
+  category: category_b_grandfathered_legacy
+- module: specify_cli.mission_brief
+  name: clear_mission_brief
+  category: category_b_grandfathered_legacy
+- module: specify_cli.missions
+  name: PrimitiveExecutionContext
+  category: category_b_grandfathered_legacy
+- module: specify_cli.missions
+  name: execute_with_glossary
+  category: category_b_grandfathered_legacy
+- module: specify_cli.ownership.inference
+  name: SRC_FALLBACK_GLOB
+  category: category_b_grandfathered_legacy
+- module: specify_cli.ownership.inference
+  name: SRC_FALLBACK_WARNING
+  category: category_b_grandfathered_legacy
+- module: specify_cli.ownership.validation
+  name: validate_authoritative_surface
+  category: category_b_grandfathered_legacy
+- module: specify_cli.ownership.validation
+  name: validate_execution_mode_consistency
+  category: category_b_grandfathered_legacy
+- module: specify_cli.ownership.validation
+  name: validate_no_overlap
+  category: category_b_grandfathered_legacy
+- module: specify_cli.plan_validation
+  name: detect_unfilled_plan
+  category: category_b_grandfathered_legacy
+- module: specify_cli.runtime
+  name: AssetDisposition
+  category: category_b_grandfathered_legacy
+- module: specify_cli.runtime
+  name: MigrationReport
+  category: category_b_grandfathered_legacy
+- module: specify_cli.runtime
+  name: OriginEntry
+  category: category_b_grandfathered_legacy
+- module: specify_cli.runtime
+  name: ResolutionResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.runtime
+  name: classify_asset
+  category: category_b_grandfathered_legacy
+  rationale: Still a re-export with no src/ caller (tests import it directly from runtime.migrate).
+- module: specify_cli.runtime.resolver
+  name: ResolutionResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.skills.manifest_store
+  name: SCHEMA_VERSION
+  category: category_b_grandfathered_legacy
+- module: specify_cli.status.lifecycle_events
+  name: MISSION_EVENTS_FILENAME
+  category: category_b_grandfathered_legacy
+- module: specify_cli.status.lifecycle_events
+  name: PROJECT_INITIALIZED
+  category: category_b_grandfathered_legacy
+- module: specify_cli.status.lifecycle_events
+  name: has_lifecycle_event
+  category: category_b_grandfathered_legacy
+- module: specify_cli.status.uninitialized_hint
+  name: find_wp_dependency_cycles
+  category: category_b_grandfathered_legacy
+- module: specify_cli.task_metadata_validation
+  name: TaskMetadataError
+  category: category_b_grandfathered_legacy
+- module: specify_cli.task_metadata_validation
+  name: detect_lane_mismatch
+  category: category_b_grandfathered_legacy
+- module: specify_cli.task_metadata_validation
+  name: validate_task_metadata
+  category: category_b_grandfathered_legacy
+- module: specify_cli.template.asset_generator
+  name: _convert_markdown_syntax_to_format
+  category: category_b_grandfathered_legacy
+- module: specify_cli.text_sanitization
+  name: PROBLEMATIC_CHARS
+  category: category_b_grandfathered_legacy
+- module: specify_cli.text_sanitization
+  name: sanitize_markdown_text
+  category: category_b_grandfathered_legacy
+- module: specify_cli.upgrade.migrations
+  name: MigrationDiscoveryError
+  category: category_b_grandfathered_legacy
+- module: specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle
+  name: MIGRATION_ID
+  category: category_b_grandfathered_legacy
+- module: specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle
+  name: TARGET_VERSION
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.csv_schema
+  name: CSVSchemaValidation
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.paths
+  name: PathValidationResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.paths
+  name: suggest_directory_creation
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: APA_PATTERN
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: BIBTEX_PATTERN
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: CitationFormat
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: CitationIssue
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: CitationValidationResult
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: ResearchValidationError
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: SIMPLE_PATTERN
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: VALID_CONFIDENCE_LEVELS
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: VALID_RELEVANCE_LEVELS
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: VALID_SOURCE_STATUS
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: VALID_SOURCE_TYPES
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: detect_citation_format
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: is_apa_format
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: is_bibtex_format
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: is_simple_format
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: validate_citations
+  category: category_b_grandfathered_legacy
+- module: specify_cli.validators.research
+  name: validate_source_register
+  category: category_b_grandfathered_legacy
+- module: specify_cli.widen.interview_helpers
+  name: render_widen_hint_if_present
+  category: category_b_grandfathered_legacy
+- module: charter.activation.invocation_context
+  name: ContextPreconditionError
+  category: category_c_wp_in_flight_charter_scope
+- module: runtime.next._internal_runtime.workflow_registry
+  name: UnknownWorkflowError
+  category: category_c_guarded_read_reparent_2899
+- module: specify_cli.missions._create
+  name: CoordinationBranchResult
+  category: category_c_wp_in_flight_coordination_branch
+- module: specify_cli.missions._create
+  name: coordination_branch_name
+  category: category_c_wp_in_flight_coordination_branch
+- module: specify_cli.missions._resolve_planning_branch
+  name: resolve_planning_branch_from_meta
+  category: category_c_wp_in_flight_coordination_branch
+- module: specify_cli.coordination.surface_resolver
+  name: ResolvedStatusSurface
+  category: category_c_wp_in_flight_topology_authority
+- module: charter.offering.missions.mission_step_repository
+  name: StepKey
+  category: category_c_wp_in_flight_unified_mission_step
+- module: charter.offering.missions.step_contracts
+  name: DelegatesTo
+  category: category_c_wp_in_flight_unified_mission_step
+- module: charter.activation.pack_manager
+  name: ActivationResult
+  category: category_c_wp_in_flight_charter_activation
+- module: charter.activation.pack_manager
+  name: MergeResult
+  category: category_c_wp_in_flight_charter_activation
+- module: specify_cli.charter_activate
+  name: AffectedMission
+  category: category_c_wp_in_flight_charter_activation
+- module: specify_cli.charter_activate
+  name: StepRemovalWarning
+  category: category_c_wp_in_flight_charter_activation
+- module: specify_cli.doctrine.org_charter
+  name: OrgCharterCycleError
+  category: category_c_wp_in_flight_charter_activation
+- module: specify_cli.doctrine.org_charter
+  name: OrgCharterExtensionError
+  category: category_c_wp_in_flight_charter_activation
+- module: charter.activation.activation_engine
+  name: ActivationPlan
+  category: category_c_org_doctrine_closeout
+- module: charter.activation.cascade
+  name: DeactivationPlan
+  category: category_c_org_doctrine_closeout
+  rationale: The public return type of ``deactivation_plan()``, consumed by the CLI layer and tests; still
+    no src/ importer.
+- module: charter.activation.cascade
+  name: ReferencedArtifact
+  category: category_c_org_doctrine_closeout
+- module: charter.activation.cascade
+  name: SharedSkip
+  category: category_c_org_doctrine_closeout
+- module: charter.offering.drg.org_pack_loader
+  name: AUGMENTATION_RELATIONS
+  category: category_c_org_doctrine_closeout
+- module: charter.offering.drg.org_pack_loader
+  name: TOPOLOGY_KINDS
+  category: category_c_org_doctrine_closeout
+- module: charter.offering.drg.org_pack_loader
+  name: merge_topology_artifact
+  category: category_c_org_doctrine_closeout
+- module: charter.offering.template_catalog
+  name: template_node
+  category: category_c_org_doctrine_closeout
+  rationale: '``template_node`` / ``template_nodes`` stay allowlisted: still no live caller.'
+- module: charter.offering.template_catalog
+  name: template_nodes
+  category: category_c_org_doctrine_closeout
+  rationale: '``template_node`` / ``template_nodes`` stay allowlisted: still no live caller.'
+- module: specify_cli.cli.commands._doctrine_health
+  name: PackHealth
+  category: category_c_org_doctrine_closeout
+- module: specify_cli.session_presence.upgrade_check
+  name: CACHE_PATH
+  category: category_c_upstream_session_presence
+- module: specify_cli.session_presence.upgrade_check
+  name: TTL_SECONDS
+  category: category_c_upstream_session_presence
+- module: specify_cli.validators.paths
+  name: PathValidationError
+  category: category_c_quality_debt_1928
+- module: kernel.env_expand
+  name: UnresolvedEnvTokenError
+  category: category_c_operator_config_public_api
+- module: specify_cli.bootstrap.env_file
+  name: OperatorEnvFileUnreadableError
+  category: category_c_operator_config_public_api
+- module: specify_cli.core.secret_redaction
+  name: RedactedVar
+  category: category_c_operator_config_public_api
+- module: charter.activation.mission_type_profiles
+  name: MissionTypeEmptyActionSequenceError
+  category: category_c_mission_type_uncaught_propagation_surface
+- module: specify_cli.cli.commands._bytecode_doctor
+  name: register
+  category: category_c_doctor_auto_discovery_seam
+- module: specify_cli.cli.commands._bytecode_doctor
+  name: run_bytecode_audit
+  category: category_c_doctor_auto_discovery_seam
+- module: specify_cli.cli.commands._channel_doctor
+  name: register
+  category: category_c_doctor_auto_discovery_seam
+- module: specify_cli.cli.commands._channel_doctor
+  name: run_channel_report
+  category: category_c_doctor_auto_discovery_seam
+- module: specify_cli.cli.commands._env_file_doctor
+  name: register
+  category: category_c_doctor_auto_discovery_seam
+  rationale: Still reached only via doctor.py's dynamic ``getattr(module, "register")`` auto-discovery,
+    invisible to the gate's static import scan.
+- module: specify_cli.cli.commands._env_file_doctor
+  name: run_env_file_health
+  category: category_c_doctor_auto_discovery_seam
+- module: specify_cli.cli.commands._provenance_doctor
+  name: register
+  category: category_c_doctor_auto_discovery_seam
+  rationale: Reached only via doctor.py's dynamic ``getattr(module, "register")`` auto-discovery, the
+    same reach path as ``_env_file_doctor::register``.
+- module: specify_cli.lanes.branch_naming
+  name: LEGACY_FAILOVER_SUPPRESS_ENV
+  category: category_c_branch_naming_failover_seam
+- module: specify_cli.lanes.branch_naming
+  name: reset_legacy_failover_warning
+  category: category_c_branch_naming_failover_seam
+- module: specify_cli.cli.commands.consolidate
+  name: BaselineMergeCommitError
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.bookkeeping_projection
+  name: _assert_status_surface_file_path_is_trusted
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.bookkeeping_projection
+  name: _read_optional_bytes
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.bookkeeping_projection
+  name: _restore_optional_bytes
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.ordering
+  name: _already_baked
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.ordering
+  name: _is_assigned_mission_number
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.push_preflight
+  name: check_push_safety
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.resolve
+  name: _extract_mission_slug
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.consolidation.resolve
+  name: _iter_merge_states_for_slug
+  category: category_c_merge_decomp_shim_reexport_2057
+- module: specify_cli.auth.transport
+  name: AsyncAuthenticatedClient
+  category: category_b_t001_unblinded
+- module: specify_cli.auth.transport
+  name: AuthRefreshFailed
+  category: category_b_t001_unblinded
+- module: specify_cli.auth.transport
+  name: AuthenticatedClient
+  category: category_b_t001_unblinded
+- module: specify_cli.auth.transport
+  name: get_async_client
+  category: category_b_t001_unblinded
+- module: specify_cli.auth.transport
+  name: get_client
+  category: category_b_t001_unblinded
+- module: specify_cli.auth.transport
+  name: reset_clients
+  category: category_b_t001_unblinded
+- module: charter.drg
+  name: load_graph
+  category: category_c_mission_type_drg_edges_facade_reexport
+  rationale: contract-required facade re-export (charter-facade-modules.md) with no internal caller after
+    WP03 rerouting -- same status as MissionStep.
+- module: specify_cli.runtime.resolver
+  name: TemplateURNError
+  category: category_c_urn_resolution_lane
+  rationale: 'compatibility-contract URN lane (C-004/FR-010); consumer wired in #2761'
+  issue: '#2761'
+- module: specify_cli.runtime.resolver
+  name: resolve_template_by_urn
+  category: category_c_urn_resolution_lane
+  rationale: 'compatibility-contract URN lane (C-004/FR-010); consumer wired in #2761'
+  issue: '#2761'
+- module: charter.activation.charter_yaml_io
+  name: OWNED_SECTIONS
+  category: category_c_wp_in_flight_charter_yaml_io_write_helper
+- module: charter.activation.charter_yaml_io
+  name: UnknownCharterYamlSectionError
+  category: category_c_wp_in_flight_charter_yaml_io_write_helper
+- module: specify_cli.review.scope_source
+  name: DeclaredCommandScopeSource
+  category: category_c_scope_source_factory_constructed
+  rationale: Constructed exclusively via resolve_scope_source() (same-module); consumed cross-module only
+    structurally, through the ScopeSource port (never imported by concrete name outside scope_source.py
+    by design).
+- module: specify_cli.review.scope_source
+  name: FileScopeBreakdown
+  category: category_c_scope_source_factory_constructed
+  rationale: the return value of injected narrowing sources' scope_breakdown(); consumed structurally
+    by pre_review_gate._scope_result_from_breakdown.
+- module: specify_cli.acceptance.execution_context
+  name: SurfaceHeadResolver
+  category: category_c_lifecycle_gate_execution_context_2841
+- module: specify_cli.acceptance.post_consolidation
+  name: InvariantViolation
+  category: category_c_lifecycle_gate_execution_context_2841
+- module: specify_cli.acceptance.post_consolidation
+  name: PostConsolidationResult
+  category: category_c_lifecycle_gate_execution_context_2841
+- module: specify_cli.acceptance.post_consolidation
+  name: PostConsolidationViolation
+  category: category_c_lifecycle_gate_execution_context_2841
+- module: specify_cli.acceptance.post_consolidation
+  name: verify_deferred_invariants
+  category: category_c_lifecycle_gate_execution_context_2841
+- module: charter.activation.pack_context
+  name: ActivationReachabilityPartition
+  category: category_c_delivery_rail_forward_api
+- module: charter.activation.pack_context
+  name: charter_activated_urns
+  category: category_c_delivery_rail_forward_api
+  rationale: 'The documented FR-017 "single activation authority"; stays public/__all__-exported for the
+    DRG reachability/extractor test suites that consume it directly. Its last src/ caller was removed
+    by the #3118 hot-path perf fold (see empty_charter.py''s module docstring).'
+- module: charter.activation.pack_context
+  name: normalize_activation_identifier
+  category: category_c_delivery_rail_forward_api
+- module: charter.activation.pack_context
+  name: partition_activated_unreachable
+  category: category_c_delivery_rail_forward_api
+- module: charter.activation.progressive_disclosure
+  name: partition_delivery
+  category: category_c_delivery_rail_forward_api
+- module: charter.offering.drg.reachability
+  name: PROFILE_CHANNEL_RELATIONS
+  category: category_c_delivery_rail_forward_api
+- module: charter.offering.drg.reachability
+  name: action_channel_reachable
+  category: category_c_delivery_rail_forward_api
+- module: charter.offering.drg.reachability
+  name: action_seed_urns
+  category: category_c_delivery_rail_forward_api
+- module: charter.assets
+  name: AssetManifest
+  category: category_c_charter_facade_forward_api_01kzpdsr
+  rationale: Genuine forward/wheel-only public API with no in-repo caller yet (PUBLIC; re-exported from
+    charter.offering.api via the charter facades).
+- module: charter.assets
+  name: AssetResolutionError
+  category: category_c_charter_facade_forward_api_01kzpdsr
+  rationale: Genuine forward/wheel-only public API with no in-repo caller yet (PUBLIC; re-exported from
+    charter.offering.api via the charter facades).
+- module: charter.model_routing
+  name: CatalogLoadResult
+  category: category_c_charter_facade_forward_api_01kzpdsr
+  rationale: Genuine forward/wheel-only public API with no in-repo caller yet (PUBLIC; re-exported from
+    charter.offering.api via the charter facades).
+- module: charter.activation.interview
+  name: InterviewAnswersRegressionError
+  category: category_c_charter_authority_flip_forward_api
+- module: charter.activation.sync
+  name: LegacyGovernanceKeyWarning
+  category: category_c_charter_authority_flip_forward_api
+- module: charter.offering.missions.models
+  name: VALID_PATH_KEYS
+  category: category_c_path_conventions_forward_api
+- module: charter.offering.missions.models
+  name: validate_path_conventions
+  category: category_c_path_conventions_forward_api
+- module: specify_cli.status._unsafe
+  name: ALLOWED_CALLERS
+  category: category_c_fsm_write_path_unsafe_door
+- module: specify_cli.status._unsafe
+  name: append_event
+  category: category_c_fsm_write_path_unsafe_door
+- module: charter.offering.drg.org_pack_config
+  name: LegacyOrgPackDoctrineKeyWarning
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.doctrine_root
+  name: CANONICAL_DOCTRINE_DIRNAME
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.doctrine_root
+  name: LegacyDoctrineRootWarning
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: charter.drg
+  name: merge_three_layers
+  category: category_e_charter_activation_split_forward_api
+- module: specify_cli.core.env
+  name: MOMENT_HANDLER_DISABLE_ENV_VARS
+  category: category_c_team_kitty_launch_defaults_3980
+- module: specify_cli.core.env
+  name: PRE_REVIEW_GATE_SKIP_ENV_VAR
+  category: category_c_team_kitty_launch_defaults_3980
+- module: specify_cli.core.env
+  name: SYNC_KILL_SWITCH_ENV_VAR
+  category: category_c_team_kitty_launch_defaults_3980
+- module: specify_cli.core.saas_sync_config
+  name: sync_active
+  category: category_c_team_kitty_launch_defaults_3980
+- module: specify_cli.live_work.adapters.codex
+  name: CODEX_NOTIFY_EVENTS
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.capability
+  name: LIVE_WORK_HOOK_COMMAND_MARKER
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.coalesce
+  name: is_structural
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.install
+  name: CLAUDE_LIVE_WORK_COMMAND
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.install
+  name: CODEX_LIVE_WORK_COMMAND
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.install
+  name: CODEX_NOTIFY_LINE
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.kinds
+  name: FAMILY_BY_EMISSION_KIND
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.kinds
+  name: WORK_CONTRACT_VERSION
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.publisher
+  name: MAX_OBSERVATIONS_PER_INVOCATION
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.redaction
+  name: is_excluded_path
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.watcher
+  name: MAX_WATCHED_PATHS
+  category: category_c_live_work_capture_public_surface
+- module: specify_cli.live_work.authored
+  name: MAX_BODY_CHARS
+  category: category_d_live_work_authored_public_surface
+- module: specify_cli.live_work.authored
+  name: MAX_SEND_ATTEMPTS
+  category: category_d_live_work_authored_public_surface
+- module: specify_cli.live_work.authored
+  name: SendResult
+  category: category_d_live_work_authored_public_surface
+- module: specify_cli.consolidation.bookkeeping_projection
+  name: ProjectionResult
+  category: category_c_terminus_reconciliation_5001
+  rationale: 'the S-B/FR-004 post-checkpoint commit projection''s outcome type; exercised intra-module
+    today, external consumer deferred to the Epic #5001 follow-ups.'
+  issue: '#5001'
+- module: specify_cli.consolidation.bookkeeping_projection
+  name: project_post_checkpoint_commits_to_target
+  category: category_c_terminus_reconciliation_5001
+  rationale: Same S-B/FR-004 projection helper as ProjectionResult; called only from within its own module
+    today (the ``__all__`` claim of cross-module export keeps it caught by this gate's rules regardless).
+- module: specify_cli.consolidation.git_probes
+  name: lane_integrated_by_tree_or_ancestry
+  category: category_c_terminus_reconciliation_5001
+  rationale: T028 git probe (ancestry -> tree-equality integration under squash); consumed by the reconciliation
+    verifier's own body (docstring cross-reference only) and exercised directly by tests/consolidation/test_reconciliation.py.
+- module: specify_cli.consolidation.reconciliation
+  name: Divergence
+  category: category_c_terminus_reconciliation_5001
+  rationale: public vocabulary of the new reconciliation gate (the verifier's FAIL-shaped structured divergence
+    record).
+- module: specify_cli.consolidation.reconciliation
+  name: TERMINUS_ENTRY_POINTS
+  category: category_c_terminus_reconciliation_5001
+  rationale: public vocabulary of the new reconciliation gate (the closed-world entry point registry `route_terminus`
+    consults).
+- module: specify_cli.consolidation.reconciliation
+  name: UnroutedTerminusPathError
+  category: category_c_terminus_reconciliation_5001
+  rationale: public vocabulary of the new reconciliation gate (raised by `route_terminus` for an unrouted
+    terminus path).
+widened_grandfathered_470:
+  rationale: 'Pre-existing debt the #470 widened (non-__all__) walk surfaced, kept apart from `entries`
+    because these names are not __all__ members. Reviewed by hand at widening time: each entry is either
+    wired into __all__ plus a real caller, or deleted, in follow-up triage issue #633; this set only exists
+    to keep the widened gate from failing on debt it did not create. Each entry must still earn its place:
+    the gate fails when an entry gains a caller, moves into __all__, stops being declared, or is already
+    rescued by an intra-module reference.'
+  issue: '#633'
+  entries:
+  - module: charter.activation._io
+    name: load_charter_bytes
+  - module: charter.activation.context_contract
+    name: CONTEXT_CONTRACT_TOP_LEVEL_KEYS
+  - module: charter.activation.synthesizer.adapter
+    name: BatchCapableSynthesisAdapter
+  - module: charter.offering.agent_profiles.schema_models
+    name: AgentProfileSchema
+  - module: charter.offering.agent_profiles.validation
+    name: is_agent_profile_file
+  - module: charter.offering.directives.validation
+    name: validate_directive
+  - module: charter.offering.drg.models
+    name: RELATION_DESCRIPTIONS
+  - module: charter.offering.import_candidates.models
+    name: CurationImportCandidate
+  - module: charter.offering.import_candidates.models
+    name: LegacyImportCandidate
+  - module: charter.offering.paradigms.validation
+    name: validate_paradigm
+  - module: charter.offering.styleguides.validation
+    name: validate_styleguide
+  - module: charter.offering.tactics.validation
+    name: validate_tactic
+  - module: charter.offering.toolguides.validation
+    name: validate_toolguide
+  - module: glossary.drg_builder
+    name: build_glossary_drg_layer
+  - module: glossary.middleware
+    name: MockContext
+  - module: glossary.scope
+    name: activate_scope
+  - module: kernel.glossary_runner
+    name: clear_registry
+  - module: runtime.next._internal_runtime.events
+    name: reset_runtime_emitter_factory
+    note: test-reset hook for the emitter-factory registry (used by tests/specify_cli/events + tests/next).
+      Its only src/ importer was the deleted ``_internal_runtime.emitter`` re-export module (dead-code
+      sweep 2026-09-30); kept as an intentional test seam, like clear_registry.
+  - module: runtime.next._internal_runtime.planner
+    name: resolve_next_workflow_action
+  - module: runtime.next._internal_runtime.schema
+    name: StepContextContract
+    note: became test-only when the dead TransitionGate/resolve_context chain (its only src/ consumer)
+      was deleted in the dead-code sweep 2026-09-30 (review slice 13 predicted this). The remaining context-contract
+      cluster (StepContextContract / ContextTypeRegistry / ContextType / engine.validate_binding) needs
+      its own delete-or-keep call.
+  - module: runtime.next.runtime_bridge_cores
+    name: evaluate_guards
+  - module: specify_cli.agent_tasks_ports
+    name: default_ports
+  - module: specify_cli.ast_analysis.imports
+    name: extract_static_all
+  - module: specify_cli.ast_analysis.imports
+    name: module_of_import_from
+  - module: specify_cli.audit.detectors
+    name: detect_corrupt_jsonl
+  - module: specify_cli.audit.identity_adapter
+    name: duplicate_ids_to_findings
+  - module: specify_cli.audit.identity_adapter
+    name: prefix_groups_to_findings
+  - module: specify_cli.audit.identity_adapter
+    name: selector_groups_to_findings
+  - module: specify_cli.auth.transport
+    name: reset_user_facing_dedup
+  - module: specify_cli.cli.commands.agent.mission
+    name: INVALID_WP_OWNED_FILES_KITTY_SPECS
+  - module: specify_cli.cli.commands.intake
+    name: MAX_BRIEF_FILE_SIZE_BYTES
+  - module: specify_cli.cli.commands.invocations_cmd
+    name: append_to_index
+  - module: specify_cli.cli.helpers
+    name: check_version_compatibility
+  - module: specify_cli.context.mission_resolver
+    name: FakeMissionResolver
+  - module: specify_cli.contracts.anchoring
+    name: composite_key_from_file
+  - module: specify_cli.contracts.anchoring
+    name: has_diagnostic_locator_marker
+  - module: specify_cli.coordination.status_service
+    name: append_event_log
+  - module: specify_cli.core.subtask_rows
+    name: count_subtask_rows
+  - module: specify_cli.core.subtask_rows
+    name: count_wp_section_subtask_rows
+  - module: specify_cli.core.subtask_rows
+    name: uncheck_wp_section_subtask_rows
+  - module: specify_cli.core.worktree
+    name: create_feature_worktree
+  - module: specify_cli.core.worktree
+    name: create_wp_workspace
+  - module: specify_cli.doc_analysis.doc_state
+    name: ensure_documentation_state
+  - module: specify_cli.doc_analysis.doc_state
+    name: get_state_version
+  - module: specify_cli.doc_analysis.doc_state
+    name: initialize_documentation_state
+  - module: specify_cli.doc_analysis.doc_state
+    name: set_divio_types_selected
+  - module: specify_cli.doc_analysis.doc_state
+    name: set_iteration_mode
+  - module: specify_cli.doc_analysis.doc_state
+    name: update_documentation_state
+  - module: specify_cli.doctrine.pack_descriptor
+    name: PackDescriptor
+  - module: specify_cli.dossier.hasher
+    name: WP_DESCRIPTIVE_PROJECTION_FIELDS
+  - module: specify_cli.dossier.hasher
+    name: WP_RUNTIME_PROJECTION_FIELDS
+  - module: specify_cli.git.commit_helpers
+    name: protected_branches
+  - module: specify_cli.invocation.task_class_map
+    name: known_verbs
+  - module: specify_cli.migration.backfill_runtime_state
+    name: assert_zero_readers
+  - module: specify_cli.migration.backfill_runtime_state
+    name: backfill_runtime_state_repo
+  - module: specify_cli.migration.backfill_runtime_state
+    name: run_backfill_and_verify
+  - module: specify_cli.migration.strip_frontmatter
+    name: RETIRED_FIELDS
+  - module: specify_cli.migration.strip_frontmatter
+    name: STATIC_FIELDS
+  - module: specify_cli.mission
+    name: discover_missions
+  - module: specify_cli.mission
+    name: get_active_mission
+  - module: specify_cli.mission
+    name: validate_deliverables_path
+  - module: specify_cli.mission_metadata
+    name: clear_coordination_metadata
+  - module: specify_cli.mission_metadata
+    name: get_change_mode
+  - module: specify_cli.mission_metadata
+    name: set_change_mode
+  - module: specify_cli.mission_metadata
+    name: set_purpose_summary
+  - module: specify_cli.missions._archive
+    name: is_mission_archived
+  - module: specify_cli.missions._read_path_resolver
+    name: resolve_feature_dir_for_slug
+  - module: specify_cli.policy.audit
+    name: append_audit_event
+  - module: specify_cli.policy.audit
+    name: create_audit_event
+  - module: specify_cli.policy.audit
+    name: read_audit_events
+  - module: specify_cli.retrospective.deprecation
+    name: reset_emitted_for_testing
+  - module: specify_cli.retrospective.events
+    name: ProposalGeneratedPayload
+  - module: specify_cli.shims.registry
+    name: get_all_skills
+  - module: specify_cli.status.adapters
+    name: reset_handlers
+  - module: specify_cli.status.cutover_eligibility
+    name: assert_birth_invariant_holds
+  - module: specify_cli.status.verdict_vocab
+    name: ArtifactVerdict
+  - module: specify_cli.status.verdict_vocab
+    name: EmissionArtifactVerdict
+  - module: specify_cli.tool_surface.docs
+    name: format_findings
+  - module: specify_cli.tool_surface.profiles.projection
+    name: LAYER_ORG
+  - module: specify_cli.tool_surface.profiles.projection
+    name: LAYER_PROJECT
+  - module: specify_cli.tool_surface.providers.managed_skills
+    name: doctrine_skill_entries
+  - module: specify_cli.tool_surface.service
+    name: lint_docs_directory
+  - module: specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env
+    name: NEVER_SEED_VARS
+  - module: specify_cli.upgrade.skill_update
+    name: apply_text_replacements
+  - module: specify_cli.upgrade.skill_update
+    name: exclude_paths
+  - module: specify_cli.upgrade.skill_update
+    name: replace_skill_file
+  - module: specify_cli.widen.state
+    name: validate_entry_schema
+  - module: specify_cli.zeitgeist_client.credentials
+    name: revoke
+  - module: specify_cli.zeitgeist_client.sanitizer
+    name: FORBIDDEN_CONTROL_KEYS_VERSION
+  - module: specify_cli.zeitgeist_client.sanitizer
+    name: FORBIDDEN_OBSERVATION_KEYS
+  - module: specify_cli.zeitgeist_client.sanitizer
+    name: FORBIDDEN_OBSERVATION_KEYS_VERSION

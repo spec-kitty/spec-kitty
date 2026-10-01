@@ -45,7 +45,7 @@ Gates are ordered alphabetically within each axis group.
 
 ### Axis 3 — Closed-Vocabulary Integrity
 
-- **`test_no_dead_symbols.py`** — Walks `__all__` on every module in `src/charter/` and `src/kernel/`; asserts every exported name has at least one external caller. Dead symbols fail this gate.
+- **`test_no_dead_symbols.py`** — Walks every `src/**/*.py` module, over the union of `__all__` and public module-level names (#470); asserts every exported name has at least one external caller (or an auto-exemption). Exemptions are declared by `(module, name)` in `dead_symbol_allowlist.yaml`, enforced by the schema-validating loader (`tests/architectural/_dead_symbol_allowlist.py`). Dead symbols outside both the allowlist and auto-exemptions fail this gate.
 - **`test_no_prompt_filtering_added.py`** — Asserts no new prompt-filtering logic has been added outside the declared filter registry; guards the closed-vocabulary contract for prompt behavior.
 - **`test_trigger_registry_coverage.py`** — Confirms every trigger key used in workflow sequences is registered in the trigger registry.
 
@@ -81,8 +81,8 @@ A ratchet baseline only moves in the **decreasing** direction during normal
 development; any increase fails CI (`test_ratchet_baselines.py`). Shrinkage
 produces an informational warning but is non-fatal.
 
-Use `spec-kitty doctor ratchet` to inspect the current state without running
-the full architectural suite.
+Run `tests/architectural/test_ratchet_baselines.py` by name to inspect the
+current state without running the full architectural suite.
 
 ## Burn-down Policy
 

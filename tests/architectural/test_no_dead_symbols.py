@@ -41,10 +41,9 @@ constants with zero callers under either signal above, once the two
 structural rescues above are applied) are far too many to hand-triage in
 one PR -- exactly the "unpredictable blast radius...expect a batch of
 small follow-up fixes" the issue anticipated. They are grandfathered in
-``_WIDENED_SCOPE_GRANDFATHERED_470`` (a plain qualified-name set, kept
-deliberately separate from ``_SYMBOL_ALLOWLIST``'s ``SymbolKey``
-machinery -- see that set's own docstring for why) pending follow-up
-triage in #633.
+the ``widened_grandfathered_470`` section of the allowlist file (see
+"Allowlist" below; exposed here as ``_WIDENED_SCOPE_GRANDFATHERED_470``)
+pending follow-up triage in #633.
 
 Mechanics
 ---------
@@ -63,6 +62,9 @@ Mechanics
   *name* is not an ``__all__`` member and is used within its own
   defining module (see above).
 
+The real-tree walk runs once per test session (:func:`_real_tree_inputs`,
+read-only views), however many tests in this file consume it.
+
 Tests under ``tests/`` are deliberately NOT counted as callers -- a
 symbol exercised only by its own unit tests is functionally dead in the
 runtime sense this gate cares about (the WP08 cycle-1 case study).
@@ -70,44 +72,77 @@ runtime sense this gate cares about (the WP08 cycle-1 case study).
 Allowlist
 ---------
 
-``_SYMBOL_ALLOWLIST`` carries documented exceptions, keyed onto the
-relocation-tolerant ``SymbolKey`` from ``_symbol_key.py`` (mission
-``relocation-hardened-dead-code-scanners-01KX958P`` WP02 -- FR-007) instead
-of a positional ``module::Name`` string. Each entry is still commented with
-its original qualified name for audit traceability. A ``SymbolKey`` is
-either content-tier (``(bare_name, body_hash)``, relocation-proof) or, for a
-bare_name that resolves to >=2 LIVE ``__all__`` locations sharing the same
-body, escalated to the module_path tier (``(bare_name, module_path,
-body_hash)`` -- relocation-forfeit for that entry only, D-1/FR-005). Tier
-assignment is recomputed live every gate run against the current corpus
-(:func:`tests.architectural._symbol_key.classify_collisions` +
-:func:`tests.architectural._symbol_key.key_tier`), NOT frozen at authoring
-time -- see the module docstring of ``_symbol_key.py`` for the full design
-record. Some previously hand-curated entries are no longer listed here: they
-are covered instead by the T013 structural auto-exempt categories
-(``_is_registered_migration_class`` / ``_is_typer_subapp_definition`` /
-``_is_reexport_shim_symbol``) -- see ``test_auto_exempt_disjoint_from_hand_allowlist``
-for the disjointness proof. Future entries MUST cite a rationale and a
-follow-up tracker ticket per FR-303, and MUST consult :func:`owning_category`
-first -- the queryable membership index -- so a symbol that is already
-allowlisted is never re-listed under a second category; the cross-category
-duplicate gate (``test_no_dead_symbol_key_is_listed_in_more_than_one_category``,
-#3562) reds on any such re-add.
+The documented exceptions live in ``tests/architectural/dead_symbol_allowlist.yaml``,
+read by exactly one loader, ``tests/architectural/_dead_symbol_allowlist.py``,
+which enforces the schema (a category with a rationale on every entry, an
+issue where the category requires one, whole-file ``(module, name)``
+uniqueness, no tombstone categories). The file has two sections, and the gate
+evaluates both from the SAME parsed ``DeadSymbolAllowlist`` instance:
+
+* ``entries`` -- the ``__all__``-scope exemptions. Identity is
+  ``(module, name)``: ``module`` is the dotted module whose ``__all__``
+  declares the name, ``name`` the bare module-level name. An entry exempts
+  its symbol only while the name is also *keyable* (it binds a real
+  definition, import alias or facade entry -- fail-closed, so
+  ``__all__ = ['Ghost']`` stays an offender). A body edit to an exempted
+  symbol costs no allowlist edit. Each entry that no longer earns its place
+  gets exactly one stale verdict, first match wins: INVALID (declared but
+  un-keyable), GONE (no longer declared in that module's ``__all__`` --
+  deleted, renamed, moved or dropped; a move gets a "probably moved to"
+  hint), REVIVED (it has a caller again), SUPERSEDED (a T013 structural
+  auto-exemption now covers it) or MOOT (the module is star-imported, so the
+  entry exempts nothing).
+* ``widened_grandfathered_470`` -- the #470 widened-scope debt, as
+  ``module::name`` strings, with its own per-entry stale ratchet
+  (:func:`_compute_widened_stale`).
+
+Content hashes are never persisted. :func:`_resolve_final_key` still
+computes one at runtime, for two jobs only: the keyability precondition
+above, and condition (1) of the re-export auto-exempt (a live same-name
+collision is never auto-exempt). The decision record is the dead-symbol
+allowlist identity ADR under ``docs/adr/4.x/``.
+
+To add an entry, first try to wire the symbol, drop it from ``__all__`` or
+delete it. If an exception is genuinely warranted, add a ``(module, name)``
+entry to the YAML file under the right category, with a rationale and, where
+the category requires one, a follow-up issue (FR-303). The file's size is
+capped by the shrink-only ratchet in ``_baselines.yaml``.
 """
 
 from __future__ import annotations
 
 import ast
+import copy
+import functools
 from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
+from typing import Any
 
 import pytest
+import yaml
 
 from specify_cli.ast_analysis.imports import (
     extract_static_all as _extract_all_literal,
+)
+from specify_cli.ast_analysis.imports import (
     module_of_import_from as _resolve_import_from,
 )
 from tests.architectural._ast_scan import read_and_parse
+from tests.architectural._dead_symbol_allowlist import (
+    ALLOWLIST,
+    ALLOWLIST_PATH,
+    SYMBOL_ALLOWLIST,
+    WIDENED_SCOPE_GRANDFATHERED_470,
+    AllowlistCategory,
+    AllowlistEntry,
+    DeadSymbolAllowlist,
+    DeadSymbolKey,
+    StaleVerdict,
+    load_allowlist,
+)
 from tests.architectural._symbol_key import (
     CorpusModule,
     Location,
@@ -128,2428 +163,17 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
 
 
-# Symbol-level allowlist for genuine exceptions, expressed as qualified
-# ``module::Name`` strings. Split into per-category frozensets so the
-# ratchet-baseline meta-test (``tests/architectural/test_ratchet_baselines.py``)
-# can track each category independently and apply different burn-down
-# policies per category.
-#
-# THIS ALLOWLIST IS A RATCHET. When an entry gains a real caller,
-# remove it from this set -- the test enforces shrinkage. When a new
-# orphan public symbol appears, do NOT add it here as a reflex:
-# investigate first, then either wire it from runtime, remove the
-# name from ``__all__``, delete the symbol entirely, or add it under
-# the appropriate category with a one-line rationale and (for category B)
-# a follow-up tracker ticket per FR-303.
-
-# ---------- A. Slice F charter+kernel deferred ----------
-# Pre-existing public symbols in ``src/charter/`` + ``src/kernel/`` whose
-# ``__all__`` membership was inherited from before WP02 and whose lack of
-# runtime callers reflects a "library written but never wired" situation
-# carried over from earlier missions. A future mission MUST either wire each
-# from a runtime caller, remove it from ``__all__``, or delete the symbol
-# entirely. Target = 0 by Slice G.
-
-_CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.dashboard.server::BackgroundPortReportError -- #577:
-        # deliberately exported typed failure contract for callers that need to
-        # distinguish detached-child startup failures. No runtime caller catches
-        # it yet. TODO(triage): wire the first caller or drop from __all__ (FR-303).
-        SymbolKey(
-            "BackgroundPortReportError",
-            "37ae16b8b6363406df0eff14e6a8438305592f244a74124eb646fcc02ef96fb1",
-            source_module="specify_cli.dashboard.server",
-        ),
-        # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
-        # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
-        # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no
-        # longer an orphan (see test_no_dead_modules). The DASHBOARD_CSP constant is still only consumed
-        # from inside send_csp_header()'s own body, never imported by name from another src/ module, so
-        # it stays here per this gate's rules. TODO(triage): drop from __all__ if no direct consumer of
-        # the raw string ever appears (follow-up bead).
-        SymbolKey("DASHBOARD_CSP", "87a67e7d3a60f84c30f950054f8a23e897e4e6be2ab27089f7c1a8e9cbb968ac", source_module="specify_cli.dashboard.csp"),
-        # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2
-        # canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers
-        # that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.
-        # Hash re-pinned (owned-checkout-lifecycle-authority WP09 out-of-map edit / WP18 closure):
-        # the body gained the optional ``repo_root`` lock-root parameter (same entry, same symbol).
-        SymbolKey(
-            "append_lifecycle_event",
-            "5ca39b322e18ef30d931ba4b1848998105873e6cc6f0a475bf51a10f9ef0877e",
-            source_module="specify_cli.status.lifecycle_events",
-        ),
-        # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
-        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
-        # yet. TODO(triage): wire or drop from __all__.
-        SymbolKey(
-            "MigrationAction",
-            "120fd17dcda7ba500409b2ee13ee0e7c4426cfaf5756927dc9de14965c4834fc",
-            source_module="specify_cli.status.migrate_lifecycle_envelope",
-        ),
-        # specify_cli.status.migrate_lifecycle_envelope::MigrationManifest -- M2
-        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
-        # yet. TODO(triage): wire or drop from __all__.
-        SymbolKey(
-            "MigrationManifest",
-            "c39cc76b8426569d7c3bb6f9b0b70c621b99101f3f13fe97b79c15afbfe67594",
-            source_module="specify_cli.status.migrate_lifecycle_envelope",
-        ),
-        # specify_cli.status.migrate_lifecycle_envelope::MigrationRowResult -- M2
-        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
-        # yet. TODO(triage): wire or drop from __all__.
-        SymbolKey(
-            "MigrationRowResult",
-            "0c79465d23a8dfa43650ce146809dfff916378f55f3bfa0321fb8d8129ead618",
-            source_module="specify_cli.status.migrate_lifecycle_envelope",
-        ),
-        # specify_cli.status.migrate_lifecycle_envelope::migrate_lifecycle_envelope -- REMOVED
-        # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
-        # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and calls
-        # it directly. MigrationAction/MigrationManifest/MigrationRowResult above stay
-        # allowlisted -- the wrapper only names the function, never those three types.
-        # charter.activation._catalog_miss::CatalogMissCause -- REMOVED (WP02,
-        # mission charter-generation-drops-scoped-references-01M3M1KF, issue #5257):
-        # now has a real src/ caller, charter.activation.compiler's
-        # _classify_and_placeholder_reference(), which imports it directly to gate
-        # the SCOPE_FILTERED-vs-diagnostics-only branch.
-        SymbolKey(
-            "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter.activation._catalog_miss"
-        ),  # charter.activation._catalog_miss::CharterCatalogMissError
-        # charter.activation._catalog_miss::CharterCatalogMissWarning
-        SymbolKey(
-            "CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter.activation._catalog_miss"
-        ),
-        # charter.activation.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
-        SymbolKey(
-            "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activation.activations"
-        ),  # charter.activation.activations::ALLOWED_MISSION_TYPES
-        SymbolKey(
-            "REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f", source_module="charter.activation.activations"
-        ),  # charter.activation.activations::REGISTERED_TRIGGERS
-        # charter.activation.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
-        SymbolKey(
-            "CompactView", "b20a97386ed26dc023bb577348d02567ef21d682914a8135be3f06344a1bc4af", source_module="charter.activation.compact"
-        ),  # charter.activation.compact::CompactView
-        SymbolKey(
-            "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.activation.compact"
-        ),  # charter.activation.compact::extract_section_anchors
-        SymbolKey(
-            "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.activation.synthesizer.write_pipeline"
-        ),  # charter.activation.synthesizer.write_pipeline::StagedArtifact
-        # pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the
-        # unified pack-manifest schema/lineage/hash public API, declared now but not
-        # wired to production callers until the deferred integration WP (#3518).
-        # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
-        # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
-        # charter.activation.synthesizer.manifest::compute_manifest_hash
-        SymbolKey(
-            "compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.activation.synthesizer.manifest"
-        ),
-        SymbolKey(
-            "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="charter.offering.drg.org_pack_config"
-        ),  # charter.offering.drg.org_pack_config::ensure_pack_identity
-        SymbolKey(
-            "GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322", source_module="specify_cli.doctrine.builtin_manifest"
-        ),  # specify_cli.doctrine.builtin_manifest::GENERATED_BY
-        # specify_cli.doctrine.builtin_manifest::MANIFEST_FILENAME
-        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a", source_module="specify_cli.doctrine.builtin_manifest"),
-        # specify_cli.doctrine.builtin_manifest::build_builtin_manifest
-        SymbolKey(
-            "build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976", source_module="specify_cli.doctrine.builtin_manifest"
-        ),
-        # specify_cli.doctrine.builtin_manifest::enumerate_constituents
-        SymbolKey(
-            "enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab", source_module="specify_cli.doctrine.builtin_manifest"
-        ),
-        # specify_cli.doctrine.pack_lineage::PackLineageCycleError
-        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1", source_module="specify_cli.doctrine.pack_lineage"),
-        # specify_cli.doctrine.pack_lineage::UnresolvedDoctrinePackError
-        SymbolKey(
-            "UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097", source_module="specify_cli.doctrine.pack_lineage"
-        ),
-        # specify_cli.doctrine.pack_lineage::UnresolvedPackParentError
-        SymbolKey(
-            "UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92", source_module="specify_cli.doctrine.pack_lineage"
-        ),
-        # specify_cli.doctrine.pack_lineage::resolve_accompanying_doctrine_pack
-        SymbolKey(
-            "resolve_accompanying_doctrine_pack",
-            "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf",
-            source_module="specify_cli.doctrine.pack_lineage",
-        ),
-        # specify_cli.doctrine.pack_lineage::resolve_pack_lineage_order
-        SymbolKey(
-            "resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9", source_module="specify_cli.doctrine.pack_lineage"
-        ),
-        SymbolKey(
-            "CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::CharterProfile
-        # specify_cli.doctrine.pack_manifest::HASH_EXCLUDED_FIELDS
-        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3", source_module="specify_cli.doctrine.pack_manifest"),
-        SymbolKey(
-            "SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::SCHEMA_VERSION
-        # specify_cli.doctrine.pack_manifest::absorb_synthesis_manifest
-        SymbolKey(
-            "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.doctrine.pack_manifest"
-        ),
-        # Public deferred hash API from #3500-#3503; body changed during #3165 hardening.
-        SymbolKey(
-            "compute_pack_manifest_hash", "84e647d338a9494466004cc96eb08fc67307a5ff36f479a870f3adc936920d7b", source_module="specify_cli.doctrine.pack_manifest"
-        ),
-        SymbolKey(
-            "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::counts_by_kind
-        # specify_cli.doctrine.pack_manifest::load_pack_manifest
-        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2", source_module="specify_cli.doctrine.pack_manifest"),
-        SymbolKey(
-            "sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::sort_constituents
-    }
-)
-
-
-# ---------- B. Grandfathered legacy (out of WP02 scope) ----------
-# Pre-existing public symbols across ``src/charter/offering/`` + ``src/specify_cli/``
-# whose ``__all__`` membership predates the WP02 symbol-level gate. WP02 was
-# scoped to ``src/charter/`` + ``src/kernel/`` per C-007/FR-121, so these
-# entries were inherited as-is into the ratchet baseline. Per the Slice F
-# ratchet policy (C-004), this category MAY only shrink: growth requires an
-# entry in ``_baselines.yaml`` plus a ``# justification:`` comment and a
-# follow-up tracker ticket (FR-303).
-#
-# relocation-hardened-dead-code-scanners-01KX958P WP02: re-keyed onto
-# ``SymbolKey`` (FR-007). Two stale entries dropped (FR-006):
-# ``charter_activate_app`` / ``charter_deactivate_app`` no longer exist.
-# ``UnifiedBundleMigration`` / ``RefreshOrientationBlockMigration`` moved to
-# the T013 structural auto-exempt (``@MigrationRegistry.register`` class
-# detector) -- see ``_is_registered_migration_class`` below; a dead helper or
-# constant elsewhere in the same ``m_*.py`` file is still caught (DoD e).
-
-_CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
-        SymbolKey(
-            "Mission", "36ecefcd078e89a856885fef32b1690315ca257cdf4cb90ff03ee2994e275fa8", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::Mission
-        # charter.offering.shared::ConflictType (escalated: live collision)
-        SymbolKey("ConflictType", "34ff96f6eabe70e229d72efc5674d6050bb7291c458ee30394ebc1d629bf566e", module_path="charter.offering.shared"),
-        # charter.offering.shared::GlossaryScope (escalated: live collision)
-        SymbolKey("GlossaryScope", "e433a93e6f5df50065e49747d40c3be1bd0957989e424a8b47ed2d75a5da4ba7", module_path="charter.offering.shared"),
-        # charter.offering.shared::SenseRef (escalated: live collision)
-        SymbolKey("SenseRef", "80a18c5b75e03f2202466dbc52090000b2819302b89ae90048f98125d4b89b43", module_path="charter.offering.shared"),
-        # charter.offering.shared::Severity (escalated: live collision)
-        SymbolKey("Severity", "5e9f98120dbe568255ee059f39671686982b113d4e917b6d6faf149918c81709", module_path="charter.offering.shared"),
-        # charter.offering.shared::TermSurface (escalated: live collision)
-        SymbolKey("TermSurface", "92ae59dd08020d0481eb46aac5aae4d296803b7647f1c97cfd63cb157da9ed81", module_path="charter.offering.shared"),
-        SymbolKey(
-            "SemanticConflictRecord", "a8ede16418bd45b1fefb48097ef7bfc5c27d9b90ba68906f3ee7124a3c1a11dd", source_module="glossary.semantic_events"
-        ),  # glossary.semantic_events::SemanticConflictRecord
-        SymbolKey(
-            "ClaimablePreview", "fb24f6e5c378dfe6485d21ca6f2a9167ec885d688bc34eb53f3e3dfe7a23683a", source_module="runtime.next.discovery"
-        ),  # runtime.next.discovery::ClaimablePreview
-        SymbolKey(
-            "AcceptanceMode", "c5cd8f94fa6b672c333faeaf3cdc781f33fee2bb29a8bb465fd7562ec85582c2", source_module="specify_cli.acceptance"
-        ),  # specify_cli.acceptance::AcceptanceMode
-        # specify_cli.acceptance::EncodingBackupCollisionError -- a legitimate
-        # public exception on the accept encoding-backup surface: defined and
-        # raised internally by ``_write_recovered_artifact`` when
-        # ``--normalize-encoding`` finds a pre-existing backup sibling it must
-        # never silently overwrite, and part of the documented accept
-        # encoding-backup contract exercised by
-        # ``tests/regressions/test_issue_4968_accept_encoding.py`` (#4962/#4968).
-        # ``__all__``-declared but only ever caught within the same module's own
-        # ``except AcceptanceError`` handler, so it has no cross-module ``src/``
-        # caller for this gate to see.
-        SymbolKey(
-            "EncodingBackupCollisionError",
-            "b4c5ed8e7eb99df0e588c2a7df454b0fd9208f938d100784f6bf3440d713f7a1",
-            source_module="specify_cli.acceptance",
-        ),  # specify_cli.acceptance::EncodingBackupCollisionError
-        # charter.encoding_recovery::EncodingRecoveryResult -- the return type
-        # of :func:`charter.encoding_recovery.recover` (the canonical
-        # encoding-recovery detector, #4962/#4968 WP01). Its sole cross-module
-        # caller (``specify_cli.acceptance._recover_normalized_text``) consumes
-        # the returned instance purely via attribute access
-        # (``.ambiguous``/``.text``/``.normalization_applied``/
-        # ``.source_encoding``/``.confidence``) -- legitimate duck-typed usage
-        # that never imports the dataclass by name, so it has no ``ImportFrom``
-        # site for this gate to see. Exercised directly by
-        # ``tests/charter/test_encoding_recovery.py``.
-        SymbolKey(
-            "EncodingRecoveryResult",
-            "85e807160de6a2d22f31c30ada6743a30b2917e24aede1180cedcf4c55559859",
-            source_module="charter.encoding_recovery",
-        ),  # charter.encoding_recovery::EncodingRecoveryResult
-        # specify_cli.acceptance::WorkPackageState -- PRUNED (coord-authority-
-        # trio-degod #2464/#2465/#2508): the class body relocated to
-        # specify_cli.acceptance.summary_core, re-exported via
-        # `from .summary_core import WorkPackageState` in __init__.py. That
-        # bare single-name re-export now matches the T013
-        # `_is_reexport_shim_symbol` structural auto-exempt category, so a
-        # hand-curated entry here would violate the auto-exempt/hand-allowlist
-        # disjointness invariant (test_auto_exempt_disjoint_from_hand_allowlist).
-        SymbolKey(
-            "RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141", source_module="specify_cli.auth.refresh_transaction"
-        ),  # specify_cli.auth.refresh_transaction::RefreshResult
-        # specify_cli.cli.commands._auth_doctor::DaemonSummary -- PRUNED
-        # (issue-5-delete-sync-transport): the auth-doctor daemon section died with
-        # the sync transport; the dataclass is gone from _auth_doctor.
-        SymbolKey(
-            "DoctorReport", "9d02d77be32202c48b37532815694b720249563faea3da5cf3042b207730f6bf", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
-        SymbolKey(
-            "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::Finding
-        SymbolKey(
-            "LockSummary", "089ea89da3f5099cf79f24b80f0227a7768c5880944fdb62ede8051eaed13562", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::LockSummary
-        # specify_cli.cli.commands._auth_doctor::ServerSessionStatus
-        SymbolKey("ServerSessionStatus", "5814547ac903022d97fd3b3a685e3218971f8e6d2407cf99d1f505f2f964b25b", source_module="specify_cli.cli.commands._auth_doctor"),
-        SymbolKey(
-            "SessionSummary", "bfaff2b2d217104de9698335efc37ba8923d8a0e25676084f543e3ae1ea425e5", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
-        # (hash refreshed #3277: SessionSummary gained ``auth_method`` so the
-        # auth mode — human browser / headless device / machine
-        # client_credentials — is visible in doctor diagnostics)
-        # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
-        # #1060: report now carries the token manager's safe persisted-session
-        # decryption-failure assessment into the auth verdict; refreshed again
-        # #4761: the verdict now also carries the assessment's storage-authored
-        # detail so a permissions refusal renders its chmod remedy)
-        SymbolKey(
-            "assemble_report", "6385e7c46c7e10350fbab83801ebafc4dd1a3e6a6fa178db7afe664e94abc786", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::assemble_report
-        # specify_cli.cli.commands._auth_doctor::compute_exit_code
-        SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
-        SymbolKey(
-            "render_report", "ec6786950128c6bc191c43a4fad6872e136435c58997e91b42ebc965188a7f4d", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::render_report
-        # specify_cli.cli.commands._auth_doctor::render_report_json
-        SymbolKey("render_report_json", "cb3cc8a08c8d040f7d13cf3126e3864e67f310b3e7308514fdc84680927f4b08", source_module="specify_cli.cli.commands._auth_doctor"),
-        # specify_cli.cli.commands._branch_strategy_gate::GateDecision
-        SymbolKey(
-            "GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899", source_module="specify_cli.cli.commands._branch_strategy_gate"
-        ),
-        SymbolKey(
-            "GateOutcome", "a5a38bc5a569b83b9d227c1bd2c9000aa8c1a9d6b139032c562f7da23faeb563", source_module="specify_cli.cli.commands._branch_strategy_gate"
-        ),  # specify_cli.cli.commands._branch_strategy_gate::GateOutcome
-        # (hash refreshed: doctrine-charter-split-unification-01KZ0SRB/WP08
-        # rewrote the guard body from `meta or {}` to an explicit
-        # `if meta is None` check to avoid masking a missing-meta failure)
-        # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
-        SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e", source_module="specify_cli.cli.commands.implement"),
-        SymbolKey(
-            "find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283", source_module="specify_cli.cli.commands.implement"
-        ),  # specify_cli.cli.commands.implement::find_wp_file
-        SymbolKey(
-            "CurrentContext", "49c03fb8a6af76f87fbae0133fd35d4c9ee8a4c5a0b7e5b49a812409af871bc7", source_module="specify_cli.core.context_validation"
-        ),  # specify_cli.core.context_validation::CurrentContext
-        SymbolKey(
-            "ExecutionContext", "19c71b5bbf90ee7bd3aa32f2240f9495b9ff1354ceea059d4ec54824eb0d92a1", source_module="specify_cli.core.context_validation"
-        ),  # specify_cli.core.context_validation::ExecutionContext
-        # specify_cli.core.context_validation::detect_execution_context
-        SymbolKey(
-            "detect_execution_context", "66c12833de0af4228946dec0b95a17b58daa610f60172a5c7867ca8dbae145f1", source_module="specify_cli.core.context_validation"
-        ),
-        # specify_cli.core.context_validation::get_current_context
-        SymbolKey("get_current_context", "530ede0c50e1cc62a22df394e5677aebc9c966a146bc0e67272e3f7617e26f50", source_module="specify_cli.core.context_validation"),
-        SymbolKey(
-            "STALE_AFTER_S_DEFAULT", "4cc4fddf416cec3b9f30b60227a6ef49ccbb4e284b60157cbc63318f63c28452", source_module="kernel.locks"
-        ),  # kernel.locks::STALE_AFTER_S_DEFAULT (relocated verbatim from specify_cli.core.file_lock, cross-os-primitive-unification WP03)
-        SymbolKey(
-            "BranchResolution", "8ff2750e1b6b4d57f15389814bd6a09313da7c83e1c97c832a08b599030251f5", source_module="specify_cli.core.git_ops"
-        ),  # specify_cli.core.git_ops::BranchResolution
-        SymbolKey(
-            "GitPreflightIssue", "0d7ef9d2b9dd1a727e7f312f0452d3454a00afdf70f96cd4a3a60918d0fdb996", source_module="specify_cli.core.git_preflight"
-        ),  # specify_cli.core.git_preflight::GitPreflightIssue
-        SymbolKey(
-            "GitPreflightResult", "27bc17df44fcb02a7c958848286546deb067266d6e30fe1337bdd194e7f6cd0c", source_module="specify_cli.core.git_preflight"
-        ),  # specify_cli.core.git_preflight::GitPreflightResult
-        SymbolKey(
-            "DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76", source_module="specify_cli.core.upgrade_probe"
-        ),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
-        # specify_cli.core.upgrade_probe::PYPI_JSON_URL -- restored upstream public
-        # endpoint contract (#798); probe_pypi consumes it in this module, but no other
-        # src/ module imports the constant by name. TODO(triage): wire a direct
-        # consumer or remove it from __all__ if the public contract no longer needs it.
-        SymbolKey("PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36", source_module="specify_cli.core.upgrade_probe"),
-        SymbolKey(
-            "FeatureTopology", "7eb983a309007bf528c914ade5ecf049191c487a1de7457dcc663f0b6fbad30e", source_module="specify_cli.core.worktree_topology"
-        ),  # specify_cli.core.worktree_topology::FeatureTopology
-        SymbolKey(
-            "WPTopologyEntry", "c141560334391715de4dfc82c956b81426a506c4d022fca2af3509b38aa57045", source_module="specify_cli.core.worktree_topology"
-        ),  # specify_cli.core.worktree_topology::WPTopologyEntry
-        # specify_cli.dashboard.api_types::ArtifactDirectoryFile
-        SymbolKey("ArtifactDirectoryFile", "6d6d39dfb5f96086c52c2fb376fa70e288617ba0d2ec0e1eb6f90129d9c6e07c", source_module="specify_cli.dashboard.api_types"),
-        SymbolKey(
-            "ArtifactInfo", "127f2331f4b95a36680cf52accbccbb500e7ddf70f4ed1394086adf0e3381e74", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::ArtifactInfo
-        # specify_cli.dashboard.api_types::CurrentFeatureDetected
-        SymbolKey("CurrentFeatureDetected", "5d71a01dbf0a518810700217652bf4cb6f835430f48dffef0fa46795c530a52b", source_module="specify_cli.dashboard.api_types"),
-        # specify_cli.dashboard.api_types::CurrentFeatureNotDetected
-        SymbolKey("CurrentFeatureNotDetected", "16dcad41883317c0e21ebb04366be47c864fd845acb92bbd19f1bd0a6ea27236", source_module="specify_cli.dashboard.api_types"),
-        # specify_cli.dashboard.api_types::DashboardHealthInfo
-        SymbolKey("DashboardHealthInfo", "54eb82892c4caf6d73e5fe3149d6b29e7525e657fcb17a72342102a5f9affa14", source_module="specify_cli.dashboard.api_types"),
-        # specify_cli.dashboard.api_types::DiagnosticsErrorResponse
-        SymbolKey("DiagnosticsErrorResponse", "cc8eda5cbc21d10d229de1e419d51da1c76b8b413d934f6b11f87509b3355c19", source_module="specify_cli.dashboard.api_types"),
-        # specify_cli.dashboard.api_types::DiagnosticsFeatureStatus
-        SymbolKey("DiagnosticsFeatureStatus", "a780d167c838d00cc894ece9d79172f216da99d4283eb22df6eb7c6249c20885", source_module="specify_cli.dashboard.api_types"),
-        # specify_cli.dashboard.api_types::DiagnosticsResponse
-        SymbolKey("DiagnosticsResponse", "bbebc967757d09e195e0d7b7fd63cde903321cc4c0629a74095f51e4e6a90a93", source_module="specify_cli.dashboard.api_types"),
-        SymbolKey(
-            "ErrorResponse", "92ab9716988898729741ad5fd8289d669e00e1bd87a18c8d3469f0506f508742", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::ErrorResponse
-        # specify_cli.dashboard.api_types::FeaturesListErrorResponse
-        SymbolKey("FeaturesListErrorResponse", "f8650806ac140e69a4a06f1c0ed809ce90a70e190daa9f7817a5d2a8c45d8377", source_module="specify_cli.dashboard.api_types"),
-        SymbolKey(
-            "FileIntegrity", "5a2f8439ee99d8d6c314eaa5ea2ba90bdb65552269804016362b3fb48e3949a7", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::FileIntegrity
-        SymbolKey(
-            "KanbanStats", "b294629da998209af14c759957f0ad2a6d6479ddf5b383ae7ae6aba4476a3797", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::KanbanStats
-        SymbolKey(
-            "MissionRecord", "874182d4e297344cf91fa4944d015c4183a8aa7c7004187a98497ab7ca314403", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::MissionRecord
-        SymbolKey(
-            "ResearchArtifact", "3bceb1df567e06b8b2e1923f5fab8412e4eba3fd49c3ab89d5a2187635ee4b35", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::ResearchArtifact
-        # SyncInfo / SyncTriggerSuccess left the allowlist (E4 re-homing, planning
-        # epic #4): the sync block in HealthResponse and POST /api/sync/trigger
-        # were deleted, so both TypedDicts were deleted with their endpoints --
-        # nothing remains to allowlist.
-        SymbolKey(
-            "WorkflowStatus", "77fd5a6326798e778a0d9d16adc37b6d87a6c6a93923fc88feca4b74cb2a1030", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::WorkflowStatus
-        SymbolKey(
-            "WorktreeInfo", "16f6ed6ff09cd073c6a18e5c720c74d1ed1fa0a69799a672643cdf7bbe7b1beb", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::WorktreeInfo
-        # specify_cli.dashboard.lifecycle::_write_dashboard_file
-        SymbolKey("_write_dashboard_file", "ef82e6e8e295ed1b746ebbc8983b3fee53ab6f31b6d4bd143be6bfcc4a82017e", source_module="specify_cli.dashboard.lifecycle"),
-        SymbolKey(
-            "get_dashboard_html", "41f3d112537b05d8865266e06e50b3d7301d5340c91b9e539cd1a56e801d79ad", source_module="specify_cli.dashboard.templates"
-        ),  # specify_cli.dashboard.templates::get_dashboard_html
-        # ^ body_hash refreshed for #66: the mission-context injection moved
-        # into an inert <script type="application/json"> data island, so the
-        # function's body changed while its grandfathered-dead status (no src/
-        # importer; only tests exercise it) did not.
-        SymbolKey(
-            "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.doctrine.org_charter"
-        ),  # specify_cli.doctrine.org_charter::GovernancePolicy
-        # Hash refreshed for the write-side-seam-matrix-tracer landing fold
-        # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
-        # member); still grandfathered-dead (no external src/ importer --
-        # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
-        # ``src/charter/activation/context.py``). Body-sensitive key => extending the
-        # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
-        # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
-        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
-        # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
-        SymbolKey(
-            "apply_org_charter_pre_fill", "05844901b4d14fd4a0f92e8576b848d0144108abedaeb567855364fae5fe5817", source_module="specify_cli.doctrine.org_charter"
-        ),
-        SymbolKey(
-            "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
-        ),  # specify_cli.doctrine.pack_assembler::AssemblyResult
-        SymbolKey(
-            "ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57", source_module="specify_cli.doctrine.pack_assembler"
-        ),  # specify_cli.doctrine.pack_assembler::ConflictItem
-        SymbolKey(
-            "ArtifactDetailResponse", "6ab904af861ebc649ce5950673d6be8ef4b65f323addde067ea3bcf61bb03f49", source_module="specify_cli.dossier.api"
-        ),  # specify_cli.dossier.api::ArtifactDetailResponse
-        SymbolKey(
-            "ArtifactListItem", "6f28fdc4337d4ebecb92fdc06a278ddbbc53d2acae8258cd31257e8ec7d7eebc", source_module="specify_cli.dossier.api"
-        ),  # specify_cli.dossier.api::ArtifactListItem
-        SymbolKey(
-            "ArtifactListResponse", "4cdb7c9d4c499dff5f7554bbea3b107ff0ecd7cf192d5ce93015f247ccd02542", source_module="specify_cli.dossier.api"
-        ),  # specify_cli.dossier.api::ArtifactListResponse
-        SymbolKey(
-            "DossierHandlerAdapter", "02cde998eec8166a25ef083d57f52df460389227a595fe92253b069949338f5a", source_module="specify_cli.dossier.api"
-        ),  # specify_cli.dossier.api::DossierHandlerAdapter
-        # specify_cli.dossier.api::DossierOverviewResponse
-        SymbolKey("DossierOverviewResponse", "c0eea0f2e556ff61a368cb4f3b41b870d439b890c082c04da5a1572b5f6a330f", source_module="specify_cli.dossier.api"),
-        SymbolKey(
-            "SnapshotExportResponse", "91db1cf5fefd3a5b097d6eaa6273749184caa56906c0d30a45091f3db1d6e032", source_module="specify_cli.dossier.api"
-        ),  # specify_cli.dossier.api::SnapshotExportResponse
-        # (WP10/T039) ``add_history_entry`` allowlist entry removed: WP07/T028
-        # deleted the module fn + manager method + ``__all__`` export, so the
-        # symbol no longer exists to be dead — keeping the entry masks the next
-        # dead symbol. Confirmed gone from ``src/`` at closeout.
-        SymbolKey(
-            "get_field", "3b2643bff1ddd668dc6bd85daeb01169fd44248d148357b2a87858349df7db9e", source_module="specify_cli.frontmatter"
-        ),  # specify_cli.frontmatter::get_field
-        SymbolKey(
-            "validate_frontmatter", "83489690099bbb23896f190267e54965a3cfbddc23084e1c9698b74fe7a9a118", source_module="specify_cli.frontmatter"
-        ),  # specify_cli.frontmatter::validate_frontmatter
-        SymbolKey(
-            "SparseCheckoutKind", "7628d183a1fdd02d956c9f1557061eb221dd5ea3ffb82aeabc1c54e80e4f7409", source_module="specify_cli.git.sparse_checkout"
-        ),  # specify_cli.git.sparse_checkout::SparseCheckoutKind
-        # specify_cli.git.sparse_checkout::_reset_session_warning_state
-        SymbolKey(
-            "_reset_session_warning_state", "41466d1d3efede301673da3d49ae625c027c20e4f3d7fc52bd96579a1999c9be", source_module="specify_cli.git.sparse_checkout"
-        ),
-        SymbolKey(
-            "scan_path", "391e5924c92cc57711430d2d80fbbe88d0d3914e80212395ccc87c927afe6446", source_module="specify_cli.git.sparse_checkout"
-        ),  # specify_cli.git.sparse_checkout::scan_path
-        # specify_cli.git.sparse_checkout_remediation::STEP_REFRESH_WORKING_TREE
-        SymbolKey(
-            "STEP_REFRESH_WORKING_TREE",
-            "2581db715e744a22f2e17f63e6d402fca97cdc7339aa1c9f5b3efad8c2f8daac",
-            source_module="specify_cli.git.sparse_checkout_remediation",
-        ),
-        # specify_cli.git.sparse_checkout_remediation::STEP_REMOVE_PATTERN_FILE
-        SymbolKey(
-            "STEP_REMOVE_PATTERN_FILE",
-            "e69c1be0f4c5698c3da5aa7699eab32bfe4e0e1c9e1e48b9c56d11273e376a97",
-            source_module="specify_cli.git.sparse_checkout_remediation",
-        ),
-        # specify_cli.git.sparse_checkout_remediation::STEP_SPARSE_DISABLE
-        SymbolKey(
-            "STEP_SPARSE_DISABLE", "fc8312c094ac81778428095d3be5dc066f206fcdaa61fbd7d35311bca6b9b1cc", source_module="specify_cli.git.sparse_checkout_remediation"
-        ),
-        # specify_cli.git.sparse_checkout_remediation::STEP_UNSET_CONFIG
-        SymbolKey(
-            "STEP_UNSET_CONFIG", "e7d1de2d22078e3d7b215ba0f0322fb83fe982b76bc42ee70a745f58537f551f", source_module="specify_cli.git.sparse_checkout_remediation"
-        ),
-        # specify_cli.git.sparse_checkout_remediation::STEP_USER_DECLINED
-        SymbolKey(
-            "STEP_USER_DECLINED", "43267cc6fc081fd9cc4d453c7e98f8fa04677b6553e65b34eb29bfc0e0b4d0c1", source_module="specify_cli.git.sparse_checkout_remediation"
-        ),
-        # specify_cli.git.sparse_checkout_remediation::STEP_VERIFY_CLEAN
-        SymbolKey(
-            "STEP_VERIFY_CLEAN", "8504fb56e041ae5dccf1de99792afcb7354173696ee242776b4a9b40916e8704", source_module="specify_cli.git.sparse_checkout_remediation"
-        ),
-        # specify_cli.git.sparse_checkout_remediation::SparseCheckoutRemediationReport
-        SymbolKey(
-            "SparseCheckoutRemediationReport",
-            "20b509762a8f1e2e9302ab37b6d1bd4467aa88843c96005d7774bde676261859",
-            source_module="specify_cli.git.sparse_checkout_remediation",
-        ),
-        # specify_cli.intake.brief_writer::CrossFilesystemWriteError
-        SymbolKey("CrossFilesystemWriteError", "acd6ef68ddf571b5d10e060705595ec6757064a9fc4fcb8999cb7e359b61dc7d", source_module="specify_cli.intake.brief_writer"),
-        SymbolKey(
-            "atomic_write_bytes", "299f9a2ce9d0680ea41a791fc5817f56818ace58c9e90d841230f2fed65d2db1", source_module="specify_cli.intake.brief_writer"
-        ),  # specify_cli.intake.brief_writer::atomic_write_bytes
-        SymbolKey(
-            "atomic_write_text", "4338782faca587ec7cc4c907a9680bcf0fb2f6f01d920dae26adb3497fd7c46a", source_module="specify_cli.intake.brief_writer"
-        ),  # specify_cli.intake.brief_writer::atomic_write_text
-        SymbolKey(
-            "POLICY_TABLE", "6b1740b1daf02057f8a6eb6e475fbec6dd706b69f41184b4e74067d2cfc169eb", source_module="specify_cli.invocation.projection_policy"
-        ),  # specify_cli.invocation.projection_policy::POLICY_TABLE
-        SymbolKey(
-            "ProjectionRule", "3582715cd23856b1d0e2cf14293fef2a71b5b8a7b8b178b018f33b08638b3982", source_module="specify_cli.invocation.projection_policy"
-        ),  # specify_cli.invocation.projection_policy::ProjectionRule
-        # specify_cli.lanes.lifecycle_sync::LANE_AUTO_REBASE_FAILED
-        SymbolKey("LANE_AUTO_REBASE_FAILED", "ac422fb0845653d0bab1cb2449584a37ca13c9b89e1bdb6170893aa23a810630", source_module="specify_cli.lanes.lifecycle_sync"),
-        SymbolKey(
-            "ClassifierRule", "e4253249c186c97ce24d24d459a758fe02f4b3ebc7f94e62d0a000edf743755f", source_module="specify_cli.consolidation.conflict_classifier"
-        ),  # specify_cli.consolidation.conflict_classifier::ClassifierRule
-        SymbolKey(
-            "RULES", "f2fede76cafc6c35cc093acdc068080406066dc6e5f82bf7b13575fe24359c24", source_module="specify_cli.consolidation.conflict_classifier"
-        ),  # specify_cli.consolidation.conflict_classifier::RULES
-        SymbolKey(
-            "Resolution", "7bc793f726da67f4273d0f5ac82d13ed3141e7a53c9c2a42bbab390b64ff46b1", source_module="specify_cli.consolidation.conflict_classifier"
-        ),  # specify_cli.consolidation.conflict_classifier::Resolution
-        # specify_cli.consolidation.conflict_classifier::r_default_manual
-        SymbolKey(
-            "r_default_manual", "729111cef2a3601de1948651817b84123bea90eed651a9cd3b458377486e6d18", source_module="specify_cli.consolidation.conflict_classifier"
-        ),
-        # specify_cli.consolidation.conflict_classifier::r_init_imports_union
-        SymbolKey(
-            "r_init_imports_union",
-            "d72fa8545eb4e8df7dc80288ea3bcd1994adfb4d4e5ab1d18144aec8f4a29de1",
-            source_module="specify_cli.consolidation.conflict_classifier",
-        ),
-        # specify_cli.consolidation.conflict_classifier::r_pyproject_deps_union
-        SymbolKey(
-            "r_pyproject_deps_union",
-            "e3633e4ef609408e8a9d8433c080edad3cf595dac30db1ca7dba0a12cc852e64",
-            source_module="specify_cli.consolidation.conflict_classifier",
-        ),
-        # specify_cli.consolidation.conflict_classifier::r_urls_list_union
-        SymbolKey(
-            "r_urls_list_union", "483a7c2e4e5c7ec6829ed411b4f485ae141a40ff6aaaa2d07fa588c461463bfd", source_module="specify_cli.consolidation.conflict_classifier"
-        ),
-        # specify_cli.consolidation.conflict_classifier::r_uvlock_regenerate
-        SymbolKey(
-            "r_uvlock_regenerate", "00c7c15c6ac3c4eebd8a6a071b3c6157953733f7dcdcdf0f8c9b29d11fbf4b94", source_module="specify_cli.consolidation.conflict_classifier"
-        ),
-        # specify_cli.consolidation.state::MergeAmbiguousStateError -- RE-KEYED
-        # (landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS2
-        # changed the body; hash recomputed via resolve_symbol_key/key_tier
-        # (tests/architectural/_symbol_key.py), not hand-guessed. Still
-        # unwired from a second src/ module today -- external consumers land
-        # with the Epic #5001 follow-ups.
-        SymbolKey("MergeAmbiguousStateError", "8cd8372b816b4d9832d81b923bb132c5a28ab45a9d64c31e8ae27356f8e87f38", source_module="specify_cli.consolidation.state"),
-        SymbolKey(
-            "detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6", source_module="specify_cli.consolidation.state"
-        ),  # specify_cli.consolidation.state::detect_git_merge_state
-        # specify_cli.mission_brief::IntakeFileMissingError (escalated: live collision)
-        SymbolKey("IntakeFileMissingError", "10c5629ceb1c89d8fa16d2dfacaac2480549638e7ce8264138959a6e9be9155c", module_path="specify_cli.mission_brief"),
-        # specify_cli.mission_brief::IntakeFileUnreadableError (escalated: live collision)
-        SymbolKey("IntakeFileUnreadableError", "cbc27774574a9c61c998e746fa8749b06806674e67079e3ad9e932fd2ab147e9", module_path="specify_cli.mission_brief"),
-        SymbolKey(
-            "clear_mission_brief", "52ef7df6a2e4e0e40032f1b4a785936d2a9e21d322b225fd80aa119a66d99b83", source_module="specify_cli.mission_brief"
-        ),  # specify_cli.mission_brief::clear_mission_brief
-        # specify_cli.missions::PrimitiveExecutionContext (escalated: live collision)
-        SymbolKey("PrimitiveExecutionContext", "8d0ff32282080dcc0ee90b8fd3ba8ba5c9f41d4a20886979453df1db4ce64561", module_path="specify_cli.missions"),
-        # specify_cli.missions::execute_with_glossary (escalated: live collision)
-        SymbolKey("execute_with_glossary", "5942ba731fd9b815adc70427f1098602d157e8bdb6cbfb9c103c2939246ef368", module_path="specify_cli.missions"),
-        SymbolKey(
-            "SRC_FALLBACK_GLOB", "98996636a6168fb393c855815769613ceeb84fd88ded2ea37b7ac2fe659048b1", source_module="specify_cli.ownership.inference"
-        ),  # specify_cli.ownership.inference::SRC_FALLBACK_GLOB
-        # specify_cli.ownership.inference::SRC_FALLBACK_WARNING
-        SymbolKey("SRC_FALLBACK_WARNING", "bf26744e04d9f2a94ff9647ec65de398875b3bdbfcb74764ba9081379e54c223", source_module="specify_cli.ownership.inference"),
-        # specify_cli.ownership.validation::validate_authoritative_surface
-        SymbolKey(
-            "validate_authoritative_surface", "987d09f98ff07d79a1de805e4e088add4719c804056cf500b37e843c201a9357", source_module="specify_cli.ownership.validation"
-        ),
-        # specify_cli.ownership.validation::validate_execution_mode_consistency
-        SymbolKey(
-            "validate_execution_mode_consistency",
-            "a357e210abed737248ce70127facb98551595178974cbdb00b39d9bafb48eee1",
-            source_module="specify_cli.ownership.validation",
-        ),
-        # specify_cli.ownership.validation::validate_no_overlap
-        SymbolKey("validate_no_overlap", "53fd8afa15dbb6f34b94541da3a2e4b183cf91a4c3170fbd0ed77223918cacd5", source_module="specify_cli.ownership.validation"),
-        SymbolKey(
-            "detect_unfilled_plan", "a939602c9997240b49616668817fffbab7af31432e65813252b4afccbff57424", source_module="specify_cli.plan_validation"
-        ),  # specify_cli.plan_validation::detect_unfilled_plan
-        # specify_cli.runtime.home::_is_windows deleted (cross-os-primitive-unification-01M2T1CM
-        # WP01): the private copy was removed and routed through the canonical
-        # kernel.paths.is_windows seam, so this allowlist entry is dropped rather
-        # than left dangling.
-        # specify_cli.runtime.resolver::ResolutionResult (escalated: live collision)
-        SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime.resolver"),
-        # specify_cli.runtime.resolver::ResolutionTier -- REMOVED (#3831/#4088 landing):
-        # the org-aware mission-type loader now imports ResolutionTier directly, so it
-        # has a real src/ caller and is no longer dead.
-        SymbolKey(
-            "AssetDisposition", "80538ab23937dae2a0ae5057b94162ab6d3ee08ee7df23683f57a650eccd4580", source_module="specify_cli.runtime"
-        ),  # specify_cli.runtime::AssetDisposition
-        SymbolKey(
-            "MigrationReport", "281c091735269501f17e11de13a8ea2e88a1ce97fe4e08034928d55be34e8a6f", source_module="specify_cli.runtime"
-        ),  # specify_cli.runtime::MigrationReport
-        SymbolKey(
-            "OriginEntry", "1f789caf3d0bbf11391ca36704de0ab247e6693ea437be93b9598850463dbf29", source_module="specify_cli.runtime"
-        ),  # specify_cli.runtime::OriginEntry
-        # specify_cli.runtime::ResolutionResult (escalated: live collision)
-        SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime"),
-        # specify_cli.runtime::ResolutionTier -- REMOVED (#3831/#4088 landing): same
-        # loader fix as specify_cli.runtime.resolver::ResolutionTier above -- the
-        # re-export now has a real src/ caller too.
-        # specify_cli.runtime::classify_asset -- body-hash re-pinned 2026-09-26 (#4961):
-        # classify_asset's body was refactored to route shared-counterpart resolution
-        # through _resolve_shared_counterpart + the ownership guard. Still a re-export
-        # with no src/ caller (tests import it directly from runtime.migrate), so it
-        # stays hand-allowlisted exactly as on main -- only the pinned hash moves.
-        SymbolKey(
-            "classify_asset", "4c0ca6c39f4ac992dc93f2eabd525739ce05774519b897b083b76dc54fb4ae3c", source_module="specify_cli.runtime"
-        ),  # specify_cli.runtime::classify_asset
-        SymbolKey(
-            "SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
-        # specify_cli.skills.manifest_store::{load,save} -- REMOVED (#666):
-        # unaliased submodule imports now feed the module-attr detector, so
-        # their many real src/ callers make both rows stale.
-        # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
-        SymbolKey(
-            "MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9", source_module="specify_cli.status.lifecycle_events"
-        ),
-        # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
-        SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.lifecycle_events::has_lifecycle_event
-        SymbolKey("has_lifecycle_event", "22cdefb0c0dedb5de2e36397ee49bc1a17142600b49b0d910c7de705c7dd1905", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.lifecycle_events::project_event_log_path -- REMOVED
-        # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
-        # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and
-        # calls it directly to resolve the project-level lifecycle event log path.
-        # specify_cli.status.uninitialized_hint::find_wp_dependency_cycles
-        SymbolKey(
-            "find_wp_dependency_cycles", "5b6258f4436930d9c732a9afc04d5261c137cd98c5b976a780e137d482e97135", source_module="specify_cli.status.uninitialized_hint"
-        ),
-        # sync.diagnostics::{SyncDiagnostic,reset_emitted_codes} and
-        # sync.orphan_sweep::SweepReport -- PRUNED (issue-5-delete-sync-transport):
-        # both modules were deleted with the sync transport.
-        # specify_cli.task_metadata_validation::TaskMetadataError
-        SymbolKey("TaskMetadataError", "a5f4d63d6b2895e3143710b52553986e2c34ee1170b0a2c65909f19b8776aee7", source_module="specify_cli.task_metadata_validation"),
-        # specify_cli.task_metadata_validation::detect_lane_mismatch
-        SymbolKey("detect_lane_mismatch", "4318eac514483a8a366cb66673d4a595fec81e0664b7fc0a6d27d945148b542a", source_module="specify_cli.task_metadata_validation"),
-        # specify_cli.task_metadata_validation::validate_task_metadata
-        SymbolKey(
-            "validate_task_metadata", "204dce3e2bd29c165be77f41d8e43b39b81c0a424e5ab947800272e07e8e73c3", source_module="specify_cli.task_metadata_validation"
-        ),
-        # specify_cli.template.asset_generator::_convert_markdown_syntax_to_format
-        SymbolKey(
-            "_convert_markdown_syntax_to_format",
-            "e8bc1f720dcafc3536917329a9cd279c81e544c390050d4d651a33f96418709b",
-            source_module="specify_cli.template.asset_generator",
-        ),
-        SymbolKey(
-            "PROBLEMATIC_CHARS", "2c28f74e9e567401e971a4c8fb4d8d88e441d7ade49d950e0bd1208a3d514b41", source_module="specify_cli.text_sanitization"
-        ),  # specify_cli.text_sanitization::PROBLEMATIC_CHARS
-        # (rehashed: the dead preserve_utf8 parameter was dropped, dead-code review 2026-09-30)
-        # specify_cli.text_sanitization::sanitize_markdown_text
-        SymbolKey("sanitize_markdown_text", "53155fc923b017e749820d3939fc307992d337c9f2490748d2c12e2a309c0bc2", source_module="specify_cli.text_sanitization"),
-        # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID
-        SymbolKey(
-            "MIGRATION_ID",
-            "2141404f3e6b3f0f036403171fd8dd34a0f4ac8775a0c19082a55bf7d3d939ad",
-            source_module="specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle",
-        ),
-        # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::TARGET_VERSION
-        SymbolKey(
-            "TARGET_VERSION",
-            "ea06e5f0a28dd3c9678a78930f7dab5d64ba2f054bfdbbd6e4b1052bd94d0b6b",
-            source_module="specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle",
-        ),
-        # specify_cli.upgrade.migrations::MigrationDiscoveryError
-        SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f", source_module="specify_cli.upgrade.migrations"),
-        # specify_cli.validators.csv_schema::CSVSchemaValidation
-        SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c", source_module="specify_cli.validators.csv_schema"),
-        # specify_cli.validators.paths::PathValidationResult -- #4254 added the
-        # satisfied_by field (the candidate source root that satisfied a build
-        # path), refreshing this content-hash exactly as #811's
-        # missing_artifact_tokens field did (#470)
-        SymbolKey("PathValidationResult", "cdc4bcabb30ad9c1b4db8ac3413d2b0b55b950eb7f08bd2b1b43f94c726b1ca3", source_module="specify_cli.validators.paths"),
-        # specify_cli.validators.paths::suggest_directory_creation
-        SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7", source_module="specify_cli.validators.paths"),
-        SymbolKey(
-            "APA_PATTERN", "e225a418edd433afa959eaafb07895bb8ff165314b82c6a9bd13b5708fd3c3ce", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::APA_PATTERN
-        SymbolKey(
-            "BIBTEX_PATTERN", "1f6ccd16b6d0e71a858aefb3f51f1bb54628c060140af6aec7148bb44a00f18a", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::BIBTEX_PATTERN
-        SymbolKey(
-            "CitationFormat", "c9a89a89f61089daf873da3b26960c6ddea341d6bbe8707db968efb0f3e8aef7", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::CitationFormat
-        SymbolKey(
-            "CitationIssue", "a2f57e836d2dc4705cd00e84c6a29b265dbde10052802f024f050d405ce5e0c4", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::CitationIssue
-        # specify_cli.validators.research::CitationValidationResult
-        SymbolKey("CitationValidationResult", "2f404bee806cbe15605248cad74d39dc91004b7411a6346c37d02e5da7da1426", source_module="specify_cli.validators.research"),
-        # specify_cli.validators.research::ResearchValidationError
-        SymbolKey("ResearchValidationError", "8e0de7c1ce2abc09e2e26ef2b86891a533d23a5b62d3f58918fb08c5747a8284", source_module="specify_cli.validators.research"),
-        SymbolKey(
-            "SIMPLE_PATTERN", "a2435238e81b44f25766109d814ec803c148c3a29e2d85d47e30ab096042c7b9", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::SIMPLE_PATTERN
-        # specify_cli.validators.research::VALID_CONFIDENCE_LEVELS
-        SymbolKey("VALID_CONFIDENCE_LEVELS", "c160515f343ad25476a372943d437d1cf393ea028115d2a91855bc41645c7ddb", source_module="specify_cli.validators.research"),
-        # specify_cli.validators.research::VALID_RELEVANCE_LEVELS
-        SymbolKey("VALID_RELEVANCE_LEVELS", "34722f8e96555350ed3f46a0f61ea69354855e42a78f72f88f54a1a04190d535", source_module="specify_cli.validators.research"),
-        # specify_cli.validators.research::VALID_SOURCE_STATUS
-        SymbolKey("VALID_SOURCE_STATUS", "6b50ea350d414cf3e31225b4ee1c1116cf4eac86922853b8568fba9792e89771", source_module="specify_cli.validators.research"),
-        SymbolKey(
-            "VALID_SOURCE_TYPES", "ca324041c550e4de017a74c75c66dc5e74ae08a64dca757367f149b082209d5a", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::VALID_SOURCE_TYPES
-        # specify_cli.validators.research::detect_citation_format
-        SymbolKey("detect_citation_format", "77028d1d9914eae810073eb37c535a3ff246d8505abfeee0f3b362f93278ad7d", source_module="specify_cli.validators.research"),
-        SymbolKey(
-            "is_apa_format", "c93231c83488d6ec02f061ed0abb668970978ef80f41c46796dc3ff6d7553b19", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::is_apa_format
-        SymbolKey(
-            "is_bibtex_format", "a405d08064337875f5131fc8ace8adbdc0166926571fb9e4bafe123d954383e3", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::is_bibtex_format
-        SymbolKey(
-            "is_simple_format", "554f7f44d63e6bfb35c044e79f4cc227be18d10799e7d43ab117123fbbf72a47", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::is_simple_format
-        SymbolKey(
-            "validate_citations", "c8f28b75658a499c19b3bea2a86ecd2460289cf32811fdb472279ffaac16d44b", source_module="specify_cli.validators.research"
-        ),  # specify_cli.validators.research::validate_citations
-        # specify_cli.validators.research::validate_source_register
-        SymbolKey("validate_source_register", "c9828e462d4312022aabd276cfddac19d8839c37480d692a1f54fc874ceca9d9", source_module="specify_cli.validators.research"),
-        # specify_cli.widen.interview_helpers::render_widen_hint_if_present
-        SymbolKey(
-            "render_widen_hint_if_present", "488672b20073c5fb098086f3a277c270b6bfada6f1efc571c7ea6d3030286011", source_module="specify_cli.widen.interview_helpers"
-        ),
-        # kernel-clock-single-door PR #3305: FrozenClock/SystemClock are the
-        # genuine public injectable-clock API (Clock protocol's real
-        # implementation + deterministic test double) -- same "decomposed-
-        # module public API consumed by tests/wrapper" shape as the
-        # _auth_doctor family above. By design production code reads only the
-        # DEFAULT_CLOCK singleton (never SystemClock/FrozenClock by name), so
-        # there is no non-test src/ caller to wire; tests across
-        # kernel/agent/upgrade/specify_cli inject FrozenClock directly and
-        # DEFAULT_CLOCK is instantiated from SystemClock at module load. Kept
-        # public (not pruned from __all__) because both are load-bearing
-        # constructor targets for the SC-002 single-injection-point idiom
-        # documented in kernel/clock.py's own module + class docstrings.
-        SymbolKey("FrozenClock", "d7d3b0fc4c3f3073f8d91f3a9a52d572ed4c757fa0394e099a93cbdd55cc1254", source_module="kernel.clock"),  # kernel.clock::FrozenClock
-        SymbolKey("SystemClock", "63636506c6ff5670c4d24b17ead03fa5f98c882a019a1566126d7bfb19ac82a0", source_module="kernel.clock"),  # kernel.clock::SystemClock
-    }
-)
-
-
-# ---------- C. WP-in-flight Slice F charter symbols ----------
-# ``OperationalContext.require_active_profile`` / ``.require_active_role``
-# entries dropped (relocation-hardened-dead-code-scanners-01KX958P WP02):
-# these were never real ``__all__`` bare names (only module-level names are
-# ever checked by ``_compute_offenders``) -- inert no-ops under the OLD
-# string-keyed allowlist too, so dropping them changes no gate behaviour.
-
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.activation.consistency_check::ConsistencyReport entry pruned
-        # (doctrine-tension-edges-01KY1WPC): removed from __all__ instead of
-        # re-pinning the hash -- no external caller imports it by name (only
-        # consumed via attribute access on run_consistency_check()'s return
-        # value), matching this file's own CharterYamlCorruptError precedent.
-        # charter.activation.invocation_context::ContextPreconditionError
-        SymbolKey(
-            "ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.activation.invocation_context"
-        ),
-    }
-)
-
-
-# ---------- C. WP-in-flight Slice F workflow registry symbols ----------
-# WP11 removal trigger reached: all four symbols now have live src/ callers.
-
-_CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. #2899 guarded-read re-parent collateral ----------
-# ``UnknownWorkflowError`` was re-parented ``Exception`` -> ``GuardedReadError``
-# so the global CLI error-presentation hook renders an unknown workflow id
-# cleanly instead of as a traceback (mission cli-error-surface-seam, #2899 /
-# #4746). It is a genuine PUBLIC exception -- declared in
-# ``workflow_registry.__all__``, raised by ``get_workflow``, and propagated per
-# FR-015 (no silent fallback) -- with no cross-module ``src/`` caller. On
-# ``main`` it passed via the ``(Exception)``-base T013 exception auto-exemption,
-# which the new ``GuardedReadError`` base no longer matches. Content-tier key;
-# burns down if the re-parenting is reconsidered or a cross-module caller is
-# added. Follow-up: #2899.
-_CATEGORY_C_GUARDED_READ_REPARENT_2899: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "UnknownWorkflowError",
-            "fb2d6d84226ae48968e9a4962921279e67993a957f615d38eb2e06a2fef1478c",
-            source_module="runtime.next._internal_runtime.workflow_registry",
-        ),
-    }
-)
-
-
-# ---------- C. Charter command split legacy patch surface ----------
-# Both entries rescued by detector (a) (module-attribute accesses).
-
-_CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. Mission #1348 coordination-branch atomic event log ----------
-# Public helper symbols for missions/coordination-branch topology; each is
-# exercised by integration + unit tests, with production wiring tracked
-# under Priivacy-ai/spec-kitty#1355 / #1356.
-
-_CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.missions._create::CoordinationBranchResult
-        SymbolKey("CoordinationBranchResult", "dc567286f5c65649bf53e959fae163eda7bc545db28e0cd59828ba382728a790", source_module="specify_cli.missions._create"),
-        # specify_cli.missions._create::coordination_branch_name
-        SymbolKey("coordination_branch_name", "8fa08bd97424675f219df65dde32de3212f4087b60ec407994190a9aad26e01b", source_module="specify_cli.missions._create"),
-        # specify_cli.missions._resolve_planning_branch::resolve_planning_branch_from_meta
-        SymbolKey(
-            "resolve_planning_branch_from_meta",
-            "ab0a19c05c45f58a95bb0a95e12757a2036e6a6a690238e3f19332e336c53582",
-            source_module="specify_cli.missions._resolve_planning_branch",
-        ),
-    }
-)
-
-
-# ---------- C. WP-in-flight topology authority seam (mission 01KTYGTE) ----------
-# ``ResolvedStatusSurface`` is the return type of the already-wired
-# ``resolve_status_surface_with_anchor``; callers consume the value, not the
-# name. No follow-up tracker -- lone remaining transitive-consumption entry.
-
-_CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.coordination.surface_resolver::ResolvedStatusSurface
-        SymbolKey(
-            "ResolvedStatusSurface", "9e509c1b3194a519661e3613738bfa2c69e145820701bba61c1c56cfe49ef501", source_module="specify_cli.coordination.surface_resolver"
-        ),
-    }
-)
-
-
-# ---------- C. WP-in-flight unified MissionStep model (mission 01KSWJVX) ----------
-# Public surface for the unified ``MissionStep``/mission-type model, shipped
-# ahead of production callers landing in later WPs of the same mission
-# family. Follow-up tracker: mission-internal WP03/WP04/WP05.
-
-_CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
-        ),  # charter.offering.missions.mission_step_repository::StepKey
-        # DEDUPED (#3562): ``IDENTIFIER_PATTERN`` / ``Mission`` were re-added
-        # here as exact duplicates (same bare_name + body_hash) of their
-        # ``_CATEGORY_B_GRANDFATHERED_LEGACY`` entries -- the frozenset union
-        # silently deduped them, so the category-B copies are the ones kept
-        # (they own the burn-down rationale). The cross-category duplicate
-        # gate below now reds on any such re-add.
-        SymbolKey(
-            "DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee", source_module="charter.offering.missions.step_contracts"
-        ),  # charter.offering.missions.step_contracts::DelegatesTo
-    }
-)
-
-
-# ---------- C. WP-in-flight charter-pack activation layer (01KSYE4V) ----------
-# New public symbols across charter/doctrine/specify_cli whose only callers
-# today are the test suite or later WPs still in development. Follow-up
-# tracker: mission-internal WP06/WP08 (CLI wiring).
-
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7", source_module="charter.activation.pack_manager"
-        ),  # charter.activation.pack_manager::ActivationResult
-        SymbolKey(
-            "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.activation.pack_manager"
-        ),  # charter.activation.pack_manager::MergeResult
-        # DEDUPED (#3562): ``StepKey`` was re-added here as an exact duplicate
-        # (same bare_name + body_hash) of its
-        # ``_CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP`` entry -- the copy
-        # kept, since the symbol's owning surface
-        # (``charter.offering.missions.mission_step_repository``) is that
-        # mission's model. The cross-category duplicate gate below now reds on
-        # any such re-add.
-        SymbolKey(
-            "AffectedMission", "aca1c4d1ccf40c858667a7ca7fc09a28197e3b7ed559beffd1c72e4ed91f5a1f", source_module="specify_cli.charter_activate"
-        ),  # specify_cli.charter_activate::AffectedMission
-        SymbolKey(
-            "StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf", source_module="specify_cli.charter_activate"
-        ),  # specify_cli.charter_activate::StepRemovalWarning
-        # specify_cli.doctrine.org_charter::OrgCharterCycleError
-        SymbolKey("OrgCharterCycleError", "0aa1191f64d7e16ef01d734a5923234235803540c3bef47f38a0f53bb25027b4", source_module="specify_cli.doctrine.org_charter"),
-        # specify_cli.doctrine.org_charter::OrgCharterExtensionError
-        SymbolKey("OrgCharterExtensionError", "95d36f60ef3daa34a22466c687aff504694a7b82bee2621d7f42f7a7d9bd5425", source_module="specify_cli.doctrine.org_charter"),
-    }
-)
-
-
-# ---------- C. org-doctrine close-out (mission-authored public surface) ----------
-# Public charter/doctrine API symbols awaiting production callers that ship
-# in later WPs of the same mission family, or intentionally discoverable
-# public surface that is only test-exercised today. Re-derived each cycle,
-# not a standing tracker (the mission owns them).
-
-_CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
-        ),  # charter.activation.activation_engine::ActivationPlan
-        # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
-        # field to this dataclass so ``charter deactivate --cascade`` can report the
-        # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
-        # allowlist is content-hash keyed, so a legitimate body change drifts the pin
-        # and the gate reports the symbol as un-allowlisted. Category C is re-derived
-        # each cycle by design, so this is a re-pin, not a new exemption: the symbol's
-        # status is unchanged (still no src/ importer -- it is the public return type
-        # of ``deactivation_plan()``, consumed by the CLI layer and tests).
-        # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
-        # Re-pinned 2026-09-16 (#3772): the de-dup consolidation unified this
-        # dataclass's ``not_cascaded_kind_filtered`` field to the kind-bucketed
-        # ``dict[str, list[str]]`` shape its activate-side siblings already
-        # carry -- a body-only change, the symbol's status is unchanged (still
-        # no src/ importer). Prior hash: ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615
-        SymbolKey(
-            "DeactivationPlan", "7969f9715636c68b9fbf15569aa12af1e52f7ba9fc9f4e5b3a697c7274b8364f", source_module="charter.activation.cascade"
-        ),  # charter.activation.cascade::DeactivationPlan
-        SymbolKey(
-            "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
-        ),  # charter.activation.cascade::ReferencedArtifact
-        SymbolKey(
-            "SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.activation.cascade"
-        ),  # charter.activation.cascade::SharedSkip
-        # charter.offering.drg.org_pack_loader::AUGMENTATION_RELATIONS
-        SymbolKey(
-            "AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"
-        ),
-        SymbolKey(
-            "TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e", source_module="charter.offering.drg.org_pack_loader"
-        ),  # charter.offering.drg.org_pack_loader::TOPOLOGY_KINDS
-        # charter.offering.drg.org_pack_loader::merge_topology_artifact
-        SymbolKey(
-            "merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="charter.offering.drg.org_pack_loader"
-        ),
-        # ``template_id_for`` and ``template_urn`` left the allowlist in
-        # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
-        # extractor's template-instantiation pass
-        # (``charter.offering.drg.migration.extractor.extract_template_instantiation_edges``)
-        # is now their first live non-test caller, so the dead-symbol gate
-        # (FR-008) requires them removed. ``template_node``/``template_nodes``
-        # stay allowlisted -- still no live caller.
-        SymbolKey(
-            "template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0", source_module="charter.offering.template_catalog"
-        ),  # charter.offering.template_catalog::template_node
-        SymbolKey(
-            "template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd", source_module="charter.offering.template_catalog"
-        ),  # charter.offering.template_catalog::template_nodes
-        SymbolKey(
-            "PackHealth", "82268603b58f8a1449a0bf97456ddf08c217c11de4d66d85a41afc56819f7eee", source_module="specify_cli.cli.commands._doctrine_health"
-        ),  # specify_cli.cli.commands._doctrine_health::PackHealth
-    }
-)
-
-
-# ---------- C. Upstream session-presence public surface (pre-existing on main) ----------
-# Two module-level constants used internally by ``UpgradeChecker`` but with
-# no import-site caller in src/ yet. NOT this mission's code -- surfaced only
-# because the mission's ``src/specify_cli/status/`` changes triggered the
-# ``core_misc`` path filter. Follow-up: wire or prune when callers land.
-
-_CATEGORY_C_UPSTREAM_SESSION_PRESENCE: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "CACHE_PATH", "65335e57687d24eac92dec11e6cd5d4099547d3a60bb633501912b789b5ddfa2", source_module="specify_cli.session_presence.upgrade_check"
-        ),  # specify_cli.session_presence.upgrade_check::CACHE_PATH
-        SymbolKey(
-            "TTL_SECONDS", "12e366f07395dad9d3e750719e906194509f2ec6f0e16a5a9b180be893795962", source_module="specify_cli.session_presence.upgrade_check"
-        ),  # specify_cli.session_presence.upgrade_check::TTL_SECONDS
-    }
-)
-
-
-# ---------- C. Quality-debt epic #1928 ----------
-# ``PathValidationError`` is the public exception raised by
-# ``validate_mission_paths(..., strict=True)``; the sole runtime caller
-# invokes it non-strict. Deliberate public API. Tracked under #1928 (FR-303).
-
-_CATEGORY_C_QUALITY_DEBT_1928: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "PathValidationError", "85f3d9bc44e166ee3f73f0bccfa146e43b23e3ac019402238fddda73f670e56f", source_module="specify_cli.validators.paths"
-        ),  # specify_cli.validators.paths::PathValidationError
-    }
-)
-
-
-# ---------- C. operator-config public API (mission operator-config-ergonomics) ----------
-# Three symbols authored by the operator-config-ergonomics mission (landed via
-# #3506) that are deliberate, contract-declared public API but have no static
-# src/ importer yet -- the same "public-but-unwired" shape as #1928 above:
-#   * ``UnresolvedEnvTokenError`` -- raised only on the ``inject_defaults=False``
-#     expansion policy (env-expander.md C-EXP-2/4); no current caller uses that
-#     policy, so nothing in src/ catches it yet.
-#   * ``OperatorEnvFileUnreadableError`` -- fail-loud error raised by the
-#     pre-import env-file loader; it propagates to CLI startup and is caught
-#     nowhere by design (fail-loud, C-LDR-3).
-#   * ``RedactedVar`` -- public return-element type of ``redact()``; callers
-#     iterate the returned list without importing the class name.
-# Manufacturing a fake src/ importer is the anti-pattern this gate warns
-# against, so they are allow-listed. Wire-or-prune tracked under #3508 (FR-303).
-
-_CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API: frozenset[SymbolKey] = frozenset(
-    {
-        # kernel.env_expand::UnresolvedEnvTokenError
-        SymbolKey("UnresolvedEnvTokenError", "f412b46e47e99106738049c8591d9ea8b15465c31a052bb7d547384e137f810e", source_module="kernel.env_expand"),
-        # specify_cli.bootstrap.env_file::OperatorEnvFileUnreadableError
-        SymbolKey(
-            "OperatorEnvFileUnreadableError", "ac46a6871a178702eda203f7e033f223c04d010efe92e84ca2a5c7f9bc669d8c", source_module="specify_cli.bootstrap.env_file"
-        ),
-        # specify_cli.core.secret_redaction::RedactedVar
-        SymbolKey("RedactedVar", "203ae262daee894e8872ca42a54de0774b5c8461f97be8ee26ac19329f8657d3", source_module="specify_cli.core.secret_redaction"),
-    }
-)
-
-
-# ---------- C. mission-type uncaught propagation surface (mission cli-boundary-robustness) ----------
-# ``MissionTypeEmptyActionSequenceError`` (WP06, FR-004) is raised twice
-# intra-module (``resolve_mission_type_context`` / the layered-roster
-# resolver) but, by design, is NEVER caught by name at any src/ call site --
-# ``charter/activation/mission_type_profiles.py::activate.py``'s
-# ``UnknownMissionTypeError`` handler explicitly narrows to that sibling
-# exception ONLY, letting this one propagate uncaught to the CLI boundary
-# (spec.md Edge Cases: "must surface that resolution failure rather than
-# silently treating 'cannot resolve' as 'no steps were removed'" -- see the
-# comment at ``charter/activate.py``'s ``except UnknownMissionTypeError:``
-# block). The gate's import-based caller detector has no way to see a
-# deliberately-uncaught ``raise`` as a reference, same fail-loud shape as
-# ``OperatorEnvFileUnreadableError`` above. Only test code names it (via
-# ``pytest.raises``). Wire-or-prune tracked under #4600 (FR-303).
-
-_CATEGORY_C_MISSION_TYPE_UNCAUGHT_PROPAGATION_SURFACE: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.activation.mission_type_profiles::MissionTypeEmptyActionSequenceError
-        SymbolKey(
-            "MissionTypeEmptyActionSequenceError",
-            "2565e0c8bd07c667a3aa3bec9b8b768a99d1c4e7cc2c0e416e83e5eead3421fe",
-            source_module="charter.activation.mission_type_profiles",
-        ),
-    }
-)
-
-
-# ---------- C. doctor auto-discovery seam (mission operator-config-ergonomics) ----------
-# All six symbols are LIVE, not dead -- the gate only counts cross-file src/
-# ``__all__`` importers, and both reach-paths here are invisible to it:
-#   * each ``register(app)`` is invoked by doctor.py's ``_auto_discover_doctor_
-#     siblings()`` via ``getattr(module, "register")`` (a dynamic string
-#     lookup, mirroring the migration ``auto_discover_migrations`` seam);
-#   * each ``run_*`` is called intra-module by its own ``register`` shell.
-# Manufacturing a fake src/ importer is the anti-pattern this gate warns
-# against, so they are allow-listed (same rationale as the branch-naming
-# failover seam below). The eventual root fix is a structural auto-exempt for
-# the doctor-register seam, mirroring ``_is_registered_migration_class`` so
-# future ``_*_doctor.py`` siblings never need a hand entry -- tracked in #3508.
-
-_CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.cli.commands._bytecode_doctor::register
-        SymbolKey("register", "0b36ce302a76619cd22bf8b785376bd02523b558285e18bfa70b5c63dde808ef", source_module="specify_cli.cli.commands._bytecode_doctor"),
-        # specify_cli.cli.commands._bytecode_doctor::run_bytecode_audit
-        SymbolKey(
-            "run_bytecode_audit", "c90c96b3620359b0ec20670b97862f5b2384e9efa10bc4d07f39bf20acea41f2", source_module="specify_cli.cli.commands._bytecode_doctor"
-        ),
-        # specify_cli.cli.commands._channel_doctor::register
-        SymbolKey("register", "3e40fc6641735900c4b86d367c7daf205425df768e6a63e9be1e789ee6fb3da7", source_module="specify_cli.cli.commands._channel_doctor"),
-        # specify_cli.cli.commands._channel_doctor::run_channel_report
-        SymbolKey(
-            "run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333", source_module="specify_cli.cli.commands._channel_doctor"
-        ),
-        # specify_cli.cli.commands._env_file_doctor::register -- body_hash
-        # refreshed (cli-boundary-robustness #4600): the ``register`` shell's
-        # nested ``env_file`` command body changed under the boundary
-        # refactor, invalidating the prior content-tier key. Still reached
-        # only via doctor.py's dynamic ``getattr(module, "register")``
-        # auto-discovery, invisible to the gate's static import scan.
-        SymbolKey("register", "d2dde051e8ad116fa7498dc07207edca65b50b6d4b5bc698997ed8e3106494b2", source_module="specify_cli.cli.commands._env_file_doctor"),
-        # specify_cli.cli.commands._env_file_doctor::run_env_file_health
-        SymbolKey(
-            "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
-        ),
-        # specify_cli.cli.commands._provenance_doctor::register -- body_hash
-        # Refreshed for #5253: the nested command now calls the underscore-private
-        # audit helper. The same dynamic-dispatch reach path as
-        # ``_env_file_doctor::register`` above remains in place.
-        SymbolKey("register", "86be39d2a8af2f6109da0272d9fc0d539a758e6a0e1c8882a4c96202e333b2ea", source_module="specify_cli.cli.commands._provenance_doctor"),
-    }
-)
-
-
-# ---------- C. Branch-naming legacy-failover seam ----------
-# Both symbols are LIVE -- the gate only counts cross-file src/ ``__all__``
-# importers, so a test-only hook and an intra-module env read are invisible
-# to it (NOT dead). Manufacturing a fake src/ importer is the anti-pattern
-# this gate warns against, so they are allow-listed instead.
-
-_CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.lanes.branch_naming::LEGACY_FAILOVER_SUPPRESS_ENV
-        SymbolKey(
-            "LEGACY_FAILOVER_SUPPRESS_ENV", "957586eb65e3ce121ded2ef48b5d57a4a72909a7ae1a254d4929a39f8e6428b3", source_module="specify_cli.lanes.branch_naming"
-        ),
-        # specify_cli.lanes.branch_naming::reset_legacy_failover_warning
-        SymbolKey(
-            "reset_legacy_failover_warning", "7b006e531bb376166d109ca44ba745608b0e558e55f69565e21f83469c19c8c9", source_module="specify_cli.lanes.branch_naming"
-        ),
-    }
-)
-
-
-# ---------- C. Test-facing agent.tasks re-export compatibility ----------
-# relocation-hardened-dead-code-scanners-01KX958P WP02: all three remaining
-# entries (_lane_targets_for_emit / _wp_lane_from_status_events /
-# compute_incomplete_dependents) are pure re-export-shim symbols whose
-# underlying definition has a live caller elsewhere -- now covered by the
-# T013 structural auto-exempt (``_is_reexport_shim_symbol``); category
-# emptied, kept defined for the burn-down record.
-
-_CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. Merge god-module decomposition shim re-exports (mission #2057) ----------
-# The ``cli/commands/merge.py`` god-module was decomposed into cohesive
-# seams under ``specify_cli/consolidation/`` (behavior-preserving refactor). FR-006
-# mandates the thin command shim re-export every relocated symbol so
-# existing importers keep working with zero import edits.
-#
-# relocation-hardened-dead-code-scanners-01KX958P WP02: 59 of the 65
-# pure re-export names (``specify_cli.cli.commands.consolidate::*``) are now
-# covered by the T013 structural auto-exempt (``_is_reexport_shim_symbol``)
-# -- each resolves via a single-alias ``ImportFrom`` whose origin definition
-# has a live caller elsewhere. ``BaselineMergeCommitError`` stays hand-listed
-# because its bare name is a LIVE COLLISION bare_name (escalated to the
-# module_path tier by the FR-005 classifier) -- collision bare_names are
-# never auto-exempt (T012's escalate-or-fail-close path must see them). The
-# 13 seam-INTERNAL helpers stay hand-listed too: they are locally DEFINED
-# (not re-exported) in their seam module, just lacking a cross-file src/
-# caller after the decomposition moved the consuming call to a sibling seam
-# -- a different shape than a re-export shim.
-
-_CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.cli.commands.consolidate::BaselineMergeCommitError (escalated: live collision)
-        SymbolKey(
-            "BaselineMergeCommitError", "f63bb04588cfd7df1144a1e646283b39e2bcc28ae152b07a0799b34f0f91c65b", module_path="specify_cli.cli.commands.consolidate"
-        ),
-        # (coord-write-placement-closure-01KYCF83 WP03 / FR-003 rehash: the
-        # filename-trust check now classifies via kind_for_mission_file instead
-        # of a hardcoded {filename1, filename2} membership test -- body changed,
-        # content-tier hash re-pinned.)
-        # specify_cli.consolidation.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
-        SymbolKey(
-            "_assert_status_surface_file_path_is_trusted",
-            "4849bba669d427bc0cdb0a72f77dc821f821b979edd3293e9ea5f1d6e0fe6d62",
-            source_module="specify_cli.consolidation.bookkeeping_projection",
-        ),
-        # specify_cli.consolidation.bookkeeping_projection::_read_optional_bytes
-        SymbolKey(
-            "_read_optional_bytes",
-            "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8",
-            source_module="specify_cli.consolidation.bookkeeping_projection",
-        ),
-        # specify_cli.consolidation.bookkeeping_projection::_restore_optional_bytes
-        SymbolKey(
-            "_restore_optional_bytes",
-            "d34e2cf5f0c1325386d4747c6111cd696a89d476dde3ced2018182c0dfba6fdb",
-            source_module="specify_cli.consolidation.bookkeeping_projection",
-        ),
-        # Hash re-pinned (mission consolidate-canonical-terminology-01M3GSSV WP01
-        # / #3080): the MergeState -> ConsolidationState symbol rename changed this
-        # function's type annotation, changing the symbol body (content-tier key is
-        # body-hashed).
-        SymbolKey(
-            "_already_baked", "7f804f49001d93332ab0a3fad3929f8c45b6d33de06c8d7c1c875af723b87327", source_module="specify_cli.consolidation.ordering"
-        ),  # specify_cli.consolidation.ordering::_already_baked
-        # specify_cli.consolidation.ordering::_is_assigned_mission_number
-        # Hash re-pinned (#4900): the function now delegates to the
-        # single canonical leaf definition
-        # (``consolidation.mission_number.is_assigned_mission_number``)
-        # instead of inlining its own (looser, 0/negative-accepting) check —
-        # body changed, content-tier hash re-pinned.
-        SymbolKey(
-            "_is_assigned_mission_number", "ae4e7967c63275fb2cc6e76c2a75fcf4159458d3f40c9d6963cdc9dfd9b0eba7", source_module="specify_cli.consolidation.ordering"
-        ),
-        SymbolKey(
-            "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.consolidation.push_preflight"
-        ),  # specify_cli.consolidation.push_preflight::check_push_safety
-        SymbolKey(
-            "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.consolidation.push_preflight"
-        ),  # specify_cli.consolidation.push_preflight::check_push_safety
-        # (FR-008: the redundant trailing bare-slug regex was replaced by
-        # strip_numeric_prefix + parse_lane_worktree_dir routed through the
-        # naming authority -- body changed, content-tier hash re-pinned.
-        # Out-of-map edit; re-pin only this one entry if another mission
-        # also touches this allow-list file.)
-        # specify_cli.consolidation.resolve::_extract_mission_slug
-        SymbolKey(
-            "_extract_mission_slug", "069b2a0bb16644081c3d0cf618a231ba3251fea4a2905c157d121d8e07d44f65", source_module="specify_cli.consolidation.resolve"
-        ),  # specify_cli.consolidation.resolve::_extract_mission_slug
-        # specify_cli.consolidation.resolve::_iter_merge_states_for_slug
-        # Hash re-pinned (#2899 landing): the cross-mission slug-scan fix folded in
-        # this PR wrapped the loop's load_state in `except ConsolidationStateReadError:
-        # continue`, changing the symbol body (content-tier key is body-hashed).
-        # Re-pinned again (mission consolidate-canonical-terminology-01M3GSSV WP01 /
-        # #3080): the MergeState -> ConsolidationState rename changed this
-        # exception-handler's type reference too.
-        SymbolKey(
-            "_iter_merge_states_for_slug", "73d5f8b79b62714265c082cd21c5c356df17320208f0b35fb158957a3928cdb2", source_module="specify_cli.consolidation.resolve"
-        ),
-    }
-)
-
-
-# ---------- B. T001-unblinded symbols (WP01 harden-dead-symbol-gate) ----------
-# The T001 bug in ``_extract_all_literal`` caused any module with a
-# top-level ``ast.AnnAssign`` before ``__all__`` to be silently zeroed. WP01
-# fixed the parser; these symbols surfaced as offenders for the first time.
-# Grandfathered at the same "investigate + wire/prune/delete" policy as
-# ``_CATEGORY_B_GRANDFATHERED_LEGACY``. Burns down when each symbol is
-# wired, removed from ``__all__``, or deleted (FR-303).
-
-_CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.auth.transport::AsyncAuthenticatedClient
-        SymbolKey("AsyncAuthenticatedClient", "f55c360aa798fa78dafc366bdb643c863d5d1a56aa2d130c276b808095516f0e", source_module="specify_cli.auth.transport"),
-        SymbolKey(
-            "AuthRefreshFailed", "ceaa6c4e7772ec4cf012512c1fa9504f988aa3522df697264ecbb6025bc0367d", source_module="specify_cli.auth.transport"
-        ),  # specify_cli.auth.transport::AuthRefreshFailed
-        SymbolKey(
-            "AuthenticatedClient", "fdca768debf63f3f84eb7a9119b9b1e219094c9210840fdd433cf2a5bd3d0fc9", source_module="specify_cli.auth.transport"
-        ),  # specify_cli.auth.transport::AuthenticatedClient
-        SymbolKey(
-            "get_async_client", "784e28c299d00ac9210b69146d666fec3d77103b9475c9306bf9350d458a2f5a", source_module="specify_cli.auth.transport"
-        ),  # specify_cli.auth.transport::get_async_client
-        SymbolKey(
-            "get_client", "c8a14f890fac446b89c410dc11a379b5b759c7e8c0e7e041a23413b06a00a313", source_module="specify_cli.auth.transport"
-        ),  # specify_cli.auth.transport::get_client
-        SymbolKey(
-            "reset_clients", "3f0f27d532f29c06c5a85a9415ac60db6e5f5421ca4732d8e9a12bf69eb0e9b3", source_module="specify_cli.auth.transport"
-        ),  # specify_cli.auth.transport::reset_clients
-    }
-)
-
-
-# ---------- C. event-sync retention/delivery mission public surface ----------
-# Mission ``event-sync-retention-delivery-01KVYWRG`` (#2124) shipped two new
-# domains plus a ``sync.migrate_journal`` migration. Every symbol this category
-# used to grant (``specify_cli.delivery.*``, ``specify_cli.event_journal.*``,
-# ``specify_cli.sync.migrate_journal.*``) died with its module when issue #5
-# deleted the sync transport, so the category is fully drained and stays empty
-# as a tombstone -- re-admitting any of these names would require the module to
-# come back first.
-
-_CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset()
-
-
-# sync-daemon-orphan-cleanup-01KWC2A3 (#2261): the ``ResetResult`` per-entry
-# dataclasses were the structured-reporting surface for the orphan sweep. The
-# sweep module (``specify_cli.sync.orphan_sweep``) was deleted with the sync
-# transport (issue #5), so this category is fully drained and stays empty as a
-# tombstone.
-
-_CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. legacy->journal capture cutover mission (#3425/#3497) ----------
-# ``specify_cli.sync.layout_generation``'s cutover error/config surface
-# (``NO_AUTO_CUTOVER_ENV``, ``LayoutAutoCutoverRefusedError``,
-# ``LayoutCutoverIncompleteError``) died with its module when issue #5 deleted
-# the sync transport, so this category is fully drained and stays empty as a
-# tombstone.
-
-_CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. runtime-bridge-degod-01KX8M1C (#2531) compat-surface entries ----------
-# ``runtime_bridge``'s ``__all__`` is a deliberate, spec'd 8-name public surface
-# (contracts/compat-surface.md: "Introduce __all__ for the 8 public names
-# (sibling merge.py parity)"; mirrored by the FR-007 comment at the top of
-# the ``__all__`` block in runtime_bridge.py itself). The 4 dynamically-
-# accessed entries -- ``get_or_start_run``/``query_current_state``/
-# ``answer_decision_via_runtime`` via ``cli.commands.next_cmd``'s
-# ``_runtime_bridge_module()`` patchable lazy accessor (docstring: "Return
-# the patched bridge when tests/consumers installed one") and
-# ``mission_loader.command``'s ``from runtime.next import runtime_bridge``
-# + attribute access; ``QueryModeValidationError`` is read off the same
-# patched accessor in ``next_cmd._run_query_mode`` -- previously required a
-# hand-curated allowlist row because the gate's static scanner could not
-# see either shape: a function-return-bound module reference is invisible
-# to any AST import walk, and an un-aliased ``from X import Y`` binding a
-# submodule (``alias.asname is None``) is skipped by
-# ``_build_alias_map_and_consts`` by design (T004 -- only ``as``-aliased or
-# flat ``import module`` bindings populate the module-attr alias map).
-# WP05 (FR-002) wires detector (e) -- first-party dynamic call-accessor
-# access, ``_record_dynamic_call_accessor_edges`` -- into
-# :func:`_imports_by_target` proper, so the gate now recognises these 4
-# names as live via ``_runtime_bridge_module()``'s call-bound accessor
-# pattern WITHOUT a permanent allowlist row; the 4 entries are removed
-# here in the same commit. ``_build_alias_map_and_consts`` records both
-# aliased and unaliased ``from X import Y`` bindings as ``X.Y``, with the
-# real-module guard rejecting symbol aliases and admitting submodules.
-# Converting the call sites to a direct
-# ``from runtime.next.runtime_bridge import get_or_start_run`` was
-# considered and rejected: it would defeat the very patchability the
-# dynamic accessor exists for and breaks a live regression test
-# (``tests/integration/test_identity_coord_read.py::
-# test_answer_flow_get_mission_type_reads_primary_type``, which
-# monkeypatches ``next_cmd._runtime_bridge_module`` and asserts the
-# patched fake is actually invoked). The dedicated behavioral-sentinel +
-# static AST re-export guard that once covered this surface end-to-end was
-# retired in #3285; the live regression test cited above remains the
-# authoritative proof for these three canonical entries. Tracker: #2531
-# (runtime-bridge-degod), #2559.
-
-# ---------- C. unwired since the sync-transport deletion (issue #5) ----------
-# Issue #5 deleted the whole sync transport (``specify_cli/sync/``,
-# ``delivery/``, ``event_journal/``, ``saas/``, ``cli/commands/sync.py``). Six
-# surviving public symbols lost their LAST cross-file ``src/`` consumer in that
-# deletion (all six were imported only by the deleted ``cli/commands/sync.py``
-# and the sync daemon surfaces), so this gate correctly flagged them as
-# ``__all__``-declared-but-unimported pending the wire-or-prune adjudication
-# tracked by issue #116. That adjudication found no viable low-risk src/
-# consumer for any of the six: three (``EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE``,
-# ``RecoveryOutcome``, ``handle_unauthenticated_with_teamspace``) were the
-# interactive auth-recovery facade for the deleted sync commands, superseded
-# (not reused) by ``readiness.render``'s non-blocking guidance renderer; two
-# (``build_loopback_base_url``, ``build_loopback_url``) were unused loopback
-# URL-string builders; one (``saas_sync_opt_in_recorded_message``) was the
-# confirmation message for the deleted ``sync opt-in`` command. All six were
-# PRUNED (deleted at the source) rather than wired, so this category is now
-# fully drained and stays empty as a tombstone.
-_CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED: frozenset[SymbolKey] = frozenset()
-
-
-_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. mission-type-drg-edges (#2677) charter.drg facade re-export ----------
-# ``charter.drg`` is a contract-required FACADE module: the
-# ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
-# ``charter-facade-modules.md`` Symbol table mandate it re-export ``load_graph``
-# so consumers reach the DRG loader through ``charter.drg.*`` -- an invariant
-# independently enforced by ``test_charter_facades_reexport_doctrine``. WP03 of
-# this mission rerouted the LAST in-``src/`` consumer of ``charter.drg.load_graph``
-# to ``load_built_in_graph``, so the contract-required re-export now has no
-# cross-file src/ caller (removing it would break the facade gate -- two-gate
-# tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
-# locations; ``charter.drg`` + ``charter.offering.drg`` share a body_hash), so the
-# FR-005 classifier escalates it to the module_path tier and it is deliberately
-# NOT covered by ``_is_reexport_shim_symbol`` (escalated keys are hand-curated
-# by design). Tracker: #2677 (FR-303).
-
-_CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.drg::load_graph (escalated: live collision) -- contract-required
-        # facade re-export (charter-facade-modules.md) with no internal caller
-        # after WP03 rerouting -- same status as MissionStep.
-        SymbolKey("load_graph", "ae679d7777f4e1d2ba6289c8aeef09d3f9f179ddf5d4f3501f631fcf2593a8aa", module_path="charter.drg"),
-    }
-)
-
-
-# ---------- C. mission-step-creatability (01KXQA6R) WP07 URN resolution lane ----------
-# ``resolve_template_by_urn`` / ``TemplateURNError`` are the by-URN
-# compatibility-contract lane for template resolution (C-004,
-# ``contracts/name-urn-resolution.md``). WP07's scope is FR-010-bound to
-# "add the lane + a by-URN==by-name equivalence test only" -- wiring a real
-# production consumer is explicitly out of scope for this WP. The real
-# consumer (`charter context --include template:<id>`) lands in a later
-# mission/WP, so these two names are exported but currently have zero
-# production importers. Follow-up tracker: #2761.
-
-_CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.runtime.resolver::resolve_template_by_urn -- compatibility-contract
-        # URN lane (C-004/FR-010); consumer wired in #2761
-        # specify_cli.runtime.resolver::resolve_template_by_urn
-        SymbolKey("resolve_template_by_urn", "bcffd1b95ca9d308f731df2e86a84131223f4f79cf7ebc2d498afbe6c9d3c8a6", source_module="specify_cli.runtime.resolver"),
-        # specify_cli.runtime.resolver::TemplateURNError -- compatibility-contract
-        # URN lane (C-004/FR-010); consumer wired in #2761
-        SymbolKey(
-            "TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813", source_module="specify_cli.runtime.resolver"
-        ),  # specify_cli.runtime.resolver::TemplateURNError
-    }
-)
-
-
-# ---------- C. consolidate-charter-bundle (01KXSYB9) WP04 extractor retirement ----------
-# charter-deadcode-noop-campsite WP02: ``charter.extractor`` (the ``Extractor``
-# class this category used to allowlist) is fully deleted -- the module has
-# zero non-test src/ callers, and its test-only dependents were retired or
-# reconstructed without it. Category fully drained (formerly gated here
-# pending final class deletion; now closed).
-
-
-# ---------- C. consolidate-charter-bundle WP01 shared write-helper vocabulary ----------
-# ``charter.activation.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
-# writer all three charter.yaml mutators -- activation_engine.commit_plan,
-# pack_manager.merge_defaults, compiler.write_compiled_charter -- route
-# through) IS wired with a live src/ caller. ``OWNED_SECTIONS`` (the public
-# vocabulary of section names callers may name) and
-# ``UnknownCharterYamlSectionError`` (the typed error the helper raises for
-# an unrecognised section) are the module's public *contract* surface for
-# that call, but every current caller passes a literal section string
-# rather than importing the vocabulary/exception to validate against --
-# so neither symbol itself has a cross-file src/ importer yet. Library-
-# primitive, test-exercised (tests/charter/test_charter_yaml_io.py
-# validates both the accepted-section vocabulary and the raised-on-unknown
-# contract). WP07 (consolidate-charter-bundle-01KXSYB9, #2773) declines to
-# force an artificial caller (e.g. a defensive pre-check duplicating the
-# helper's own validation) purely to satisfy this gate. Follow-up tracker:
-# #2773 (wire a real caller, e.g. a CLI/validation surface that echoes
-# ``OWNED_SECTIONS`` back to an operator, or fold the two symbols out of
-# ``__all__`` in a dedicated follow-up).
-
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.activation.charter_yaml_io"
-        ),  # charter.activation.charter_yaml_io::OWNED_SECTIONS
-        # charter.activation.charter_yaml_io::UnknownCharterYamlSectionError
-        SymbolKey(
-            "UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.activation.charter_yaml_io"
-        ),
-    }
-)
-
-
-# ---------- C. scopesource-gate-followup-01KY6S9P WP04 single-factory-construction hub ----------
-# ``resolve_scope_source`` constructs ``DeclaredCommandScopeSource`` in-module
-# and callers consume it through the structural ``ScopeSource`` port.
-_CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
-        # exclusively via resolve_scope_source() (same-module); consumed
-        # cross-module only structurally, through the ScopeSource port (never
-        # imported by concrete name outside scope_source.py by design).
-        # Content-hash re-pin (issues #3612, #596, and #1050): the declared
-        # command is shell-wrapped with output-file substitution, while
-        # malformed quoting degrades to the port's ``None`` signal.
-        # specify_cli.review.scope_source::DeclaredCommandScopeSource
-        SymbolKey(
-            "DeclaredCommandScopeSource", "155d75fd455536027af7f33395ca73ca9d28f0f028dd486b855c55ecc2b988b6", source_module="specify_cli.review.scope_source"
-        ),
-        # specify_cli.review.scope_source::FileScopeBreakdown -- the return
-        # value of injected narrowing sources' scope_breakdown(); consumed
-        # structurally by pre_review_gate._scope_result_from_breakdown.
-        SymbolKey(
-            "FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae", source_module="specify_cli.review.scope_source"
-        ),  # specify_cli.review.scope_source::FileScopeBreakdown
-    }
-)
-
-
-# ---------- C. lifecycle-gate-execution-context (#1834/#2885/#2795/#2882) forward seams ----------
-# Mission ``lifecycle-gate-execution-context`` (FR-303 dead-symbol case, no new
-# tracker ticket) landed some surfaces still awaiting a real cross-module caller:
-#
-# * ``acceptance/execution_context.py::SurfaceHeadResolver`` is a ``Callable[[Path],
-#   str]`` type alias used ONLY as the annotation on
-#   ``GateExecutionContext.assert_at_ref``'s ``head_of`` parameter -- the C5
-#   ref-agreement gate (``gates_core._assert_ref_agreement``, wired into the
-#   ACCEPT-phase acceptance-matrix gate) calls ``assert_at_ref()`` with the default
-#   resolver and never needs to inject a substitute in production, so this alias is
-#   exercised only by the direct unit tests that inject a fake ``head_of`` for
-#   ``tests/acceptance/test_gate_execution_context.py``'s isolated-method cases. A
-#   type alias consumed purely as a signature annotation is never a ``from ... import``
-#   site by construction.
-# * ``acceptance/post_consolidation.py`` (``verify_deferred_invariants`` /
-#   ``PostConsolidationResult`` / ``PostConsolidationViolation`` /
-#   ``InvariantViolation``) is WP06/T031's Op, dispatched ad hoc via
-#   ``spec-kitty dispatch`` -- by design "there is no new CLI verb and no
-#   call-in from merge/executor.py" (module docstring; zero ``merge/``
-#   coupling is a load-bearing contract constraint, C7) and
-#   ``scripts/ci/check_dangling_deferrals.py`` is deliberately "zero-coupled to
-#   src/specify_cli" (its own docstring) so it duplicates the wire value
-#   instead of importing this module. A plain library function with a real,
-#   documented caller (docs/guides/accept-and-merge.md
-#   #deferred-invariants-and-the-post-consolidation-gate) that is never a
-#   static ``src/`` import by design.
-# * ``cli/commands/archive.py`` (``create`` / ``list_archives``) were
-#   formerly hand-allowlisted here as Typer command callbacks registered by
-#   the ``@app.command(...)`` decorator; the real runtime caller is Typer's
-#   own dispatch against ``archive_module.app`` (wired in
-#   ``cli/commands/__init__.py``), never a ``from ... import create`` site.
-#   Removed (#470): now covered by the ``_is_typer_command_definition`` T013
-#   structural auto-exemption, per the disjointness invariant
-#   (auto_exempt ∩ hand_allowlist = ∅ -- see
-#   ``test_auto_exempt_disjoint_from_hand_allowlist``).
-_CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.acceptance.execution_context::SurfaceHeadResolver
-        SymbolKey(
-            "SurfaceHeadResolver", "1b5124eac062ce4ebeec680cbd3d867d602747896eab7ae166162f65427653a2", source_module="specify_cli.acceptance.execution_context"
-        ),
-        # specify_cli.acceptance.post_consolidation::InvariantViolation
-        SymbolKey(
-            "InvariantViolation", "2ef6e1e24afd16c2e6d0ea942a09f82189f61f7c4e081d33e2bb7f4fcb513f2d", source_module="specify_cli.acceptance.post_consolidation"
-        ),
-        # specify_cli.acceptance.post_consolidation::PostConsolidationResult
-        SymbolKey(
-            "PostConsolidationResult", "d657817ba43238e2bbae83261e6acb8eb65a28de60a15496087166021594fb30", source_module="specify_cli.acceptance.post_consolidation"
-        ),
-        # specify_cli.acceptance.post_consolidation::PostConsolidationViolation
-        SymbolKey(
-            "PostConsolidationViolation",
-            "6e97a633cce0f4ed58dcbc805cbf9ceb4aed0884f4b137e7362cf52f4d6f99cb",
-            source_module="specify_cli.acceptance.post_consolidation",
-        ),
-        # specify_cli.acceptance.post_consolidation::verify_deferred_invariants
-        SymbolKey(
-            "verify_deferred_invariants",
-            "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d",
-            source_module="specify_cli.acceptance.post_consolidation",
-        ),
-    }
-)
-
-
-# ---------- C. Delivery-rail forward API (mission doctrine-delivery-reachability-01KYMXD6) ----------
-# The delivery-rail public API built by mission
-# ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
-# reachability helpers (``src/charter/offering/drg/reachability.py``) and the WP07
-# activation-partition helpers (``src/charter/activation/pack_context.py``).
-#
-# WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
-# "walk-update" fast-follow itself): this mission wired the *profile* channel.
-# ``profile_channel_reachable`` (never in this frozenset) and
-# ``agent_profile_seed_urns`` (retired below) now have a genuine runtime caller
-# in ``src/charter/offering/agent_profiles/repository.py``, so they are no longer
-# forward-only. The remaining eight symbols are a DIFFERENT concern — the
-# charter-activation partition helpers and the *action*-channel reachability
-# helpers — for which this mission builds no ``src/`` consumer; they stay
-# allowlisted-with-note. They are exercised today only by their own unit tests
-# — no ``src/`` caller reaches them yet. Each is a deliberate,
-# ``__all__``-curated public symbol — the forward contract a later mission
-# consumes from runtime ``src/``. This is the "library authored ahead of its
-# runtime caller" shape the gate flags, deliberately deferred here rather than
-# deleted (deletion would forfeit mission-built API with a live forward story).
-# Follow-up tracker: Priivacy-ai/spec-kitty#3063 (the deferred reachability/
-# delivery decision surface; see
-# docs/plans/doctrine/delivery-reachability-wiring-table.md). Target = 0 once a
-# later mission wires each remaining helper from a runtime caller.
-#
-# The WP15 progressive-disclosure module (``src/charter/activation/progressive_disclosure.py``)
-# is a DIFFERENT case, landing-fold-corrected (PR #3070, E1): its delivery
-# entry points (``build_disclosure_payload``, ``collect_typed_artifacts``,
-# ``requires_closure``) ARE wired -- ``charter.activation.context`` calls them directly
-# (``context.py:3513``, ``context.py:3375``, ``context.py:1238``) -- so they
-# carry no allowlist entry at all; the gate's module-attribute detector
-# recognises the caller and never flags them. The module's remaining helpers
-# (``bare_id``, ``edge_to_reference``, ``outbound_references``,
-# ``link_references``, ``reconstruct_urns``, ``artifact_to_dict``, and the
-# ``DELIVERY_INLINE``/``DELIVERY_LINK``/``STATED_DEFAULT_WHEN`` constants) were
-# previously over-exported in ``__all__`` with no external importer, which
-# made the gate mislabel live, intra-module-only implementation detail as
-# "unwired forward API". They were demoted out of ``__all__`` instead
-# (they remain ordinary module-level names -- ``__all__`` only governs
-# ``import *``, and nothing does that here) and so no longer need an
-# allowlist entry either: only genuinely public, genuinely unwired API stays
-# allowlisted below. ``partition_delivery`` is the one progressive-disclosure
-# symbol that is both: still public (``__all__``-declared, per its own
-# forward-API docstring) and has zero ``src/`` callers today.
-_CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.activation.pack_context::ActivationReachabilityPartition
-        SymbolKey(
-            "ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.activation.pack_context"
-        ),
-        # charter_activated_urns: charter.activation.pack_context::charter_activated_urns
-        # -- re-allowlisted (charter-pack-usage-journey-01KYWWTF WP01/T006b,
-        # #3118). It is the documented FR-017 "single activation authority"
-        # and stays public/__all__-exported for the DRG reachability/
-        # extractor test suites that consume it directly. WP01's #3118
-        # hot-path perf fold removed its LAST src/ caller
-        # (src/specify_cli/invocation/empty_charter.py:56 -- the old
-        # composite-predicate call site) as part of collapsing
-        # ``is_charter_empty`` to a single ``PackContext.from_config`` load;
-        # see empty_charter.py's module docstring for the fold rationale.
-        # Precedent: this exact symbol lived in this allowlist before that
-        # caller ever existed (see the prior grandfathered-entry note this
-        # replaces, added when WP02/doctrine-delivery-activation wired the
-        # since-removed caller). Re-allowlisting on caller removal, not
-        # deleting/de-exporting, matches that precedent.
-        SymbolKey(
-            "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.activation.pack_context"
-        ),  # charter.activation.pack_context::charter_activated_urns
-        # charter.activation.pack_context::normalize_activation_identifier
-        # Hash re-pinned (mission charter-code-topology-01M152G1, #3664): the
-        # src/doctrine/ -> src/charter/offering/ relocation shifted this
-        # module's body enough to change its content-tier body_hash; no
-        # semantic change, no new/removed caller -- see FR-303 process note
-        # at the top of this allowlist for the re-pin-only case.
-        SymbolKey(
-            "normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.activation.pack_context"
-        ),
-        # charter.activation.pack_context::partition_activated_unreachable
-        SymbolKey(
-            "partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.activation.pack_context"
-        ),
-        SymbolKey(
-            "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.activation.progressive_disclosure"
-        ),  # charter.activation.progressive_disclosure::partition_delivery
-        # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
-        # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
-        # the frozenset, changing its body; still no ``src/`` importer — the sole
-        # reference in src/charter/activation/context_renderers/profile_sections.py:341 is a
-        # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
-        # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS
-        SymbolKey(
-            "PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"
-        ),
-        # charter.offering.drg.reachability::action_channel_reachable
-        SymbolKey(
-            "action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="charter.offering.drg.reachability"
-        ),
-        SymbolKey(
-            "action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04", source_module="charter.offering.drg.reachability"
-        ),  # charter.offering.drg.reachability::action_seed_urns
-        # ``agent_profile_seed_urns`` retired from this allowlist by WP03
-        # (doctrine-delivery-activation-01KYQVQK): it now has a genuine cross-file
-        # ``src/`` consumer — src/charter/offering/agent_profiles/repository.py imports it
-        # (line 25) and calls it (line 889) — so the gate correctly no longer
-        # treats it as unwired forward API.
-    }
-)
-
-
-# doctrine-public-api-surface-01KZPDSR WP02 (FR-001, C1). ``doctrine/api.py``
-# is the curated public wheel surface (PUBLIC-tagged symbols from the WP01
-# census disposition). It re-exports each PUBLIC symbol by object identity.
-#
-# TEMPORARY BRIDGE (#3179): the charter facades that give these api symbols a
-# live in-repo caller — by re-exporting them *from ``charter.offering.api``* — are built
-# in WP03, which is not yet landed. Until WP03 lands, ``charter.offering.api``'s
-# re-exports have no non-shim caller, so the symbol-level dead-code gate flags
-# them. These six are *escalated* to the module_path tier (their bare names also
-# live in ``charter.offering.__init__`` / ``charter.drg`` / ``charter.offering.assets`` __all__
-# with the same body), so the T013 re-export-shim auto-exempt (content-tier only)
-# does NOT cover them — they require this hand entry. The other four api symbols
-# (``RoutingRecommendation``, ``CatalogLoadResult``, ``evaluate``, ``load``) are
-# single-location content-tier keys whose origins already have live callers, so
-# they ARE auto-exempt and are deliberately NOT listed here (adding them would
-# trip ``test_auto_exempt_disjoint_from_hand_allowlist``).
-#
-# WP03 SHRINKS THIS: once ``charter.drg`` / ``charter.assets`` re-export these
-# symbols *from ``charter.offering.api``*, each gains a genuine facade caller and MUST be
-# removed here (the stale-ratchet check reds if it lingers). Do NOT extend this
-# entry beyond the ``charter.offering.api`` public surface.
-#
-# WP03 LANDED (mission ``doctrine-public-api-surface-01KZPDSR``): the charter
-# facades now re-export every one of these six from ``charter.offering.api`` —
-# ``charter.drg`` imports ``ArtifactKind`` from ``charter.offering.api`` (T010) and
-# ``charter.assets`` imports the five asset symbols from ``charter.offering.api`` (T014).
-# Each escalated ``charter.offering.api::X`` key therefore has a genuine live facade
-# caller, so the bridge is emptied (leaving any entry would red the stale-ratchet
-# / dangling-entry check). The other four api symbols (``RoutingRecommendation``,
-# ``CatalogLoadResult``, ``evaluate``, ``load``) are also now re-exported from
-# ``charter.offering.api`` by ``charter.model_routing`` (T013); they were never listed
-# here (single-location content-tier keys, auto-exempt).
-_CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179: frozenset[SymbolKey] = frozenset()
-
-
-# ---------- C. WP-in-flight charter facade forward API (01KZPDSR WP03) ----------
-# Mission ``doctrine-public-api-surface-01KZPDSR`` WP03 built the sanctioned
-# ``charter.*`` doors (``charter.assets`` / ``charter.model_routing`` /
-# ``charter.missions`` / ``charter.glossary_packs`` / ``charter.spdd_reasons``
-# plus the widened ``charter.drg`` cluster) that let WP05–WP07 migrate runtime
-# off direct ``doctrine.*`` imports (FR-003, NFR-002, contract C2). Those
-# consumer WPs depend on WP03 and have NOT landed in this lane, so each new
-# facade re-export currently has no cross-file ``src/`` caller.
-#
-# Every symbol below is a contract-required facade re-export
-# (``test_charter_facades_reexport_doctrine`` independently enforces the
-# object-identity + ``__all__`` membership these entries would otherwise let a
-# refactor drop). Each is a LIVE-COLLISION bare_name (the same name lives in the
-# doctrine origin ``__all__`` and, for the PUBLIC ones, in ``charter.offering.api`` too),
-# so the FR-005 classifier escalates it to the module_path tier and it is
-# deliberately NOT covered by the content-tier ``_is_reexport_shim_symbol``
-# auto-exempt — escalated keys are hand-curated by design (DoD i). Same status
-# as ``_CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT`` above.
-#
-# THIS RATCHET SHRINKS as WP05–WP07 wire runtime onto each door: when a facade
-# symbol gains a real ``src/`` caller, its entry MUST be removed here (the
-# stale-ratchet check reds if it lingers). Tracker: mission
-# ``doctrine-public-api-surface-01KZPDSR`` WP05/WP06/WP07 (FR-303).
-_CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozenset(
-    {
-        # Post-merge reconciliation (01KZPDSR): the WP05/06/07-wired facade symbols
-        # (Asset{Repository,NotFoundError,PathEscapeError}, DRG{Load,Validation}Error,
-        # resolve_org_roots, GlossaryPack, Mission{Step,Template}Repository,
-        # model_routing::{RoutingRecommendation,evaluate,load}, apply_spdd_blocks_for_project)
-        # now have live runtime callers and were evicted per the shrink-only ratchet.
-        # The three below remain genuine forward/wheel-only public API with no in-repo
-        # caller yet (re-exported from charter.offering.api via the charter facades).
-        # charter.assets::AssetManifest (PUBLIC; re-exported from charter.offering.api)
-        SymbolKey("AssetManifest", "456a44a16d8907143ec72c52a3db086e9a20fab655f777f1e6be99969ea69842", module_path="charter.assets"),
-        # charter.assets::AssetResolutionError (PUBLIC; re-exported from charter.offering.api)
-        SymbolKey("AssetResolutionError", "fa48b11b82424e7d3303c757e25ee1dd5652c60b03702e5e3a3f5cf4c16c8d8c", module_path="charter.assets"),
-        # charter.model_routing::CatalogLoadResult (PUBLIC; re-exported from charter.offering.api)
-        SymbolKey("CatalogLoadResult", "d1058ae76b9cd3bd5e1755a50eccbb6e8873adc8eb1d8a538d651251334fbc76", module_path="charter.model_routing"),
-    }
-)
-
-
-# ---------- C. charter-authority-flip (01M14RB3) forward public API (#3664) ----------
-# Two intentional public symbols landed by the doctrine->charter governing-term
-# flip that have no cross-file `src/` caller yet, both content-tier (unique
-# bare_name, no live collision):
-#
-# * ``charter.activation.interview::InterviewAnswersRegressionError`` -- raised by
-#   ``write_interview_answers(..., fail_closed_on_regression=True)``. That
-#   opt-in flag has no production caller today: the only caller is
-#   ``tests/charter/test_answers_migration.py`` (which asserts on the error
-#   directly), and the answers-migration script
-#   ``scripts/migrate_charter_interview_answers.py`` deliberately does NOT use
-#   this writer at all -- it does byte-preserving anchored substitution to
-#   survive the archive-freeze gate. So this is test-only forward public API,
-#   exposed by design so that future/external migration callers can catch it.
-# * ``charter.activation.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
-#   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
-#   invisible to the cross-file caller graph); ``tests/charter/
-#   test_governance_key_compat.py`` asserts on it via ``pytest.warns(...)``.
-#   Public by design so any consumer can filter/assert on the specific
-#   warning class rather than a bare ``UserWarning``.
-_CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.activation.interview::InterviewAnswersRegressionError
-        SymbolKey(
-            "InterviewAnswersRegressionError",
-            "af534399168d1c78dd7722884aeffc6366eb378779c8dfe91a2545843e1518c2",
-            source_module="charter.activation.interview",
-        ),
-        # charter.activation.sync::LegacyGovernanceKeyWarning
-        SymbolKey(
-            "LegacyGovernanceKeyWarning",
-            "3558fe165f51db3ae52de1abf6c15ce0ececf072f8ac8871cb98c3bbd8d9a1e6",
-            source_module="charter.activation.sync",
-        ),
-    }
-)
-
-
-# ---------- C. mission-type-canonical-source-01M302V9 path_conventions forward API (#3831/#4088, FR-303) ----------
-# ``charter.offering.missions.models::VALID_PATH_KEYS`` /
-# ``::validate_path_conventions`` land the canonical ``path_conventions``
-# charter doctrine slot ahead of its wiring: per the ADR
-# (``docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md``), the slot
-# is a forward-declared, additive extension point on the charter
-# ``MissionType`` model -- its producers are downstream consumer org packs
-# and the #2652-deferred built-in convergence, neither of which lands in
-# this PR. Content-tier: ``VALID_PATH_KEYS`` also exists as a legacy, non-
-# ``__all__`` (widened-scope only) module-level constant in
-# ``specify_cli/mission.py``, which is invisible to the gate's live
-# collision index (``classify_collisions`` only walks statically-declared
-# ``__all__`` membership) -- so no module_path escalation is needed here.
-# Remove this entry once a real src/ caller lands (FR-303 tracker: #2652).
-_CATEGORY_C_PATH_CONVENTIONS_FORWARD_API: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.offering.missions.models::VALID_PATH_KEYS
-        SymbolKey(
-            "VALID_PATH_KEYS",
-            "4dc70bf229274c7c614665394372a3cb1e3c95ea9825e433537d4ea4fbe9a365",
-            source_module="charter.offering.missions.models",
-        ),
-        # charter.offering.missions.models::validate_path_conventions
-        SymbolKey(
-            "validate_path_conventions",
-            "bae57d6c0a174e6d11b1af7c7d6b8c14b0ed5873aa446e5c5d1c6d96d11bb208",
-            source_module="charter.offering.missions.models",
-        ),
-    }
-)
-
-
-# ---------- C. fsm-write-path-integrity-01M1TZV6 WP03 raw-append door (FR-010) ----------
-# ``specify_cli.status._unsafe`` is the enumerated, gate-facing door for the
-# raw ``status.events.jsonl`` append primitives (they left the ``status``
-# facade so no runtime module can reach them without appearing in the
-# shrink-only ``ALLOWED_CALLERS`` census). Two of its public names have no
-# cross-file ``src/`` caller BY DESIGN:
-#
-# * ``specify_cli.status._unsafe::ALLOWED_CALLERS`` -- consumed only by the
-#   architectural gate ``tests/architectural/test_status_unsafe_allowlist.py``
-#   (every door importer must be in it; it must stay a subset of the test's
-#   committed BASELINE). A runtime caller would defeat its purpose.
-# * ``specify_cli.status._unsafe::append_event`` -- the unverified single-row
-#   primitive, re-exported because the write-gates contract names every raw
-#   primitive on this door; production writers use the ``_verified`` /
-#   ``_atomic`` variants, so its only importers are tests (14 files) that
-#   seed event logs through the sanctioned door. Module-path tier: the alias
-#   text collides with ``glossary``'s unrelated ``append_event`` re-export.
-#
-# Tracked with the mission's census-gate-rule note (#3895); drop these
-# entries if the door is ever folded back or ``append_event`` retired.
-_CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.status._unsafe::ALLOWED_CALLERS
-        # Content-tier hash re-minted in WP07 (census addendum: family 8,
-        # ``specify_cli.decisions.emit``, joined the shrink-only set).
-        SymbolKey(
-            "ALLOWED_CALLERS",
-            "8419d05d86c58956c1edd363cecf32d9ec625c9e070948dc6f30f7e0c54baa8b",
-            source_module="specify_cli.status._unsafe",
-        ),
-        # specify_cli.status._unsafe::append_event (escalated module_path tier)
-        SymbolKey(
-            "append_event",
-            "75b185cd85c790dec2eb8133e573be117c82d6ea8f0f158b3984ee524e7d5dc1",
-            module_path="specify_cli.status._unsafe",
-            source_module="specify_cli.status._unsafe",
-        ),
-    }
-)
-
-
-# ---------- D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664) ----------
-# Three symbols surfaced by the src/doctrine/ -> src/charter/offering/
-# package relocation (mission ``charter-code-topology-01M152G1``, PR #3664).
-# (A fourth casualty of the same relocation, ``charter.activation.pack_context::
-# normalize_activation_identifier``, was NOT a new entry here -- it already
-# had a Category C allowlist row above that the relocation's body-hash shift
-# orphaned; that row was re-pinned in place rather than duplicated, per
-# ``_compute_dangling``'s own "refresh, don't duplicate" guidance.) None of
-# the three below is dead: each is exported by design for a consumer outside
-# this specific cross-file caller graph, verified before allow-listing
-# (never a blanket suppression):
-#
-# * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
-#   -- raised internally by the module's own legacy-key compat warn-once
-#   helper (same module, so invisible to the cross-file caller graph), same
-#   shape as the established ``charter.activation.sync::LegacyGovernanceKeyWarning`` /
-#   ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning``
-#   precedent above: public by design so a consumer can filter/assert on the
-#   specific warning class. Asserted on via ``pytest.warns(...)`` in
-#   ``tests/runtime/test_bridge_io.py``, ``tests/runtime/test_resolver_unit.py``,
-#   and ``tests/unit/mission_loader/test_command.py``.
-# * ``kernel.doctrine_root::CANONICAL_DOCTRINE_DIRNAME`` -- the CR-07
-#   canonical per-project doctrine-artifact dirname (``"charter-packs"``,
-#   replacing legacy ``.kittify/doctrine/``). The module's own docstring is
-#   explicit that this is M2 (read-side dual-root resolver) groundwork only:
-#   "M3 performs the actual on-disk data move and flips write call sites
-#   over; nothing in this module writes or moves any file." No write call
-#   site exists yet anywhere in ``src/`` (grepped: zero hits for the literal
-#   ``"charter-packs"`` outside this module) -- genuinely forward API for
-#   the not-yet-landed M3 cutover, not a dropped caller.
-# * ``kernel.doctrine_root::LegacyDoctrineRootWarning`` -- same "legacy
-#   compat warn-once, same-module raise, public for external filtering"
-#   shape as ``LegacyOrgPackDoctrineKeyWarning`` above.
-_CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning
-        SymbolKey(
-            "LegacyOrgPackDoctrineKeyWarning",
-            "170e5c71e6169bb2ed72591007aad152732c04262a78e331dc80c3086bb251b2",
-            source_module="charter.offering.drg.org_pack_config",
-        ),
-        # kernel.doctrine_root::CANONICAL_DOCTRINE_DIRNAME
-        SymbolKey(
-            "CANONICAL_DOCTRINE_DIRNAME",
-            "574503cb520ece8db6025a806502c0f853e5fa390cbe69503d62771fb36bae70",
-            source_module="kernel.doctrine_root",
-        ),
-        # kernel.doctrine_root::LegacyDoctrineRootWarning
-        SymbolKey(
-            "LegacyDoctrineRootWarning",
-            "0045ea27dd2aac495a318ee0c8d799ce67b54fa4966e7286423210115079d8f7",
-            source_module="kernel.doctrine_root",
-        ),
-    }
-)
-
-
-# ---------- E. charter-activation-split forward API (#806) ----------
-# EXPERIMENTAL deliberately retains its replay semantics, so these restored
-# upstream helpers are public but currently unwired. TODO(triage): #925 owns
-# their wire-or-prune disposition.
-_CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "merge_three_layers",
-            "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
-            module_path="charter.drg",
-            source_module="charter.offering.drg.merge",
-        ),
-    }
-)
-
-
-# ---------- C. team-kitty-launch-defaults 3980 forward API ----------
-# The #3980 launch-defaults flip introduced the canonical env-name constants
-# in ``specify_cli.core.env`` and kept ``sync_active()`` as the contract-pinned
-# armed predicate (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/
-# contracts/saas_rollout.md`` v3). None
-# has a cross-file ``src/`` caller yet:
-#
-# * the three ``core.env`` constants are consumed by their own module's gate
-#   functions (``sync_kill_switch_active`` / ``pre_review_gate_skip_reason`` /
-#   ``moment_handlers_disabled_reason``) and imported by tests
-#   (``tests/specify_cli/core/test_env.py``, the agent-command conftest), but
-#   the parallel literal name lists in ``core/secret_redaction.py`` and
-#   ``upgrade/migrations/m_3_2_8_provision_kitty_env.py`` predate the
-#   constants and still hardcode the strings.
-# * ``sync_active()``'s last runtime caller (the owned-checkout
-#   ``OWNED_SYNC_UNSUPPORTED`` refusal) was removed by #3980 itself; the
-#   contract still requires its kill-switch/disarm test coverage, and the
-#   launch table names it as the ``SPEC_KITTY_SYNC_DISABLE`` consumer.
-#
-# TODO(triage): #3980 post-launch — wire the literal-list sites to the
-# constants, and either wire a ``sync_active()`` consumer (the kill-switch
-# fold into readiness/tracker gating) or retire it with the next contract
-# version bump, then drop these entries.
-_CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "SYNC_KILL_SWITCH_ENV_VAR",
-            "6479687cac1de60595e0be63142ebfc2bd27d92674a2632b2b28ce97079e452d",
-            source_module="specify_cli.core.env",
-        ),
-        SymbolKey(
-            "MOMENT_HANDLER_DISABLE_ENV_VARS",
-            "0374ae9a0aa99f632c537396a59c5a111471ff7cc161316bb814277259b96e06",
-            source_module="specify_cli.core.env",
-        ),
-        SymbolKey(
-            "PRE_REVIEW_GATE_SKIP_ENV_VAR",
-            "3cabc812bbdd0e37a010ef534f86a0855482ed4c7037dbd1c87a73228ae88bff",
-            source_module="specify_cli.core.env",
-        ),
-        SymbolKey(
-            "sync_active",
-            "c21b2cddf0f28b99c6e029bcd1f4bbb8fb099055257142e143ed45bf64987195",
-            source_module="specify_cli.core.saas_sync_config",
-        ),
-    }
-)
-
-# ---------- C. Live Work capture layer public surface (#4268) ----------
-# The new ``specify_cli.live_work`` package (spec-kitty#4268, Live Work
-# harness capture): its runtime callers are the ``live-work`` CLI command
-# group and the retrospective-outcome fanout, which consume the adapter,
-# publisher, coalescer, watcher and bindings seams. The twelve symbols
-# below are the layer's *public constants and predicates* — the vocabulary
-# its tests pin and its follow-up wiring (factory dispatch install, e2e
-# capture-to-paint qualification, spec-kitty#4268's acceptance evidence)
-# consumes by name; none has a second src/ importer yet. TODO(triage):
-# wire the first by-name consumer or drop from __all__ (FR-303).
-_CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "CODEX_NOTIFY_EVENTS",
-            "b01cf6f7fdadf436113820c11e56e366031cd53940c693ed2ea12c2ebaef8734",
-            source_module="specify_cli.live_work.adapters.codex",
-        ),
-        SymbolKey(
-            "LIVE_WORK_HOOK_COMMAND_MARKER",
-            "1f196bf7fa15d52919e5615b97d6429ba481953c5f8296dd06b09ae1d822d2e5",
-            source_module="specify_cli.live_work.capability",
-        ),
-        SymbolKey(
-            "is_structural",
-            "b2511ddd01b6cbd958f505d76800c2a894ecda01e751fa585b83c4c929c086f9",
-            source_module="specify_cli.live_work.coalesce",
-        ),
-        SymbolKey(
-            "CLAUDE_LIVE_WORK_COMMAND",
-            "4c21d58e4dbd9ba377b53cbc0f13fe3bc9a9c121b3a84dfa63f712b3d523c8ac",
-            source_module="specify_cli.live_work.install",
-        ),
-        SymbolKey(
-            "CODEX_LIVE_WORK_COMMAND",
-            "ab6ec4c4cd0a8a6af65dd4e74afb17d98adcf44e9c32c5a710bd15980d4f3c78",
-            source_module="specify_cli.live_work.install",
-        ),
-        SymbolKey(
-            "CODEX_NOTIFY_LINE",
-            "89b07b9ffe884f436479099f6f8ff4612091ffb8ed2cb966e3932d77afcedb80",
-            source_module="specify_cli.live_work.install",
-        ),
-        SymbolKey(
-            "FAMILY_BY_EMISSION_KIND",
-            "1a354ac95982b19d0fbbd32f8d911a1f0e810a570c626a20580ca8b3d90bf544",
-            source_module="specify_cli.live_work.kinds",
-        ),
-        SymbolKey(
-            "WORK_CONTRACT_VERSION",
-            "f60bd4a8eccc1adf9a46950f8084dfe4a9503f06d349e3cdec7f5a52ec2a9a74",
-            source_module="specify_cli.live_work.kinds",
-        ),
-        SymbolKey(
-            "MAX_OBSERVATIONS_PER_INVOCATION",
-            "e9ffceccd5e1cc08dd3d6c2495692723c64e3727f363c28b61a2072969c830db",
-            source_module="specify_cli.live_work.publisher",
-        ),
-        SymbolKey(
-            "is_excluded_path",
-            "81a63825a77d255235552f583d954b356f9e0312e54af3b2fba13794fe009107",
-            source_module="specify_cli.live_work.redaction",
-        ),
-        SymbolKey(
-            "MAX_WATCHED_PATHS",
-            "4b5def206513a5f888383a0aa5deca4d8f5363913625772c159b3419de76c3ca",
-            source_module="specify_cli.live_work.watcher",
-        ),
-    }
-)
-
-
-# ---------- D. Live Work authored-message service surface (#4269) ----------
-# The ``specify_cli.live_work.authored`` service (spec-kitty#4269, authored
-# publish/reply/read/inbox): its runtime callers are the ``zeitgeist
-# send/reply/read/inbox`` CLI commands and the MCP ``zeitgeist_*`` tools,
-# which import the service functions, the typed error and the outcome enum
-# by name. The three symbols below are the service's *result type and wire
-# bounds* — the vocabulary its tests pin and the e2e A-question->B-reply
-# qualification (e2e#452) consumes by name; none has a second src/
-# importer yet. TODO(triage): wire the first by-name consumer or drop from
-# __all__ (FR-303, spec-kitty#4269).
-_CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "MAX_BODY_CHARS",
-            "a261b2cb10c71e416e6510b99867f762a39fbea39abffab22e7839b74c5fb76e",
-            source_module="specify_cli.live_work.authored",
-        ),
-        SymbolKey(
-            "MAX_SEND_ATTEMPTS",
-            "ca7665b7b15916df6bab54376f11ab423df60fa7665dc540c8b2bb74d8e23c7e",
-            source_module="specify_cli.live_work.authored",
-        ),
-        SymbolKey(
-            "SendResult",
-            "61611126fce6c3eb3e543ab379e43c7982e82c704a69a0e98bd90ff0d213af32",
-            source_module="specify_cli.live_work.authored",
-        ),
-    }
-)
-
-
-# ---------- C. Terminus reconciliation gate + merge-coord integrity (#5001) ----------
-# The terminus/merge-coord integrity spine (Epic #5001) lands its public
-# vocabulary ahead of every external caller: today each symbol is exercised
-# intra-module (the wired `route_terminus`/`VerifyResult`/claim-builder call
-# chains) and by the WP06 reconciliation test suite
-# (tests/consolidation/test_reconciliation.py), not yet imported from a second
-# src/ module. External consumers land with the Epic #5001 follow-ups.
-_CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.coordination.surface_resolver::resolve_for_write --
-        # REMOVED (landing/coord-read-fail-closed #5001 follow-up, PR #5020):
-        # WS3 wired it -- ``issue_verdict.py``'s ``resolve_for_write`` call
-        # site now routes through it, so it has a real src/ caller and the
-        # allowlist entry is stale.
-        # specify_cli.consolidation.reconciliation::TERMINUS_ENTRY_POINTS -- public
-        # vocabulary of the new reconciliation gate (the closed-world entry
-        # point registry `route_terminus` consults).
-        SymbolKey(
-            "TERMINUS_ENTRY_POINTS",
-            "8fd87d4ce8ab8b7f9a6eae7f527026fae6020db5d0f3a9820b43cc3d00475b68",
-            source_module="specify_cli.consolidation.reconciliation",
-        ),
-        # specify_cli.consolidation.reconciliation::UnroutedTerminusPathError --
-        # public vocabulary of the new reconciliation gate (raised by
-        # `route_terminus` for an unrouted terminus path).
-        SymbolKey(
-            "UnroutedTerminusPathError",
-            "6be092c657d631005f4fc08807167d8174789d3dae9f3c9d8a8eb946a2815dab",
-            source_module="specify_cli.consolidation.reconciliation",
-        ),
-        # specify_cli.consolidation.reconciliation::Divergence -- public vocabulary
-        # of the new reconciliation gate (the verifier's FAIL-shaped
-        # structured divergence record). body_hash refreshed (#5001 #5020;
-        # #5022 terminus-reconciliation-attribution-integrity): the squash axis
-        # added `unattributable_blobs`, then `unattributable_deletions` + render branch.
-        # body_hash refreshed again (mixed-lane-authorship-soundness-01M3M7Y0
-        # WP05, #5046): added the `canceled_content` mixed-lane divergence field
-        # + its `describe()` render branch.
-        SymbolKey(
-            "Divergence",
-            "366f59f9bd521f666b818153e1279e653d2cab1f397e26f5e188b1e3ff3b6cc6",
-            source_module="specify_cli.consolidation.reconciliation",
-        ),
-        # specify_cli.consolidation.bookkeeping_projection::ProjectionResult -- the
-        # S-B/FR-004 post-checkpoint commit projection's outcome type;
-        # exercised intra-module today, external consumer deferred to the
-        # Epic #5001 follow-ups.
-        SymbolKey(
-            "ProjectionResult",
-            "397a6e1caea4f4f303ad58b212bb66cd884630a556a423605e5b4866a8a66384",
-            source_module="specify_cli.consolidation.bookkeeping_projection",
-        ),
-        # specify_cli.consolidation.bookkeeping_projection::project_post_checkpoint_commits_to_target
-        # -- same S-B/FR-004 projection helper; called only from within its
-        # own module today (the ``__all__`` claim of cross-module export
-        # keeps it caught by this gate's rules regardless). RE-KEYED
-        # (merge-seam-test-isolation-campsite-01M3F61E WP02 / #5119): the
-        # body changed (its two internal ``git show`` blob reads now call
-        # the collapsed single reader `git_probes._read_git_blob_bytes`
-        # instead of the deleted duplicate `_git_show_blob_bytes`), so the
-        # content-tier body_hash below was recomputed via
-        # ``resolve_symbol_key``/``key_tier``, not hand-guessed.
-        SymbolKey(
-            "project_post_checkpoint_commits_to_target",
-            "279b256560969d15906ad220dcfde65c55f272afcbdfbac9842c0ad54a37a514",
-            source_module="specify_cli.consolidation.bookkeeping_projection",
-        ),
-        # specify_cli.consolidation.git_probes::lane_integrated_by_tree_or_ancestry --
-        # T028 git probe (ancestry -> tree-equality integration under
-        # squash); consumed by the reconciliation verifier's own body
-        # (docstring cross-reference only) and exercised directly by
-        # tests/consolidation/test_reconciliation.py. RE-KEYED (landing/coord-read-
-        # fail-closed #5001 follow-up, PR #5020): the body changed (WS1's
-        # blob-attribution axis), so the content-tier body_hash below was
-        # recomputed via ``resolve_symbol_key``/``key_tier``
-        # (``tests/architectural/_symbol_key.py``), not hand-guessed.
-        SymbolKey(
-            "lane_integrated_by_tree_or_ancestry",
-            "ab4e79f1559ad1b71468df4342fa35d3a294f525ad4304f13abbab30e4833e99",
-            source_module="specify_cli.consolidation.git_probes",
-        ),
-    }
-)
-
-
-# ---------- C. WP-in-flight cross-OS lock primitive unification (#4714) ----------
-# ``kernel.locks`` (cross-os-primitive-unification mission, WP03) lands the
-# canonical sync facade + test-double injection seam AHEAD of its planned
-# consumers: WP04 (migrate stdlib lock sites) and WP05 (migrate remaining
-# filelock sites) wire ``SyncMachineFileLock``/``machine_file_lock`` from
-# ``review/pre_review_gate.py``, ``status/locking.py``,
-# ``review/verdict_commit_queue.py``, etc. (see
-# ``tests/architectural/_exemptions/lock-ban-wp04.txt`` /
-# ``lock-ban-wp05.txt`` for the exact sites). ``LockNotAcquired`` is the new
-# non-blocking-contention exception the sync facade's ``blocking=False``
-# default raises. Each is exercised directly by
-# ``tests/kernel/test_locks.py`` today; the removal trigger is the first
-# WP04/WP05 ``src/`` caller landing.
-# _CATEGORY_C_WP_IN_FLIGHT_LOCK_PRIMITIVE_UNIFICATION was retired (#4714
-# post-consolidation cleanup): all three entries (LockNotAcquired,
-# SyncMachineFileLock, machine_file_lock) are now genuinely wired --
-# LockNotAcquired is raised/caught by real callers, and SyncMachineFileLock /
-# machine_file_lock are consumed via kernel.locks.__all__ across the
-# migrated call sites -- so the temporary WP-in-flight allowance is no
-# longer needed (FR-008 dangling-allowlist pruning).
-
-
-# Aggregate. The gate consults this; the per-category frozensets are
-# the surface introspected by the ratchet-baseline meta-test
-# (``tests/architectural/test_ratchet_baselines.py``). Entries are
-# ``SymbolKey`` objects (relocation-hardened-dead-code-scanners-01KX958P
-# WP02 -- FR-007), not qualified ``module::Name`` strings.
-_SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
-    _CATEGORY_A_SLICE_F_DEFERRED
-    | _CATEGORY_B_GRANDFATHERED_LEGACY
-    | _CATEGORY_B_T001_UNBLINDED
-    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
-    | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
-    | _CATEGORY_C_GUARDED_READ_REPARENT_2899
-    | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
-    | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
-    | _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY
-    | _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP
-    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
-    | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
-    | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
-    | _CATEGORY_C_QUALITY_DEBT_1928
-    | _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API
-    | _CATEGORY_C_MISSION_TYPE_UNCAUGHT_PROPAGATION_SURFACE
-    | _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM
-    | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
-    | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
-    | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
-    | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
-    | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
-    | _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE
-    | _CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED
-    | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
-    | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
-    | _CATEGORY_C_URN_RESOLUTION_LANE
-    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
-    | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
-    | _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841
-    | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
-    | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
-    | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
-    | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
-    | _CATEGORY_C_PATH_CONVENTIONS_FORWARD_API
-    | _CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR
-    | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
-    | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
-    | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
-    | _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE
-    | _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE
-    | _CATEGORY_C_TERMINUS_RECONCILIATION_5001
-)
-
-
-# ---------------------------------------------------------------------------
-# source_module completeness + integrity guards (FR-006 / FR-007, #3552 WP02)
-# ---------------------------------------------------------------------------
-#
-# Content-tier ``SymbolKey`` entries are location-free by design
-# (``module_path is None``); their originating module is now backfilled
-# directly onto each entry as an explicit ``source_module=`` kwarg (#3552),
-# rather than machine-recovered from the ``# module::Name`` comment -- the
-# comment TEXT is kept for human audit only (FR-004/SC-004); the WP01-era
-# machine reader that used to parse it out of the comment (and this guard's
-# predecessor, which asserted every entry had one such parseable comment) is
-# retired. These two guards replace it: completeness (every content-tier
-# entry carries ``source_module=``) and integrity (every ``source_module``
-# names a module in the LIVE importable corpus that actually declares the
-# symbol, reusing :func:`classify_collisions`' own corpus walk rather than
-# re-parsing the comment under a new name).
-
-_THIS_SOURCE = Path(__file__).resolve()
-
-
-def _content_tier_symbolkey_calls(tree: ast.Module) -> list[ast.Call]:
-    """Every content-tier ``SymbolKey(...)`` call inside a ``_CATEGORY_*`` frozenset.
-
-    Scoped identically to the retired WP01-era content-tier call walk (same
-    ``_CATEGORY_*``-assignment walk), so synthetic ``SymbolKey(...)`` calls in
-    test bodies are excluded -- only calls that aggregate into
-    :data:`_SYMBOL_ALLOWLIST` are considered.
-    """
-    calls: list[ast.Call] = []
-    for stmt in tree.body:
-        targets: list[ast.expr] = []
-        if isinstance(stmt, ast.Assign):
-            targets = list(stmt.targets)
-        elif isinstance(stmt, ast.AnnAssign):
-            targets = [stmt.target]
-        else:
-            continue
-        if not any(isinstance(t, ast.Name) and t.id.startswith("_CATEGORY_") for t in targets):
-            continue
-        for node in ast.walk(stmt):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id == "SymbolKey"
-                and not any(kw.arg == "module_path" for kw in node.keywords)
-            ):
-                calls.append(node)
-    return calls
-
-
-def _bare_name_of(call: ast.Call) -> str:
-    """The first positional string argument of a ``SymbolKey(...)`` call."""
-    arg = call.args[0] if call.args else None
-    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-        return arg.value
-    return "<unresolvable>"
-
-
-def _source_module_of(call: ast.Call) -> str | None:
-    """The ``source_module="..."`` keyword string on *call*, or ``None`` when absent."""
-    for kw in call.keywords:
-        if kw.arg == "source_module" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
-            return kw.value.value
-    return None
-
-
-def test_every_content_tier_entry_has_source_module() -> None:
-    """FR-006 completeness: every content-tier allowlist entry carries `source_module=`.
-
-    Non-vacuous by construction: fails if the set is empty (a parser
-    regression) or if any content-tier ``SymbolKey(...)`` call lacks a
-    ``source_module=`` kwarg. Replaces the retired WP01-era guard that
-    asserted every entry had a parseable provenance comment instead, so the
-    SSOT invariant holds as the corpus grows.
-    """
-    tree = ast.parse(_THIS_SOURCE.read_text())
-    calls = _content_tier_symbolkey_calls(tree)
-    assert calls, "no content-tier allowlist entries discovered -- parser regression"
-
-    missing = [_bare_name_of(call) for call in calls if _source_module_of(call) is None]
-    assert not missing, "content-tier allowlist entries lacking `source_module=` (FR-006): " + ", ".join(missing)
-
-
-def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
-    """FR-007 integrity: every `source_module` names a live module declaring the symbol.
-
-    Cross-checks each content-tier entry's ``source_module`` against the LIVE
-    importable corpus via :func:`classify_collisions`'s own corpus walk --
-    never re-parses the ``# module::Name`` comment, which would recreate the
-    machine comment-parser SC-004 retires under a new name.
-    """
-    tree = ast.parse(_THIS_SOURCE.read_text())
-    calls = _content_tier_symbolkey_calls(tree)
-    assert calls, "no content-tier allowlist entries discovered -- parser regression"
-    _decls, _all_literal_decls, _path_to_dotted, _path_to_tree, corpus = _walk_modules()
-    collision_index = classify_collisions(corpus)
-
-    violations: list[str] = []
-    for call in calls:
-        source_module = _source_module_of(call)
-        if source_module is None:
-            continue  # covered by test_every_content_tier_entry_has_source_module
-        bare_name = _bare_name_of(call)
-        locations = collision_index.get(bare_name, [])
-        if not any(loc.module_path == source_module for loc in locations):
-            violations.append(f"{source_module}::{bare_name}")
-
-    assert not violations, "content-tier `source_module` names a module that does not declare the symbol in the live corpus (FR-007): " + ", ".join(violations)
-
-
-# ---------------------------------------------------------------------------
-# Cross-category duplicate gate (#3562)
-# ---------------------------------------------------------------------------
-#
-# ``_SYMBOL_ALLOWLIST`` aggregates the per-category frozensets by union, and a
-# frozenset union silently dedupes: a successive mission re-discovering an
-# already-allowlisted symbol and re-adding it under its own category was
-# invisible at runtime and -- before this gate -- invisible, period, unless
-# someone eyeballed ~3000 lines of allowlist (exactly how the three #3562
-# duplicates sat unnoticed). Two structures close that: a queryable membership
-# index (:func:`owning_category` -- consult it BEFORE adding an entry) and a
-# red gate on any key identity listed in more than one category, plus an
-# aggregate check that every discovered category actually reaches
-# ``_SYMBOL_ALLOWLIST``.
-
-
-def _category_frozensets() -> dict[str, frozenset[SymbolKey]]:
-    """Every module-level ``_CATEGORY_*`` frozenset, by name.
-
-    Discovered live from this module's namespace rather than restated by
-    hand, so a category frozenset added to this file is automatically in
-    scope for the guards below -- the same live-recompute doctrine
-    ``key_tier`` follows (never frozen at authoring time). A ``_CATEGORY_*``
-    frozenset carrying a non-:class:`SymbolKey` entry fails loudly instead of
-    being silently skipped.
-    """
-    categories: dict[str, frozenset[SymbolKey]] = {}
-    for name, value in sorted(globals().items()):
-        if not name.startswith("_CATEGORY_") or not isinstance(value, frozenset):
-            continue
-        for entry in value:
-            if not isinstance(entry, SymbolKey):
-                raise TypeError(f"{name} carries a non-SymbolKey entry {entry!r} -- not an allowlist category")
-        categories[name] = value
-    return categories
-
-
-def owning_category(key: SymbolKey) -> str | None:
-    """The one ``_CATEGORY_*`` frozenset already carrying *key*, or ``None``.
-
-    The pre-add membership check the allowlist lacked (#3562): consult this
-    before adding a new entry. A non-``None`` answer means the symbol is
-    already allowlisted -- the right move is to extend that category's
-    rationale (or add nothing at all), never to re-list the same key under a
-    new mission's category. Raises ``ValueError`` if the key is somehow
-    listed in more than one category -- the state the gate below exists to
-    make red.
-    """
-    owners = [name for name, entries in _category_frozensets().items() if key in entries]
-    if len(owners) > 1:
-        raise ValueError(f"{key.bare_name} is already allowlisted in more than one category: {', '.join(owners)}")
-    return owners[0] if owners else None
-
-
-def test_no_dead_symbol_key_is_listed_in_more_than_one_category() -> None:
-    """#3562: no SymbolKey identity may appear in more than one ``_CATEGORY_*`` frozenset.
-
-    Non-vacuous by construction: fails if no categories are discovered (an
-    introspection regression), fails if the aggregate union is empty, and
-    reds on any key whose identity (``bare_name`` + ``body_hash`` +
-    ``module_path`` -- exactly the fields ``SymbolKey`` hashes on;
-    ``source_module`` is ``compare=False`` provenance and never counts) is
-    listed under two or more categories, naming the duplicate and every
-    category that carries it.
-    """
-    categories = _category_frozensets()
-    assert categories, "no _CATEGORY_* frozensets discovered -- introspection regression"
-
-    owners: dict[SymbolKey, list[str]] = {}
-    for name, entries in categories.items():
-        for key in entries:
-            owners.setdefault(key, []).append(name)
-    assert owners, "the discovered allowlist union is empty -- introspection regression"
-
-    duplicates = {key: names for key, names in owners.items() if len(names) > 1}
-    assert not duplicates, (
-        "the same SymbolKey identity is allowlisted in more than one _CATEGORY_* frozenset "
-        "(#3562 -- extend the existing category's rationale instead of re-adding the key): "
-        + "; ".join(
-            f"{key.bare_name} (body_hash={key.body_hash[:12]}, module_path={key.module_path}) in {', '.join(names)}"
-            for key, names in sorted(duplicates.items(), key=lambda item: item[0].bare_name)
-        )
-    )
-
-
-def test_symbol_allowlist_aggregates_every_discovered_category() -> None:
-    """#3562: ``_SYMBOL_ALLOWLIST`` is exactly the union of the discovered categories.
-
-    A ``_CATEGORY_*`` frozenset added to this file but forgotten in the
-    ``_SYMBOL_ALLOWLIST`` union chain would silently stop applying -- its
-    entries would be dead weight no gate consults, and its exclusion from the
-    duplicate gate above would be equally silent. Holds the aggregate and
-    the live discovery to each other, in both directions.
-    """
-    categories = _category_frozensets()
-    union = frozenset().union(*categories.values())
-    assert union == _SYMBOL_ALLOWLIST, (
-        "_SYMBOL_ALLOWLIST disagrees with the union of the discovered _CATEGORY_* frozensets "
-        "(#3562): a category is either missing from the union chain or the aggregate was "
-        "hand-edited -- reconcile them"
-    )
+# Compatibility aliases (G8). The data lives in ``dead_symbol_allowlist.yaml``;
+# both names are views of the loader's single parse (``ALLOWLIST``), never a
+# second read. ``test_p1_planted_regression.py`` and ``len()`` consumers read them.
+_SYMBOL_ALLOWLIST: frozenset[DeadSymbolKey] = SYMBOL_ALLOWLIST
+_WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = WIDENED_SCOPE_GRANDFATHERED_470
+
+# Non-vacuity floor on the scanned corpus, not a pin (contract §2.1). A walker
+# that silently returned a fraction of ``src/`` would otherwise pass vacuously.
+# Live on the #5346 base: 3,922 ``__all__`` names across 656 modules.
+_CORPUS_FLOOR_NAMES = 3500
+_CORPUS_FLOOR_MODULES = 600
 
 
 def _is_asset_blob(path: Path) -> bool:
@@ -3164,10 +788,10 @@ def _imports_by_target(
     Detector (e) -- first-party dynamic (call-bound) module access
     (:func:`_record_dynamic_call_accessor_edges`, IC-01 / FR-001 / FR-002 /
     #2559) is folded in here (WP05 / FR-002): the production
-    offender/stale/dangling ratchet now sees ``factory().attr`` /
+    offender/stale ratchet now sees ``factory().attr`` /
     ``bound = factory(); bound.attr`` dynamic-access edges, which is what
-    lets the 4 ``runtime.next.runtime_bridge`` façade rows in
-    ``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` be recognised live
+    lets the 4 ``runtime.next.runtime_bridge`` façade rows of the former
+    runtime-bridge compat-surface allowlist category be recognised live
     WITHOUT a permanent allowlist entry (see the WP05 row removal + this
     wiring landing in the same commit, NFR-001 safety ordering).
     """
@@ -3208,9 +832,9 @@ def _record_dynamic_call_accessor_edges(
 
     Folded into :func:`_imports_by_target` proper as of WP05 (FR-002): the
     4 ``runtime.next.runtime_bridge`` façade rows previously hand-carried in
-    ``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` are removed in the
+    the runtime-bridge compat-surface allowlist category are removed in the
     same commit that wires this call in, so the production
-    offender/stale/dangling ratchet and the allowlist-row removal land
+    offender/stale ratchet and the allowlist-row removal land
     atomically (NFR-001 safety ordering -- removing the rows without this
     wiring would red the offenders check; wiring this in without removing
     the rows would red the stale-allowlist check). Kept as a separate
@@ -3233,8 +857,8 @@ def _record_dynamic_call_accessor_edges(
 def _symbol_has_caller(
     name: str,
     mod_dotted: str,
-    per_symbol: dict[str, set[str]],
-    submodule_prefixes: dict[str, list[str]],
+    per_symbol: Mapping[str, AbstractSet[str]],
+    submodule_prefixes: Mapping[str, list[str]],
 ) -> bool:
     """Return True iff *name* (declared in ``mod_dotted.__all__``) has a caller.
 
@@ -3268,7 +892,7 @@ def _symbol_has_caller(
     return any(name in per_symbol.get(sub, set()) for sub in submodule_prefixes.get(mod_dotted, ()))
 
 
-def _submodule_index(per_symbol: dict[str, set[str]]) -> dict[str, list[str]]:
+def _submodule_index(per_symbol: Mapping[str, AbstractSet[str]]) -> dict[str, list[str]]:
     """Build ``{prefix: [submodule, ...]}`` for fast submodule lookups.
 
     Used by ``_symbol_has_caller`` to honour re-export proof-of-life.
@@ -3401,8 +1025,8 @@ def _is_reexport_shim_symbol(
     name: str,
     module: CorpusModule,
     final_key: SymbolKey | None,
-    per_symbol: dict[str, set[str]],
-    submodule_index: dict[str, list[str]],
+    per_symbol: Mapping[str, AbstractSet[str]],
+    submodule_index: Mapping[str, list[str]],
 ) -> bool:
     """T013 auto-exempt: a pure re-export whose UNDERLYING definition has a
     live caller elsewhere (just not via THIS shim's own import path).
@@ -3444,8 +1068,8 @@ def _is_auto_exempt(
     name: str,
     module: CorpusModule | None,
     final_key: SymbolKey | None,
-    per_symbol: dict[str, set[str]],
-    submodule_index: dict[str, list[str]],
+    per_symbol: Mapping[str, AbstractSet[str]],
+    submodule_index: Mapping[str, list[str]],
 ) -> bool:
     """T013 -- symbol-granular auto-derived exemptions (never per-module).
 
@@ -3454,7 +1078,8 @@ def _is_auto_exempt(
     sub-app definition, a Typer ``@X.command``/``@X.callback`` function, or
     a re-export shim whose underlying symbol is proven live elsewhere. See
     ``test_auto_exempt_disjoint_from_hand_allowlist`` for the disjointness
-    proof against ``_SYMBOL_ALLOWLIST`` (auto_exempt ∩ hand_allowlist = ∅).
+    proof against the allowlist's ``entries`` (auto_exempt ∩ hand_allowlist
+    = ∅); an overlapping entry is also reported stale SUPERSEDED.
     """
     if module is None:
         return False
@@ -3469,14 +1094,14 @@ def _is_auto_exempt(
 
 
 def _compute_offenders(
-    decls: dict[str, frozenset[str]],
-    per_symbol: dict[str, set[str]],
-    star_targets: set[str],
-    allowlist: frozenset[SymbolKey],
+    decls: Mapping[str, frozenset[str]],
+    per_symbol: Mapping[str, AbstractSet[str]],
+    star_targets: AbstractSet[str],
+    allowlist: AbstractSet[DeadSymbolKey],
     corpus: Mapping[str, CorpusModule],
     collision_index: Mapping[str, list[Location]],
 ) -> list[str]:
-    """Return sorted ``module::Name`` offenders for the symbol-level gate.
+    """Return ``module::Name`` offenders for the symbol-level gate, ordered by module, then name.
 
     Extracted so the end-to-end "teeth" self-test
     (``test_gate_still_flags_a_truly_dead_symbol``) drives a constructed
@@ -3484,15 +1109,13 @@ def _compute_offenders(
     uses — proving the four additive caller-detectors did not turn the gate
     into a silent no-op (NFR-001 / gate-can't-self-validate).
 
-    relocation-hardened-dead-code-scanners-01KX958P WP02 (T009/T012/T013):
-    exemption is now checked THREE ways, in order -- (1) the symbol's LIVE
-    tier-assigned ``SymbolKey`` (:func:`_resolve_final_key`, threading the
-    FR-005 collision classifier so a bare_name resolving to >=2 live
-    locations dynamically escalates or fail-closes, never silently staying
-    single-tier -- this is what keeps the re-key from re-blinding T004) is a
-    member of ``allowlist``; else (2) the symbol matches a T013 structural
-    auto-exempt category (:func:`_is_auto_exempt`); else (3) the existing
-    caller-detection path (unchanged).
+    A declared name is exempt, in this order: (1) its ``(module, name)`` key
+    is in ``allowlist`` AND the name is keyable -- :func:`_resolve_final_key`
+    is not ``None`` (G1: an un-keyable name such as ``__all__ = ['Ghost']``
+    is never exempted, fail-closed); else (2) it matches a T013 structural
+    auto-exempt category (:func:`_is_auto_exempt`); else (3) it has a caller
+    (the existing caller-detection path, unchanged). Otherwise it is an
+    offender.
     """
     submodule_index = _submodule_index(per_symbol)
     offenders: list[str] = []
@@ -3504,7 +1127,7 @@ def _compute_offenders(
         for name in sorted(names):
             qualified = f"{mod_dotted}::{name}"
             final_key = _resolve_final_key(name, mod_dotted, module, corpus, collision_index)
-            if final_key is not None and final_key in allowlist:
+            if final_key is not None and DeadSymbolKey(mod_dotted, name) in allowlist:
                 continue
             if _is_auto_exempt(mod_dotted, name, module, final_key, per_symbol, submodule_index):
                 continue
@@ -3514,233 +1137,205 @@ def _compute_offenders(
     return offenders
 
 
-def _compute_stale(
-    decls: dict[str, frozenset[str]],
-    star_targets: set[str],
-    corpus: Mapping[str, CorpusModule],
-    collision_index: Mapping[str, list[Location]],
-    allowlist: frozenset[SymbolKey],
-    per_symbol: dict[str, set[str]],
-    submodule_index: dict[str, list[str]],
-) -> list[str]:
-    """Return sorted ``module::Name`` STALE allow-list hits -- ratchet direction 1
-    (the pre-existing "gained a caller" shrink-only direction).
+# ---------------------------------------------------------------------------
+# The evaluation seam (FR-009): one real-tree walk, one allowlist evaluation
+# ---------------------------------------------------------------------------
 
-    Extracted (relocation-hardened-dead-code-scanners-01KX958P WP03/T015) so
-    the bite battery can drive this SAME path -- never a standalone
-    re-derivation (C-007) -- exactly like :func:`_compute_offenders`. An
-    allow-listed symbol is stale when its LIVE tier-assigned key is STILL a
-    member of ``allowlist`` (the entry has not itself moved or had its body
-    edited -- see :func:`_compute_dangling` for that direction) but the
-    symbol has GAINED a real caller: the exception no longer applies and the
-    entry should be pruned. Body-independent: this fires identically for a
-    content-tier or an escalated module_path-tier entry -- ``key_tier``
-    already resolved the FINAL key before this function ever compares it
-    against ``allowlist``.
+
+@dataclass(frozen=True)
+class RealTreeInputs:
+    """Everything the gate derives from one walk of ``src/``, as read-only views.
+
+    Built once per session by :func:`_real_tree_inputs` and shared by every
+    real-tree test in this file. The mappings are ``MappingProxyType`` views
+    and the caller sets are frozensets, so no test can mutate the cached walk
+    (adding a caller to ``per_symbol`` would silently rescue dead symbols for
+    every later real-tree test on the same worker). The collision-index
+    values stay lists because ``key_tier`` is typed on lists; nothing here
+    writes to them.
     """
-    stale: list[str] = []
-    for mod_dotted, names in decls.items():
-        if mod_dotted in star_targets:
-            continue
-        module = corpus.get(mod_dotted)
-        for name in names:
-            final_key = _resolve_final_key(name, mod_dotted, module, corpus, collision_index)
-            if final_key is None or final_key not in allowlist:
-                continue
-            if _symbol_has_caller(name, mod_dotted, per_symbol, submodule_index):
-                stale.append(f"{mod_dotted}::{name}")
-    return stale
+
+    decls: Mapping[str, frozenset[str]]
+    all_literal_decls: Mapping[str, frozenset[str]]
+    corpus: Mapping[str, CorpusModule]
+    per_symbol: Mapping[str, frozenset[str]]
+    star_targets: frozenset[str]
+    collision_index: Mapping[str, list[Location]]
 
 
-def _compute_dangling(
-    allowlist: frozenset[SymbolKey],
-    decls: dict[str, frozenset[str]],
-    collision_index: Mapping[str, list[Location]],
-    offenders: list[str],
-) -> list[str]:
-    """Third ratchet direction (relocation-hardened-dead-code-scanners-01KX958P
-    WP03 T015 -- FR-008/D-4): flag allow-list entries whose key no longer
-    resolves to ANY live ``__all__`` location. The pre-existing shrink-only
-    ratchet (:func:`_compute_stale`) only fires on "gained a caller";
-    relocation (or deletion) can silently ORPHAN an allow-list entry while
-    the gate simultaneously false-reds at the symbol's new home under a
-    different key -- with nothing pointing back at the stale entry. This is
-    the missing third direction.
+@functools.lru_cache(maxsize=1)
+def _real_tree_inputs() -> RealTreeInputs:
+    """Walk ``src/`` once per session and return the read-only :class:`RealTreeInputs`.
 
-    Tier-specific (a module_path-tier dangling check is UNDEFINED for a
-    location-free content-tier entry -- D-4, contracts/symbol-key-resolver.md):
-
-    * **content-tier** entry (``module_path is None``): dangling iff no live
-      location in ``collision_index`` shares ``(bare_name, body_hash)`` --
-      checked against the SAME live :func:`classify_collisions` index the
-      production gate builds once per run, never a standalone re-derivation.
-    * **module_path-tier** entry: dangling iff the module at ``module_path``
-      no longer declares ``bare_name`` in a LIVE ``__all__`` (``decls``).
-      ``body_hash`` is irrelevant here -- the tier is already
-      location-bearing (relocation tolerance was already forfeited for this
-      entry when it escalated), so a body edit alone does not orphan it.
-
-    Body-sensitivity ONE-signal reconciliation (T016 -- FR-008/FR-009): a
-    body edit to a still-dead symbol changes its content-tier key. Taken
-    alone, that satisfies "zero live locations" above (the OLD key no longer
-    matches) AND the symbol's NEW key -- being un-allowlisted and still
-    caller-less -- is independently caught by :func:`_compute_offenders` as
-    a fresh offender in the SAME gate run. Reporting both would be an
-    ambiguous offender+prune double-flag for one root cause, so: a
-    content-tier entry is suppressed from ``dangling`` whenever ``offenders``
-    (the SAME run's production offender list, passed in -- never
-    re-derived) already names its ``bare_name`` anywhere. The
-    offender-refresh signal wins and is the ONLY signal; the operator's fix
-    (refresh the allowlist entry to the symbol's new body_hash) is identical
-    either way.
+    Never monkeypatch the walker and then call this: the cache would either
+    serve the full tree (a false green) or keep the partial tree for the real
+    gate. Drive synthetic inputs through the pure helpers instead.
     """
-    offender_bare_names = {qualified.rpartition("::")[2] for qualified in offenders}
-    dangling: list[str] = []
-    for entry in sorted(allowlist, key=lambda k: (k.bare_name, k.module_path or "", k.body_hash)):
-        if entry.is_content_tier:
-            locations = collision_index.get(entry.bare_name, [])
-            if any(loc.body_hash == entry.body_hash for loc in locations):
-                continue  # still resolves live -- not dangling
-            if entry.bare_name in offender_bare_names:
-                continue  # offender-refresh already signals this root cause -- no double-flag
-            dangling.append(f"{entry.bare_name} (content-tier body_hash={entry.body_hash[:12]})")
-        else:
-            module_path = entry.module_path
-            assert module_path is not None  # not content-tier -- SymbolKey guarantees this
-            live_names = decls.get(module_path, frozenset())
-            if entry.bare_name in live_names:
-                continue  # the module still declares this bare_name -- not dangling
-            dangling.append(f"{entry.bare_name} (module_path-tier module_path={module_path})")
-    return dangling
+    decls, all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
+    return RealTreeInputs(
+        decls=MappingProxyType(decls),
+        all_literal_decls=MappingProxyType(all_literal_decls),
+        corpus=MappingProxyType(corpus),
+        per_symbol=MappingProxyType({target: frozenset(names) for target, names in per_symbol.items()}),
+        star_targets=frozenset(star_targets),
+        collision_index=MappingProxyType(classify_collisions(corpus)),
+    )
 
 
-# _WIDENED_SCOPE_GRANDFATHERED_470 (#470): pre-existing debt the widened walk
-# surfaced, one plain "module.dotted.path::Name" string per entry. Deliberately
-# NOT unioned into _SYMBOL_ALLOWLIST above: that allowlist's dangling/stale
-# ratchet is SymbolKey-based and its collision classification
-# (classify_collisions, via extract_static_all) only ever indexes __all__
-# members, so a non-__all__ entry keyed the same way would always resolve
-# content-tier and immediately misfire as dangling (zero live __all__
-# locations, by construction). Kept as a flat name set instead, reviewed by
-# hand at widening time -- each entry is either wired into __all__ plus a
-# real caller, or deleted, in follow-up triage issue #633; this set only
-# exists to keep the widened gate from failing this same PR on debt it did
-# not create. Each entry must still earn its place: _compute_widened_stale
-# (dead-code review 2026-09-30) fails the gate when an entry gains a caller,
-# moves into __all__, stops being declared, or is already rescued by an
-# intra-module reference.
-_WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
+@dataclass(frozen=True)
+class StaleFinding:
+    """One allowlist entry that no longer earns its place, with its single verdict."""
+
+    key: DeadSymbolKey
+    verdict: StaleVerdict
+    hint: str
+
+    def render(self) -> str:
+        """``module::name [VERDICT] hint``, the form the gate prints."""
+        return f"{self.key} [{self.verdict}] {self.hint}".rstrip()
+
+
+@dataclass(frozen=True)
+class AllowlistEvaluation:
+    """The ``__all__``-scope result of evaluating one allowlist against one corpus.
+
+    ``offenders`` is sorted and covers the ``__all__`` scope only (the #470
+    widened scope is :func:`_evaluate_widened`'s). ``stale`` is ordered by
+    ``(module, name)``.
+    """
+
+    offenders: list[str]
+    stale: list[StaleFinding]
+
+
+_HINT_INVALID = "binds nothing keyable, so the entry cannot exempt it; fix the declaration or delete the entry"
+_HINT_GONE = "deleted, renamed, or dropped from `__all__`; delete the entry or update it"
+_HINT_REVIVED = "the symbol has a caller again; delete the entry"
+_HINT_SUPERSEDED = "a T013 structural auto-exemption now covers it; delete the entry"
+_HINT_MOOT = "the module is star-imported, so the entry exempts nothing; delete the entry"
+
+_VERDICT_HINTS: Mapping[StaleVerdict, str] = MappingProxyType(
     {
-        "charter.activation._io::load_charter_bytes",
-        "charter.activation.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS",
-        "charter.activation.synthesizer.adapter::BatchCapableSynthesisAdapter",
-        "charter.offering.agent_profiles.schema_models::AgentProfileSchema",
-        "charter.offering.agent_profiles.validation::is_agent_profile_file",
-        "charter.offering.directives.validation::validate_directive",
-        "charter.offering.drg.models::RELATION_DESCRIPTIONS",
-        "charter.offering.import_candidates.models::CurationImportCandidate",
-        "charter.offering.import_candidates.models::LegacyImportCandidate",
-        "charter.offering.paradigms.validation::validate_paradigm",
-        "charter.offering.styleguides.validation::validate_styleguide",
-        "charter.offering.tactics.validation::validate_tactic",
-        "charter.offering.toolguides.validation::validate_toolguide",
-        "glossary.drg_builder::build_glossary_drg_layer",
-        "glossary.middleware::MockContext",
-        "glossary.scope::activate_scope",
-        "kernel.glossary_runner::clear_registry",
-        "runtime.next._internal_runtime.planner::resolve_next_workflow_action",
-        # runtime.next._internal_runtime.events::reset_runtime_emitter_factory --
-        # test-reset hook for the emitter-factory registry (used by
-        # tests/specify_cli/events + tests/next). Its only src/ importer was the
-        # deleted ``_internal_runtime.emitter`` re-export module (dead-code sweep
-        # 2026-09-30); kept as an intentional test seam, like clear_registry.
-        "runtime.next._internal_runtime.events::reset_runtime_emitter_factory",
-        # runtime.next._internal_runtime.schema::StepContextContract -- became
-        # test-only when the dead TransitionGate/resolve_context chain (its only
-        # src/ consumer) was deleted in the dead-code sweep 2026-09-30 (review
-        # slice 13 predicted this). The remaining context-contract cluster
-        # (StepContextContract / ContextTypeRegistry / ContextType /
-        # engine.validate_binding) needs its own delete-or-keep call.
-        "runtime.next._internal_runtime.schema::StepContextContract",
-        "runtime.next.runtime_bridge_cores::evaluate_guards",
-        "specify_cli.agent_tasks_ports::default_ports",
-        "specify_cli.ast_analysis.imports::extract_static_all",
-        "specify_cli.ast_analysis.imports::module_of_import_from",
-        "specify_cli.audit.detectors::detect_corrupt_jsonl",
-        "specify_cli.audit.identity_adapter::duplicate_ids_to_findings",
-        "specify_cli.audit.identity_adapter::prefix_groups_to_findings",
-        "specify_cli.audit.identity_adapter::selector_groups_to_findings",
-        "specify_cli.auth.transport::reset_user_facing_dedup",
-        "specify_cli.cli.commands.agent.mission::INVALID_WP_OWNED_FILES_KITTY_SPECS",
-        "specify_cli.cli.commands.intake::MAX_BRIEF_FILE_SIZE_BYTES",
-        "specify_cli.cli.commands.invocations_cmd::append_to_index",
-        "specify_cli.cli.helpers::check_version_compatibility",
-        "specify_cli.context.mission_resolver::FakeMissionResolver",
-        "specify_cli.contracts.anchoring::composite_key_from_file",
-        "specify_cli.contracts.anchoring::has_diagnostic_locator_marker",
-        "specify_cli.coordination.status_service::append_event_log",
-        "specify_cli.core.subtask_rows::count_subtask_rows",
-        "specify_cli.core.subtask_rows::count_wp_section_subtask_rows",
-        "specify_cli.core.subtask_rows::uncheck_wp_section_subtask_rows",
-        "specify_cli.core.worktree::create_feature_worktree",
-        "specify_cli.core.worktree::create_wp_workspace",
-        "specify_cli.doc_analysis.doc_state::ensure_documentation_state",
-        "specify_cli.doc_analysis.doc_state::get_state_version",
-        "specify_cli.doc_analysis.doc_state::initialize_documentation_state",
-        "specify_cli.doc_analysis.doc_state::set_divio_types_selected",
-        "specify_cli.doc_analysis.doc_state::set_iteration_mode",
-        "specify_cli.doc_analysis.doc_state::update_documentation_state",
-        "specify_cli.doctrine.pack_descriptor::PackDescriptor",
-        "specify_cli.dossier.hasher::WP_DESCRIPTIVE_PROJECTION_FIELDS",
-        "specify_cli.dossier.hasher::WP_RUNTIME_PROJECTION_FIELDS",
-        "specify_cli.git.commit_helpers::protected_branches",
-        "specify_cli.invocation.task_class_map::known_verbs",
-        "specify_cli.migration.backfill_runtime_state::assert_zero_readers",
-        "specify_cli.migration.backfill_runtime_state::backfill_runtime_state_repo",
-        "specify_cli.migration.backfill_runtime_state::run_backfill_and_verify",
-        "specify_cli.migration.strip_frontmatter::RETIRED_FIELDS",
-        "specify_cli.migration.strip_frontmatter::STATIC_FIELDS",
-        "specify_cli.mission::discover_missions",
-        "specify_cli.mission::get_active_mission",
-        "specify_cli.mission::validate_deliverables_path",
-        "specify_cli.mission_metadata::clear_coordination_metadata",
-        "specify_cli.mission_metadata::get_change_mode",
-        "specify_cli.mission_metadata::set_change_mode",
-        "specify_cli.mission_metadata::set_purpose_summary",
-        "specify_cli.missions._archive::is_mission_archived",
-        "specify_cli.missions._read_path_resolver::resolve_feature_dir_for_slug",
-        "specify_cli.policy.audit::append_audit_event",
-        "specify_cli.policy.audit::create_audit_event",
-        "specify_cli.policy.audit::read_audit_events",
-        "specify_cli.retrospective.deprecation::reset_emitted_for_testing",
-        "specify_cli.retrospective.events::ProposalGeneratedPayload",
-        "specify_cli.shims.registry::get_all_skills",
-        "specify_cli.status.adapters::reset_handlers",
-        "specify_cli.status.cutover_eligibility::assert_birth_invariant_holds",
-        "specify_cli.status.verdict_vocab::ArtifactVerdict",
-        "specify_cli.status.verdict_vocab::EmissionArtifactVerdict",
-        "specify_cli.tool_surface.docs::format_findings",
-        "specify_cli.tool_surface.profiles.projection::LAYER_ORG",
-        "specify_cli.tool_surface.profiles.projection::LAYER_PROJECT",
-        "specify_cli.tool_surface.providers.managed_skills::doctrine_skill_entries",
-        "specify_cli.tool_surface.service::lint_docs_directory",
-        "specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env::NEVER_SEED_VARS",
-        "specify_cli.upgrade.skill_update::apply_text_replacements",
-        "specify_cli.upgrade.skill_update::exclude_paths",
-        "specify_cli.upgrade.skill_update::replace_skill_file",
-        "specify_cli.widen.state::validate_entry_schema",
-        "specify_cli.zeitgeist_client.credentials::revoke",
-        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_CONTROL_KEYS_VERSION",
-        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS",
-        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS_VERSION",
+        StaleVerdict.INVALID: _HINT_INVALID,
+        StaleVerdict.REVIVED: _HINT_REVIVED,
+        StaleVerdict.SUPERSEDED: _HINT_SUPERSEDED,
+        StaleVerdict.MOOT: _HINT_MOOT,
     }
 )
 
 
+@dataclass(frozen=True)
+class _StaleContext:
+    """The corpus-side inputs of the stale classifier, bundled once per evaluation."""
+
+    all_literal_decls: Mapping[str, frozenset[str]]
+    corpus: Mapping[str, CorpusModule]
+    collision_index: Mapping[str, list[Location]]
+    per_symbol: Mapping[str, AbstractSet[str]]
+    submodule_index: Mapping[str, list[str]]
+    star_targets: AbstractSet[str]
+
+
+def _classify_entry(key: DeadSymbolKey, ctx: _StaleContext) -> StaleVerdict | None:
+    """The one stale verdict for *key*, or ``None`` when the entry is live (data-model §1.5).
+
+    The first matching rule wins: INVALID, GONE, REVIVED, SUPERSEDED, MOOT.
+    """
+    module = ctx.corpus.get(key.module)
+    if key.name in ctx.all_literal_decls.get(key.module, frozenset()):
+        final_key = _resolve_final_key(key.name, key.module, module, ctx.corpus, ctx.collision_index)
+        if final_key is None:
+            return StaleVerdict.INVALID
+    else:
+        return StaleVerdict.GONE
+    if _symbol_has_caller(key.name, key.module, ctx.per_symbol, ctx.submodule_index):
+        return StaleVerdict.REVIVED
+    if _is_auto_exempt(key.module, key.name, module, final_key, ctx.per_symbol, ctx.submodule_index):
+        return StaleVerdict.SUPERSEDED
+    if key.module in ctx.star_targets:
+        return StaleVerdict.MOOT
+    return None
+
+
+def _gone_hint(key: DeadSymbolKey, offenders: list[str]) -> str:
+    """The GONE hint: name the module(s) where an offender of the same name now lives."""
+    new_homes = sorted({module for module, _, name in (o.partition("::") for o in offenders) if name == key.name and module != key.module})
+    if not new_homes:
+        return _HINT_GONE
+    candidates = " or ".join(f"`{module}`" for module in new_homes)
+    return f"probably moved to {candidates}; update `module:`"
+
+
+def _classify_allowlist(keys: AbstractSet[DeadSymbolKey], ctx: _StaleContext, offenders: list[str]) -> list[StaleFinding]:
+    """Classify every entry; return the stale ones, ordered by ``(module, name)``."""
+    findings: list[StaleFinding] = []
+    for key in sorted(keys):
+        verdict = _classify_entry(key, ctx)
+        if verdict is None:
+            continue
+        hint = _gone_hint(key, offenders) if verdict is StaleVerdict.GONE else _VERDICT_HINTS[verdict]
+        findings.append(StaleFinding(key=key, verdict=verdict, hint=hint))
+    return findings
+
+
+def _evaluate_allowlist(
+    all_literal_decls: Mapping[str, frozenset[str]],
+    per_symbol: Mapping[str, AbstractSet[str]],
+    star_targets: AbstractSet[str],
+    corpus: Mapping[str, CorpusModule],
+    allowlist: DeadSymbolAllowlist,
+    collision_index: Mapping[str, list[Location]] | None = None,
+) -> AllowlistEvaluation:
+    """Evaluate the ``__all__``-scope section of *allowlist* against one corpus.
+
+    Runs the production :func:`_compute_offenders` over ``all_literal_decls``
+    with ``allowlist.keys``, then gives every entry its stale verdict. The
+    collision index is built from *corpus* when not supplied.
+    """
+    index = classify_collisions(corpus) if collision_index is None else collision_index
+    offenders = sorted(_compute_offenders(all_literal_decls, per_symbol, star_targets, allowlist.keys, corpus, index))
+    ctx = _StaleContext(
+        all_literal_decls=all_literal_decls,
+        corpus=corpus,
+        collision_index=index,
+        per_symbol=per_symbol,
+        submodule_index=_submodule_index(per_symbol),
+        star_targets=star_targets,
+    )
+    return AllowlistEvaluation(offenders=offenders, stale=_classify_allowlist(allowlist.keys, ctx, offenders))
+
+
+def _corpus_floor_shortfall(all_literal_decls: Mapping[str, frozenset[str]]) -> list[str]:
+    """Every §2.1 non-vacuity floor the scanned corpus misses (empty when both hold)."""
+    names = sum(len(declared) for declared in all_literal_decls.values())
+    modules = len(all_literal_decls)
+    shortfall: list[str] = []
+    if names < _CORPUS_FLOOR_NAMES:
+        shortfall.append(f"only {names} `__all__` names scanned (floor {_CORPUS_FLOOR_NAMES})")
+    if modules < _CORPUS_FLOOR_MODULES:
+        shortfall.append(f"only {modules} `__all__`-declaring modules scanned (floor {_CORPUS_FLOOR_MODULES})")
+    return shortfall
+
+
+# The #470 widened-scope grandfather list is the ``widened_grandfathered_470``
+# section of ``dead_symbol_allowlist.yaml``: pre-existing debt the widened walk
+# surfaced, one ``module::Name`` per entry, each to be wired into ``__all__``
+# plus a real caller, or deleted, in follow-up triage issue #633. It is
+# evaluated separately from the ``__all__``-scope ``entries`` (see
+# :func:`_evaluate_widened`): a widened name is only ever rescued by a T013
+# auto-exemption, a real caller, an intra-module reference or this list, never
+# by an ``entries`` key. Each entry must still earn its place:
+# :func:`_compute_widened_stale` (dead-code review 2026-09-30) fails the gate
+# when an entry gains a caller, moves into ``__all__``, stops being declared,
+# or is already rescued by an intra-module reference.
+
+
 def _apply_widened_scope_exemptions(
     offenders: list[str],
-    all_literal_decls: dict[str, frozenset[str]],
+    all_literal_decls: Mapping[str, frozenset[str]],
     corpus: Mapping[str, CorpusModule],
+    grandfathered: AbstractSet[str],
 ) -> list[str]:
     """Drop rescued widened-in (non-``__all__``) offenders (#470).
 
@@ -3751,9 +1346,9 @@ def _apply_widened_scope_exemptions(
     now covers every public module-level name) is dropped iff it is either
     (a) referenced anywhere within its own module (:func:`_used_within_own_module`
     -- module-private-by-convention names, e.g. a module ``logger``, are not
-    "dead", just never exported), or (b) listed in
-    :data:`_WIDENED_SCOPE_GRANDFATHERED_470`, the pre-existing debt this
-    widening surfaced pending individual follow-up triage.
+    "dead", just never exported), or (b) listed in *grandfathered*, the
+    pre-existing debt this widening surfaced pending individual follow-up
+    triage (the gate passes the widened section of the allowlist it evaluates).
     """
     kept: list[str] = []
     for qualified in offenders:
@@ -3764,18 +1359,18 @@ def _apply_widened_scope_exemptions(
         module = corpus.get(mod_dotted)
         if module is not None and _used_within_own_module(module.tree, name):
             continue
-        if qualified in _WIDENED_SCOPE_GRANDFATHERED_470:
+        if qualified in grandfathered:
             continue
         kept.append(qualified)
     return kept
 
 
 def _compute_widened_stale(
-    grandfathered: frozenset[str],
+    grandfathered: AbstractSet[str],
     pre_rescue_widened_offenders: list[str],
     corpus: Mapping[str, CorpusModule],
 ) -> list[str]:
-    """Return every ``_WIDENED_SCOPE_GRANDFATHERED_470`` entry that no longer earns its place.
+    """Return every widened grandfather entry that no longer earns its place.
 
     An entry is stale when the widened-only offender pass no longer reports it
     (it gained a caller, moved into ``__all__``, or is no longer declared), or
@@ -3796,6 +1391,98 @@ def _compute_widened_stale(
     return stale
 
 
+def _evaluate_widened(
+    decls: Mapping[str, frozenset[str]],
+    all_literal_decls: Mapping[str, frozenset[str]],
+    per_symbol: Mapping[str, AbstractSet[str]],
+    star_targets: AbstractSet[str],
+    corpus: Mapping[str, CorpusModule],
+    collision_index: Mapping[str, list[Location]],
+    grandfathered: AbstractSet[str],
+) -> tuple[list[str], list[str]]:
+    """The #470 widened-only pass: ``(post-rescue widened offenders, widened stale)``.
+
+    The widened (non-``__all__``) names are run through the production
+    :func:`_compute_offenders` against an EMPTY allowlist, so they can only
+    be rescued by a T013 auto-exemption or a real caller -- never by an
+    ``entries`` key -- and then through the #470 rescue with *grandfathered*,
+    the widened section of the allowlist being evaluated.
+    """
+    widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
+    pre_rescue_widened_offenders = _compute_offenders(widened_only_decls, per_symbol, star_targets, frozenset(), corpus, collision_index)
+    # #470 mutation-proofing (squad pass 2, sk-squad-spec-kitty-638): this is
+    # the LIVE widened-only offender pass, not a hand-built copy of it -- the
+    # assertion below proves this exact call is load-bearing. Replacing the
+    # `pre_rescue_widened_offenders` call above with a no-op leaves every
+    # other test in this file passing, because the live tree happens to have
+    # no *new* offenders either way. A known grandfathered entry is
+    # dead-with-no-caller by construction (that's why it needed
+    # grandfathering), so it must show up here, pre-rescue -- if it stops
+    # showing up, either this pass was unwired or the entry gained a real
+    # caller and should be pruned (#633 triage).
+    assert any(o in grandfathered for o in pre_rescue_widened_offenders), (
+        "the widened-only _compute_offenders pass found none of the known "
+        "widened_grandfathered_470 entries as pre-rescue offenders -- "
+        "either that pass has been unwired from the live gate, or every "
+        "grandfathered entry has since gained a real caller and should be "
+        "pruned (#633)"
+    )
+    widened_stale = _compute_widened_stale(grandfathered, pre_rescue_widened_offenders, corpus)
+    return _apply_widened_scope_exemptions(pre_rescue_widened_offenders, all_literal_decls, corpus, grandfathered), widened_stale
+
+
+_ALLOWLIST_FILE_REF = "`tests/architectural/dead_symbol_allowlist.yaml`"
+_BULLET = "\n  - "
+
+
+def _offender_message(offenders: list[str]) -> str:
+    """The failure text for new offenders, with the fix options in order of preference."""
+    return (
+        "Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION "
+        "every public module-level name). The following public symbols "
+        "have no other src/ caller, no intra-module reference, and no "
+        "T013 structural auto-exemption:" + _BULLET + _BULLET.join(offenders) + "\n\nFix options (in order of preference):\n"
+        "  1) Wire the symbol from a runtime caller.\n"
+        "  2) If declared in __all__, remove it from __all__ (it stays "
+        "in the module as an unexported internal) -- otherwise, if it "
+        "is a widened-in (non-__all__) name, mark it underscore-private.\n"
+        "  3) Delete the symbol entirely if it is truly dead.\n"
+        f"  4) If declared in __all__, add a `(module, name)` entry to {_ALLOWLIST_FILE_REF} "
+        "with category and rationale (and issue where the category requires it). "
+        "If it is a widened-in (non-__all__) name, add it to that file's "
+        "`widened_grandfathered_470` section instead (FR-303).\n"
+    )
+
+
+def _stale_message(stale: list[StaleFinding]) -> str:
+    """The failure text for stale ``__all__``-scope entries, one rendered verdict per line."""
+    return (
+        f"Stale `entries` in {_ALLOWLIST_FILE_REF} detected. Each entry below no longer "
+        "earns its place (verdict and fix hint per line):" + _BULLET + _BULLET.join(finding.render() for finding in stale)
+    )
+
+
+def _widened_stale_message(widened_stale: list[str]) -> str:
+    """The failure text for stale widened grandfather entries."""
+    return (
+        f"Stale `widened_grandfathered_470` entries in {_ALLOWLIST_FILE_REF} detected. "
+        "The following grandfathered names no longer need the exemption and "
+        "must be removed from the section:" + _BULLET + _BULLET.join(widened_stale)
+    )
+
+
+def _gate_failure_messages(offenders: list[str], stale: list[StaleFinding], widened_stale: list[str]) -> list[str]:
+    """Build one message per failing ratchet direction (empty when the gate is green)."""
+    messages: list[str] = []
+    if offenders:
+        messages.append(_offender_message(offenders))
+    if stale:
+        messages.append(_stale_message(stale))
+    if widened_stale:
+        messages.append(_widened_stale_message(widened_stale))
+    return messages
+
+
 def test_no_public_symbol_in_all_is_unimported() -> None:
     """Every public module-level name must have at least one caller in src/
     (#470: widened beyond ``__all__`` -- see the module docstring's "Scope"
@@ -3803,117 +1490,36 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
 
     Failure means a public symbol is declared but no other ``src/`` file
     imports it, and it is not rescued by an intra-module reference, a T013
-    structural auto-exemption, or the #470 widened-scope grandfather list.
-    That's the WP08 cycle-1 "library written but never wired" failure mode
-    at symbol level.
+    structural auto-exemption, or the allowlist; or an allowlist entry (either
+    section) no longer earns its place. That's the WP08 cycle-1 "library
+    written but never wired" failure mode at symbol level.
+
+    Both allowlist sections come from ONE parsed ``DeadSymbolAllowlist``.
     """
-    decls, all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
-    per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
-    submodule_index = _submodule_index(per_symbol)
-    collision_index = classify_collisions(corpus)
+    inputs = _real_tree_inputs()
+    floor_shortfall = _corpus_floor_shortfall(inputs.all_literal_decls)
+    assert not floor_shortfall, "the dead-symbol gate scanned too little of src/ to be meaningful (§2.1 floor): " + "; ".join(floor_shortfall)
 
-    # #470: the widened (non-`__all__`) names are deliberately never checked
-    # against `_SYMBOL_ALLOWLIST`'s content-tier keys. `classify_collisions`
-    # only indexes `__all__` members (see the module docstring's "Scope"
-    # section), so a widened name is invisible to its collision/escalation
-    # machinery -- its body-hash (which drops string-literal content, see
-    # `_hash_text`/`code_tokens_by_line`) could otherwise coincidentally
-    # match an unrelated hand-allowlisted symbol's key (e.g. two distinct
-    # `NAME = "<some string>"` assignments in different modules normalize
-    # identically) and be silently, wrongly rescued through the wrong
-    # channel. So `_compute_offenders` is run twice: once over the true
-    # `__all__` decls against the real allowlist (byte-for-byte the pre-#470
-    # behaviour), and once over the widened-only names against an EMPTY
-    # allowlist (so they can only be rescued by a T013 auto-exemption or a
-    # real caller -- never an accidental allowlist collision). The two
-    # offender lists are merged before the #470 rescue filter runs.
-    widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
-    offenders = _compute_offenders(all_literal_decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST, corpus, collision_index)
-    pre_rescue_widened_offenders = _compute_offenders(widened_only_decls, per_symbol, star_targets, frozenset(), corpus, collision_index)
-    # #470 mutation-proofing (squad pass 2, sk-squad-spec-kitty-638): this is
-    # the LIVE widened-only offender pass, not a hand-built copy of it -- the
-    # assertion below proves this exact call is load-bearing. Deleting the
-    # `pre_rescue_widened_offenders` call above (restoring
-    # `offenders += _compute_offenders(...)` to a no-op) leaves every other
-    # test in this file passing, because the live tree happens to have no
-    # *new* offenders either way. A known `_WIDENED_SCOPE_GRANDFATHERED_470`
-    # entry is dead-with-no-caller by construction (that's why it needed
-    # grandfathering), so it must show up here, pre-rescue -- if it stops
-    # showing up, either this pass was unwired or the entry gained a real
-    # caller and should be pruned (#633 triage).
-    assert any(o in _WIDENED_SCOPE_GRANDFATHERED_470 for o in pre_rescue_widened_offenders), (
-        "the widened-only _compute_offenders pass found none of the known "
-        "_WIDENED_SCOPE_GRANDFATHERED_470 entries as pre-rescue offenders -- "
-        "either that pass has been unwired from the live gate, or every "
-        "grandfathered entry has since gained a real caller and should be "
-        "pruned (#633)"
+    allowlist = ALLOWLIST
+    evaluation = _evaluate_allowlist(
+        inputs.all_literal_decls,
+        inputs.per_symbol,
+        inputs.star_targets,
+        inputs.corpus,
+        allowlist,
+        inputs.collision_index,
     )
-    widened_stale = _compute_widened_stale(_WIDENED_SCOPE_GRANDFATHERED_470, pre_rescue_widened_offenders, corpus)
-    offenders += pre_rescue_widened_offenders
-    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+    widened_offenders, widened_stale = _evaluate_widened(
+        inputs.decls,
+        inputs.all_literal_decls,
+        inputs.per_symbol,
+        inputs.star_targets,
+        inputs.corpus,
+        inputs.collision_index,
+        allowlist.widened_qualified,
+    )
 
-    # Ratchet direction 1 (pre-existing): the symbol gained a caller --
-    # remove it from the allowlist (good news). `_SYMBOL_ALLOWLIST` is
-    # entirely `__all__`-scoped, so this (and `dangling` below) is checked
-    # against `all_literal_decls`, never the #470-widened `decls` -- same
-    # coincidental-collision reason as above.
-    stale = _compute_stale(all_literal_decls, star_targets, corpus, collision_index, _SYMBOL_ALLOWLIST, per_symbol, submodule_index)
-
-    # Ratchet direction 3 (relocation-hardened-dead-code-scanners-01KX958P
-    # WP03/T015/FR-008): the allow-list entry's key no longer resolves to
-    # ANY live `__all__` location -- relocation (or deletion) silently
-    # orphaned it. Reconciled with body-sensitivity (T016) so a dead-symbol
-    # body edit surfaces as exactly ONE signal via `offenders` above, never
-    # an ambiguous offender+prune double-flag -- see `_compute_dangling`.
-    dangling = _compute_dangling(_SYMBOL_ALLOWLIST, all_literal_decls, collision_index, offenders)
-
-    messages: list[str] = []
-    if offenders:
-        bullets = "\n  - ".join(sorted(offenders))
-        messages.append(
-            "Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION "
-            "every public module-level name). The following public symbols "
-            "have no other src/ caller, no intra-module reference, and no "
-            "T013 structural auto-exemption:\n  - " + bullets + "\n\nFix options (in order of preference):\n"
-            "  1) Wire the symbol from a runtime caller.\n"
-            "  2) If declared in __all__, remove it from __all__ (it stays "
-            "in the module as an unexported internal) -- otherwise, if it "
-            "is a widened-in (non-__all__) name, mark it underscore-private.\n"
-            "  3) Delete the symbol entirely if it is truly dead.\n"
-            "  4) If declared in __all__, add a `SymbolKey(...)` entry "
-            "(resolve it via `resolve_symbol_key`/`key_tier` in "
-            "`_symbol_key.py`) to the appropriate category frozenset in "
-            "`_SYMBOL_ALLOWLIST`. If it is a widened-in (non-__all__) name, "
-            "add its qualified `module::Name` string to "
-            "`_WIDENED_SCOPE_GRANDFATHERED_470` instead. Either way, "
-            "comment with a rationale and a follow-up tracker ticket "
-            "(FR-303).\n"
-        )
-    if stale:
-        bullets = "\n  - ".join(sorted(stale))
-        messages.append(
-            "Stale `_SYMBOL_ALLOWLIST` entries detected. The following symbols now have at least one caller and must be removed from the allowlist:\n  - " + bullets
-        )
-    if widened_stale:
-        bullets = "\n  - ".join(widened_stale)
-        messages.append(
-            "Stale `_WIDENED_SCOPE_GRANDFATHERED_470` entries detected. The "
-            "following grandfathered names no longer need the exemption and "
-            "must be removed from the set:\n  - " + bullets
-        )
-    if dangling:
-        bullets = "\n  - ".join(sorted(dangling))
-        messages.append(
-            "Dangling `_SYMBOL_ALLOWLIST` entries detected (FR-008 -- third "
-            "ratchet direction). The following allow-listed keys no longer "
-            "resolve to ANY live `__all__` declaration -- relocation (or "
-            "deletion, or a body edit) silently orphaned them:\n  - " + bullets + "\n\n"
-            "If a symbol above also appears in the offenders list, this is "
-            "the SAME root cause (refresh the entry's SymbolKey to match the "
-            "symbol's current body_hash/location) -- do not add a second "
-            "entry. If it does not, the entry is a genuine prune candidate: "
-            "delete it from `_SYMBOL_ALLOWLIST`."
-        )
+    messages = _gate_failure_messages(sorted(evaluation.offenders + widened_offenders), evaluation.stale, widened_stale)
     assert not messages, "\n\n".join(messages)
 
 
@@ -4042,7 +1648,7 @@ def test_apply_widened_scope_exemptions() -> None:
         grandfathered_qualified,
         "synthetic.dead_mod::truly_dead",
     ]
-    kept = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+    kept = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus, _WIDENED_SCOPE_GRANDFATHERED_470)
     assert kept == ["synthetic.all_mod::AllMember", "synthetic.dead_mod::truly_dead"], f"got {kept!r}"
 
 
@@ -4097,7 +1703,7 @@ def test_widened_scope_flags_synthetic_zero_caller_symbol() -> None:
     widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
 
     offenders = _compute_offenders(widened_only_decls, {}, set(), frozenset(), corpus, collision_index)
-    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus, _WIDENED_SCOPE_GRANDFATHERED_470)
 
     assert offenders == ["synthetic.widened_mod::orphan_widened_helper"], (
         f"the widened scan must flag a zero-caller, unreferenced, non-grandfathered widened-in name; got {offenders!r}"
@@ -4119,7 +1725,8 @@ def test_walk_modules_widening_contributes_on_live_tree() -> None:
     contributes at least one non-`__all__` public name somewhere on the
     actual `src/` tree.
     """
-    decls, all_literal_decls, _path_to_dotted, _path_to_tree, _corpus = _walk_modules()
+    inputs = _real_tree_inputs()  # built by the real _walk_modules(), cached once per session (G7)
+    decls, all_literal_decls = inputs.decls, inputs.all_literal_decls
     widened_contribution = sum(len(decls[mod] - all_literal_decls.get(mod, frozenset())) for mod in decls)
     assert widened_contribution > 0, (
         "_walk_modules()'s live decls contained zero names beyond __all__ -- the #470 widening at line 2278 may have been unwired from the real gate"
@@ -4364,13 +1971,13 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
     façade symbols are recognised-live via their dynamic
     ``_runtime_bridge_module()`` accessor call sites in ``next_cmd.py`` --
     with NO permanent allowlist entry
-    (``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` no longer carries
+    (the runtime-bridge compat-surface allowlist category no longer carries
     these 4 rows as of WP05). This test proves the gate's caller-detection
     sees them via the now-wired :func:`_imports_by_target` -- driven
     through the REAL live ``src/`` corpus, not a fixture.
     """
-    decls, _all_literal_decls, path_to_dotted, path_to_tree, _corpus = _walk_modules()
-    per_symbol, _star_targets = _imports_by_target(path_to_dotted, path_to_tree)
+    inputs = _real_tree_inputs()  # the real _walk_modules() + _imports_by_target(), cached once per session (G7)
+    decls, per_symbol = inputs.decls, inputs.per_symbol
     submodule_index = _submodule_index(per_symbol)
 
     mod_dotted = "runtime.next.runtime_bridge"
@@ -4388,26 +1995,60 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
         )
 
 
+# ---------------------------------------------------------------------------
+# Self-mutation battery (contracts/dead-symbol-allowlist.md §3), through the
+# production `_compute_offenders` / `_evaluate_allowlist` / `_evaluate_widened`
+# path (C-007), never a standalone re-derivation. M1, M7, M8 and M11(a/b) live
+# in `test_dead_symbol_allowlist_contract.py`; M12 in the loader tests.
+# ---------------------------------------------------------------------------
+
+_BATTERY_CATEGORY = "category_bite_battery"
+
+
+def _allowlist_of(*keys: DeadSymbolKey) -> DeadSymbolAllowlist:
+    """An in-memory allowlist whose ``entries`` are exactly *keys* (no widened section)."""
+    category = AllowlistCategory(id=_BATTERY_CATEGORY, rationale="bite-battery fixture", requires_issue=False, target=None)
+    return DeadSymbolAllowlist(
+        categories=MappingProxyType({_BATTERY_CATEGORY: category}),
+        entries=tuple(AllowlistEntry(key=key, category=_BATTERY_CATEGORY, rationale=None, issue=None) for key in keys),
+        widened_entries=(),
+        widened_rationale="bite-battery fixture",
+        widened_issue="#5346",
+    )
+
+
+def _synthetic_inputs(modules: Mapping[str, str]) -> tuple[dict[str, frozenset[str]], dict[str, CorpusModule]]:
+    """``(all_literal_decls, corpus)`` for ``{dotted_module: source}`` (plain modules, package = dotted parent)."""
+    all_literal_decls: dict[str, frozenset[str]] = {}
+    corpus: dict[str, CorpusModule] = {}
+    for dotted, source in modules.items():
+        tree = ast.parse(source)
+        corpus[dotted] = CorpusModule(tree=tree, source=source, containing_pkg=dotted.rpartition(".")[0])
+        declared = _extract_all_literal(tree) or frozenset()
+        if declared:
+            all_literal_decls[dotted] = declared
+    return all_literal_decls, corpus
+
+
+def _verdicts(evaluation: AllowlistEvaluation) -> list[tuple[str, StaleVerdict]]:
+    return [(str(finding.key), finding.verdict) for finding in evaluation.stale]
+
+
 def test_gate_still_flags_a_truly_dead_symbol() -> None:
-    """End-to-end teeth (NFR-001 / DoD a): the hardened gate is not a silent no-op.
+    """M2 -- a new dead symbol reds and is named; the gate is not a silent no-op (NFR-001 / DoD a).
 
     Four additive caller-detectors can only ADD rescues, so a self-test must
-    prove the aggregate path still FLAGS a symbol that nothing imports — and
-    still PASSES one that has a real caller. Driven through the same
-    ``_compute_offenders`` path the production gate uses.
-
-    relocation-hardened-dead-code-scanners-01KX958P WP02: the allowlist
-    control case now drives a REAL ``resolve_symbol_key``/``key_tier``
-    resolution (not a fabricated string) since allowlist membership is
-    SymbolKey-based (T009/T012), per C-007 (no standalone-key self-validation).
+    prove the aggregate path still FLAGS a symbol that nothing imports -- and
+    still PASSES one that has a real caller or a keyable ``(module, name)``
+    allowlist entry. Driven through the same ``_compute_offenders`` path the
+    production gate uses. M2 proper: a NEW dead name beside an allowlisted one
+    in the same module is named as an offender, not covered by its neighbour.
     """
     decls = {"synthetic.deadmod": frozenset({"NeverImported"})}
     empty_corpus: dict[str, CorpusModule] = {}
     empty_index: dict[str, list[Location]] = {}
 
-    # No caller of any kind → still flagged. The corpus need not resolve a
-    # key here: an absent/un-keyable symbol fails closed and falls through
-    # to the caller check, which also fails.
+    # No caller of any kind → still flagged.
     flagged = _compute_offenders(decls, {}, set(), frozenset(), empty_corpus, empty_index)
     assert flagged == ["synthetic.deadmod::NeverImported"], f"gate must flag a symbol with zero callers; got {flagged!r}"
 
@@ -4415,80 +2056,68 @@ def test_gate_still_flags_a_truly_dead_symbol() -> None:
     with_caller = {"synthetic.deadmod": {"NeverImported"}}
     assert _compute_offenders(decls, with_caller, set(), frozenset(), empty_corpus, empty_index) == [], "a symbol with a real caller must NOT be flagged"
 
-    # Allowlisted → not flagged (control for the exception path), driven
-    # through the REAL resolver: build a one-module synthetic corpus, resolve
-    # its SymbolKey, then allowlist that resolved key.
+    # Allowlisted with a keyable corpus → not flagged (control for the exception path).
+    allow = frozenset({DeadSymbolKey("synthetic.deadmod", "NeverImported")})
     source = "NeverImported = object()\n"
-    tree = ast.parse(source)
-    module = CorpusModule(tree=tree, source=source, containing_pkg="synthetic")
-    corpus = {"synthetic.deadmod": module}
+    corpus = {"synthetic.deadmod": CorpusModule(tree=ast.parse(source), source=source, containing_pkg="synthetic")}
     collision_index = classify_collisions(corpus)
-    key = resolve_symbol_key("NeverImported", "synthetic.deadmod", module, corpus=corpus)
-    final_key = key_tier(key, "synthetic.deadmod", collision_index)
-    assert final_key is not None
-    allow = frozenset({final_key})
     assert _compute_offenders(decls, {}, set(), allow, corpus, collision_index) == []
 
+    # G1 keyability: the same entry over a corpus that cannot key the name exempts nothing.
+    assert _compute_offenders(decls, {}, set(), allow, empty_corpus, empty_index) == ["synthetic.deadmod::NeverImported"]
 
-# ---------------------------------------------------------------------------
-# T013 — symbol-granular auto-exempt categories + disjointness meta-test
-# ---------------------------------------------------------------------------
+    # M2: a new dead `New` in the allowlisted module is an offender, named.
+    m2_decls, m2_corpus = _synthetic_inputs({"synthetic.deadmod": "__all__ = ['NeverImported', 'New']\nNeverImported = object()\nNew = 1\n"})
+    result = _evaluate_allowlist(m2_decls, {}, set(), m2_corpus, _allowlist_of(DeadSymbolKey("synthetic.deadmod", "NeverImported")))
+    assert result.offenders == ["synthetic.deadmod::New"]
+    assert result.stale == [], [finding.render() for finding in result.stale]
 
 
 def test_auto_exempt_disjoint_from_hand_allowlist() -> None:
-    """T013 disjointness meta-test: auto_exempt ∩ hand_allowlist = ∅.
+    """T013 disjointness, on the real tree: auto_exempt ∩ hand_allowlist = ∅.
 
     An entry must not be BOTH auto-derived (registered migration class /
-    Typer sub-app definition / re-export shim) AND hand-curated in
-    ``_SYMBOL_ALLOWLIST`` -- that would be redundant bookkeeping and risks
-    the two silently falling out of sync. Walks the LIVE ``src/`` corpus
-    (not a fixture) so this is a real, current-state proof.
+    Typer sub-app / Typer command / re-export shim) AND listed in the
+    allowlist's ``entries`` -- redundant bookkeeping that would let the two
+    drift. The gate reports such an entry SUPERSEDED; this check is
+    independent of the classifier's verdict order (a SUPERSEDED entry that is
+    also REVIVED is only reported REVIVED there).
     """
-    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
-    per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
-    submodule_index = _submodule_index(per_symbol)
-    collision_index = classify_collisions(corpus)
+    inputs = _real_tree_inputs()
+    submodule_index = _submodule_index(inputs.per_symbol)
 
     overlaps: list[str] = []
-    for mod_dotted, names in decls.items():
-        if mod_dotted in star_targets:
+    for key in sorted(_SYMBOL_ALLOWLIST):
+        if key.module in inputs.star_targets or key.name not in inputs.decls.get(key.module, frozenset()):
             continue
-        module = corpus.get(mod_dotted)
-        for name in names:
-            final_key = _resolve_final_key(name, mod_dotted, module, corpus, collision_index)
-            if not _is_auto_exempt(mod_dotted, name, module, final_key, per_symbol, submodule_index):
-                continue
-            if final_key is not None and final_key in _SYMBOL_ALLOWLIST:
-                overlaps.append(f"{mod_dotted}::{name}")
-    assert not overlaps, f"auto-exempt/hand-allowlist overlap violates T013 disjointness (auto_exempt ∩ hand_allowlist must be ∅): {sorted(overlaps)}"
-
-
-# ---------------------------------------------------------------------------
-# T014 — bite battery (a,c,e,f,h,i,k), through the production path (C-007)
-# ---------------------------------------------------------------------------
+        module = inputs.corpus.get(key.module)
+        final_key = _resolve_final_key(key.name, key.module, module, inputs.corpus, inputs.collision_index)
+        if _is_auto_exempt(key.module, key.name, module, final_key, inputs.per_symbol, submodule_index):
+            overlaps.append(str(key))
+    assert not overlaps, f"auto-exempt/hand-allowlist overlap violates T013 disjointness (auto_exempt ∩ hand_allowlist must be ∅): {overlaps}"
 
 
 def test_bite_c_same_name_fan_out_dead_sibling_still_caught() -> None:
-    """DoD (c) -- a same-name fan-out dead sibling is still caught (T004).
+    """M3 (DoD c, T004) -- an allowlisted name does not cover a same-name dead sibling.
 
-    Two modules independently declare a bare_name ``Shared`` with DIFFERENT
-    bodies (a genuine fan-out, not a byte-identical collision). One has a
-    real caller; the sibling does not and must stay caught, distinguished by
-    its own qualified name.
+    ``(synthetic.mod_a, Shared)`` is allowlisted; ``synthetic.mod_b`` declares
+    its own ``Shared`` with a different body and no caller. The sibling has a
+    different ``(module, name)`` key, so it is caught -- no collision logic
+    is involved. The fan-out control (the live sibling has a real caller, no
+    allowlist) keeps the original DoD (c) shape.
     """
-    mod_a_src = "Shared = 1\n"
-    mod_b_src = "Shared = 2\n"
-    corpus = {
-        "synthetic.mod_a": CorpusModule(ast.parse(mod_a_src), mod_a_src, "synthetic"),
-        "synthetic.mod_b": CorpusModule(ast.parse(mod_b_src), mod_b_src, "synthetic"),
-    }
-    collision_index = classify_collisions(corpus)
-    decls = {
-        "synthetic.mod_a": frozenset({"Shared"}),
-        "synthetic.mod_b": frozenset({"Shared"}),
-    }
+    decls, corpus = _synthetic_inputs(
+        {
+            "synthetic.mod_a": "__all__ = ['Shared']\nShared = 1\n",
+            "synthetic.mod_b": "__all__ = ['Shared']\nShared = 2\n",
+        }
+    )
+    result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.mod_a", "Shared")))
+    assert result.offenders == ["synthetic.mod_b::Shared"], "the dead same-name sibling must be caught"
+    assert result.stale == [], [finding.render() for finding in result.stale]
+
     per_symbol = {"synthetic.mod_a": {"Shared"}}  # mod_a::Shared has a real caller
-    offenders = _compute_offenders(decls, per_symbol, set(), frozenset(), corpus, collision_index)
+    offenders = _compute_offenders(decls, per_symbol, set(), frozenset(), corpus, classify_collisions(corpus))
     assert offenders == ["synthetic.mod_b::Shared"], "the dead fan-out sibling must be caught, the live one must not"
 
 
@@ -4525,300 +2154,269 @@ def test_bite_e_dead_migration_helper_still_caught() -> None:
 
 
 def test_bite_f_undecidable_key_fails_closed() -> None:
-    """DoD (f) -- an undecidable-key symbol (None-key) is fail-closed.
+    """M9 (DoD f) -- an allowlisted un-keyable name stays an offender AND its entry is INVALID.
 
     ``Ghost`` is declared in ``__all__`` but has no ClassDef/FunctionDef/
-    Assign/AnnAssign/ImportFrom/facade shape at all -- the resolver must
-    return ``None``, and the gate must still flag it (never silently exempt
-    an un-keyable symbol).
+    Assign/AnnAssign/ImportFrom/facade shape at all -- the resolver returns
+    ``None``, so the ``(module, name)`` entry cannot exempt it (G1, fail-closed)
+    and is reported INVALID.
     """
-    source = "__all__ = ['Ghost']\n"
-    tree = ast.parse(source)
-    module = CorpusModule(tree=tree, source=source, containing_pkg="synthetic")
-    corpus = {"synthetic.ghostmod": module}
-    collision_index = classify_collisions(corpus)
-    decls = {"synthetic.ghostmod": frozenset({"Ghost"})}
+    decls, corpus = _synthetic_inputs({"synthetic.ghostmod": "__all__ = ['Ghost']\n"})
+    assert resolve_symbol_key("Ghost", "synthetic.ghostmod", corpus["synthetic.ghostmod"], corpus=corpus) is None, (
+        "sanity: this shape must be genuinely undecidable"
+    )
 
-    assert resolve_symbol_key("Ghost", "synthetic.ghostmod", module, corpus=corpus) is None, "sanity: this shape must be genuinely undecidable"
-    offenders = _compute_offenders(decls, {}, set(), frozenset(), corpus, collision_index)
-    assert offenders == ["synthetic.ghostmod::Ghost"], "an un-keyable symbol must fail closed (flagged), never silently exempted"
+    result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.ghostmod", "Ghost")))
+    assert result.offenders == ["synthetic.ghostmod::Ghost"], "an un-keyable symbol must fail closed (flagged), never silently exempted"
+    assert _verdicts(result) == [("synthetic.ghostmod::Ghost", StaleVerdict.INVALID)]
 
 
-def test_bite_i_live_collision_escalation_regression_guard() -> None:
-    """DoD (i) -- Live-collision escalation (Defect-1 regression guard).
+def test_bite_i_byte_identical_rogue_sibling_still_caught() -> None:
+    """M4 (DoD i, the Defect-1 / T004 re-blinding guard) -- a byte-identical rogue sibling is caught.
 
-    Simulates a NEW byte-identical same-name pair (the future
-    ``GateDecision``-collapse vector): two independent modules each declare
-    a class ``GateDecision`` with the IDENTICAL body. One is sanctioned
-    (allow-listed via its LIVE tier-assigned key); the other is a rogue,
-    unsanctioned sibling with no real caller.
-
-    If the content/forfeit split were frozen at authoring time (the bug this
-    mission fixes), the rogue sibling would share the sanctioned entry's
-    content-tier key and be silently exempted too. The LIVE classifier must
-    instead escalate BOTH occurrences to the module_path tier, so only the
-    module_path-qualified sanctioned key is a member of the allowlist and
-    the rogue sibling is still caught -- proving the split is
-    runtime-recomputed, not frozen.
+    Two modules each declare a class ``GateDecision`` with the IDENTICAL body
+    (the future ``GateDecision``-collapse vector). ``(synthetic.sanctioned,
+    GateDecision)`` is allowlisted; the rogue sibling has no caller. Its
+    ``(module, name)`` key differs, so it is caught with no tier escalation
+    or any other collision logic involved.
     """
     body = "class GateDecision:\n    pass\n"
-    sanctioned_src = body + "\n\n__all__ = ['GateDecision']\n"
-    rogue_src = body + "\n\n__all__ = ['GateDecision']\n"
-    corpus = {
-        "synthetic.sanctioned": CorpusModule(ast.parse(sanctioned_src), sanctioned_src, "synthetic"),
-        "synthetic.rogue": CorpusModule(ast.parse(rogue_src), rogue_src, "synthetic"),
-    }
-    collision_index = classify_collisions(corpus)
-    # Sanity: the live classifier actually sees the collision.
-    assert [location.module_path for location in collision_index.get("GateDecision", [])] == [
-        "synthetic.sanctioned",
-        "synthetic.rogue",
-    ]
-
-    sanctioned_content_key = resolve_symbol_key("GateDecision", "synthetic.sanctioned", corpus["synthetic.sanctioned"], corpus=corpus)
-    sanctioned_final = key_tier(sanctioned_content_key, "synthetic.sanctioned", collision_index)
-    assert sanctioned_final is not None
-    assert sanctioned_final.module_path == "synthetic.sanctioned", (
-        "a live collision bare_name must escalate to the module_path tier, not stay a bare content-tier key"
+    decls, corpus = _synthetic_inputs(
+        {
+            "synthetic.sanctioned": body + "\n\n__all__ = ['GateDecision']\n",
+            "synthetic.rogue": body + "\n\n__all__ = ['GateDecision']\n",
+        }
     )
-    allow = frozenset({sanctioned_final})
-
-    decls = {
-        "synthetic.sanctioned": frozenset({"GateDecision"}),
-        "synthetic.rogue": frozenset({"GateDecision"}),
-    }
-    offenders = _compute_offenders(decls, {}, set(), allow, corpus, collision_index)
-    assert offenders == ["synthetic.rogue::GateDecision"], (
-        "the unsanctioned rogue sibling must still be caught -- live escalation, not a frozen content-tier split, is what prevents T004 re-blinding"
-    )
+    result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.sanctioned", "GateDecision")))
+    assert result.offenders == ["synthetic.rogue::GateDecision"], "the unsanctioned byte-identical sibling must still be caught"
+    assert result.stale == [], [finding.render() for finding in result.stale]
 
 
 def test_bite_k_full_keyability_hand_and_auto_exempt() -> None:
-    """DoD (k) -- 0 un-keyable entries.
+    """M9 at corpus scale (DoD k) -- 0 un-keyable entries, hand or auto.
 
-    Every hand-allowlisted ``SymbolKey`` is well-formed, and every symbol
-    the T013 structural auto-exempt mechanism claims to cover resolves to a
-    real ``SymbolKey`` against the live corpus (never a claimed-but-unproven
-    exemption).
+    Every allowlist entry whose name is still declared resolves to a real key
+    on the live corpus (no INVALID verdict), and every symbol the T013
+    structural auto-exempt mechanism claims to cover resolves to a real key
+    too (never a claimed-but-unproven exemption).
     """
-    for key in _SYMBOL_ALLOWLIST:
-        assert key.bare_name and key.body_hash, f"malformed hand-allowlist key: {key!r}"
-
-    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
-    per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
-    submodule_index = _submodule_index(per_symbol)
-    collision_index = classify_collisions(corpus)
+    inputs = _real_tree_inputs()
+    submodule_index = _submodule_index(inputs.per_symbol)
+    ctx = _StaleContext(
+        all_literal_decls=inputs.all_literal_decls,
+        corpus=inputs.corpus,
+        collision_index=inputs.collision_index,
+        per_symbol=inputs.per_symbol,
+        submodule_index=submodule_index,
+        star_targets=inputs.star_targets,
+    )
+    invalid = [str(key) for key in sorted(_SYMBOL_ALLOWLIST) if _classify_entry(key, ctx) is StaleVerdict.INVALID]
+    assert not invalid, f"allowlist entries whose name binds nothing keyable (INVALID): {invalid}"
 
     unkeyable_auto_exempt: list[str] = []
-    for mod_dotted, names in decls.items():
-        if mod_dotted in star_targets:
+    for mod_dotted, names in inputs.decls.items():
+        if mod_dotted in inputs.star_targets:
             continue
-        module = corpus.get(mod_dotted)
+        module = inputs.corpus.get(mod_dotted)
         for name in names:
-            final_key = _resolve_final_key(name, mod_dotted, module, corpus, collision_index)
-            if not _is_auto_exempt(mod_dotted, name, module, final_key, per_symbol, submodule_index):
+            final_key = _resolve_final_key(name, mod_dotted, module, inputs.corpus, inputs.collision_index)
+            if not _is_auto_exempt(mod_dotted, name, module, final_key, inputs.per_symbol, submodule_index):
                 continue
-            if module is None or resolve_symbol_key(name, mod_dotted, module, corpus=corpus) is None:
+            if module is None or resolve_symbol_key(name, mod_dotted, module, corpus=inputs.corpus) is None:
                 unkeyable_auto_exempt.append(f"{mod_dotted}::{name}")
     assert not unkeyable_auto_exempt, f"auto-exempt mechanism claims coverage for an un-keyable symbol (fail-closed violation): {unkeyable_auto_exempt}"
 
 
-# ---------------------------------------------------------------------------
-# T015/T016 (relocation-hardened-dead-code-scanners-01KX958P WP03) -- third
-# dangling-entry ratchet, tier-specific + body-sensitivity one-signal
-# reconciliation -- see `_compute_dangling` above.
-# T017/T018 -- bite battery (b,d,g) + the gate-side DoD (j) 0-false-red
-# proof, all through the production `_compute_offenders`/`_compute_stale`/
-# `_compute_dangling` path (C-007), never a standalone re-derivation.
-# ---------------------------------------------------------------------------
+def test_bite_d_wired_allowlisted_symbol_reports_revived() -> None:
+    """M5 (DoD d) -- an allowlisted symbol that gains a direct caller is stale REVIVED.
 
-
-def test_bite_b_relocated_but_wired_symbol_stays_green() -> None:
-    """DoD (b) -- a relocated-but-WIRED content-tier symbol stays green.
-
-    ``Helper`` used to live (and be allow-listed as dead) at some prior
-    location; the SAME body now lives at ``synthetic.new_home`` and has
-    gained a real caller. Because the content-tier key is location-free
-    ``(bare_name, body_hash)``, relocation does not disturb it: the symbol
-    is (1) NOT an offender (it has a real caller) -- true regardless of
-    relocation, (2) correctly flagged STALE by the pre-existing ratchet
-    direction (the exception no longer applies, prune it), and (3)
-    crucially NOT flagged DANGLING by the NEW T015 detector -- the key
-    still resolves to exactly one live location, just at the new module
-    path. Carve-out (spec.md DoD b, documented): this "stays green" proof
-    covers the simple/content-tier subset only; unconditional relocation
-    tolerance for the re-export/module_path-tier subset is explicitly out
-    of scope (it would re-blind T004 -- spec.md Out of Scope).
+    Both shapes of the old tiered identity are covered, since keyability
+    still runs through the runtime tiering: a plain symbol, and one of a
+    byte-identical same-name pair (only the wired one is REVIVED; its dead
+    unlisted twin is an offender).
     """
-    source = "def Helper():\n    return 1\n\n\n__all__ = ['Helper']\n"
-    tree = ast.parse(source)
-    module = CorpusModule(tree=tree, source=source, containing_pkg="synthetic")
-    corpus = {"synthetic.new_home": module}
-    collision_index = classify_collisions(corpus)
-    key = resolve_symbol_key("Helper", "synthetic.new_home", module, corpus=corpus)
-    final_key = key_tier(key, "synthetic.new_home", collision_index)
-    assert final_key is not None
-    assert final_key.is_content_tier, "sanity: a non-colliding bare_name must stay content-tier"
-    allow = frozenset({final_key})
+    decls, corpus = _synthetic_inputs({"synthetic.wiredmod": "__all__ = ['Const']\nConst = 1\n"})
+    result = _evaluate_allowlist(decls, {"synthetic.wiredmod": {"Const"}}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.wiredmod", "Const")))
+    assert result.offenders == []
+    assert _verdicts(result) == [("synthetic.wiredmod::Const", StaleVerdict.REVIVED)]
+    assert result.stale[0].render() == f"synthetic.wiredmod::Const [REVIVED] {_HINT_REVIVED}"
 
-    decls = {"synthetic.new_home": frozenset({"Helper"})}
-    per_symbol = {"synthetic.new_home": {"Helper"}}  # relocated AND wired
-
-    offenders = _compute_offenders(decls, per_symbol, set(), allow, corpus, collision_index)
-    assert offenders == [], "a wired symbol must never be flagged, relocated or not"
-
-    submodule_index = _submodule_index(per_symbol)
-    stale = _compute_stale(decls, set(), corpus, collision_index, allow, per_symbol, submodule_index)
-    assert stale == ["synthetic.new_home::Helper"], "the allow-list entry should be flagged for pruning now that the symbol is wired"
-
-    dangling = _compute_dangling(allow, decls, collision_index, offenders)
-    assert dangling == [], "relocation-tolerant content-tier key must still resolve live at the new location -- must NOT also read as dangling"
-
-
-def test_bite_d_wired_allowlisted_symbol_reds_stale_ratchet() -> None:
-    """DoD (d) -- a wired allow-listed symbol reds the stale ratchet
-    (body-independent): staleness fires off "key still resolves live AND
-    now has a caller" regardless of whether the entry is content-tier or an
-    escalated module_path-tier entry (whose identity is location-bearing,
-    not body-bearing). Drives BOTH tiers through the SAME `_compute_stale`
-    production path.
-    """
-    # -- content tier --
-    source = "Const = 1\n"
-    tree = ast.parse(source)
-    module = CorpusModule(tree=tree, source=source, containing_pkg="synthetic")
-    corpus_content = {"synthetic.wiredmod": module}
-    idx_content = classify_collisions(corpus_content)
-    key = resolve_symbol_key("Const", "synthetic.wiredmod", module, corpus=corpus_content)
-    final_content = key_tier(key, "synthetic.wiredmod", idx_content)
-    assert final_content is not None
-    assert final_content.is_content_tier
-    decls_content = {"synthetic.wiredmod": frozenset({"Const"})}
-    per_symbol_content = {"synthetic.wiredmod": {"Const"}}
-    submod_content = _submodule_index(per_symbol_content)
-    stale_content = _compute_stale(
-        decls_content,
-        set(),
-        corpus_content,
-        idx_content,
-        frozenset({final_content}),
-        per_symbol_content,
-        submod_content,
-    )
-    assert stale_content == ["synthetic.wiredmod::Const"]
-
-    # -- module_path (escalated live-collision) tier --
     body = "class Dup:\n    pass\n"
-    src_a = body + "\n\n__all__ = ['Dup']\n"
-    src_b = body + "\n\n__all__ = ['Dup']\n"
-    corpus_mp = {
-        "synthetic.dup_a": CorpusModule(ast.parse(src_a), src_a, "synthetic"),
-        "synthetic.dup_b": CorpusModule(ast.parse(src_b), src_b, "synthetic"),
-    }
-    idx_mp = classify_collisions(corpus_mp)
-    key_a = resolve_symbol_key("Dup", "synthetic.dup_a", corpus_mp["synthetic.dup_a"], corpus=corpus_mp)
-    final_a = key_tier(key_a, "synthetic.dup_a", idx_mp)
-    assert final_a is not None
-    assert not final_a.is_content_tier, "sanity: a live byte-identical collision must escalate"
-    decls_mp = {
-        "synthetic.dup_a": frozenset({"Dup"}),
-        "synthetic.dup_b": frozenset({"Dup"}),
-    }
-    per_symbol_mp = {"synthetic.dup_a": {"Dup"}}  # only dup_a gained a caller
-    submod_mp = _submodule_index(per_symbol_mp)
-    stale_mp = _compute_stale(decls_mp, set(), corpus_mp, idx_mp, frozenset({final_a}), per_symbol_mp, submod_mp)
-    assert stale_mp == ["synthetic.dup_a::Dup"], "stale must fire for a module_path-tier entry too -- body-independent"
+    dup_decls, dup_corpus = _synthetic_inputs(
+        {
+            "synthetic.dup_a": body + "\n\n__all__ = ['Dup']\n",
+            "synthetic.dup_b": body + "\n\n__all__ = ['Dup']\n",
+        }
+    )
+    dup_result = _evaluate_allowlist(dup_decls, {"synthetic.dup_a": {"Dup"}}, set(), dup_corpus, _allowlist_of(DeadSymbolKey("synthetic.dup_a", "Dup")))
+    assert dup_result.offenders == ["synthetic.dup_b::Dup"]
+    assert _verdicts(dup_result) == [("synthetic.dup_a::Dup", StaleVerdict.REVIVED)]
 
 
-def test_bite_g_dangling_entry_reds_both_tiers_and_body_edit_is_one_signal() -> None:
-    """DoD (g) -- a dangling entry reds the new third ratchet direction, BOTH
-    tiers, AND a dead-symbol body edit yields EXACTLY ONE signal (T016).
+def test_m6_deleted_allowlisted_symbol_reports_gone() -> None:
+    """M6 -- an allowlisted symbol that is deleted is stale GONE (replaces ``bite_g``'s dangling arms).
+
+    Both deletion shapes: the name is gone from a module that still exists,
+    and the whole module is gone. No offender of the same name exists, so no
+    "probably moved" hint is given.
     """
-    # -- content-tier orphan: (bare_name, body_hash) matches NOTHING live --
-    orphan_key = SymbolKey("GhostHelper", "0" * 64)
-    dangling_content = _compute_dangling(frozenset({orphan_key}), {}, {}, offenders=[])
-    assert dangling_content == ["GhostHelper (content-tier body_hash=000000000000)"]
-
-    # -- module_path-tier orphan: the module no longer declares bare_name --
-    mp_key = SymbolKey("Dup", "abc123", module_path="synthetic.dup_a")
-    decls_no_dup = {"synthetic.dup_a": frozenset({"SomethingElse"})}
-    dangling_mp = _compute_dangling(frozenset({mp_key}), decls_no_dup, {}, offenders=[])
-    assert dangling_mp == ["Dup (module_path-tier module_path=synthetic.dup_a)"]
-
-    # -- body-edit -> exactly ONE signal (offender-refresh), never offender+prune --
-    old_source = "Baz = 1\n"
-    old_module = CorpusModule(ast.parse(old_source), old_source, "synthetic")
-    old_corpus = {"synthetic.bazmod": old_module}
-    old_key = resolve_symbol_key("Baz", "synthetic.bazmod", old_module, corpus=old_corpus)
-    old_final = key_tier(old_key, "synthetic.bazmod", classify_collisions(old_corpus))
-    assert old_final is not None
-    allow = frozenset({old_final})
-
-    new_source = "Baz = 2\n"  # body EDITED -- still dead (no caller)
-    new_module = CorpusModule(ast.parse(new_source), new_source, "synthetic")
-    new_corpus = {"synthetic.bazmod": new_module}
-    new_index = classify_collisions(new_corpus)
-    decls = {"synthetic.bazmod": frozenset({"Baz"})}
-
-    offenders = _compute_offenders(decls, {}, set(), allow, new_corpus, new_index)
-    assert offenders == ["synthetic.bazmod::Baz"], "the body-edited symbol must surface as a fresh offender (offender-refresh)"
-
-    dangling_after_edit = _compute_dangling(allow, decls, new_index, offenders)
-    assert dangling_after_edit == [], "the SAME root cause must not ALSO trip the dangling/prune ratchet -- exactly one signal, not offender+prune"
+    decls, corpus = _synthetic_inputs({"synthetic.m": "__all__ = ['Other']\nOther = 1\n"})
+    allowlist = _allowlist_of(
+        DeadSymbolKey("synthetic.m", "Deleted"),
+        DeadSymbolKey("synthetic.m", "Other"),
+        DeadSymbolKey("synthetic.removed_module", "Anything"),
+    )
+    result = _evaluate_allowlist(decls, {}, set(), corpus, allowlist)
+    assert result.offenders == []
+    assert _verdicts(result) == [
+        ("synthetic.m::Deleted", StaleVerdict.GONE),
+        ("synthetic.removed_module::Anything", StaleVerdict.GONE),
+    ]
+    assert [finding.hint for finding in result.stale] == [_HINT_GONE, _HINT_GONE]
 
 
-def test_bite_j_gate_annassign_whitespace_zero_false_red() -> None:
-    """DoD (j) gate-side -- an AnnAssign target survives annotation-whitespace
-    reformatting AND relocation with ZERO false-red through the production
-    ``_compute_offenders`` path (C-007). The unit-level probe
-    (``tests/unit/test_symbol_key.py::test_dod_j_ann_assign_annotation_whitespace_invariance``)
-    proves ONLY that ``body_hash`` itself is invariant; a unit-only (j)
-    would be the self-validation loophole C-007 forbids -- this proves the
-    GATE does not false-red on the same scenario.
+def test_m10_name_dropped_from_all_reports_gone() -> None:
+    """M10 -- an allowlisted name removed from ``__all__``, symbol still defined, is stale GONE.
+
+    The symbol now belongs to the #470 widened scope, which the ``entries``
+    section never covers, so the entry exempts nothing and must go.
     """
-    original_src = "TTL_SECONDS:int=3600\n"
-    original_module = CorpusModule(ast.parse(original_src), original_src, "synthetic")
-    original_corpus = {"synthetic.old_home": original_module}
-    original_index = classify_collisions(original_corpus)
-    original_key = resolve_symbol_key("TTL_SECONDS", "synthetic.old_home", original_module, corpus=original_corpus)
-    final_key = key_tier(original_key, "synthetic.old_home", original_index)
-    assert final_key is not None
-    allow = frozenset({final_key})
+    source = "__all__ = ['Kept']\nKept = 1\nDropped = 2\n"
+    decls, corpus = _synthetic_inputs({"synthetic.m": source})
+    assert definition_span(corpus["synthetic.m"].tree, "Dropped") is not None, "sanity: the symbol itself is still defined"
 
-    # Relocated AND annotation-whitespace-reformatted -- still dead (no caller).
-    reformatted_src = "TTL_SECONDS : int = 3600\n"
-    reformatted_module = CorpusModule(ast.parse(reformatted_src), reformatted_src, "synthetic")
-    reformatted_corpus = {"synthetic.new_home": reformatted_module}
-    reformatted_index = classify_collisions(reformatted_corpus)
-    decls = {"synthetic.new_home": frozenset({"TTL_SECONDS"})}
-
-    offenders = _compute_offenders(decls, {}, set(), allow, reformatted_corpus, reformatted_index)
-    assert offenders == [], "annotation-whitespace reformatting + relocation must be ZERO false-red at the gate level"
+    result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.m", "Kept"), DeadSymbolKey("synthetic.m", "Dropped")))
+    assert result.offenders == []
+    assert _verdicts(result) == [("synthetic.m::Dropped", StaleVerdict.GONE)]
 
 
-def test_bite_j_gate_single_alias_relocation_zero_false_red() -> None:
-    """DoD (j) gate-side -- a single-alias ``ImportFrom`` entry survives a
-    sibling-alias edit AND relocation with ZERO false-red through the
-    production ``_compute_offenders`` path (C-007). Mirrors the unit-level
-    ``test_dod_j_single_alias_distinct_from_edited_sibling`` probe, but
-    proves the GATE itself does not false-red -- a whole-statement hash
-    would sibling-contaminate ``B`` when ``Alpha``/``Gamma`` are edited.
+def test_stale_superseded_and_moot_verdicts() -> None:
+    """SUPERSEDED and MOOT (data-model §1.5 rules 4-5), each through ``_evaluate_allowlist``.
+
+    SUPERSEDED: an allowlisted Typer command is covered by the T013
+    auto-exemption. MOOT: an allowlisted name in a star-imported module --
+    the offender pass skips the module, so the entry exempts nothing.
     """
-    original_src = "from foo.bar import Alpha, Beta as B, Gamma\n"
-    original_module = CorpusModule(ast.parse(original_src), original_src, "synthetic")
-    original_corpus = {"synthetic.old_home": original_module}
-    original_index = classify_collisions(original_corpus)
-    original_key = resolve_symbol_key("B", "synthetic.old_home", original_module, corpus=original_corpus)
-    final_key = key_tier(original_key, "synthetic.old_home", original_index)
-    assert final_key is not None
-    allow = frozenset({final_key})
+    decls, corpus = _synthetic_inputs({"synthetic.cli": "__all__ = ['run']\n@app.command()\ndef run():\n    pass\n"})
+    superseded = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.cli", "run")))
+    assert superseded.offenders == []
+    assert [finding.render() for finding in superseded.stale] == [f"synthetic.cli::run [SUPERSEDED] {_HINT_SUPERSEDED}"]
 
-    # Relocated AND both sibling aliases renamed -- B itself untouched, still dead.
-    mutated_src = "from foo.bar import AlphaRenamedCompletely, Beta as B, GammaRenamedToo\n"
-    mutated_module = CorpusModule(ast.parse(mutated_src), mutated_src, "synthetic")
-    mutated_corpus = {"synthetic.new_home": mutated_module}
-    mutated_index = classify_collisions(mutated_corpus)
-    decls = {"synthetic.new_home": frozenset({"B"})}
+    star_decls, star_corpus = _synthetic_inputs({"synthetic.starred": "__all__ = ['Thing']\nThing = 1\n"})
+    moot = _evaluate_allowlist(star_decls, {}, {"synthetic.starred"}, star_corpus, _allowlist_of(DeadSymbolKey("synthetic.starred", "Thing")))
+    assert moot.offenders == [], "the offender pass skips a star-imported module"
+    assert _verdicts(moot) == [("synthetic.starred::Thing", StaleVerdict.MOOT)]
 
-    offenders = _compute_offenders(decls, {}, set(), allow, mutated_corpus, mutated_index)
-    assert offenders == [], "single-alias relocation + sibling-edit must be ZERO false-red at the gate level -- B must not be caught"
+
+def test_gone_hint_names_every_candidate_new_home() -> None:
+    """The GONE hint lists each other module where a same-name offender now lives; render drops trailing space."""
+    key = DeadSymbolKey("pkg.old", "N")
+    assert _gone_hint(key, ["pkg.old::N", "pkg.x::Other"]) == _HINT_GONE
+    assert _gone_hint(key, ["pkg.c::N", "pkg.b::N"]) == "probably moved to `pkg.b` or `pkg.c`; update `module:`"
+    assert StaleFinding(key=key, verdict=StaleVerdict.GONE, hint="").render() == "pkg.old::N [GONE]"
+
+
+def test_real_tree_inputs_are_read_only() -> None:
+    """F-06 -- the session-cached walk cannot be mutated by a test.
+
+    A test that added a caller to the cached ``per_symbol`` would silently
+    rescue dead symbols for every later real-tree test on the same worker.
+    """
+    inputs = _real_tree_inputs()
+    assert inputs is _real_tree_inputs(), "the real-tree walk must be cached for the session"
+    for mapping in (inputs.decls, inputs.all_literal_decls, inputs.corpus, inputs.per_symbol, inputs.collision_index):
+        assert isinstance(mapping, MappingProxyType)
+    assert isinstance(inputs.star_targets, frozenset)
+    assert inputs.per_symbol, "sanity: the live tree has import edges"
+    assert all(isinstance(names, frozenset) for names in inputs.per_symbol.values())
+    writable: Any = inputs.per_symbol  # the static type forbids the write; the runtime view must refuse it too
+    with pytest.raises(TypeError):
+        writable["synthetic.planted"] = frozenset({"Planted"})
+
+
+def test_m13_corpus_floor_reds_on_a_quarter_of_the_modules() -> None:
+    """M13 -- the §2.1 non-vacuity floor reds when the walker returns a quarter of the modules.
+
+    Driven through the same ``_corpus_floor_shortfall`` the real gate asserts
+    on, over a truncated COPY of the cached walk (never a monkeypatched walker,
+    which would poison or bypass the session cache).
+    """
+    live = _real_tree_inputs().all_literal_decls
+    assert _corpus_floor_shortfall(live) == [], "control: the live corpus meets the floor"
+
+    modules = sorted(live)
+    quarter = {module: live[module] for module in modules[: len(modules) // 4]}
+    shortfall = _corpus_floor_shortfall(quarter)
+    assert len(shortfall) == 2, shortfall
+    assert f"floor {_CORPUS_FLOOR_NAMES}" in shortfall[0]
+    assert f"floor {_CORPUS_FLOOR_MODULES}" in shortfall[1]
+
+
+def test_m11c_gate_reads_the_widened_section_it_is_given(tmp_path: Path) -> None:
+    """M11(c) (F-05) -- the widened pass reads the widened section of the file it is given.
+
+    A scratch copy of the real allowlist with one ``widened_grandfathered_470``
+    entry popped, loaded through the real loader and evaluated over the real
+    cached corpus, reports exactly that entry as an offender. The control (the
+    committed file's single parse) is clean.
+    """
+    inputs = _real_tree_inputs()
+
+    def evaluate(grandfathered: AbstractSet[str]) -> tuple[list[str], list[str]]:
+        return _evaluate_widened(
+            inputs.decls,
+            inputs.all_literal_decls,
+            inputs.per_symbol,
+            inputs.star_targets,
+            inputs.corpus,
+            inputs.collision_index,
+            grandfathered,
+        )
+
+    assert evaluate(ALLOWLIST.widened_qualified) == ([], []), "control: the committed widened section is clean"
+
+    raw = yaml.safe_load(ALLOWLIST_PATH.read_text(encoding="utf-8"))
+    scratch_doc = copy.deepcopy(raw)
+    widened_entries = scratch_doc["widened_grandfathered_470"]["entries"]
+    popped = min(widened_entries, key=lambda entry: (entry["module"], entry["name"]))
+    widened_entries.remove(popped)
+    scratch_path = tmp_path / "widened_popped.yaml"
+    scratch_path.write_text(yaml.safe_dump(scratch_doc, sort_keys=False), encoding="utf-8")
+    scratch = load_allowlist(scratch_path)
+    popped_qualified = f"{popped['module']}::{popped['name']}"
+    assert scratch.widened_qualified == ALLOWLIST.widened_qualified - {popped_qualified}, "sanity: the loader read the scratch file"
+
+    offenders, widened_stale = evaluate(scratch.widened_qualified)
+    assert offenders == [popped_qualified]
+    assert widened_stale == []
+
+
+def test_annassign_symbol_stays_keyable() -> None:
+    """G1 keyability of an ``AnnAssign`` target, before and after annotation-whitespace reformatting.
+
+    The surviving arm of the retired ``bite_j`` AnnAssign test: an annotated
+    constant must bind a keyable name in both spellings, or its
+    ``(module, name)`` entry could never exempt it.
+    """
+    for source in ("TTL_SECONDS:int=3600\n", "TTL_SECONDS : int = 3600\n"):
+        decls, corpus = _synthetic_inputs({"synthetic.home": "__all__ = ['TTL_SECONDS']\n" + source})
+        module = corpus["synthetic.home"]
+        assert _resolve_final_key("TTL_SECONDS", "synthetic.home", module, corpus, classify_collisions(corpus)) is not None, source
+        result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.home", "TTL_SECONDS")))
+        assert (result.offenders, result.stale) == ([], []), source
+
+
+def test_bite_j_gate_single_alias_sibling_edit_zero_false_red() -> None:
+    """DoD (j) gate-side, non-relocation arm -- a single-alias ``ImportFrom`` entry survives sibling edits.
+
+    ``B`` is bound by ``from foo.bar import Alpha, Beta as B, Gamma`` and
+    allowlisted as ``(synthetic.home, B)``. Renaming both sibling aliases
+    leaves ``B`` keyable and exempt: zero false red through the production
+    path. (The relocation arm was retired with the old identity: a move is
+    now reported, see M8.)
+    """
+    for source in ("from foo.bar import Alpha, Beta as B, Gamma\n", "from foo.bar import AlphaRenamedCompletely, Beta as B, GammaRenamedToo\n"):
+        decls, corpus = _synthetic_inputs({"synthetic.home": "__all__ = ['B']\n" + source})
+        result = _evaluate_allowlist(decls, {}, set(), corpus, _allowlist_of(DeadSymbolKey("synthetic.home", "B")))
+        assert result.offenders == [], f"B must not be caught: {source!r}"
+        assert result.stale == [], [finding.render() for finding in result.stale]

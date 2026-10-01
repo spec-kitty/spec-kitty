@@ -146,6 +146,7 @@ class _SizeRatchet:
 
 
 _NO_DEAD_MODULES_MODULE = "tests.architectural.test_no_dead_modules"
+_DEAD_SYMBOL_ALLOWLIST_MODULE = "tests.architectural._dead_symbol_allowlist"
 
 _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
     # test_no_dead_modules: per-category comparison (FR-112 refactor).
@@ -326,6 +327,24 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "owned_root_bare_path_params",
         "tests.architectural.test_owned_checkout_single_authority",
         "_OWNED_ROOT_BARE_PATH_ALLOWLIST",
+    ),
+    # Burn-down (a) / FR-009 (#5346): the first cap on the (module, name)
+    # dead-symbol allowlist (test_no_dead_symbols.py); value = live count at
+    # landing, read only from the loader module (one authority per count).
+    _SizeRatchet(
+        "test_no_dead_symbols",
+        "allowlist_entries",
+        _DEAD_SYMBOL_ALLOWLIST_MODULE,
+        "SYMBOL_ALLOWLIST",
+    ),
+    # RK-6 ruling: the widened-scope #470 grandfathered list is also a
+    # mutable architectural allowlist (Burn-down (a)); cap it with a second
+    # leaf in the SAME section (no new top-level key).
+    _SizeRatchet(
+        "test_no_dead_symbols",
+        "widened_grandfathered_470",
+        _DEAD_SYMBOL_ALLOWLIST_MODULE,
+        "WIDENED_SCOPE_GRANDFATHERED_470",
     ),
 )
 
@@ -555,17 +574,19 @@ def test_leaf_drift_detects_planted_unenforced_leaf() -> None:
     """NFR-002 self-mutation: ``_leaf_drift`` -- the same pure helper the
     production leaf test calls -- catches planted drift in both directions.
 
-    (a) an extra leaf under an existing section, and (b) a re-added
-    ``test_no_dead_symbols`` section (FR-005 re-entry guarantee, formerly
-    ``test_readding_inert_dead_symbols_key_is_now_rejected``, now at leaf
-    granularity) are both reported unenforced; removing an enforced leaf is
-    reported missing.
+    (a) an extra leaf under an existing section, and (b) a wholly new section
+    with no enforcing row at all, are both reported unenforced; removing an
+    enforced leaf is reported missing. The synthetic section name
+    (``test_never_enforced_section``) must never collide with a real
+    ``_SIZE_RATCHETS`` section -- ``test_no_dead_symbols`` is now legitimately
+    enforced (WP14, test-suite-remediation-01M3SSDW #5346) and would no
+    longer serve as an unenforced-section stand-in.
     """
     planted = copy.deepcopy(_load_baselines())
     planted["test_layer_rules"]["planted_leaf"] = 1
-    planted["test_no_dead_symbols"] = {"x": 1}
+    planted["test_never_enforced_section"] = {"x": 1}
     assert _leaf_drift(planted) == (
-        ["test_layer_rules.planted_leaf", "test_no_dead_symbols.x"],
+        ["test_layer_rules.planted_leaf", "test_never_enforced_section.x"],
         [],
     )
 
@@ -611,11 +632,15 @@ def test_size_ratchet_table_meets_floor() -> None:
     assert len(_SIZE_RATCHETS) >= 19, len(_SIZE_RATCHETS)
     keys = [(r.section, r.leaf) for r in _SIZE_RATCHETS]
     assert len(keys) == len(set(keys)), f"duplicate (section, leaf) rows: {keys}"
-    # 15 gated test-modules: the 12 pre-#5166 sections + `test_no_worktree_name_guess`
-    # (#5108 registered its four worktree-name-gate legs here) + `test_hosted_drain_gate`
-    # (#4971 registered its ungated-edge allowlist here) + `test_owned_checkout_single_authority`
-    # (owned-checkout-lifecycle-authority WP18 registered the gate's zero cap here).
-    assert len(_REQUIRED_TOP_LEVEL_KEYS) == 15, sorted(_REQUIRED_TOP_LEVEL_KEYS)
+    # Shrink-only non-vacuity floor on the gated-section set (FR-006/FR-007,
+    # test-suite-remediation-01M3SSDW #5346): a legitimate section addition
+    # needs 0 edits here (NFR-003) because the floor is `>=`, not `==`. A
+    # legitimate section retirement tightens this floor as a deliberate
+    # ratchet step (spec Edge Case 4). `test_no_dead_symbols` (this mission's
+    # dead-symbol allowlist cap, which also carries the RK-6
+    # `widened_grandfathered_470` leaf in the same section) is one of the
+    # gated sections counted here.
+    assert len(_REQUIRED_TOP_LEVEL_KEYS) >= 16, sorted(_REQUIRED_TOP_LEVEL_KEYS)
 
 
 def test_yaml_leaves_refuses_a_scalar_section() -> None:

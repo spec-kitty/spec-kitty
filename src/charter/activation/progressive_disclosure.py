@@ -385,8 +385,8 @@ def build_disclosure_payload(
 #: caller actually reaches. ``build_disclosure_payload``, ``collect_typed_artifacts``
 #: and ``requires_closure`` are called directly from ``charter.activation.context`` (the
 #: live wiring); ``partition_delivery`` is genuinely forward API with no ``src/``
-#: caller yet (see ``tests/architectural/test_no_dead_symbols.py``'s
-#: ``_CATEGORY_C_DELIVERY_RAIL_FORWARD_API``). Everything else this module
+#: caller yet (see ``category_c_delivery_rail_forward_api`` in
+#: ``tests/architectural/dead_symbol_allowlist.yaml``). Everything else this module
 #: defines (``bare_id``, ``edge_to_reference``, ``outbound_references``,
 #: ``link_references``, ``reconstruct_urns``, ``artifact_to_dict``,
 #: ``DELIVERY_INLINE``/``DELIVERY_LINK``/``STATED_DEFAULT_WHEN``) is an

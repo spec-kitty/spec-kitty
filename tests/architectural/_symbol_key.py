@@ -1,9 +1,14 @@
 """IC-KEY — relocation-tolerant ``SymbolKey`` resolver + live collision classifier.
 
 Mission: ``relocation-hardened-dead-code-scanners-01KX958P``, WP01 (keystone).
-Consumed by ``test_no_dead_symbols.py`` (WP02/WP-REKEY) to re-key the 394-entry
-dead-symbol allow-list off a positional ``module::Name`` string onto a
-relocation-tolerant identity. See ``kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/``
+Consumed by ``test_no_dead_symbols.py`` (WP02/WP-REKEY) for live keyability
+classification and auto-exempt condition (1), via a relocation-tolerant
+runtime identity. The persisted dead-symbol allow-list
+(``dead_symbol_allowlist.yaml``) keys its entries by ``(module, name)``
+(schema: ``_dead_symbol_allowlist.py``, contract:
+``contracts/dead-symbol-allowlist.md``, IC-12) — this module's key is
+runtime-only and does not re-key that allow-list. See
+``kitty-specs/relocation-hardened-dead-code-scanners-01KX958P/``
 (spec.md FR-001..005/009, plan.md IC-KEY, research.md D-1..D-6,
 contracts/symbol-key-resolver.md) for the full design record.
 
@@ -47,9 +52,10 @@ rebuilt from the live corpus each run.
 Body-sensitivity (deliberate, tested)
 --------------------------------------
 Because the content-tier key hashes the symbol's own body text, **editing a
-dead symbol's body changes its key** and produces a false-red until the
-allow-list entry is refreshed. This is the intentional price of relocation
-tolerance (spec.md "Body-sensitivity" scenario) — not a defect.
+dead symbol's body changes its runtime content key**. No persisted
+allow-list entry depends on that key — the allow-list is keyed by
+``(module, name)`` — so a body edit costs 0 allow-list edits (FR-009 /
+SC-003), not the price this module used to describe.
 """
 
 from __future__ import annotations
@@ -58,7 +64,7 @@ import ast
 import hashlib
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from specify_cli.ast_analysis.imports import extract_static_all
 from specify_cli.contracts.anchoring import code_tokens_by_line
@@ -89,29 +95,22 @@ __all__ = [
 
 @dataclass(frozen=True)
 class SymbolKey:
-    """The relocation-tolerant identity for one ``__all__``-declared symbol.
+    """The relocation-tolerant, runtime-only identity for one ``__all__``-declared symbol.
 
     ``module_path is None`` -> content tier (default, relocation-proof).
     ``module_path`` set -> escalated module_path tier (collision-safe,
     relocation-forfeit for this entry only — D-1).
 
-    ``source_module`` is optional, **provenance-only** machine identity (#3552):
-    the module an allowlist entry's `# module::Name` comment currently names,
-    carried on the key so a resolver-recovery path can consult it without
-    re-parsing that comment. It is declared ``compare=False`` and therefore
-    excluded from ``__eq__``/``__hash__``/frozenset membership — a
-    provenance-bearing allowlist entry must still equal (and be found by) a
-    freshly resolver-minted key that carries no provenance at all (`final_key
-    in allowlist`, G1/G2). It also never enters ``body_hash``, ``key_tier``'s
-    escalation decision, or ``as_tuple()`` (G3/G4/G5) — it is inert with
-    respect to identity, tier, and serialization; see
-    ``contracts/non-goal-invariants.md`` for the full G1–G6 guard contract.
+    This key serves live keyability (:func:`resolve_symbol_key`), collision
+    classification (:func:`classify_collisions`) and auto-exempt condition (1)
+    in ``test_no_dead_symbols.py``. It carries no persisted provenance: the
+    dead-symbol allow-list identifies an entry by ``(module, name)`` in
+    ``dead_symbol_allowlist.yaml`` and never stores a body hash.
     """
 
     bare_name: str
     body_hash: str
     module_path: str | None = None
-    source_module: str | None = field(default=None, compare=False)
 
     @property
     def is_content_tier(self) -> bool:

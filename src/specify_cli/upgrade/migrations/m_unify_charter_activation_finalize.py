@@ -478,12 +478,13 @@ class ConsolidateCharterBundleMigration(BaseMigration):
 #: (tests/architectural/test_no_dead_symbols.py) content-tier-hashes bare
 #: module-level ``NAME = "<string>"`` constant declarations structurally, so
 #: a second module also naming a public ``MIGRATION_ID``/``TARGET_VERSION``
-#: constant (``m_3_2_0rc35_unified_bundle.py``) collides in the collision
-#: index regardless of the two literals' actual values, escalating both to
-#: the module_path tier and un-allowlisting them. Trimming ``__all__`` here
-#: (rather than re-allowlisting two symbols) removes the collision at its
-#: root; this module's own tests import these names directly by fully
-#: qualified path (``__all__`` only governs ``from module import *``).
+#: constant (``m_3_2_0rc35_unified_bundle.py``) would collide in the gate's
+#: runtime collision index regardless of the two literals' actual values,
+#: which would disable the re-export auto-exempt (condition 1) for both.
+#: Trimming ``__all__`` here (rather than re-allowlisting two symbols)
+#: removes the collision at its root; this module's own tests import these
+#: names directly by fully qualified path (``__all__`` only governs
+#: ``from module import *``).
 __all__ = [
     "ConsolidateCharterBundleMigration",
 ]

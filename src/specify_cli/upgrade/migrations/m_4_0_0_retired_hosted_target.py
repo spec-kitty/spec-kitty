@@ -223,10 +223,10 @@ class RetiredHostedTargetMigration(BaseMigration):
 # ``@MigrationRegistry.register`` auto-discovery (T013 auto-exempt), and the
 # module constants/helpers below are module-private — ``MIGRATION_ID`` /
 # ``TARGET_VERSION`` are read off the class, never imported. Exporting them
-# would collide with ``m_3_2_0rc35_unified_bundle``'s same-name exports in
-# the dead-symbol gate's body-hash identity (string-literal content is
-# dropped by the token normalizer, so every ``MIGRATION_ID = "<str>"``
-# normalizes identically) and fail-close both modules' allowlist entries.
+# would collide with ``m_3_2_0rc35_unified_bundle``'s same-name exports (both
+# ``MIGRATION_ID = "<str>"`` normalize identically under the token
+# normalizer) in the dead-symbol gate's runtime collision index, which would
+# disable the re-export auto-exempt (condition 1) for both.
 __all__ = [
     "RetiredHostedTargetMigration",
 ]

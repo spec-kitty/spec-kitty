@@ -37,6 +37,7 @@ from tests.architectural import _symbol_key as symbol_key
 from tests.architectural import test_no_dead_modules as dead_modules_gate
 from tests.architectural import test_no_dead_symbols as dead_symbols_gate
 from tests.architectural import test_no_retired_subsystems as retired_gate
+from tests.architectural._dead_symbol_allowlist import DeadSymbolKey
 
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
@@ -182,8 +183,9 @@ def test_planted_dead_symbol_still_red_by_dead_symbol_gate() -> None:
 
     Driven through the *exact* production aggregate path (``_compute_offenders``), so the
     proof exercises the real gate, not a shadow. The gate stays always-on: the only
-    sanctioned neutralizers are a real caller or an explicit SymbolKey allowlist entry —
-    both proven here to flip the flag off, confirming the flagging is load-bearing.
+    sanctioned neutralizers are a real caller or an explicit ``(module, name)`` allowlist
+    entry for a keyable name — both proven here to flip the flag off, confirming the
+    flagging is load-bearing.
     """
     module_dotted = "specify_cli.planted_dead_module"
     symbol_name = "NeverImportedPlanted"
@@ -200,20 +202,16 @@ def test_planted_dead_symbol_still_red_by_dead_symbol_gate() -> None:
     with_caller = {module_dotted: {symbol_name}}
     assert dead_symbols_gate._compute_offenders(decls, with_caller, set(), frozenset(), empty_corpus, empty_index) == []
 
-    # Neutralizer #2 (control): an explicit allowlist entry clears the flag — driven
-    # through the REAL SymbolKey resolver so the exemption is key-based, never a
-    # fabricated string (C-007, no standalone-key self-validation).
+    # Neutralizer #2 (control): an explicit ``(module, name)`` allowlist entry clears the
+    # flag. The exemption also requires the name to be keyable (G1), so the corpus holds
+    # a real definition; the same entry over the empty corpus exempts nothing.
+    allowlist = frozenset({DeadSymbolKey(module_dotted, symbol_name)})
     source = f"{symbol_name} = object()\n"
     module = symbol_key.CorpusModule(tree=ast.parse(source), source=source, containing_pkg="specify_cli")
     corpus = {module_dotted: module}
     collision_index = symbol_key.classify_collisions(corpus)
-    resolved_key = symbol_key.key_tier(
-        symbol_key.resolve_symbol_key(symbol_name, module_dotted, module, corpus=corpus),
-        module_dotted,
-        collision_index,
-    )
-    assert resolved_key is not None
-    assert dead_symbols_gate._compute_offenders(decls, {}, set(), frozenset({resolved_key}), corpus, collision_index) == []
+    assert dead_symbols_gate._compute_offenders(decls, {}, set(), allowlist, corpus, collision_index) == []
+    assert dead_symbols_gate._compute_offenders(decls, {}, set(), allowlist, empty_corpus, empty_index) == [offender]
 
 
 # ---------------------------------------------------------------------------

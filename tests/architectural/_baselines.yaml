@@ -434,3 +434,12 @@ test_hosted_drain_gate:
 # path parameter or field anywhere in src/; growth is a gate evasion.
 test_owned_checkout_single_authority:
   owned_root_bare_path_params: 0  # justification: empty allowlist by construction; never grows.
+
+# tests/architectural/test_no_dead_symbols.py — data file
+# tests/architectural/dead_symbol_allowlist.yaml (test-suite-remediation-01M3SSDW,
+# #5346). The count lives ONLY here, never in the data file (one authority per
+# count, per the loader module's own docstring). Charter Burn-down Policy (a):
+# first cap on the (module, name) dead-symbol allowlist.
+test_no_dead_symbols:
+  allowlist_entries: 293  # justification: first cap (Burn-down (a)) on the (module, name) dead-symbol allowlist introduced by test-suite-remediation-01M3SSDW (#5346); value = live count at landing.
+  widened_grandfathered_470: 91  # justification: RK-6 ruling -- the widened #470 grandfathered list (moved into this YAML by WP11) is also a mutable architectural allowlist (Burn-down (a)); capped with a second leaf in the same section so no new top-level key is needed; value = live count at landing.
