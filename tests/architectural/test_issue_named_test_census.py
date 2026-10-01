@@ -25,7 +25,11 @@ _ISSUE_NAMED = re.compile(r"^test_(?:issue|repro)_\d{3,}")
 
 # Shrink-only high-water mark of issue-named test files under tests/, as of
 # 2026-09-30 after the fold-or-keep pass on the 2026-09-29 slices.
-_HIGH_WATER = 82
+# 2026-10-01: bumped 82 -> 83 for tests/specify_cli/cli/commands/agent/
+# test_issue_3931_lane_restore_preserves_local_files.py, landed by #3931 after
+# the pin without the required bump. A reviewed keep-verdict (the contract's
+# visible-bump path); folding/renaming it belongs to the #3931 move-task line.
+_HIGH_WATER = 83
 
 
 def _is_issue_named(filename: str) -> bool:
