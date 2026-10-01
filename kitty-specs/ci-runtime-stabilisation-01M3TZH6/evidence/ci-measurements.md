@@ -37,11 +37,24 @@ Job IDs:
 | NFR-003 timeouts | fast gate and heavy legs ≤ 30 min; backstop ≤ 40 min | fast gate 10 min, heavy legs 30 min, backstop 40 min (`ci-router.yml`, `ci-nightly.yml`) | pass |
 | NFR-003 headroom (slowest run ≤ 60% of the job timeout) | ≤ 60% | fast gate 3.90 / 10 = 39%; heavy legs 11.70 / 30 = 39% | pass |
 | NFR-003 per-test timeout failures | 0 | 0 in all 9 battery jobs | pass |
-| NFR-003 slowest single battery test | ≤ 180 s | 226.45, 217.51, 216.56 s for `test_interpreter_shard_coverage.py::test_no_shard_collects_zero_tests` | **breach, fixed** in `9f6755daf8` (one case per shard); re-measurement on the fixed head is below |
+| NFR-003 slowest single battery test | ≤ 180 s | 226.45, 217.51, 216.56 s for `test_interpreter_shard_coverage.py::test_no_shard_collects_zero_tests` | **breach on `e01c3b1efd`, fixed** in `9f6755daf8` (one case per shard): slowest is **114.14 s** on the fixed head (see below) |
 | NFR-004 duplicate selections | 0 overlaps outside the allowlist; allowlist ≤ 10 entries, each reasoned | `test_same_tier_uniqueness.py::test_no_per_change_overlap_outside_the_allowlist` green in all three attempts; 4 allowlist entries, each with a reason | pass |
 | NFR-005 peak memory per battery job (memory sampler `peak_rss_bytes`) | < 12 GiB on the 16 GiB runner | attempt 1: fast 3.48, leg 1/2 5.02, leg 2/2 4.86 GiB. Attempt 2: fast 3.46, leg 1/2 4.55, leg 2/2 5.04 GiB. Attempt 3: fast 3.93, leg 1/2 5.00, leg 2/2 5.46 GiB. Max **5.46 GiB** | pass |
 | SC-006 a CI-configuration change runs the architectural gates on its own PR | the battery runs | this PR changes only workflows, `scripts/ci`, tests and the registry and timings; the `ci_config` group selected the fast job and both heavy legs in all three attempts | pass |
 | SC-004 duplicate per-PR selections | 0 outside an allowlist of ≤ 10 | same as NFR-004 | pass |
+
+### Re-measurement on the fixed head
+
+[CI Router 36908397259](https://github.com/spec-kitty/spec-kitty/actions/runs/36908397259) ran at head `18c41d9898`, which carries `9f6755daf8`:
+
+| Job | Duration / end | Peak memory | Slowest test |
+|---|---|---|---|
+| Fast gate job (110524641195) | 4.12 / 4.18 min | 3.99 GiB | 25.06 s |
+| Heavy leg 1/2 (110524816030) | 10.58 / 11.08 min | 5.02 GiB | 83.68 s, `test_shard_union_equals_full_selection_with_zero_gap_and_zero_overlap` (each per-shard zero-test case ≤ 64.28 s) |
+| Heavy leg 2/2 (110524816381) | 6.52 / 7.02 min | 5.36 GiB | 114.14 s, `test_same_tier_uniqueness.py` fixture setup |
+
+- The slowest battery test is now 114.14 s, which meets NFR-003's ≤ 180 s.
+- SC-001: the last battery job ended at 11.08 min. SC-002: the fast gate job ended at 4.18 min.
 
 ### Second-slowest battery test
 
