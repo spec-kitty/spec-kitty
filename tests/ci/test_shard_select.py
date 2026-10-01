@@ -801,6 +801,16 @@ def test_battery_parts_reports_the_weight_resolution_loudly_inputs() -> None:
     assert result.resolution.mismatch
 
 
+def test_battery_parts_do_not_report_a_timed_roster_file_as_stale() -> None:
+    """A fast-roster file is in the base and timed on purpose; only keys outside the base are stale (WP14)."""
+    base, roster, timings = _battery_inputs()
+    complete = {**timings, "t/test_10.py": 1.0, "t/test_11.py": 1.0}
+    result = battery_parts(base, roster, 2, {**complete, "t/test_00.py": 1.5, "t/test_05.py": 2.5})
+    assert result.resolution.stale == ()
+    assert not result.resolution.mismatch
+    assert result.loads == battery_parts(base, roster, 2, complete).loads, "roster timings must not change the shard placement"
+
+
 def test_battery_parts_reject_a_roster_entry_outside_the_base() -> None:
     base, _, timings = _battery_inputs()
     with pytest.raises(ValueError, match=r"t/test_99\.py"):
