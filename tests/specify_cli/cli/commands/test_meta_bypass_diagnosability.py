@@ -51,8 +51,8 @@ class _FakeGitPort:
     def __init__(self, *, blobs: dict[tuple[str, str], bytes | None] | None = None) -> None:
         self._blobs = blobs or {}
 
-    def status_porcelain(self, repo_root: Path, target: Path) -> str:  # pragma: no cover - unused here
-        return ""
+    def status_entries(self, repo_root: Path, target: Path) -> tuple[()]:  # pragma: no cover - unused here
+        return ()
 
     def show_blob(self, repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
         return self._blobs.get((ref, repo_rel_path))

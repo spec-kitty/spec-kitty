@@ -7,7 +7,8 @@ parser when present, and that tasks.md is regenerated from the manifest.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from contextlib import AbstractContextManager
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -30,6 +31,14 @@ def _committed_router_result() -> CommitRouterResult:
     ``mission.safe_commit`` shim, which is no longer on the call path).
     """
     return CommitRouterResult(status="committed", placement_ref="main", commit_hash=_FAKE_SHA)
+
+
+def _status_patch(git_status_out: str = "M tasks.md") -> AbstractContextManager[MagicMock]:
+    """Patch the finalize commit-candidate dirtiness probe (real git is out of scope for these mocks)."""
+    return patch(
+        "specify_cli.cli.commands.agent.mission_finalize._finalize_candidates_dirty",
+        return_value=bool(git_status_out.strip()),
+    )
 
 
 def _make_run_command(git_status_out: str = "M tasks.md"):
@@ -138,6 +147,7 @@ def _invoke_finalize_tasks(
             "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
         ),
+        _status_patch(git_status_out),
     ):
         return runner.invoke(app, args)
 
@@ -354,6 +364,7 @@ class TestFinalizTasksWithWpsYaml:
                 "specify_cli.cli.commands.agent.mission.run_command",
                 side_effect=_make_run_command("M tasks.md"),
             ),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(
                 app, ["finalize-tasks", "--mission", "069-test", "--json"]

@@ -64,6 +64,7 @@ from pathlib import Path
 import typer
 from specify_cli.cli.console import console
 
+from kernel.git import GitCommandError, status_entries
 from kernel.resolution import resolve_rejecting_loops
 from mission_runtime import (
     CommitTarget,
@@ -139,31 +140,16 @@ def _current_worktree_root() -> Path:
 def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
     """Return changed / untracked files (relative to ``repo_root``) under ``rel_dir``.
 
-    Uses ``git status --porcelain --untracked-files=all`` scoped to the
+    Uses ``kernel.git.status_entries`` (untracked files expanded) scoped to the
     directory so the expansion is validated against the actual worktree state —
     a directory argument resolves to exactly the files git would stage.
     """
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all", "--", rel_dir],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Unable to inspect directory '{rel_dir}' before commit.")
-    paths: list[str] = []
-    for line in result.stdout.splitlines():
-        if not line.strip():
-            continue
-        # Porcelain v1 line: ``XY <path>`` (or ``XY <old> -> <new>`` for renames).
-        entry = line[3:]
-        if " -> " in entry:
-            entry = entry.split(" -> ", 1)[1]
-        paths.append(entry.strip().strip('"'))
-    return paths
+    try:
+        entries = status_entries(repo_root, untracked="all", pathspecs=[rel_dir])
+    except GitCommandError as exc:
+        # Guard: this decides what a directory argument commits, so a failed probe aborts.
+        raise RuntimeError(f"Unable to inspect directory '{rel_dir}' before commit.") from exc
+    return [str(entry.path) for entry in entries]
 
 
 def _expand_arguments(
@@ -205,18 +191,11 @@ def _has_candidate_changes(repo_root: Path, files_to_commit: list[Path]) -> bool
     if not files_to_commit:
         return False
     rel_paths = [str(path.relative_to(repo_root)) if path.is_absolute() else str(path) for path in files_to_commit]
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all", "--", *rel_paths],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError("Unable to inspect requested files before commit.")
-    return bool(result.stdout.strip())
+    try:
+        return bool(status_entries(repo_root, untracked="all", pathspecs=rel_paths))
+    except GitCommandError as exc:
+        # Guard: "no candidate changes" gates the commit, so a failed probe aborts.
+        raise RuntimeError("Unable to inspect requested files before commit.") from exc
 
 
 def _payload(*, success: bool, committed: bool = False, files: list[str] | None = None, error: str | None = None) -> dict[str, object]:

@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
+from kernel.git import GitCommandError, status_entries
 from mission_runtime import CommitTarget
 
 from specify_cli.core.agent_config import get_auto_commit_default
@@ -202,45 +203,27 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
     Returns ``None`` when ``git status`` fails (e.g. not a git repo) so
     callers can distinguish "no dirty files" from "unable to determine".
     """
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
-        cwd=repo_path,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
+    try:
+        entries = status_entries(repo_path, untracked="all")
+    except GitCommandError:
+        # The documented "unable to determine" contract: callers skip the
+        # auto-commit rather than read a failed probe as a clean checkout.
         return None
 
-    entries = result.stdout.decode("utf-8", errors="replace").split("\0")
     paths = _GitStatusPaths()
-
-    i = 0
-    while i < len(entries):
-        entry = entries[i]
-        i += 1
-        if not entry or len(entry) < 4:
+    for entry in entries:
+        # A rename/copy lists the *destination* (new name) as ``entry.path``.
+        # The public path set keeps it because that is what exists now
+        # (#2492), while the attached origin preserves ownership continuity
+        # and lets the commit path stage a rename's source deletion as well.
+        normalized = _normalize_status_path(str(entry.path))
+        if not normalized:
             continue
-
-        status = entry[:2]
-        path = entry[3:]
-        source: str | None = None
-
-        # With -z format, renames/copies report the *destination* (new name)
-        # first — it is already in ``path`` — followed by a second
-        # NUL-separated entry holding the *source* (old name). The public path
-        # set keeps the destination because that is what exists now (#2492),
-        # while the attached origin preserves ownership continuity and lets
-        # the commit path stage a rename's source deletion as well.
-        if ("R" in status or "C" in status) and i < len(entries) and entries[i]:
-            source = _normalize_status_path(entries[i])
-            i += 1
-
-        normalized = _normalize_status_path(path)
-
-        if normalized:
-            paths.add(normalized)
+        paths.add(normalized)
+        if entry.orig_path is not None:
+            source = _normalize_status_path(str(entry.orig_path))
             if source:
-                paths.record_origin(normalized, source, is_rename="R" in status)
+                paths.record_origin(normalized, source, is_rename="R" in entry.xy)
 
     return paths
 

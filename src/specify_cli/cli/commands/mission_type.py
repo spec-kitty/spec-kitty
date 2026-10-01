@@ -18,6 +18,7 @@ import contextlib
 import json
 import warnings
 
+from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
@@ -984,20 +985,16 @@ def _meta_has_uncommitted_changes(repo_root: Path, meta_path: Path) -> bool:
     """
     if not meta_path.exists():
         return False
-    from specify_cli.core.git_ops import run_command
-
     rel = str(meta_path)
     resolved_root = repo_root.resolve()
     if meta_path.is_absolute():
         with contextlib.suppress(ValueError):
             rel = str(meta_path.resolve().relative_to(resolved_root))
-    ret, out, _ = run_command(
-        ["git", "status", "--porcelain", "--", rel],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    return ret == 0 and bool(out.strip())
+    try:
+        return bool(status_entries(repo_root, untracked=None, pathspecs=[rel]))
+    except GitCommandError:
+        # Advisory (documented fail-open): an unreadable tree reports "not dirty" so the tolerant commit leg no-ops.
+        return False
 
 
 def _commit_flattened_meta(repo_root: Path, feature_dir: Path, mission_slug: str) -> None:

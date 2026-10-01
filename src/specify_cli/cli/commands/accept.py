@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
 import typer
 from rich.table import Table
+from kernel.git import GitCommandError, StatusEntry, changed_paths
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode, TopologySurface
 
 from specify_cli.acceptance import (
@@ -45,7 +47,7 @@ from specify_cli.task_utils import (
     LANES,
     TaskCliError,
     find_repo_root,
-    git_status_lines,
+    git_status_entries,
     run_git,
 )
 
@@ -84,8 +86,8 @@ def _stranded_verdict_provenance_note(feature_dir: Path) -> str | None:
     )
 
 
-def _dirty_paths_with_prefix(status_lines: list[str], prefix: str) -> list[str]:
-    """Filter ``git status --porcelain`` lines to tracked-modified paths under ``prefix``.
+def _dirty_paths_with_prefix(status: Iterable[StatusEntry], prefix: str) -> list[str]:
+    """Filter ``git status`` entries to tracked-modified paths under ``prefix``.
 
     Shared by the primary and coordination-worktree scans (T008) so both
     surfaces apply the identical filtering rule: rename entries resolve to
@@ -93,25 +95,13 @@ def _dirty_paths_with_prefix(status_lines: list[str], prefix: str) -> list[str]:
     excluded so the cleanup commit never sweeps in unrelated, unmanaged files
     the operator may have created.
     """
-    dirty: list[str] = []
-    for line in status_lines:
-        # Porcelain format: two status chars, a space, then the path.
-        status_code = line[:2]
-        path = line[3:].strip()
-        # Rename entries look like "old -> new"; keep the destination path.
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1].strip()
-        if status_code == "??":
-            continue
-        if path.startswith(prefix):
-            dirty.append(path)
-    return dirty
+    return [str(entry.path) for entry in status if not entry.is_untracked and str(entry.path).startswith(prefix)]
 
 
 def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     """Return tracked-but-uncommitted spec/meta artifacts in the PRIMARY checkout."""
     prefix = f"kitty-specs/{mission_slug}/"
-    return _dirty_paths_with_prefix(git_status_lines(repo_root), prefix)
+    return _dirty_paths_with_prefix(git_status_entries(repo_root), prefix)
 
 
 def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
@@ -201,7 +191,7 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedChecko
     the coordination worktree's ``feature_dir`` under coordination topology
     (:func:`~specify_cli.acceptance.resolve_feature_dir_for_mission` /
     :func:`~mission_runtime.placement_seam`). A primary-only
-    ``git_status_lines(repo_root)`` scan can never see that dirt — it lives in
+    ``git_status_entries(repo_root)`` scan can never see that dirt — it lives in
     a completely separate git worktree. This mirrors :func:`_primary_dirty_paths`
     against that surface instead.
     """
@@ -209,7 +199,7 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedChecko
     if worktree_root is None:
         return []
     prefix = f"kitty-specs/{mission_slug}/"
-    return _dirty_paths_with_prefix(git_status_lines(worktree_root), prefix)
+    return _dirty_paths_with_prefix(git_status_entries(worktree_root), prefix)
 
 
 def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
@@ -385,12 +375,11 @@ def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[st
     # pre-staged outside the mission dir; the explicit ``-- <paths>`` pathspec
     # commits exactly these spec/meta artifacts and leaves unrelated staged work
     # untouched.
-    staged = run_git(
-        ["diff", "--cached", "--name-only", "--", *dirty],
-        cwd=repo_root,
-        check=True,
-    )
-    staged_files = [line.strip() for line in staged.stdout.splitlines() if line.strip()]
+    try:
+        staged_files = changed_paths(repo_root, cached=True, renames=True, pathspecs=dirty)
+    except GitCommandError as exc:
+        # Guard: "nothing staged" skips the commit, so a failed probe must abort.
+        raise TaskCliError(str(exc)) from exc
     if not staged_files:
         return False
 

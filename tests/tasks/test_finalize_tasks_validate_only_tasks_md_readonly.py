@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from contextlib import AbstractContextManager
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -38,6 +39,14 @@ _FAKE_SHA = "b" * 40
 _MISSION = "069-tasks-md-readonly"
 
 _WPS_YAML = "work_packages:\n  - id: WP01\n    title: Test\n    dependencies: []\n    requirement_refs: [FR-001]\n"
+
+
+def _status_patch(git_status_out: str = "M tasks.md") -> AbstractContextManager[MagicMock]:
+    """Patch the finalize commit-candidate dirtiness probe (real git is out of scope for these mocks)."""
+    return patch(
+        "specify_cli.cli.commands.agent.mission_finalize._finalize_candidates_dirty",
+        return_value=bool(git_status_out.strip()),
+    )
 
 
 def _run_command(git_status_out: str = "M tasks.md"):  # noqa: ANN202
@@ -111,6 +120,7 @@ def _invoke(tmp_path: Path, feature_dir: Path, *extra_args: str) -> object:
             "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_run_command(),
         ),
+        _status_patch(),
     ):
         return runner.invoke(app, args)
 
@@ -204,6 +214,7 @@ class TestValidateOnlyNeverRewritesTasksMd:
                 "specify_cli.cli.commands.agent.mission.run_command",
                 side_effect=_run_command(),
             ),
+            _status_patch(),
         ):
             result = runner.invoke(app, args)
 

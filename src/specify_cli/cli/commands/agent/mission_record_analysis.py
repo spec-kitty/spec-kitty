@@ -21,6 +21,7 @@ import subprocess
 import sys
 from typing import Annotated
 
+from kernel.git import GitCommandError, status_entries
 from specify_cli.cli.console import console
 import typer
 
@@ -34,6 +35,7 @@ from mission_runtime import (
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
+from specify_cli.review.dirty_classifier import status_entry_paths
 from specify_cli.core.paths import (
     get_feature_target_branch,
     get_main_repo_root,
@@ -75,29 +77,22 @@ def _emit_record_analysis_error(message: str, *, json_output: bool) -> None:
 
 
 def _git_dirty_paths(repo_root: Path) -> list[str]:
-    """Return dirty paths from `git status --porcelain`, or an empty list outside git."""
+    """Return dirty paths from ``git status``, or an empty list outside git.
+
+    A rename contributes both its source and destination path; a directory
+    entry keeps its trailing ``/``.
+
+    Raises:
+        RuntimeError: git could not report status. Guard: the write preflight
+            must fail closed, never read a failed probe as a clean tree.
+    """
     if not is_git_repo(repo_root):
         return []
     try:
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=repo_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-    except FileNotFoundError:
-        return []
-    if result.returncode != 0:
-        raise RuntimeError((result.stderr or "git status failed").strip())
-    dirty: list[str] = []
-    for line in result.stdout.splitlines():
-        if not line.strip():
-            continue
-        dirty.append(line[3:].strip() if len(line) > 3 else line.strip())
-    return dirty
+        entries = status_entries(repo_root, untracked=None)
+    except GitCommandError as exc:
+        raise RuntimeError(exc.stderr.strip() or "git status failed") from exc
+    return [path for entry in entries for path in status_entry_paths(entry)]
 
 
 def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -> CommitTarget | None:

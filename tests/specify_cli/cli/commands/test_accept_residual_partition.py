@@ -11,7 +11,7 @@ followed from that:
   checkout can only ever commit files tracked in the PRIMARY tree — it has no
   way to reach a *different* git worktree at all.
 * **M2 dirty-detection gap (T008)** — ``_spec_artifact_dirty_paths`` scanned
-  only ``git_status_lines(repo_root)`` (the PRIMARY tree). Under coord
+  only ``git_status_entries(repo_root)`` (the PRIMARY tree). Under coord
   topology the matrix write lands in the coordination worktree, a completely
   separate git checkout, so its dirt was invisible to the scan and the
   residual commit step silently no-opped, leaving the coord worktree dirty.
@@ -166,7 +166,7 @@ def test_dirty_scan_detects_coord_worktree_residue(tmp_path: Path) -> None:
     ``write_acceptance_matrix`` rewrites the matrix in the COORD worktree
     (mirroring what accept's readiness checks do); the PRIMARY checkout stays
     perfectly clean throughout. Pre-fix, ``_spec_artifact_dirty_paths`` only
-    consulted ``git_status_lines(repo_root)`` (primary) and returned ``[]`` —
+    consulted ``git_status_entries(repo_root)`` (primary) and returned ``[]`` —
     the M2 gap this test proves RED against.
     """
     repo_root = (tmp_path / "repo").resolve()

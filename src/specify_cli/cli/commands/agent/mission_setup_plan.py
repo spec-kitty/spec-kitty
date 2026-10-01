@@ -32,7 +32,6 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import shutil
-import subprocess
 from collections.abc import Mapping, Sequence
 from typing import Annotated, Literal, cast
 
@@ -42,6 +41,7 @@ import typer
 
 from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
+from kernel.git import GitCommandError, status_entries
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
@@ -102,16 +102,12 @@ def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
         with contextlib.suppress(ValueError):
             candidate = candidate.relative_to(repo_root)
 
-    status = subprocess.run(
-        ["git", "status", "--porcelain", "--", str(candidate)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    return status.returncode == 0 and not status.stdout.strip()
+    try:
+        return not status_entries(repo_root, pathspecs=[str(candidate)], untracked=None)
+    except GitCommandError:
+        # Advisory: "no changes" only skips a redundant commit; when git cannot
+        # say, report "has changes" so the commit is still attempted.
+        return False
 
 
 def _print_artifact_unchanged(artifact_type: str, json_output: bool) -> None:

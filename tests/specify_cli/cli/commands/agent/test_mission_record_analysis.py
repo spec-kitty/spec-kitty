@@ -36,28 +36,26 @@ def test_git_dirty_paths_empty_outside_git(monkeypatch: pytest.MonkeyPatch, tmp_
     assert seam._git_dirty_paths(tmp_path) == []
 
 
-def test_git_dirty_paths_parses_porcelain(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_git_dirty_paths_parses_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # Real git (the probe now asks ``kernel.git`` for NUL-delimited entries, so a
+    # mocked ``subprocess.run`` no longer reaches it).
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_text("x\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "-c", "user.email=t@e.c", "-c", "user.name=T", "commit", "-qm", "i"], cwd=tmp_path, check=True)
+    (tmp_path / "src" / "a.py").write_text("y\n", encoding="utf-8")
+    (tmp_path / "new.txt").write_text("n\n", encoding="utf-8")
     monkeypatch.setattr(seam, "is_git_repo", lambda _root: True)
-
-    class _Result:
-        returncode = 0
-        stdout = " M src/a.py\n?? new.txt\n\n"
-        stderr = ""
-
-    monkeypatch.setattr(seam.subprocess, "run", lambda *a, **k: _Result())
     assert seam._git_dirty_paths(tmp_path) == ["src/a.py", "new.txt"]
 
 
 def test_git_dirty_paths_raises_on_git_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(seam, "is_git_repo", lambda _root: True)
-
-    class _Result:
-        returncode = 1
-        stdout = ""
-        stderr = "fatal: boom"
-
-    monkeypatch.setattr(seam.subprocess, "run", lambda *a, **k: _Result())
-    with pytest.raises(RuntimeError, match="boom"):
+    # ``tmp_path`` is not a repository, so the real git probe fails.
+    with pytest.raises(RuntimeError, match="not a git repository"):
         seam._git_dirty_paths(tmp_path)
 
 

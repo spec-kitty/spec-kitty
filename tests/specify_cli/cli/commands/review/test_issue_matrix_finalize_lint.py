@@ -136,6 +136,9 @@ def _common_patches(tmp_path: Path) -> dict[str, MagicMock]:
             return_value=fake_commit
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
+        # finalize reads dirty candidates through ``kernel.git.status_entries`` (no longer
+        # ``run_command`` porcelain text); this narrow seam keeps the commit path hermetic.
+        "specify_cli.cli.commands.agent.mission_finalize._finalize_candidates_dirty": MagicMock(return_value=True),
         # Leak #1 (mission integration-boundary-01KW0PBE) removed the module-level
         # ``emit_mission_created`` import from core.mission_creation; the MissionCreated
         # projection now flows through the canonical status facade

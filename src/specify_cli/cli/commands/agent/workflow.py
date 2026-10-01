@@ -67,6 +67,8 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 
+from kernel.git import GitCommandError, status_entries
+
 if TYPE_CHECKING:
     from rich.console import Console
 
@@ -765,6 +767,21 @@ def _resolve_legacy_porcelain_root(
         return repo_root
 
 
+def _legacy_paths_already_committed(root: Path, paths: list[Path]) -> bool:
+    """True when git positively reports nothing pending for *paths* in *root*.
+
+    No ``--untracked-files`` flag, as before. Advisory: this pre-check only lets
+    an already-committed state skip the commit; when git cannot answer, report
+    ``False`` so ``safe_commit`` (which guards and reports its own failure)
+    runs, rather than skip a commit or record a receipt for state that never
+    landed.
+    """
+    try:
+        return not status_entries(root, pathspecs=[str(p) for p in paths], untracked=None)
+    except GitCommandError:
+        return False
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
@@ -793,16 +810,7 @@ def _commit_via_legacy_safe_commit(
     # ``repo_root`` — a gitignored ``.worktrees/`` status file reads as clean
     # from ``repo_root`` and would trip a phantom "already committed" no-op.
     porcelain_root = _resolve_legacy_porcelain_root(repo_root, mission_slug, mid8)
-    porcelain = subprocess.run(
-        ["git", "status", "--porcelain", "--", *[str(p) for p in paths]],
-        cwd=porcelain_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if porcelain.returncode == 0 and not porcelain.stdout.strip():
+    if _legacy_paths_already_committed(porcelain_root, paths):
         # State already present at HEAD (persisted by the transactional emit).
         _record_receipt(
             target_branch,

@@ -148,7 +148,7 @@ def _cancel_via_move_task(tmp_path: Path, mission_slug: str, wp_id: str, *, note
 
 
 def _collect(tmp_path: Path, mission_slug: str) -> Any:
-    with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+    with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
         mock_git.return_value.stdout = f"{_TARGET_BRANCH}\n"
         return collect_feature_summary(tmp_path, mission_slug, strict_metadata=False)
 

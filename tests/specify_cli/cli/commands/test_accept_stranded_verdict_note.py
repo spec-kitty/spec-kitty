@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -106,6 +107,9 @@ def _run_accept_json(
     no ``.kittify/`` marker (matches the existing readiness-path test
     convention in ``test_accept_readiness_no_write.py``).
     """
+    # The clean-working-tree probe fails closed outside a repository, so the
+    # fixture must be a real (empty) one for accept to reach the advisories.
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     with contextlib.suppress(typer.Exit):
         accept(

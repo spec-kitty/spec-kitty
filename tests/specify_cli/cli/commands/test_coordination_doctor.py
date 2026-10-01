@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 import typer
 
+from kernel.git import GitCommandError, GitPath, StatusEntry
 from specify_cli.cli.commands import _coordination_doctor as cd
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
 from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
@@ -76,25 +77,23 @@ def test_check_git_version_undetectable_branch(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_tracked_worktrees_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: "")
+    monkeypatch.setattr(cd, "tracked_paths", lambda *a, **k: ())
     out = cd._check_tracked_worktrees_content(tmp_path)
     assert out[0].severity == "ok"
 
 
 def test_tracked_worktrees_flagged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(
-        subprocess, "check_output", lambda *a, **k: ".worktrees/m-coord/file.txt\n"
-    )
+    monkeypatch.setattr(cd, "tracked_paths", lambda *a, **k: (GitPath.parse(".worktrees/m-coord/file.txt"),))
     out = cd._check_tracked_worktrees_content(tmp_path)
     assert out[0].severity == "error"
     assert out[0].error_code == "TRACKED_WORKTREES_CONTENT"
 
 
 def test_tracked_worktrees_git_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def _boom(*_a: Any, **_k: Any) -> str:
-        raise OSError("not a repo")
+    def _boom(*_a: Any, **_k: Any) -> tuple[GitPath, ...]:
+        raise GitCommandError(argv=("ls-files",), cwd=tmp_path, returncode=128, stderr="not a repo")
 
-    monkeypatch.setattr(subprocess, "check_output", _boom)
+    monkeypatch.setattr(cd, "tracked_paths", _boom)
     assert cd._check_tracked_worktrees_content(tmp_path) == []
 
 
@@ -272,14 +271,14 @@ def test_coord_head_finding_detached(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
 
 def test_coord_dirty_finding(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: " M file.py\n")
+    monkeypatch.setattr(cd, "status_entries", lambda *a, **k: (StatusEntry(xy=" M", path=GitPath.parse("file.py")),))
     finding = cd._coord_worktree_dirty_finding(tmp_path)
     assert finding is not None
     assert finding.error_code == "COORDINATION_WORKTREE_DIRTY"
 
 
 def test_coord_dirty_finding_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: "")
+    monkeypatch.setattr(cd, "status_entries", lambda *a, **k: ())
     assert cd._coord_worktree_dirty_finding(tmp_path) is None
 
 

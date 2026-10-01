@@ -51,6 +51,7 @@ from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
 
 from kernel._safe_re import re
+from kernel.git import GitCommandError, StatusEntry, status_entries
 from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind, TopologyManifestMismatch
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
@@ -2594,7 +2595,7 @@ def _refresh_worktree_status_findings(
     if status_error is not None:
         findings.append(f"primary worktree status could not be inspected: {status_error}")
     elif primary_status:
-        findings.append(f"primary worktree has pending changes: {primary_status}")
+        findings.append(f"primary worktree has pending changes: {_render_pending_entries(primary_status)}")
 
     from mission_runtime import placement_seam, routes_through_coordination, resolve_mid8, resolve_topology
 
@@ -2617,7 +2618,7 @@ def _refresh_worktree_status_findings(
     if status_error is not None:
         findings.append(f"coordination worktree status could not be inspected: {status_error}")
     elif coord_status:
-        findings.append(f"coordination worktree has pending status/history changes: {coord_status}")
+        findings.append(f"coordination worktree has pending status/history changes: {_render_pending_entries(coord_status)}")
     return findings
 
 
@@ -2646,22 +2647,20 @@ def _report_refresh_status_findings(
     console.print("  Mutating refresh status preflight: no pending primary or coordination changes")
 
 
-def _read_refresh_worktree_status(worktree: Path) -> tuple[str | None, str | None]:
-    """Return porcelain status and any diagnostic from a read-only Git probe."""
+def _render_pending_entries(entries: tuple[StatusEntry, ...]) -> str:
+    """One display line per pending entry (for a finding message; never parsed back)."""
+    return "\n".join(entry.display() for entry in entries)
+
+
+def _read_refresh_worktree_status(worktree: Path) -> tuple[tuple[StatusEntry, ...] | None, str | None]:
+    """Return the pending status entries and any diagnostic from a read-only Git probe."""
     try:
-        result = subprocess.run(
-            ["git", "--no-optional-locks", "status", "--porcelain=v1", "--untracked-files=all"],
-            cwd=worktree,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError as exc:
-        return None, f"refresh could not inspect worktree {worktree}: {exc}"
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
+        # ``optional_locks=False``: a read-only probe must not refresh (write) the index.
+        return status_entries(worktree, untracked="all", optional_locks=False), None
+    except GitCommandError as exc:
+        # Guard: a failed probe is reported as a blocking finding, never as "clean".
+        detail = exc.stderr.strip()
         return None, f"refresh could not inspect worktree {worktree}: {detail or 'git status failed'}"
-    return result.stdout.strip(), None
 
 
 def _refresh_branch_contract_error(
@@ -3539,6 +3538,15 @@ class _FinalizeCommitCandidates:
     has_relevant_changes: bool
 
 
+def _finalize_candidates_dirty(repo_root: Path, files_to_commit_rel: list[str]) -> bool:
+    """True when any finalize candidate path has a pending change.
+
+    A failed probe propagates (``GitCommandError``) rather than reading as "no
+    changes", which would silently skip the finalize commit.
+    """
+    return bool(status_entries(repo_root, pathspecs=files_to_commit_rel, untracked=None))
+
+
 def _resolve_finalize_commit_candidates(
     planning_dir: Path,
     tasks_dir: Path,
@@ -3558,23 +3566,13 @@ def _resolve_finalize_commit_candidates(
     and dropped entirely when the pending delta is not confined to the
     fields finalize-tasks itself owns.
     """
-    from specify_cli.cli.commands.agent import mission as _mission
-
     files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
     meta_json_path = planning_dir / META_JSON_FILENAME
     if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(meta_json_path, repo_root):
         files_to_commit = [path for path in files_to_commit if path != meta_json_path]
     files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
 
-    has_relevant_changes = False
-    if files_to_commit_rel:
-        _rc, status_out, _status_err = _mission.run_command(
-            ["git", "status", "--porcelain", "--", *files_to_commit_rel],
-            check_return=True,
-            capture=True,
-            cwd=repo_root,
-        )
-        has_relevant_changes = bool(status_out.strip())
+    has_relevant_changes = bool(files_to_commit_rel) and _finalize_candidates_dirty(repo_root, files_to_commit_rel)
     return _FinalizeCommitCandidates(
         files_to_commit=files_to_commit,
         files_to_commit_rel=files_to_commit_rel,

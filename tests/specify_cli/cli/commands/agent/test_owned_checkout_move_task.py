@@ -576,6 +576,43 @@ def test_owned_review_refuses_auto_commit_outside_owned_files(finalized_checkout
     assert (snapshot(primary), snapshot(sibling)) == other_before
 
 
+def test_owned_review_refuses_a_rename_from_outside_owned_files(finalized_checkouts):
+    """Intended behaviour change (git-paths-are-data): a rename stages its source too.
+
+    Moving ``other.py`` onto ``app.py`` deletes ``other.py``, which is outside
+    ``owned_files``, so the owned auto-commit refuses rather than committing that
+    deletion. The move is unstaged (``mv`` + intent-to-add, a worktree rename):
+    a staged ``git mv`` is refused earlier by the clean-index precondition.
+    """
+    primary, owned, sibling = finalized_checkouts
+    other_before = snapshot(primary), snapshot(sibling)
+    started = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "doing", "--agent", "implementer", "--mission", SLUG, "--owned-checkout", str(owned), "--json"],
+    )
+    assert started.exit_code == 0, started.output
+    git(owned, "rm", "-q", "app.py")
+    (owned / "other.py").write_text("VALUE = 7\nOTHER = True\n", encoding="utf-8")
+    git(owned, "add", "other.py")
+    git(owned, "commit", "-qm", "fixture: move the value into other.py")
+    (owned / "other.py").rename(owned / "app.py")
+    git(owned, "add", "--intent-to-add", "app.py")
+    before_review = git(owned, "rev-parse", "HEAD")
+
+    submitted = CliRunner().invoke(
+        tasks_app,
+        ["move-task", "WP01", "--to", "for_review", "--agent", "implementer", "--mission", SLUG, "--owned-checkout", str(owned), "--json"],
+    )
+
+    assert submitted.exit_code == 1, submitted.output
+    payload = json.loads(submitted.output)
+    assert payload["error_code"] == "OWNED_DELIVERABLE_SCOPE_REFUSED"
+    assert "other.py" in json.dumps(payload)
+    assert git(owned, "rev-parse", "HEAD") == before_review
+    assert git(owned, "status", "--porcelain").splitlines() == ["R other.py -> app.py"]  # git() strips the leading worktree-column space
+    assert (snapshot(primary), snapshot(sibling)) == other_before
+
+
 @pytest.mark.parametrize("invalid_base", [None, "f" * 40, "HEAD"])
 def test_owned_review_refuses_invalid_planning_commit_before_effects(finalized_checkouts, monkeypatch, invalid_base):
     primary, owned, _sibling = finalized_checkouts

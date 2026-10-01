@@ -62,9 +62,10 @@ import fnmatch
 import json
 import logging
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from kernel.clock import format_stamp, now_utc
+from kernel.git import GitCommandError, GitPath, StatusEntry, status_entries
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -124,7 +125,7 @@ from specify_cli.core.env import pre_review_gate_skip_reason
 from specify_cli.core.paths import assert_safe_path_segment, is_worktree_context
 from mission_runtime import OwnedCheckout
 from specify_cli.core.owned_mission import require_unstaged_index
-from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
+from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files, merge_base_changed_files_checked
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
@@ -677,19 +678,19 @@ def _mt_build_request(
     )
 
 
-def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, ...]:
-    """Parse ``git status --porcelain`` lines into absolute deliverable paths."""
-    paths: list[Path] = []
-    for line in porcelain.splitlines():
-        if len(line) < 4:
-            continue
-        entry = line[3:]
-        if " -> " in entry:  # rename/copy — the destination is the live path
-            entry = entry.split(" -> ", 1)[1]
-        entry = entry.strip().strip('"')
-        if entry:
-            paths.append(worktree_path / entry)
-    return tuple(paths)
+def _lane_deliverable_paths(worktree_path: Path, entries: Iterable[StatusEntry]) -> tuple[Path, ...]:
+    """Turn status entries into absolute deliverable paths.
+
+    A rename/copy names two paths: stage both the source (its deletion) and the
+    destination, skipping any side that is spec-kitty runtime state.
+    """
+    from specify_cli.cli.commands.agent.tasks_shared import _filter_runtime_state_paths
+
+    sides: list[GitPath] = []
+    for entry in entries:
+        sides.extend(side for side in (entry.orig_path, entry.path) if side is not None)
+    deliverable = _filter_runtime_state_paths(StatusEntry(xy="??", path=side) for side in sides)
+    return tuple(worktree_path / str(entry.path) for entry in deliverable)
 
 
 def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
@@ -851,11 +852,20 @@ def _mt_require_owned_implementation(st: _MoveTaskState) -> None:
     assert st.owned is not None
     assert st.review_base_ref is not None
     patterns = _mt_owned_file_patterns(st)
-    changed = merge_base_changed_files(
+    changed = merge_base_changed_files_checked(
         st.owned.owned_root,
         st.review_base_ref,
         diff_filter="ACDMRTUXB",
     )
+    if changed is None:
+        # Guard (FR-013): an unreadable diff refuses with its own message.
+        raise ActionContextError(
+            "OWNED_IMPLEMENTATION_MISSING",
+            "Owned review could not read the committed change set: the merge-base diff against review base "
+            f"{st.review_base_ref} (lanes.json `planning_commit_sha`) failed in {st.owned.owned_root}. "
+            "Make sure that commit is reachable in this checkout (fetch it, or recreate the local branch that carries it), "
+            f"or repoint `planning_commit_sha` in {st.feature_dir / 'lanes.json'} to a commit that is an ancestor of HEAD, then retry.",
+        )
     if not patterns or not any(_mt_matches_owned_file(path, patterns) for path in changed):
         raise ActionContextError(
             "OWNED_IMPLEMENTATION_MISSING",
@@ -913,20 +923,15 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     if not worktree_path.exists():
         return
 
-    status = _tasks.subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if status.returncode != 0:
+    try:
+        status = status_entries(worktree_path, untracked=None)
+    except GitCommandError:
+        # Advisory: a failed probe just skips the best-effort auto-commit; the
+        # for_review uncommitted-changes guard still runs and blocks the move.
         return
     # Reuse the guard's runtime-state filter so we only commit genuine deliverables
     # (never spec-kitty's own review-lock / .kittify bookkeeping).
-    filtered = _tasks._filter_runtime_state_paths(status.stdout)
+    filtered = _tasks._filter_runtime_state_paths(status)
     if not filtered:
         return
     paths = _lane_deliverable_paths(worktree_path, filtered)
@@ -1480,27 +1485,29 @@ def _mt_pre_review_changed_files(worktree_path: Path, base_branch: str) -> tuple
     changed-file set, not just spec docs. Any git failure degrades to an
     empty tuple (folds into a cheap ``no_coverage`` warn), never a crash.
     """
+    # FR-013 advisory: a git failure only narrows the test scope, so () is acceptable.
     changed = set(merge_base_changed_files(worktree_path, base_branch))
-    changed.update(_mt_pre_review_dirty_paths(worktree_path))
+    # Advisory: these paths only widen the test scope; an unknown snapshot adds none.
+    changed.update(_mt_pre_review_dirty_paths(worktree_path) or ())
     return tuple(sorted(changed))
 
 
-def _mt_pre_review_dirty_paths(worktree_path: Path) -> tuple[str, ...]:
-    """Return relevant staged, unstaged, and untracked deliverable paths."""
+def _mt_pre_review_dirty_paths(worktree_path: Path) -> tuple[str, ...] | None:
+    """Relevant staged, unstaged, and untracked deliverable paths, or ``None`` when unknown.
+
+    ``None`` (a failed probe) is distinct from ``()`` (provably clean): the
+    byproduct enrolment must not read an unknown snapshot as an empty one, or
+    every pre-existing dirty file would look like a subprocess byproduct. The
+    advisory test-scope caller (:func:`_mt_pre_review_changed_files`) degrades
+    ``None`` to "no extra paths".
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    status = _tasks.subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if status.returncode != 0:
-        return ()
-    filtered = _tasks._filter_runtime_state_paths(status.stdout)
+    try:
+        status = status_entries(worktree_path, untracked=None)
+    except GitCommandError:
+        return None
+    filtered = _tasks._filter_runtime_state_paths(status)
     paths = _lane_deliverable_paths(worktree_path, filtered)
     return tuple(sorted(str(path.relative_to(worktree_path)) for path in paths if path.is_relative_to(worktree_path)))
 
@@ -2068,7 +2075,7 @@ def _mt_collect_transition_gate_verdicts(
 
 def _mt_resolve_transition_gate_inputs(
     st: _MoveTaskState,
-) -> tuple[_TransitionGateInputs, tuple[str, ...]]:
+) -> tuple[_TransitionGateInputs, tuple[str, ...] | None]:
     """Resolve the workspace, dirty-path baseline, and changed-files SSOT (unchanged).
 
     Returns ``(inputs, dirty_before)``: ``dirty_before`` is the transient
@@ -2090,7 +2097,7 @@ def _mt_resolve_transition_gate_inputs(
 
 def _mt_resolve_transition_gate_verdicts(
     st: _MoveTaskState, _tasks: Any
-) -> tuple[_TransitionGateInputs | None, tuple[str, ...], list[pre_review_gate.GateVerdict]]:
+) -> tuple[_TransitionGateInputs | None, tuple[str, ...] | None, list[pre_review_gate.GateVerdict]]:
     """Run the pre-dispatch resolution phase under the SAME fail-open as :func:`_mt_fail_open_gate`.
 
     The incumbent (base ``e4ef6e850``) degraded a *resolution* fault to a
@@ -2289,7 +2296,7 @@ def _mt_run_transition_gates(st: _MoveTaskState) -> None:
     _mt_emit_transition_gate_effect(st, effect, _tasks)
 
 
-def _mt_enrol_gate_byproducts(worktree_path: Path | None, dirty_before: tuple[str, ...]) -> dict[Path, bytes | None]:
+def _mt_enrol_gate_byproducts(worktree_path: Path | None, dirty_before: tuple[str, ...] | None) -> dict[Path, bytes | None]:
     """Enrol any path a bound gate's subprocess created into the owner (C3).
 
     A gate handler may spawn a scoped pytest run that creates cache/coverage
@@ -2304,9 +2311,13 @@ def _mt_enrol_gate_byproducts(worktree_path: Path | None, dirty_before: tuple[st
     genuinely committed on success and reverted on abort, never merely
     detected and abandoned.
     """
-    if worktree_path is None:
+    if worktree_path is None or dirty_before is None:
         return {}
     dirty_after = _mt_pre_review_dirty_paths(worktree_path)
+    if dirty_after is None:
+        # Fail closed (FR-013): with either snapshot unknown, the byproduct set is
+        # unknowable, and the abort compensator UNLINKS what it enrols. Enrol nothing.
+        return {}
     created = subprocess_created_paths(
         (worktree_path / rel for rel in dirty_before),
         (worktree_path / rel for rel in dirty_after),

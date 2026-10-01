@@ -1309,8 +1309,8 @@ def test_dirty_deliverables_extend_prospective_scope(
     status = subprocess.CompletedProcess(
         args=["git", "status", "--porcelain"],
         returncode=0,
-        stdout=" M src/unstaged.py\nM  src/staged.py\n?? tests/new_test.py\n",
-        stderr="",
+        stdout=b" M src/unstaged.py\0M  src/staged.py\0?? tests/new_test.py\0",
+        stderr=b"",
     )
     with (
         patch.object(tasks_move_task, "merge_base_changed_files", return_value=("src/committed.py",)),

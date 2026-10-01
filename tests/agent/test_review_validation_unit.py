@@ -20,6 +20,15 @@ _SOFTWARE_SLUG = "008-feature"
 _MOVE_TASK_SLUG = "001-test-feature"
 
 
+def _status_z(porcelain: str = "") -> Mock:
+    """A ``git status --porcelain=v1 -z`` result built from classic porcelain lines.
+
+    ``kernel.git`` reads NUL-delimited bytes, so each ``XY path`` line becomes one record.
+    """
+    records = [line for line in porcelain.splitlines() if line.strip()]
+    return Mock(returncode=0, stdout="".join(f"{record}\0" for record in records).encode(), stderr=b"")
+
+
 def _git(cwd: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
 
@@ -85,9 +94,8 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
 
         # Simulate uncommitted research artifacts
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout=" M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n",
+        mock_run.return_value = _status_z(
+            " M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n"
         )
 
         is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
@@ -118,7 +126,7 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
 
         # Simulate no uncommitted changes
-        mock_run.return_value = Mock(returncode=0, stdout="")
+        mock_run.return_value = _status_z("")
 
         is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 
@@ -171,7 +179,7 @@ class TestValidateReadyForReview:
         feature_dir.mkdir(parents=True)
 
         # Simulate only WP status files modified (should be filtered out)
-        mock_run.return_value = Mock(returncode=0, stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n")
+        mock_run.return_value = _status_z(" M kitty-specs/008-research/tasks/WP01-task.md\n")
 
         is_valid, guidance = _validate_ready_for_review(tmp_path, "008-research", "WP01", force=False)
 

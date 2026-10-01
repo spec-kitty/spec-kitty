@@ -672,7 +672,7 @@ class TestOwnedConversion:
         monkeypatch.setattr("specify_cli.missions._read_path_resolver.candidate_feature_dir_for_mission", _boom("candidate_feature_dir_for_mission"))
         monkeypatch.setattr("specify_cli.missions._read_path_resolver.resolve_handle_to_read_path", _boom("resolve_handle_to_read_path"))
         monkeypatch.setattr(subprocess, "run", _boom("subprocess.run"))
-        monkeypatch.setattr(accept_module, "git_status_lines", lambda _root: [])
+        monkeypatch.setattr(accept_module, "git_status_entries", lambda _root: [])
         stamped: dict[str, Any] = {}
 
         def _stamp(feature_dir: Path, **kwargs: Any) -> SimpleNamespace:

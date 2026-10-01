@@ -434,11 +434,13 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(tmp_path: Pat
         git_args = list(cmd[1:]) if cmd and cmd[0] == "git" else []
         while len(git_args) >= 2 and git_args[0] == "-c":
             git_args = git_args[2:]
-        if git_args[:1] == ["diff"]:
-            if "--name-only" in cmd:
-                return SimpleNamespace(stdout="src/pkg/example.py\n", returncode=0)
+        if "diff" in git_args[:2]:
+            # kernel.git reads NUL-delimited bytes; attribution never reads a path out of diff text.
+            if "--name-status" in cmd:
+                return SimpleNamespace(stdout=b"M\0src/pkg/example.py\0", stderr=b"", returncode=0)
             return SimpleNamespace(
-                stdout="+++ b/src/pkg/example.py\n+def PublicSymbol():\n",
+                stdout=b"diff --git a/src/pkg/example.py b/src/pkg/example.py\n@@ -0,0 +1 @@\n+def PublicSymbol():\n",
+                stderr=b"",
                 returncode=0,
             )
         # Anything else (e.g. the target-branch resolver's own `git

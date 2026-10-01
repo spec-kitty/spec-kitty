@@ -244,14 +244,19 @@ def _subproc(returncode: int = 0, stdout: str = "") -> MagicMock:
     return m
 
 
+def _diff_z(*paths: str) -> MagicMock:
+    """A ``git diff --name-only -z`` result; ``kernel.git`` reads bytes."""
+    m = _subproc(returncode=0)
+    m.stdout = b"".join(path.encode() + b"\0" for path in paths)
+    m.stderr = b""
+    return m
+
+
 def test_behind_commits_planning_only_returns_true(tmp_path: Path) -> None:
     """Upstream commits touching only kitty-specs/<mission>/ are non-blocking."""
     responses = [
         _subproc(returncode=0, stdout="abc123\n"),  # merge-base
-        _subproc(
-            returncode=0,
-            stdout=f"kitty-specs/{MISSION_SLUG}/tasks.md\nkitty-specs/{MISSION_SLUG}/status.events.jsonl\n",
-        ),
+        _diff_z(f"kitty-specs/{MISSION_SLUG}/tasks.md", f"kitty-specs/{MISSION_SLUG}/status.events.jsonl"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
@@ -262,7 +267,7 @@ def test_behind_commits_source_change_returns_false(tmp_path: Path) -> None:
     """Any non-planning file in the behind set blocks the transition."""
     responses = [
         _subproc(returncode=0, stdout="abc123\n"),
-        _subproc(returncode=0, stdout=f"kitty-specs/{MISSION_SLUG}/tasks.md\nsrc/specify_cli/foo.py\n"),
+        _diff_z(f"kitty-specs/{MISSION_SLUG}/tasks.md", "src/specify_cli/foo.py"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
@@ -298,7 +303,7 @@ def test_behind_commits_no_changed_files_returns_true(tmp_path: Path) -> None:
     """Empty diff (already up to date) → True (non-blocking)."""
     responses = [
         _subproc(returncode=0, stdout="abc123\n"),
-        _subproc(returncode=0, stdout="\n"),
+        _diff_z(),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
@@ -321,19 +326,20 @@ def test_behind_commits_diffs_check_branch_not_head(tmp_path: Path) -> None:
         recorded_cmds.append(list(cmd))
         if cmd[:2] == ["git", "merge-base"]:
             return _subproc(returncode=0, stdout="abc123\n")
-        return _subproc(returncode=0, stdout="")
+        return _diff_z()
 
     with patch("subprocess.run", side_effect=_record):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "release/upstream", MISSION_SLUG)
 
     assert result is True  # empty diff → non-blocking
 
-    diff_cmds = [cmd for cmd in recorded_cmds if cmd[:2] == ["git", "diff"]]
+    diff_cmds = [cmd for cmd in recorded_cmds if "diff" in cmd]
     assert len(diff_cmds) == 1, f"expected exactly one diff invocation, got {recorded_cmds!r}"
     # The consolidated site now routes through core.vcs.git.git_diff_names_checked,
     # which uses the two-arg <base> <head> form (equivalent to base..head for
     # --name-only). The diff TARGET must still be check_branch, never HEAD (F1).
-    diff_base, diff_head = diff_cmds[0][-2], diff_cmds[0][-1]
+    revisions = diff_cmds[0][: diff_cmds[0].index("--")]
+    diff_base, diff_head = revisions[-2], revisions[-1]
     assert (diff_base, diff_head) == ("abc123", "release/upstream"), (
         f"diff must target merge_base..check_branch, not merge_base..HEAD (F1 regression): {diff_cmds[0]!r}"
     )
@@ -351,13 +357,10 @@ def test_behind_commits_other_mission_ledger_is_non_blocking(tmp_path: Path) -> 
     ledger for every mission on it, and none of it is source divergence."""
     responses = [
         _subproc(returncode=0, stdout="abc123\n"),  # merge-base
-        _subproc(
-            returncode=0,
-            stdout=(
-                f"kitty-specs/{MISSION_SLUG}/tasks.md\n"
-                "kitty-specs/some-other-mission/status.events.jsonl\n"
-                "kitty-specs/third-mission/plan.md\n"
-            ),
+        _diff_z(
+            f"kitty-specs/{MISSION_SLUG}/tasks.md",
+            "kitty-specs/some-other-mission/status.events.jsonl",
+            "kitty-specs/third-mission/plan.md",
         ),
     ]
     with patch("subprocess.run", side_effect=responses):
@@ -370,10 +373,7 @@ def test_behind_commits_kittify_subtree_is_non_blocking(tmp_path: Path) -> None:
     previously-allowed ``workspaces/``/config subset."""
     responses = [
         _subproc(returncode=0, stdout="abc123\n"),  # merge-base
-        _subproc(
-            returncode=0,
-            stdout=".kittify/workspaces/wp01.json\n.kittify/missions/state.json\n.kittify/config.yml\n",
-        ),
+        _diff_z(".kittify/workspaces/wp01.json", ".kittify/missions/state.json", ".kittify/config.yml"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
@@ -385,10 +385,7 @@ def test_behind_commits_mixed_ledger_and_source_still_blocks(tmp_path: Path) -> 
     divergence through."""
     responses = [
         _subproc(returncode=0, stdout="abc123\n"),  # merge-base
-        _subproc(
-            returncode=0,
-            stdout="kitty-specs/other-mission/tasks.md\nsrc/specify_cli/foo.py\n",
-        ),
+        _diff_z("kitty-specs/other-mission/tasks.md", "src/specify_cli/foo.py"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)

@@ -43,6 +43,8 @@ from typing import Protocol, TypedDict, runtime_checkable
 
 from rich.console import Console
 
+from kernel.git import status_entries
+
 from mission_runtime import (
     MissionArtifactKind,
     OwnedCheckout,
@@ -421,13 +423,8 @@ class RealGitOps:
         self._repo_root = repo_root or locate_project_root() or Path.cwd()
 
     def is_dirty(self, path: Path) -> bool:
-        completed = subprocess.run(
-            ["git", "-C", str(path), "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        return bool(completed.stdout.strip())
+        # Guard: a failed probe raises GitCommandError rather than reading as "clean".
+        return bool(status_entries(path, untracked=None))
 
     def current_branch(self, path: Path) -> str:
         completed = subprocess.run(

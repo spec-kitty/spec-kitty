@@ -12,7 +12,6 @@ Implements the contract at
 from __future__ import annotations
 
 import json as _json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +22,7 @@ from rich.console import Console
 from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
 
+from kernel.git import GitCommandError, is_tracked
 from charter.bundle import (
     CANONICAL_MANIFEST,
     CHARTER_YAML,
@@ -139,16 +139,10 @@ def _is_git_tracked(canonical_root: Path, rel: str) -> bool:
     missing-path path rather than crash.
     """
     try:
-        result = subprocess.run(
-            ["git", "ls-files", "--error-unmatch", "--", rel],
-            cwd=str(canonical_root),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
+        return is_tracked(canonical_root, rel)
+    except GitCommandError:
+        # Advisory: the validator reports an untrackable path as missing, which is the safe direction.
         return False
-    return result.returncode == 0
 
 
 def _classify_paths(

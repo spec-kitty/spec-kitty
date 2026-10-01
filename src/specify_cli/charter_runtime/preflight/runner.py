@@ -54,6 +54,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from kernel.git import GitCommandError, status_entries
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.charter_runtime.preflight.ambient_warning import dedupe_warnings
 
@@ -475,7 +476,7 @@ def _detect_dirty_artifacts(repo_root: Path) -> tuple[bool, list[str], str | Non
     Implements the binding detection mechanism documented in
     ``contracts/charter-preflight-json.md`` §"Detection mechanism": a
     single ``git status --porcelain`` invocation scoped to the two
-    directories we care about, parsed line-by-line.
+    directories we care about, read through ``kernel.git``.
 
     Failure-mode handling:
 
@@ -485,51 +486,34 @@ def _detect_dirty_artifacts(repo_root: Path) -> tuple[bool, list[str], str | Non
     * ``returncode != 0`` → ``error_reason`` =
       ``"git status failed (exit N): <first stderr line>"``;
       ``is_dirty=False``.
-    * Non-empty stdout → ``is_dirty=True``; ``dirty_paths`` lists every
-      pathname reported (path component starts at column 4 in porcelain
-      v1 output).
+    * Any status entry → ``is_dirty=True``; ``dirty_paths`` lists every
+      path reported (read from NUL-delimited ``-z`` output via
+      :func:`kernel.git.status_entries`, so a quoted path is exact).
     """
     try:
-        result = subprocess.run(
-            [
-                "git",
-                "status",
-                "--porcelain",
-                "--",
-                *_DIRTY_SCOPE_PATHS,
-            ],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
+        entries = status_entries(
+            repo_root,
+            pathspecs=_DIRTY_SCOPE_PATHS,
+            untracked=None,
             timeout=_GIT_STATUS_TIMEOUT_SECS,
-            check=False,
         )
-    except FileNotFoundError:
-        return False, [], "git CLI not available; cannot determine worktree cleanliness"
-    except subprocess.TimeoutExpired:
-        return False, [], "git status timed out; cannot determine worktree cleanliness"
-
-    if result.returncode != 0:
-        stderr_first = ""
-        if result.stderr:
-            stderr_first = result.stderr.splitlines()[0] if result.stderr.splitlines() else ""
+    except GitCommandError as exc:
+        # Advisory probe (module contract: MUST NOT raise): report why the
+        # cleanliness could not be determined instead of blocking the runner.
+        if exc.timed_out:
+            return False, [], "git status timed out; cannot determine worktree cleanliness"
+        if exc.not_run:
+            return False, [], "git CLI not available; cannot determine worktree cleanliness"
+        stderr_first = exc.stderr.splitlines()[0] if exc.stderr.splitlines() else ""
         return (
             False,
             [],
-            f"git status failed (exit {result.returncode}): {stderr_first}".rstrip(": "),
+            f"git status failed (exit {exc.returncode}): {stderr_first}".rstrip(": "),
         )
 
-    if not result.stdout.strip():
+    if not entries:
         return False, [], None
-
-    dirty_paths: list[str] = []
-    for raw_line in result.stdout.splitlines():
-        # Porcelain v1: ``XY <path>`` where ``XY`` is exactly two status
-        # chars + a space.  Slicing at index 3 is the documented contract.
-        if len(raw_line) <= 3:
-            continue
-        dirty_paths.append(raw_line[3:].strip())
-    return True, dirty_paths, None
+    return True, [str(entry.path) for entry in entries], None
 
 
 # ---------------------------------------------------------------------------

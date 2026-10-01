@@ -32,6 +32,7 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli.acceptance import _ENCODING_BACKUP_SUFFIX, _accept_dirty_gate, _is_own_encoding_backup_write
 from specify_cli.consolidation.git_probes import _classify_porcelain_lines
 from specify_cli.review.dirty_classifier import _is_benign, classify_dirty_paths
@@ -73,7 +74,7 @@ class TestAcceptGateKittyOps:
         is_self_bookkeeping_path arm filters the kitty-ops line.
         """
         # Porcelain v1 format: two status chars + space + path
-        raw_lines = [f" M {p}" for p in dirty_paths]
+        raw_lines = [StatusEntry(xy=" M", path=GitPath.parse(p)) for p in dirty_paths]
         return _accept_dirty_gate(
             raw_lines,
             repo_root=tmp_path,
@@ -137,7 +138,7 @@ class TestAcceptGateOwnWriteScoping:
         no-op and only the accept-owned-write arm (arm 1) can exempt a path —
         isolating exactly the behaviour BLOCKER 1 was about.
         """
-        raw_lines = [f" M {p}" for p in dirty_paths]
+        raw_lines = [StatusEntry(xy=" M", path=GitPath.parse(p)) for p in dirty_paths]
         return _accept_dirty_gate(
             raw_lines,
             repo_root=tmp_path,
@@ -195,10 +196,10 @@ class TestMergeGateKittyOps:
     returned offending ``[' M kitty-ops/...jsonl']`` (non-empty → gate blocked).
     """
 
-    def _call_merge_gate(self, dirty_paths: list[str]) -> tuple[list[str], int]:
+    def _call_merge_gate(self, dirty_paths: list[str]) -> tuple[list[StatusEntry], int]:
         """Drive _classify_porcelain_lines with fabricated porcelain lines."""
-        lines = [f" M {p}" for p in dirty_paths]
-        return _classify_porcelain_lines(lines, expected_paths=set())
+        entries = [StatusEntry(xy=" M", path=GitPath.parse(p)) for p in dirty_paths]
+        return _classify_porcelain_lines(entries, expected_paths=set())
 
     def test_kitty_ops_orphan_does_not_block_merge_gate(self) -> None:
         """Merge gate must NOT block on a kitty-ops Op-record orphan (#2251)."""

@@ -617,17 +617,18 @@ class TestMoveTaskCommitsLaneDeliverables:
         assert any(e.wp_id == "WP01" and e.to_lane == Lane.FOR_REVIEW for e in main_events)
 
 
-def test_lane_deliverable_paths_parses_porcelain(tmp_path: Path):
-    """The porcelain parser extracts modified/untracked/renamed paths, dropping shape noise."""
+def test_lane_deliverable_paths_takes_status_entries(tmp_path: Path):
+    """Typed status entries yield modified/untracked paths and BOTH sides of a rename."""
     from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
 
-    porcelain = "\n".join([
-        " M src/app.py",       # modified
-        "?? new_file.txt",     # untracked
-        'R  old.py -> new.py',  # rename → destination
-        "x",                    # too short — ignored
-    ])
-    paths = _lane_deliverable_paths(tmp_path, porcelain)
+    from kernel.git import GitPath, StatusEntry
+
+    entries = [
+        StatusEntry(xy=" M", path=GitPath.parse("src/app.py")),  # modified
+        StatusEntry(xy="??", path=GitPath.parse("new_file.txt")),  # untracked
+        StatusEntry(xy="R ", path=GitPath.parse("new.py"), orig_path=GitPath.parse("old.py")),  # rename
+    ]
+    paths = _lane_deliverable_paths(tmp_path, entries)
     names = {p.name for p in paths}
-    assert names == {"app.py", "new_file.txt", "new.py"}
+    assert names == {"app.py", "new_file.txt", "new.py", "old.py"}
     assert all(p.parent == tmp_path or p.is_relative_to(tmp_path) for p in paths)

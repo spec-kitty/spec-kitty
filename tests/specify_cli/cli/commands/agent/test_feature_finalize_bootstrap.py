@@ -131,6 +131,8 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature") -> d
             return_value=_fake_commit_result
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
+        # The commit-candidate dirtiness probe reads real git; these mission dirs are not repos.
+        "specify_cli.cli.commands.agent.mission_finalize._finalize_candidates_dirty": MagicMock(return_value=True),
         f"{MODULE}.validate_ownership": MagicMock(
             return_value=MagicMock(passed=True, warnings=[], errors=[]),
         ),

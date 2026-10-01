@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kernel.git import GitCommandError, changed_paths
+
 if TYPE_CHECKING:
     from specify_cli.policy.commit_guard import OwnershipScope
 
@@ -52,21 +54,21 @@ def main() -> int:
         return 0
     branch = result.stdout.strip()
 
-    # Get staged files.
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return 0
-    staged = [f.strip() for f in result.stdout.splitlines() if f.strip()]
-    if not staged:
-        return 0
-
-    # Load policy.
+    # Load policy first: a disabled guard must not fail on a staged-files probe.
     policy = load_policy_config(repo_root)
     if not policy.commit_guard.enabled or policy.commit_guard.mode == "off":
+        return 0
+
+    # Get staged files (NUL-delimited, so a quoted path is seen as it is).
+    # Renames are detected as before: only the new path is listed.
+    try:
+        staged = [str(path) for path in changed_paths(worktree_root, cached=True, renames=True)]
+    except GitCommandError as exc:
+        # Guard (FR-013): a staged-files probe that failed must not read as
+        # "nothing staged". Fail closed and say why.
+        print(f"[spec-kitty guard] BLOCKED: could not list staged files: {exc}", file=sys.stderr)
+        return 1
+    if not staged:
         return 0
 
     # Try to find owned_files from active WP context.

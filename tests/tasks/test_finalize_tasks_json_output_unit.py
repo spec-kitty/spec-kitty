@@ -17,7 +17,8 @@ WP01 additions (T009):
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from contextlib import AbstractContextManager
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -141,6 +142,15 @@ def _patch_context(
             "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
         ),
+        _status_patch(git_status_out),
+    )
+
+
+def _status_patch(git_status_out: str = "M tasks.md") -> AbstractContextManager[MagicMock]:
+    """Patch the finalize commit-candidate dirtiness probe (real git is out of scope for these mocks)."""
+    return patch(
+        "specify_cli.cli.commands.agent.mission_finalize._finalize_candidates_dirty",
+        return_value=bool(git_status_out.strip()),
     )
 
 
@@ -205,6 +215,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -240,6 +251,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -270,6 +282,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("")),
+            _status_patch(""),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -300,6 +313,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -341,6 +355,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -383,6 +398,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result_coord_split(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -428,6 +444,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -459,6 +476,7 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            _status_patch("M tasks.md"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 

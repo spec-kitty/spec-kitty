@@ -28,6 +28,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from kernel.git import GitPath, StatusEntry
+
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.core.checkout_identity import CheckoutIdentity
@@ -136,6 +138,11 @@ def _invoke_finalize(tmp_path: Path, feature_dir: Path, *, validate_only: bool =
         patch(
             "specify_cli.cli.commands.agent.mission.run_command",
             return_value=(0, "a" * 40, ""),
+        ),
+        # The commit-candidate status probe is ``kernel.git.status_entries`` now; report pending changes.
+        patch(
+            "specify_cli.cli.commands.agent.mission_finalize.status_entries",
+            return_value=(StatusEntry(xy=" M", path=GitPath.parse("tasks.md")),),
         ),
     ):
         return runner.invoke(app, args)

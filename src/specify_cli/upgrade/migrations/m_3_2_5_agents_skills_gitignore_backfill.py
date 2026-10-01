@@ -25,6 +25,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from kernel.git import GitCommandError, run_git, tracked_paths
 from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
 
 from ..registry import MigrationRegistry
@@ -78,27 +79,27 @@ def _untrack_tracked_paths(project_path: Path, entries: list[str]) -> list[str]:
     that ``project_path`` exists).
     """
     candidates = [entry.rstrip("/") for entry in entries]
-    try:
-        listed = subprocess.run(
-            ["git", "-C", str(project_path), "ls-files", "-z", "--", *candidates],
-            capture_output=True,
-            check=True,
-        )
-    except (OSError, subprocess.CalledProcessError):
+    if not candidates:
         return []
-
-    tracked = sorted({p for p in listed.stdout.decode("utf-8").split("\0") if p})
-    if not tracked:
-        return []
-
     try:
+        # ``tracked_paths`` reads NUL-delimited output, so a quoted path is exact.
+        # It yields repository-root-relative paths (``--full-name``), so the
+        # untrack runs from the repository top level; the project may be a subdirectory.
+        tracked_from_root = sorted({str(path) for path in tracked_paths(project_path, pathspecs=candidates)})
+        if not tracked_from_root:
+            return []
+        top_level = Path(run_git(project_path, "rev-parse", "--show-toplevel").stdout.decode("utf-8", "replace").strip())
         subprocess.run(
-            ["git", "-C", str(project_path), "rm", "--cached", "-r", "-q", "--", *tracked],
+            ["git", "--literal-pathspecs", "-C", str(top_level), "rm", "--cached", "-r", "-q", "--", *tracked_from_root],
             capture_output=True,
             check=True,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (GitCommandError, OSError, subprocess.CalledProcessError):
         return []
+
+    # Report paths relative to the project, as before.
+    prefix = project_path.resolve().relative_to(top_level.resolve())
+    tracked = [str(Path(path).relative_to(prefix)) if prefix.parts else path for path in tracked_from_root]
 
     return tracked
 

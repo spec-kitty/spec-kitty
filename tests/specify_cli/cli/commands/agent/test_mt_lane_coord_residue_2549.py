@@ -80,16 +80,11 @@ def test_mt_2549_leak_surface_is_real(tmp_path: Path) -> None:
     surface exists. Only the Seam-A drop (the next test) stops it landing on the
     lane branch."""
     from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
+    from kernel.git import status_entries
     from specify_cli.cli.commands.agent.tasks_shared import _filter_runtime_state_paths
 
     _repo, lane_wt = _make_lane_worktree(tmp_path)
-    porcelain = subprocess.run(
-        ["git", "-C", str(lane_wt), "status", "--porcelain"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    filtered = _filter_runtime_state_paths(porcelain)
+    filtered = _filter_runtime_state_paths(status_entries(lane_wt, untracked=None))
     unguarded = {p.relative_to(lane_wt).as_posix() for p in _lane_deliverable_paths(lane_wt, filtered)}
     # The runtime-state deny-list does NOT strip the coord-partition status file:
     # it reaches the raw deliverable set. THIS is the #2549 leak surface.

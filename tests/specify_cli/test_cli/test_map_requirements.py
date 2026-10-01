@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -608,6 +609,9 @@ class TestFinalizeTasksWithFrontmatterRefs:
     ):
         mock_locate.return_value = tmp_path
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+        # finalize-tasks reads dirty planning files through kernel.git, which fails closed
+        # outside a repository, so the fixture must be a real one.
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"
@@ -668,6 +672,9 @@ class TestFinalizeTasksWithFrontmatterRefs:
     ):
         mock_locate.return_value = tmp_path
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+        # finalize-tasks reads dirty planning files through kernel.git, which fails closed
+        # outside a repository, so the fixture must be a real one.
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"

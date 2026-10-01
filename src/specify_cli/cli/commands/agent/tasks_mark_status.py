@@ -64,6 +64,7 @@ from typing import NoReturn
 
 import typer
 
+from kernel.git import GitCommandError, status_entries
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.console import err_console
@@ -562,14 +563,13 @@ def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: 
     detected = _reconstruct_applied_events(owned, error, events_path)
     event_ids = list(dict.fromkeys([*st.applied_event_ids, *(str(row["event_id"]) for row in detected)]))
     applied_wps = list(dict.fromkeys([*st.applied_wps, *(str(row["wp_id"]) for row in detected if row.get("wp_id"))]))
-    git_status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=owned.owned_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=False,
-    )
+    dirty: bool | None
+    try:
+        dirty = bool(status_entries(owned.owned_root, untracked=None))
+    except GitCommandError:
+        # Advisory: this is only the failure envelope's ``dirty`` hint; an
+        # unreadable tree reports "unknown" (None), as a failed probe did before.
+        dirty = None
     error_code = getattr(error, "code", None) or getattr(error, "error_code", None) or "MARK_STATUS_FAILED"
     payload = _ms_failure_payload(
         error_code,
@@ -579,7 +579,7 @@ def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: 
         destination_ref=owned.write_branch,
         status_events_path=events_path,
         status_snapshot_path=st.status_dir / "status.json" if st.status_dir != Path() else None,
-        dirty=bool(git_status.stdout.strip()) if git_status.returncode == 0 else None,
+        dirty=dirty,
     )
     # Unified owned-refusal output (#5445): human mode on stderr as
     # ``Error: [<CODE>] <message>``, ``--json`` mode indented -- the same shape

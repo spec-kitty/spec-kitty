@@ -40,6 +40,7 @@ import contextlib
 import json
 import subprocess
 from kernel.clock import now_utc_iso
+from kernel.git import GitPath, StatusEntry
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -490,7 +491,7 @@ def test_post_target_invariant_failure_keeps_coord_resume_state_truthful(
     coord_status = coord_feature_dir / "status.json"
 
     with _merge_external_mocks() as mocks:
-        mocks["porcelain"].return_value = ([" M src/unexpected.py"], 0)
+        mocks["porcelain"].return_value = ([StatusEntry(xy=" M", path=GitPath.parse("src/unexpected.py"))], 0)
         with pytest.raises(typer.Exit):
             _run_merge(tmp_path)
         mocks["safe_commit"].assert_not_called()

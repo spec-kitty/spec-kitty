@@ -27,6 +27,7 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol, runtime_checkable
 
+from kernel.git import StatusEntry, status_entries
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
 from mission_runtime import (
@@ -68,9 +69,13 @@ _WP_SELF_WRITE_FILENAME_RE = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNOREC
 class GitPort(Protocol):
     """Minimal git read surface the staging/diff decision cores depend on."""
 
-    def status_porcelain(self, repo_root: Path, target: Path) -> str:
-        """Raw ``git status --porcelain --untracked-files=all <target>``
-        stdout (empty string on any non-zero exit)."""
+    def status_entries(self, repo_root: Path, target: Path) -> tuple[StatusEntry, ...]:
+        """``git status`` entries under *target* (untracked files expanded).
+
+        Raises:
+            GitCommandError: git failed. The claim guards read an empty result
+                as "nothing structural", so a failed probe must not pass.
+        """
         ...
 
     def show_blob(self, repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
@@ -87,24 +92,8 @@ class _SubprocessGitPort:
     fake port to exercise the pure decision logic.
     """
 
-    def status_porcelain(self, repo_root: Path, target: Path) -> str:
-        # NOTE: callers must NOT further ``.strip()`` this: porcelain v1 emits
-        # "XY<space>PATH" (a fixed 3-char prefix). For a tracked file that is
-        # modified-but-not-staged, X is a space (" M path"); stripping the raw
-        # stdout would remove the leading space of the *first* line, shifting
-        # its columns so ``line[3:]`` truncates the first path character.
-        result = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=all", str(target)],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        if result.returncode != 0:
-            return ""
-        return result.stdout
+    def status_entries(self, repo_root: Path, target: Path) -> tuple[StatusEntry, ...]:
+        return status_entries(repo_root, untracked="all", pathspecs=[str(target)])
 
     def show_blob(self, repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
         result = subprocess.run(
@@ -127,7 +116,7 @@ DEFAULT_GIT_PORT: GitPort = _SubprocessGitPort()
 
 
 class _PorcelainEntry(NamedTuple):
-    """A single ``git status --porcelain`` record for a feature-dir path.
+    """A single ``git status`` record for a path in the mission directory.
 
     ``xy`` is the 2-char status code, ``path`` the current/new repo-relative
     path. ``is_structural`` marks deletions and renames/copies -- changes that
@@ -141,31 +130,21 @@ class _PorcelainEntry(NamedTuple):
     is_structural: bool
 
 
-def _parse_porcelain_entries(raw_stdout: str) -> list[_PorcelainEntry]:
-    """Pure parse of raw (unstripped) ``git status --porcelain`` stdout.
+def _parse_porcelain_entries(status: Iterable[StatusEntry]) -> list[_PorcelainEntry]:
+    """Map typed ``git status`` entries to :class:`_PorcelainEntry`.
 
-    Parses column 3 of each *unstripped* line so a leading-space status code
-    on the first line never truncates its path (see
-    :meth:`_SubprocessGitPort.status_porcelain`). Deletions and renames/copies
-    are classified as structural.
+    Deletions (``D`` in either column) and renames/copies (an entry with a
+    source path) are classified as structural: a write-only transaction cannot
+    remove the old path on coord. The path is the current/new one.
     """
-    entries: list[_PorcelainEntry] = []
-    for line in raw_stdout.splitlines():
-        if len(line) <= 3:
-            continue
-        xy = line[:2]
-        rest = line[3:]
-        if " -> " in rest:
-            # Rename/copy: "old -> new". The old path must be removed on
-            # coord -- a write-only transaction cannot do that, so this is
-            # structural.
-            new_path = rest.split(" -> ", 1)[1].strip()
-            entries.append(_PorcelainEntry(xy=xy, path=new_path, is_structural=True))
-            continue
-        # Deletions (D in either index or worktree column) are structural too.
-        is_structural = "D" in xy
-        entries.append(_PorcelainEntry(xy=xy, path=rest.strip(), is_structural=is_structural))
-    return entries
+    return [
+        _PorcelainEntry(
+            xy=entry.xy,
+            path=str(entry.path),
+            is_structural=entry.orig_path is not None or "D" in entry.xy,
+        )
+        for entry in status
+    ]
 
 
 def _feature_dir_status_entries(repo_root: Path, feature_dir: Path, *, git: GitPort = DEFAULT_GIT_PORT) -> list[_PorcelainEntry]:
@@ -193,8 +172,7 @@ def _feature_dir_status_entries(repo_root: Path, feature_dir: Path, *, git: GitP
     exactly the "invisible to one gate, fatal at another" split FIX-M2-05's
     own C7 precedent exists to close, just for this one remaining gate.
     """
-    raw = git.status_porcelain(repo_root, feature_dir)
-    entries = _parse_porcelain_entries(raw)
+    entries = _parse_porcelain_entries(git.status_entries(repo_root, feature_dir))
     return [e for e in entries if not is_dossier_snapshot(e.path)]
 
 
@@ -249,7 +227,7 @@ def _is_coord_legacy_mission_event_log(repo_rel: str, coord_branch_for_filter: s
 
 
 def _status_paths_for_commit(entries: list[_PorcelainEntry], coord_branch_for_filter: str | None) -> list[str]:
-    """The feature-dir paths to commit from ``git status`` entries.
+    """The mission-directory paths to commit from ``git status`` entries.
 
     Drops the canonical status log/snapshot (``MissionArtifactKind.STATUS_STATE``)
     on coordination-topology missions only (retired ``_exclude_coord_owned``,
@@ -638,7 +616,7 @@ def resolve_planning_artifact_staging(
         status_paths = _drop_if(status_paths, _self_write)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
-        # FIX-M2-08: ``extra_file_paths`` is an UNCONDITIONAL feature-dir walk
+        # FIX-M2-08: ``extra_file_paths`` is an UNCONDITIONAL mission-directory walk
         # (not git-status-gated), so it can surface the dossier snapshot even
         # when ``_feature_dir_status_entries`` already dropped it above. Union
         # the narrow STATUS_STATE leg with :func:`is_dossier_snapshot` so this

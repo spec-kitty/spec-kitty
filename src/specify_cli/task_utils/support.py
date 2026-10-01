@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
 from kernel.clock import now_utc_stamp
+from kernel.git import GitCommandError, StatusEntry, status_entries
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
@@ -132,33 +133,22 @@ def now_utc() -> str:
     return now_utc_stamp()
 
 
-def git_status_lines(repo_root: Path) -> list[str]:
-    result = run_git(["status", "--porcelain"], cwd=repo_root, check=True)
-    return [line for line in result.stdout.splitlines() if line.strip()]
+def git_status_entries(repo_root: Path) -> tuple[StatusEntry, ...]:
+    """Typed ``git status`` entries for *repo_root* (the repository's own untracked-files setting applies).
+
+    Raises:
+        TaskCliError: git failed (guards read a failed probe as "dirty unknown", never "clean").
+    """
+    try:
+        return status_entries(repo_root, untracked=None)
+    except GitCommandError as exc:
+        raise TaskCliError(str(exc)) from exc
 
 
 def normalize_note(note: str | None, target_lane: str) -> str:
     default = f"Moved to {target_lane}"
     cleaned = (note or default).strip()
     return cleaned or default
-
-
-def detect_conflicting_wp_status(status_lines: list[str], feature: str, old_path: Path, new_path: Path) -> list[str]:
-    """Return staged work-package entries unrelated to the requested move."""
-    prefix = f"kitty-specs/{feature}/tasks/"
-    allowed = {
-        str(old_path).lstrip("./"),
-        str(new_path).lstrip("./"),
-    }
-    conflicts = []
-    for line in status_lines:
-        path = line[3:] if len(line) > 3 else ""
-        if not path.startswith(prefix):
-            continue
-        clean = path.strip()
-        if clean not in allowed:
-            conflicts.append(line)
-    return conflicts
 
 
 def match_frontmatter_line(frontmatter: str, key: str) -> re.Match[str] | None:
@@ -740,12 +730,11 @@ __all__ = [
     "append_activity_log",
     "activity_entries",
     "build_document",
-    "detect_conflicting_wp_status",
     "ensure_lane",
     "extract_scalar",
     "find_repo_root",
     "get_lane_from_frontmatter",
-    "git_status_lines",
+    "git_status_entries",
     # Path-signature adapter over the canonical mission_metadata.load_meta
     # (FR-009 / SC-004) -- not a parallel authority; see its docstring.
     "load_meta",

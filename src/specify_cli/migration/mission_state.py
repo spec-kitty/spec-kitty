@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
 
+from kernel.git import GitCommandError, status_entries
 from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.checkout_identity import (
@@ -2719,9 +2720,18 @@ def _assert_git_safe(repo_root: Path, rel_paths: Sequence[str], *, allow_dirty: 
         return
     dirty: list[str] = []
     for worktree in _git_worktrees(repo_root):
-        result = _git(worktree, "status", "--porcelain", "--", *rel_paths, check=False)
-        if result.stdout.strip():
-            dirty.append(f"{worktree}: {result.stdout.strip()}")
+        if not worktree.exists():
+            # A stale ("prunable") registration whose directory is gone has no
+            # working tree to be dirty; it must not abort the repair.
+            continue
+        # Guard (FR-013): a failed ``git status`` must not read as "clean"
+        # before files are rewritten, so it refuses (cleanly) instead.
+        try:
+            entries = status_entries(worktree, pathspecs=rel_paths, untracked=None)
+        except GitCommandError as exc:
+            raise MissionStateRepairError(f"Refusing mission-state repair: could not read git status of {worktree}: {exc}") from exc
+        if entries:
+            dirty.append(f"{worktree}: " + "; ".join(entry.display() for entry in entries))
     if dirty:
         raise MissionStateRepairError(
             "Refusing mission-state repair with dirty relevant paths. Commit/stash them first or pass --allow-dirty.\n" + "\n".join(dirty)

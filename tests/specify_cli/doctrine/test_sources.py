@@ -92,7 +92,7 @@ class _GitRunRecorder:
         self,
         argv: list[str],
         capture_output: bool = True,
-        text: bool = True,
+        text: bool = False,
         check: bool = False,
         env: dict[str, str] | None = None,
         cwd: str | None = None,
@@ -108,10 +108,11 @@ class _GitRunRecorder:
         if not self.script:
             return _FakeCompletedProcess(returncode=0)  # type: ignore[return-value]
         returncode, stdout, stderr = self.script.pop(0)
+        # ``kernel.git.run_git`` reads bytes (no ``text=``); every text caller passes ``text=True``.
         return _FakeCompletedProcess(  # type: ignore[return-value]
             returncode=returncode,
-            stdout=stdout,
-            stderr=stderr,
+            stdout=stdout if text else stdout.encode(),
+            stderr=stderr if text else stderr.encode(),
         )
 
 
@@ -229,13 +230,12 @@ class TestGitSource:
         # Re-pinned for WP02 (#4989 / F9): between `fetch` and `reset`, `_update`
         # now delegates a dirty check (`ls-tree` + `status`, via `ref_advance`) and
         # an ahead check (`rev-list --count`). The scripted sequence models a
-        # clean, not-ahead pack so the reset still proceeds. `ref_advance` has its
-        # own `subprocess.run`, so both modules are patched to the one recorder.
+        # clean, not-ahead pack so the reset still proceeds. The dirty check's
+        # listings are `kernel.git` queries (git-paths-are-data); they are
+        # patched at the names `ref_advance` imports, returning a clean pack.
         runner = _GitRunRecorder(
             script=[
                 (0, "", ""),  # fetch --tags origin
-                (0, "", ""),  # ls-tree (target tree paths) -> empty
-                (0, "", ""),  # status --porcelain --ignored -> clean
                 (0, "0\n", ""),  # rev-list --count origin/HEAD..HEAD -> not ahead
                 (0, "", ""),  # reset --hard origin/HEAD
                 (0, "v1.3.0\n", ""),  # describe
@@ -243,6 +243,8 @@ class TestGitSource:
         )
         monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
         monkeypatch.setattr("specify_cli.git.ref_advance.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.git.ref_advance.tree_paths", lambda *_a, **_k: frozenset())
+        monkeypatch.setattr("specify_cli.git.ref_advance.status_entries", lambda *_a, **_k: ())
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 

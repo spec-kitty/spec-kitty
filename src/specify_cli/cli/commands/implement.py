@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import re
 import subprocess
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NamedTuple, NoReturn
@@ -21,6 +22,7 @@ from specify_cli.cli.commands._commit_recipes import PROTECTED_PRIMARY_HINT, saf
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
 from kernel.clock import now_utc_iso
+from kernel.git import GitCommandError
 from kernel.meta_decode import decode_meta
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
@@ -776,6 +778,23 @@ def _refuse_if_meta_json_demotion(
     raise typer.Exit(1)
 
 
+@contextlib.contextmanager
+def _refuse_on_unreadable_planning_status(artifact_source_dir: Path) -> Iterator[None]:
+    """Turn a failed ``git status`` probe into an implement refusal (fail closed).
+
+    The staging cores read planning-artifact status through the git port, which
+    raises :class:`~kernel.git.GitCommandError` rather than reading a failed
+    probe as "nothing to commit". This git executor is the boundary that turns
+    it into the same printed ``Error:`` + ``typer.Exit(1)`` shape as the other
+    implement refusals, instead of a traceback.
+    """
+    try:
+        yield
+    except GitCommandError as exc:
+        console.print(f"\n{_RED_ERROR_PREFIX}Could not read git status for the planning artifacts in {artifact_source_dir}, so the claim is refused: {exc}")
+        raise typer.Exit(1) from exc
+
+
 def _ensure_planning_artifacts_committed_git(
     repo_root: Path,
     feature_dir: Path,
@@ -803,7 +822,8 @@ def _ensure_planning_artifacts_committed_git(
     # a broken topology). This restores the pre-degod ordering so a topology
     # fault never preempts the tailored structural-refusal message under a
     # double fault (structural change present AND topology resolution raising).
-    structural = detect_structural_planning_changes(repo_root, artifact_source_dir)
+    with _refuse_on_unreadable_planning_status(artifact_source_dir):
+        structural = detect_structural_planning_changes(repo_root, artifact_source_dir)
     if structural:
         _print_structural_planning_refusal(structural)
         raise typer.Exit(1)
@@ -849,13 +869,14 @@ def _ensure_planning_artifacts_committed_git(
     # canonical (``test_meta_json_on_coord_mission_resolves_to_head``,
     # ``test_dirty_spec_md_still_staged_against_head_on_coord_mission``,
     # INV-5 / #2533 / BLOCKER-2).
-    plan = resolve_planning_artifact_staging(
-        repo_root,
-        artifact_source_dir,
-        coord_branch_for_filter,
-        extra_file_paths,
-        auto_commit=auto_commit,
-    )
+    with _refuse_on_unreadable_planning_status(artifact_source_dir):
+        plan = resolve_planning_artifact_staging(
+            repo_root,
+            artifact_source_dir,
+            coord_branch_for_filter,
+            extra_file_paths,
+            auto_commit=auto_commit,
+        )
 
     files_to_commit = plan.files_to_commit
     if not files_to_commit:

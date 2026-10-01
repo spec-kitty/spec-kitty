@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
+from kernel.git import GitCommandError, status_entries
 
 logger = logging.getLogger(__name__)
 
@@ -345,18 +346,13 @@ def _git_commit(repo_root: Path, message: str) -> bool:
     """
     # Check if there is anything to commit
     try:
-        status_result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if status_result.returncode == 0 and not status_result.stdout.strip():
+        if not status_entries(repo_root, untracked=None, timeout=30):
             logger.info("Nothing to commit — migration produced no file changes")
             return True
-    except (OSError, subprocess.TimeoutExpired):
-        pass
+    except GitCommandError as exc:
+        # Advisory pre-check: if the probe fails, fall through and let the
+        # commit attempts below decide (as before).
+        logger.debug("git status pre-check failed: %s", exc)
 
     # First attempt: normal commit (honours hooks)
     try:

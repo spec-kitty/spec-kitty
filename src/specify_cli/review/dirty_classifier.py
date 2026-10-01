@@ -23,8 +23,23 @@ from __future__ import annotations
 
 import re
 
-from specify_cli.coordination.coherence import is_toolchain_generated_churn
+from kernel.git import StatusEntry
 from kernel.paths import to_posix
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
+
+
+def status_entry_paths(entry: StatusEntry) -> tuple[str, ...]:
+    """The path string(s) a status entry names, for the string-based classifiers.
+
+    A rename/copy names two paths (source first, destination second) so a
+    caller can judge both sides; any other entry names one. A directory entry
+    (``?? dir/``) keeps its trailing ``/`` because the ownership regexes
+    distinguish "the WP task directory reported as a bare path" by it.
+    """
+    shown = f"{entry.path}/" if entry.is_directory else str(entry.path)
+    if entry.orig_path is None:
+        return (shown,)
+    return (str(entry.orig_path), shown)
 
 
 def _is_review_handoff_survivor_path(normalised: str) -> bool:
@@ -155,18 +170,14 @@ def owning_wp_for_path(path: str, mission_slug: str) -> str | None:
     ``tasks_parsing_validation.py`` via a direct submodule import, mirroring
     how that module already imports :func:`classify_dirty_paths`.
 
-    Guarded against a rename-form composite ``"old -> new"`` porcelain
-    string (PR-FRESH-001 Bug B): the trailing ``(?:\\.md|/.*)$`` alternation's
-    ``.*`` matches any character, so it would otherwise absorb an embedded
-    ``" -> "`` rename arrow and the new path whole, resolving ownership from
-    the OLD path's prefix alone even when the new path lands inside a
-    different WP's own directory. A composite is never a single real path,
-    so it is explicitly rejected (returns ``None`` -- unattributable,
-    fail-closed) before the regex ever runs, rather than trying to teach the
-    regex two-sided rename semantics.
+    Rename entries arrive as two separate paths (see
+    :func:`status_entry_paths`), never as a composite ``"old -> new"`` string
+    (PR-FRESH-001 Bug B), so a path containing ``" -> "`` is an ordinary file
+    name here and is attributed like any other. A string that embeds a second
+    ``kitty-specs/`` component is still unattributable (fail-closed).
     """
     normalised = to_posix(path).strip()
-    if " -> " in normalised or normalised.count("kitty-specs/") > 1:
+    if normalised.count("kitty-specs/") > 1:
         return None
     pattern = re.compile(rf"^kitty-specs/{re.escape(mission_slug)}/tasks/WP(\d+)-[^/]+(?:\.md|/.*)$")
     match = pattern.fullmatch(normalised)

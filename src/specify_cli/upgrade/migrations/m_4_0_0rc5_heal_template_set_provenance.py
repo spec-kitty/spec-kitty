@@ -25,6 +25,7 @@ from charter.bundle import CHARTER_YAML
 from charter.missions import MissionsRootNotFound, MissionTemplateRepository
 from charter.pack_paths import PackRootNotFound
 from charter.provenance import is_built_in_pack_path, to_portable_source_path
+from kernel.git import GitCommandError, GitPath, index_entries
 from kernel.paths import BUILT_IN_PACK_SIBLING_PATTERN
 from kernel.sibling_paths import SiblingPathNotFound
 
@@ -173,23 +174,16 @@ def _checkout_tracks_mission(
         before_query = _source_path_snapshot(checkout_root, relative_source)
         if before_query is None or before_query != initial_source_snapshot:
             return False
-        index_entries = subprocess.run(
-            ["git", "-C", str(checkout_root), "ls-files", "--stage", "--error-unmatch", "--", relative_source.as_posix()],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=2,
-        ).stdout.splitlines()
+        index_records = index_entries(checkout_root, pathspecs=(relative_source.as_posix(),), timeout=2)
         after_query = _source_path_snapshot(checkout_root, relative_source)
-    except (OSError, subprocess.SubprocessError, tomllib.TOMLDecodeError, ValueError):
+    except (GitCommandError, OSError, subprocess.SubprocessError, tomllib.TOMLDecodeError, ValueError):
         return False
     if after_query is None or after_query != before_query:
         return False
-    if len(index_entries) != 1:
+    if len(index_records) != 1:
         return False
-    index_metadata, separator, indexed_path = index_entries[0].partition("\t")
-    fields = index_metadata.split()
-    return bool(separator) and indexed_path == relative_source.as_posix() and len(fields) == 3 and fields[0] in {"100644", "100755"} and fields[2] == "0"
+    record = index_records[0]
+    return record.path == GitPath.parse(relative_source.as_posix()) and record.mode in {"100644", "100755"} and record.stage == 0
 
 
 def _has_former_checkout_proof(source_path: str, token_suffix: str) -> bool:

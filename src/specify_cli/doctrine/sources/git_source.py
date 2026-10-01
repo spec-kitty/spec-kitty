@@ -184,8 +184,8 @@ class GitSource:
     def _local_changes_refusal(self, target_dir: Path, reset_target: str) -> str | None:
         """Return a refusal reason when ``reset --hard`` would destroy local work.
 
-        Reuses :func:`ref_advance._dirty_entries` (arch gate forbids a parallel
-        ``git status`` predicate) for uncommitted/obstructing changes, and adds an
+        Reuses :func:`ref_advance._dirty_entries` (the one obstruction authority)
+        for uncommitted/obstructing changes, and adds an
         explicit ahead check for committed-ahead history — which a status-only
         dirty check cannot see and a worktree-bytes archive cannot preserve (F7).
         Fail-closed: any inability to determine the state refuses.

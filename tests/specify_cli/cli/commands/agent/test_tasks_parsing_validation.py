@@ -103,6 +103,28 @@ def _make_subproc(returncode: int = 0, stdout: str = "") -> MagicMock:
     return m
 
 
+def _make_status_subproc(returncode: int = 0, porcelain: str = "") -> MagicMock:
+    """A ``git status --porcelain=v1 -z`` result built from classic porcelain lines.
+
+    ``kernel.git`` asks git for NUL-delimited bytes, so the fixture renders each
+    ``XY path`` line as one record (``R  old -> new`` as ``R  new\\0old``, git's order).
+    """
+    records: list[str] = []
+    for line in porcelain.splitlines():
+        if not line.strip():
+            continue
+        if line[0] in "RC" and " -> " in line:
+            old, new = line[3:].split(" -> ", 1)
+            records.extend([f"{line[:3]}{new}", old])
+        else:
+            records.append(line)
+    m = MagicMock()
+    m.returncode = returncode
+    m.stdout = "".join(f"{record}\0" for record in records).encode()
+    m.stderr = b""
+    return m
+
+
 @dataclass
 class _FakeWorkspace:
     """Minimal stand-in: the validator only reads these two attributes."""
@@ -655,7 +677,7 @@ def test_apply_review_status_flags_stale_and_stalled(tmp_path: Path) -> None:
 
 def test_validate_research_artifacts_clean_returns_none(tmp_path: Path) -> None:
     console = MagicMock()
-    with patch("subprocess.run", return_value=_make_subproc(0, "")):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, "")):
         result = _validate_research_artifacts(
             main_repo_root=tmp_path,
             feature_dir=tmp_path / "kitty-specs" / "demo",
@@ -676,7 +698,7 @@ def test_validate_research_artifacts_blocks_research_commit_format(tmp_path: Pat
     console = MagicMock()
     porcelain = " M kitty-specs/demo/tasks/WP01-demo/data-model.md\n"
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=(["kitty-specs/demo/tasks/WP01-demo/data-model.md"], []),
@@ -708,7 +730,7 @@ def test_validate_research_artifacts_recipe_names_to_branch(tmp_path: Path) -> N
     console = MagicMock()
     porcelain = " M kitty-specs/demo/data-model.md\n"
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=(["kitty-specs/demo/data-model.md"], []),
@@ -739,7 +761,7 @@ def test_validate_research_artifacts_benign_only_passes_with_note(tmp_path: Path
     console = MagicMock()
     porcelain = " M kitty-specs/demo/other-wp.md\n"
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=([], ["kitty-specs/demo/other-wp.md"]),
@@ -766,7 +788,7 @@ def test_validate_research_artifacts_unattributable_path_not_owned_by_moving_wp(
     console = MagicMock()
     porcelain = " M kitty-specs/demo/scratch/some-file.txt\n"
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=(["kitty-specs/demo/scratch/some-file.txt"], []),
@@ -799,7 +821,7 @@ def test_validate_research_artifacts_mixed_outcome_per_line_attribution(tmp_path
     unattributable_path = "kitty-specs/demo/data-model.md"
     porcelain = f" M {own_path}\n M {unattributable_path}\n"
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=([own_path, unattributable_path], []),
@@ -839,7 +861,7 @@ def test_validate_research_artifacts_truncation_branch_carries_attribution(tmp_p
     ]
     porcelain = "".join(f" M {p}\n" for p in paths)
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, porcelain)),
+        patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)),
         patch(
             "specify_cli.review.dirty_classifier.classify_dirty_paths",
             return_value=(paths, []),
@@ -905,7 +927,7 @@ def test_validate_research_artifacts_rename_attributes_from_blocking_side_lanes_
     unaffected."""
     console = MagicMock()
     porcelain = "R  kitty-specs/demo/scratch/mystery.py -> kitty-specs/demo/tasks/WP01-mine/lanes.json\n"
-    with patch("subprocess.run", return_value=_make_subproc(0, porcelain)):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)):
         guidance = _validate_research_artifacts(
             main_repo_root=tmp_path,
             feature_dir=tmp_path / "kitty-specs" / "demo",
@@ -932,7 +954,7 @@ def test_validate_research_artifacts_rename_attributes_from_blocking_side_flat_t
     benign-exempted side."""
     console = MagicMock()
     porcelain = "R  kitty-specs/demo/scratch/mystery.py -> kitty-specs/demo/tasks/WP01-mine.md\n"
-    with patch("subprocess.run", return_value=_make_subproc(0, porcelain)):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)):
         guidance = _validate_research_artifacts(
             main_repo_root=tmp_path,
             feature_dir=tmp_path / "kitty-specs" / "demo",
@@ -960,7 +982,7 @@ def test_validate_research_artifacts_rename_attributes_own_directory_control(tmp
     every rename entry to "not attributable"."""
     console = MagicMock()
     porcelain = "R  kitty-specs/demo/tasks/WP02-other/old.py -> kitty-specs/demo/tasks/WP01-mine/new.py\n"
-    with patch("subprocess.run", return_value=_make_subproc(0, porcelain)):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, porcelain)):
         guidance = _validate_research_artifacts(
             main_repo_root=tmp_path,
             feature_dir=tmp_path / "kitty-specs" / "demo",
@@ -1099,7 +1121,7 @@ def test_check_branch_currency_up_to_date_passes(tmp_path: Path) -> None:
 
 
 def test_check_uncommitted_worktree_changes_staged_only(tmp_path: Path) -> None:
-    with patch("subprocess.run", return_value=_make_subproc(0, "M  src/foo.py\n")):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, "M  src/foo.py\n")):
         guidance = _check_uncommitted_worktree_changes(
             worktree_path=tmp_path,
             wp_id="WP01",
@@ -1111,7 +1133,7 @@ def test_check_uncommitted_worktree_changes_staged_only(tmp_path: Path) -> None:
 
 
 def test_check_uncommitted_worktree_changes_staged_and_unstaged(tmp_path: Path) -> None:
-    with patch("subprocess.run", return_value=_make_subproc(0, "MM src/foo.py\n")):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, "MM src/foo.py\n")):
         guidance = _check_uncommitted_worktree_changes(
             worktree_path=tmp_path,
             wp_id="WP01",
@@ -1123,7 +1145,7 @@ def test_check_uncommitted_worktree_changes_staged_and_unstaged(tmp_path: Path) 
 
 
 def test_check_uncommitted_worktree_changes_untracked(tmp_path: Path) -> None:
-    with patch("subprocess.run", return_value=_make_subproc(0, "?? new.py\n")):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, "?? new.py\n")):
         guidance = _check_uncommitted_worktree_changes(
             worktree_path=tmp_path,
             wp_id="WP01",
@@ -1138,7 +1160,7 @@ def test_check_uncommitted_worktree_changes_recipe_names_to_branch(tmp_path: Pat
     """The deliverable recipe must name
     ``--to-branch`` with the worktree's own checked-out branch."""
     with (
-        patch("subprocess.run", return_value=_make_subproc(0, "M  src/foo.py\n")),
+        patch("subprocess.run", return_value=_make_status_subproc(0, "M  src/foo.py\n")),
         patch(
             "specify_cli.core.git_ops.get_current_branch",
             return_value="kitty/mission-demo-lane-a",
@@ -1157,7 +1179,7 @@ def test_check_uncommitted_worktree_changes_recipe_names_to_branch(tmp_path: Pat
 
 def test_check_uncommitted_worktree_changes_filtered_clean(tmp_path: Path) -> None:
     # filter strips everything (runtime-state only) → no block.
-    with patch("subprocess.run", return_value=_make_subproc(0, " M .spec-kitty/lock\n")):
+    with patch("subprocess.run", return_value=_make_status_subproc(0, " M .spec-kitty/lock\n")):
         result = _check_uncommitted_worktree_changes(
             worktree_path=tmp_path,
             wp_id="WP01",

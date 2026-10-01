@@ -496,7 +496,7 @@ def test_check_unchecked_subtasks_rosters_do_not_cross_contaminate(
 # ---------------------------------------------------------------------------
 
 
-def _make_subproc(returncode: int = 0, stdout: str = "") -> MagicMock:
+def _make_subproc(returncode: int = 0, stdout: str | bytes = "") -> MagicMock:
     m = MagicMock()
     m.returncode = returncode
     m.stdout = stdout
@@ -521,7 +521,7 @@ def test_behind_commits_no_changed_files(tmp_path: Path) -> None:
     """Returns True when diff reports no changed files (fully up-to-date)."""
     responses = [
         _make_subproc(returncode=0, stdout="abc123\n"),  # merge-base
-        _make_subproc(returncode=0, stdout=""),          # diff --name-only
+        _make_subproc(returncode=0, stdout=b""),         # diff --name-only -z (bytes)
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", "010-test")
@@ -532,7 +532,7 @@ def test_behind_commits_only_planning_files(tmp_path: Path) -> None:
     """Returns True when all changed files are in kitty-specs/MISSION/."""
     responses = [
         _make_subproc(returncode=0, stdout="abc123\n"),
-        _make_subproc(returncode=0, stdout="kitty-specs/010-test/tasks.md\nkitty-specs/010-test/status.json\n"),
+        _make_subproc(returncode=0, stdout=b"kitty-specs/010-test/tasks.md\0kitty-specs/010-test/status.json\0"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", "010-test")
@@ -543,7 +543,7 @@ def test_behind_commits_mixed_files(tmp_path: Path) -> None:
     """Returns False when any changed file is outside allowed paths."""
     responses = [
         _make_subproc(returncode=0, stdout="abc123\n"),
-        _make_subproc(returncode=0, stdout="kitty-specs/010-test/tasks.md\nsrc/foo.py\n"),
+        _make_subproc(returncode=0, stdout=b"kitty-specs/010-test/tasks.md\0src/foo.py\0"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", "010-test")
@@ -554,7 +554,7 @@ def test_behind_commits_kittify_config_allowed(tmp_path: Path) -> None:
     """Allows .kittify/config.yaml as an exact-path exception."""
     responses = [
         _make_subproc(returncode=0, stdout="abc123\n"),
-        _make_subproc(returncode=0, stdout=".kittify/config.yaml\n"),
+        _make_subproc(returncode=0, stdout=b".kittify/config.yaml\0"),
     ]
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", "010-test")

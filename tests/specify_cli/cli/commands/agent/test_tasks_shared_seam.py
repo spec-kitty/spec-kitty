@@ -281,7 +281,8 @@ def test_patched_filter_intercepts_list_wp_branch_changes(tmp_path: Path) -> Non
     ``merge-base-diff-surface.md`` "Consumer expectations").
     """
     merge_base = MagicMock(returncode=0, stdout="0123456789abcdef0123456789abcdef01234567\n")
-    name_only = MagicMock(returncode=0, stdout="kitty-specs/mission-x/tasks.md\n")
+    # kernel.git reads ``diff --name-only -z`` as NUL-separated bytes.
+    name_only = MagicMock(returncode=0, stdout=b"kitty-specs/mission-x/tasks.md\0")
     marker = ["kitty-specs/mission-x/tasks.md"]
     with (
         patch(

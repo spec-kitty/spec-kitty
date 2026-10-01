@@ -842,5 +842,5 @@ def test_refresh_status_probe_does_not_refresh_the_git_index(tmp_path: Path) -> 
 
     status, error = _read_refresh_worktree_status(repo_root)
 
-    assert error is None and status == ""
+    assert error is None and status == ()
     assert index_path.read_bytes() == index_before, "status-only refresh preflight must not write Git's stat cache into .git/index"

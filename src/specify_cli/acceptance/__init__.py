@@ -8,6 +8,7 @@ import os
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from kernel.clock import now_utc_stamp
+from kernel.git import GitCommandError, GitPath, StatusEntry, changed_paths
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -27,7 +28,7 @@ from specify_cli.task_utils import (
     LANES,
     WorkPackage,
     get_lane_from_frontmatter,
-    git_status_lines,
+    git_status_entries,
     run_git,
     split_frontmatter,
 )
@@ -160,14 +161,6 @@ _ACTIONABLE_LANE_BLOCKER_HINTS = {
         "work package is canceled; operator-authored cancellation provenance required — reopen or replace it, then move the work package to approved or done"
     ),
 }
-
-
-def _porcelain_dirty_path(line: str) -> str:
-    """Return the path component from a git porcelain v1 status line."""
-    path = line[3:].strip()
-    if " -> " in path:
-        path = path.split(" -> ", 1)[1].strip()
-    return path
 
 
 def _is_accept_pipeline_own_write(path: str, *, mission_slug: str) -> bool:
@@ -340,7 +333,7 @@ def _mission_routes_through_coordination(repo_root: Path, feature: str, *, owned
 
 
 def _accept_dirty_gate(
-    git_dirty_raw: list[str],
+    git_dirty_raw: Sequence[StatusEntry],
     *,
     repo_root: Path,
     feature: str,
@@ -394,28 +387,30 @@ def _accept_dirty_gate(
     encoding_backup_prefix = _encoding_backup_scope_prefix(repo_root, feature, owned=owned)
 
     git_dirty = [
-        line
-        for line in git_dirty_raw
-        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature)
-        and not _is_own_encoding_backup_write(_porcelain_dirty_path(line), feature_dir_prefix=encoding_backup_prefix)
-        and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
+        entry
+        for entry in git_dirty_raw
+        if not _is_accept_pipeline_own_write(str(entry.path), mission_slug=feature)
+        and not _is_own_encoding_backup_write(str(entry.path), feature_dir_prefix=encoding_backup_prefix)
+        and not is_self_bookkeeping_churn(str(entry.path))
     ]
-    return _filter_coordination_residue(
+    remaining = _filter_coordination_residue(
         git_dirty,
         repo_root=repo_root,
         feature=feature,
         owned=owned,
     )
+    # ``git_dirty`` is operator-facing display text; it is never parsed back.
+    return [entry.display() for entry in remaining]
 
 
 def _filter_coordination_residue(
-    dirty_lines: list[str],
+    dirty_entries: Sequence[StatusEntry],
     *,
     repo_root: Path,
     feature: str,
     owned: OwnedCheckout | None = None,
-) -> list[str]:
-    """Drop coordination-residue dirty lines when the mission routes through coord.
+) -> list[StatusEntry]:
+    """Drop coordination-residue dirty entries when the mission routes through coord.
 
     FR-008 convergence on the ``mission.py`` reference pattern: only when
     :func:`routes_through_coordination` holds does
@@ -436,8 +431,8 @@ def _filter_coordination_residue(
         feature,
         owned=owned,
     ):
-        return dirty_lines
-    return [line for line in dirty_lines if not is_coord_residue_churn(_porcelain_dirty_path(line), mission_slug=feature)]
+        return list(dirty_entries)
+    return [entry for entry in dirty_entries if not is_coord_residue_churn(str(entry.path), mission_slug=feature)]
 
 
 #: Canonical "not ready" wording for a failed host readiness verdict
@@ -1081,7 +1076,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str, *, owned: OwnedChe
     return rewritten
 
 
-def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, list[str]]:
+def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, tuple[StatusEntry, ...]]:
     """Collect branch, worktree root, primary repo root, and dirty files."""
     branch: str | None = None
     try:
@@ -1103,9 +1098,11 @@ def _resolve_git_context(repo_root: Path) -> tuple[str | None, Path, Path, list[
         primary_repo_root = repo_root
 
     try:
-        git_dirty = git_status_lines(repo_root)
-    except TaskCliError:
-        git_dirty = []
+        git_dirty = git_status_entries(repo_root)
+    except TaskCliError as exc:
+        # Fail closed: an unreadable working tree cannot be proven clean, so it must
+        # never satisfy the clean-tree readiness gate as an empty dirty set.
+        raise AcceptanceError(f"Cannot verify a clean working tree: git status failed: {exc}") from exc
 
     return branch, worktree_root, primary_repo_root, git_dirty
 
@@ -1672,6 +1669,14 @@ def _stamp_acceptance_record(
         raise AcceptanceError(f"Acceptance matrix lock timed out while recording acceptance: {exc}") from exc
 
 
+def _staged_paths(repo_root: Path, rel_path: str) -> tuple[GitPath, ...]:
+    """Staged paths under *rel_path*; a git failure is a :class:`TaskCliError` (guard: never "nothing staged")."""
+    try:
+        return changed_paths(repo_root, cached=True, renames=True, pathspecs=[rel_path])
+    except GitCommandError as exc:
+        raise TaskCliError(str(exc)) from exc
+
+
 def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
@@ -1732,9 +1737,7 @@ def _commit_acceptance_meta(
     # sweep in any unrelated files the operator had pre-staged before running
     # ``accept``; the explicit ``-- <meta>`` pathspec commits only the
     # acceptance metadata and leaves the operator's staged work untouched.
-    status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=repo_root, check=True)
-    staged_files = [line.strip() for line in status.stdout.splitlines() if line.strip()]
-    if not staged_files:
+    if not _staged_paths(repo_root, meta_rel):
         return parent_commit, None, False
 
     run_git(["commit", "-m", f"Accept {mission_slug}", "--", meta_rel], cwd=repo_root, check=True)
@@ -1755,9 +1758,7 @@ def _commit_acceptance_meta(
                 _history[-1]["accept_commit"] = accept_commit
             write_meta(summary.feature_dir, _meta)
             run_git(["add", meta_rel], cwd=repo_root, check=True)
-            commit_status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=repo_root, check=True)
-            commit_staged_files = [line.strip() for line in commit_status.stdout.splitlines() if line.strip()]
-            if commit_staged_files:
+            if _staged_paths(repo_root, meta_rel):
                 run_git(
                     ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
                     cwd=repo_root,

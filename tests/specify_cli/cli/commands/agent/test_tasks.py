@@ -1375,8 +1375,9 @@ class TestLaneGuardErrorMessage:
                 # #1833 toplevel assertion: the workspace is its own toplevel.
                 result_mock.stdout = f"{fake_worktree}\n"
             elif "status" in cmd_str and "--porcelain" in cmd_str:
-                # No uncommitted changes in main or worktree
-                result_mock.stdout = ""
+                # No uncommitted changes in main or worktree (``kernel.git`` reads NUL-delimited bytes)
+                result_mock.stdout = b""
+                result_mock.stderr = b""
             elif "rev-list" in cmd_str and "HEAD.." in cmd_str:
                 # branch-behind count: 0 (not behind)
                 result_mock.stdout = "0\n"
@@ -1497,7 +1498,8 @@ class TestLaneGuardErrorMessage:
             ):
                 result_mock.returncode = 1
             elif "status" in cmd_str and "--porcelain" in cmd_str:
-                result_mock.stdout = ""
+                result_mock.stdout = b""
+                result_mock.stderr = b""
             elif "rev-list" in cmd_str:
                 rev_range = str(cmd_list[-1])
                 seen_rev_lists.append(rev_range)

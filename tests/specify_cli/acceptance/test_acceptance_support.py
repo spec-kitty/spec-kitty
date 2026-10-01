@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from kernel.git import GitPath, StatusEntry
 from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
@@ -946,8 +947,7 @@ def test_malformed_override_fails_closed(feature_repo: Path, mission_slug: str) 
 # CLI surface (they already used the ``acc`` / ``support`` imports). They were
 # dropped when the surface's test files were reconciled; restored here so the
 # canonical functions keep a direct unit pin rather than only transitive CLI
-# coverage (normalize_feature_encoding return value, the offending-path message,
-# and detect_conflicting_wp_status' conflict detection).
+# coverage (normalize_feature_encoding return value and the offending-path message).
 
 
 def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:
@@ -977,18 +977,3 @@ def test_normalize_feature_encoding(feature_repo: Path, mission_slug: str) -> No
     plan_path.read_text(encoding="utf-8")
     summary = acc.collect_feature_summary(feature_repo, mission_slug)
     assert summary.feature == mission_slug
-
-
-def test_detect_conflicting_wp_status() -> None:
-    status_lines = [
-        " M kitty-specs/001-demo/tasks/planned/WP01.md",
-        " M kitty-specs/001-demo/tasks/doing/WP02.md",
-        "?? README.md",
-    ]
-    conflicts = th.detect_conflicting_wp_status(
-        status_lines,
-        "001-demo",
-        Path("kitty-specs/001-demo/tasks/planned/WP01.md"),
-        Path("kitty-specs/001-demo/tasks/doing/WP01.md"),
-    )
-    assert conflicts == [" M kitty-specs/001-demo/tasks/doing/WP02.md"]

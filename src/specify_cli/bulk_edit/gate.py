@@ -10,6 +10,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.git import GitCommandError, changed_paths
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -171,8 +172,8 @@ def _git_diff_files(
 ) -> GitDiffFilesResult:
     """Return the list of files changed between *base_ref* and *head_ref*.
 
-    Uses ``git diff --name-only <base>..<head>`` and returns one path per
-    line, relative to *repo_root*. Git failures are returned explicitly so
+    Uses ``git diff --name-only <base>..<head>`` (read NUL-delimited through
+    ``kernel.git``) and returns one path per entry, relative to *repo_root*. Git failures are returned explicitly so
     callers can fail closed instead of confusing them with valid empty diffs.
     """
     for label, ref in (("base_ref", base_ref), ("head_ref", head_ref)):
@@ -206,32 +207,16 @@ def _git_diff_files(
             )
 
     try:
-        completed = subprocess.run(
-            ["git", "diff", "--name-only", f"{base_ref}..{head_ref}"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=30,
-        )
-    except (subprocess.SubprocessError, OSError) as exc:
+        # Default rename detection (as ``git diff --name-only``): only the new
+        # path of a rename is listed. NUL-delimited, so a quoted path is exact.
+        files = [str(path) for path in changed_paths(repo_root, f"{base_ref}..{head_ref}", renames=True, timeout=30)]
+    except GitCommandError as exc:
         return GitDiffFilesResult(
             ok=False,
-            stderr=str(exc),
-            returncode=None,
+            stderr=exc.stderr.strip() or str(exc),
+            returncode=exc.returncode if exc.returncode > 0 else None,
         )
-    if completed.returncode != 0:
-        return GitDiffFilesResult(
-            ok=False,
-            stderr=completed.stderr.strip(),
-            returncode=completed.returncode,
-        )
-    return GitDiffFilesResult(
-        ok=True,
-        files=[line.strip() for line in completed.stdout.splitlines() if line.strip()],
-        stderr=completed.stderr.strip(),
-        returncode=completed.returncode,
-    )
+    return GitDiffFilesResult(ok=True, files=files, stderr="", returncode=0)
 
 
 def check_review_diff_compliance(

@@ -227,7 +227,7 @@ class TestCanonicalStateAuthority:
         )
 
         # Mock git calls to avoid needing a real repo
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -270,7 +270,7 @@ class TestCanonicalStateAuthority:
                 activity_log_lane="for_review",
             )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -342,7 +342,7 @@ class TestCanonicalStateAuthority:
         )
 
         with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-            "specify_cli.acceptance.git_status_lines",
+            "specify_cli.acceptance.git_status_entries",
             return_value=[],
         ):
             mock_git.return_value.stdout = f"kitty/mission-{mission_slug}\n"
@@ -372,7 +372,7 @@ class TestCanonicalStateAuthority:
             },
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -394,7 +394,7 @@ class TestCanonicalStateAuthority:
             include_activity_log=True,
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -438,7 +438,7 @@ class TestCanonicalStateAuthority:
             )
             append_event(feature_dir, event)
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -472,7 +472,7 @@ class TestCanonicalStateAuthority:
         events_file = feature_dir / "status.events.jsonl"
         events_file.write_text("", encoding="utf-8")
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -682,7 +682,7 @@ class TestEndToEndCanonicalAcceptance:
         )
 
         # Step 1: Verify canonical state reports all done
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -736,7 +736,7 @@ class TestEndToEndCanonicalAcceptance:
             include_activity_log=False,  # No Activity Log at all
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -779,7 +779,7 @@ class TestCorruptedCompatibilityViews:
             include_activity_log=False,  # Activity Log deliberately absent
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -825,7 +825,7 @@ class TestCorruptedCompatibilityViews:
             assert snapshot.work_packages[wp_id]["lane"] == "done", f"{wp_id}: materialize() should return 'done' regardless of frontmatter"
 
         # Acceptance should still pass
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -868,7 +868,7 @@ class TestCorruptedCompatibilityViews:
             assert snapshot.work_packages[wp_id]["lane"] == "done"
 
         # Acceptance should still pass
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -916,7 +916,7 @@ class TestCorruptedCompatibilityViews:
             assert snapshot.work_packages[wp_id]["lane"] == "done"
 
         # Acceptance should still pass
-        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -950,7 +950,7 @@ class TestStrictShellPidGate:
             _write_wp_file(tasks_dir, wp, lane="done", shell_pid="")
 
         with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-            "specify_cli.acceptance.git_status_lines", return_value=[]
+            "specify_cli.acceptance.git_status_entries", return_value=[]
         ):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(tmp_path, "099-test-feature", strict_metadata=True)
@@ -971,7 +971,7 @@ class TestStrictShellPidGate:
         _write_wp_file(feature_dir / "tasks", "WP01", lane="for_review", shell_pid="")
 
         with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-            "specify_cli.acceptance.git_status_lines", return_value=[]
+            "specify_cli.acceptance.git_status_entries", return_value=[]
         ):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(tmp_path, "099-test-feature", strict_metadata=True)
@@ -1053,7 +1053,7 @@ def test_approved_plus_operator_cancellation_is_eligible(tmp_path: Path) -> None
     _append_cancellation_event(feature_dir, "WP02", operator=True)
 
     with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-        "specify_cli.acceptance.git_status_lines", return_value=[]
+        "specify_cli.acceptance.git_status_entries", return_value=[]
     ):
         mock_git.return_value.stdout = "main\n"
         summary = collect_feature_summary(
@@ -1082,7 +1082,7 @@ def test_synthetic_cancellation_is_a_blocker_at_command_level(tmp_path: Path) ->
     _append_cancellation_event(feature_dir, "WP02", operator=False)
 
     with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-        "specify_cli.acceptance.git_status_lines", return_value=[]
+        "specify_cli.acceptance.git_status_entries", return_value=[]
     ):
         mock_git.return_value.stdout = "main\n"
         summary = collect_feature_summary(
@@ -1131,7 +1131,7 @@ def test_canceled_free_mission_reduces_to_unchanged_golden(tmp_path: Path) -> No
     # And the acceptance view is unchanged: a canceled-free all-done mission is
     # complete with an empty ``canceled_wps`` report.
     with patch("specify_cli.acceptance.run_git") as mock_git, patch(
-        "specify_cli.acceptance.git_status_lines", return_value=[]
+        "specify_cli.acceptance.git_status_entries", return_value=[]
     ):
         mock_git.return_value.stdout = "main\n"
         summary = collect_feature_summary(

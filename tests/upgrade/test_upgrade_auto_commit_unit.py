@@ -139,13 +139,14 @@ def test_git_status_paths_empty_repo(tmp_path: Path, monkeypatch) -> None:
     assert result == set()
 
 
-def test_git_status_paths_strips_dot_slash(tmp_path: Path, monkeypatch) -> None:
-    """Leading ./ is normalised away."""
-    raw = b" M ./src/foo.py\0"
-    fake_result = MagicMock(returncode=0, stdout=raw)
-    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
-    paths = autocommit.git_status_paths(tmp_path)
-    assert paths == {"src/foo.py"}
+def test_git_status_paths_strips_dot_slash(tmp_path: Path) -> None:
+    """Leading ./ is normalised away (the normalizer, not a fabricated git line).
+
+    git never prints ``./src/foo.py`` under ``-z`` and ``kernel.git`` rejects a
+    non-normalised path, so the old fabricated-output fixture can no longer be
+    fed through ``git_status_paths``; the normalisation rule is pinned directly.
+    """
+    assert autocommit._normalize_status_path("./src/foo.py") == "src/foo.py"
 
 
 # ---------------------------------------------------------------------------

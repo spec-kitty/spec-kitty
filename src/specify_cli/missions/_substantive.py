@@ -22,6 +22,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Final, Literal
 
+from kernel.git import GitCommandError, is_tracked
 from kernel.paths import repo_tree_path
 from specify_cli.requirement_mapping import grammar
 
@@ -942,18 +943,17 @@ def _git_commit_check_context(file_path: Path, repo_root: Path) -> tuple[Path, s
 def _head_carries_path(git_cwd: Path, tree_path: str) -> bool:
     """Return True iff ``tree_path`` is tracked AND present at ``HEAD``."""
     try:
-        subprocess.run(
-            ["git", "-C", str(git_cwd), "ls-files", "--error-unmatch", tree_path],
-            check=True,
-            capture_output=True,
-        )
+        if not is_tracked(git_cwd, tree_path):
+            return False
         subprocess.run(
             ["git", "-C", str(git_cwd), "cat-file", "-e", f"HEAD:{tree_path}"],
             check=True,
             capture_output=True,
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (GitCommandError, subprocess.CalledProcessError, FileNotFoundError):
+        # Committedness probe: any git failure reads as "not committed" (the
+        # caller's documented "cannot check, treat as uncommitted").
         return False
 
 

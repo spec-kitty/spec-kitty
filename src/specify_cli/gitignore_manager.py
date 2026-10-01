@@ -14,6 +14,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.git import GitCommandError, tracked_paths
 from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.core.no_follow import (
     NoFollowPathError,
@@ -201,19 +202,11 @@ def _git_work_tree_state(project_path: Path) -> bool | None:
 def _tracked_git_paths(project_path: Path, root_path: str) -> tuple[str, ...]:
     """Return tracked paths under a managed root, failing closed on Git errors."""
     try:
-        result = subprocess.run(
-            ["git", "ls-files", "-z", "--cached", "--", root_path],
-            cwd=project_path,
-            capture_output=True,
-            timeout=5,
-            check=False,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
-        raise GitignorePathError(f"Could not inspect tracked paths under {root_path}: {exc}") from exc
-    if result.returncode != 0:
-        detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise GitignorePathError(f"Could not inspect tracked paths under {root_path}" + (f": {detail}" if detail else ""))
-    return tuple(path.decode("utf-8", errors="surrogateescape") for path in result.stdout.split(b"\0") if path)
+        return tuple(str(path) for path in tracked_paths(project_path, pathspecs=[root_path], timeout=5))
+    except GitCommandError as exc:
+        # Guard: a failed probe must refuse, never read as "nothing tracked".
+        detail = exc.stderr.strip()
+        raise GitignorePathError(f"Could not inspect tracked paths under {root_path}" + (f": {detail}" if detail else "")) from exc
 
 
 def is_gitignore_root_effectively_ignored(

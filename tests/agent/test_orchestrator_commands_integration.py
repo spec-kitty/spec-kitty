@@ -1635,6 +1635,14 @@ class TestAcceptMission:
     def test_malformed_path_conventions_returns_envelope(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
+        # The clean-working-tree probe now fails closed on an unreadable repo (it
+        # used to read as "clean"), so the fixture's fake ``.git`` directory must
+        # become a real repository for acceptance to reach the path-conventions check.
+        import shutil
+        import subprocess
+
+        shutil.rmtree(repo_root / ".git")
+        subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
         (repo_root / ".kittify").mkdir()
         (repo_root / ".kittify" / "config.yaml").write_text(
             "project:\n  path_conventions:\n    workspace: 123\n",

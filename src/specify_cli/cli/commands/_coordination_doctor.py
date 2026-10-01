@@ -37,6 +37,7 @@ from pathlib import Path
 
 import typer
 
+from kernel.git import GitCommandError, status_entries, tracked_paths
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.utils import safe_is_dir
@@ -250,20 +251,12 @@ def _check_tracked_worktrees_content(repo_root: Path) -> list[DoctorFinding]:
     from specify_cli.core.constants import WORKTREES_DIR
 
     try:
-        out = subprocess.check_output(
-            ["git", "-C", str(repo_root), "ls-files", "--", WORKTREES_DIR],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        # Not a git repo / git error — nothing to report here.
+        listed = tracked_paths(repo_root, pathspecs=[WORKTREES_DIR])
+    except GitCommandError:
+        # Advisory doctor check: not a git repo / git error -- nothing to report here.
         return []
 
-    tracked = [
-        line
-        for line in out.splitlines()
-        if line.strip() and path_is_under_worktrees(Path(line.strip()))
-    ]
+    tracked = [str(path) for path in listed if path_is_under_worktrees(Path(str(path)))]
     if not tracked:
         return [DoctorFinding(
             severity="ok",
@@ -353,11 +346,10 @@ def _coord_worktree_dirty_finding(worktree: Path) -> DoctorFinding | None:
     """Return a finding if the coord worktree has uncommitted changes."""
 
     try:
-        dirty = subprocess.check_output(
-            ["git", "-C", str(worktree), "status", "--porcelain"], text=True,
-        ).strip()
-    except subprocess.CalledProcessError:
-        dirty = ""
+        dirty = status_entries(worktree, untracked=None)
+    except GitCommandError:
+        # Advisory doctor check: an unreadable worktree yields no dirty finding (other checks cover it).
+        dirty = ()
     if not dirty:
         return None
     return DoctorFinding(

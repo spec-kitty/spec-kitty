@@ -39,6 +39,8 @@ from typing import Annotated
 
 import typer
 
+from kernel.git import GitCommandError, status_entries
+
 from specify_cli.cli.commands._coordination_doctor import (
     _coord_vs_target_shas,
     _fast_forward_finding,
@@ -141,12 +143,9 @@ def _worktree_for_branch(repo_root: Path, branch: str) -> Path | None:
 
 def _is_worktree_dirty(worktree: Path) -> bool:
     try:
-        dirty = subprocess.check_output(
-            ["git", "-C", str(worktree), "status", "--porcelain"], text=True,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError):
+        return bool(status_entries(worktree, untracked=None))
+    except GitCommandError:
         return True  # unreadable -> treat as unsafe (C-005 warn-first)
-    return bool(dirty)
 
 
 def _forward_ref(

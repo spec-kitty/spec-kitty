@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from kernel.git import GitCommandError, is_tracked
 from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
 
 from ..registry import MigrationRegistry
@@ -37,13 +38,12 @@ def _is_git_repo(project_path: Path) -> bool:
 def _is_tracked(project_path: Path, relative_path: str) -> bool:
     if not _is_git_repo(project_path):
         return False
-    result = subprocess.run(
-        ["git", "-C", str(project_path), "ls-files", "--error-unmatch", relative_path],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
+    try:
+        return is_tracked(project_path, relative_path)
+    except GitCommandError:
+        # Advisory (detect/apply hygiene): a probe that could not run reads as
+        # "not tracked", as before.
+        return False
 
 
 def _untrack(project_path: Path, relative_path: str) -> bool:

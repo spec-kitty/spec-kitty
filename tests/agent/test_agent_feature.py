@@ -1265,6 +1265,8 @@ title: "WP01"
 
     def test_uses_wp_frontmatter_requirement_refs_when_tasks_md_missing_refs(self, tmp_path: Path):
         """Fallback should parse requirement_refs from WP frontmatter when tasks.md lacks them."""
+        # finalize-tasks' dirty-planning-file probe fails closed outside a repository.
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)

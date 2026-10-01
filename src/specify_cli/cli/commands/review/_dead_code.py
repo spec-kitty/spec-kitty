@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from rich.console import Console
+
+from kernel.git import GitCommandError, NameStatusEntry, run_git
+from kernel.git import changed_entries as git_changed_entries
 
 from specify_cli.consolidation.baseline import (
     ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
@@ -113,43 +115,54 @@ def _summarize_unsupported(
     return tuple(sorted(extensions)), excluded_test_paths
 
 
-def _run_git_diff(
+_HUNK_MARKER = "@@"
+_ADDED_SYMBOL_PATTERN = re.compile(rf"^\+\s*(def|class)\s+([A-Za-z]{_IDENTIFIER_CHARCLASS}*)\s*[\(:]")
+
+
+def _added_symbols_in_diff(diff_text: str, path: str) -> tuple[tuple[str, str], ...]:
+    """Extract added public Python symbols from the ``--unified=0`` diff of exactly one path.
+
+    Every ``+`` line after the first hunk marker belongs to *path*, the path the
+    diff was asked for. No path is ever read back out of diff text (git quotes
+    or tab-suffixes some ``+++`` header spellings), so attribution cannot be lost.
+    """
+    symbols: list[tuple[str, str]] = []
+    in_hunk = False
+    for line in diff_text.splitlines():
+        if line.startswith(_HUNK_MARKER):
+            in_hunk = True
+        elif in_hunk and line.startswith("+"):
+            match = _ADDED_SYMBOL_PATTERN.match(line)
+            if match and not match.group(2).startswith("_"):
+                symbols.append((match.group(2), path))
+    return tuple(symbols)
+
+
+def _added_symbols_for_entry(
     repo_root: Path,
     baseline_merge_commit: str,
-    *diff_args: str,
-) -> subprocess.CompletedProcess[str] | None:
-    """Run a deterministic Git diff, returning ``None`` when Git is unavailable."""
-    try:
-        return subprocess.run(
-            ["git", "-c", "core.quotePath=false", "diff", *diff_args, f"{baseline_merge_commit}..HEAD", "--"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-    except FileNotFoundError:
-        return None
-
-
-def _extract_added_symbols(
-    diff_output: str,
-    supported_paths: frozenset[str],
+    entry: NameStatusEntry,
 ) -> tuple[tuple[str, str], ...]:
-    """Extract added public Python symbols from unified diff text."""
-    symbols: list[tuple[str, str]] = []
-    current_file = ""
-    for line in diff_output.splitlines():
-        if line.startswith("+++ b/"):
-            current_file = line[6:]
-        elif current_file in supported_paths and line.startswith("+") and not line.startswith("+++"):
-            match = re.match(
-                rf"^\+\s*(def|class)\s+([A-Za-z]{_IDENTIFIER_CHARCLASS}*)\s*[\(:]",
-                line,
-            )
-            if match and not match.group(2).startswith("_"):
-                symbols.append((match.group(2), current_file))
-    return tuple(symbols)
+    """Diff one changed Python path (and its rename source) and attribute its added symbols to it."""
+    pathspecs = [str(entry.path)]
+    if entry.orig_path is not None:
+        pathspecs.insert(0, str(entry.orig_path))
+    result = run_git(
+        repo_root,
+        "--literal-pathspecs",
+        "diff",
+        "--unified=0",
+        "-M",
+        f"{baseline_merge_commit}..HEAD",
+        "--",
+        *pathspecs,
+    )
+    return _added_symbols_in_diff(result.stdout.decode("utf-8", errors="replace"), str(entry.path))
+
+
+def _undeterminable(changed_paths: tuple[str, ...], exc: GitCommandError) -> _Discovery:
+    unavailable = exc.not_run
+    return _Discovery(changed_paths, (), "git executable is unavailable" if unavailable else "git diff failed", "undeterminable")
 
 
 def _discover_changed_symbols(
@@ -157,13 +170,13 @@ def _discover_changed_symbols(
     baseline_merge_commit: str,
 ) -> _Discovery:
     """Discover changed paths and added Python symbols without a source-root assumption."""
-    name_result = _run_git_diff(repo_root, baseline_merge_commit, "--name-only")
-    if name_result is None:
-        return _Discovery((), (), "git executable is unavailable", "undeterminable")
-    if name_result.returncode != 0:
-        return _Discovery((), (), "git diff failed", "undeterminable")
+    try:
+        listed = git_changed_entries(repo_root, f"{baseline_merge_commit}..HEAD", renames=True)
+    except GitCommandError as exc:
+        # Discovery is a scan gate: a failed listing is reported as undeterminable, never as "no changes".
+        return _undeterminable((), exc)
 
-    changed_paths = tuple(path for path in name_result.stdout.splitlines() if path)
+    changed_paths = tuple(str(entry.path) for entry in listed)
     if not changed_paths:
         return _Discovery((), (), "git diff reported no changed files", "undeterminable")
     changed_python_paths = tuple(path for path in changed_paths if _is_python_path(path))
@@ -178,14 +191,18 @@ def _discover_changed_symbols(
             excluded_test_paths=excluded_test_paths,
         )
 
-    diff_result = _run_git_diff(repo_root, baseline_merge_commit, "--unified=0")
-    if diff_result is None:
-        return _Discovery(changed_paths, (), "git executable is unavailable", "undeterminable")
-    if diff_result.returncode != 0:
-        return _Discovery(changed_paths, (), "git diff failed", "undeterminable")
+    supported = frozenset(supported_paths)
+    symbols: list[tuple[str, str]] = []
+    try:
+        for entry in listed:
+            if str(entry.path) in supported:
+                symbols.extend(_added_symbols_for_entry(repo_root, baseline_merge_commit, entry))
+    except GitCommandError as exc:
+        # Attribution needs every per-path diff; a failed one is undeterminable, never "no symbols".
+        return _undeterminable(changed_paths, exc)
     return _Discovery(
         supported_paths,
-        _extract_added_symbols(diff_result.stdout, frozenset(supported_paths)),
+        tuple(symbols),
         unsupported_extensions=unsupported_extensions,
         excluded_test_paths=excluded_test_paths,
     )

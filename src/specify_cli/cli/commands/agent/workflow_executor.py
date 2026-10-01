@@ -43,6 +43,8 @@ from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 import typer
 
+from kernel.git import GitCommandError, status_entries
+
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.commands.agent.workflow_cores import (
@@ -1191,22 +1193,12 @@ def _baseline_artifact_needs_commit(repo_root: Path, artifact: Path) -> bool:
     for the artifact skips that no-op. Degrades to ``True`` (attempt the commit,
     preserving prior behaviour) if git is unusable here.
     """
-    from specify_cli.core import git_ops
-
     try:
-        rc, out, _err = git_ops.run_command(
-            ["git", "status", "--porcelain", "--", str(artifact)],
-            capture=True,
-            check_return=False,
-            cwd=repo_root,
-        )
-    except Exception:  # noqa: BLE001 — git absent/unusable: fall back to attempting the commit
-        return True
-    if rc != 0:
-        # git couldn't report status (e.g. not a repo): don't suppress a
+        return bool(status_entries(repo_root, pathspecs=[str(artifact)], untracked=None))
+    except GitCommandError:
+        # Advisory: git absent/unusable (e.g. not a repo): don't suppress a
         # possibly-needed commit — preserve the prior "always attempt" behaviour.
         return True
-    return bool(out.strip())
 
 
 def implement_capture_baseline(
