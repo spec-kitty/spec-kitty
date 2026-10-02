@@ -190,6 +190,22 @@ def test_a_real_copy_without_the_discarded_example_fails_the_manifest(module_cop
     assert "REQUIRED_EXAMPLE_MISSING: mission-status:MissionOverview:MissionOverview.discarded.yaml" in result.stdout
 
 
+def test_a_deleted_required_example_file_is_reported_as_missing_not_as_a_resolver_failure(module_copy: Path) -> None:
+    """Deleting only the file leaves the schema's reference dangling; the resolver cannot read it, the manifest names it."""
+    (module_copy / "mission-status" / "examples" / "MissionOverview.discarded.yaml").unlink()
+    result = _check_copy(module_copy)
+    assert result.returncode == 1, result.stdout
+    assert "REQUIRED_EXAMPLE_MISSING: mission-status:MissionOverview:MissionOverview.discarded.yaml" in result.stdout
+    assert "RESOLVE_FAILED" not in result.stdout
+
+
+def test_a_dangling_reference_to_an_example_the_manifest_does_not_require_still_cannot_resolve(module_copy: Path) -> None:
+    (module_copy / "mission-status" / "examples" / "WorkPackage.override.yaml").unlink()
+    result = _check_copy(module_copy)
+    assert result.returncode == 2, result.stdout
+    assert "RESOLVE_FAILED" in result.stdout and "REQUIRED_EXAMPLE_MISSING" not in result.stdout
+
+
 def test_a_real_copy_with_a_malformed_timestamp_fails(module_copy: Path) -> None:
     target = module_copy / "mission-status" / "examples" / "MissionOverview.populated.yaml"
     document = yaml.safe_load(target.read_text(encoding="utf-8"))

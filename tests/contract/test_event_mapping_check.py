@@ -112,6 +112,19 @@ def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(mapping: Any, ca
     assert result.stdout.rstrip().splitlines()[-1].startswith("counts: event_names=")
 
 
+def test_an_allowed_type_the_runtime_does_not_have_is_a_violation(mapping: Any) -> None:
+    """The reverse direction: the contract may only forward types the runtime's LIFECYCLE_EVENT_TYPES holds."""
+    stand_in = FIXTURE_ROOT / "code" / "lifecycle_events_without_plan_started.py"
+
+    report = mapping.check(FIXTURE_ROOT, modules=("clean",), lifecycle_source=stand_in)
+
+    assert [(f.code, f.subject) for f in report.findings] == [("ALLOWED_TYPE_NOT_IN_RUNTIME", "clean:PlanStarted")]
+    assert report.exit_code == 1
+    result = _run("--root", str(FIXTURE_ROOT), "--module", "clean", "--lifecycle-source", str(stand_in))
+    assert result.returncode == 1
+    assert "CONTRACT-CHECK event_mapping_check: ALLOWED_TYPE_NOT_IN_RUNTIME: clean:PlanStarted" in result.stdout
+
+
 @pytest.mark.parametrize("source", [FIXTURE_ROOT / "code" / "no_constant.py", FIXTURE_ROOT / "code" / "absent.py"])
 def test_an_unreadable_lifecycle_source_exits_two(mapping: Any, source: Path) -> None:
     report = mapping.check(FIXTURE_ROOT / "exit2" / "lifecycle_unreadable", lifecycle_source=source)
