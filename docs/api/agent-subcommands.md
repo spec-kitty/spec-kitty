@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-09-27'
+updated: '2026-10-02'
 ---
 # Agent Subcommand Reference
 
@@ -25,6 +25,32 @@ Terminology note:
 ## Practical Usage
 
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
+
+## Coordination-routed Missions: where agent writes land
+
+These notes are the hand-authored companion to the generated sections below. They apply to a
+Mission whose topology is `coord` or `lanes_with_coord`; the user-facing counterparts
+(`accept`, `consolidate`, `materialize`, `spec-commit`, `doctor decisions`) are in
+[`cli-commands.md`](cli-commands.md#coordination-routed-missions-where-writes-land). Design
+record: the 2026-10-01 amendment of
+[ADR 2026-06-19-1](../adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md).
+
+- **`agent mission create`** materializes the coordination worktree, seeds it, and commits the
+  creation records on the coordination branch. The target branch receives no coordination
+  record. An `--owned-checkout` coordination create keeps its status log in the owned
+  checkout's own PRIMARY dir (a named residual).
+- **`agent mission finalize-tasks`** refreshes the recorded planning-commit pin automatically
+  and reports it in the additive `planning_commit_refresh` JSON field. See
+  [`finalize-tasks-internals.md`](finalize-tasks-internals.md#4-automatic-planning-pin-refresh-and-planning_commit_refresh).
+- **`agent decision verify`** reports a forked decision log as a `DECISION_LOG_FORKED` finding
+  and **exits 1 on a fork regardless of `--fail-on-stale`**. A ledger that exists only on the
+  coordination branch is not a fork; repair it with `doctor decisions --repair`. Coordination
+  teardown and `consolidate` refuse with `COORDINATION_LEDGER_UNREPAIRED` until it is repaired.
+- **Agent writes of coordination records** (status events, decision events, review cycles,
+  tracer files) take their directory from the placement seam's write accessor, so a write on a
+  not-yet-materialized or empty coordination surface materializes or seeds it (or refuses
+  with `COORDINATION_WORKTREE_UNMATERIALIZED` / `COORD_SEED_FORK_REFUSED` / `STATUS_LOCK_HELD`)
+  instead of landing on the repository root checkout.
 
 <!-- BEGIN GENERATED -->
 # Agent Subcommand Reference

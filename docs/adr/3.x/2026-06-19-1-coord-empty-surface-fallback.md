@@ -1,8 +1,8 @@
 ---
 title: 'ADR: Coordination-Worktree-Empty Surface Policy — Loud Primary Fallback (amended)'
-description: 'An empty coordination worktree no longer hard-fails: the resolver falls back to the repository-root checkout and emits a loud, operator-visible staleness warning.'
+description: 'Reads of an empty coordination worktree fall back loudly to the repository-root checkout; writes establish the coordination surface (amended 2026-10-01).'
 status: Superseded
-date: '2026-06-19 (original) · **Amended**: 2026-06-21'
+date: '2026-06-19 (original) · **Amended**: 2026-06-21 · **Amended**: 2026-10-01'
 ---
 
 **loud primary fallback** decision in the Amendment section below.
@@ -11,6 +11,119 @@ date: '2026-06-19 (original) · **Amended**: 2026-06-21'
 **Requirement**: FR-006 (`#1716`), bound to FR-001/FR-007 (single resolver)
 **Module**: `src/specify_cli/coordination/surface_resolver.py`
 **Tracker**: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716)
+
+---
+
+## Amendment (2026-10-01 — mission `coord-artifact-single-home-01M3V4BE`)
+
+**Newest amendment first; the 2026-06-21 amendment below is unchanged history.**
+
+### Status of this amendment
+
+This amendment **binds despite the frontmatter `status: Superseded`**. That status marks
+the *original* 2026-06-19 hard-fail decision as superseded by the 2026-06-21 amendment in
+this same file; it does not retire either amendment. The read-side policy of the
+2026-06-21 amendment is current, and so is this one. The read-side raise on
+`UNMATERIALIZED` is recorded separately in
+[ADR 2026-09-24-2](2026-09-24-2-coord-read-fail-closed.md), and the decision-ledger
+reclassification in
+[ADR 2026-10-01-3 (4.x)](../4.x/2026-10-01-3-decision-ledger-primary-partition.md).
+Do not implement from the original "Decision" section further down.
+
+### Amended decision: writes never substitute the repository root checkout
+
+The 2026-06-21 loud fallback was written as a *read* policy but behaved as a read-and-write
+one: a writer that asked the read resolver for a COORD-partition directory and got the
+declared PRIMARY-partition fallback wrote a Mission's coordination record into the
+repository root checkout, where the coordination branch never saw it. This amendment splits
+the policy.
+
+**Single-home rule.** Every COORD-partition artifact of a coordination-routed Mission
+(topology `coord` or `lanes_with_coord`, owned checkouts included) has exactly one
+writable home: the coordination worktree on the coordination branch. A write obtains its
+location only from `PlacementSeam.write_dir(kind)` (`src/mission_runtime/resolution.py`),
+the one sanctioned extension of the placement seam. For a COORD kind it delegates to
+`specify_cli.coordination.coord_seed.establish_coord_write_location`, which owns
+**materialize, seed and refuse**. A writer never substitutes the repository root checkout
+for the coordination surface, and `read_dir` is never a write location for a COORD kind.
+
+### Per-state write behaviour
+
+`write_dir` is placement routing (kind plus topology to a directory), not branch-target
+routing; the commit ref still comes from `write_target`, and the two agree by construction.
+The state is the four-way coordination probe plus the seed marker (the commit trailer
+`Spec-Kitty-Coordination-Seed: <mission_id>`, `coord_seed.COORD_SEED_TRAILER`).
+
+| Coordination state of the Mission | `write_dir` result |
+|---|---|
+| No coordination topology (`lanes`, `single_branch`), or a PRIMARY-partition kind | The declared PRIMARY dir, byte-identical to `read_dir`. No side effects (C-008). |
+| Published Mission, an E2-eligible COORD kind (`REVIEW_CYCLE`, `TRACER_FILE`, `ISSUE_MATRIX`, `ACCEPTANCE_MATRIX`) or `STATUS_STATE` | The PRIMARY Mission dir, checked before any coordination probe, so a torn-down coordination branch never raises here. |
+| `MATERIALIZED` | The coordination Mission dir. No side effect unless a refused seed commit is pending, in which case the next write re-commits it. |
+| `UNMATERIALIZED`, branch present locally | Materialize the worktree first (once), then the `MATERIALIZED` or `EMPTY` row applies. |
+| `UNMATERIALIZED`, branch only on a remote | Refuse with `COORDINATION_WORKTREE_UNMATERIALIZED` and a recovery hint (parity with #4970). Nothing is written. |
+| `EMPTY`, no seed marker (Mission created before this fix) | Seed once under the status lock: one seed commit on the coordination branch, records restored from the repository root checkout by the prefix rule. A true fork refuses with `COORD_SEED_FORK_REFUSED`; a lock timeout refuses with `STATUS_LOCK_HELD`. |
+| `EMPTY`, seed marker present (a Mission created after this fix: a regression) | Loud `WARNING`, restore the COORD-kind paths from the coordination branch tip (never PRIMARY files), then write. |
+| `DELETED` | `CoordinationBranchDeleted`, unchanged. |
+
+### Read side (unchanged, C-002)
+
+Reads keep the loud declared PRIMARY fallback for `EMPTY` exactly as the 2026-06-21
+amendment states, and `UNMATERIALIZED` keeps the ADR 2026-09-24-2 raise. The one read-side
+change: the `EMPTY` warning now fires for post-fix Missions in **both** coordination
+topologies, because "post-fix" is discriminated by the seed-marker trailer rather than by
+topology. Retiring the read fallback is a follow-up, not part of this amendment.
+
+### Create
+
+`mission create` for a coordination-routed Mission materializes and seeds the coordination
+worktree eagerly and commits the creation records on the coordination branch, so the target
+branch never receives a COORD record. The expected divergence between the coordination
+branch and the target branch is one shared predicate,
+`specify_cli.missions._create.is_expected_coordination_divergence`, used by create and by
+`doctor coordination`. Residual, named rather than fixed: an `--owned-checkout` create keeps
+its status log in the owned checkout's own PRIMARY dir exactly as before (INV-COORD-HOME).
+
+### Other writers
+
+- **`spec-kitty consolidate`.** A real run resolves its status directory through
+  `write_dir(STATUS_STATE)` before it takes the merge lock, so it materializes an
+  `UNMATERIALIZED` coordination surface (local branch) and proceeds, and seeds a pre-fix
+  `EMPTY` one. A remote-only branch, a fork, a deleted branch and a held status lock each
+  abort before any state change. **`--dry-run` stays fail-closed and does not
+  materialize**: it keeps reading through the read seam and stops on
+  `CoordinationBranchDeleted` or `CoordinationWorktreeUnmaterialized`. The asymmetry is
+  deliberate; a preview must not create a worktree.
+- **`spec-kitty materialize`.** Regenerates derived views; for a coordination-routed Mission
+  it resolves the status directory through `write_dir(STATUS_STATE)`, so it creates the
+  coordination worktree (once) and seeds a pre-fix `EMPTY` one. A remote-only branch or a
+  forked log is reported in the error summary and the remaining Missions are still processed.
+- **Commit routing.** `spec-commit` and the other `commit_for_mission` consumers report one
+  outcome per surface and exit non-zero when any surface is refused
+  (`src/specify_cli/coordination/commit_outcome.py`).
+
+### Enforcement
+
+- `tests/architectural/test_no_write_side_rederivation.py` carries a COORD-writer grammar:
+  a census of COORD writer functions must not compose a `KITTY_SPECS_DIR` path onto a
+  worktree-named operand, and must not derive a write location from a read resolver. The
+  allowlist is empty and its cap in `tests/architectural/_baselines.yaml` is 0.
+- **Honest bound of that gate.** It scans only the bodies of the census functions, and it
+  flags a `KITTY_SPECS_DIR` join with a worktree-named operand. A future caller that builds
+  the Mission dir through `specify_cli.coordination.legacy_resolution._checkout_mission_dir`
+  is outside that scan. That helper is documented for non-coordination checkouts only, so
+  the gate cannot see a misuse of it. The gate is not weakened for this; the bound is
+  recorded so a reviewer knows what the gate does not prove.
+- `tests/integration/test_coord_single_home_workflow.py` is the end-to-end invariant: one
+  status log, no COORD record on the target branch before consolidation, and the ledger
+  committed at its commit points.
+
+### Decision ledger
+
+`DECISION_LEDGER` moved from the COORD to the PRIMARY partition in the same Mission. That
+reversal of the #3928 intent has its own record:
+[ADR 2026-10-01-3 (4.x)](../4.x/2026-10-01-3-decision-ledger-primary-partition.md). It is
+linked, not restated, here. The consequence for this ADR is that `decisions/` is never
+coordination residue and is never reset as such.
 
 ---
 

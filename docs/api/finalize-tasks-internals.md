@@ -1,12 +1,12 @@
 ---
 title: finalize-tasks internals reference
-description: Deep dive into finalize-tasks internals - empty owned_files handling, status events, lane-depth cycle safety, and the planning_commit_sha refresh override.
+description: 'finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning_commit_sha refresh override, and the automatic planning-pin refresh.'
 doc_status: active
-updated: '2026-09-09'
+updated: '2026-10-02'
 ---
 # `finalize-tasks` internals reference
 
-Three non-obvious behaviours an operator may encounter when running
+Four non-obvious behaviours an operator may encounter when running
 `spec-kitty agent mission finalize-tasks`. All have regression tests
 under `tests/specify_cli/cli/commands/` and `tests/specify_cli/lanes/`.
 
@@ -105,3 +105,36 @@ Locked by tests in:
 
 Weakening the ancestor refusal, or making the refresh the default (no flag),
 is a regression.
+
+## 4. Automatic planning-pin refresh and `planning_commit_refresh`
+
+Without `--refresh-planning-commit`, a re-finalize after execution has begun no longer only
+preserves the recorded pin. It classifies the recorded `planning_commit_sha` against the
+target-branch tip (`PinClass` in `src/specify_cli/lanes/planning_commit_classify.py`) and
+acts on the class:
+
+| Pin class | Meaning | Result (exit code) |
+|---|---|---|
+| `ADVANCED` | The recorded object is present and an ancestor of the tip | Refreshed to the tip **only when** a PRIMARY planning file changed since the pin for a reason other than finalize's own earlier bookkeeping commits; otherwise preserved (0) |
+| `ORPHANED` | Present but not an ancestor (a mid-Mission rebase, #4827) | Fails closed before any write; `lanes.json` untouched; use `--refresh-planning-commit --allow-orphaned` (1) |
+| `FOREIGN` | The recorded object is absent from this repository | Kept, with a visible warning when the tip has advanced (0) |
+| `INDETERMINATE` | Nothing can be inspected (tip not capturable, or no recorded SHA) | Kept, with a visible warning and reason `indeterminate_tip_uncapturable`; never a silent preserve (0) |
+
+The `--json` success payload carries the automatic decision in an additive field:
+
+```json
+"planning_commit_refresh": {
+  "status": "refreshed",
+  "recorded": "<previous sha>",
+  "candidate": "<branch tip>",
+  "pin_class": "advanced",
+  "reason": null
+}
+```
+
+`status` is `preserved`, `refreshed` or `kept_with_warning`; `reason` is set only for
+`kept_with_warning`. The field is `null` before execution begins and for an explicit
+`--refresh-planning-commit` run, which keeps reporting through `planning_commit` (section 3).
+The explicit flag and its refusals are unchanged. Code: `PlanningCommitResolution` and
+`_planning_commit_refresh_payload` in
+`src/specify_cli/cli/commands/agent/mission_finalize.py`.

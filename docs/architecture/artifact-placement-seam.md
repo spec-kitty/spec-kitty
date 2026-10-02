@@ -2,12 +2,14 @@
 title: The Artifact Placement Seam
 description: How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-02'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/branch-target-routing.md
 - docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md
 - docs/adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md
+- docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md
+- docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md
 - docs/context/orchestration.md
 ---
 # The Artifact Placement Seam
@@ -30,8 +32,8 @@ citation so a future rename shows up as a broken reference rather than silent dr
 
 "Routing" on this page means exactly one thing: **mapping a mission artifact's *kind* — a
 `MissionArtifactKind` member such as `SPEC` or `STATUS_STATE`
-(`src/mission_runtime/artifacts.py:62`) — together with the mission's *topology*, to a
-`TopologySurface` (`src/mission_runtime/artifacts.py:22`): the physical tree the artifact
+(`src/mission_runtime/artifacts.py:63`) — together with the mission's *topology*, to a
+`TopologySurface` (`src/mission_runtime/artifacts.py:23`): the physical tree the artifact
 resolves to for reading or writing. This is the **placement sense** of "routing."
 
 "Routing" is heavily overloaded elsewhere in this codebase — branch selection, git-commit
@@ -50,17 +52,17 @@ names.
 
 | Layer | Question answered | Owning module:symbol | Aware of |
 |---|---|---|---|
-| **L0 — entry** | *What* artifact am I reading or writing? | The caller names a `MissionArtifactKind` and asks a `PlacementSeam` (`src/mission_runtime/resolution.py:1373`) for `read_dir` or `write_target` | kind only — nothing about *where* |
-| **L1 — partition classification** | Which partition does this kind belong to — PRIMARY or COORD? | The `_PRIMARY_ARTIFACT_KINDS` / `_PLACEMENT_ARTIFACT_KINDS` frozensets and `assert_partition_invariant` (`src/mission_runtime/artifacts.py:136`, `:172`, `:269`) | kind only — **topology-blind** |
-| **L2a — declared decision** | Where does this fact *architecturally* live, independent of what is materialized on disk right now? | `declared_read_surface` (`src/mission_runtime/resolution.py:1545`) | kind + topology; **materialization-BLIND** |
-| **L2b — affirmative decision** | Where does this read resolve *right now*, given what is actually materialized? | `_classify_artifact_surface` (`src/mission_runtime/resolution.py:1588`), consuming `probe_coord_state` (`src/specify_cli/missions/_read_path_resolver.py:284`) | kind + topology + **materialization** |
-| **L3 — candidate discovery / assembly** | Which concrete directories exist for this handle, and how is the final path assembled? | `resolve_planning_read_dir` (`src/specify_cli/missions/_read_path_resolver.py:1367`) and the module-private leaf `_compose_primary_feature_dir` (`src/specify_cli/missions/_read_path_resolver.py:1263`) | filesystem + handle form — this is where paths are **built** |
-| **L4 — translation** | Given a chosen surface, *which* already-discovered location is it? | `translate_surface` (`src/mission_runtime/resolution.py:1503`) over a `SurfaceLocations` record (`:1471`) | neither kind nor topology — it **selects** a field off an already-populated record, and **refuses** (`ValueError`) when that field is absent |
+| **L0 — entry** | *What* artifact am I reading or writing? | The caller names a `MissionArtifactKind` and asks a `PlacementSeam` (`src/mission_runtime/resolution.py:2302`) for `read_dir`, `write_target` or `write_dir` | kind only — nothing about *where* |
+| **L1 — partition classification** | Which partition does this kind belong to — PRIMARY or COORD? | The `_PRIMARY_ARTIFACT_KINDS` / `_PLACEMENT_ARTIFACT_KINDS` frozensets and `assert_partition_invariant` (`src/mission_runtime/artifacts.py:165`, `:207`, `:353`) | kind only — **topology-blind** |
+| **L2a — declared decision** | Where does this fact *architecturally* live, independent of what is materialized on disk right now? | `declared_read_surface` (`src/mission_runtime/resolution.py:2630`) | kind + topology; **materialization-BLIND** |
+| **L2b — affirmative decision** | Where does this read resolve *right now*, given what is actually materialized? | `_classify_artifact_surface` (`src/mission_runtime/resolution.py:2679`), consuming `probe_coord_state` (`src/specify_cli/missions/_read_path_resolver.py:287`) | kind + topology + **materialization** |
+| **L3 — candidate discovery / assembly** | Which concrete directories exist for this handle, and how is the final path assembled? | `resolve_planning_read_dir` (`src/specify_cli/missions/_read_path_resolver.py:1429`) and the module-private leaf `_compose_primary_feature_dir` (`src/specify_cli/missions/_read_path_resolver.py:1320`) | filesystem + handle form — this is where paths are **built** |
+| **L4 — translation** | Given a chosen surface, *which* already-discovered location is it? | `translate_surface` (`src/mission_runtime/resolution.py:2588`) over a `SurfaceLocations` record (`:2556`) | neither kind nor topology — it **selects** a field off an already-populated record, and **refuses** (`ValueError`) when that field is absent |
 
 **L2 is two functions, not one, and the split is deliberate.** `declared_read_surface` is
 materialization-*blind* precisely so it can disagree with an already-resolved surface stamp —
 that disagreement is what lets `GateExecutionContext.surface_cannot_hold`
-(`src/specify_cli/acceptance/execution_context.py:194`, `#2885`) refuse rather than silently
+(`src/specify_cli/acceptance/execution_context.py:196`, `#2885`) refuse rather than silently
 pass an empty surface. Describing L2 as "one decision module" erases the reason that guard can
 fire at all. `_classify_artifact_surface`'s own docstring names this: it defers to
 `declared_read_surface` first and only consults the materialization-aware `CoordState`
@@ -73,9 +75,9 @@ teaches the exact misappropriation this page exists to prevent: re-adding discov
 call site instead of routing through L0–L3.
 
 **A third `read_dir` route, not shown as a table row.** `PlacementSeam.read_dir`
-(`src/mission_runtime/resolution.py:1417`) short-circuits exactly one kind —
+(`src/mission_runtime/resolution.py:2359`) short-circuits exactly one kind —
 `MissionArtifactKind.RETROSPECTIVE` — to `resolve_retrospective_home`
-(`src/specify_cli/retrospective/writer.py:36`) at `resolution.py:1454`, **before** any of L2's
+(`src/specify_cli/retrospective/writer.py:37`) at `resolution.py:2403`, **before** any of L2's
 classification runs. See [Honest bounds](#honest-bounds) for why this is load-bearing rather
 than a footnote.
 
@@ -83,18 +85,47 @@ than a footnote.
 
 There are two composition roots, not one, and both are reached through the same seam object:
 
-- **The read root** — `resolve_artifact_surface` (`src/mission_runtime/resolution.py:1718`),
+- **The read root** — `resolve_artifact_surface` (`src/mission_runtime/resolution.py:2826`),
   projected by `PlacementSeam.read_dir`.
-- **The write root** — `resolve_placement_only` (`src/mission_runtime/resolution.py:1241`),
-  projected by `PlacementSeam.write_target` (`:1408`).
+- **The write root** — `resolve_placement_only` (`src/mission_runtime/resolution.py:1864`),
+  projected by `PlacementSeam.write_target` (`:2345`).
 
 Both are constructed via one entry point, `placement_seam(repo_root, mission_slug)`
-(`src/mission_runtime/resolution.py:1850`), which also asserts the L1 partition invariant
+(`src/mission_runtime/resolution.py:3020`), which also asserts the L1 partition invariant
 before returning — "two roots, one seam."
 
 **This is the intent, not a landed invariant with zero exceptions** — see
 [Honest bounds](#honest-bounds) for the measured count of direct callers that reach either root
 without going through `PlacementSeam`.
+
+### The write location (write_dir)
+
+The write root answers *which ref* a commit lands on; it has no opinion on *which directory*
+the bytes are written into. That second question belongs to `PlacementSeam.write_dir(kind)`
+(`src/mission_runtime/resolution.py:2426`), added by mission
+`coord-artifact-single-home-01M3V4BE` (Mission contract
+`contracts/write-location-accessor.md`; decision record: the 2026-10-01 amendment of
+[ADR 2026-06-19-1](../adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md)). It returns a
+`WriteLocation` (`src/mission_runtime/write_location.py:77`: `path`, `checkout_root`,
+`surface`, `coord_state_before`, `establishment`, `seed`).
+
+`write_dir` is **not a third composition root**: it consults the same materialization-blind
+`declared_read_surface` decision (L2a) that `read_dir` does, then branches:
+
+- declared PRIMARY (a PRIMARY-partition kind, or any kind on `lanes` / `single_branch`) →
+  `_declared_primary_write_dir`, identical to `read_dir` with no side effects;
+- a published Mission's E2-eligible COORD kind, or `STATUS_STATE` → `_published_e2_write_dir`,
+  the PRIMARY Mission dir with no coordination probe, so a coordination branch that
+  consolidation has already torn down cannot raise here;
+- every other COORD kind of a coordination-routed Mission →
+  `specify_cli.coordination.coord_seed.establish_coord_write_location`
+  (`src/specify_cli/coordination/coord_seed.py:1107`), the one place that **materializes,
+  seeds, restores or refuses**.
+
+The difference from `read_dir` is the whole point: a reader may fall back to the PRIMARY
+partition on an `EMPTY` coordination surface (the loud fallback of ADR 2026-06-19-1, which
+reads keep); a writer never does, so a COORD record cannot land on the repository root
+checkout. The per-state behaviour table lives in the ADR amendment and is not repeated here.
 
 ## The compliance taxonomy
 
@@ -112,7 +143,7 @@ site can canonicalize its mission handle perfectly — passing every check the c
 authority gate (formerly `tests/architectural/test_resolution_authority_gates.py`,
 `CANONICALIZER_PRIMITIVE_NAMES`; that file has been deleted) ran — and still choose its own surface by calling a
 kind-blind resolver (`resolve_feature_dir_for_mission`,
-`src/specify_cli/missions/_read_path_resolver.py:1603`) directly, instead of asking
+`src/specify_cli/missions/_read_path_resolver.py:1695`) directly, instead of asking
 `placement_seam(...).read_dir(<kind>)` to make the decision. The handle is canonical; the
 *routing* is not. A gate that only checks handle canonicalization form (def-use canonicality)
 cannot see this, because canonicality and routing-compliance are orthogonal axes.
@@ -133,27 +164,27 @@ cannot see this, because canonicality and routing-compliance are orthogonal axes
 ## Honest bounds
 
 **Surface members with no production producer.** `TopologySurface` (`src/mission_runtime/
-artifacts.py:22`) has five members — `PRIMARY`, `COORD`, `LANE`, `CONSOLIDATED`, `TEMP` — all
+artifacts.py:23`) has five members — `PRIMARY`, `COORD`, `LANE`, `CONSOLIDATED`, `TEMP` — all
 declared together so `translate_surface`'s totality assertion (`assert_surface_totality`,
-`src/mission_runtime/artifacts.py:300`) has no phantom member to skip. Only `PRIMARY` and
+`src/mission_runtime/artifacts.py:384`) has no phantom member to skip. Only `PRIMARY` and
 `COORD` are wired to a production caller today; `LANE`, `CONSOLIDATED`, and `TEMP` are declared
 with the seam but have **no production producer yet** — the enum's own docstring
-(`artifacts.py:41-48`) says so directly. Do not read their presence in the enum as evidence a
+(`artifacts.py:42-49`) says so directly. Do not read their presence in the enum as evidence a
 caller resolves them today.
 
 **The residual `PLACEMENT` rename debt.** ADR `2026-07-23-1` renamed the `TopologySurface`
 member `PLACEMENT` → `COORD`. The frozenset that decides *which artifact kinds* route to that
 surface, however, is still named `_PLACEMENT_ARTIFACT_KINDS` (`src/mission_runtime/
-artifacts.py:172`) — the rename reached the enum member but not this frozenset's name. This is
+artifacts.py:207`) — the rename reached the enum member but not this frozenset's name. This is
 named here, not laundered: a future cleanup can rename the frozenset without changing any
 behavior, since membership (not the Python identifier) is what every consumer reads.
 
 **The `RETROSPECTIVE` short-circuit is a foundation site, not a footnote.** `PlacementSeam.
 read_dir` routes `MissionArtifactKind.RETROSPECTIVE` to `resolve_retrospective_home`
-(`src/specify_cli/retrospective/writer.py:36`) before `resolve_artifact_surface` ever runs —
+(`src/specify_cli/retrospective/writer.py:37`) before `resolve_artifact_surface` ever runs —
 because a second RETROSPECTIVE-home computation would duplicate the single authority that
 function already is. `resolve_retrospective_home` itself calls the module-private leaf
-`_compose_primary_feature_dir` (`src/specify_cli/missions/_read_path_resolver.py:1263`)
+`_compose_primary_feature_dir` (`src/specify_cli/missions/_read_path_resolver.py:1320`)
 directly, never `read_dir` again. This mission proved the short-circuit is load-bearing, not
 cosmetic: an intermediate draft that routed the wrapper *through* `read_dir(RETROSPECTIVE)`
 produced a **real recursion cycle** (`resolve_retrospective_home → read_dir(RETROSPECTIVE) →
@@ -163,24 +194,43 @@ leaves behind: **any site beneath this short-circuit is a foundation site** — 
 leaf directly and permanently, never route back through `read_dir`.
 
 **Two composition roots, measured bypass count (not a zero-exception invariant).** Re-derived
-directly from the tree by AST-matching `Call` nodes (`grep`/`ast.walk` over `src/**/*.py`, this
-mission's own re-derive-don't-copy discipline):
+directly from the tree by AST-matching `Call` nodes (`ast.walk` over `src/**/*.py`, this
+page's own re-derive-don't-copy discipline). **Re-measured 2026-10-02 on the tip of the
+mission's last stacked lane (`1404842433`), because the earlier 12 + 6 figures predate the
+`merge` → `consolidation` module renames and this mission's write-side work.** `PlacementSeam.
+write_dir` adds no `resolve_placement_only` or `resolve_artifact_surface` caller of its own.
 
-| Root | Total call expressions | Reached via `placement_seam(...)` | Direct callers bypassing the seam object |
+| Root | Total call expressions | Reached via `placement_seam(...)` or in-module projections | Direct callers outside `resolution.py` |
 |---|---|---|---|
-| `resolve_placement_only` (write) | 13 | 1 (`PlacementSeam.write_target`, `resolution.py:1415`) | **12**, across 8 modules (`coordination/commit_router.py` ×4, `merge/executor.py`, `merge/done_bookkeeping.py`, `coordination/status_transition.py`, `cli/commands/safe_commit_cmd.py`, `cli/commands/agent/tasks_shared.py`, `orchestrator_api/commands.py` ×2, `mission_runtime/write_target_degrade.py`) |
-| `resolve_artifact_surface` (read) | 8 | 2 (`PlacementSeam.read_dir` at `:1467`, and the sibling thin projection `coord_read_dir_for` at `:1839`, both co-located in `resolution.py` itself) | **6**, across 5 modules (`merge/forecast.py`, `post_merge/review_artifact_consistency.py`, `cli/commands/accept.py` ×2, `migration/runtime_state_cutover.py`, `acceptance/execution_context.py`) |
+| `resolve_placement_only` (write) | 16 | 2 in `resolution.py`: `PlacementSeam.write_target` (`resolution.py:2352`) and the issue-matrix projection `_issue_matrix_ref` (`:2104`) | **14**, across 8 modules (`coordination/commit_router.py` ×6, `coordination/status_transition.py` ×2, `consolidation/executor.py`, `consolidation/done_bookkeeping.py`, `lanes/for_review_gate.py`, `cli/commands/safe_commit_cmd.py`, `cli/commands/agent/tasks_shared.py`, `mission_runtime/write_target_degrade.py`) |
+| `resolve_artifact_surface` (read) | 11 | 2 in `resolution.py`: `PlacementSeam.read_dir` (`:2419`) and the thin projection `coord_read_dir_for` (`:2992`) | **9**, across 7 modules (`consolidation/forecast.py`, `policy/merge_gates.py` ×2, `cli/commands/accept.py`, `migration/runtime_state_cutover.py` ×2, `acceptance/execution_context.py`, `missions/_read_path_resolver.py` (`:1772`), `mission_runtime/issue_matrix_partition.py`) |
 
-None of these 18 direct callers is a defect by itself — several are the composition root's own
+None of these 23 direct callers is a defect by itself — several are the composition root's own
 adjacent infrastructure (e.g. `GateExecutionContext` in `acceptance/execution_context.py`
 legitimately consumes `resolve_artifact_surface` directly, since it *is* the gate-facing
 consumer of that authority, not a bypass of it). The count exists so "one seam object" is never
 read as a landed zero-exception invariant — it is the destination, measured against the
-current tree, not a claim about it.
+current tree, not a claim about it. The count went **up** (18 → 23) between measurements
+because the tree grew, not because callers were added to bypass the seam; the figure is a
+snapshot, not a ratchet.
 
-**`#3055` — one deliberately-deferred edge.** `decisions/emit.py:71`
-(`src/specify_cli/decisions/emit.py`) still calls `resolve_feature_dir_for_mission` directly
-rather than routing through the seam. It is allow-listed, not routed, because the
+**The write-side rederivation gate has a blind spot, and its cap is zero.**
+`tests/architectural/test_no_write_side_rederivation.py` guards the COORD write location in
+two ways: a census of COORD writer functions must not obtain their directory from a read
+resolver (`read_dir(<COORD kind>)` and the other read resolvers), and must not compose a
+`KITTY_SPECS_DIR` path onto a worktree-named operand. Both scans cover **only the bodies of
+the census functions** (`_COORD_WRITER_CENSUS`). A future caller that builds the Mission dir
+through `specify_cli.coordination.legacy_resolution._checkout_mission_dir`
+(`src/specify_cli/coordination/legacy_resolution.py:56`, documented for non-coordination
+checkouts only) is outside that scan, and so is a writer that is not in the census. The live
+allowlist is empty and the cap is 0 (`tests/architectural/_baselines.yaml`:
+`test_no_write_side_rederivation: coord_writer_allowlist: 0`). The honest statement is "the gate
+proves the census writers do not re-derive", not "no writer re-derives"; the gate is not
+weakened to hide that.
+
+**`#3055` — one deliberately-deferred edge (historical; now routed).** At the time of the audit,
+`decisions/emit.py:71` (`src/specify_cli/decisions/emit.py`) still called `resolve_feature_dir_for_mission` directly
+rather than routing through the seam. It was allow-listed, not routed, because the
 coord-authority gate (formerly `tests/architectural/test_resolution_authority_gates.py`, since
 deleted) independently sanctioned this exact call as a permanent legitimate coord-owned write bypass, keyed on the
 literal primitive name — the gate must learn the seam idiom (recognize a kind-aware
@@ -196,6 +246,14 @@ sanction, and `widen/state.py:63`'s rationale is verbatim-identical to this one 
 simply not re-audited for the directory-identical-routing property this mission established
 for `emit.py:71`. So the honest statement is "the one edge adjudicated and deferred," not "the
 one call site in tension."
+
+**Current state (2026-10-02).** `decisions/emit.py:_mission_dir` no longer calls
+`resolve_feature_dir_for_mission` or `read_dir` at all: it resolves the decision-event write
+location through `placement_seam(...).write_dir(STATUS_STATE).path`, because a decision event is a
+COORD record and `read_dir` would degrade an `EMPTY` coordination surface to the repository root
+checkout. Of the three sibling sanctions, `agent_tasks_ports.py` (`RealCoordCommitRouter.
+feature_write_dir`) and `lanes/recovery.py` (`reconcile_status`) now also take `write_dir`;
+`widen/state.py:63` (`WidenPendingStore.__init__`) still calls `resolve_feature_dir_for_mission`.
 
 ## Partition-Move Audit Checklist
 
@@ -255,6 +313,51 @@ function.
    add) a full-workflow / topology-level test that exercises the reader
    through its real call chain, for both PRIMARY-only and coord topologies.
 
+### Worked example: `DECISION_LEDGER` moved COORD to PRIMARY (2026-10-01)
+
+Mission `coord-artifact-single-home-01M3V4BE` moved `MissionArtifactKind.DECISION_LEDGER`
+(`decisions/index.json` and the `DM-*.md` files) from `_PLACEMENT_ARTIFACT_KINDS` to
+`_PRIMARY_ARTIFACT_KINDS` (`src/mission_runtime/artifacts.py:165`, `:207`; the kind sits in the
+PRIMARY frozenset at `:197`). The decision and its reasoning are in
+[ADR 2026-10-01-3](../adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md). This is the
+checklist above applied, step by step:
+
+1. **Grep every reader.** The reader blast radius was enumerated up front (the Mission's
+   research record, D12) instead of being found by symptom, and every reader that flips has a
+   focused test of its post-flip answer
+   (`tests/mission_runtime/test_decision_ledger_reader_flips.py`).
+2. **Classify each reader.** Seam readers moved with the classification automatically. The
+   shared predicates (`kind_is_coordination_residue`, and `is_coord_residue_churn` in
+   `src/specify_cli/coordination/coherence.py`) changed their verdict for the ledger at every
+   caller, including the topology-less ones that project COORD by default. The writer
+   (`decisions/emit.py` and the store) was already PRIMARY since #4966, so the *taxonomy* was
+   the straggler of that earlier intent, not a reader.
+3. **Graceful-degradation callers.** The consolidation planning-recency pass is the case the
+   checklist warns about: it can silently overwrite a merged file. It now excludes any path
+   covered by a registered merge driver
+   (`src/specify_cli/consolidation/planning_recency.py`), so the
+   `spec-kitty-decision-index` driver (`union_decision_index` / `run_decision_index_driver`,
+   `src/specify_cli/consolidation/drivers.py:1236`, `:1280`) owns reconciling `index.json`
+   instead of a target-favouring restore dropping a lane-added decision entry.
+4. **Prove it end to end.** `tests/integration/test_coord_single_home_workflow.py` runs the
+   ledger through create, `spec-commit`, `accept`, consolidate and a fresh clone, for the
+   coordination topologies, not only unit reads.
+
+One consequence is specific to this move: the *events* about decisions
+(`decisions.events.jsonl`, `DECISION_LOG`) did **not** move; they stay COORD, so a Mission can
+have a PRIMARY ledger whose events live on the coordination branch. A divergence between the
+two is a recorded finding (`DECISION_LEDGER_ONLY_ON_COORDINATION`, `DECISION_LOG_FORKED`;
+`src/specify_cli/decisions/fork.py:407`, `:442`, `:514`), repaired by `doctor decisions
+--repair`, and teardown refuses with `COORDINATION_LEDGER_UNREPAIRED`
+(`src/specify_cli/coordination/teardown.py:151`) rather than dropping an unreconciled ledger.
+
+**Coordination residue note.** `_COORD_RESIDUE_DIRS` (`src/mission_runtime/artifacts.py:303`)
+maps a Mission-relative directory name to the kind it holds, which
+`kind_is_coordination_residue` then judges by the kind's partition. Its `decisions`
+entry maps to `DECISION_LEDGER`; since the move, `decisions/` is a **PRIMARY-partition kind and
+is never reset as residue**: the directory still maps to the same kind, and only the kind's
+partition membership changed.
+
 ## Two-Axis Resolver-Site Classification
 
 Auditing a resolver call site for correctness (not just for seam
@@ -302,6 +405,11 @@ on it.
   — the governing decision for the `TopologySurface` vocabulary (including the
   `PRIMARY`/`COORD`/`LANE`/`CONSOLIDATED`/`TEMP` members) and the forbidden-conditioning rule
   (naming a surface is not licence to branch behavior on it).
+- [ADR 2026-06-19-1: coordination-worktree-empty surface policy](../adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md)
+  — the 2026-10-01 amendment governs `PlacementSeam.write_dir` and the per-state write behaviour; the
+  2026-06-21 amendment still governs the read-side loud fallback.
+- [ADR 2026-10-01-3: the decision ledger is a PRIMARY-partition kind](../adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md)
+  — the partition move in the worked example above.
 
 See also the `Routing` disambiguation in
 [`docs/context/orchestration.md`](../context/orchestration.md#routing) for every other sense of

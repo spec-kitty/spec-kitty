@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-10-02'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -34,9 +34,68 @@ Terminology note:
 
 For non-obvious runtime behaviour an operator may encounter:
 
-- [`finalize-tasks` internals](finalize-tasks-internals.md) — explicit empty `owned_files` semantics and lane-depth cycle safety.
+- [`finalize-tasks` internals](finalize-tasks-internals.md) — explicit empty `owned_files` semantics, lane-depth cycle safety, and the planning-commit pin refresh.
 - [`auth whoami` output](auth-whoami-output.md) — the full stdout shape, including the SaaS diagnostic lines the generated `--help` section below doesn't mention.
 - [Issue-matrix verdict reference](../development/reference/issue-matrix-verdicts.md) — the five `issue-verdict` verdict values, which gate at `approved` vs `done`, and the reference-classification model behind `move-task`'s approval gate. `move-task`'s `--actor`/`--reason` aliases and `issue-verdict`'s `not-applicable` verdict are agent-only commands documented in full in `docs/api/agent-subcommands.md` (regenerated from the live Typer surface); this reference page is the durable, hand-authored explanation of the vocabulary and gating rules those generated sections don't narrate (#3469).
+
+## Coordination-routed Missions: where writes land
+
+These notes are the hand-authored companion to the generated sections below (which are
+regenerated from live `--help` and cannot carry them). They apply to a Mission whose topology is
+`coord` or `lanes_with_coord`; `lanes` and `single_branch` Missions are unchanged. The design
+record is the 2026-10-01 amendment of
+[ADR 2026-06-19-1](../adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md) and the
+[architecture page](../architecture/artifact-placement-seam.md#the-write-location-write_dir).
+
+- **One home for coordination records.** A coordination record (status log, decision events,
+  issue matrix, and so on) is written only to the coordination worktree, never to the
+  repository root checkout. If the worktree is not there yet, the command creates it (when the
+  coordination branch exists locally) or refuses with `COORDINATION_WORKTREE_UNMATERIALIZED`
+  and a recovery hint (when the branch exists only on a remote).
+- **`spec-kitty spec-commit`** reports one outcome per surface it touched. `success` is `false`
+  and the exit code is non-zero when any surface is refused or errored. The `--json` payload
+  gains two additive keys, `surfaces` (one entry per surface with its outcome) and
+  `arguments`; existing keys are unchanged.
+- **`spec-kitty accept`** commits the current Mission's uncommitted PRIMARY-partition decision
+  ledger (`decisions/index.json` and `DM-*.md`) before its cleanliness check, instead of
+  refusing on it. Which files count is decided by the artifact taxonomy, not by a filename
+  allowlist, and only for the Mission being accepted. Another Mission's ledger and any other
+  uncommitted change still fail closed. With `--json` the payload adds
+  `residual_commit.surfaces`.
+- **`spec-kitty consolidate`** materializes an `UNMATERIALIZED` coordination surface whose
+  branch is present locally, and proceeds. A remote-only branch, a deleted branch, a forked
+  coordination log or a held status lock abort the run before any state change.
+  **`consolidate --dry-run` does not materialize** and stays fail-closed: on an unmaterialized
+  or deleted coordination surface the forecast stops with the same error rather than creating
+  a worktree. The asymmetry is deliberate: a preview must not change the repository.
+  Consolidation and coordination teardown also refuse with `COORDINATION_LEDGER_UNREPAIRED`
+  while a Mission's decision ledger exists only on the coordination branch (see
+  `doctor decisions` below).
+- **`spec-kitty materialize`** creates the coordination worktree (once per coordination-routed
+  Mission) and seeds a Mission created before the fix; see its generated help below. A
+  remote-only branch or a forked log is listed in the error summary and the remaining
+  Missions are still processed.
+- **`spec-kitty agent mission create`** (agent-only; see
+  [`agent-subcommands.md`](agent-subcommands.md)) materializes and seeds the coordination
+  worktree for a coordination-routed Mission and commits the creation records there; the
+  target branch receives no coordination record.
+- **`spec-kitty doctor decisions`** also reports forks. The decision ledger is a PRIMARY
+  partition kind, while its events live on the coordination surface. A ledger that exists only
+  on the coordination branch is reported as `DECISION_LEDGER_ONLY_ON_COORDINATION`, and two
+  logs that disagree as `DECISION_LOG_FORKED`. `--repair` copies a coordination-only ledger
+  into the PRIMARY partition without committing (commit it with `spec-commit` or `accept`),
+  and **exits 1 on a fork without dropping any entry**. `--repair` keeps an index entry whose
+  event exists on either surface; an entry with no event on any surface is still dropped.
+- **Fresh clone.** The coordination status log is not part of a fresh clone, so on one,
+  `doctor decisions` reports `clean: false` with `orphaned_in_index` entries: the index is
+  there, its events are not. Restore the coordination log before using `--repair`, because
+  `--repair` drops a genuine orphan. `agent decision verify` on the same clone is not
+  reported as forked, finds every opened decision id, and reports `ledger.state == "primary"`.
+- **Decision-index merge driver.** `.gitattributes` registers `merge=spec-kitty-decision-index`
+  for `kitty-specs/**/decisions/index.json`, so concurrent additions on lane branches union
+  by `decision_id` instead of conflicting. Projects initialised earlier get the driver from the
+  upgrade migration `m_4_0_0rc5_decision_index_merge_driver`; run `spec-kitty upgrade`. The
+  driver is the hidden command `spec-kitty merge-driver-decision-index %O %A %B`.
 
 ## Schema references
 

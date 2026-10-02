@@ -3,6 +3,7 @@ title: 'ADR: the placement read seam raises on an unmaterialized coordination wo
 description: 'A coord-partition read on CoordState.UNMATERIALIZED now raises CoordinationWorktreeUnmaterialized instead of silently substituting an empty PRIMARY path.'
 status: Accepted
 date: '2026-09-24'
+updated: '2026-10-02'
 ---
 
 ## Context and Problem Statement
@@ -11,7 +12,9 @@ date: '2026-09-24'
 turns a mission's four-state coordination probe (`specify_cli.missions._read_path_resolver
 .CoordState`) into a read decision for a coord-partition artifact kind (`STATUS_STATE`,
 `ISSUE_MATRIX`, `ACCEPTANCE_MATRIX`, `DECISION_LOG`, `TRACER_FILE`, `REVIEW_CYCLE`,
-`DECISION_LEDGER`). Before this ADR, the classifier's tail read:
+`DECISION_LEDGER`; `DECISION_LEDGER` was reclassified to the PRIMARY partition on
+2026-10-01, see [ADR 2026-06-19-1](2026-06-19-1-coord-empty-surface-fallback.md) and
+[the 4.x ADR](../4.x/2026-10-01-3-decision-ledger-primary-partition.md)). Before this ADR, the classifier's tail read:
 
 ```python
 if coord_state is CoordState.DELETED:
@@ -115,6 +118,13 @@ empty-PRIMARY substitution.**
   is a pure addition beside `CoordinationBranchDeleted`; no existing function in
   `surface_resolver.py`, including the `#4979`/`#4950` `_coord_branch_exists` surface, was
   modified.
+- **The write side is governed separately (amended 2026-10-01).** The raise above is
+  unchanged and applies to reads. Writes of a coordination-routed Mission take their
+  location from `PlacementSeam.write_dir`, which materializes a locally-present
+  coordination branch and refuses a remote-only one with
+  `COORDINATION_WORKTREE_UNMATERIALIZED`, and never substitutes the PRIMARY partition or the
+  repository root checkout. See the 2026-10-01 amendment in
+  [ADR 2026-06-19-1](2026-06-19-1-coord-empty-surface-fallback.md).
 - **A future contributor extending the UNMATERIALIZED raise to `EMPTY`/`NONE`** must revisit
   the coord-empty loud-fallback ADR (`2026-06-19-1`) first — those states carry their own,
   separately adjudicated policy and are not silently absorbed into this decision.

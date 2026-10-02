@@ -47,3 +47,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-30 | [allowlist ratchets are priced debt](2026-09-30-1-allowlist-ratchets-are-priced-debt.md) |
 | 2026-10-01 | [dead-symbol allowlist identity is (module, name)](2026-10-01-1-dead-symbol-allowlist-module-name-identity.md) |
 | 2026-10-01 | [a mission status read API replaces the CLI-bundled dashboard (extract and replace)](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) |
+| 2026-10-01 | [the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)](2026-10-01-3-decision-ledger-primary-partition.md) |
