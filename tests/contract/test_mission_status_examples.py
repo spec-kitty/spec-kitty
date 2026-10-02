@@ -405,3 +405,204 @@ def test_planted_identity_violations_are_found(tmp_path: Path) -> None:
     assert any("ULID" in finding for finding in _identity_findings(module)[0])
     parameter_file.write_text(yaml.safe_dump({**document, "name": "displayNumber"}), encoding="utf-8")
     assert any("displayNumber" in finding for finding in _identity_findings(module)[0])
+
+
+# --------------------------------------------------------------------------------------
+# WP05: the event stream resource (FR-007, FR-009, FR-013)
+# --------------------------------------------------------------------------------------
+
+EVENT_SCHEMAS = {
+    "status-transition": "StatusTransitionEvent",
+    "mission-lifecycle": "MissionLifecycleEvent",
+    "log-truncated": "LogTruncatedEvent",
+}
+REFUSAL_SCHEMA = "StreamRefusal"
+CURSOR_STRING_SCHEMA = "StreamCursorString"
+REFUSAL_CODES = {"negative", "out_of_range", "misaligned", "content_mismatch", "cursor_without_mission"}
+LIFECYCLE_TYPES = {
+    "MissionCreated",
+    "SpecifyStarted",
+    "SpecifyCompleted",
+    "PlanStarted",
+    "PlanCompleted",
+    "TasksStarted",
+    "TasksCompleted",
+}
+TRUNCATION_REASONS = {"size_shrink", "content_mismatch"}
+EMPTY_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+EVENTS_PATH = "/events"
+EXPECTED_PATH_KEYS = {
+    "/project",
+    "/missions",
+    "/missions/{missionId}",
+    "/missions/{missionId}/work-packages/{wpId}",
+    EVENTS_PATH,
+}
+
+
+def _first_of(schema: str) -> dict[str, Any]:
+    instances = _instances_of(schema)
+    assert instances, f"no examples are attached to {schema}"
+    return next(iter(instances.values()))
+
+
+def test_every_event_kind_and_every_refusal_has_a_validating_example() -> None:
+    for kind, schema in EVENT_SCHEMAS.items():
+        instances = _instances_of(schema)
+        assert instances, f"no example for the {kind} event ({schema})"
+        for name, instance in instances.items():
+            assert not any(_both_paths(MODULE, schema, instance)), f"{name} does not validate against {schema}"
+    refusals = _instances_of(REFUSAL_SCHEMA)
+    assert {instance["code"] for instance in refusals.values()} == REFUSAL_CODES, sorted(refusals)
+    for name, instance in refusals.items():
+        assert not any(_both_paths(MODULE, REFUSAL_SCHEMA, instance)), f"{name} does not validate against {REFUSAL_SCHEMA}"
+
+
+def test_the_event_examples_cover_the_interesting_cases() -> None:
+    transitions = _instances_of("StatusTransitionEvent")
+    _first(transitions, lambda event: event["fromStatusLane"] is None)
+    _first(transitions, lambda event: event["fromStatusLane"] is not None)
+    _first(transitions, lambda event: event["force"] is True)
+    lifecycle = _instances_of("MissionLifecycleEvent")
+    assert len({event["eventType"] for event in lifecycle.values()}) >= 2, sorted(lifecycle)
+    truncated = _instances_of("LogTruncatedEvent")
+    assert {event["reason"] for event in truncated.values()} == TRUNCATION_REASONS, sorted(truncated)
+
+
+@pytest.mark.parametrize("kind", sorted(EVENT_SCHEMAS))
+def test_an_event_with_a_property_outside_its_schema_is_rejected(kind: str) -> None:
+    schema = EVENT_SCHEMAS[kind]
+    event = _first_of(schema)
+    assert not any(_both_paths(MODULE, schema, event)), f"the {schema} control is not clean"
+    for extra in ("payload", "aggregateId", "reason" if kind != "log-truncated" else "note"):
+        planted = {**event, extra: "x"}
+        resolver_errors, library_errors = _both_paths(MODULE, schema, planted)
+        assert any(extra in message for message in resolver_errors), (extra, resolver_errors)
+        assert any(extra in message for message in library_errors), (extra, library_errors)
+
+
+@pytest.mark.parametrize("schema", sorted(EVENT_SCHEMAS.values()))
+def test_an_event_without_its_cursor_or_mission_is_rejected(schema: str) -> None:
+    for required in ("streamCursor", "missionId"):
+        event = {key: value for key, value in _first_of(schema).items() if key != required}
+        assert any(_both_paths(MODULE, schema, event)), f"a {schema} without {required} was accepted"
+
+
+def test_a_log_truncated_event_with_another_reason_is_rejected() -> None:
+    event = _first_of("LogTruncatedEvent")
+    for reason in ("rotated", "size_growth", "", None):
+        planted = {**event, "reason": reason}
+        resolver_errors, library_errors = _both_paths(MODULE, "LogTruncatedEvent", planted)
+        assert resolver_errors and library_errors, f"reason {reason!r} was accepted"
+
+
+def test_a_log_truncated_event_resets_the_cursor_to_offset_zero_with_the_empty_digest() -> None:
+    for name, event in _instances_of("LogTruncatedEvent").items():
+        assert event["streamCursor"] == {"offset": 0, "invariant": EMPTY_DIGEST}, name
+    event = _first_of("LogTruncatedEvent")
+    for cursor in ({"offset": 40, "invariant": EMPTY_DIGEST}, {"offset": 0, "invariant": "a" * 64}):
+        planted = {**event, "streamCursor": cursor}
+        assert all(_both_paths(MODULE, "LogTruncatedEvent", planted)), f"a non-reset cursor {cursor} was accepted"
+
+
+def test_a_lifecycle_event_with_a_type_outside_the_seven_is_rejected() -> None:
+    schema = _read(MODULE / "schemas" / "MissionLifecycleEvent.yaml")
+    assert set(schema["properties"]["eventType"]["enum"]) == LIFECYCLE_TYPES
+    event = _first_of("MissionLifecycleEvent")
+    for outside in ("ProjectInitialized", "WPCreated", "ReviewerSelfApproval", "MissionReopened", "FollowUpRecorded", "missioncreated", ""):
+        planted = {**event, "eventType": outside}
+        resolver_errors, library_errors = _both_paths(MODULE, "MissionLifecycleEvent", planted)
+        assert resolver_errors and library_errors, f"eventType {outside!r} was accepted"
+
+
+def test_an_event_missionId_must_be_a_ulid_never_a_slug() -> None:
+    event = _first_of("StatusTransitionEvent")
+    for identity in ("example-mission-01JZCB3C", "WP01", ""):
+        planted = {**event, "missionId": identity}
+        resolver_errors, library_errors = _both_paths(MODULE, "StatusTransitionEvent", planted)
+        assert resolver_errors and library_errors, f"missionId {identity!r} was accepted"
+
+
+def test_the_cursor_string_form_is_offset_colon_invariant() -> None:
+    valid = [f"0:{EMPTY_DIGEST}", f"1024:{'a' * 64}"]
+    invalid = [
+        "",
+        EMPTY_DIGEST,
+        f"-1:{EMPTY_DIGEST}",
+        f"1.5:{EMPTY_DIGEST}",
+        f"0:{EMPTY_DIGEST.upper()}",
+        f"0:{'a' * 63}",
+        f"0:{'a' * 65}",
+        f"0: {EMPTY_DIGEST}",
+        f"x:{EMPTY_DIGEST}",
+    ]
+    for text in valid:
+        assert not any(_both_paths(MODULE, CURSOR_STRING_SCHEMA, text)), text
+    for text in invalid:
+        resolver_errors, library_errors = _both_paths(MODULE, CURSOR_STRING_SCHEMA, text)
+        assert resolver_errors and library_errors, f"{text!r} was accepted"
+
+
+def test_the_cursor_string_agrees_with_the_cursor_object_examples() -> None:
+    events = _instances_of("StatusTransitionEvent")
+    assert events, "no StatusTransitionEvent examples"
+    for name, event in events.items():
+        cursor = event["streamCursor"]
+        text = f"{cursor['offset']}:{cursor['invariant']}"
+        assert not any(_both_paths(MODULE, CURSOR_STRING_SCHEMA, text)), name
+
+
+def test_the_stream_cursor_string_never_reaches_the_page_cursor() -> None:
+    for start in (f"mission-status/schemas/{CURSOR_STRING_SCHEMA}.yaml", "mission-status/schemas/StatusTransitionEvent.yaml"):
+        reached = _ref_closure(CONTRACTS, start)
+        assert PAGE_CURSOR_FILE not in reached, f"{start} reaches the page cursor"
+        assert STREAM_CURSOR_FILE in _ref_closure(CONTRACTS, "mission-status/schemas/LogTruncatedEvent.yaml")
+
+
+def test_all_five_paths_are_mapped_each_to_a_brace_free_file() -> None:
+    root = _read(MODULE / "openapi.yaml")
+    assert set(root["paths"]) == EXPECTED_PATH_KEYS
+    for key, item in root["paths"].items():
+        assert set(item) == {"$ref"}, key
+        expected = f"paths/{resolver.path_file_name(key)}"
+        assert item["$ref"] == expected, (key, item["$ref"])
+        assert "{" not in item["$ref"] and "%7" not in item["$ref"].lower(), key
+        assert (MODULE / expected).is_file(), expected
+    assert root["paths"][EVENTS_PATH]["$ref"] == "paths/events.yaml"
+
+
+def _events_operation() -> dict[str, Any]:
+    return _read(MODULE / "paths" / "events.yaml")["get"]
+
+
+def test_the_events_operation_streams_event_stream_and_documents_the_request_shape() -> None:
+    operation = _events_operation()
+    ok = operation["responses"]["200"]
+    assert set(ok["content"]) == {"text/event-stream"}, sorted(ok["content"])
+    parameters = [_read(MODULE / "paths" / ref["$ref"]) for ref in operation["parameters"]]
+    shape = {(parameter["name"], parameter["in"], parameter["required"]) for parameter in parameters}
+    assert shape == {("missionId", "query", False), ("streamCursor", "query", False), ("Last-Event-ID", "header", False)}, shape
+    text = operation["description"]
+    for needle in ("Last-Event-ID", ": heartbeat", "30 seconds", "live-only", "log-truncated", "per Mission", "provisional", "TailCursor"):
+        assert needle in text, f"the stream description does not mention {needle!r}"
+    mapped = [schema for schema in EVENT_SCHEMAS.values() if schema in text]
+    assert sorted(mapped) == sorted(EVENT_SCHEMAS.values())
+    for kind in EVENT_SCHEMAS:
+        assert text.count(f"`{kind}` ->") == 1, f"the mapping must name {kind} exactly once"
+
+
+def test_the_events_refusals_are_problem_responses_with_the_documented_codes() -> None:
+    operation = _events_operation()
+    assert {"400", "409", "default"} <= set(operation["responses"])
+    refusal = _read(MODULE / "schemas" / f"{REFUSAL_SCHEMA}.yaml")
+    code_enum = next(part["properties"]["code"]["enum"] for part in refusal["allOf"] if "properties" in part and "code" in part["properties"])
+    assert set(code_enum) == REFUSAL_CODES
+
+
+def test_no_event_example_carries_a_leak_shaped_value_or_a_raw_log_key() -> None:
+    raw_keys = {"aggregate_id", "event_id", "event_type", "payload", "to_lane", "from_lane", "tail_offset", "tail_invariant", "detected_at_offset"}
+    for schema in (*EVENT_SCHEMAS.values(), REFUSAL_SCHEMA):
+        instances = _instances_of(schema)
+        assert instances, f"no examples for {schema}"
+        for name, instance in instances.items():
+            assert not raw_keys & set(instance), f"{name} carries a raw log key"
