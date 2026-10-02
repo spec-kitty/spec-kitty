@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: mission-status-contract-v1-01M3WC5X
 mission_id: 01M3WC5XGBJ0DZ91CP66BWB7PS
-generated_at: '2026-10-02T10:48:40.691643+00:00'
+generated_at: '2026-10-02T10:49:07.073922+00:00'
 analyzer_agent: claude:sonnet
 input_artifacts:
   spec.md:
@@ -19,27 +19,13 @@ input_artifacts:
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 69c63e91ae27a02b0c07b48939f72198b0d2654ed5bee42e3d6bc1d5d4e71a6e
-verdict: unknown
-issue_counts:
-  medium:
-  high:
-  info:
-  low:
-  critical:
-findings: []
----
-
----
-schema_version: 1
-artifact_type: spec-kitty.analysis-findings
-analysis-findings/v1: true
 verdict: blocked
 issue_counts:
+  low: 2
   critical: 0
   high: 2
-  medium: 4
-  low: 2
-  info: 1
+  medium: 5
+  info: 0
 findings:
 - id: A1
   severity: high
@@ -77,10 +63,6 @@ findings:
   severity: low
   category: underspecification
   summary: Orchestrator-written planning records (research.md R-3/R-9 record step, baseline) are committed on the planning surface before WP03/WP06/WP08 and thus land in an early seam PR; WP12 owns research.md and close-out.md in the last PR. Which PR carries which kitty-specs records is unstated.
-- id: A10
-  severity: info
-  category: other
-  summary: T061 is retired (folded into T055); gap in numbering is intentional and documented in WP09. No action.
 ---
 
 ## Specification Analysis Report
