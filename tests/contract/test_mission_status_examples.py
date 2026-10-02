@@ -18,9 +18,8 @@ both paths: that proves the validation is not vacuous (FR-025, C-010).
 
 from __future__ import annotations
 
-import importlib.util
 import shutil
-import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -30,6 +29,8 @@ import yaml
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -43,13 +44,19 @@ PLANTED_SCHEMA = "MissionOverview"
 MALFORMED_TIMESTAMP = "2026-13-45T25:61:00Z"
 
 
+# The tools are loaded at import time (the verdicts parametrise on them), so the module owns one
+# MonkeyPatch for its sys.modules entries and a module-scoped fixture undoes it at teardown.
+_MP = pytest.MonkeyPatch()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _undo_tool_registration() -> Iterator[None]:
+    yield
+    _MP.undo()
+
+
 def _load_tool(name: str) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(f"{name}_under_test", TOOLS / f"{name}.py")
-    assert spec is not None and spec.loader is not None, f"cannot load {name}"
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    return load_tool(_MP, TOOLS / f"{name}.py", f"{name}_under_test")
 
 
 resolver = _load_tool("contract_resolver")
