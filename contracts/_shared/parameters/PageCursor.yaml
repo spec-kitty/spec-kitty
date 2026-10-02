@@ -1,0 +1,6 @@
+name: pageCursor
+in: query
+required: false
+description: The opaque token from the previous page's nextPageCursor. Omit it to fetch the first page.
+schema:
+  $ref: ../schemas/PageCursor.yaml
