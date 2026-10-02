@@ -1,0 +1,5 @@
+title: Pong
+type: object
+properties:
+  ok:
+    type: boolean

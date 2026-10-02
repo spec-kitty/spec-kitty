@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: Layout fixture
+  version: 1.0.0
+paths:
+  /ping:
+    $ref: paths/pingy.yaml
