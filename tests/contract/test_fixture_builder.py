@@ -8,9 +8,9 @@ that the control is clean, and that neither the builder nor this test holds a le
 
 from __future__ import annotations
 
-import importlib.util
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -18,33 +18,29 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.contract._loader import load_tool
+
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
 TOOLS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "tools"
 SCRIPT = TOOLS_DIR / "fixture_builder.py"
 
 
-def _load(name: str) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(f"{name}_under_test", TOOLS_DIR / f"{name}.py")
-    assert spec is not None and spec.loader is not None, f"cannot load {name}"
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+def _load(mp: pytest.MonkeyPatch, name: str) -> ModuleType:
+    return load_tool(mp, TOOLS_DIR / f"{name}.py", f"{name}_under_test")
 
 
 @pytest.fixture(scope="module")
-def builder() -> ModuleType:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        return _load("fixture_builder")
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
+def builder() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        mp.syspath_prepend(str(TOOLS_DIR))
+        yield _load(mp, "fixture_builder")
 
 
 @pytest.fixture(scope="module")
-def leaks() -> ModuleType:
-    return _load("leak_patterns")
+def leaks() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield _load(mp, "leak_patterns")
 
 
 def _documents(root: Path) -> dict[str, Any]:

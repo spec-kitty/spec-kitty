@@ -9,14 +9,16 @@ The README planted-removal test removes each required heading in turn from a cop
 
 from __future__ import annotations
 
-import importlib.util
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -59,17 +61,9 @@ WP01_README_HEADINGS = [
 
 
 @pytest.fixture(scope="module")
-def structure() -> Any:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        spec = importlib.util.spec_from_file_location("structure_check_under_test", SCRIPT)
-        assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
-    return module
+def structure() -> Iterator[Any]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "structure_check_under_test", syspath=TOOLS_DIR)
 
 
 def _run(*arguments: str) -> subprocess.CompletedProcess[str]:
