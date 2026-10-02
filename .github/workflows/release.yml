@@ -312,6 +312,13 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: build-release
+    # A waiver-skipped nightly-gate (workflow_dispatch skip_nightly=true) propagates
+    # its "skipped" state through the default success() condition, which would skip
+    # this job -- and with it BOTH the GitHub release and the PyPI upload it owns --
+    # even though build-release succeeded. Override explicitly: publish whenever
+    # build-release succeeded and nothing was cancelled. On a normal tag-push the
+    # gate runs and succeeds, so this is equivalent to the former implicit success().
+    if: ${{ !cancelled() && needs.build-release.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
