@@ -34,9 +34,15 @@ import-ban to catch either).
 from __future__ import annotations
 
 import ast
+import contextlib
+import functools
+import inspect
+import os
 import re
+import subprocess
+import sys
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 import pytest
@@ -70,6 +76,36 @@ def collect_call_ban_violations(paths: Iterable[Path]) -> list[CallSite]:
         relpath = scan.relpath(path)
         violations.extend((relpath, violation) for violation in _violations_for_file(path))
     return sorted(violations, key=lambda item: (item[0], item[1].line))
+
+
+@functools.cache
+def _tree_call_sites(root: Path, files: tuple[Path, ...]) -> tuple[CallSite, ...]:
+    """The whole-tree call-ban scan, computed ONCE per file for both real-tree tests (FR-006).
+
+    Keyed on ``(resolved scan root, files)``. The value is an immutable tuple of
+    ``(relpath, WallClockCallViolation)`` FINDINGS: each file's AST is parsed
+    and dropped inside ``_violations_for_file`` and is never cached (caching
+    trees cost ~+1.1 GB RSS). The cache lifetime is the file --
+    ``_clear_tree_call_sites`` empties it at module teardown. Relpaths are
+    computed against ``scan.REPO_ROOT``, so a key naming any other root is
+    refused rather than answered with another tree's relpaths. Planted-offender
+    and self-mutation tests keep calling the uncached ``collect_call_ban_violations``.
+    """
+    if root != scan.REPO_ROOT.resolve():
+        raise ValueError(f"_tree_call_sites keyed on {root} but scan.REPO_ROOT is {scan.REPO_ROOT}")
+    return tuple(collect_call_ban_violations(files))
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _clear_tree_call_sites() -> Iterator[None]:
+    """Bound the scan cache to this file: nothing outlives it on the worker (FR-006)."""
+    yield
+    _tree_call_sites.cache_clear()
+
+
+def _real_tree_call_sites() -> list[CallSite]:
+    """The real tree's call sites, via the per-file cache (the two real consumers' single entry point)."""
+    return list(_tree_call_sites(scan.REPO_ROOT.resolve(), tuple(scan.iter_python_files())))
 
 
 def test_scanned_file_floor_is_met() -> None:
@@ -117,8 +153,7 @@ def test_no_banned_wall_clock_call_outside_the_door() -> None:
     entry and observing this same collection go red on the now-unexempted
     call site, then restoring it.
     """
-    scanned = scan.iter_python_files()
-    violations, _unused, _errors = _partition_call_sites(collect_call_ban_violations(scanned), load_call_exemptions())
+    violations, _unused, _errors = _partition_call_sites(_real_tree_call_sites(), load_call_exemptions())
 
     assert violations == [], (
         "Raw wall-clock reads (`.now`/`.utcnow`/`.today`/`time.time()`) are "
@@ -133,9 +168,8 @@ def test_no_banned_wall_clock_call_outside_the_door() -> None:
 
 def test_every_call_exemption_entry_is_a_real_violation() -> None:
     """Anti-staleness (FR-007): every ``CALL:`` descriptor must suppress an actual violation today."""
-    scanned = scan.iter_python_files()
     exemptions = load_call_exemptions()
-    _violations, unused, errors = _partition_call_sites(collect_call_ban_violations(scanned), exemptions)
+    _violations, unused, errors = _partition_call_sites(_real_tree_call_sites(), exemptions)
 
     stale = [f"  CALL:{render_descriptor_line(descriptor)} ({descriptor.rationale}): {reason}" for descriptor, reason in errors]
     stale += [f"  {key[0]} [{key[1]}] {key[2]!r} suppresses no live call" for key in sorted(unused)]
@@ -433,3 +467,215 @@ def test_clock_call_loader_rejects_line_pinned_entry(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(ValueError, match=re.escape("src/x.py:12")):
         exemptions_module.load_call_exemptions()
+
+
+# ---------------------------------------------------------------------------
+# FR-006 (ci-runtime-stabilisation, WP13): the whole-tree scan runs ONCE per
+# file. These tests pin that the memo is keyed honestly on the scan root, holds
+# an immutable value, and is really used by the two real-tree consumers.
+# ---------------------------------------------------------------------------
+
+
+@contextlib.contextmanager
+def _isolated_tree_call_sites() -> Iterator[None]:
+    """Hand a test an EMPTY memo and leave it EMPTY, however the test ends.
+
+    Every test that seeds or exercises ``_tree_call_sites`` runs inside this, so
+    a real consumer that runs after it in the same process (explicit node ids,
+    ``--lf``/``--ff``, reordering) can never be served that test's findings.
+    """
+    _tree_call_sites.cache_clear()
+    try:
+        yield
+    finally:
+        _tree_call_sites.cache_clear()
+
+
+@pytest.fixture
+def isolated_tree_call_sites() -> Iterator[None]:
+    with _isolated_tree_call_sites():
+        yield
+
+
+def _plant_offender(root: Path, name: str) -> Path:
+    module = root / name
+    module.write_text("import datetime\n\ndatetime.now(datetime.UTC)\n", encoding="utf-8")
+    return module
+
+
+def _counting_violations_for_file(monkeypatch: pytest.MonkeyPatch, result: list[WallClockCallViolation] | None = None) -> Counter[Path]:
+    """Wrap the uncached per-file primitive with a per-path call counter.
+
+    With ``result`` set the wrapper returns it instead of parsing (no AST work).
+    """
+    real = _violations_for_file
+    calls: Counter[Path] = Counter()
+
+    def _counting(path: Path) -> list[WallClockCallViolation]:
+        calls[path] += 1
+        return real(path) if result is None else list(result)
+
+    monkeypatch.setattr(sys.modules[__name__], "_violations_for_file", _counting)
+    return calls
+
+
+@pytest.mark.usefixtures("isolated_tree_call_sites")
+def test_tree_call_sites_scans_once_per_root_and_rescans_a_new_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same root: each file is parsed once. A different root: a fresh scan, never A's findings."""
+    root_a, root_b = tmp_path / "a", tmp_path / "b"
+    root_a.mkdir()
+    root_b.mkdir()
+    files_a = (_plant_offender(root_a, "offender_a.py"),)
+    files_b = (_plant_offender(root_b, "offender_b.py"),)
+    calls = _counting_violations_for_file(monkeypatch)
+
+    monkeypatch.setattr(scan, "REPO_ROOT", root_a.resolve())
+    first = _tree_call_sites(root_a.resolve(), files_a)
+    again = _tree_call_sites(root_a.resolve(), files_a)
+
+    assert first == again
+    assert [relpath for relpath, _ in first] == ["offender_a.py"]
+    assert calls == Counter({files_a[0]: 1}), f"the second request must be served from the memo, got {calls}"
+
+    monkeypatch.setattr(scan, "REPO_ROOT", root_b.resolve())
+    fresh = _tree_call_sites(root_b.resolve(), files_b)
+
+    assert [relpath for relpath, _ in fresh] == ["offender_b.py"], "a new root must be scanned fresh, never answered with A's findings"
+    assert calls[files_b[0]] == 1
+
+
+@pytest.mark.usefixtures("isolated_tree_call_sites")
+def test_tree_call_sites_returns_an_immutable_value(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    files = (_plant_offender(tmp_path, "offender.py"),)
+    monkeypatch.setattr(scan, "REPO_ROOT", tmp_path.resolve())
+
+    result = _tree_call_sites(tmp_path.resolve(), files)
+
+    assert isinstance(result, tuple)
+    assert len(result) == 1
+
+
+@pytest.mark.usefixtures("isolated_tree_call_sites")
+def test_tree_call_sites_refuses_a_root_that_is_not_the_scan_root(tmp_path: Path) -> None:
+    """The cached relpaths are relative to ``scan.REPO_ROOT``, so a key naming another root is dishonest."""
+    assert tmp_path.resolve() != scan.REPO_ROOT.resolve(), "sanity: tmp_path is not the real scan root"
+
+    with pytest.raises(ValueError, match="scan.REPO_ROOT"):
+        _tree_call_sites(tmp_path.resolve(), ())
+
+
+@pytest.mark.usefixtures("isolated_tree_call_sites")
+def test_real_scan_pair_scans_each_file_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Production path: the two REAL consumers share one scan -- every file is parsed exactly once across the pair."""
+    calls = _counting_violations_for_file(monkeypatch, result=[])
+    monkeypatch.setattr(sys.modules[__name__], "load_call_exemptions", lambda: frozenset())
+
+    test_no_banned_wall_clock_call_outside_the_door()
+    test_every_call_exemption_entry_is_a_real_violation()
+
+    assert set(calls) == set(scan.iter_python_files())
+    assert {path: count for path, count in calls.items() if count != 1} == {}, "a consumer still calling the primitive directly scans a file twice (FR-006)"
+
+
+def test_the_isolation_leaves_an_empty_memo_after_a_test_seeds_the_real_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin: a test that warms the memo UNDER THE REAL KEY leaves nothing behind -- also when it raises."""
+    _counting_violations_for_file(monkeypatch, result=[])
+    real_key = (scan.REPO_ROOT.resolve(), tuple(scan.iter_python_files()))
+    with _isolated_tree_call_sites():
+        _tree_call_sites(*real_key)
+        assert _tree_call_sites.cache_info().currsize == 1, "sanity: the synthetic findings are in the memo"
+    assert _tree_call_sites.cache_info().currsize == 0
+
+    def _seed_then_fail() -> None:
+        with _isolated_tree_call_sites():
+            _tree_call_sites(*real_key)
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        _seed_then_fail()
+    assert _tree_call_sites.cache_info().currsize == 0, "an erroring test must not leave its findings behind either"
+
+
+# ---------------------------------------------------------------------------
+# Order independence of the per-file memo (FR-006 must not weaken the gate).
+# A test that warms ``_tree_call_sites`` under the REAL key with synthetic
+# findings must leave it empty, or a real consumer that runs after it in the
+# same process (explicit node ids, ``--lf``/``--ff``, reordering) is served the
+# fake world and goes green on a real violation.
+# ---------------------------------------------------------------------------
+
+_PLANTED_TREE_PLUGIN = """
+from pathlib import Path
+
+from tests.architectural import _clock_gate_scan as scan
+
+_root = Path({root!r}).resolve()
+(_root / "src").mkdir(parents=True, exist_ok=True)
+(_root / "src" / "planted_offender.py").write_text("import datetime\\n\\nTICK = datetime.datetime.now()\\n", encoding="utf-8")
+scan.REPO_ROOT = _root
+scan.SCAN_ROOTS = (_root / "src",)
+"""
+
+
+def _run_pytest_with_planted_offender(tmp_path: Path, *node_ids: str) -> subprocess.CompletedProcess[str]:
+    """Run ``node_ids`` in ONE fresh pytest process whose scan tree holds a real wall-clock call."""
+    plugin_dir = tmp_path / "plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "planted_tree_plugin.py").write_text(_PLANTED_TREE_PLUGIN.format(root=str(tmp_path / "tree")), encoding="utf-8")
+    repo_root = Path(__file__).resolve().parents[2]
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(plugin_dir), str(repo_root)])}
+    return subprocess.run(
+        [sys.executable, "-m", "pytest", "-p", "planted_tree_plugin", "-p", "no:cacheprovider", "-o", "addopts=", "-q", "-rf", *node_ids],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+
+
+_CONSUMER_NODE = f"{Path(__file__).as_posix()}::test_no_banned_wall_clock_call_outside_the_door"
+_SEED_NODE = f"{Path(__file__).as_posix()}::test_real_scan_pair_scans_each_file_once"
+
+
+def test_a_real_violation_still_fails_the_consumer_alone(tmp_path: Path) -> None:
+    """Control: with the planted offender the real consumer is red on its own (the harness is not vacuous)."""
+    result = _run_pytest_with_planted_offender(tmp_path, _CONSUMER_NODE)
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "planted_offender.py" in result.stdout, result.stdout
+
+
+def test_a_memo_seeding_test_cannot_green_wash_a_following_real_consumer(tmp_path: Path) -> None:
+    """FR-006 regression: seed-test THEN real consumer, one process -- the consumer must still go red."""
+    result = _run_pytest_with_planted_offender(tmp_path, _SEED_NODE, _CONSUMER_NODE)
+
+    assert result.returncode == 1, f"the consumer was served the seed test's fake findings and passed on a real violation:\n{result.stdout}{result.stderr}"
+    assert re.search(r"^FAILED \S+::test_no_banned_wall_clock_call_outside_the_door", result.stdout, re.MULTILINE), result.stdout
+
+
+def test_tree_call_sites_cache_is_released_by_the_module_finalizer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-006: the module-scoped finalizer empties the whole-tree scan cache at file end.
+
+    The finalizer's generator is driven directly (set-up half, then teardown
+    half) against a stub cache, so the real ``_tree_call_sites`` is never cleared
+    mid-file. Deleting the ``cache_clear()`` call from the fixture leaves the stub
+    populated and fails this test.
+    """
+
+    @functools.cache
+    def _stub() -> int:
+        return 1
+
+    _stub()
+    assert _stub.cache_info().currsize == 1
+    monkeypatch.setattr(sys.modules[__name__], "_tree_call_sites", _stub)  # resolved at call time by the fixture
+
+    finalizer = inspect.unwrap(_clear_tree_call_sites)()
+    assert next(finalizer) is None
+    assert _stub.cache_info().currsize == 1, "set-up must not clear the cache; only teardown does"
+    with pytest.raises(StopIteration):
+        next(finalizer)
+
+    assert _stub.cache_info().currsize == 0

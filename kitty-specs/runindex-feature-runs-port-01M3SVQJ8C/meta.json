@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-09-30T20:02:07+00:00",
+  "flattened": false,
+  "friendly_name": "RunIndex: locked, repo-relative run index port",
+  "mid8": "01M3SVQJ",
+  "mission_id": "01M3SVQJ8C3C9DEQKT1B6GJW4B",
+  "mission_number": null,
+  "mission_slug": "runindex-feature-runs-port-01M3SVQJ8C",
+  "mission_type": "software-dev",
+  "purpose_context": "The run index mapping a mission to its runtime run (.kittify/runtime/feature-runs.json) persists an absolute run_dir path and performs an unlocked read-modify-write, so a filesystem copy/move of a project corrupts or loses run-index registrations and concurrent next invocations can silently drop a distinct mission's entry.",
+  "purpose_tldr": "Introduce a locked, repo-relative RunIndex port so copying or moving a project never corrupts run continuation and concurrent next starts never lose a registration.",
+  "slug": "runindex-feature-runs-port-01M3SVQJ8C",
+  "status_phase": "1",
+  "target_branch": "claude/runindex-feature-runs-port-77d5xu",
+  "topology": "single_branch"
+}

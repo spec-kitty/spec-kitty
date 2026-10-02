@@ -362,7 +362,7 @@ def test_the_baseline_reach_checker_does_not_fire_on_prose() -> None:
         ("always() && github.event_name == 'push'", True),
         ("always() && github.event_name == 'pull_request'", False),
         ("always() && github.event_name != 'pull_request'", True),
-        ("needs.fast-tests-cli.result == 'success'", True),
+        ("needs.tests-e2e.result == 'success'", True),
         ("needs.kernel-tests.result != 'failure'", True),
         (
             "${{ (always()) && "

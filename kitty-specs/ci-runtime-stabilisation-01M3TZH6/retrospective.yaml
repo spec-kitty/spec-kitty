@@ -1,0 +1,400 @@
+schema_version: 1
+mission_id: 01M3TZH6ZRJAR1SCMVQH8PXHFJ
+mission_slug: ci-runtime-stabilisation-01M3TZH6
+mission_number: 211
+friendly_name: CI runtime stabilisation
+mission_type: software-dev
+target_branch: issue-5510-ci-runtime-stabilisation
+created_at: '2026-10-01T16:52:11.303398+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-01T16:52:11.303398+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-004
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-005
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-006
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-007
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-008
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-009
+  category: implementation
+  summary: WP15 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-010
+  category: implementation
+  summary: WP16 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-011
+  category: implementation
+  summary: WP17 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-012
+  category: implementation
+  summary: WP18 completed without rejection cycles
+  evidence_refs:
+  - e-024
+not_helpful:
+- id: n-020
+  category: doc
+  summary: analysis-report.md records 9 finding(s)
+  evidence_refs:
+  - e-044
+  details: The analysis-report.md artifact for this mission records 9 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-013
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-037
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-014
+  category: implementation
+  summary: WP02 needed 3 implementation cycles
+  evidence_refs:
+  - e-038
+  details: WP WP02 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-015
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-039
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-016
+  category: implementation
+  summary: WP08 needed 2 implementation cycles
+  evidence_refs:
+  - e-040
+  details: WP WP08 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-017
+  category: implementation
+  summary: WP09 needed 3 implementation cycles
+  evidence_refs:
+  - e-041
+  details: WP WP09 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-018
+  category: implementation
+  summary: WP13 needed 2 implementation cycles
+  evidence_refs:
+  - e-042
+  details: WP WP13 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-019
+  category: implementation
+  summary: WP19 needed 2 implementation cycles
+  evidence_refs:
+  - e-043
+  details: WP WP19 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-007
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-031
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-032
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-033
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP09 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-034
+  details: WP WP09 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP13 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-035
+  details: WP WP13 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP19 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-036
+  details: WP WP19 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-025
+  details: WP WP01 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-026
+  details: WP WP02 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-027
+  details: WP WP08 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP09 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-028
+  details: WP WP09 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP13 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-029
+  details: WP WP13 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP19 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-030
+  details: WP WP19 was sent back from review/approval to an earlier lane 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP01-campsite-extract-shard-selector.md
+- id: e-006
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP02-selector-loud-mismatch-file-mode.md
+- id: e-007
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP03-split-consolidation-shard.md
+- id: e-008
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP04-nightly-full-battery-backstop.md
+- id: e-009
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP05-battery-partition-plugin-and-registry.md
+- id: e-010
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP06-gate-model-partition-proof.md
+- id: e-011
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP07-ci-config-path-group.md
+- id: e-012
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP08-remove-router-module-path-jobs.md
+- id: e-013
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP09-packs-sole-corpus-owner.md
+- id: e-014
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP10-corpus-blocking-home.md
+- id: e-015
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP11-memory-sampler.md
+- id: e-016
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP12-router-battery-reshaping.md
+- id: e-017
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP13-per-file-scan-caching.md
+- id: e-018
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP14-battery-timings-seed-and-budgets.md
+- id: e-019
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP15-live-cross-job-uniqueness.md
+- id: e-020
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP16-green-match-helper.md
+- id: e-021
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP17-aggregate-repoint.md
+- id: e-022
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP18-wire-skip-if-green.md
+- id: e-023
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/tasks/WP19-docs-and-decision-records.md
+- id: e-024
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+- id: e-025
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VC2B7YJXYN1659KCDPBHBK
+- id: e-026
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VE8EY400FT8TE2YMRH8T1N..01M3VG5EAEBZ8EXKRHXSG571S8
+- id: e-027
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VRNG98MWDDWEAHFV1WVYYJ
+- id: e-028
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VV2W699M5EJ3QFH2H80W8Y..01M3VVRPN6PWANNZWMWSZYWG7T
+- id: e-029
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VDG1BDCE08V5RVEWJEA641
+- id: e-030
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3W58M9KH7T78P8NF7EDVRYV
+- id: e-031
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VC2B7YJXYN1659KCDPBHBK
+- id: e-032
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VE8EY400FT8TE2YMRH8T1N..01M3VG5EAEBZ8EXKRHXSG571S8
+- id: e-033
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VRNG98MWDDWEAHFV1WVYYJ
+- id: e-034
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VV2W699M5EJ3QFH2H80W8Y..01M3VVRPN6PWANNZWMWSZYWG7T
+- id: e-035
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3VDG1BDCE08V5RVEWJEA641
+- id: e-036
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: 01M3W58M9KH7T78P8NF7EDVRYV
+- id: e-037
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-038
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-039
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-040
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-041
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-042
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-043
+  kind: event_range
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/status.events.jsonl
+  range: implementation_cycles
+- id: e-044
+  kind: file
+  path: kitty-specs/ci-runtime-stabilisation-01M3TZH6/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

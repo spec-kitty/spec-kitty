@@ -36,7 +36,7 @@ workflow this module declines to call change-triggered is dropped from every
 assertion in it, silently, while the non-vacuity floor stays green. So
 :func:`change_triggered` is a closed world in the other direction -- it
 enumerates the events that are *not* per-change
-(:data:`NON_CHANGE_TRIGGER_EVENTS` plus a tags-only push) and treats everything
+(:data:`_workflow_jobs.NON_CHANGE_TRIGGER_EVENTS` plus a tags-only push) and treats everything
 else as in scope, including trigger spellings and ``on:`` shapes it cannot
 parse. The first draft of this module inverted that and lost nine spellings,
 ``on: [push, pull_request]`` among them; the exclusion set is now pinned by
@@ -105,7 +105,7 @@ item 3 below).
    ``xvfb-run`` / ``timeout N`` / ``<path>/pytest`` spellings now resolve, so
    they can no longer trip even this deny-list -- but it did not close the
    class.
-2. :data:`NON_CHANGE_TRIGGER_EVENTS` is now the only allow-list left in the
+2. :data:`_workflow_jobs.NON_CHANGE_TRIGGER_EVENTS` is now the only allow-list left in the
    module. Each of its four rows widens the blind spot by one event, which is
    why the exclusion ledger pins which live workflows they actually exclude.
 3. **Command-position indirection is refused, not closed** (WP06/T029b -- the
@@ -129,6 +129,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -136,12 +137,19 @@ import pytest
 import yaml
 
 from tests.architectural import _gate_coverage as gc
+from tests.architectural._workflow_jobs import (
+    change_triggered,
+    enumerate_workflows,
+    normalized_triggers,
+)
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 # ``(workflow file name, job name)`` -- job names are unique only WITHIN a
 # workflow, so the pair is the key (``_gate_coverage.JobKey``).
 JobKey = tuple[str, str]
+# (workflow file, job key, matrix-leg ``shard`` label or None): one authorised execution each.
+LegKey = tuple[str, str, str | None]
 
 MAKEFILE = gc.REPO_ROOT / "Makefile"
 CI_QUALITY_NAME = "ci-quality.yml"
@@ -154,41 +162,6 @@ RETIRING_JOB_VIA = "make test-fast"
 # workflow_run chain fires once per change, so a suite execution parked there
 # duplicates just as surely as one in the pull_request workflow itself.
 REPORTING_HOST_WORKFLOW = "ci-aggregate.yml"
-
-# Events that do NOT put a workflow on the per-change path.
-#
-# This is a CLOSED WORLD by deliberate inversion. An allow-list of per-change
-# events fails OPEN: every trigger spelling it has not heard of -- and
-# ``on: [push, pull_request]``, the most ordinary spelling in GitHub Actions, is
-# one of them -- silently drops its workflow out of every assertion in this
-# module. The two errors do not cost the same. A workflow wrongly called
-# per-change costs one reviewed ledger row; a workflow wrongly called NOT
-# per-change is invisible, which is exactly the "gate stays green while the tree
-# violates the property" failure this battery exists to make unrepeatable. So
-# anything not named here -- an unrecognised event, an ``on:`` block in a shape
-# this module cannot parse, a missing ``on:`` block -- counts as change-triggered.
-#
-# Every row below widens the blind spot and must earn its place:
-#   ``schedule``          a cron run is not a change (ci-nightly, sonar).
-#   ``workflow_dispatch`` a human-initiated run is not a change.
-#   ``workflow_call``     a reusable workflow has no triggers of its own; it is
-#                         spliced into its caller by ``load_spliced_workflow``,
-#                         so counting it standalone would double-count THE
-#                         matrix (module-tests.yml).
-#   ``release``           a publication event, like the tags-only push below.
-NON_CHANGE_TRIGGER_EVENTS: frozenset[str] = frozenset({"schedule", "workflow_dispatch", "workflow_call", "release"})
-
-# ``on.push`` keys that make a push a per-change event. Only a tags-only push
-# (``release.yml``) is exempt: tags are publication refs, whereas branch and
-# path filters select *changes*. A ``push:`` with no filters at all fires on
-# every push and is per-change too.
-PER_CHANGE_PUSH_FILTERS: tuple[str, ...] = (
-    "branches",
-    "branches-ignore",
-    "paths",
-    "paths-ignore",
-    "tags-ignore",
-)
 
 # Live workflows deliberately outside the per-change scan, each with the reason
 # it is not a change execution.
@@ -222,12 +195,14 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
     "sonar.yml": "schedule + workflow_dispatch: the nightly informational SonarCloud scan.",
 }
 
-# An authorised job runs the suite exactly once. A second invocation inside an
+# An authorised job runs the suite exactly once PER LEG (a leg is one static
+# `include:` matrix entry, labelled by its `shard` variable; a job with no
+# matrix is one leg). A second invocation inside an
 # already-authorised job is the cheapest evasion available to someone who has
 # read this ledger -- append one `run:` step to a job that is already allowed --
 # so it is refused by construction rather than by a per-job count nobody
 # maintains.
-AUTHORIZED_SUITE_INVOCATIONS_PER_JOB = 1
+AUTHORIZED_SUITE_INVOCATIONS_PER_JOB = 1  # per matrix leg (a job without a matrix is one leg)
 
 # The authorised per-change suite matrix (contract §C5: "the set of
 # change-triggered jobs that execute the suite must equal exactly the matrix").
@@ -254,16 +229,22 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "The heavy battery deselects this file, so a code PR still executes "
         "it exactly once."
     ),
-    ("ci-router.yml", "architectural-heavy"): "Path-routed lane: the architectural pole.",
-    ("ci-router.yml", "tests-consolidation"): "Path-routed lane: tests/consolidation.",
-    ("ci-router.yml", "tests-status"): "Path-routed lane: tests/status.",
-    ("ci-router.yml", "tests-cli"): "Path-routed lane: tests/cli.",
+    ("ci-router.yml", "architectural-fast"): (
+        "Always-on lane: the registry-held fast roster of deterministic ratchet/census gates (FR-003). "
+        "Pairwise disjoint with both architectural-heavy legs via --battery-part (proven by "
+        "test_battery_partition_proof.py), so no battery test runs twice."
+    ),
+    ("ci-router.yml", "architectural-heavy"): (
+        "Path-routed lane: the architectural battery as two file-partitioned matrix legs "
+        "(--battery-part 1/2, 2/2), each one execution; pairwise disjoint with each other and with "
+        "architectural-fast (proven by test_battery_partition_proof.py)."
+    ),
     ("ci-router.yml", "tests-docs"): "Path-routed lane: tests/docs.",
-    ("ci-router.yml", "tests-corpus"): "Path-routed lane: the corpus marker family.",
     ("ci-router.yml", "tests-e2e"): "Path-routed lane: tests/e2e.",
+    ("ci-router.yml", "tests-corpus-blocking"): "Path-routed lane: the 40 corpus tests with no other blocking home (D-13/D-22); Packs deselects exactly these.",
     ("ci-windows.yml", "windows-critical"): ("Platform lane: the windows_ci marker family, which no Linux gate can run."),
     ("packs.yml", "built-in-pack-manifest"): "Packs lane: the pack-manifest guard.",
-    ("packs.yml", "built-in-corpus-suite"): "Packs lane: the built-in corpus suite.",
+    ("packs.yml", "built-in-corpus-suite"): "Packs lane: corpus suite, sole owner bar the 40 blocking node-ids; advisory (continue-on-error), FR-009.",
     ("packs.yml", "internal-packaging-safety"): "Packs lane: the wheel-contents guard.",
 }
 
@@ -330,95 +311,60 @@ ACTIONS_DIR = gc.REPO_ROOT / ".github" / "actions"
 # ---------------------------------------------------------------------------
 
 
-def normalized_triggers(data: dict[Any, Any]) -> dict[str, Any] | None:
-    """A workflow's ``on:`` block as ``event -> config``, or ``None`` if unreadable.
+def suite_invocations_per_leg(workflows_dir: Path, *, makefile: Path | None = None) -> dict[LegKey, int]:
+    """Change-triggered suite executions, counted per ``(workflow, job, leg)``.
 
-    GitHub accepts three spellings -- a mapping, a list (``on: [push,
-    pull_request]``) and a bare string (``on: push``) -- and YAML 1.1 parses the
-    bare key ``on`` as the boolean ``True``, so the block also arrives under
-    either key depending on the loader's mood. The parameter is therefore
-    ``dict[Any, Any]`` and not ``dict[str, Any]``: a parsed workflow genuinely
-    does NOT have string keys throughout, and annotating it as if it did made
-    the ``data.get(True)`` lookup below an overload error under ``mypy
-    --strict`` (WP06/T029b -- no CI workflow runs mypy, so a green pipeline was
-    never evidence this was fine).
-
-    ``None`` means "this module does not understand the block". It is NOT the
-    same as "the block declares nothing": :func:`change_triggered` resolves it
-    to *visible*, never to *skipped*.
-    """
-    section = data.get("on", data.get(True))
-    if isinstance(section, dict):
-        return {str(event): config for event, config in section.items()}
-    if isinstance(section, str):
-        return {section: None}
-    if isinstance(section, list) and all(isinstance(item, str) for item in section):
-        return dict.fromkeys(section)
-    return None
-
-
-def push_is_per_change(config: Any) -> bool:
-    """Whether an ``on.push`` configuration fires per change.
-
-    Only a tags-only push is exempt. A bare ``push:``, a ``push:`` filtered by
-    branches or paths, and a ``push:`` of an unrecognised shape all fire per
-    change -- the last by the same fail-closed rule as everything else here.
-    """
-    if not isinstance(config, dict):
-        return True
-    if any(config.get(key) for key in PER_CHANGE_PUSH_FILTERS):
-        return True
-    return not config.get("tags")
-
-
-def change_triggered(path: Path) -> bool:
-    """Whether *path* runs once per change -- FAILING CLOSED on anything unfamiliar.
-
-    A workflow that is not change-triggered is invisible to every assertion in
-    this module, so "I could not classify this" must resolve to *visible*. The
-    workflow is excluded only when EVERY event it declares is a known
-    non-per-change event (:data:`NON_CHANGE_TRIGGER_EVENTS`, plus a tags-only
-    push); one unrecognised event, an unparseable ``on:`` block or no ``on:``
-    block at all puts it back in scope.
-    """
-    data = gc.load_spliced_workflow(path)
-    events = normalized_triggers(data) if isinstance(data, dict) else None
-    if not events:
-        return True
-    return any(push_is_per_change(config) if event == "push" else event not in NON_CHANGE_TRIGGER_EVENTS for event, config in events.items())
-
-
-def enumerate_workflows(workflows_dir: Path) -> list[Path]:
-    """Every workflow file in *workflows_dir*, read from the DIRECTORY.
-
-    Not from a closed list. ``_gate_coverage.WORKFLOW_FILES`` is an allowlist of
-    files known to run the suite; a net-new file is by definition not in it, and
-    a rule anchored to it would exempt exactly the case mutation 4 injects.
-    """
-    return sorted(workflows_dir.glob("*.yml")) + sorted(workflows_dir.glob("*.yaml"))
-
-
-def suite_executing_jobs(workflows_dir: Path, *, makefile: Path | None = None) -> dict[JobKey, int]:
-    """Change-triggered jobs that execute the suite -> how many times each does.
+    A leg is one static ``include:`` entry of a job's matrix, labelled by its ``shard``
+    variable (``None`` for a job with no matrix). A matrix runs the same step once per
+    leg, so counting the job's gates as a whole would charge a two-leg job twice for
+    running the suite exactly once per leg.
 
     Detection is delegated wholesale to ``_gate_coverage.parse_workflow``: a
     directly-anchored ``pytest``, a ``make`` target whose recipe reaches pytest,
     and an in-repo shell script that reaches pytest all count identically. That
     is what makes mutations 1-3 the same finding in three costumes.
     """
-    counts: dict[JobKey, int] = {}
+    counts: dict[LegKey, int] = {}
     for path in enumerate_workflows(workflows_dir):
         if not change_triggered(path):
             continue
         for gate in gc.parse_workflow(path, makefile=makefile):
-            key = (path.name, gate.job)
+            key = (path.name, gate.job, gate.shard)
             counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def suite_executing_jobs(workflows_dir: Path, *, makefile: Path | None = None) -> dict[JobKey, int]:
+    """Change-triggered jobs that execute the suite -> how many times each LEG does.
+
+    The ledger authorises one execution per leg, so a job's count is the maximum over
+    its legs: a two-leg matrix whose legs each run the suite once is ``1``, while one
+    leg running it twice is ``2`` (the duplicate the guard exists to refuse).
+    """
+    counts: dict[JobKey, int] = {}
+    for (workflow, job, _leg), count in suite_invocations_per_leg(workflows_dir, makefile=makefile).items():
+        counts[(workflow, job)] = max(counts.get((workflow, job), 0), count)
     return counts
 
 
 def unauthorized_suite_jobs(workflows_dir: Path, *, makefile: Path | None = None) -> dict[JobKey, int]:
     """Suite-executing jobs outside the authorised matrix -- the duplicates."""
     return {key: count for key, count in suite_executing_jobs(workflows_dir, makefile=makefile).items() if key not in AUTHORIZED_PER_CHANGE_SUITE_JOBS}
+
+
+def repeated_authorized_suite_jobs(
+    workflows_dir: Path,
+    *,
+    makefile: Path | None = None,
+    authorized: Mapping[JobKey, str] | None = None,
+) -> dict[JobKey, int]:
+    """Authorised jobs whose suite execution count exceeds :data:`AUTHORIZED_SUITE_INVOCATIONS_PER_JOB`.
+
+    The one comparison both the live guard and its matrix-leg fault injections use.
+    """
+    ledger = AUTHORIZED_PER_CHANGE_SUITE_JOBS if authorized is None else authorized
+    live = suite_executing_jobs(workflows_dir, makefile=makefile)
+    return {key: count for key, count in live.items() if key in ledger and count > AUTHORIZED_SUITE_INVOCATIONS_PER_JOB}
 
 
 def top_level_conjuncts(condition: str | bool | None) -> list[str]:
@@ -957,8 +903,7 @@ def test_no_authorized_job_executes_the_suite_more_than_once() -> None:
     the duplicate without touching the ledger at all. Membership authorises one
     execution, not a budget.
     """
-    live = suite_executing_jobs(gc.WORKFLOWS_DIR)
-    repeated = {key: count for key, count in live.items() if key in AUTHORIZED_PER_CHANGE_SUITE_JOBS and count > AUTHORIZED_SUITE_INVOCATIONS_PER_JOB}
+    repeated = repeated_authorized_suite_jobs(gc.WORKFLOWS_DIR)
     assert not repeated, f"authorised jobs executing the suite more than once: {repeated}"
 
 
@@ -979,6 +924,51 @@ def test_repeated_suite_step_in_an_authorized_job_is_detected(tmp_path: Path) ->
     # A NEW job in an existing authorised workflow is the workflow-granular
     # ledger's blind spot; the (workflow, job) key catches it.
     assert ("ci-router.yml", "terminology-extra") in unauthorized_suite_jobs(workflows)
+
+
+# A static ``include:`` matrix runs the same step once per leg. The ledger authorises one
+# suite execution PER LEG (WP12 / D-20), so a job whose every leg runs the suite once counts
+# as one, and a leg that runs it twice is still the cheap evasion the guard above exists for.
+MATRIX_WORKFLOW_NAME = "ci-matrix-fixture.yml"
+MATRIX_JOB: JobKey = (MATRIX_WORKFLOW_NAME, "battery")
+MATRIX_PREAMBLE = """\
+name: matrix fixture
+on:
+  pull_request:
+jobs:
+  battery:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - shard: '1/2'
+          - shard: '2/2'
+    steps:
+"""
+MATRIX_SUITE_STEP = "      - run: pytest tests/architectural --battery-part ${{ matrix.shard }}\n"
+
+
+def matrix_workflows(tmp_path: Path, *, suite_steps: int) -> Path:
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / MATRIX_WORKFLOW_NAME).write_text(MATRIX_PREAMBLE + MATRIX_SUITE_STEP * suite_steps, encoding="utf-8")
+    return workflows
+
+
+def test_matrix_legs_each_running_the_suite_once_count_as_one(tmp_path: Path) -> None:
+    workflows = matrix_workflows(tmp_path, suite_steps=1)
+    ledger = {MATRIX_JOB: "fixture"}
+
+    assert suite_executing_jobs(workflows) == {MATRIX_JOB: 1}
+    assert repeated_authorized_suite_jobs(workflows, authorized=ledger) == {}
+
+
+def test_a_matrix_leg_running_the_suite_twice_is_detected(tmp_path: Path) -> None:
+    workflows = matrix_workflows(tmp_path, suite_steps=2)
+    ledger = {MATRIX_JOB: "fixture"}
+
+    assert suite_executing_jobs(workflows) == {MATRIX_JOB: 2}
+    assert repeated_authorized_suite_jobs(workflows, authorized=ledger) == {MATRIX_JOB: 2}
 
 
 # ---------------------------------------------------------------------------

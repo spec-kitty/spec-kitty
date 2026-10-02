@@ -41,6 +41,14 @@
 # full SELECTION (every module gets a leaf marked selected) while `mode`
 # itself still defaults to `pr` (per-shard fail-fast pytest semantics)
 # unless explicitly dispatched as `full`.
+#
+# Skip-if-green (FR-011, D-30): an EVENT-LEVEL selection-step suppression, like the fork guard --
+# NOT a third CI path routing authority. On a `ready_for_review` event whose tested key already
+# has a green run, the `green` step of `generate-matrix` (scripts/ci/green_match.py) turns the
+# changed-files step off and `build` forces an EMPTY selection (still publishing
+# `selected-modules` = []), so no shard runs and `modules-gate` posts success. ci-aggregate.yml
+# re-points to the matched run (WP17). No job `if:`, `needs:` or output expression mentions it
+# (contracts/router-two-authority-amendment.md A4).
 
 name: CI Modules
 
@@ -89,6 +97,11 @@ jobs:
   generate-matrix:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Generate module-shard matrix
+    # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
+    # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize` precedent).
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
@@ -98,10 +111,32 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          # No later step authenticates git (`git diff`/`git show` are local; the API steps take GH_TOKEN),
+          # and this job runs PR code next to `actions: read`, so do not leave the token in .git/config.
+          persist-credentials: false
           # Full history: the changed-files step below does a plain `git
           # diff` against the PR base / pre-push SHA, which a shallow clone
           # would not contain.
           fetch-depth: 0
+
+      - name: Skip-if-green on ready-for-review (selection-step suppression; FR-011)
+        id: green
+        if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
+        continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/green_match.py decide --workflow ci-modules.yml --marker-dir "$RUNNER_TEMP/green-match"
+      - name: Record the tested-key marker (every other pull_request action; never skips)
+        id: green-key
+        if: github.event_name == 'pull_request' && github.event.action != 'ready_for_review'
+        continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/green_match.py decide --workflow ci-modules.yml --marker-dir "$RUNNER_TEMP/green-match"
 
       - name: Install PyYAML (matrix-generation only, no editable install needed)
         shell: bash
@@ -146,7 +181,7 @@ jobs:
         # .outputs.<group>` consumer would trip that guard for the wrong
         # reason -- this step never wants a routing decision, only a list).
         id: changed-files
-        if: ${{ steps.resolve-mode.outputs.mode != 'full' && steps.resolve-mode.outputs.selection-forced-full != 'true' }}
+        if: ${{ steps.resolve-mode.outputs.mode != 'full' && steps.resolve-mode.outputs.selection-forced-full != 'true' && steps.green.outputs.skip != 'true' }}
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -224,6 +259,7 @@ jobs:
           SELECTION_FORCED_FULL: ${{ steps.resolve-mode.outputs.selection-forced-full }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
           CHANGED_FILTER_OUTCOME: ${{ steps.changed-files.outputs.outcome || steps.changed-files.outcome }}
+          GREEN_SKIP: ${{ steps.green.outputs.skip }}
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
@@ -263,6 +299,13 @@ jobs:
           selected = select_modules(changed_files, mode=selection_mode)
           all_modules = {row["module"] for row in registry["modules"]}
           effective_selected = all_modules if selection_mode == "full" else (selected & all_modules)
+
+          # Skip-if-green (FR-011): a prior green run already covers this exact tested key, so
+          # force an EMPTY selection. The `selected-modules` artifact below is still published
+          # (holding []) and ci-aggregate.yml re-points to the matched run's evidence.
+          if os.environ.get("GREEN_SKIP") == "true":
+              effective_selected = set()
+              print("ci-modules: skip-if-green matched a prior green run -- empty selection", file=sys.stderr)
 
           # Emit a matrix leaf ONLY for a SELECTED module. A job that calls a
           # reusable workflow (`uses:`) cannot read the `matrix` context in its
@@ -318,6 +361,20 @@ jobs:
           name: selected-modules
           path: out/ci-modules/selected-modules.json
           if-no-files-found: error
+          # A "Re-run all jobs" attempt re-uploads under the same name; the default would fail it.
+          overwrite: true
+
+      - name: Upload the skip-if-green marker (tested key or matched run)
+        if: steps.green.outputs.marker != '' || steps.green-key.outputs.marker != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}
+          # BY OUTPUT NAME, never the whole directory: a stale JSON body must not ride along.
+          path: ${{ runner.temp }}/green-match/${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}.json
+          retention-days: 30
+          if-no-files-found: error
+          # A re-run attempt re-uploads under the same name; the default would fail it.
+          overwrite: true
 
   # ---------------------------------------------------------------------------
   # test: matrixed caller of module-tests.yml -- one job instantiation per

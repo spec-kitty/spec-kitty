@@ -14,6 +14,20 @@
 # them as a second map — that is the #2476 hazard it closes). The shape is
 # guarded by tests/architectural/test_ci_quality_path_filters.py and
 # tests/architectural/test_gate_selection_authority.py.
+#
+# Amended by Mission ci-runtime-stabilisation (FR-007, amendment A1): the non-src
+# `ci_config` group gates the architectural battery on a CI-configuration-only PR
+# -- kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md.
+# Amendment A2 (FR-002/003/004): the battery is an always-on `architectural-fast` job plus
+# `architectural-heavy` as one job key with a two-leg `include:` matrix, all on a literal
+# `-n 4` (same file, same pointer).
+#
+# Skip-if-green (FR-011, D-30): an EVENT-LEVEL selection-step suppression, like the fork guard
+# below -- NOT a third CI path routing authority. On a `ready_for_review` event whose tested key
+# already has a green run, the `green` step of the `changes` job (scripts/ci/green_match.py)
+# suppresses the path-filter steps, so every path-gated job skips and `router-gate` posts success.
+# No job `if:`, `needs:` or `changes.outputs` expression mentions it, and gate_selection.py
+# deliberately does not model it (contracts/router-two-authority-amendment.md A4).
 name: CI Router
 
 on:
@@ -56,6 +70,12 @@ jobs:
   # ---------------------------------------------------------------------------
   changes:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
+    # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize`
+    # precedent).
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     outputs:
       consolidation: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.consolidation }}
@@ -95,12 +115,39 @@ jobs:
       # the heavy battery -- so this group routes a gate/allowlist/helper change
       # there instead of skipping it.
       architectural: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.architectural }}
+      # CI-configuration group (FR-007, amendment A1): non-src, like architectural
+      # above; gates only the heavy battery. Never in the unmatched loop.
+      ci_config: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci_config }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # On a pull_request this job runs PR code next to `actions: read`, so the token must not stay in
+          # .git/config. On push (trusted main, no PR code) dorny/paths-filter fetches the base commit over
+          # git and needs it; every other step here is API- or local-git-only.
+          persist-credentials: ${{ github.event_name != 'pull_request' }}
+      - name: Skip-if-green on ready-for-review (selection-step suppression; FR-011)
+        id: green
+        if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
+        continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/green_match.py decide --workflow ci-router.yml --marker-dir "$RUNNER_TEMP/green-match"
+      - name: Record the tested-key marker (every other pull_request action; never skips)
+        id: green-key
+        if: github.event_name == 'pull_request' && github.event.action != 'ready_for_review'
+        continue-on-error: true
+        # A stalled `gh` must not delay the run: a timeout leaves the outputs unset, so the run executes (fail-safe).
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/green_match.py decide --workflow ci-router.yml --marker-dir "$RUNNER_TEMP/green-match"
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
+        if: steps.green.outputs.skip != 'true'
         with:
           filters: |
             consolidation:
@@ -205,6 +252,20 @@ jobs:
             # of tests/architectural (see .github/ci-module-registry.yml).
             architectural:
               - 'tests/architectural/**'
+            # CI-configuration group (Mission ci-runtime-stabilisation, FR-007; contract
+            # amendment kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/
+            # router-two-authority-amendment.md A1). NON-src (not in the unmatched loop);
+            # gates ONLY the architectural battery, whose gates guard exactly these files.
+            # Overlaps the `ci` group by design: `ci` keeps gating no router job (#4386).
+            ci_config:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - 'scripts/ci/**'
+              - 'pytest.ini'
+              - 'pyproject.toml'
+              - 'Makefile'
+              - '.github/ci-module-registry.yml'
+              - '.github/ci-shard-timings.json'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
@@ -212,6 +273,7 @@ jobs:
               - 'src/**'
       - name: Compute fail-closed catch-all unmatched signal
         id: unmatched
+        if: steps.green.outputs.skip != 'true'
         env:
           ANY_SRC: ${{ steps.filter.outputs.any_src }}
         run: |
@@ -248,6 +310,17 @@ jobs:
           else
             echo "unmatched=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Upload the skip-if-green marker (tested key or matched run)
+        if: steps.green.outputs.marker != '' || steps.green-key.outputs.marker != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}
+          # BY OUTPUT NAME, never the whole directory: a stale JSON body must not ride along.
+          path: ${{ runner.temp }}/green-match/${{ steps.green.outputs.marker || steps.green-key.outputs.marker }}.json
+          retention-days: 30
+          if-no-files-found: error
+          # A re-run attempt re-uploads under the same name; the default would fail it.
+          overwrite: true
 
   # ---------------------------------------------------------------------------
   # prose-scan: the PR-level "proven prose-only" verdict (mission
@@ -540,16 +613,80 @@ jobs:
           uv sync --frozen --all-extras
           uv run --frozen pytest tests/architectural/test_archive_root_byte_identical.py -q
 
+  # FAST always-on architectural gates (FR-003, #5510): the registry-held roster
+  # (special_tiers.architectural.fast_gate) of deterministic ratchet / census
+  # gates, run as `--battery-part fast` so a red shows in ~2-3 min on every PR
+  # shape (docs-only included; C-002). Disjoint from the two architectural-heavy
+  # legs by construction (tests/architectural/test_battery_partition_proof.py).
+  # No `needs:`, so it starts at pipeline start (NFR-002). fetch-depth: 0 because
+  # several roster gates `git archive` historical SHAs or merge-base against main.
+  # Literal `-n 4` (the registry `workers`) and no `-q`, so xdist prints
+  # `created: 4/4 workers` (FR-002); the sampler records the peak memory (NFR-005)
+  # and the junit feeds the timings refresh (D-29). Pinned by
+  # tests/ci/test_xdist_worker_policy.py and tests/ci/test_ci_module_wiring.py.
+  architectural-fast:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: architectural fast gates (ratchet/census, always-on)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+      - name: Start memory sampler (NFR-005)
+        run: python3 -m scripts.ci.memory_sampler start --out "$RUNNER_TEMP/memory-sampler.json"
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen python -m pytest tests/architectural \
+            -m "not performance and not stress and not timing" \
+            -n 4 --dist loadfile \
+            --deselect tests/architectural/test_no_legacy_terminology.py \
+            --deselect tests/architectural/test_layer_rules.py \
+            --deselect tests/architectural/test_pyproject_shape.py \
+            --deselect tests/architectural/test_archive_root_byte_identical.py \
+            -p scripts.ci.battery_partition_plugin --battery-part fast \
+            --junitxml=out/reports/xunit-architectural-fast.xml
+      - name: Report peak memory (NFR-005)
+        if: always()
+        run: python3 -m scripts.ci.memory_sampler stop --out "$RUNNER_TEMP/memory-sampler.json"
+      - name: Upload battery junit (timings recapture source, D-29)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-router-architectural-fast-junit
+          path: out/reports/
+          if-no-files-found: warn
+
   # ---------------------------------------------------------------------------
-  # HEAVY architectural battery (FR-008 / NFR-002): CODE-SCOPED. Its `if:` is
+  # HEAVY architectural battery (FR-004 / NFR-001): CODE-SCOPED, run as a static
+  # two-leg `include:` matrix (`--battery-part 1/2`, `2/2`). Its `if:` is
   # authority #2 — the OR of every src-backed filter group PLUS the non-src
-  # `architectural` group (spec-kitty#5168) — so ANY code change and any
-  # tests/architectural change runs it, while a docs-only PR runs NEITHER it nor a
-  # code shard. (The completeness oracle asserts this OR-list equals the parsed
-  # src-backed group set ∪ HEAVY_BATTERY_NON_SRC_GROUPS.)
+  # `architectural` group (spec-kitty#5168) and the non-src `ci_config` group
+  # (FR-007: CI configuration is guarded by this battery) — so ANY code change,
+  # any tests/architectural change and any CI-configuration change runs it, while
+  # a docs-only PR runs NEITHER it nor a code shard. (The completeness oracle
+  # asserts this OR-list equals the parsed src-backed group set
+  # ∪ HEAVY_BATTERY_NON_SRC_GROUPS.) The matrix is still ONE job key, so
+  # gate_selection and the oracle see one code shard (contracts/
+  # router-two-authority-amendment.md A2); the two legs plus the always-on
+  # `architectural-fast` job are pairwise file-disjoint
+  # (tests/architectural/test_battery_partition_proof.py).
+  #   * `fail-fast: false` is a literal: the gates are deterministic, and a red in
+  #     one leg must not hide the other leg's reds behind a second ~10-min round trip.
+  #   * the display name carries the leg (`${{ matrix.shard }}`): router-gate keys the
+  #     jobs-API rows by display name, so two legs sharing a name could overwrite a
+  #     red with a green.
+  #   * per leg: a literal `-n 4` and no `-q` (xdist prints `created: 4/4 workers`,
+  #     FR-002), the memory sampler (NFR-005), and a junit upload (D-29, timings refresh).
+  # The matrix variable must be called `shard` (_gate_coverage reads it), and the leg
+  # count must equal the registry `shards.shard_count`; the plugin also fails closed at
+  # runtime (D-23). `label` exists because artifact names cannot contain `/`.
   # ---------------------------------------------------------------------------
   architectural-heavy:
-    name: architectural battery (heavy, code-scoped)
+    name: architectural battery (heavy, code-scoped) ${{ matrix.shard }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [changes, prose-scan]
@@ -573,8 +710,17 @@ jobs:
       needs.changes.outputs.core_misc == 'true' ||
       needs.changes.outputs.unit == 'true' ||
       needs.changes.outputs.specify_cli_runtime == 'true' ||
+      needs.changes.outputs.ci_config == 'true' ||
       needs.changes.outputs.architectural == 'true') &&
       needs.prose-scan.outputs.prose_only != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: '1/2'
+            label: '1-of-2'
+          - shard: '2/2'
+            label: '2-of-2'
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -583,6 +729,8 @@ jobs:
           # which a shallow (fetch-depth 1) checkout does not contain — they
           # error at setup with `git archive <sha> ... exit 128` otherwise.
           fetch-depth: 0
+      - name: Start memory sampler (NFR-005)
+        run: python3 -m scripts.ci.memory_sampler start --out "$RUNNER_TEMP/memory-sampler.json"
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
@@ -591,71 +739,39 @@ jobs:
           # Run the battery in parallel (per-worker HOME isolation via conftest,
           # --dist loadfile) — the full serial run overran the timeout. Deselect
           # the parallel-unsafe / off-PR families (performance/stress/timing),
-          # matching make test-full's PARALLEL_UNSAFE_MARKERS.
-          uv run --frozen pytest tests/architectural -q \
+          # matching make test-full's PARALLEL_UNSAFE_MARKERS. This leg runs only
+          # its own file partition (--battery-part).
+          uv run --frozen python -m pytest tests/architectural \
             -m "not performance and not stress and not timing" \
-            -n auto --dist loadfile \
+            -n 4 --dist loadfile \
             --deselect tests/architectural/test_no_legacy_terminology.py \
             --deselect tests/architectural/test_layer_rules.py \
             --deselect tests/architectural/test_pyproject_shape.py \
-            --deselect tests/architectural/test_archive_root_byte_identical.py
-
-  # ===========================================================================
-  # Code shards (group -> job, authority #2). Representative per-group shards;
-  # the full per-module matrix over the committed module registry is WP08 (T2).
-  # ===========================================================================
-  tests-consolidation:
-    name: tests (consolidation)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    needs: [changes, prose-scan]
-    if: ${{ needs.changes.outputs.consolidation == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+            --deselect tests/architectural/test_archive_root_byte_identical.py \
+            -p scripts.ci.battery_partition_plugin --battery-part ${{ matrix.shard }} \
+            --junitxml=out/reports/xunit-architectural-heavy-${{ matrix.label }}.xml
+      - name: Report peak memory (NFR-005)
+        if: always()
+        run: python3 -m scripts.ci.memory_sampler stop --out "$RUNNER_TEMP/memory-sampler.json"
+      - name: Upload battery junit (timings recapture source, D-29)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          uv run --frozen pytest tests/consolidation -q
+          name: ci-router-architectural-heavy-${{ matrix.label }}-junit
+          path: out/reports/
+          if-no-files-found: warn
 
-  tests-status:
-    name: tests (status)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    needs: [changes, prose-scan]
-    if: ${{ needs.changes.outputs.status == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          uv run --frozen pytest tests/status -q
-
-  tests-cli:
-    name: tests (cli)
-    runs-on: ubuntu-24.04
-    # #4207: ceiling creep — this shard has run 14.3-15.2m against a 15m
-    # ceiling for four days (a coin flip that finally tripped on 2026-09-10).
-    # 25m covers the observed ceiling plus headroom.
-    timeout-minutes: 25
-    needs: [changes, prose-scan]
-    if: ${{ needs.changes.outputs.cli == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          uv run --frozen pytest tests/cli -q
+  # The per-group code shards for consolidation, status and cli were removed by
+  # FR-008: the ci-modules.yml module rows are the sole per-PR executor of those trees.
 
   # ---------------------------------------------------------------------------
-  # Non-code shards (data groups). docs/corpus/e2e select these; NONE is a code
-  # shard, so a docs-only PR selects 0 code shards (NFR-002). corpus keeps its
-  # exit-5 floor (#3008): an empty corpus selection is a failure, not a pass.
+  # Non-code shards (data groups). docs/e2e/corpus-blocking select these; NONE is a
+  # code shard, so a docs-only PR selects 0 code shards (NFR-002). The `-m corpus`
+  # suite no longer runs here as a whole: packs.yml is its sole (advisory) owner
+  # (FR-009), including the exit-5 floor (#3008). Only the 40 corpus node-ids with no
+  # other blocking per-PR home keep one -- `tests-corpus-blocking` below (D-13/D-22).
+  # The router `corpus` filter group gates it and also feeds `prose-scan` and
+  # scripts/ci/corpus_select.py (Packs' trigger).
   # ---------------------------------------------------------------------------
   tests-docs:
     name: tests (docs)
@@ -671,38 +787,6 @@ jobs:
       - run: |
           uv sync --frozen --all-extras
           uv run --frozen pytest tests/docs -q
-
-  tests-corpus:
-    name: tests (corpus)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    needs: [changes]
-    if: ${{ needs.changes.outputs.corpus == 'true' }}
-    steps:
-      # fetch-depth: 0 — the corpus suite includes the shrink-only ratchet
-      # (test_transition_guard_shrink_only), which walks history back to the EXP
-      # port base commit; a shallow clone can't reach it and the test fails
-      # closed "not reachable in this CI checkout". Full history makes the base
-      # reachable so the ratchet runs.
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          # The corpus suite is MARKER-selected, not a directory: spec.md AC-3 and
-          # the WP14 contract prescribe the `-m corpus` exit-5 floor, and the
-          # `corpus` marker (pytest.ini) tags every corpus-reading test across the
-          # tree. `pytest tests/corpus` pointed at a directory that never existed
-          # (exit 4, "file or directory not found"). Select by marker per the
-          # marker's own documented invocation; pytest exits 5 if zero corpus
-          # tests are collected, which fails the job (the #3008 exit-5 floor).
-          # ~1400 corpus tests: run parallel (--dist loadfile, per-worker HOME
-          # isolation via conftest) to stay well inside the job timeout — serial
-          # is ~8-15 min on a stock runner.
-          uv run --frozen pytest -m "corpus and not windows_ci" -q -n auto --dist loadfile
 
   tests-e2e:
     name: tests (e2e)
@@ -722,6 +806,36 @@ jobs:
       - run: |
           uv sync --frozen --all-extras
           uv run --frozen pytest tests/e2e -q
+
+  # The 40 corpus-marked node-ids that no other required job runs (D-13/D-22): the
+  # whole of tests/contract/test_example_round_trip.py (34) and
+  # tests/integration/test_mission_review_contract_gate.py (5) -- both trees are
+  # outside the module matrix -- plus the single performance-marked class
+  # TestShippedProfilesPerformance (1; the other 363 corpus tests of that file already
+  # run in the `charter` module row). tests/conftest.py skips that class per-PR unless
+  # SPEC_KITTY_RUN_PERFORMANCE=1; its executing home is the nightly `performance` job.
+  # Keeping it in this selection preserves "selected by exactly one required job".
+  # Packs' advisory corpus run deselects exactly these three selections, so nothing
+  # runs twice. Pinned by tests/ci/test_corpus_blocking_home.py.
+  tests-corpus-blocking:
+    name: tests (corpus-blocking)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.corpus == 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest -m "corpus and not windows_ci" \
+            tests/contract/test_example_round_trip.py \
+            tests/integration/test_mission_review_contract_gate.py \
+            "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
   # ---------------------------------------------------------------------------
   # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes
@@ -750,13 +864,11 @@ jobs:
       - docs-lint
       - layer-rules
       - archive-freeze
+      - architectural-fast
       - architectural-heavy
-      - tests-consolidation
-      - tests-status
-      - tests-cli
       - tests-docs
-      - tests-corpus
       - tests-e2e
+      - tests-corpus-blocking
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

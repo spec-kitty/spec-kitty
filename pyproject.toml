@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "4.0.0rc5"
+version = "4.0.0rc6"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -242,6 +242,11 @@ line-length = 164
 # Formatter-debt ratchet for issue #473. These files were not formatted under
 # the live Ruff config on origin/main; remove entries as files are reformatted.
 # This is formatter-only so `ruff check .` still lints these files.
+# NOTE (#5301): this exclude list is honored only during directory discovery.
+# A path passed explicitly to `ruff format` / `ruff format --check` is still
+# checked/formatted unless `--force-exclude` is given — always use
+# `make format-check-files FILES=...` (or `--force-exclude`) for per-file
+# invocations so ratchet-listed files don't report false "would reformat" hits.
 # Shrink-only ratchet enforced by tests/architectural/test_ruff_format_exclude_ratchet.py
 # (issue #559): the entry count may not exceed the pinned baseline, every entry
 # must exist on disk, and every entry must still genuinely reformat under the
@@ -878,7 +883,6 @@ exclude = [
     "tests/architectural/test_bridge_cores_import_boundary.py",
     "tests/architectural/test_charter_facades_reexport_doctrine.py",
     "tests/architectural/test_ci_collection_completeness.py",
-    "tests/architectural/test_ci_corpus_trigger_completeness.py",
     "tests/architectural/test_clock_import_ban.py",
     "tests/architectural/test_compat_shims.py",
     "tests/architectural/test_coord_read_residuals_closeout.py",
@@ -932,7 +936,6 @@ exclude = [
     "tests/architectural/test_review_claim_no_frontmatter.py",
     "tests/architectural/test_saas_sync_gate_selection_invariance.py",
     "tests/architectural/test_safe_commit_import_boundary.py",
-    "tests/architectural/test_same_tier_uniqueness.py",
     "tests/architectural/test_session_reaper.py",
     "tests/architectural/test_shim_registry_schema.py",
     "tests/architectural/test_spec_kitty_home_pin_budget.py",

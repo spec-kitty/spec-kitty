@@ -660,6 +660,11 @@
      "hidden": false,
      "deprecated": false
     },
+    "run-index": {
+     "help": "Flag absolute run_dir paths in the run index that break on copy/move (#5390).\n\nScans .kittify/runtime/feature-runs.json for run_dir values stored as\nabsolute paths (nonportable — a copied or moved project resolves the\noriginal folder's cursor). Read-only; heal with ``spec-kitty migrate``.\n\nExamples:\n    spec-kitty doctor run-index\n    spec-kitty doctor run-index --json",
+     "hidden": false,
+     "deprecated": false
+    },
     "command-files": {
      "help": "Check all agent command files for correctness.\n\nVerifies that every configured agent has the correct command files:\n- Full rendered prompts for prompt-driven commands (specify, plan, tasks, ...)\n- Thin shims for CLI-driven commands (implement, review, merge, ...)\n- Current version markers on all files\n\nExamples:\n    spec-kitty doctor command-files\n    spec-kitty doctor command-files --json",
      "hidden": false,

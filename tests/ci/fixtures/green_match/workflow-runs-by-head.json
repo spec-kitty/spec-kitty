@@ -1,0 +1,47 @@
+{
+  "total_count": 1,
+  "workflow_runs": [
+    {
+      "id": 36823737148,
+      "path": ".github/workflows/ci-router.yml",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "a5cd2d26a5f9384d639a9eea0d6cae8afdaf1506",
+      "run_attempt": 1,
+      "html_url": "https://github.com/spec-kitty/spec-kitty/actions/runs/36823737148",
+      "repository": {
+        "full_name": "spec-kitty/spec-kitty"
+      },
+      "head_branch": "fix/nightly-reds-5505-5506-5507",
+      "head_repository": {
+        "full_name": "spec-kitty/spec-kitty"
+      },
+      "pull_requests": [
+        {
+          "base": {
+            "ref": "main",
+            "repo": {
+              "id": 1072945981,
+              "name": "spec-kitty",
+              "url": "https://api.github.com/repos/spec-kitty/spec-kitty"
+            },
+            "sha": "ecb5dd914af5de025b00cadeabb2bbc32066ed02"
+          },
+          "head": {
+            "ref": "fix/nightly-reds-5505-5506-5507",
+            "repo": {
+              "id": 1072945981,
+              "name": "spec-kitty",
+              "url": "https://api.github.com/repos/spec-kitty/spec-kitty"
+            },
+            "sha": "a5cd2d26a5f9384d639a9eea0d6cae8afdaf1506"
+          },
+          "id": 4695543452,
+          "number": 5509,
+          "url": "https://api.github.com/repos/spec-kitty/spec-kitty/pulls/5509"
+        }
+      ]
+    }
+  ]
+}

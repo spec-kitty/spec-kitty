@@ -24,13 +24,16 @@ from the test's own import root), mirroring
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.fast
 
@@ -123,10 +126,50 @@ def test_module_resolving_to_no_existing_directory_raises(capture_shard_timings:
         capture_shard_timings.resolve_test_dirs(registry, "ghost")
 
 
+def test_resolution_delegates_to_the_shard_select_authority(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C-010: the recorder resolves through ``shard_select.resolve_module_test_dirs``, never a copy."""
+    calls: list[tuple[str, str]] = []
+
+    def _spy(module: str, registry_test_dirs_json: str) -> list[str]:
+        calls.append((module, registry_test_dirs_json))
+        return ["tests/unit"]
+
+    monkeypatch.setattr(capture_shard_timings, "resolve_module_test_dirs", _spy)
+    registry = {"modules": [{"module": "alpha", "test_dirs": ["tests/a", "tests/b"]}]}
+
+    assert capture_shard_timings.resolve_test_dirs(registry, "alpha") == ("tests/unit",)
+    assert calls == [("alpha", json.dumps(["tests/a", "tests/b"]))]
+
+
+def test_vanished_declared_dirs_fall_back_to_the_mirror_like_the_consumer(capture_shard_timings: ModuleType) -> None:
+    """The consumer's precedence, not a private one: no existing declared dir -> the ``tests/<module>`` mirror."""
+    registry = {"modules": [{"module": "unit", "test_dirs": ["tests/does-not-exist"]}]}
+    assert capture_shard_timings.resolve_test_dirs(registry, "unit") == ("tests/unit",)
+
+
+def test_resolution_is_independent_of_the_working_directory(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The shared resolver tests ``os.path.isdir`` relative to cwd; the recorder anchors it at the repo root."""
+    monkeypatch.chdir(tmp_path)
+    assert capture_shard_timings.resolve_test_dirs({"modules": [{"module": "unit"}]}, "unit") == ("tests/unit",)
+
+
+def test_every_registry_row_resolves_exactly_as_the_shard_does(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live: for every registry row the recorder's dirs equal what ``module-tests.yml`` collects."""
+    from scripts.ci.shard_select import resolve_module_test_dirs
+
+    registry = yaml.safe_load((_REPO_ROOT / ".github" / "ci-module-registry.yml").read_text(encoding="utf-8"))
+    monkeypatch.chdir(_REPO_ROOT)
+    rows = registry["modules"]
+    assert rows, "non-vacuity: the registry must carry module rows"
+    for row in rows:
+        expected = tuple(resolve_module_test_dirs(row["module"], json.dumps(row.get("test_dirs") or [])))
+        assert capture_shard_timings.resolve_test_dirs(registry, row["module"]) == expected, row["module"]
+
+
 # ---------------------------------------------------------------------------
 # merge_capture — the three parallel tables stay in lockstep
 # ---------------------------------------------------------------------------
-def _capture(capture_shard_timings: ModuleType, module: str, durations: tuple[float, ...]):
+def _capture(capture_shard_timings: ModuleType, module: str, durations: tuple[float, ...]) -> Any:
     return capture_shard_timings.ModuleCapture(
         module=module,
         test_dirs=("tests/unit",),
@@ -217,3 +260,254 @@ def test_script_help_works_without_installed_package(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "--run-id" in result.stdout
+    assert "--suite" in result.stdout
+    assert "--from-junit" in result.stdout
+
+
+def test_capture_selects_with_the_shared_marker_constant(capture_shard_timings: ModuleType) -> None:
+    """Capture and ``module-tests.yml`` share one marker authority (C-010, #5510).
+
+    The drifted ``"not performance"`` copy recorded lists the consumer never
+    collects for any module with ``stress`` tests, degrading it to uniform weights.
+    """
+    from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR
+
+    assert capture_shard_timings.SELECTION_MARKER_EXPR == MODULE_SELECTION_MARKER_EXPR
+    argv = capture_shard_timings._pytest_argv(("tests/x",))
+    assert argv[argv.index("-m") + 1] == MODULE_SELECTION_MARKER_EXPR
+
+
+# ---------------------------------------------------------------------------
+# WP05 / T022 -- battery per-file timings from CI junit (D-29)
+# ---------------------------------------------------------------------------
+_BASE = (
+    "tests/architectural/test_a.py",
+    "tests/architectural/test_b.py",
+    "tests/architectural/sub/test_c.py",
+)
+_BATTERY_PRODUCER = "scripts/ci/capture_shard_timings.py"
+
+
+def _junit_xml(*cases: tuple[str, float]) -> str:
+    body = "".join(f'<testcase classname="{classname}" name="test_x" time="{seconds}"/>' for classname, seconds in cases)
+    return f'<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest">{body}</testsuite></testsuites>'
+
+
+def _write_junit(directory: Path, name: str, *cases: tuple[str, float]) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / name
+    path.write_text(_junit_xml(*cases), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("classname", "expected"),
+    [
+        ("tests.architectural.test_a", "tests/architectural/test_a.py"),
+        ("tests.architectural.test_a.TestY", "tests/architectural/test_a.py"),
+        ("tests.architectural.test_a.TestY.TestInner", "tests/architectural/test_a.py"),
+        ("tests.architectural.sub.test_c", "tests/architectural/sub/test_c.py"),
+        ("tests.architectural.sub.test_c.TestZ", "tests/architectural/sub/test_c.py"),
+        ("tests.architectural.test_unknown", None),
+        ("tests.architectural", None),
+        ("", None),
+        ("other.test_a", None),
+    ],
+)
+def test_classname_resolves_to_the_longest_dotted_prefix_in_the_base(capture_shard_timings: ModuleType, classname: str, expected: str | None) -> None:
+    assert capture_shard_timings.resolve_junit_classname(classname, set(_BASE)) == expected
+
+
+def test_classname_prefers_the_longest_prefix_when_both_match(capture_shard_timings: ModuleType) -> None:
+    base = {"tests/x.py", "tests/x/y.py"}
+    assert capture_shard_timings.resolve_junit_classname("tests.x.y", base) == "tests/x/y.py"
+    assert capture_shard_timings.resolve_junit_classname("tests.x.TestY", base) == "tests/x.py"
+
+
+def test_junit_capture_sums_testcase_time_per_file(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
+    one = _write_junit(
+        tmp_path, "one.xml", ("tests.architectural.test_a", 1.5), ("tests.architectural.test_a.TestY", 0.25), ("tests.architectural.sub.test_c", 2.0)
+    )
+    two = _write_junit(tmp_path, "two.xml", ("tests.architectural.test_a", 0.5), ("tests.architectural.test_b", 3.0))
+    capture = capture_shard_timings.junit_capture([one, two], _BASE)
+    assert capture.unresolved == 0
+    assert capture.seconds == {"tests/architectural/test_a.py": 2.25, "tests/architectural/sub/test_c.py": 2.0, "tests/architectural/test_b.py": 3.0}
+
+
+def test_unresolved_testcases_are_counted_never_guessed(capture_shard_timings: ModuleType, tmp_path: Path) -> None:
+    xml = _write_junit(tmp_path, "r.xml", ("tests.architectural.test_a", 1.0), ("tests.architectural.test_ghost", 9.0), ("tests.elsewhere.test_q", 4.0))
+    capture = capture_shard_timings.junit_capture([xml], _BASE)
+    assert capture.seconds == {"tests/architectural/test_a.py": 1.0}
+    assert capture.unresolved == 2
+
+
+def test_median_across_runs_uses_only_the_runs_a_file_appears_in(capture_shard_timings: ModuleType) -> None:
+    runs = [{"a": 1.0, "b": 10.0}, {"a": 3.0}, {"a": 5.0, "b": 20.0, "c": 0.12345}]
+    merged = capture_shard_timings.median_across_runs(runs)
+    assert merged == {"a": 3.0, "b": 15.0, "c": 0.1235}
+
+
+def test_median_of_no_runs_is_empty(capture_shard_timings: ModuleType) -> None:
+    assert capture_shard_timings.median_across_runs([]) == {}
+
+
+def _battery_provenance(**overrides: object) -> dict[str, object]:
+    provenance: dict[str, object] = {
+        "producer": _BATTERY_PRODUCER,
+        "captured_at": "2026-10-01T00:00:00+00:00",
+        "selection": "not performance and not stress and not timing",
+        "workers": 4,
+        "files_measured": 2,
+        "source": "junit",
+        "run_ids": ["1", "2"],
+        "unresolved_testcases": 0,
+    }
+    provenance.update(overrides)
+    return provenance
+
+
+def test_merge_battery_capture_replaces_both_battery_tables_together(capture_shard_timings: ModuleType) -> None:
+    payload: dict[str, Any] = {
+        "module_test_durations": {"unit": [1.0]},
+        "module_capture_provenance": {"unit": {"run_id": "x"}},
+        "battery_file_durations": {"architectural": {"old.py": 9.0}, "other": {"k": 1.0}},
+        "battery_capture_provenance": {"architectural": {"producer": "census-seed"}, "other": {"producer": "p"}},
+        "run_id": "keep",
+    }
+    merged = capture_shard_timings.merge_battery_capture(payload, "architectural", {"a.py": 1.0, "b.py": 2.0}, _battery_provenance())
+    assert merged["battery_file_durations"] == {"architectural": {"a.py": 1.0, "b.py": 2.0}, "other": {"k": 1.0}}
+    assert merged["battery_capture_provenance"]["architectural"] == _battery_provenance()
+    assert merged["battery_capture_provenance"]["other"] == {"producer": "p"}
+    assert merged["module_test_durations"] == {"unit": [1.0]}
+    assert merged["module_capture_provenance"] == {"unit": {"run_id": "x"}}
+    assert merged["run_id"] == "keep"
+    assert payload["battery_file_durations"]["architectural"] == {"old.py": 9.0}, "merge_battery_capture mutated its input"
+
+
+def test_merge_battery_capture_is_idempotent_and_starts_from_an_empty_payload(capture_shard_timings: ModuleType) -> None:
+    provenance = _battery_provenance(files_measured=1)
+    once = capture_shard_timings.merge_battery_capture({}, "architectural", {"a.py": 1.0}, provenance)
+    twice = capture_shard_timings.merge_battery_capture(once, "architectural", {"a.py": 1.0}, provenance)
+    assert once == twice
+    assert set(once) == {"battery_file_durations", "battery_capture_provenance"}
+
+
+@pytest.mark.parametrize("missing", ["producer", "captured_at", "selection", "workers", "files_measured"])
+def test_merge_battery_capture_requires_the_provenance_fields(capture_shard_timings: ModuleType, missing: str) -> None:
+    provenance = _battery_provenance()
+    del provenance[missing]
+    with pytest.raises(ValueError, match=missing):
+        capture_shard_timings.merge_battery_capture({}, "architectural", {"a.py": 1.0}, provenance)
+
+
+def test_merge_battery_capture_rejects_a_count_that_disagrees_with_the_table(capture_shard_timings: ModuleType) -> None:
+    with pytest.raises(ValueError, match="files_measured"):
+        capture_shard_timings.merge_battery_capture({}, "architectural", {"a.py": 1.0}, _battery_provenance(files_measured=5))
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        [],
+        ["--module", "unit", "--suite", "architectural", "--write"],
+        ["--suite", "architectural", "--write"],
+        ["--module", "unit", "--from-junit", "d", "--write"],
+        ["--suite", "architectural", "--from-junit", "d", "--run-id", "a", "--run-id", "b", "--write"],
+        ["--suite", "architectural", "--from-junit", "d"],
+        ["--suite", "architectural", "--from-junit", "d", "--write", "--output", "o.json"],
+        ["--module", "unit", "--run-id", "a", "--run-id", "b", "--write"],
+        ["--suite", "nonsense", "--from-junit", "d", "--write"],
+    ],
+)
+def test_cli_argument_combinations_are_validated(capture_shard_timings: ModuleType, argv: list[str]) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        capture_shard_timings._parse_args(argv)
+    assert excinfo.value.code == 2
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--module", "unit", "--write"],
+        ["--module", "unit", "--module", "merge", "--run-id", "r", "--output", "o.json"],
+        ["--suite", "architectural", "--from-junit", "d", "--write"],
+        ["--suite", "architectural", "--from-junit", "d", "--from-junit", "e", "--run-id", "a", "--run-id", "b", "--output", "o.json"],
+        ["--suite", "architectural", "--from-junit", "d", "--from-junit", "e", "--output", "o.json"],
+    ],
+)
+def test_cli_accepts_the_documented_combinations(capture_shard_timings: ModuleType, argv: list[str]) -> None:
+    capture_shard_timings._parse_args(argv)
+
+
+def _battery_registry() -> dict[str, object]:
+    return {
+        "special_tiers": {
+            "architectural": {
+                "trigger": "code_scoped",
+                "deserialized": True,
+                "workers": 4,
+                "base": {
+                    "paths": ["tests/architectural"],
+                    "marker": "not performance and not stress and not timing",
+                    "deselect": ["tests/architectural/test_b.py"],
+                },
+                "fast_gate": {
+                    "job": "architectural-fast",
+                    "max_file_budget_seconds": 90,
+                    "max_total_measured_seconds": 300,
+                    "roster": [{"path": "tests/architectural/test_a.py", "budget_seconds": 10, "reason": "r"}],
+                },
+                "shards": {"job": "architectural-heavy", "shard_count": 2, "granularity": "file", "timings_key": "architectural"},
+            }
+        }
+    }
+
+
+def test_two_run_junit_capture_end_to_end_through_main(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    for rel in ("tests/architectural/test_a.py", "tests/architectural/test_b.py", "tests/architectural/sub/test_c.py"):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text("", encoding="utf-8")
+    (repo / "registry.yml").write_text(yaml.safe_dump(_battery_registry()), encoding="utf-8")
+    committed = {"module_test_durations": {"unit": [1.0]}, "battery_file_durations": {"architectural": {"stale.py": 1.0}}}
+    (repo / "timings.json").write_text(json.dumps(committed), encoding="utf-8")
+    monkeypatch.setattr(capture_shard_timings, "REPO_ROOT", repo)
+    monkeypatch.setattr(capture_shard_timings, "REGISTRY_PATH", repo / "registry.yml")
+    monkeypatch.setattr(capture_shard_timings, "TIMINGS_PATH", repo / "timings.json")
+    run1, run2 = tmp_path / "run1", tmp_path / "run2"
+    _write_junit(run1, "a.xml", ("tests.architectural.test_a", 2.0), ("tests.architectural.sub.test_c", 4.0), ("tests.architectural.test_ghost", 7.0))
+    _write_junit(run2, "a.xml", ("tests.architectural.test_a", 4.0))
+    _write_junit(run2, "b.xml", ("tests.architectural.sub.test_c", 8.0))
+    out = tmp_path / "out.json"
+
+    code = capture_shard_timings.main(
+        ["--suite", "architectural", "--from-junit", str(run1), "--from-junit", str(run2), "--run-id", "101", "--run-id", "102", "--output", str(out)]
+    )
+
+    assert code == 0
+    merged = json.loads(out.read_text(encoding="utf-8"))
+    assert merged["battery_file_durations"]["architectural"] == {"tests/architectural/test_a.py": 3.0, "tests/architectural/sub/test_c.py": 6.0}
+    provenance = merged["battery_capture_provenance"]["architectural"]
+    assert provenance["source"] == "junit"
+    assert provenance["run_ids"] == ["101", "102"]
+    assert provenance["unresolved_testcases"] == 1
+    assert provenance["files_measured"] == 2
+    assert provenance["workers"] == 4
+    assert provenance["selection"] == "not performance and not stress and not timing"
+    assert provenance["producer"] == _BATTERY_PRODUCER
+    assert merged["module_test_durations"] == {"unit": [1.0]}
+    assert json.loads((repo / "timings.json").read_text(encoding="utf-8")) == committed, "--output must leave the committed artefact alone"
+
+
+def test_junit_capture_without_matching_testcases_is_an_error(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "tests/architectural").mkdir(parents=True)
+    (repo / "tests/architectural/test_a.py").write_text("", encoding="utf-8")
+    (repo / "registry.yml").write_text(yaml.safe_dump(_battery_registry()), encoding="utf-8")
+    monkeypatch.setattr(capture_shard_timings, "REPO_ROOT", repo)
+    monkeypatch.setattr(capture_shard_timings, "REGISTRY_PATH", repo / "registry.yml")
+    monkeypatch.setattr(capture_shard_timings, "TIMINGS_PATH", repo / "timings.json")
+    _write_junit(tmp_path / "run", "a.xml", ("tests.elsewhere.test_q", 1.0))
+    code = capture_shard_timings.main(["--suite", "architectural", "--from-junit", str(tmp_path / "run"), "--output", str(tmp_path / "out.json")])
+    assert code == 1
+    assert not (tmp_path / "out.json").exists(), "an empty capture must never be written as if measured"

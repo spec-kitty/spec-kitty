@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint format-check docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
+.PHONY: help dev-setup lint format-check format-check-files docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -19,6 +19,12 @@ lint: ## Run ruff linter
 # runs this target locally (#558).
 format-check: ## Run ruff formatter check on the whole repo (issue #473's gate)
 	uv run --frozen ruff format --check .
+
+# Per-file check that honors the [tool.ruff.format].exclude ratchet (#5301):
+# an explicitly-passed path is checked even when excluded, unless
+# --force-exclude is given. Usage: make format-check-files FILES="a.py b.py"
+format-check-files: ## Run ruff formatter check on explicit paths, honoring the format-exclude ratchet
+	uv run --frozen ruff format --check --force-exclude $(FILES)
 
 docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the changelog [Unreleased] style
 	uv run --frozen python -m scripts.docs.check_spelling

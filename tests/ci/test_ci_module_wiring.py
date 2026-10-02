@@ -25,14 +25,17 @@ silently rot back:
 
 This file lives in ``tests/ci`` on purpose: it runs via the ``ci`` module
 shard on every PR — including a PR that touches ONLY CI-infrastructure paths,
-which is exactly the PR shape whose wiring it guards. The architectural
-battery's heavy job is gated on src-backed groups, so it would skip such a PR.
+which is exactly the PR shape whose wiring it guards. A CI-infrastructure-only
+PR now also runs the heavy architectural battery, through the sibling non-src
+``ci_config`` group (FR-007); ``ci`` itself still gates no router job.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import shlex
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +44,9 @@ import yaml
 
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
 from scripts.ci.prose_only import reduced_paths
+from tests.architectural import _gate_coverage as gc
+from tests.ci._gh_if import BASE_CONTEXT_ALL_FALSE, eval_gh_if
+from tests.ci.test_xdist_worker_policy import _worker_value
 
 pytestmark = pytest.mark.fast
 
@@ -125,7 +131,8 @@ def test_ci_infra_only_diffs_route_to_the_named_group(router: Router) -> None:
     Before #4386 these path families matched NO filter group -- a PR rewriting
     a workflow, the script it runs, and the tests guarding both selected zero
     routing groups and zero code shards, so nothing path-visible in the router
-    even noticed the change.
+    even noticed the change. The sibling ``ci_config`` group (FR-007) co-matches
+    these paths and is what selects the architectural battery.
     """
     for paths in (
         ["scripts/ci/gate_selection.py"],
@@ -134,7 +141,7 @@ def test_ci_infra_only_diffs_route_to_the_named_group(router: Router) -> None:
         [".github/workflows/sonar.yml", "scripts/ci/sonarcloud_branch_review.sh"],
     ):
         selection = select_gates(paths, router=router)
-        assert selection.matched_groups == frozenset({_MODULE}), (
+        assert selection.matched_groups == frozenset({_MODULE, "ci_config"}), (
             f"a CI-infrastructure diff {paths} must route to the named {_MODULE!r} group, got {sorted(selection.matched_groups)}"
         )
         assert not selection.unmatched_src, "CI-infrastructure paths are not src and must never trip the src catch-all"
@@ -168,8 +175,8 @@ def test_ci_group_gates_no_router_job_and_stays_out_of_the_catch_all(router: Rou
 def test_ci_infra_diff_alongside_src_change_keeps_the_src_routing(router: Router) -> None:
     """A mixed CI-infra + src diff selects both families' routing unchanged."""
     selection = select_gates(["scripts/ci/gate_selection.py", "src/specify_cli/consolidation/executor.py"], router=router)
-    assert selection.matched_groups == frozenset({"ci", "consolidation"})
-    assert "tests-consolidation" in selection.selected_code_shards
+    assert selection.matched_groups == frozenset({"ci", "ci_config", "consolidation"})
+    assert "architectural-heavy" in selection.selected_code_shards
     assert not selection.unmatched_src
 
 
@@ -188,7 +195,7 @@ _REAL_CODE_BASE_SRC = "def g(x=1):\n    return x\n"
 _REAL_CODE_HEAD_SRC = "def g(x=2):\n    return x\n"
 
 
-def _fixed_blob_getter(blobs: dict[str, tuple[str | None, str | None]]) -> Any:
+def _fixed_blob_getter(blobs: Mapping[str, tuple[str | None, str | None]]) -> Any:
     """A `blob_getter` closed over a fixed base/head-source table (no git IO)."""
 
     def _get(path: str) -> tuple[str | None, str | None]:
@@ -225,95 +232,7 @@ def test_reduced_paths_keeps_a_mixed_diff_unreduced(router: Router) -> None:
 
 @pytest.fixture(scope="module")
 def router_workflow() -> dict[str, Any]:
-    return yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8"))
-
-
-# --- a tiny, from-first-principles GitHub Actions `if:` boolean evaluator --
-#
-# The golden tests below must not merely grep for the guard text this WP
-# wrote; they evaluate the REAL `if:` string under a synthetic `needs`
-# context using ordinary boolean semantics (`&&` binds tighter than `||`,
-# parentheses group), the same subset ci-router.yml's job gates use
-# (`needs.<job>.outputs.<name> == 'true'` / `!= 'true'`).
-
-_COND_RE = re.compile(r"needs\.([A-Za-z0-9_-]+)\.outputs\.([A-Za-z0-9_]+)\s*(==|!=)\s*'true'")
-
-
-def _strip_expr_wrapper(raw: str) -> str:
-    text = raw.strip()
-    if text.startswith("${{") and text.endswith("}}"):
-        text = text[3:-2].strip()
-    return text
-
-
-def _tokenize_gh_if(expr: str) -> list[str]:
-    tokens: list[str] = []
-    for chunk in re.findall(r"\(|\)|&&|\|\||[^()&|]+", expr):
-        stripped = chunk.strip()
-        if stripped:
-            tokens.append(stripped)
-    return tokens
-
-
-class _GhIfEvaluator:
-    """Recursive-descent evaluator: `or_expr := and_expr ('||' and_expr)*`,
-    `and_expr := atom ('&&' atom)*`, `atom := '(' or_expr ')' | condition`."""
-
-    def __init__(self, tokens: list[str], context: dict[str, bool]) -> None:
-        self._tokens = tokens
-        self._pos = 0
-        self._context = context
-
-    def evaluate(self) -> bool:
-        value = self._or_expr()
-        assert self._pos == len(self._tokens), f"unconsumed if: tokens: {self._tokens[self._pos :]!r}"
-        return value
-
-    def _or_expr(self) -> bool:
-        value = self._and_expr()
-        while self._peek() == "||":
-            self._advance()
-            value = self._and_expr() or value
-        return value
-
-    def _and_expr(self) -> bool:
-        value = self._atom()
-        while self._peek() == "&&":
-            self._advance()
-            value = self._atom() and value
-        return value
-
-    def _atom(self) -> bool:
-        token = self._peek()
-        if token == "(":
-            self._advance()
-            value = self._or_expr()
-            assert self._peek() == ")", f"unbalanced parens in if: near {self._tokens[self._pos :]!r}"
-            self._advance()
-            return value
-        assert token is not None, "ran out of if: tokens"
-        self._advance()
-        return self._eval_condition(token)
-
-    def _peek(self) -> str | None:
-        return self._tokens[self._pos] if self._pos < len(self._tokens) else None
-
-    def _advance(self) -> None:
-        self._pos += 1
-
-    def _eval_condition(self, text: str) -> bool:
-        match = _COND_RE.fullmatch(text.strip())
-        assert match, f"unmodeled if: condition fragment: {text!r}"
-        job, name, op = match.group(1), match.group(2), match.group(3)
-        key = f"{job}.{name}"
-        assert key in self._context, f"golden test context does not model {key!r}"
-        value = self._context[key]
-        return value if op == "==" else not value
-
-
-def _eval_gh_if(raw_if: str, context: dict[str, bool]) -> bool:
-    tokens = _tokenize_gh_if(_strip_expr_wrapper(raw_if))
-    return _GhIfEvaluator(tokens, context).evaluate()
+    return dict(yaml.safe_load(DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")))
 
 
 _ALWAYS_ON_JOB_NAMES = (
@@ -327,36 +246,83 @@ _ALWAYS_ON_JOB_NAMES = (
     "layer-rules",
     "archive-freeze",
     "docs-lint",
+    "architectural-fast",
 )
 
 _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
 
-_CODE_SHARD_JOB_NAMES = ("tests-consolidation", "tests-status", "tests-cli")
+#: FR-008 (mission ci-runtime-stabilisation-01M3TZH6, WP08): these per-group router
+#: jobs re-ran trees the ci-modules.yml module rows already own. Re-adding ANY one of
+#: them under the same name is red here. Re-adding the duplicate under a NEW name is
+#: caught by the FR-010 cross-job uniqueness live check (WP15,
+#: tests/architectural/test_same_tier_uniqueness.py), which is the lasting authority.
+_REMOVED_DUPLICATE_ROUTER_JOBS = ("tests-consolidation", "tests-status", "tests-cli")
 
-_BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
-    "changes.consolidation": False,
-    "changes.auth": False,
-    "changes.missions": False,
-    "changes.post_merge": False,
-    "changes.release": False,
-    "changes.status": False,
-    "changes.review": False,
-    "changes.next": False,
-    "changes.lanes": False,
-    "changes.dashboard": False,
-    "changes.upgrade": False,
-    "changes.cli": False,
-    "changes.charter": False,
-    "changes.agent": False,
-    "changes.kernel": False,
-    "changes.glossary": False,
-    "changes.execution_context": False,
-    "changes.core_misc": False,
-    "changes.unit": False,
-    "changes.specify_cli_runtime": False,
-    "changes.docs": False,
-    "changes.architectural": False,
-}
+
+@pytest.mark.parametrize("job", _REMOVED_DUPLICATE_ROUTER_JOBS)
+def test_removed_duplicate_router_job_stays_absent(router_workflow: dict[str, Any], router: Router, job: str) -> None:
+    """FR-008: the job is gone from the jobs map, the gate's ``needs``, and the parsed router."""
+    jobs = router_workflow["jobs"]
+
+    assert job not in jobs
+    assert job not in jobs["router-gate"]["needs"]
+    assert job not in router.job_gates
+    assert job not in router.code_shard_jobs
+
+
+def _nightly_gate(job: str) -> gc.Gate:
+    gates = [gate for gate in gc.parse_workflow(gc.WORKFLOWS_DIR / "ci-nightly.yml") if gate.job == job]
+    assert len(gates) == 1, f"ci-nightly.yml job {job!r} must run exactly one pytest selection, found {len(gates)}"
+    return gates[0]
+
+
+def _nightly_job_env(job: str) -> dict[str, Any]:
+    workflow = yaml.safe_load((gc.WORKFLOWS_DIR / "ci-nightly.yml").read_text(encoding="utf-8"))
+    return dict(workflow["jobs"][job].get("env") or {})
+
+
+def _marker_terms(marker_expr: str | None) -> set[str]:
+    return set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", marker_expr or "")) - {"and", "or", "not"}
+
+
+# T037 is a static (workflow-YAML) pin on purpose: this module is ``fast`` and runs per PR
+# on the ``ci`` module shard, so it must not spawn ``pytest --collect-only`` subprocesses.
+# The collect-only counts for the removed router trees are recorded in the WP08 Activity Log.
+
+
+def test_nightly_stress_lane_is_whole_tree_so_it_covers_the_removed_router_trees() -> None:
+    """FR-008 / T037: the stress tests that lost their per-PR router run keep a nightly home.
+
+    The removed ``tests-status`` job ran stress-marked tests under ``tests/status`` (no ``-m``).
+    The module rows exclude the stress marker (C-005), so the nightly ``stress`` job must
+    select them. The property pinned (not a fixed node list): the nightly stress selection
+    is path-less and ignore-less -- i.e. the whole ``tests`` tree, which contains
+    ``tests/status``, ``tests/cli`` and ``tests/consolidation`` -- and its marker
+    expression selects ``stress``. Narrowing it by a path or an ignore reds this.
+    """
+    gate = _nightly_gate("stress")
+
+    assert gate.paths == [], "the nightly stress lane must stay whole-tree, or the removed trees' stress tests fall outside it"
+    assert gate.ignores == [], "an --ignore on the nightly stress lane can drop the removed trees' stress tests"
+    assert "stress" in _marker_terms(gate.marker_expr)
+    assert "not stress" not in (gate.marker_expr or "")
+
+
+def test_nightly_performance_lane_runs_the_removed_router_trees_performance_tests() -> None:
+    """FR-008 / T037: the router skipped these (no ``SPEC_KITTY_RUN_PERFORMANCE``); nightly runs them.
+
+    ``conftest.py`` skips ``performance``-marked tests unless ``SPEC_KITTY_RUN_PERFORMANCE=1``,
+    so the env var on the nightly ``performance`` job is what actually executes them: pin
+    it, together with the whole-tree ``-m performance`` selection.
+    """
+    gate = _nightly_gate("performance")
+
+    assert gate.paths == []
+    assert gate.ignores == []
+    assert gate.marker_expr == "performance"
+    assert _nightly_job_env("performance").get("SPEC_KITTY_RUN_PERFORMANCE") == "1", (
+        "without SPEC_KITTY_RUN_PERFORMANCE=1 the nightly performance lane selects the tests but conftest skips them all"
+    )
 
 
 def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(router: Router, router_workflow: dict[str, Any]) -> None:
@@ -379,21 +345,22 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     # ci-router.yml side: evaluate the REAL if: strings under a synthetic
     # context where merge/status/cli are all lit (as a multi-group
     # prose-only diff would) and prose_only is proven true.
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.consolidation"] = True
     context["changes.status"] = True
     context["changes.cli"] = True
     context["prose-scan.prose_only"] = True
 
     assert jobs["architectural-heavy"]["needs"] == ["changes", "prose-scan"]
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
 
-    for shard in _CODE_SHARD_JOB_NAMES:
+    assert router.code_shard_jobs, "non-vacuity: at least the battery is a code shard"
+    for shard in sorted(router.code_shard_jobs):
         assert jobs[shard]["needs"] == ["changes", "prose-scan"]
-        assert _eval_gh_if(jobs[shard]["if"], context) is False
+        assert eval_gh_if(jobs[shard]["if"], context) is False
 
     assert jobs["tests-docs"]["needs"] == ["changes", "prose-scan"]
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is True
 
     # Always-on lanes carry only the fork guard (tests/ci/test_fork_guard.py),
     # which is a no-op on the core repository: no prose_only term.
@@ -403,11 +370,10 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     assert "prose-scan" in jobs["router-gate"]["needs"]
     assert jobs["router-gate"]["if"] == f"${{{{ {_FORK_GUARD} && always() && !cancelled() }}}}"
 
-    # Explicitly untouched: tests-corpus, tests-e2e, and the `changes` job's
+    # Explicitly untouched: tests-e2e, and the `changes` job's
     # own outputs (no `prose_only` output was added under `changes` -- FR-007
     # / the WP02 correction: `prose-scan` is a separate job, never a step
     # inside `changes`).
-    assert jobs["tests-corpus"]["needs"] == ["changes"]
     assert jobs["tests-e2e"]["needs"] == ["changes"]
     assert "prose_only" not in jobs["changes"]["outputs"]
 
@@ -416,15 +382,12 @@ def test_golden_architectural_only_pr_runs_the_heavy_battery_and_no_code_shard(r
     """#5168 golden: a PR touching only ``tests/architectural/**`` runs the heavy
     battery (the directory's only per-PR home) and no src-scoped code shard."""
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.architectural"] = True
     context["prose-scan.prose_only"] = False
 
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-consolidation"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is False
 
 
 def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow: dict[str, Any]) -> None:
@@ -434,12 +397,196 @@ def test_golden_non_prose_pr_lane_set_is_byte_identical_to_today(router_workflow
     no-op for a non-prose diff.
     """
     jobs = router_workflow["jobs"]
-    context = dict(_BASE_CONTEXT_ALL_FALSE)
+    context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.consolidation"] = True
     context["prose-scan.prose_only"] = False
 
-    assert _eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-consolidation"]["if"], context) is True
-    assert _eval_gh_if(jobs["tests-status"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-cli"]["if"], context) is False
-    assert _eval_gh_if(jobs["tests-docs"]["if"], context) is False
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is False
+
+
+def test_golden_ci_config_only_pr_runs_the_heavy_battery_and_no_code_shard(router_workflow: dict[str, Any]) -> None:
+    """FR-007 golden: a CI-configuration-only PR runs the heavy battery and no src-scoped shard."""
+    jobs = router_workflow["jobs"]
+    context = dict(BASE_CONTEXT_ALL_FALSE)
+    context["changes.ci_config"] = True
+    context["prose-scan.prose_only"] = False
+
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is True
+    assert eval_gh_if(jobs["tests-docs"]["if"], context) is False
+
+
+def test_golden_prose_only_ci_script_still_down_routes_the_battery(router_workflow: dict[str, Any]) -> None:
+    """C-002 golden: the prose-only subtraction still drops the battery for the new group."""
+    jobs = router_workflow["jobs"]
+    context = dict(BASE_CONTEXT_ALL_FALSE)
+    context["changes.ci_config"] = True
+    context["prose-scan.prose_only"] = True
+
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+
+
+# --- WP12 (FR-002/003/004, NFR-001/003/005): the router battery reshaping --------
+#
+# ``architectural-fast`` is an always-on job (the registry-held fast roster) and
+# ``architectural-heavy`` is ONE job key with a static two-leg ``include:`` matrix. The
+# registry <-> router equalities WP05 could not pin (the jobs did not exist yet) live here.
+
+_FAST_JOB = "architectural-fast"
+_HEAVY_JOB = "architectural-heavy"
+_SAMPLER_START = "scripts.ci.memory_sampler start"
+_SAMPLER_STOP = "scripts.ci.memory_sampler stop"
+_SETUP_UV_PREFIX = "astral-sh/setup-uv@"
+_UPLOAD_ARTIFACT_PIN = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+_FAST_TIMEOUT_MAX_MINUTES = 10
+_LEG_TIMEOUT_MAX_MINUTES = 30
+_BATTERY_BASE_MARKER = "not performance and not stress and not timing"
+
+
+def _architectural_registry() -> dict[str, Any]:
+    payload = yaml.safe_load(_REGISTRY_PATH.read_text(encoding="utf-8"))
+    return dict(payload["special_tiers"]["architectural"])
+
+
+def _heavy_legs(jobs: dict[str, Any]) -> list[dict[str, Any]]:
+    return list(jobs[_HEAVY_JOB]["strategy"]["matrix"]["include"])
+
+
+def _step_index(job: dict[str, Any], *, run_contains: str | None = None, uses_prefix: str | None = None) -> int:
+    for index, step in enumerate(job["steps"]):
+        if run_contains is not None and run_contains in str(step.get("run", "")):
+            return index
+        if uses_prefix is not None and str(step.get("uses", "")).startswith(uses_prefix):
+            return index
+    raise AssertionError(f"no step matching run~{run_contains!r} / uses~{uses_prefix!r}")
+
+
+def _router_battery_gates() -> dict[str, list[gc.Gate]]:
+    by_job: dict[str, list[gc.Gate]] = {_FAST_JOB: [], _HEAVY_JOB: []}
+    for gate in gc.parse_workflow(DEFAULT_ROUTER_PATH):
+        if gate.job in by_job:
+            by_job[gate.job].append(gate)
+    return by_job
+
+
+def _pytest_token_lines(job: dict[str, Any]) -> list[list[str]]:
+    """The tokenised pytest command lines of *job* (matrix-substituted per leg)."""
+    lines: list[list[str]] = []
+    legs = ((job.get("strategy") or {}).get("matrix") or {}).get("include") or [{}]
+    for leg in legs:
+        for step in job["steps"]:
+            if isinstance(step.get("run"), str):
+                for logical in gc.join_continuations(gc.substitute_matrix(step["run"], leg)):
+                    if gc.suite_invocations(logical):
+                        lines.append(shlex.split(logical))
+    return lines
+
+
+def test_architectural_heavy_is_a_two_leg_include_matrix(router_workflow: dict[str, Any]) -> None:
+    jobs = router_workflow["jobs"]
+    job = jobs[_HEAVY_JOB]
+    strategy = job["strategy"]
+
+    assert strategy["fail-fast"] is False, "deterministic gates: a red leg must not hide the other leg's reds (literal, not mode-keyed)"
+    shard_count = int(_architectural_registry()["shards"]["shard_count"])
+    legs = _heavy_legs(jobs)
+    assert [leg["shard"] for leg in legs] == [f"{i}/{shard_count}" for i in range(1, shard_count + 1)]
+    for leg in legs:
+        assert re.fullmatch(r"[A-Za-z0-9._-]+", leg["label"]), f"leg label {leg['label']!r} must be filesystem/artifact safe"
+    assert job["needs"] == ["changes", "prose-scan"]
+
+
+def test_battery_leg_display_names_are_distinct(router_workflow: dict[str, Any]) -> None:
+    """Two legs sharing one display name collide in ``router_gate._parse_conclusions`` (a red can be overwritten)."""
+    jobs = router_workflow["jobs"]
+    legs = _heavy_legs(jobs)
+    names = {gc.substitute_matrix(jobs[_HEAVY_JOB]["name"], leg) for leg in legs}
+
+    assert "${{ matrix.shard }}" in jobs[_HEAVY_JOB]["name"]
+    assert len(names) == len(legs), f"leg display names collide: {sorted(names)}"
+    assert jobs[_FAST_JOB]["name"] not in names
+
+
+def test_battery_commands_are_partitioned_and_plugin_loaded(router_workflow: dict[str, Any]) -> None:
+    by_job = _router_battery_gates()
+    registry = _architectural_registry()
+    base = registry["base"]
+
+    fast = by_job[_FAST_JOB]
+    assert [gate.partition for gate in fast] == ["fast"]
+    legs = by_job[_HEAVY_JOB]
+    shard_count = int(registry["shards"]["shard_count"])
+    assert sorted(gate.partition or "" for gate in legs) == sorted(f"{i}/{shard_count}" for i in range(1, shard_count + 1))
+    assert {gate.shard for gate in legs} == {gate.partition for gate in legs}
+
+    for gate in [*fast, *legs]:
+        assert gate.paths == base["paths"], gate.label()
+        assert gate.marker_expr == base["marker"] == _BATTERY_BASE_MARKER, gate.label()
+        assert sorted(gate.ignores) == sorted(base["deselect"]), gate.label()
+
+    for job_key in (_FAST_JOB, _HEAVY_JOB):
+        run_text = "\n".join(str(s.get("run", "")) for s in router_workflow["jobs"][job_key]["steps"])
+        assert "python -m pytest" in run_text, job_key
+        assert "-p scripts.ci.battery_partition_plugin" in run_text, job_key
+    heavy_text = "\n".join(str(s.get("run", "")) for s in router_workflow["jobs"][_HEAVY_JOB]["steps"])
+    assert "--battery-part ${{ matrix.shard }}" in heavy_text
+    fast_text = "\n".join(str(s.get("run", "")) for s in router_workflow["jobs"][_FAST_JOB]["steps"])
+    assert "--battery-part fast" in fast_text
+
+
+@pytest.mark.parametrize("job_key", [_FAST_JOB, _HEAVY_JOB])
+def test_battery_jobs_sample_memory_and_upload_junit(router_workflow: dict[str, Any], job_key: str) -> None:
+    job = router_workflow["jobs"][job_key]
+    pytest_step = _step_index(job, run_contains="-m pytest")
+    start = _step_index(job, run_contains=_SAMPLER_START)
+    stop = _step_index(job, run_contains=_SAMPLER_STOP)
+    upload = _step_index(job, uses_prefix=_UPLOAD_ARTIFACT_PIN)
+
+    setup_uv = _step_index(job, uses_prefix=_SETUP_UV_PREFIX)
+    uv_sync = _step_index(job, run_contains="uv sync")
+
+    assert start < pytest_step < stop, "the sampler starts before and stops after the suite"
+    assert start < setup_uv and start < uv_sync, "the sampler must start before setup-uv / uv sync so the peak includes the install footprint"
+    assert job["steps"][stop].get("if") == "always()", "the peak-memory report must run on a red suite too"
+    assert job["steps"][upload].get("if") == "always()", "the junit must upload on a red suite too"
+    assert "--junitxml=out/reports/" in job["steps"][pytest_step]["run"]
+    assert "out/reports" in str(job["steps"][upload]["with"]["path"])
+    if job_key == _HEAVY_JOB:
+        assert "${{ matrix.label }}" in job["steps"][upload]["with"]["name"], "per-leg artifact names must not collide"
+        assert "${{ matrix.label }}" in job["steps"][pytest_step]["run"], "per-leg junit file names must not collide"
+
+
+def test_battery_job_timeouts(router_workflow: dict[str, Any]) -> None:
+    """NFR-003: the pytest-ini per-test timeout stays authoritative; the job timeouts only bound the lane."""
+    jobs = router_workflow["jobs"]
+
+    assert jobs[_FAST_JOB]["timeout-minutes"] <= _FAST_TIMEOUT_MAX_MINUTES
+    assert jobs[_HEAVY_JOB]["timeout-minutes"] <= _LEG_TIMEOUT_MAX_MINUTES
+
+
+def test_registry_battery_entry_matches_the_router_shape(router_workflow: dict[str, Any]) -> None:
+    """The registry facts WP05 deliberately left to the jobs' author: they exist now."""
+    jobs = router_workflow["jobs"]
+    registry = _architectural_registry()
+
+    assert registry["fast_gate"]["job"] == _FAST_JOB
+    assert _FAST_JOB in jobs
+    assert registry["shards"]["job"] == _HEAVY_JOB
+    assert int(registry["shards"]["shard_count"]) == len(_heavy_legs(jobs))
+    workers = str(registry["workers"])
+    for job_key in (_FAST_JOB, _HEAVY_JOB):
+        lines = _pytest_token_lines(jobs[job_key])
+        assert lines, f"{job_key}: no pytest line parsed"
+        for tokens in lines:
+            assert _worker_value(tokens) == workers, (job_key, tokens)
+
+
+def test_golden_docs_only_pr_runs_the_fast_battery_but_not_the_legs(router_workflow: dict[str, Any]) -> None:
+    """C-002 / FR-003: a docs-only PR still pays the ~2-min fast roster, never the legs."""
+    jobs = router_workflow["jobs"]
+    context = dict(BASE_CONTEXT_ALL_FALSE)
+    context["prose-scan.prose_only"] = False
+
+    assert eval_gh_if(jobs[_HEAVY_JOB]["if"], context) is False
+    assert jobs[_FAST_JOB]["if"] == _FORK_GUARD
+    assert "needs" not in jobs[_FAST_JOB], "no needs: the fast job starts at pipeline start (NFR-002)"

@@ -10,6 +10,11 @@ on:
         description: 'Existing release tag to publish, e.g. v3.2.0rc37'
         required: true
         type: string
+      skip_nightly:
+        description: 'Manual maintainer waiver: skip the green-nightly gate and publish on UNPROVEN tests. workflow_dispatch only; ignored on tag-push.'
+        required: false
+        default: false
+        type: boolean
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -33,8 +38,17 @@ jobs:
   # GitHub App token): a workflow_dispatch issued with the default GITHUB_TOKEN
   # does NOT start a new run (documented recursion guard), so the gate would hang
   # then fail. Operator prerequisite: create that secret.
+  #
+  # MAINTAINER WAIVER: a manually-dispatched run with skip_nightly=true skips this
+  # job entirely (so the RELEASE_NIGHTLY_DISPATCH_TOKEN secret is not even needed)
+  # and publishes on UNPROVEN tests at the operator's explicit direction. The
+  # waiver is workflow_dispatch-only -- a tag-push can NEVER bypass the gate. When
+  # this job is waiver-skipped, build-release still runs; when it FAILS, it does
+  # not (see build-release's if-guard). The waiver is announced loudly in the
+  # build log and the run summary.
   nightly-gate:
     name: Release nightly gate (green nightly for the release SHA)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_nightly) }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -61,10 +75,39 @@ jobs:
 
   build-release:
     needs: [nightly-gate]
+    # Run when the nightly gate PASSED, or when it was deliberately SKIPPED by the
+    # workflow_dispatch maintainer waiver (skip_nightly=true). A FAILED or CANCELLED
+    # gate still blocks the build -- and therefore publication. `!cancelled()` (not
+    # `always()`) re-enables this job after a skipped dependency without letting it
+    # run on cancellation.
+    if: >-
+      ${{
+        !cancelled()
+        && (
+          needs.nightly-gate.result == 'success'
+          || (
+            needs.nightly-gate.result == 'skipped'
+            && github.event_name == 'workflow_dispatch'
+            && inputs.skip_nightly
+          )
+        )
+      }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
+      - name: Announce nightly-gate waiver (maintainer override)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_nightly }}
+        run: |
+          echo "::warning title=Nightly gate waived::Publishing ${RELEASE_TAG} WITHOUT a green ci-nightly for the release SHA (manual maintainer waiver skip_nightly=true)."
+          {
+            echo "### ⚠️ Nightly gate waived"
+            echo ""
+            echo "This release of \`${RELEASE_TAG}\` was published with the **skip_nightly** maintainer waiver:"
+            echo "the green-nightly-for-the-release-SHA gate (#5034 / FR-008) was bypassed."
+            echo "Publication proceeded on UNPROVEN tests at the operator's explicit direction."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check out repository
         uses: actions/checkout@v6
         with:
@@ -269,6 +312,13 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: build-release
+    # A waiver-skipped nightly-gate (workflow_dispatch skip_nightly=true) propagates
+    # its "skipped" state through the default success() condition, which would skip
+    # this job -- and with it BOTH the GitHub release and the PyPI upload it owns --
+    # even though build-release succeeded. Override explicitly: publish whenever
+    # build-release succeeded and nothing was cancelled. On a normal tag-push the
+    # gate runs and succeeds, so this is equivalent to the former implicit success().
+    if: ${{ !cancelled() && needs.build-release.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write

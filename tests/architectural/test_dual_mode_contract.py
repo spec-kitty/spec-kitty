@@ -266,6 +266,19 @@ def test_ci_router_terminal_gate_declares_if_always_not_cancelled() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_router_gate_needs_include_the_battery_family() -> None:
+    """FR-003/FR-004 (#5510): the fast job and the matrix'd heavy job are both gate-awaited.
+
+    The set-equality pin below already covers any job added to the file; this names the
+    battery family explicitly so a drop of either key reds with a specific message.
+    """
+    workflow = _load_workflow(_WORKFLOWS_DIR / "ci-router.yml")
+
+    needs = set(workflow["jobs"]["router-gate"]["needs"])
+
+    assert {"architectural-fast", "architectural-heavy"} <= needs
+
+
 def test_router_gate_step_wiring_and_needs_invariant_are_pinned() -> None:
     """#4208 / MINOR-1: pin the router-gate wiring so it cannot silently drift.
 

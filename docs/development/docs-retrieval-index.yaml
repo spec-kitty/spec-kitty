@@ -3180,6 +3180,11 @@ pages:
     - {slug: "rationale-why-these-three-gates-and-no-others", text: "Rationale — why these three gates, and no others", level: 2}
     - {slug: "why-ci-aggregate-gate-is-deliberately-not-required-learned-by-testing-this", text: "Why `CI Aggregate gate` is deliberately NOT required (learned by testing this)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-10-01-skip-if-green-on-ready-for-review-mission-ci-runtime-stabilisation-5510", text: "Amendment (2026-10-01) — skip-if-green on ready-for-review (mission ci-runtime-stabilisation, #5510)", level: 2}
+    - {slug: "decision-2", text: "Decision", level: 3}
+    - {slug: "never-suppressed", text: "Never suppressed", level: 3}
+    - {slug: "escape-hatch", text: "Escape hatch", level: 3}
+    - {slug: "consequences-and-recorded-limits", text: "Consequences and recorded limits", level: 3}
   - path: "docs/adr/3.x/2026-09-23-2-mission-state-repair-preserve-by-default.md"
     title: "ADR: mission-state repair inverts non-lane preservation to preserve-by-default"
     divio_type: "none"
@@ -3210,6 +3215,10 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "amendment-2026-10-01-nightly-architectural-backstop-sharded-battery-ci-worker-policy-mission-ci-runtime-stabilisation-5510", text: "Amendment (2026-10-01) — nightly architectural backstop, sharded battery, CI worker policy (mission ci-runtime-stabilisation, #5510)", level: 2}
+    - {slug: "context", text: "Context", level: 3}
+    - {slug: "decision-2", text: "Decision", level: 3}
+    - {slug: "consequences-2", text: "Consequences", level: 3}
   - path: "docs/adr/3.x/2026-09-26-2-lane-naming-keyed-on-creation-input.md"
     title: "ADR: Lane Naming Is Keyed on Creation Input, Never on Mission Identity"
     divio_type: "none"
@@ -3826,6 +3835,7 @@ pages:
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
     - {slug: "spec-kitty-doctor-provenance", text: "spec-kitty doctor provenance", level: 2}
     - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
+    - {slug: "spec-kitty-doctor-run-index", text: "spec-kitty doctor run-index", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
     - {slug: "spec-kitty-doctor-skills", text: "spec-kitty doctor skills", level: 2}
     - {slug: "spec-kitty-doctor-sparse-checkout", text: "spec-kitty doctor sparse-checkout", level: 2}
@@ -9143,7 +9153,8 @@ pages:
     divio_type: "reference"
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
-    - {slug: "unreleased-4-0-0rc5", text: "[Unreleased] - 4.0.0rc5", level: 2}
+    - {slug: "unreleased-4-0-0rc6", text: "[Unreleased] - 4.0.0rc6", level: 2}
+    - {slug: "4-0-0rc5-2026-10-02", text: "[4.0.0rc5] - 2026-10-02", level: 2}
     - {slug: "breaking", text: "Breaking", level: 3}
     - {slug: "upgrade-notes", text: "Upgrade Notes", level: 3}
     - {slug: "added", text: "Added", level: 3}
@@ -10837,6 +10848,8 @@ pages:
     - {slug: "new-contracts-md-yaml-blocks-need-a-round-trip-skip-marker", text: "New `contracts/*.md` YAML blocks need a round-trip skip marker", level: 3}
     - {slug: "the-pre-review-gate-can-run-the-full-suite-and-hang", text: "The pre-review gate can run the full suite and hang", level: 3}
     - {slug: "the-architectural-gate-battery", text: "The architectural gate battery", level: 2}
+    - {slug: "fast-roster-shard-legs-and-the-partition-proof", text: "Fast roster, shard legs, and the partition proof", level: 3}
+    - {slug: "skip-if-green-on-ready-for-review", text: "Skip-if-green on ready-for-review", level: 3}
     - {slug: "moving-or-renaming-a-symbol-that-is-dead-symbol-allowlisted", text: "Moving or renaming a symbol that is dead-symbol allowlisted", level: 3}
     - {slug: "the-ruff-format-exclude-ratchet-has-a-twin", text: "The `ruff format` exclude ratchet has a twin", level: 3}
     - {slug: "a-scanner-that-swallows-a-parse-failure-reds-the-parse-fail-closed-gate", text: "A scanner that swallows a parse failure reds the parse fail-closed gate", level: 3}
@@ -11043,6 +11056,7 @@ pages:
     - {slug: "volume-env-gates-spec-kitty-ulid-volume-full", text: "Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)", level: 2}
     - {slug: "running-the-stability-ratchet-locally", text: "Running the stability ratchet locally", level: 2}
     - {slug: "validate-the-acceleration-copy-pasteable", text: "Validate the acceleration (copy-pasteable)", level: 2}
+    - {slug: "ci-worker-policy-and-the-nightly-architectural-backstop", text: "CI worker policy and the nightly architectural backstop", level: 2}
     - {slug: "ci-shard-topology-mission-status", text: "CI shard-topology mission status", level: 2}
     - {slug: "reproducing-3115-the-folded-uuid-render-width-defect", text: "Reproducing #3115 (the folded-uuid render-width defect)", level: 2}
   - path: "docs/development/testing/ui-e2e.md"

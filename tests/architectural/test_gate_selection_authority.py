@@ -75,11 +75,10 @@ def test_corpus_only_diff_selects_zero_code_shards(router: Router) -> None:
     assert not selection.unmatched_src
 
 
-def test_src_group_diff_selects_its_shard_and_heavy_arch(router: Router) -> None:
-    """A change confined to one src group selects that group's shard + the heavy battery."""
+def test_src_group_diff_selects_its_group_and_heavy_arch(router: Router) -> None:
+    """A change confined to one src group matches that group and selects the heavy battery."""
     selection = select_gates(["src/specify_cli/consolidation/executor.py"], router=router)
     assert selection.matched_groups == frozenset({"consolidation"})
-    assert "tests-consolidation" in selection.selected_code_shards
     assert "architectural-heavy" in selection.selected_code_shards
 
 
@@ -106,9 +105,28 @@ def test_full_mode_runs_everything(router: Router) -> None:
 
 def test_fast_arch_gates_are_always_on_and_selected_even_for_docs(router: Router) -> None:
     """The fast always-on arch gates carry no filter group and always run."""
-    assert {"terminology", "layer-rules"} <= router.always_on_jobs
+    assert {"terminology", "layer-rules", "architectural-fast"} <= router.always_on_jobs
     selection = select_gates(["docs/x.md"], router=router)
-    assert {"terminology", "layer-rules"} <= selection.selected_jobs
+    assert {"terminology", "layer-rules", "architectural-fast"} <= selection.selected_jobs
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["docs/x.md", ".github/workflows/ci-router.yml", "src/specify_cli/consolidation/executor.py"],
+)
+def test_fast_battery_job_is_always_on_and_never_a_code_shard(router: Router, path: str) -> None:
+    """FR-003 (#5510): ``architectural-fast`` carries no filter group, so it runs on every PR shape.
+
+    It must never join the code-scoped cone: that would let a docs-only PR skip it, and the
+    ratchet/census gates it holds exist to run on exactly that shape.
+    """
+    assert "architectural-fast" in router.always_on_jobs
+    assert "architectural-fast" not in router.code_shard_jobs
+
+    selection = select_gates([path], router=router)
+
+    assert "architectural-fast" in selection.selected_jobs
+    assert "architectural-fast" not in selection.selected_code_shards
 
 
 def test_authority_is_consistent_with_the_two_hand_sources(router: Router) -> None:
@@ -132,7 +150,7 @@ def test_authority_parses_the_yaml_not_a_hardcoded_map(tmp_path: Path) -> None:
     the answer tracks the file proves there is one authority: the file, parsed.
     """
     baseline = select_gates(["src/specify_cli/consolidation/x.py"])
-    assert "tests-consolidation" in baseline.selected_code_shards
+    assert "consolidation" in baseline.matched_groups and not baseline.unmatched_src
 
     # Remove the whole `consolidation` filter block from a temp copy → `consolidation` no longer matches.
     text = DEFAULT_ROUTER_PATH.read_text(encoding="utf-8")

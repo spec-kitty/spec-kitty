@@ -1613,6 +1613,8 @@ _Project health diagnostics_
 │                         (presence/tier/ignore).                              │
 │ provenance              Flag committed absolute built-in-pack leaks and      │
 │                         ambiguous template sources (C-PRV-5).                │
+│ run-index               Flag absolute run_dir paths in the run index that    │
+│                         break on copy/move (#5390).                          │
 │ command-files           Check all agent command files for correctness.       │
 │ skills                  Check command-skill manifest drift for Codex, Vibe,  │
 │                         Pi, and Letta.                                       │
@@ -2139,6 +2141,27 @@ _Project health diagnostics_
 │                          slug)                                               │
 │ --json                   Machine-readable JSON output                        │
 │ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor run-index
+
+```
+ Usage: spec-kitty doctor run-index [OPTIONS]
+
+ Flag absolute run_dir paths in the run index that break on copy/move (#5390).
+
+ Scans .kittify/runtime/feature-runs.json for run_dir values stored as
+ absolute paths (nonportable — a copied or moved project resolves the
+ original folder's cursor). Read-only; heal with ``spec-kitty migrate``.
+
+ Examples:
+     spec-kitty doctor run-index
+     spec-kitty doctor run-index --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

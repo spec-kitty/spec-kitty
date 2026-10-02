@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-01'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -73,8 +73,9 @@ closed — so the "known reds" below are already a different set than a month ag
 - **In a lane or clone, a bare `python` / `pytest` imports the PRIMARY `src`, not
   your lane.** Always `uv run <cmd>`.
 - **CI gates that pass locally, then fail on the PR:** the terminology guard
-  (`terminology` job in `ci-router.yml`), the code-scoped
-  `architectural-heavy` battery, the canonical-producer lint (CP001 fires on a
+  (`terminology` job in `ci-router.yml`), the architectural battery (the
+  always-on `architectural-fast` gate, which runs on every PR shape, plus the two
+  code-scoped `architectural-heavy` legs), the canonical-producer lint (CP001 fires on a
   hand-rolled event dict with `event_type`+`payload` keys — build via
   `spec_kitty_events.lifecycle.*` instead; `scripts/lint_canonical_producers.py`),
   and the docs tests (`tests-docs` job). On the **rebased** tip, run the

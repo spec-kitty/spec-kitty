@@ -23,13 +23,11 @@
 #     in-process pytest capture run without it (see the job's comments).
 #   * `strict-shard-timings-check`: runs the architectural length-agreement
 #     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
-#     failure for `charter` (and `agent`, the only other non-allowlisted
-#     module) on a real, scheduled cadence -- nothing in `ci-nightly.yml`
-#     runs `tests/architectural` today (its `full-module-matrix` job only
-#     expands `.github/ci-module-registry.yml`'s `modules[]` rows, and that
-#     registry's own `out_of_matrix_test_dirs` explicitly excludes
-#     `tests/architectural`), so without this job WP01's per-PR demotion
-#     would be a silent removal of the exact-count gate, not a relocation.
+#     failure for `charter` (and `agent` and `consolidation`, the other
+#     non-allowlisted modules) on a real, scheduled cadence -- `ci-nightly.yml`'s
+#     `architectural-backstop` runs the battery but without
+#     `SPEC_KITTY_STRICT_SHARD_TIMINGS`, so without this job WP01's per-PR
+#     demotion would be a silent removal of the exact-count gate, not a relocation.
 #
 # These two jobs are DELIBERATELY INDEPENDENT -- no `needs:` edge between
 # them, mirroring `ci-nightly.yml`'s own independent `performance`/`e2e`/
@@ -38,7 +36,7 @@
 # AND, independently in the same run, `recapture-charter-shard-timings`
 # detects the same drift and opens/updates its fix PR (the fix); the next
 # scheduled run after that PR merges goes green again. If a DIFFERENT
-# non-allowlisted module drifts (today, only `agent`), `strict-shard-timings-
+# non-allowlisted module drifts (today, `agent` or `consolidation`), `strict-shard-timings-
 # check` goes red -- a genuine, new signal -- but the recapture job, hardcoded
 # to `charter` only (FR-009/C-001), does nothing about it; that is intentional
 # (CL-003), now at least visible instead of silently unblocked. Triage a red
@@ -66,9 +64,9 @@
 #   * an already-open recapture PR is NOT refreshed -- while one is open the
 #     publish step skips (it never force-pushes a branch with an open PR),
 #     so further `charter` drift waits until that PR merges or is closed;
-#   * the capture selects `-m "not performance"` while the length gate
-#     collects `-m "not performance and not stress"` -- equivalent today only
-#     because no charter/doctrine test is `stress`-marked (latent risk).
+#   * the capture and the length gate share one marker expression
+#     (`scripts/ci/shard_select.MODULE_SELECTION_MARKER_EXPR`, #5510), so the
+#     recorded length is the length the gate collects (resolved).
 #
 # The `schedule` trigger firing on its own, and the recapture job actually
 # opening a PR against the real `main` and running normal per-PR CI, are only

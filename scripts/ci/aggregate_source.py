@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from green_match import bind_tested_base, merge_reference
 from prose_only import is_prose_only
 
 
@@ -82,30 +83,13 @@ def prepare_source(run: dict[str, Any], repository: str, run_id: int, attempt: i
         raise ValueError("source head is not a full commit SHA")
     tested, base, number = head, head, None
     if run.get("event") == "pull_request":
-        # pull_requests[] is a LIVE PR projection: after a push its head/base
-        # change even on old run records. referenced_workflows is the immutable
-        # Actions resolution of the reusable shard workflow actually executed.
-        references = run.get("referenced_workflows", [])
-        matches = [
-            (ref.get("sha"), re.fullmatch(r"refs/pull/([1-9][0-9]*)/merge", ref.get("ref", "")))
-            for ref in references
-            if isinstance(ref.get("sha"), str)
-            and re.fullmatch("[0-9a-f]{40}", ref["sha"])
-            and ref.get("path") == f"{repository}/.github/workflows/module-tests.yml@{ref['sha']}"
-        ]
-        if len(matches) != 1 or matches[0][1] is None:
-            raise ValueError("source run lacks one immutable PR merge workflow reference")
-        tested, match = matches[0]
-        assert match is not None
-        number = int(match.group(1))
+        tested, number = merge_reference(run, repository)
     elif run.get("event") not in {"push", "workflow_dispatch"}:
         raise ValueError("unsupported source event")
     subprocess.run(["git", "fetch", "--no-tags", "--quiet", "origin", tested], check=True)
     if number is not None:
         parents = subprocess.check_output(["git", "show", "-s", "--format=%P", tested], text=True).split()
-        if len(parents) != 2 or parents[1] != head:
-            raise ValueError("tested merge parents do not bind the source run head")
-        base = parents[0]
+        base = bind_tested_base(parents, head)
     registry = subprocess.check_output(["git", "show", f"{tested}:.github/ci-module-registry.yml"])
     diff = subprocess.check_output(["git", "diff", "--no-ext-diff", "--no-textconv", base, tested, "--"])
     paths = subprocess.check_output(["git", "diff", "--name-only", "-z", "--diff-filter=ACMRT", base, tested, "--", *CRITICAL_PATHS]).decode("utf-8").split("\0")

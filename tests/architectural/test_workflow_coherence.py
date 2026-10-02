@@ -131,7 +131,8 @@ def test_every_restored_filter_group_is_consumed_live() -> None:
     The only exemptions are the deliberately non-gating groups in
     ``_DELIBERATELY_UNGATED_FILTER_GROUPS`` (``any_src`` — contract Invariant 1;
     ``ci`` — spec-kitty#4386, whose per-PR executor is the always-on
-    ci-modules.yml matrix, pinned by tests/ci/test_ci_module_wiring.py).
+    ci-modules.yml matrix, pinned by tests/ci/test_ci_module_wiring.py;
+    ``corpus`` is gated again by ``tests-corpus-blocking`` — D-22/WP10).
     """
     for name in gc.WORKFLOW_FILES:
         model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
@@ -307,6 +308,23 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   pin. Adding a new deliberately-ungated group means naming it here AND
 #   pinning it the same way, never silently.
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci"})
+
+
+def test_every_literal_cov_target_is_live() -> None:
+    """A literal ``--cov`` target must name a path that exists (a dead one silently measures nothing).
+
+    ``src/doctrine`` (absorbed into ``src/charter/offering/``) sat in packs.yml
+    for months emitting an empty coverage report; FR-009 (WP09) fixed it.
+    Targets containing ``$`` are shell/matrix indirections and cannot be resolved here.
+    """
+    dead = [
+        (name, job, target)
+        for name, model in gc.load_workflow_models().items()
+        for job, targets in model.cov_targets.items()
+        for target in sorted(targets)
+        if "$" not in target and not (gc.REPO_ROOT / gc.cov_target_repo_path(target)).exists()
+    ]
+    assert not dead, f"--cov targets that do not exist on disk: {dead}"
 
 
 def unconsumed_filter_groups(model: gc.WorkflowModel) -> set[str]:
