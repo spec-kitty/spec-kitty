@@ -1,0 +1,3 @@
+title: ActionKind
+type: string
+enum: [claim, review, merge]

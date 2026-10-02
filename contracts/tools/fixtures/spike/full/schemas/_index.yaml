@@ -1,0 +1,9 @@
+files:
+  - ActionKind.yaml
+  - Mission.yaml
+  - MissionEvent.yaml
+  - MissionId.yaml
+  - MissionList.yaml
+  - NextAction.yaml
+  - Pong.yaml
+  - Project.yaml

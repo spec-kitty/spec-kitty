@@ -1,0 +1,10 @@
+get:
+  operationId: getMission
+  tags: [spike]
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+  responses:
+    '200':
+      $ref: ../responses/MissionOk.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

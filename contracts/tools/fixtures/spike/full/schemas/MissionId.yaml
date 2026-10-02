@@ -1,0 +1,4 @@
+title: MissionId
+description: A 26-character mission identifier.
+type: string
+pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'

@@ -1,0 +1,12 @@
+get:
+  operationId: ping
+  tags: [spike]
+  responses:
+    '200':
+      description: Liveness.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Pong.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

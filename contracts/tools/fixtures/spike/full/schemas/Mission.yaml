@@ -1,0 +1,53 @@
+title: Mission
+description: A mission and its lifecycle.
+type: object
+unevaluatedProperties: false
+required: [missionId, lifecycle, title, createdAt, nextAction]
+x-source:
+  path: src/specify_cli/status/models.py
+  symbol: Mission
+properties:
+  missionId:
+    $ref: MissionId.yaml
+  lifecycle:
+    type: string
+    enum: [active, discarded]
+  title:
+    type: [string, 'null']
+    maxLength: 200
+  createdAt:
+    type: string
+    format: date-time
+  kind:
+    const: mission
+  isDone:
+    type: boolean
+    x-derived:
+      rule: Done when every work package lane is done.
+      inputs: [lifecycle, workPackages]
+  nextAction:
+    description: Sibling keyword beside the reference. Null when nothing is pending.
+    x-provisional:
+      open_decision: The shape of the next action is not settled.
+    oneOf:
+      - $ref: NextAction.yaml
+      - type: 'null'
+  summary:
+    $ref: NextAction.yaml
+    description: A sibling keyword overriding the description of the referenced schema.
+  stale:
+    type: object
+    x-provisional:
+      open_decision: How staleness is measured.
+    properties:
+      minutes:
+        type: [integer, 'null']
+        x-provisional:
+          open_decision: The unit may change.
+examples:
+  - missionId: 01M3WC5XABCDEFGHJKMNPQRSTV
+    lifecycle: active
+    title: A mission
+    createdAt: '2026-10-02T09:30:00Z'
+    nextAction:
+      kind: review

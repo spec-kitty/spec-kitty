@@ -1,0 +1,14 @@
+title: MissionEvent
+description: One server-sent event.
+type: object
+additionalProperties: false
+required: [eventId, eventType, occurredAt]
+properties:
+  eventId:
+    type: string
+  eventType:
+    type: string
+    enum: [mission_created, wp_status_changed]
+  occurredAt:
+    type: string
+    format: date-time

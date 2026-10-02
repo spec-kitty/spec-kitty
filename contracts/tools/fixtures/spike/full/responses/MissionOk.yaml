@@ -1,0 +1,8 @@
+description: One mission.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Mission.yaml
+    examples:
+      discarded:
+        $ref: ../examples/Mission.discarded.yaml

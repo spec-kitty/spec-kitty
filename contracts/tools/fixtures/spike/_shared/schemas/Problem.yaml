@@ -1,0 +1,30 @@
+title: Problem
+description: >-
+  The only non-2xx body of any module. A problem details object in the sense of
+  RFC 9457, served as application/problem+json.
+type: object
+additionalProperties: false
+required:
+  - title
+  - status
+properties:
+  type:
+    type: string
+    description: A URI reference that identifies the kind of problem. Absent means about:blank.
+  title:
+    type: string
+    description: A short, human-readable summary of the kind of problem. It does not change between occurrences.
+  status:
+    type: integer
+    minimum: 400
+    maximum: 599
+    description: The HTTP status code of this occurrence.
+  detail:
+    type: string
+    description: A human-readable explanation specific to this occurrence of the problem.
+  instance:
+    type: string
+    description: A URI reference that identifies this occurrence of the problem.
+  code:
+    type: string
+    description: A stable machine-readable code for the problem, such as the name of a refusal reason. Consumers branch on it, never on the title.

@@ -1,0 +1,12 @@
+get:
+  operationId: getProject
+  tags: [spike]
+  responses:
+    '200':
+      description: The project.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Project.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

@@ -1,0 +1,6 @@
+name: missionId
+in: path
+required: true
+description: The mission identifier.
+schema:
+  $ref: ../schemas/MissionId.yaml
