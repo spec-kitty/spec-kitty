@@ -1,11 +1,11 @@
 """Planted-violation tests for ``contracts/tools/layout_check.py`` (FR-001, FR-021, FR-025).
 
 One committed fixture root, ``contracts/tools/fixtures/layout_check/``, holds a
-clean control module (``clean``, with a brace-named path file referenced in the
-canonical spelling), the clean ``_shared`` pieces, and one module per planted
-violation. Every rule is asserted on its own module and the control stays
-clean in the same run. Brace spellings in test code come from the resolver's
-constant and ``chr`` calls, never from literals (Rule BRACE-1).
+clean control module (``clean``, whose path item ``/items/{itemId}`` lives in the
+brace-free file ``items_itemId.yaml``), the clean ``_shared`` pieces, and one module
+per planted violation. Every rule is asserted on its own module and the control
+stays clean in the same run. Path-file names in test code come from the resolver's
+``path_file_name`` or ``chr`` calls, never from brace literals (Rule BRACE-1).
 """
 
 from __future__ import annotations
@@ -40,7 +40,8 @@ PLANTED = {
     "v_index_missing_file": ["INDEX_MISSING_FILE"],
     "v_index_omits_file": ["INDEX_OMITS_FILE"],
     "v_bad_ref_form": ["BAD_REF_FORM", "BAD_REF_FORM", "BAD_REF_FORM"],
-    "v_brace_ref_spelling": ["BRACE_REF_SPELLING"],
+    "v_brace_in_ref": ["BAD_REF_FORM"],
+    "v_path_file_collision": ["PATH_FILE_COLLISION"],
     "v_shared_misuse": ["SHARED_MISUSE"],
     "v_tracked_bundle": ["TRACKED_BUNDLE"],
 }
@@ -190,26 +191,24 @@ def test_tool_directories_are_never_modules(layout: Any, tmp_path: Path) -> None
 # -- rules that need a variant of the fixtures ---------------------------------
 
 
-def test_brace_spelling_rule_follows_the_resolver_constant(layout: Any, resolver: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The canonical spelling is whatever the constant says; the committed control is checked against the live value."""
+def test_the_committed_control_names_its_brace_path_item_by_the_resolver_mapping(layout: Any, resolver: ModuleType, tmp_path: Path) -> None:
     root = _copy_modules(tmp_path, "clean", "_shared")
+    key = "/items/" + OPEN_BRACE + "itemId" + CLOSE_BRACE
+    assert (root / "clean" / "paths" / resolver.path_file_name(key)).is_file()
     assert layout.check(root).findings == []
 
-    monkeypatch.setattr(resolver, "BRACE_REF_SPELLING", ("<<", ">>"))
-    findings = layout.check(root).findings
 
-    assert [f.code for f in findings] == ["BRACE_REF_SPELLING"]
-    assert findings[0].path.startswith("clean/")
-
-
-def test_canonical_spelling_derived_from_the_constant_passes(layout: Any, resolver: ModuleType, tmp_path: Path) -> None:
+def test_a_brace_named_path_file_is_refused_even_when_the_ref_is_plain(layout: Any, tmp_path: Path) -> None:
     root = _copy_modules(tmp_path, "clean", "_shared")
-    openapi = root / "clean" / "openapi.yaml"
-    name = "paths/items_" + OPEN_BRACE + "itemId" + CLOSE_BRACE + ".yaml"
-    openapi_text = openapi.read_text(encoding="utf-8")
-    assert resolver.encode_brace_ref(name) in openapi_text, "the committed control uses the live canonical spelling"
+    braced = "items_" + OPEN_BRACE + "itemId" + CLOSE_BRACE + ".yaml"
+    (root / "clean" / "paths" / "items_itemId.yaml").rename(root / "clean" / "paths" / braced)
+    (root / "clean" / "openapi.yaml").write_text(
+        (root / "clean" / "openapi.yaml").read_text(encoding="utf-8").replace("items_itemId.yaml", braced), encoding="utf-8"
+    )
 
-    assert layout.check(root).findings == []
+    codes = sorted({f.code for f in layout.check(root).findings})
+
+    assert codes == ["BAD_REF_FORM", "PATH_FILE_NAME"]
 
 
 def test_shared_piece_depending_on_a_module_piece_is_misuse(layout: Any, tmp_path: Path) -> None:
@@ -248,12 +247,8 @@ def test_malformed_index_is_reported_not_skipped(layout: Any, tmp_path: Path) ->
     assert [f.code for f in layout.check(root).findings] == ["INDEX_MALFORMED"]
 
 
-def test_path_item_names_follow_the_slash_to_underscore_rule(layout: Any) -> None:
-    assert layout.derived_path_file_name("/ping") == "ping.yaml"
-    assert layout.derived_path_file_name("/missions/" + OPEN_BRACE + "missionId" + CLOSE_BRACE) == "missions_" + OPEN_BRACE + "missionId" + CLOSE_BRACE + ".yaml"
-    assert layout.derived_path_file_name("/a/b-c") == "a_b-c.yaml"
-    assert layout.derived_path_file_name("/") is None
-    assert layout.derived_path_file_name("ping") is None
+def test_the_layout_check_keeps_no_second_copy_of_the_name_rule(layout: Any) -> None:
+    assert not hasattr(layout, "derived_path_file_name")
 
 
 def test_layout_check_never_imports_test_machinery() -> None:

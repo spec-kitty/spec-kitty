@@ -10,8 +10,9 @@ hand-written expected results, one per supported construct, an oracle that
 does not run the resolver. Refusals assert the stable error code, not just
 that something raised.
 
-Rule BRACE-1 (single source of the brace ``$ref`` spelling) is enforced
-here by an executable scan, and the scan is shown to be able to fail.
+Rule BRACE-1 (path files are named brace-free; ``path_file_name`` is the single
+definition of the path-to-file-name mapping, and no ``$ref`` carries a brace) is
+enforced here by an executable scan, and the scan is shown to be able to fail.
 """
 
 from __future__ import annotations
@@ -102,30 +103,73 @@ def test_sibling_keywords_override_the_referenced_schema(resolver: ModuleType) -
     assert schema["type"] == "object", "keywords of the referenced schema are kept"
 
 
-def test_brace_named_path_file_resolves_through_the_spelling_constant(resolver: ModuleType, tmp_path: Path) -> None:
-    """The brace-named file is built from the constant at run time, so no spelling is hard-coded here."""
+def test_path_file_named_by_the_mapping_resolves_with_a_plain_ref(resolver: ModuleType, tmp_path: Path) -> None:
+    """The path key keeps its template; the file is named by ``path_file_name`` and referenced plainly."""
     open_brace, close_brace = chr(123), chr(125)
-    file_name = "items_" + open_brace + "itemId" + close_brace + ".yaml"
-    ref = resolver.encode_brace_ref("paths/" + file_name)
+    key = "/items/" + open_brace + "itemId" + close_brace
+    file_name = resolver.path_file_name(key)
+    assert file_name == "items_itemId.yaml"
     _write(
         tmp_path,
         "openapi.yaml",
-        f"openapi: 3.1.0\ninfo:\n  title: t\n  version: 1.0.0\npaths:\n  /items/{open_brace}itemId{close_brace}:\n    $ref: {ref}\n",
+        f"openapi: 3.1.0\ninfo:\n  title: t\n  version: 1.0.0\npaths:\n  {key}:\n    $ref: paths/{file_name}\n",
     )
     _write(tmp_path, "paths/" + file_name, "get:\n  operationId: getItem\n  responses:\n    '200':\n      description: ok\n")
 
     result = resolver.resolve(tmp_path)
 
-    assert result.tree["paths"]["/items/" + open_brace + "itemId" + close_brace]["get"]["operationId"] == "getItem"
+    assert result.tree["paths"][key]["get"]["operationId"] == "getItem"
     assert result.counts["path_items"] == 1
 
 
-def test_encode_brace_ref_uses_exactly_the_constant(resolver: ModuleType) -> None:
-    open_piece, close_piece = resolver.BRACE_REF_SPELLING
-    encoded = resolver.encode_brace_ref("a" + chr(123) + "b" + chr(125))
+@pytest.mark.parametrize(
+    ("key", "name"),
+    [
+        ("/ping", "ping.yaml"),
+        ("/missions", "missions.yaml"),
+        ("/missions/{missionId}", "missions_missionId.yaml"),
+        ("/missions/{missionId}/events", "missions_missionId_events.yaml"),
+        ("/missions/{missionId}/work-packages/{wpId}", "missions_missionId_work-packages_wpId.yaml"),
+        ("/a/b-c", "a_b-c.yaml"),
+        ("/", None),
+        ("ping", None),
+        ("/a/{b", None),
+        ("/a/b}", None),
+        ("/a/{}", None),
+    ],
+)
+def test_path_file_name_is_the_one_brace_free_mapping(resolver: ModuleType, key: str, name: str | None) -> None:
+    assert resolver.path_file_name(key) == name
 
-    assert encoded == "a" + open_piece + "b" + close_piece
-    assert chr(123) not in encoded and chr(125) not in encoded
+
+def test_path_keys_that_differ_only_by_braces_collide_on_one_file_name(resolver: ModuleType) -> None:
+    open_brace, close_brace = chr(123), chr(125)
+
+    assert resolver.path_file_name("/a/" + open_brace + "b" + close_brace) == resolver.path_file_name("/a/b")
+
+
+def test_the_brace_spelling_machinery_is_gone(resolver: ModuleType) -> None:
+    assert not hasattr(resolver, "BRACE_REF_SPELLING") and not hasattr(resolver, "encode_brace_ref")
+    assert "BRACE_IN_REF" in resolver.ERROR_CODES
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    [
+        "paths/a_" + chr(123) + "b" + chr(125) + ".yaml",
+        "paths/a_%" + "7Bb%" + "7D.yaml",
+        "paths/a_%" + "7bb%" + "7d.yaml",
+        "paths/a_%25" + "7Bb%25" + "7D.yaml",
+    ],
+)
+def test_a_ref_that_carries_a_brace_in_any_spelling_is_refused(resolver: ModuleType, tmp_path: Path, file_name: str) -> None:
+    assert resolver.refusal_code_for_ref(file_name) == "BRACE_IN_REF"
+    _write(tmp_path, "openapi.yaml", f"openapi: 3.1.0\ninfo:\n  title: t\n  version: 1.0.0\npaths:\n  /a:\n    $ref: '{file_name}'\n")
+
+    with pytest.raises(resolver.ResolveError) as raised:
+        resolver.resolve(tmp_path)
+
+    assert raised.value.code == "BRACE_IN_REF"
 
 
 # ---------------------------------------------------------------------------
@@ -276,10 +320,9 @@ def test_resolver_imports_no_test_or_pytest_machinery() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _forbidden_fragments(pieces: tuple[str, ...]) -> tuple[str, ...]:
-    """The two spelling pieces and the raw-brace path-file stem, all built without a literal."""
-    stem = "missions_" + chr(123)
-    return (*pieces, stem)
+def _forbidden_fragments() -> tuple[str, ...]:
+    """A brace-named path-file stem and the percent-encoded brace pieces, all built without a literal."""
+    return ("missions_" + chr(123), "%" + "7b", "%" + "7d")
 
 
 def _string_literals(source: str) -> list[str]:
@@ -320,50 +363,44 @@ def test_scan_covers_a_meaningful_number_of_files() -> None:
     assert len(_scan_files(SCAN_ROOTS)) > 500
 
 
-def test_brace_spelling_constant_is_assigned_in_the_resolver_only(resolver: ModuleType) -> None:
-    assignments: list[Path] = []
+def test_path_file_name_is_defined_in_the_resolver_only() -> None:
+    definitions: list[Path] = []
     for path in _scan_files(SCAN_ROOTS):
         text = _read(path)
-        if "BRACE_REF_SPELLING" not in text:
+        if "path_file_name" not in text:
             continue
         try:
             tree = ast.parse(text)
         except SyntaxError:
             continue
-        for node in ast.walk(tree):
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
-            if any(isinstance(t, ast.Name) and t.id == "BRACE_REF_SPELLING" for t in targets):
-                assignments.append(path)
+        if any(isinstance(node, ast.FunctionDef) and node.name == "path_file_name" for node in ast.walk(tree)):
+            definitions.append(path)
 
-    assert assignments == [RESOLVER_PATH]
-    spelling = resolver.BRACE_REF_SPELLING
-    assert isinstance(spelling, tuple) and len(spelling) == 2
-    assert all(isinstance(piece, str) and piece for piece in spelling)
+    assert definitions == [RESOLVER_PATH]
 
 
-def test_no_scanned_file_other_than_the_resolver_holds_a_spelling_literal(resolver: ModuleType) -> None:
-    fragments = _forbidden_fragments(tuple(resolver.BRACE_REF_SPELLING))
+def test_no_scanned_file_other_than_the_resolver_holds_a_brace_spelling_literal() -> None:
     files = [p for p in _scan_files(SCAN_ROOTS) if p != RESOLVER_PATH]
 
     assert len(files) > 500, "the scan must visit the real tree"
-    assert _spelling_offenders(files, fragments) == []
+    assert _spelling_offenders(files, _forbidden_fragments()) == []
 
 
-def test_the_scan_detects_a_planted_offender(resolver: ModuleType, tmp_path: Path) -> None:
-    open_piece = resolver.BRACE_REF_SPELLING[0]
-    planted = _write(tmp_path, "offender.py", f'PATH = "paths/items_{open_piece}itemId.yaml"\n')
+def test_the_scan_detects_a_planted_offender(tmp_path: Path) -> None:
+    piece = "%" + "7B"
+    planted = _write(tmp_path, "offender.py", f'PATH = "paths/items_{piece}itemId.yaml"\n')
     clean = _write(tmp_path, "clean.py", 'PATH = "paths/items.yaml"\n')
 
-    found = _spelling_offenders([planted, clean], _forbidden_fragments(tuple(resolver.BRACE_REF_SPELLING)))
+    found = _spelling_offenders([planted, clean], _forbidden_fragments())
 
     assert found == [planted]
 
 
-def test_the_scan_detects_a_planted_raw_brace_stem(resolver: ModuleType, tmp_path: Path) -> None:
+def test_the_scan_detects_a_planted_raw_brace_stem(tmp_path: Path) -> None:
     stem = "missions_" + chr(123)
     planted = _write(tmp_path, "offender.py", "NAME = '" + stem + "missionId}.yaml'\n")
 
-    assert _spelling_offenders([planted], _forbidden_fragments(tuple(resolver.BRACE_REF_SPELLING))) == [planted]
+    assert _spelling_offenders([planted], _forbidden_fragments()) == [planted]
 
 
 def test_a_scan_over_zero_files_is_not_a_pass(tmp_path: Path) -> None:
@@ -374,16 +411,12 @@ def test_a_scan_over_zero_files_is_not_a_pass(tmp_path: Path) -> None:
         _scan_files((empty_root,))
 
 
-def test_layout_check_imports_the_spelling_constant() -> None:
+def test_layout_check_takes_the_name_rule_from_the_resolver() -> None:
     source = (TOOLS_DIR / "layout_check.py").read_text(encoding="utf-8")
-    imported_names: set[str] = set()
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.ImportFrom) and node.module == "contract_resolver":
-            imported_names.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.Attribute) and node.attr == "BRACE_REF_SPELLING":
-            imported_names.add("BRACE_REF_SPELLING")
+    names = {node.attr for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Attribute)}
 
-    assert "BRACE_REF_SPELLING" in imported_names
+    assert "path_file_name" in names, "layout_check calls contract_resolver.path_file_name, it does not restate the rule"
+    assert "derived_path_file_name" not in source
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,5 @@ info:
   title: Layout fixture
   version: 1.0.0
 paths:
-  /ping:
-    $ref: paths/ping.yaml
   /items/{itemId}:
     $ref: paths/items_itemId.yaml
