@@ -2250,7 +2250,7 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-cli"
-version = "4.0.0rc5"
+version = "4.0.0rc6"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },

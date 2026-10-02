@@ -15,6 +15,11 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 4.0.0rc6
+
+_4.0.0rc6 candidate cycle. Entries land here until the release chore finalizes
+this section at publish._
+
 ## [4.0.0rc5] - 2026-10-02
 
 This release candidate removes the bundled dashboard, renames `spec-kitty merge` to `spec-kitty consolidate` and makes hosted interaction opt-in: a fresh install sends nothing to a hosted endpoint until you turn sending on for both the repository and yourself. Most fixes harden `spec-kitty consolidate`, which now checks that everything it lands came from an approved lane, refuses instead of guessing when it cannot tell, and restores the branches it moved when it fails. It also runs `single_branch` missions one work package at a time in your repository root checkout, stops several commands from deleting or overwriting files you wrote, reads requirement IDs with one shared grammar, and starts faster (a warm `doctor` went from about 13.2 s to about 1.4 s in local measurement). Scripts that call `spec-kitty merge` or `spec-kitty dashboard`, and projects that use hosted interaction, need changes. See Breaking and Upgrade Notes.
