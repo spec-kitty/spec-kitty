@@ -12,7 +12,6 @@ drop a response code, and so on. The independent dereference check is exercised 
 
 from __future__ import annotations
 
-import importlib.util
 import shutil
 import subprocess
 import sys
@@ -23,6 +22,8 @@ from typing import Any
 
 import pytest
 import yaml
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -36,16 +37,8 @@ SCRIPT = TOOLS_DIR / "resolver_parity.py"
 def parity() -> Iterator[ModuleType]:
     # The tools directory stays on sys.path for the module's lifetime: the script imports its sibling
     # modules by name, including lazily (the resolver), exactly as it does when run as a bare script.
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        spec = importlib.util.spec_from_file_location("resolver_parity_under_test", SCRIPT)
-        assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-        yield module
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "resolver_parity_under_test", syspath=TOOLS_DIR)
 
 
 def _stage(tmp_path: Path, root: str, view: str | None, *, write_bundle: bool = True) -> Path:

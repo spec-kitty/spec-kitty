@@ -9,13 +9,14 @@ point of the human-text class.
 
 from __future__ import annotations
 
-import importlib.util
 import re
-import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -47,13 +48,9 @@ def _email() -> str:
 
 
 @pytest.fixture(scope="module")
-def leaks() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("leak_patterns_under_test", MODULE_PATH)
-    assert spec is not None and spec.loader is not None, f"cannot load {MODULE_PATH}"
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+def leaks() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, MODULE_PATH, "leak_patterns_under_test")
 
 
 # -- strict fields: identifiers, handles and path-like values ----------------

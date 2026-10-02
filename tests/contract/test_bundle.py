@@ -11,7 +11,6 @@ fixture with a clean control.
 
 from __future__ import annotations
 
-import importlib.util
 import shutil
 import subprocess
 import sys
@@ -22,6 +21,8 @@ from typing import Any
 
 import pytest
 import yaml
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -38,16 +39,8 @@ Runner = Callable[[list[str]], tuple[int, str]]
 
 @pytest.fixture(scope="module")
 def bundler() -> Iterator[ModuleType]:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        spec = importlib.util.spec_from_file_location("bundle_under_test", SCRIPT)
-        assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-        yield module
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "bundle_under_test", syspath=TOOLS_DIR)
 
 
 def _tool(name: str) -> str | None:
@@ -104,13 +97,11 @@ def test_the_bundle_keeps_every_31_construct_the_openapi_yaml_generator_dropped(
 
 
 def test_the_bundle_is_the_resolver_tree_and_holds_no_reference(bundler: ModuleType, tmp_path: Path) -> None:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
+    with pytest.MonkeyPatch.context() as mp:
+        mp.syspath_prepend(str(TOOLS_DIR))
         import contract_resolver
 
         tree = contract_resolver.resolve(SPIKE_ROOT / "full").tree
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
     _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(), "--module", "full")
     text = (tmp_path / "out" / "bundle" / "full" / "openapi.yaml").read_text(encoding="utf-8")
 

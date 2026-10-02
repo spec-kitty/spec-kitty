@@ -19,14 +19,16 @@ from __future__ import annotations
 
 import ast
 import functools
-import importlib.util
 import json
-import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
+from tests.architectural._ast_scan import parse_source
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -40,18 +42,10 @@ GOLDEN_CASES = ("file_ref", "pointer_ref", "sibling_keywords", "composition")
 SCAN_ROOTS = (TOOLS_DIR, REPO_ROOT / "tests")
 
 
-def _load_resolver() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("contract_resolver_under_test", RESOLVER_PATH)
-    assert spec is not None and spec.loader is not None, f"cannot load {RESOLVER_PATH}"
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.fixture(scope="module")
-def resolver() -> ModuleType:
-    return _load_resolver()
+def resolver() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, RESOLVER_PATH, "contract_resolver_under_test")
 
 
 def _write(root: Path, relative: str, text: str) -> Path:
@@ -325,8 +319,8 @@ def _forbidden_fragments() -> tuple[str, ...]:
     return ("missions_" + chr(123), "%" + "7b", "%" + "7d")
 
 
-def _string_literals(source: str) -> list[str]:
-    tree = ast.parse(source)
+def _string_literals(path: Path, source: str) -> list[str]:
+    tree = parse_source(source, display=str(path))
     return [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
 
 
@@ -343,10 +337,7 @@ def _spelling_offenders(files: list[Path], fragments: tuple[str, ...]) -> list[P
         text = _read(path)
         if not any(fragment in text.lower() for fragment in lowered):
             continue
-        try:
-            literals = _string_literals(text)
-        except SyntaxError:
-            continue
+        literals = _string_literals(path, text)
         if any(fragment in literal.lower() for literal in literals for fragment in lowered):
             offenders.append(path)
     return offenders
@@ -369,10 +360,7 @@ def test_path_file_name_is_defined_in_the_resolver_only() -> None:
         text = _read(path)
         if "path_file_name" not in text:
             continue
-        try:
-            tree = ast.parse(text)
-        except SyntaxError:
-            continue
+        tree = parse_source(text, display=str(path))
         if any(isinstance(node, ast.FunctionDef) and node.name == "path_file_name" for node in ast.walk(tree)):
             definitions.append(path)
 

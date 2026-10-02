@@ -11,14 +11,15 @@ plants that run exercised, each asserted here to be a well-formed module).
 
 from __future__ import annotations
 
-import importlib.util
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -32,17 +33,9 @@ Runner = Callable[[list[str]], tuple[int, str]]
 
 
 @pytest.fixture(scope="module")
-def smoke() -> ModuleType:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        spec = importlib.util.spec_from_file_location("client_smoke_under_test", SCRIPT)
-        assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
-    return module
+def smoke() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "client_smoke_under_test", syspath=TOOLS_DIR)
 
 
 def _tool(name: str) -> str | None:

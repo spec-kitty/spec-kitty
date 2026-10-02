@@ -11,17 +11,19 @@ stays clean in the same run. Path-file names in test code come from the resolver
 from __future__ import annotations
 
 import ast
-import importlib.util
 import shutil
 import subprocess
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
 import yaml
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -49,17 +51,9 @@ CLEAN_MODULES = ("clean", "_shared")
 
 
 @pytest.fixture(scope="module")
-def layout() -> Any:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        spec = importlib.util.spec_from_file_location("layout_check_under_test", SCRIPT)
-        assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
-    return module
+def layout() -> Iterator[Any]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "layout_check_under_test", syspath=TOOLS_DIR)
 
 
 @pytest.fixture(scope="module")

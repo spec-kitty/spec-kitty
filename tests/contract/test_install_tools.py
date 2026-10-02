@@ -9,17 +9,18 @@ so no test touches the network.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -29,17 +30,9 @@ SCRIPT = TOOLS_DIR / "install_tools.py"
 
 
 @pytest.fixture(scope="module")
-def installer() -> ModuleType:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        spec = importlib.util.spec_from_file_location("install_tools_under_test", SCRIPT)
-        assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
-    return module
+def installer() -> Iterator[ModuleType]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "install_tools_under_test", syspath=TOOLS_DIR)
 
 
 def _manifest() -> dict[str, Any]:
@@ -55,7 +48,7 @@ def _write(tmp_path: Path, manifest: dict[str, Any]) -> Path:
 def _fetch_fixture(calls: list[str]) -> Callable[[str], bytes]:
     def fetch(url: str) -> bytes:
         calls.append(url)
-        return (FIXTURE_DIR / "payload.zip").read_bytes()
+        return (FIXTURE_DIR / "payload.bin").read_bytes()
 
     return fetch
 
