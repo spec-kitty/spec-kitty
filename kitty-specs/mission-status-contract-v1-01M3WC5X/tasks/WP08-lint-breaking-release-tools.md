@@ -154,7 +154,7 @@ Add the vacuum lint ruleset and job, `breaking_check.py` (oasdiff) with its job,
 ### Subtask T054: Registry rows, local runs and the pushed-run hand-off
 
 **Purpose**: close.
-**Steps**: append sorted registry rows; run the targeted tests, gates and ruff; produce the hand-off for the orchestrator record step, using fixed fields: `tool_versions`, `publication_dates`, `advisory_feeds`, per tool `planted_input` with `expected_reason`, `log_excerpt` and `run_id`, and the first-run result of `lint`, `breaking-change` and `release-dry-run`. The fields are: tool versions, publication dates, advisory feeds, one pushed planted input per tool with the log excerpt, and the `lint`/`breaking-change`/`release-dry-run` first-run results.
+**Steps**: append sorted registry rows; run the targeted tests, gates and ruff; produce the hand-off for the orchestrator record step, using fixed fields: `tool_versions`, `publication_dates`, `advisory_feeds`, per tool `planted_input` with `expected_reason`, `log_excerpt` and `run_id`, and the first-run result of `lint`, `breaking-change` and `release-dry-run`.
 **Files**: `tests/architectural/test_ci_corpus_trigger_completeness.py` (+3 rows); hand-off record only otherwise.
 **Validation**: green; hand-off complete.
 

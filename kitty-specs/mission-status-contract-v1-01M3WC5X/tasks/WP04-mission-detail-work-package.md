@@ -173,7 +173,7 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 ## Risks
 
 - Brace `$ref` spelling may be re-decided by the spike: derive names, never hard-code; WP09 applies any re-sweep.
-- Sibling keywords beside `$ref` and `allOf` composition are bundler-fidelity risks (R-3): keep constructs within the resolver's supported list; adding one means extending `contracts/tools/contract_resolver.py` (WP01 wrote it; this WP also owns it, sequentially after WP01) together with its golden-tree test and fixture in the same commit that first uses the construct (resolver change control, D-P2). Check whether the construct survives bundling is the IC-07a spike's (the spike record, `research.md` R-3), so prefer constructs already in the supported list.
+- Sibling keywords beside `$ref` and `allOf` composition are bundler-fidelity risks (R-3): keep constructs within the resolver's supported list; adding one means extending `contracts/tools/contract_resolver.py` (WP01 wrote it; this WP also owns it, sequentially after WP01) together with its golden-tree test and fixture in the same commit that first uses the construct (resolver change control, D-P2). Whether a construct survives bundling is answered by the IC-07a spike record (`research.md` R-3), so prefer constructs already in the supported list.
 
 ## Reviewer Guidance
 

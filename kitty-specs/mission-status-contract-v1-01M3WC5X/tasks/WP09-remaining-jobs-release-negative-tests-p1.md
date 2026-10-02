@@ -43,6 +43,27 @@ create_intent:
 - tests/contract/test_run_negative_cases.py
 - tests/contract/test_mission_status_examples.py
 - tests/contract/test_layout_check.py
+- tests/contract/test_breaking_check.py
+- tests/contract/test_bundle.py
+- tests/contract/test_citation_check.py
+- tests/contract/test_client_smoke.py
+- tests/contract/test_codeowners_check.py
+- tests/contract/test_contract_resolver.py
+- tests/contract/test_enum_pin_check.py
+- tests/contract/test_event_mapping_check.py
+- tests/contract/test_example_check.py
+- tests/contract/test_fixture_builder.py
+- tests/contract/test_install_tools.py
+- tests/contract/test_leak_patterns.py
+- tests/contract/test_leak_scan.py
+- tests/contract/test_lint_ruleset.py
+- tests/contract/test_no_pytest_scan.py
+- tests/contract/test_provisional_check.py
+- tests/contract/test_release_check.py
+- tests/contract/test_resolver_parity.py
+- tests/contract/test_schema_formats.py
+- tests/contract/test_structure_check.py
+- tests/contract/test_verify_pins.py
 execution_mode: code_change
 model: sonnet
 owned_files:
@@ -58,8 +79,47 @@ owned_files:
 - tests/contract/test_run_negative_cases.py
 - tests/contract/test_mission_status_examples.py
 - tests/contract/test_layout_check.py
-- contracts/tools/fixtures/**
-- tests/contract/test_*.py
+- contracts/tools/fixtures/breaking_check/**
+- contracts/tools/fixtures/bundle/**
+- contracts/tools/fixtures/citation_check/**
+- contracts/tools/fixtures/client_smoke/**
+- contracts/tools/fixtures/codeowners_check/**
+- contracts/tools/fixtures/contract_resolver/**
+- contracts/tools/fixtures/enum_pin_check/**
+- contracts/tools/fixtures/event_mapping_check/**
+- contracts/tools/fixtures/example_check/**
+- contracts/tools/fixtures/install_tools/**
+- contracts/tools/fixtures/leak_scan/**
+- contracts/tools/fixtures/no_pytest_scan/**
+- contracts/tools/fixtures/provisional_check/**
+- contracts/tools/fixtures/release_check/**
+- contracts/tools/fixtures/resolver_parity/**
+- contracts/tools/fixtures/spike/**
+- contracts/tools/fixtures/structure_check/**
+- contracts/tools/fixtures/vacuum/**
+- contracts/tools/fixtures/verify_pins/**
+- tests/contract/test_breaking_check.py
+- tests/contract/test_bundle.py
+- tests/contract/test_citation_check.py
+- tests/contract/test_client_smoke.py
+- tests/contract/test_codeowners_check.py
+- tests/contract/test_contract_resolver.py
+- tests/contract/test_enum_pin_check.py
+- tests/contract/test_event_mapping_check.py
+- tests/contract/test_example_check.py
+- tests/contract/test_fixture_builder.py
+- tests/contract/test_install_tools.py
+- tests/contract/test_leak_patterns.py
+- tests/contract/test_leak_scan.py
+- tests/contract/test_lint_ruleset.py
+- tests/contract/test_no_pytest_scan.py
+- tests/contract/test_provisional_check.py
+- tests/contract/test_release_check.py
+- tests/contract/test_resolver_parity.py
+- tests/contract/test_schema_formats.py
+- tests/contract/test_structure_check.py
+- tests/contract/test_verify_pins.py
+- contracts/tools/fixtures/negative/**
 - tests/architectural/test_ci_corpus_trigger_completeness.py
 role: implementer
 tags: []
@@ -88,7 +148,7 @@ Complete the contracts workflow (`verify-pins`, `python-checks`, `negative-tests
 
 - Plan concern **IC-08**. **Shared-CI gate chokepoint**: `.github/workflows/contracts.yml` single-writer order WP02, WP08, WP09 (this is last; both earlier lanes are finished). It is also the first full execution of every job; the draft-PR push is the first possible green `contracts-gate`.
 - Depends on WP05 (the real contract exists: with no module under `contracts/mission-status` the content jobs exit 2 by design, `NO_MODULE`/`ZERO_PATH_FILES`, and the gate could not be shown green), WP06 (content checks), WP07 (hygiene checks, pin verifier, CODEOWNERS), WP08 (lint, breaking-change, release-check, which in turn builds on WP02). Needs a rebase on current `main` before and after (orchestrator action); the workflow-count ceiling is re-verified (18 files after WP02, 19 after this WP, ceiling 20).
-- **Opening commit, conditional (brace re-sweep).** Read the recorded brace `$ref` spelling (`research.md` R-3, written by the orchestrator after WP02; WP04 already applied it, so a sweep is expected not to be needed). If the spike used the time-box fallback ("IC-07a pending, default spelling provisional") and later recorded its result, compare against that final record. If the `BRACE_REF_SPELLING` in `contract_resolver.py` equals the recorded spelling there is nothing to sweep; the two branches below apply only if the spelling changed after WP04. **The re-sweep edits fixtures and tests written by earlier WPs; this WP owns `contracts/tools/fixtures/**` and `tests/contract/test_*.py` for that purpose (and for new negative-case plants under `contracts/tools/fixtures/negative/**`).**
+- **Opening commit, conditional (brace re-sweep).** Read the recorded brace `$ref` spelling (`research.md` R-3, written by the orchestrator after WP02; WP04 already applied it, so a sweep is expected not to be needed). If the spike used the time-box fallback ("IC-07a pending, default spelling provisional") and later recorded its result, compare against that final record. If the `BRACE_REF_SPELLING` in `contract_resolver.py` equals the recorded spelling there is nothing to sweep; the two branches below apply only if the spelling changed after WP04. **The re-sweep edits fixtures and tests written by earlier WPs; this WP owns exactly the earlier WPs' `test_<script>.py` modules and `contracts/tools/fixtures/<script>/**` subtrees listed in its `owned_files` for that purpose (and `contracts/tools/fixtures/negative/**` for new negative-case plants). It never touches `tests/contract/test_handoff_fixtures.py`, `contracts/fixtures/**` (C-004) or any other pre-existing `tests/contract/` module; no blanket `tests/contract/test_*.py` or `contracts/tools/fixtures/**` glob is owned.**
   - **Differs from the default**: the red-first re-sweep is the opening of this WP. First commit: plant a non-canonical `$ref` fixture for the `BRACE_REF_SPELLING` rule in `contracts/tools/fixtures/layout_check/` and a test in `tests/contract/test_layout_check.py` that is a **pre-edit red test against the unchanged `BRACE_REF_SPELLING` constant**; the constant edit in `contracts/tools/contract_resolver.py` lands in the same commit and turns it green; the path-file renames and `$ref` rewrites over `contracts/mission-status/**` (path files, root map, every `_index.yaml`, examples) follow in that commit or its immediate successor until `layout_check` is green over the whole tree; also rewrite any literal path-file name or brace `$ref` in tests and fixtures from WP01 to WP07 (acceptance grep: `grep -rn "missions_{\|%7B" tests/contract contracts/tools/fixtures` matches nothing outside `layout_check`'s own planted fixtures). Cause for any re-publication of an already-published preview point: `brace re-sweep` (see close-out below).
   - **Equals the default**: no re-sweep; the WP opens with its own red test, the `tests/ci/test_contracts_workflows.py` guard for the first remaining job, failing before the job exists.
 - **Jobs to add** (single authority: the job table in `contracts/tools-and-workflows.md`, which `tests/ci/test_contracts_workflows.py` asserts exactly): `verify-pins` (no needs; guarded; `verify_pins.py` over `pins.json` and both workflow files), `python-checks` (no needs; guarded; the nine content/hygiene checks over the resolved tree then `no_pytest_scan.py`: ten scripts), `negative-tests` (`needs: verify-pins`; installs its own tools via `install_tools.py` because the dangling-reference, tampered-metadata, vacuum and oasdiff cases need the JVM toolchain; runs `fixture_builder.py` for leak-class plants; runs every script and tool against its planted fixtures through the wiring below, asserts the stable failure code, and runs a clean control on the same fixture root; passes only if each check failed **for the expected reason**), `validate-bundle` gains `needs: verify-pins`, the client smoke step loses `continue-on-error` (a generation failure now turns `validate-bundle` and therefore `contracts-gate` red), and `contracts-gate` lists all eight other jobs in `needs` with `if: (<canonical guard>) && always()`, failing unless every needed job is `success`. The fork guard `(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')` is the first top-level conjunct on every root job and every `always()` job.
@@ -114,7 +174,7 @@ Complete the contracts workflow (`verify-pins`, `python-checks`, `negative-tests
 
 **Purpose**: apply the spike's spelling decision exactly once.
 **Steps**: as described above; if no re-sweep, write the first failing guard test for the `verify-pins` job instead.
-**Files**: if the spelling changed: `contracts/tools/contract_resolver.py`, `contracts/tools/fixtures/layout_check/**`, `tests/contract/test_layout_check.py`, `contracts/mission-status/**` (renames and `$ref` rewrites), and the earlier WPs' `contracts/tools/fixtures/**` and `tests/contract/test_*.py` literals; otherwise the first guard test in `tests/ci/test_contracts_workflows.py`.
+**Files**: if the spelling changed: `contracts/tools/contract_resolver.py`, `contracts/tools/fixtures/layout_check/**`, `tests/contract/test_layout_check.py`, `contracts/mission-status/**` (renames and `$ref` rewrites), and the literals in the earlier WPs' owned `tests/contract/test_<script>.py` modules and `contracts/tools/fixtures/<script>/**` subtrees; otherwise the first guard test in `tests/ci/test_contracts_workflows.py`.
 **Validation**: `layout_check` green over `contracts/` after the sweep; the acceptance grep clean; or the new guard test red for the right reason.
 
 ### Subtask T056: Remaining jobs and gate in `contracts.yml`
@@ -152,6 +212,8 @@ The manifest covers every `plan.md` Test strategy row for FR-014, FR-016 and FR-
 **Steps**: run every script locally against the real contract and record exit codes; run the targeted tests, gates, `ruff check .` and `ruff format --check .`; hand the orchestrator the list of what only CI can show (first full execution of every job, a green `contracts-gate`). Then record the p1 inputs (formerly a separate subtask, folded here because it produces no file): the hand-off has the fields `candidate_last_commit` (hash), `contracts_gate_run_id` (a contracts-workflow run on the draft PR whose `contracts-gate` succeeded), and `class_a_failing_runs` (one failing-run link or run id per check, for WP12).
 **Files**: `tests/architectural/test_ci_corpus_trigger_completeness.py` (+1 row for `test_run_negative_cases.py`); hand-off record only otherwise.
 **Validation**: green locally; the hand-off carries the three p1 fields, with the CI run identifiers filled in once the orchestrator relays them.
+
+_Numbering note: T061 was folded into T055 and is retired; WP10 continues at T062. The gap is intentional._
 
 ## Close-out step: publish preview point `p1` (ORCHESTRATOR action, recorded in this WP)
 
