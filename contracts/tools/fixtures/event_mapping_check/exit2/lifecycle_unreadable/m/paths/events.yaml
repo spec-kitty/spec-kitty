@@ -1,0 +1,28 @@
+get:
+  operationId: streamEvents
+  description: 'A change stream.
+
+
+    Event names and data schemas:
+
+
+    - `status-transition` -> StatusTransitionEvent: described here.
+
+    - `mission-lifecycle` -> MissionLifecycleEvent: described here.
+
+    - `log-truncated` -> LogTruncatedEvent: described here.
+
+
+    Framing follows.
+
+    '
+  responses:
+    '200':
+      description: ok
+      content:
+        text/event-stream:
+          schema:
+            oneOf:
+            - $ref: ../schemas/StatusTransitionEvent.yaml
+            - $ref: ../schemas/MissionLifecycleEvent.yaml
+            - $ref: ../schemas/LogTruncatedEvent.yaml

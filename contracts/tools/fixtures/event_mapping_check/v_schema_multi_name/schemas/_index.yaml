@@ -1,0 +1,4 @@
+files:
+- LogTruncatedEvent.yaml
+- MissionLifecycleEvent.yaml
+- StatusTransitionEvent.yaml

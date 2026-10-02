@@ -1,0 +1,5 @@
+properties:
+  a:
+    $ref: Missing.yaml
+title: LogTruncatedEvent
+type: object
