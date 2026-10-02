@@ -9,15 +9,17 @@ control) and over the whole real ``contracts`` tree, each with a floor on what i
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
+from tests.contract._loader import load_tool
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -31,22 +33,10 @@ SLASH = chr(47)
 AT = chr(64)
 
 
-def _load(name: str) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(f"{name}_under_test", TOOLS_DIR / f"{name}.py")
-    assert spec is not None and spec.loader is not None, f"cannot load {name}"
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.fixture(scope="module")
-def scan() -> Any:
-    sys.path.insert(0, str(TOOLS_DIR))
-    try:
-        return _load("leak_scan")
-    finally:
-        sys.path.remove(str(TOOLS_DIR))
+def scan() -> Iterator[Any]:
+    with pytest.MonkeyPatch.context() as mp:
+        yield load_tool(mp, SCRIPT, "leak_scan_under_test", syspath=TOOLS_DIR)
 
 
 @pytest.fixture(scope="module")
