@@ -1,0 +1,21 @@
+get:
+  operationId: listThings
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Thing.yaml
+  parameters:
+  - name: streamCursor
+    in: query
+    required: false
+    schema:
+      $ref: ../schemas/Cursor.yaml
+    x-provisional:
+      open_decision: Whether the cursor text form is stable is an open decision on
+        the tracker issue.
+  x-provisional:
+    open_decision: The framing of the response is an open decision on the tracker
+      issue.
