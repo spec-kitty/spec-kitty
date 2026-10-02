@@ -1,0 +1,775 @@
+{
+  "event_count": 263,
+  "last_event_id": "01M3Z1KB4NTQWCBA5AAPEEXVYK",
+  "materialized_at": "2026-10-02T19:31:30.581255+00:00",
+  "mission_number": "211",
+  "mission_slug": "coord-artifact-single-home-01M3V4BE",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 22,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JGG2R7QZWF8JPEZK9CP0",
+      "last_transition_at": "2026-10-02T19:31:03.298995+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Campsite-clean done: _stage_artifacts_in_coord_worktree 13->9 (via _classify_stage_path + _cleanup_staging_residue), resolve_status_surface_with_anchor 12->9 (via _empty_coord_surface + _meta_unreadable_fallback). 611 passed/10 skipped across owning surfaces + 99 passed on named architectural gates. ruff/mypy --strict clean on changed files; pre-existing format drift in commit_router.py reported, not fixed (out of scope).",
+        "Review passed (reviewer-renata): behaviour-preserving tidy-first verified. C901 _stage_artifacts_in_coord_worktree 13->5, resolve_status_surface_with_anchor 12->9. Base 589p/10s vs lane head 604p/10s on the same 13-file surface (+15 new helper tests, 0 assertion edits); named arch gates 111 passed; ruff + mypy --strict clean; diff coverage 92%. Shared files: commit_router.py/test_commit_router.py with WP05, surface_resolver.py with WP04 (lane-a, sequential)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1985072,
+      "shell_pid_created_at": "1790850693.31",
+      "subtasks": {
+        "T001": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JC213RSPM3VB13GC08MV",
+      "last_transition_at": "2026-10-02T19:30:58.753302+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Harness ready: make_coord_mission/make_prefix_coord_mission/make_fork_fixture + 5 probes. 31 self-tests green (tests/coordination/test_coord_mission_factory.py), full tests/coordination/ (266) and tests/_factories/test_make_mission_parity.py (4) pass, no fixture clash. ruff/mypy --strict/format clean on all 3 new files; 95% coverage on coord_mission.py.",
+        "Cycle 2: addressed all review findings. H1: pre-fix builder rewrites create's output explicitly (proven independent of create's placement via a simulated post-fix shape). H2/H3: fork fixtures (a)/(b)/(c) gained a status_log/decision_log/both stream selector, built via low-level production-shaped payloads into fixture-chosen paths, self-checked at construction. M1: topology=None supported for via=cli_pr_bound. M2: protected_primary protects main for every via, verified via ProtectionPolicy. L1-L4+nit addressed. 45/45 self-tests green, full tests/coordination/ (280) and test_make_mission_parity.py (4) pass; ruff/mypy --strict/format clean; 95% coverage.",
+        "Review passed (cycle 2, 4f2ddb7939): all cycle-1 findings resolved. H1 verified independently (amended-history WP06-shaped create + dirty coord worktree, both topologies -> UNMATERIALIZED, coord tip == creation_base_sha, root log committed on target); H2 per-stream status_log/decision_log/both variants; H3 rows via production payload models + append_raw_rows_atomic into fixture-chosen dirs, in-builder fork assert; M1 topology=None for cli_pr_bound; M2 ProtectionPolicy gives {main} for every via with protected_primary (default {main,master}); L1-L4 + nit fixed, zero suppressions. Tests: factory+_factories 49 passed (95% cov); fast-tier selection 5 passed; tests/coordination/ 280 passed; ruff/format/mypy --strict clean; no src/ changes. Non-blocking notes: positive protected_primary test is non-discriminating (prod default also protects main; assert protected_branches == {main} instead); fork (a) root-porcelain assertion 'kitty-specs/' is trivially true via untracked spec.md; _commit_root_events add -A commits whole root Mission dir (spec.md etc.) in shape (b)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2280108,
+      "shell_pid_created_at": "1790852853.59",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JF0BFGAMVHF7RZG9BDRH",
+      "last_transition_at": "2026-10-02T19:31:01.771160+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first commit then implementation (2 commits). All T012-T017 state-row/fork/idempotence/atomicity/root-restoration/lock-reentrancy/NFR-002/C-008 tests green (24 in test_coord_seed.py + 18 in test_event_prefix.py + 9 in test_write_location.py = 51 new, plus 2 deliberately re-pinned files for research D22). Named architectural gates green (mission_runtime_surface, layer_rules, no_dead_modules, no_dead_symbols via a new WP-in-flight allowlist category, cold_import_status_boundary). ruff/mypy --strict/C901 clean, no suppressions. Deviations: (1) D22 single-write-authority absorption re-pins test_write_target_degrade_selfmat.py + test_coordination_remedy_5113.py (local-head-with-content now self-materializes instead of refusing) -- declare in PR body per binding correction; (2) FeatureStatusLockTimeoutError.error_code='STATUS_LOCK_HELD' changes generic getattr(err,'error_code') renderers on a real lock timeout -- declare in PR body; (3) dead-symbol allowlist/baseline touched outside WP03 owned_files (scope-guard WARNED, not blocked) -- unavoidable consequence of the new public surface, 6 symbols allowlisted under a new WP-in-flight category pending WP04/WP06 callers. See tracer entries (design-decisions x2, tooling-friction x3) for the mission_dir_name-vs-mission_slug handle gotcha and the unified fork-check-on-every-commit design.",
+        "Cycle 2: all 9 blocking findings (B1-B9) and 5 non-blocking (L1-L5) from review cycle 1 addressed in 2 commits (668a8e3d51 red-first regression+coverage tests, d34a493663 fixes). B1/B2: restore-from-tip + root-only carry now run inside _seed_coord_surface_locked under a fresh re-probe (never outside the lock, never double-restored). B3: pending-seed check uses --untracked-files=normal -z, config-independent (tested under all/no/normal). B4: all required tests added (refused-then-retried commit, untracked root restoration, I-SEED-5 non-log carry+conflict warning, D4 negative shape, decisions-stream fork+carry, STATUS_LOCK_HELD firing, owned-arm translation, NFR-002 across fork shapes b/c/d); coord_seed.py coverage 94% (target 90%). B5: Establishment.WORKTREE_MATERIALIZED now produced for UNMATERIALIZED->MATERIALIZED with no seed. B6: new public coord_branch_is_post_fix(repo_root, coordination_branch, mission_id). B7 (governance): dead-symbol allowlist reverted 299->293 (no net growth); SeedRequest/seed_coord_surface now module-private; MalformedEventLogLineError/DuplicateEventIdError now caught and re-raised as structured ActionContextError. TRANSITIONAL RED (accepted by reviewer ruling, verified as exactly these 3 and nothing else): tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported red on COORD_SEED_TRAILER (cured by WP06 T031), CoordSeedForkRefused (cured by WP07 or WP05/WP09), coord_branch_is_post_fix (cured by WP04 T021). B8: _coord_tip_relpaths/_coord_side_text/coord_branch_is_post_fix now raise on a genuine git failure instead of silently reading absent/pre-fix. B9: merged_log_bytes appends a trailing newline to every kept line before joining, so a missing final newline never glues two rows together. L1-L5 all applied (unused noqa removed; cheap lock-free fast path before the 10s-bounded lock; temp-dir cleanup + re-probe-once on a failed rename; staged-new root files unstaged-then-removed; selfmat re-pins gain the #4970 no-clobber content assertion). Tests: 89 passed in the 5 directly-touched files; 158 passed/1 accepted-red in the named architectural gates; 1280 passed/28 skipped in the full lock/gate/write_artifact sweep. ruff/format/mypy --strict/C901 all clean. See tracer design-decisions/tooling-friction entries dated 2026-10-01 for the B1/B2 unification, the B7 allowlist-revert mapping, the B3 git-config gotcha, and the OwnedCheckout fixture gotcha.",
+        "Review passed (cycle 2, reviewer-renata/opus). All cycle-1 blockers B1-B9 and L1-L5 verified fixed. Reviewer probes re-run green: post-fix root-only carry, refused-then-retried seed under showUntrackedFiles all/no/normal, WORKTREE_MATERIALIZED, STATUS_LOCK_HELD fires after the bounded 10s with nothing written, plus a new race probe (another writer wins between the probe and the lock: no re-checkout, uncommitted event preserved). Cycle-2 red commit 668a8e3d51 verified red (10 failed / 60 passed); tip d34a493663 green. Targeted + gates: 227 passed, 1 failed = the accepted transitional red. coord_seed.py coverage 94%; event_prefix and write_location 100%. ruff, format, C901 and RUF100 clean; mypy --strict has 0 errors in WP03 files. Dead-symbol cap reverted to 293. ACCEPTED TRANSITIONAL RED (OD-DEAD): tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported is red on exactly 3 symbols, nothing else: specify_cli.coordination.coord_seed::coord_branch_is_post_fix (cured by WP04 T021 lazy import), ::COORD_SEED_TRAILER (cured by WP06 T031 import), ::CoordSeedForkRefused (cured by WP07, or WP05/WP09, importing it by name where wrapped or translated). Closeout must show the gate green with allowlist_entries <= 293. Non-blocking follow-ups: (1) _coord_side_text detects an absent path by matching English git stderr, so a translated git fails closed with COORD_SEED_GIT_PROBE_FAILED; prefer an ls-tree existence check or LC_ALL=C. (2) The B2 test does not exercise the actual race; replace it with a race-shaped test. (3) The L4 staged-new restore branch is uncovered. (4) Owned arm: only the translation is tested; WP04, the first owned caller, must add owned success tests. (5) The lost post-fix race reports RESTORED_FROM_BRANCH with empty restored_from_branch."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3010328,
+      "shell_pid_created_at": "1790860725.33",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JHZT7FE5TA7EPRN5C9QK",
+      "last_transition_at": "2026-10-02T19:31:04.826617+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red->green: tests/mission_runtime/test_placement_seam_write_dir.py (29 tests) + tests/coordination/test_surface_resolver_post_fix_empty_loud.py (5 tests) committed red first (AttributeError: no write_dir / TypeError: no mid8 kwarg), green after the resolution.py + surface_resolver.py + write_target_degrade.py implementation commit. Targeted suite: 902 passed, 1 skipped across tests/mission_runtime/, the coord/owned surface_resolver suites, test_status_read_path_error_contract.py and test_coord_seed.py. Architectural gates green: test_layer_rules, test_mission_runtime_surface, test_no_write_side_rederivation, test_no_legacy_terminology; test_no_dead_symbols reduced to the 2 accepted transitional reds WP03 left (COORD_SEED_TRAILER, CoordSeedForkRefused -- coord_branch_is_post_fix now cured via a real caller). ruff/ruff-format/mypy --strict clean on every changed file. Diff coverage: new/changed lines in resolution.py, surface_resolver.py and write_target_degrade.py all exercised (verified via targeted --cov). Deviation: write_target_degrade.py (outside WP04 owned_files) got a 1-line call-site update (mid8=mid8) to complete the D4 naming fix in coord_branch_has_committed_artifact -- flagged by the safe-commit scope-violation warning and documented in the handback. Pre-existing finding (not fixed): src/specify_cli/missions/_read_path_resolver.py fails 'ruff format --check .' at the mission's own base branch, independent of any WP.",
+        "Review passed (reviewer-renata/opus). Red commit 8b1942ff65 is red for the right reasons at the lane base 40dd711620 (WP01+WP03 merged): 20 failed / 7 passed (17 AttributeError: no write_dir; the post-fix loudness, mid8 kwarg and git-error-arm tests fail on assertions). The C-002 read-fallback controls are green on both sides. Tip 0c056d2da1 is green. Targeted suite + named gates (tests/mission_runtime/ + 13 coordination/status/owned files + layer_rules, status_state_read_dir_single_authority, no_write_side_rederivation, no_legacy_terminology, no_dead_symbols, no_dead_modules, mission_runtime_surface, cold_import_status_boundary): 1176 passed, 1 skipped, 1 failed = the accepted transitional red. Diff coverage on changed src lines is 100% (44/44). ruff, format, C901 and mypy --strict are clean; the one RUF100 hit (surface_resolver.py:989) predates WP04. Verified: there is one write authority (write_dir delegates to establish_coord_write_location; no local re-derivation, no CommitTarget construction). The declared-PRIMARY arm returns read_dir(kind) by construction, with checkout_root re-anchored via get_main_repo_root or owned.owned_root (pinned from a lane worktree). The PUBLISHED/E2 arm uses the same phase+kind predicate as resolve_placement_only and runs before any coordination probe, so it cannot raise CoordinationBranchDeleted (tested for all 4 E2 kinds; STATUS_STATE still raises). Post-fix EMPTY is loud for both coordination topologies; pre-fix behaviour is unchanged; the read fallback is kept. coord_branch_is_post_fix is now CURED by a real production caller (surface_resolver._empty_coord_surface). ACCEPTED TRANSITIONAL RED (OD-DEAD): tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported is red on exactly 2 symbols: specify_cli.coordination.coord_seed::COORD_SEED_TRAILER (cured by WP06 T031) and ::CoordSeedForkRefused (cured by WP07, or WP05/WP09, importing it by name). Judgements: degrading _CoordGitProbeError to loud on the read path is accepted. The one-line out-of-map write_target_degrade.py edit (pass mid8) is accepted as a shared-file note; WP03 is approved and merged into lane-a. BINDING FOLLOW-UP (not WP04's fix): coord_seed._restore_root_files/_to_repo_relpath anchor git on repo_root, but an owned seed's root Mission dir lives in owned.owned_root. NEXT_OWNED_TOPOLOGIES includes LANES_WITH_COORD, so this becomes reachable as soon as an owned-capable writer migrates to write_dir. It must be fixed (anchor on owned_root, plus an owned EMPTY seed/restore test) before WP07/WP09 migrate such a writer. Non-blocking: surface_resolver imports the private coord_seed._CoordGitProbeError across modules (prefer a public name or catching by .code); the new loudness test does not assert the coord_root payload (the warning call is unchanged and pinned in test_surface_resolver_coord_empty_warning.py); the owned-test comment cites only LIFECYCLE_OWNED_TOPOLOGIES."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3401208,
+      "shell_pid_created_at": "1790864997.05",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JKF2XXCA22CD4EYCTCEC",
+      "last_transition_at": "2026-10-02T19:31:06.338881+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T023-T029 complete: _try_advance_ref retired (R12 green, FR-008); commit_outcome.py contract core (PathFate/SurfaceOutcome/reason codes/render/payload/exit-code, single literal owner shared with surface_authority.py); CommitRouterResult.surfaces populated at every _commit_partition_group return site, unioned PRIMARY-then-coordination in _merge_group_results incl. the error early-return; R2 cherry-picked -x 251bea520f + tightened + R2b added, both GREEN, folded into test_commit_router.py per DoD; owning-surface translation for STATUS_STATE/DECISION_LOG (always, via write_dir) and TRACER_FILE/REVIEW_CYCLE/ISSUE_MATRIX/ACCEPTANCE_MATRIX (if-present, via coord-worktree mirror -- deliberately not write_dir, to avoid an eager-seed side effect); COORD_RECORD_IN_ROOT_CHECKOUT root-checkout-dirt refinement; every named write_dir failure mapped to a refused surfaces[*] reason, never swallowed; public partition_for_mission_path predicate (P-M5) wired into _group_files_by_partition itself. 7 commits, red-first throughout. 126 targeted tests added/updated, all green; full tests/coordination/ + tests/specify_cli/coordination/ green except 3 pre-existing unrelated failures (test_surface_resolver_anchor_helpers.py, confirmed red before this WP). ruff/mypy --strict clean. Dead-symbol gate: 2 accepted transitional reds (COORD_SEED_TRAILER pre-existing/WP06, partition_for_mission_path new/WP16), both documented, neither allowlisted per mission precedent.",
+        "Cycle 2: all review cycle 1 findings addressed. B1 (HIGH, data loss) FIXED: reverted owning-copy-wins for TRACER_FILE/REVIEW_CYCLE/ISSUE_MATRIX/ACCEPTANCE_MATRIX -- unconditional legacy copy2 overwrite restored (DECISION plan.design.translate-if-present-kinds, recorded in design-decisions); the switch moves to WP08/WP10/WP15 as each kind's writer migrates to write_dir. All 4 regressed integration guards verified green by name (test_accept_matrix_coord_partition.py, test_issue_verdict_coord_legacy_md_preservation.py x2, test_issue_verdict_selfmat_hardening.py::test_materialized_coord_verdicts_succeed). B2 (MEDIUM) FIXED: added T029 one-per-reason tests (WRONG_SURFACE via the B16 arm, PROTECTED_BRANCH_REFUSED, COORDINATION_WORKTREE_UNMATERIALIZED, COORD_SEED_FORK_REFUSED, PATH_UNROUTABLE -- both PATH_UNROUTABLE arms), each asserting surfaces[*].refused[*].reason and commit_outcome_exit_code==1; T028 one end-to-end test per COORD kind (STATUS_STATE + DECISION_LOG: dirty-coord/clean-coord-dirty-root/both-clean; ACCEPTANCE_MATRIX: root-dirty-copied-and-committed); the binding Recursion test (IN_PLACE never calls write_dir). B3 (governance) FIXED: removed partition_for_mission_path from __all__ per the gate's own sanctioned option 2 (kept the intra-module reference; WP16 re-exports when it lands) -- both dead-symbol gates now red on exactly COORD_SEED_TRAILER (WP03's, cured by WP06). L1 FIXED: the owned/_materialise_coord_worktree comment now cites the real use_coord=owned is None and routes_through_coordination(topology) gate instead of the upstream LIFECYCLE_OWNED_TOPOLOGIES fact (which has a wider NEXT_OWNED_TOPOLOGIES sibling staged). WP03 follow-up (declared out-of-map, separate commit) FIXED: re-pinned test_second_verdict_from_stale_coord_preserves_committed_rows to D22 (self-materialize + success + both rows preserved, not a refusal). 5 commits, all red-first where applicable. tests/coordination/test_commit_router.py: 66 passed (up from 51). Diff coverage (commit_router.py/commit_outcome.py/surface_authority.py vs WP04 base 0c056d2da1): 96% (up from 94.0%). Named architectural gates: 165 passed, 2 failed (both COORD_SEED_TRAILER, pre-existing). Full tests/integration/+tests/review/+tests/terminus/ sweep (-n 4 --dist loadfile, 1987 collected): 1971 passed, 7 failed, 9 skipped -- the 7 are test_documentation_runtime_walk.py/test_research_runtime_walk.py (BranchIdentityUnresolved), confirmed pre-existing and identical on the WP04 base via a throwaway worktree check (not caused by this WP, not #5410, but genuinely base-red).",
+        "Review passed (cycle 2, reviewer-renata/opus). All cycle-1 findings are resolved per the coordinator's Decision Moment plan.design.translate-if-present-kinds. B1 option (a): legacy copy2 restored for TRACER_FILE/REVIEW_CYCLE/ISSUE_MATRIX/ACCEPTANCE_MATRIX; the four regressed guards are green (accept_matrix_coord_partition, both issue_verdict_coord_legacy_md_preservation tests, selfmat_hardening::test_materialized_coord_verdicts_succeed). The D22 re-pin of test_second_verdict_from_stale_coord_preserves_committed_rows (declared out-of-map, WP03 follow-up) is honest: it asserts ok, a self-materialized worktree, and committed rows == {#1111, #2222}. B2: every per-reason test asserts both surfaces[*].refused[*].reason and commit_outcome_exit_code == 1. WRONG_SURFACE goes through the real B16 arm of _classify_no_commit_paths with real git porcelain. Spot-mutations were all caught: WRONG_SURFACE->already_committed, UNMATERIALIZED->PATH_UNROUTABLE, PROTECTED->WRONG_SURFACE, and owning-refused status->unchanged (5 failures). B3: partition_for_mission_path removed from __all__ via the gate's option 2. Counts at tip e7b085d26c (-n 4 --dist loadfile): tests/coordination/ 418 passed / 0 failed. tests/specify_cli/coordination/ + the non-owned regression list + the B16 consumers: 603 passed / 11 skipped. Integration (the 6 files grep-matching commit_router/commit_outcome + 15 coord/issue-verdict/review files) + tests/review + tests/terminus: 854 passed / 8 skipped / 0 failed. Named gates: 165 passed / 2 failed = the transitional red. Diff coverage on WP05 src 97.6% (239/245). ruff, format, C901, RUF100 and mypy --strict are clean. No allowlist or baseline change. ACCEPTED TRANSITIONAL RED (OD-DEAD): tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported and tests/architectural/test_dead_symbol_allowlist_contract.py::test_m11_gate_reads_the_allowlist_file_it_is_given are red on exactly ONE symbol, specify_cli.coordination.coord_seed::COORD_SEED_TRAILER, cured by WP06 T031. Carry-forward: WP16 imports partition_for_mission_path and re-adds it to __all__. WP08/WP10/WP15 flip 'owning copy wins' for their kind when its writer migrates to write_dir. Non-blocking: the recursion test is unit-level (it passes IN_PLACE explicitly); end-to-end seed-through-router is covered indirectly by WP03's coord_seed suite. The re-pin docstring says the test was 'introduced at WP03 1da5a87eaa'; it was introduced earlier and only went red there."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 163924,
+      "shell_pid_created_at": "1790876555.55",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JMXVPMV46ESNJDDQTY28",
+      "last_transition_at": "2026-10-02T19:31:07.835405+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T031 eager materialize+seed at create (write_dir between meta write and emit_create_events, commit on coord branch carries COORD_SEED_TRAILER); T032 failure-atomic rollback (worktree teardown + branch delete/CAS-reset, force_recreate now tears down first); T034 is_expected_coordination_divergence shared by ensure_coordination_branch + T035 doctor finding; R1/R1b folded into test_mission_creation_decomposition.py, adopted file deleted; T036 NFR-001 well within budget. Re-pinned several out-of-owned_files fixtures whose lazy-materialization assumption this change retires (test_materialize_coord_surface.py, test_coord_mission_factory.py, test_coord_seed.py, test_zeitgeist_moment_handler.py, test_mission_create.py). tests/integration/test_accept_matrix_coord_partition.py and test_issue_4863_merge_abort_no_state.py hit the same assumption and are left for their owning WP (not in WP06 scope/scout list).",
+        "Cycle 2: fixed B1-B5 (resume probe placement-seam fix, rollback-before-write_dir reorder, format-exclude ratchet restoration, #4863 worktree-bytes strengthening, owned+coord topology refusal). 8 commits (0f829a8f0a..6a2c520cf9), test re-pins separated from production fixes, each citing B-number(s). Named architectural gates clean except the 3 inherited WP07-assigned reds (census coord_seed, walker coord_seed:420, destructive-op _dirty_paths_in_checkout). make test-fast: 2172 passed, 5 skipped. NFR-001 medians unchanged.",
+        "Cycle 3: fixed B5' (ruling reversed — owned+coordination-topology create is a SUPPORTED FR-022 ratchet path, not a refusal target). Removed the OWNED_TOPOLOGY_UNSUPPORTED refusal; gated _scaffold_mission_dir/_build_create_result's coordination-routed branches on owned is None instead, restoring byte-identical pre-WP06 scaffold shape for owned coordination creates (status.events.jsonl present, committed, carrying MissionCreated). Recorded INV-COORD-HOME residual. N1/N2 folded. All 4 previously-broken tests green (TestFr022CoordinationTwin x3, unborn_head committed-owned). 3 commits, red-first (test before fix). Full suites + named gates clean except the 3 inherited WP07 reds.",
+        "Review passed (cycle 3, reviewer-renata/opus). B5' fixed: the owned arm is byte-identical to base (an owned lanes_with_coord create at e7b085d26c vs tip gives the same scaffold commit, file list, commit sequence and branch set, and no coordination worktree on either). The 4 B5' tests are green and the refusal is removed. INV-COORD-HOME residual (owned coordination create is not seeded) is recorded as a follow-up. B1-B4 are re-verified. The surface_translation_seam re-pins keep their intent. Whole tests/integration: 1349 passed, 7 failed, 1 skipped; the 7 are the documentation/research runtime-walk tests, red 7/7 at e7b085d26c (base-red). Core suites: 1432 passed. Gates: all green except the 3 inherited lane-a reds (census, walker coord_seed:420, destructive-op _dirty_paths_in_checkout; fixed in WP07). COORD_SEED_TRAILER is cured on lane-d. Diff coverage 97.6%. emit_retrospective_event post-merge write assigned to WP14."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3279026,
+      "shell_pid_created_at": "1790893666.99",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JWASX14GXHYMZYWRDSMB",
+      "last_transition_at": "2026-10-02T19:31:15.417828+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T037-T042 done. Migrated BookkeepingTransaction's coord arm, status_transition.py's coord fallback+transactional emit, agent_tasks_ports.py's feature_write_dir, and lanes/recovery.reconcile_status onto placement_seam(...).write_dir(STATUS_STATE). Binding first step (coord_seed._restore_root_files owned-aware root) fixed and committed first. Two out-of-map lane-a regressions fixed per coordinator assignment: WP03 coord_seed iterdir (test_mission_resolver_walker_gate.py, function-level exemption) and WP05 commit_router dirty predicate (reuses ref_advance._dirty_entries). WP03 lock-composition census regression resolved by adding coord_seed to the allowed-sites census (byte-level carry under the same lock, not a transition emitter). All gates/tests green; mypy/ruff/format clean; 5 pre-existing mypy no-any-return errors confirmed unchanged at base. #5410 characterization check (test_coord_mission_no_crashed_sessions) confirmed pre-existing red at base e7b085d26c, not caused by this WP. --force used: an unrelated untracked stray dir (kitty-specs/rc3-canonical-mission-type-reader-01M0GGWM/, a different PR's meta.json, absent from this branch's HEAD) is in this worktree and I cannot rm it under sandbox restrictions; it is not WP07's and was never committed. See traces/design-decisions.md, traces/approach.md, traces/tooling-friction.md for full detail.",
+        "Cycle 2: B1-B4 and N1-N5 all addressed per coordinator's binding review-cycle-1 feedback. B1 (format-ratchet pollution) reverted; B2 (T037 CLI-driven, post-fix EMPTY row, Lamport/seed/restore assertions) done; B3 (diff coverage 86%->98%) done with one documented residual (coord_seed.py:518, staged_new arm); B4 (14 inert noqa removed) done. N1 (commit_idempotent narrowed via _pre_emit_events_existed) done with 2 tests; N2 (seed scratch dir moved outside kitty-specs/, walker-gate exemption reverted to single entry) done; N3 (census tracer-id) done; N4 (dirty-root-copy owned test) done; N5 (porcelain quoting/rename fix) done with 4 tests. Also recovered test_transaction.py from an accidental whole-file reformat (caught via the ratchet gate before this handoff). All named gates green except the coordinator-sanctioned COORD_SEED_TRAILER dead-symbol red (WP06-owned, pre-existing). make test-fast: 2173 passed, 5 skipped. Full coordination/status/lanes/specify_cli.coordination suite: 2897 passed, 18 skipped. ruff/mypy/format clean (5 pre-existing mypy no-any-return errors unchanged).",
+        "Cycle 3: fixed exactly R1-R3 (nothing else, per the explicit scope constraint), red-first as separate commits per item, verified against scratch worktrees at tip 60506b314c. R1 (N1 still masked): commit_idempotent's zero-staged no-op now gates on self._seed_committed_this_txn (set from write_dir's Establishment at THIS transaction's own acquire: SEEDED or RESTORED_FROM_BRANCH), replacing _pre_emit_events_existed (true for ANY mission with history, which the reviewer's own probe showed still masked a genuinely-empty second transaction against an existing-log mission). R2 (N5 regression): _dirty_paths_in_checkout's suffix-stripping no longer cuts at the first ' (' before unquoting -- a C-quoted path containing ' (' (e.g. Copy (1).md) was landing mid-quote and matching nothing, a false 'clean' regression against base for both the untracked and tracked-modified shapes the reviewer's real-git probe found. New _strip_dirty_entry_suffix matches the exact known suffix by text, gated to ??/!! status codes only. R3: removed the 2 trailing blank lines added to the format-excluded test_transaction.py. Verified: full coordination/status/lanes suite 2903 passed/18 skipped; commit_idempotent callers (implement/workflow, 8 files) 53 passed; 40 integration files + 3 B1 guards 393 passed; 10 named architectural gates 337 passed; make test-fast 2173 passed/5 skipped. diff-cover vs e7b085d26c: 97% (gate is >=90%). ruff/mypy clean, same 5 pre-existing mypy errors as base.",
+        "Review passed (cycle 3): R1 fixed (existing-log stage-nothing probe now raises; pinned; M3/M3b/M3c killed), R2 fixed (real-git probe: Copy (1).md, tracked (2).md, quoted space/quote/backslash/non-ASCII, renames incl. parenthesised, collapsed dirs incl. parenthesised all correct; suffix texts match _dirty_entries exactly; M7/M8 killed), R3 landed in b635b115aa (test_transaction.py vs base purely additive, ratchet green). Diff coverage 97% (135 lines, 4 missing). 2903+709 passed. Follow-up (non-blocking, narrow): RESTORED_FROM_BRANCH sets seed_committed_this_txn even when the restore makes no commit (probe: coord branch unmoved, stage-nothing commit_idempotent silently no-ops); gate on seed.coord_commit instead, and pin that arm (mutant M3d survives). Allowed reds: COORD_SEED_TRAILER on test_no_dead_symbols + test_dead_symbol_allowlist_contract (WP06)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3935361,
+      "shell_pid_created_at": "1790898294.99",
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1K3R69DSBE102VMCQX7TV",
+      "last_transition_at": "2026-10-02T19:31:23.015004+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Single-home write for review-cycle (write seam + every co-resolving reader flipped to REVIEW_CYCLE in lockstep) and mark-status (write leg now via the write-location accessor); masked-surface outcome rendering for review/cycle.py and tasks_map_requirements.py. Red-first tests committed first (9532629421), implementation + re-pins committed second (e99b855658). Diff coverage 100% (95/95). Gates green except the two pre-existing COORD_SEED_TRAILER dead-symbol reds (confirmed red at lane base, cured in lane-d). Two deviations flagged in the tracer: an unowned re-pin in test_verdict_dir_co_resolution.py (the prompt's 'do not re-pin' guidance was empirically contradicted), and a discovered-but-unfixed CoordSeedForkRefused regression in 3 cells of CI-owned test_review_durability_matrix.py (fixture issue, needs an upstream ticket).",
+        "Cycle 2: addressed B1-B4 + fold from review-WP08.md. B1 (readers fall back to PRIMARY for a pre-WP08 local-only rejection, decision plan.design.review-cycle-read-fallback, tracer-recorded). B2 (Text.assemble markup fix, verified with a real rich.Console). B3 (every arm of _commit_review_cycle_artifact + map-requirements' skipped-surface trigger now carries render_commit_outcome detail). B4 (MU2/MU7 killed with new tests; D23 published-mission case; pre-fix forked CoordSeedForkRefused for review-cycle writes + its CLI rendering; T043 step3 mark-status carry-order/root-log-unchanged + remote-only hint; parametrized over coord/lanes_with_coord). Fold: two type:ignore removed from _FakeCommitRouter (now Protocol-conformant) + one cast with rationale; lock-order tracer entry recorded. Disclosed red/green changes in the handback report.",
+        "Review passed (cycle 2): B1 reader coordination-first with PRIMARY read-only fallback when coord copy absent (UNMATERIALIZED/DELETED absorb to PRIMARY; coord wins when present -- probed); B2 Text.assemble + real-Console test; B3 every arm renders surfaces, map-requirements warns on actionable COORD_RECORD_IN_ROOT_CHECKOUT skip; B4 MU7 killed, proper MU2 (no write_dir) killed by 9+ tests, D23/forked/mark-status/remote-only pins added. Diff cov 100% vs 9e8db2270d (28 lines), 96% WP08 files vs 7d473689c7. 4262+189 passed. Follow-up: B1b mutant (PRIMARY-first) survives -- pin 'coordination copy wins when both exist'. Allowed reds: COORD_SEED_TRAILER (2 dead-symbol gates), inherited WP09 test_owned_arm_translates_workspace_failure (red at 9e8db2270d)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2084028,
+      "shell_pid_created_at": "1790913662.92",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JXSFFWJ4QRW92CWC12ZP",
+      "last_transition_at": "2026-10-02T19:31:16.911414+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Decision event writers moved to write_dir (STATUS_STATE/DECISION_LOG); R4/#5519 fixed and verified red-at-base/green-at-fix; T052 state matrix + DecisionGitLog dir-name agreement; decision.py renders COORD_SEED_FORK_REFUSED/STATUS_LOCK_HELD; owned-coordination DecisionGitLog arm kept on its historical ladder (pre-existing write_dir owned-arm gap found and documented, not this WP's scope); transaction.py binding-first-step fix (seed_committed_this_txn). 100% diff coverage, gates green (allowed COORD_SEED_TRAILER red), make test-fast 2447/2447.",
+        "Cycle 2: addressed all 4 blocking items + both non-blocking folds from cycle-1 review.\n\nB1 (regression, 0e64a3b66e): establish_coord_write_location now falls back to\nread_primary_meta(owned.repository_root, ...) when the owned-aware meta read\nfinds no coordination_branch -- test_owned_arm_translates_workspace_failure\ngreen again; test_owned_empty_pre_fix_seed_restores_against_owned_root_not_\nrepository_root (the positive a6b4165638 scenario) unaffected.\n\nB2 (6507ef89bc): _handle_coord_seed_fork_refused / _handle_status_lock_timeout\nnow -> NoReturn; all 8 # pragma: no cover lines deleted outright (NFR-005).\n\nB3 (245f395960): added test_decision_git_log_dir_name_agrees_for_a_bare_non_\nmid8_embedding_slug (tests/runtime/test_decision_git_log_write_dir.py) pinning\ncoord_mission_dir_name's bare-vs-canonical equivalence and three-way dir-name\nagreement for a pre-083 NNN- slug. The legacy second-stream fold is NOT done\nhere -- recorded as WP17's allocation in the design-decisions tracer\n(design-decisions-2f65cf463439). A separate, pre-existing, unrelated bug in\n_mission_routes_through_coordination (bare-slug meta read not canonicalized)\nwas found while writing this test and recorded in tooling-friction\n(tooling-friction-1b1af6cfe731) -- out of scope, not fixed here.\n\nB4 (415b9f58b6): added test_emit_decision_opened_seeds_pre_fix_empty_mission_\ndirectly, calling emit.emit_decision_opened directly (no service.py\npre-resolve) on a pre-fix EMPTY Mission. Mutation-verified: reverting emit.py's\nwrite_dir call to read_dir makes this test fail.\n\nN1/N2 (7828118640, 0944a70eff, 7b08d8285b): owned DecisionGitLog arm now\ncomposes via coord_mission_dir_name(mission_slug, mid8=_mid8) instead of the\nraw mission_slug (agrees with write_dir/the transaction for a bare slug); a\nnon-owned write_dir(DECISION_LOG) refusal folded into DecisionGitLogUnavailable\nnow chains the typed .code/.error_code into the message. Owned-ladder tests\nupdated to match.\n\nVerification: diff coverage vs 7afabf4eff is 100% (69/69 lines), zero pragma\nlines in the diff. Named gates run individually: all green except\ntest_no_dead_symbols/test_dead_symbol_allowlist_contract on COORD_SEED_TRAILER\nonly (known transitional, WP06 in lane-d). Full tests/specify_cli/cli/commands/\n(5142 passed, 10 skipped, 2 xfailed, 3 failed -- the same base-red\ntest_doctrine_asset.py::test_asset_path_resolves_every_internal_pack_asset_to_\nits_blob trio the reviewer already classified). Targeted decisions/coordination/\nruntime/owned-checkout surfaces: 602 + 161 + 129 passed. ruff check/format\nclean on all touched files; mypy --strict shows the same 3 pre-existing errors\nas base (coord_seed.py:322, transaction.py:278, service.py:157), confirmed\nidentical via a scratch worktree at 7afabf4eff.",
+        "Cycle 3: fixed the sole cycle-2 blocker (second half of B1) + the two\n\"same family\" items the coordinator asked for in the same cycle. Last\ncycle before arbitration per the coordinator's instruction.\n\nBlocker -- Decision plan.design.undeclared-coord-branch (da14c6ebfb,\nae8a2455ab): establish_coord_write_location's undeclared-branch gate now\nkeys on the STORED topology (routes_through_coordination over\nstored_topology_from_meta, plus owned.topology on the owned arm), never on\nbranch presence alone. When a coordination-routed topology declares no\nbranch, it derives the canonical name via lanes.branch_naming.\ncoord_reconstruct_branch (the SAME naming CoordinationWorkspace uses) and\nchecks git directly: exists -> proceeds exactly as if declared; absent (or\nno mid8 to derive one) -> new CoordBranchUndeclaredAndAbsent, before\nanything is written. A topology-less/legacy meta is unaffected (still\nPRIMARY). materialize_coord_surface_for_write gained optional\ncoordination_branch/mid8 override kwargs so the non-owned materialization\npath uses the DERIVED identity instead of its own narrower re-derivation.\nTests: both arms x {coord, lanes_with_coord} x {derives-and-proceeds,\nrefuses-when-absent}, a topology-less positive control, and a\nmid8-unresolvable edge case (tests/coordination/test_coord_seed.py).\n\nSame family #1 (fa7977928a, aec27a6a74): read_primary_meta's own\ncanonicalization fallback covered only identity forms (bare mid8/ULID/\nnumeric prefix) -- never the bare-HUMAN-SLUG fold\n_canonicalize_primary_read_handle already applies for the read-dir leg.\nFixed at the source. This exposed a SECOND, narrower bug in\ntransaction.py's _canonical_coord_mission_slug (it used read_primary_\nmeta's \"declares\" flag as an \"already canonical\" heuristic, which the\nfirst fix invalidated) -- fixed to check the literal on-disk meta.json\ndirectly, restoring the original two-shape contract.\n\nSame family #2 (727752c0ed): _wrap_with_decision_git_log's non-owned arm\nnow refuses with DecisionGitLogUnavailable (defense in depth) when\nwrite_dir(DECISION_LOG) resolves a non-COORD surface under a\ncoordination-routed topology, instead of silently wrapping a DecisionGitLog\non the wrong surface. A bare mission_slug now correctly lands on the\ncoordination surface end to end (tests/runtime/test_decision_git_log_\nwrite_dir.py).\n\nFallout discovered and fixed: 18 pre-existing tests in test_next_board_\nauthority.py / test_wp_prompt_task_placement.py went red because their\nshared fixture (scaffold_coord_software_dev) hand-seeded WP-lane events on\nthe coordination log with NO shared history with the root checkout's real\nstatus log -- an un-related-histories shape the seed/fork-check had never\nactually been exercised against before (masked by the bug this WP fixes).\nFixed the fixture to carry root's status log over before seeding\n(1f02eeac7a), test-only change, no production code touched.\n\nCLI rendering (6b2276b14c): CoordBranchUndeclaredAndAbsent is caught on\nall four decision verbs with a structured {error, code, next_step}\nenvelope (the B2 -> NoReturn pattern, no pragma); this also gives the new\nsymbol a real cross-module caller, closing test_no_dead_symbols for it\n(the only remaining dead-symbol red is the known-transitional\nCOORD_SEED_TRAILER, WP06/lane-d's to cure).\n\nVerification (targeted, per the operator's \"skip heavy suites\" directive):\ntests/coordination/test_coord_seed.py, test_materialize_coord_surface.py,\ntest_status_transition_write_dir.py; tests/specify_cli/coordination/\ntest_transaction.py; tests/specify_cli/cli/commands/test_decision*.py (4\nfiles); tests/runtime/test_decision_git_log_write_dir.py,\ntest_next_board_authority.py, test_wp_prompt_task_placement.py,\n_next_mission_scaffold.py; tests/next/test_runtime_bridge_unit.py;\ntests/specify_cli/decisions/test_service_coord_single_home.py,\ntest_emit.py, test_emit_locking.py; tests/specify_cli/events/\ntest_decision_log*.py; tests/integration/test_owned_next_runtime.py (O8);\nplus test_residual_writer_routing.py, test_issue_1615_1616_1617_1618.py,\ntest_guard_capability_regression.py, test_zeitgeist_moment_handler.py,\ntest_bridge_decision_log_flush.py, test_coord_read_seam_callers.py --\n566 passed, 1 skipped (pre-existing). Named architectural gates run\nindividually (13 files): all green except the known-transitional\nCOORD_SEED_TRAILER pair. Diff coverage vs 7afabf4eff: 95% (116/122 lines;\nthe 6 uncovered are pre-existing cycle-1 lines this narrower test\nselection didn't happen to re-exercise, already 100%-covered in cycle 2's\nfull verification). ruff check / format clean on every non-excluded\ntouched file; mypy --strict shows the same 3 pre-existing errors as base.",
+        "Cycle 4 (arbiter-scoped): fixed the two narrow blockers from cycle 3 and\nthe recommended C3-N1 item, exactly as scoped by the arbiter. Nothing\nelse touched.\n\nC3-B1 (427e8c826d, 6af... follow-up): tests/architectural/\ntest_single_mission_surface_resolver.py::test_zero_functional_raw_bypass_\non_collapsed_tree was red because _canonical_coord_mission_slug built the\nliteral primary dir via a raw KITTY_SPECS_DIR join. First fix routed\nthrough _compose_primary_feature_dir directly, which cleared that gate but\nnewly regressed test_no_read_side_bypass.py (FR-005/IC-06: that gate\nforbids direct calls to 5 named read-bypass primitives from outside its\nfixed sanctioned-module set, and transaction.py isn't in it). Follow-up\ncommit adds literal_primary_dir_has_meta -- a new PUBLIC function in the\nread-sanctioned home module (_read_path_resolver.py) itself, a sibling of\nread_primary_meta -- and transaction.py now calls THAT instead of\nreaching past the module boundary. No allowlist entry added either time.\nMutation-verified: reverting to read_primary_meta(...)[1] (mutant M6)\nstill reds test_commit_idempotent_no_ops_when_the_seed_already_committed_\neverything.\n\nC3-B2 (c7976d39e7): mutant M2 on _stored_topology_routes_through_\ncoordination's owned clause (`return owned is not None and\nroutes_through_coordination(owned.topology)` -> `return False`) survived\nevery existing test because every prior owned-arm test left the owned\nmeta copy's own `topology` field intact, satisfying the function's first\nclause before the owned-specific clause was ever reached. New tests strip\nthe owned meta copy down to where ONLY owned.topology can save the\nMission from PRIMARY (the reviewer's probe shape): owned meta.json (a)\ndeleted and (b) present-but-topology-less, for both COORD and\nLANES_WITH_COORD, plus the absent-branch twin. Mutation-verified:\ntemporarily replacing the clause with `return False` reds all 6 new\ntests.\n\nC3-N1 (e6d9f1aa4a): one test pins that a non-owned bridge call on an\nundeclared + absent branch raises DecisionGitLogUnavailable with\n\"(COORD_BRANCH_UNDECLARED_AND_ABSENT)\" verbatim in the message, covering\nruntime_bridge.py's N2 typed_code/code_suffix chain lines the cycle-3\ntargeted set left uncovered. Also fixed a reviewer nit on the same file\n(the delegating _FakeSeam is now typed to match placement_seam's own\nsignature instead of *args: object + a type: ignore suppression).\n\nNit (764089aedf): materialize_coord_surface_for_write's docstring claimed\n\"passing one without the other is a caller error\" but only branch-without-\nmid8 raised; mid8 passed alone was silently overwritten. Added the\nsymmetric guard + a test.\n\nVerification (targeted only, per the operator's rule): tests/\narchitectural/test_single_mission_surface_resolver.py,\ntest_no_read_side_bypass.py, tests/coordination/test_coord_seed.py,\ntest_status_transition_write_dir.py, test_materialize_coord_surface.py,\ntests/specify_cli/coordination/test_transaction.py, tests/next/\ntest_runtime_bridge_unit.py, tests/runtime/test_decision_git_log_\nwrite_dir.py, tests/integration/test_owned_next_runtime.py (O8),\ntests/specify_cli/cli/commands/test_decision_write_location_refusals.py\n-- 275 passed, 1 pre-existing skip. Named architectural gates (12 files)\nrun individually: all green, including the two now-fixed gates; the only\nremaining red anywhere is the known-transitional coord_seed::\nCOORD_SEED_TRAILER dead-symbol pair (WP06/lane-d's to cure, unrelated).\nDiff coverage vs 7afabf4eff: 100% (127/127 lines). ruff check/format\nclean; mypy --strict shows the same 2 pre-existing errors as base\n(coord_seed.py:370, transaction.py:296).",
+        "Approved on arbiter-scoped cycle 4 (C3-B1, C3-B2, C3-N1 + nits only; rest verified in cycle 3). C3-B1: raw KITTY_SPECS_DIR join replaced by literal_primary_dir_has_meta (sanctioned read module, same _compose_primary_feature_dir leaf, not in __all__ like sibling read_primary_meta, one caller); test_single_mission_surface_resolver 8/8, test_no_read_side_bypass 38/38 green; M6 still dies. C3-B2: M2 now killed (6 owned.topology tests). C3-N1: M10 (code suffix dropped) killed. Nit mid8-alone guard: M9 killed. Targeted 371 passed/1 skipped; 16 named gates green except transitional OD-DEAD COORD_SEED_TRAILER (test_no_dead_symbols, test_dead_symbol_allowlist_contract) owned by WP17. Diff coverage vs 7afabf4eff 137/137; no pragmas, no type-ignore; mypy 0 new; ruff clean. Known base-reds unaffected (test_doctrine_asset x3, runtime-walk x7)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP09:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3114302,
+      "shell_pid_created_at": "1790922245.89",
+      "subtasks": {
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1K582X3BN3ZVD70JW8RG8",
+      "last_transition_at": "2026-10-02T19:31:24.546337+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: tracer/issue-matrix/acceptance-matrix writers now write in place at write_dir(kind) inside write_artifact's stage= thunk; WriteSeamResult.surfaces/commit_hashes/reason passthrough; acceptance-verdict lost-update fix (write_dir resolved once before lock); shared commit-outcome rendering in tracer-append and acceptance-verdict. 5 new tests + 13 updated. Diff coverage 100%. Red-first verified via scratch worktree at base 7afabf4eff (18/25 new-file assertions red). All named gates green except the 2 pre-approved COORD_SEED_TRAILER dead-symbol reds. One pre-existing mypy red (issue_matrix_migration.py:254, unrelated, confirmed on base).",
+        "Cycle 2: all 5 blocking items (B1-B5) fixed/added + N1-N3 folds. Red-first as a genuinely separate commit this cycle (11289c4c53 red for the right reasons -- 10 failed/54 passed targeted -- then ed2e96ca1e green, then 7f8e73218f closes the remaining diff-coverage gap). Diff coverage 100% (105/105). 478 targeted tests + make test-fast baseline (2173 passed) all green. Coordinator's WP09/lane-o cross-check investigated and addressed with a new regression pin; did not reproduce on lane-h (the router's pre-existing IN_PLACE classification already prevents it, not a WP10 fix) -- reported honestly.",
+        "Review passed (cycle 2): B1-B5 + N1-N3 resolved and verified. Red-first 11289c4c53 reproduced 10 failed/44 passed; cycle-1 surviving mutant (acceptance write_dir->read_dir) now killed; B4 scaffold home->feature_dir mutant killed by copy2 spy; every-arm [/red] probe through real Rich console on tracer-append + acceptance-verdict 39/39 (no MarkupError, surfaces on every JSON arm, exit codes per rule 5). Unit/command 2000 passed/7 skipped; integration 11 files 185 passed; B1 guards 7 passed; named gates green; diff coverage 100% (WP10 105/105 vs 7afabf4eff, cycle-2 35/35 vs de71384a1a); ruff/format/C901 clean; mypy only pre-existing issue_matrix_migration.py:254. Follow-ups non-blocking: acceptance success-text-arm render loop unpinned (assertion satisfied by tick line); N1 matrix_dir threading behaviour-equivalent so unpinned. Allowed reds: COORD_SEED_TRAILER on test_no_dead_symbols + test_dead_symbol_allowlist_contract."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP10:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1067651,
+      "shell_pid_created_at": "1790908961.57",
+      "subtasks": {
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done"
+      }
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JDHJHMR2VWCAKXFCN5DE",
+      "last_transition_at": "2026-10-02T19:31:00.274849+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "R21 red-first (commit 4bbd78db9f, ImportError at WP base) -> green (commit 2e9753302b). 7th merge driver spec-kitty-decision-index: union_decision_index (pure, shared, terminal-beats-open via index_fold.is_allowed_terminal_reopen) + run_decision_index_driver wired in MERGE_DRIVER_BODIES/_MERGE_DRIVERS/CLI/init/.gitattributes/migration m_4_0_0rc5 (target_version==package version). Tests: tests/consolidation/test_decision_index_merge_driver.py 15/15, tests/upgrade/migrations/test_m_4_0_0rc5_decision_index_merge_driver.py 6/6, tests/upgrade/migrations/ 249/249, tests/specify_cli/cli/commands/test_review_cycle_merge_driver.py 9/9, grep-derived driver surface 59/59, tests/consolidation/test_merge_driver_goldens.py 55/55 (new golden case merge-driver-decision-index/union-two-lanes), tests/architectural/test_merge_reconciliation_class_guard.py 7/7 (untouched, confirmed still green -- decisions/index.json reclassification is WP12's), test_completion_manifest_freshness.py 1/1 (regenerated), test_no_dead_modules.py + test_no_dead_symbols.py 39/39 (added Category-1 allowlist entry for the auto-discovered migration, mirroring siblings), make test-fast 2173 passed/5 skipped, tests/decisions+specify_cli/decisions 232/232, tests/lanes/ 665 passed/1 skipped, tests/consolidation/ full 1468 passed/1 skipped(env)/6 xfailed. ruff check + format clean, mypy --strict clean except ONE pre-existing narrow-file false positive ('Class cannot subclass MergeDriverSeedingMigration (has type Any)') shared identically by sibling migrations m_3_2_6/m_3_2_7 under the specify_cli.* follow_imports=skip override -- not introduced by this WP, not fixed here. One environmental non-cause red noted: test_profile_charter_e2e.py::test_local_support_declarations_end_to_end fails only when pytest runs from inside this linked lane worktree (write-checkout guard refuses charter authoring from a linked worktree); passes cleanly from the repo-root checkout. Deviation: added src/specify_cli/upgrade/migrations/m_4_0_0rc5_decision_index_merge_driver.py to tests/architectural/test_no_dead_modules.py's Category-1 allowlist (outside owned_files, unavoidable/precedented -- every sibling merge-driver migration is listed there the same way); test_merge_reconciliation_class_guard.py deliberately left untouched per WP12 ownership.",
+        "Review passed (reviewer-renata, opus). R21 behavioral red independently verified at WP base c833721eb3 via real git merge + .gitattributes driver (base: 'No such command merge-driver-decision-index' -> CONFLICT on decisions/index.json); green at 2e9753302b. union_decision_index: keyed by decision_id, terminal-beats-open, deferred->resolved via existing index_fold.is_allowed_terminal_reopen, conflicting terminals / same-status divergence / malformed input raise (never pick a side); driver round-trips DecisionIndex with save_index bytes (byte-stable test + golden subprocess leg). Registrations match siblings (MERGE_DRIVER_BODIES, _MERGE_DRIVERS, CLI + _COMMAND_REGISTRARS, completion manifest, init seed, repo .gitattributes, m_4_0_0rc5 migration subclassing MergeDriverSeedingMigration, target_version=4.0.0rc5 == pyproject). Re-pins 6->7 deliberate. Tests: requested set 142 passed; blast radius (reconciliation x4, init, auto_discovery, review-cycle sibling, bookkeeping seam, 3942, allocator attrs/selfheal, tests/upgrade/migrations/) 475 passed, 1 skipped, 1 xfailed; ruff+format clean on 11 files; mypy --strict only the pre-existing MergeDriverSeedingMigration Any-subclass false positive, reproduced identically on m_3_2_6/m_3_2_7 at base. Non-blocking LOWs: ValidationError->MergeDriverError branch (drivers.py ~L1309-1311) and non-object-entry raise (~L1167) untested; single golden case (no path-injection/collision golden); migration target_version test is tautological (real guard in tests/upgrade/test_auto_discovery.py passes); red commit was ImportError-red with an attrs-on-wrong-branch setup bug fixed in green commit (assertions unchanged). Coordination: tests/architectural/test_no_dead_modules.py is WP03-owned -- WP11 added one additive Category-1 allowlist line (mirrors m_3_2_6/m_3_2_7; required by the gate); lanes/consolidation.py + .gitattributes also WP12-owned (WP12 depends on WP11, sequential). No reclassification of decisions out of _NON_DIVERGENT_COORD_RESIDUE_DIRS; class guard untouched and green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP11:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2200823,
+      "shell_pid_created_at": "1790852321.47",
+      "subtasks": {
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done"
+      }
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JPDENJX67P02WFK48FQD",
+      "last_transition_at": "2026-10-02T19:31:09.358413+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: DECISION_LEDGER reclassified COORD->PRIMARY (T065), red-first R13/router/spec-commit/reader-flip/topology-less-caller tests (T064/T066), FR-009a ratchet (T067), both architectural guards amended (T068), planning_recency merge-driver-skip fix for FR-009b. No code change needed in coordination/coherence.py (proven + tracer-recorded). Pre-existing reds: test_lock_composition_census, COORD_SEED_TRAILER dead-symbol (both red at base, unrelated).",
+        "Cycle 2: B2 part 2 complete per operator ruling (Decision Moment plan.design.ledger-topology-less-verdict) -- an uncommitted decisions/* ledger file is real work, never residue, under EVERY topology (COORD/LANES_WITH_COORD/LANES/SINGLE_BRANCH) at all six topology-less callers, accepted as a C-008 exception (no compatibility set, no coherence.py logic change). tests/coordination/test_ledger_topology_less_callers.py now parametrizes the 5 real caller-level tests (move-task, implement x2, auto-rebase, commit_router) over COORD/LANES/SINGLE_BRANCH -- 15 cases, confirmed red at the true base 0aea25ffc8 via a detached scratch git-worktree (never git stash) and green here. coherence.py::is_coord_residue_churn's docstring rewritten to state the ruling (docstring-only, zero logic change). design-decisions tracer entry filed naming the C-008 exception + ruling id for WP22's ADR. Commits: 0d3ce8d541 (red), a6c14aa5ac (T065 fix), be53a1cf34 (lane-branch kitty-specs cleanup), 6e2fac3d10 (cycle-1 B1-B4), 7e284830ed (cycle-2 B2 part 2). make test-fast: 2173 passed, 5 skipped. Same 3 pre-existing failures across all cycles (test_lock_composition_census, COORD_SEED_TRAILER x2 dead-symbol), reconfirmed red at the true base, unrelated to this WP.",
+        "Review passed (cycle 2): B1 formatting hunks reverted (5 excluded files semantic-only, format ratchet green, diff coverage 7/7=100%); B2 15 caller cases (move-task, implement x2, auto-rebase, commit_router x COORD/LANES/SINGLE_BRANCH on real Missions, stored topology verified) call real production functions, all red at 0aea25ffc8 by assertion, coherence.py docstring-only per ruling plan.design.ledger-topology-less-verdict; B3 renames done; B4 mixed-batch split asserted via surfaces + git show both directions; mutation (ledger back to COORD) kills 16/16, planning_recency driver-exclusion mutation killed. 1614+57+336 passed. Inherited reds: COORD_SEED_TRAILER x2 (WP06), test_lock_composition_census (WP07), test_no_unsanctioned_raw_kitty_specs_enumeration_in_src coord_seed:420, test_no_new_parallel_dirty_predicate_beyond_known_baseline commit_router._dirty_paths_in_checkout"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP12:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2068416,
+      "shell_pid_created_at": "1790886694.46",
+      "subtasks": {
+        "T064": "done",
+        "T065": "done",
+        "T066": "done",
+        "T067": "done",
+        "T068": "done"
+      }
+    },
+    "WP13": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JQWM81QYK0F3KA2ERSM9",
+      "last_transition_at": "2026-10-02T19:31:10.868728+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "spec-commit names every argument's fate (FR-007/FR-007a/FR-016 R5): _payload gains additive surfaces[]/arguments[], built via the WP05 shared commit_outcome trio (no hand formatting). _argument_fates names every input exactly once (committed/unchanged/skipped/refused + reason), falling back to a mission-relative suffix match for a COORD-kind path committed from its worktree-nested owning copy (the real-router shape R5 surfaced). success/exit-code additionally fail when any populated surface is refused/error, ANDed with the existing per-status rule so an empty-surfaces legacy result keeps today's behavior. --target-branch help text no longer promises the retired ff-advance. 4 commits: T002 tidy-first extraction (C901 15->7, byte-identical), red-first R5 test, the T070/T071/T072 fix (green), T073 mixed-batch/control/C-008 tests, plus a coverage-closing batch. 26 tests in test_spec_commit_cmd.py; 112 across the full targeted surface; make test-fast 2172 passed/0 failed. Known pre-existing red (unrelated, untouched file): COORD_SEED_TRAILER on the two dead-symbol architectural tests -- WP06 cures it in parallel.",
+        "Cycle 2: addressed all 3 cycle-1 blockers, red-first each. B1 (FR-007a success override untested): added a mutation-exhaustive pair (a named WRONG_SURFACE refusal, and a bare refused-surface-with-no-path case) to TestExtractedHelpers; _compute_success's override logic was already correct -- GREEN at the cycle-1 tip -- so no production fix was needed, only test coverage. Verified every mutation the reviewer and I tried (full override drop, surface_failed-only drop, argument_refused-only drop) is now caught. B2 (text mode masked the other surface on error/no_op_wrong_surface arms): _print_spec_commit_text now prints the surface+argument lines on EVERY arm when surfaces is populated, before the existing actionable Error: line; added a text-mode variant of the lock-held T073 test. RED confirmed against the cycle-1 tip, GREEN after the fix. B3 (a refused argument could coexist with success:true/exit 0): _compute_success now also fails when any argument's own fate is refused, gated on result.surfaces being non-empty (an empty-surfaces legacy test double must keep its pinned success unchanged -- verified 5 original WP02 tests would otherwise break). Added a hand-built unit test plus a real-router test reproducing a genuine production shape: a legacy, hand-seeded Mission whose coordination worktree dir carries the mid8 suffix while the root dir does not, so the status-log argument commits for real but is PATH_UNROUTABLE from the caller's own argument spelling. RED confirmed, GREEN after the fix. Non-blocking folds: N1 markup=False on both print sites (a path/branch/diagnostic could contain literal [...] rich would otherwise interpret); N2 pinned the control test to REASON_NO_CHANGES (probed deterministic); N3 corrected the _index_surface_fates docstring (skipped/refused entries can ALSO carry the worktree-nested path, not just committed). WP05 owning_path follow-up left for the coordinator per their own instruction (closeout fold, not done here). Commits: ef45ae1e8a (red tests, B2/B3 red + B1/N2 already green), f21d67a715 (B2/B3 fix, green), 87c9478118 (B1 mutation-isolation + mypy fix). 31 tests in test_spec_commit_cmd.py green; re-ran all 8 grep -rl spec_commit tests/integration files (187+13 passed, 0 failed, two counted separately due to a duplicate run); architectural gates (layer_rules/no_dead_symbols/dead_symbol_allowlist_contract/no_legacy_terminology): 208 passed, 2 failed -- same pre-existing COORD_SEED_TRAILER red in coord_seed.py (untouched by this WP, WP06 cures it in parallel); make test-fast: 2172 passed/5 skipped/0 failed. ruff/format/mypy --strict/C901 clean throughout.",
+        "Review passed (cycle 2, reviewer-renata/opus). B1/B2/B3/N1/N2/N3 resolved. Mutations (all reverted; lane clean): drop surface_failed -> 1 fail; drop argument_refused -> 2 fail; cycle-1 'ignore surfaces' -> 4 fail; render surfaces only on success arms -> 1 fail; router lock reason->error -> 2 fail; error surface->unchanged -> 1 fail. Empty-surfaces gate on argument_refused judged SAFE: the only real-router results without surfaces are the expected-parent argument-error returns (commit_router L320/L327, status=error -> base_success already False; spec-commit never passes expected_parent_sha), and the L476 protected-PRIMARY refusal is wrapped with surfaces by _commit_partition_group. Counts (tip 87c9478118, -n 3 --dist loadfile): spec-commit + 2739 guard + router partition/fail_loud + commit_outcome 76 passed; all 8 spec_commit|spec-commit integration files 187 passed / 0 failed; widened gates 277 passed / 5 failed, ALL inherited and not WP13's: COORD_SEED_TRAILER x2 (transitional, WP06), status_events census (WP03 coord_seed -> WP07), mission_resolver_walker_gate (coord_seed.py:420 iterdir -> WP07), destructive_op_routing (commit_router._dirty_paths_in_checkout, WP05 -> WP07). Diff coverage spec_commit_cmd.py vs e7b085d26c 100% (112/112). ruff, format, C901 and mypy --strict are clean. ACCEPTED TRANSITIONAL RED: test_no_dead_symbols + allowlist_contract on exactly coord_seed::COORD_SEED_TRAILER (WP06). Non-blocking: markup=False (N1) is unpinned (mutating it back keeps 31/31 green); the text-mode lock test asserts the primary line's presence but not the word 'committed' (the JSON variant pins it); the N3 WP05 follow-up (router to fill PathFate.owning_path) remains open for the coordinator."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP13:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1878803,
+      "shell_pid_created_at": "1790885929.5",
+      "subtasks": {
+        "T002": "done",
+        "T069": "done",
+        "T070": "done",
+        "T071": "done",
+        "T072": "done",
+        "T073": "done"
+      }
+    },
+    "WP14": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JSBXJ6J64P6E02QR8PNH",
+      "last_transition_at": "2026-10-02T19:31:12.381332+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T003/T074-T078 complete: setup-plan, record-analysis, orchestrator record-analysis, report-transaction and retrospect/agent-retrospect all render through render_commit_outcome/commit_outcome_payload (contracts/commit-outcome.md). Retrospect+agent-retrospect event appends now write through write_dir (FR-003). Round-2 WP13-precedent review corrections applied (exit-code-from-surfaces mutation-tested, render-every-arm, markup=False). See final report for a worktree anomaly (unrelated uncommitted WP07-looking changes to status_transition.py/transaction.py found dirty in this lane; preserved as a patch and restored to HEAD to unblock; not caused by or part of WP14).",
+        "Cycle 2 addresses review-cycle-1 B1-B6 and N3. Subtasks T003, T074-T078 marked done. Lane-l tests: 159 passed; format-exclude ratchet still fails and is carried into review.",
+        "Cycle 2 review: formatted retrospect.py still excluded; backfill failure_category is outside the emit contract.",
+        "Cycle 3 ready: exclude entry removed; backfill category is other.",
+        "Cycle 3 review approved 54d6138f05: retrospect.py left the format exclude; backfill failure_category is other. Reviewer reviewer-renata."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP14:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1105725,
+      "shell_pid_created_at": "1790953739.71",
+      "subtasks": {
+        "T003": "done",
+        "T074": "done",
+        "T075": "done",
+        "T076": "done",
+        "T077": "done",
+        "T078": "done"
+      }
+    },
+    "WP15": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JTVT3BVG1N277GC4ZESC",
+      "last_transition_at": "2026-10-02T19:31:13.914040+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP15 done: finalize-tasks single home (write_dir for WPCreated/TasksCompleted/TasksStarted), coord-only dirt detection (R10), per-surface honest output + exit code via commit_outcome trio (R11), default planning-pin refresh with kept_with_warning for FOREIGN pins (R17/US5.3), shared coordination log with move-task (US2.2). Hidden AST gate (test_finalize_refresh_pin_authority.py) green. Known pre-existing red: COORD_SEED_TRAILER dead-symbol (WP06 cures in parallel) + 4 pre-existing mypy errors (base-verified). Diff coverage 98%. Deviations documented in commit message and final report.",
+        "Cycle 2: addressed all 10 blocking regressions (B1-B10) from review-WP15.md against lane base e7b085d26c, red-first verified via scratch worktrees at cycle-1 HEAD a17b88e269; folded both non-blocking items (owned-checkout LIFECYCLE_OWNED_TOPOLOGIES widening guard, bookkeeping-guard subject-match tracer note); full targeted suite green (2671 passed), ruff/mypy clean, commit f26a913ca9.",
+        "Cycle 3 (LAST before arbitration): fixed C2-1 (INDETERMINATE now a visible kept_with_warning per orchestrator ruling), C2-2 (added the missing mutation-sensitive test; source was already correct), C2-3 (rewrote --refresh-planning-commit help text to stop recommending a doomed FOREIGN-pin remedy), plus the owned-guard-raise and B3-independence folds. Red-first as 2 separate commits: 3e38485957 (tests, verified red against 21ae853333) then 0f71489459 (fix, green). Full suite 2391 passed; 7 named integration files 89 passed; architectural gates clean except the 5 lane-a-inherited reds the review itself attributed; diff-cover 100%.",
+        "Review passed (cycle 3): C2-1 INDETERMINATE->visible kept_with_warning with pin_class/reason pinned on all four paths; C2-2 pin-refresh exit decision mutation-pinned; C2-3 help text accurate; B1-B10 still hold; all prior surviving mutants (pin_class None, reason None, INDETERMINATE->preserved, legacy-status refusal, each single B3 swallow, owned guard, M3) killed; red commit 3e38485957 red at 21ae853333 for the right reasons (3 failed); finalize suite 1209 passed/2 skipped; 4 guards + #4827 orphan green; diff coverage 97%; ruff/format clean, mypy = base, C901<=14. Non-blocking: INDETERMINATE with recorded=None and a resolvable tip says 'no action needed' although --refresh-planning-commit would set the pin. Inherited reds (lane-a, not WP15): COORD_SEED_TRAILER x2, lock census (coord_seed), walker (coord_seed:420), destructive-op (_dirty_paths_in_checkout)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP15:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3541278,
+      "shell_pid_created_at": "1790894799.23",
+      "subtasks": {
+        "T004": "done",
+        "T079": "done",
+        "T080": "done",
+        "T081": "done",
+        "T082": "done",
+        "T083": "done",
+        "T084": "done"
+      }
+    },
+    "WP16": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1K6PV4519XH0KAJ86KJ91",
+      "last_transition_at": "2026-10-02T19:31:26.043855+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Both residual legs unified through commit_for_mission (R7/R8/R9/ledger red-first proven against base, then green); gate/committer share partition_for_mission_path (US3.7); birth-cutover writes via write_dir(STATUS_STATE) with actionable refusals; --json/text render residual_commit via the shared trio, markup-safe. 100% diff coverage. Known allowed red: COORD_SEED_TRAILER dead-symbol gate (unrelated, pre-existing on lane-n).",
+        "Cycle 2 commits PRIMARY accept residuals on the unprotected checkout (decision plan.design.accept-primary-leg-ref, option a). ResidualCommitError carries surface diagnostics. T085-T089 done. Targeted accept tests: 131 passed.",
+        "Cycle 2 review: target_branch retargets every PRIMARY group; HEAD-mismatch, markup, and caller-census gaps remain.",
+        "Cycle 3 ready: accept-only primary ref; checkout, markup, and census tests added.",
+        "Cycle 3 review approved 0fbf6833c5: primary_ref is accept-only; checkout, markup, and caller census pinned. Reviewer reviewer-renata."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP16:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1105725,
+      "shell_pid_created_at": "1790953739.71",
+      "subtasks": {
+        "T085": "done",
+        "T086": "done",
+        "T087": "done",
+        "T088": "done",
+        "T089": "done"
+      }
+    },
+    "WP17": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1JZ9NMFY40K4R5R07M64D",
+      "last_transition_at": "2026-10-02T19:31:18.453068+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Taking over the interrupted implement run. Fork detection, honest verify, non-destructive repair, teardown and preflight refusal are committed on lane-o. T090-T096 done. Targeted tests: 132 passed.",
+        "Cycle 1 changes requested: repair must not drop event-backed index entries on a non-fork; NFR-002 zero-loss over fixtures a-d; activity log.",
+        "Cycle 2 retains event-backed index entries on non-fork repair. Tests: 5 passed (NFR-002 a-d plus primary-event retention).",
+        "Cycle 2 review approved b4ae55caf5: event-backed index entries survive a non-fork repair; 5 tests passed. Reviewer reviewer-renata."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP17:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1026700,
+      "shell_pid_created_at": "1790952686.66",
+      "subtasks": {
+        "T090": "done",
+        "T091": "done",
+        "T092": "done",
+        "T093": "done",
+        "T094": "done",
+        "T095": "done",
+        "T096": "done"
+      }
+    },
+    "WP18": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "cursor",
+      "lane": "done",
+      "last_event_id": "01M3Z1K0RHF31X2HNB8EZD90FD",
+      "last_transition_at": "2026-10-02T19:31:19.953082+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: R1d green at base+after; R22/R23-local/R24 red->green; guard sweep green, strict xfails unchanged; see activity log for counts and resume-integrity note.",
+        "Review approved 6cac7ae095: R22/R23-local/R24 red at the test commit and green at HEAD; R1d green throughout. Reviewer reviewer-renata."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP18:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1258801,
+      "shell_pid_created_at": "1790957223.3",
+      "subtasks": {
+        "T097": "done",
+        "T098": "done",
+        "T099": "done",
+        "T100": "done",
+        "T101": "done",
+        "T102": "done"
+      }
+    },
+    "WP19": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3Z1K28SMJV9DE576WRK8D3M",
+      "last_transition_at": "2026-10-02T19:31:21.497292+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reproduction result: the coordination-Mission defect does NOT reproduce (complete coord identity triple routes through _commit_via_coordination_transaction, whose receipts already carry a non-null sha -- confirmed via a real CliRunner implement invoke against a materialized coord Mission; both target-branch and coordination-branch receipts verified contained via git branch --contains). The actual FR-013 defect lives on the coord-less (lanes/single_branch) leaf: _commit_via_legacy_safe_commit's already-present no-op arm recorded sha=None. Fixed with _already_present_receipt_sha() (git log -1 <target_branch> -- <paths>, fallback to branch tip), a _record_receipt committed-without-sha warning guard, and short-sha printing in _print_commit_summary (T105). Red-first: direct-call unit test against the real production entry point reproduced sha=None pre-fix, green post-fix. Tests: tests/specify_cli/cli/commands/agent/test_workflow.py (39 passed), tests/agent/test_workflow_review_lane_gate.py + test_coord_commit_integrity_e2e.py + test_no_write_side_rederivation.py + test_guard_capability_regression.py (69 passed), tests/agent/test_implement_command.py (18 passed), full tests/specify_cli/cli/commands/agent/ dir (2345 passed, 5 skipped, 2 xfailed), make test-fast (2172 passed, 5 skipped). One pre-existing unrelated red confirmed at base 4f2ddb7939: tests/characterization/test_trio_json_envelope.py::TestImplementRecoverJson::test_coord_mission_no_crashed_sessions (unmaterialized coord worktree fixture issue, unrelated to receipts). Gates: ruff check/format clean, mypy --strict clean on workflow.py, C901 unaffected.",
+        "Cycle 2: addressed all cycle-1 findings. B1 (blocking) fixed: _already_present_receipt_sha now anchors on git log -1 HEAD -- <paths> at porcelain_root and accepts a candidate only if it tracks every path (git cat-file -e) AND is an ancestor of target_branch (git merge-base --is-ancestor); no unverified branch-tip fallback -- returns None (warning fires) when nothing verifies. Reproduced and confirmed red against cycle-1 commit 03629fcfc1 both of the reviewer's scenarios (ignored/never-committed path; porcelain_root HEAD diverging from target_branch), now green. N1: corrected the reproduction record in tracers/test docstrings -- R18 only reproduces via a direct call to the legacy leaf with already-clean paths; implement's own claim never reaches the already-present arm on either topology; the grounding repro's target-branch [ok] line was the correct receipt, just missing an id (fixed by T105). N2: corrected fixture attribution (tests use the pre-existing trio-characterization _build_mission_repo, not WP02's identity-only make_coord_mission; gap recorded as tooling-friction). N3: fixed the stale _record_receipt docstring reference. N4: C-008 control now also asserts message unchanged. N5: Activity Log updated. Tests: tests/specify_cli/cli/commands/agent/test_workflow.py 40 passed; full tests/specify_cli/cli/commands/agent/ dir 2346 passed/5 skipped/2 xfailed; tests/agent/test_workflow_review_lane_gate.py+test_coord_commit_integrity_e2e.py+test_no_write_side_rederivation.py+test_guard_capability_regression.py+test_implement_command.py 87 passed. Gates: ruff check/format --force-exclude clean, mypy --strict clean, C901 clean.",
+        "Cycle 3: addressed B2 (blocking, tests-only) and N6 (non-blocking). B2: diff coverage of the workflow.py additions was 83% (25/30) at cycle 2 -- the five uncovered lines were the new verification branches in _paths_tracked_at_commit (path-outside-porcelain-root ValueError arm; git-cat-file-e failure arm) and _already_present_receipt_sha's tracked-rejection arm. Added test_already_present_receipt_partially_untracked_path_set_is_none_with_warning (a tracked path plus an untracked path in the same set -- git log's multi-pathspec OR match finds a commit via the tracked path, but the tracked-at-commit check rejects it -- asserts sha is None plus exactly one warning) and TestPathsTrackedAtCommit (direct unit tests: outside-root -> False, untracked-inside-root -> False, tracked -> True, relative-path-anchors-on-porcelain_root). Verified per the reviewer's instruction: commenting out the _paths_tracked_at_commit(...) call turns exactly the new partially-untracked-path test red (1 failed), every other test stays green. Diff coverage measured with diff-cover against the lane base 4f2ddb7939 over test_workflow.py+test_guard_capability_regression.py+test_coord_commit_integrity_e2e.py: 100% (29/29 added lines), up from 83%. N6 applied: _paths_tracked_at_commit now anchors a relative path on porcelain_root before resolve(), not the process cwd. Tests: test_workflow.py 45 passed; blast-radius files 87 passed; full tests/specify_cli/cli/commands/agent/ dir 2351 passed/5 skipped/2 xfailed, exit 0. Gates: ruff check/format --force-exclude clean, mypy --strict clean, C901 clean.",
+        "Review passed (cycle 3, reviewer-renata): FR-013/US6 receipts. Coordination non-reproduction genuinely shown via real implement CLI on a materialized coord Mission (US6.1 green; US6.2 target-branch control fails an always-coord impl). Legacy already-present arm now names only a VERIFIED commit (git log -1 HEAD -- paths, every path tracked at candidate via cat-file, candidate ancestor of target_branch) else honest None + warning; no tip fallback. Cycle-1 probes (ignored path, HEAD-not-on-target) both None+warn; happy paths name the correct commit. C-008 lanes control asserts dest/message/outcome/wp_id unchanged + sha. Allowlisted CommitTarget(ref=target_branch) verbatim (L953); 0 new placement_seam/write_dir/CommitTarget. Evidence: targeted suite (test_workflow, test_implement_command, test_no_write_side_rederivation, test_guard_capability_regression, test_coord_commit_integrity_e2e) 111 passed; diff-coverage of workflow.py additions vs lane base 4f2ddb7939 = 31/31 (100%); mutation 1: neutralizing the _paths_tracked_at_commit(...) call -> exactly 1 red (partially_untracked_path_set test), 44 passed; mutation 2: reverting N6 anchoring -> exactly 1 red (relative_path test); cycle-2 tests red vs cycle-1 workflow.py; ruff/format(--force-exclude)/C901/mypy --strict clean. Non-blocking: TestPathsTrackedAtCommit lacks @pytest.mark.git_repo (sibling class has it); follow-up: promote tests.characterization._build_mission_repo to tests/_factories (8+ cross-module importers). Known #5410 red not WP19."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP19:20261001",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2740574,
+      "shell_pid_created_at": "1790857632.3",
+      "subtasks": {
+        "T103": "done",
+        "T104": "done",
+        "T105": "done"
+      }
+    },
+    "WP20": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "cursor",
+      "lane": "done",
+      "last_event_id": "01M3Z1K86376EYRJ1WMNW90JW5",
+      "last_transition_at": "2026-10-02T19:31:27.555174+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T106-T110 done; gate green (81 passed), cap 0; commits f65075ce59 + 10ac99df77 on lane-p",
+        "Review approved 10ac99df77: cap-0 gate green at HEAD, red at ecb5dd914a with 18 offenders. The two live sites use WriteLocation.path. Reviewer reviewer-renata."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP20:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1437752,
+      "shell_pid_created_at": "1790961264.53",
+      "subtasks": {
+        "T106": "done",
+        "T107": "done",
+        "T108": "done",
+        "T109": "done",
+        "T110": "done"
+      }
+    },
+    "WP21": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "cursor",
+      "lane": "done",
+      "last_event_id": "01M3Z1K9NTTV3W00V10QKXFHYH",
+      "last_transition_at": "2026-10-02T19:31:29.082100+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T111-T114, T119 complete; e2e 4 cases green incl. accept ledger leg",
+        "Review passed. Independent review by reviewer-renata: e2e single-home invariant and the G1 accept ledger commit are fail-closed. 40 passed (4 CLI cases + ledger-dirt units); accept blast 401 passed, 1 skipped."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP21:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1573915,
+      "shell_pid_created_at": "1790966829.16",
+      "subtasks": {
+        "T111": "done",
+        "T112": "done",
+        "T113": "done",
+        "T114": "done",
+        "T119": "done"
+      }
+    },
+    "WP22": {
+      "actor": "merge",
+      "agent": "cursor",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "cursor",
+      "lane": "done",
+      "last_event_id": "01M3Z1KB4NTQWCBA5AAPEEXVYK",
+      "last_transition_at": "2026-10-02T19:31:30.581255+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: docs-only; 262 named tests passed; commits 7c5b337cc0 + log commit; FR-017 anchors in activity log",
+        "Review passed. Independent review by reviewer-renata: seam docs and ADRs match lane-q. 300 passed on the named docs gates. Dry-run asymmetry and fresh-clone doctor result are stated."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP22:20261002",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1649818,
+      "shell_pid_created_at": "1790969138.33",
+      "subtasks": {
+        "T115": "done",
+        "T116": "done",
+        "T117": "done",
+        "T118": "done"
+      }
+    }
+  }
+}
