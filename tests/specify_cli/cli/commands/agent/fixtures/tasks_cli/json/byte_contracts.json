@@ -150,7 +150,7 @@
       "--no-auto-commit"
     ],
     "exit_code": 0,
-    "expected_stdout": "{\"result\": \"success\", \"mission_slug\": \"checkout-latency-audit-01KWG4RZ\", \"mission_number\": 112, \"mission_type\": \"software-dev\", \"mapped\": {\"WP01\": [\"FR-001\", \"FR-002\"]}, \"total_mappings\": {\"WP01\": [\"FR-001\", \"FR-002\"]}, \"coverage\": {\"total_functional\": 2, \"mapped_functional\": 2, \"unmapped_functional\": []}, \"committed\": false, \"commit_sha\": null, \"commit_result\": null, \"requirement_extraction_warnings\": [], \"bare_prose_requirement_ids\": []}\n"
+    "expected_stdout": "{\"result\": \"success\", \"mission_slug\": \"checkout-latency-audit-01KWG4RZ\", \"mission_number\": 112, \"mission_type\": \"software-dev\", \"mapped\": {\"WP01\": [\"FR-001\", \"FR-002\"]}, \"total_mappings\": {\"WP01\": [\"FR-001\", \"FR-002\"]}, \"coverage\": {\"total_functional\": 2, \"mapped_functional\": 2, \"unmapped_functional\": []}, \"committed\": false, \"commit_sha\": null, \"commit_result\": null, \"surfaces\": [], \"requirement_extraction_warnings\": [], \"bare_prose_requirement_ids\": []}\n"
   },
   "validate_workflow_success": {
     "site": "tasks.py:3863 validate-workflow/success",

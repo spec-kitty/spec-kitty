@@ -330,6 +330,11 @@ def migrate_issue_matrix_to_json(
     behaviour: read and write both on ``feature_dir``), keeping every existing
     caller unaffected (NFR-006 back-compat).
 
+    WP10 (single-home rule): the WRITE no longer stages on the primary
+    ``feature_dir`` for the router to copy (:func:`write_issue_matrix` now
+    resolves ``write_dir(ISSUE_MATRIX)`` itself, lazily, inside its own
+    ``stage=`` thunk) -- it lands in place on the owning surface directly.
+
     Returns ``None`` (nothing to migrate) when ``issue-matrix.json`` already
     exists on the read surface or no legacy ``.md`` is present there.
 
@@ -370,7 +375,6 @@ def migrate_issue_matrix_to_json(
     return write_issue_matrix(
         repo_root=repo_root,
         mission_slug=mission_slug,
-        feature_dir=feature_dir,
         rows=rows,
         policy=policy,
         actor=actor,

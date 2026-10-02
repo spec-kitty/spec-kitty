@@ -265,71 +265,115 @@ class TestLanesConsolidateRecordsDoneForEveryWp:
 # ---------------------------------------------------------------------------
 
 
+def _build_declared_coord_mission(tmp_path: Path, label: str) -> tuple[str, str, str]:
+    """A committed coord-topology Mission (meta + WP file) whose coordination branch exists.
+
+    Returns ``(mission_slug, coord_branch, mid8)``. The coordination branch is
+    cut at the commit that carries the Mission dir; no worktree is created.
+    """
+    mid8 = "01KMATRX"
+    mission_slug = f"{label}-{mid8}"
+    mission_id = f"{mid8}0000000000000000"
+    coord_branch = f"kitty/mission-{mission_slug}"
+
+    _init_git_repo(tmp_path)
+
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    _write_meta(
+        feature_dir,
+        mission_slug,
+        mission_id=mission_id,
+        mid8=mid8,
+        coordination_branch=coord_branch,
+    )
+    _write_wp_file(feature_dir / "tasks", "WP01")
+
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-m", "declared coord branch"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "branch", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+    return mission_slug, coord_branch, mid8
+
+
+def _run_consolidation_expecting_abort_or_failure(tmp_path: Path, mission_slug: str) -> typer.Exit | None:
+    """Drive ``_run_lane_based_consolidation`` and return the ``typer.Exit`` it raised (if any)."""
+    from specify_cli.consolidation.executor import _run_lane_based_consolidation
+
+    try:
+        _run_lane_based_consolidation(
+            repo_root=tmp_path,
+            mission_slug=mission_slug,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
+        )
+    except typer.Exit as exc:
+        return exc
+    return None
+
+
 class TestUnmaterializedCoordWorktreeMerge:
-    """A coord merge whose worktree was never materialized exits gracefully, not with a traceback."""
+    """A coord merge whose worktree was never materialized no longer aborts when the branch is local.
 
-    def test_lane_based_merge_exits_cleanly_on_unmaterialized_coord_worktree(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        """#5019 landing-pass fold (Finding 1): a coord-topology merge whose
-        coordination worktree is declared in meta.json AND still exists in git,
-        but was never materialized on disk (the fresh-clone / CI-runner /
-        ``git worktree remove`` window — ``CoordState.UNMATERIALIZED``), must
-        exit gracefully rather than raise a raw
-        ``CoordinationWorktreeUnmaterialized`` traceback.
+    Ruling Q4 (coord-artifact-single-home): the executor's status location is
+    the WRITE accessor (``write_dir``), which materializes an UNMATERIALIZED
+    surface whose coordination branch has a local head. Only a REMOTE-ONLY branch
+    (#4970) still aborts before any state change. This class used to hold ONE test
+    pinning "abort on every UNMATERIALIZED cell"; that is split into the two
+    tests below. The split is a deliberate behaviour change, not a stale test.
+    """
 
-        Sibling of ``test_lane_based_merge_exits_cleanly_instead_of_tracebacking``
-        in tests/merge/test_coord_deleted_degrade_paths.py, which covers the
-        DELETED-branch case via the pre-existing ``except CoordinationBranchDeleted``
-        handler. That handler does NOT catch ``CoordinationWorktreeUnmaterialized``
-        — a sibling ``StatusReadPathNotFound`` subclass, not a
-        ``CoordinationBranchDeleted`` subclass — so before this fold's widened
-        handler, this scenario propagated the raw exception straight out of
-        ``spec-kitty merge`` instead of the graceful pre-state-change exit every
-        other coord-partition read failure gets.
+    def test_local_branch_unmaterialized_coord_is_materialized_before_merge(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """#5019 re-pin (R23, ruling Q4): a declared + extant LOCAL coordination
+        branch whose worktree was removed (the fresh-clone / CI-runner /
+        ``git worktree remove`` window, ``CoordState.UNMATERIALIZED``) is
+        MATERIALIZED by the executor's pre-phase and consolidation proceeds past the
+        surface resolution instead of aborting with "Merge aborted before any
+        state change ... Materialize the coordination worktree".
+
+        The fixture has no ``lanes.json``, so the run stops later on that
+        unrelated precondition (``MissingLanesError``); what this pins is that the
+        surface phase did not abort and that the surface is MATERIALIZED afterwards.
         """
-        from specify_cli.consolidation.executor import _run_lane_based_consolidation
+        from specify_cli.coordination.surface_resolver import CoordState, probe_coord_state
+        from specify_cli.lanes.persistence import MissingLanesError
 
-        mid8 = "01KMATRX"
-        mission_slug = f"merge-unmat-coord-{mid8}"
-        mission_id = f"{mid8}0000000000000000"
-        coord_branch = f"kitty/mission-{mission_slug}"
+        mission_slug, coord_branch, mid8 = _build_declared_coord_mission(tmp_path, "merge-unmat-coord")
 
-        _init_git_repo(tmp_path)
+        with pytest.raises(MissingLanesError):
+            _run_consolidation_expecting_abort_or_failure(tmp_path, mission_slug)
 
-        feature_dir = tmp_path / "kitty-specs" / mission_slug
-        feature_dir.mkdir(parents=True)
-        _write_meta(
-            feature_dir,
-            mission_slug,
-            mission_id=mission_id,
-            mid8=mid8,
-            coordination_branch=coord_branch,
-        )
-        _write_wp_file(feature_dir / "tasks", "WP01")
+        output = " ".join(capsys.readouterr().out.split())
+        assert "Merge aborted before any state change" not in output, output
+        assert "Materialize the coordination worktree" not in output, output
+        assert probe_coord_state(tmp_path, mission_slug, mid8, coordination_branch=coord_branch) is CoordState.MATERIALIZED
+        coord_wt = CoordinationWorkspace.worktree_path(tmp_path, mission_slug, mid8)
+        assert (coord_wt / "kitty-specs" / mission_slug / "meta.json").is_file()
 
-        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "declared coord branch"],
-            cwd=tmp_path,
-            check=True,
-            capture_output=True,
-        )
-        # The coord branch genuinely exists in git (rules out DELETED) but its
-        # worktree is deliberately never materialized (`git worktree add` is NOT
-        # run here) — the UNMATERIALIZED cell this fold's handler must degrade
-        # gracefully on.
-        subprocess.run(["git", "branch", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+    def test_remote_only_coord_branch_still_aborts_before_state_change(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """#4970 control: a coordination branch that exists ONLY on a remote still aborts cleanly.
 
-        with pytest.raises(typer.Exit) as excinfo:
-            _run_lane_based_consolidation(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
+        New fixture (a ``file://`` bare remote, the branch pushed, the local head
+        deleted); the assertions are the original test's, byte for byte.
+        """
+        mission_slug, coord_branch, _mid8 = _build_declared_coord_mission(tmp_path, "merge-unmat-coord")
+        remote_dir = tmp_path.parent / f"{tmp_path.name}-remote.git"
+        subprocess.run(["git", "init", "--bare", "-b", "main", str(remote_dir)], check=True, capture_output=True)
+        subprocess.run(["git", "remote", "add", "origin", remote_dir.as_uri()], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(["git", "push", "origin", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(["git", "fetch", "origin", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(["git", "branch", "-D", coord_branch], cwd=tmp_path, check=True, capture_output=True)
 
-        assert excinfo.value.exit_code == 1
+        exit_exc = _run_consolidation_expecting_abort_or_failure(tmp_path, mission_slug)
+
+        assert exit_exc is not None
+        assert exit_exc.exit_code == 1
         # Rich hard-wraps console output at the terminal width, so collapse
         # whitespace before matching — the assertion is about content, not line
         # breaks.

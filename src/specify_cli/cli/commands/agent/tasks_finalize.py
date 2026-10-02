@@ -32,9 +32,14 @@ ZERO patch sites and a canonical home outside ``tasks.py`` (the
 are imported directly at module scope (cycle-safe: none of those modules
 import ``tasks``). read-surface-ssot-closeout WP08 (FR-001/NFR-001): the
 former ``resolve_feature_dir_for_mission`` pre30-guard-wiring seam is
-RETIRED — ``_ft_apply_writes`` now calls
-``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)`` directly
-(module-scope import, not the ``_tasks.<attr>`` proxy).
+RETIRED — ``_ft_apply_writes`` (via the extracted ``_ft_emit_status_events``
+leg, coord-artifact-single-home-01M3V4BE WP15/T004/T080) now calls
+``mission_runtime.placement_seam(...).write_dir(STATUS_STATE)`` directly
+(module-scope import, not the ``_tasks.<attr>`` proxy) — the single
+write-location authority, never the READ projection: a never-seeded
+coordination Mission's EMPTY surface must be seeded/restored before this
+command's bootstrap writes land, not silently degraded to the
+repository-root checkout (contracts/write-location-accessor.md).
 
 Per-symbol routing/interception evidence:
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md`` (Layer 4 of
@@ -46,6 +51,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -434,22 +440,78 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
             would_modify.append({"wp_id": write.wp_id, "changes": {"dependencies": write.dependencies}})
     st.would_modify = would_modify
 
-    # Bootstrap canonical status state for all WPs — STATUS-partition: reads the
-    # event log and meta.json via the topology-aware resolver (C-001, coord-husk).
-    # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
-    # kind-aware placement seam directly (no longer proxied through
-    # ``_tasks.resolve_feature_dir_for_mission`` — the kind-blind resolver's
-    # module re-export was retired in the same WP; ``STATUS_STATE`` resolves
-    # the SAME coord-aware dir the kind-blind resolver produced for this read).
-    st.feature_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-    # #4758 (WP01): co-locate the lanes.json write with the event-log
-    # bootstrap below so this command never seeds genesis->planned events
-    # with no lanes.json for move-task to wedge against (FR-001, SC-001).
-    # --validate-only never mutates (NFR-002) — bootstrap itself already
-    # runs with dry_run=True in that mode, so lanes.json is left untouched.
+    _ft_emit_status_events(st, finalize_lanes=_finalize_lanes)
+
+
+def _ft_emit_status_events(st: _FinalizeState, *, finalize_lanes: Callable[[], None]) -> None:
+    """Phase C leg: establish the coordination surface, then bootstrap from PRIMARY (WP15/T080, cycle 2 B1/B2).
+
+    coord-artifact-single-home-01M3V4BE WP15 (FR-003): ``write_dir(STATUS_STATE)``
+    is the single write-location authority (``contracts/write-location-accessor.md``)
+    for the STATUS-partition event/snapshot WRITES ``bootstrap_canonical_state``'s
+    transactional emitter makes. Called ONLY as a side effect (never-mutating
+    callers skip it entirely -- B2/NFR-002 below): it materializes an
+    UNMATERIALIZED local-head worktree and seeds/restores a never-seeded
+    EMPTY surface BEFORE the transactional writer runs (research D2, "write
+    before check"), so a never-seeded Mission's first finalize lands its
+    bootstrap events in the SAME log ``move-task`` later appends to.
+
+    B1 (cycle 2, HIGH regression): the established directory's ``.path`` is
+    deliberately NEVER assigned to ``st.feature_dir``. ``bootstrap_canonical_
+    state(feature_dir, ...)`` uses ONE ``feature_dir`` argument for TWO
+    different things -- scanning ``feature_dir/tasks/`` for WP files
+    (PRIMARY-only content) AND (via the transactional emitter's own internal
+    topology resolution, not a literal path) locating the coordination
+    write target. Feeding it the COORD directory broke the PRIMARY scan on
+    every topology (the coordination Mission dir carries no ``tasks/``),
+    reporting ``total_wps=0`` even on a materialized surface. Mirroring
+    ``mission_finalize.py``'s own OWN working pattern
+    (``_bootstrap_canonical_state_via_mission`` always passes the PRIMARY
+    ``planning_dir``, never a coord-resolved path): ``st.feature_dir`` stays
+    ``st.primary_feature_dir`` here too, for BOTH the WP scan and (via
+    ``_tasks._mission_identity_payload(st.feature_dir)`` in ``_ft_output``)
+    the identity-payload read. The transactional emitter resolves the REAL
+    coordination write target on its own once this function's establishment
+    call above has materialized/seeded it.
+
+    B2 (cycle 2, HIGH regression, NFR-002): ``--validate-only`` must never
+    write to the repository. ``write_dir`` can materialize a worktree, seed
+    it, and commit a seed trailer -- all mutations. The establishment call
+    (and ``finalize_lanes``, the lanes.json writer) therefore run ONLY when
+    ``not st.validate_only``; the dry-run bootstrap below reads whatever
+    surface already exists (established or not) without forcing it into
+    existence.
+    """
     if not st.validate_only:
-        _finalize_lanes()
-    st.bootstrap_result = _tasks.bootstrap_canonical_state(st.feature_dir, st.mission_slug, dry_run=st.validate_only)
+        # Establish (materialize + seed/restore) the coordination surface as
+        # a pure side effect. A named write-location refusal (a deleted or
+        # remote-only coordination branch, a seed fork, a held status lock)
+        # propagates UNCAUGHT here -- this leg has no best-effort swallow
+        # (unlike mission_finalize.py's B3 fix, this family never silently
+        # degraded to a root-checkout fallback in the first place, so there
+        # is nothing to un-swallow; the caller's existing generic
+        # ``except Exception`` in ``_do_finalize_tasks`` still renders a
+        # clean non-zero error either way).
+        placement_seam(st.main_repo_root, st.mission_slug).write_dir(MissionArtifactKind.STATUS_STATE)
+        # #4758 (WP01): co-locate the lanes.json write with the event-log
+        # bootstrap below so this command never seeds genesis->planned events
+        # with no lanes.json for move-task to wedge against (FR-001, SC-001).
+        finalize_lanes()
+    st.feature_dir = st.primary_feature_dir
+    st.bootstrap_result = _tasks_bootstrap_canonical_state(st.feature_dir, st.mission_slug, dry_run=st.validate_only)
+
+
+def _tasks_bootstrap_canonical_state(feature_dir: Path, mission_slug: str, *, dry_run: bool) -> BootstrapResult:
+    """Thin seam-preserving proxy: keeps the ``_tasks.bootstrap_canonical_state`` patch point.
+
+    Extracted alongside :func:`_ft_emit_status_events` (WP15/T004) purely so
+    that helper's own signature stays free of the ``_tasks`` lazy-import
+    indirection; behavior is unchanged (same lazy import, same call).
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    result: BootstrapResult = _tasks.bootstrap_canonical_state(feature_dir, mission_slug, dry_run=dry_run)
+    return result
 
 
 def _ft_output(st: _FinalizeState) -> None:

@@ -92,6 +92,7 @@ def _make_log(
         worktree_root=tmp_path,
         destination_ref=destination_ref,
         mission_slug=mission_slug,
+        mission_dir=tmp_path / "kitty-specs" / mission_slug,
         inner=inner or NullEmitter(),
     )
 
@@ -412,6 +413,7 @@ class TestMissionIdInEnvelope:
             worktree_root=tmp_path,
             destination_ref="kitty/mission-my-feature-01KT119Y",
             mission_slug=mission_slug,
+            mission_dir=tmp_path / "kitty-specs" / mission_slug,
             inner=NullEmitter(),
             mission_id=mission_id,
         )
@@ -445,6 +447,7 @@ class TestMissionIdInEnvelope:
             worktree_root=tmp_path,
             destination_ref="kitty/mission-fallback-slug-mission",
             mission_slug=slug,
+            mission_dir=tmp_path / "kitty-specs" / slug,
             inner=NullEmitter(),
         )
 
@@ -495,6 +498,10 @@ class TestMissionSlugTraversalGuard:
                 worktree_root=tmp_path,
                 destination_ref="kitty/mission-safe",
                 mission_slug=bad_slug,
+                # Not slug-derived on purpose: FR-001 validates ``mission_slug``
+                # BEFORE this value is ever consulted, so an arbitrary valid
+                # directory proves the guard fires on the slug itself.
+                mission_dir=tmp_path / "kitty-specs" / "safe",
                 inner=NullEmitter(),
             )
         # No escaped path may have been created anywhere under tmp_path

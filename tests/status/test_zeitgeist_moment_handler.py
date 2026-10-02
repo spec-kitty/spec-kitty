@@ -1095,6 +1095,11 @@ def test_mission_creation_publishes_specify_started_after_local_persistence(
 
     The persisted event keeps its local ``artifact_path``; the wire projection
     drops it, and the moment keeps the persisted event's id, actor and time.
+
+    Re-pinned (coord-artifact-single-home-01M3V4BE WP06, D6): the default
+    (coord) topology seeds the creation events onto the coordination branch,
+    not ``result.feature_dir`` (#5440) -- read them back via ``git show``
+    against the coordination branch instead.
     """
     from specify_cli.core.mission_creation import create_mission_core
     from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
@@ -1105,11 +1110,14 @@ def test_mission_creation_publishes_specify_started_after_local_persistence(
     result = create_mission_core(tmp_path, "specify-started", allow_worktree_context=True, **_mission_summary("specify-started"))
 
     assert [args["kind"] for _op, args in recorder.moment_offers()] == ["MissionCreated", "SpecifyStarted"]
-    from specify_cli.coordination.surface_resolver import resolve_status_surface
-
-    # #5440: the status log lives on the resolved status surface (the coordination worktree).
-    status_log = resolve_status_surface(tmp_path, result.mission_slug)
-    persisted = [json.loads(line) for line in status_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    coordination_branch = result.meta["coordination_branch"]
+    log_content = subprocess.run(
+        ["git", "-C", str(tmp_path), "show", f"{coordination_branch}:kitty-specs/{result.mission_slug}/status.events.jsonl"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    persisted = [json.loads(line) for line in log_content.splitlines() if line.strip()]
     local_started = [event for event in persisted if event["event_type"] == "SpecifyStarted"]
     assert len(local_started) == 1
     local = local_started[0]
@@ -1250,10 +1258,21 @@ def test_throttled_outcome_is_recorded_at_debug_without_a_second_warning(
 # ---------------------------------------------------------------------------
 
 
+class _FakeWriteLocation:
+    """Minimal ``WriteLocation`` double exposing only the ``.path`` attribute
+    ``_mission_dir`` consumes."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+
 class _DirectMissionDirSeam:
     """Stub placement seam mirroring tests/specify_cli/decisions/test_emit.py.
 
     These tests target the fan-out projection, not mission/topology lookup.
+    coord-artifact-single-home-01M3V4BE WP09 (T049, out-of-map blast-radius
+    fix): ``decisions/emit.py``'s writer now resolves through
+    ``write_dir(STATUS_STATE)`` instead of ``read_dir`` -- stub both.
     """
 
     def __init__(self, repo_root: Path, mission_slug: str) -> None:
@@ -1262,6 +1281,9 @@ class _DirectMissionDirSeam:
 
     def read_dir(self, kind: object) -> Path:
         return self._repo_root / "kitty-specs" / self._mission_slug
+
+    def write_dir(self, kind: object) -> _FakeWriteLocation:
+        return _FakeWriteLocation(self._repo_root / "kitty-specs" / self._mission_slug)
 
 
 @pytest.fixture(autouse=True)

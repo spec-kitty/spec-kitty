@@ -978,7 +978,7 @@
    }
   },
   "materialize": {
-   "help": "Regenerate all derived views from the canonical event log.\n\nFor each feature (or a single feature when --mission is given),\nwrites the following files to ``.kittify/derived/<slug>/``:\n\n- ``status.json`` — full StatusSnapshot\n- ``board-summary.json`` — lane counts and WP lists\n- ``progress.json`` — lane-weighted progress percentage\n- ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state\n\nExamples::\n\n    spec-kitty materialize\n    spec-kitty materialize --mission 034-my-feature\n    spec-kitty materialize --json",
+   "help": "Regenerate all derived views from the canonical event log.\n\nFor each feature (or a single feature when --mission is given),\nwrites the following files to ``.kittify/derived/<slug>/``:\n\n- ``status.json`` — full StatusSnapshot\n- ``board-summary.json`` — lane counts and WP lists\n- ``progress.json`` — lane-weighted progress percentage\n- ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state\n\nA coordination-routed Mission is reduced from its coordination surface's\nevent log. To find that log this command may create the coordination\nworktree (one ``git worktree add`` per coordination-routed Mission, done\nonce) and, for a Mission created before the coordination surface was\nseeded, seed it. ``lanes`` and ``single_branch`` Missions are reduced from\nthe repository root checkout exactly as before. A Mission whose coordination\nbranch exists only on a remote, or whose logs diverged, is reported in the\nerror summary and the remaining Missions are still processed.\n\nExamples::\n\n    spec-kitty materialize\n    spec-kitty materialize --mission 034-my-feature\n    spec-kitty materialize --json",
    "hidden": false,
    "deprecated": false
   },
@@ -989,6 +989,11 @@
   },
   "merge-driver-acceptance-matrix": {
    "help": "Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours`` (FR-008).",
+   "hidden": true,
+   "deprecated": false
+  },
+  "merge-driver-decision-index": {
+   "help": "Union ``decisions/index.json`` entries keyed by ``decision_id`` (FR-009b/#5023).\n\nSee ``specify_cli.consolidation.drivers.run_decision_index_driver``'s\ndocstring for the full collision/precedence semantics: a terminal status\n(resolved/deferred/canceled) beats ``open``; the one legal reopen pair\n(deferred -> resolved) takes the reopen target; any other divergence, or\nmalformed input, is a conflict (non-zero exit) -- never a silently\npicked side.",
    "hidden": true,
    "deprecated": false
   },

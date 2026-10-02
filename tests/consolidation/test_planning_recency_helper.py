@@ -204,6 +204,46 @@ def test_all_primary_planning_kinds_protected(tmp_path: Path) -> None:
         assert Path(rel) in result, f"{rel} should be protected as a primary planning kind"
 
 
+DECISION_INDEX_REL = f"kitty-specs/{MISSION_SLUG}/decisions/index.json"
+
+
+def test_decision_ledger_index_is_never_returned_as_target_newer(tmp_path: Path) -> None:
+    """FORWARD GUARD (coord-artifact-single-home-01M3V4BE WP12, FR-009b, #5023):
+    ``decisions/index.json`` is never flagged target-newer, even though it is
+    a both-sides-divergent, both-advanced path here.
+
+    Driver-covered PRIMARY-partition paths (today: only the decision-index
+    ledger, WP11's ``spec-kitty-decision-index`` driver) must be excluded from
+    this module's own target-favouring ``git merge-file --ours`` recency
+    restore -- the driver already unions both sides' entries; letting this
+    helper also flag the path would let ``lanes/consolidation.py``'s
+    ``_restore_target_newer_planning`` silently overwrite the driver's unioned
+    squash result with the target's pre-squash bytes, dropping a lane-added
+    decision entry (FR-009b).
+
+    This test is a FORWARD guard: GREEN at the WP base (the ledger is still a
+    COORD-partition kind there, so ``_is_primary_planning_path`` already
+    excludes it for an unrelated reason). It is RED on the commit that lands
+    T065 (the artifacts.py reclassification) WITHOUT the driver-skip fix in
+    this module, and GREEN again once the fix lands alongside it.
+    """
+    repo = _init_repo(tmp_path)
+    _commit(repo, DECISION_INDEX_REL, '{"entries": []}\n', "seed decision index")
+    _run(["git", "branch", SOURCE], repo)
+    _run(["git", "checkout", SOURCE], repo)
+    _commit_dated(repo, DECISION_INDEX_REL, '{"entries": [{"decision_id": "lane"}]}\n', "lane entry", "2026-01-01T00:00:00")
+    _run(["git", "checkout", TARGET], repo)
+    _commit_dated(repo, DECISION_INDEX_REL, '{"entries": [{"decision_id": "target"}]}\n', "target entry", "2026-06-01T00:00:00")
+
+    result = target_newer_primary_artifacts(repo, TARGET, SOURCE)
+
+    assert Path(DECISION_INDEX_REL) not in result, (
+        "decisions/index.json must never be returned as target-newer -- it is "
+        "driver-covered (spec-kitty-decision-index), and the recency restore "
+        "would clobber the driver's unioned squash result"
+    )
+
+
 def _commit_dated(repo: Path, rel: str, content: str, message: str, iso: str) -> None:
     """Commit ``content`` to ``rel`` with a fixed author+committer date (stable tiebreak)."""
     import os

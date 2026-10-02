@@ -48,6 +48,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich.markup import escape
 
 from specify_cli.acceptance.matrix import (
     CRITERION_VERDICTS,
@@ -61,6 +62,11 @@ from specify_cli.acceptance.matrix import (
 from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.coordination.commit_outcome import (
+    commit_outcome_exit_code,
+    commit_outcome_payload,
+    render_commit_outcome,
+)
 from specify_cli.coordination.write_seam import WriteSeamResult
 from kernel.clock import now_utc_iso
 from specify_cli.status import FeatureStatusLockTimeoutError
@@ -83,19 +89,41 @@ def _emit_error(message: str, *, json_output: bool) -> None:
     if json_output:
         _emit_json({_PAYLOAD_KEY_SUCCESS: False, _PAYLOAD_KEY_ERROR: message})
     else:
-        console.print(f"{_RED_ERROR_PREFIX}{message}")
+        # WP10 cycle 2 (B1 sibling): some callers build ``message`` from a
+        # caller-controlled diagnostic (e.g. ``write_result.diagnostic``,
+        # which can echo raw git/lock error text) -- ``escape()`` neutralises
+        # any bracketed substring that would otherwise be parsed as a
+        # (potentially unbalanced) Rich markup tag.
+        console.print(f"{_RED_ERROR_PREFIX}{escape(message)}")
 
 
-def _matrix_read_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Resolve the matrix's current read/write surface via the ONE kind-aware seam.
+def _matrix_write_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the matrix's WRITE surface via the ONE kind-aware write-location authority.
 
-    Mirrors ``acceptance/gates_core.py::_acceptance_matrix_read_dir`` — the
-    same :func:`mission_runtime.placement_seam` authority, never a hand-derived
-    ``kitty-specs/<slug>`` join.
+    WP10 (T057, binding correction -- lost-update fix): this command's two
+    ``commit=True`` call sites (``_run_criterion_mode`` / ``_run_negative_
+    invariant_mode``) both route through :func:`~specify_cli.acceptance.
+    matrix.locked_reread_splice_and_write`, whose contract requires
+    ``matrix_dir`` to be resolved ONCE, before the lock, and reused UNCHANGED
+    as both the re-read base and the write target -- never split into a
+    separate read dir / write dir, and never re-resolved inside the locked
+    splice. Routes through :meth:`~mission_runtime.PlacementSeam.write_dir`
+    (``MissionArtifactKind.ACCEPTANCE_MATRIX``) rather than the former
+    ``read_dir`` projection (which can fall back to the PRIMARY dir on an
+    EMPTY/UNMATERIALIZED coordination surface -- a transient state that must
+    still route through ``write_dir``'s materialize/seed/restore contract,
+    not silently write to the wrong surface).
+
+    ``acceptance/gates_core.py::_acceptance_matrix_read_dir`` is a DIFFERENT,
+    deliberately read-side resolution for the ``--no-commit``/``--diagnose``
+    accept legs (which must never commit, and must never seed/materialize a
+    coordination surface as a side effect of a read-only evaluation pass) --
+    not migrated here; see that function's own docstring.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
+    location = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
+    return location.path
 
 
 def _resolve_criterion_update(
@@ -210,22 +238,62 @@ def _require_write_seam_result(write_result: WriteSeamResult | Path) -> WriteSea
     return write_result
 
 
+def _emit_outcome_error(write_result: WriteSeamResult, message: str, *, json_output: bool) -> None:
+    """Render EVERY surface (rule 6) and carry the additive ``surfaces`` JSON
+    key on an error/refusal arm (WP10 cycle 2, B2).
+
+    ``markup=False`` (B1): a surface diagnostic can legitimately contain a
+    bracketed substring -- without it, Rich's markup parser raises
+    ``rich.errors.MarkupError`` mid-refusal, crashing the very error report
+    it was rendering.
+    """
+    if json_output:
+        payload: dict[str, object] = {_PAYLOAD_KEY_SUCCESS: False, _PAYLOAD_KEY_ERROR: message}
+        payload.update(commit_outcome_payload(write_result))
+        _emit_json(payload)
+    else:
+        for line in render_commit_outcome(write_result):
+            console.print(line, markup=False)
+        console.print(f"{_RED_ERROR_PREFIX}{escape(message)}")
+
+
 def _emit_write_outcome(write_result: WriteSeamResult, *, mission_slug: str, json_output: bool) -> None:
     """Report a refused/error write outcome and exit; a no-op on success.
 
     Shared by both the criterion and the negative-invariant mode — the two
     non-success ``WriteSeamResult`` statuses mean the same thing regardless
     of which row this invocation was recording.
+
+    WP10 (T057, contracts/commit-outcome.md rule 5): the exit-code rule now
+    additionally consults ``commit_outcome_exit_code`` so a MIXED outcome
+    (e.g. the PRIMARY group committed while the coordination group was
+    refused) still exits non-zero even though the legacy top-level
+    ``write_result.status`` alone would read ``"committed"``.
+
+    WP10 cycle 2 (B2): every non-success arm renders the FULL per-surface
+    outcome (not just the legacy ``diagnostic`` string) -- the router's
+    ``error``/``refused`` results carry named per-path reason codes
+    (``PROTECTED_BRANCH_REFUSED``, ``STATUS_LOCK_HELD``, ...) that were
+    previously dropped.
     """
     if write_result.status == "refused":
-        _emit_error(
+        _emit_outcome_error(
+            write_result,
             f"Could not route the acceptance-verdict write for {mission_slug!r}: {write_result.diagnostic or 'unroutable target'}",
             json_output=json_output,
         )
         raise typer.Exit(1)
     if write_result.status == "error":
-        _emit_error(
+        _emit_outcome_error(
+            write_result,
             f"Failed to commit acceptance verdict for {mission_slug!r}: {write_result.diagnostic or 'unknown error'}",
+            json_output=json_output,
+        )
+        raise typer.Exit(1)
+    if commit_outcome_exit_code(write_result) != 0:
+        _emit_outcome_error(
+            write_result,
+            f"A per-surface commit for {mission_slug!r} was refused; see 'surfaces' for detail.",
             json_output=json_output,
         )
         raise typer.Exit(1)
@@ -337,10 +405,13 @@ def _run_criterion_mode(
         "write_status": write_result.status,
         "destination_surface": write_result.destination_surface,
         "commit_hash": write_result.commit_hash,
+        **commit_outcome_payload(write_result),
     }
     if json_output:
         _emit_json(payload)
     else:
+        for line in render_commit_outcome(write_result):
+            console.print(line, markup=False)
         console.print(
             f"[green]✓[/green] {criterion}={result} recorded for {mission_slug} (overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
         )
@@ -408,10 +479,13 @@ def _run_negative_invariant_mode(
         "write_status": write_result.status,
         "destination_surface": write_result.destination_surface,
         "commit_hash": write_result.commit_hash,
+        **commit_outcome_payload(write_result),
     }
     if json_output:
         _emit_json(payload)
     else:
+        for line in render_commit_outcome(write_result):
+            console.print(line, markup=False)
         console.print(
             f"[green]✓[/green] negative invariant {invariant_id}={judged.result} recorded for "
             f"{mission_slug} (overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
@@ -490,7 +564,7 @@ def acceptance_verdict(
     resolved = resolve_mission_handle(mission, repo_root, json_mode=json_output)
     mission_slug = resolved.mission_slug
 
-    matrix_dir = _matrix_read_dir(repo_root, mission_slug)
+    matrix_dir = _matrix_write_dir(repo_root, mission_slug)
     matrix = read_acceptance_matrix(matrix_dir)
     if matrix is None:
         _emit_error(

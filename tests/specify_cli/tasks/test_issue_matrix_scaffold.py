@@ -274,6 +274,12 @@ def test_fold_into_caller_commit_keeps_the_coord_routed_commit(tmp_path: Path, m
     coord_dir = tmp_path / "coord"
     coord_dir.mkdir()
     monkeypatch.setattr(mission_runtime, "coord_read_dir_for", lambda *a, **k: coord_dir)
+    # WP10 (T056 step 2): the fold decision is now the materialization-BLIND
+    # ``declared_read_surface`` predicate (never the READ-side
+    # ``coord_read_dir_for`` fallback alone) -- simulate a genuinely
+    # coordination-declared home so the fold-into-caller-commit shortcut does
+    # NOT trigger here.
+    monkeypatch.setattr(mission_runtime, "declared_read_surface", lambda *a, **k: mission_runtime.TopologySurface.COORD)
     calls = _stub_write_artifact_committed(monkeypatch)
     feature_dir, spec_md = _write_spec(tmp_path, "Tracks #4242 for this mission.\n")
 

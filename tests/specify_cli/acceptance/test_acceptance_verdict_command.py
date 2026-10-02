@@ -436,6 +436,61 @@ class TestAcceptanceVerdictCommand:
         assert reloaded.criteria[0].evidence == "ci-run-123"
         assert reloaded.overall_verdict == "pass"
 
+    def test_records_verdict_text_mode_renders_surface_lines(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+        """WP10 cycle 2 coverage: the success text arm (not just JSON) also
+        renders ``render_commit_outcome`` lines before the green tick."""
+        slug = "verdict-command-text-mode-mission"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        self._seed_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed acceptance-matrix")
+        monkeypatch.chdir(repo_root)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                criterion="FR-001",
+                result="pass",
+                verification_method="automated_test",
+                actor="tester",
+                evidence="ci-run-123",
+                json_output=False,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None), f"command failed: exit {exc.exit_code}"
+
+        out = capsys.readouterr().out
+        assert "committed" in out or "unchanged" in out
+        assert "FR-001=pass recorded" in out
+
+    def test_records_negative_invariant_text_mode_renders_surface_lines(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """WP10 cycle 2 coverage: the negative-invariant success text arm
+        also renders ``render_commit_outcome`` lines before the green tick."""
+        slug = "verdict-command-ni-text-mode-mission"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        self._seed_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed acceptance-matrix")
+        monkeypatch.chdir(repo_root)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-001",
+                description="legacy symbol must be absent",
+                verification_method="grep_absence",
+                verification_command="ZZZ_PATTERN_THAT_NEVER_MATCHES_ZZZ",
+                actor="tester",
+                json_output=False,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None), f"command failed: exit {exc.exit_code}"
+
+        out = capsys.readouterr().out
+        assert "negative invariant NI-001=" in out
+
     def test_rerun_with_identical_inputs_is_a_no_op(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
         """FR-012: a second invocation with IDENTICAL inputs does not bump
         ``verified_at`` (nothing observable changed), so the underlying write
@@ -1158,3 +1213,151 @@ class _OrderTrackingContext:
         result = self._inner.__exit__(*exc_info)  # type: ignore[attr-defined]
         self._order.append("lock_exit")
         return result
+
+
+# ---------------------------------------------------------------------------
+# WP10 (T057, contracts/commit-outcome.md rule 5): a MIXED per-surface
+# outcome exits non-zero even when the legacy top-level ``status`` reads
+# "committed".
+# ---------------------------------------------------------------------------
+
+
+class TestEmitWriteOutcomeMixedSurfaces:
+    def _mixed_result(self) -> object:
+        from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+        from specify_cli.coordination.write_seam import WriteSeamResult
+
+        committed = SurfaceOutcome(
+            surface="primary",
+            branch="topic",
+            status="committed",
+            commit_hash="abc1234",
+            committed=("kitty-specs/demo/acceptance-matrix.json",),
+        )
+        refused = SurfaceOutcome(
+            surface="coordination",
+            branch="kitty/mission-demo-01ABCDEF",
+            status="refused",
+            commit_hash=None,
+            refused=(PathFate(path="kitty-specs/demo/status.events.jsonl", reason="STATUS_LOCK_HELD"),),
+        )
+        return WriteSeamResult(
+            status="committed",
+            entry_id="FR-001",
+            destination_surface="topic",
+            commit_hash="abc1234",
+            surfaces=(committed, refused),
+        )
+
+    def test_json_mode_reports_additive_surfaces_and_exits_nonzero(self) -> None:
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        with pytest.raises(typer.Exit) as exc_info:
+            _emit_write_outcome(self._mixed_result(), mission_slug="demo", json_output=True)  # type: ignore[arg-type]
+        assert exc_info.value.exit_code == 1
+
+    def test_text_mode_renders_every_surface_line_and_exits_nonzero(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        with pytest.raises(typer.Exit) as exc_info:
+            _emit_write_outcome(self._mixed_result(), mission_slug="demo", json_output=False)  # type: ignore[arg-type]
+        assert exc_info.value.exit_code == 1
+        out = capsys.readouterr().out
+        assert "primary (topic): committed" in out
+        assert "STATUS_LOCK_HELD" in out
+
+    def test_a_clean_single_surface_result_does_not_raise(self) -> None:
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+        from specify_cli.coordination.write_seam import WriteSeamResult
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        clean = WriteSeamResult(
+            status="committed",
+            entry_id="FR-001",
+            destination_surface="topic",
+            commit_hash="abc1234",
+            surfaces=(SurfaceOutcome(surface="primary", branch="topic", status="committed", commit_hash="abc1234"),),
+        )
+        _emit_write_outcome(clean, mission_slug="demo", json_output=False)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# WP10 cycle 2, B1/B2: the ``refused``/``error`` arms of ``_emit_write_outcome``
+# render every surface, carry the additive ``surfaces`` JSON key (named
+# per-path reason codes), and never crash on a bracketed diagnostic.
+# ---------------------------------------------------------------------------
+
+
+class TestEmitWriteOutcomeErrorAndRefusedArms:
+    def _error_result_with_markup_like_reason(self) -> object:
+        from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+        from specify_cli.coordination.write_seam import WriteSeamResult
+
+        error_surface = SurfaceOutcome(
+            surface="coordination",
+            branch="kitty/mission-demo-01ABCDEF",
+            status="error",
+            commit_hash=None,
+            refused=(PathFate(path="kitty-specs/demo/status.events.jsonl", reason="closing tag [/red] found unexpectedly"),),
+            diagnostic="commit failed",
+        )
+        return WriteSeamResult(
+            status="error",
+            entry_id="FR-001",
+            destination_surface=None,
+            diagnostic="commit failed",
+            surfaces=(error_surface,),
+        )
+
+    def _refused_result_with_markup_like_diagnostic(self) -> object:
+        from specify_cli.coordination.write_seam import WriteSeamResult
+
+        return WriteSeamResult(
+            status="refused",
+            entry_id="FR-001",
+            destination_surface=None,
+            diagnostic="refusing a zero-write: original cause was [/red] unparseable",
+        )
+
+    def test_error_arm_does_not_crash_on_markup_like_surface_reason(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        with pytest.raises(typer.Exit) as exc_info:
+            _emit_write_outcome(self._error_result_with_markup_like_reason(), mission_slug="demo", json_output=False)  # type: ignore[arg-type]
+        assert exc_info.value.exit_code == 1
+        out = capsys.readouterr().out
+        assert "closing tag [/red] found unexpectedly" in out
+
+    def test_refused_arm_does_not_crash_on_markup_like_diagnostic(self) -> None:
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        with pytest.raises(typer.Exit) as exc_info:
+            _emit_write_outcome(self._refused_result_with_markup_like_diagnostic(), mission_slug="demo", json_output=False)  # type: ignore[arg-type]
+        assert exc_info.value.exit_code == 1
+
+    def test_error_arm_exposes_named_reason_in_json(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import json
+
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        printed: list[str] = []
+        monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(a[0]))
+        with pytest.raises(typer.Exit) as exc_info:
+            _emit_write_outcome(self._error_result_with_markup_like_reason(), mission_slug="demo", json_output=True)  # type: ignore[arg-type]
+        assert exc_info.value.exit_code == 1
+        payload = json.loads(printed[0])
+        assert "surfaces" in payload
+        assert payload["surfaces"][0]["refused"][0]["reason"] == "closing tag [/red] found unexpectedly"
+
+    def test_refused_arm_carries_empty_surfaces_key_in_json(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import json
+
+        from specify_cli.cli.commands.agent.acceptance_verdict import _emit_write_outcome
+
+        printed: list[str] = []
+        monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(a[0]))
+        with pytest.raises(typer.Exit) as exc_info:
+            _emit_write_outcome(self._refused_result_with_markup_like_diagnostic(), mission_slug="demo", json_output=True)  # type: ignore[arg-type]
+        assert exc_info.value.exit_code == 1
+        payload = json.loads(printed[0])
+        assert payload["surfaces"] == []

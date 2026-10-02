@@ -129,10 +129,20 @@ def test_multi_consumer_co_resolution_under_coord_topology(
     resolved["pointer resolver (resolve_review_cycle_pointer)"] = pointer_resolution.path.parent
 
     canonical = _assert_all_co_resolve(resolved)
-    # And it must be the PRIMARY dir -- the write-side default has NOT flipped
-    # to COORD (WP13's disclosed finding; verified structurally, not asserted
-    # by fiat): confirms this isn't six consumers agreeing on a wrong answer.
-    assert canonical == ctx.primary_feature_dir / "tasks" / "WP01"
+    # RE-PINNED (coord-artifact-single-home-01M3V4BE WP08, Standing Order 4:
+    # stale -> re-pin with rationale; file not owned by WP08, deviation
+    # recorded in the WP08 final report for reviewer/orchestrator attention).
+    # The prior pin asserted the PRIMARY dir on the premise that "flipping
+    # only the writer" would be the only way to move this canonical directory,
+    # and that flipping the SHARED DEFAULT on `_review_cycle_wp_dir` (moving
+    # every co-resolving consumer in lockstep, exactly as the WP08 brownfield
+    # scout and this file's OWN AST invariant require) would therefore
+    # necessarily diverge the consumers and red the co-resolution assertion
+    # above. Empirically false: WP08 flips the shared default, every consumer
+    # still co-resolves the SAME directory (the assertion above stays green
+    # unmodified) -- it is simply COORD now, under a real MATERIALIZED
+    # coordination surface, per the single-home rule this Mission ships.
+    assert canonical == ctx.coord_feature_dir / "tasks" / "WP01"
 
 
 def test_multi_consumer_co_resolution_under_flat_topology(

@@ -41,6 +41,7 @@ through :class:`IssueMatrixEntry`.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -48,6 +49,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from kernel.atomic import atomic_write
+from specify_cli.coordination.commit_outcome import render_commit_outcome
 from specify_cli.tasks.issue_reference_discovery import (
     GatingClass,
     Occurrence,
@@ -59,9 +61,30 @@ if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
+logger = logging.getLogger(__name__)
+
 ISSUE_MATRIX_JSON_FILENAME = "issue-matrix.json"
 ISSUE_MATRIX_MD_FILENAME = "issue-matrix.md"
 ISSUE_MATRIX_SCHEMA_VERSION = 1
+
+#: WP10 (D8 "discarded-result" rule): statuses worth a WARNING even on this
+#: best-effort ("never blocking") writer's silent callers.
+_NOTEWORTHY_SURFACE_STATUSES = frozenset({"refused", "error"})
+
+
+def _warn_on_discarded_surfaces(result: WriteSeamResult) -> None:
+    """D8 "discarded-result" rule: log a WARNING for a non-committed/unchanged surface.
+
+    ``write_issue_matrix`` / ``scaffold_issue_matrix`` are best-effort
+    ("never blocking") -- a caller may discard the returned
+    :class:`~specify_cli.coordination.write_seam.WriteSeamResult` entirely
+    (``scaffold_issue_matrix`` returns a bare ``Path | None``), so a
+    refused/errored surface must never be silent.
+    """
+    if not any(surface.status in _NOTEWORTHY_SURFACE_STATUSES for surface in result.surfaces):
+        return
+    for line in render_commit_outcome(result):
+        logger.warning("issue-matrix write: %s", line)
 
 
 def looks_like_json_issue_matrix_content(content: str) -> bool:
@@ -362,46 +385,67 @@ def write_issue_matrix(
     *,
     repo_root: Path,
     mission_slug: str,
-    feature_dir: Path,
     rows: Mapping[str, IssueMatrixEntry],
     policy: ProtectionPolicyLike,
     actor: str = "system",
     target_branch: str | None = None,
     owned: OwnedCheckout | None = None,
+    matrix_dir: Path | None = None,
 ) -> WriteSeamResult:
-    """The ONE canonical ``issue-matrix.json`` writer (T020).
+    """The ONE canonical ``issue-matrix.json`` writer (T020; WP10 single-home rule).
 
-    Serializes ``rows`` to ``feature_dir/issue-matrix.json`` and routes the
-    commit through :func:`write_target(ISSUE_MATRIX)
-    <mission_runtime.PlacementSeam.write_target>` via the WP03 write-seam
-    helper (:func:`specify_cli.coordination.write_seam.write_artifact`) --
-    never a hand-rolled commit path (C-001/C-006). No ``issue-matrix.md`` is
-    ever emitted by this writer (C-008).
+    Serializes ``rows`` to ``issue-matrix.json`` and routes the commit through
+    :func:`write_target(ISSUE_MATRIX) <mission_runtime.PlacementSeam.write_target>`
+    via the WP03 write-seam helper (:func:`specify_cli.coordination.write_seam
+    .write_artifact`) -- never a hand-rolled commit path (C-001/C-006). No
+    ``issue-matrix.md`` is ever emitted by this writer (C-008).
 
-    ``feature_dir``'s local copy is materialized via a ``stage=`` thunk
-    (WP04 / #3073 / T029): :func:`write_artifact`'s single locus invokes it
-    ONLY after the routability probe succeeds, so a refused write never
-    touches disk and leaves zero untracked residue (the write-seam
-    materialises a coord copy and cleans up the primary residue for coord
-    topologies -- see ``commit_router._stage_artifacts_in_coord_worktree``
-    R6).
+    WP10 (T056, single-home rule): the write location is
+    :meth:`~mission_runtime.PlacementSeam.write_dir`
+    (``MissionArtifactKind.ISSUE_MATRIX``), resolved LAZILY inside the
+    ``stage=`` thunk when ``matrix_dir`` is omitted -- never a caller-supplied
+    ``feature_dir`` staged in the repository root checkout and copied by the
+    router (WP20's census entry for this qualname). :func:`write_artifact`'s
+    single locus invokes the thunk ONLY after the routability probe succeeds,
+    so a refused write never materializes the coordination worktree and
+    leaves zero untracked residue (#3073). For a coordination-routed Mission
+    this lands the JSON directly on the coordination Mission dir; for
+    ``lanes``/``single_branch`` it is byte-identical to the PRIMARY dir
+    (C-008).
+
+    ``matrix_dir`` (WP10 cycle 2 fold, N1): when a caller has ALREADY
+    resolved the write location itself -- ``issue_verdict.py``'s locked
+    critical section resolves ``write_dir(ISSUE_MATRIX)`` once, before the
+    lock, and reuses it as both the re-read base and the write target (the
+    lost-update fix) -- pass that SAME path here so this function never
+    re-resolves ``write_dir`` a second time inside the lock. Omitted (the
+    default), this resolves its own write location lazily, exactly as
+    before, for every caller with no locked critical section of its own
+    (``scaffold_issue_matrix``, the legacy-``.md`` migration).
 
     ``owned`` (the validated owned checkout, when the command runs against
-    one) is forwarded to the write seam, which then writes and commits inside
-    the owned checkout only.
+    one) is forwarded to both the write-dir resolution and the write seam, so
+    an owned write never touches the repository root checkout.
     """
-    from specify_cli.coordination.write_seam import write_artifact
-    from mission_runtime import MissionArtifactKind
+    from mission_runtime import MissionArtifactKind, placement_seam
 
-    path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
+    from specify_cli.coordination.write_seam import write_artifact
 
     def _stage() -> tuple[Path, ...]:
-        # T029 (#3073): the write moves INTO the thunk so a refused write
-        # never materializes ``issue-matrix.json`` on disk (no residue).
+        # T056 (#3073): write_dir resolution AND the write move INTO the
+        # thunk so a refused write never materializes/seeds the coordination
+        # worktree and never touches disk -- unless the caller already
+        # resolved ``matrix_dir`` itself (N1), in which case this is a pure
+        # re-use, never a second resolution.
+        if matrix_dir is not None:
+            resolved_dir = matrix_dir
+        else:
+            resolved_dir = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.ISSUE_MATRIX).path
+        path = resolved_dir / ISSUE_MATRIX_JSON_FILENAME
         _atomic_write_issue_matrix(path, rows)
         return (path,)
 
-    return write_artifact(
+    result = write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
         kind=MissionArtifactKind.ISSUE_MATRIX,
@@ -410,9 +454,13 @@ def write_issue_matrix(
         policy=policy,
         entry_id=actor,
         target_branch=target_branch,
-        primary_paths_created_this_invocation=frozenset({path}),
+        # T056: in-place write at write_dir(ISSUE_MATRIX) -- nothing is
+        # created in the repository root checkout as staging residue.
+        primary_paths_created_this_invocation=frozenset(),
         owned=owned,
     )
+    _warn_on_discarded_surfaces(result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -495,7 +543,7 @@ def scaffold_issue_matrix(
         ``None`` when ``spec.md`` references no GH issues (no file created)
         or the write was refused/failed (best-effort, never blocking).
     """
-    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+    from mission_runtime import MissionArtifactKind, TopologySurface, coord_read_dir_for, declared_read_surface
 
     if owned is not None:
         from mission_runtime import placement_seam
@@ -514,13 +562,21 @@ def scaffold_issue_matrix(
         return None
 
     rows = {f"#{ref.number}": _scaffold_entry_for(ref) for ref in refs}
-    if fold_into_caller_commit and issue_matrix_dir.resolve() == feature_dir.resolve():
+    # WP10 (T056 step 2): the fold-into-caller-commit shortcut must trigger
+    # ONLY for a genuinely non-coordination declared home -- the materialization-
+    # BLIND ``declared_read_surface`` predicate (never the READ-side
+    # ``coord_read_dir_for`` fallback, which can ALSO resolve to ``feature_dir``
+    # for a coordination Mission whose coordination surface simply is not
+    # materialized YET, a transient state that must still route through
+    # ``write_dir`` -- not accidentally take the "declared home IS primary"
+    # branch).
+    declared_home_is_primary = declared_read_surface(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX, owned=owned) is TopologySurface.PRIMARY
+    if fold_into_caller_commit and declared_home_is_primary:
         _atomic_write_issue_matrix(json_path, rows)
         return json_path
     result = write_issue_matrix(
         repo_root=repo_root,
         mission_slug=mission_slug,
-        feature_dir=feature_dir,
         rows=rows,
         policy=policy,
         actor="finalize-scaffold",

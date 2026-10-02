@@ -118,6 +118,26 @@ def test_artifact_home_for_status_state_stays_placement() -> None:
     assert kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, MissionTopology.COORD) is True
 
 
+def test_decision_ledger_is_primary() -> None:
+    """R13 (WP12, FR-009, #5023): the decision ledger resolves the PRIMARY home.
+
+    #3928 classified ``DECISION_LEDGER`` COORD, but its own reads/writes
+    (``decisions/service.py::_ledger_dir``) already resolved PRIMARY (#4966
+    AC-D2) -- the split forked ``spec-commit``'s routing (#5023). This WP
+    reverses the classification to match the write side: at the WP base the
+    kind is still COORD, so this assertion is RED there and GREEN once T065
+    moves ``DECISION_LEDGER`` into ``_PRIMARY_ARTIFACT_KINDS``.
+    """
+    placement_ref = CommitTarget(ref=_COORD_BRANCH)
+
+    home = artifact_home_for(MissionArtifactKind.DECISION_LEDGER, placement_ref)
+
+    assert home.read_surface == "primary"
+    assert home.write_surface == "primary"
+    assert home.commit_target == placement_ref
+    assert kind_is_coordination_residue(MissionArtifactKind.DECISION_LEDGER, MissionTopology.COORD) is False
+
+
 def test_artifact_home_for_primary_metadata_is_partition_aware() -> None:
     """``PRIMARY_METADATA`` resolves the PRIMARY surface with a routed commit target.
 

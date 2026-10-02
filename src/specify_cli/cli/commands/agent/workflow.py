@@ -242,7 +242,25 @@ def _record_receipt(
     sha: str | None = None,
     wp_id: str | None = None,
 ) -> None:
-    """Record a single workflow commit receipt for the T029 summary."""
+    """Record a single workflow commit receipt for the T029 summary.
+
+    FR-013 (#5440): a ``committed`` receipt should name the commit that
+    actually carries the change whenever one can be verified. A call site
+    may legitimately pass ``sha=None`` when it genuinely cannot verify a
+    commit (see :func:`_already_present_receipt_sha` for the legacy no-op
+    arm, cycle-2 correction: an honest absence beats a fabricated id). This
+    guard only observes and logs that case -- an UNEXPLAINED ``sha=None`` on
+    a ``committed`` receipt is exactly the misleading evidence #5440 read as
+    "implement leaks status" -- it never raises, so a caller that genuinely
+    cannot resolve one does not crash the workflow.
+    """
+    if outcome == "committed" and not sha:
+        logger.warning(
+            "_record_receipt: committed receipt for %r (wp_id=%r) carries no "
+            "commit sha -- every committed receipt must name a real commit (FR-013)",
+            destination_ref,
+            wp_id,
+        )
     _WORKFLOW_COMMIT_RECEIPTS.append({
         "destination_ref": destination_ref,
         "message": message,
@@ -782,6 +800,112 @@ def _legacy_paths_already_committed(root: Path, paths: list[Path]) -> bool:
         return False
 
 
+def _paths_tracked_at_commit(porcelain_root: Path, sha: str, paths: list[Path]) -> bool:
+    """Whether every path in *paths* is a tracked blob at commit *sha*.
+
+    A path outside ``porcelain_root`` cannot be expressed as a ``<sha>:<rel>``
+    pathspec, so it is treated as untracked (fail closed, never raise).
+
+    Cycle-3 (reviewer-renata N6): a relative ``path`` is anchored on
+    ``porcelain_root`` -- not resolved against the process cwd -- before the
+    ``relative_to`` check, matching the ``cwd=porcelain_root`` every git
+    subprocess in this module already runs with. Every current caller passes
+    absolute paths, so this was latent, not reachable; a future relative-path
+    caller would otherwise silently reject a genuinely in-scope path.
+    """
+    for path in paths:
+        anchored = path if path.is_absolute() else porcelain_root / path
+        try:
+            relpath = anchored.resolve().relative_to(porcelain_root.resolve())
+        except ValueError:
+            return False
+        probe = subprocess.run(
+            ["git", "cat-file", "-e", f"{sha}:{relpath.as_posix()}"],
+            cwd=porcelain_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if probe.returncode != 0:
+            return False
+    return True
+
+
+def _already_present_receipt_sha(
+    *, porcelain_root: Path, target_branch: str, paths: list[Path]
+) -> str | None:
+    """Resolve the VERIFIED commit that already carries *paths* on *target_branch*.
+
+    WP19/T104 (FR-013/US6, D17). **Cycle-2 correction (reviewer B1):** the
+    cycle-1 version anchored on ``git log -1 <target_branch> -- <paths>`` and
+    fell back to ``git rev-parse <target_branch>`` (the branch tip) whenever
+    that history walk found nothing. Both were wrong in ways a reviewer
+    reproduced against the real function:
+
+    1. **Ignored / never-committed path.** When ``paths`` is gitignored or
+       was never committed, the history walk finds nothing and the tip
+       fallback fires -- naming a commit that does NOT contain the path at
+       all (``git cat-file -e <tip>:<path>`` fails).
+    2. **``porcelain_root``'s checked-out HEAD differs from ``target_branch``.**
+       ``git log -1 <target_branch> -- <paths>`` searches ``target_branch``'s
+       OWN history, which can be stale relative to what the porcelain
+       pre-check actually just proved clean at ``porcelain_root`` (its
+       checked-out HEAD, not necessarily ``target_branch`` --
+       ``_commit_workflow_change``'s own debug branch documents this
+       divergence as a real, not merely theoretical, case).
+
+    The fix anchors on what the porcelain check actually proved -- the tip of
+    whatever ``porcelain_root`` has checked out (``HEAD``) -- and verifies it
+    two ways before trusting it: the candidate commit must (a) actually track
+    every path in ``paths`` (:func:`_paths_tracked_at_commit`), and (b) be an
+    ancestor of ``target_branch`` (so the receipt's named branch truthfully
+    contains it). There is NO unverified fallback: when no candidate passes
+    both checks, this returns ``None`` so :func:`_record_receipt`'s warning
+    fires -- an honest absence beats a plausible but wrong commit id.
+    """
+    log_result = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "HEAD", "--", *[str(p) for p in paths]],
+        cwd=porcelain_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    sha = log_result.stdout.strip()
+    if log_result.returncode != 0 or not sha:
+        logger.debug(
+            "_already_present_receipt_sha: no HEAD history match for %r at %r",
+            paths,
+            porcelain_root,
+        )
+        return None
+
+    if not _paths_tracked_at_commit(porcelain_root, sha, paths):
+        logger.debug(
+            "_already_present_receipt_sha: candidate %r does not track %r at %r",
+            sha,
+            paths,
+            porcelain_root,
+        )
+        return None
+
+    ancestor_check = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", sha, target_branch],
+        cwd=porcelain_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ancestor_check.returncode != 0:
+        logger.debug(
+            "_already_present_receipt_sha: candidate %r is not an ancestor of %r",
+            sha,
+            target_branch,
+        )
+        return None
+
+    return sha
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
@@ -812,11 +936,17 @@ def _commit_via_legacy_safe_commit(
     porcelain_root = _resolve_legacy_porcelain_root(repo_root, mission_slug, mid8)
     if _legacy_paths_already_committed(porcelain_root, paths):
         # State already present at HEAD (persisted by the transactional emit).
+        # FR-013/US6 (#5440): name the VERIFIED commit that actually carries
+        # it when one can be confirmed; otherwise an honest ``None`` (which
+        # makes ``_record_receipt`` warn) rather than a fabricated id -- see
+        # :func:`_already_present_receipt_sha`.
         _record_receipt(
             target_branch,
             message,
             "committed",
-            sha=None,
+            sha=_already_present_receipt_sha(
+                porcelain_root=porcelain_root, target_branch=target_branch, paths=paths
+            ),
             wp_id=wp_id,
         )
         return
@@ -842,17 +972,33 @@ def _commit_via_legacy_safe_commit(
     )
 
 
+#: Short-sha display width (FR-013/T105), matching the repo's existing
+#: ``sha[:7]`` convention (e.g. ``workflow_executor.py``'s baseline summary).
+_SHORT_SHA_LEN = 7
+#: Placeholder printed in place of a short sha when a receipt carries none
+#: (a ``refused`` entry never committed, so it has no commit to name).
+_NO_SHA_PLACEHOLDER = "-------"
+
+
 def _print_commit_summary(*, command_name: str, json_output: bool = False) -> None:
     """T029: render the accumulated commit summary to the terminal.
 
     Human format::
 
         [implement] Commits recorded:
-          - <branch>  <message>  ✓ committed
-          - <branch>  <message>  ✗ refused
+          - <branch>  <short sha>  <message>  [ok]
+          - <branch>  -------  <message>  [refused]
+
+    FR-013/T105: an ``[ok]`` line carries the short commit id whenever one
+    could be verified, so an operator can resolve it with
+    ``git branch --contains <sha>``. An UNEXPLAINED ``committed`` receipt
+    with no sha was the #5440 misleading-receipt defect this closes --
+    :func:`_record_receipt`'s warning guard makes that case observable
+    instead of silently printing a blank id or a fabricated one.
 
     JSON format: prints ``{"commits": [...]}`` on its own line so
-    machine consumers can parse the trailing record.
+    machine consumers can parse the trailing record. Every existing key is
+    kept unchanged.
     """
     if not _WORKFLOW_COMMIT_RECEIPTS:
         return
@@ -863,8 +1009,10 @@ def _print_commit_summary(*, command_name: str, json_output: bool = False) -> No
     print(f"[{command_name}] Commits recorded:")
     for receipt in _WORKFLOW_COMMIT_RECEIPTS:
         glyph = "[ok]" if receipt.get("outcome") == "committed" else "[refused]"
+        sha = receipt.get("sha")
+        short_sha = str(sha)[:_SHORT_SHA_LEN] if sha else _NO_SHA_PLACEHOLDER
         print(
-            f"  - {receipt['destination_ref']}  {receipt['message']}  {glyph}"
+            f"  - {receipt['destination_ref']}  {short_sha}  {receipt['message']}  {glyph}"
         )
 
 
@@ -2004,19 +2152,22 @@ def review(
             logger.warning("Could not resolve agent identity for review prompt: %s", _agent_err)
             _review_agent_assignment = None
 
-        # IC-04/T018: review-cycle sub-artifact WRITE (mkdir). WORK_PACKAGE_TASK
-        # is a PRIMARY-partition kind: the placement seam's write and read
-        # projections resolve to the SAME on-disk directory for a PRIMARY kind
-        # (INV-5 full read/write symmetry) -- this genuine filesystem write is
-        # therefore resolved via the read-side projection.
+        # WP08 (coord-artifact-single-home-01M3V4BE, T044 binding correction):
+        # review-cycle sub-artifact WRITE (mkdir) now routes through the
+        # SAME write-side resolver the real rejection writer
+        # (``create_rejected_review_cycle``) uses --
+        # ``_review_cycle_write_location`` (``PlacementSeam.write_dir``,
+        # REVIEW_CYCLE) -- never the hand-joined ``WORK_PACKAGE_TASK`` read
+        # dir. Routing through the stale PRIMARY-anchored join would restart
+        # cycle numbering at 1 and create an empty PRIMARY dir on every
+        # review once the write seam's single-home flip ships (review-cycle
+        # artifacts now live ONLY under the coordination worktree for a
+        # coordination-routed Mission).
+        from specify_cli.review.cycle import _review_cycle_write_dir, _review_cycle_write_location
+
         wp_slug = wp.path.stem
-        sub_artifact_dir = (
-            _resolve_workflow_read_dir(
-                repo_root=main_repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-            )
-            / "tasks"
-            / wp_slug
-        )
+        write_location = _review_cycle_write_location(main_repo_root, mission_slug)
+        sub_artifact_dir = _review_cycle_write_dir(write_location, wp_slug)
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
         # #3243: the advertised feedback path is numbered by the SAME
         # max(parsed)+1 authority the rejection writer allocates the

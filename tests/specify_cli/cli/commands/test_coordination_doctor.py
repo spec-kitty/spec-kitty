@@ -1461,3 +1461,122 @@ def test_run_coordination_health_ambiguous_handle_exits_1(
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=False, mission="dup")
     assert exc.value.exit_code == 1
+
+# ---------------------------------------------------------------------------
+# T035 (coord-artifact-single-home-01M3V4BE, FR-002b / R20): a freshly seeded
+# coordination branch is expected to carry COORD-only commits past target --
+# `doctor coordination --check-staleness` must not report
+# COORDINATION_BRANCH_DIVERGED_VS_TARGET for it. A genuinely diverged legacy
+# branch (a coordination commit touching a PRIMARY path) still reports.
+# ---------------------------------------------------------------------------
+
+
+def _doctor_init_repo(repo: Path, *, branch: str) -> None:
+    from tests._factories import provision_test_charter
+
+    (repo / ".kittify").mkdir(exist_ok=True)
+    provision_test_charter(repo)
+    (repo / "kitty-specs").mkdir(exist_ok=True)
+    (repo / "kitty-specs" / ".gitkeep").touch()
+    subprocess.run(["git", "-C", str(repo), "init", "-b", branch], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@test.com"], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "."], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-m", "init"], capture_output=True, check=True)
+
+
+def _doctor_mission_summary(slug: str) -> dict[str, str]:
+    title = slug.replace("-", " ").strip() or "test mission"
+    return {
+        "friendly_name": title.title(),
+        "purpose_tldr": f"Deliver {title} cleanly for the team.",
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
+    }
+
+
+def _run_coordination_health_json(monkeypatch: pytest.MonkeyPatch, repo: Path, capsys: pytest.CaptureFixture[str], *, mission: str) -> list[dict[str, Any]]:
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    with pytest.raises(typer.Exit):
+        cd.run_coordination_health(json_output=True, check_staleness=True, mission=mission)
+    payload: list[dict[str, Any]] = _json.loads(capsys.readouterr().out.strip())
+    return payload
+
+
+def test_seeded_coord_branch_not_reported_diverged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A freshly (coordination-routed) created mission's coordination branch is
+    AHEAD of target by design (T031 seeds it) -- `doctor coordination
+    --check-staleness` must never report ``COORDINATION_BRANCH_DIVERGED_VS_TARGET``
+    for it."""
+    from mission_runtime import MissionTopology
+    from specify_cli.core.mission_creation import create_mission_core
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _doctor_init_repo(repo, branch="work")
+    monkeypatch.setattr("specify_cli.core.mission_creation.is_worktree_context", lambda cwd: False)
+
+    result = create_mission_core(
+        repo,
+        "doctor-seeded",
+        topology=MissionTopology.COORD,
+        allow_worktree_context=True,
+        **_doctor_mission_summary("doctor-seeded"),
+    )
+    coordination_branch = result.meta["coordination_branch"]
+    # Non-vacuity: prove the coordination branch really carries the seeded
+    # Mission dir (ahead of target by design) -- at the WP06 lane base, with
+    # no seeding, the coord branch carries nothing and is merely BEHIND
+    # target (a `COORDINATION_BRANCH_STALE_VS_TARGET` finding, never
+    # DIVERGED), which would make the absence assertion below trivially true
+    # for the wrong reason.
+    coord_tree = subprocess.run(
+        ["git", "-C", str(repo), "ls-tree", "-r", "--name-only", coordination_branch],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert f"kitty-specs/{result.mission_slug}/status.events.jsonl" in coord_tree
+
+    findings = _run_coordination_health_json(monkeypatch, repo, capsys, mission=result.mission_slug)
+    error_codes = [f["error_code"] for f in findings]
+    assert cd._COORD_DIVERGED_VS_TARGET_CODE not in error_codes, (
+        f"a freshly seeded coordination branch must not be reported diverged (FR-002b/R20). Findings: {findings}"
+    )
+
+
+def test_genuinely_diverged_legacy_still_reported(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Control: a coordination commit that touches a PRIMARY-partition path
+    (``spec.md``) is a genuine divergence, not the FR-002b exemption -- it
+    must still be reported."""
+    from mission_runtime import MissionTopology
+    from specify_cli.core.mission_creation import create_mission_core
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _doctor_init_repo(repo, branch="work")
+    monkeypatch.setattr("specify_cli.core.mission_creation.is_worktree_context", lambda cwd: False)
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    result = create_mission_core(
+        repo,
+        "doctor-diverged",
+        topology=MissionTopology.COORD,
+        allow_worktree_context=True,
+        **_doctor_mission_summary("doctor-diverged"),
+    )
+    mid8 = str(result.meta["mid8"])
+    # Get-or-create: T031 already materialized this worktree at create time;
+    # on the pre-WP06 base it does not exist yet, so this creates it fresh --
+    # either way, the control below only cares about a PRIMARY-path leak onto
+    # whatever coordination worktree exists for this mission.
+    worktree = CoordinationWorkspace.resolve(repo, result.mission_slug, mid8)
+    spec_leak = worktree / "kitty-specs" / result.mission_slug / "spec.md"
+    spec_leak.parent.mkdir(parents=True, exist_ok=True)
+    spec_leak.write_text("# leaked spec\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(worktree), "add", "."], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(worktree), "commit", "-m", "leak a PRIMARY file onto coord"], capture_output=True, check=True)
+
+    findings = _run_coordination_health_json(monkeypatch, repo, capsys, mission=result.mission_slug)
+    error_codes = [f["error_code"] for f in findings]
+    assert cd._COORD_DIVERGED_VS_TARGET_CODE in error_codes, f"a coordination branch touching a PRIMARY path must still be reported diverged. Findings: {findings}"

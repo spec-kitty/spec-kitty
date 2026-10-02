@@ -139,6 +139,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, cast
 if TYPE_CHECKING:
     from specify_cli.acceptance import AcceptanceSummary
     from specify_cli.analysis_report import AnalysisReportResult
+    from specify_cli.coordination.commit_router import CommitRouterResult
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.decisions.models import OriginFlow
     from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
@@ -2864,10 +2865,11 @@ class _TimedWriteOutcome:
 
     completed: bool = False
     result: AnalysisReportResult | None = None
+    commit_result: CommitRouterResult | None = None
     raised: Exception | None = None
 
 
-def _run_write_with_timeout(fn: Callable[[], AnalysisReportResult], *, timeout_seconds: float) -> _TimedWriteOutcome:
+def _run_write_with_timeout(fn: Callable[[], tuple[AnalysisReportResult, CommitRouterResult | None]], *, timeout_seconds: float) -> _TimedWriteOutcome:
     """Run ``fn`` bounded by ``timeout_seconds`` in a daemon worker thread.
 
     A REAL enforced bound (NFR-004(b) / T020): ``Thread.join(timeout=...)``
@@ -2884,7 +2886,7 @@ def _run_write_with_timeout(fn: Callable[[], AnalysisReportResult], *, timeout_s
 
     def _worker() -> None:
         try:
-            outcome.result = fn()
+            outcome.result, outcome.commit_result = fn()
         except Exception as exc:  # noqa: BLE001 -- deliberately broad: captures
             # ANY failure from the underlying write path (including a test
             # double's injected raise) as diagnostic data. Never re-raised;
@@ -3001,7 +3003,7 @@ def _do_record_analysis_write(
     body: str,
     agent: str | None,
     mission_slug: str,
-) -> AnalysisReportResult:
+) -> tuple[AnalysisReportResult, CommitRouterResult | None]:
     """The underlying write path: ``write_analysis_report`` + a best-effort commit.
 
     Option (a) from plan.md § (j) (NFR-004(b)'s explicitly offered
@@ -3014,6 +3016,11 @@ def _do_record_analysis_write(
     is never invoked at all. This function itself additionally runs under
     :func:`_run_write_with_timeout` as defense-in-depth against any OTHER
     hang (e.g. a wedged git subprocess inside ``commit_for_mission``).
+
+    WP14 (contracts/commit-outcome.md): the return now ALSO carries the
+    router's own ``CommitRouterResult`` (``None`` when the best-effort commit
+    itself raised) so the caller can render ``commit_surfaces`` additively
+    instead of discarding the outcome entirely.
     """
     from specify_cli.analysis_report import write_analysis_report
 
@@ -3027,13 +3034,14 @@ def _do_record_analysis_write(
     # Best-effort commit -- mirrors mission_record_analysis.py's own narrowed
     # exception set (WP03/#3128 there): a commit failure (e.g. a protected
     # target ref) never undoes the write already on disk.
+    commit_result: CommitRouterResult | None = None
     with contextlib.suppress(subprocess.CalledProcessError, OSError, RuntimeError, ValueError):
         from mission_runtime import MissionArtifactKind
         from specify_cli.coordination.commit_router import commit_for_mission
         from specify_cli.core.paths import get_feature_target_branch
         from specify_cli.git.protection_policy import ProtectionPolicy
 
-        commit_for_mission(
+        commit_result = commit_for_mission(
             repo_root=main_repo_root,
             mission_slug=mission_slug,
             files=(result.path,),
@@ -3042,7 +3050,27 @@ def _do_record_analysis_write(
             kind=MissionArtifactKind.ANALYSIS_REPORT,
             target_branch=get_feature_target_branch(main_repo_root, mission_slug),
         )
-    return result
+    return result, commit_result
+
+
+def _record_analysis_commit_surfaces_payload(commit_result: CommitRouterResult | None) -> dict[str, Any]:
+    """Additive ``commit_surfaces`` (+ ``warnings``) fields for the success envelope (WP14, T076).
+
+    ``None`` (the best-effort commit itself raised) or an empty ``surfaces``
+    tuple (the legacy shape) adds nothing -- additive-only, never a new
+    required key (contracts/commit-outcome.md: "finalize-tasks (--json) adds
+    commit_surfaces beside the existing commit_hashes", the same additive
+    shape this orchestrator verb mirrors). ``warnings`` is populated only when
+    some surface is neither ``committed`` nor ``unchanged`` (research D8).
+    """
+    if commit_result is None or not commit_result.surfaces:
+        return {}
+    from specify_cli.coordination.commit_outcome import STATUS_COMMITTED, STATUS_UNCHANGED, commit_outcome_payload, render_commit_outcome
+
+    extra: dict[str, Any] = {"commit_surfaces": commit_outcome_payload(commit_result)["surfaces"]}
+    if any(outcome.status not in (STATUS_COMMITTED, STATUS_UNCHANGED) for outcome in commit_result.surfaces):
+        extra["warnings"] = render_commit_outcome(commit_result)
+    return extra
 
 
 @app.command(name="record-analysis")
@@ -3173,7 +3201,7 @@ def record_analysis(
     # line is preflight/validation, not "the underlying write call".
     call_start = now_utc_iso()
 
-    def _do_write() -> AnalysisReportResult:
+    def _do_write() -> tuple[AnalysisReportResult, CommitRouterResult | None]:
         return _do_record_analysis_write(
             write_feature_dir=write_feature_dir,
             main_repo_root=main_repo_root,
@@ -3199,6 +3227,7 @@ def record_analysis(
             "path": str(reread.path),
             "verdict": reread.verdict,
             "generated_at": reread.generated_at,
+            **_record_analysis_commit_surfaces_payload(write_outcome.commit_result),
         }
         validate_outbound_payload(data, "orchestrator_api")
         envelope = make_envelope(command=cmd, success=True, data=data)

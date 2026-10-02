@@ -184,6 +184,34 @@ def is_coord_residue_churn(
     It is deliberately NOT a silent internal assumption: the parameter exists so
     a topology-aware caller overrides it, and the merge dirty gate does.
 
+    **C-008 topology-less callers (coord-artifact-single-home-01M3V4BE WP12,
+    #5023 — RULED, Decision Moment ``plan.design.ledger-topology-less-verdict``).**
+    Six call sites never thread a ``topology`` through this predicate (so they
+    hit the ``MissionTopology.COORD`` default above); four of those also never
+    thread ``mission_slug``: ``cli/commands/agent/tasks_move_task.py::
+    _drop_lane_coord_residue``, ``cli/commands/agent/tasks_shared.py::
+    _list_wp_branch_mission_specs_changes``, ``cli/commands/implement.py::
+    _partition_files_for_commit`` / ``_guard_planning_commit_partition``, and
+    ``lanes/auto_rebase.py::_is_coordination_owned_artifact`` pass neither;
+    ``coordination/commit_router.py::partition_for_mission_path`` and
+    ``consolidation/executor.py``'s post-merge invariant gate pass
+    ``mission_slug`` but still never ``topology``. WP12's reclassification of
+    ``MissionArtifactKind.DECISION_LEDGER`` out of the COORD partition means NO
+    topology value makes :func:`~mission_runtime.kind_is_coordination_residue`
+    return ``True`` for it any more — so all six now report the ledger as real
+    work (never residue), with no code change needed here. The operator
+    RULING: this holds under EVERY topology, ``lanes`` / ``single_branch``
+    included — an uncommitted ``decisions/*`` ledger file is real work, never
+    residue, at every one of these callers regardless of the Mission's actual
+    stored topology. This is an accepted C-008 EXCEPTION (explicitly no
+    compatibility set, no logic change here): the historical
+    ``MissionTopology.COORD`` default already yields the ruled answer for this
+    kind, so the exception is realised entirely by WP12's partition move, not
+    by any resolution added to this function. See
+    ``tests/coordination/test_ledger_topology_less_callers.py`` for the
+    caller-level characterization pinning this across ``COORD`` / ``LANES`` /
+    ``SINGLE_BRANCH``.
+
     WP12 retirement: absorbs the retired ``mission_runtime`` predicate
     ``is_coordination_artifact_residue_path`` (module
     ``src/mission_runtime/artifacts.py``, registry mechanism `IC-07b`) as the

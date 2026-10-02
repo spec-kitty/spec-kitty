@@ -59,6 +59,14 @@ ACTOR = "test-actor"
 _SEAM_TARGET: dict[str, Path | None] = {"dir": None}
 
 
+class _FakeWriteLocation:
+    """Minimal ``WriteLocation`` double exposing only the ``.path`` attribute
+    ``_mission_dir`` consumes."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+
 class _StubMissionDirSeam:
     def __init__(self, repo_root: Path, mission_slug: str) -> None:
         self._repo_root = repo_root
@@ -66,6 +74,12 @@ class _StubMissionDirSeam:
 
     def read_dir(self, kind: object) -> Path:
         return _SEAM_TARGET["dir"] or self._repo_root / "kitty-specs" / self._mission_slug
+
+    def write_dir(self, kind: object) -> _FakeWriteLocation:
+        # coord-artifact-single-home-01M3V4BE WP09 (T049): the write-side
+        # writer now resolves through ``write_dir`` instead of ``read_dir`` --
+        # same stubbed target either way.
+        return _FakeWriteLocation(_SEAM_TARGET["dir"] or self._repo_root / "kitty-specs" / self._mission_slug)
 
 
 @pytest.fixture(autouse=True)

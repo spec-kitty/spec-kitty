@@ -104,11 +104,24 @@ from mission_runtime.write_target_degrade import (
     resolve_write_target_or_degrade,
 )
 
+# coord-artifact-single-home-01M3V4BE WP03 (FR-003a/FR-004): the write-location
+# accessor's value objects. MR-1/MR-2 forbid submodule imports, so both live on
+# the package root -- ``specify_cli.coordination.coord_seed`` (and WP04's
+# ``PlacementSeam.write_dir``) import them from here only.
+from mission_runtime.write_location import (
+    Establishment,
+    SeedReport,
+    WriteLocation,
+)
+
 __all__ = [
     "ActionContextError",
     "CheckoutIdentityError",
     "ClaimCommitUnresolved",
     "CommitTarget",
+    # coord-artifact-single-home-01M3V4BE WP03: the write-location accessor's
+    # ``Establishment`` outcome enum (``write_location.py``).
+    "Establishment",
     # #5222 (F2): promoted onto the package root so review/doctor consumers of
     # ``read_issue_matrix_ref_content`` (via ``resolve_issue_matrix_partition``)
     # can catch it by type instead of a bare ``Exception`` -- it was reachable
@@ -125,8 +138,15 @@ __all__ = [
     "PlacementSeam",
     "ReadDegradeStrategy",
     "ReadDirDecision",
+    # coord-artifact-single-home-01M3V4BE WP03: the seed-operation result value
+    # object (``write_location.py``) -- referenced by ``WriteLocation.seed``.
+    "SeedReport",
     "TopologyManifestMismatch",
     "TopologySurface",
+    # coord-artifact-single-home-01M3V4BE WP03: the write-location accessor's
+    # result value object (``write_location.py``) -- the public face of
+    # ``establish_coord_write_location`` / the future ``PlacementSeam.write_dir``.
+    "WriteLocation",
     # coord-read-fail-closed landing (#5001): the basename->kind classifier map
     # itself, re-exported so ``specify_cli.coordination.surface_resolver`` can
     # invert it (kind -> basenames) without reaching into the

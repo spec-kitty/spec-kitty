@@ -105,16 +105,23 @@ class MissionArtifactKind(enum.Enum):
     # directory-anchored, so ``tasks/<wp>/baseline-tests.json`` stays
     # WORK_PACKAGE_TASK.
     REVIEW_CYCLE = "review_cycle"
-    # #3928: the Decision Moment LEDGER directory (``decisions/index.json`` +
-    # ``decisions/DM-<ulid>.md``, ``decisions/store.py``) is a COORD-partition
-    # kind -- ``decisions/service.py``'s ``_mission_dir`` already documents the
-    # ledger as "coord-authority-owned STATUS-partition state" routed through
-    # ``placement_seam(...).read_dir(STATUS_STATE)``. Its own kind (NOT
-    # STATUS_STATE itself -- ``is_status_state_path`` must keep matching
-    # exactly ``status.events.jsonl`` / ``status.json`` and nothing else) so
-    # the churn classifier (``kind_for_mission_file`` ->
-    # ``kind_is_coordination_residue``) finally agrees with the write side:
-    # an uncommitted ledger is coordination residue, not real worktree dirt.
+    # coord-artifact-single-home-01M3V4BE WP12 (FR-009/FR-009a, #5023): the
+    # Decision Moment LEDGER directory (``decisions/index.json`` +
+    # ``decisions/DM-<ulid>.md``, ``decisions/store.py``) is a PRIMARY-partition
+    # kind. #3928 classified it COORD on the theory that
+    # ``decisions/service.py``'s ``_mission_dir`` routed it through
+    # ``placement_seam(...).read_dir(STATUS_STATE)`` ("coord-authority-owned
+    # STATUS-partition state") -- but #4966 AC-D2 already moved the ledger's
+    # OWN reads/writes onto the PRIMARY-partition ``_ledger_dir`` (resolving
+    # ``PRIMARY_METADATA``), so the #3928 classification disagreed with the
+    # write side it was meant to describe. That split made ``spec-commit``
+    # re-route the ledger's files onto the coordination branch and forked it
+    # from the mission's own history (#5023). This reclassification makes the
+    # taxonomy agree with the write side instead: the ledger lives on the
+    # PRIMARY ``target_branch`` for every topology and never transits
+    # coordination, exactly like the other identity/planning kinds. Decision
+    # **events** (``status.events.jsonl`` / ``decisions.events.jsonl`` --
+    # :data:`DECISION_LOG`) are UNCHANGED by this move and stay COORD-partition.
     DECISION_LEDGER = "decision_ledger"
 
 
@@ -182,6 +189,12 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # is KEPT (it is the file→kind map, not a residue-only list — deleting it would make
         # ``kind_for_mission_file("analysis-report.md") → None`` and mis-route it).
         MissionArtifactKind.ANALYSIS_REPORT,
+        # coord-artifact-single-home-01M3V4BE WP12 (FR-009, #5023): the Decision
+        # Moment ledger (``decisions/index.json`` + ``decisions/DM-<ulid>.md``)
+        # re-homed COORD→PRIMARY -- see the DECISION_LEDGER enum member
+        # docstring above. ``_COORD_RESIDUE_DIRS["decisions"]`` keeps mapping
+        # the directory to this kind; only the PARTITION membership moved.
+        MissionArtifactKind.DECISION_LEDGER,
     }
 )
 
@@ -206,9 +219,11 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # bookkeeping -- COORD-partition, not the WORK_PACKAGE_TASK they used
         # to borrow. See the enum member docstring above.
         MissionArtifactKind.REVIEW_CYCLE,
-        # #3928: the Decision Moment ledger (``decisions/``) joins the COORD
-        # partition -- see the DECISION_LEDGER enum member docstring above.
-        MissionArtifactKind.DECISION_LEDGER,
+        # coord-artifact-single-home-01M3V4BE WP12 (FR-009, #5023): the
+        # Decision Moment ledger (``decisions/``) was re-homed PRIMARY -- see
+        # the DECISION_LEDGER enum member docstring and
+        # ``_PRIMARY_ARTIFACT_KINDS`` above. The #3928 COORD classification is
+        # REVERSED here, not restated.
     }
 )
 
@@ -277,13 +292,14 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     # coord-write-placement-closure-01KYCF83 WP02 (FR-006): traces/ (mission
     # tracer files) is a COORD-partition kind (see ``_PLACEMENT_ARTIFACT_KINDS``).
     "traces": MissionArtifactKind.TRACER_FILE,
-    # #3928: decisions/ (the Decision Moment ledger -- ``index.json`` +
-    # ``DM-<ulid>.md``, the only two shapes ``decisions/store.py`` writes) is
-    # a COORD-partition kind, matching the write side's own placement
-    # (``decisions/service.py`` routes the directory through
-    # ``read_dir(STATUS_STATE)``). Directory-anchored like traces/ -- unlike
-    # tasks/, nothing under decisions/ is deliberately PRIMARY, so there is no
-    # review-cycle-style filename leg to draw.
+    # coord-artifact-single-home-01M3V4BE WP12 (FR-009, #5023): decisions/
+    # (the Decision Moment ledger -- ``index.json`` + ``DM-<ulid>.md``, the
+    # only two shapes ``decisions/store.py`` writes) is a PRIMARY-partition
+    # kind -- the directory itself still maps to this SAME kind via this
+    # entry (only the kind's PARTITION membership moved, not this mapping);
+    # see the DECISION_LEDGER enum member docstring above. Directory-anchored
+    # like traces/ -- unlike tasks/, nothing under decisions/ is deliberately
+    # COORD, so there is no review-cycle-style filename leg to draw.
     "decisions": MissionArtifactKind.DECISION_LEDGER,
 }
 

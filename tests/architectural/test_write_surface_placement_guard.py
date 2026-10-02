@@ -5,10 +5,13 @@ REAL coordination-topology fixture, across EVERY converged write path. The bifur
 
 * PRIMARY-partition kinds (``SPEC`` / ``DATA_MODEL`` / ``RESEARCH`` / ``CHECKLIST`` /
   ``FINALIZED_EXECUTION_PLAN`` / ``TASKS_INDEX`` / ``WORK_PACKAGE_TASK`` /
-  ``LANE_STATE`` / ``PRIMARY_METADATA`` / ``RETROSPECTIVE`` / ``ANALYSIS_REPORT``)
-  resolve to the primary ``target_branch`` for EVERY topology and NEVER transit
-  coordination. (``ANALYSIS_REPORT`` was re-homed COORD→PRIMARY by FR-003 /
-  coord-commit-integrity.)
+  ``LANE_STATE`` / ``PRIMARY_METADATA`` / ``RETROSPECTIVE`` / ``ANALYSIS_REPORT`` /
+  ``DECISION_LEDGER``) resolve to the primary ``target_branch`` for EVERY
+  topology and NEVER transit coordination. (``ANALYSIS_REPORT`` was re-homed
+  COORD→PRIMARY by FR-003 / coord-commit-integrity; ``DECISION_LEDGER`` was
+  re-homed COORD→PRIMARY by coord-artifact-single-home-01M3V4BE WP12, FR-009,
+  #5023 — #3928's COORD classification disagreed with the write side, which
+  already resolved PRIMARY since #4966 AC-D2.)
 * COORD-partition kinds (``STATUS_STATE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``)
   keep the topology-routed coordination ref under coord topology.
 
@@ -340,6 +343,12 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.RETROSPECTIVE,
         # FR-003 (coord-commit-integrity): ANALYSIS_REPORT re-homed COORD→PRIMARY.
         MissionArtifactKind.ANALYSIS_REPORT,
+        # coord-artifact-single-home-01M3V4BE WP12 (FR-009, #5023): the
+        # Decision Moment ledger (``decisions/index.json`` +
+        # ``decisions/DM-<ulid>.md``) re-homed COORD→PRIMARY -- its own
+        # reads/writes already resolved PRIMARY (#4966 AC-D2); this
+        # reclassification makes the taxonomy agree with the write side.
+        MissionArtifactKind.DECISION_LEDGER,
     }
     coord_kinds = {
         MissionArtifactKind.STATUS_STATE,
@@ -353,10 +362,6 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         # 2026-08-03-1): review-cycle artifacts are per-WP lifecycle
         # bookkeeping -- COORD-partition.
         MissionArtifactKind.REVIEW_CYCLE,
-        # #3928: the Decision Moment ledger (``decisions/index.json`` +
-        # ``decisions/DM-<ulid>.md``) -- coord-authority-owned state, matching
-        # the write side's own ``read_dir(STATUS_STATE)`` placement.
-        MissionArtifactKind.DECISION_LEDGER,
     }
     # Sanity: the two sets partition the whole enum exactly once.
     assert primary_kinds | coord_kinds == set(MissionArtifactKind)
@@ -809,16 +814,42 @@ def test_review_cycle_e2_published_resolves_consolidated_surface(tmp_path: Path)
     assert resolved == CommitTarget(ref="main")
 
 
-def test_review_cycle_e2_ruling_does_not_affect_status_state_exclusion(
+def test_review_cycle_e2_ruling_does_not_affect_decision_log_exclusion(
     tmp_path: Path,
 ) -> None:
-    """T016 non-regression: STATUS_STATE / DECISION_LOG's existing exclusion
-    from the E2-eligible set is unaffected by REVIEW_CYCLE's inclusion --
-    STATUS_STATE still probes coordination (and raises) for the SAME
-    fully-retired-coord E2 fixture."""
+    """T016 non-regression: ``DECISION_LOG``'s exclusion from the
+    PUBLISHED/E2-eligible set is unaffected by REVIEW_CYCLE's inclusion --
+    it still probes coordination (and raises) for the SAME fully-retired-coord
+    E2 fixture. ``STATUS_STATE`` is a SEPARATE, narrower case: see
+    ``test_review_cycle_e2_ruling_does_not_widen_status_state_beyond_its_own_ruling``
+    below -- the `plan.design.published-status-state-write` operator ruling
+    (coord-artifact-single-home-01M3V4BE WP14 cycle 2, B1) moved STATUS_STATE's
+    WRITE side onto this same short-circuit, superseding this test's former
+    STATUS_STATE assertion."""
     from mission_runtime import ActionContextError
 
     repo, mission_slug = _build_e2_review_cycle_mission(tmp_path)
 
     with pytest.raises(ActionContextError):
-        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)
+        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.DECISION_LOG)
+
+
+def test_review_cycle_e2_ruling_does_not_widen_status_state_beyond_its_own_ruling(
+    tmp_path: Path,
+) -> None:
+    """`plan.design.published-status-state-write` (WP14 cycle 2, B1):
+    ``STATUS_STATE``'s WRITE-side PUBLISHED/E2 short-circuit resolves the
+    CONSOLIDATED target directly for this SAME fully-retired-coord fixture --
+    the #5513/#5501 crash (``CoordinationBranchDeleted`` from
+    ``retrospect``/``agent-retrospect``'s event-log append) this ruling
+    exists to close. It is a SEPARATE grant from REVIEW_CYCLE's own T016
+    inclusion (REVIEW_CYCLE is E2-eligible via ``_E2_CONSOLIDATED_ELIGIBLE_KINDS``
+    membership; STATUS_STATE via the narrower
+    ``_is_published_write_short_circuit_kind`` predicate) -- this test proves
+    the two gates do not interact (REVIEW_CYCLE's own grant does not need to
+    exist for STATUS_STATE to resolve here, and vice versa)."""
+    repo, mission_slug = _build_e2_review_cycle_mission(tmp_path)
+
+    resolved = resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)
+
+    assert resolved == CommitTarget(ref="main")

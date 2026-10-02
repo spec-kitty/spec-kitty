@@ -229,14 +229,22 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return the COORD-partition kitty-specs/<mission_slug>/ dir.
+    """Return the READ-side COORD-partition kitty-specs/<mission_slug>/ dir.
 
     ``status.events.jsonl`` is coord-authority-owned STATUS-partition state --
-    the SAME directory ``decisions/emit.py``'s permanent kind-blind write
-    target resolves to (data-model.md:31, the 2 permanent-by-design
-    coord_authority writes). Routed through
-    ``placement_seam(...).read_dir(STATUS_STATE)`` so this read stays
-    topology-aware and agrees with where emit.py writes.
+    the SAME directory ``decisions/emit.py``'s write target resolves to
+    (data-model.md:31, the 2 permanent-by-design coord_authority writes).
+    Routed through ``placement_seam(...).read_dir(STATUS_STATE)`` so this
+    read stays topology-aware and agrees with where emit.py writes.
+
+    coord-artifact-single-home-01M3V4BE WP09: this is the READ-ONLY half of
+    the read/write split (analyze-report correction "Read/write split in
+    service.py too"). ``_opened_event_exists`` (via
+    ``_repair_missing_opened_event``) is a pure idempotency PROBE -- it must
+    use ``read_dir``'s ``EMPTY`` -> PRIMARY leniency (C-002), never
+    ``write_dir``, or a mere existence check would seed or materialize a
+    coordination surface as a side effect. Writers use
+    :func:`_write_mission_dir` / :func:`_write_events_path` instead.
 
     #4966 AC-D2 (WP03 residual): the decisions LEDGER directory
     (``decisions/index.json`` / ``DM-<id>.md``) no longer resolves through
@@ -248,8 +256,39 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:
-    """Return kitty-specs/<mission_slug>/status.events.jsonl."""
+    """Return the READ-side kitty-specs/<mission_slug>/status.events.jsonl.
+
+    Read-only callers only (see :func:`_mission_dir`). Writers use
+    :func:`_write_events_path`.
+    """
     return _mission_dir(repo_root, mission_slug) / "status.events.jsonl"
+
+
+def _write_mission_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the WRITE location of ``kitty-specs/<mission_slug>/`` for decision events.
+
+    coord-artifact-single-home-01M3V4BE WP09 (FR-003/FR-003a, #5519): the
+    write-side counterpart of :func:`_mission_dir`. Routed through
+    ``placement_seam(...).write_dir(STATUS_STATE)``, which materializes,
+    seeds, restores, or refuses loudly as the coordination state requires --
+    replacing the two direct ``materialize_coord_surface_for_write`` calls
+    this module used to make before every decision-event write (those
+    materialized but never seeded, so a pre-fix Mission forked its log at
+    the first decision). ``write_dir`` owns materialize/seed/refuse, so
+    resolving this path is now the single pre-write placement check: any
+    placement failure (``CoordinationWorktreeUnmaterialized``,
+    ``CoordinationBranchDeleted``, ``CoordSeedForkRefused``, a
+    ``STATUS_LOCK_HELD``-coded ``FeatureStatusLockTimeoutError``) fails
+    BEFORE any ledger write, so a refusal leaves the ledger untouched (zero
+    record loss, NFR-002) -- call this BEFORE ``_ledger_dir`` writes.
+    """
+    mission_dir: Path = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
+    return mission_dir
+
+
+def _write_events_path(repo_root: Path, mission_slug: str) -> Path:
+    """Return the WRITE-side path to ``status.events.jsonl`` (see :func:`_write_mission_dir`)."""
+    return _write_mission_dir(repo_root, mission_slug) / "status.events.jsonl"
 
 
 def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
@@ -491,15 +530,15 @@ def open_decision(
             event_lamport=None,
         )
 
-    # #5113 / FR-013: resolve every write target BEFORE any ledger write. A fresh
-    # coordination Mission has its branch but no worktree; materialize it through the
-    # canonical materializer so the ledger write and the event emit land on a real
-    # surface. Function-local import: decisions.* sits on the charter cold-import path
-    # (tests/architectural/test_cold_import_status_boundary.py).
-    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
-
-    materialize_coord_surface_for_write(repo_root, mission_slug)
-    _events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
+    # #5113 / FR-013, corrected by coord-artifact-single-home-01M3V4BE WP09:
+    # resolve the event WRITE location BEFORE any ledger write.
+    # ``write_dir`` owns materialize/seed/refuse (replacing the former direct
+    # ``materialize_coord_surface_for_write`` call, which materialized but
+    # never seeded, so a pre-fix Mission forked its log at the first
+    # decision). A placement failure here fails BEFORE the ledger write
+    # below, so a refusal leaves the ledger untouched (zero record loss,
+    # NFR-002).
+    _write_events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
 
     # T010 (D4/FR-004): the dedup lookup (check) and the mint-and-append
     # (act) run under ONE lock acquisition -- the service-level
@@ -688,13 +727,11 @@ def _terminal_command(
             event_lamport=None,
         )
 
-    # #5113 / FR-013: see ``open_decision``'s identical rationale -- materialize
-    # any absent coordination worktree before this terminal write (resolve /
-    # defer / cancel all route through here).
-    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
-
-    materialize_coord_surface_for_write(repo_root, mission_slug)
-    _events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
+    # #5113 / FR-013, corrected by coord-artifact-single-home-01M3V4BE WP09:
+    # see ``open_decision``'s identical rationale -- resolve the event WRITE
+    # location before this terminal write (resolve / defer / cancel all
+    # route through here).
+    _write_events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
 
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
     # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.

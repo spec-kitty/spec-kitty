@@ -128,19 +128,28 @@ def test_coord_legacy_md_verdict_is_preserved_when_recording_a_new_issue(tmp_pat
 # ===========================================================================
 
 
-def test_migration_write_is_staged_on_primary_not_coord(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """C-011 killer assertion: the migration's write stays staged on PRIMARY.
+def test_migration_write_lands_in_place_on_coord_never_staged_on_primary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP10 (single-home rule) killer assertion: the migration's write lands
+    IN PLACE on the coordination surface -- never staged on PRIMARY first.
 
-    A bare "no primary residue" check is INSUFFICIENT (the untouched main write
-    cleans residue for the wrong fix too). This spies on the migration's
-    ``write_issue_matrix`` and asserts it received ``feature_dir == primary``.
+    Re-pinned deliberately (WP10 retires the former C-011 "stage on primary,
+    let the router copy" contract for ISSUE_MATRIX, matching the brownfield
+    scout's "Decision `plan.design.owning-copy-flip-allocation`"):
+    ``write_issue_matrix`` no longer takes a caller-supplied ``feature_dir``
+    at all -- it resolves ``write_dir(ISSUE_MATRIX)`` itself, lazily, so the
+    materialized file's path IS the owning (coordination) location directly.
+    A bare "no primary residue" check is INSUFFICIENT on its own (the
+    untouched main write cleans residue for the wrong fix too) -- this spies
+    on the write-seam's own ``stage=`` thunk to record exactly which path was
+    materialized, and separately asserts no primary-checkout copy ever
+    existed even transiently.
 
-    Falsifiability (verified manually, see PR):
+    Falsifiability (mirrors the retired test's own falsifiability table):
     - base:  migration reads the empty primary surface, returns ``None`` -> the
       migration write is NEVER invoked -> ``recorded == []`` (RED).
-    - ``read_dir``-as-write mutant: the migration writes with
-      ``feature_dir == coord`` -> ``recorded == [coord_feature_dir]`` (RED).
-    - fix:   ``recorded == [primary]`` (GREEN).
+    - a stage-on-primary mutant: ``recorded == [primary/issue-matrix.json]``
+      (RED, the behaviour this WP retires).
+    - fix:   ``recorded == [coord_feature_dir/issue-matrix.json]`` (GREEN).
     """
     result, coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
     slug = result.mission_slug
@@ -151,16 +160,25 @@ def test_migration_write_is_staged_on_primary_not_coord(tmp_path: Path, monkeypa
         _LEGACY_MD_HEADER + "| #A | Pre-existing | fixed | commit aaa111 |\n",
     )
 
-    import specify_cli.tasks.issue_matrix_migration as migration_mod
+    import specify_cli.coordination.write_seam as write_seam_mod
 
-    real_write = migration_mod.write_issue_matrix
-    recorded_feature_dirs: list[Path] = []
+    real_write_artifact = write_seam_mod.write_artifact
+    recorded_paths: list[Path] = []
 
-    def _spy_write(*, feature_dir: Path, **kwargs: object):  # type: ignore[no-untyped-def]
-        recorded_feature_dirs.append(feature_dir)
-        return real_write(feature_dir=feature_dir, **kwargs)
+    def _spy_write_artifact(**kwargs: object) -> object:
+        stage = kwargs.get("stage")
+        if callable(stage):
+            original_stage = stage
 
-    monkeypatch.setattr(migration_mod, "write_issue_matrix", _spy_write)
+            def _wrapped_stage() -> tuple[Path, ...]:
+                paths = original_stage()
+                recorded_paths.extend(paths)
+                return paths
+
+            kwargs["stage"] = _wrapped_stage
+        return real_write_artifact(**kwargs)
+
+    monkeypatch.setattr(write_seam_mod, "write_artifact", _spy_write_artifact)
 
     monkeypatch.chdir(tmp_path)
     payload = do_issue_verdict(
@@ -173,13 +191,16 @@ def test_migration_write_is_staged_on_primary_not_coord(tmp_path: Path, monkeypa
     )
 
     assert payload["ok"] is True and payload["migrated"] is True, payload
-    assert recorded_feature_dirs == [result.feature_dir], (
-        "the migration must read the coord surface but STAGE its write on the PRIMARY "
-        "feature_dir (C-011: the write-seam materializes coord + cleans residue). "
-        f"expected exactly one migration write staged on {result.feature_dir}, "
-        f"got {recorded_feature_dirs}"
+    # Two writes land in this flow -- the migration's own write (the legacy
+    # .md -> JSON conversion) and the subsequent verdict-row splice -- both
+    # MUST materialize at the SAME owning (coordination) location, never a
+    # primary-checkout staging copy.
+    assert recorded_paths, "expected at least one write_artifact stage() call"
+    assert set(recorded_paths) == {coord_feature_dir / "issue-matrix.json"}, (
+        f"every write in this flow must materialize DIRECTLY at the coord surface, never staged on primary. Got: {recorded_paths}"
     )
-    assert coord_feature_dir not in recorded_feature_dirs
+    primary_residue = result.feature_dir / "issue-matrix.json"
+    assert not primary_residue.exists(), f"single-home rule violated: a primary-checkout copy was left at {primary_residue}"
 
 
 # ===========================================================================

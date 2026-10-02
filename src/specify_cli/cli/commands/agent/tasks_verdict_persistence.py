@@ -252,9 +252,7 @@ class VerdictRevertCompoundFailure(RuntimeError):
         super().__init__(message)
 
 
-def _resolve_revert_commit_worktree(
-    st: _MoveTaskState, *, target_ref: str, original_path: Path,
-) -> tuple[Path, Path | None]:
+def _resolve_revert_commit_worktree(st: _MoveTaskState, *, target_ref: str) -> Path:
     """Resolve the worktree :func:`~specify_cli.git.safe_commit` must run FROM
     for T048's revert (WP13 companion fix, DM-01KZ75GBNXC73Q38M43GBH38W7).
 
@@ -263,58 +261,38 @@ def _resolve_revert_commit_worktree(
     own ``_resolve_commit_worktree_for_kind`` docstring). When ``target_ref``
     is the mission's PRIMARY target branch, the primary checkout
     (``st.main_repo_root``) already satisfies that -- the ORIGINAL write
-    physically lives there too, so the just-unlinked ``original_path`` is the
-    correct commit path.
+    physically lives there too.
 
-    When ``target_ref`` is NOT the primary target branch (a coord-partition
-    kind under a coordination topology), the original write's COMMIT landed
-    on the coordination worktree via ``commit_for_mission``'s own
-    ``_materialise_coord_worktree`` / ``_stage_artifacts_in_coord_worktree``
-    staging step (``coordination/commit_router.py``) -- which copies the
-    artifact from the primary checkout into the coord worktree at the SAME
-    repo-relative path BEFORE committing there, and does not clean that copy
-    up afterward. A genuine revert must therefore ALSO delete that staged
-    copy and commit the deletion from the coord worktree: deleting only the
-    primary-checkout copy (as this compensator did before this fix) leaves
-    the coord-committed verdict fully intact and readable.
-
-    Returns ``(worktree_root, commit_path)`` -- ``commit_path`` is ``None``
-    when the coord-staged copy is already absent (idempotent no-op, mirroring
-    the primary-copy check in the caller).
+    **Superseded by coord-artifact-single-home-01M3V4BE WP08's single-home
+    write rule.** The "stage-in-root-then-copy" shape this docstring used to
+    describe (a PRIMARY-checkout original plus a SEPARATE coord-worktree copy
+    at the same repo-relative path, left behind by ``commit_for_mission``'s
+    staging step) no longer exists: the write seam
+    (:func:`~specify_cli.review.cycle.create_rejected_review_cycle`) now
+    resolves its directory through ``PlacementSeam.write_dir`` and writes
+    ONLY there, so the caller's ``original_path`` IS ALREADY the
+    coordination-worktree path for a coord-partition kind under a
+    coordination topology -- there is no second copy to re-derive or
+    separately unlink, so this function no longer needs ``original_path`` as
+    an input (it used to re-derive a "coord copy" path from it); it only
+    resolves the CHECKOUT ROOT the caller commits that same path FROM.
     """
     if st.owned is not None:
-        return st.owned.owned_root, original_path
+        # ``OwnedCheckout.owned_root`` is typed ``Path`` but mypy widens it to
+        # ``Any`` through the ``follow_imports=skip`` boundary on
+        # ``specify_cli.*``; bind explicitly so the return narrows back.
+        owned_root: Path = st.owned.owned_root
+        return owned_root
     if target_ref == st.target_branch:
-        return st.main_repo_root, original_path
+        main_repo_root: Path = st.main_repo_root
+        return main_repo_root
 
-    from mission_runtime import MissionArtifactKind, placement_seam, resolve_mid8
+    from mission_runtime import MissionArtifactKind, placement_seam
 
-    from specify_cli.coordination.workspace import CoordinationWorkspace
-    from specify_cli.mission_metadata import load_meta
-
-    primary_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
-    meta = load_meta(primary_dir, allow_missing=True, on_malformed="none")
-    raw_mission_id = meta.get("mission_id") if meta else None
-    mid8 = (
-        resolve_mid8(st.mission_slug, mission_id=raw_mission_id)
-        if isinstance(raw_mission_id, str)
-        else ""
-    )
-    if not mid8:
-        raise VerdictRevertError(
-            f"Cannot resolve the coordination worktree for {st.mission_slug!r} "
-            "to revert a coord-partition verdict commit (mission_id missing "
-            "or malformed in meta.json) -- operator attention required."
-        )
-    coord_worktree = CoordinationWorkspace.resolve(st.main_repo_root, st.mission_slug, mid8)
-    rel_path = original_path.relative_to(st.main_repo_root)
-    coord_copy = coord_worktree / rel_path
-    if not coord_copy.exists():
-        return coord_worktree, None
-    coord_copy.unlink()
-    return coord_worktree, coord_copy
+    checkout_root: Path = placement_seam(st.main_repo_root, st.mission_slug).write_dir(
+        MissionArtifactKind.REVIEW_CYCLE
+    ).checkout_root
+    return checkout_root
 
 
 def revert_committed_verdict_write(
@@ -416,18 +394,14 @@ def _revert_committed_verdict_write_held(
         st.mission_slug,
         owned=st.owned,
     ).write_target(kind=MissionArtifactKind.REVIEW_CYCLE)
-    worktree_root, commit_path = _resolve_revert_commit_worktree(
-        st, target_ref=target.ref, original_path=original_path
-    )
-    if commit_path is None:
-        return  # coord-staged copy already reverted (or never landed) -- idempotent no-op
+    worktree_root = _resolve_revert_commit_worktree(st, target_ref=target.ref)
     try:
         safe_commit(
             repo_root=st.owned.owned_root if st.owned is not None else st.main_repo_root,
             worktree_root=worktree_root,
             target=target,
             message=message,
-            paths=(commit_path,),
+            paths=(original_path,),
             capability=GuardCapability.STANDARD,
             owned=st.owned,
         )

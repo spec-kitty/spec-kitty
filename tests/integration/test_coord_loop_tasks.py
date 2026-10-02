@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -316,14 +317,18 @@ class TestFinalizeTasksRoutesToPrimary:
         # a ## WP01 section.
         _write_tasks_md(ctx.primary_feature_dir)
 
-        # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg
-        # (``_ft_apply_writes``'s bootstrap read) now routes through the
-        # kind-aware ``placement_seam(...).read_dir(STATUS_STATE)`` seam — a
-        # module-scope import in ``tasks_finalize.py`` (NOT ``tasks.py``, unlike
-        # the ``list_tasks`` site above) — instead of the retired kind-blind
-        # ``resolve_feature_dir_for_mission``. Stub the seam itself.
+        # read-surface-ssot-closeout WP08 / FR-001: the historical
+        # ``placement_seam(...).read_dir(STATUS_STATE)`` seam (replacing the
+        # retired kind-blind ``resolve_feature_dir_for_mission``).
+        # coord-artifact-single-home-01M3V4BE WP15/T080 (cycle 2, B2/NFR-002):
+        # the WRITE leg (``_ft_emit_status_events``) now resolves
+        # ``write_dir(STATUS_STATE)`` ONLY when NOT ``--validate-only`` (a
+        # mutation — materialize/seed/commit — write_dir must never run in
+        # validate-only mode). This fixture runs ``--validate-only``, so
+        # ``placement_seam`` must NEVER be called at all; the stub exists only
+        # to fail loudly (via the assertion below) if that invariant regresses.
         mock_seam = MagicMock()
-        mock_seam.read_dir.return_value = ctx.coord_feature_dir
+        mock_seam.write_dir.return_value = SimpleNamespace(path=ctx.coord_feature_dir)
 
         runner = CliRunner()
         with (
@@ -335,7 +340,7 @@ class TestFinalizeTasksRoutesToPrimary:
             patch(
                 "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
                 return_value=mock_seam,
-            ),
+            ) as seam_mock,
         ):
             result = runner.invoke(
                 app,
@@ -360,6 +365,10 @@ class TestFinalizeTasksRoutesToPrimary:
             f"WP01 must appear in dependencies map (parsed from primary tasks.md).\n"
             f"Got dependencies: {deps}"
         )
+
+        # B2/NFR-002: --validate-only must never establish the coordination
+        # surface (write_dir materializes/seeds/commits).
+        seam_mock.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

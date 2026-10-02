@@ -34,6 +34,24 @@ from mission_runtime import (
     is_primary_artifact_kind,
     routes_through_coordination,
 )
+from specify_cli.coordination.commit_outcome import (
+    REASON_ALREADY_COMMITTED as _REASON_ALREADY_COMMITTED,
+)
+from specify_cli.coordination.commit_outcome import (
+    REASON_NO_CHANGES as _REASON_NO_CHANGES,
+)
+from specify_cli.coordination.commit_outcome import (
+    STATUS_COMMITTED as _STATUS_COMMITTED,
+)
+from specify_cli.coordination.commit_outcome import (
+    STATUS_ERROR as _STATUS_ERROR,
+)
+from specify_cli.coordination.commit_outcome import (
+    STATUS_NO_OP_WRONG_SURFACE as _STATUS_NO_OP_WRONG_SURFACE,
+)
+from specify_cli.coordination.commit_outcome import (
+    STATUS_UNCHANGED as _STATUS_UNCHANGED,
+)
 
 # ``__all__`` names only what a runtime (``src/``) caller currently imports — the
 # repo's dead-symbol gate (FR-303, ``tests/architectural/test_no_dead_symbols.py``)
@@ -259,13 +277,12 @@ def resolve_surface_authority(
 # ---------------------------------------------------------------------------
 
 # The router status literals this classifier maps (``commit_router.py`` /
-# ``write_seam.py``). Named once (S1192) so the mapping stays a single source.
-_STATUS_COMMITTED: Final = "committed"
-_STATUS_UNCHANGED: Final = "unchanged"
-_STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
-_STATUS_ERROR: Final = "error"
-_REASON_ALREADY_COMMITTED: Final = "no_op_already_committed"
-_REASON_NO_CHANGES: Final = "no_op_no_changes"
+# ``write_seam.py``). WP05 (T024 CORRECTION, brownfield scout round 3): these
+# six aliases now import their VALUE from ``commit_outcome`` — the single
+# canonical owner (it was a second, un-cross-referenced copy of the same
+# strings before) — at the top of this module; see the import block above.
+# ``_DEFAULT_NO_OP_REASON`` is local-only vocabulary (not part of the
+# ``commit_outcome`` contract), so it stays defined here.
 _DEFAULT_NO_OP_REASON: Final = "no_op"
 
 
@@ -320,5 +337,15 @@ def _exit_code_for(verdict: NonCommittable) -> int:
     :class:`RouteToCoord` all succeed (exit 0); a :class:`Refuse` fails (exit 1).
     Mirrors the CLI's status→exit mapping (``committed`` / ``unchanged`` → 0;
     ``no_op_wrong_surface`` / ``error`` → 1).
+
+    WP05 note: this rule operates over :data:`NonCommittable` — the STATIC
+    create-time/kind-authority verdict shape — not the per-surface RUNTIME
+    outcome :func:`~specify_cli.coordination.commit_outcome.commit_outcome_exit_code`
+    maps (``SurfaceOutcome.status`` across ``CommitRouterResult.surfaces``).
+    The two verdict shapes are disjoint, so this function cannot delegate to
+    that one; what it DOES share with it, after T024's correction, is the
+    underlying status/reason STRING LITERALS (imported, not restated — see the
+    module's import block) and the same polarity (refused/error fail; every
+    other outcome succeeds).
     """
     return 1 if isinstance(verdict, Refuse) else 0

@@ -124,9 +124,31 @@ def _resolve_read_dir(repo_root: Path, mission_slug: str, feature_dir: Path) -> 
     Falls back to the primary ``feature_dir`` for coord-less topologies or a
     not-yet-materialized coordination worktree (the same fallback
     :func:`~specify_cli.tasks.issue_matrix.scaffold_issue_matrix` and
-    ``status.doctor`` already use for this kind).
+    ``status.doctor`` already use for this kind). Used ONLY for the slow,
+    one-shot, pre-lock legacy-migration check (:func:`_migrate_if_needed`) --
+    never as the locked critical section's re-read/write surface, which is
+    :func:`_resolve_write_dir` (binding correction, lost-update fix).
     """
     return coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
+
+
+def _resolve_write_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the ONE write-location authority's dir for ``issue-matrix.json``.
+
+    Binding correction (lost-update fix, mirrors ``acceptance/matrix.py``'s
+    ``locked_reread_splice_and_write`` contract): resolved ONCE, before the
+    lock, and reused unchanged as both the re-read base and the write target
+    -- never split into a separate read dir and write dir, and never
+    re-resolved lazily inside the locked splice. A coordination-routed
+    Mission's EMPTY/UNMATERIALIZED surface is materialized/seeded here, by
+    this single call, not a second time inside ``write_issue_matrix``'s own
+    ``stage=`` thunk (that second resolution, when it runs, sees the
+    now-MATERIALIZED state and is a no-op).
+    """
+    from mission_runtime import placement_seam
+
+    location = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.ISSUE_MATRIX)
+    return location.path
 
 
 def _load_raw_rows(json_path: Path) -> dict[str, IssueMatrixEntry]:
@@ -245,8 +267,7 @@ def _locked_reread_splice_and_write(
     *,
     repo_root: Path,
     mission_slug: str,
-    read_dir: Path,
-    feature_dir: Path,
+    matrix_dir: Path,
     issue_ref: str,
     updated_entry: IssueMatrixEntry,
     policy: ProtectionPolicyLike,
@@ -255,15 +276,16 @@ def _locked_reread_splice_and_write(
     """#4884 -- the locked re-read + single-row splice + write+commit critical section.
 
     Mirrors ``acceptance_verdict._locked_reread_splice_and_write`` (#4858):
-    ``read_dir`` is resolved ONCE by the caller -- AFTER ``_migrate_if_needed``
-    (a slow, one-shot legacy-migration check that is #4868's concern, not
-    this lock's) and BEFORE this lock is acquired -- and reused here as both
-    the re-read surface and (via ``write_issue_matrix``'s own resolution) the
-    write target, so the re-read agrees with ``commit_for_mission``'s
-    resolved placement surface. The lock key is ``read_dir.name`` -- the
-    mission directory name, matching #4858's ``matrix_dir.name`` convention
-    (never a bare mission slug; see ``feature_status_lock_path``'s FR-004 /
-    C-003 contract).
+    ``matrix_dir`` is resolved ONCE by the caller via :func:`_resolve_write_dir`
+    (the ONE write-location authority, ``write_dir(ISSUE_MATRIX)``) -- AFTER
+    ``_migrate_if_needed`` (a slow, one-shot legacy-migration check that is
+    #4868's concern, not this lock's) and BEFORE this lock is acquired -- and
+    reused here, UNCHANGED, as both the re-read surface and the write target
+    (binding correction, lost-update fix: never split read/write dirs, and
+    never re-resolve ``write_dir`` a second time inside this locked splice).
+    The lock key is ``matrix_dir.name`` -- the mission directory name,
+    matching #4858's ``matrix_dir.name`` convention (never a bare mission
+    slug; see ``feature_status_lock_path``'s FR-004 / C-003 contract).
 
     The re-read (:func:`_load_raw_rows`) AND the write+commit both happen
     while the lock is held -- a re-read placed outside the lock would still
@@ -279,16 +301,21 @@ def _locked_reread_splice_and_write(
     (:func:`do_issue_verdict`) translates it into a structured
     :class:`IssueVerdictError` rather than falling back to an unlocked write.
     """
-    with feature_status_lock(repo_root, read_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
-        fresh_rows = _load_raw_rows(read_dir / ISSUE_MATRIX_JSON_FILENAME)
+    with feature_status_lock(repo_root, matrix_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
+        fresh_rows = _load_raw_rows(matrix_dir / ISSUE_MATRIX_JSON_FILENAME)
         _splice_issue_row(fresh_rows, issue_ref, updated_entry)
+        # WP10 cycle 2 fold (N1): pass the ALREADY-RESOLVED ``matrix_dir``
+        # through so ``write_issue_matrix`` never re-resolves ``write_dir`` a
+        # second time inside this lock -- the literal reading of the binding
+        # correction ("never resolve write_dir lazily inside _stage, within
+        # the locked splice").
         return write_issue_matrix(
             repo_root=repo_root,
             mission_slug=mission_slug,
-            feature_dir=feature_dir,
             rows=fresh_rows,
             policy=policy,
             actor=actor,
+            matrix_dir=matrix_dir,
         )
 
 
@@ -355,12 +382,22 @@ def do_issue_verdict(
     # #4868's concern: migration is a slow, one-shot legacy-.md conversion --
     # it stays OUTSIDE the lock, exactly like #4858 keeps the pre-lock
     # existence check outside its own critical section.
-    read_dir, migrated = _migrate_if_needed(repo_root=root, mission_slug=mission_slug, feature_dir=feature_dir, actor=actor)
+    _read_dir, migrated = _migrate_if_needed(repo_root=root, mission_slug=mission_slug, feature_dir=feature_dir, actor=actor)
+
+    # Binding correction (lost-update fix): resolve the ONE write-location
+    # authority ONCE here, AFTER migration and BEFORE the lock, and reuse it
+    # unchanged as both the pre-lock snapshot's base and (threaded through
+    # ``_locked_reread_splice_and_write``) the locked re-read base / write
+    # target / lock key -- never ``_migrate_if_needed``'s READ-side
+    # ``read_dir`` for these (that resolver's EMPTY/UNMATERIALIZED fallback to
+    # the primary ``feature_dir`` can diverge from where the write actually
+    # lands).
+    matrix_dir = _resolve_write_dir(root, mission_slug)
 
     # The candidate row's VALUE never depends on locking (see
     # ``_resolve_issue_row_update``'s docstring) -- computed once, here,
     # from the pre-lock snapshot.
-    pre_lock_rows = _load_raw_rows(read_dir / ISSUE_MATRIX_JSON_FILENAME)
+    pre_lock_rows = _load_raw_rows(matrix_dir / ISSUE_MATRIX_JSON_FILENAME)
     updated_entry = _resolve_issue_row_update(pre_lock_rows.get(issue_ref), verdict=verdict, evidence_ref=evidence_ref, wp=wp)
 
     policy = ProtectionPolicy.resolve(root)
@@ -368,8 +405,7 @@ def do_issue_verdict(
         result = _locked_reread_splice_and_write(
             repo_root=root,
             mission_slug=mission_slug,
-            read_dir=read_dir,
-            feature_dir=feature_dir,
+            matrix_dir=matrix_dir,
             issue_ref=issue_ref,
             updated_entry=updated_entry,
             policy=policy,

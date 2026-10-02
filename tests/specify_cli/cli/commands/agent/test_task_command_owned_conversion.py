@@ -320,12 +320,15 @@ class TestSharedReadersTakeTheFact:
 
 
 def test_revert_commit_worktree_is_the_owned_checkout(fact: OwnedCheckout) -> None:
+    # coord-artifact-single-home-01M3V4BE WP08: ``_resolve_revert_commit_worktree``
+    # no longer takes/returns an ``original_path`` -- single-home writes mean
+    # there is no second, separately-resolved commit path to re-derive (the
+    # caller always commits the SAME ``original_path`` it already unlinked).
     st: Any = SimpleNamespace(owned=fact)
-    original = fact.mission_dir / "tasks" / "verdict.md"
 
-    root, path = tasks_verdict_persistence._resolve_revert_commit_worktree(st, target_ref=fact.write_branch, original_path=original)
+    root = tasks_verdict_persistence._resolve_revert_commit_worktree(st, target_ref=fact.write_branch)
 
-    assert (root, path) == (fact.owned_root, original)
+    assert root == fact.owned_root
 
 
 # ---------------------------------------------------------------------------

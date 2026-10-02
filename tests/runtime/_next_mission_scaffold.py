@@ -222,6 +222,24 @@ def scaffold_coord_software_dev(
     coord_mission_dir = coord_root / "kitty-specs" / result.mission_slug
     coord_mission_dir.mkdir(parents=True, exist_ok=True)
 
+    # coord-artifact-single-home-01M3V4BE WP09 (review cycle 2, same-family
+    # B1-residual fix): the coordination log must CARRY FORWARD the root
+    # checkout's already-committed status events before the WP-lane sentinel
+    # events below are appended -- mirroring what the REAL coord_seed carry-
+    # over does (``contracts/seed.md``). Before this, the coord log's ONLY
+    # content was the hand-seeded ``seed-<wp>-<lane>`` sentinels with no
+    # shared history at all with root's real ``MissionCreated``-style events --
+    # an un-related-histories shape ``establish_coord_write_location``'s fork
+    # detection correctly calls a genuine fork (``CoordSeedForkRefused``) once
+    # a bare-slug ``write_dir`` call (e.g. ``_wrap_with_decision_git_log``)
+    # actually resolves this Mission's real coordination surface instead of
+    # silently degrading to PRIMARY for an unresolved handle (the bug this
+    # same mission's WP09 fixes). This fixture never exercised that fork
+    # check before, because the bug it fixes was masking it.
+    root_status_log = result.feature_dir / "status.events.jsonl"
+    if root_status_log.exists():
+        (coord_mission_dir / "status.events.jsonl").write_bytes(root_status_log.read_bytes())
+
     write_wp_task_files(result.feature_dir, wps)
     (result.feature_dir / "spec.md").write_text("# Spec\n\n## Functional Requirements\n- FR-001: x\n", encoding="utf-8")
     (result.feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")

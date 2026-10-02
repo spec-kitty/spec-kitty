@@ -12,8 +12,7 @@ import logging
 import re
 import shutil
 import subprocess
-from dataclasses import dataclass, field, replace
-from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -24,10 +23,9 @@ from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     MissionTopology,
-    kind_is_coordination_residue,
+    WriteLocation,
     placement_seam,
     resolve_create_time_write_target,
-    resolve_placement_only,
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, has_unborn_head, is_git_repo
@@ -53,9 +51,14 @@ from specify_cli.git.commit_helpers import (
     SafeCommitHeadMismatch,
     SafeCommitStagedTreeUnchanged,
 )
-from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_worktree_remove
-from specify_cli.git.ref_advance import RefAdvanceError, RefRestoreError, _list_worktrees, restore_branch_ref
-from specify_cli.lanes.branch_naming import mission_branch_name, mission_dir_name, resolve_mid8, strip_numeric_prefix
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
+from specify_cli.lanes.branch_naming import (
+    coord_mission_dir_name,
+    mission_branch_name,
+    mission_dir_name,
+    resolve_mid8,
+    strip_numeric_prefix,
+)
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
 logger = logging.getLogger(__name__)
@@ -65,7 +68,6 @@ logger = logging.getLogger(__name__)
 # reads) hoisted to named constants rather than restated as literals.
 _META_KEY_MISSION_TYPE = "mission_type"
 _META_KEY_CREATED_AT = "created_at"
-_STATUS_EVENTS_FILENAME = "status.events.jsonl"
 
 # WP12 (FR-011 / #3339): coordination branches are the only branch refs a
 # mission-create mints, and their names are all ``kitty/mission-<slug>-<mid8>``.
@@ -315,6 +317,17 @@ def _list_coordination_branches(repo_root: Path) -> frozenset[str]:
     if result.returncode != 0:
         return frozenset()
     return frozenset(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+
+def _rev_parse_or_none(repo_root: Path, ref: str) -> str | None:
+    """Return ``ref``'s commit SHA in ``repo_root``, or ``None`` on any failure."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", ref],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def _list_mission_scaffolds(repo_root: Path) -> frozenset[str]:
@@ -674,61 +687,95 @@ def _remove_orphan_mission_scaffolds(planned: tuple[Path, ...]) -> None:
             shutil.rmtree(candidate)
 
 
-def _worktrees_on_branch(repo_root: Path, branch: str) -> tuple[Path, ...]:
-    """Return the linked worktrees that have *branch* checked out (best-effort).
+@dataclass(frozen=True, slots=True)
+class _CoordCreateRollbackContext:
+    """Snapshot T032/FR-002a needs to undo a coordination surface a failed create produced.
 
-    Reuses the one ``git worktree list --porcelain`` parser in
-    :mod:`specify_cli.git.ref_advance`; an enumeration failure yields no entries.
-    """
-    try:
-        entries = _list_worktrees(repo_root, None)
-    except RefAdvanceError:
-        return ()
-    return tuple(entry.path for entry in entries if not entry.detached and entry.branch == f"refs/heads/{branch}")
-
-
-def _status_log_residue(worktree: Path) -> Callable[[str], bool]:
-    """Classify a failed create's coordination-worktree leftovers for the removal guard.
-
-    The only thing a failed create leaves in its coordination worktree is the
-    mission status log, which the rollback copies next to the retained primary
-    scaffold first, so it is not operator work the removal could destroy. Git
-    may report it as a collapsed untracked directory (``kitty-specs/``), so a
-    reported path is residue only when every file under it is a status log
-    inside ``kitty-specs/``.
-
-    NOTE: the residue check matches on ``_STATUS_EVENTS_FILENAME`` alone (no
-    ``status.json`` leg) because create only ever emits the append-only log --
-    it never writes a ``status.json`` snapshot -- so ``status.events.jsonl`` is
-    the only STATUS_STATE residue a failed create can leave behind.
+    ``mission_slug_formatted`` and ``mid8`` are minted inside
+    ``_create_mission_core_impl`` (brownfield scout, "Rollback (top risk)"),
+    so the outer ``create_mission_core`` wrapper cannot name the coordination
+    worktree any other way. The impl populates this through the mutable
+    holder list the outer function passes in, as soon as the coordination
+    branch name is known (right after ``_build_create_meta`` returns) --
+    before the seed or the creation-events commit can fail.
     """
 
-    def is_residue(path: str) -> bool:
-        reported = worktree / path
-        files = [reported] if reported.is_file() else [child for child in reported.rglob("*") if child.is_file()]
-        return bool(files) and all(child.name == _STATUS_EVENTS_FILENAME and child.relative_to(worktree).parts[0] == KITTY_SPECS_DIR for child in files)
+    #: The REPOSITORY root -- the coordination worktree always lives under it
+    #: (``<repo_root>/.worktrees/...``), never under an owned checkout, so
+    #: this is carried explicitly rather than reusing the caller's rollback
+    #: root (which is the owned checkout for an owned create).
+    repo_root: Path
+    mission_slug_formatted: str
+    mid8: str
+    coordination_branch: str
+    #: ``True`` when THIS create minted (or force-recreated) the branch --
+    #: safe to delete on rollback. ``False`` means a pre-existing branch was
+    #: silently reused (idempotent re-run); rollback must CAS-reset it to
+    #: ``pre_seed_coord_tip`` instead of deleting another create's branch.
+    coordination_branch_created: bool
+    #: The branch's tip immediately after ``ensure_coordination_branch``
+    #: returned, before this create's own seed/creation-events commit could
+    #: move it. ``None`` when the branch did not exist yet (always true when
+    #: ``coordination_branch_created`` is ``True``).
+    pre_seed_coord_tip: str | None = None
 
-    return is_residue
 
+def _rollback_coordination_surface(ctx: _CoordCreateRollbackContext) -> None:
+    """Best-effort: undo the coordination worktree/branch a failed create produced (T032/US1.5).
 
-def _salvage_status_logs(coord_worktree: Path, repo_root: Path) -> None:
-    """Copy a doomed coordination worktree's status logs into the primary checkout.
+    Never raises — a failure here must not mask the original creation
+    failure. The worktree is torn down BEFORE the branch is touched, because
+    git refuses to delete (or reset, while checked out) a branch that is
+    checked out in a worktree.
 
-    A failed create keeps its partial scaffold for resume-probe diagnosis; since
-    #5440 the status log (with the persisted ``MissionCreated``) lives in the
-    coordination worktree, so it is carried next to that scaffold before the
-    worktree is removed. Only a mission dir that already exists on the primary
-    side and has no log of its own receives a copy (best-effort, never raises).
-    The coordination twin holds only that log, which MissionResolver skips, so
-    the census reuses the scaffold snapshot rather than the resolver.
+    Every byte the coordination worktree holds at this point was written by
+    THIS create (the seed and/or the creation-events commit — or nothing, if
+    the failure struck before either ran): clearing the Mission dir before
+    teardown is therefore sanctioned (D6), not a destructive-guard bypass —
+    ``CoordinationWorkspace.teardown`` refuses a dirty worktree, and the
+    untracked seed content left behind by an interrupted create would
+    otherwise orphan the worktree forever.
     """
-    for name in sorted(_list_mission_scaffolds(coord_worktree)):
-        log = coord_worktree / KITTY_SPECS_DIR / name / _STATUS_EVENTS_FILENAME
-        primary_dir = repo_root / KITTY_SPECS_DIR / name
-        destination = primary_dir / _STATUS_EVENTS_FILENAME
-        if log.is_file() and primary_dir.is_dir() and not destination.exists():
-            with contextlib.suppress(OSError):
-                shutil.copy2(log, destination)
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    repo_root = ctx.repo_root
+    worktree_path = CoordinationWorkspace.worktree_path(repo_root, ctx.mission_slug_formatted, ctx.mid8)
+    coord_mission_dir = worktree_path / KITTY_SPECS_DIR / coord_mission_dir_name(ctx.mission_slug_formatted, mid8=ctx.mid8)
+    if coord_mission_dir.exists():
+        with contextlib.suppress(OSError):
+            shutil.rmtree(coord_mission_dir)
+    with contextlib.suppress(Exception):
+        # The single shared teardown seam; a half-created mission has no retrospective to persist.
+        teardown_coordination_topology(repo_root, ctx.mission_slug_formatted, ctx.mid8, persist=False)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "worktree", "prune"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ctx.coordination_branch_created:
+        subprocess.run(
+            ["git", "-C", str(repo_root), "branch", "-D", ctx.coordination_branch],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return
+    if ctx.pre_seed_coord_tip is None:
+        return
+    current_tip = _rev_parse_or_none(repo_root, ctx.coordination_branch)
+    if current_tip and current_tip != ctx.pre_seed_coord_tip:
+        # A pre-existing coordination branch this create reused is CAS-reset
+        # to its own pre-create tip, never deleted (it may belong to another
+        # mission's history, e.g. a prior ``force_recreate`` run).
+        with contextlib.suppress(RefRestoreError):
+            restore_branch_ref(
+                repo_root,
+                ctx.coordination_branch,
+                ctx.pre_seed_coord_tip,
+                expected_current_sha=current_tip,
+            )
 
 
 def _restore_git_state_after_failed_create(
@@ -738,12 +785,16 @@ def _restore_git_state_after_failed_create(
     original_commit: str | None,
     original_index_tree: str | None,
     pre_existing_coordination_branches: frozenset[str],
+    coord_rollback: _CoordCreateRollbackContext | None = None,
 ) -> None:
     """Best-effort rollback of a failed mission-create's git side-effects.
 
     Restores the operator's original checkout and deletes any coordination
     branch this create-run minted (FR-011, #3339), so a failed create leaves
     the operator on their original branch with no orphan branch.
+    ``coord_rollback`` (T032/FR-002a), when supplied, additionally tears down
+    the coordination worktree this create materialized before any branch is
+    touched — see :func:`_rollback_coordination_surface`.
 
     Rollback is best-effort and never raises — it must not mask the original
     creation failure. The checkout is restored *before* any branch delete
@@ -792,19 +843,14 @@ def _restore_git_state_after_failed_create(
                     text=True,
                     check=False,
                 )
+    # 1.5. Undo the coordination worktree (and, for a branch THIS create
+    #      minted, the branch too) before the generic branch-diff sweep below
+    #      -- git refuses to delete a branch still checked out in a worktree.
+    if coord_rollback is not None:
+        _rollback_coordination_surface(coord_rollback)
     # 2. Delete only the coordination branches that appeared during this create.
-    #    A coordination-routed create materialized a worktree on its branch
-    #    (#5440); git refuses to delete a checked-out branch, so that worktree
-    #    goes first.
     orphaned = _list_coordination_branches(repo_root) - pre_existing_coordination_branches
     for branch in sorted(orphaned):
-        for worktree in _worktrees_on_branch(repo_root, branch):
-            _salvage_status_logs(worktree, repo_root)
-            # The removal chokepoint refuses a worktree holding anything but the
-            # salvaged log; the branch delete below then fails too, leaving the
-            # operator's work in place for diagnosis.
-            with contextlib.suppress(DestructiveOpRefused, RuntimeError):
-                guarded_worktree_remove(worktree, retain=False, is_residue=_status_log_residue(worktree))
         subprocess.run(
             ["git", "-C", str(repo_root), "branch", "-D", branch],
             capture_output=True,
@@ -883,6 +929,12 @@ def create_mission_core(
             original_index_tree = original_index_result.stdout.strip()
         pre_existing_coordination_branches = _list_coordination_branches(rollback_root)
 
+    # T032/FR-002a: ``_create_mission_core_impl`` mints ``mission_slug_formatted``
+    # and ``mid8`` internally, so this mutable holder is how it reports the
+    # coordination surface it materialized back to this failure-atomic wrapper
+    # -- populated as soon as the coordination branch name is known, before
+    # the seed or the creation-events commit can fail.
+    coord_rollback_holder: list[_CoordCreateRollbackContext] = []
     try:
         return _create_mission_core_impl(
             repo_root,
@@ -901,6 +953,7 @@ def create_mission_core(
             retain_worktrees=retain_worktrees,
             commit_to_target=commit_to_target,
             allow_duplicate=allow_duplicate,
+            _coord_rollback_holder=coord_rollback_holder,
         )
     except BaseException as _create_exc:
         # Re-raised below; the rollback is pure cleanup and must not swallow or
@@ -921,6 +974,7 @@ def create_mission_core(
                 original_commit=original_commit,
                 original_index_tree=original_index_tree,
                 pre_existing_coordination_branches=pre_existing_coordination_branches,
+                coord_rollback=coord_rollback_holder[0] if coord_rollback_holder else None,
             )
             # #4035: git state alone is not the whole side effect. On a
             # disposable commit refusal the on-disk scaffold outlives the failed
@@ -1194,116 +1248,6 @@ class _Scaffold:
     #: create): every create commit folds the mission-scoped protection hatch
     #: through this fact, never a re-derived repository root.
     owned_mission: OwnedCreateMission | None = None
-    #: Directory holding the mission's ``status.events.jsonl`` (#5440): the
-    #: coordination worktree's mission dir for a coordination-routed create
-    #: (set by :func:`_seed_coordination_status_dir`), ``feature_dir`` otherwise.
-    status_dir: Path | None = None
-    #: Root of the coordination worktree holding ``status_dir`` (#5440), carried
-    #: as a value from the seed so the commit never re-derives it from a path.
-    coordination_root: Path | None = None
-
-    @property
-    def status_log(self) -> Path:
-        """The mission's canonical ``status.events.jsonl`` at create time."""
-        return (self.status_dir or self.feature_dir) / _STATUS_EVENTS_FILENAME
-
-
-def _status_homes_on_coordination(topology: MissionTopology, owned: OwnedCreateRoot | None) -> bool:
-    """True when the create seeds the status log on the coordination surface (#5440).
-
-    ``status.events.jsonl`` is ``MissionArtifactKind.STATUS_STATE``. Its
-    coord-vs-primary home is derived from the single partition authority
-    :func:`mission_runtime.kind_is_coordination_residue` (kind + topology) rather
-    than hand-rolling the predicate from :func:`mission_runtime.routes_through_coordination`
-    alone -- that half ignores the kind side and silently assumes STATUS_STATE is
-    a coordination-placement kind. Deriving from the canonical predicate keeps
-    this create-time gate in lockstep with ``_PLACEMENT_ARTIFACT_KINDS`` (the
-    NFR-004 "swappable locus"): re-homing STATUS_STATE there now flips this gate
-    for free instead of needing a matching edit here. An owned create is
-    ``single_branch`` by construction, so it keeps the primary home regardless.
-    """
-    return owned is None and kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, topology)
-
-
-def _seed_coordination_status_dir(resolved_root: Path, mission_slug: str, mid8: str) -> tuple[Path, Path] | None:
-    """Materialize the coordination worktree and seed the mission's status dir in it.
-
-    Returns the coordination worktree root and its mission dir holding an empty
-    ``status.events.jsonl``, or ``None`` when no local coordination branch backs
-    the mission (e.g. a target that does not resolve to a ref, so the mint was
-    skipped); the caller then keeps the primary home. Materialization goes
-    through the canonical write-time seam
-    (:func:`~specify_cli.coordination.surface_resolver.materialize_coord_surface_for_write`),
-    never a hand-rolled ``git worktree add``.
-    """
-    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
-        CoordinationWorktreeUnmaterialized,
-        materialize_coord_surface_for_write,
-    )
-    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
-    from specify_cli.missions._read_path_resolver import CoordState, coord_feature_dir, probe_coord_state  # noqa: PLC0415
-
-    try:
-        materialize_coord_surface_for_write(resolved_root, mission_slug)
-    except CoordinationWorktreeUnmaterialized:
-        # No local coordination branch to materialize (the seam only refuses a
-        # branch it cannot see locally): there is no coordination surface yet.
-        return None
-    if probe_coord_state(resolved_root, mission_slug, mid8) not in (CoordState.MATERIALIZED, CoordState.EMPTY):
-        return None
-    coordination_root: Path = CoordinationWorkspace.worktree_path(resolved_root, mission_slug, mid8)
-    status_dir: Path = coord_feature_dir(resolved_root, mission_slug, mid8)
-    status_dir.mkdir(parents=True, exist_ok=True)
-    (status_dir / _STATUS_EVENTS_FILENAME).touch(exist_ok=True)
-    return coordination_root, status_dir
-
-
-def _commit_coordination_status_seed(resolved_root: Path, mission_slug: str, coordination_root: Path, status_dir: Path) -> None:
-    """Commit the seeded status log on the coordination branch (#5440).
-
-    Mirrors ``coordination.status_transition._commit_status_artifacts_to_coord``:
-    the destination comes from the placement seam for ``STATUS_STATE`` (never a
-    checkout-derived ref) and ``safe_commit`` keeps HEAD == destination in the
-    coordination worktree. Raises on failure so the create rollback fires.
-    """
-    safe_commit(
-        repo_root=resolved_root,
-        worktree_root=coordination_root,
-        target=resolve_placement_only(resolved_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE),
-        message=f"Add status log for mission {mission_slug}",
-        paths=(status_dir / _STATUS_EVENTS_FILENAME,),
-        capability=GuardCapability.STANDARD,
-    )
-
-
-def _place_status_log(
-    scaffold: _Scaffold,
-    *,
-    resolved_root: Path,
-    mission_slug_formatted: str,
-    mid8: str,
-    topology: MissionTopology,
-    owned: OwnedCreateRoot | None,
-) -> _Scaffold:
-    """Give the status log its one durable home before any event is emitted (#5440).
-
-    A coordination-routed create seeds the log in the coordination worktree.
-    When no local coordination branch backs the mission (the mint was skipped
-    because the target does not resolve to a ref), there is no coordination
-    surface to hold it, so the log keeps the primary home and rides the
-    scaffold commit as before.
-    """
-    if not _status_homes_on_coordination(topology, owned):
-        return scaffold
-    seeded = _seed_coordination_status_dir(resolved_root, mission_slug_formatted, mid8)
-    if seeded is not None:
-        coordination_root, status_dir = seeded
-        return replace(scaffold, status_dir=status_dir, coordination_root=coordination_root)
-    primary_log = scaffold.feature_dir / _STATUS_EVENTS_FILENAME
-    primary_log.touch(exist_ok=True)
-    meta_index = scaffold.scaffold_paths.index(scaffold.feature_dir / "meta.json")
-    paths = (*scaffold.scaffold_paths[: meta_index + 1], primary_log, *scaffold.scaffold_paths[meta_index + 1 :])
-    return replace(scaffold, scaffold_paths=paths)
 
 
 def _scaffold_mission_dir(
@@ -1336,16 +1280,41 @@ def _scaffold_mission_dir(
         planning_branch=planning_branch,
     )
     owned_mission = owned.bind_mission(feature_dir) if owned is not None else None
-    # #5440: the status log is a COORD-partition kind (``STATUS_STATE``). Under a
-    # coordination-routed topology its home is the coordination surface, seeded
-    # by :func:`_seed_coordination_status_dir`; it never joins the target-branch
-    # scaffold commit.
-    status_on_primary = not _status_homes_on_coordination(topology, owned)
+    # D6 / T031: for a coordination-routed topology, ``status.events.jsonl``
+    # (a COORD-partition kind) is never scaffolded on the target branch at
+    # all -- the coordination surface carries it from birth (see
+    # ``_materialize_and_commit_coord_create_events``). ``lanes`` /
+    # ``single_branch`` keep today's root-checkout scaffolding byte-identical
+    # (C-008).
+    #
+    # ``owned is None`` (review cycle 2, B5' ruling reversed): an OWNED
+    # coordination-topology create is a supported, ratcheted path (FR-022,
+    # ``TestFr022CoordinationTwin`` -- an owned sibling-checkout
+    # ``create --topology lanes_with_coord`` followed by ``next`` must be a
+    # non-error decision), NOT merely an operator override to refuse. An
+    # ``OwnedCreateMission`` does not satisfy the ``mission_runtime.
+    # OwnedCheckout`` contract ``placement_seam``/the coordination
+    # write-location accessor require, so ``_seed_coord_surface_for_create``
+    # already never seeds the coordination surface for an owned create
+    # (``owned is not None`` short-circuits it to ``status_dir=None``) --
+    # its ``MissionCreated``/``SpecifyStarted`` events land on
+    # ``feature_dir`` in the owned checkout instead (``_emit_create_events``'s
+    # own ``status_dir`` default). The scaffold step must therefore ALSO
+    # treat an owned create as non-coordination-routed, so
+    # ``status.events.jsonl`` is scaffolded AND included in the owned
+    # checkout's own scaffold commit exactly as at base (``e7b085d26c``) --
+    # otherwise it is written by the event emitter but never committed,
+    # leaving the owned checkout with an uncommitted/untracked log. This is
+    # a known, named residual (INV-COORD-HOME): an owned coordination
+    # create's status log lives in the owned PRIMARY dir, never the
+    # coordination surface -- follow-up tracked separately, not fixed here.
+    from specify_cli.missions._create import topology_mints_coordination_branch
+
+    is_coordination_routed = owned is None and topology_mints_coordination_branch(topology)
     scaffold_paths = (
-        feature_dir / "meta.json",
-        *((feature_dir / _STATUS_EVENTS_FILENAME,) if status_on_primary else ()),
-        feature_dir / "tasks" / "README.md",
-        feature_dir / "tasks" / ".gitkeep",
+        (feature_dir / "meta.json",)
+        + (() if is_coordination_routed else (feature_dir / "status.events.jsonl",))
+        + (feature_dir / "tasks" / "README.md", feature_dir / "tasks" / ".gitkeep")
     )
     # Validate before scaffold writes using the same authority as safe_commit.
     # Main permits these bootstrap refusals and discloses the uncommitted
@@ -1373,9 +1342,16 @@ def _scaffold_mission_dir(
 
     (tasks_dir / ".gitkeep").touch()
 
-    # Initialize empty event log so the feature has canonical status from birth.
-    if status_on_primary:
-        (feature_dir / _STATUS_EVENTS_FILENAME).touch(exist_ok=True)
+    # Initialize empty event log so the feature has canonical status from
+    # birth -- ONLY for a non-coordination-routed create (``is_coordination_
+    # routed`` already folds in ``owned is None`` above). An unowned
+    # coordination-routed Mission's status log is seeded straight into the
+    # coordination Mission dir instead (D6); touching one here would
+    # resurrect #5440 by giving the target-branch scaffold commit a (now
+    # stale, empty) copy to carry. An OWNED coordination-routed create keeps
+    # today's root-checkout-shaped scaffolding (INV-COORD-HOME residual).
+    if not is_coordination_routed:
+        (feature_dir / "status.events.jsonl").touch(exist_ok=True)
 
     tasks_readme = tasks_dir / "README.md"
     tasks_readme.write_text(
@@ -1405,6 +1381,21 @@ class _MetaBuild:
     # #5100 (6.7): the protected-target mission branch the mint checked out,
     # or ``None`` when no mint fired.
     minted_mission_branch: str | None = None
+    # T031/T032 (coord-artifact-single-home-01M3V4BE): ``None`` unless
+    # ``ensure_coordination_branch`` returned a ``skipped_reason`` (the
+    # target branch does not resolve to a ref -- synthetic/test contexts).
+    # When set, there is no real coordination branch to seed or write to;
+    # the create-time seed step must fall through to the old PRIMARY path
+    # rather than calling ``write_dir`` (which would otherwise raise
+    # ``CoordinationBranchDeleted`` for a branch that was never minted).
+    coordination_branch_skipped_reason: str | None = None
+    # The coordination branch's tip right after ``ensure_coordination_branch``
+    # returned -- before this create's own seed/creation-events commit can
+    # move it. Used by T032 rollback to CAS-reset (never delete) a
+    # pre-existing branch this create silently reused. ``None`` when the
+    # branch was newly minted this run (``coordination_branch_created=True``)
+    # or when there is no real coordination branch.
+    coordination_branch_pre_seed_tip: str | None = None
 
 
 def _build_create_meta(
@@ -1473,6 +1464,8 @@ def _build_create_meta(
     from specify_cli.missions._create import topology_mints_coordination_branch
 
     coordination_branch_created_flag = False
+    coordination_branch_skipped_reason: str | None = None
+    coordination_branch_pre_seed_tip: str | None = None
     if topology_mints_coordination_branch(topology):
         from specify_cli.missions._create import ensure_coordination_branch
 
@@ -1484,7 +1477,13 @@ def _build_create_meta(
             force_recreate=force_recreate_coordination_branch,
         )
         coordination_branch_created_flag = coordination_outcome.created
+        coordination_branch_skipped_reason = coordination_outcome.skipped_reason
         meta["coordination_branch"] = coordination_outcome.branch_name
+        # T032: a reused (not-created-this-run) branch's tip, captured before
+        # this create's own seed/creation-events commit can move it -- the
+        # CAS-reset anchor if this create later fails.
+        if coordination_outcome.skipped_reason is None and not coordination_branch_created_flag:
+            coordination_branch_pre_seed_tip = _rev_parse_or_none(resolved_root, coordination_outcome.branch_name)
 
     from mission_runtime import classify_topology
 
@@ -1529,6 +1528,8 @@ def _build_create_meta(
         meta=meta,
         coordination_branch_created=coordination_branch_created_flag,
         minted_mission_branch=minted_mission_branch,
+        coordination_branch_skipped_reason=coordination_branch_skipped_reason,
+        coordination_branch_pre_seed_tip=coordination_branch_pre_seed_tip,
     )
 
 
@@ -1615,6 +1616,7 @@ def _emit_create_events(
     normalized_friendly_name: str,
     spec_file: Path,
     lifecycle_root: Path | None = None,
+    status_dir: Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Emit ``MissionCreated`` then ``SpecifyStarted`` to the local canonical log.
 
@@ -1624,16 +1626,17 @@ def _emit_create_events(
     fact's repository root instead of re-deriving R from the owned checkout's
     path (``get_main_repo_root`` walk) after the claim was validated.
 
-    Section 8 of the pre-decomposition body (T051). ``MissionCreated``
-    persistence is a hard requirement (raises ``MissionCreationError`` on any
-    failure, retaining the partial scaffold for resume-probe diagnosis);
-    ``SpecifyStarted`` failure is soft (logged, never raised) -- exactly the
-    pre-decomposition asymmetry.
-
-    Local canonical persistence MUST happen before any SaaS fan-out so
-    downstream dashboards and TeamSpace can replay a mission's full history
-    even when SaaS sync is offline (issue #1067).
+    ``status_dir`` (T031, coord-artifact-single-home-01M3V4BE): the directory
+    ``status.events.jsonl`` is read from/written to. Defaults to
+    ``feature_dir`` (every PRIMARY-partition caller: ``lanes`` /
+    ``single_branch``, and ``spec.md``'s own relative-path computation below,
+    which always uses ``write_root``/``spec_file`` -- never the status
+    location). A coordination-routed create passes the coordination Mission
+    dir here instead, so the creation events land on the coordination
+    surface from birth (D6) while ``feature_dir`` keeps naming the PRIMARY
+    scaffold directory for every other purpose.
     """
+    status_dir = status_dir if status_dir is not None else feature_dir
     try:
         from specify_cli.identity.project import load_identity
         from specify_cli.status import (
@@ -1659,7 +1662,7 @@ def _emit_create_events(
             actor=creation_actor,
         )
         created_event = emit_mission_created_local(
-            feature_dir,
+            status_dir,
             mission_slug=mission_slug_formatted,
             mission_id=meta.get("mission_id"),
             mission_number=None,
@@ -1676,7 +1679,7 @@ def _emit_create_events(
             fanout=False,
             repo_root=lifecycle_root,
         )
-        created_events = [event for event in read_lifecycle_events(feature_dir / _STATUS_EVENTS_FILENAME) if event.get("event_type") == MISSION_CREATED]
+        created_events = [event for event in read_lifecycle_events(status_dir / "status.events.jsonl") if event.get("event_type") == MISSION_CREATED]
         if len(created_events) != 1:
             raise MissionCreationError(f"expected exactly one persisted MissionCreated event, found {len(created_events)}")
         persisted_created = created_events[0]
@@ -1710,7 +1713,7 @@ def _emit_create_events(
         )
 
         phase_event = emit_artifact_phase_local(
-            feature_dir,
+            status_dir,
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
@@ -1848,6 +1851,7 @@ def _build_create_result(
     owned_create_root: OwnedCreateRoot | None,
     created_event: dict[str, Any],
     phase_event: dict[str, Any] | None,
+    status_log_path: Path | None = None,
 ) -> MissionCreationResult:
     """Build the final result and fan out the local events (section 10, T051).
 
@@ -1855,18 +1859,39 @@ def _build_create_result(
     main's explicitly disclosed bootstrap skips: a hard scaffold/origin
     failure must leave no hosted events whose local authority was rolled
     back.
+
+    ``status_log_path`` (T031): the ``status.events.jsonl`` a reader should
+    follow for this create -- the coordination Mission dir's copy for an
+    UNOWNED coordination-routed create (already committed separately, on the
+    coordination branch, unconditionally), ``scaffold.feature_dir``'s for
+    every other topology (unchanged, C-008) -- including an OWNED
+    coordination-routed create (review cycle 2, B5' ruling reversed): the
+    caller never passes a non-``None`` ``status_log_path`` for one (the
+    coordination surface is never seeded when ``owned`` is set), but
+    ``owned_create_root is None`` is checked explicitly here too, not only
+    relied on transitively, so this function's own invariant holds even if a
+    future caller's wiring drifts. Defaults to the latter.
     """
+    is_coordination_routed = status_log_path is not None and owned_create_root is None
+    log_path = status_log_path if status_log_path is not None else scaffold.feature_dir / "status.events.jsonl"
     meta_file = scaffold.feature_dir / "meta.json"
     created_files = [scaffold.spec_file, meta_file, scaffold.tasks_readme]
+    if is_coordination_routed:
+        created_files.append(log_path)
     uncommitted_files = [scaffold.spec_file]
     if commit_outcome.scaffold_commit_skipped:
-        skipped_scaffold = list(scaffold.scaffold_paths)
+        # The coordination log already committed separately (unconditionally,
+        # outside the target scaffold commit's own bootstrap-skip handling,
+        # T032), so a coordination-routed create's skipped-scaffold list never
+        # repeats it here -- it was never part of the target scaffold tuple.
+        skipped_scaffold = [meta_file, scaffold.tasks_readme, scaffold.feature_dir / "tasks" / ".gitkeep"]
+        if not is_coordination_routed:
+            skipped_scaffold.append(log_path)
         created_files.extend(path for path in skipped_scaffold if path not in created_files)
-        uncommitted_files.extend(path for path in skipped_scaffold if path not in uncommitted_files)
+        uncommitted_files.extend(skipped_scaffold)
 
     from specify_cli.status import fanout_lifecycle_event_hosted
 
-    log_path = scaffold.status_log
     if created_event is not None:
         fanout_lifecycle_event_hosted(created_event, log_path=log_path)
     if phase_event is not None:
@@ -1891,6 +1916,129 @@ def _build_create_result(
     )
 
 
+def _commit_coord_create_events(
+    resolved_root: Path,
+    mission_slug_formatted: str,
+    mission_id: str,
+    status_dir: Path,
+) -> None:
+    """Commit the just-emitted creation events onto the coordination branch (T031/D6/D4).
+
+    Runs UNCONDITIONALLY for every coordination-routed create, even when the
+    target scaffold commit itself is a disclosed bootstrap skip (T032,
+    FR-002a) -- the coordination surface must carry ``MissionCreated`` +
+    ``SpecifyStarted`` from birth regardless of what happens to the target
+    branch. Raises (never silently swallows) on anything but a genuine
+    commit or a benign already-committed no-op, so the outer failure-atomic
+    wrapper's rollback (:func:`_rollback_coordination_surface`) runs.
+
+    Carries the ONE shared seed-marker trailer (``COORD_SEED_TRAILER``, D4):
+    this is one of the two commit kinds research decision D4 names as
+    trailer-bearing (the other is a pre-fix Mission's carry-over seed commit,
+    owned by ``coord_seed.py``), so a coordination branch this create minted
+    is post-fix from birth and is never later mistaken for one needing the
+    pre-fix carry-over seed.
+    """
+    from specify_cli.coordination.commit_outcome import STATUS_COMMITTED, STATUS_UNCHANGED
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.coordination.coord_seed import COORD_SEED_TRAILER
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy.resolve_for_mission(resolved_root, mission_slug_formatted)
+    message = f"chore({mission_slug_formatted}): record mission creation\n\n{COORD_SEED_TRAILER}: {mission_id}"
+    result = commit_for_mission(
+        resolved_root,
+        mission_slug_formatted,
+        files=(status_dir / "status.events.jsonl",),
+        message=message,
+        policy=policy,
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
+    if result.status not in (STATUS_COMMITTED, STATUS_UNCHANGED):
+        raise MissionCreationError(
+            f"Failed to commit mission-creation events onto the coordination branch "
+            f"for {mission_slug_formatted!r}: status={result.status!r} diagnostic={result.diagnostic!r}"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _CoordCreateSeed:
+    """Where T031's create-time coordination seed landed, or that it did not run."""
+
+    status_dir: Path | None
+    rollback_ctx: _CoordCreateRollbackContext | None
+
+
+def _seed_coord_surface_for_create(
+    *,
+    resolved_root: Path,
+    mission_slug_formatted: str,
+    mid8: str,
+    topology: MissionTopology,
+    meta_build: _MetaBuild,
+    owned: OwnedCreateRoot | None,
+    coord_rollback_holder: list[_CoordCreateRollbackContext] | None,
+) -> _CoordCreateSeed:
+    """T031 (D6): materialize + seed the coordination surface for a coordination-routed create.
+
+    Runs ONLY for ``COORD`` / ``LANES_WITH_COORD`` -- ``lanes`` /
+    ``single_branch`` return ``_CoordCreateSeed(None, None)`` unchanged
+    (C-008). Two further guards keep this a no-op without crashing:
+
+    * ``coordination_branch_skipped_reason`` is set -- ``ensure_coordination_branch``
+      declined to mint a real branch (the target does not resolve to a ref;
+      synthetic/test contexts). There is no coordination branch to seed.
+    * ``owned`` is not ``None`` -- an owned create's ``OwnedCreateMission`` is
+      not the ``mission_runtime.OwnedCheckout`` :func:`placement_seam` / the
+      coordination write-location accessor require, so an owned
+      coordination-routed create (a SUPPORTED path, FR-022's
+      ``TestFr022CoordinationTwin`` ratchet -- review cycle 2, B5' ruling
+      reversed) never seeds the coordination surface. Its ``MissionCreated``
+      / ``SpecifyStarted`` events land on ``feature_dir`` in the owned
+      checkout instead (``_emit_create_events``'s own ``status_dir``
+      default), and ``_scaffold_mission_dir`` / ``_build_create_result``
+      both ALSO gate their own coordination-routed branches on ``owned is
+      None`` so that log is scaffolded AND committed in the owned checkout
+      exactly as at base (``e7b085d26c``). This is a named residual
+      (INV-COORD-HOME): an owned coordination create's status log lives in
+      its own PRIMARY dir, never the coordination surface itself --
+      follow-up tracked separately, not fixed here.
+
+    ``coord_rollback_holder`` (review cycle 2 B2, HIGH): the context is
+    appended to this mutable holder IMMEDIATELY after it is built, BEFORE
+    :meth:`~mission_runtime.PlacementSeam.write_dir` is called below.
+    ``write_dir`` can itself raise AFTER it has already materialized the
+    coordination worktree and/or run the pre-fix seed (a seed failure,
+    ``STATUS_LOCK_HELD``, a git-probe failure) -- appending only once this
+    function RETURNS successfully would lose the rollback context for
+    exactly the half-built-coordination-surface failure T032/US1.5 exists to
+    prevent (the minted branch is then left orphaned: the generic rollback's
+    ``git branch -D`` fails because the branch is still checked out in the
+    worktree).
+    """
+    from specify_cli.missions._create import topology_mints_coordination_branch
+
+    if not topology_mints_coordination_branch(topology):
+        return _CoordCreateSeed(status_dir=None, rollback_ctx=None)
+    coordination_branch = meta_build.meta.get("coordination_branch")
+    if not isinstance(coordination_branch, str) or meta_build.coordination_branch_skipped_reason is not None:
+        return _CoordCreateSeed(status_dir=None, rollback_ctx=None)
+    rollback_ctx = _CoordCreateRollbackContext(
+        repo_root=resolved_root,
+        mission_slug_formatted=mission_slug_formatted,
+        mid8=mid8,
+        coordination_branch=coordination_branch,
+        coordination_branch_created=meta_build.coordination_branch_created,
+        pre_seed_coord_tip=meta_build.coordination_branch_pre_seed_tip,
+    )
+    if coord_rollback_holder is not None:
+        coord_rollback_holder.append(rollback_ctx)
+    if owned is not None:
+        return _CoordCreateSeed(status_dir=None, rollback_ctx=rollback_ctx)
+    location: WriteLocation = placement_seam(resolved_root, mission_slug_formatted, owned=None).write_dir(MissionArtifactKind.STATUS_STATE)
+    return _CoordCreateSeed(status_dir=location.path, rollback_ctx=rollback_ctx)
+
+
 def _create_mission_core_impl(
     repo_root: Path | None,
     mission_slug: str,
@@ -1909,6 +2057,7 @@ def _create_mission_core_impl(
     retain_worktrees: bool = False,
     commit_to_target: bool = False,
     allow_duplicate: bool = False,
+    _coord_rollback_holder: list[_CoordCreateRollbackContext] | None = None,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -1997,6 +2146,16 @@ def _create_mission_core_impl(
         deliberately create a second same-key mission -- programmatic/volume
         callers (e.g. the ``tests/_factories`` mission factory) opt in via
         this keyword when they intentionally need more than one.
+    _coord_rollback_holder:
+        Private (T032/FR-002a). A mutable, initially-empty list the
+        failure-atomic wrapper :func:`create_mission_core` passes in; this
+        function appends ONE :class:`_CoordCreateRollbackContext` to it as
+        soon as a real coordination branch is known (right after
+        ``_build_create_meta`` returns), so a later failure in THIS call can
+        still be rolled back by the wrapper's ``except`` clause even though
+        ``mission_slug_formatted``/``mid8`` are minted only inside this
+        function. ``None`` (the default) disables rollback reporting; never
+        pass a non-empty list.
 
     Returns
     -------
@@ -2027,6 +2186,29 @@ def _create_mission_core_impl(
     resolved_root = roots.repository_root
     write_root = roots.write_root
     current_branch = roots.current_branch
+
+    # B5' (review cycle 2, ruling reversed): an owned-checkout create
+    # combined with a coordination-routed topology (``coord`` /
+    # ``lanes_with_coord``) is a SUPPORTED, ratcheted path (FR-022,
+    # ``tests/integration/test_owned_lifecycle_acceptance_next.py::
+    # TestFr022CoordinationTwin`` -- an owned sibling-checkout
+    # ``create --topology lanes_with_coord`` followed by ``next`` must be a
+    # non-error decision), not an operator override to refuse. ADR
+    # 2026-09-03-1's "owned mode mints only single_branch" covers lifecycle
+    # commands (``LIFECYCLE_OWNED_TOPOLOGIES``), not create + ``next``
+    # (``NEXT_OWNED_TOPOLOGIES`` includes ``LANES_WITH_COORD``). A prior
+    # cycle-2 fix refused this combination with
+    # ``ActionContextError(OWNED_TOPOLOGY_UNSUPPORTED)``; that refusal broke
+    # the ratchet and was removed. The real gap it was trying to close --
+    # ``_scaffold_mission_dir`` keying its coordination-routed scaffold
+    # change on ``topology`` alone, dropping ``status.events.jsonl`` from an
+    # owned create's own scaffold commit -- is fixed at the source instead
+    # (``_scaffold_mission_dir`` / ``_build_create_result`` now also gate on
+    # ``owned is None``), so an owned coordination-routed create's status log
+    # stays in its own PRIMARY dir, committed exactly as at base
+    # (``e7b085d26c``). This is a named residual (INV-COORD-HOME): an owned
+    # coordination create is never seeded onto the coordination surface
+    # itself -- tracked as a follow-up, not fixed here.
 
     _refuse_live_duplicate(write_root, mission_slug, mission, allow_duplicate)
 
@@ -2094,17 +2276,25 @@ def _create_mission_core_impl(
         # readable yet), never a hand-built CommitTarget.
         create_time_target = resolve_create_time_write_target(meta_build.minted_mission_branch)
 
-    scaffold = _place_status_log(
-        scaffold,
+    # D6/T031: for a coordination-routed topology, materialize + seed the
+    # coordination surface BEFORE the creation events are emitted, so they
+    # land on the coordination Mission dir from birth instead of the target
+    # branch's scaffold (#5440). Runs after ``_build_create_meta`` (the
+    # coordination branch must already be minted and ``meta.json`` written,
+    # since ``write_dir`` reads it back) and before the target scaffold
+    # commit below (D6 "create order").
+    coord_seed = _seed_coord_surface_for_create(
         resolved_root=resolved_root,
         mission_slug_formatted=mission_slug_formatted,
         mid8=mid8,
         topology=topology,
+        meta_build=meta_build,
         owned=roots.owned,
+        coord_rollback_holder=_coord_rollback_holder,
     )
 
     created_event, phase_event = _emit_create_events(
-        feature_dir=scaffold.status_log.parent,
+        feature_dir=scaffold.feature_dir,
         mission_slug_formatted=mission_slug_formatted,
         meta=meta_build.meta,
         planning_branch=planning_branch,
@@ -2114,7 +2304,15 @@ def _create_mission_core_impl(
         normalized_friendly_name=normalized_friendly_name,
         spec_file=scaffold.spec_file,
         lifecycle_root=roots.owned.repository_root if roots.owned is not None else None,
+        status_dir=coord_seed.status_dir,
     )
+
+    if coord_seed.status_dir is not None:
+        # T031/T032: committed unconditionally, outside the target scaffold
+        # commit's bootstrap-skip handling (FR-002a) -- a refusal here raises
+        # so the failure-atomic wrapper's rollback (coord_seed.rollback_ctx,
+        # appended above) runs.
+        _commit_coord_create_events(resolved_root, mission_slug_formatted, mission_id, coord_seed.status_dir)
 
     commit_outcome = _commit_create_scaffold(
         scaffold=scaffold,
@@ -2125,14 +2323,6 @@ def _create_mission_core_impl(
         planning_branch=planning_branch,
         meta=meta_build.meta,
     )
-    # The seed commit follows the target scaffold commit: a failure here makes
-    # the create rollback restore the target ref and drop the orphan
-    # coordination branch, and hosted fanout only fires once both commits land.
-    if scaffold.status_dir is not None and scaffold.coordination_root is not None:
-        try:
-            _commit_coordination_status_seed(resolved_root, mission_slug_formatted, scaffold.coordination_root, scaffold.status_dir)
-        except Exception as exc:
-            raise RuntimeError(f"status log commit on the coordination branch failed: {exc}") from exc
 
     return _build_create_result(
         scaffold=scaffold,
@@ -2145,6 +2335,7 @@ def _create_mission_core_impl(
         owned_create_root=roots.owned,
         created_event=created_event,
         phase_event=phase_event,
+        status_log_path=(coord_seed.status_dir / "status.events.jsonl") if coord_seed.status_dir is not None else None,
     )
 
 

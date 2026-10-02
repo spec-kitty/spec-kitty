@@ -443,7 +443,15 @@ def test_real_command_matrix_uses_governed_refs_and_explicit_commit_modes(
     review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     status_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.STATUS_STATE).ref
     relative = _relative_evidence_path(fixture, payload)
-    local_path = fixture.repo / relative
+    # coord-artifact-single-home-01M3V4BE WP08 (re-pinned; file not owned by
+    # WP08, deviation recorded in the WP08 final report): the review-cycle
+    # artifact's physical write home is now the checkout holding
+    # REVIEW_CYCLE's own governed ref (the coordination worktree for
+    # COORD/LANES_WITH_COORD, the repository-root checkout otherwise) --
+    # never assumed to be ``fixture.repo`` regardless of topology
+    # (single-home, no PRIMARY staging copy under a coordination topology).
+    local_checkout = _worktree_for_ref(fixture.repo, review_ref) or fixture.repo
+    local_path = local_checkout / relative
     assert local_path.is_file()
     generated_evidence = local_path.read_bytes()
     if auto_commit:
@@ -501,7 +509,10 @@ def test_coordination_cell_rejects_a_deliberately_wrong_primary_ref(
     relative = _relative_evidence_path(fixture, command.payload)
     governed_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     assert governed_ref != fixture.target_branch
-    generated_evidence = (fixture.repo / relative).read_bytes()
+    # WP08 re-pin (see the matrix test above): the physical write now lives in
+    # the coordination worktree for a COORD-topology Mission.
+    local_checkout = _worktree_for_ref(fixture.repo, governed_ref) or fixture.repo
+    generated_evidence = (local_checkout / relative).read_bytes()
     with pytest.raises(AssertionError, match="missing governed blob"):
         _assert_git_blob_exact(fixture.repo, fixture.target_branch, relative, generated_evidence)
     _assert_git_blob_exact(fixture.repo, governed_ref, relative, generated_evidence)
@@ -667,8 +678,15 @@ def _install_event_failure(
     def fail_after_evidence(st: Any, _ports: Any) -> None:
         signal = st.pending_verdict_write
         assert signal is not None and signal.durably_persisted
-        relative = signal.artifact_path.relative_to(fixture.repo).as_posix()
         target = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
+        # WP08 re-pin: the artifact now physically lives in the checkout
+        # holding REVIEW_CYCLE's own governed ref (the coordination worktree
+        # for a coord-routed topology) -- relativize against THAT, not
+        # unconditionally against ``fixture.repo`` (which would keep the
+        # ``.worktrees/<mission>-coord/`` prefix and never match the
+        # governed ref's tree).
+        checkout_root = _worktree_for_ref(fixture.repo, target) or fixture.repo
+        relative = signal.artifact_path.relative_to(checkout_root).as_posix()
         observation.evidence_verified_before_event = _git_show(fixture.repo, target, relative).returncode == 0
         raise RuntimeError("injected status event failure after durable evidence")
 

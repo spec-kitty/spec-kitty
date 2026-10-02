@@ -11,7 +11,6 @@ See: spec-kitty #1546
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
 from pathlib import Path
@@ -74,6 +73,17 @@ class DecisionGitLog:
     must never abort mission execution.
 
     All other emit methods delegate to ``inner`` unchanged.
+
+    coord-artifact-single-home-01M3V4BE WP09 (FR-003/FR-003a, T051):
+    ``mission_dir`` is a REQUIRED keyword argument (post-tasks squad R-m5 /
+    P-m4 ruling: preferred over an optional kwarg so no caller can silently
+    fall back to a stale composition). The caller (``runtime_bridge``) is the
+    one place that knows the coordination topology and resolves
+    ``write_dir(DECISION_LOG)``; this class no longer composes
+    ``worktree_root / KITTY_SPECS_DIR / <slug>`` itself — that legacy
+    composer could disagree with the write-location accessor's dir-name
+    computation (``coord_mission_dir_name``) for a slug that embeds its
+    mid8, forking the stream. There is now exactly one composer.
     """
 
     def __init__(
@@ -83,6 +93,7 @@ class DecisionGitLog:
         destination_ref: str,
         mission_slug: str,
         *,
+        mission_dir: Path,
         inner: RuntimeEventEmitter,
         mission_id: str | None = None,
         target: CommitTarget | None = None,
@@ -92,9 +103,11 @@ class DecisionGitLog:
         self._destination_ref = destination_ref
         self._mission_slug = mission_slug
         # FR-001: validate mission_slug before joining into a FS path (traversal
-        # guard) — validated FIRST so an unsafe slug fails closed with ValueError
-        # before any placement resolution (below) is attempted on it.
-        _safe_slug = assert_safe_path_segment(mission_slug)
+        # guard) — validated FIRST, before any placement resolution below, even
+        # though the resulting dir no longer composes HERE: an unsafe slug must
+        # still fail closed with ValueError at construction, not silently reach
+        # the caller-supplied ``mission_dir``.
+        assert_safe_path_segment(mission_slug)
         # T010: the CommitTarget is resolved by the calling surface
         # (runtime_bridge) which knows the coordination topology — it is passed
         # in, not re-derived here. When a legacy caller supplies only the string
@@ -115,9 +128,7 @@ class DecisionGitLog:
         # substitute the slug — a slug in a mission_id field is a contract violation.
         self._mission_id = mission_id
         self._inner = inner
-        self._decisions_file = (
-            worktree_root / KITTY_SPECS_DIR / _safe_slug / "decisions.events.jsonl"
-        )
+        self._decisions_file = mission_dir / "decisions.events.jsonl"
 
     @staticmethod
     def _resolve_default_target(

@@ -257,7 +257,16 @@ class CoordState(enum.Enum):
     * ``MATERIALIZED`` — coord worktree root AND its mission dir both exist; the
       coord surface is the authoritative read.
     * ``EMPTY`` — coord worktree root exists but its mission dir is absent
-      (#1716 / FR-006): a fail-closed condition, never a silent primary fallback.
+      (#1716 / FR-006). coord-artifact-single-home-01M3V4BE WP04 (FR-017):
+      READ — a loud, declared PRIMARY fallback (C-002; the non-owned arm
+      keeps resolving the primary checkout, with a ``logging.WARNING`` for a
+      ``LANES_WITH_COORD`` or post-fix Mission). WRITE — seeded (a pre-fix
+      Mission) or restored from the coordination-branch tip (a post-fix
+      regression) via :meth:`~mission_runtime.resolution.PlacementSeam.write_dir`;
+      it never silently substitutes the primary checkout. The OWNED read arm
+      (:func:`~mission_runtime.resolution._owned_read_dir_for_kind`) is
+      STRICTER and unchanged by this WP: it still fails closed with
+      ``OWNED_COORDINATION_WORKSPACE_UNAVAILABLE`` rather than falling back.
     * ``UNMATERIALIZED`` — neither the coord root nor a *deleted* branch: the
       declared-but-not-yet-created window (``mission create`` → first coord
       materialization), where the primary checkout stays authoritative.
@@ -846,24 +855,66 @@ def read_primary_meta(
     # MissionMetaReadError instead of a raw ValueError.
     meta = load_meta_fail_closed(primary_dir) or {}
     if not meta:
-        # Non-composed handle (bare ``mid8``, full ULID, numeric prefix): the raw
-        # handle does NOT name the on-disk ``<slug>-<mid8>`` directory, so the
-        # topology-blind compose above misses the primary meta. Canonicalize the
-        # handle to locate the real primary dir and re-read.  Without this, a
-        # coord-topology mission addressed by a non-composed ``--mission`` handle
-        # yields empty meta → ``coordination_branch`` is never learned → the
-        # caller's coord gates (the M5 fail-closed gate AND the DELETED hard-fail)
-        # are silently skipped and the leg leaks a STALE PRIMARY read of a mission
-        # whose coord branch is gone (#1848 data-loss DIVERGENCE from the surface
-        # leg, which canonicalizes first). Paid only on the raw-miss path, so the
+        # Non-composed handle: the raw handle does NOT name the on-disk
+        # ``<slug>-<mid8>`` directory, so the topology-blind compose above
+        # misses the primary meta. Canonicalize the handle to locate the real
+        # primary dir and re-read. Without this, a coord-topology mission
+        # addressed by a non-composed ``--mission`` handle yields empty meta →
+        # ``coordination_branch``/``topology`` is never learned → the caller's
+        # coord gates (the M5 fail-closed gate, the DELETED hard-fail, and the
+        # coord-artifact-single-home-01M3V4BE WP09 cycle-2 undeclared-branch
+        # topology gate) are silently skipped and the leg leaks a STALE
+        # PRIMARY read of a mission whose coord branch is gone, or never
+        # learns it is coord-routed at all (#1848 data-loss DIVERGENCE from
+        # the surface leg, which canonicalizes first).
+        #
+        # Review cycle 2 (same-family B1-residual fix, coord-artifact-single-
+        # home-01M3V4BE WP09): this previously called ONLY
+        # ``_canonicalize_handle`` (the identity-form cascade: bare ``mid8`` /
+        # full ULID / numeric prefix) — missing the BARE HUMAN SLUG fold
+        # ``_canonicalize_primary_read_handle`` already composes for the
+        # surface leg (``resolve_planning_read_dir``). A Mission addressed by
+        # its plain bare human slug (no identity form) therefore read EMPTY
+        # meta here while the surface leg correctly resolved the SAME
+        # Mission's real primary dir — a split-brain between the two
+        # canonicalizers. Routing through the ONE shared canonicalizer
+        # (``_canonicalize_primary_read_handle``, which itself tries the
+        # bare-modern fold FIRST, falling through to the identity-form
+        # cascade) closes the split: both legs now agree for every handle
+        # shape. ``MissionSelectorAmbiguous`` still propagates unchanged (no
+        # silent pick) -- the SAME contract the old ``_canonicalize_handle``
+        # call already had. Paid only on the raw-miss path, so the
         # composed-handle happy path keeps its pure-path cost.
-        canonical = _canonicalize_handle(repo_root, handle)
-        if canonical is not None:
-            _, _, canonical_dir = canonical
-            meta = load_meta_fail_closed(canonical_dir) or {}
+        canonical_name = _canonicalize_primary_read_handle(repo_root, handle)
+        if canonical_name != handle:
+            meta = load_meta_fail_closed(_compose_primary_feature_dir(repo_root, canonical_name)) or {}
     branch = meta.get("coordination_branch")
     declares_coordination = isinstance(branch, str) and bool(branch.strip())
     return meta, declares_coordination
+
+
+def literal_primary_dir_has_meta(repo_root: Path, mission_slug: str) -> bool:
+    """Return whether the LITERAL (uncanonicalized) primary dir for *handle* carries its own ``meta.json``.
+
+    coord-artifact-single-home-01M3V4BE WP09 (review cycle 3, C3-B1). A
+    narrow, PUBLIC sibling of :func:`read_primary_meta` for callers that need
+    the genuinely-literal answer -- no bare-human-slug fold, no identity-form
+    cascade -- to distinguish "``mission_slug`` IS ALREADY the on-disk
+    canonical dir name" from "it needs composing" (the two-shape ambiguity
+    :func:`~specify_cli.coordination.transaction._canonical_coord_mission_slug`
+    resolves). Composes through the SAME sanctioned leaf
+    (:func:`_compose_primary_feature_dir`) ``read_primary_meta`` itself uses
+    for its own literal-first probe, so there is still only ONE join grammar
+    (FR-004) -- but as a function OF ITS OWN in this sanctioned module, a
+    cross-module caller imports THIS name rather than reaching past it to
+    call the module-private leaf directly (which
+    ``tests/architectural/test_no_read_side_bypass.py`` forbids outside the
+    read-sanctioned module set, FR-005/IC-06).
+
+    Pure: a single ``Path.exists()`` check, no coordination probing, no
+    topology awareness.
+    """
+    return (_compose_primary_feature_dir(repo_root, mission_slug) / "meta.json").exists()
 
 
 def resolve_handle_to_read_path(

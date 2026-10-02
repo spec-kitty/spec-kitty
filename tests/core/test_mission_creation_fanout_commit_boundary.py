@@ -45,6 +45,14 @@ def _assert_status_log_seeded_on_coordination(result: MissionCreationResult, emi
 
 
 def test_protected_bootstrap_preserves_disclosed_local_source(tmp_path, monkeypatch):
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T032/FR-002a): the default
+    (coord) topology now seeds + commits the creation events onto the coordination
+    branch UNCONDITIONALLY, even when the TARGET scaffold commit itself is a
+    disclosed bootstrap skip on a protected primary branch -- ``status.events.jsonl``
+    is never scaffolded at ``feature_dir`` at all for a coord mission (#5440), so it
+    can no longer appear in ``uncommitted_files``; it is fully committed on the
+    coordination branch instead.
+    """
     from specify_cli.core.mission_creation import create_mission_core
     from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
@@ -53,12 +61,26 @@ def test_protected_bootstrap_preserves_disclosed_local_source(tmp_path, monkeypa
     emitted = []
     monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
     result = create_mission_core(tmp_path, "bootstrap", allow_worktree_context=True, **_mission_summary("bootstrap"))
+    assert result.feature_dir / "status.events.jsonl" not in result.uncommitted_files
+    assert not (result.feature_dir / "status.events.jsonl").exists()
+    coordination_branch = result.meta["coordination_branch"]
+    coord_tree = _git(tmp_path, "ls-tree", "-r", "--name-only", coordination_branch).stdout.splitlines()
+    assert f"kitty-specs/{result.mission_slug}/status.events.jsonl" in coord_tree
     assert [item["envelope"]["event_type"] for item in emitted] == ["MissionCreated", "SpecifyStarted"]
     assert all(item["log_path"].exists() for item in emitted)
     _assert_status_log_seeded_on_coordination(result, emitted)
 
 
 def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, D6): for the default
+    (coord) topology the creation events are committed on the COORDINATION branch
+    (inside the coordination worktree), never the operator's current-checkout
+    ``HEAD`` -- ``git show HEAD:<path>`` was only ever a proxy for "is this really
+    committed by the time fanout fires"; checked against the coordination
+    worktree's own ``HEAD`` (its checked-out coordination branch) instead, derived
+    from ``log_path`` alone so no advance knowledge of the mission's name is
+    needed inside the fanout recorder.
+    """
     from specify_cli.core.mission_creation import create_mission_core
     from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
@@ -122,10 +144,24 @@ def test_origin_commit_failure_preserves_evidence_without_creation_fanout(tmp_pa
     assert calls == ["scaffold", "origin-ticket binding"]
     assert not emitted
     assert _git(tmp_path, "rev-parse", "HEAD").stdout == original_head
-    assert len(list((tmp_path / "kitty-specs").glob("*/status.events.jsonl"))) == 1
+    # Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T032): the default
+    # (coord) topology never scaffolds ``status.events.jsonl`` under the
+    # repository-root ``kitty-specs/`` tree at all (#5440) -- it is seeded onto
+    # the coordination surface instead, and T032's rollback (this create fails
+    # and is therefore undone) tears that coordination worktree/branch down
+    # too. So, unlike the pre-WP06 single-mechanism scaffold, there is no
+    # surviving on-disk copy to find here -- the count is 0, not 1.
+    assert len(list((tmp_path / "kitty-specs").glob("*/status.events.jsonl"))) == 0
 
 
 def test_head_mismatch_bootstrap_keeps_planning_target_and_disclosure(tmp_path, monkeypatch):
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T032/FR-002a): same
+    shape as ``test_protected_bootstrap_preserves_disclosed_local_source`` -- the
+    target scaffold commit is a disclosed bootstrap skip (HEAD/destination
+    mismatch), but the default (coord) topology's creation-events commit onto the
+    coordination branch runs unconditionally regardless, so ``status.events.jsonl``
+    is never scaffolded at ``feature_dir`` and cannot appear in ``uncommitted_files``.
+    """
     from specify_cli.core.mission_creation import create_mission_core
     from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
@@ -136,6 +172,11 @@ def test_head_mismatch_bootstrap_keeps_planning_target_and_disclosure(tmp_path, 
     result = create_mission_core(tmp_path, "other-target", target_branch="planning-work", allow_worktree_context=True, **_mission_summary("other-target"))
     assert result.target_branch == "planning-work"
     assert result.current_branch == "operator-work"
+    assert result.feature_dir / "status.events.jsonl" not in result.uncommitted_files
+    assert not (result.feature_dir / "status.events.jsonl").exists()
+    coordination_branch = result.meta["coordination_branch"]
+    coord_tree = _git(tmp_path, "ls-tree", "-r", "--name-only", coordination_branch).stdout.splitlines()
+    assert f"kitty-specs/{result.mission_slug}/status.events.jsonl" in coord_tree
     assert [item["envelope"]["event_type"] for item in emitted] == ["MissionCreated", "SpecifyStarted"]
     _assert_status_log_seeded_on_coordination(result, emitted)
     assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "operator-work"

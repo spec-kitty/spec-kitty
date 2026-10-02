@@ -108,6 +108,7 @@ def _decision_log(tmp_path: Path, inner: NullEmitter, slug: str = SLUG) -> Decis
         worktree_root=tmp_path,
         destination_ref=f"kitty/mission-{slug}",
         mission_slug=slug,
+        mission_dir=tmp_path / "kitty-specs" / slug,
         inner=inner,
     )
 

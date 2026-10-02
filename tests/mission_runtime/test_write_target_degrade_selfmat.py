@@ -1,23 +1,25 @@
 """Self-materialization hardening for the S-C coord write gate (WP02, FR-006 / #4970).
 
-The gate :func:`mission_runtime.assert_coord_write_materialized` used to treat ANY
-``UNMATERIALIZED`` + local-head coordination branch as the sanctioned
-``mission create`` → first-write self-materialization window, regardless of
-whether that local head already carried committed matrix content. A stale local
-head (worktree pruned, rows committed) was therefore misclassified as a virgin
-first-write and allowed to self-materialize over — clobbering — committed
-coordination state (the #4970 data-loss shape).
+**Re-pinned deliberately (coord-artifact-single-home-01M3V4BE WP03, research D22).**
+The gate :func:`mission_runtime.assert_coord_write_materialized` used to REFUSE an
+``UNMATERIALIZED`` local-head coordination branch that already carried committed
+matrix content (classifying it as a "stale local head" that self-materializing
+would clobber). D22 found that reasoning over-matches: once seeding ships, EVERY
+post-fix coordination branch carries committed content by the time it is a local
+head again, so that refusal would fire for the Mission's *normal* post-fix shape,
+not only a genuinely stale one. ``assert_coord_write_materialized`` is now a thin
+delegate to the single write authority
+(:func:`specify_cli.coordination.coord_seed.establish_coord_write_location`),
+which materializes/seeds/restores instead of refusing a local head on content
+alone — the former REFUSE cases below (a)/(c)/(d-via-the-gate) are re-pinned to
+ALLOW (self-materialize, no raise). The remote-only refusal is UNCHANGED (ruling
+Q1, #4970 parity) and lives in the sibling round-trip file
+(``tests/specify_cli/cli/commands/test_coordination_remedy_5113.py``).
 
-WP02 narrows the window to ``UNMATERIALIZED AND local-head AND NOT
-committed-artifact-present``. These tests build the coord shape with REAL git
-(no mocking) and exercise every REFUSE branch directly (NFR-001):
-
-* (a) stale local head that carries a committed matrix ⇒ REFUSE.
-* (b) genuine first-write (no committed matrix content) ⇒ ALLOW (no false-refusal, NFR-003).
-* (c) a **path-drifted** committed matrix (under a non-default sub-path) is still
-  detected ⇒ REFUSE (post-plan F2 — a hardcoded prefix would mis-read it as absent).
-* (d) an unreadable git context (missing/foreign coord ref) ⇒ treated as present ⇒
-  REFUSE (fail-closed), exercised directly on the committed-content probe.
+``TestCommittedContentProbeFailClosed`` is UNCHANGED: it exercises
+:func:`coord_branch_has_committed_artifact` directly (not through the gate), and
+that probe's own fail-closed behaviour is untouched by D22 -- only the GATE
+stopped consulting it for the local-head arm.
 """
 
 from __future__ import annotations
@@ -28,11 +30,12 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import ActionContextError, CommitTarget, MissionArtifactKind
+from mission_runtime import CommitTarget, MissionArtifactKind
 from mission_runtime.write_target_degrade import assert_coord_write_materialized
 from specify_cli.coordination.surface_resolver import (
     coord_branch_has_committed_artifact,
 )
+from specify_cli.coordination.workspace import CoordinationWorkspace
 
 # Pure-git, tmp_path-only — same fast/unit tier as the sibling
 # ``tests/mission_runtime/test_write_target_degrade.py``.
@@ -113,34 +116,47 @@ def _assert(repo: Path) -> None:
     )
 
 
-class TestSelfMaterializationRefusal:
-    def test_stale_local_head_with_committed_matrix_refuses(self, tmp_path: Path) -> None:
-        """(a) UNMATERIALIZED local head that already carries committed rows ⇒ REFUSE."""
+class TestSelfMaterializationNowAllowed:
+    """D22 re-pin: a local-head UNMATERIALIZED branch is now self-materialized
+    regardless of whether it already carries committed content -- the single
+    write authority (``establish_coord_write_location``) decides, and a
+    post-fix Mission with committed COORD content at its tip is the NORMAL
+    shape, not a stale/forked one. All four cases below previously diverged
+    ((a)/(c)/(d) REFUSEd, (b) ALLOWed); they now all ALLOW uniformly.
+    """
+
+    def _assert_matrix_survives(self, repo: Path, matrix_rel: str) -> None:
+        """L5 (review cycle 2): the #4970 no-clobber control -- self-materializing
+        over committed content must never discard it."""
+        worktree = CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
+        matrix_path = worktree / "kitty-specs" / _SLUG / matrix_rel
+        assert matrix_path.exists(), f"committed matrix {matrix_rel!r} did not survive materialization"
+        assert json.loads(matrix_path.read_text(encoding="utf-8")) == {"rows": {"#1111": {"verdict": "fixed"}}}
+
+    def test_stale_local_head_with_committed_matrix_now_allowed(self, tmp_path: Path) -> None:
+        """(a) UNMATERIALIZED local head that already carries committed rows ⇒ ALLOW (re-pinned)."""
         repo = _build_unmaterialized_coord(tmp_path, matrix_rel=_DEFAULT_MATRIX_REL)
-        with pytest.raises(ActionContextError) as exc:
-            _assert(repo)
-        assert exc.value.code == "COORD_WRITE_SURFACE_UNMATERIALIZED"
+        _assert(repo)  # must NOT raise
+        self._assert_matrix_survives(repo, _DEFAULT_MATRIX_REL)
 
     def test_genuine_first_write_is_allowed(self, tmp_path: Path) -> None:
-        """(b) UNMATERIALIZED local head with NO committed matrix ⇒ ALLOW (no raise)."""
+        """(b) UNMATERIALIZED local head with NO committed matrix ⇒ ALLOW (unchanged)."""
         repo = _build_unmaterialized_coord(tmp_path, matrix_rel=None)
         # Must NOT raise — a genuine mission-create first-write self-materialization.
         _assert(repo)
 
-    def test_path_drifted_committed_matrix_refuses(self, tmp_path: Path) -> None:
-        """(c) A committed matrix under a NON-default sub-path is still detected ⇒ REFUSE."""
+    def test_path_drifted_committed_matrix_now_allowed(self, tmp_path: Path) -> None:
+        """(c) A committed matrix under a NON-default sub-path ⇒ ALLOW (re-pinned)."""
         repo = _build_unmaterialized_coord(tmp_path, matrix_rel="drift/issue-matrix.json")
-        with pytest.raises(ActionContextError) as exc:
-            _assert(repo)
-        assert exc.value.code == "COORD_WRITE_SURFACE_UNMATERIALIZED"
+        _assert(repo)  # must NOT raise
+        self._assert_matrix_survives(repo, "drift/issue-matrix.json")
 
-    def test_legacy_md_committed_matrix_refuses(self, tmp_path: Path) -> None:
+    def test_legacy_md_committed_matrix_now_allowed(self, tmp_path: Path) -> None:
         """Both ``issue-matrix.json`` and ``issue-matrix.md`` map to ISSUE_MATRIX —
-        a not-yet-migrated legacy ``.md`` on the coord branch is protected too."""
+        a not-yet-migrated legacy ``.md`` on the coord branch ⇒ ALLOW (re-pinned)."""
         repo = _build_unmaterialized_coord(tmp_path, matrix_rel="issue-matrix.md")
-        with pytest.raises(ActionContextError) as exc:
-            _assert(repo)
-        assert exc.value.code == "COORD_WRITE_SURFACE_UNMATERIALIZED"
+        _assert(repo)  # must NOT raise
+        self._assert_matrix_survives(repo, "issue-matrix.md")
 
 
 class TestCommittedContentProbeFailClosed:

@@ -200,7 +200,10 @@ def test_check_coord_branch_staleness_delegates(
     shas = {"refs/heads/coord": "coord-sha", "refs/heads/main": "main-sha"}
     monkeypatch.setattr(cd, "_rev_parse", lambda _cwd, ref: shas[ref])
     sentinel = cd.DoctorFinding(severity="warning", message="m", error_code="E")
-    monkeypatch.setattr(cd, "_coord_branch_stale_vs_target_finding", lambda *a: sentinel)
+    # T035 (coord-artifact-single-home-01M3V4BE): the real function now takes
+    # a keyword-only `mission_dir_name` (default `None`); this double must
+    # accept (and ignore) it too -- `**_k`, not a positional-only stub.
+    monkeypatch.setattr(cd, "_coord_branch_stale_vs_target_finding", lambda *a, **_k: sentinel)
     meta = {
         "coordination_branch": "coord", "mission_slug": "m",
         "mission_id": "01ABCDEF00000000000000000A", "target_branch": "main",

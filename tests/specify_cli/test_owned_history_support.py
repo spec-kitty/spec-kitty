@@ -118,7 +118,6 @@ def test_write_issue_matrix_owned_lands_under_p_only(
     result = write_issue_matrix(
         repo_root=fact.repository_root,
         mission_slug=fact.mission_slug,
-        feature_dir=fact.mission_dir,
         rows=_matrix_rows(),
         policy=_AllowAllPolicy(),
         owned=fact,

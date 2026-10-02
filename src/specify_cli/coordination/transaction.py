@@ -18,7 +18,7 @@ C-013, NFR-001, NFR-008, NFR-010.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import WORKTREES_DIR
 import logging
 import subprocess
 from collections.abc import Callable
@@ -27,6 +27,7 @@ from kernel.clock import now_utc
 from kernel.git import GitCommandError, status_entries
 from pathlib import Path
 from types import TracebackType
+from typing import NamedTuple
 
 from specify_cli.coordination.policy import (
     WorkflowMutationPolicy,
@@ -47,8 +48,13 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from mission_runtime import CommitTarget, OwnedCheckout
+from mission_runtime import CommitTarget, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+from specify_cli.coordination.surface_resolver import (
+    CoordinationBranchDeleted,
+    CoordinationWorktreeUnmaterialized,
+)
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
     SafeCommitRecoveryFailed,
@@ -78,6 +84,7 @@ from specify_cli.coordination.transaction_errors import (
     BookkeepingWorktreeMissing,
 )
 from specify_cli.coordination.legacy_resolution import (
+    _checkout_mission_dir,
     _coordination_branch_from_meta,
     _emit_legacy_warning_once,
     _is_legacy_mission,
@@ -118,6 +125,182 @@ _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
 
 
+def _canonical_coord_mission_slug(
+    seam_repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+    *,
+    owned: OwnedCheckout | None,
+) -> str:
+    """Pick the mission_slug form whose ``meta.json`` actually declares coordination.
+
+    coord-artifact-single-home-01M3V4BE WP07 (T039 step 4, campsite fix): a
+    caller's ``mission_slug`` may be bare (not embedding ``mid8``) in TWO
+    genuinely different on-disk shapes, and composing blindly breaks one of
+    them:
+
+    * A bare caller whose primary dir is itself the CANONICAL ``<slug>-<mid8>``
+      name (e.g. ``test_transaction.py``'s ``MISSION_SLUG = "demo-feature"``,
+      ``mid8 = "01J6XW9K"``, primary dir ``demo-feature-01J6XW9K``) -- the
+      literal bare slug's ``meta.json`` does not exist, so it must be composed.
+    * A mission whose primary dir is ITSELF bare (no ``-<mid8>`` suffix at
+      all), even though its coordination branch is a canonical
+      ``<slug>-<mid8>`` ref -- composing here invents a primary dir that does
+      not exist, so ``establish_coord_write_location`` silently classifies
+      PRIMARY (no meta found) instead of the real COORD mission.
+
+    Checks the LITERAL ``mission_slug`` dir first -- genuinely literally, not
+    through ``read_primary_meta``'s own canonicalization fallback (review
+    cycle 2, coord-artifact-single-home-01M3V4BE WP09): that fallback now
+    folds a bare human slug to its composed ``<slug>-<mid8>`` dir internally
+    (the B1-residual same-family fix), so ``read_primary_meta(seam_repo_root,
+    mission_slug)`` can report ``declares=True`` for a BARE slug whose
+    on-disk dir is ITSELF the composed name -- exactly shape one below -- and
+    this function would then wrongly keep the bare slug as "already
+    canonical", handing the bare form to ``write_dir``/the seed mechanics
+    (which use it verbatim in git operations, not just meta resolution).
+    Only when the literal dir's OWN ``meta.json`` exists does this return
+    ``mission_slug`` unchanged; otherwise it retries the mid8-composed
+    canonical name exactly as before.
+    """
+    if owned is not None:
+        # Zero I/O: the fact already carries its own canonical mission_slug.
+        return owned.mission_slug
+    from specify_cli.missions._read_path_resolver import literal_primary_dir_has_meta, read_primary_meta
+
+    # Review cycle 3 (C3-B1): composed through ``literal_primary_dir_has_meta``
+    # -- a PUBLIC sibling of ``read_primary_meta`` living in the read-
+    # sanctioned module (never a raw ``KITTY_SPECS_DIR`` join here, which
+    # regressed ``test_single_mission_surface_resolver.py``'s FR-004
+    # raw-bypass gate; and never a direct call to the module-private
+    # ``_compose_primary_feature_dir`` leaf from this non-sanctioned module,
+    # which regresses ``test_no_read_side_bypass.py``'s FR-005/IC-06 gate).
+    # Still genuinely LITERAL: it folds nothing, so the check below still
+    # bypasses ``read_primary_meta``'s bare-slug fold exactly as before (M6
+    # pins this is load-bearing).
+    if literal_primary_dir_has_meta(seam_repo_root, mission_slug):
+        return mission_slug
+    composed = coord_mission_dir_name(mission_slug, mid8=mid8)
+    if composed == mission_slug:
+        return mission_slug
+    _composed_meta, composed_declares = read_primary_meta(seam_repo_root, composed)
+    return composed if composed_declares else mission_slug
+
+
+class _CoordWriteTarget(NamedTuple):
+    """What the coordination arm takes from ``write_dir``'s ``WriteLocation``."""
+
+    worktree_root: Path
+    feature_dir: Path
+    seed_committed: bool
+
+
+def _resolve_coord_worktree_root_for_transaction(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+    owned: OwnedCheckout | None,
+) -> _CoordWriteTarget:
+    """Materialize/seed the coordination write location for the coordination arm.
+
+    coord-artifact-single-home-01M3V4BE WP07 (T039): replaces the bare
+    ``CoordinationWorkspace.resolve`` call, which only materializes an
+    ``UNMATERIALIZED`` worktree and is blind to ``EMPTY`` -- the first
+    transactional write on a pre-fix ``EMPTY`` coordination surface used to
+    create the Mission dir itself and fork the log instead of carrying the
+    root-checkout records over once. ``write_dir`` (WP03/WP04) materializes,
+    seeds or restores as the state requires, or refuses loudly; its
+    ``checkout_root`` AND ``path`` are returned (never ``.path.parent.parent``,
+    never a re-composed ``checkout_root / KITTY_SPECS_DIR / name``): the
+    caller uses ``WriteLocation.path`` verbatim as the transaction's
+    ``feature_dir`` (FR-014 -- a COORD writer never re-derives its write
+    location; coordination-write-gate cap 0).
+
+    ``repo_root`` here is the REAL repository root (``owned.repository_root``
+    when owned), never the inner lock root ``_acquire_locked`` itself resolves
+    worktree-relative paths against -- the placement seam always anchors on
+    the actual git repository, with ``owned`` threaded separately.
+
+    ``mission_slug``/``mid8`` arrive as this call's own two-part addressing
+    (a caller may pass a BARE slug that does not embed ``mid8``), but the
+    placement seam resolves ``meta.json`` off the CANONICAL on-disk
+    ``<slug>-<mid8>`` directory name -- so the seam is built from
+    ``coord_mission_dir_name(mission_slug, mid8=mid8)`` (the same primitive
+    :func:`_mission_specs_dir_name` / ``coord_seed._transaction_dir_name``
+    already delegate to), never the raw ``mission_slug``, or a bare-slug
+    caller's ``meta.json`` read silently finds nothing and the seam degrades
+    to the PRIMARY checkout instead of the coordination worktree (T039 step 4
+    dir-name agreement).
+
+    The accessor's own typed refusals (``CoordinationWorktreeUnmaterialized``,
+    ``CoordinationBranchDeleted``, ``CoordSeedForkRefused``, a
+    ``STATUS_LOCK_HELD``-coded ``FeatureStatusLockTimeoutError``) propagate
+    UNCHANGED -- callers that render coordination-specific recovery hints for
+    these types must keep catching them. Only a genuinely unexpected
+    materialization failure is wrapped into :class:`BookkeepingWorktreeMissing`,
+    matching the exception this call site always raised for that case.
+
+    coord-artifact-single-home-01M3V4BE WP07 (review cycle 2 R1), corrected by
+    WP09 (review cycle 3 follow-up): also returns whether THIS call's own
+    ``write_dir`` resolution just committed a genuine seed commit onto the
+    coordination branch (``location.seed is not None and
+    location.seed.coord_commit is not None``) -- the caller (``_acquire_locked``)
+    threads this onto the transaction as ``seed_committed_this_txn`` so
+    :meth:`BookkeepingTransaction.commit_idempotent` can tell "this
+    transaction's OWN seed just committed content I never staged" apart from
+    "this Mission merely has pre-existing history" (``events_path.exists()``
+    alone cannot -- it is true for both). Gating on ``establishment`` alone
+    (the WP07 shape) is WRONG: a ``RESTORED_FROM_BRANCH`` establishment can
+    restore COORD-kind paths from the tip without producing a new commit (the
+    restored content already matches the tip byte-for-byte, so the follow-up
+    seed-commit attempt is a genuine git no-op, ``coord_commit=None``) --
+    that acquire committed nothing, so the branch tip never moved and a
+    caller that staged nothing must still see the empty-changeset
+    :class:`BookkeepingCommitFailed`, not a silent no-op receipt.
+    """
+    seam_repo_root = owned.repository_root if owned is not None else repo_root
+    canonical_mission_slug = _canonical_coord_mission_slug(seam_repo_root, mission_slug, mid8, owned=owned)
+    try:
+        location = placement_seam(seam_repo_root, canonical_mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE)
+    except (
+        CoordinationWorktreeUnmaterialized,
+        CoordinationBranchDeleted,
+        CoordSeedForkRefused,
+        FeatureStatusLockTimeoutError,
+    ):
+        raise
+    except Exception as exc:
+        # Domain-error surface: any genuinely unexpected materialization failure
+        # (programming bug, unforeseen git-plumbing error) becomes the typed
+        # BookkeepingWorktreeMissing this call site has always raised for that
+        # case, rather than propagating an unclassified exception to callers
+        # that only expect this module's own error hierarchy.
+        identity = coord_mission_dir_name(mission_slug, mid8=mid8)
+        raise BookkeepingWorktreeMissing(f"Failed to resolve coordination worktree for {identity}: {exc}") from exc
+    # coord-artifact-single-home-01M3V4BE WP09 (review-cycle-3 follow-up on
+    # WP07): a RESTORED_FROM_BRANCH establishment does not, by itself, mean
+    # THIS acquire committed anything -- ``_handle_empty_post_fix`` restores
+    # the COORD-kind paths from the branch tip first (a worktree checkout,
+    # no commit) and only THEN seeds any root-only records; when the root
+    # checkout carries nothing new the resulting ``_commit_and_restore`` seed
+    # commit is a genuine git no-op (``coord_commit=None``) because the
+    # restored content already matches the coordination tip byte-for-byte.
+    # Gating on ``establishment`` alone made ``commit_idempotent`` treat that
+    # case as "this acquire's own seed already committed my content", so a
+    # caller that staged nothing got a silent no-op receipt pinned at a HEAD
+    # the branch tip never actually moved to, instead of the genuinely empty
+    # changeset ``BookkeepingCommitFailed`` base behaviour. Gate on the
+    # ``SeedReport`` itself: only a seed that actually produced a commit this
+    # call (``location.seed.coord_commit is not None``) counts.
+    seed_committed_this_txn = location.seed is not None and location.seed.coord_commit is not None
+    return _CoordWriteTarget(
+        worktree_root=location.checkout_root,
+        feature_dir=location.path,
+        seed_committed=seed_committed_this_txn,
+    )
+
+
 def _write_confined_artifact_bytes(
     worktree_root: Path,
     path: Path,
@@ -153,11 +336,6 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Transaction
 # ---------------------------------------------------------------------------
-
-
-def _feature_dir(worktree_root: Path, mission_slug: str, mid8: str) -> Path:
-    """The mission's ``kitty-specs/<slug>-<mid8>/`` directory inside ``worktree_root``."""
-    return Path(worktree_root, KITTY_SPECS_DIR, _mission_specs_dir_name(mission_slug, mid8))
 
 
 def _caller_ref_refusal(
@@ -270,6 +448,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         pre_emit_size: int,
         pre_emit_events_existed: bool,
         lock_cm: AbstractContextManager[Path],
+        seed_committed_this_txn: bool = False,
     ) -> None:
         # Note: most attributes are public-but-immutable-by-convention.
         # ``mypy --strict`` is satisfied because we do not annotate them
@@ -287,6 +466,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._snapshot_path = snapshot_path
         self._pre_emit_size = pre_emit_size
         self._pre_emit_events_existed = pre_emit_events_existed
+        self._seed_committed_this_txn = seed_committed_this_txn
         self._lock_cm = lock_cm
 
         # Per-transaction mutable state.
@@ -461,7 +641,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 return caller_refusal
             worktree_root = CoordinationWorkspace.worktree_path(arm_root, safe_mission_slug, safe_mid8)
             effective_destination_ref = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
-        feature_dir = _feature_dir(worktree_root, safe_mission_slug, safe_mid8)
+        feature_dir = _checkout_mission_dir(worktree_root, safe_mission_slug, safe_mid8)
         events_path = feature_dir / _EVENTS_FILENAME
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME
         verdict = _preflight_policy_verdict(
@@ -506,6 +686,15 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         safe_mid8 = _validate_safe_segment("mid8", mid8)
         effective_destination_ref = destination_ref
         effective_normalized_ref = normalised_ref
+        # Review cycle 2 R1: only the coordination arm below can ever set this
+        # True (it is the one arm that calls write_dir); every other arm
+        # (legacy, commit_to_primary_target) never seeds a coordination
+        # surface, so it stays False for them.
+        seed_committed_this_txn = False
+        # Set ONLY by the coordination arm: ``WriteLocation.path`` as returned
+        # by ``write_dir`` (never re-composed here). ``None`` for the
+        # non-coordination checkouts (legacy lane worktree, primary checkout).
+        coord_feature_dir: Path | None = None
 
         # Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
         #
@@ -614,16 +803,19 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # redirect below is skipped entirely.
                 worktree_root = repo_root
             else:
-                # New topology — create coord worktree on first call.
-                try:
-                    worktree_root = CoordinationWorkspace.resolve(
-                        repo_root,
-                        safe_mission_slug,
-                        safe_mid8,
-                    )
-                except Exception as exc:  # noqa: BLE001 — domain error surface
-                    identity = coord_mission_dir_name(safe_mission_slug, mid8=safe_mid8)
-                    raise BookkeepingWorktreeMissing(f"Failed to resolve coordination worktree for {identity}: {exc}") from exc
+                # New topology — materialize/seed the coordination write
+                # location on first call (WP07 T039: the single write-location
+                # accessor, not a bare ``CoordinationWorkspace.resolve`` blind
+                # to ``EMPTY``).
+                coord_target = _resolve_coord_worktree_root_for_transaction(
+                    repo_root=repo_root,
+                    mission_slug=safe_mission_slug,
+                    mid8=safe_mid8,
+                    owned=owned,
+                )
+                worktree_root = coord_target.worktree_root
+                coord_feature_dir = coord_target.feature_dir
+                seed_committed_this_txn = coord_target.seed_committed
                 # Status events must be committed to the coordination branch,
                 # not the caller-supplied destination (which may be "main").
                 # Mirror the legacy path's destination_ref override (lines above).
@@ -631,13 +823,14 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 effective_destination_ref = effective_normalized_ref
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
-        # worktree.  Both paths (coord and legacy lane) host the
-        # ``kitty-specs/<slug>-<mid8>/`` tree containing
-        # ``status.events.jsonl`` + ``status.json``.  In legacy mode
-        # there is no sparse-checkout policy on the lane, so the files
-        # are physically present and the surgical truncate rollback
-        # works against the lane worktree without modification.
-        feature_dir = _feature_dir(worktree_root, safe_mission_slug, safe_mid8)
+        # checkout.  Every arm hosts the ``kitty-specs/<slug>-<mid8>/`` tree
+        # containing ``status.events.jsonl`` + ``status.json``.  The
+        # coordination arm uses the ``WriteLocation.path`` ``write_dir``
+        # returned; the non-coordination checkouts (legacy lane worktree --
+        # no sparse-checkout policy, so the files are physically present and
+        # the surgical truncate rollback works unchanged -- and the primary
+        # checkout) locate their own Mission dir.
+        feature_dir = coord_feature_dir if coord_feature_dir is not None else _checkout_mission_dir(worktree_root, safe_mission_slug, safe_mid8)
         events_path = feature_dir / _EVENTS_FILENAME
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME
 
@@ -682,6 +875,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             snapshot_path=snapshot_path,
             pre_emit_size=pre_emit_size,
             pre_emit_events_existed=pre_emit_events_existed,
+            seed_committed_this_txn=seed_committed_this_txn,
             lock_cm=lock_cm,
         )
         txn._capability = capability
@@ -903,12 +1097,54 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         Distinct from :meth:`commit` (used by the transactional emit's implicit
         commit and by adversarial rollback callers), which must still surface an
         empty/failed changeset as :class:`BookkeepingCommitFailed`.
+
+        coord-artifact-single-home-01M3V4BE WP07 (review cycle 2 R1,
+        corrected again by WP09 review cycle 3): the no-op guard no longer
+        requires ``self._staged_paths`` to be non-empty -- but ONLY when THIS
+        transaction's OWN acquire just produced a genuine seed commit on the
+        coordination branch (``self._seed_committed_this_txn``, set from
+        ``location.seed.coord_commit is not None`` at acquire time -- NOT
+        merely from the ``Establishment`` being ``SEEDED`` or
+        ``RESTORED_FROM_BRANCH``, since a ``RESTORED_FROM_BRANCH`` establishment
+        can restore COORD-kind paths from the tip without committing anything
+        new, a genuine git no-op that must NOT be treated as "my content is
+        already on the branch"). Cycle 1's first attempt used
+        ``self._pre_emit_events_existed`` (``events_path.exists()`` at
+        acquire) instead, which is true for ANY Mission with existing status
+        history -- not only one whose SEED just committed content THIS
+        transaction never staged -- so it kept masking a genuinely empty
+        changeset against an existing-log Mission (review cycle 2 R1: the
+        reviewer's own probe, pinned by
+        ``test_commit_idempotent_still_raises_when_an_existing_log_mission_stages_nothing_new``).
+        ``seed_committed_this_txn`` answers the narrower, correct question:
+        did resolving WHERE to write, for THIS acquire, already commit the
+        caller's intended content onto the coordination branch before the
+        caller ever decided whether it still needed to ``write_artifact`` at
+        all -- exactly as idempotent-safe as a caller whose staged paths
+        already match HEAD.
+
+        It does NOT cover a caller whose ``_staged_paths`` is empty because
+        nothing was ever written AND this acquire's own write_dir resolution
+        did not seed anything either (e.g. ``implement.py``'s planning-
+        artifact commit skips every requested source that does not exist on
+        disk, per its own ``continue``, against a Mission whose coordination
+        surface was already ``MATERIALIZED`` with no pending seed -- or
+        whose log already exists from an EARLIER, unrelated transaction) --
+        that remains a genuine empty changeset and still falls through to
+        :meth:`commit`, which raises :class:`BookkeepingCommitFailed` for it,
+        unchanged from base.
         """
         if self._committed:
             if self._explicit_commit_receipt is None:
                 raise BookkeepingCommitFailed("commit_idempotent(): transaction marked committed but no commit receipt was recorded")
             return self._explicit_commit_receipt
-        if self._staged_paths and not self._worktree_has_pending_changes():
+        if not self._staged_paths and not self._seed_committed_this_txn:
+            # Genuinely nothing was ever written AND this transaction's own
+            # acquire did not seed anything either -- delegate to the strict
+            # path so an empty changeset still raises BookkeepingCommitFailed,
+            # regardless of whether the Mission has UNRELATED prior history.
+            return self.commit(message)
+        if not self._worktree_has_pending_changes():
             receipt = self._noop_commit_receipt()
             self._committed = True
             self._explicit_commit_message = message

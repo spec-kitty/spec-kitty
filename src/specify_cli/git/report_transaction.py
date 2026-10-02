@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
@@ -26,7 +27,8 @@ from specify_cli.analysis_report import (
     report_semantics,
     write_analysis_report,
 )
-from specify_cli.coordination.commit_router import commit_for_mission
+from specify_cli.coordination.commit_outcome import commit_outcome_exit_code, commit_outcome_payload
+from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.atomic import atomic_write
 from specify_cli.git.commit_helpers import preflight_commit
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -121,7 +123,114 @@ def _matching_qualified_report(root: Path, report: Path, rendered: str) -> str |
     return existing if report_semantics(existing) == report_semantics(rendered) else None
 
 
-def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, analyzer_agent: str | None, target_branch: str) -> dict[str, object]:
+def _guard_unchanged_inputs(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    relative: str,
+    head: bytes,
+    index: tuple[bytes, ...],
+    working: dict[str, tuple[str, int]],
+    inputs: dict[str, object],
+) -> None:
+    """Re-check the concurrency guard right before the commit.
+
+    Raises ``ValueError`` the instant anything a prior snapshot captured has
+    moved under us, so the retained (already-written) report is flagged
+    unqualified rather than silently committed over a concurrent change.
+    """
+    if (
+        _git(repo_root, "rev-parse", "HEAD").strip() != head
+        or _index(repo_root, relative) != index
+        or _working(repo_root, relative) != working
+        or collect_material_inputs(feature_dir, repo_root) != inputs
+    ):
+        raise ValueError("Repository changed before report commit; retained report is unqualified")
+
+
+class ReportCommitRefused(ValueError):
+    """``_commit_report``'s own refusal, carrying the router's outcome (WP14 B4).
+
+    A plain :class:`ValueError` subclass so every existing ``except
+    ValueError`` catch keeps catching it unchanged -- including
+    :func:`record_report_transaction`'s own broad except tuple -- while the
+    attached ``outcome`` lets that caller additively surface
+    ``commit_outcome_payload(outcome)`` on the failure arm too
+    (contracts/commit-outcome.md rule 6), instead of discarding the typed
+    result with the raise.
+    """
+
+    def __init__(self, message: str, outcome: CommitRouterResult) -> None:
+        super().__init__(message)
+        self.outcome = outcome
+
+
+def _commit_report(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    report: Path,
+    message: str,
+    target_branch: str,
+) -> CommitRouterResult:
+    """Commit *report* through the canonical router; raise on anything but a clean commit.
+
+    Returns the router's :class:`CommitRouterResult` so the caller can both
+    read ``commit_hash`` and render the per-surface outcome (WP14,
+    ``contracts/commit-outcome.md``).
+    """
+    outcome = commit_for_mission(
+        repo_root=repo_root,
+        mission_slug=feature_dir.name,
+        files=(report,),
+        message=message,
+        policy=ProtectionPolicy.resolve(repo_root),
+        kind=MissionArtifactKind.ANALYSIS_REPORT,
+        target_branch=target_branch,
+    )
+    # WP14 review correction (round 2, binding -- the WP13 precedent this
+    # mission's spec_commit_cmd.py consumer was rejected over): the legacy
+    # top-level ``status`` is only the CALLER-partition projection
+    # (contract rule 4) -- a ``"committed"`` top-level status can still hide
+    # a refused/errored OTHER surface in a split batch. Never derive
+    # success/failure from ``status`` alone; always cross-check
+    # ``commit_outcome_exit_code`` (contract rule 5) against every surface.
+    if outcome.status != "committed" or outcome.commit_hash is None or commit_outcome_exit_code(outcome) != 0:
+        # B4 (cycle 2 review): the OLD message -- "Report commit did not
+        # complete: committed" -- was contradictory for BOTH arms below:
+        # ``status`` genuinely IS "committed" in each. Name the real problem
+        # instead of echoing the (correct) status back as if it were wrong.
+        if outcome.status == "committed" and outcome.commit_hash is None:
+            fallback = "Report commit did not complete: committed status without a resolved commit hash"
+        elif outcome.status == "committed":
+            fallback = "Report committed on its own surface, but a sibling surface was refused or errored"
+        else:
+            fallback = f"Report commit did not complete: {outcome.status}"
+        raise ReportCommitRefused(outcome.diagnostic or fallback, outcome)
+    return outcome
+
+
+@dataclass(frozen=True)
+class ReportTransactionOutcome:
+    """The typed return of :func:`record_report_transaction` (WP14 B4, contracts/commit-outcome.md rule 6).
+
+    ``payload`` is the existing JSON-serializable dict (unchanged keys/shape
+    for every caller that only ever consumed the dict). ``router_result`` is
+    the typed :class:`CommitRouterResult` behind the additive ``surfaces``
+    payload key -- carried alongside so a text-mode caller renders through
+    :func:`~specify_cli.coordination.commit_outcome.render_commit_outcome`
+    directly instead of re-parsing the dict back into ``SurfaceOutcome`` /
+    ``PathFate`` objects (the hand-rolled second outcome shape this ruling
+    deletes from ``mission_record_analysis.py``). ``None`` when no router
+    call happened (the dirty-input short-circuit) or it raised before
+    producing a :class:`CommitRouterResult` (a plain non-refusal exception).
+    """
+
+    payload: dict[str, object]
+    router_result: CommitRouterResult | None = None
+
+
+def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, analyzer_agent: str | None, target_branch: str) -> ReportTransactionOutcome:
     """Record only the report; never reset or restore concurrent operator state."""
     report = feature_dir / ANALYSIS_REPORT_FILENAME
     relative = report.relative_to(repo_root).as_posix()
@@ -149,7 +258,9 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
         tracked = {str(path) for path in tracked_paths(repo_root)}
         relevant.update(path for path in material_paths if path is not None and (repo_root / path).is_file() and path not in tracked)
         if relevant:
-            return {"success": False, "commit_status": "failed_before_write", "error_code": "DIRTY_ANALYSIS_INPUT", "dirty_paths": sorted(relevant)}
+            return ReportTransactionOutcome(
+                {"success": False, "commit_status": "failed_before_write", "error_code": "DIRTY_ANALYSIS_INPUT", "dirty_paths": sorted(relevant)}
+            )
         head = _git(repo_root, "rev-parse", "HEAD").strip()
         index = _index(repo_root, relative)
         working = _working(repo_root, relative)
@@ -171,7 +282,7 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
                 or report.read_text(encoding="utf-8") != existing
             ):
                 raise ValueError("Repository changed during unchanged-report verification")
-            return {**preview.to_dict(), "success": True, "commit_status": "unchanged", "commit_hash": None}
+            return ReportTransactionOutcome({**preview.to_dict(), "success": True, "commit_status": "unchanged", "commit_hash": None})
         receipt_path = _receipt_path(repo_root, token)
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write(receipt_path, json.dumps({"state": "pending", "report": relative}))
@@ -183,24 +294,8 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
         if report_hash is None or _sha256_file(report) != report_hash:
             raise ValueError("Report changed after rendering; retained report is unqualified")
         _require_idle(repo_root)
-        if (
-            _git(repo_root, "rev-parse", "HEAD").strip() != head
-            or _index(repo_root, relative) != index
-            or _working(repo_root, relative) != working
-            or collect_material_inputs(feature_dir, repo_root) != inputs
-        ):
-            raise ValueError("Repository changed before report commit; retained report is unqualified")
-        outcome = commit_for_mission(
-            repo_root=repo_root,
-            mission_slug=feature_dir.name,
-            files=(report,),
-            message=message,
-            policy=ProtectionPolicy.resolve(repo_root),
-            kind=MissionArtifactKind.ANALYSIS_REPORT,
-            target_branch=target_branch,
-        )
-        if outcome.status != "committed" or outcome.commit_hash is None:
-            raise ValueError(outcome.diagnostic or f"Report commit did not complete: {outcome.status}")
+        _guard_unchanged_inputs(repo_root=repo_root, feature_dir=feature_dir, relative=relative, head=head, index=index, working=working, inputs=inputs)
+        outcome = _commit_report(repo_root=repo_root, feature_dir=feature_dir, report=report, message=message, target_branch=target_branch)
         committed = outcome.commit_hash
         parents = _git(repo_root, "rev-list", "--parents", "-n", "1", committed).split()
         changed = commit_paths(repo_root, committed)
@@ -216,7 +311,10 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
         ):
             raise ValueError("Post-commit verification failed; retained commit requires recovery")
         atomic_write(receipt_path, json.dumps({"state": "qualified", "report": relative, "sha256": report_hash, "commit": committed}))
-        return {**result.to_dict(), "success": True, "commit_status": "committed", "commit_hash": committed}
+        return ReportTransactionOutcome(
+            {**result.to_dict(), "success": True, "commit_status": "committed", "commit_hash": committed, **commit_outcome_payload(outcome)},
+            router_result=outcome,
+        )
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
         if wrote and committed is None and head is not None:
             # A failing post-commit hook/router can throw after Git advanced.
@@ -227,7 +325,7 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
                     committed = observed.decode()
             except (OSError, subprocess.CalledProcessError):
                 pass
-        return {
+        payload: dict[str, object] = {
             "success": False,
             "commit_status": "committed_unqualified" if committed else "written_uncommitted" if wrote else "failed_before_write",
             "commit_hash": committed,
@@ -236,3 +334,11 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
                 "Preserve concurrent work, inspect the retained report and commit, reconcile material inputs, then rerun analysis and report-only recording."
             ),
         }
+        # B4 (cycle 2 review): a ``ReportCommitRefused`` carries the router's
+        # own outcome -- additively include its ``surfaces`` on the FAILURE
+        # arm too, not only the success arm, so a text-mode caller can render
+        # the per-surface outcome here as well.
+        refused_outcome = exc.outcome if isinstance(exc, ReportCommitRefused) else None
+        if refused_outcome is not None:
+            payload.update(commit_outcome_payload(refused_outcome))
+        return ReportTransactionOutcome(payload, router_result=refused_outcome)

@@ -46,13 +46,71 @@ def _make_log(
     mission_slug: str = "my-mission",
     destination_ref: str = "kitty/mission-my-mission",
     inner: Any | None = None,
+    mission_dir: Path | None = None,
 ) -> DecisionGitLog:
     return DecisionGitLog(
         repo_root=repo_root,
         worktree_root=worktree_root,
         destination_ref=destination_ref,
         mission_slug=mission_slug,
+        mission_dir=mission_dir if mission_dir is not None else worktree_root / "kitty-specs" / mission_slug,
         inner=inner or NullEmitter(),
+    )
+
+
+def _fake_write_location(*, checkout_root: Path, path: Path) -> Any:
+    """Build a minimal ``WriteLocation`` double for a patched ``placement_seam``.
+
+    coord-artifact-single-home-01M3V4BE WP09 (T051): ``_wrap_with_decision_git_log``'s
+    coord-routing arm now resolves ``worktree_root``/``mission_dir`` through
+    ``placement_seam(...).write_dir(DECISION_LOG)`` instead of the retired
+    on-disk ``.exists()`` ladder (``CoordinationWorkspace.resolve`` /
+    ``_resolve_owned_coordination_workspace``). Tests that used to fake the
+    ladder by creating a coord directory on disk now patch
+    ``runtime.next.runtime_bridge.placement_seam`` to return this double.
+    """
+    from mission_runtime import Establishment, WriteLocation
+    from mission_runtime.artifacts import TopologySurface
+
+    return WriteLocation(
+        path=path,
+        checkout_root=checkout_root,
+        surface=TopologySurface.COORD,
+        coord_state_before=None,
+        establishment=Establishment.NONE,
+        seed=None,
+    )
+
+
+def _patch_placement_seam(location: Any) -> Any:
+    """Patch ``mission_runtime.placement_seam`` so ``write_dir`` returns *location*.
+
+    ``_wrap_with_decision_git_log`` is not the only ``placement_seam`` caller
+    reached in these tests -- ``_mission_routes_through_coordination`` (called
+    EARLIER in the same function, to classify topology) ALSO calls
+    ``placement_seam(...).read_dir(PRIMARY_METADATA)``. The fake delegates
+    every OTHER method to a REAL seam built from the same args, so topology
+    classification is unaffected -- only ``write_dir`` is faked.
+    """
+    from mission_runtime import placement_seam as _real_placement_seam
+
+    class _FakeSeam:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            self._real = _real_placement_seam(*args, **kwargs)
+
+        def write_dir(self, kind: Any) -> Any:  # noqa: ARG002 - kind unused by the fake
+            return location
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._real, name)
+
+    # ``_wrap_with_decision_git_log`` imports ``placement_seam`` function-locally
+    # from ``mission_runtime`` (cold-import discipline) -- patch the SOURCE
+    # module, not ``runtime.next.runtime_bridge`` (which never binds the name
+    # at module scope).
+    return patch(
+        "mission_runtime.placement_seam",
+        side_effect=_FakeSeam,
     )
 
 
@@ -106,27 +164,28 @@ class TestWrapWithDecisionGitLogCoordRouting:
     """_wrap_with_decision_git_log selects worktree_root based on coord existence (T018, T019)."""
 
     def test_coord_worktree_used_when_exists(self, tmp_path: Path) -> None:
-        """Coord-routing topology + materialized coord worktree ⇒ worktree_root (T018).
+        """Coord-routing topology ⇒ ``worktree_root``/``mission_dir`` come from
+        ``write_dir(DECISION_LOG)`` (T018, corrected by WP09 T051).
 
-        WP03 (single-planning-surface-authority): coord ROUTING is now decided by
-        the STORED MissionTopology (FR-004 / SC-001), not by ``_coord_path.exists()``
-        (the retired C-004 disk-stat). The on-disk materialization probe survives
-        ONLY to select the worktree_root for an already-coord-routing mission
-        (C-006). So this asserts: stored coord topology AND the coord worktree
-        materialized ⇒ the coord path is the worktree_root.
+        coord-artifact-single-home-01M3V4BE WP09: the on-disk ``.exists()``
+        materialization ladder (``CoordinationWorkspace.resolve`` /
+        ``_resolve_owned_coordination_workspace``) is retired — the
+        coord-routing arm now resolves THROUGH the write-location accessor.
+        This asserts ``_wrap_with_decision_git_log`` threads
+        ``WriteLocation.checkout_root``/``.path`` into ``DecisionGitLog``
+        unchanged.
         """
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
 
         slug = "my-feature-01KT3YBD"
-        mid8 = "01KT3YBD"
         base_slug = "my-feature"
 
         # Stored topology authority (WP02): declare coord-branch topology in meta
         # so ``ensure_topology`` classifies/persists COORD — the routing signal.
         _write_coord_meta(tmp_path, slug)
-        # Create coord worktree directory on disk (the C-006 materialization probe).
-        coord_path = tmp_path / ".worktrees" / f"{base_slug}-{mid8}-coord"
-        coord_path.mkdir(parents=True)
+        coord_path = tmp_path / ".worktrees" / f"{base_slug}-01KT3YBD-coord"
+        coord_mission_dir = coord_path / "kitty-specs" / slug
+        location = _fake_write_location(checkout_root=coord_path, path=coord_mission_dir)
 
         inner = MagicMock(spec=RuntimeEventEmitter)
 
@@ -138,11 +197,13 @@ class TestWrapWithDecisionGitLogCoordRouting:
             destination_ref: str,
             mission_slug: str,
             *,
+            mission_dir: Path,
             inner: Any,
             mission_id: str = "",
             target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
+            captured["mission_dir"] = mission_dir
             return inner  # return inner unchanged for simplicity
 
         with (
@@ -158,11 +219,13 @@ class TestWrapWithDecisionGitLogCoordRouting:
                 "runtime.next.runtime_bridge_identity._resolve_mission_ulid",
                 return_value="01KT3YBDABCDEFGHIJKLMNOP",
             ),
+            _patch_placement_seam(location),
         ):
             _wrap_with_decision_git_log(inner, slug, tmp_path)
 
         assert "worktree_root" in captured
         assert captured["worktree_root"] == coord_path
+        assert captured["mission_dir"] == coord_mission_dir
 
     def test_resolve_mission_ulid_reads_primary_not_coord_worktree(self, tmp_path: Path) -> None:
         """#2091 red-first: identity (``mission_id``) is persisted ONLY on the
@@ -212,11 +275,13 @@ class TestWrapWithDecisionGitLogCoordRouting:
             destination_ref: str,
             mission_slug: str,
             *,
+            mission_dir: Path,
             inner: Any,
             mission_id: str = "",
             target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
+            captured["mission_dir"] = mission_dir
             return inner
 
         with (
@@ -237,11 +302,20 @@ class TestWrapWithDecisionGitLogCoordRouting:
 
         assert "worktree_root" in captured
         assert captured["worktree_root"] == tmp_path
+        # C-008: the coord-less arm composes the same dir DecisionGitLog used
+        # to compose itself.
+        assert captured["mission_dir"] == tmp_path / "kitty-specs" / slug
 
     def test_declared_coord_topology_missing_worktree_resolves_coord_worktree(
         self, tmp_path: Path
     ) -> None:
-        """Modern missions create/use coord worktree instead of dropping audit."""
+        """Modern missions create/use coord worktree instead of dropping audit.
+
+        coord-artifact-single-home-01M3V4BE WP09 (T051): the materialization
+        now happens INSIDE ``write_dir`` -- this patches ``placement_seam``
+        directly rather than the retired ``CoordinationWorkspace.resolve``
+        call this arm no longer makes.
+        """
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
 
         repo_root = tmp_path / "repo"
@@ -256,13 +330,9 @@ class TestWrapWithDecisionGitLogCoordRouting:
         inner = MagicMock(spec=RuntimeEventEmitter)
         captured: dict[str, Any] = {}
 
-        def _fake_resolve(repo_root_arg: Path, mission_slug: str, mid8: str) -> Path:
-            assert repo_root_arg == repo_root
-            assert mission_slug == slug
-            assert mid8 == "01KT3YBD"
-            coord_root = repo_root / ".worktrees" / "my-feature-01KT3YBD-coord"
-            coord_root.mkdir(parents=True)
-            return coord_root
+        coord_root = repo_root / ".worktrees" / "my-feature-01KT3YBD-coord"
+        coord_mission_dir = coord_root / "kitty-specs" / slug
+        location = _fake_write_location(checkout_root=coord_root, path=coord_mission_dir)
 
         def _fake_decision_git_log(
             repo_root: Path,
@@ -270,34 +340,37 @@ class TestWrapWithDecisionGitLogCoordRouting:
             destination_ref: str,
             mission_slug: str,
             *,
+            mission_dir: Path,
             inner: Any,
             mission_id: str = "",
             target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
+            captured["mission_dir"] = mission_dir
             return inner
 
         with (
             patch(
-                "specify_cli.coordination.workspace.CoordinationWorkspace.resolve",
-                side_effect=_fake_resolve,
-            ),
-            patch(
                 "specify_cli.events.decision_log.DecisionGitLog",
                 side_effect=_fake_decision_git_log,
             ),
+            _patch_placement_seam(location),
         ):
             wrapped = _wrap_with_decision_git_log(inner, slug, repo_root)
 
         assert wrapped is inner
-        assert captured["worktree_root"] == (
-            repo_root / ".worktrees" / "my-feature-01KT3YBD-coord"
-        )
+        assert captured["worktree_root"] == coord_root
+        assert captured["mission_dir"] == coord_mission_dir
 
     def test_declared_coord_topology_decision_log_failure_raises(
         self, tmp_path: Path
     ) -> None:
-        """Modern missions fail closed when durable decision audit cannot build."""
+        """Modern missions fail closed when durable decision audit cannot build.
+
+        coord-artifact-single-home-01M3V4BE WP09 (T051): the failure now
+        originates from ``write_dir`` (the one accessor this arm calls)
+        instead of the retired ``CoordinationWorkspace.resolve``.
+        """
         from runtime.next.runtime_bridge import (
             DecisionGitLogUnavailable,
             _wrap_with_decision_git_log,
@@ -314,10 +387,22 @@ class TestWrapWithDecisionGitLogCoordRouting:
         )
         inner = MagicMock(spec=RuntimeEventEmitter)
 
+        from mission_runtime import placement_seam as _real_placement_seam
+
+        class _FailingSeam:
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                self._real = _real_placement_seam(*args, **kwargs)
+
+            def write_dir(self, kind: Any) -> Any:  # noqa: ARG002
+                raise RuntimeError("coord unavailable")
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(self._real, name)
+
         with (
             patch(
-                "specify_cli.coordination.workspace.CoordinationWorkspace.resolve",
-                side_effect=RuntimeError("coord unavailable"),
+                "mission_runtime.placement_seam",
+                side_effect=_FailingSeam,
             ),
             pytest.raises(DecisionGitLogUnavailable),
         ):
@@ -358,6 +443,8 @@ class TestWorktreeRootPreservedThroughKindDrain:
         coord_root = repo_root / ".worktrees" / f"{base_slug}-{mid8}-coord"
         coord_root.mkdir(parents=True)
         assert coord_root != repo_root
+        coord_mission_dir = coord_root / "kitty-specs" / slug
+        location = _fake_write_location(checkout_root=coord_root, path=coord_mission_dir)
 
         inner = MagicMock(spec=RuntimeEventEmitter)
         captured: dict[str, Any] = {}
@@ -368,11 +455,13 @@ class TestWorktreeRootPreservedThroughKindDrain:
             destination_ref: str,
             mission_slug: str,
             *,
+            mission_dir: Path,
             inner: Any,
             mission_id: str = "",
             target: Any = None,
         ) -> Any:
             captured["worktree_root"] = worktree_root
+            captured["mission_dir"] = mission_dir
             captured["target"] = target
             return inner
 
@@ -389,12 +478,14 @@ class TestWorktreeRootPreservedThroughKindDrain:
                 "runtime.next.runtime_bridge_identity._resolve_mission_ulid",
                 return_value="01KT3YBDABCDEFGHIJKLMNOP",
             ),
+            _patch_placement_seam(location),
         ):
             _wrap_with_decision_git_log(inner, slug, repo_root)
 
         # The risk pin: COORD root selected, NOT the distinct primary root.
         assert captured["worktree_root"] == coord_root
         assert captured["worktree_root"] != repo_root
+        assert captured["mission_dir"] == coord_mission_dir
         # The ref-only carrier still routes to the coordination branch ref.
         assert captured["target"] is not None
         assert captured["target"].ref == coord_branch

@@ -24,6 +24,7 @@ See spec: FR-005, C-004; plan IC-06a, IC-06b.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -42,6 +43,8 @@ if TYPE_CHECKING:
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 __all__ = ["assert_coord_write_materialized", "resolve_write_target_or_degrade"]
+
+logger = logging.getLogger(__name__)
 
 # S-C fail-closed WRITE gate (FR-006; #4970). A terminus WRITE that resolves to
 # the coordination branch must land on a *materialized* coordination surface. On
@@ -176,26 +179,42 @@ def assert_coord_write_materialized(
     * no declared ``coordination_branch``, or ``resolved.ref`` is not that branch
       (a PRIMARY write, a flattened mission, or an E2 CONSOLIDATED write that
       resolves to the Primary Branch) → return;
-    * a coord-routing write whose coordination worktree is ``MATERIALIZED`` /
-      ``EMPTY`` (the worktree exists — the write populates/updates it), or is
-      ``UNMATERIALIZED`` while the coordination branch is a *local head* that
-      carries NO committed artifact-of-this-kind (the sanctioned ``mission
-      create`` → first-write self-materialization window on the creating host) →
-      return.
+    * ``MATERIALIZED`` → delegates to the single write authority (research D22,
+      below), which re-commits a pending seed (data-model I-SEED-10) when one
+      is outstanding and is otherwise a no-op;
+    * ``EMPTY`` → unchanged no-op (seeding an ``EMPTY`` surface is this gate's
+      caller's job once migrated onto :func:`~specify_cli.coordination.
+      coord_seed.establish_coord_write_location` directly; D22 narrows this
+      gate's own scope, it does not widen it);
+    * ``UNMATERIALIZED`` with a *local head* → delegates to the single write
+      authority, which materializes, then seeds or restores as the state
+      machine decides (D22: the former "branch already carries the kind"
+      refusal is deliberately REMOVED here — that state is the normal
+      post-fix shape, not a stale/forked one).
 
-    Raises ``ActionContextError`` (``COORD_WRITE_SURFACE_UNMATERIALIZED``) for the
-    #4970 shape: a coord-routing write whose coordination worktree is absent AND
-    whose coordination branch is not a local head (deleted, or the fresh-clone / CI
-    checkout where it exists only on ``origin/<lane>``), OR a local head that
-    ALREADY carries committed matrix content (a STALE head whose worktree was
-    pruned — the self-materialization-hardening case, FR-006). Materializing in
-    either case would fork from the primary branch and overwrite committed
-    coordination state. The committed-content probe fails CLOSED: an unreadable git
-    context is treated as content-present (refuse).
+    Raises ``ActionContextError`` (``COORD_WRITE_SURFACE_UNMATERIALIZED``) only
+    for the #4970 remote-only shape: a coord-routing write whose coordination
+    worktree is absent AND whose coordination branch is not a local head
+    (deleted, or the fresh-clone / CI checkout where it exists only on
+    ``origin/<lane>``). Materializing that would fork from the primary branch.
+
+    Research D22 (``establish_coord_write_location`` absorbs the coordination
+    write gate, single write authority, C-001): this function used to be "the
+    single decision locus for S-C" (FR-006 / #4970) and refused an
+    ``UNMATERIALIZED`` local-head branch that already carried committed
+    content, misclassifying a normal post-fix mission as a stale/forked head.
+    :func:`~specify_cli.coordination.coord_seed.establish_coord_write_location`
+    is now that single decision locus; this function is a thin delegate to it
+    for the two states where a real decision is needed (``MATERIALIZED`` with
+    a possibly-pending seed, ``UNMATERIALIZED`` local-head). Any exception the
+    accessor raises (``CoordSeedForkRefused``, ``CoordinationBranchDeleted``,
+    a remote-only ``CoordinationWorktreeUnmaterialized``, …) propagates
+    unchanged to this function's own callers
+    (``resolve_write_target_or_degrade``'s ``terminus_write`` mode,
+    ``coordination.write_seam.write_artifact``).
     """
     from specify_cli.coordination.surface_resolver import (
         _coord_branch_is_local_head,
-        coord_branch_has_committed_artifact,
         resolve_declared_mid8,
     )
     from specify_cli.missions._read_path_resolver import (
@@ -214,34 +233,38 @@ def assert_coord_write_materialized(
 
     mid8 = resolve_declared_mid8(primary_meta, mission_slug)
     state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coord_branch)
-    if state in (CoordState.MATERIALIZED, CoordState.EMPTY):
+    if state is CoordState.EMPTY:
+        return
+    if state is CoordState.MATERIALIZED:
+        _delegate_to_write_location_accessor(repo_root, mission_slug, kind)
         return
     is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
-    if state is CoordState.UNMATERIALIZED and is_local_head and not coord_branch_has_committed_artifact(repo_root, coord_branch, mission_slug, kind):
-        # Sanctioned self-materialization window (FR-006 / #4970): an UNMATERIALIZED
-        # LOCAL-head coord branch that carries NO committed artifact-of-this-kind is
-        # a genuine ``mission create`` → first-write. A local head that ALREADY
-        # carries committed matrix content is a STALE head — self-materializing over
-        # it would clobber committed coordination state — so it falls through to the
-        # REFUSE raise below.
+    if state is CoordState.UNMATERIALIZED and is_local_head:
+        # D22 (research): the single write authority now owns this state --
+        # materialize/seed/restore via the sanctioned accessor instead of
+        # refusing a local head just because it already carries committed
+        # content (the normal post-fix shape, not a stale/forked one). The
+        # committed-content probe stays a live, informational caller here
+        # (never a refusal gate any more) so an operator reading logs can
+        # still tell a genuine first-write self-materialization apart from a
+        # post-fix self-heal of an already-populated local head.
+        from specify_cli.coordination.surface_resolver import coord_branch_has_committed_artifact
+
+        # ``mid8=mid8`` (WP04 D4 naming fix): the probe composes the REAL
+        # coordination Mission dir instead of the bare ``kitty-specs/<slug>/``,
+        # which silently missed a mission whose slug does not embed its own
+        # mid8 suffix.
+        if coord_branch_has_committed_artifact(repo_root, coord_branch, mission_slug, kind, mid8=mid8):
+            logger.info(
+                "self-materializing mission %s's local-head coordination branch %r, which already "
+                "carries committed %r content (D22: the single write authority seeds/restores it).",
+                mission_slug,
+                coord_branch,
+                kind.value,
+            )
+        _delegate_to_write_location_accessor(repo_root, mission_slug, kind)
         return
 
-    # #5113 / FR-014 (T040): classify BOTH refusal arms truthfully instead of
-    # claiming the remote-only text for both.
-    if is_local_head:
-        # (b) STALE local head: the branch IS a local ref (branch present),
-        # only the worktree is absent — `doctor coordination --fix` (via the
-        # canonical materializer) can bring it up right now.
-        raise ActionContextError(
-            _COORD_WRITE_UNMATERIALIZED_CODE,
-            f"Refusing a terminus WRITE of {kind.value!r} for mission {mission_slug!r}: "
-            f"its authoritative coordination surface (branch {coord_branch!r}) already "
-            f"carries committed content but its coordination worktree is not "
-            f"materialized on this checkout. Writing would degrade to the primary "
-            f"directory and overwrite committed coordination state (#4970). "
-            f"Materialize the coordination surface first: run "
-            f"`spec-kitty doctor coordination --mission {mission_slug} --fix`.",
-        )
     # (a) remote-only: the branch is declared and exists in git, but only as a
     # remote-tracking ref (a fresh clone / CI checkout where the lane exists
     # solely on `origin/<lane>`) -- `doctor coordination --fix` alone would
@@ -259,6 +282,23 @@ def assert_coord_write_materialized(
         f"then run `spec-kitty doctor coordination --mission {mission_slug} --fix`; "
         f"or check out {coord_branch!r} locally before retrying.",
     )
+
+
+def _delegate_to_write_location_accessor(repo_root: Path, mission_slug: str, kind: MissionArtifactKind) -> None:
+    """Delegate to the single write authority (research D22).
+
+    Lazy import over the existing ``coordination`` outbound-ledger edge (the
+    same edge :func:`resolve_write_target_or_degrade`'s own ``specify_cli.
+    missions._read_path_resolver`` imports already use): importing
+    ``specify_cli.coordination.coord_seed`` at module level here would be a
+    heavier eager edge than this gate needs for its other, non-coordination
+    call sites. Any exception
+    :func:`~specify_cli.coordination.coord_seed.establish_coord_write_location`
+    raises propagates unchanged.
+    """
+    from specify_cli.coordination.coord_seed import establish_coord_write_location
+
+    establish_coord_write_location(repo_root, mission_slug, kind, owned=None)
 
 
 def _fail_closed_error(

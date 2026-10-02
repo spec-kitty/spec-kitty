@@ -45,7 +45,6 @@ from unittest.mock import patch
 
 from mission_runtime import MissionTopology
 from specify_cli.cli.commands.agent.tracer_append import tracer_append
-from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.retrospective.tracer_writer import append_tracer_finding
 from tests.integration.coord_topology_fixture import _build_coord_topology
@@ -286,19 +285,28 @@ def _build_unmaterialized_coord_mission_with_populated_traces(
     return repo, result.mission_slug, coordination_branch
 
 
-def test_unmaterialized_coord_tracer_append_fails_closed_and_preserves_findings(
+def test_unmaterialized_local_head_tracer_append_materializes_and_merges_findings(
     tmp_path: Path,
 ) -> None:
-    """AC-T1: an UNMATERIALIZED coord surface with a REAL, already-committed
-    ``traces/<cat>.md`` must be left byte-intact when ``tracer-append`` is
-    invoked -- the write fails closed (raises) instead of silently clobbering
-    the real findings with a from-scratch header + the new entry.
+    """WP10 (research D22): an UNMATERIALIZED coord surface with a LOCAL HEAD
+    that already carries a REAL, committed ``traces/<cat>.md`` is the NORMAL
+    post-fix shape, not a stale/forked one -- ``write_dir`` MATERIALIZES the
+    worktree (checking out the branch, which brings the already-committed
+    content back onto disk) and the write MERGES the new finding into it,
+    rather than refusing.
 
-    Pre-fix (red): ``_read_current_coord_content`` swallows
-    ``CoordinationWorktreeUnmaterialized`` into ``""``, the write proceeds
-    (self-materialising the coord worktree at the commit boundary per
-    ``commit_router``'s NFR-001), and the coord-committed file is
-    OVERWRITTEN with header+new-entry-only -- the original finding is lost.
+    Re-pinned deliberately (D22, the old gate's "branch already carries the
+    kind" refusal is REMOVED): this test previously asserted the OPPOSITE --
+    that the write failed closed. That pre-WP10 behaviour came from
+    ``write_target_degrade``'s coordination gate refusing this exact shape
+    (local head + already-committed content) as a false-positive "stale
+    local head" classification. WP10 routes the tracer writer through
+    ``write_dir`` (the single write-side decision locus, D22), which
+    materializes-then-merges instead -- US2.3's "once materialized, the
+    normal single-home contract applies" case, not a #4959 danger window
+    (that AC-T1 guard is still pinned by the sibling
+    ``test_undecodable_existing_file_refuses_not_empty``-style coverage for
+    a GENUINELY unmaterialized read with no local head at all).
     """
     original_content = (
         "# Tracer: tooling-friction\n\n"
@@ -313,35 +321,43 @@ def test_unmaterialized_coord_tracer_append_fails_closed_and_preserves_findings(
     )
     rel = f"kitty-specs/{slug}/traces/tooling-friction.md"
 
-    with pytest.raises(CoordinationWorktreeUnmaterialized):
-        append_tracer_finding(
-            repo_root=repo,
-            mission_slug=slug,
-            category="tooling-friction",
-            entry="A NEW finding that must never silently clobber the old one.",
-            actor="claude",
-            policy=_FixedPolicy(),
-        )
+    result = append_tracer_finding(
+        repo_root=repo,
+        mission_slug=slug,
+        category="tooling-friction",
+        entry="A NEW finding that must never silently clobber the old one.",
+        actor="claude",
+        policy=_FixedPolicy(),
+    )
 
-    # (AC-T1) The coord-committed file is byte-intact -- 0 findings lost.
+    assert result.status == "committed", result.diagnostic
+
+    # The coordination worktree is now materialized (D22: delegates to the
+    # single write authority, which materializes an UNMATERIALIZED local head).
+    meta = json.loads((repo / "kitty-specs" / slug / "meta.json").read_text(encoding="utf-8"))
+    mid8 = str(meta["mission_id"])[:8]
+    coord_root = CoordinationWorkspace.resolve(repo, slug, mid8)
+    coord_file = coord_root / "kitty-specs" / slug / "traces" / "tooling-friction.md"
+    assert coord_file.exists()
+
+    # Both the original finding and the new one are present on the
+    # coordination branch -- 0 findings lost, nothing silently clobbered.
     coord_show = _git_probe(repo, "show", f"{coord_branch}:{rel}")
     assert coord_show.returncode == 0, (
         f"the pre-existing coord-committed file must still exist: {coord_show.stderr}"
     )
-    assert coord_show.stdout == original_content, (
-        "the coord-committed traces file must be byte-unchanged after a "
-        "fail-closed tracer-append -- 0 findings may be lost.\n"
-        f"  Expected: {original_content!r}\n"
-        f"  Got     : {coord_show.stdout!r}"
+    assert "The daemon hung mid-decode on a 3MB payload." in coord_show.stdout, (
+        "the original finding must be preserved, not clobbered by a "
+        "from-scratch header\n"
+        f"  Got: {coord_show.stdout!r}"
     )
-    assert "NEW finding" not in coord_show.stdout, (
-        "a fail-closed write must never land the new entry either"
-    )
+    assert "A NEW finding that must never silently clobber the old one." in coord_show.stdout
 
     # No local staging residue on the primary checkout.
     staged_local = repo / "kitty-specs" / slug / "traces" / "tooling-friction.md"
     assert not staged_local.exists(), (
-        "a fail-closed read must never materialize the local staging file"
+        "the write lands IN PLACE on the coordination worktree -- never "
+        "staged on the primary checkout"
     )
 
 

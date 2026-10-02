@@ -322,6 +322,15 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "tests.architectural.test_no_worktree_name_guess",
         "_DEF_USE_ALLOWLIST",
     ),
+    # coord-artifact-single-home-01M3V4BE WP20 (FR-014, operator ruling Q4): the
+    # third grammar's allow-list of COORD writers excused from the
+    # read-resolver ban. Starts empty; any entry must grow the cap visibly.
+    _SizeRatchet(
+        "test_no_write_side_rederivation",
+        "coord_writer_allowlist",
+        "tests.architectural.test_no_write_side_rederivation",
+        "_COORD_WRITER_ALLOW_LIST_SEED",
+    ),
     _SizeRatchet(
         "test_owned_checkout_single_authority",
         "owned_root_bare_path_params",

@@ -533,7 +533,6 @@ exclude = [
     "src/specify_cli/cli/commands/profile_invocation.py",
     "src/specify_cli/cli/commands/profiles_cmd.py",
     "src/specify_cli/cli/commands/regen.py",
-    "src/specify_cli/cli/commands/retrospect.py",
     "src/specify_cli/cli/commands/review/_ble001_audit.py",
     "src/specify_cli/cli/commands/review/_lane_gate.py",
     "src/specify_cli/cli/commands/safe_commit_cmd.py",

@@ -41,14 +41,24 @@ MISSION_ID = "01KPWT8PNY8683QX3WBW6VXYM7"
 ACTOR = "test-actor"
 
 
+class _FakeWriteLocation:
+    """Minimal ``WriteLocation`` double exposing only the ``.path`` attribute
+    ``_mission_dir`` consumes."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+
 class _DirectMissionDirSeam:
     """Stub placement seam returning ``repo_root/kitty-specs/<slug>`` directly.
 
-    write-side-seam-matrix-tracer-01KYP3MH WP02 Move A: ``emit.py`` now routes
+    write-side-seam-matrix-tracer-01KYP3MH WP02 Move A: ``emit.py`` routed
     ``_mission_dir`` through ``placement_seam(...).read_dir(STATUS_STATE)``
-    rather than the kind-blind ``resolve_feature_dir_for_mission`` — stub the
-    seam constructor instead so these emission tests keep targeting event
-    serialization, not mission/topology lookup.
+    rather than the kind-blind ``resolve_feature_dir_for_mission``.
+    coord-artifact-single-home-01M3V4BE WP09 (T049): the write-side writer now
+    resolves through ``write_dir(STATUS_STATE)`` instead — stub both so these
+    emission tests keep targeting event serialization, not mission/topology
+    lookup.
     """
 
     def __init__(self, repo_root: Path, mission_slug: str) -> None:
@@ -57,6 +67,9 @@ class _DirectMissionDirSeam:
 
     def read_dir(self, kind: object) -> Path:
         return self._repo_root / "kitty-specs" / self._mission_slug
+
+    def write_dir(self, kind: object) -> _FakeWriteLocation:
+        return _FakeWriteLocation(self._repo_root / "kitty-specs" / self._mission_slug)
 
 
 @pytest.fixture(autouse=True)

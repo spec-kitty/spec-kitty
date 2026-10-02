@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -361,3 +362,142 @@ def test_materialize_if_stale_no_events(tmp_path):
     assert snapshot is not None
     assert snapshot.mission_slug == ""  # empty snapshot
     assert snapshot.event_count == 0
+
+
+# ---------------------------------------------------------------------------
+# WP18 (coord-artifact-single-home, ruling Q4): coordination Missions are
+# materialised from the COORDINATION surface's log (R24, FR-003, C-008)
+# ---------------------------------------------------------------------------
+
+
+def _run_materialize(repo_root: Path, *, mission: str | None, capsys: pytest.CaptureFixture[str]) -> tuple[int, dict[str, Any]]:
+    """Invoke ``materialize --json`` against *repo_root*; return ``(exit_code, parsed_summary)``."""
+    import typer
+
+    from specify_cli.cli.commands.materialize import materialize
+
+    with (
+        patch("specify_cli.cli.commands.materialize.locate_project_root", return_value=repo_root),
+        pytest.raises(typer.Exit) as exc_info,
+    ):
+        materialize(mission=mission, json_output=True)
+    out = capsys.readouterr().out
+    return exc_info.value.exit_code, json.loads(out[out.index("{") :])
+
+
+def _derived_lanes(repo_root: Path, derived_slug: str) -> dict[str, str]:
+    snapshot = json.loads((repo_root / ".kittify" / "derived" / derived_slug / "status.json").read_text(encoding="utf-8"))
+    return {wp_id: wp["lane"] for wp_id, wp in snapshot["work_packages"].items()}
+
+
+def _append_coordination_transitions(coord: Any, wp_id: str, lanes: tuple[str, ...]) -> None:
+    """Append ``planned -> lanes...`` transitions to the COORDINATION log only (the root log stays stale)."""
+    previous = "planned"
+    for idx, lane in enumerate(lanes):
+        append_event(
+            coord.coord_mission_dir,
+            _make_event(coord.mission_dir_name, wp_id, previous, lane, f"01COORD{idx:020d}"),
+        )
+        previous = lane
+
+
+def test_materialize_all_writes_status_json_on_coordination_surface(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """R24: ``materialize`` reduces a coordination-routed Mission's COORDINATION log.
+
+    The repository root checkout's copy of ``status.events.jsonl`` is stale (it
+    has no WP transitions); the coordination surface carries them. Red before
+    the fix: the all-Missions loop iterated the root checkout's
+    ``kitty-specs/`` dirs and reduced the stale log.
+    """
+    from mission_runtime import MissionTopology
+    from tests._factories.coord_mission import make_coord_mission
+
+    coord = make_coord_mission(tmp_path, MissionTopology.COORD, materialized=True)
+    _append_coordination_transitions(coord, "WP01", ("claimed", "in_progress"))
+
+    exit_code, summary = _run_materialize(coord.repo_root, mission=None, capsys=capsys)
+
+    assert exit_code == 0, summary
+    assert [m["mission_slug"] for m in summary["missions"]] == [coord.mission_dir_name]
+    assert _derived_lanes(coord.repo_root, coord.mission_dir_name) == {"WP01": "in_progress"}
+
+
+def test_materialize_mission_flag_writes_status_json_on_coordination_surface(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """R24 control (``--mission`` path, green at base): a MATERIALIZED coordination Mission is reduced from the coordination log."""
+    from mission_runtime import MissionTopology
+    from tests._factories.coord_mission import make_coord_mission
+
+    coord = make_coord_mission(tmp_path, MissionTopology.COORD, materialized=True)
+    _append_coordination_transitions(coord, "WP01", ("claimed",))
+
+    exit_code, _summary = _run_materialize(coord.repo_root, mission=coord.mission_dir_name, capsys=capsys)
+
+    assert exit_code == 0
+    assert _derived_lanes(coord.repo_root, coord.mission_dir_name) == {"WP01": "claimed"}
+
+
+def test_materialize_lanes_mission_unchanged(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """C-008 control: a ``lanes`` Mission is reduced from the repository root checkout, as before."""
+    feature_dir = _setup_feature(tmp_path, "010-lanes-control", {"WP01": "done", "WP02": "planned"})
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": "010-lanes-control", "topology": "lanes"}) + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code, summary = _run_materialize(tmp_path, mission=None, capsys=capsys)
+
+    assert exit_code == 0, summary
+    assert summary["errors"] == []
+    assert [m["mission_slug"] for m in summary["missions"]] == ["010-lanes-control"]
+    assert summary["missions"][0]["files_written"] == ["status.json", "board-summary.json", "progress.json", "lifecycle.json"]
+    assert _derived_lanes(tmp_path, "010-lanes-control") == {"WP01": "done", "WP02": "planned"}
+
+
+def test_materialize_all_reports_remote_only_coord_mission_in_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """R24: a remote-only coordination branch is an ``errors[]`` entry; the loop keeps going.
+
+    The other Mission in the same repository is still materialised, and the
+    remote-only Mission is never reduced from a stale root checkout log.
+    """
+    from mission_runtime import MissionTopology
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+    from tests._factories.coord_mission import make_prefix_coord_mission
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, remote_only=True)
+    _setup_feature(coord.repo_root, "zz-plain-sibling", {"WP01": "done"})
+
+    exit_code, summary = _run_materialize(coord.repo_root, mission=None, capsys=capsys)
+
+    assert exit_code == 1
+    assert len(summary["errors"]) == 1
+    assert summary["errors"][0].startswith(f"{coord.mission_dir_name}: {CoordinationWorktreeUnmaterialized.error_code}: ")
+    assert [m["mission_slug"] for m in summary["missions"]] == ["zz-plain-sibling"]
+    assert not (coord.repo_root / ".kittify" / "derived" / coord.mission_dir_name).exists()
+    assert (coord.repo_root / ".kittify" / "derived" / "zz-plain-sibling" / "status.json").exists()
+
+
+def test_materialize_mission_flag_on_prefix_coord_mission_seeds_once(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """``--mission`` on a pre-fix EMPTY coordination Mission seeds the surface exactly once."""
+    from mission_runtime import MissionTopology
+    from specify_cli.coordination.coord_seed import COORD_SEED_TRAILER
+    from tests._factories.coord_mission import make_prefix_coord_mission
+    import subprocess
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+
+    def _seed_commits() -> list[str]:
+        return subprocess.run(
+            ["git", "log", "--format=%H", f"--grep={COORD_SEED_TRAILER}", coord.coordination_branch],
+            cwd=coord.repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.split()
+
+    first_code, _ = _run_materialize(coord.repo_root, mission=coord.mission_dir_name, capsys=capsys)
+    after_first = _seed_commits()
+    second_code, _ = _run_materialize(coord.repo_root, mission=coord.mission_dir_name, capsys=capsys)
+
+    assert (first_code, second_code) == (0, 0)
+    assert len(after_first) == 1
+    assert _seed_commits() == after_first

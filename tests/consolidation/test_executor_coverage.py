@@ -55,18 +55,12 @@ def _make_run(
         mission_branch="kitty/mission-m",
         lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
     )
-    state = ConsolidationState(
-        mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"]
-    )
+    state = ConsolidationState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"])
     # #3131: mirrors resolve_merge_retention's coupling rule (delete_branch AND
     # remove_worktree) so existing call sites that already pass both True keep
     # exercising the coord-teardown gate without every call site needing an
     # explicit teardown_coordination= kwarg.
-    resolved_teardown_coordination = (
-        (delete_branch and remove_worktree)
-        if teardown_coordination is None
-        else teardown_coordination
-    )
+    resolved_teardown_coordination = (delete_branch and remove_worktree) if teardown_coordination is None else teardown_coordination
     run = ex._MergeRunState(
         main_repo=tmp_path,
         mission_slug="m",
@@ -248,10 +242,11 @@ def test_phase_merge_lanes_planning_lane_already_on_target(tmp_path: Path) -> No
 def test_phase_baseline_and_surface_resolves_paths(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     surface = tmp_path / ".worktrees" / "m-coord" / "kitty-specs" / "m" / "status.events.jsonl"
+    # The run's status dir is resolved ONCE through the write accessor in the unlocked pre-phase.
+    run.feature_dir = surface.parent
     with (
         patch.object(ex, "run_command", return_value=(0, "deadbeef\n", "")),
         patch.object(ex, "resolve_mission_identity", return_value=SimpleNamespace(mission_id="01XID")),
-        patch.object(ex, "resolve_status_surface", return_value=surface),
         patch.object(ex, "is_under_worktrees_segment", return_value=True),
         patch.object(ex, "get_state_path", return_value=tmp_path / "state.json"),
     ):
@@ -357,9 +352,7 @@ def test_handle_result_rejects_zero_diff_noop_squash(tmp_path: Path) -> None:
         patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
         pytest.raises(typer.Exit) as exc,
     ):
-        ex._handle_mission_merge_result(
-            run, result, mission_integrated_into_target=False
-        )
+        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
     assert exc.value.exit_code == 1
     restore_mock.assert_called_once_with(run)
 
@@ -439,16 +432,24 @@ def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path
     # Data-driven: the printed code comes from mission_result.diagnostic_code,
     # not a hardcoded literal — a distinct value renders verbatim.
     result_sentinel = SimpleNamespace(
-        success=False, errors=["x"], commit=None, already_applied=False,
-        conflicting_paths=("a.py",), diagnostic_code="SOME_OTHER_CODE",
+        success=False,
+        errors=["x"],
+        commit=None,
+        already_applied=False,
+        conflicting_paths=("a.py",),
+        diagnostic_code="SOME_OTHER_CODE",
     )
     ex._emit_mission_target_content_conflict(run, result_sentinel)
     assert "diagnostic_code: SOME_OTHER_CODE" in capsys.readouterr().out
 
     # None falls back to the shared constant.
     result_none = SimpleNamespace(
-        success=False, errors=["x"], commit=None, already_applied=False,
-        conflicting_paths=("a.py",), diagnostic_code=None,
+        success=False,
+        errors=["x"],
+        commit=None,
+        already_applied=False,
+        conflicting_paths=("a.py",),
+        diagnostic_code=None,
     )
     ex._emit_mission_target_content_conflict(run, result_none)
     assert "diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT" in capsys.readouterr().out
@@ -703,9 +704,7 @@ def test_phase_porcelain_folds_restored_gate_artifact_into_expected_paths(
     run = _make_run(tmp_path)
     restored_path = tmp_path / "some" / "random" / "file.json"
     run.gate_artifact_restored_paths = [restored_path]
-    with patch.object(
-        ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))
-    ):
+    with patch.object(ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))):
         ex._phase_porcelain_invariant(run)  # must not raise typer.Exit
 
 
@@ -715,9 +714,7 @@ def test_phase_porcelain_flags_unrestored_unexpected_path(tmp_path: Path) -> Non
     the fold (not some other leg) is what suppressed it there."""
     run = _make_run(tmp_path)
     with (
-        patch.object(
-            ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))
-        ),
+        patch.object(ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))),
         pytest.raises(typer.Exit) as exc,
     ):
         ex._phase_porcelain_invariant(run)
@@ -790,8 +787,13 @@ def test_phase_dossier_and_stale_swallows_stale_failure(tmp_path: Path) -> None:
 def test_phase_dossier_and_stale_records_report(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     report = StaleAssertionReport(
-        base_ref="a", head_ref="HEAD", repo_root=tmp_path, findings=[],
-        elapsed_seconds=0.1, files_scanned=1, findings_per_100_loc=0.0,
+        base_ref="a",
+        head_ref="HEAD",
+        repo_root=tmp_path,
+        findings=[],
+        elapsed_seconds=0.1,
+        files_scanned=1,
+        findings_per_100_loc=0.0,
     )
     with patch.object(ex, "run_check", return_value=report):
         ex._phase_dossier_and_stale(run)
@@ -992,13 +994,16 @@ def _finding(confidence: Confidence, *, test_line: int = 10) -> StaleAssertionFi
     ],
     ids=["check-could-not-run", "no-findings"],
 )
-def test_render_stale_findings_short_circuit_states_are_named(
-    tmp_path: Path, has_report: bool, expected_line: str
-) -> None:
+def test_render_stale_findings_short_circuit_states_are_named(tmp_path: Path, has_report: bool, expected_line: str) -> None:
     report = (
         StaleAssertionReport(
-            base_ref="a", head_ref="HEAD", repo_root=tmp_path, findings=[],
-            elapsed_seconds=0.1, files_scanned=1, findings_per_100_loc=0.0,
+            base_ref="a",
+            head_ref="HEAD",
+            repo_root=tmp_path,
+            findings=[],
+            elapsed_seconds=0.1,
+            files_scanned=1,
+            findings_per_100_loc=0.0,
         )
         if has_report
         else None
@@ -1019,14 +1024,18 @@ def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
     silently drops it). Order: actionable, then the info block, then low.
     """
     report = StaleAssertionReport(
-        base_ref="a", head_ref="HEAD", repo_root=tmp_path,
+        base_ref="a",
+        head_ref="HEAD",
+        repo_root=tmp_path,
         findings=[
             _finding("low", test_line=12),
             _finding("info", test_line=13),
             _finding("medium", test_line=11),
             _finding("high", test_line=10),
         ],
-        elapsed_seconds=0.1, files_scanned=2, findings_per_100_loc=1.0,
+        elapsed_seconds=0.1,
+        files_scanned=2,
+        findings_per_100_loc=1.0,
     )
 
     with ex.console.capture() as captured:
@@ -1064,9 +1073,13 @@ def test_render_stale_findings_info_block_is_prominent(tmp_path: Path) -> None:
         hint="low-grade hint marker",
     )
     report = StaleAssertionReport(
-        base_ref="a", head_ref="HEAD", repo_root=tmp_path,
+        base_ref="a",
+        head_ref="HEAD",
+        repo_root=tmp_path,
         findings=[_finding("high"), info_finding, low_finding],
-        elapsed_seconds=0.1, files_scanned=2, findings_per_100_loc=1.0,
+        elapsed_seconds=0.1,
+        files_scanned=2,
+        findings_per_100_loc=1.0,
     )
 
     with ex.console.capture() as captured:
@@ -1087,9 +1100,7 @@ def test_render_stale_findings_info_block_is_prominent(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _assert_partial_retention_retains_coord_triple(
-    tmp_path: Path, *, delete_branch: bool, remove_worktree: bool
-) -> None:
+def _assert_partial_retention_retains_coord_triple(tmp_path: Path, *, delete_branch: bool, remove_worktree: bool) -> None:
     """One (delete_branch, remove_worktree) case of the partial-retention
     coord-coupling gate — extracted so the loop caller stays closure-free
     (each fake-command call list is scoped to its own call, not a loop var)."""
@@ -1121,9 +1132,7 @@ def _assert_partial_retention_retains_coord_triple(
     ):
         ex._phase_cleanup_worktrees_and_branches(run)
 
-    mission_branch_deletes = [
-        c for c in calls if c[:3] == ["git", "branch", "-D"] and c[3:] == ["kitty/mission-m"]
-    ]
+    mission_branch_deletes = [c for c in calls if c[:3] == ["git", "branch", "-D"] and c[3:] == ["kitty/mission-m"]]
     assert not mission_branch_deletes, (
         f"delete_branch={delete_branch}, remove_worktree={remove_worktree}: "
         f"mission/coordination branch was deleted despite teardown_coordination"
@@ -1140,12 +1149,8 @@ def test_teardown_coordination_gate_retains_coord_triple_on_partial_retention(
     remove_worktree, so ``teardown_coordination=False``) must not delete the
     mission/coordination branch or attempt the coord-worktree teardown —
     both cases (delete_branch=True/remove_worktree=False and the reverse)."""
-    _assert_partial_retention_retains_coord_triple(
-        tmp_path, delete_branch=True, remove_worktree=False
-    )
-    _assert_partial_retention_retains_coord_triple(
-        tmp_path, delete_branch=False, remove_worktree=True
-    )
+    _assert_partial_retention_retains_coord_triple(tmp_path, delete_branch=True, remove_worktree=False)
+    _assert_partial_retention_retains_coord_triple(tmp_path, delete_branch=False, remove_worktree=True)
 
 
 def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
@@ -1155,9 +1160,7 @@ def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
     of the branch/worktree retention decision — retention only ever protects
     the mission's OWN branches/worktrees, never the merge's disposable scratch
     workspace."""
-    run = _make_run(
-        tmp_path, remove_worktree=False, delete_branch=False, teardown_coordination=False
-    )
+    run = _make_run(tmp_path, remove_worktree=False, delete_branch=False, teardown_coordination=False)
     with (
         patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
         patch.object(ex, "clear_state"),
@@ -1216,9 +1219,7 @@ def test_teardown_coordination_for_abort_retains_worktree_when_meta_retains(
         wp_order=[],
     )
 
-    with patch(
-        "specify_cli.coordination.teardown.teardown_coordination_topology"
-    ) as mock_teardown:
+    with patch("specify_cli.coordination.teardown.teardown_coordination_topology") as mock_teardown:
         _teardown_coordination_for_abort(repo, slug, (_ABORT_MISSION_ID, state))
 
     mock_teardown.assert_not_called()
@@ -1242,9 +1243,7 @@ def test_teardown_coordination_for_abort_destroys_worktree_when_no_policy(
         wp_order=[],
     )
 
-    with patch(
-        "specify_cli.coordination.teardown.teardown_coordination_topology"
-    ) as mock_teardown:
+    with patch("specify_cli.coordination.teardown.teardown_coordination_topology") as mock_teardown:
         _teardown_coordination_for_abort(repo, slug, (_ABORT_MISSION_ID, state))
 
     mock_teardown.assert_called_once()
@@ -1268,9 +1267,7 @@ def test_merge_resume_threads_raw_retention_flags_unchanged(tmp_path: Path) -> N
         patch.object(merge_mod, "_dispatch_resume", return_value="m"),
         patch.object(merge_mod, "_resolve_slug_or_exit", return_value="m"),
         patch.object(merge_mod, "load_state", return_value=None),
-        patch.object(
-            merge_mod, "_resolve_target_branch", return_value=("main", "meta.json")
-        ),
+        patch.object(merge_mod, "_resolve_target_branch", return_value=("main", "meta.json")),
         patch.object(merge_mod, "_validate_target_branch"),
         patch.object(merge_mod, "_run_real_merge", side_effect=_fake_run_real_merge),
     ):
@@ -1294,18 +1291,14 @@ def test_merge_resume_threads_raw_retention_flags_unchanged(tmp_path: Path) -> N
         )
 
     assert captured.get("delete_branch") is None, (
-        "resume must NOT coerce the unset tri-state delete_branch flag into a "
-        f"concrete bool before _run_real_merge; got {captured.get('delete_branch')!r}"
+        f"resume must NOT coerce the unset tri-state delete_branch flag into a concrete bool before _run_real_merge; got {captured.get('delete_branch')!r}"
     )
     assert captured.get("remove_worktree") is None, (
-        "resume must NOT coerce the unset tri-state remove_worktree flag into "
-        f"a concrete bool before _run_real_merge; got {captured.get('remove_worktree')!r}"
+        f"resume must NOT coerce the unset tri-state remove_worktree flag into a concrete bool before _run_real_merge; got {captured.get('remove_worktree')!r}"
     )
 
 
-def _init_orchestrator_retention_repo(
-    tmp_path: Path, slug: str, *, retain: bool, is_coord: bool
-) -> Path:
+def _init_orchestrator_retention_repo(tmp_path: Path, slug: str, *, retain: bool, is_coord: bool) -> Path:
     """Minimal real git repo + primary meta.json for the orchestrator resolver."""
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -1345,15 +1338,12 @@ def test_orchestrator_execute_lane_merge_resolves_retention_for_coord_mission(
     slug = "orch-retain-coord-repro"
     repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=True, is_coord=True)
 
-    retention, mission_branch_deletable = _resolve_lane_merge_retention(
-        repo, slug, delete_branch=None, remove_worktree=None
-    )
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(repo, slug, delete_branch=None, remove_worktree=None)
 
     assert retention.delete_branch is False
     assert retention.remove_worktree is False
     assert mission_branch_deletable is False, (
-        "a retaining COORD mission driven through the orchestrator entry must "
-        "not mark the mission/coordination branch deletable"
+        "a retaining COORD mission driven through the orchestrator entry must not mark the mission/coordination branch deletable"
     )
 
 
@@ -1369,14 +1359,11 @@ def test_orchestrator_execute_lane_merge_non_coord_stays_on_delete_branch_gate(
     slug = "orch-non-coord-repro"
     repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=False, is_coord=False)
 
-    retention, mission_branch_deletable = _resolve_lane_merge_retention(
-        repo, slug, delete_branch=True, remove_worktree=False
-    )
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(repo, slug, delete_branch=True, remove_worktree=False)
 
     assert retention.delete_branch is True
     assert retention.remove_worktree is False
     assert retention.teardown_coordination is False
     assert mission_branch_deletable is True, (
-        "a non-coord mission's mission-branch deletion must stay keyed to "
-        "delete_branch alone, not the coupled teardown_coordination"
+        "a non-coord mission's mission-branch deletion must stay keyed to delete_branch alone, not the coupled teardown_coordination"
     )

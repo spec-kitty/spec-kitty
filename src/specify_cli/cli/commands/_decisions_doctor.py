@@ -72,6 +72,7 @@ from spec_kitty_events.decisionpoint import (
     DECISION_POINT_RESOLVED,
 )
 
+from specify_cli.decisions import fork as _fork
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import DecisionIndex, IndexEntry
@@ -122,10 +123,23 @@ class DecisionsReconciliationReport:
     #: ``{"decision_id", "index_status", "folded_status"}``. Empty on a
     #: healthy corpus.
     status_mismatch: list[dict[str, str]] = field(default_factory=list)
+    #: WP17 (FR-010/FR-010a/FR-009c, #5023): the two-surface fork/ledger-home
+    #: report, computed only when ``repo_root`` is supplied to ``_diagnose``
+    #: (``None`` for the back-compat no-``repo_root`` call shape driven
+    #: directly by ``tests/status/test_authoritative_non_lane_registry_4897.py``).
+    fork_report: _fork.DecisionsForkReport | None = field(default=None, repr=False)
+    #: New WP17 finding codes (``DECISION_LOG_FORKED`` /
+    #: ``DECISION_LEDGER_ONLY_ON_COORDINATION``), additive to the existing
+    #: per-field report shape.
+    findings: list[str] = field(default_factory=list)
+    #: WP17: ``--repair`` copied a coordination-only ledger into the PRIMARY
+    #: ledger dir (additive, no commit -- FR-009b).
+    ledger_copied: bool = False
 
     @property
     def clean(self) -> bool:
-        return not self.missing_from_index and not self.orphaned_in_index and not self.malformed_folds and not self.status_mismatch
+        base = not self.missing_from_index and not self.orphaned_in_index and not self.malformed_folds and not self.status_mismatch
+        return base and not self.findings
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
@@ -155,6 +169,28 @@ def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
     """
     ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     return ledger_dir
+
+
+def _resolve_events_dir_for_doctor(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the COORD/``STATUS_STATE`` events dir for the READ-ONLY doctor path.
+
+    WP17 (US4.1, #5023): degrades to a deliberately nonexistent placeholder
+    when the coordination worktree is genuinely unmaterialized/the branch is
+    deleted (:class:`~specify_cli.missions._read_path_resolver
+    .StatusReadPathNotFound`, e.g. a fresh clone with no coordination
+    worktree) -- there is nothing live to read there yet, so the event log
+    degrades to empty exactly as an empty on-disk directory would, rather
+    than crashing a read-only diagnose. :func:`~specify_cli.decisions.fork
+    .detect_decision_forks` recovers the coordination side's content
+    separately via its own worktree-or-ref read, so the overall fork report
+    stays accurate even when this single-surface legacy read degrades.
+    """
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        return _mission_dir(repo_root, mission_slug)
+    except StatusReadPathNotFound:
+        return repo_root / f".spec-kitty-doctor-unmaterialized-coord~{mission_slug}"
 
 
 def _events_path(mission_dir: Path) -> Path:
@@ -369,7 +405,27 @@ def _fold_diagnostics(
     return malformed_ids, status_mismatch
 
 
-def _diagnose(events_dir: Path, ledger_dir: Path, mission_slug: str) -> tuple[DecisionsReconciliationReport, dict[str, list[dict]]]:  # type: ignore[type-arg]
+def _all_decision_ids_from_fork_report(fork_report: _fork.DecisionsForkReport) -> set[str]:
+    """Union of every decision id found on EITHER surface, ANY stream (FR-010 rule 1).
+
+    An index entry is orphaned only when absent from this whole union, not
+    merely from one surface's ``status.events.jsonl`` (the pre-WP17 rule).
+    """
+    ids: set[str] = set()
+    for finding in fork_report.streams:
+        ids |= set(finding.decisions_only_on_primary)
+        ids |= set(finding.decisions_only_on_coordination)
+        ids |= set(finding.decisions_on_both)
+    return ids
+
+
+def _diagnose(
+    events_dir: Path,
+    ledger_dir: Path,
+    mission_slug: str,
+    *,
+    repo_root: Path | None = None,
+) -> tuple[DecisionsReconciliationReport, dict[str, list[dict]]]:  # type: ignore[type-arg]
     """Diagnose log/index divergence.
 
     ``events_dir`` (COORD/``STATUS_STATE``) and ``ledger_dir`` (PRIMARY/
@@ -380,6 +436,16 @@ def _diagnose(events_dir: Path, ledger_dir: Path, mission_slug: str) -> tuple[De
     this now ALSO runs the canonical fold per decision_id
     (:func:`_fold_diagnostics`) so a genuinely unfoldable decision or a stale
     index status is caught by the read-only path too, not just ``--repair``.
+
+    WP17 (FR-010/FR-010a/FR-009c, #5023): when *repo_root* is supplied, this
+    additionally runs the two-surface :func:`~specify_cli.decisions.fork
+    .detect_decision_forks` comparison, widens the orphan rule to the union
+    of every decision id on EITHER surface (rule 1), and records the new
+    ``DECISION_LOG_FORKED`` / ``DECISION_LEDGER_ONLY_ON_COORDINATION``
+    findings. ``repo_root=None`` (the default) reproduces the pre-WP17
+    single-surface behaviour byte-for-byte -- the shape
+    ``tests/status/test_authoritative_non_lane_registry_4897.py`` drives
+    directly.
     """
     grouped = _read_decision_events(_events_path(events_dir))
     index = _store.load_index(ledger_dir)
@@ -389,19 +455,59 @@ def _diagnose(events_dir: Path, ledger_dir: Path, mission_slug: str) -> tuple[De
 
     malformed_ids, status_mismatch = _fold_diagnostics(grouped, index_by_id)
 
+    orphan_universe = set(log_ids)
+    fork_report: _fork.DecisionsForkReport | None = None
+    findings: list[str] = []
+    if repo_root is not None:
+        fork_report = _fork.detect_decision_forks(repo_root, mission_slug)
+        orphan_universe |= _all_decision_ids_from_fork_report(fork_report)
+        if fork_report.forked:
+            findings.append("DECISION_LOG_FORKED")
+        if _fork.ledger_is_coordination_only(fork_report.ledger):
+            findings.append("DECISION_LEDGER_ONLY_ON_COORDINATION")
+
     report = DecisionsReconciliationReport(
         mission_slug=mission_slug,
         log_decision_ids=sorted(log_ids),
         index_decision_ids=sorted(index_ids),
         missing_from_index=sorted(log_ids - index_ids),
-        orphaned_in_index=sorted(index_ids - log_ids),
+        orphaned_in_index=sorted(index_ids - orphan_universe),
         malformed_folds=sorted(malformed_ids),
         status_mismatch=status_mismatch,
+        fork_report=fork_report,
+        findings=findings,
     )
     return report, grouped
 
 
-def _repair(events_dir: Path, ledger_dir: Path) -> tuple[list[str], list[str]]:
+def _retain_event_backed_entries(
+    current: DecisionIndex,
+    rebuilt: DecisionIndex,
+    event_backed_ids: set[str],
+) -> DecisionIndex:
+    """Keep index entries whose events still exist on either surface.
+
+    ``_rebuild_index_from_log`` folds only the coordination ``status.events.jsonl``.
+    A prefix or single-home stream, and the empty placeholder used when the
+    coordination worktree is unmaterialized, does not contain every event-backed
+    id. Those entries must survive ``--repair`` (FR-011). A genuine orphan, absent
+    from *event_backed_ids*, is still dropped.
+    """
+    rebuilt_ids = {entry.decision_id for entry in rebuilt.entries}
+    retained = [entry for entry in current.entries if entry.decision_id in event_backed_ids and entry.decision_id not in rebuilt_ids]
+    if not retained:
+        return rebuilt
+    mission_id = rebuilt.mission_id or current.mission_id
+    return DecisionIndex(mission_id=mission_id, entries=tuple(rebuilt.entries) + tuple(retained))
+
+
+def _repair(
+    events_dir: Path,
+    ledger_dir: Path,
+    *,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
+) -> tuple[list[str], list[str]]:
     """Rebuild ``index.json`` from a FRESH in-lock read of the event log,
     under the sidecar lock (I8: the SAME lock the write path uses, T010) — a
     concurrent open/resolve cannot race a repair, and a repair cannot race a
@@ -429,8 +535,42 @@ def _repair(events_dir: Path, ledger_dir: Path) -> tuple[list[str], list[str]]:
         grouped = _read_decision_events(_events_path(events_dir))
         current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
+        if repo_root is not None and mission_slug is not None:
+            fork_report = _fork.detect_decision_forks(repo_root, mission_slug)
+            rebuilt = _retain_event_backed_entries(current, rebuilt, _all_decision_ids_from_fork_report(fork_report))
         _store.save_index(ledger_dir, rebuilt)
         return lossy_ids, malformed_ids
+
+
+def _copy_coordination_only_ledger(repo_root: Path, mission_slug: str, ledger_dir: Path) -> None:
+    """FR-009c / contract rule 4: additive-only copy of a coordination-only ledger.
+
+    Reads ``decisions/index.json`` + ``DM-*.md`` from the COORDINATION
+    BRANCH TIP (never the worktree -- the branch is what teardown destroys;
+    T092 step 3) and copies them into the PRIMARY ledger dir, under the SAME
+    sidecar lock the write path and ``_repair`` use. Index entries are
+    merged with the single shared :func:`union_decision_index
+    <specify_cli.consolidation.drivers.union_decision_index>` (P-M6 -- no
+    second union). Never overwrites an existing PRIMARY entry/file. Creates
+    NO commit (FR-009b): the existing PRIMARY committers (``spec-commit`` /
+    ``accept``) commit the copy.
+    """
+    from specify_cli.consolidation.drivers import union_decision_index
+
+    index_document, dm_contents = _fork.read_coordination_ledger_raw(repo_root, mission_slug)
+    lock_path = _decisions_lock_path(ledger_dir)
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+        if index_document is not None:
+            current_raw = _store.load_index(ledger_dir).model_dump(mode="json")
+            merged_raw = union_decision_index(current_raw, index_document)
+            merged = DecisionIndex.model_validate(merged_raw)
+            _store.save_index(ledger_dir, merged)
+        decisions_path = _store.decisions_dir(ledger_dir)
+        decisions_path.mkdir(parents=True, exist_ok=True)
+        for name, content in dm_contents.items():
+            dest = decisions_path / name
+            if not dest.exists():
+                dest.write_text(content, encoding="utf-8")
 
 
 def _emit_lossy_attribution_warning(report: DecisionsReconciliationReport) -> None:
@@ -489,6 +629,50 @@ def _emit_status_mismatch_warning(report: DecisionsReconciliationReport) -> None
     console.print(f"  [red]stale status[/red] ({len(report.status_mismatch)}) index entry disagrees with the folded event log: {detail}")
 
 
+def _surface_log_to_json(log: _fork.SurfaceLog | None) -> dict[str, object] | None:
+    if log is None:
+        return None
+    return {"source": log.source, "ref": log.ref, "path": log.path, "event_count": len(log.event_ids)}
+
+
+def _stream_finding_to_json(finding: _fork.StreamForkFinding) -> dict[str, object]:
+    return {
+        "stream": finding.stream,
+        "state": finding.state,
+        "primary": _surface_log_to_json(finding.primary),
+        "coordination": _surface_log_to_json(finding.coordination),
+        "decisions_only_on_primary": list(finding.decisions_only_on_primary),
+        "decisions_only_on_coordination": list(finding.decisions_only_on_coordination),
+        "decisions_on_both": list(finding.decisions_on_both),
+    }
+
+
+def _ledger_finding_to_json(ledger: _fork.LedgerHomeFinding) -> dict[str, object]:
+    return {
+        "state": ledger.state,
+        "entries_only_on_coordination": list(ledger.entries_only_on_coordination),
+        "dm_files_only_on_coordination": list(ledger.dm_files_only_on_coordination),
+    }
+
+
+def _emit_fork_report_human(fork_report: _fork.DecisionsForkReport) -> None:
+    """WP17: print one line per forked stream, the ledger home, then the
+    human-readable (never executed, C-003) reconcile steps."""
+    for finding in fork_report.streams:
+        if finding.state == "forked":
+            primary_count = len(finding.primary.event_ids) if finding.primary else 0
+            coord_count = len(finding.coordination.event_ids) if finding.coordination else 0
+            console.print(f"  [red]{finding.stream}[/red]: forked (primary={primary_count} event(s), coordination={coord_count} event(s))")
+    if _fork.ledger_is_coordination_only(fork_report.ledger):
+        console.print(
+            f"  [red]decisions ledger[/red]: only on the coordination branch "
+            f"({len(fork_report.ledger.entries_only_on_coordination)} entr(ies), "
+            f"{len(fork_report.ledger.dm_files_only_on_coordination)} DM file(s))"
+        )
+    for step in fork_report.reconcile_steps:
+        console.print(f"  [yellow]reconcile:[/yellow] {step}")
+
+
 def _emit_human(report: DecisionsReconciliationReport) -> None:
     if report.clean:
         suffix = " (repaired)" if report.repaired else ""
@@ -499,6 +683,14 @@ def _emit_human(report: DecisionsReconciliationReport) -> None:
             console.print(f"  missing from index ({len(report.missing_from_index)}): {', '.join(report.missing_from_index)}")
         if report.orphaned_in_index:
             console.print(f"  orphaned in index, no backing event ({len(report.orphaned_in_index)}): {', '.join(report.orphaned_in_index)}")
+    if report.fork_report is not None:
+        _emit_fork_report_human(report.fork_report)
+    if report.ledger_copied:
+        console.print(
+            f"  [green]copied[/green] decisions ledger from the coordination branch -- commit with "
+            f'`spec-kitty spec-commit -m "..." kitty-specs/{report.mission_slug}/decisions/` (or '
+            "`spec-kitty accept`); no commit was created."
+        )
     _emit_lossy_attribution_warning(report)
     _emit_malformed_fold_warning(report)
     _emit_status_mismatch_warning(report)
@@ -509,8 +701,13 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
     ``malformed_folds`` is non-empty, the single JSON document carries a
     ``remedy`` field (:func:`_malformed_fold_remedy_text`) -- the SAME
     "left in place" + inspection-pointer text the human-mode warning prints
-    -- so a ``--json`` refusal is not silently poorer than the human one."""
-    payload = {
+    -- so a ``--json`` refusal is not silently poorer than the human one.
+
+    WP17: additive keys only (``forked``, ``streams``, ``ledger``,
+    ``reconcile_steps``, ``findings``, ``ledger_copied``) -- present only
+    when a fork report was computed (``repo_root`` was supplied).
+    """
+    payload: dict[str, object] = {
         "mission_slug": report.mission_slug,
         "clean": report.clean,
         "log_decision_ids": report.log_decision_ids,
@@ -522,7 +719,14 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         "malformed_folds": report.malformed_folds,
         "status_mismatch": report.status_mismatch,
         "remedy": _malformed_fold_remedy_text(report),
+        "findings": report.findings,
+        "ledger_copied": report.ledger_copied,
     }
+    if report.fork_report is not None:
+        payload["forked"] = report.fork_report.forked
+        payload["streams"] = [_stream_finding_to_json(s) for s in report.fork_report.streams]
+        payload["ledger"] = _ledger_finding_to_json(report.fork_report.ledger)
+        payload["reconcile_steps"] = list(report.fork_report.reconcile_steps)
     console.print_json(json.dumps(payload, indent=2))
 
 
@@ -564,28 +768,49 @@ def run_decisions_reconciliation(
     mission_slug = mission_root.name
     # #4966 AC-D2: the event log (COORD) and the ledger content (PRIMARY)
     # resolve to separate dirs — see ``_mission_dir`` / ``_ledger_dir``.
-    events_dir = _mission_dir(repo_root, mission_slug)
+    events_dir = _resolve_events_dir_for_doctor(repo_root, mission_slug)
     ledger_dir = _ledger_dir(repo_root, mission_slug)
 
-    report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug)
+    report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
 
     if repair and not report.clean:
-        lossy_ids, malformed_ids = _repair(events_dir, ledger_dir)
-        report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug)
+        forked = report.fork_report is not None and report.fork_report.forked
+        ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
+        if forked:
+            # C-003: a forked stream is NEVER auto-merged or re-sequenced --
+            # no index rewrite for the forked decisions; the reconcile steps
+            # are printed instead (contract rule 2, US4.3).
+            lossy_ids: list[str] = []
+            malformed_ids = list(report.malformed_folds)
+        else:
+            # Positive control (US4.4): an unforked Mission still repairs a
+            # genuine orphan exactly as before.
+            lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
+        if ledger_only_coord:
+            # FR-009c / contract rule 4: additive-only, independent of the
+            # stream-fork branch above (a coordination-only ledger can exist
+            # on an otherwise unforked Mission, e.g. NFR-002 fixture (d)).
+            _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+        report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
         report.repaired = True
         report.lossy_attribution = sorted(lossy_ids)
         report.malformed_folds = sorted(malformed_ids)
+        report.ledger_copied = ledger_only_coord
 
     if json_output:
         _emit_json(report)
     else:
         _emit_human(report)
 
-    # #4919: --repair exits non-zero when it could not
-    # reconcile every decision -- one that remains malformed after the
-    # rebuild attempt is reported above (never a second document) and then
-    # refused here, rather than the command silently claiming success. The
-    # read-only diagnose path (repair=False) always exits 0 (report-only).
+    # #4919 / WP17: --repair exits non-zero when it could not reconcile
+    # every decision -- a malformed decision that remains after the rebuild
+    # attempt, or a forked stream (C-003: never auto-merged, so it is
+    # reported and refused here rather than the command silently claiming
+    # success). The read-only diagnose path (repair=False) always exits 0
+    # (report-only) -- a forked/coordination-only-ledger Mission is proven
+    # "not clean" separately by ``decision verify`` (FR-010a).
+    if repair and report.fork_report is not None and report.fork_report.forked:
+        raise typer.Exit(1)
     if repair and report.malformed_folds:
         raise typer.Exit(1)
 

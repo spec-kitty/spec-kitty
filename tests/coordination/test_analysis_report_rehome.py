@@ -199,6 +199,19 @@ def test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary(
     the write-side fix is ALREADY effective for the real, unmodified production
     caller, not merely for a hypothetical future caller that passes the new
     kind explicitly.
+
+    **RE-PINNED AGAIN (coord-artifact-single-home-01M3V4BE WP08, Standing
+    Order 4).** The physical-location assertion above ("ON-DISK placement...
+    is still the PRIMARY tasks/<wp>/ tree") is now stale: WP08 ships the
+    single-home write rule, so :func:`create_rejected_review_cycle` resolves
+    its directory through :func:`~specify_cli.review.cycle._review_cycle_write_location`
+    (:meth:`~mission_runtime.resolution.PlacementSeam.write_dir`), which
+    physically lands the artifact in the COORDINATION worktree — never a
+    PRIMARY staging copy. "Lands on coord ref" and "absent on primary" are
+    UNCHANGED and still hold (they never depended on the physical-write
+    location to begin with — only on the commit router's own classification);
+    only the ON-DISK path assertion below moves from the PRIMARY ``tasks/<wp>/``
+    tree to the coordination worktree's.
     """
     from specify_cli.coordination.commit_router import commit_for_mission
     from specify_cli.git.protection_policy import ProtectionPolicy
@@ -213,11 +226,11 @@ def test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary(
         encoding="utf-8",
     )
 
-    # Author the review-cycle through the REAL write site. Its ON-DISK placement
-    # (before commit) is still the PRIMARY ``tasks/<wp>/`` tree — write-in-home
-    # is unaffected by the COORD partition decision; only the COMMIT destination
-    # (this test's actual subject) changes, which is why the artifact path
-    # assertion below is unchanged from the pre-ADR pin.
+    # Author the review-cycle through the REAL write site. WP08 (coord-
+    # artifact-single-home-01M3V4BE): its ON-DISK placement (before commit) is
+    # now the COORDINATION worktree's ``tasks/<wp>/`` tree — single-home,
+    # never a PRIMARY staging copy. The COMMIT destination (this test's
+    # original subject, "lands on coord ref") is unaffected by this re-pin.
     created = create_rejected_review_cycle(
         main_repo_root=ctx.repo,
         mission_slug=ctx.slug,
@@ -227,7 +240,8 @@ def test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary(
         reviewer_agent="reviewer-renata",
     )
 
-    rel = str(created.artifact_path.relative_to(ctx.repo))
+    coord_worktree_path = ctx.coord_feature_dir.parent.parent
+    rel = created.artifact_path.relative_to(coord_worktree_path).as_posix()
     assert rel == f"kitty-specs/{ctx.slug}/tasks/WP01/review-cycle-1.md", rel
 
     # Commit through the REAL router, with the caller's CURRENT (unfixed, T015

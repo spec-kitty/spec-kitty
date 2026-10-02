@@ -6,9 +6,15 @@ the full cross-check pipeline from file I/O through to structured findings.
 
 from __future__ import annotations
 
+import contextlib
+import json
 from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
+from typer.testing import CliRunner
+
+from mission_runtime import MissionTopology
+from specify_cli import app as root_app
 from specify_cli.decisions.models import (
     DecisionIndex,
     DecisionStatus,
@@ -17,6 +23,7 @@ from specify_cli.decisions.models import (
 )
 from specify_cli.decisions.store import save_index, write_artifact
 from specify_cli.decisions.verify import verify
+from tests._factories.coord_mission import make_fork_fixture
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -112,7 +119,7 @@ def test_mixed_state_drift(tmp_path: Path) -> None:
 
     # Counts
     assert result.deferred_count == 2  # A and B are deferred
-    assert result.marker_count == 2    # one in spec.md, one in plan.md
+    assert result.marker_count == 2  # one in spec.md, one in plan.md
 
     # Exactly 2 findings: DEFERRED_WITHOUT_MARKER (B) + STALE_MARKER (C)
     assert len(result.findings) == 2
@@ -192,3 +199,39 @@ def test_marker_without_decision(tmp_path: Path) -> None:
     assert mwd_findings[0].decision_id_or_ref == ULID_UNKNOWN
     assert mwd_findings[0].location is not None
     assert mwd_findings[0].location.startswith("spec.md:L")
+
+
+# ---------------------------------------------------------------------------
+# WP17 (T090 R14, FR-010a, contract rule 5, #5023) -- a forked decision
+# stream is a distinct, honest-verify failure, proven through the real CLI
+# and parametrized over three of the NFR-002 fork fixtures (post-tasks squad
+# R-m1): (a) root-uncommitted/coordination-untracked, (b) both committed,
+# (c) a fresh clone.
+# ---------------------------------------------------------------------------
+
+_runner = CliRunner()
+
+
+@pytest.mark.parametrize("shape", ["root_uncommitted_coord_untracked", "both_committed", "fresh_clone"])
+def test_verify_not_clean_on_forked_log(tmp_path: Path, shape: str) -> None:
+    """Red at base: ``decision verify`` only cross-checks markers against the
+    ledger -- it has no concept of a forked decision-event stream, so it
+    exits 0 (clean) on a Mission that is actively losing decisions to a
+    fork. Fixed: it exits 1 with ``DECISION_LOG_FORKED`` in ``findings``,
+    for every one of the three fixture shapes (a fresh clone included --
+    the detector is read-only and reads the coordination ref)."""
+    fixture = make_fork_fixture(tmp_path, shape, MissionTopology.COORD)  # type: ignore[arg-type]
+    cwd = fixture.clone_root if fixture.clone_root is not None else fixture.repo_root
+
+    with contextlib.chdir(cwd):
+        result = _runner.invoke(
+            root_app,
+            ["agent", "decision", "verify", "--mission", fixture.mission_dir_name, "--json"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    kinds = {f["kind"] for f in payload["findings"]}
+    assert "DECISION_LOG_FORKED" in kinds, payload
+    assert payload["status"] == "drift"

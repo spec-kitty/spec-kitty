@@ -68,7 +68,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # when the guard stopped reading checkbox rows.
 # ---------------------------------------------------------------------------
 
-_TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
+_TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2, +2 coord-artifact-single-home-01M3V4BE WP15) — 10 symbols
     "_FinalizeState",
     "_default_finalize_ports",
     "_ft_resolve_context",
@@ -77,6 +77,10 @@ _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
     "_ft_apply_writes",
     "_ft_output",
     "_do_finalize_tasks",
+    # WP15 (T004/T080): the STATUS-partition write leg, extracted out of
+    # ``_ft_apply_writes`` so it can resolve ``write_dir`` (not ``read_dir``).
+    "_ft_emit_status_events",
+    "_tasks_bootstrap_canonical_state",
 )
 
 _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396, +4 #2991) — 20 symbols
@@ -104,6 +108,11 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396, +4 #
     "_mr_accepted_refs_by_wp",
     "_mr_classify_wp_refs",
     "_mr_sorted_spec_ids",
+    # coord-artifact-single-home-01M3V4BE WP08 (FR-007/SC-003): refused-surface
+    # rendering + the additive `surfaces` JSON payload.
+    "_mr_render_refused_surfaces",
+    "_mr_surface_needs_warning",
+    "_mr_surfaces_payload",
 )
 
 _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols

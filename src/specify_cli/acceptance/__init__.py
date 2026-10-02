@@ -341,7 +341,7 @@ def _accept_dirty_gate(
 ) -> list[str]:
     """Compute the accept dirty set: accept-owned exclusion + FR-008 coord residue.
 
-    Four filters compose:
+    Five filters compose:
 
     1. **Accept-owned convergence (#1883):** the accept gate's own writes
        (``acceptance-matrix.json`` + ``status.json``) are excluded via
@@ -379,10 +379,19 @@ def _accept_dirty_gate(
        artifacts STILL block. The accept-owned exclusion (1) is NOT widened to
        this leg's ``ISSUE_MATRIX`` kind (see :func:`_is_accept_pipeline_own_write`).
 
-    Non-accept-owned, non-backup, non-self-bookkeeping, non-residue dirt is
-    preserved verbatim (fail-closed, NFR-003).
+    5. **Uncommitted decision ledger (FR-009b / G1):** the CURRENT mission's
+       PRIMARY decision ledger (``decisions/index.json`` + ``DM-*.md``, the
+       ``DECISION_LEDGER`` kind) is accept's to commit -- the residual
+       acceptance commit lands it on the target -- so it must not block the gate
+       that precedes that commit (:func:`~.ledger_dirt.is_mission_decision_ledger_entry`).
+       Another mission's ledger and every other path still block.
+
+    Non-accept-owned, non-backup, non-self-bookkeeping, non-residue, non-ledger
+    dirt is preserved verbatim (fail-closed, NFR-003).
     """
     from specify_cli.coordination.coherence import is_self_bookkeeping_churn
+
+    from .ledger_dirt import is_mission_decision_ledger_entry
 
     encoding_backup_prefix = _encoding_backup_scope_prefix(repo_root, feature, owned=owned)
 
@@ -392,6 +401,7 @@ def _accept_dirty_gate(
         if not _is_accept_pipeline_own_write(str(entry.path), mission_slug=feature)
         and not _is_own_encoding_backup_write(str(entry.path), feature_dir_prefix=encoding_backup_prefix)
         and not is_self_bookkeeping_churn(str(entry.path))
+        and not is_mission_decision_ledger_entry(entry, repo_root=repo_root, mission_slug=feature)
     ]
     remaining = _filter_coordination_residue(
         git_dirty,
@@ -414,17 +424,23 @@ def _filter_coordination_residue(
 
     FR-008 convergence on the ``mission.py`` reference pattern: only when
     :func:`routes_through_coordination` holds does
-    :func:`specify_cli.coordination.coherence.is_coord_residue_churn` (the
-    stored-topology residue authority — flat→``False``; WP12 retired the former
-    ``mission_runtime`` predicate onto this owner leg) get to exclude a path.
-    The predicate is NOT a widening of the accept-owned exclusion
-    (:func:`_is_accept_pipeline_own_write`): it is the per-ref
-    coordination gate applied to recognized coordination-owned artifacts (spec /
-    plan / tasks / lanes / status / matrices / checklists) left stale on the
-    primary checkout. Real source edits, unknown mission scratch files, and
-    another mission's artifacts are not recognized residue, so they still block.
+    :func:`specify_cli.coordination.commit_router.partition_for_mission_path`
+    (WP16, US3.7 — the SAME per-path partition verdict the commit router's own
+    ``_group_files_by_partition`` consults, re-exported from
+    ``commit_router.__all__`` once this gate became its first cross-module
+    caller) get to exclude a path. The predicate is NOT a widening of the
+    accept-owned exclusion (:func:`_is_accept_pipeline_own_write`): it is the
+    per-ref coordination gate applied to recognized coordination-owned
+    artifacts (spec / plan / tasks / lanes / status / matrices / checklists)
+    left stale on the primary checkout. Real source edits, unknown mission
+    scratch files, and another mission's artifacts are not recognized residue,
+    so they still block. Calling the SAME function the committer's grouping
+    uses (rather than restating its underlying
+    :func:`~specify_cli.coordination.coherence.is_coord_residue_churn` call
+    separately) is what makes the gate/committer agreement (R9) hold by
+    construction, not by coincidence.
     """
-    from specify_cli.coordination.coherence import is_coord_residue_churn
+    from specify_cli.coordination.commit_router import partition_for_mission_path
 
     if not _mission_routes_through_coordination(
         repo_root,
@@ -432,7 +448,7 @@ def _filter_coordination_residue(
         owned=owned,
     ):
         return list(dirty_entries)
-    return [entry for entry in dirty_entries if not is_coord_residue_churn(str(entry.path), mission_slug=feature)]
+    return [entry for entry in dirty_entries if partition_for_mission_path(repo_root, feature, Path(str(entry.path)), owned=owned) != "coordination"]
 
 
 #: Canonical "not ready" wording for a failed host readiness verdict
@@ -1787,6 +1803,7 @@ def _commit_acceptance_meta_via_router(
     instance at runtime — using ``Any`` avoids a cross-module Protocol import).
     """
     from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination.commit_outcome import render_commit_outcome
     from specify_cli.coordination.commit_router import commit_for_mission
 
     router_result = commit_for_mission(
@@ -1797,9 +1814,15 @@ def _commit_acceptance_meta_via_router(
         policy=policy,
         # meta.json is PRIMARY_METADATA (write-surface-coherence WP02 / T009):
         # acceptance meta moves to the primary surface on the WRITE side too,
-        # realizing the INV-5 read↔write symmetry. Primary kind → primary target.
+        # realizing the INV-5 full read↔write symmetry. Primary kind → primary target.
         kind=MissionArtifactKind.PRIMARY_METADATA,
     )
+    # T088 (contract rule 6): render through the shared trio rather than
+    # formatting surfaces by hand. This is the FIRST commit -- its existing
+    # ``AcceptanceError`` semantics (below) are unchanged; the render is an
+    # additional, non-blocking trace of the SAME outcome the raise describes.
+    for line in render_commit_outcome(router_result):
+        logger.debug("accept: %s", line)
 
     if router_result.status == "unchanged":
         return parent_commit, None, False
@@ -1820,7 +1843,11 @@ def _commit_acceptance_meta_via_router(
                 _history[-1]["accept_commit"] = accept_commit
             write_meta(meta_path.parent, _meta)
             # Second commit: record the accept_commit SHA back into meta.json.
-            commit_for_mission(
+            # T088 (D8): its result was discarded entirely before this WP --
+            # now warn (never raise; this write is best-effort bookkeeping on
+            # top of an already-successful acceptance commit) when a surface
+            # did not land cleanly.
+            second_result = commit_for_mission(
                 repo_root=repo_root,
                 mission_slug=mission_slug,
                 files=(meta_path,),
@@ -1829,6 +1856,16 @@ def _commit_acceptance_meta_via_router(
                 # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
                 kind=MissionArtifactKind.PRIMARY_METADATA,
             )
+            for surface in second_result.surfaces:
+                if surface.status not in ("committed", "unchanged"):
+                    logger.warning(
+                        "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
+                        surface.surface,
+                        surface.branch,
+                        mission_slug,
+                        surface.status,
+                        surface.diagnostic or "no diagnostic available",
+                    )
 
     return parent_commit, accept_commit, True
 

@@ -120,6 +120,21 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
         command="spec-kitty merge-driver-review-cycle %O %A %B",
         pattern="kitty-specs/**/tasks/*/review-cycle-*.md",
     ),
+    # coord-artifact-single-home-01M3V4BE WP11 (FR-009b / D13 / #5023): once
+    # the decisions/index.json ledger becomes a PRIMARY-partition record
+    # (WP12), it starts travelling with lane and mission branches, so a
+    # plain ``git merge`` can conflict or (under ``-X theirs``) silently
+    # drop one lane's decision entry. This driver unions ``entries`` keyed
+    # by ``decision_id`` with terminal-beats-open fold precedence -- see
+    # consolidation/drivers.py::run_decision_index_driver's docstring.
+    # ``DM-<ulid>.md`` artifacts get no driver: they are ULID-named, one
+    # file per decision, so they cannot collide.
+    _MergeDriverSpec(
+        config_key="spec-kitty-decision-index",
+        name="Spec Kitty decision-index entry union merge",
+        command="spec-kitty merge-driver-decision-index %O %A %B",
+        pattern="kitty-specs/**/decisions/index.json",
+    ),
 )
 
 

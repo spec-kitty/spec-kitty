@@ -36,7 +36,13 @@ from kernel.clock import now_utc, now_utc_iso, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from mission_runtime import MissionArtifactKind, TopologySurface, placement_seam
+from specify_cli.coordination.coord_seed import CoordSeedForkRefused
 from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.coordination.surface_resolver import (
+    CoordinationBranchDeleted,
+    CoordinationWorktreeUnmaterialized,
+)
 from specify_cli.core import hosted_posture
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.errors import StructuredError
@@ -61,6 +67,7 @@ from specify_cli.lanes.branch_naming import (
 from specify_cli.status import emit as _emit
 from specify_cli.status.locking import (
     BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    FeatureStatusLockTimeoutError,
     feature_status_lock,
 )
 from specify_cli.status.models import (
@@ -242,49 +249,69 @@ class FallbackCoordWorktreeUnresolved(StructuredError):
 def _resolve_fallback_coord_worktree(identity: _TransactionIdentity, mission_slug: str) -> Path | None:
     """Resolve the coord worktree for the non-transactional coord fallback.
 
-    Two layers, mirroring the read contract's shape-vs-existence split
-    (:func:`_read_contract_routes_through_coordination` plus its transient probe
-    arms — the same two-layer structure the read side already uses):
+    coord-artifact-single-home-01M3V4BE WP07 (T038): delegates FULLY to the
+    single write-location accessor (``placement_seam(...).write_dir``,
+    WP03/WP04) rather than a bare ``CoordinationWorkspace.resolve`` call. The
+    accessor already owns both layers this function used to implement by
+    hand:
 
-    * **SHAPE — stored-topology SSOT.** The coord-vs-primary decision is disposed
-      by the WP02 topology SSOT via
-      :func:`_read_contract_routes_through_coordination`
-      (``routes_through_coordination(read_topology(...))``), NOT a
-      ``coordination_branch is not None`` / branch-exists SURFACE test — the exact
-      re-derivation SC-001 forbids the read contract from doing. A coord-less
-      topology (``SINGLE_BRANCH`` / ``LANES`` / flat) returns ``None`` so the
-      caller PRESERVES the legitimate primary-uncommitted write (contract row 8);
-      no coord path is forced and no error is raised.
-    * **TRANSIENT MATERIALIZATION.** For a stored-``COORD`` / ``LANES_WITH_COORD``
-      mission the write MUST land on the coord worktree — materialize/target it
-      through the ONE ``CoordinationWorkspace.resolve`` authority (never a forked
-      resolver). If it genuinely cannot be resolved, FAIL LOUD
-      (:class:`FallbackCoordWorktreeUnresolved`) rather than silently degrade to a
-      primary-uncommitted write (US1 Edge Case; the same fail-loud policy the
-      ``workflow_executor`` misroute guard applies). Only the concrete
-      materialization failures are caught-and-re-raised; an unexpected error
-      (programming bug — ``AttributeError`` etc.) propagates raw rather than being
-      masked as a silent primary write (#3 narrowing).
+    * **SHAPE.** ``write_dir`` consults the SAME stored-topology SSOT
+      (``declared_read_surface``) the old ``_read_contract_routes_through_
+      coordination`` check did; a coord-less topology (``SINGLE_BRANCH`` /
+      ``LANES`` / flat) resolves PRIMARY, so this function keeps returning
+      ``None`` there (contract row 8 -- no coord path forced, no error).
+    * **MATERIALIZATION, SEEDING, REFUSAL.** For a stored-``COORD`` /
+      ``LANES_WITH_COORD`` mission the accessor materializes an
+      UNMATERIALIZED local-head branch, seeds or restores an EMPTY surface,
+      or FAILS LOUD (``CoordinationWorktreeUnmaterialized`` /
+      ``CoordinationBranchDeleted`` / ``CoordSeedForkRefused`` / a
+      ``STATUS_LOCK_HELD``-coded ``FeatureStatusLockTimeoutError``) rather
+      than silently degrading to a primary-uncommitted write (US1 Edge
+      Case; the same fail-loud policy the ``workflow_executor`` misroute
+      guard applies). Those typed refusals are wrapped into
+      :class:`FallbackCoordWorktreeUnresolved` -- the outward exception this
+      function's own pinned tests already match on -- so a caller that
+      catches only that type keeps catching every unresolvable-coord-surface
+      shape, not just the historical ``CoordinationWorkspace.resolve``
+      plumbing failure.
     """
-    if not _read_contract_routes_through_coordination(identity):
-        return None
-    from specify_cli.coordination.workspace import (  # noqa: PLC0415
-        CoordinationWorkspace,
-        CoordinationWorkspaceBranchMismatch,
-        CoordinationWorkspaceIdentityUnresolved,
-    )
-
+    canonical_mission_slug = _canonical_coord_mission_slug(identity, mission_slug)
     try:
-        # Local annotation re-narrows the cross-module (``Any``) resolve result.
-        coord_worktree: Path = CoordinationWorkspace.resolve(identity.repo_root, mission_slug, identity.mid8)
+        location = placement_seam(identity.repo_root, canonical_mission_slug, owned=identity.owned).write_dir(MissionArtifactKind.STATUS_STATE)
     except (
-        OSError,
-        subprocess.SubprocessError,
-        CoordinationWorkspaceBranchMismatch,
-        CoordinationWorkspaceIdentityUnresolved,
+        CoordinationWorktreeUnmaterialized,
+        CoordinationBranchDeleted,
+        CoordSeedForkRefused,
+        FeatureStatusLockTimeoutError,
     ) as exc:
         raise FallbackCoordWorktreeUnresolved(mission_slug=mission_slug, mid8=identity.mid8, cause=exc) from exc
-    return coord_worktree
+    if location.surface is not TopologySurface.COORD:
+        return None
+    return location.checkout_root
+
+
+def _canonical_coord_mission_slug(identity: _TransactionIdentity, mission_slug: str) -> str:
+    """Pick the mission_slug form whose ``meta.json`` actually declares coordination.
+
+    Mirrors ``transaction._canonical_coord_mission_slug`` (same rationale: a
+    bare caller's primary dir may itself be the canonical ``<slug>-<mid8>``
+    name, OR may genuinely be bare with no ``-<mid8>`` suffix at all -- see
+    that sibling's docstring for the two on-disk shapes this disambiguates).
+    """
+    if identity.owned is not None:
+        return identity.owned.mission_slug
+    from specify_cli.missions._read_path_resolver import read_primary_meta
+
+    _meta, declares = read_primary_meta(identity.repo_root, mission_slug)
+    if declares:
+        return mission_slug
+    from specify_cli.lanes.branch_naming import coord_mission_dir_name
+
+    composed = coord_mission_dir_name(mission_slug, mid8=identity.mid8)
+    if composed == mission_slug:
+        return mission_slug
+    _composed_meta, composed_declares = read_primary_meta(identity.repo_root, composed)
+    return composed if composed_declares else mission_slug
 
 
 def _emit_via_non_transactional_fallback(
@@ -398,14 +425,6 @@ def _restore_coord_status_artifacts(
         _logger.exception("Could not restore %s on coord commit failure", status_path)
 
 
-def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Path:
-    """The coord worktree's on-disk feature dir for this mission (single grammar)."""
-    # Explicit local annotation re-narrows the cross-module ``KITTY_SPECS_DIR``
-    # (``Any`` under ``follow_imports = "skip"``) back to ``Path``.
-    feature_dir: Path = coord_worktree / KITTY_SPECS_DIR / _transaction_dir_name(mission_slug, mid8)
-    return feature_dir
-
-
 @contextmanager
 def coord_status_lock(repo_root: Path, coord_feature_dir: Path) -> Iterator[Path]:
     """Hold the mission status lock (L1) that guards a coord-resident status log.
@@ -489,8 +508,19 @@ def _emit_on_coord_then_commit(
     True-arm) and NO fan-out fires for them (SC-002) -- the ``finally`` only
     restores; the deferred step 7 is reached only on the success path.
     Returns the emit result and the coord feature dir the write landed on.
+
+    coord-artifact-single-home-01M3V4BE WP07 (T038): the coord Mission dir
+    comes from the single write-location accessor
+    (``placement_seam(...).write_dir``), never the retired
+    ``_coord_feature_dir`` hand composition -- its only production caller.
+    ``_resolve_fallback_coord_worktree`` already resolved/seeded/restored
+    ``coord_worktree`` above; this second ``write_dir`` call lands on the
+    already-``MATERIALIZED`` fast path (contract: no side effects there
+    unless a seed is genuinely still pending), so it is a cheap probe, not a
+    second materialize/seed attempt.
     """
-    coord_fd = _coord_feature_dir(coord_worktree, mission_slug, identity.mid8)
+    canonical_mission_slug = _canonical_coord_mission_slug(identity, mission_slug)
+    coord_fd = placement_seam(identity.repo_root, canonical_mission_slug, owned=identity.owned).write_dir(MissionArtifactKind.STATUS_STATE).path
     # The flat shell re-enters the same L1. Keep it through commit/rollback:
     # otherwise rollback may erase another writer's successful append. This
     # take spans safe_commit (~9 git subprocesses), so -- unlike the plain
@@ -1809,7 +1839,19 @@ def emit_inner_state_changed_transactional(
             # change worth reflecting in the projection.
             if hosted_posture.ledger_posture(txn.repo_root).enabled:
                 txn.defer_outbound(_deferred_execution_projection_refresh(txn.feature_dir, txn.repo_root))
-    except BookkeepingWorktreeMissing:
+    except (
+        BookkeepingWorktreeMissing,
+        # WP07: the coordination arm now resolves through the single
+        # write-location accessor, whose typed refusals for an unresolvable
+        # coordination surface (deleted branch, never-materialized worktree,
+        # a genuine NFR-002 fork) replace what used to always surface as
+        # ``BookkeepingWorktreeMissing`` here. Same #3460 degrade applies:
+        # an auxiliary annotation must never hard-fail move-task over any of
+        # these coordination-surface refusals.
+        CoordinationBranchDeleted,
+        CoordinationWorktreeUnmaterialized,
+        CoordSeedForkRefused,
+    ):
         if identity.owned is not None:
             raise
         # #3460: the coord worktree could not be materialized (e.g. a declared

@@ -1134,11 +1134,23 @@ def _teardown_coordination_worktree(
     # (FR-013, #2745) — declared in meta.json but absent from git — degrades
     # gracefully here: the seam's destroy leg is idempotent on a missing
     # worktree/branch, so this never raises.
-    from specify_cli.coordination.teardown import teardown_coordination_topology
+    # WP17 (FR-009c, #5023): the seam CAN now raise ``ProjectionTeardownAbort``
+    # (``COORDINATION_LEDGER_UNREPAIRED``) when the decisions ledger exists
+    # only on the coordination branch -- caught here and rendered through the
+    # shared machine-contract helper rather than left to crash with a raw
+    # traceback; no partial teardown (the abort runs before any mutation).
+    from specify_cli.coordination.teardown import (
+        ProjectionTeardownAbort,
+        teardown_coordination_topology,
+    )
     from specify_cli.coordination.workspace import CoordinationWorkspace
     from specify_cli.lanes.branch_naming import coord_mission_dir_name
 
-    teardown_coordination_topology(repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind)
+    try:
+        teardown_coordination_topology(repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind)
+    except ProjectionTeardownAbort as exc:
+        _emit_mission_error(f"[red]Error:[/red] {exc}", code=exc.error_code, json_output=quiet)
+        raise typer.Exit(1) from exc
     if quiet:
         # ``--json`` mode (FR-013): the caller emits a single structured
         # envelope instead — these are the human-readable rich lines.

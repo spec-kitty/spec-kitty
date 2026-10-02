@@ -422,6 +422,23 @@ def test_lifecycle_mutation_bookkeeping_lands_on_correct_surface(
         coord_events = coord_root / "kitty-specs" / result.mission_slug / "status.events.jsonl"
         coord_events.parent.mkdir(parents=True, exist_ok=True)
         coord_events.touch(exist_ok=True)
+        # WP07 re-pin (coord-artifact-single-home-01M3V4BE): the coordination
+        # arm now resolves its write location through the single
+        # write-location accessor, which probes whether the coord Mission dir
+        # is WHOLLY untracked to decide if a carry-over seed is pending
+        # (contracts/write-location-accessor.md). Left uncommitted, this
+        # touch()-created file is indistinguishable from a genuinely-pending
+        # seed, and the bootstrap call below would carry the (not-yet-written)
+        # primary log into it and then unlink the primary copy as "restored"
+        # -- committing it here keeps this fixture a steady-state MATERIALIZED
+        # coord surface, matching every other MATERIALIZED fixture in this
+        # mission's own test suite.
+        subprocess.run(["git", "-C", str(coord_root), "add", "kitty-specs"], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(coord_root), "commit", "-q", "-m", "seed empty coord status log"],
+            check=True,
+            capture_output=True,
+        )
 
     # Bootstrap canonical status (the real "finalize-tasks" seed step) so WP01
     # has an initial "planned" event before the mutation. Routes to the

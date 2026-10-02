@@ -213,6 +213,20 @@ def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path
     return surface.parent
 
 
+def _canonical_events_write_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the WRITE-surface directory for the canonical ``status.events.jsonl`` (WP14, FR-003).
+
+    Every event-append call in this module writes through the write-location
+    accessor (``write_dir``), never through :func:`_canonical_events_dir`'s
+    read-resolver fallback -- a coordination-routed Mission's event log must
+    never be appended to the repository root checkout. ``write_dir`` raises
+    its own named errors rather than falling back (fail-closed).
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    return placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
+
+
 def _required_planning_artifact_filenames() -> tuple[str, str, str]:
     """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam."""
     return (
@@ -312,7 +326,7 @@ def _create_empty_retrospective_record(
             repo_root,
             provenance_kind="explicit_create",
             actor=lifecycle_actor,
-            event_log_dir=_canonical_events_dir(repo_root, mission_slug, canonical_path.parent),
+            event_log_dir=_canonical_events_write_dir(repo_root, mission_slug),
         )
     except Exception:  # noqa: BLE001
         # Non-fatal: record write already succeeded.

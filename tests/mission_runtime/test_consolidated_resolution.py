@@ -346,12 +346,12 @@ def test_e2_coord_kind_bypasses_deleted_coordination_branch(repo: Path, kind: Mi
     assert resolved == CommitTarget(ref="main")
 
 
-@pytest.mark.parametrize("kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG])
-def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path, kind: MissionArtifactKind) -> None:
-    """SC-005 guard: ``STATUS_STATE`` and ``DECISION_LOG`` are NOT in
-    the E2 in-scope set, so a fully-retired-coord E2 mission still raises
-    ``CoordinationBranchDeleted`` (wrapped) for it — proving the E2
-    short-circuit is genuinely kind-scoped, not blanket."""
+def test_e2_decision_log_still_probes_coordination_and_is_unaffected(repo: Path) -> None:
+    """SC-005 guard: ``DECISION_LOG`` is NOT in the E2 in-scope set (on
+    EITHER side -- see ``_is_published_write_short_circuit_kind``), so a
+    fully-retired-coord E2 mission still raises ``CoordinationBranchDeleted``
+    (wrapped) for it — proving the E2 short-circuit is genuinely kind-scoped,
+    not blanket."""
     mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(repo, mid8="01KYT1DD", mission_number=304)
 
     from specify_cli.coordination.surface_resolver import resolve_status_surface
@@ -361,8 +361,28 @@ def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path,
     expected_read = _feature_dir / "status.events.jsonl"
     assert resolve_status_surface(repo, mission_slug) == expected_read
     with pytest.raises(ActionContextError):
-        resolve_placement_only(repo, mission_slug, kind=kind)
+        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.DECISION_LOG)
     assert resolve_status_surface(repo, mission_slug) == expected_read
+
+
+def test_e2_status_state_write_bypasses_deleted_coordination_branch(repo: Path) -> None:
+    """Operator ruling `plan.design.published-status-state-write`
+    (coord-artifact-single-home-01M3V4BE WP14 cycle 2, B1): unlike
+    ``DECISION_LOG``, ``STATUS_STATE``'s WRITE-side placement DOES join the
+    PUBLISHED/E2 short-circuit — a PUBLISHED mission's event-log append
+    must resolve to the CONSOLIDATED target directly, never re-probing a
+    coordination branch consolidation has already torn down (the #5513/#5501
+    crash this ruling exists to close). The READ side (``resolve_artifact_surface``)
+    is a SEPARATE, untouched authority (SC-005) — see
+    ``test_sc005_unchanged_in_e2`` below, which still pins the read side for a
+    `single_branch` fixture; there is no read-side regression test needed
+    here because `read_dir`/`resolve_artifact_surface` never consulted
+    ``_E2_CONSOLIDATED_ELIGIBLE_KINDS`` and still doesn't."""
+    mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(repo, mid8="01KYT1JJ", mission_number=309)
+
+    resolved = resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)
+
+    assert resolved == CommitTarget(ref="main")
 
 
 # ---------------------------------------------------------------------------

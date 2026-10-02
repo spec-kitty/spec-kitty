@@ -657,7 +657,12 @@ def test_revert_committed_verdict_write_targets_coord_ref_under_coord_topology(
         verdict="rejected",
         commit_router=router,
     )
-    rel_path = created.artifact_path.relative_to(ctx.repo)
+    # coord-artifact-single-home-01M3V4BE WP08: the review-cycle artifact's
+    # physical write home is the coordination worktree for a coord-routed
+    # Mission -- never ``ctx.repo`` directly (single-home: no PRIMARY
+    # staging copy).
+    coord_worktree_root = ctx.coord_feature_dir.parents[1]
+    rel_path = created.artifact_path.relative_to(coord_worktree_root)
 
     # Precondition: the writer's own commit really did land on the COORD ref
     # (this is what makes the bug reproducible at all).

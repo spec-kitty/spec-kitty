@@ -74,6 +74,23 @@ def test_no_coordination_branch_is_a_noop(tmp_path: Path) -> None:
     assert not (tmp_path / ".worktrees").exists()
 
 
+def test_explicit_coordination_branch_without_mid8_raises(tmp_path: Path) -> None:
+    """Review cycle 2 (coord-artifact-single-home-01M3V4BE WP09, B1-residual):
+    the optional ``coordination_branch``/``mid8`` override pair is a caller
+    contract -- passing one without the other must never silently fall
+    through to a half-resolved materialization attempt."""
+    with pytest.raises(ValueError, match="mid8 must accompany an explicit coordination_branch override"):
+        materialize_coord_surface_for_write(tmp_path, "whatever", coordination_branch="kitty/mission-whatever-01ABCDEF")
+
+
+def test_explicit_mid8_without_coordination_branch_raises(tmp_path: Path) -> None:
+    """Review cycle 3 nit: the symmetric caller-contract guard -- passing
+    ``mid8`` alone would otherwise silently fall into the meta re-derivation
+    branch and OVERWRITE that ``mid8``, contradicting the docstring."""
+    with pytest.raises(ValueError, match="coordination_branch must accompany an explicit mid8 override"):
+        materialize_coord_surface_for_write(tmp_path, "whatever", mid8="01ABCDEF")
+
+
 # ---------------------------------------------------------------------------
 # 2. MATERIALIZED -> no-op, no second worktree created
 # ---------------------------------------------------------------------------
@@ -105,16 +122,20 @@ def test_materialized_surface_is_a_noop(tmp_path: Path) -> None:
 
 
 def test_empty_surface_is_a_noop(tmp_path: Path) -> None:
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T031): create now
+    seeds the coordination surface eagerly, so a fresh mission's worktree is
+    MATERIALIZED (non-empty), never EMPTY, by the time this test runs. The
+    EMPTY arm (worktree root present, mission dir absent) is engineered
+    explicitly instead, mirroring a pre-fix-shaped Mission whose dir was
+    removed.
+    """
     repo, result = _fresh_coord_mission(tmp_path, "empty-coord")
     slug = result.mission_slug
     mid8 = str(result.meta["mid8"])
 
-    # The coord branch forks off before the scaffold commit (research Part B).
-    # #5440: create now seeds the coordination worktree with the status-log
-    # commit, so rewind the coord branch to its target-tip fork point to reach
-    # a materialized worktree ROOT with no mission dir -- the EMPTY state.
-    coord_root = CoordinationWorkspace.resolve(repo, slug, mid8)
-    _git(coord_root, "reset", "-q", "--hard", str(result.meta["target_branch"]))
+    coord_root = CoordinationWorkspace.worktree_path(repo, slug, mid8)
+    assert coord_root.exists(), "T031 already materializes the coordination worktree at create time"
+    shutil.rmtree(coord_root / "kitty-specs" / slug)
     assert not (coord_root / "kitty-specs" / slug).exists()
 
     before = _worktree_list(repo)
@@ -132,10 +153,18 @@ def test_empty_surface_is_a_noop(tmp_path: Path) -> None:
 
 
 def test_unmaterialized_local_branch_materializes(tmp_path: Path) -> None:
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T031): create now
+    materializes the coordination worktree eagerly, so the genuine
+    UNMATERIALIZED precondition (no worktree at all) is engineered by
+    tearing it back down first.
+    """
     repo, result = _fresh_coord_mission(tmp_path, "unmaterialized-local")
     slug = result.mission_slug
     mid8 = str(result.meta["mid8"])
-    coord_worktree = _unmaterialize_coord_worktree(repo, slug, mid8)
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, slug, mid8)
+    assert coord_worktree.exists(), "T031 already materializes the coordination worktree at create time"
+    CoordinationWorkspace.teardown(repo, slug, mid8)
+    assert not coord_worktree.exists()
 
     materialize_coord_surface_for_write(repo, slug)
 
@@ -148,6 +177,11 @@ def test_unmaterialized_local_branch_materializes(tmp_path: Path) -> None:
 
 
 def test_remote_only_branch_raises_and_creates_nothing(tmp_path: Path) -> None:
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T031): the branch
+    is checked out in the worktree T031 already materialized at create time,
+    so it must be torn down before the branch can be deleted (git refuses to
+    delete a branch checked out in a worktree).
+    """
     repo, result = _fresh_coord_mission(tmp_path, "remote-only-coord")
     slug = result.mission_slug
     mid8 = str(result.meta["mid8"])
@@ -156,6 +190,7 @@ def test_remote_only_branch_raises_and_creates_nothing(tmp_path: Path) -> None:
     coord_worktree = _unmaterialize_coord_worktree(repo, slug, mid8)
 
     _git(repo, "update-ref", f"refs/remotes/origin/{coord_branch}", coord_branch)
+    CoordinationWorkspace.teardown(repo, slug, mid8)
     _git(repo, "branch", "-D", coord_branch)
 
     with pytest.raises(CoordinationWorktreeUnmaterialized) as exc_info:
@@ -181,8 +216,14 @@ def test_resolve_failure_raises_with_cause(tmp_path: Path) -> None:
     # A REAL obstacle (per Test Strategy: no mocks for failure injection):
     # ``.worktrees`` as a regular file makes ``mkdir(parents=True)`` raise
     # ``FileExistsError`` (an ``OSError`` subclass) inside
-    # ``CoordinationWorkspace.resolve``.
-    (repo / ".worktrees").write_text("obstacle", encoding="utf-8")
+    # ``CoordinationWorkspace.resolve``. Re-pinned (coord-artifact-single-
+    # home-01M3V4BE WP06, T031): create already materialized a REAL
+    # ``.worktrees/`` directory for this mission, so it is cleared first --
+    # a regular file cannot otherwise take its place.
+    worktrees_dir = repo / ".worktrees"
+    if worktrees_dir.exists():
+        shutil.rmtree(worktrees_dir)
+    worktrees_dir.write_text("obstacle", encoding="utf-8")
 
     with pytest.raises(CoordinationWorktreeUnmaterialized) as exc_info:
         materialize_coord_surface_for_write(repo, slug)

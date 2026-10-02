@@ -73,24 +73,37 @@ def _generate_ulid() -> str:
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return ``kitty-specs/<mission_slug>/`` via the kind-aware placement seam.
+    """Return the WRITE location of ``kitty-specs/<mission_slug>/`` for decision events.
 
-    write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055) Move A: routed
-    through ``placement_seam(...).read_dir(STATUS_STATE)`` instead of the
-    kind-blind ``resolve_feature_dir_for_mission`` — this drops
-    ``decisions/emit.py`` off the coord-authority gate's allow-list (it no
-    longer calls the kind-blind resolver at all). ``status.events.jsonl`` is
-    the ``STATUS_STATE`` kind (``mission_runtime.artifacts``), matching
-    ``decisions/service.py``'s existing read of the SAME directory — reads and
-    writes agree on where the coord-owned decision/status log lives under
-    every topology, closing a prior read/write split-brain risk.
+    coord-artifact-single-home-01M3V4BE WP09 (FR-003/FR-003a, #5519): routed
+    through ``placement_seam(...).write_dir(STATUS_STATE)`` instead of
+    ``read_dir`` (write-side-seam-matrix-tracer-01KYP3MH WP02's Move A). A
+    decision event appended here is a COORD-partition RECORD, not a read --
+    ``read_dir`` degrades a genuinely ``EMPTY`` coordination surface to the
+    repository-root checkout (C-002's read-side leniency), which is exactly
+    the #5519 fork: the first ``DecisionPointOpened`` would land in the root
+    checkout instead of materializing/seeding the coordination Mission dir,
+    so a later writer that DOES resolve the coordination surface (e.g. the
+    tracer append, which already runs post-materialization) restarts the
+    Lamport-proxy clock against an orphaned second log. ``write_dir``
+    materializes, seeds, restores, or refuses loudly as the coordination
+    state requires -- it is the one write-location accessor every decision
+    event writer shares with ``decisions/service.py`` (both resolve
+    ``STATUS_STATE``, so reads and writes still agree on where the
+    coord-owned decision/status log lives under every topology).
+
+    This helper is the WRITE path only. A caller that only needs to READ
+    (list/verify/dry-run) must call ``read_dir`` directly instead -- never
+    through this function, which may materialize/seed/restore as a side
+    effect (``test_decision_fresh_coord_5113.py``'s list/verify/dry-run
+    never-materializes guards).
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    mission_dir: Path = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
     return mission_dir
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:
-    """Return the path to ``status.events.jsonl``."""
+    """Return the WRITE-side path to ``status.events.jsonl`` (see :func:`_mission_dir`)."""
     return _mission_dir(repo_root, mission_slug) / _EVENTS_FILENAME
 
 

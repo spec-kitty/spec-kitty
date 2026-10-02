@@ -20,7 +20,7 @@ from specify_cli.cli.commands._coordination_doctor import (
     _check_tracked_worktrees_content,
     _coord_worktree_dirty_finding,
 )
-from specify_cli.cli.commands.accept import _commit_primary_residuals, _dirty_paths_with_prefix
+from specify_cli.cli.commands.accept import _commit_residual_acceptance_artifacts, _dirty_paths_with_prefix
 from specify_cli.cli.commands.charter_bundle import _is_git_tracked
 from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
 from specify_cli.cli.commands.implement_cores import (
@@ -211,10 +211,14 @@ def test_accept_dirty_prefix_filter_handles_spaced_paths(repo: Path) -> None:
 
 
 def test_accept_residual_commit_stages_and_commits_non_ascii_artifact(repo: Path) -> None:
-    rel = f"{MISSION_DIR}/é notes.md"
+    rel = "kitty-specs/my-mission/é notes.md"
+    _git(repo, "checkout", "-q", "-b", "feature")  # the router refuses residual commits on protected ``main``
     _write(repo, rel)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "seed")
+    (repo / rel).write_text("changed\n", encoding="utf-8")
 
-    assert _commit_primary_residuals(repo, "my-mission", [rel]) is True
+    assert _commit_residual_acceptance_artifacts(repo, "my-mission") is True
     assert _git(repo, "ls-files", "-z", "--", rel).strip("\0") == rel
     assert _git(repo, "status", "--porcelain") == ""
 

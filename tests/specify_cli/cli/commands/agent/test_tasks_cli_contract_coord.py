@@ -178,6 +178,28 @@ def _build_coord_protected_tree(root: Path) -> CoordTopologyContext:
     )
     (ctx.primary_feature_dir / "tasks.md").write_text("# Work Packages\n\n## WP01 - fixture\n", encoding="utf-8")
     (ctx.primary_feature_dir / "spec.md").write_text("# Spec\n\nFR-001 do a thing.\nFR-002 do another.\n", encoding="utf-8")
+    # WP07 re-pin (coord-artifact-single-home-01M3V4BE): the coordination arm
+    # now resolves its write location through the single write-location
+    # accessor, which probes whether the coord Mission dir is WHOLLY
+    # untracked to decide if a carry-over seed is pending (contracts/
+    # write-location-accessor.md). The base fixture writes the coord husk's
+    # ``status.events.jsonl`` directly to disk without committing it (its own
+    # docstring: "here we write directly so the fixture is self-contained"),
+    # which previously never mattered because ``CoordinationWorkspace.resolve``
+    # never inspected tracked/untracked state. Left uncommitted, that shape is
+    # indistinguishable from a genuinely-pending seed, and the accessor ran a
+    # real fork-check against the PRIMARY's intentionally-DIVERGENT decoy
+    # content -- refusing the write. Committing it here makes the husk a
+    # steady-state MATERIALIZED coord branch (what a real prior
+    # ``BookkeepingTransaction`` commit always leaves behind), matching every
+    # other MATERIALIZED fixture in this mission's own test suite.
+    coord_worktree_root = ctx.coord_feature_dir.parent.parent
+    subprocess.run(["git", "-C", str(coord_worktree_root), "add", "kitty-specs"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(coord_worktree_root), "commit", "-q", "-m", "seed coord husk status events"],
+        check=True,
+        capture_output=True,
+    )
     return ctx
 
 

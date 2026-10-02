@@ -485,6 +485,7 @@ def test_decision_log_refusal_preserves_event_and_lands_no_commit(
         worktree_root=repo.repo_root,
         destination_ref=repo.target_branch,
         mission_slug="001-guard-regression",
+        mission_dir=repo.repo_root / "kitty-specs" / "001-guard-regression",
         inner=NullEmitter(),
         target=CommitTarget(ref=repo.target_branch),
     )

@@ -135,17 +135,14 @@ def test_patched_output_error_intercepts_validate_coverage_gate(tmp_path: Path) 
 
 
 def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
-    """``tasks_finalize.placement_seam`` (the read-surface-ssot-closeout WP08
-    routed seam, replacing the retired ``tasks.resolve_feature_dir_for_mission``
-    pre30-guard-wiring patch) and ``tasks.bootstrap_canonical_state`` (×7 patch
-    seam) bite through ``_ft_apply_writes`` — the bootstrap read stays on the
-    topology-aware STATUS-partition resolver (``STATUS_STATE`` kind).
+    """``tasks.bootstrap_canonical_state`` (×7 patch seam) bites through
+    ``_ft_apply_writes`` via its extracted ``_ft_emit_status_events`` leg.
 
-    ``placement_seam`` is a MODULE-SCOPE import in ``tasks_finalize`` (not a
-    lazy in-function import like the ``_tasks.<attr>`` seam-bridge symbols
-    above), so the patch target is ``tasks_finalize.placement_seam`` — not
-    ``mission_runtime.placement_seam`` — matching the module-scope import
-    convention already used for ``MissionArtifactKind`` in this module.
+    coord-artifact-single-home-01M3V4BE WP15 cycle 2 (B2/NFR-002): a
+    ``--validate-only`` run must never call ``write_dir`` (which can
+    materialize/seed/commit) -- so this validate-only fixture asserts
+    ``placement_seam`` is NEVER invoked, and bootstrap reads PRIMARY
+    (``st.primary_feature_dir``, B1) -- never a coord-resolved path.
     """
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
@@ -158,9 +155,9 @@ def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
     # ``_ft_validate`` — ``_ft_apply_writes`` only consumes ``st.update_plan``.
     st.update_plan = tasks_finalize.compute_wp_frontmatter_updates(st.dependencies_map, tasks_dir)
     feature_dir = tmp_path / "kitty-specs" / "034-feature"
+    st.primary_feature_dir = feature_dir
     bootstrap_result = SimpleNamespace(total_wps=0, already_initialized=0, newly_seeded=0, skipped=0, wp_details=[])
     mock_seam = MagicMock()
-    mock_seam.read_dir.return_value = feature_dir
     with (
         patch(
             "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
@@ -170,12 +167,46 @@ def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_finalize._ft_apply_writes(st)
-    seam_mock.assert_called_once_with(tmp_path, "034-feature")
-    mock_seam.read_dir.assert_called_once_with(MissionArtifactKind.STATUS_STATE)
+    seam_mock.assert_not_called()
+    mock_seam.write_dir.assert_not_called()
     bootstrap_mock.assert_called_once_with(feature_dir, "034-feature", dry_run=True)
     assert st.feature_dir == feature_dir
     assert st.bootstrap_result is bootstrap_result
     console_mock.print.assert_not_called()
+
+
+def test_patched_bootstrap_seams_intercept_apply_writes_not_validate_only(tmp_path: Path) -> None:
+    """Not validate-only: ``write_dir`` DOES establish the coordination surface,
+    but the bootstrap scan still reads PRIMARY, never the coord path (B1).
+    """
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    st = _make_state(validate_only=False)
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.tasks_dir = tasks_dir
+    st.dependencies_map = {}
+    st.update_plan = tasks_finalize.compute_wp_frontmatter_updates(st.dependencies_map, tasks_dir)
+    feature_dir = tmp_path / "kitty-specs" / "034-feature"
+    st.primary_feature_dir = feature_dir
+    coord_dir = tmp_path / ".worktrees" / "coord" / "kitty-specs" / "034-feature"
+    bootstrap_result = SimpleNamespace(total_wps=1, already_initialized=0, newly_seeded=1, skipped=0, wp_details=[])
+    mock_seam = MagicMock()
+    mock_seam.write_dir.return_value = SimpleNamespace(path=coord_dir)
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
+            return_value=mock_seam,
+        ) as seam_mock,
+        patch(f"{_TASKS}.bootstrap_canonical_state", return_value=bootstrap_result) as bootstrap_mock,
+        patch(f"{_TASKS}.console"),
+    ):
+        tasks_finalize._ft_apply_writes(st)
+    seam_mock.assert_called_once_with(tmp_path, "034-feature")
+    mock_seam.write_dir.assert_called_once_with(MissionArtifactKind.STATUS_STATE)
+    bootstrap_mock.assert_called_once_with(feature_dir, "034-feature", dry_run=False)
+    assert st.feature_dir == feature_dir
+    assert st.bootstrap_result is bootstrap_result
 
 
 def test_patched_console_intercepts_apply_writes_warning_leg(tmp_path: Path) -> None:
@@ -195,7 +226,7 @@ def test_patched_console_intercepts_apply_writes_warning_leg(tmp_path: Path) -> 
     # in ``_ft_validate`` — ``_ft_apply_writes`` only consumes ``st.update_plan``.
     st.update_plan = tasks_finalize.compute_wp_frontmatter_updates(st.dependencies_map, tasks_dir)
     mock_seam = MagicMock()
-    mock_seam.read_dir.return_value = tmp_path
+    mock_seam.write_dir.return_value = SimpleNamespace(path=tmp_path)
     with (
         patch(
             "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",

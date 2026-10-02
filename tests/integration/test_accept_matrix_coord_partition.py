@@ -163,17 +163,19 @@ def _build_coord_mission_for_matrix(tmp_path: Path) -> tuple[MissionCreationResu
     assert coord_feature_dir != result.feature_dir, (
         "fixture invariant violated: coord and primary must be genuinely divergent surfaces, or every coord-landing assertion is vacuous"
     )
-    # #5440: create now seeds the coordination worktree with the mission's
-    # status log, committed on the coordination branch — and nothing else (no
-    # meta.json, no matrix): every other COORD-partition file still lands only
-    # through the write paths under test.
-    coord_files = sorted(p.name for p in coord_feature_dir.iterdir()) if coord_feature_dir.is_dir() else []
-    assert coord_files == ["status.events.jsonl"], (
-        f"fixture invariant: create seeds the coord worktree's kitty-specs/<slug>/ with ONLY the status log, got {coord_files!r}"
-    )
-    tracked = _git(coord_root, "ls-files", "--", f"kitty-specs/{result.mission_slug}").stdout.split()
-    assert tracked == [f"kitty-specs/{result.mission_slug}/status.events.jsonl"], (
-        f"fixture invariant: the seeded status log must be committed on the coordination branch, got {tracked!r}"
+    # Re-pinned (coord-artifact-single-home-01M3V4BE T031, #5440): create now
+    # eagerly materializes + seeds the coordination worktree's Mission dir
+    # with the creation events, so it exists from birth -- never lazily on
+    # the first COORD-partition write. The invariant this module actually
+    # needs (every "lands on coord" assertion below is non-vacuous) is that
+    # ``acceptance-matrix.json`` specifically -- the COORD-partition write
+    # under test -- is not there yet; the seeded ``status.events.jsonl`` is
+    # orthogonal to this module's seam.
+    assert coord_feature_dir.exists(), "fixture invariant: T031 seeds the coordination Mission dir at create time"
+    assert not (coord_feature_dir / "acceptance-matrix.json").exists(), (
+        "fixture invariant: acceptance-matrix.json must not exist yet -- it is "
+        "the COORD-partition write this module's write-path tests land, never "
+        "present before them (a stray copy would make every landing assertion vacuous)"
     )
 
     return result, coord_root, coord_feature_dir
@@ -434,12 +436,16 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(tmp_path: Pat
 
     # Under the regression the matrix is treated as a SPEC (primary) artifact:
     # it commits directly to the primary working branch, and the coord
-    # worktree never receives it.
+    # worktree never receives IT (though T031 already materialized the coord
+    # Mission dir itself at create time, independent of this write -- see
+    # ``_build_coord_mission_for_matrix``'s own re-pinned invariant above).
     assert regressed_result.status == "committed", regressed_result
-    # #5440: create now seeds the coord mission dir with the status log, so the
-    # pin is that the MATRIX never reaches the coord surface.
     assert not (coord_feature_dir / "acceptance-matrix.json").exists(), (
-        "regression check invalid: the matrix should NOT reach the coord surface when the per-file classifier is disabled"
+        "regression check invalid (re-pinned, coord-artifact-single-home-01M3V4BE "
+        "T031): the coord Mission dir now exists from create-time seeding "
+        "regardless of this write's routing, so the falsifiability check is "
+        "that acceptance-matrix.json specifically must NOT land there when the "
+        "per-file classifier is disabled -- not that the directory itself is absent"
     )
     resolved, acc_matrix = _read_back_via_accept_seam(tmp_path, slug)
     assert acc_matrix is None or acc_matrix.extras.get("marker") != "REGRESSION_MARKER" or resolved != coord_feature_dir, (

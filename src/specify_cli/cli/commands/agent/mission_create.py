@@ -849,12 +849,15 @@ def create_mission(
             help=(
                 "Create-time mission shape: single_branch | lanes | coord | "
                 "lanes_with_coord. Coordination-bearing shapes (coord, "
-                "lanes_with_coord) mint a coordination branch; branch-flat "
-                "shapes (single_branch, lanes) do not. Default: "
-                "context-derived (#2581, #2602) — coord on the primary "
-                "branch or with --pr-bound when coordination is reachable; "
-                "lanes otherwise. single_branch only when requested "
-                "explicitly (or via --owned-checkout)."
+                "lanes_with_coord) mint a coordination branch and "
+                "materialize its worktree immediately, seeding it with the "
+                "mission's creation events (MissionCreated, SpecifyStarted) "
+                "so the coordination surface is live from birth (#5440); "
+                "branch-flat shapes (single_branch, lanes) do neither. "
+                "Default: context-derived (#2581, #2602) — coord on the "
+                "primary branch or with --pr-bound when coordination is "
+                "reachable; lanes otherwise. single_branch only when "
+                "requested explicitly (or via --owned-checkout)."
             ),
         ),
     ] = None,

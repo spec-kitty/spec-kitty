@@ -437,11 +437,19 @@ test_hosted_drain_gate:
 test_owned_checkout_single_authority:
   owned_root_bare_path_params: 0  # justification: empty allowlist by construction; never grows.
 
+# tests/architectural/test_no_write_side_rederivation.py — third grammar (COORD
+# writers must not derive a write location from a read resolver), mission
+# coord-artifact-single-home-01M3V4BE WP20 (FR-014 / SC-005). The consolidation
+# executor and `materialize` writers were MIGRATED (operator ruling Q4), so the
+# shrink-only allow-list starts empty; any entry grows this visibly and fails CI.
+test_no_write_side_rederivation:
+  coord_writer_allowlist: 0  # justification: FR-014 / ruling Q4 -- consolidation + materialize writers migrated, allowlist starts empty; any entry must grow this visibly.
+
 # tests/architectural/test_no_dead_symbols.py — data file
 # tests/architectural/dead_symbol_allowlist.yaml (test-suite-remediation-01M3SSDW,
 # #5346). The count lives ONLY here, never in the data file (one authority per
 # count, per the loader module's own docstring). Charter Burn-down Policy (a):
 # first cap on the (module, name) dead-symbol allowlist.
 test_no_dead_symbols:
-  allowlist_entries: 294  # justification: first cap (Burn-down (a)) on the (module, name) dead-symbol allowlist introduced by test-suite-remediation-01M3SSDW (#5346); value = live count at landing. +1 (293->294) for `_run_index_doctor::register` (#5390), reached only via doctor.py's dynamic auto-discovery like its `_provenance_doctor::register` sibling.
-  widened_grandfathered_470: 92  # justification: RK-6 ruling -- the widened #470 grandfathered list (moved into this YAML by WP11) is also a mutable architectural allowlist (Burn-down (a)); capped with a second leaf in the same section so no new top-level key is needed; value = live count at landing. +1 (91->92) for `runtime_bridge_io::save_feature_runs` (#5390), a retained external/test-symmetry compat seam left without a src caller by the RunIndex port.
+  allowlist_entries: 294  # justification: coord-artifact-single-home-01M3V4BE WP03 cycle 2 (review ruling B7, charter Burn-down Policy a, shrink-only baseline): reverted from the cycle-1 bump to 299, so the mission itself adds zero to the 293 landing value. SeedRequest/seed_coord_surface are now module-private (_SeedRequest/_seed_coord_surface, out of coord_seed.__all__); event_prefix.MalformedEventLogLineError/DuplicateEventIdError now have a real cross-module production caller (coord_seed.py catches and re-raises them as a structured ActionContextError). COORD_SEED_TRAILER, CoordSeedForkRefused and the new coord_branch_is_post_fix are left deliberately un-allowlisted. The 294 is upstream's own +1 (293->294) for `_run_index_doctor::register` (#5390), reached only via doctor.py's dynamic auto-discovery like its `_provenance_doctor::register` sibling; it is carried unchanged through this rebase, not a mission widening.
+  widened_grandfathered_470: 92  # justification: RK-6 ruling -- the widened #470 grandfathered list (moved into this YAML by WP11) is also a mutable architectural allowlist (Burn-down (a)); capped with a second leaf in the same section so no new top-level key is needed; value = live count at landing. +1 (91->92) for `runtime_bridge_io::save_feature_runs` (#5390), a retained external/test-symmetry compat seam left without a src caller by the RunIndex port (upstream's change, carried unchanged through this rebase; the mission adds zero).

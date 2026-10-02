@@ -15,6 +15,12 @@ ones (no git-network dependency — the seam and ``run_git`` are monkeypatched):
    ``_coord_status_feature_dir`` rather than being absorbed into ``None``
    (the C3 fail-loud posture) — an inherited resolver behaviour with no
    pinning test is one refactor away from silent absorption.
+
+coord-artifact-single-home-01M3V4BE WP16: the seam now resolves via
+:meth:`~mission_runtime.PlacementSeam.write_dir` (a WRITE resolution), not
+:meth:`~mission_runtime.PlacementSeam.read_dir` — both pins below are
+re-expressed against ``write_dir``, mirroring the sibling file this one lifts
+from.
 """
 
 from __future__ import annotations
@@ -25,8 +31,7 @@ from typing import Any
 import pytest
 
 import mission_runtime
-from mission_runtime import TopologySurface
-from mission_runtime.resolution import ResolvedSurface
+from mission_runtime import MissionArtifactKind, WriteLocation
 from specify_cli.cli.commands import accept as accept_mod
 
 pytestmark = [pytest.mark.architectural]
@@ -53,16 +58,21 @@ def test_coord_stamp_leg_does_not_round_trip_through_git(monkeypatch: pytest.Mon
         "run_git",
         lambda *_a, **_k: pytest.fail("the COORD stamp leg must not shell out to git"),
     )
-    monkeypatch.setattr(
-        mission_runtime,
-        "resolve_artifact_surface",
-        lambda *_a, **_k: ResolvedSurface(path=surfaces["coord"], surface_kind=TopologySurface.COORD),
-    )
-    monkeypatch.setattr(
-        mission_runtime,
-        "placement_seam",
-        lambda *_a, **_k: type("_Seam", (), {"read_dir": lambda _s, _k2: surfaces["coord"]})(),
-    )
+
+    class _Seam:
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            return surfaces["primary"]
+
+        def write_dir(self, kind: MissionArtifactKind) -> WriteLocation:
+            return WriteLocation(
+                path=surfaces["coord"],
+                checkout_root=surfaces["coord"],
+                surface=mission_runtime.TopologySurface.COORD,
+                coord_state_before=None,
+                establishment=mission_runtime.Establishment.NONE,
+            )
+
+    monkeypatch.setattr(mission_runtime, "placement_seam", lambda *_a, **_k: _Seam())
 
     captured: list[Path | None] = []
 
@@ -80,17 +90,18 @@ def test_coord_stamp_leg_does_not_round_trip_through_git(monkeypatch: pytest.Mon
 def test_coord_status_feature_dir_propagates_a_deleted_coordination_branch(monkeypatch: pytest.MonkeyPatch, surfaces: dict[str, Path]) -> None:
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
-    def _raise(*_a: object, **_k: object) -> ResolvedSurface:
-        raise CoordinationBranchDeleted(
-            repo_root=surfaces["repo_root"],
-            mission_slug=_HANDLE,
-            mid8="01KYJGCQ",
-            coord_candidate=surfaces["coord"],
-            primary_candidate=surfaces["primary"],
-            coordination_branch="kitty/mission-demo-01KYJGCQ-coord",
-        )
+    class _RefusingSeam:
+        def write_dir(self, kind: MissionArtifactKind) -> WriteLocation:
+            raise CoordinationBranchDeleted(
+                repo_root=surfaces["repo_root"],
+                mission_slug=_HANDLE,
+                mid8="01KYJGCQ",
+                coord_candidate=surfaces["coord"],
+                primary_candidate=surfaces["primary"],
+                coordination_branch="kitty/mission-demo-01KYJGCQ-coord",
+            )
 
-    monkeypatch.setattr(mission_runtime, "resolve_artifact_surface", _raise)
+    monkeypatch.setattr(mission_runtime, "placement_seam", lambda *_a, **_k: _RefusingSeam())
 
     with pytest.raises(CoordinationBranchDeleted):
         accept_mod._coord_status_feature_dir(surfaces["repo_root"], _HANDLE)

@@ -137,6 +137,7 @@ def test_acquire_creates_coord_worktree_and_holds_lock(repo: Path) -> None:
 
 def test_concurrent_first_acquire_serializes_coord_worktree_creation(repo: Path) -> None:
     """Concurrent first use must not race ``git worktree add``."""
+    _write_modern_meta(repo)
     worktree_path = CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)
     assert not worktree_path.exists()
 
@@ -177,6 +178,7 @@ def test_concurrent_first_acquire_serializes_coord_worktree_creation(repo: Path)
 
 
 def test_append_event_then_commit_returns_receipt(repo: Path) -> None:
+    _write_modern_meta(repo)
     event = _make_event()
     with BookkeepingTransaction.acquire(
         repo_root=repo,
@@ -381,6 +383,7 @@ def _install_rejecting_pre_commit_hook(worktree_root: Path) -> None:
 
 def test_commit_failure_rolls_back_event_log_byte_identical(repo: Path) -> None:
     """When safe_commit fails, status.events.jsonl is restored byte-identical."""
+    _write_modern_meta(repo)
     # Seed: first transaction succeeds → known event log on disk.
     with BookkeepingTransaction.acquire(
         repo_root=repo,
@@ -427,6 +430,7 @@ def test_commit_failure_rolls_back_event_log_byte_identical(repo: Path) -> None:
 
 def test_commit_failure_removes_event_log_created_by_transaction(repo: Path) -> None:
     """If no event log existed before emit, rollback must not leave an empty file."""
+    _write_modern_meta(repo)
     worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     feature_dir = worktree_root / "kitty-specs" / FEATURE_DIRNAME
     events_path = feature_dir / "status.events.jsonl"
@@ -492,6 +496,7 @@ def test_stage_path_refuses_paths_outside_worktree(repo: Path, tmp_path: Path) -
 
 def test_commit_failure_restores_empty_status_json(repo: Path) -> None:
     """An originally empty status.json must stay empty, not be unlinked."""
+    _write_modern_meta(repo)
     worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     feature_dir = worktree_root / "kitty-specs" / FEATURE_DIRNAME
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -520,6 +525,7 @@ def test_post_commit_recovery_failure_does_not_roll_back_committed_artifacts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """If safe_commit created a commit, recovery failure is not a no-commit rollback."""
+    _write_modern_meta(repo)
     worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     events_path = worktree_root / "kitty-specs" / FEATURE_DIRNAME / "status.events.jsonl"
     emitted_bytes: bytes | None = None
@@ -553,6 +559,7 @@ def test_post_commit_recovery_failure_does_not_roll_back_committed_artifacts(
 
 def test_rollback_skips_deferred_outbound(repo: Path) -> None:
     """On rollback, deferred callables MUST NOT run."""
+    _write_modern_meta(repo)
     # Inject failing hook.
     worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     hooks_dir_raw = subprocess.check_output(
@@ -590,6 +597,7 @@ def test_rollback_artifact_restore_refuses_parent_symlink_escape(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Rollback restore must not write snapshots through a swapped parent."""
+    _write_modern_meta(repo)
     outside_dir = tmp_path / "outside"
     outside_dir.mkdir()
     worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
@@ -658,6 +666,7 @@ def test_rollback_restores_artifact_bytes_exactly_through_windows_fallback(
     (3.2.7) does not just corrupt the write — it corrupts the *restore*,
     the one place bytes are promised to come back exactly.
     """
+    _write_modern_meta(repo)
     worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     artifact = worktree / "kitty-specs" / FEATURE_DIRNAME / "requirements.md"
     original = b"# requirements\nline two\r\nmixed endings\n"
@@ -690,6 +699,7 @@ def test_rollback_removes_newly_created_artifact_through_windows_fallback(
     windows_crt_textmode: None,
 ) -> None:
     """#4181: rollback of an artifact created inside the transaction unlinks it."""
+    _write_modern_meta(repo)
     worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
     artifact = worktree / "kitty-specs" / FEATURE_DIRNAME / "created.json"
 
@@ -718,6 +728,7 @@ def test_rollback_removes_newly_created_artifact_through_windows_fallback(
 
 
 def test_double_event_id_raises(repo: Path) -> None:
+    _write_modern_meta(repo)
     with BookkeepingTransaction.acquire(
         repo_root=repo,
         mission_id=MISSION_ID,
@@ -742,6 +753,7 @@ def test_double_event_id_raises(repo: Path) -> None:
 
 
 def test_deferred_outbound_runs_in_order_on_success(repo: Path) -> None:
+    _write_modern_meta(repo)
     ran: list[str] = []
     with BookkeepingTransaction.acquire(
         repo_root=repo,
@@ -763,6 +775,7 @@ def test_deferred_outbound_individual_failure_logged(
     repo: Path, caplog: pytest.LogCaptureFixture,
 ) -> None:
     """One callable failing does NOT abort the rest."""
+    _write_modern_meta(repo)
     ran: list[str] = []
 
     def boom() -> None:
@@ -787,6 +800,7 @@ def test_deferred_outbound_individual_failure_logged(
 
 def test_write_artifact_refuses_paths_outside_coordination_worktree(repo: Path) -> None:
     """Artifact writes must stay inside the coordination worktree."""
+    _write_modern_meta(repo)
     with BookkeepingTransaction.acquire(
         repo_root=repo,
         mission_id=MISSION_ID,
@@ -905,6 +919,7 @@ def test_write_artifact_refuses_parent_swap_after_final_validation(
 
 def test_write_artifact_preserves_existing_file_mode(repo: Path) -> None:
     """Atomic temp replace must not strip executable/user mode bits."""
+    _write_modern_meta(repo)
     with BookkeepingTransaction.acquire(
         repo_root=repo,
         mission_id=MISSION_ID,
@@ -941,6 +956,7 @@ def test_worktree_has_pending_changes_fails_open_when_git_unreadable(
     worktree), the safety net must fail OPEN so the caller falls through to
     the ordinary strict-commit path, which then surfaces the real failure.
     """
+    _write_modern_meta(repo)
     with BookkeepingTransaction.acquire(
         repo_root=repo,
         mission_id=MISSION_ID,
@@ -1018,6 +1034,62 @@ def test_commit_idempotent_raises_if_committed_without_receipt(repo: Path) -> No
         txn._committed = True
         with pytest.raises(BookkeepingCommitFailed, match="no commit receipt"):
             txn.commit_idempotent("status: should not happen")
+
+
+def test_commit_idempotent_still_raises_on_a_fresh_worktree_with_no_log_at_all(repo: Path) -> None:
+    """Review cycle 1 N1 (renamed in cycle 2 -- the original name overclaimed,
+    per the reviewer's cycle-2 finding: this pins only the NO-LOG shape, not
+    every genuinely-empty-changeset shape). A caller whose ``_staged_paths``
+    is empty on a fresh coord worktree that has never had ANY status log at
+    all (no pre-fix root content to seed) must still raise
+    :class:`BookkeepingCommitFailed`, not silently no-op."""
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="commit_idempotent_genuinely_empty",
+    ) as txn:
+        assert not txn._staged_paths
+        with pytest.raises(BookkeepingCommitFailed, match="no events or artifacts"):
+            txn.commit_idempotent("status: should not happen")
+
+
+def test_commit_idempotent_still_raises_when_an_existing_log_mission_stages_nothing_new(repo: Path) -> None:
+    """Review cycle 2 R1 (reviewer's own probe): ``_pre_emit_events_existed``
+    (``events_path.exists()`` at acquire) is True for ANY Mission with
+    existing status history -- not only one whose SEED just committed
+    content this transaction never staged. A second transaction against a
+    Mission whose coordination log already exists (from an EARLIER,
+    unrelated transaction, not this one's own seed) and which stages
+    nothing new (the ``implement.py:1014`` all-sources-missing shape) must
+    still raise :class:`BookkeepingCommitFailed`, exactly as base
+    ``e7b085d26c`` does -- never a silent no-op receipt."""
+    _write_modern_meta(repo)
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="seed_an_existing_log",
+    ) as txn1:
+        txn1.append_event(_make_event())
+        txn1.commit("status: seed an existing log")
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="stage_nothing_new",
+    ) as txn2:
+        assert not txn2._staged_paths
+        assert txn2._pre_emit_events_existed  # true for ANY mission with history
+        with pytest.raises(BookkeepingCommitFailed, match="no events or artifacts"):
+            txn2.commit_idempotent("status: should not happen")
 
 
 def test_nested_lock_attempt_times_out_from_other_thread(repo: Path) -> None:
@@ -1128,3 +1200,190 @@ def test_legacy_head_override_block_is_byte_unchanged() -> None:
         "charter directive; any change must go through an explicit, reviewed "
         "decision, not an incidental refactor."
     )
+
+
+# ---------------------------------------------------------------------------
+# WP09 (review cycle 3 follow-up to WP07's ``seed_committed_this_txn``):
+# a RESTORED_FROM_BRANCH establishment whose seed attempt produced NO new
+# coordination-branch commit must not be mistaken for "this acquire already
+# committed my content".
+# ---------------------------------------------------------------------------
+
+
+def _fake_write_location(
+    *, checkout_root: Path, establishment: Any, coord_commit: str | None
+) -> Any:
+    """Build a minimal ``WriteLocation`` double for ``placement_seam().write_dir()``.
+
+    ``seed`` is populated whenever ``establishment`` is ``SEEDED`` or
+    ``RESTORED_FROM_BRANCH`` (matching the real accessor's contract --
+    ``seed`` is ``None`` only for ``NONE``/``WORKTREE_MATERIALIZED``), so the
+    fake exercises exactly the ambiguity the WP07 regression hit: a non-``None``
+    ``seed`` whose own ``coord_commit`` may still be ``None``.
+    """
+    from mission_runtime import Establishment, SeedReport, WriteLocation
+    from mission_runtime.artifacts import TopologySurface
+
+    seed = None
+    if establishment in (Establishment.SEEDED, Establishment.RESTORED_FROM_BRANCH):
+        seed = SeedReport(coord_commit=coord_commit)
+    return WriteLocation(
+        path=checkout_root / "kitty-specs" / FEATURE_DIRNAME,
+        checkout_root=checkout_root,
+        surface=TopologySurface.COORD,
+        coord_state_before=None,
+        establishment=establishment,
+        seed=seed,
+    )
+
+
+def _patch_placement_seam(monkeypatch: pytest.MonkeyPatch, location: Any) -> None:
+    class _FakeSeam:
+        def write_dir(self, kind: Any) -> Any:  # noqa: ARG002 - kind unused by the fake
+            return location
+
+    monkeypatch.setattr(
+        transaction_module, "placement_seam", lambda *args, **kwargs: _FakeSeam()
+    )
+
+
+def test_restored_from_branch_with_no_coord_commit_is_not_treated_as_seeded(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED at WP07's tip ``7afabf4eff``.
+
+    Probe: a Mission whose coordination Mission dir gets deleted (state
+    regresses from MATERIALIZED to EMPTY on a post-fix branch) is restored by
+    ``_handle_empty_post_fix`` -- but when the restored content already
+    matches the coordination branch tip byte-for-byte, the follow-up seed
+    commit is a genuine git no-op (``SeedReport.coord_commit is None``): this
+    acquire committed NOTHING, so the coordination branch tip never moved.
+
+    Gating ``seed_committed_this_txn`` on ``establishment in (SEEDED,
+    RESTORED_FROM_BRANCH)`` alone (the WP07 shape) set the flag ``True``
+    anyway, so a caller that staged nothing got a silent no-op receipt from
+    :meth:`BookkeepingTransaction.commit_idempotent` instead of the genuinely
+    empty changeset :class:`BookkeepingCommitFailed`. The fix gates on
+    ``location.seed.coord_commit is not None`` instead.
+    """
+    from mission_runtime import Establishment
+
+    coord_worktree = tmp_path / "fake-coord-worktree"
+    coord_worktree.mkdir(parents=True)
+    location = _fake_write_location(
+        checkout_root=coord_worktree,
+        establishment=Establishment.RESTORED_FROM_BRANCH,
+        coord_commit=None,
+    )
+    _patch_placement_seam(monkeypatch, location)
+
+    coord_target = (
+        transaction_module._resolve_coord_worktree_root_for_transaction(
+            repo_root=repo, mission_slug=MISSION_SLUG, mid8=MID8, owned=None
+        )
+    )
+    seed_committed_this_txn = coord_target.seed_committed
+
+    assert seed_committed_this_txn is False, (
+        "a RESTORED_FROM_BRANCH establishment whose own seed attempt produced "
+        "no coordination-branch commit (coord_commit=None) must not be "
+        "reported as 'this acquire committed my content'"
+    )
+
+
+def test_coord_write_target_carries_the_write_location_path_verbatim(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """WP20 (FR-014, cap 0): the coordination arm's ``feature_dir`` IS the
+    ``WriteLocation.path`` ``write_dir`` returned -- never a re-composed
+    ``checkout_root / KITTY_SPECS_DIR / name``. A path that deliberately
+    differs from the canonical composition proves it is carried, not rebuilt."""
+    from mission_runtime import Establishment, TopologySurface, WriteLocation
+
+    coord_worktree = tmp_path / "fake-coord-worktree"
+    coord_worktree.mkdir(parents=True)
+    carried = coord_worktree / "elsewhere" / "carried-mission-dir"
+    location = WriteLocation(
+        path=carried,
+        checkout_root=coord_worktree,
+        surface=TopologySurface.COORD,
+        coord_state_before=None,
+        establishment=Establishment.NONE,
+        seed=None,
+    )
+    _patch_placement_seam(monkeypatch, location)
+
+    target = transaction_module._resolve_coord_worktree_root_for_transaction(
+        repo_root=repo, mission_slug=MISSION_SLUG, mid8=MID8, owned=None
+    )
+
+    assert target.feature_dir == carried
+    assert target.worktree_root == coord_worktree
+    assert target.seed_committed is False
+
+
+def test_non_coordination_checkout_mission_dir_is_composed_by_the_legacy_helper(tmp_path: Path) -> None:
+    """The legacy lane worktree / primary checkout locate their Mission dir
+    through ``_checkout_mission_dir`` (``<checkout>/kitty-specs/<slug>-<mid8>``)."""
+    from specify_cli.coordination.legacy_resolution import _checkout_mission_dir, _mission_specs_dir_name
+
+    assert _checkout_mission_dir(tmp_path, MISSION_SLUG, MID8) == (
+        tmp_path / "kitty-specs" / _mission_specs_dir_name(MISSION_SLUG, MID8)
+    )
+
+
+def test_restored_from_branch_with_a_coord_commit_is_treated_as_seeded(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Companion green case: a RESTORED_FROM_BRANCH establishment whose seed
+    attempt DID produce a new coordination-branch commit (root-only records
+    were carried alongside the tip restore) still reports
+    ``seed_committed_this_txn=True`` -- unchanged from WP07's intent for the
+    case it actually committed something."""
+    from mission_runtime import Establishment
+
+    coord_worktree = tmp_path / "fake-coord-worktree"
+    coord_worktree.mkdir(parents=True)
+    location = _fake_write_location(
+        checkout_root=coord_worktree,
+        establishment=Establishment.RESTORED_FROM_BRANCH,
+        coord_commit="deadbeef" * 5,
+    )
+    _patch_placement_seam(monkeypatch, location)
+
+    coord_target = (
+        transaction_module._resolve_coord_worktree_root_for_transaction(
+            repo_root=repo, mission_slug=MISSION_SLUG, mid8=MID8, owned=None
+        )
+    )
+    seed_committed_this_txn = coord_target.seed_committed
+
+    assert seed_committed_this_txn is True
+
+
+def test_seeded_establishment_still_gates_on_coord_commit(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same correction applies uniformly to ``SEEDED`` (not just
+    ``RESTORED_FROM_BRANCH``): a ``SeedReport`` with no ``coord_commit`` means
+    this acquire's own seed attempt committed nothing, regardless of
+    ``establishment``."""
+    from mission_runtime import Establishment
+
+    coord_worktree = tmp_path / "fake-coord-worktree"
+    coord_worktree.mkdir(parents=True)
+    location = _fake_write_location(
+        checkout_root=coord_worktree,
+        establishment=Establishment.SEEDED,
+        coord_commit=None,
+    )
+    _patch_placement_seam(monkeypatch, location)
+
+    coord_target = (
+        transaction_module._resolve_coord_worktree_root_for_transaction(
+            repo_root=repo, mission_slug=MISSION_SLUG, mid8=MID8, owned=None
+        )
+    )
+    seed_committed_this_txn = coord_target.seed_committed
+
+    assert seed_committed_this_txn is False

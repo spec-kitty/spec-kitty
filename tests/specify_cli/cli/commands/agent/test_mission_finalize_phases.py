@@ -1438,6 +1438,10 @@ def test_preserve_or_capture_execution_begun_preserves_by_default(monkeypatch: p
         action="preserved",
         previous_sha="a" * 40,
         branch_tip="b" * 40,
+        # WP15 cycle 2 (B7): the automatic decision classifies and reports
+        # the recorded pin's PinClass even when nothing changed (no
+        # requirement_refs/spec.md edit between recorded and tip here).
+        pin_class="advanced",
     )
 
 

@@ -261,11 +261,17 @@ def test_strand_heal_preserves_append_only_log_via_new_revert_commit(tmp_path: P
 # ---------------------------------------------------------------------------
 
 # Coord-partition-KIND planning artifacts: residue ONLY under a coord topology.
+#
+# RE-PIN (coord-artifact-single-home-01M3V4BE WP12, FR-009, #5023): the ledger
+# basename (formerly ``decisions/DM-<ulid>.md``) is REMOVED from this tuple.
+# The decision ledger is no longer a COORD-partition kind -- it is PRIMARY and
+# therefore never coordination residue under ANY topology (see
+# ``test_decision_ledger_is_never_residue_under_any_topology`` below, the
+# ``test_primary_kind_artifact_is_never_residue_under_any_topology`` sibling).
 _COORD_KIND_ARTIFACTS = (
     "issue-matrix.md",
     "status.events.jsonl",
     "traces/tracer.md",
-    "decisions/DM-01KXTM60000000000000000000.md",
 )
 
 
@@ -306,6 +312,19 @@ def test_primary_kind_artifact_is_never_residue_under_any_topology() -> None:
     for topology in MissionTopology:
         assert is_coord_residue_churn(path, mission_slug=MISSION_SLUG, topology=topology) is False
     assert is_coord_residue_churn(path, mission_slug=MISSION_SLUG) is False
+
+
+def test_decision_ledger_is_never_residue_under_any_topology() -> None:
+    """RE-PIN (coord-artifact-single-home-01M3V4BE WP12, FR-009, #5023): the
+    decision ledger -- formerly in ``_COORD_KIND_ARTIFACTS`` (residue only
+    under a coord topology) -- is now a PRIMARY-partition artifact and is
+    therefore NEVER coordination residue, under any topology, mirroring
+    ``test_primary_kind_artifact_is_never_residue_under_any_topology`` above."""
+    for basename in ("decisions/index.json", "decisions/DM-01KXTM60000000000000000000.md"):
+        path = _rel(basename)
+        for topology in MissionTopology:
+            assert is_coord_residue_churn(path, mission_slug=MISSION_SLUG, topology=topology) is False
+        assert is_coord_residue_churn(path, mission_slug=MISSION_SLUG) is False
 
 
 def test_toolchain_union_threads_topology_into_residue_leg() -> None:

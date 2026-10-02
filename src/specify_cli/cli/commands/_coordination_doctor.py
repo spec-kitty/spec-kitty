@@ -632,17 +632,28 @@ _COORD_DIVERGED_VS_TARGET_HINT = (
 
 
 def _coord_branch_stale_vs_target_finding(
-    repo_root: Path, coord_branch: str, target_branch: str,
+    repo_root: Path, coord_branch: str, target_branch: str, *, mission_dir_name: str | None = None,
 ) -> DoctorFinding | None:
     """FR-008 (Gap-1): compare the coord branch TIP against ``target_branch``.
 
     * Strict ancestor (coord tip behind target, cleanly fast-forwardable) ->
       a non-blocking ``warning``, coded so ``--fix`` knows it may act
       (FR-009).
-    * SHAs differ but are NOT a strict-ancestor pair -> diverged -> a
-      distinct non-blocking ``warning`` that ``--fix`` refuses to touch
-      (C-005 warn-first).
+    * Ahead of target BY DESIGN (T034/D6, ``mission_dir_name`` supplied and
+      :func:`~specify_cli.missions._create.is_expected_coordination_divergence`
+      holds) -> ``None`` (FR-002b): a freshly seeded Mission's coordination
+      branch is expected to carry COORD-only commits past target, and that is
+      not the genuine divergence this finding exists to catch.
+    * SHAs differ but are NOT a strict-ancestor pair (and not an expected
+      divergence) -> diverged -> a distinct non-blocking ``warning`` that
+      ``--fix`` refuses to touch (C-005 warn-first).
     * SHAs equal, or either ref is unreadable -> ``None`` (nothing to report).
+
+    ``mission_dir_name`` is keyword-only with a default (brownfield scout,
+    T035): existing callers that pass only the three positionals, or a test
+    double that monkeypatches this function with ``lambda *a``, keep working
+    unchanged -- they simply never see the FR-002b exemption (every genuine
+    staleness/divergence finding they exercise is unaffected by it).
     """
     coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
     target_sha = _rev_parse(repo_root, f"refs/heads/{target_branch}")
@@ -663,6 +674,16 @@ def _coord_branch_stale_vs_target_finding(
     )
     if stale is not None:
         return stale
+    if mission_dir_name is not None:
+        from specify_cli.missions._create import is_expected_coordination_divergence
+
+        if is_expected_coordination_divergence(
+            repo_root,
+            coordination_branch=coord_branch,
+            target_branch=target_branch,
+            mission_dir_name=mission_dir_name,
+        ):
+            return None
     return DoctorFinding(
         severity="warning",
         message=(
@@ -716,7 +737,13 @@ def _check_coord_branch_staleness(
     if shas is None:
         return []
     coord_branch, target_branch, _coord_sha, _target_sha = shas
-    finding = _coord_branch_stale_vs_target_finding(repo_root, coord_branch, target_branch)
+    mission_dir_name = mission_meta.get("mission_slug") or mission_meta.get("slug")
+    finding = _coord_branch_stale_vs_target_finding(
+        repo_root,
+        coord_branch,
+        target_branch,
+        mission_dir_name=mission_dir_name if isinstance(mission_dir_name, str) and mission_dir_name else None,
+    )
     return [finding] if finding is not None else []
 
 

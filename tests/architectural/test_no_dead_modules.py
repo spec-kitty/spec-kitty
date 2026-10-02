@@ -364,6 +364,13 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # registry lookup in
         # tests/specify_cli/upgrade/migrations/test_install_lane_tip_recorder.py.
         "specify_cli.upgrade.migrations.m_4_0_0rc5_install_lane_tip_recorder",
+        # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
+        # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
+        # migrations above -- never statically imported, registered via
+        # @MigrationRegistry.register and discovered by
+        # auto_discover_migrations(); verified by
+        # tests/upgrade/migrations/test_m_4_0_0rc5_decision_index_merge_driver.py.
+        "specify_cli.upgrade.migrations.m_4_0_0rc5_decision_index_merge_driver",
     }
 )
 

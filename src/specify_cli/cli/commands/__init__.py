@@ -354,6 +354,7 @@ def _register_merge_driver(app: typer.Typer) -> None:
     app.command(name="merge-driver-acceptance-matrix", hidden=True)(merge_driver_module.merge_driver_acceptance_matrix)
     app.command(name="merge-driver-issue-matrix", hidden=True)(merge_driver_module.merge_driver_issue_matrix)
     app.command(name="merge-driver-review-cycle", hidden=True)(merge_driver_module.merge_driver_review_cycle)
+    app.command(name="merge-driver-decision-index", hidden=True)(merge_driver_module.merge_driver_decision_index)
 
 
 def _register_migrate(app: typer.Typer) -> None:
@@ -555,7 +556,7 @@ def _register_retrospect(app: typer.Typer) -> None:
 # used, for the "register everything" fallback. ``_COMMAND_REGISTRARS`` maps
 # every top-level command/group *name* Typer would end up exposing to the one
 # registrar that backs it -- several names may map to the same registrar
-# (e.g. ``specify``/``plan``/``tasks`` all come from ``lifecycle``; the six
+# (e.g. ``specify``/``plan``/``tasks`` all come from ``lifecycle``; the seven
 # ``merge-driver-*`` hidden commands all come from ``merge_driver``) since a
 # single module can back more than one registered leaf, exactly as the
 # pre-existing module-to-command mapping already did.
@@ -646,6 +647,7 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "merge-driver-acceptance-matrix": _register_merge_driver,
     "merge-driver-issue-matrix": _register_merge_driver,
     "merge-driver-review-cycle": _register_merge_driver,
+    "merge-driver-decision-index": _register_merge_driver,
     "migrate": _register_migrate,
     "mission": _register_mission,
     "next": _register_next,

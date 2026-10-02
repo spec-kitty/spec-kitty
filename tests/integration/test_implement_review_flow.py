@@ -361,7 +361,31 @@ class TestForcedPreCommitHookFailure:
         """The real workflow helper must roll back the canonical status files."""
         import typer
 
+        from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.cli.commands.agent.workflow import _commit_workflow_change
+
+        # WP07 re-pin (coord-artifact-single-home-01M3V4BE): the coordination
+        # arm now resolves through the single write-location accessor, which
+        # carries any root-checkout content onto the coordination branch the
+        # FIRST time a coord-routed mission is written to (contracts/seed.md).
+        # Pre-seeding the coordination surface here (an empty, already-
+        # committed Mission dir with the seed trailer) means this mission is
+        # no longer "first write ever" by the time the forced-failure call
+        # below runs, so that one-time seed commit -- itself subject to the
+        # SAME pre-commit hook this test installs -- never interleaves with
+        # the rollback this test actually exercises.
+        coord_worktree = CoordinationWorkspace.resolve(repo_root, mission["mission_slug"], mission["mid8"])
+        coord_mission_dir = coord_worktree / "kitty-specs" / f"{mission['mission_slug']}-{mission['mid8']}"
+        coord_mission_dir.mkdir(parents=True, exist_ok=True)
+        (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+        _run(coord_worktree, "git", "add", "kitty-specs")
+        _run(
+            coord_worktree,
+            "git",
+            "commit",
+            "-m",
+            f"chore({mission['mission_slug']}): seed coordination surface\n\nSpec-Kitty-Coordination-Seed: {mission['mission_id']}",
+        )
 
         feature_dir = mission["feature_dir"]
         events_path = feature_dir / "status.events.jsonl"

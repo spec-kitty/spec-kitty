@@ -178,7 +178,6 @@ class TestWriteIssueMatrix:
         result = write_issue_matrix(
             repo_root=tmp_path,
             mission_slug=_MISSION_SLUG,
-            feature_dir=feature_dir,
             rows=rows,
             policy=_Policy(),
             actor="issue-verdict",
@@ -198,7 +197,11 @@ class TestWriteIssueMatrix:
         assert call.get("files") is None
         assert callable(call["stage"])
         assert call["entry_id"] == "issue-verdict"
-        assert call["primary_paths_created_this_invocation"] == frozenset({json_path})
+        # WP10 (T056, single-home rule): the write lands IN PLACE at
+        # write_dir(ISSUE_MATRIX) -- nothing is created in the repository
+        # root checkout as staging residue, so there is nothing for R6
+        # cleanup to reclaim.
+        assert call["primary_paths_created_this_invocation"] == frozenset()
 
 
 # ---------------------------------------------------------------------------
@@ -538,3 +541,58 @@ class TestIssueReferenceIdentity:
         assert ref != (1582, "Fixes #1582.", "spec.md")
         assert ref != "not a reference"
         assert ref == (1582, "Fixes #1582.", "spec.md", (), GatingClass.IMPLEMENTATION_TARGET)
+
+
+# ---------------------------------------------------------------------------
+# WP10 (D8 "discarded-result" rule): a refused/errored surface is logged even
+# when the caller discards the returned WriteSeamResult entirely.
+# ---------------------------------------------------------------------------
+
+
+class TestWarnOnDiscardedSurfaces:
+    def test_refused_surface_logs_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+        from specify_cli.coordination.write_seam import WriteSeamResult
+        from specify_cli.tasks import issue_matrix
+
+        result = WriteSeamResult(
+            status="committed",
+            entry_id="finalize-scaffold",
+            destination_surface="topic",
+            commit_hash="abc1234",
+            surfaces=(
+                SurfaceOutcome(surface="primary", branch="topic", status="committed", commit_hash="abc1234"),
+                SurfaceOutcome(
+                    surface="coordination",
+                    branch="kitty/mission-demo-01ABCDEF",
+                    status="refused",
+                    commit_hash=None,
+                    refused=(PathFate(path="kitty-specs/demo/status.events.jsonl", reason="STATUS_LOCK_HELD"),),
+                ),
+            ),
+        )
+        with caplog.at_level(logging.WARNING):
+            issue_matrix._warn_on_discarded_surfaces(result)
+
+        assert any("STATUS_LOCK_HELD" in record.message for record in caplog.records)
+
+    def test_clean_result_logs_nothing(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+        from specify_cli.coordination.write_seam import WriteSeamResult
+        from specify_cli.tasks import issue_matrix
+
+        result = WriteSeamResult(
+            status="committed",
+            entry_id="finalize-scaffold",
+            destination_surface="topic",
+            commit_hash="abc1234",
+            surfaces=(SurfaceOutcome(surface="primary", branch="topic", status="committed", commit_hash="abc1234"),),
+        )
+        with caplog.at_level(logging.WARNING):
+            issue_matrix._warn_on_discarded_surfaces(result)
+
+        assert caplog.records == []

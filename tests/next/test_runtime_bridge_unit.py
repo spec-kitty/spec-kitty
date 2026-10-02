@@ -2002,9 +2002,15 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
     """Owned-checkout fork of ``_wrap_with_decision_git_log`` (#3328): the
     coordination-branch/mission-id read forks through
     ``mission_context_for(owned=...)`` instead of the primary-folding
-    helpers, and the coord ``worktree_root`` selection forks between the
-    already-materialized ``.exists()`` fast path and the retry-guarded
-    ``_resolve_owned_coordination_workspace`` composition path."""
+    helpers.
+
+    coord-artifact-single-home-01M3V4BE WP20 (orchestrator ruling): the OWNED
+    coordination arm no longer composes ``worktree_root / KITTY_SPECS_DIR /
+    coord_mission_dir_name(...)`` itself. It resolves through the same
+    ``placement_seam(..., owned=owned).write_dir(DECISION_LOG)`` accessor as
+    the non-owned arm and uses ``WriteLocation.checkout_root`` / ``.path``
+    verbatim; the accessor owns materialization (through the bounded-retry
+    ``_resolve_owned_coordination_workspace``) and the typed owned refusal."""
 
     @staticmethod
     def _install_owned_mission_context(
@@ -2035,35 +2041,41 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             lambda _dir: SimpleNamespace(mission_id=mission_id),
         )
 
-    def test_materialized_worktree_root_is_used_as_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """When the coord worktree candidate already exists on disk, the
-        owned fork trusts it directly and never composes a fresh one."""
+    def test_owned_arm_takes_worktree_root_and_dir_from_write_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """The owned coordination arm threads ``owned`` into the seam and uses
+        ``WriteLocation.checkout_root`` / ``.path`` verbatim -- a ``path`` that
+        differs from any ``checkout_root / kitty-specs / <name>`` composition
+        proves nothing is re-composed in the bridge."""
+        from mission_runtime import Establishment, WriteLocation
+        from mission_runtime.artifacts import TopologySurface
         from runtime.next import runtime_bridge
-        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from tests._owned_fixtures import mint_test_fact
 
         monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
-        mission_slug = "owned-materialized-mission"
+        mission_slug = "owned-write-dir-mission"
         self._install_owned_mission_context(
             monkeypatch,
             primary_metadata_dir=primary_metadata_dir,
-            coordination_branch="kitty/mission-owned-materialized",
+            coordination_branch="kitty/mission-owned-write-dir",
             mission_id=mission_id,
         )
-        worktree_root_candidate = CoordinationWorkspace.worktree_path(tmp_path, mission_slug, mission_id[:8])
-        worktree_root_candidate.mkdir(parents=True)
+        coord_root = tmp_path / "resolved-via-write-dir"
+        carried_dir = coord_root / "carried" / "mission-dir"
+        location = WriteLocation(
+            path=carried_dir,
+            checkout_root=coord_root,
+            surface=TopologySurface.COORD,
+            coord_state_before=None,
+            establishment=Establishment.NONE,
+            seed=None,
+        )
+        seen: list[object] = []
+        self._patch_placement_seam(monkeypatch, location, record_owned=seen)
 
-        def _must_not_run(*_a: object, **_k: object) -> Path:
-            raise AssertionError("_resolve_owned_coordination_workspace must not run when the candidate worktree already exists on disk")
-
-        monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
-
-        emitter = SimpleNamespace()
         owned_root = tmp_path / "owned-checkout"
-        from tests._owned_fixtures import mint_test_fact
-
         owned = mint_test_fact(
             repository_root=tmp_path,
             owned_root=owned_root,
@@ -2071,42 +2083,41 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             mission_slug=mission_slug,
             write_branch="codex/owned",
         )
-        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, owned=owned)
+        wrapped = runtime_bridge._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
 
-        assert wrapped._worktree_root == worktree_root_candidate
+        assert seen == [owned], "the owned fact must reach the placement seam"
+        assert wrapped._worktree_root == coord_root
+        assert wrapped._decisions_file == carried_dir / "decisions.events.jsonl"
 
-    def test_unmaterialized_worktree_root_resolves_via_owned_retry_helper(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """When the coord worktree candidate does NOT yet exist, the owned
-        fork composes it through ``_resolve_owned_coordination_workspace``
-        (the bounded-retry helper) instead of the non-owned
-        ``CoordinationWorkspace.resolve`` call."""
+    def test_owned_arm_refuses_a_primary_surfaced_write_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Defense in depth now covers the owned arm too: a coordination-routed
+        owned Mission whose ``write_dir`` answers PRIMARY is refused, never
+        wrapped on the wrong surface."""
+        from mission_runtime import Establishment, WriteLocation
+        from mission_runtime.artifacts import TopologySurface
         from runtime.next import runtime_bridge
-        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from tests._owned_fixtures import mint_test_fact
 
         monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         primary_metadata_dir = tmp_path / "primary-metadata"
         primary_metadata_dir.mkdir()
-        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
-        mission_slug = "owned-unmaterialized-mission"
+        mission_slug = "owned-primary-surface-mission"
         self._install_owned_mission_context(
             monkeypatch,
             primary_metadata_dir=primary_metadata_dir,
-            coordination_branch="kitty/mission-owned-unmaterialized",
-            mission_id=mission_id,
+            coordination_branch="kitty/mission-owned-primary-surface",
+            mission_id="01K3PW7QRSTVXYZ23456789ABC",
         )
-        # Deliberately do NOT create the candidate worktree dir: .exists() is
-        # False, so the owned fork must run the retry-guarded composer.
-        resolved_via_retry_helper = tmp_path / "resolved-via-retry-helper"
-
-        def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
-            return resolved_via_retry_helper
-
-        monkeypatch.setattr(CoordinationWorkspace, "resolve", classmethod(_fake_resolve))
-
-        emitter = SimpleNamespace()
+        location = WriteLocation(
+            path=tmp_path / "kitty-specs" / mission_slug,
+            checkout_root=tmp_path,
+            surface=TopologySurface.PRIMARY,
+            coord_state_before=None,
+            establishment=Establishment.NONE,
+            seed=None,
+        )
+        self._patch_placement_seam(monkeypatch, location)
         owned_root = tmp_path / "owned-checkout"
-        from tests._owned_fixtures import mint_test_fact
-
         owned = mint_test_fact(
             repository_root=tmp_path,
             owned_root=owned_root,
@@ -2114,19 +2125,79 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             mission_slug=mission_slug,
             write_branch="codex/owned",
         )
-        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, owned=owned)
 
-        assert wrapped._worktree_root == resolved_via_retry_helper
+        with pytest.raises(runtime_bridge.DecisionGitLogUnavailable, match="PRIMARY surface"):
+            runtime_bridge._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
 
-    def test_non_owned_unmaterialized_worktree_root_uses_plain_resolve(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Anti-vacuity / control: WITHOUT ``effective_root`` (the historical,
-        non-owned call shape), an unmaterialized coord candidate still goes
-        through the plain ``CoordinationWorkspace.resolve`` call -- never the
-        owned retry-guarded composer. Proves the two branches genuinely
-        diverge on ``effective_root``, not on ``coord_routing_topology``
-        alone."""
+    def test_owned_arm_propagates_the_typed_coordination_unavailable_refusal(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """``write_dir``'s typed owned refusal propagates UNWRAPPED (never
+        folded into ``DecisionGitLogUnavailable``) so ``_dn_bootstrap`` can map
+        it to the typed ``blocked`` Decision (#4867 / T062)."""
+        from mission_runtime import ActionContextError, OwnedRefusalCode
         from runtime.next import runtime_bridge
-        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from tests._owned_fixtures import mint_test_fact
+
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        primary_metadata_dir = tmp_path / "primary-metadata"
+        primary_metadata_dir.mkdir()
+        mission_slug = "owned-unavailable-mission"
+        self._install_owned_mission_context(
+            monkeypatch,
+            primary_metadata_dir=primary_metadata_dir,
+            coordination_branch="kitty/mission-owned-unavailable",
+            mission_id="01K3PW7QRSTVXYZ23456789ABC",
+        )
+        refusal = ActionContextError(OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value, "registry unavailable")
+
+        class _RefusingSeam:
+            def __init__(self, *_a: Any, **_k: Any) -> None:
+                pass
+
+            def write_dir(self, _kind: object) -> object:
+                raise refusal
+
+        import mission_runtime
+
+        monkeypatch.setattr(mission_runtime, "placement_seam", _RefusingSeam)
+        owned_root = tmp_path / "owned-checkout"
+        owned = mint_test_fact(
+            repository_root=tmp_path,
+            owned_root=owned_root,
+            mission_dir=owned_root / "kitty-specs" / mission_slug,
+            mission_slug=mission_slug,
+            write_branch="codex/owned",
+        )
+
+        with pytest.raises(ActionContextError) as excinfo:
+            runtime_bridge._wrap_with_decision_git_log(SimpleNamespace(), mission_slug, tmp_path, owned=owned)
+        assert excinfo.value is refusal
+
+    @staticmethod
+    def _patch_placement_seam(monkeypatch: pytest.MonkeyPatch, location: object, *, record_owned: list[object] | None = None) -> None:
+        from mission_runtime import placement_seam as _real_placement_seam
+
+        class _FakeSeam:
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                if record_owned is not None:
+                    record_owned.append(kwargs.get("owned"))
+                self._real = _real_placement_seam(*args, **kwargs)
+
+            def write_dir(self, kind: object) -> object:  # noqa: ARG002
+                return location
+
+            def __getattr__(self, name: str) -> object:
+                return getattr(self._real, name)
+
+        import mission_runtime
+
+        monkeypatch.setattr(mission_runtime, "placement_seam", _FakeSeam)
+
+    def test_non_owned_unmaterialized_worktree_root_comes_from_write_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Control: the NON-owned call shape goes through ``write_dir`` (the
+        #5519 fix WP09 shipped); the owned arm above now does too."""
+        from mission_runtime import Establishment, WriteLocation
+        from mission_runtime.artifacts import TopologySurface
+        from runtime.next import runtime_bridge
 
         monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
         mission_id = "01K3PW7QRSTVXYZ23456789ABC"
@@ -2137,22 +2208,22 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
             lambda *_a, **_k: "kitty/mission-non-owned-unmaterialized",
         )
         monkeypatch.setattr(runtime_bridge, "_resolve_mission_ulid", lambda *_a, **_k: mission_id)
-
-        def _must_not_run(*_a: object, **_k: object) -> Path:
-            raise AssertionError("_resolve_owned_coordination_workspace must not run without effective_root -- that is the owned-checkout-only path")
-
-        monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
-        resolved_via_plain_resolve = tmp_path / "resolved-via-plain-resolve"
-
-        def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
-            return resolved_via_plain_resolve
-
-        monkeypatch.setattr(CoordinationWorkspace, "resolve", classmethod(_fake_resolve))
+        coord_root = tmp_path / "resolved-via-write-dir"
+        coord_mission_dir = coord_root / "kitty-specs" / mission_slug
+        location = WriteLocation(
+            path=coord_mission_dir,
+            checkout_root=coord_root,
+            surface=TopologySurface.COORD,
+            coord_state_before=None,
+            establishment=Establishment.NONE,
+            seed=None,
+        )
+        self._patch_placement_seam(monkeypatch, location)
 
         emitter = SimpleNamespace()
         wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path)
 
-        assert wrapped._worktree_root == resolved_via_plain_resolve
+        assert wrapped._worktree_root == coord_root
 
 
 class TestDecideNextViaRuntimeOwnedCheckout:

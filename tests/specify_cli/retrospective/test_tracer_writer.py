@@ -265,22 +265,38 @@ class TestFailClosedOnUnmaterializedCoordRead:
         self, tmp_path: Path
     ) -> None:
         """The propagated raise must stop ``append_tracer_finding`` BEFORE it
-        ever reaches ``write_artifact`` (i.e. before staging/committing a
-        from-scratch-header clobber) -- and must leave no local staging
-        residue behind either."""
+        ever commits (i.e. before staging/committing a from-scratch-header
+        clobber) -- and must leave no local staging residue behind either.
+
+        WP10 (T055 binding correction, "Tracer read before write"): the
+        read-before-write merge now runs AFTER ``write_dir`` inside the
+        ``stage=`` thunk, so the raise propagates from WITHIN
+        ``write_artifact``'s own stage invocation, not before
+        ``write_artifact`` is ever called. The fake below mirrors
+        ``write_artifact``'s real "invoke stage() only after a successful
+        probe, propagate whatever it raises" contract -- it never swallows
+        the exception into a committed/refused ``WriteSeamResult``.
+        """
         exc = _unmaterialized_error(_MISSION_SLUG, tmp_path)
+
+        def _fake_write_artifact(**kwargs: object) -> WriteSeamResult:
+            stage = kwargs["stage"]
+            assert callable(stage)
+            return stage()  # propagates the read's exception, mirroring the real contract
+
         with (
             patch(
                 "specify_cli.retrospective.tracer_writer.placement_seam"
             ) as seam_ctor,
             patch(
                 "specify_cli.retrospective.tracer_writer.write_artifact",
-                side_effect=AssertionError(
-                    "write_artifact must not be called when the coord read fails closed"
-                ),
+                side_effect=_fake_write_artifact,
             ),
         ):
-            seam_ctor.return_value = MagicMock(read_dir=MagicMock(side_effect=exc))
+            seam_ctor.return_value = MagicMock(
+                read_dir=MagicMock(side_effect=exc),
+                write_dir=MagicMock(return_value=MagicMock(path=tmp_path / "kitty-specs" / _MISSION_SLUG)),
+            )
             with pytest.raises(CoordinationWorktreeUnmaterialized):
                 append_tracer_finding(
                     repo_root=tmp_path,
@@ -354,6 +370,7 @@ class TestRoutesThroughWriteSeamHelper:
                 commit_hash="deadbee",
             )
 
+        write_dir_location = MagicMock(path=tmp_path / "kitty-specs" / _MISSION_SLUG)
         with (
             patch(
                 "specify_cli.retrospective.tracer_writer.placement_seam"
@@ -363,7 +380,10 @@ class TestRoutesThroughWriteSeamHelper:
                 side_effect=_fake_write_artifact,
             ),
         ):
-            seam_ctor.return_value = MagicMock(read_dir=MagicMock(return_value=tmp_path))
+            seam_ctor.return_value = MagicMock(
+                read_dir=MagicMock(return_value=tmp_path),
+                write_dir=MagicMock(return_value=write_dir_location),
+            )
 
             result = append_tracer_finding(
                 repo_root=tmp_path,
@@ -377,13 +397,15 @@ class TestRoutesThroughWriteSeamHelper:
         assert result.status == "committed"
         assert captured["kind"] is MissionArtifactKind.TRACER_FILE
 
-        # WP04 / T015 (#3073 no-residue thunk): tracer_writer now passes a
-        # ``stage=`` thunk, not pre-staged ``files=`` -- the mkdir+write_text
-        # moved INTO the thunk so a refused write never touches disk. This
-        # mock never routes through write_seam's real probe-before-stage
-        # locus, so it invokes the captured thunk directly to verify what it
-        # WOULD materialize (mirroring what write_artifact does internally
-        # after a successful probe).
+        # WP04/T015 + WP10/T055 (#3073 no-residue thunk, single-home rule):
+        # tracer_writer passes a ``stage=`` thunk, not pre-staged ``files=``
+        # -- BOTH the ``write_dir`` resolution (``_local_staging_path``) and
+        # the mkdir+write_text moved INTO the thunk, so a refused write never
+        # materializes/seeds the coordination worktree and never touches
+        # disk. This mock never routes through write_seam's real
+        # probe-before-stage locus, so it invokes the captured thunk
+        # directly to verify what it WOULD materialize (mirroring what
+        # write_artifact does internally after a successful probe).
         assert "files" not in captured, (
             "tracer_writer must pass stage=, not the historical files= contract"
         )
@@ -402,12 +424,56 @@ class TestRoutesThroughWriteSeamHelper:
         )
         assert staged_path.exists(), "invoking the thunk must materialize the local file on disk"
         assert "Chose X over Y because Z." in staged_path.read_text(encoding="utf-8")
-        # Residue cleanup (R6): the staged local copy is eligible for post-stage
-        # deletion so it never lingers as an untracked primary-checkout file.
-        # This is populated eagerly (independent of the thunk -- the intended
-        # local path is known before materialization), so it is already
-        # correct even before ``stage()`` above is invoked.
-        assert captured["primary_paths_created_this_invocation"] == frozenset({staged_path})
+        # WP10 (T055 step 2, single-home rule): the write now lands IN PLACE
+        # at ``write_dir(TRACER_FILE)`` -- nothing is created in the
+        # repository root checkout as staging residue, so there is nothing
+        # for R6 cleanup to reclaim.
+        assert captured["primary_paths_created_this_invocation"] == frozenset()
+
+    def test_discarded_refused_surface_logs_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """D8 "discarded-result" rule: a refused surface is logged even when
+        the caller never renders the returned ``WriteSeamResult`` itself."""
+        import logging
+
+        from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+
+        result = WriteSeamResult(
+            status="committed",
+            entry_id="tooling-friction-abc123",
+            destination_surface="topic",
+            commit_hash="abc1234",
+            surfaces=(
+                SurfaceOutcome(surface="primary", branch="topic", status="committed", commit_hash="abc1234"),
+                SurfaceOutcome(
+                    surface="coordination",
+                    branch="kitty/mission-demo-01ABCDEF",
+                    status="refused",
+                    commit_hash=None,
+                    refused=(PathFate(path="kitty-specs/demo/status.events.jsonl", reason="STATUS_LOCK_HELD"),),
+                ),
+            ),
+        )
+        with caplog.at_level(logging.WARNING):
+            tracer_writer._warn_on_discarded_surfaces(result)
+
+        assert any("STATUS_LOCK_HELD" in record.message for record in caplog.records)
+
+    def test_clean_result_logs_nothing(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+
+        result = WriteSeamResult(
+            status="committed",
+            entry_id="tooling-friction-abc123",
+            destination_surface="topic",
+            commit_hash="abc1234",
+            surfaces=(SurfaceOutcome(surface="primary", branch="topic", status="committed", commit_hash="abc1234"),),
+        )
+        with caplog.at_level(logging.WARNING):
+            tracer_writer._warn_on_discarded_surfaces(result)
+
+        assert caplog.records == []
 
     def test_result_is_the_write_seam_result_returned_verbatim(self, tmp_path: Path) -> None:
         expected = WriteSeamResult(

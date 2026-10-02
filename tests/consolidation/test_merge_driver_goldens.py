@@ -44,6 +44,11 @@ _SIX_COMMANDS = frozenset(
         "merge-driver-issue-matrix",
         "merge-driver-acceptance-matrix",
         "merge-driver-review-cycle",
+        # coord-artifact-single-home-01M3V4BE WP11 re-pin (6 -> 7): the name
+        # ``_SIX_COMMANDS`` stays as-is (it is this suite's established
+        # constant name) but its membership now covers all seven registered
+        # commands.
+        "merge-driver-decision-index",
     }
 )
 
@@ -90,8 +95,9 @@ def _config_key_for_command(command: str) -> str:
 
 @pytest.mark.unit
 def test_golden_cases_are_discovered_and_cover_all_six_commands() -> None:
-    """Vacuity guard: the discovered case set is non-empty and every
-    one of the six registered commands has at least one golden case."""
+    """Vacuity guard: the discovered case set is non-empty and every one of
+    the (now seven, re-pinned by WP11) registered commands has at least one
+    golden case."""
     assert _CASES, f"no golden cases discovered under {_GOLDENS_ROOT}"
     discovered_commands = {case.command for case in _CASES}
     assert discovered_commands == _SIX_COMMANDS
@@ -175,11 +181,14 @@ def test_unknown_config_key_fails_closed_through_replay() -> None:
 
 @pytest.mark.unit
 def test_distinct_config_key_count_matches_six_registered_commands() -> None:
-    """A 7th driver added to ``_MERGE_DRIVERS`` without new goldens trips this
-    test -- the message tells the implementer exactly what is missing."""
+    """An 8th driver added to ``_MERGE_DRIVERS`` without new goldens trips this
+    test -- the message tells the implementer exactly what is missing.
+
+    Re-pinned 6 -> 7 by coord-artifact-single-home-01M3V4BE WP11 (the
+    decision-index driver, #5023)."""
     commands_from_registry = {match.group(1) for spec in _MERGE_DRIVERS if (match := _DRIVER_COMMAND_PATTERN.match(spec.command))}
-    assert len(_DISTINCT_CONFIG_KEYS) == 6, (
-        f"expected exactly 6 distinct merge-driver config keys, found {len(_DISTINCT_CONFIG_KEYS)} "
+    assert len(_DISTINCT_CONFIG_KEYS) == 7, (
+        f"expected exactly 7 distinct merge-driver config keys, found {len(_DISTINCT_CONFIG_KEYS)} "
         f"({sorted(_DISTINCT_CONFIG_KEYS)!r}) -- add goldens for the new driver "
         "(tests/consolidation/merge_driver_goldens/<command>/) and extend this test's expectations"
     )

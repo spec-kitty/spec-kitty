@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, now_utc
 from kernel.git_topology import GitTopologyError
-from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, WriteLocation, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CoordCommitRouter,
     MissionHandle,
 )
+from specify_cli.coordination.commit_outcome import SurfaceOutcome, commit_outcome_exit_code, render_commit_outcome
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.git.protection_policy import ProtectionPolicy
 import logging
@@ -177,104 +178,69 @@ def _review_cycle_wp_dir(
     mission_slug: str,
     wp_slug: str,
     *,
-    kind: MissionArtifactKind = MissionArtifactKind.WORK_PACKAGE_TASK,
+    kind: MissionArtifactKind = MissionArtifactKind.REVIEW_CYCLE,
     owned: OwnedCheckout | None = None,
 ) -> Path:
-    """Return the ``tasks/<wp>`` dir a review-cycle artifact reads/writes,
-    on disk.
+    """Return the ``tasks/<wp>`` dir a review-cycle artifact is READ from.
 
     **ADR 2026-08-03-1 designates ``review-cycle-N.md`` as
     ``MissionArtifactKind.REVIEW_CYCLE`` — COORD-partition per-work-package
     bookkeeping under a coordination topology, PRIMARY otherwise.** This is
-    the ONE owner function every consumer in this mission's scope routes
-    through — the READ seam (:func:`resolve_review_cycle_pointer`), the WRITE
-    seam (:func:`create_rejected_review_cycle`), and the arbiter
-    (:func:`specify_cli.review.arbiter.persist_arbiter_decision`) all resolve
-    through this single call (FR-007), parametrized by ``kind`` so each
-    consumer states which partition rule it wants rather than re-deriving the
-    directory independently.
+    the shared owner function every READER in this mission's scope routes
+    through — the pointer resolver (:func:`resolve_review_cycle_pointer`),
+    the arbiter (:func:`specify_cli.review.arbiter.persist_arbiter_decision`),
+    the safety verdict reader (``tasks_verdict_persistence.py::
+    _resolve_verdict_wp_dir``), and the fix-mode / prior-rejection probes
+    (``workflow_cores.py::has_prior_rejection``,
+    ``workflow_executor.py::implement_try_render_fix_mode_prompt``) — all
+    resolve through this single call, every one at its default ``kind`` (no
+    caller passes ``kind=`` — the AST guard in
+    ``tests/coordination/test_verdict_dir_co_resolution.py`` enforces exactly
+    that shape).
 
-    **FR-011 correction (WP06): the merge-time gate does NOT opt into
-    ``REVIEW_CYCLE`` here.** An earlier revision of this docstring claimed
-    the merge-time gate (:mod:`specify_cli.post_merge.review_artifact_consistency`)
-    was this function's one ``kind=REVIEW_CYCLE`` caller; verified against the
-    live tree, that module never calls ``_review_cycle_wp_dir`` at all -- it
-    resolves its own read directory through a separate helper
-    (``missions._read_path_resolver.resolve_partition_read_dir``). No caller in this mission's scope
-    currently passes ``kind=MissionArtifactKind.REVIEW_CYCLE`` to this
-    function; every real call site (the READ seam, the WRITE seam, the
-    arbiter, ``tasks_materialization.py::_persist_review_feedback``,
-    ``workflow_executor.py``, ``workflow_cores.py``,
-    ``tasks_verdict_persistence.py``) relies on the ``WORK_PACKAGE_TASK``
-    default below and passes no ``kind`` argument.
+    **WP08 (coord-artifact-single-home-01M3V4BE): the default flipped to
+    ``REVIEW_CYCLE``.** Every reader above now resolves the coordination
+    worktree directory under a coordination-routed, materialized Mission
+    (never the PRIMARY repository-root checkout) — closing the fail-open
+    hazard a prior revision of this docstring disclosed: moving only the
+    WRITE seam would have left every reader above still looking at PRIMARY,
+    blind to a rejection that now lives solely on the coordination surface.
+    Flipping this shared default moves every one of them in lockstep.
 
-    ``kind`` defaults to ``MissionArtifactKind.WORK_PACKAGE_TASK`` (PRIMARY,
-    for every topology) — every real caller relies on this default and passes
-    no ``kind`` argument. A caller MAY instead pass
-    ``kind=MissionArtifactKind.REVIEW_CYCLE`` to resolve the ADR-designated
-    COORD-under-coord-topology home (absorbing
-    ``CoordinationBranchDeleted``/``StatusReadPathNotFound`` to the PRIMARY
-    home for pre-ADR missions, per the ADR's "exception absorption" migration
-    rule) — no production caller opts into this branch today (verified above);
-    it remains a designed, reachable code path for a future consumer, not
-    dead code (see ``kind is MissionArtifactKind.REVIEW_CYCLE`` below).
+    **This is a READ-mode resolver (:meth:`~mission_runtime.resolution.
+    PlacementSeam.read_dir`), not the write location.** The WRITE seam
+    (:func:`create_rejected_review_cycle`) resolves its directory through
+    :func:`_review_cycle_write_dir` instead, which uses :meth:`~mission_runtime.
+    resolution.PlacementSeam.write_dir` — materializing/seeding an EMPTY
+    coordination surface rather than silently falling back to PRIMARY
+    (FR-014: a read resolver is never a write location). The two converge on
+    the SAME directory once the coordination surface is MATERIALIZED (the
+    steady state every reader above observes), which is exactly what lets
+    them share this one function at its default ``kind``.
 
-    **WP13 finding (disclosed, not silently worked around): the WRITE-side
-    default cannot yet change to ``REVIEW_CYCLE``.** Trying
-    ``kind=REVIEW_CYCLE`` as the DEFAULT (so a coord-topology mission's
-    review-cycle WRITE physically lands in the already-materialised
-    coordination worktree, not the primary checkout) reproducibly broke a
-    currently-green, un-owned regression test:
-    ``tests/coordination/test_analysis_report_rehome.py::
-    test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary``
-    (WP04's own re-pin for this ADR) asserts the artifact's REPO-ROOT-RELATIVE
-    path is ``kitty-specs/<slug>/tasks/<wp>/review-cycle-1.md`` — i.e. the
-    PHYSICAL write lands in the PRIMARY working tree even though
-    ``commit_router.commit_artifact``'s path-based classification (WP04, T015)
-    already stages that SAME content onto the COORD branch via git plumbing,
-    independent of the physical write location. Defaulting to
-    ``REVIEW_CYCLE`` would move the physical write into the separate
-    coordination worktree directory instead, breaking that assertion.
+    A caller MAY still pass ``kind=MissionArtifactKind.WORK_PACKAGE_TASK`` (or
+    any other kind) to resolve a different partition explicitly — no real
+    caller does, so the AST guard treats any non-default, non-``REVIEW_CYCLE``
+    ``kind=`` keyword as a poison arm.
 
-    **Historical second hazard — CLOSED in this mission (WP05).** An earlier
-    draft of this disclosure named a second, reader-side hazard:
-    ``tasks_verdict_persistence.py::resolve_review_verdict_facts`` deriving the
-    verdict-read directory via a bare PRIMARY-anchored ``wp_path`` join that
-    ignored any kind-aware resolver, so flipping the WRITE default to COORD
-    would have left that reader blind to a real, current rejection (a fail-open
-    regression on a safety-critical guard). WP05 (FR-002) migrated that reader
-    onto the coord-aware ``_resolve_verdict_read_feature_dir`` (STATUS_STATE
-    placement), so it now co-resolves with every other verdict consumer and the
-    hazard no longer exists — see
-    ``tests/coordination/test_verdict_dir_co_resolution.py``.
+    **Decision `plan.design.review-cycle-read-fallback` (WP08 cycle 2, C-002
+    read-only fallback).** A rejection recorded BEFORE this Mission's
+    single-home write flip (a ``local_only`` outcome -- ``--no-auto-commit``
+    or ``commit_router=None``) physically lives ONLY in the PRIMARY
+    repository-root checkout; it was never staged onto the coordination
+    surface. Resolving unconditionally to the coordination directory would
+    make that old-but-real rejection invisible to every reader (fail-open --
+    ``has_prior_rejection`` and the fix-mode render would both silently miss
+    it). So when the coordination directory exists but carries NO
+    ``review-cycle-*.md`` files for this WP, this function falls back to the
+    PRIMARY directory IF IT has them -- read-only, never the reverse: a
+    coordination copy, once present, always wins (the steady state every
+    other reader-co-resolution test pins), and nothing here ever writes to
+    PRIMARY (:func:`create_rejected_review_cycle` resolves its own directory
+    through the separate write-side seam, :func:`_review_cycle_write_dir`,
+    which never falls back).
 
-    That leaves the ``test_analysis_report_rehome`` PHYSICAL-write assertion as
-    the sole remaining reason this WP does not ship a WRITE-side default flip.
-    Opting a single consumer such as the merge-time gate into
-    ``kind=REVIEW_CYCLE`` would be independently safe (it never touches
-    ``_review_cycle_wp_dir``'s write-side default) — but per FR-011's
-    correction above, no consumer has actually done so yet. A follow-up WP that
-    flips the write-side default must re-verify ``test_analysis_report_rehome.py``
-    (plus recheck the three unrouted sites recorded by WP04:
-    ``workflow.py::review``,
-    ``workflow_cores.py::has_prior_rejection``,
-    ``workflow_executor.py::implement_try_render_fix_mode_prompt``) in the SAME
-    change before the WRITE-side default can safely flip. See this WP's final
-    report for the full citations.
-
-    **FR-007 wording reconciliation (WP06).** WP08's reviewed retirement set
-    marks THIS function for retirement — a future WP is expected to retire
-    ``_review_cycle_wp_dir`` itself once the write-side default safely flips
-    (the hazards above are resolved) and every consumer routes through the
-    canonical placement resolver directly. Until then, the COORD→PRIMARY
-    exception-absorption fallback implemented in the ``kind is
-    MissionArtifactKind.REVIEW_CYCLE`` branch below is **relocated** into
-    that eventual canonical placement resolver, not "preserved verbatim" (an
-    earlier spec revision's phrasing, corrected by research.md) — its
-    rationale re-scopes to the surviving write/prose-locate seam once the
-    retired verdict read-path (WP05's collapse) no longer exercises it.
-
-    Historically retires the lenient kind-aware ``resolve_planning_read_dir``
+    Historically retired the lenient kind-aware ``resolve_planning_read_dir``
     fold (and the kind-blind ``candidate_feature_dir_for_mission`` fold that
     resolved the coord worktree for a coord-topology mission —
     #2646/#2697/#2275). ``MissionSelectorAmbiguous`` propagates unchanged (no
@@ -303,10 +269,63 @@ def _review_cycle_wp_dir(
             # subclass, so this single except also covers that specific case
             # (the ADR's "exception absorption" migration rule).
             mission_dir = seam.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
-        return mission_dir / "tasks" / wp_slug
+            return mission_dir / "tasks" / wp_slug
+
+        coord_wp_dir = mission_dir / "tasks" / wp_slug
+        if _has_review_cycle_files(coord_wp_dir):
+            return coord_wp_dir
+        # Decision plan.design.review-cycle-read-fallback (see docstring):
+        # the coordination surface is live but carries nothing for this WP --
+        # look for an old, pre-single-home local-only rejection on PRIMARY
+        # before declaring the (empty) coordination dir the answer.
+        primary_dir: Path = seam.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        primary_wp_dir = primary_dir / "tasks" / wp_slug
+        if _has_review_cycle_files(primary_wp_dir):
+            return primary_wp_dir
+        return coord_wp_dir
 
     resolved_dir: Path = seam.read_dir(kind)
     return resolved_dir / "tasks" / wp_slug
+
+
+def _has_review_cycle_files(wp_dir: Path) -> bool:
+    """True iff *wp_dir* exists and carries at least one ``review-cycle-*.md``."""
+    return wp_dir.is_dir() and any(wp_dir.glob("review-cycle-*.md"))
+
+
+def _review_cycle_write_location(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> WriteLocation:
+    """Return the :class:`~mission_runtime.write_location.WriteLocation`
+    a NEW review-cycle artifact for this Mission must be written to.
+
+    The ONE write-side counterpart to :func:`_review_cycle_wp_dir` (a
+    READ-mode resolver). Routes through :meth:`~mission_runtime.resolution.
+    PlacementSeam.write_dir` (contracts/write-location-accessor.md) instead of
+    ``read_dir``, so an EMPTY coordination surface is materialized/seeded
+    (or an UNMATERIALIZED local head is checked out) rather than silently
+    substituting the PRIMARY checkout for a real coordination write (FR-014).
+    Called exactly ONCE per :func:`create_rejected_review_cycle` invocation —
+    ``write_dir`` may have side effects (seeding/materializing), so its
+    result (including ``.checkout_root``, the basis every evidence-path
+    computation in this module now uses) is threaded through rather than
+    re-derived.
+
+    WP20's census scans this module for the write-side directory resolver by
+    this qualname (``_review_cycle_write_dir`` was the alternative the WP08
+    prompt offered; this is the ``WriteLocation``-returning shape it chose,
+    since the caller also needs ``.checkout_root`` for evidence-path
+    relativization — see :func:`_evidence_ref`).
+    """
+    return placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.REVIEW_CYCLE)
+
+
+def _review_cycle_write_dir(location: WriteLocation, wp_slug: str) -> Path:
+    """Compose the per-WP sub-artifact directory from a resolved *location*."""
+    return location.path / "tasks" / wp_slug
 
 
 class ReviewCycleError(ValueError):
@@ -644,6 +663,25 @@ def _guard_feedback_source_provenance(
     )
 
 
+def _with_surface_detail(message: str, result: CommitArtifactResult) -> str:
+    """Append the shared ``render_commit_outcome`` lines to *message* (T046
+    step 1 / contract rule 6, review cycle 2 B3).
+
+    EVERY ``VerdictPersistenceOutcome.message`` this module builds carries
+    this -- the durable arm, the readback-mismatch arm, the masked-refusal
+    arm, and every non-committed arm (``unchanged`` / ``no_op_wrong_surface``
+    / ``error`` / exhausted-retry) alike -- so an actionable surface fact
+    (for example a ``COORD_RECORD_IN_ROOT_CHECKOUT`` skip on the coordination
+    group) is never visible on only ONE arm while every other arm falls back
+    to the legacy top-level ``status``/``diagnostic`` alone. ``[]`` (the
+    empty-surfaces legacy case) leaves *message* untouched.
+    """
+    lines = render_commit_outcome(result)
+    if not lines:
+        return message
+    return f"{message} Surfaces: {'; '.join(lines)}"
+
+
 def _commit_failure_message(
     *,
     wp_id: str,
@@ -666,10 +704,66 @@ def _commit_failure_message(
         if exhausted_contention_retries
         else f"Failed to commit review-cycle-{cycle_number} artifact"
     )
-    return (
+    return _with_surface_detail(
         f"{prefix} for {wp_id} on {mission_slug} (status={result.status!r}): "
         f"{result.diagnostic or 'no diagnostic provided'}. The artifact "
-        f"was written to {artifact_path} but is NOT committed."
+        f"was written to {artifact_path} but is NOT committed.",
+        result,
+    )
+
+
+def _first_refused_surface_reason(surfaces: tuple[SurfaceOutcome, ...]) -> str | None:
+    """Return the reason of the first refused/error surface's first named path.
+
+    Falls back to the surface's own ``diagnostic`` (a bare refusal with no
+    named path), then ``None`` when nothing actionable is present.
+    """
+    for outcome in surfaces:
+        if outcome.status not in ("refused", "error"):
+            continue
+        if outcome.refused:
+            # ``SurfaceOutcome``/``PathFate`` are typed ``str`` fields, but
+            # mypy widens them to ``Any`` through the ``follow_imports=skip``
+            # boundary on ``specify_cli.*``; bind explicitly so the return
+            # narrows back to ``str``.
+            refused_reason: str = outcome.refused[0].reason
+            return refused_reason
+        if outcome.diagnostic:
+            diagnostic: str = outcome.diagnostic
+            return diagnostic
+    return None
+
+
+def _masked_surface_outcome(
+    *,
+    wp_id: str,
+    mission_slug: str,
+    cycle_number: int,
+    result: CommitArtifactResult,
+    evidence_ref: str,
+    destination_ref: str,
+) -> VerdictPersistenceOutcome:
+    """Build the ``persistence_failed`` outcome for a masked refusal (FR-007).
+
+    The router's legacy top-level ``status`` reported ``"committed"`` (the
+    caller-surface projection, contract rule 4), but ``commit_outcome_exit_code``
+    says a surface was refused/errored -- the OWNING copy can never be masked
+    as a success. Renders through the shared ``render_commit_outcome`` trio
+    (contract rule 6): no hand-formatted surface summary.
+    """
+    message = _with_surface_detail(
+        f"Review-cycle-{cycle_number} commit for {wp_id} on {mission_slug} "
+        "reported committed, but a surface was refused.",
+        result,
+    )
+    logger.warning("%s", message)
+    return VerdictPersistenceOutcome(
+        classification="persistence_failed",
+        verdict_durably_persisted=False,
+        evidence_ref=evidence_ref,
+        destination_ref=destination_ref,
+        reason=_first_refused_surface_reason(result.surfaces) or "surface_refused",
+        message=message,
     )
 
 
@@ -683,12 +777,16 @@ def _commit_review_cycle_artifact(
     cycle_number: int,
     verdict: str,
     owned: OwnedCheckout | None = None,
+    checkout_root: Path | None = None,
 ) -> VerdictPersistenceOutcome:
     """Persist evidence through the existing router and verify its Git ref.
 
     No router status alone is durable proof.  A ``committed`` result becomes
     durable only when ``git show <placement-ref>:<evidence-ref>`` returns the
-    exact local bytes.  Other result statuses become typed failures while the
+    exact local bytes AND no surface the contract (``commit_outcome_exit_code``)
+    classifies as refused/errored -- the legacy top-level ``status`` alone
+    (contract rule 4's caller-surface projection) is never trusted for success
+    (FR-007 masking).  Other result statuses become typed failures while the
     complete artifact remains available for an identical retry.  The legacy
     short retry on a corroborated Git-operation marker is preserved, entirely
     outside ``feature_status_lock``; checkout-wide queue ownership belongs to
@@ -696,6 +794,11 @@ def _commit_review_cycle_artifact(
 
     ``owned`` (the validated owned checkout, when present) supplies the
     mission handle and the operation root the evidence path is relative to.
+    ``checkout_root`` (WP08, P-M3) is the basis the evidence path is relative
+    to -- the coordination worktree root for a coordination-routed write, or
+    the repository-root checkout otherwise (:attr:`~mission_runtime.
+    write_location.WriteLocation.checkout_root`). It defaults to the operation
+    root (pre-WP08 behaviour) when the caller does not supply one.
     """
     message = (
         f"chore: Record review-cycle-{cycle_number} ({verdict}) for {wp_id} on "
@@ -708,6 +811,7 @@ def _commit_review_cycle_artifact(
     )
     policy = ProtectionPolicy.resolve(main_repo_root)
     operation_root = _operation_root(main_repo_root, owned)
+    evidence_root = checkout_root if checkout_root is not None else operation_root
 
     attempt = 1
     while True:
@@ -718,11 +822,20 @@ def _commit_review_cycle_artifact(
             kind=MissionArtifactKind.REVIEW_CYCLE,
             policy=policy,
         )
-        evidence_ref = _evidence_ref(operation_root, artifact_path)
+        evidence_ref = _evidence_ref(evidence_root, artifact_path)
         destination_ref = result.placement_ref or placement_seam(
             main_repo_root, mission_slug, owned=owned
         ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
         if result.status == "committed":
+            if commit_outcome_exit_code(result) != 0:
+                return _masked_surface_outcome(
+                    wp_id=wp_id,
+                    mission_slug=mission_slug,
+                    cycle_number=cycle_number,
+                    result=result,
+                    evidence_ref=evidence_ref,
+                    destination_ref=destination_ref,
+                )
             destination_bytes = _read_artifact_at_ref(
                 operation_root, destination_ref, evidence_ref
             )
@@ -734,9 +847,9 @@ def _commit_review_cycle_artifact(
                     evidence_ref=evidence_ref,
                     destination_ref=destination_ref,
                     reason=None,
-                    message=(
-                        "Review-cycle evidence is committed and verified at "
-                        f"{destination_ref}."
+                    message=_with_surface_detail(
+                        f"Review-cycle evidence is committed and verified at {destination_ref}.",
+                        result,
                     ),
                 )
             reason = (
@@ -750,9 +863,10 @@ def _commit_review_cycle_artifact(
                 evidence_ref=evidence_ref,
                 destination_ref=destination_ref,
                 reason=reason,
-                message=(
+                message=_with_surface_detail(
                     "Commit router reported committed, but exact evidence bytes "
-                    f"were not verified at {destination_ref}."
+                    f"were not verified at {destination_ref}.",
+                    result,
                 ),
             )
 
@@ -802,10 +916,21 @@ def _operation_root(main_repo_root: Path, owned: OwnedCheckout | None) -> Path:
     return owned.owned_root if owned is not None else main_repo_root
 
 
-def _evidence_ref(main_repo_root: Path, artifact_path: Path) -> str:
-    """Return the stable repository-relative evidence path."""
+def _evidence_ref(checkout_root: Path, artifact_path: Path) -> str:
+    """Return *artifact_path* relative to the checkout that CONTAINS it.
+
+    WP08 (P-M3): *checkout_root* must be the root of the checkout the
+    artifact physically lives under -- the coordination worktree root for a
+    coordination-routed write (:attr:`~mission_runtime.write_location.
+    WriteLocation.checkout_root`), or the repository-root checkout otherwise.
+    Relativizing against the WRONG checkout (e.g. always the repository-root
+    checkout, even when the artifact lives in the nested coordination
+    worktree under it) yields a path the ``git show <ref>:<path>`` read-back
+    cannot find (``destination_readback_missing``) even though the commit
+    genuinely landed.
+    """
     try:
-        return artifact_path.resolve().relative_to(main_repo_root.resolve()).as_posix()
+        return artifact_path.resolve().relative_to(checkout_root.resolve()).as_posix()
     except ValueError as exc:
         raise ReviewCycleError(
             f"Review-cycle artifact is outside the repository: {artifact_path}"
@@ -1013,6 +1138,7 @@ def _adopt_or_allocate_review_cycle_locked(
     body: str,
     reproduction_command: str | None = None,
     owned: OwnedCheckout | None = None,
+    checkout_root: Path | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str, bool]:
     """Adopt identical retained evidence or allocate a new record.
 
@@ -1021,9 +1147,12 @@ def _adopt_or_allocate_review_cycle_locked(
     those critical sections, never inside either one. WP04 owns the one
     checkout-wide verdict queue lease around this non-acquiring operation.
     ``owned`` (the validated owned checkout, when present) supplies the
-    placement seam and the operation root.
+    placement seam and the operation root. ``checkout_root`` (WP08, P-M3) is
+    the basis retained-candidate evidence paths are relativized against;
+    defaults to the operation root when the caller does not supply one.
     """
     operation_root = _operation_root(main_repo_root, owned)
+    evidence_root = checkout_root if checkout_root is not None else operation_root
     destination_ref = placement_seam(
         main_repo_root, mission_slug, owned=owned
     ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
@@ -1057,7 +1186,7 @@ def _adopt_or_allocate_review_cycle_locked(
     pending: list[_RetainedReviewCycleCandidate] = []
     committed: list[_RetainedReviewCycleCandidate] = []
     for candidate in candidates:
-        evidence_ref = _evidence_ref(operation_root, candidate.path)
+        evidence_ref = _evidence_ref(evidence_root, candidate.path)
         destination_bytes = _read_artifact_at_ref(
             operation_root, destination_ref, evidence_ref
         )
@@ -1261,21 +1390,20 @@ def create_rejected_review_cycle(
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
     safe_wp_id = _validate_segment("wp_id", wp_id)
-    # FR-001/FR-007 write-in-home: land the review-cycle artifact in its
-    # ``tasks/<wp>/`` home via the shared owner function (``_review_cycle_
-    # wp_dir`` -- deliberately still PRIMARY/WORK_PACKAGE_TASK-anchored; see
-    # that function's own docstring for the disclosed reason ADR 2026-08-03-1's
-    # full COORD-under-coord-topology flip is not yet shipped) — not a
-    # caller-derived, kind-blind join. This fixes both this direct
+    # FR-001/FR-003/FR-007 single-home write (WP08): land the review-cycle
+    # artifact in its ``tasks/<wp>/`` home via the WRITE-side resolver
+    # (:func:`_review_cycle_write_location`), never the READ-mode
+    # ``_review_cycle_wp_dir`` -- a coordination-routed, EMPTY Mission is
+    # materialized/seeded by ``write_dir`` here, rather than silently
+    # substituting the PRIMARY repository-root checkout (FR-014). Called
+    # exactly ONCE: ``write_dir`` may seed/materialize, and every downstream
+    # evidence-path computation reuses THIS SAME ``.checkout_root`` (P-M3) —
+    # never a second, independent derivation. This fixes both this direct
     # site AND the move-task ``--review-feedback-file`` caller (which passes
     # no pre-resolved dir), from this one edit.
-    operation_root = _operation_root(main_repo_root, owned)
-    sub_artifact_dir = _review_cycle_wp_dir(
-        main_repo_root,
-        safe_mission_slug,
-        safe_wp_slug,
-        owned=owned,
-    )
+    write_location = _review_cycle_write_location(main_repo_root, safe_mission_slug, owned=owned)
+    checkout_root = write_location.checkout_root
+    sub_artifact_dir = _review_cycle_write_dir(write_location, safe_wp_slug)
 
     resolved_body = _resolve_review_body(
         feedback_source=feedback_source,
@@ -1317,11 +1445,12 @@ def create_rejected_review_cycle(
                 body=resolved_body,
                 reproduction_command=reproduction_command,
                 owned=owned,
+                checkout_root=checkout_root,
             )
         )
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)
 
-    evidence_ref = _evidence_ref(operation_root, artifact_path)
+    evidence_ref = _evidence_ref(checkout_root, artifact_path)
     governed_destination_ref = placement_seam(
         main_repo_root, safe_mission_slug, owned=owned
     ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
@@ -1357,11 +1486,12 @@ def create_rejected_review_cycle(
                 cycle_number=artifact.cycle_number,
                 verdict=verdict,
                 owned=owned,
+                checkout_root=checkout_root,
             )
         except Exception as exc:
             persistence = _persistence_after_commit_exception(
                 exc,
-                operation_root=operation_root,
+                operation_root=checkout_root,
                 artifact_path=artifact_path,
                 evidence_ref=evidence_ref,
                 destination_ref=governed_destination_ref,

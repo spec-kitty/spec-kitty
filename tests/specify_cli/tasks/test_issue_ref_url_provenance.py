@@ -302,7 +302,6 @@ class TestWriteIssueMatrixThunk:
         result = write_issue_matrix(
             repo_root=tmp_path,
             mission_slug=_MISSION_SLUG,
-            feature_dir=feature_dir,
             rows={"#1726": IssueMatrixEntry(verdict="fixed", evidence_ref="commit abc123")},
             policy=_Policy(),
             actor="issue-verdict",
@@ -332,7 +331,6 @@ class TestWriteIssueMatrixThunk:
         result = write_issue_matrix(
             repo_root=tmp_path,
             mission_slug=_MISSION_SLUG,
-            feature_dir=feature_dir,
             rows={"#1726": IssueMatrixEntry(verdict="fixed", evidence_ref="commit abc123")},
             policy=_Policy(),
             actor="issue-verdict",

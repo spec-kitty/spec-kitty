@@ -69,6 +69,13 @@ from mission_runtime.lifecycle_phase import (
 )
 from mission_runtime.mission_resolver_port import MissionResolver
 
+# coord-artifact-single-home-01M3V4BE WP04 (T018, FR-003/FR-003a): the
+# write-location accessor's result/outcome value objects (WP03,
+# ``write_location.py``). Imported from the submodule directly (never the
+# package root) to avoid the same import cycle every other
+# ``mission_runtime`` cross-submodule import in this file avoids.
+from mission_runtime.write_location import Establishment, WriteLocation
+
 # Seam-B checkout-identity refusal (WP03, #3128 / FR-005) lives in
 # ``mission_runtime.checkout_identity`` and is surfaced on the package root via
 # ``mission_runtime/__init__.py``; consumers import it from there (see
@@ -164,10 +171,14 @@ def _refuse_owned_handle_mismatch(handle: str, owned: OwnedCheckout) -> None:
 # write kinds named by the ADR (ISSUE_MATRIX / TRACER_FILE /
 # ACCEPTANCE_MATRIX -- #3033 -- and REVIEW_CYCLE, ruled in below --
 # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04, T016, ADR 2026-08-03-1).
-# ``STATUS_STATE`` and ``DECISION_LOG`` are DELIBERATELY excluded -- their
-# post-consolidation resolution stays unchanged (SC-005 / C-005
-# non-regression). This is resolver-INTERNAL kind selection (the resolver
-# already keys on ``MissionArtifactKind`` for the existing
+# ``STATUS_STATE`` and ``DECISION_LOG`` are DELIBERATELY excluded from THIS
+# frozenset -- their post-consolidation READ resolution stays unchanged
+# (SC-005 / C-005 non-regression). ``STATUS_STATE``'s WRITE side gains a
+# separate, narrower short-circuit below
+# (``_is_published_write_short_circuit_kind``, the
+# `plan.design.published-status-state-write` ruling); ``DECISION_LOG`` has
+# no such exception on either side. This is resolver-INTERNAL kind selection
+# (the resolver already keys on ``MissionArtifactKind`` for the existing
 # ``_PRIMARY_ARTIFACT_KINDS`` split), never call-site kind-conditioning
 # (C-006 preserved).
 #
@@ -197,6 +208,32 @@ _E2_CONSOLIDATED_ELIGIBLE_KINDS: frozenset[MissionArtifactKind] = frozenset(
         MissionArtifactKind.REVIEW_CYCLE,
     }
 )
+
+
+# Operator ruling (`plan.design.published-status-state-write`,
+# coord-artifact-single-home-01M3V4BE WP14 cycle 2, B1): ``STATUS_STATE`` is
+# DELIBERATELY excluded from ``_E2_CONSOLIDATED_ELIGIBLE_KINDS`` above
+# (SC-005 non-regression governs the READ side, ``resolve_artifact_surface``
+# / :meth:`PlacementSeam.read_dir` -- UNCHANGED by this ruling), but a
+# PUBLISHED coordination Mission's STATUS_STATE WRITE (the retrospect /
+# agent-retrospect event-log append, FR-003 -- the only STATUS_STATE writer
+# that can run post-consolidation) has no coordination surface left once
+# consolidation tears the coordination branch down: the unconditional
+# coordination probe inside :func:`~specify_cli.coordination.coord_seed.
+# establish_coord_write_location` raises ``CoordinationBranchDeleted`` for
+# every one of those Missions, an unconditional crash on the normal
+# post-merge retrospective path. This predicate is the ONE shared
+# WRITE-side-only extension of D23's PUBLISHED/E2 short-circuit -- consumed
+# by BOTH :func:`resolve_placement_only` (the ``write_target`` / commit-ref
+# probe) and :meth:`PlacementSeam.write_dir` (the write-location accessor) --
+# so the directory a STATUS_STATE append lands in and the ref the commit
+# router commits it to can never disagree (no split-brain). ``DECISION_LOG``
+# stays excluded (ADR 2026-07-30-1 Decision 1 §6's "in-mission and not an E2
+# write target by design" rationale is untouched).
+def _is_published_write_short_circuit_kind(kind: MissionArtifactKind) -> bool:
+    """WRITE-side-only PUBLISHED/E2 short-circuit membership (D23 + the STATUS_STATE ruling above)."""
+    return kind in _E2_CONSOLIDATED_ELIGIBLE_KINDS or kind is MissionArtifactKind.STATUS_STATE
+
 
 # The ``ActionContextError`` code raised when a PUBLISHED (E2) mission's
 # CONSOLIDATED content is not present on the current checkout (FR-006
@@ -1956,10 +1993,14 @@ def resolve_placement_only(
     # fully-retired E2 mission whose coordination branch has ALSO been
     # cleaned up (#3033 T007). PRE_CONSOLIDATION and CONSOLIDATED (E1) fall
     # through completely UNCHANGED (#3076 regression floor, T012) — including
-    # for ``STATUS_STATE`` / ``DECISION_LOG``, which are never in the E2
-    # in-scope set (SC-005 non-regression).
+    # for ``DECISION_LOG``, which is never in the E2 in-scope set (SC-005
+    # non-regression). ``STATUS_STATE`` is the ONE write-side-only exception
+    # (the `plan.design.published-status-state-write` ruling above
+    # ``_is_published_write_short_circuit_kind``): its WRITE ref now joins
+    # this short-circuit so the commit router never re-probes a torn-down
+    # coordination branch for a PUBLISHED Mission's event-log append.
     phase = resolve_lifecycle_phase(mission_slug, repo_root, resolver=resolver)
-    if phase is LifecyclePhase.PUBLISHED and kind in _E2_CONSOLIDATED_ELIGIBLE_KINDS:
+    if phase is LifecyclePhase.PUBLISHED and _is_published_write_short_circuit_kind(kind):
         return _resolve_consolidated_e2_target(repo_root, mission_slug, resolver=resolver)
 
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here, exactly
@@ -2342,6 +2383,13 @@ class PlacementSeam:
         verbatim (NFR-002 forbids only *undeclared* fallbacks, not these
         declared ones).
 
+        This is the READ side only (coord-artifact-single-home-01M3V4BE WP04,
+        FR-017): a writer never substitutes ``read_dir``'s declared EMPTY /
+        UNMATERIALIZED primary fallback for a real coordination write. The
+        write side is :meth:`write_dir`, which materializes an
+        UNMATERIALIZED local head, seeds or restores an EMPTY surface, or
+        refuses — it never silently writes into the root checkout instead.
+
         Identical *raising* is NOT identical *anchoring*.
         :func:`resolve_artifact_surface` applies
         :func:`~specify_cli.core.paths.get_main_repo_root` to ``repo_root``
@@ -2374,6 +2422,134 @@ class PlacementSeam:
             kind,
             owned=self.owned,
         ).path
+
+    def write_dir(self, kind: MissionArtifactKind) -> WriteLocation:
+        """Where a WRITE of ``kind`` for this Mission must land (contracts/write-location-accessor.md).
+
+        The ONE sanctioned extension to this seam (C-001 / DIRECTIVE_044),
+        beside :meth:`write_target` (which ref) and :meth:`read_dir` (where a
+        READ lands). Agrees with :meth:`write_target` by construction: a
+        ``surface="coordination"`` result's ``path`` sits inside the
+        coordination worktree whose checked-out branch is
+        ``write_target(kind).ref`` (pinned by a property test over every
+        kind x topology, T020).
+
+        Resolution order (every arm is checked against the SAME
+        materialization-blind :func:`declared_read_surface` decision
+        :meth:`read_dir` already consults — no second, competing
+        classification):
+
+        * **Declared PRIMARY** — a PRIMARY-partition kind, OR any kind on a
+          non-coordination topology (``lanes`` / ``single_branch``) —
+          byte-identical to :meth:`read_dir` (C-008): no side effects, no
+          coordination probe.
+        * **PUBLISHED / E2** (research D23, plus the ``STATUS_STATE`` write
+          ruling `plan.design.published-status-state-write` —
+          :func:`_is_published_write_short_circuit_kind`) — a COORD-partition
+          kind that is E2-eligible (``REVIEW_CYCLE`` / ``TRACER_FILE`` /
+          ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``) **or** ``STATUS_STATE`` of
+          a mission whose :class:`~mission_runtime.lifecycle_phase.
+          LifecyclePhase` is ``PUBLISHED`` — the PRIMARY Mission dir on the
+          repository-root checkout, composed WITHOUT any coordination-state
+          probe. Checked BEFORE delegating, so a PUBLISHED mission whose
+          coordination branch has since been torn down by consolidation can
+          never raise :class:`~specify_cli.coordination.surface_resolver.
+          CoordinationBranchDeleted` here and is never written into a
+          torn-down coordination worktree. ``DECISION_LOG`` is deliberately
+          NOT included (SC-005 non-regression; it is in-mission-only by
+          design, ADR 2026-07-30-1 Decision 1 §6).
+        * **Every other COORD kind of a coordination-routed Mission** —
+          delegates (lazy import over the existing ``coordination``
+          outbound-ledger edge, same edge RETROSPECTIVE's
+          ``resolve_retrospective_home`` delegate above uses) to the single
+          write authority,
+          :func:`~specify_cli.coordination.coord_seed.establish_coord_write_location`
+          (research D1/D22), which materializes an UNMATERIALIZED local-head
+          worktree, then seeds a pre-fix EMPTY surface or restores a
+          post-fix one, or refuses. Its exceptions propagate UNCHANGED:
+          :class:`~specify_cli.coordination.surface_resolver.
+          CoordinationBranchDeleted` and :class:`~specify_cli.coordination.
+          surface_resolver.CoordinationWorktreeUnmaterialized` are
+          :class:`~specify_cli.missions._read_path_resolver.
+          StatusReadPathNotFound` subclasses, NOT :class:`ActionContextError`
+          — a caller that catches only the latter must catch these too.
+          ``CoordSeedForkRefused`` and a ``STATUS_LOCK_HELD``-coded
+          :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError`
+          also propagate unchanged.
+
+        Never calls :meth:`write_target` or constructs a ``CommitTarget``
+        itself (the write-side re-derivation guard,
+        ``test_no_write_side_rederivation.py``) — the coordination branch
+        ref is the accessor's own concern, not this seam's.
+        """
+        declared = declared_read_surface(self.repo_root, self.mission_slug, kind, owned=self.owned)
+        if declared is TopologySurface.PRIMARY:
+            return self._declared_primary_write_dir(kind)
+        if _is_published_write_short_circuit_kind(kind):
+            phase = resolve_lifecycle_phase(self.mission_slug, self.repo_root, resolver=None)
+            if phase is LifecyclePhase.PUBLISHED:
+                return self._published_e2_write_dir()
+        from specify_cli.coordination.coord_seed import establish_coord_write_location
+
+        # Explicit ``WriteLocation`` annotation: under the project's
+        # ``follow_imports = "skip"`` mypy config the cross-module
+        # ``establish_coord_write_location`` return is seen as ``Any``; the
+        # annotation re-narrows it (the function IS typed ``-> WriteLocation``)
+        # -- matching the sibling ``_planning_read_dir`` chokepoint pattern.
+        location: WriteLocation = establish_coord_write_location(self.repo_root, self.mission_slug, kind, owned=self.owned)
+        return location
+
+    def _declared_primary_write_dir(self, kind: MissionArtifactKind) -> WriteLocation:
+        """The declared-PRIMARY :meth:`write_dir` result: identical to :meth:`read_dir` (C-008).
+
+        ``checkout_root`` is the re-anchored main repo root (never
+        ``self.repo_root`` verbatim, which would disagree with ``path`` when
+        called from a lane worktree), or ``owned.owned_root`` for an owned
+        Mission — the same re-anchor :meth:`read_dir` already performs via
+        ``get_main_repo_root`` (binding correction, round 3).
+        """
+        from specify_cli.core.paths import get_main_repo_root
+
+        checkout_root = self.owned.owned_root if self.owned is not None else get_main_repo_root(self.repo_root)
+        return WriteLocation(
+            path=self.read_dir(kind),
+            checkout_root=checkout_root,
+            surface=TopologySurface.PRIMARY,
+            coord_state_before=None,
+            establishment=Establishment.NONE,
+        )
+
+    def _published_e2_write_dir(self) -> WriteLocation:
+        """The PUBLISHED/E2 :meth:`write_dir` result (research D23).
+
+        Composes the PRIMARY Mission dir the SAME way
+        :func:`resolve_artifact_surface` does for its own ``primary_dir``
+        (:func:`~specify_cli.missions._read_path_resolver.
+        resolve_planning_read_dir` plus the :func:`_backfilled_primary_dir`
+        idempotence correction) — never a second, independent composition —
+        but WITHOUT that function's subsequent coordination-state
+        classification, so this can never reach :func:`probe_coord_state`
+        and can never raise against a coordination branch consolidation has
+        already torn down.
+        """
+        from specify_cli.core.paths import get_main_repo_root
+        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+        primary_root = get_main_repo_root(self.repo_root)
+        primary_dir: Path = resolve_planning_read_dir(
+            primary_root,
+            self.mission_slug,
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+        )
+        recovered = _backfilled_primary_dir(primary_root, self.mission_slug, primary_dir, resolver=None)
+        path = recovered if recovered is not None else primary_dir
+        return WriteLocation(
+            path=path,
+            checkout_root=primary_root,
+            surface=TopologySurface.PRIMARY,
+            coord_state_before=None,
+            establishment=Establishment.NONE,
+        )
 
 
 @dataclass(frozen=True)
@@ -2437,7 +2613,10 @@ class ResolvedSurface:
     """A resolved surface plus the stamp naming which physical tree it is (C6).
 
     The output of :func:`resolve_artifact_surface`: ``path`` is where the artifact
-    is read/written; ``surface_kind`` is the :class:`TopologySurface` stamp a
+    is READ (coord-artifact-single-home-01M3V4BE WP04, FR-017: the write side
+    is :meth:`PlacementSeam.write_dir`, which materializes/seeds/restores/
+    refuses — it never substitutes this read-side surface for a real
+    coordination write); ``surface_kind`` is the :class:`TopologySurface` stamp a
     recorded judgement names (NFR-003 / contract GEC-3). Per GEC-5 a ``PRIMARY``
     stamp on a *substituted* surface (the ``EMPTY`` / ``UNMATERIALIZED`` create
     window) is visible, not authoritative — the consuming gate decides whether the
@@ -2652,7 +2831,13 @@ def resolve_artifact_surface(
     resolver: MissionResolver | None = None,
     owned: OwnedCheckout | None = None,
 ) -> ResolvedSurface:
-    """Resolve the affirmative read/write surface for a mission artifact ``kind``.
+    """Resolve the affirmative READ surface for a mission artifact ``kind``.
+
+    coord-artifact-single-home-01M3V4BE WP04 (FR-017): read side only. The
+    write side is :meth:`PlacementSeam.write_dir`, which materializes a
+    coordination worktree, seeds or restores an EMPTY surface, or refuses —
+    it never substitutes this function's declared PRIMARY fallback for a
+    real coordination write.
 
     The stamped face of the surface→filesystem seam (data-model.md "ArtifactHome"
     AH-1/AH-2, contract GEC-3 / C3 — the four-``CoordState`` answer set). Consumes

@@ -607,12 +607,18 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
     _mr_emit_output as _mr_emit_output,
     _mr_gate_offenders as _mr_gate_offenders,
     _mr_plan as _mr_plan,
+    # coord-artifact-single-home-01M3V4BE WP08 (FR-007/SC-003): refused-surface
+    # rendering + the additive `surfaces` JSON payload, re-exported per the
+    # compat surface guard.
+    _mr_render_refused_surfaces as _mr_render_refused_surfaces,
     _mr_resolve_context as _mr_resolve_context,
     _mr_resolve_read_dirs as _mr_resolve_read_dirs,
     # #2991: grammar-backed sorted spec-id helper, re-exported per the
     # compat surface guard.
     _mr_sorted_spec_ids as _mr_sorted_spec_ids,
     _mr_stale_gate as _mr_stale_gate,
+    _mr_surface_needs_warning as _mr_surface_needs_warning,
+    _mr_surfaces_payload as _mr_surfaces_payload,
     _mr_unknown_wp_gate as _mr_unknown_wp_gate,
     _mr_validate_modes as _mr_validate_modes,
     _mr_write_frontmatter as _mr_write_frontmatter,
@@ -1214,11 +1220,21 @@ from specify_cli.cli.commands.agent.tasks_finalize import (
     _default_finalize_ports as _default_finalize_ports,
     _do_finalize_tasks as _do_finalize_tasks,
     _ft_apply_writes as _ft_apply_writes,
+    _ft_emit_status_events as _ft_emit_status_events,
     _ft_output as _ft_output,
     _ft_resolve_context as _ft_resolve_context,
     _ft_validate as _ft_validate,
     _ft_validate_occurrence_map_ready as _ft_validate_occurrence_map_ready,
+    _tasks_bootstrap_canonical_state as _tasks_bootstrap_canonical_state,
 )
+
+# coord-artifact-single-home-01M3V4BE WP15 (T080): the STATUS-partition WRITE
+# leg (``_ft_emit_status_events``) now resolves
+# ``mission_runtime.placement_seam(...).write_dir(STATUS_STATE)`` — the single
+# write-location authority (``contracts/write-location-accessor.md``) — not
+# the READ projection the comment above this import block still correctly
+# describes for ``list_tasks``/``validate_workflow``'s own read-only call
+# sites.
 
 
 @app.command(name="finalize-tasks")

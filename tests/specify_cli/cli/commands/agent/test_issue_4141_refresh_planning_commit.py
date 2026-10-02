@@ -32,9 +32,11 @@ SHAs), mirroring ``test_finalize_provenance_guard.py``'s harness:
   a recorded SHA that DIVERGED from the branch (a real commit on a side
   branch, not a fake string) is refused — ``lanes.json`` is left untouched
   and the refusal names the divergence.
-* ``test_preserve_path_warns_on_drift_without_flag`` — the detect-and-offer
-  half: the default (no-flag) run still preserves (#3311) but now WARNS that
-  the branch has advanced and names ``--refresh-planning-commit``.
+* ``test_preserve_path_warns_on_drift_without_flag`` — SUPERSEDED by
+  coord-artifact-single-home-01M3V4BE WP15 / FR-012: the default (no-flag)
+  run now AUTO-REFRESHES an ADVANCED pin when a genuine planning change
+  landed, instead of merely preserving-and-warning. See the test's own
+  docstring.
 """
 
 from __future__ import annotations
@@ -324,6 +326,20 @@ def test_refresh_refused_when_recorded_sha_not_ancestor(tmp_path: Path) -> None:
 
 
 def test_preserve_path_warns_on_drift_without_flag(tmp_path: Path) -> None:
+    """Superseded by coord-artifact-single-home-01M3V4BE WP15 / FR-012.
+
+    Before WP15, a no-flag re-finalize after execution began PRESERVED the
+    recorded ``planning_commit_sha`` unconditionally (#3311) and only WARNED
+    that the branch had advanced, naming ``--refresh-planning-commit`` as the
+    manual recovery. FR-012 makes that refresh AUTOMATIC by default whenever
+    a PRIMARY planning file genuinely changed since the pin (an ADVANCED,
+    provably-safe pin): the no-flag run now refreshes the pin itself and
+    reports ``action: "refreshed"``, exactly like the explicit-flag path
+    (``test_refresh_repoints_recorded_sha_to_amended_tip`` above) -- the flag
+    is no longer required for this healthy-advance case. See
+    ``test_finalize_tasks_commit_surface.py::test_finalize_refreshes_planning_commit_sha_by_default``
+    for the canonical red-first reproduction.
+    """
     mission_slug = "066-lane-feature"
     feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
     _git_init_with_first_commit(tmp_path)
@@ -337,13 +353,14 @@ def test_preserve_path_warns_on_drift_without_flag(tmp_path: Path) -> None:
     recorded_tip = established.planning_commit_sha
     assert recorded_tip is not None
 
-    # Execution begins, then the planning branch advances (an amendment the
-    # operator has NOT yet chosen to re-point to).
+    # Execution begins, then the planning branch advances (a genuine planning
+    # amendment the operator has NOT passed any flag for).
     _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
     amended_tip = _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
 
-    # Run 2: NO flag — the #3311 preserve behavior must hold, but the drift
-    # (recorded SHA vs branch tip) must be surfaced with the recovery command.
+    # Run 2: NO flag — FR-012's default automatic refresh advances the pin to
+    # the amended tip and reports the refresh, exactly as an explicit
+    # ``--refresh-planning-commit`` would for this same ADVANCED-pin shape.
     buf = io.StringIO()
     human_console = Console(file=buf, force_terminal=False, width=200)
     human_patches = {**patches, f"{SEAM}.console": human_console}
@@ -351,13 +368,12 @@ def test_preserve_path_warns_on_drift_without_flag(tmp_path: Path) -> None:
 
     after = read_lanes_json(feature_dir)
     assert after is not None
-    assert after.planning_commit_sha == recorded_tip, (
-        f"without --refresh-planning-commit the #3311 preserve behavior must hold; planning_commit_sha went {recorded_tip!r} -> {after.planning_commit_sha!r}"
+    assert after.planning_commit_sha == amended_tip, (
+        "FR-012's default automatic refresh must advance the pin to the amended tip; "
+        f"planning_commit_sha went {recorded_tip!r} -> {after.planning_commit_sha!r} (expected {amended_tip!r})"
     )
     console_out = buf.getvalue()
-    assert "--refresh-planning-commit" in console_out, (
-        f"a preserved SHA against a moved branch tip must name the --refresh-planning-commit recovery command; console: {console_out!r}"
-    )
+    assert "Refreshed planning_commit_sha" in console_out, f"the default refresh must report the refresh; console: {console_out!r}"
     assert recorded_tip in console_out and amended_tip in console_out
 
 
@@ -427,3 +443,168 @@ def test_refresh_noop_reports_human_success_without_json(tmp_path: Path) -> None
     assert _git(tmp_path, "rev-parse", "planning") == before_tip
     after = read_lanes_json(feature_dir)
     assert after is not None and after.planning_commit_sha == recorded_tip
+
+
+def test_refresh_reports_human_success_renders_surfaces_before_sha_decision(tmp_path: Path) -> None:
+    """B10 (cycle 2): the explicit-refresh text-mode SUCCESS arm renders
+    ``commit_outcome.rendered_lines`` (the shared commit-outcome trio) BEFORE
+    the sha-decision line -- never only the bare sha-decision message.
+    """
+    from specify_cli.coordination.commit_outcome import SurfaceOutcome
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission_slug = "070-human-refresh-surfaces"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path)
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    _run_finalize(mission_slug, patches)
+    established = read_lanes_json(feature_dir)
+    assert established is not None and established.planning_commit_sha is not None
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    _amend_wp01_owned_files(feature_dir)
+    _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
+
+    surfaced_result = CommitRouterResult(
+        status="committed",
+        placement_ref="planning",
+        commit_hash="def5678",
+        surfaces=(
+            SurfaceOutcome(
+                surface="primary",
+                branch="planning",
+                status="committed",
+                commit_hash="def5678",
+                committed=("kitty-specs/070-human-refresh-surfaces/lanes.json",),
+            ),
+        ),
+    )
+    buf = io.StringIO()
+    human_console = Console(file=buf, force_terminal=False, width=200)
+    human_patches = {
+        **patches,
+        f"{SEAM}.console": human_console,
+        "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(return_value=surfaced_result),
+    }
+    _run_finalize(mission_slug, human_patches, refresh=True, json_output=False)
+
+    console_out = buf.getvalue()
+    surface_index = console_out.find("primary (planning): committed def5678")
+    decision_index = console_out.find("Refreshed planning_commit_sha")
+    assert surface_index != -1, f"the rendered surface line must be printed; console: {console_out!r}"
+    assert decision_index != -1, f"the sha-decision line must still be printed; console: {console_out!r}"
+    assert surface_index < decision_index, "surface lines must render BEFORE the sha-decision line"
+
+
+def test_refresh_refusal_renders_surfaces_before_the_refusal_error(tmp_path: Path) -> None:
+    """B10 (cycle 2): a refused pin-refresh commit ALSO renders the shared
+    commit-outcome surfaces before raising -- never a silent, surfaces-blind
+    refusal.
+    """
+    from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission_slug = "071-human-refresh-refused"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path)
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    _run_finalize(mission_slug, patches)
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    _amend_wp01_owned_files(feature_dir)
+    _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
+
+    refused_result = CommitRouterResult(
+        status="error",
+        placement_ref="planning",
+        diagnostic="boom",
+        surfaces=(
+            SurfaceOutcome(
+                surface="primary",
+                branch="planning",
+                status="error",
+                commit_hash=None,
+                refused=(PathFate(path="lanes.json", reason="boom"),),
+                diagnostic="boom",
+            ),
+        ),
+    )
+    buf = io.StringIO()
+    human_console = Console(file=buf, force_terminal=False, width=200)
+    human_patches = {
+        **patches,
+        f"{SEAM}.console": human_console,
+        "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(return_value=refused_result),
+    }
+    _run_finalize(mission_slug, human_patches, refresh=True, json_output=False)
+
+    console_out = buf.getvalue()
+    assert "lanes.json" in console_out, f"the refused surface must be rendered; console: {console_out!r}"
+    assert "primary lanes.json commit failed" in console_out or "boom" in console_out, f"the refusal error must still be reported; console: {console_out!r}"
+
+
+def test_refresh_refuses_when_legacy_status_is_committed_but_a_surface_is_refused(tmp_path: Path) -> None:
+    """C2-2 (WP15 cycle 3): the pin-refresh consumer's refusal decision comes
+    from ``commit_outcome_exit_code`` (contract rule 5: nonzero iff ANY
+    surface is refused/error), never the legacy top-level ``result.status``
+    alone. A router result can report the legacy ``status="committed"``
+    while still naming a refused surface (the same "legacy status lies"
+    shape WP13's review already pinned for the main commit pipeline) -- the
+    pin-refresh path must refuse, restore the pre-refresh ``lanes.json``,
+    and exit non-zero even though ``result.status == "committed"``.
+
+    Kills the mutation ``if commit_outcome_exit_code(result) != 0:`` ->
+    ``if result.status not in ("committed",):`` in
+    ``_finalize_pin_refresh_commit_outcome``: under that mutation this test
+    would observe a SUCCESSFUL refresh (the legacy status reads
+    "committed"), not a refusal.
+    """
+    from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    mission_slug = "072-human-refresh-legacy-status-lies"
+    feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+    _git_init_with_first_commit(tmp_path)
+
+    patches = _base_patches(tmp_path, mission_slug, feature_dir)
+    _run_finalize(mission_slug, patches)
+    established = read_lanes_json(feature_dir)
+    assert established is not None and established.planning_commit_sha is not None
+    recorded_before = established.planning_commit_sha
+
+    _seed_execution_begun_event(tmp_path, mission_slug, "WP01")
+    _amend_wp01_owned_files(feature_dir)
+    _git_commit_marker(tmp_path, "AMENDMENT.txt", "planning amendment")
+
+    legacy_status_lies_result = CommitRouterResult(
+        status="committed",
+        placement_ref="planning",
+        commit_hash="def9999",
+        surfaces=(
+            SurfaceOutcome(
+                surface="primary",
+                branch="planning",
+                status="refused",
+                commit_hash=None,
+                refused=(PathFate(path="lanes.json", reason="STATUS_LOCK_HELD"),),
+                diagnostic="status lock held by another writer",
+            ),
+        ),
+    )
+    emitted: list[dict[str, object]] = []
+    json_patches = {
+        **patches,
+        f"{SEAM}._emit_json": emitted.append,
+        "specify_cli.coordination.commit_router.commit_for_mission": MagicMock(return_value=legacy_status_lies_result),
+    }
+    _run_finalize(mission_slug, json_patches, refresh=True, json_output=True)
+
+    assert any("error" in payload for payload in emitted), (
+        f"a refused surface must refuse the refresh even though result.status == 'committed'; emitted={emitted!r}"
+    )
+    after = read_lanes_json(feature_dir)
+    assert after is not None and after.planning_commit_sha == recorded_before, (
+        f"a refused surface must leave lanes.json untouched; went {recorded_before!r} -> {after.planning_commit_sha if after else None!r}"
+    )

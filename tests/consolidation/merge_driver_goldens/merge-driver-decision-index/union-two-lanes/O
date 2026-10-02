@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-01-01T00:00:00Z",
+      "decision_id": "01HBASE0000000000000000000",
+      "final_answer": null,
+      "input_key": "key-01HBASE0000000000000000000",
+      "mission_id": "m-01ABCDEFGHJKMNPQRSTVWXYZ0",
+      "mission_slug": "m-01ABCDEFGHJKMNPQRSTVWXYZ0",
+      "opened_by": null,
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Base decision?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": null,
+      "status": "open",
+      "step_id": "specify.step1",
+      "summary_json": null
+    }
+  ],
+  "mission_id": "m-01ABCDEFGHJKMNPQRSTVWXYZ0",
+  "version": 1
+}

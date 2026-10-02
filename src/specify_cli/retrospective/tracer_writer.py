@@ -46,18 +46,25 @@ import hashlib
 from kernel.clock import date, now_utc
 from pathlib import Path
 
+import logging
+
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 
+from specify_cli.coordination.commit_outcome import render_commit_outcome
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.coordination.write_seam import (
     ProtectionPolicyLike,
     WriteSeamResult,
     write_artifact,
 )
-from specify_cli.missions._read_path_resolver import (
-    StatusReadPathNotFound,
-    candidate_feature_dir_for_mission,
-)
+from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+logger = logging.getLogger(__name__)
+
+#: WP10 (D8 "discarded-result" rule): statuses whose surface the caller never
+#: committed/changed -- the ones worth a WARNING so a best-effort or silent
+#: caller still sees the discarded outcome.
+_NOTEWORTHY_SURFACE_STATUSES = frozenset({"refused", "error"})
 
 __all__ = [
     "TRACER_CATEGORIES",
@@ -197,21 +204,30 @@ def _read_current_coord_content(
 
 
 def _local_staging_path(repo_root: Path, mission_slug: str, filename: str) -> Path:
-    # Routes through the canonical topology-aware read primitive (C-005/FR-002,
-    # test_single_mission_surface_resolver.py) instead of a raw mission-spec-dir
-    # join built by hand -- matching the sibling ``retrospective/summary.py``
-    # staging-path pattern (same package, same "candidate dir + local subpath"
-    # shape). This primitive never requires the
-    # dir to exist yet -- it returns the best-known candidate -- so it resolves
-    # even before the mission's ``traces/`` subdir exists locally; the caller
-    # creates ``parent`` before writing.
-    # Explicit ``Path`` annotation: under the project's ``follow_imports = "skip"``
-    # mypy config, ``candidate_feature_dir_for_mission`` (cross-module) is seen
-    # as returning ``Any`` when this file is type-checked in isolation; the
-    # annotation re-narrows it back to ``Path`` (matching the sibling
-    # ``mission_repair.py``/former-``KITTY_SPECS_DIR`` join convention here).
-    feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-    return feature_dir / _TRACES_DIRNAME / filename
+    """Resolve the WRITE-side Mission dir for a tracer finding (T055, single-home rule).
+
+    Routes through :meth:`~mission_runtime.PlacementSeam.write_dir`
+    (``MissionArtifactKind.TRACER_FILE``) -- the one write-location authority
+    (``contracts/write-location-accessor.md``) -- instead of the READ
+    resolver ``candidate_feature_dir_for_mission`` this module used before
+    (the stage-in-root-then-copy pattern the single-home rule forbids;
+    WP20's census entry for this qualname). For a coordination-routed,
+    coord-partition kind this lands the write directly on the coordination
+    Mission dir (or materializes/seeds/restores it, per the accessor's own
+    contract); for ``lanes``/``single_branch`` it is byte-identical to the
+    PRIMARY dir (C-008).
+
+    MUST be called from inside a ``write_artifact`` ``stage=`` thunk ONLY
+    (never eagerly before the routability probe) -- a ``write_dir`` call can
+    materialize/seed a coordination surface, which must never happen on a
+    write that ``write_artifact``'s own probe is about to refuse (#3073
+    zero-residue property).
+
+    ``append_tracer_finding`` has no ``owned`` parameter (binding correction,
+    brownfield scout round 3), so this never threads one through.
+    """
+    location = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.TRACER_FILE)
+    return location.path / _TRACES_DIRNAME / filename
 
 
 def _entry_id(category: str, entry_line: str) -> str:
@@ -274,28 +290,32 @@ def append_tracer_finding(
     resolved_date = entry_date if entry_date is not None else now_utc().date()
     entry_line = _format_entry_line(entry_date=resolved_date, actor=actor, entry=entry)
 
-    current_content = _read_current_coord_content(repo_root, mission_slug, filename)
-    base_content = current_content or _default_header(category)
-    merged_content = (
-        base_content
-        if _entry_present(base_content, entry_line)
-        else _append_entry(base_content, entry_line)
-    )
-
-    local_path = _local_staging_path(repo_root, mission_slug, filename)
-
     def _stage() -> tuple[Path, ...]:
-        # T015 (WP04 / #3073 / FR-005): the mkdir+write_text moves INTO the
-        # thunk -- write_artifact's single locus invokes this ONLY after the
-        # routability probe succeeds, so a refused write (e.g. FR-006
-        # off-checkout, or a genuinely unroutable mission) never touches disk
-        # and leaves zero untracked residue. Previously this ran eagerly,
-        # before the probe -- the #3073 defect this migration closes.
+        # T015/T055 (#3073 / FR-005 / single-home rule): BOTH the write-dir
+        # resolution (which can materialize/seed a coordination surface) and
+        # the read-before-write merge move INTO this thunk -- write_artifact's
+        # single locus invokes it ONLY after the routability probe succeeds,
+        # so a refused write never touches disk, never materializes a
+        # worktree, and leaves zero untracked residue. ``_local_staging_path``
+        # now resolves the OWNING (write_dir) location directly -- the file
+        # lands there IN PLACE, never staged in the repository root checkout
+        # first (the binding correction's "tracer read before write" hazard:
+        # ``_read_current_coord_content`` must run AFTER ``write_dir`` has
+        # already materialized/seeded, or it would see a stale/absent surface
+        # and clobber real content with a from-scratch header).
+        local_path = _local_staging_path(repo_root, mission_slug, filename)
+        current_content = _read_current_coord_content(repo_root, mission_slug, filename)
+        base_content = current_content or _default_header(category)
+        merged_content = (
+            base_content
+            if _entry_present(base_content, entry_line)
+            else _append_entry(base_content, entry_line)
+        )
         local_path.parent.mkdir(parents=True, exist_ok=True)
         local_path.write_text(merged_content, encoding="utf-8")
         return (local_path,)
 
-    return write_artifact(
+    result = write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
         kind=MissionArtifactKind.TRACER_FILE,
@@ -304,5 +324,24 @@ def append_tracer_finding(
         policy=policy,
         entry_id=_entry_id(category, entry_line),
         target_branch=target_branch,
-        primary_paths_created_this_invocation=frozenset({local_path}),
+        # T055 step 2: the write now lands IN PLACE at write_dir(TRACER_FILE)
+        # -- nothing is created in the repository root checkout as staging
+        # residue, so there is nothing for R6 cleanup to reclaim.
+        primary_paths_created_this_invocation=frozenset(),
     )
+    _warn_on_discarded_surfaces(result)
+    return result
+
+
+def _warn_on_discarded_surfaces(result: WriteSeamResult) -> None:
+    """D8 "discarded-result" rule: log a WARNING for a non-committed/unchanged surface.
+
+    ``append_tracer_finding`` is called by both the CLI (which renders the
+    outcome to the operator) and non-CLI callers (which may discard the
+    result) -- this ensures a skipped/refused surface is never silent even
+    when the caller does not render it itself.
+    """
+    if not any(surface.status in _NOTEWORTHY_SURFACE_STATUSES for surface in result.surfaces):
+        return
+    for line in render_commit_outcome(result):
+        logger.warning("append_tracer_finding: %s", line)

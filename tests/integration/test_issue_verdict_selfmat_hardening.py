@@ -2,14 +2,25 @@
 
 Two halves land together (see ``work/epic-5001-research/followup-paula.md`` §2/§3):
 
-* FR-006 — the S-C coord write gate refuses a self-materialization write onto a
-  stale local-head coord branch that already carries committed matrix rows, so a
-  second ``issue-verdict`` from an UNMATERIALIZED coord surface can no longer
-  clobber committed coordination state.
+* FR-006 (ORIGINAL, epic-5001) — the S-C coord write gate refused a
+  self-materialization write onto a stale local-head coord branch that already
+  carried committed matrix rows, so a second ``issue-verdict`` from an
+  UNMATERIALIZED coord surface could not clobber committed coordination state.
+  **Superseded by D22** (coord-artifact-single-home-01M3V4BE, WP03/WP04,
+  already approved in this lane): ``write_dir`` (``establish_coord_write_
+  location``) absorbs this decision and SELF-MATERIALIZES that exact shape
+  instead of refusing it — "the branch already carries the kind" is the normal
+  post-fix shape once every coord write seeds the surface (WP06+), not a
+  corruption signal. The no-clobber guarantee is preserved (committed rows
+  survive self-materialization); only the "refuse" half of FR-006 is retired.
+  See ``test_second_verdict_from_stale_coord_preserves_committed_rows`` below,
+  re-pinned to D22 (WP05, declared out-of-map, owner WP03/D22).
 * FR-007 — ``do_issue_verdict`` resolves its write surface through the fail-closed
   ``resolve_for_write`` up-front (translating ``ActionContextError`` →
   ``IssueVerdictError``), instead of silently degrading its read to the primary
-  surface and relying on the tail write-seam gate to catch the clobber.
+  surface and relying on the tail write-seam gate to catch the clobber. This
+  still holds for every OTHER named refusal (e.g. a remote-only unmaterialized
+  coordination branch); only the stale-local-head shape changed meaning (D22).
 
 These are INTEGRATION tests: they drive the REAL write-seam
 (``do_issue_verdict`` → ``write_issue_matrix`` → ``commit_for_mission``) against a
@@ -29,10 +40,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology
-from specify_cli.cli.commands.agent.issue_verdict import (
-    IssueVerdictError,
-    do_issue_verdict,
-)
+from specify_cli.cli.commands.agent.issue_verdict import do_issue_verdict
 
 # Reused verbatim — do NOT duplicate the coord/flat fixture-construction sequences.
 from tests.integration.test_accept_matrix_coord_partition import (
@@ -72,8 +80,22 @@ def _coord_branch(repo_root: Path, slug: str) -> str:
 
 
 def test_second_verdict_from_stale_coord_preserves_committed_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """FR-006/#4970 core: unmaterialize a coord branch that carries #1111, then a
-    second ``issue-verdict`` must REFUSE (fail-closed) and leave #1111 intact."""
+    """D22 (``write_dir`` absorbs the coordination write gate, C-001): an
+    UNMATERIALIZED coord branch with a local head (carrying #1111) is no longer a
+    refusal state -- ``write_dir`` self-materializes it, then both #1111 and the
+    new #2222 land, never clobbering.
+
+    Re-pinned (WP05, declared out-of-map, owner WP03/D22). This test originally
+    pinned the OLD ``assert_coord_write_materialized`` gate's refusal for this
+    exact shape (introduced at WP03 ``1da5a87eaa``, pre-dating this mission's
+    research). Research D22 deliberately REMOVED that refusal: "the branch already
+    carries the kind" is the NORMAL post-fix shape after this mission's seeding
+    (WP06+), not a corruption signal, so the write-side decision folds into
+    ``write_dir`` (``establish_coord_write_location``, coord-artifact-single-home-
+    01M3V4BE WP03/WP04, already approved earlier in this lane) instead of refusing.
+    The production behaviour already matches D22 (confirmed: this call no longer
+    raises); only this test's assertion was stale.
+    """
     result, coord_root, _coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
     slug = result.mission_slug
     coord_branch = _coord_branch(tmp_path, slug)
@@ -89,14 +111,15 @@ def test_second_verdict_from_stale_coord_preserves_committed_rows(tmp_path: Path
     assert removed.returncode == 0, removed.stderr
     assert not coord_root.exists(), "coord worktree must be unmaterialized for the repro"
 
-    # A second verdict from the unmaterialized surface must fail CLOSED, not clobber.
-    with pytest.raises(IssueVerdictError) as excinfo:
-        do_issue_verdict(mission=slug, issue="#2222", verdict="fixed", actor="tester", wp="WP01", repo_root=tmp_path)
-    assert excinfo.value.code == "coord_surface_unmaterialized", excinfo.value.code
+    # D22: a second verdict from the stale local-head coord self-materializes via
+    # write_dir and SUCCEEDS -- it no longer refuses.
+    second = do_issue_verdict(mission=slug, issue="#2222", verdict="fixed", actor="tester", wp="WP01", repo_root=tmp_path)
+    assert second["ok"] is True, second
+    assert coord_root.exists(), "write_dir must self-materialize the coordination worktree (D22)"
 
-    # The committed coordination surface is intact — #1111 survives, #2222 never landed.
+    # Both the pre-existing committed row and the new one survive -- no clobber.
     rows = _coord_committed_rows(tmp_path, coord_branch, slug)
-    assert rows == {"#1111"}, f"a refusal must leave the committed coord surface intact, got {sorted(rows)}"
+    assert rows == {"#1111", "#2222"}, f"self-materialization must preserve #1111 and land #2222, got {sorted(rows)}"
 
 
 # ===========================================================================

@@ -16,6 +16,8 @@ from typing import Annotated
 
 import typer
 
+from rich.markup import escape
+
 from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.core.paths import (
@@ -23,7 +25,13 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     locate_project_root,
 )
+from specify_cli.coordination.commit_outcome import (
+    commit_outcome_exit_code,
+    commit_outcome_payload,
+    render_commit_outcome,
+)
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+from specify_cli.coordination.write_seam import WriteSeamResult
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.retrospective.tracer_writer import (
     TRACER_CATEGORIES,
@@ -51,13 +59,39 @@ def _emit(payload: dict[str, object], *, json_output: bool, ok: bool) -> None:
         print(RealRender().json_envelope(payload))
         return
     if ok:
-        console.print(f"[green]✓[/green] {payload.get('row_or_entry_ref', '')}")
+        # WP10 cycle 2 (B1 sibling): ``row_or_entry_ref``/``error`` are
+        # computed from caller-controlled diagnostics (git error text, path
+        # segments, ...) and interpolated into a Rich-styled f-string --
+        # ``escape()`` neutralises any bracketed substring that would
+        # otherwise be parsed as a (potentially unbalanced) markup tag.
+        console.print(f"[green]✓[/green] {escape(str(payload.get('row_or_entry_ref', '')))}")
     else:
-        console.print(f"[red]Error:[/red] {payload.get('error', 'tracer-append failed')}")
+        console.print(f"[red]Error:[/red] {escape(str(payload.get('error', 'tracer-append failed')))}")
 
 
 def _error_payload(message: str) -> dict[str, object]:
     return {"ok": False, "kind": _KIND_LABEL, "error": message}
+
+
+def _emit_with_surfaces(
+    result: WriteSeamResult,
+    payload: dict[str, object],
+    *,
+    json_output: bool,
+    ok: bool,
+) -> None:
+    """Render every surface (rule 6) on EVERY arm, text or JSON (WP10 cycle 2, B1/B2).
+
+    ``markup=False`` (B1): a surface diagnostic can legitimately contain a
+    bracketed substring (e.g. a path segment or a ``[/red]``-shaped token
+    inside someone's commit message) -- without it, Rich's markup parser
+    raises ``rich.errors.MarkupError`` mid-refusal, crashing the very error
+    report it was rendering.
+    """
+    if not json_output:
+        for line in render_commit_outcome(result):
+            console.print(line, markup=False)
+    _emit(payload, json_output=json_output, ok=ok)
 
 
 def tracer_append(
@@ -141,25 +175,36 @@ def tracer_append(
                 "reason": result.diagnostic,
                 "deferred_to": _REFUSAL_DEFERRED_TO,
             },
+            **commit_outcome_payload(result),
         }
-        _emit(payload, json_output=json_output, ok=False)
+        _emit_with_surfaces(result, payload, json_output=json_output, ok=False)
         raise typer.Exit(1)
 
     if result.status == "error":
-        _emit(
-            _error_payload(result.diagnostic or "tracer-append commit failed"),
-            json_output=json_output,
-            ok=False,
-        )
+        payload = {
+            **_error_payload(result.diagnostic or "tracer-append commit failed"),
+            **commit_outcome_payload(result),
+        }
+        _emit_with_surfaces(result, payload, json_output=json_output, ok=False)
         raise typer.Exit(1)
 
+    # WP10 (T055 step 4, contracts/commit-outcome.md rule 5/6): the shared
+    # exit-code rule additionally flags a MIXED outcome (e.g. the PRIMARY
+    # group committed while the coordination group was refused) even though
+    # the legacy top-level ``result.status`` alone would read "committed".
+    # The surfaces list, when non-empty, is always rendered too (rule 6 --
+    # no consumer formats surface outcomes by hand).
+    surfaces_exit_code = commit_outcome_exit_code(result)
     payload = {
-        "ok": True,
+        "ok": surfaces_exit_code == 0,
         "kind": _KIND_LABEL,
         "destination_surface": _DESTINATION_SURFACE,
         "row_or_entry_ref": result.entry_id,
         "status": result.status,
         "commit_ref": result.destination_surface,
         "commit_hash": result.commit_hash,
+        **commit_outcome_payload(result),
     }
-    _emit(payload, json_output=json_output, ok=True)
+    _emit_with_surfaces(result, payload, json_output=json_output, ok=surfaces_exit_code == 0)
+    if surfaces_exit_code != 0:
+        raise typer.Exit(1)

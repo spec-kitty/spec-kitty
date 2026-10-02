@@ -321,7 +321,14 @@ def test_coordination_topology_acquire_routes_to_coord_worktree(
     via the pre-existing ``CoordinationWorkspace.resolve(...)`` path.
     """
     mission_slug = "routing-coord-acquire"
-    mid8 = "01KROUTED"
+    # Exactly 8 chars (the mid8 contract) -- must equal mission_id[:8], which
+    # is also what ``_make_mission``/``resolve_declared_mid8`` derive from
+    # meta.json (WP07: the coordination arm now resolves its write location
+    # through meta.json's declared identity rather than trusting a
+    # caller-supplied mid8 verbatim, so a mismatched longer literal here
+    # would silently diverge from the worktree the fixture's own meta.json
+    # declares).
+    mid8 = "01KROUTE"
     mission_id = f"{mid8}ZZZZZZZZZZZZZZZZZ"
     coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
     mission = _make_mission(

@@ -62,6 +62,13 @@ _PUBLIC_SURFACE = sorted(
         "resolve_read_dir_or_degrade",
         "ActionContextError",
         "CommitTarget",
+        # coord-artifact-single-home-01M3V4BE WP03 (FR-003a/FR-004): the
+        # write-location accessor's value objects (``write_location.py``) --
+        # ``specify_cli.coordination.coord_seed`` (and WP04's
+        # ``PlacementSeam.write_dir``) import them from the package root only.
+        "Establishment",
+        "SeedReport",
+        "WriteLocation",
         "MissionArtifactKind",
         "MissionContext",
         "MissionExecutionContext",

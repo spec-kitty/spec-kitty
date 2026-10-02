@@ -37,6 +37,7 @@ the WP01 red-first repros so this module never re-authors them.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -367,3 +368,178 @@ def test_resume_preserves_marker_when_coord_worktree_pruned(tmp_path: Path) -> N
         "a pruned coord worktree must PRESERVE the marker (worktree_missing is NOT "
         "coherence) — clearing it erases an unresolved committed split-brain"
     )
+
+
+def test_completed_mission_resume_keeps_primary_events_path(tmp_path: Path) -> None:
+    """R1d: a completed coordination Mission's resume keeps the PRIMARY events path.
+
+    Characterization of today's ``_phase_baseline_and_surface`` answer. The
+    completed-Mission case (``merged_at`` on the repository-root checkout) is
+    the sanctioned exception that later steps must preserve: the events path
+    is whatever ``resolve_status_surface`` returns, not a re-derived location.
+    """
+    import json
+    from types import SimpleNamespace
+
+    from mission_runtime import MissionTopology
+
+    from specify_cli.consolidation._constants import _STATUS_FILENAME
+    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment, resolve_status_surface
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
+    from tests._factories.coord_mission import make_prefix_coord_mission
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    meta_path = coord.root_mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["merged_at"] = "2026-10-02T12:00:00+00:00"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    state = ConsolidationState(
+        mission_id=coord.mid8,
+        mission_slug=coord.mission_slug,
+        target_branch=coord.target_branch,
+        wp_order=["WP01"],
+    )
+    lanes_manifest = SimpleNamespace(
+        mission_slug=coord.mission_slug,
+        target_branch=coord.target_branch,
+        mission_branch=coord.coordination_branch,
+        lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
+    )
+    run = ex._MergeRunState(
+        main_repo=coord.repo_root,
+        mission_slug=coord.mission_slug,
+        canonical_id=coord.mid8,
+        canonical_mission_id=coord.mid8,
+        feature_dir=coord.root_mission_dir,
+        target_feature_dir=coord.root_mission_dir,
+        lanes_manifest=lanes_manifest,
+        all_wp_ids=["WP01"],
+        push=False,
+        delete_branch=False,
+        remove_worktree=False,
+        strategy=ex.MergeStrategy.SQUASH,
+        assume_yes=True,
+        planning_artifact_only=False,
+        state=state,
+        is_resume=True,
+    )
+
+    expected = resolve_status_surface(coord.repo_root, coord.mission_slug)
+    ex._phase_baseline_and_surface(run)
+
+    assert run.canonical_events_path == expected
+    assert expected == coord.root_mission_dir / "status.events.jsonl"
+    assert ".worktrees" not in run.canonical_events_path.parts
+    assert run.canonical_status_path == expected.parent / _STATUS_FILENAME
+    in_worktree = is_under_worktrees_segment(expected) and not run.planning_artifact_only
+    assert run.done_marked_before_target is (in_worktree or lands_mission_branch(coord.repo_root, lanes_manifest))
+
+
+# --- WP18 (ruling Q4): the run's single status authority -------------------
+
+
+class _RaisingSeam:
+    """A ``PlacementSeam`` stand-in whose ``write_dir`` raises *exc* (the refusal under test)."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    def write_dir(self, kind: object) -> object:
+        raise self._exc
+
+
+def _branch_refusal_kwargs(tmp_path: Path) -> dict[str, Any]:
+    return {
+        "repo_root": tmp_path,
+        "mission_slug": "m-01ABCDEF",
+        "mid8": "01ABCDEF",
+        "coordination_branch": "kitty/mission-m-01ABCDEF",
+        "coord_candidate": tmp_path / ".worktrees" / "m-coord",
+        "primary_candidate": tmp_path / "kitty-specs" / "m-01ABCDEF",
+    }
+
+
+def _status_dir_refusals(tmp_path: Path) -> list[tuple[Exception, str]]:
+    from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
+    return [
+        (CoordinationBranchDeleted(**_branch_refusal_kwargs(tmp_path)), "Recover the mission's status authority"),
+        (CoordinationWorktreeUnmaterialized(**_branch_refusal_kwargs(tmp_path)), "Create the local coordination branch from its remote"),
+        (
+            CoordSeedForkRefused(
+                root_path=tmp_path / "root.jsonl",
+                coord_path="kitty-specs/m/status.events.jsonl",
+                coord_ref="kitty/mission-m",
+                first_divergence_root="01A",
+                first_divergence_coord="01B",
+                reconcile_steps=("reconcile the logs",),
+            ),
+            "spec-kitty doctor decisions",
+        ),
+        (FeatureStatusLockTimeoutError("status lock held", lock_path=tmp_path / "lock"), "Wait for the other status writer"),
+    ]
+
+
+@pytest.mark.parametrize("index", range(4))
+def test_resolve_run_status_dir_aborts_cleanly_on_every_write_location_refusal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], index: int
+) -> None:
+    """Each refusal renders its own message plus the clean-no-op notice and exits 1 -- no traceback."""
+    import typer
+
+    exc, hint = _status_dir_refusals(tmp_path)[index]
+    seam: Any = _RaisingSeam(exc)
+
+    with pytest.raises(typer.Exit) as raised:
+        ex._resolve_run_status_dir(seam)
+
+    assert raised.value.exit_code == 1
+    output = " ".join(capsys.readouterr().out.split())
+    assert str(exc).split()[0] in output
+    assert "Merge aborted before any state change." in output
+    assert hint in output
+    assert raised.value.__cause__ is exc
+
+
+def test_resolve_run_status_dir_returns_the_write_location_path(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    class _Seam:
+        def write_dir(self, kind: object) -> object:
+            return SimpleNamespace(path=tmp_path / "kitty-specs" / "m")
+
+    seam: Any = _Seam()
+    assert ex._resolve_run_status_dir(seam) == tmp_path / "kitty-specs" / "m"
+
+
+def test_primary_mission_is_merged_reads_the_merge_marker_and_never_raises(tmp_path: Path) -> None:
+    import json
+
+    assert ex._primary_mission_is_merged(tmp_path) is False  # no meta.json
+    (tmp_path / "meta.json").write_text("{not json", encoding="utf-8")
+    assert ex._primary_mission_is_merged(tmp_path) is False  # corrupt meta reads as not merged
+    (tmp_path / "meta.json").write_text(json.dumps({"mission_slug": "m"}), encoding="utf-8")
+    assert ex._primary_mission_is_merged(tmp_path) is False
+    (tmp_path / "meta.json").write_text(
+        json.dumps({"mission_slug": "m", "merged_at": "2026-10-02T12:00:00+00:00"}), encoding="utf-8"
+    )
+    assert ex._primary_mission_is_merged(tmp_path) is True
+
+
+def test_resolve_run_status_surface_uses_run_feature_dir_unless_completed(tmp_path: Path) -> None:
+    """Not completed: the run's own ``feature_dir`` is the only authority (no resolver is consulted)."""
+    from types import SimpleNamespace
+
+    feature_dir = tmp_path / "coord-wt" / "kitty-specs" / "m"
+    run: Any = SimpleNamespace(
+        main_repo=tmp_path,
+        mission_slug="m",
+        feature_dir=feature_dir,
+        target_feature_dir=tmp_path / "kitty-specs" / "m",  # no meta.json -> not completed
+    )
+
+    assert ex._completed_mission_projected_events_path(run) is None
+    assert ex._resolve_run_status_surface(run) == feature_dir / "status.events.jsonl"

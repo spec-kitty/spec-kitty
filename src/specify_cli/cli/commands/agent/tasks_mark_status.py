@@ -208,14 +208,22 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
 
 
 def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
-    """Phase B(ii): resolve the TASKS_INDEX write surface (#2154) + pre30 guard.
+    """Phase B(ii): resolve the TASKS_INDEX read dir + status WRITE dir, + pre30 guard.
 
     #2154 (FR-001 / T008): ``tasks.md`` is a TASKS_INDEX (primary-partition)
-    artifact — resolve the WRITE leg through the SAME kind-aware authority the
-    validation read and the commit leg use (now the ``FsReader`` port), so the
-    subtask write lands on the PRIMARY surface a coord-topology mission reads back
-    from. The kind-blind ``resolve_feature_dir_for_mission`` returns the ``-coord``
-    husk under coord topology, so the write and the validation read would diverge.
+    artifact — resolve the READ leg through the SAME kind-aware authority the
+    validation read and the commit leg use (the ``FsReader`` port).
+
+    WP08 (coord-artifact-single-home-01M3V4BE, T045, FR-014): the WRITE leg
+    (``st.status_dir``, which feeds the subtask-completion event append) now
+    resolves through ``ports.coord.feature_write_dir(handle)`` for BOTH the
+    owned and non-owned arms — the write-location accessor
+    (``PlacementSeam.write_dir``), never ``resolve_status_surface(...).parent``
+    (a READ resolver). A read resolver is never a write location: on a
+    coordination-routed, pre-fix EMPTY Mission the old non-owned arm silently
+    composed a path under an un-materialized coordination worktree (or fell
+    back to PRIMARY) instead of materializing/seeding the real coordination
+    surface this writer must land on.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -224,12 +232,7 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     # #3027: this TASKS_INDEX-resolved dir is also handed to
     # owning_wp_from_authored_roster, which reads WORK_PACKAGE_TASK-kinded
     # ``tasks/*.md`` files — see the pinning comment on that function.
-    if st.owned is not None:
-        st.status_dir = ports.coord.feature_write_dir(handle)
-    else:
-        from specify_cli.coordination import resolve_status_surface
-
-        st.status_dir = resolve_status_surface(st.main_repo_root, st.mission_slug).parent
+    st.status_dir = ports.coord.feature_write_dir(handle)
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
     try:
         check_pre30_layout(st.feature_dir)

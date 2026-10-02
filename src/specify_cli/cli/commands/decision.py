@@ -23,8 +23,19 @@ from specify_cli.missions._read_path_resolver import (
 import json
 import re as _re
 from pathlib import Path
+from typing import TYPE_CHECKING, NoReturn
 
 import typer
+
+if TYPE_CHECKING:
+    # TYPE_CHECKING-only (``from __future__ import annotations`` above keeps
+    # these out of the runtime namespace): coord-artifact-single-home-01M3V4BE
+    # WP09's two new error-rendering helpers need the types for their
+    # signatures, but ``specify_cli.coordination.*`` / ``specify_cli.status.*``
+    # stay function-local imports at every actual call site (cold-import
+    # discipline this module already follows for similar seams).
+    from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
 
 from mission_runtime import ActionContextError
 
@@ -237,6 +248,91 @@ def _handle_status_read_path_error(exc: StatusReadPathNotFound) -> None:
     raise typer.Exit(1)
 
 
+def _handle_coord_seed_fork_refused(exc: CoordSeedForkRefused) -> NoReturn:
+    """Render a ``COORD_SEED_FORK_REFUSED`` write-location refusal.
+
+    coord-artifact-single-home-01M3V4BE WP09: ``open_decision`` /
+    ``_terminal_command`` now resolve the decision-event WRITE location
+    through ``write_dir`` (replacing the former direct
+    ``materialize_coord_surface_for_write`` call), which raises
+    :class:`CoordSeedForkRefused` -- an :class:`ActionContextError` subclass,
+    ``.code == "COORD_SEED_FORK_REFUSED"`` -- when the coordination
+    decision/status log has genuinely diverged from its root-checkout
+    counterpart (D3), BEFORE anything is written. The generic
+    :func:`_handle_action_context_error` renders ``.code`` with no recovery
+    guidance; a genuine fork needs an operator reconcile step, not a bare
+    retry, so this gets its own ``next_step``.
+
+    Review cycle 1 (B2): ``-> NoReturn`` (this always raises ``typer.Exit``)
+    instead of ``-> None`` + a dead ``return`` at every call site -- mypy
+    then knows the arm terminates, so there is nothing left to suppress for
+    coverage (no ``# pragma: no cover`` needed; NFR-005 forbids suppression
+    to reach a coverage number).
+    """
+    payload = {
+        "error": str(exc),
+        "code": exc.code,
+        "next_step": (
+            "The coordination decision/status log has diverged from the "
+            "repository-root checkout and cannot be auto-reconciled. Run "
+            "'spec-kitty doctor coordination --fix' or inspect both logs "
+            "manually, then retry this command."
+        ),
+    }
+    typer.echo(json.dumps(payload, sort_keys=True), err=True)
+    raise typer.Exit(1)
+
+
+def _handle_status_lock_timeout(exc: FeatureStatusLockTimeoutError) -> NoReturn:
+    """Render a ``STATUS_LOCK_HELD`` mission-status-lock timeout.
+
+    coord-artifact-single-home-01M3V4BE WP09: ``write_dir``'s seed path takes
+    the mission status lock (I-SEED-1); a contended lock surfaces as
+    :class:`FeatureStatusLockTimeoutError` (``error_code ==
+    "STATUS_LOCK_HELD"``) instead of a bare traceback. Transient by nature —
+    the recovery hint is "retry", unlike the genuine-fork refusal above.
+
+    Review cycle 1 (B2): ``-> NoReturn`` -- see the sibling
+    ``_handle_coord_seed_fork_refused`` docstring.
+    """
+    payload = {
+        "error": str(exc),
+        "code": exc.error_code,
+        "next_step": ("Another process holds the mission status lock. Wait for it to finish and retry this command."),
+    }
+    typer.echo(json.dumps(payload, sort_keys=True), err=True)
+    raise typer.Exit(1)
+
+
+def _handle_coord_branch_undeclared_and_absent(exc: CoordBranchUndeclaredAndAbsent) -> NoReturn:
+    """Render a ``COORD_BRANCH_UNDECLARED_AND_ABSENT`` write-location refusal.
+
+    Review cycle 2 (B1-residual, Decision ``plan.design.undeclared-coord-
+    branch``): ``write_dir``'s topology gate derives the canonical
+    coordination branch (``lanes.branch_naming``) when a coordination-routed
+    Mission's ``meta.json`` declares no ``coordination_branch`` -- and refuses
+    with :class:`CoordBranchUndeclaredAndAbsent` when that derived branch does
+    not exist in git either, rather than silently degrading to the PRIMARY
+    checkout. The generic :func:`_handle_action_context_error` renders
+    ``.code`` with no recovery guidance; this gets its own ``next_step``
+    naming the two concrete fixes (declare the branch, or flatten the
+    topology).
+    """
+    payload = {
+        "error": str(exc),
+        "code": exc.code,
+        "next_step": (
+            "No coordination_branch is declared in meta.json for this coordination-routed "
+            "mission, and the deterministically-derived branch does not exist in git either. "
+            "Declare 'coordination_branch' in meta.json if that branch should exist, or run "
+            "'spec-kitty migrate backfill-topology' to flatten this mission to a coord-less "
+            "topology if it never had one."
+        ),
+    }
+    typer.echo(json.dumps(payload, sort_keys=True), err=True)
+    raise typer.Exit(1)
+
+
 def _handle_index_read_error(exc: DecisionIndexReadError) -> None:
     """Render a corrupt ``decisions/index.json`` as a structured diagnostic.
 
@@ -350,6 +446,9 @@ def cmd_open(  # noqa: PLR0913
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
 
+    from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
     try:
         resp = open_decision(
             repo_root,
@@ -366,6 +465,16 @@ def cmd_open(  # noqa: PLR0913
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except CoordSeedForkRefused as exc:
+        # coord-artifact-single-home-01M3V4BE WP09: ``write_dir``'s pre-write
+        # placement resolution refused a genuine fork — before any ledger
+        # write. Before ``StatusReadPathNotFound`` below: not a subclass of
+        # it, but ordered to read alongside the other write-location refusals.
+        _handle_coord_seed_fork_refused(exc)
+    except CoordBranchUndeclaredAndAbsent as exc:
+        _handle_coord_branch_undeclared_and_absent(exc)
+    except FeatureStatusLockTimeoutError as exc:
+        _handle_status_lock_timeout(exc)
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
@@ -423,6 +532,9 @@ def cmd_resolve(  # noqa: PLR0913
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
 
+    from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
     try:
         resp = resolve_decision(
             repo_root,
@@ -438,6 +550,12 @@ def cmd_resolve(  # noqa: PLR0913
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except CoordSeedForkRefused as exc:
+        _handle_coord_seed_fork_refused(exc)
+    except CoordBranchUndeclaredAndAbsent as exc:
+        _handle_coord_branch_undeclared_and_absent(exc)
+    except FeatureStatusLockTimeoutError as exc:
+        _handle_status_lock_timeout(exc)
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
@@ -480,6 +598,9 @@ def cmd_defer(
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
 
+    from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
     try:
         resp = defer_decision(
             repo_root,
@@ -493,6 +614,12 @@ def cmd_defer(
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except CoordSeedForkRefused as exc:
+        _handle_coord_seed_fork_refused(exc)
+    except CoordBranchUndeclaredAndAbsent as exc:
+        _handle_coord_branch_undeclared_and_absent(exc)
+    except FeatureStatusLockTimeoutError as exc:
+        _handle_status_lock_timeout(exc)
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
@@ -535,6 +662,9 @@ def cmd_cancel(
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
 
+    from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
     try:
         resp = cancel_decision(
             repo_root,
@@ -548,6 +678,12 @@ def cmd_cancel(
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except CoordSeedForkRefused as exc:
+        _handle_coord_seed_fork_refused(exc)
+    except CoordBranchUndeclaredAndAbsent as exc:
+        _handle_coord_branch_undeclared_and_absent(exc)
+    except FeatureStatusLockTimeoutError as exc:
+        _handle_status_lock_timeout(exc)
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
@@ -611,8 +747,42 @@ def cmd_verify(
         for f in result.findings
     ]
 
+    # WP17 (FR-010a, contract rule 5): a forked decision-event stream is a
+    # distinct, honest-verify finding from the marker/decision drift rules
+    # above. Resolved here (not in ``decisions.verify.verify``, whose
+    # ``mission_slug`` parameter stays reserved/unused per the module
+    # docstring) because ``cmd_verify`` already has ``repo_root`` in scope —
+    # see "Binding corrections" (WP17): adding a fork check here avoids
+    # widening ``verify()``'s public signature.
+    from specify_cli.decisions.fork import detect_decision_forks  # noqa: PLC0415 — cold-import discipline
+
+    fork_report = detect_decision_forks(repo_root, mission_slug)
+    if fork_report.forked:
+        forked_decision_ids = sorted(
+            {
+                decision_id
+                for finding in fork_report.streams
+                if finding.state == "forked"
+                for decision_id in (
+                    *finding.decisions_only_on_primary,
+                    *finding.decisions_only_on_coordination,
+                )
+            }
+        )
+        fork_detail = "A decision-event stream diverges between the PRIMARY and coordination surfaces (never auto-merged, C-003): " + "; ".join(
+            fork_report.reconcile_steps
+        )
+        findings_list.append(
+            {
+                "kind": "DECISION_LOG_FORKED",
+                "decision_id_or_ref": ", ".join(forked_decision_ids) or None,
+                "location": None,
+                "detail": fork_detail,
+            }
+        )
+
     payload = {
-        "status": result.status,
+        "status": "drift" if findings_list else "clean",
         "deferred_count": result.deferred_count,
         "marker_count": result.marker_count,
         "findings": findings_list,
@@ -620,6 +790,16 @@ def cmd_verify(
 
     typer.echo(json.dumps(payload, sort_keys=True))
 
+    # WP17 precedence decision (documented, per the binding-corrections
+    # instruction to decide and document ``--no-fail-on-stale`` vs a fork):
+    # a forked decision stream ALWAYS exits 1, independent of
+    # ``--fail-on-stale/--no-fail-on-stale`` -- that flag only governs the
+    # marker/decision drift rules in ``decisions.verify.verify`` (contract
+    # rule 5: "exits 1 by default", read here as "unconditionally", since a
+    # fork is a data-loss risk, not a staleness nit an operator can opt out
+    # of reporting as a failure).
+    if fork_report.forked:
+        raise typer.Exit(1)
     if result.findings and fail_on_stale:
         raise typer.Exit(1)
 

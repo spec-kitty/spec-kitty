@@ -10,6 +10,7 @@ WP04 (T010, T011): Verifies that:
 from __future__ import annotations
 
 import inspect
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -426,6 +427,46 @@ class TestWorkflowCommitReceipts:
         assert receipt["sha"] == "abc123def456"
         assert receipt["wp_id"] == "WP01"
 
+    def test_record_receipt_refused_without_sha_is_not_warned(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A ``refused`` receipt legitimately has no commit -- no warning (FR-013)."""
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._reset_workflow_receipts()
+        with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow"):
+            workflow._record_receipt(
+                "main",
+                "chore: WP02 claimed [claude]",
+                "refused",
+                wp_id="WP02",
+            )
+        assert caplog.records == []
+        workflow._reset_workflow_receipts()
+
+    def test_record_receipt_committed_without_sha_warns(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """T105: a ``committed`` receipt with no sha is the FR-013 defect class
+        #5440 read as "implement leaks status" -- ``_record_receipt`` must
+        observe and log it (never silently accept a committed-but-unnamed
+        receipt), even though it still records the receipt (fail-soft)."""
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._reset_workflow_receipts()
+        with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow"):
+            workflow._record_receipt(
+                "main",
+                "chore: WP03 claimed [claude]",
+                "committed",
+                sha=None,
+                wp_id="WP03",
+            )
+        assert len(caplog.records) == 1
+        assert "no commit sha" in caplog.records[0].message
+        assert len(workflow._WORKFLOW_COMMIT_RECEIPTS) == 1
+        workflow._reset_workflow_receipts()
+
 
 class TestLoadCoordBranchMeta:
     """``_load_coord_branch_meta`` reads coord-branch metadata correctly."""
@@ -517,6 +558,454 @@ class TestTransactionPathFor:
         # mid8 is still computed from mission_id even without coord branch.
         assert mid == "01ABCDEFGHJKMNPQRSTVWXYZ12"
         assert mid8 == "01ABCDEF"
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+def _head_sha(repo: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True
+    )
+    return result.stdout.strip()
+
+
+def _branch_contains(repo: Path, sha: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "branch", "--contains", sha, "--format=%(refname:short)"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.split()
+
+
+@pytest.mark.git_repo
+class TestLegacyAlreadyPresentReceipt:
+    """FR-013/US6/D17: the "already present" no-op arm of
+    ``_commit_via_legacy_safe_commit`` must name a VERIFIED commit that
+    actually holds the just-persisted state -- or, when no such commit can
+    be verified, an honest ``None`` (which fires ``_record_receipt``'s
+    warning) rather than a plausible-but-wrong id.
+
+    **Cycle-2 correction (reviewer-renata B1):** the cycle-1 premise -- "the
+    receipt must never be ``sha=None``" -- was itself wrong. The cycle-1 fix
+    enforced that premise with a branch-tip fallback whenever the
+    target-branch history walk found nothing, and the reviewer reproduced
+    two cases where that fallback named a commit that does NOT contain the
+    change (an ignored/never-committed path; ``porcelain_root``'s checked-out
+    HEAD diverging from ``target_branch``). A truthful ``None`` (with the
+    warning that makes the anomaly observable) is correct there; see
+    :func:`_already_present_receipt_sha`'s docstring for the verified-commit
+    algorithm that replaced the fallback.
+
+    Binding correction (round 3, operator decision): on a coordination-routed
+    Mission ``commit_workflow_change`` never reaches this legacy leaf at all
+    (``_commit_via_coordination_transaction`` records a non-null sha from
+    ``BookkeepingTransaction.commit_idempotent`` -- see
+    ``TestImplementReceiptsNameRealBranch`` for that CLI-level confirmation,
+    GREEN at base).
+
+    **Correction (cycle-2, reviewer-renata N1):** this arm is also NOT
+    reached by ``implement`` on a coord-less (``lanes``/``single_branch``)
+    Mission's planned->in_progress claim -- that path's legacy leaf goes
+    through the normal ``safe_commit`` branch with a real sha
+    (``TestImplementReceiptsNameRealBranch.
+    test_lanes_mission_receipts_unchanged_fields_plus_sha`` passed even at
+    the cycle-1 commit, before this fix). This arm is a LATENT one, reached
+    only when the paths are already clean at the moment
+    ``_commit_via_legacy_safe_commit`` runs (for example from the other
+    ``_commit_workflow_change`` callers at ``workflow_executor.py``
+    L1062/L1791). The red-first reproduction below drives
+    ``_commit_via_legacy_safe_commit`` directly -- it IS the pre-existing
+    production entry point every coord-less workflow commit goes through
+    (``workflow_executor.py:372`` is its only caller), matching
+    ``tests/git/test_guard_capability_regression.py`` and
+    ``tests/specify_cli/cli/commands/agent/test_coord_commit_integrity_e2e.py``'s
+    existing direct-call convention for this same function.
+    """
+
+    def test_already_present_receipt_names_a_contained_commit(self, tmp_path: Path) -> None:
+        """RED at base (pre-fix): the early-return recorded ``sha=None``,
+        which fails ``git branch --contains`` by construction -- exactly
+        #5440's "implement leaks status" misleading-receipt evidence."""
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "seed")
+
+        # Simulate the transactional emit already having persisted + committed
+        # the status state to target_branch before this legacy follow-up runs
+        # (the #2684 scenario this early-return arm exists for).
+        status_dir = repo / "kitty-specs" / "100-legacy"
+        status_dir.mkdir(parents=True)
+        events_path = status_dir / "status.events.jsonl"
+        events_path.write_text('{"event_id":"already-committed"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "status already committed")
+        expected_sha = _head_sha(repo)
+
+        workflow._reset_workflow_receipts()
+        workflow._commit_via_legacy_safe_commit(
+            repo_root=repo,
+            target_branch="target-branch",
+            paths=[events_path],
+            message="chore: WP01 claimed [claude]",
+            wp_id="WP01",
+        )
+
+        receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
+        assert len(receipts) == 1
+        receipt = receipts[0]
+        assert receipt["outcome"] == "committed"
+        assert receipt["destination_ref"] == "target-branch"
+        assert receipt["sha"] is not None, (
+            "the already-present receipt must name a real commit, not "
+            "sha=None (#5440's misleading-receipt evidence; FR-013)"
+        )
+        assert "target-branch" in _branch_contains(repo, str(receipt["sha"])), (
+            f"receipt sha {receipt['sha']!r} must be contained in the branch "
+            f"it names ({receipt['destination_ref']!r})"
+        )
+        # The exact commit already carrying the state, not merely some
+        # ancestor -- proves the fix resolves THE commit, not just the tip.
+        assert receipt["sha"] == expected_sha
+        workflow._reset_workflow_receipts()
+
+    def test_already_present_receipt_ignored_or_never_committed_path_is_none_with_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """B1 (cycle-2, reviewer-renata): a gitignored / never-committed path
+        reads clean under ``git status --porcelain`` (the "already present"
+        arm fires) but no commit on ``target_branch`` -- or anywhere in
+        ``HEAD``'s history -- actually carries it. The pre-fix tip fallback
+        named a commit that does NOT contain the path
+        (``git cat-file -e <tip>:<path>`` fails); the fix must return
+        ``None`` instead, so ``_record_receipt`` warns -- an honest absence,
+        never a fabricated id."""
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        (repo / ".gitignore").write_text("kitty-specs/\n", encoding="utf-8")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "seed")
+
+        status_dir = repo / "kitty-specs" / "100-legacy"
+        status_dir.mkdir(parents=True)
+        events_path = status_dir / "status.events.jsonl"
+        events_path.write_text('{"event_id":"never-committed"}\n', encoding="utf-8")
+        # The path is gitignored, so the porcelain pre-check is clean despite
+        # the file never having been committed anywhere.
+        porcelain = subprocess.run(
+            ["git", "status", "--porcelain", "--", str(events_path)],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert porcelain.stdout.strip() == "", "fixture must read clean to reach the already-present arm"
+
+        workflow._reset_workflow_receipts()
+        with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow"):
+            workflow._commit_via_legacy_safe_commit(
+                repo_root=repo,
+                target_branch="target-branch",
+                paths=[events_path],
+                message="chore: WP01 claimed [claude]",
+                wp_id="WP01",
+            )
+
+        receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
+        assert len(receipts) == 1
+        assert receipts[0]["outcome"] == "committed"
+        assert receipts[0]["sha"] is None, (
+            "an ignored/never-committed path must yield an HONEST None, never "
+            "a plausible-but-wrong commit id"
+        )
+        assert len(caplog.records) == 1, "a committed receipt with no sha must warn exactly once"
+        assert "no commit sha" in caplog.records[0].message
+        workflow._reset_workflow_receipts()
+
+    def test_already_present_receipt_head_not_on_target_branch_is_none_not_stale_commit(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """B1 (cycle-2, reviewer-renata): ``porcelain_root``'s checked-out
+        HEAD can differ from ``target_branch`` (``_commit_workflow_change``'s
+        own debug branch documents this as a real divergence, not merely
+        theoretical). The pre-fix helper searched ``target_branch``'s OWN
+        history and could return a STALE commit on ``target_branch`` whose
+        content does not match what the porcelain check just proved clean at
+        ``HEAD``. The fix must never name that stale commit: either ``None``
+        (the un-ancestored candidate is rejected), or a sha that is both
+        contained in ``target_branch`` and holds the current content -- it
+        must not fabricate the old, wrong one."""
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        status_dir = repo / "kitty-specs" / "100-legacy"
+        status_dir.mkdir(parents=True)
+        status_path = status_dir / "status.events.jsonl"
+        status_path.write_text('{"event_id":"old"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "old state on target-branch")
+        stale_target_sha = _head_sha(repo)
+
+        # Diverge: a different branch, never merged back, carries NEW content.
+        _git(repo, "checkout", "-q", "-b", "other")
+        status_path.write_text('{"event_id":"new"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "new state on other")
+
+        # HEAD (repo_root's checkout) is "other", NOT "target-branch" --
+        # porcelain is clean relative to HEAD's own committed content.
+        porcelain = subprocess.run(
+            ["git", "status", "--porcelain", "--", str(status_path)],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert porcelain.stdout.strip() == "", "fixture must read clean to reach the already-present arm"
+
+        workflow._reset_workflow_receipts()
+        with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow"):
+            workflow._commit_via_legacy_safe_commit(
+                repo_root=repo,
+                target_branch="target-branch",
+                paths=[status_path],
+                message="chore: WP01 claimed [claude]",
+                wp_id="WP01",
+            )
+
+        receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
+        assert len(receipts) == 1
+        receipt = receipts[0]
+        assert receipt["sha"] != stale_target_sha, (
+            "must never name the stale target-branch commit whose content "
+            "does not match what the porcelain check proved clean at HEAD"
+        )
+        if receipt["sha"] is not None:
+            assert "target-branch" in _branch_contains(repo, str(receipt["sha"]))
+        else:
+            assert len(caplog.records) == 1, "an honest None must still warn exactly once"
+        workflow._reset_workflow_receipts()
+
+    def test_already_present_receipt_legacy_no_identity_still_names_a_commit(
+        self, tmp_path: Path
+    ) -> None:
+        """``mission_slug=None`` (truly legacy, no Mission identity): the
+        porcelain root is ``repo_root`` itself, and the receipt must still
+        name a real, contained commit -- the identity-less path is not an
+        excuse to regress to ``sha=None``."""
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "seed")
+
+        status_dir = repo / "kitty-specs" / "100-legacy"
+        status_dir.mkdir(parents=True)
+        status_path = status_dir / "status.json"
+        status_path.write_text('{"wp":"already-committed"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "status already committed")
+        expected_sha = _head_sha(repo)
+
+        workflow._reset_workflow_receipts()
+        workflow._commit_via_legacy_safe_commit(
+            repo_root=repo,
+            target_branch="target-branch",
+            paths=[status_path],
+            message="chore: WP01 claimed [claude]",
+            wp_id="WP01",
+            mission_slug=None,
+            mid8=None,
+        )
+
+        receipt = workflow._WORKFLOW_COMMIT_RECEIPTS[0]
+        assert receipt["sha"] == expected_sha
+        assert "target-branch" in _branch_contains(repo, str(receipt["sha"]))
+        workflow._reset_workflow_receipts()
+
+    def test_already_present_receipt_partially_untracked_path_set_is_none_with_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """B2 (cycle-3, reviewer-renata): ``git log -1 HEAD -- <paths>`` can
+        find a real commit even when only SOME of ``paths`` are tracked
+        there (log's multi-pathspec matching is OR, not AND) --
+        ``_paths_tracked_at_commit`` must still reject that candidate.
+        Deleting the ``_paths_tracked_at_commit(...)`` call in
+        ``_already_present_receipt_sha`` turns this red: the ignored-path and
+        HEAD-mismatch tests above both return earlier (empty ``git log`` /
+        failed ancestor check) and never exercise this branch."""
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        status_dir = repo / "kitty-specs" / "100-legacy"
+        status_dir.mkdir(parents=True)
+        tracked_path = status_dir / "status.events.jsonl"
+        tracked_path.write_text('{"event_id":"already-committed"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "status already committed")
+        # Never created, never committed. A nonexistent path is trivially
+        # "clean" under git status --porcelain (nothing to report), but
+        # `git log -1 HEAD -- tracked_path missing_path` still finds the
+        # commit above via tracked_path's match.
+        missing_path = status_dir / "status.json"
+
+        porcelain = subprocess.run(
+            ["git", "status", "--porcelain", "--", str(tracked_path), str(missing_path)],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert porcelain.stdout.strip() == "", "fixture must read clean to reach the already-present arm"
+
+        workflow._reset_workflow_receipts()
+        with caplog.at_level("WARNING", logger="specify_cli.cli.commands.agent.workflow"):
+            workflow._commit_via_legacy_safe_commit(
+                repo_root=repo,
+                target_branch="target-branch",
+                paths=[tracked_path, missing_path],
+                message="chore: WP01 claimed [claude]",
+                wp_id="WP01",
+            )
+
+        receipts = workflow._WORKFLOW_COMMIT_RECEIPTS
+        assert len(receipts) == 1
+        assert receipts[0]["outcome"] == "committed"
+        assert receipts[0]["sha"] is None, (
+            "git log found a commit via the TRACKED path, but one path in "
+            "the set (missing_path) is not tracked there -- the whole "
+            "receipt must be an honest None, not a sha that only covers "
+            "part of the requested path set"
+        )
+        assert len(caplog.records) == 1, "a committed receipt with no sha must warn exactly once"
+        assert "no commit sha" in caplog.records[0].message
+        workflow._reset_workflow_receipts()
+
+
+class TestPathsTrackedAtCommit:
+    """Direct unit coverage for ``_paths_tracked_at_commit`` (cycle-3, B2 item 2 / N6)."""
+
+    def test_path_outside_porcelain_root_is_untracked(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        porcelain_root = tmp_path / "repo"
+        porcelain_root.mkdir()
+        _git(porcelain_root, "init", "-q", "-b", "target-branch")
+        _git(porcelain_root, "config", "user.email", "wp19@example.invalid")
+        _git(porcelain_root, "config", "user.name", "WP19")
+        _git(porcelain_root, "config", "commit.gpgsign", "false")
+        (porcelain_root / "seed.txt").write_text("seed\n", encoding="utf-8")
+        _git(porcelain_root, "add", "-A")
+        _git(porcelain_root, "commit", "-q", "-m", "seed")
+        sha = _head_sha(porcelain_root)
+
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir()
+        outside_path = outside_dir / "file.txt"
+        outside_path.write_text("outside\n", encoding="utf-8")
+
+        assert workflow._paths_tracked_at_commit(porcelain_root, sha, [outside_path]) is False
+
+    def test_untracked_path_inside_root_is_untracked(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "seed")
+        sha = _head_sha(repo)
+
+        never_committed = repo / "never-committed.txt"
+        never_committed.write_text("new\n", encoding="utf-8")
+
+        assert workflow._paths_tracked_at_commit(repo, sha, [never_committed]) is False
+
+    def test_tracked_path_is_tracked(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        tracked = repo / "status.events.jsonl"
+        tracked.write_text('{"event_id":"x"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "seed")
+        sha = _head_sha(repo)
+
+        assert workflow._paths_tracked_at_commit(repo, sha, [tracked]) is True
+
+    def test_relative_path_resolves_against_porcelain_root_not_cwd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """N6 (cycle-3, reviewer-renata): a relative path must anchor on
+        ``porcelain_root``, not the process cwd -- every current caller
+        passes absolute paths, so this pins intent for a future one."""
+        from specify_cli.cli.commands.agent import workflow
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git(repo, "init", "-q", "-b", "target-branch")
+        _git(repo, "config", "user.email", "wp19@example.invalid")
+        _git(repo, "config", "user.name", "WP19")
+        _git(repo, "config", "commit.gpgsign", "false")
+        tracked = repo / "status.events.jsonl"
+        tracked.write_text('{"event_id":"x"}\n', encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "seed")
+        sha = _head_sha(repo)
+
+        # cwd is somewhere else entirely -- resolving the relative path
+        # against cwd (instead of porcelain_root) would misclassify it as
+        # outside the root.
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+
+        relative_path = Path("status.events.jsonl")
+        assert workflow._paths_tracked_at_commit(repo, sha, [relative_path]) is True
 
 
 class TestCommitWorkflowChange:
@@ -628,6 +1117,11 @@ class TestPrintCommitSummary:
         assert "WP01 claimed" in captured.out
         assert "[ok]" in captured.out
         assert "[refused]" in captured.out
+        # T105: the committed line carries the short commit id...
+        assert "abc123" in captured.out
+        # ...and the refused line (no commit) prints the no-sha placeholder,
+        # never fabricating an id for a receipt that never committed.
+        assert workflow._NO_SHA_PLACEHOLDER in captured.out
         workflow._reset_workflow_receipts()
 
     def test_json_format_emits_structured_payload(
@@ -650,6 +1144,197 @@ class TestPrintCommitSummary:
         assert "commits" in payload
         assert len(payload["commits"]) == 1
         assert payload["commits"][0]["destination_ref"] == "kitty/mission-bar-01XYZ"
+        workflow._reset_workflow_receipts()
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+class TestImplementReceiptsNameRealBranch:
+    """FR-013/US6 (#5440): end-to-end, through the real ``agent action
+    implement`` CLI entry point -- every receipt carries a commit id, and the
+    branch it names actually contains that commit.
+
+    T103/red premise (operator decision, round 3): R18 as originally scoped
+    assumed a coordination-routed Mission would reproduce #5440's
+    misleading-receipt defect. It does not -- ``commit_workflow_change``
+    routes a complete coord identity triple through
+    ``_commit_via_coordination_transaction``, whose receipts already carry a
+    non-null sha from ``BookkeepingTransaction.commit_idempotent`` (never
+    reaching ``_commit_via_legacy_safe_commit`` at all). The tests below
+    confirm that GREEN-at-base finding directly (positive control +
+    regression guard).
+
+    **Correction (cycle-2, reviewer-renata N1):** through ``implement`` on
+    EITHER topology, the "already present" arm is not reached at all -- a
+    ``lanes`` (coord-less) Mission's legacy leaf goes through the normal
+    ``safe_commit`` branch with a real sha (``test_lanes_mission_receipts_
+    unchanged_fields_plus_sha`` below passed even at the cycle-1 commit,
+    before the fix). ``TestLegacyAlreadyPresentReceipt`` is a direct-call
+    reproduction of a LATENT arm -- reached only when the paths are already
+    clean at the time ``_commit_via_legacy_safe_commit`` runs (for example
+    from the other ``_commit_workflow_change`` callers at
+    ``workflow_executor.py`` L1062/L1791), not by this fixture's planned
+    -> in_progress claim. The grounding repro's ``chore: Start WP01
+    implementation [ok]`` line against the target branch was the CORRECT
+    PRIMARY-group receipt, printed without a commit id -- the misleading
+    part of #5440's evidence was that missing id in the human-readable
+    output, which T105 fixes (see the ``design-decisions`` tracer entry
+    dated after cycle-1 review for the full record, tied to the spec's
+    #5440 Assumption).
+
+    There is no ``--json`` flag on ``agent action implement`` (NFR-004
+    carve-out -- see ``_refuse_owned_action``'s docstring); receipts are read
+    directly off the in-process ``_WORKFLOW_COMMIT_RECEIPTS`` accumulator
+    after a real ``CliRunner.invoke`` of the production command, which is
+    the fixture-weight-appropriate choice the WP's "Comment on existing
+    fixtures" note sanctions over inventing a JSON surface that does not
+    exist.
+
+    **Fixture provenance (cycle-2, reviewer-renata N2):** these tests use
+    ``tests.characterization.test_trio_json_envelope._build_mission_repo``,
+    NOT WP02's ``tests._factories.coord_mission.make_coord_mission`` (the
+    P-m6-approved factory). ``make_coord_mission`` mints identity/coord-
+    worktree shape only (``create_mission_core``: ``meta.json`` + a bare
+    ``kitty-specs/<dir>`` scaffold) -- it carries no spec/plan/tasks, no
+    finalized WP file, no ``lanes.json``, no charter bundle, and no
+    analysis-report, so it cannot pass the preflight gates
+    ``agent action implement`` enforces before it reaches the receipt code
+    under test. ``_build_mission_repo`` is the pre-existing, already-approved
+    fixture for exactly this (used by ``test_coord_commit_integrity_e2e.py``
+    and the trio characterization suite itself for ``agent action
+    implement``/``review`` CLI runs). Importing a leading-underscore helper
+    across test modules is fragile coupling; recorded as a
+    ``tooling-friction`` tracer entry rather than inventing a parallel
+    implement-ready builder under schedule pressure.
+    """
+
+    def test_coordination_mission_receipts_all_carry_a_contained_sha(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US6.1: on a coordination-routed, MATERIALIZED Mission, every
+        receipt ``implement`` records has a non-null sha contained in the
+        branch it names. GREEN at base -- see class docstring."""
+        from typer.testing import CliRunner
+
+        from specify_cli import app as root_app
+        from specify_cli.cli.commands.agent import workflow
+        from tests.characterization.test_trio_json_envelope import _build_mission_repo
+
+        repo_root, mission_dirname = _build_mission_repo(
+            tmp_path,
+            monkeypatch,
+            coord=True,
+            mission_slug="wp19-coord-implement",
+            wp_lane="planned",
+            materialize_coord=True,
+        )
+        workflow._reset_workflow_receipts()
+        result = CliRunner().invoke(
+            root_app,
+            ["agent", "action", "implement", "WP01", "--mission", mission_dirname, "--agent", "claude"],
+        )
+        assert result.exit_code == 0, result.output
+
+        receipts = list(workflow._WORKFLOW_COMMIT_RECEIPTS)
+        committed = [r for r in receipts if r.get("outcome") == "committed"]
+        assert committed, "expected at least one committed receipt from a planned->in_progress claim"
+        for receipt in committed:
+            sha = receipt.get("sha")
+            assert sha is not None, f"receipt {receipt!r} must carry a non-null sha (FR-013)"
+            ref = str(receipt["destination_ref"])
+            assert ref in _branch_contains(repo_root, str(sha)), (
+                f"receipt sha {sha!r} is not contained in the branch it names ({ref!r})"
+            )
+        workflow._reset_workflow_receipts()
+
+    def test_target_branch_receipt_names_the_target_branch_not_coordination(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US6.2 positive control: the PRIMARY-group receipt names the
+        TARGET branch specifically, with its sha contained THERE -- an
+        "always print the coordination branch" implementation would fail
+        this (the target-branch receipt's sha is not generally on the
+        coordination branch)."""
+        from typer.testing import CliRunner
+
+        from specify_cli import app as root_app
+        from specify_cli.cli.commands.agent import workflow
+        from tests.characterization.test_trio_json_envelope import _build_mission_repo
+
+        repo_root, mission_dirname = _build_mission_repo(
+            tmp_path,
+            monkeypatch,
+            coord=True,
+            mission_slug="wp19-coord-control",
+            wp_lane="planned",
+            materialize_coord=True,
+        )
+        target_branch = "trio-integration"
+        workflow._reset_workflow_receipts()
+        result = CliRunner().invoke(
+            root_app,
+            ["agent", "action", "implement", "WP01", "--mission", mission_dirname, "--agent", "claude"],
+        )
+        assert result.exit_code == 0, result.output
+
+        receipts = list(workflow._WORKFLOW_COMMIT_RECEIPTS)
+        target_receipts = [r for r in receipts if r.get("destination_ref") == target_branch]
+        coord_receipts = [
+            r for r in receipts if r.get("destination_ref") not in (target_branch, None)
+        ]
+        assert target_receipts, "expected a receipt naming the target branch (PRIMARY group)"
+        assert coord_receipts, "expected a separate receipt naming the coordination branch"
+        for receipt in target_receipts:
+            sha = str(receipt["sha"])
+            assert target_branch in _branch_contains(repo_root, sha), (
+                "the target-branch receipt's sha must be contained in the "
+                "target branch -- an implementation that always names the "
+                "coordination branch would fail this assertion"
+            )
+        workflow._reset_workflow_receipts()
+
+    def test_lanes_mission_receipts_unchanged_fields_plus_sha(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """C-008: a ``lanes`` (coord-less) Mission's receipts keep their
+        destination refs / messages / outcomes exactly as before -- the fix
+        is output-only and additive (a commit id on every receipt), never a
+        change to which branch a receipt names."""
+        from typer.testing import CliRunner
+
+        from specify_cli import app as root_app
+        from specify_cli.cli.commands.agent import workflow
+        from tests.characterization.test_trio_json_envelope import _build_mission_repo
+
+        repo_root, mission_dirname = _build_mission_repo(
+            tmp_path,
+            monkeypatch,
+            coord=False,
+            mission_slug="wp19-lanes-control",
+            wp_lane="planned",
+        )
+        target_branch = "trio-integration"
+        workflow._reset_workflow_receipts()
+        result = CliRunner().invoke(
+            root_app,
+            ["agent", "action", "implement", "WP01", "--mission", mission_dirname, "--agent", "claude"],
+        )
+        assert result.exit_code == 0, result.output
+
+        receipts = list(workflow._WORKFLOW_COMMIT_RECEIPTS)
+        assert receipts, "expected at least one receipt from a planned->in_progress claim"
+        for receipt in receipts:
+            # C-008: meaning unchanged -- every pre-existing field keeps its
+            # pre-fix shape (a lanes mission's legacy commit lands on the
+            # target branch, exactly as before).
+            assert receipt["destination_ref"] == target_branch
+            assert receipt["message"] == "chore: Start WP01 implementation [claude]"
+            assert receipt["outcome"] == "committed"
+            assert receipt["wp_id"] == "WP01"
+            # Additive: every committed entry now also carries a sha.
+            sha = receipt.get("sha")
+            assert sha is not None, f"receipt {receipt!r} must carry a non-null sha (FR-013)"
+            assert target_branch in _branch_contains(repo_root, str(sha))
         workflow._reset_workflow_receipts()
 
 

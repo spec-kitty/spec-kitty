@@ -133,8 +133,11 @@ def test_decisions_and_traces_kinds_are_distinct_from_each_other() -> None:
 
 
 # ---------------------------------------------------------------------------
-# #3928 -- the decisions/ LEDGER (index.json + DM-<ulid>.md) classifies to a
-# COORD-partition kind, so the churn classifier agrees with the write side.
+# RE-PIN (coord-artifact-single-home-01M3V4BE WP12, FR-009, #5023): the
+# decisions/ LEDGER (index.json + DM-<ulid>.md) now classifies to a
+# PRIMARY-partition kind, so the churn classifier agrees with the write
+# side. #3928 originally pinned COORD here; see the two re-pinned tests
+# below for the reversal.
 # ---------------------------------------------------------------------------
 
 # The two (and only two) ledger shapes ``decisions/store.py`` writes
@@ -146,44 +149,49 @@ _LEDGER_PATHS = (
 
 
 @pytest.mark.parametrize("path", _LEDGER_PATHS)
-def test_decisions_ledger_classifies_to_coord(path: str) -> None:
-    """#3928: decisions/<ledger file> -> a COORD-homed kind via the ONE classifier.
+def test_decisions_ledger_classifies_to_primary(path: str) -> None:
+    """RE-PIN (coord-artifact-single-home-01M3V4BE WP12, FR-009, #5023):
+    decisions/<ledger file> -> a PRIMARY-homed kind via the ONE classifier.
 
-    Pre-fix both shapes classify to ``None`` (fall through the
-    unrecognized-path leg), so ``is_coord_residue_churn`` returns False and
-    ``agent mission record-analysis`` refuses with ``DIRTY_WORKTREE`` the
-    moment a Decision Moment is opened -- even though
-    ``decisions/service.py`` documents the ledger as coord-authority-owned
-    STATUS-partition state. Behavioral like T007/T008: any COORD-partition
-    kind keeps this green.
+    Formerly ``test_decisions_ledger_classifies_to_coord`` (grep continuity):
+    #3928 originally pinned a COORD classification here, on the theory that
+    ``decisions/service.py`` documented the ledger as coord-authority-owned
+    STATUS-partition state. WP12 reverses that: the ledger's own reads/writes
+    already resolved PRIMARY (#4966 AC-D2), so the taxonomy now agrees with
+    the write side. Behavioral like T007/T008: any PRIMARY-partition kind
+    keeps this green.
     """
     kind = kind_for_mission_file(path)
 
     assert kind is not None, (
-        f"{path} must classify to a MissionArtifactKind (#3928), not fall "
+        f"{path} must classify to a MissionArtifactKind (FR-009), not fall "
         "through the unrecognized-path None"
     )
-    assert not is_primary_artifact_kind(kind), (
-        f"{path} classified to {kind!r}, a PRIMARY-partition kind -- the "
-        "ledger is coord-authority-owned state, so #3928 requires COORD"
+    assert is_primary_artifact_kind(kind), (
+        f"{path} classified to {kind!r}, a COORD-partition kind -- FR-009 "
+        "requires the ledger to resolve PRIMARY (its writes/reads already do)"
     )
 
 
 @pytest.mark.parametrize("path", _LEDGER_PATHS)
-def test_decisions_ledger_is_coord_residue_churn(path: str) -> None:
-    """#3928 symptom level: the churn predicate the recorder consults.
+def test_decisions_ledger_is_not_coord_residue_churn(path: str) -> None:
+    """RE-PIN (coord-artifact-single-home-01M3V4BE WP12, FR-009, #5023):
+    the ledger is NEVER coordination residue churn -- it is a PRIMARY kind.
 
-    ``is_coord_residue_churn`` is the exact predicate
+    Formerly ``test_decisions_ledger_is_coord_residue_churn`` (grep
+    continuity). ``is_coord_residue_churn`` is the exact predicate
     ``cli/commands/agent/mission_record_analysis.py`` filters dirty paths
-    through; pre-fix it returned False for both ledger shapes. Also pins the
-    mission-slug scoping (another mission's ledger is not this mission's
-    residue) and that the ledger did NOT borrow STATUS_STATE -- the WP13
-    ``is_status_state_path`` predicate must keep matching exactly
+    through; pre-WP12 it returned True for both ledger shapes (the #3928
+    COORD classification). After the FR-009 reclassification an uncommitted
+    ledger is real work, never residue, under every topology. Also pins the
+    mission-slug scoping and that the ledger did NOT borrow STATUS_STATE --
+    the WP13 ``is_status_state_path`` predicate must keep matching exactly
     ``status.events.jsonl`` / ``status.json`` (its coord-commit consumers
     stage on that narrow set).
     """
-    assert is_coord_residue_churn(path, mission_slug=_MISSION_SLUG) is True, (
-        f"{path} must classify as coordination residue churn (#3928)"
+    assert is_coord_residue_churn(path, mission_slug=_MISSION_SLUG) is False, (
+        f"{path} must NOT classify as coordination residue churn (FR-009): "
+        "the ledger is a PRIMARY-partition kind"
     )
     assert is_coord_residue_churn(path, mission_slug="another-mission-01") is False, (
         "a ledger under another mission's directory is not this mission's residue"

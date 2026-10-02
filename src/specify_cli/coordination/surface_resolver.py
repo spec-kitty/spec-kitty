@@ -789,6 +789,8 @@ def coord_branch_has_committed_artifact(
     coord_branch: str,
     mission_slug: str,
     kind: MissionArtifactKind,
+    *,
+    mid8: str | None = None,
 ) -> bool:
     """Return whether *coord_branch* carries a COMMITTED artifact of *kind*.
 
@@ -798,30 +800,60 @@ def coord_branch_has_committed_artifact(
     a *stale* head, not a virgin first-write window: materializing over it would
     fork from the primary branch and clobber committed coordination state.
 
-    The probe scans the WHOLE ``kitty-specs/<mission_slug>/`` subtree of
-    *coord_branch* (``git ls-tree -r``) and matches on the artifact BASENAME, so a
-    path-drifted committed matrix (one that migrated to a non-default sub-path) is
-    still detected rather than mis-read as "absent" (post-plan F2). Both
+    The probe scans the WHOLE coordination Mission-dir subtree of *coord_branch*
+    (``git ls-tree -r``) and matches on the artifact BASENAME, so a path-drifted
+    committed matrix (one that migrated to a non-default sub-path) is still
+    detected rather than mis-read as "absent" (post-plan F2). Both
     ``issue-matrix.json`` and ``issue-matrix.md`` map to ``ISSUE_MATRIX``, so a
     not-yet-migrated legacy mission is protected too.
 
-    Fail-closed (mirrors :func:`_coord_branch_is_local_head`'s posture): an
-    unreadable git context — a missing/foreign ref, or the git binary absent, i.e.
-    anything other than a CLEAN, readable "subtree absent" — returns ``True``
-    (treated as present ⇒ the caller REFUSEs). The pathspec form ``git ls-tree -r
-    --name-only <branch> -- <subtree>`` returns exit 0 with EMPTY output for a
-    readable branch whose subtree simply holds no such file (⇒ ``False``, a genuine
-    first-write) and a non-zero exit for an unresolvable ref (⇒ fail-closed
-    ``True``), so the two cases never collapse together.
+    ``mid8`` (coord-artifact-single-home-01M3V4BE WP04, D4 "naming fix" binding
+    correction): when given, the subtree is the REAL coordination Mission dir,
+    composed via the single verbatim grammar
+    (:func:`~specify_cli.lanes.branch_naming.coord_mission_dir_name`) — not the
+    bare ``kitty-specs/<mission_slug>/`` this probe used before, which silently
+    MISSED a mission whose slug does not already embed its own mid8 suffix (the
+    common case). ``mid8=None`` preserves the pre-WP04 composition for a caller
+    that has not threaded its ``mid8`` through yet.
+
+    Fail-closed (mirrors :func:`_coord_branch_is_local_head`'s posture), but the
+    git-error arm is now EXPLICIT rather than a bare silent ``True`` (binding
+    correction): an unreadable git context — a missing/foreign ref, or the git
+    binary absent, i.e. anything other than a CLEAN, readable "subtree absent" —
+    logs a ``WARNING`` naming the failure, then returns ``True`` (treated as
+    present ⇒ the caller REFUSEs), so a genuine infrastructure problem is
+    observable rather than indistinguishable from a quiet, correct refusal. The
+    pathspec form ``git ls-tree -r --name-only <branch> -- <subtree>`` returns
+    exit 0 with EMPTY output for a readable branch whose subtree simply holds no
+    such file (⇒ ``False``, a genuine first-write) and a non-zero exit for an
+    unresolvable ref (⇒ fail-closed ``True`` + warning), so the two cases never
+    collapse together.
     """
     basenames = _artifact_basenames_for_kind(kind)
     if not basenames:
         return False
-    subtree = f"kitty-specs/{mission_slug}/"
+    mission_dir_name = mission_slug
+    if mid8:
+        from specify_cli.lanes.branch_naming import coord_mission_dir_name
+
+        mission_dir_name = coord_mission_dir_name(mission_slug, mid8=mid8)
+    subtree = f"{KITTY_SPECS_DIR}/{mission_dir_name}/"
     try:
         committed = tree_paths(repo_root, coord_branch, pathspecs=(subtree,))
-    except GitCommandError:
-        # Fail closed: an unreadable ref or an absent git binary reads as "present".
+    except GitCommandError as exc:
+        # Explicit git-error arm (binding correction): either the git BINARY is
+        # unavailable/unrunnable or the REF is unresolvable (a missing/foreign
+        # branch). ``ls-tree`` exits 0 with empty output for a readable branch
+        # whose subtree simply holds nothing, so a failure here is never a
+        # legitimate "absent" result. Both fail closed to "present" since
+        # neither can prove the subtree empty -- but observably, not silently.
+        logger.warning(
+            "coord_branch_has_committed_artifact: could not list %r on branch %r for mission %r (%s); failing closed to present.",
+            subtree,
+            coord_branch,
+            mission_slug,
+            exc,
+        )
         return True
     return any(path.name in basenames for path in committed)
 
@@ -895,7 +927,13 @@ def _raise_unmaterialized(
     raise error
 
 
-def materialize_coord_surface_for_write(repo_root: Path, mission_slug: str) -> None:
+def materialize_coord_surface_for_write(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    coordination_branch: str | None = None,
+    mid8: str | None = None,
+) -> None:
     """Materialize an absent coordination worktree BEFORE a coordination write (FR-013).
 
     The ONE seam every coordination-routed write (``decision open`` / ``resolve``
@@ -925,14 +963,39 @@ def materialize_coord_surface_for_write(repo_root: Path, mission_slug: str) -> N
        still not materialized/empty.
 
     Never called on a read path (D2): reads must stay side-effect free.
-    """
-    meta, _ = read_primary_meta(repo_root, mission_slug)
-    raw_coordination_branch = meta.get("coordination_branch")
-    if not raw_coordination_branch:
-        return
-    coordination_branch = str(raw_coordination_branch)
 
-    mid8 = resolve_declared_mid8(meta, mission_slug)
+    ``coordination_branch`` / ``mid8`` (review cycle 2, coord-artifact-single-
+    home-01M3V4BE WP09, B1-residual / Decision ``plan.design.undeclared-coord-
+    branch``): an optional override for the AUTHORITATIVE identity the CALLER
+    already resolved -- declared, or deterministically DERIVED when
+    ``meta.json`` carries no ``coordination_branch`` key. Passing both bypasses
+    this function's own ``read_primary_meta`` re-derivation, which only ever
+    sees a DECLARED branch and would otherwise no-op (case 1 above) for a
+    genuinely coordination-routed Mission whose branch is merely undeclared --
+    silently leaving its worktree UNMATERIALIZED instead of proceeding exactly
+    as if the branch had been declared. ``None`` (every pre-existing caller,
+    including the coordination doctor's ``--fix``, which pre-filters to
+    missions that DO declare the field) preserves the historical meta-derived
+    behavior byte-for-byte. Passing one without the other is a caller error.
+    """
+    if coordination_branch is None:
+        # Review cycle 3 nit: a caller passing ``mid8`` alone (no
+        # ``coordination_branch``) would otherwise fall straight into the
+        # re-derivation branch below, which silently OVERWRITES that ``mid8``
+        # with meta's own derivation -- contradicting the docstring's
+        # "passing one without the other is a caller error". Guarded
+        # symmetrically with the ``mid8 is None`` check below.
+        if mid8 is not None:
+            raise ValueError("materialize_coord_surface_for_write: coordination_branch must accompany an explicit mid8 override")
+        meta, _ = read_primary_meta(repo_root, mission_slug)
+        raw_coordination_branch = meta.get("coordination_branch")
+        if not raw_coordination_branch:
+            return
+        coordination_branch = str(raw_coordination_branch)
+        mid8 = resolve_declared_mid8(meta, mission_slug)
+    if mid8 is None:
+        raise ValueError("materialize_coord_surface_for_write: mid8 must accompany an explicit coordination_branch override")
+
     state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coordination_branch)
     if state is not CoordState.UNMATERIALIZED:
         return
@@ -1184,6 +1247,26 @@ def resolve_status_surface(
     return resolve_status_surface_with_anchor(repo_root, mission_slug, topology, for_write=for_write).surface_path
 
 
+def _meta_unreadable_fallback(primary_dir: Path, feature_dir: Path, mission_slug: str) -> ResolvedStatusSurface:
+    """Resolve the surface when no readable ``meta.json`` was found anywhere.
+
+    Extracted verbatim from :func:`resolve_status_surface_with_anchor` (T006,
+    campsite-clean WP01) — prefers the primary dir when it exists on disk, then
+    the (possibly coord) ``feature_dir``, and fails loud when neither exists.
+    """
+    if primary_dir.exists():
+        return ResolvedStatusSurface(
+            surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=primary_dir,
+        )
+    if feature_dir.exists():
+        return ResolvedStatusSurface(
+            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=feature_dir,
+        )
+    raise FileNotFoundError(f"meta.json not found for mission {mission_slug!r} at {feature_dir}")
+
+
 def resolve_status_surface_with_anchor(
     repo_root: Path,
     mission_slug: str,
@@ -1223,6 +1306,13 @@ def resolve_status_surface_with_anchor(
     ``for_write`` preserves coordination validation for placement callers. A
     completed mission's primary read authority does not grant write placement
     for artifact kinds excluded from post-consolidation writes (#4358).
+    ``for_write=True`` is **commit-ref oriented, not a write location**
+    (coord-artifact-single-home-01M3V4BE WP04, FR-017): it is reached from
+    :func:`~mission_runtime.resolution.resolve_placement_only` (via
+    ``_assemble_core_fragments(for_write=True)``) and MUST stay side-effect
+    free — it never materializes, seeds or writes anything, unlike
+    :meth:`~mission_runtime.resolution.PlacementSeam.write_dir`, the ONE
+    accessor sanctioned to do that.
 
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
@@ -1340,17 +1430,7 @@ def resolve_status_surface_with_anchor(
 
         meta = load_meta_fail_closed(primary_dir)
     if meta is None:
-        if primary_dir.exists():
-            return ResolvedStatusSurface(
-                surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
-                primary_anchor=primary_dir,
-            )
-        if feature_dir.exists():
-            return ResolvedStatusSurface(
-                surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
-                primary_anchor=feature_dir,
-            )
-        raise FileNotFoundError(f"meta.json not found for mission {mission_slug!r} at {feature_dir}")
+        return _meta_unreadable_fallback(primary_dir, feature_dir, mission_slug)
 
     # Config is now in hand. The canonical primary anchor is the topology-blind
     # primary dir (the create→first-write window authority the transaction
@@ -1423,27 +1503,122 @@ def resolve_status_surface_with_anchor(
     # primary checkout authoritative one level up (the aggregate's not-yet-
     # materialized gate).
     if coord_state is CoordState.EMPTY:
-        # #2533: a solo (no-lanes) coord-topology mission whose coord worktree
-        # never received a write is an EXPECTED empty state, not a stale
-        # split-brain — routing it to PRIMARY is the correct, quiet outcome
-        # (WP08 T029). Only ``MissionTopology.LANES_WITH_COORD`` implies real
-        # lane worktrees were provisioned to write there; for THAT shape an
-        # empty coord root is genuinely unexpected and the loud warning's
-        # true-positive signal must survive (WP08 T031). ``effective_topology``
-        # is the SAME value already disposed above (no re-derivation, no
-        # parallel ``pr_bound`` signal) — solo ``COORD`` is the only other
-        # coord-routing member (``_topology_uses_coord_surface`` gated this
-        # branch to exactly {COORD, LANES_WITH_COORD} already).
-        if effective_topology is MissionTopology.LANES_WITH_COORD:
-            logger.warning(
-                _COORD_EMPTY_FALLBACK_WARNING,
-                {"slug": mission_slug, "coord_root": composed_coord_dir.parent.parent},
-            )
-        return ResolvedStatusSurface(
-            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
-            primary_anchor=feature_dir,
+        raw_mission_id = meta.get("mission_id")
+        mission_id = str(raw_mission_id) if raw_mission_id else ""
+        return _empty_coord_surface(
+            feature_dir,
+            composed_coord_dir,
+            mission_slug,
+            effective_topology,
+            repo_root=repo_root,
+            coord_branch=coord_branch,
+            mission_id=mission_id,
+            for_write=for_write,
         )
     return ResolvedStatusSurface(
         surface_path=composed_coord_dir / _STATUS_EVENTS_FILENAME,
+        primary_anchor=feature_dir,
+    )
+
+
+def _empty_coord_surface(
+    feature_dir: Path,
+    composed_coord_dir: Path,
+    mission_slug: str,
+    effective_topology: MissionTopology,
+    *,
+    repo_root: Path,
+    coord_branch: str,
+    mission_id: str,
+    for_write: bool,
+) -> ResolvedStatusSurface:
+    """Handle ``CoordState.EMPTY``: a materialized-but-empty coordination worktree.
+
+    Extracted verbatim from :func:`resolve_status_surface_with_anchor` (T006,
+    campsite-clean WP01) — no new side effects (no git writes, no directory
+    creation, no materialization); the warning call and its ``.parent.parent``
+    derivation reproduce exactly. Widened (coord-artifact-single-home-01M3V4BE
+    WP04, binding correction round 3 "D4 / naming fix") to take ``repo_root``
+    and ``coord_branch`` — WP01 could not pre-add them here because ruff ARG
+    would have flagged the then-unused parameters.
+
+    Option B loud primary fallback (FR-001 / FR-003 / #1716): the coord worktree
+    root is materialized but its mission dir is absent (coord-empty). Reading the
+    primary checkout may expose a stale, split-brain status surface (#1589/#1821),
+    so emit a single loud ``logging.WARNING`` naming the risk AND both recovery
+    paths (flatten OR `spec-kitty doctor workspaces --fix`) — making the fallback
+    observable so an operator/orchestrating agent can intervene — then return the
+    PRIMARY surface and proceed.
+
+    #2533: a solo (no-lanes) coord-topology mission whose coord worktree
+    never received a write is an EXPECTED empty state, not a stale
+    split-brain — routing it to PRIMARY is the correct, quiet outcome
+    (WP08 T029). Only ``MissionTopology.LANES_WITH_COORD`` implies real
+    lane worktrees were provisioned to write there; for THAT shape an
+    empty coord root is genuinely unexpected and the loud warning's
+    true-positive signal must survive (WP08 T031). ``effective_topology``
+    is the SAME value already disposed by the caller (no re-derivation, no
+    parallel ``pr_bound`` signal) — solo ``COORD`` is the only other
+    coord-routing member (``_topology_uses_coord_surface`` gated this
+    branch to exactly {COORD, LANES_WITH_COORD} already).
+
+    **Post-fix loudness (WP04, research D4/US2.7/FR-003a).** After mission
+    coord-artifact-single-home-01M3V4BE every COORD write seeds the
+    coordination surface (WP06+), so a **post-fix** mission's EMPTY worktree
+    (its coordination-branch history already carries the
+    ``Spec-Kitty-Coordination-Seed: <mission_id>`` trailer, WP03's single
+    discriminator, :func:`~specify_cli.coordination.coord_seed.
+    coord_branch_is_post_fix`) signals a regression — the Mission dir was
+    removed from an otherwise-seeded worktree — and now warns for **both**
+    coordination topologies, not only ``LANES_WITH_COORD``. A pre-fix
+    Mission (no trailer yet) keeps today's behaviour unchanged: quiet for
+    solo ``COORD`` (#2533), loud for ``LANES_WITH_COORD``.
+
+    **Dedup (binding correction round 3) — narrowed to avoid a regression.**
+    This EMPTY branch is ALSO reachable from
+    :func:`~mission_runtime.resolve_placement_only` /
+    :meth:`~mission_runtime.resolution.PlacementSeam.write_target` (via
+    ``_assemble_core_fragments(for_write=True)``), which pre-date this WP and
+    are PINNED (``tests/mission_runtime/test_status_read_path_error_contract.py``)
+    to already emit today's unconditional ``LANES_WITH_COORD`` warning on
+    THAT path too — gating the warning itself on ``not for_write`` would
+    silently remove that warning for every caller that has not migrated to
+    :meth:`~mission_runtime.resolution.PlacementSeam.write_dir` yet (none
+    have, as of this WP), a real regression, not a dedup. Only the NEW
+    post-fix trailer probe (one extra subprocess, and the only thing that
+    could newly warn a solo ``COORD`` write-side caller) is gated on
+    ``not for_write``: :func:`~specify_cli.coordination.coord_seed.
+    establish_coord_write_location` (reached ONLY through ``write_dir``, the
+    one caller that actually performs a WRITE here) already emits its OWN
+    post-fix warning, on its own logger, when it restores a post-fix
+    surface — so a ``write_dir`` caller is never left silent, and a
+    not-yet-migrated ``write_target`` caller keeps EXACTLY today's
+    LANES_WITH_COORD-only behaviour, unchanged.
+    """
+    post_fix = False
+    if not for_write:
+        from specify_cli.coordination.coord_seed import _CoordGitProbeError, coord_branch_is_post_fix
+
+        try:
+            post_fix = coord_branch_is_post_fix(repo_root, coord_branch, mission_id)
+        except _CoordGitProbeError:
+            # Decision (WP04, T021 edge case): DEGRADE, never propagate. This
+            # EMPTY branch is a read-side diagnostic -- the PRIMARY fallback
+            # below is returned regardless of post-fix-ness (C-002 keeps the
+            # read fallback unconditionally), so a git-probe failure
+            # classifying "should this warn louder" must never turn an
+            # otherwise-successful read into a crash. Degrading to ``True``
+            # (not ``False``) keeps the module's existing fail-LOUD bias
+            # (#1716/#1848: never silently hide a possible regression) -- an
+            # unclassifiable branch still warns, it just cannot claim the
+            # quiet pre-fix/solo-coord exemption.
+            post_fix = True
+    if post_fix or effective_topology is MissionTopology.LANES_WITH_COORD:
+        logger.warning(
+            _COORD_EMPTY_FALLBACK_WARNING,
+            {"slug": mission_slug, "coord_root": composed_coord_dir.parent.parent},
+        )
+    return ResolvedStatusSurface(
+        surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
         primary_anchor=feature_dir,
     )

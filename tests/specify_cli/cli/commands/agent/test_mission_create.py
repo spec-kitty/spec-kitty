@@ -24,10 +24,10 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import MissionCreationResult
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
-from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._create import (
@@ -270,38 +270,29 @@ def test_mission_create_mints_coordination_branch(tmp_path: Path) -> None:
 
 
 def test_mission_create_idempotent_second_run(tmp_path: Path) -> None:
-    """A same-identity re-ensure after create refuses and leaves the branch untouched.
+    """Re-creating the same mission slug (slug collision permitted in same dir) is a no-op for the branch.
 
     Because each ``mission create`` mints a fresh ULID, two calls with the
     same input slug yield *different* mission directories and therefore
-    different coordination branch names, so a same-identity re-ensure never
-    happens in production. The branch-level idempotency guarantee is
-    exercised by invoking ``ensure_coordination_branch`` twice on an untouched
-    branch (``test_ensure_is_idempotent_when_branch_at_target``). After a real
-    create the coordination branch carries the status-log seed commit (#5440)
-    while the target advanced with the scaffold, so a same-identity re-ensure is a
-    divergence: it must refuse with the structured error and never move or
-    rewrite the coordination branch (only ``force_recreate`` may reset it).
+    different coordination branch names. The idempotency guarantee at the
+    branch level is exercised by directly invoking
+    ``ensure_coordination_branch`` twice for the same identity (already
+    covered above), and at the mission level we assert that re-running with
+    the *same* identity (same mission_id) does not raise.
     """
     _init_repo(tmp_path)
     result = _create(tmp_path, "twice-run")
     mission_id = result.meta["mission_id"]
-    assert result.coordination_branch is not None
-    tip_before = _branch_sha(tmp_path, result.coordination_branch)
-    tip_subject = _git(tmp_path, "log", "-1", "--pretty=%s", result.coordination_branch).stdout.strip()
-    assert tip_subject == f"Add status log for mission {result.mission_slug}"
 
-    with pytest.raises(CoordinationBranchDiverged) as exc_info:
-        ensure_coordination_branch(
-            repo_root=tmp_path,
-            mission_slug=result.mission_slug,
-            mission_id=mission_id,
-            target_branch="main",
-        )
-
-    assert exc_info.value.coordination_branch == result.coordination_branch
-    assert exc_info.value.target_branch == "main"
-    assert _branch_sha(tmp_path, result.coordination_branch) == tip_before
+    # Direct second invocation with the same identity: no error, no churn.
+    second = ensure_coordination_branch(
+        repo_root=tmp_path,
+        mission_slug=result.mission_slug,
+        mission_id=mission_id,
+        target_branch="main",
+    )
+    assert second.created is False
+    assert second.branch_name == result.coordination_branch
 
 
 def test_meta_json_contains_coordination_branch(tmp_path: Path) -> None:
@@ -909,16 +900,22 @@ def test_resume_probe_command_rejects_unreadable_meta(tmp_path: Path) -> None:
 
 
 def test_explicit_research_create_keeps_scaffold_meta_and_event_type_coherent(tmp_path: Path) -> None:
-    """The pre-create type selection must reach every canonical creation surface."""
+    """The pre-create type selection must reach every canonical creation surface.
+
+    Re-pinned (coord-artifact-single-home-01M3V4BE WP06, D6): the default
+    (coord) topology seeds the creation events onto the coordination branch,
+    not ``result.feature_dir`` (#5440) -- read them back via ``git show``
+    against the coordination branch ``meta.json`` records instead.
+    """
     _init_repo(tmp_path)
 
     result = _create(tmp_path, "research-bootstrap", mission="research")
 
     meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     spec = (result.feature_dir / "spec.md").read_text(encoding="utf-8")
-    # #5440: the status log lives on the resolved status surface (the coordination worktree).
-    status_log = resolve_status_surface(tmp_path, result.mission_slug)
-    events = [json.loads(line) for line in status_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    coordination_branch = meta["coordination_branch"]
+    log_content = _git(tmp_path, "show", f"{coordination_branch}:kitty-specs/{result.mission_slug}/status.events.jsonl").stdout
+    events = [json.loads(line) for line in log_content.splitlines() if line.strip()]
     created = next(event for event in events if event["event_type"] == "MissionCreated")
 
     assert meta["mission_type"] == "research"
@@ -928,6 +925,40 @@ def test_explicit_research_create_keeps_scaffold_meta_and_event_type_coherent(tm
     assert created["payload"]["friendly_name"] == meta["friendly_name"]
     assert created["payload"]["purpose_tldr"] == meta["purpose_tldr"]
     assert created["payload"]["purpose_context"] == meta["purpose_context"]
+
+
+@pytest.mark.parametrize("topology", [MissionTopology.COORD, MissionTopology.LANES_WITH_COORD], ids=lambda t: t.value)
+def test_resume_probe_reports_found_for_healthy_coordination_routed_create(tmp_path: Path, topology: MissionTopology) -> None:
+    """B1 (review cycle 1, HIGH regression): a healthy coordination-routed
+    create must probe ``found``/exit 0, never ``malformed``.
+
+    T031 moved the creation events (``MissionCreated``/``SpecifyStarted``)
+    onto the coordination surface for ``coord``/``lanes_with_coord`` (#5440);
+    the resume probe's ``_mission_created_snapshot_problems`` used to read a
+    hard-coded ``feature_dir / "status.events.jsonl"`` -- the PRIMARY
+    checkout, which coordination topologies no longer populate -- so EVERY
+    healthy coordination Mission regressed to ``MISSION_RESUME_MALFORMED``
+    ("status.events.jsonl is missing"). This pins the fix:
+    ``_status_events_log_path`` resolves through the same production read
+    authority (``placement_seam(...).read_dir(STATUS_STATE)``) every other
+    status read uses.
+    """
+    _init_repo(tmp_path)
+    result = _create(tmp_path, "healthy-coord", topology=topology)
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+    ):
+        probe = runner.invoke(
+            mission_app,
+            ["check-prerequisites", "--mission", result.mission_slug, "--resume-probe", "--json"],
+        )
+
+    assert probe.exit_code == 0, probe.output
+    payload = _json_payload_from_output(probe.output)
+    assert payload["resume_state"] == "found", payload
 
 
 @pytest.mark.parametrize("branch_preexists", [False, True])
@@ -989,4 +1020,24 @@ def test_mission_created_persistence_failure_is_nonzero_and_probe_recoverable(
     assert probe.exit_code == 1
     probe_payload = _json_payload_from_output(probe.output)
     assert probe_payload["resume_state"] == "malformed"
-    assert "MissionCreated" in " ".join(probe_payload["problems"])
+    # Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T032; corrected in
+    # review cycle 2 B1): the default (coord) topology's creation events live
+    # on the coordination surface, not the scaffold directory. The injected
+    # ``MissionCreated`` persistence failure strikes before the coordination
+    # commit, so rollback (T032) tears the just-minted coordination branch
+    # back down -- but ``meta.json`` (retained on disk for diagnosis, since
+    # this failure is NOT a disposable-refusal class) still DECLARES that now
+    # -deleted ``coordination_branch``. The probe's own B1 fix
+    # (``_status_events_log_path``) resolves the status log through the same
+    # production read authority every status read uses, so it surfaces the
+    # SPECIFIC, genuinely-diagnostic ``CoordinationBranchDeleted`` finding --
+    # never the generic "status.events.jsonl is missing" message a healthy
+    # coordination Mission would also produce if read via a hard-coded
+    # feature_dir path (the exact regression B1 fixed).
+    problems_text = " ".join(probe_payload["problems"])
+    assert "declared in meta.json but deleted from git" in problems_text, problems_text
+    assert "status.events.jsonl is missing" not in problems_text, (
+        "this message is now produced by EVERY coordination Mission's resume probe if the "
+        "coordination branch were ever misread as absent -- it must not mask the specific, "
+        "genuinely-diagnostic deleted-branch finding for THIS failure shape"
+    )

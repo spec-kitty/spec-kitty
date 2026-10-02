@@ -27,7 +27,8 @@ from specify_cli.coordination.status_service import (
     merge_append_preserving_coordination_event_log_bytes,
     read_event_log,
 )
-from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
+from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+from specify_cli.coordination.transaction import BookkeepingCommitFailed
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from tests._owned_fixtures import mint_test_fact
 from specify_cli.core.paths import MissionMetaReadError
@@ -540,9 +541,19 @@ def test_transactional_emit_fails_closed_when_coordination_branch_missing(
     repo: Path,
     mock_saas_sink: Any,
 ) -> None:
+    """WP07 re-pin: the coordination arm now resolves through the single
+    write-location accessor (``placement_seam(...).write_dir``), whose own
+    typed refusal for a declared-but-deleted coordination branch is
+    ``CoordinationBranchDeleted`` (``COORDINATION_BRANCH_DELETED``) -- a
+    ``StatusReadPathNotFound`` subclass, not ``ActionContextError`` -- rather
+    than the generic ``BookkeepingWorktreeMissing`` the old bare
+    ``CoordinationWorkspace.resolve`` call always raised for every
+    unresolvable-worktree shape alike. The write is still refused loudly
+    before anything is written (fail-closed, #1848 / SC-001 unchanged).
+    """
     _git(repo, "branch", "-D", COORD_BRANCH)
 
-    with pytest.raises(BookkeepingWorktreeMissing):
+    with pytest.raises(CoordinationBranchDeleted):
         emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
@@ -555,13 +566,14 @@ def test_transactional_batch_fails_closed_when_coordination_branch_missing(
 ) -> None:
     """C-007: the batch door keeps the single door's fail-closed policy.
 
-    An unresolvable coord worktree propagates ``BookkeepingWorktreeMissing``
-    from the batch door exactly as from the single door (#1848 / SC-001);
-    the #3460 degrade is the inner-state door's alone.
+    An unresolvable coord worktree propagates ``CoordinationBranchDeleted``
+    (WP07 re-pin, see the single-door sibling test above) from the batch door
+    exactly as from the single door (#1848 / SC-001); the #3460 degrade is
+    the inner-state door's alone.
     """
     _git(repo, "branch", "-D", COORD_BRANCH)
 
-    with pytest.raises(BookkeepingWorktreeMissing):
+    with pytest.raises(CoordinationBranchDeleted):
         emit_status_transition_batch_transactional([_request(repo)])
 
     assert mock_saas_sink.call_count == 0
@@ -572,7 +584,7 @@ def test_transactional_emit_worktree_missing_message_has_no_doubled_identity(
     tmp_path: Path,
     mock_saas_sink: Any,
 ) -> None:
-    """#4507 finding 2 regression: the ``BookkeepingWorktreeMissing`` message
+    """#4507 finding 2 regression: the fail-closed refusal message
     must compose the mission identity through the idempotent
     ``coord_mission_dir_name`` seam, not a raw ``f"{slug}-{mid8}"``.
 
@@ -582,6 +594,15 @@ def test_transactional_emit_worktree_missing_message_has_no_doubled_identity(
     mission created with the mid8 already baked into its slug would carry in
     meta.json), so a naive ``f"{slug}-{mid8}"`` composition would double the
     mid8 suffix (``...-01KT1356-01KT1356``); the seam is a no-op instead.
+
+    WP07 re-pin: the coordination branch here was never created at all,
+    which ``probe_coord_state`` classifies identically to a deleted one
+    (no such git ref either way) -- the single write-location accessor
+    raises ``CoordinationBranchDeleted``, not ``BookkeepingWorktreeMissing``
+    (see the sibling fail-closed tests above). ``CoordinationBranchDeleted``
+    composes its own message from the SAME ``mission_slug`` this call passes
+    through unchanged, so the no-doubling assertion below still pins the
+    original #4507 defect.
     """
     embedded_mid8 = "01KT1356"
     embedded_slug = f"status-transaction-{embedded_mid8}"
@@ -621,7 +642,7 @@ def test_transactional_emit_worktree_missing_message_has_no_doubled_identity(
         repo_root=r,
     )
 
-    with pytest.raises(BookkeepingWorktreeMissing) as excinfo:
+    with pytest.raises(CoordinationBranchDeleted) as excinfo:
         emit_status_transition_transactional(request)
 
     message = str(excinfo.value)
@@ -904,13 +925,22 @@ def test_transactional_emit_fail_closed_surface_refusal_stays_structured(
 ) -> None:
     """The emit path refuses with a structured Bookkeeping error, not a raw leak.
 
-    The mkdir'd coord root is not a valid git worktree, so after identity
-    resolution succeeds the transaction refuses with its own structured
-    BOOKKEEPING_WORKTREE_MISSING error — never a raw StatusReadPathNotFound.
+    The mkdir'd coord root is not a valid git worktree, but IS an existing
+    directory, so ``probe_coord_state`` -- consulted by the single
+    write-location accessor (WP07) -- classifies it MATERIALIZED (the same
+    dir-existence-based classification the old ``CoordinationWorkspace.resolve``
+    call used) and resolution itself succeeds. The structured refusal now
+    surfaces one step later, at ``safe_commit``'s own "is this a real git
+    worktree" guard, as ``BookkeepingCommitFailed`` -- still this module's own
+    structured Bookkeeping error, never a raw ``StatusReadPathNotFound`` /
+    ``CalledProcessError`` leak (re-pinned: the defect this test guards
+    against -- "a raw leak" -- is unchanged; only the specific Bookkeeping
+    subtype and the point in the acquire→commit pipeline where it fires
+    moved).
     """
     _materialize_coord_root_without_mission_dir(repo)
 
-    with pytest.raises(BookkeepingWorktreeMissing):
+    with pytest.raises(BookkeepingCommitFailed):
         emit_status_transition_transactional(_canonical_slug_request(repo))
 
 

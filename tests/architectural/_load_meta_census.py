@@ -149,12 +149,14 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py", "_report_for_mission"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/agent/mission_check_prerequisites.py", "_read_meta_for_emission"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/agent/mission_repair.py", "run_mission_repair"): (1, "silent-by-contract"),
-    # PR #3211 landing pass (2026-08-05, F4): reads the primary metadata with
-    # `allow_missing=True, on_malformed="none"` to best-effort resolve a
-    # coord worktree for a revert compensator -- a missing/malformed
-    # mission_id is handled explicitly below (raises a typed
-    # VerdictRevertError), so this read itself is deliberately silent.
-    ("src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py", "_resolve_revert_commit_worktree"): (1, "silent-by-contract"),
+    # GHOST (coord-artifact-single-home-01M3V4BE WP08): the PR #3211 row for
+    # `_resolve_revert_commit_worktree` ("reads the primary metadata ... to
+    # best-effort resolve a coord worktree for a revert compensator") is
+    # removed here. WP08's single-home write rule retired that function's
+    # `load_meta`/`resolve_mid8`/`CoordinationWorkspace.resolve` re-derivation
+    # of the coordination worktree entirely -- it now resolves the checkout
+    # root through `PlacementSeam.write_dir` instead, which this scanner does
+    # not classify as a `load_meta` call site (there is no longer one here).
     # #3716: the discard flatten's commit leg reads meta.json only to resolve the
     # primary `target_branch` for the commit; `allow_missing=True,
     # on_malformed="none"` keeps it deliberately silent — a missing/malformed meta

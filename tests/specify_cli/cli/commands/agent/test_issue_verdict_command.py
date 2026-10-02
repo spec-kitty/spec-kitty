@@ -381,29 +381,57 @@ class TestCoordAwareReadSurface:
     def test_reads_the_coord_surface_when_topology_routes_there(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write_artifact_fake: _StatefulWriteArtifactFake
     ) -> None:
-        """A prior row committed to COORD must not be clobbered by a primary-only read."""
+        """A prior row at the OWNING (write-location) surface must not be
+        clobbered by a verdict call for a DIFFERENT row.
+
+        WP10 (T057-sibling binding correction, lost-update fix): the pre-lock
+        snapshot, the locked re-read/write (via ``_resolve_write_dir``) AND
+        ``write_issue_matrix``'s own internal write location all resolve
+        through the SAME ``mission_runtime.placement_seam(...).write_dir(...)``
+        authority -- never a separately-mocked READ-side ``coord_read_dir_for``
+        that could diverge from where the write actually lands (the single-
+        home rule makes that divergence architecturally impossible: there is
+        ONE owning location, and everything reads/writes it consistently).
+        Patching the seam constructor itself (rather than either call site
+        individually) keeps both resolutions consistent, standing in for a
+        real coordination worktree without needing real git machinery in this
+        ``unit``/``fast``-tier file.
+        """
+        import mission_runtime
         import specify_cli.cli.commands.agent.issue_verdict as issue_verdict
 
-        feature_dir = _make_mission(tmp_path)
-        coord_dir = tmp_path / "coord-worktree" / _MISSION_SLUG
-        coord_dir.mkdir(parents=True)
-        (coord_dir / "issue-matrix.json").write_text(
+        _make_mission(tmp_path)
+        matrix_dir = tmp_path / "coord-worktree" / _MISSION_SLUG
+        matrix_dir.mkdir(parents=True)
+        (matrix_dir / "issue-matrix.json").write_text(
             json.dumps(
                 {"schema_version": 1, "rows": {"#1": {"verdict": "fixed", "evidence_ref": "already done"}}}
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(issue_verdict, "coord_read_dir_for", lambda *a, **k: coord_dir)
+
+        class _StubWriteLocation:
+            path = matrix_dir
+
+        class _StubSeam:
+            def write_dir(self, _kind: object) -> _StubWriteLocation:
+                return _StubWriteLocation()
+
+        monkeypatch.setattr(mission_runtime, "placement_seam", lambda *a, **k: _StubSeam())
+        # ``issue_verdict`` imports ``MissionArtifactKind``/``coord_read_dir_for``
+        # at module load time (unaffected), but ``_resolve_write_dir`` and
+        # ``write_issue_matrix`` both do ``from mission_runtime import
+        # placement_seam`` as LOCAL (call-time) imports, so the patch above
+        # reaches both.
 
         result = issue_verdict.do_issue_verdict(
             mission=_MISSION_SLUG, issue="#99", verdict="fixed", actor="claude", repo_root=tmp_path
         )
 
         assert result["ok"] is True
-        # write_issue_matrix always writes the LOCAL primary copy first (the
-        # seam materializes/cleans-up the coord copy on commit) -- assert on
-        # that primary file's content to prove the coord-read row was merged.
-        content = _read_json(feature_dir / "issue-matrix.json")
+        # WP10 (single-home rule): the write lands IN PLACE at the resolved
+        # write location -- never a separate primary-checkout copy.
+        content = _read_json(matrix_dir / "issue-matrix.json")
         assert set(content["rows"]) == {"#1", "#99"}
         assert content["rows"]["#1"]["verdict"] == "fixed"
         assert content["rows"]["#99"]["verdict"] == "fixed"

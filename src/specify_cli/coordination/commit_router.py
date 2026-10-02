@@ -29,8 +29,9 @@ import subprocess
 from collections.abc import Iterator, Mapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
+from enum import Enum
 from pathlib import Path
-from typing import Final, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Final, Literal, Protocol, runtime_checkable
 
 from kernel.git import status_entries
 from mission_runtime import (
@@ -43,10 +44,19 @@ from mission_runtime import (
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.coordination import commit_outcome
 from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
 from specify_cli.coordination.surface_authority import Refuse, resolve_surface_authority
 from specify_cli.git import safe_commit
 from specify_cli.status import FeatureStatusLockTimeoutError
+
+if TYPE_CHECKING:
+    # WP05 (T027): only needed for the ``_translate_to_owning_surface`` /
+    # ``_resolve_owning_write_dir`` type annotations -- resolving the real
+    # ``write_dir`` seam happens via a lazy import inside the function that
+    # needs it (this module's existing style for ``coordination.*`` seams).
+    from mission_runtime import WriteLocation
 
 
 class CoordWorktreeResolutionError(RuntimeError):
@@ -135,15 +145,22 @@ def _mission_scoped(
 # ONE spelling instead of restating the raw string. This is the "in-band
 # strangle vocabulary" the reviewer guidance calls out: the placement-outcome
 # literal is domain vocabulary, not incidental formatting, so it earns a name.
-_STATUS_COMMITTED: Final = "committed"
-_STATUS_UNCHANGED: Final = "unchanged"
+#
+# WP05 (T024 CORRECTION, brownfield scout round 3): these four aliases now
+# import their VALUE from ``commit_outcome`` — the single canonical owner —
+# instead of each restating the same string (the duplicate previously also
+# lived in ``surface_authority.py``). This file keeps its own private names
+# (``_STATUS_COMMITTED`` etc.) so none of its 8+ existing construction sites
+# need renaming.
+_STATUS_COMMITTED: Final = commit_outcome.STATUS_COMMITTED
+_STATUS_UNCHANGED: Final = commit_outcome.STATUS_UNCHANGED
+_STATUS_NO_OP_WRONG_SURFACE: Final = commit_outcome.STATUS_NO_OP_WRONG_SURFACE
+_STATUS_ERROR: Final = commit_outcome.STATUS_ERROR
 
 # FR-003 (coord-commit-integrity): the re-homed PRIMARY analysis-report basename.
 # Named once so the coord-staging skip (mirroring the STATUS_STATE-kind skip,
 # WP13-retired ``COORD_OWNED_STATUS_FILES``) does not restate the raw literal.
 _ANALYSIS_REPORT_FILENAME: Final = "analysis-report.md"
-_STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
-_STATUS_ERROR: Final = "error"
 
 # #255 fix-round-2 (squad pass 2 MAJOR): the planning SOURCE-doc kinds a
 # mission produces BEFORE ``/spec-kitty.tasks`` has run (mirrors the "Planning
@@ -165,8 +182,9 @@ _PRE_TASKS_ARTIFACT_KINDS: Final[frozenset[MissionArtifactKind]] = frozenset(
 # #2739 B03: machine-readable ``reason`` strings for the two ``unchanged``
 # no-op flavours, so a caller can tell "nothing to do" from "silently wrong".
 # Named once (S1192) — every ``_STATUS_UNCHANGED`` construction site carries one.
-_REASON_ALREADY_COMMITTED: Final = "no_op_already_committed"
-_REASON_NO_CHANGES: Final = "no_op_no_changes"
+# WP05: values owned by ``commit_outcome`` (single owner — see above).
+_REASON_ALREADY_COMMITTED: Final = commit_outcome.REASON_ALREADY_COMMITTED
+_REASON_NO_CHANGES: Final = commit_outcome.REASON_NO_CHANGES
 
 # #2739 B01: the operator hatch that permits a commit on a protected branch.
 # Named once and reused by the protected-refusal diagnostic below (S1192).
@@ -205,6 +223,19 @@ class CommitRouterResult:
     #: ``no_op_no_changes`` (nothing to commit / empty changeset). ``None`` for
     #: every non-``unchanged`` status.
     reason: str | None = None
+    #: WP05 (FR-007, contracts/commit-outcome.md rule 1): one
+    #: :class:`~specify_cli.coordination.commit_outcome.SurfaceOutcome` per
+    #: partition group this request touched, ordered PRIMARY then
+    #: coordination. Additive — defaults empty for every pre-existing caller
+    #: and construction site this WP did not touch. The four legacy fields
+    #: above keep today's CALLER-partition projection (rule 4); ``surfaces``
+    #: is the only place a caller can see BOTH groups' outcomes when a batch
+    #: was split (:func:`_group_files_by_partition`). An early argument-error
+    #: return (mismatched ``expected_parent_sha``/``expected_path_bytes``, or
+    #: more than one resolved group with an ``expected_parent_sha``) carries
+    #: ``surfaces=()`` — it is a caller contract violation, never a surface
+    #: outcome.
+    surfaces: tuple[SurfaceOutcome, ...] = ()
 
 
 def mission_has_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
@@ -228,6 +259,7 @@ def commit_for_mission(
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
     owned: OwnedCheckout | None = None,
+    primary_ref: str | None = None,
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
 ) -> CommitRouterResult:
@@ -258,9 +290,23 @@ def commit_for_mission(
                      typecheck rather than silently mis-routing (FR-003 / C-005).
         primary_paths_created_this_invocation: Paths the caller materialised this
                      invocation (eligible for residue cleanup after staging, R6).
-        target_branch: Short primary branch name for the post-commit ff-advance
-                     (WP09 / FR-010 / #1878). Optional; advance is skipped when
-                     ``None``.
+        target_branch: Short TARGET branch name (the sense: the mission's own
+                     primary/target ref, not the repository-root checkout).
+                     R12 / FR-008 (#5440, WP05): this no longer drives a
+                     post-commit fast-forward — that best-effort advance
+                     (``_try_advance_ref``, WP09 / FR-010 / #1878) is RETIRED,
+                     because it silently carried coordination-only commits
+                     onto the target once the target became an ancestor of
+                     the coordination tip (post-create-seed, WP06). It still
+                     feeds the owned-placement early returns. It does not
+                     select the commit ref: ``spec-commit --target-branch``
+                     and write-seam callers keep that previous meaning.
+        primary_ref: Accept-only PRIMARY commit ref (decision
+                     ``plan.design.accept-primary-leg-ref``). When set, the
+                     PRIMARY group commits on this branch — the unprotected
+                     HEAD the acceptance-metadata commit used. Coordination
+                     groups ignore it. Other callers leave it unset, so an
+                     unprotected value cannot bypass a protected stored target.
         expected_parent_sha: Optional captured parent for a conditional ref update.
         expected_path_bytes: Optional exact raw bytes for selected paths in that
                      expected-parent commit; clean-filter rewrites are refused.
@@ -303,10 +349,10 @@ def commit_for_mission(
             policy,
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
-            target_branch=target_branch,
             owned=owned,
             expected_parent_sha=expected_parent_sha,
             expected_path_bytes=expected_path_bytes,
+            primary_ref_override=primary_ref,
         )
 
     # Split-and-commit (contract (a), pinned by T004): a mixed-partition batch
@@ -322,11 +368,44 @@ def commit_for_mission(
             policy,
             kind=group_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
-            target_branch=target_branch,
+            primary_ref_override=primary_ref,
         )
         for group_kind, group_files in groups
     ]
-    return _merge_group_results(results, groups, kind)
+    return _log_split_commit_outcome(_merge_group_results(results, groups, kind))
+
+
+def _log_split_commit_outcome(result: CommitRouterResult) -> CommitRouterResult:
+    """Log a split (multi-group) commit's full per-surface outcome, then return it unchanged.
+
+    A split commit's legacy top-level fields describe only the CALLER-partition
+    group (:func:`_merge_group_results` priority rules); the OTHER group's
+    outcome would otherwise reach only a caller that itself inspects
+    ``surfaces``. Rendering through the canonical trio here gives every reader
+    a full per-surface trail in the log regardless of whether that caller has
+    been migrated onto ``surfaces`` yet (WP07-WP16) — a genuine production use
+    of :func:`~specify_cli.coordination.commit_outcome.render_commit_outcome`
+    and :func:`~specify_cli.coordination.commit_outcome.commit_outcome_exit_code`
+    inside this WP, per the "prefer zero-red" guidance for the dead-symbol gate.
+    """
+    level = logging.WARNING if commit_outcome.commit_outcome_exit_code(result) != 0 else logging.DEBUG
+    for line in commit_outcome.render_commit_outcome(result):
+        logger.log(level, "commit_router: %s", line)
+    logger.debug("commit_router: outcome payload %s", commit_outcome.commit_outcome_payload(result))
+    return result
+
+
+def _apply_primary_ref_override(placement: CommitTarget, override: str | None, *, use_coord: bool) -> CommitTarget:
+    """Retarget a primary group onto an explicit ref.
+
+    Decision ``plan.design.accept-primary-leg-ref``: accept's PRIMARY residual
+    leg commits on the same branch as the acceptance-metadata commit. A
+    coordination group keeps its resolved ref. ``None`` and an identical ref
+    leave placement unchanged, so a caller passing the stored target is a no-op.
+    """
+    if use_coord or not override or override == placement.ref:
+        return placement
+    return replace(placement, ref=override)
 
 
 def _resolve_group_placement(
@@ -336,6 +415,7 @@ def _resolve_group_placement(
     *,
     kind: MissionArtifactKind,
     owned: OwnedCheckout | None,
+    primary_ref_override: str | None = None,
 ) -> tuple[CommitTarget, bool, CommitRouterResult | None]:
     """Resolve one group's placement + coord-routing decision (T035 campsite extraction).
 
@@ -372,6 +452,9 @@ def _resolve_group_placement(
     topology = owned.topology if owned is not None else resolve_topology(repo_root, mission_slug)
     primary_target = placement.ref if owned is not None else _resolve_mission_target_branch(repo_root, mission_slug)
     use_coord = owned is None and routes_through_coordination(topology) and placement.ref != primary_target
+    placement = _apply_primary_ref_override(placement, primary_ref_override, use_coord=use_coord)
+    if not use_coord and primary_ref_override:
+        primary_target = placement.ref
 
     # T016 / INV-4 (shared-rule consultation): the protected-primary refusal now
     # DERIVES from the single authority :func:`resolve_surface_authority` (contract
@@ -447,6 +530,7 @@ def _classify_no_commit_paths(
     Behaviour-preserving extraction of ``_commit_partition_group``'s former
     empty-commit-paths / wrong-surface classification.
     """
+    surface_name: Literal["primary", "coordination"] = "coordination" if use_coord else "primary"
     # #2739 B16 / #2694: distinguish a genuine no-op (artifact present +
     # already committed) from a WRONG-SURFACE no-op. When the mission routes
     # through coordination and coord staging skipped every artifact (e.g. a
@@ -457,23 +541,66 @@ def _classify_no_commit_paths(
     # stays dirty. Mirror the ``_any_path_absent`` wrong-surface detection and
     # refuse instead (T008 surfaces the actionable error).
     if use_coord and _paths_uncommitted_in_primary(repo_root, files):
+        diagnostic = (
+            f"Artifact(s) written to the primary checkout routed to the "
+            f"coordination placement ({placement.ref}) where nothing was "
+            f"staged; the commit would no-op against the wrong surface and "
+            f"the artifact remains uncommitted in the primary tree. Commit "
+            f"it to its own (primary) surface instead."
+        )
+        refused = tuple(PathFate(path=_relpath(repo_root, f), reason=commit_outcome.WRONG_SURFACE) for f in files)
         return CommitRouterResult(
             status=_STATUS_NO_OP_WRONG_SURFACE,
             placement_ref=placement.ref,
-            diagnostic=(
-                f"Artifact(s) written to the primary checkout routed to the "
-                f"coordination placement ({placement.ref}) where nothing was "
-                f"staged; the commit would no-op against the wrong surface and "
-                f"the artifact remains uncommitted in the primary tree. Commit "
-                f"it to its own (primary) surface instead."
-            ),
+            diagnostic=diagnostic,
+            surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="refused", commit_hash=None, refused=refused, diagnostic=diagnostic),),
         )
     # All artifacts already committed (or none present) — genuine no-op.
+    skipped = tuple(PathFate(path=_relpath(repo_root, f), reason=_REASON_ALREADY_COMMITTED) for f in files)
     return CommitRouterResult(
         status=_STATUS_UNCHANGED,
         placement_ref=placement.ref,
         reason=_REASON_ALREADY_COMMITTED,
+        surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="unchanged", commit_hash=None, skipped=skipped),),
     )
+
+
+def _refine_unchanged_for_root_checkout_dirt(
+    result: CommitRouterResult,
+    repo_root: Path,
+    files: tuple[Path, ...],
+    *,
+    use_coord: bool,
+    surface_name: Literal["primary", "coordination"],
+    placement: CommitTarget,
+) -> CommitRouterResult:
+    """Re-classify a genuine ``unchanged`` owning-surface commit when a root copy is ALSO dirty (T028 contract rule 3).
+
+    T027 translates a root-checkout COORD-record path to its owning
+    (coordination) copy BEFORE this group ever reaches :func:`_safe_commit_group`
+    -- so ``commit_paths`` already names the OWNING path, and an ``unchanged``
+    result here means the OWNING copy is genuinely clean. That is not the same
+    fact as "the caller's root-checkout copy is clean": an operator who edited
+    the root copy directly (never committed) would otherwise see a bare
+    ``no_op_no_changes`` with no hint that their edit never reaches the target.
+    When any of the ORIGINAL *files* this group was asked to commit is ALSO
+    dirty in the PRIMARY checkout, this swaps the generic no-op reason for the
+    named ``COORD_RECORD_IN_ROOT_CHECKOUT`` skip for exactly those paths — the
+    owning-surface verdict (``unchanged``) is unchanged, only the per-path
+    reason becomes actionable.
+    """
+    if result.status != _STATUS_UNCHANGED or not use_coord:
+        return result
+    dirty_root_files = _dirty_paths_in_checkout(repo_root, files)
+    if not dirty_root_files:
+        return result
+    dirty_rel = {_relpath(repo_root, f) for f in dirty_root_files}
+    skipped = tuple(
+        PathFate(path=path, reason=commit_outcome.COORD_RECORD_IN_ROOT_CHECKOUT if path in dirty_rel else _REASON_ALREADY_COMMITTED)
+        for path in sorted({_relpath(repo_root, f) for f in files})
+    )
+    refined_surface = SurfaceOutcome(surface=surface_name, branch=placement.ref, status="unchanged", commit_hash=None, skipped=skipped)
+    return replace(result, surfaces=(refined_surface,))
 
 
 def _commit_partition_group(
@@ -485,10 +612,10 @@ def _commit_partition_group(
     *,
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
-    target_branch: str | None = None,
     owned: OwnedCheckout | None = None,
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
+    primary_ref_override: str | None = None,
 ) -> CommitRouterResult:
     """Commit ONE single-partition file group to its resolved placement.
 
@@ -498,19 +625,80 @@ def _commit_partition_group(
     ``kind`` — :func:`_group_files_by_partition` guarantees this; this helper
     does not re-validate it (single responsibility: resolve + commit one group).
     """
-    placement, use_coord, refusal = _resolve_group_placement(repo_root, mission_slug, policy, kind=kind, owned=owned)
+    placement, use_coord, refusal = _resolve_group_placement(
+        repo_root,
+        mission_slug,
+        policy,
+        kind=kind,
+        owned=owned,
+        primary_ref_override=primary_ref_override,
+    )
+    # FR-007 (contract rule 1): every return site below names this group's
+    # surface -- "coordination" iff this group routes through coordination,
+    # else "primary". ``refusal`` can only occur in the ``not use_coord`` arm
+    # of ``_resolve_group_placement`` (a protected-PRIMARY refusal), so it is
+    # always "primary" there.
+    surface_name: Literal["primary", "coordination"] = "coordination" if use_coord else "primary"
     if refusal is not None:
-        return refusal
+        refused = tuple(PathFate(path=_relpath(repo_root, f), reason=commit_outcome.PROTECTED_BRANCH_REFUSED) for f in files)
+        refused_surface = SurfaceOutcome(
+            surface=surface_name,
+            branch=placement.ref,
+            status="refused",
+            commit_hash=None,
+            refused=refused,
+            diagnostic=refusal.diagnostic,
+        )
+        return replace(refusal, surfaces=(refused_surface,))
 
     if use_coord:
-        worktree_root, commit_paths = _materialise_coord_worktree(
-            repo_root,
-            mission_slug,
-            placement,
-            files,
-            kind=kind,
-            primary_paths_created_this_invocation=primary_paths_created_this_invocation,
-        )
+        try:
+            # NOTE (reviewer ruling L1, WP05 cycle 1): ``owned`` is NOT
+            # threaded into this call. The real guarantee this arm can never
+            # see ``owned is not None`` is ``use_coord = owned is None and
+            # routes_through_coordination(topology)`` in
+            # ``_resolve_group_placement`` ABOVE -- a gate owned entirely by
+            # THIS module, true regardless of which owned topologies a
+            # caller is later allowed to request. (``core.owned_mission.
+            # LIFECYCLE_OWNED_TOPOLOGIES`` happens to be ``{SINGLE_BRANCH}``
+            # today, but that fact lives upstream and already has a wider
+            # sibling, ``NEXT_OWNED_TOPOLOGIES`` — including
+            # ``LANES_WITH_COORD`` — staged for a future command; citing it
+            # here would go stale the day that fact changes, while this
+            # module's own gate would not.) Several existing unit fixtures
+            # (outside this WP's ownership) stub
+            # ``_materialise_coord_worktree`` without an ``owned`` kwarg, so
+            # omitting it here (its default stays ``None``) keeps them green
+            # — a convenience this gate also happens to provide.
+            worktree_root, commit_paths = _materialise_coord_worktree(
+                repo_root,
+                mission_slug,
+                placement,
+                files,
+                kind=kind,
+                primary_paths_created_this_invocation=primary_paths_created_this_invocation,
+            )
+        except _OwningSurfaceRefused as exc:
+            # T029: a named write_dir refusal (PROTECTED_BRANCH_REFUSED /
+            # COORDINATION_BRANCH_DELETED / COORDINATION_WORKTREE_UNMATERIALIZED /
+            # COORD_SEED_FORK_REFUSED / its siblings / PATH_UNROUTABLE) translating
+            # a root-path COORD record to its owning surface — never swallowed,
+            # always a named refused surfaces[*] entry.
+            refused = (PathFate(path=exc.path, reason=exc.reason),)
+            refused_surface = SurfaceOutcome(
+                surface=surface_name,
+                branch=placement.ref,
+                status="refused",
+                commit_hash=None,
+                refused=refused,
+                diagnostic=exc.diagnostic,
+            )
+            return CommitRouterResult(
+                status=_STATUS_ERROR,
+                placement_ref=placement.ref,
+                diagnostic=exc.diagnostic,
+                surfaces=(refused_surface,),
+            )
     else:
         # Flattened or unprotected primary: commit directly.
         worktree_root, commit_paths = owned.owned_root if owned is not None else repo_root, files
@@ -525,10 +713,12 @@ def _commit_partition_group(
             f"({placement.ref}, worktree={worktree_root}); commit would no-op "
             f"against the wrong surface and was not created."
         )
+        refused = tuple(PathFate(path=_relpath(repo_root, p), reason=commit_outcome.WRONG_SURFACE) for p in commit_paths if not p.exists())
         return CommitRouterResult(
             status=_STATUS_NO_OP_WRONG_SURFACE,
             placement_ref=placement.ref,
             diagnostic=diagnostic,
+            surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="refused", commit_hash=None, refused=refused, diagnostic=diagnostic),),
         )
 
     commit_result = _safe_commit_group(
@@ -543,31 +733,29 @@ def _commit_partition_group(
         expected_path_bytes=expected_path_bytes,
     )
     if isinstance(commit_result, CommitRouterResult):
-        return commit_result
+        return _refine_unchanged_for_root_checkout_dirt(commit_result, repo_root, files, use_coord=use_coord, surface_name=surface_name, placement=placement)
 
     commit_hash: str | None = None
     if commit_result is not None and hasattr(commit_result, "sha"):
         commit_hash = commit_result.sha
 
-    # WP09 / FR-010 (#1878): best-effort ff-advance after a coord write. This
-    # fires ONLY on the coord branch (``use_coord`` True ⇒ a coordination kind),
-    # so it now advances ``target_branch`` to a STATUS/bookkeeping-only coord HEAD
-    # (write-surface-coherence WP05 / FR-005): planning no longer transits coord,
-    # so the coord HEAD never mixes planning+status. The
-    # ``is_residue=is_toolchain_generated_churn`` exclusion in
-    # ``_try_advance_ref`` (WP13 retired the former ``coord_owned_filenames``
-    # param onto the single canonical churn owner) still matches exactly what a
-    # status-only coord write produces — no behaviour change for status writes;
-    # the planning case is gone.
-    if use_coord and target_branch:
-        _try_advance_ref(repo_root, target_branch, worktree_root, mission_slug=mission_slug)
-
+    # R12 / FR-008 (#5440, coord-artifact-single-home-01M3V4BE WP05): the
+    # former WP09 / FR-010 (#1878) best-effort post-commit ff-advance of
+    # ``target_branch`` to the coordination HEAD is RETIRED. After /spec-kitty.
+    # create seeds the coordination branch from the target (WP06), the target
+    # is already an ancestor of the coordination tip, so a fast-forward there
+    # would silently carry every coordination-only (STATUS/bookkeeping) commit
+    # onto the target -- re-mixing the two surfaces the partition exists to
+    # keep apart. ``_try_advance_ref`` is deleted outright; a coordination
+    # commit now advances ONLY the coordination branch, never the target.
+    committed = tuple(_relpath(repo_root, p) for p in commit_paths)
     return CommitRouterResult(
         status=_STATUS_COMMITTED,
         placement_ref=placement.ref,
         commit_hash=commit_hash,
         commit_hashes=((placement.ref, commit_hash),) if commit_hash else (),
         diagnostic=getattr(commit_result, "diagnostic", None),
+        surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="committed", commit_hash=commit_hash, committed=committed),),
     )
 
 
@@ -609,6 +797,41 @@ def _coord_status_locks(repo_root: Path, worktree_root: Path, commit_paths: tupl
         yield
 
 
+def _safe_commit_error_result(
+    repo_root: Path,
+    placement: CommitTarget,
+    surface_name: Literal["primary", "coordination"],
+    commit_paths: tuple[Path, ...],
+    *,
+    reason: str,
+    diagnostic: str,
+) -> CommitRouterResult:
+    """Build the ``error`` :class:`CommitRouterResult` a :func:`_safe_commit_group` except-arm returns (WP05 T025/T029)."""
+    refused = tuple(PathFate(path=_relpath(repo_root, p), reason=reason) for p in commit_paths)
+    return CommitRouterResult(
+        status=_STATUS_ERROR,
+        placement_ref=placement.ref,
+        diagnostic=diagnostic,
+        surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="error", commit_hash=None, refused=refused, diagnostic=diagnostic),),
+    )
+
+
+def _safe_commit_unchanged_result(
+    repo_root: Path,
+    placement: CommitTarget,
+    surface_name: Literal["primary", "coordination"],
+    commit_paths: tuple[Path, ...],
+) -> CommitRouterResult:
+    """Build the ``unchanged`` / ``no_op_no_changes`` :class:`CommitRouterResult` an empty changeset yields (WP05 T025)."""
+    skipped = tuple(PathFate(path=_relpath(repo_root, p), reason=_REASON_NO_CHANGES) for p in commit_paths)
+    return CommitRouterResult(
+        status=_STATUS_UNCHANGED,
+        placement_ref=placement.ref,
+        reason=_REASON_NO_CHANGES,
+        surfaces=(SurfaceOutcome(surface=surface_name, branch=placement.ref, status="unchanged", commit_hash=None, skipped=skipped),),
+    )
+
+
 def _safe_commit_group(
     repo_root: Path,
     worktree_root: Path,
@@ -624,8 +847,11 @@ def _safe_commit_group(
     """Run ``safe_commit`` for one group; a failure or no-op comes back as a :class:`CommitRouterResult`.
 
     A status-lock timeout is an ``error`` result naming the contended lock, so a
-    caller reports it like any other failed commit.
+    caller reports it like any other failed commit. WP05 (T029): the lock
+    timeout's ``surfaces[*].refused`` reason is the lock's own
+    ``error_code`` (``STATUS_LOCK_HELD``, WP03) rather than a generic string.
     """
+    surface_name: Literal["primary", "coordination"] = "coordination" if use_coord else "primary"
     try:
         with _coord_status_locks(repo_root, worktree_root, commit_paths, use_coord=use_coord):
             return safe_commit(
@@ -639,16 +865,17 @@ def _safe_commit_group(
                 **({"expected_path_bytes": expected_path_bytes} if expected_path_bytes is not None else {}),
             )
     except FeatureStatusLockTimeoutError as exc:
-        return CommitRouterResult(status=_STATUS_ERROR, placement_ref=placement.ref, diagnostic=str(exc))
+        reason = getattr(exc, "error_code", None) or commit_outcome.STATUS_LOCK_HELD
+        return _safe_commit_error_result(repo_root, placement, surface_name, commit_paths, reason=reason, diagnostic=str(exc))
     except subprocess.CalledProcessError as exc:
         stderr = getattr(exc, "stderr", "") or ""
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
-            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref, reason=_REASON_NO_CHANGES)
-        return CommitRouterResult(status=_STATUS_ERROR, placement_ref=placement.ref, diagnostic=str(exc))
+            return _safe_commit_unchanged_result(repo_root, placement, surface_name, commit_paths)
+        return _safe_commit_error_result(repo_root, placement, surface_name, commit_paths, reason=_STATUS_ERROR, diagnostic=str(exc))
     except RuntimeError as exc:
         if _is_empty_changeset_error(exc):
-            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref, reason=_REASON_NO_CHANGES)
-        return CommitRouterResult(status=_STATUS_ERROR, placement_ref=placement.ref, diagnostic=str(exc))
+            return _safe_commit_unchanged_result(repo_root, placement, surface_name, commit_paths)
+        return _safe_commit_error_result(repo_root, placement, surface_name, commit_paths, reason=_STATUS_ERROR, diagnostic=str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -700,6 +927,43 @@ def _representative_kind_for_bucket(
         if kind_f is not None and is_primary_artifact_kind(kind_f) == expect_primary:
             return kind_f
     return fallback
+
+
+def partition_for_mission_path(
+    repo_root: Path,
+    mission_slug: str,
+    path: Path,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> Literal["primary", "coordination"]:
+    """The per-path partition verdict :func:`_group_files_by_partition` uses (WP05 T025, P-M5).
+
+    Re-added to ``__all__`` by WP16 (coord-artifact-single-home-01M3V4BE,
+    carried forward from WP05's reviewer ruling B3): WP16's accept dirty gate
+    (``acceptance/__init__.py::_filter_coordination_residue``) is the first
+    cross-module caller this symbol needed, so it now satisfies the
+    symbol-level dead-code gate's "caller outside the declaring module"
+    requirement (``tests/architectural/test_no_dead_symbols.py``) and is
+    re-exported per the gate's sanctioned fix option 2.
+
+    :func:`_group_files_by_partition` calls this function too (not a parallel
+    copy); their verdicts can never drift apart.
+
+    ``repo_root`` / ``owned`` are accepted for interface symmetry with this
+    module's other kind-aware public helpers, but are not consulted: the
+    underlying residue classifier,
+    :func:`~specify_cli.coordination.coherence.is_coord_residue_churn`, is
+    deliberately called the SAME topology-blind way
+    :func:`_group_files_by_partition` has always called it (no ``topology``
+    argument) — passing one here would risk a verdict that disagrees with the
+    router's own grouping, the exact drift this predicate exists to prevent.
+    A caller that needs a topology-aware (e.g. destructive dirty-gate) verdict
+    calls :func:`~specify_cli.coordination.coherence.is_coord_residue_churn`
+    directly with its own resolved topology, per that function's own
+    documented requirement.
+    """
+    del repo_root, owned  # interface symmetry only (see docstring)
+    return "coordination" if is_coord_residue_churn(path, mission_slug=mission_slug) else "primary"
 
 
 def _group_files_by_partition(
@@ -767,7 +1031,7 @@ def _group_files_by_partition(
     primary_files: list[Path] = []
     coord_files: list[Path] = []
     for file in files:
-        if is_coord_residue_churn(file, mission_slug=mission_slug):
+        if partition_for_mission_path(repo_root, mission_slug, file) == "coordination":
             coord_files.append(file)
         else:
             primary_files.append(file)
@@ -829,35 +1093,57 @@ def _merge_group_results(
     result's ``commit_hashes`` is always the UNION of every committed group's
     ``commit_hashes`` — so a genuinely split commit (e.g. feature-branch +
     coordination-branch) reports BOTH hashes, not just the caller-partition one.
+
+    WP05 (FR-007 contract rule 1): ``surfaces`` is likewise ALWAYS the union of
+    every group's own ``surfaces`` entry (each group carries exactly one, from
+    :func:`_commit_partition_group`), ordered PRIMARY then coordination
+    (``groups``/``results`` are already in that order — see
+    :func:`_group_files_by_partition`). This holds on EVERY return path below,
+    including the error early-return: masking a coordination group's refusal
+    behind a PRIMARY group's "committed" result is exactly the defect FR-007
+    forbids (a caller must see BOTH groups' outcomes via ``surfaces`` even when
+    the legacy top-level fields still select only one).
     """
+    all_surfaces = tuple(surface for result in results for surface in result.surfaces)
     for result in results:
         if result.status == _STATUS_ERROR:
-            return result
+            return replace(result, surfaces=all_surfaces)
 
     all_commit_hashes = tuple(pair for result in results for pair in result.commit_hashes)
 
     caller_is_primary = is_primary_artifact_kind(caller_kind)
     for (group_kind, _group_files), result in zip(groups, results, strict=True):
         if is_primary_artifact_kind(group_kind) == caller_is_primary:
-            return replace(result, commit_hashes=all_commit_hashes)
+            return replace(result, commit_hashes=all_commit_hashes, surfaces=all_surfaces)
 
-    return replace(results[0], commit_hashes=all_commit_hashes)
+    return replace(results[0], commit_hashes=all_commit_hashes, surfaces=all_surfaces)
 
 
 def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
     """Resolve the mission's PRIMARY ``target_branch`` ref.
 
-    This is the SAME ref ``resolve_placement_only`` returns for a primary kind
-    (it reads ``get_feature_target_branch`` internally), so comparing the
-    kind-aware ``placement.ref`` against it cleanly separates a primary commit
-    (``placement.ref == primary_target``) from a coordination one. Resolving it
-    here keeps ``use_coord`` derived from the ONE kind-aware placement authority
-    (NFR-004) rather than re-deriving the partition.
+    B1 fix (cycle 2 review, `plan.design.published-status-state-write`):
+    delegates to :func:`resolve_placement_only` with a guaranteed PRIMARY-
+    partition kind (:data:`_FALLBACK_PRIMARY_KIND`) instead of reading
+    ``get_feature_target_branch`` directly. Those two were byte-identical for
+    PRE_CONSOLIDATION/CONSOLIDATED phases (the common case, unaffected here),
+    but silently DIVERGED for a PUBLISHED (E2) mission: ``resolve_placement_
+    only`` redirects a PRIMARY kind to the resolved Primary Branch (D23), while
+    a raw ``get_feature_target_branch`` read kept returning the mission's OWN
+    (possibly long-deleted) ``target_branch`` literal. ``use_coord``'s own
+    ``placement.ref != primary_target`` comparison then spuriously fired TRUE
+    for a batch mixing a PRIMARY kind with a COORD kind BOTH redirected to the
+    SAME Primary Branch (e.g. retrospect's RETROSPECTIVE+STATUS_STATE batch,
+    #5513/#5501) — misrouting the whole group into coordination staging and
+    raising ``PrimaryKindReachedCoordStagingError``. Delegating closes the gap
+    by construction: this function is now LITERALLY the same authority
+    ``placement.ref`` itself came from, so the two can never disagree (no
+    split-brain), matching the ONE-shared-predicate requirement this ruling's
+    ``PlacementSeam.write_dir`` extension already holds for the write-location
+    accessor.
     """
-    from specify_cli.core.paths import get_feature_target_branch
-
-    primary_target: str = get_feature_target_branch(repo_root, mission_slug)
-    return primary_target
+    placement = resolve_placement_only(repo_root, mission_slug, kind=_FALLBACK_PRIMARY_KIND)
+    return placement.ref
 
 
 def _materialise_coord_worktree(
@@ -868,6 +1154,7 @@ def _materialise_coord_worktree(
     *,
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[Path, tuple[Path, ...]]:
     """Resolve (materialise on demand) the coordination worktree and stage artifacts.
 
@@ -897,6 +1184,22 @@ def _materialise_coord_worktree(
                       WP02/WP03 removed the planning→coord route. Reaching here with
                       a primary kind raises :class:`PrimaryKindReachedCoordStagingError`.
         primary_paths_created_this_invocation: Eligible residue paths (R6).
+        owned: WP05 forward guard (brownfield scout round 3 CORRECTION;
+            reviewer ruling L1, WP05 cycle 1): this helper is reached only
+            when ``use_coord`` is ``True`` in :func:`_commit_partition_group`,
+            and ``use_coord = owned is None and
+            routes_through_coordination(topology)`` there — a gate owned
+            entirely by THIS module — so it is never actually reached with
+            ``owned is not None`` in practice, regardless of which owned
+            topologies a caller is allowed to request upstream (see the
+            longer note at the ``_materialise_coord_worktree`` call site in
+            :func:`_commit_partition_group` for why this cites that gate
+            rather than ``core.owned_mission.LIFECYCLE_OWNED_TOPOLOGIES`` —
+            that fact already has a wider sibling, ``NEXT_OWNED_TOPOLOGIES``,
+            staged for a future command). Accepted and threaded through to
+            :func:`_stage_artifacts_in_coord_worktree`'s own ``owned`` purely
+            for interface symmetry / forward-compat, never exercised by a
+            live caller.
 
     Returns:
         ``(coord_worktree, coord_paths)`` on success.
@@ -949,6 +1252,8 @@ def _materialise_coord_worktree(
         coord_wt,
         repo_root,
         primary_paths_created_this_invocation=primary_paths_created_this_invocation,
+        mission_slug=mission_slug,
+        owned=owned,
     )
     return coord_wt, tuple(coord_paths)
 
@@ -986,12 +1291,379 @@ def _is_directly_in_worktree(path: Path, worktree: Path) -> bool:
     return not is_under_worktrees_segment(rel)
 
 
+class _StagePlan(Enum):
+    """Per-path staging disposition for :func:`_stage_artifacts_in_coord_worktree`.
+
+    Six outcomes (binding correction, brownfield scout round 3 — the prompt's
+    original four-outcome sketch missed one; WP05 T027 adds a sixth):
+
+    - ``IN_PLACE``: the path already lives directly in THIS coordination
+      worktree; it is committed where it sits, never copied.
+    - ``SKIP_STATUS_LOG`` / ``SKIP_DECISION_LOG``: a ``STATUS_STATE`` /
+      ``DECISION_LOG`` path outside ``.worktrees/`` — an append-only log that
+      is NEVER copied from a (possibly stale) primary (#1589). WP05 T027:
+      removed from :data:`_STAGE_PLAN_NO_COPY` — the act step now TRANSLATES
+      it to its owning (coordination) copy instead of bare-skipping it (D7).
+    - ``SKIP_ANALYSIS_REPORT``: the re-homed ``analysis-report.md`` (FR-003) —
+      never a second copy on the coordination worktree.
+    - ``DROP_FOREIGN_WORKTREE``: a path under ``.worktrees/`` that is NOT
+      directly in this worktree (a sibling mission's coord worktree, a worktree
+      nested inside this one, or an ``analysis-report.md`` anywhere under
+      ``.worktrees/``) — dropped entirely. Kept distinct from the SKIP
+      members on purpose: a SKIP is a copy-destination-aware decision the act
+      step may translate into a different action, while a foreign worktree
+      path has no copy destination to translate.
+    - ``COPY``: staged into the coordination worktree at the mirrored relative
+      path (the only outcome the caller still derives ``dst`` for) — the
+      LEGACY ``shutil.copy2``, unconditional, for every non-log COORD kind
+      (``TRACER_FILE`` / ``REVIEW_CYCLE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_
+      MATRIX``) as well as every PRIMARY-kind artifact this helper legitimately
+      stages into a combined commit (``tasks.md`` / ``lanes.json``).
+
+      **Reviewer ruling (WP05 cycle 1, B1, DECISION plan.design.translate-if-
+      present-kinds):** an earlier revision of this WP made the act step prefer
+      an EXISTING owning (coordination) copy over a fresh one for these four
+      kinds ("the owning copy wins"). That silently dropped every writer's
+      update for a kind whose writer still writes the ROOT copy (none of
+      TRACER_FILE/REVIEW_CYCLE/ISSUE_MATRIX/ACCEPTANCE_MATRIX has migrated to
+      ``write_dir`` yet — WP08 migrates REVIEW_CYCLE, WP10 migrates TRACER_FILE
+      and ISSUE_MATRIX, WP15 migrates ACCEPTANCE_MATRIX) — a real data-loss
+      regression (four integration guards went red:
+      ``test_accept_matrix_coord_partition.py``,
+      ``test_issue_verdict_coord_legacy_md_preservation.py`` (both),
+      ``test_issue_verdict_selfmat_hardening.py::test_materialized_coord_
+      verdicts_succeed``). REVERTED: these four kinds keep the unconditional
+      legacy overwrite (root always wins, exactly pre-WP05) until each kind's
+      writer is migrated to ``write_dir`` in its own WP, which is also where
+      the "owning copy wins" switch is re-introduced, one kind at a time.
+      STATUS_STATE / DECISION_LOG are UNAFFECTED by this reversion — they are
+      genuinely append-only logs with no legacy root writer at all, so T027's
+      owning-surface translation (never a copy, see the two SKIP members
+      above) is the correct behaviour for them from day one.
+    """
+
+    IN_PLACE = "in_place"
+    SKIP_STATUS_LOG = "skip_status_log"
+    SKIP_DECISION_LOG = "skip_decision_log"
+    SKIP_ANALYSIS_REPORT = "skip_analysis_report"
+    DROP_FOREIGN_WORKTREE = "drop_foreign_worktree"
+    COPY = "copy"
+
+
+#: WP05 T027: the two append-only-log plans the act step ALWAYS translates
+#: (never falls back to a copy, with or without ``mission_slug``).
+_STAGE_PLAN_LOGS: Final = frozenset({_StagePlan.SKIP_STATUS_LOG, _StagePlan.SKIP_DECISION_LOG})
+_STAGE_PLAN_NO_COPY: Final = frozenset({_StagePlan.DROP_FOREIGN_WORKTREE, _StagePlan.SKIP_ANALYSIS_REPORT})
+
+
+def _classify_stage_path(src: Path, rel: Path, coord_worktree: Path) -> _StagePlan:
+    """Classify how *src* (relative path *rel* under ``repo_root``) must be staged.
+
+    Pure per-path decision extracted from :func:`_stage_artifacts_in_coord_worktree`
+    (T005, campsite-clean WP01) — behaviour-preserving, verbatim rationale kept
+    inline. The only I/O is ``_is_directly_in_worktree``'s ``.resolve()`` (the
+    symlinked-``repo_root`` pin depends on it staying there). WP05 (T027): this
+    classifier stays pure and ``mission_slug``-free — it names WHICH plan
+    applies, never resolving ``write_dir`` itself (that I/O lives in the act
+    step, :func:`_act_on_stage_plan`, per the WP04 reviewer's binding note).
+    """
+    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
+
+    # A path under ``.worktrees/`` is never copied: it is committed in place when
+    # it lives in THIS coordination worktree, and dropped otherwise. This runs
+    # before the log skip below, whose purpose is to never copy a stale
+    # PRIMARY log over the coord one; a log already authored in the coord
+    # worktree needs no copy, and dropping it reported ``no_op_already_committed``
+    # while the log stayed uncommitted there (#5353). An ``analysis-report.md``
+    # found under ``.worktrees/`` (this worktree's own, or a foreign one) is
+    # always dropped here, never committed in place — its only legitimate home
+    # is the primary re-home skip below (FR-003).
+    if is_under_worktrees_segment(rel):
+        if src.name != _ANALYSIS_REPORT_FILENAME and _is_directly_in_worktree(src, coord_worktree):
+            return _StagePlan.IN_PLACE
+        return _StagePlan.DROP_FOREIGN_WORKTREE
+    # WP13 (IC-07c): single-source through the canonical file→kind classifier
+    # instead of a locally-duplicated ``{"status.events.jsonl", "status.json"}``
+    # literal. Narrow ON PURPOSE (the two append-only logs, not the full
+    # ``is_coord_residue_churn`` union): ``acceptance-matrix.json`` /
+    # ``issue-matrix.md`` (``ACCEPTANCE_MATRIX`` / ``ISSUE_MATRIX``) STAY COORD
+    # and must continue to be staged below — only the status/decision logs are
+    # authored directly in the coord worktree and must never be copied from a
+    # stale primary.
+    path_kind = kind_for_mission_file(rel)
+    if path_kind is MissionArtifactKind.STATUS_STATE:
+        return _StagePlan.SKIP_STATUS_LOG
+    if path_kind is MissionArtifactKind.DECISION_LOG:
+        return _StagePlan.SKIP_DECISION_LOG
+    # FR-003 (coord-commit-integrity): ``analysis-report.md`` was re-homed
+    # COORD→PRIMARY — it lands on the primary ``target_branch`` and is NEVER
+    # a second copy on the coordination worktree. Skip its copy2 staging path
+    # (mirroring the log skips above) so a coord commit that
+    # happens to sweep it makes no coord residue. ``acceptance-matrix.json`` /
+    # ``issue-matrix.md`` STAY COORD and continue to be staged below.
+    #
+    # NOTE (coord-commit-integrity SURFACE A #2, DEFERRED): the operator asked
+    # to generalise this to a by-construction
+    # ``is_primary_artifact_kind(kind_for_mission_file(src))`` skip. That is
+    # UNSAFE as specified: this helper legitimately stages OTHER PRIMARY-kind
+    # planning artifacts (``tasks.md`` / ``lanes.json``) into the coord worktree
+    # for a combined commit — a pinned contract
+    # (``test_finalize_coord_staging.py`` / ``test_finalize_clobber_e2e.py``).
+    # There is no partition-derived distinction between ``analysis-report.md``
+    # (must-skip, re-homed) and ``tasks.md`` (must-stage), so a blanket
+    # primary-kind skip regresses those tests. Closing the "next re-home
+    # silently regresses" class requires first retiring the tasks.md/lanes.json
+    # → coord staging (a separate finalize-flow change); until then this stays
+    # the narrow, behaviour-correct analysis-report skip.
+    if src.name == _ANALYSIS_REPORT_FILENAME:
+        return _StagePlan.SKIP_ANALYSIS_REPORT
+    return _StagePlan.COPY
+
+
+class _OwningSurfaceRefused(RuntimeError):
+    """A root-path COORD-kind input could not be translated to its owning surface (WP05 T027/T029).
+
+    Raised by :func:`_translate_to_owning_surface` / :func:`_resolve_owning_write_dir`
+    and caught where :func:`_materialise_coord_worktree` is invoked (inside
+    :func:`_commit_partition_group`), where it becomes a named ``refused``
+    :class:`CommitRouterResult` — NEVER silently swallowed (T029).
+    """
+
+    def __init__(self, *, path: str, reason: str, diagnostic: str) -> None:
+        super().__init__(diagnostic)
+        self.path = path
+        self.reason = reason
+        self.diagnostic = diagnostic
+
+
+def _mission_relative_subpath(rel: Path) -> Path | None:
+    """The portion of *rel* AFTER ``kitty-specs/<mission-slug>/`` (WP05 T027).
+
+    Pure path arithmetic mirroring the split
+    :func:`~mission_runtime.kind_for_mission_file` performs internally to
+    locate the Mission-relative tail — never a second classification
+    authority, just "which segment comes after the Mission directory".
+    Returns ``None`` when *rel* does not contain a ``kitty-specs/<slug>/...``
+    shape with at least one segment after the slug.
+    """
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+
+    parts = rel.parts
+    try:
+        specs_index = parts.index(KITTY_SPECS_DIR)
+    except ValueError:
+        return None
+    rel_index = specs_index + 2
+    if rel_index >= len(parts):
+        return None
+    return Path(*parts[rel_index:])
+
+
+def _resolve_owning_write_dir(
+    repo_root: Path,
+    kind: MissionArtifactKind,
+    *,
+    mission_slug: str,
+    owned: OwnedCheckout | None,
+    rel: Path,
+) -> WriteLocation:
+    """Resolve *kind*'s owning :class:`~mission_runtime.WriteLocation` via ``write_dir`` (T027).
+
+    ``write_dir`` may materialise an UNMATERIALIZED local-head coordination
+    worktree, or seed/restore a pre-/post-fix EMPTY surface (WP03/WP04) — that
+    is intended (single home): a commit of a COORD record must land on its
+    one true surface. Every NAMED failure ``write_dir`` can raise is
+    translated here into :class:`_OwningSurfaceRefused` instead of
+    propagating as a bare exception (T029):
+
+    - :class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted`
+      and the remote-only :class:`~specify_cli.coordination.surface_resolver.
+      CoordinationWorktreeUnmaterialized` are
+      :class:`~specify_cli.missions._read_path_resolver.StatusReadPathNotFound`
+      subclasses, NOT :class:`~mission_runtime.ActionContextError` (WP04
+      reviewer note) — caught explicitly, first.
+    - :class:`~specify_cli.coordination.coord_seed.CoordSeedForkRefused` and its
+      siblings (``COORD_SEED_EVENT_LOG_MALFORMED`` / ``COORD_SEED_DUPLICATE_EVENT_ID``
+      / ``COORD_SEED_GIT_PROBE_FAILED``) arrive as plain
+      :class:`~mission_runtime.ActionContextError` with a ``.code``.
+    - :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError` carries
+      its own stable ``.error_code`` (``STATUS_LOCK_HELD``, WP03).
+    """
+    from mission_runtime import ActionContextError, placement_seam
+    from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        CoordinationWorktreeUnmaterialized,
+    )
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        location: WriteLocation = placement_seam(repo_root, mission_slug, owned=owned).write_dir(kind)
+        return location
+    # Order matters: both subclass StatusReadPathNotFound (WP04 reviewer
+    # note) and CoordSeedForkRefused subclasses ActionContextError, so the
+    # NAMED subclasses are caught before their generic base.
+    except CoordinationBranchDeleted as exc:
+        raise _OwningSurfaceRefused(path=rel.as_posix(), reason=commit_outcome.COORDINATION_BRANCH_DELETED, diagnostic=str(exc)) from exc
+    except CoordinationWorktreeUnmaterialized as exc:
+        raise _OwningSurfaceRefused(path=rel.as_posix(), reason=commit_outcome.COORDINATION_WORKTREE_UNMATERIALIZED, diagnostic=str(exc)) from exc
+    except StatusReadPathNotFound as exc:
+        reason = getattr(exc, "error_code", None) or commit_outcome.PATH_UNROUTABLE
+        raise _OwningSurfaceRefused(path=rel.as_posix(), reason=reason, diagnostic=str(exc)) from exc
+    except FeatureStatusLockTimeoutError as exc:
+        reason = getattr(exc, "error_code", None) or commit_outcome.STATUS_LOCK_HELD
+        raise _OwningSurfaceRefused(path=rel.as_posix(), reason=reason, diagnostic=str(exc)) from exc
+    except CoordSeedForkRefused as exc:
+        raise _OwningSurfaceRefused(path=rel.as_posix(), reason=commit_outcome.COORD_SEED_FORK_REFUSED, diagnostic=str(exc)) from exc
+    except ActionContextError as exc:
+        raise _OwningSurfaceRefused(path=rel.as_posix(), reason=exc.code, diagnostic=str(exc)) from exc
+
+
+def _translate_to_owning_surface(
+    repo_root: Path,
+    rel: Path,
+    *,
+    mission_slug: str,
+    owned: OwnedCheckout | None,
+    write_dirs: dict[MissionArtifactKind, WriteLocation],
+) -> Path:
+    """Resolve *rel*'s owning (coordination) absolute path (WP05 T027 / D7).
+
+    ``write_dirs`` memoises one :func:`_resolve_owning_write_dir` call PER
+    KIND across a whole staging batch — "resolve ONE WriteLocation per staging
+    call, not one per path" (binding correction, seam map). A path whose
+    ``kind_for_mission_file`` is ``None``, or whose Mission-relative tail
+    cannot be located, is :data:`~specify_cli.coordination.commit_outcome.PATH_UNROUTABLE`
+    (T029) — never silently coerced onto the caller's own ``kind``.
+    """
+    kind = kind_for_mission_file(rel)
+    if kind is None:
+        raise _OwningSurfaceRefused(
+            path=rel.as_posix(),
+            reason=commit_outcome.PATH_UNROUTABLE,
+            diagnostic=f"{rel.as_posix()!r} does not classify to a known MissionArtifactKind; its owning (coordination) surface cannot be resolved.",
+        )
+    if kind not in write_dirs:
+        write_dirs[kind] = _resolve_owning_write_dir(repo_root, kind, mission_slug=mission_slug, owned=owned, rel=rel)
+    mission_rel = _mission_relative_subpath(rel)
+    if mission_rel is None:
+        raise _OwningSurfaceRefused(
+            path=rel.as_posix(),
+            reason=commit_outcome.PATH_UNROUTABLE,
+            diagnostic=f"{rel.as_posix()!r} is not a Mission-relative path under 'kitty-specs/<mission>/'; its owning surface cannot be resolved.",
+        )
+    return write_dirs[kind].path / mission_rel
+
+
+def _act_on_stage_plan(
+    plan: _StagePlan,
+    src: Path,
+    rel: Path,
+    coord_worktree: Path,
+    repo_root: Path,
+    *,
+    mission_slug: str | None,
+    owned: OwnedCheckout | None,
+    write_dirs: dict[MissionArtifactKind, WriteLocation],
+    named_files: frozenset[Path] = frozenset(),
+) -> tuple[Path | None, tuple[Path, Path] | None]:
+    """Act on *plan* for ONE path; returns ``(coord_file, staged_pair)`` (WP05 T027, WP04 reviewer note).
+
+    ``coord_file`` is ``None`` for a dropped/skipped path. ``staged_pair`` is
+    ``(src, dst)`` ONLY when a real ``shutil.copy2`` happened (the R6
+    residue-cleanup input) — never for a translated (never-copied) path.
+
+    This is the ONE place ``write_dir`` I/O happens for staging (kept OUT of
+    :func:`_classify_stage_path`, which stays a pure per-path classifier, per
+    the WP04 reviewer's binding note).
+    """
+    if plan is _StagePlan.IN_PLACE:
+        return src, None
+    if plan in _STAGE_PLAN_LOGS:
+        if mission_slug is None:
+            # Legacy 3-positional caller (no meta.json fixture): preserve the
+            # historical "never copy a possibly-stale primary log" skip. #5513:
+            # a primary-path STATUS_STATE file whose coordination twin carries
+            # uncommitted content resolves to that twin, committed in place and
+            # never copied over (skipping it outright reported
+            # ``no_op_already_committed`` while the coord log stayed dirty). A
+            # clean twin stays skipped, so a primary-only change still
+            # classifies as wrong-surface. A twin the caller also named
+            # directly (``named_files``) is committed through the in-place
+            # branch, never probed or staged twice.
+            twin = coord_worktree / rel
+            if plan is _StagePlan.SKIP_STATUS_LOG and twin not in named_files and _is_uncommitted_in_worktree(coord_worktree, rel):
+                return twin, None
+            return None, None
+        translated = _translate_to_owning_surface(repo_root, rel, mission_slug=mission_slug, owned=owned, write_dirs=write_dirs)
+        # Never copied, regardless of existence — a root dirt log is judged
+        # by the caller (T028), never silently mirrored.
+        return translated, None
+    if plan in _STAGE_PLAN_NO_COPY:
+        return None, None
+    # plan is COPY: a plain primary artifact, OR one of the four non-log COORD
+    # kinds (TRACER_FILE / REVIEW_CYCLE / ISSUE_MATRIX / ACCEPTANCE_MATRIX) --
+    # the UNCONDITIONAL legacy ``shutil.copy2`` overwrite, exactly pre-WP05
+    # (reviewer ruling B1 / DECISION plan.design.translate-if-present-kinds:
+    # see the _StagePlan.COPY docstring for why "owning copy wins" was
+    # reverted for these four kinds -- none of their writers has migrated to
+    # write_dir yet, so preferring an existing coordination copy silently
+    # drops the writer's root-copy update).
+    return _copy_into(src, coord_worktree / rel)
+
+
+def _copy_into(src: Path, dst: Path) -> tuple[Path, tuple[Path, Path] | None]:
+    """``shutil.copy2`` *src* to *dst* when present; ``dst`` is always returned (COPY-semantics, round 3)."""
+    if src.exists():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        return dst, (src, dst)
+    return dst, None
+
+
+def _cleanup_staging_residue(
+    staged_sources: list[tuple[Path, Path]],
+    primary_paths_created_this_invocation: frozenset[Path] | None,
+    repo_root: Path,
+) -> None:
+    """Delete a this-invocation-created primary source once its coord copy is
+    confirmed byte-identical (R6 / #1814 residue cleanup).
+
+    Extracted verbatim from :func:`_stage_artifacts_in_coord_worktree` (T005,
+    campsite-clean WP01); the byte-compare guard and both log messages are
+    unchanged.
+    """
+    if not primary_paths_created_this_invocation:
+        return
+    for src, dst in staged_sources:
+        if src not in primary_paths_created_this_invocation:
+            continue
+        if not src.exists() or not dst.exists():
+            continue
+        try:
+            if src.read_bytes() != dst.read_bytes():
+                logger.warning(
+                    "commit_router: residue cleanup skipped %s: primary copy diverged",
+                    src.relative_to(repo_root),
+                )
+                continue
+            src.unlink()
+        except OSError as exc:
+            logger.warning(
+                "commit_router: residue cleanup failed for %s: %s",
+                src.relative_to(repo_root),
+                exc,
+            )
+
+
 def _stage_artifacts_in_coord_worktree(
     files: list[Path],
     coord_worktree: Path,
     repo_root: Path,
     *,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
+    mission_slug: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> list[Path]:
     """Copy artifacts from the primary checkout to the coordination worktree.
 
@@ -999,103 +1671,59 @@ def _stage_artifacts_in_coord_worktree(
     ``mission.py::_stage_finalize_artifacts_in_coord_worktree`` near-duplicate into
     this one function; the old name survives only as a backward-compat alias at the
     bottom of this module). Behaviour:
-    - Skipping ``MissionArtifactKind.STATUS_STATE`` files (WP13 retired the former
-      ``COORD_OWNED_STATUS_FILES`` frozenset onto this single-source kind check) —
-      STATUS-partition files authored directly in the coord worktree, never copied
-      from a stale primary (#1589). A primary-path status file whose coord twin
-      is uncommitted resolves to that twin, committed in place (#5513).
-    - Skipping the re-homed ``analysis-report.md`` (FR-003) — see the loop body.
+    - Translating a root-checkout ``STATUS_STATE`` / ``DECISION_LOG`` path to its
+      owning (coordination) copy instead of skipping it (WP05 T027, D7) — ONLY
+      when ``mission_slug`` is given; a 3-positional caller with no ``meta.json``
+      fixture keeps the historical bare skip (#1589), except that a primary-path
+      ``STATUS_STATE`` file whose coordination twin carries uncommitted content
+      resolves to that twin, committed in place and never copied over (#5513).
+    - ``TRACER_FILE`` / ``REVIEW_CYCLE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``
+      keep the UNCONDITIONAL legacy ``shutil.copy2`` overwrite (reviewer ruling
+      B1 / DECISION plan.design.translate-if-present-kinds, WP05 cycle 1): none
+      of their writers has migrated to ``write_dir`` yet, so "prefer the
+      existing coordination copy" would silently drop every writer's root-copy
+      update. The "owning copy wins" switch moves to the WP that migrates each
+      kind's writer (WP08: review-cycle; WP10: tracer, issue-matrix; WP15:
+      finalize, acceptance-matrix), one kind at a time.
+    - Skipping the re-homed ``analysis-report.md`` (FR-003) — see
+      :func:`_classify_stage_path`.
     - Skipping worktrees-nested paths (#FR-035).
     - Residue cleanup for ``primary_paths_created_this_invocation`` (R6 / #1814).
-    """
-    from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 
+    ``mission_slug`` / ``owned`` are KEYWORD-ONLY and OPTIONAL (binding
+    correction, seam map): several existing unit-test fixtures call this
+    helper with exactly three positionals and no ``meta.json`` on disk, so an
+    unconditional ``write_dir`` resolution would raise for them. Only a caller
+    that supplies ``mission_slug`` gets the T027 translation; every other
+    caller is byte-identical to the pre-WP05 behaviour.
+
+    The per-path decision lives in :func:`_classify_stage_path` (T005,
+    campsite-clean WP01); the per-path ACTION (including the ``write_dir``
+    I/O for a translate plan) lives in :func:`_act_on_stage_plan` (WP05 T027,
+    WP04 reviewer binding note: never put ``write_dir`` I/O in the
+    classifier). ``coord_files`` is order-preserving DEDUPED (#5353 pin): a
+    translated path and an already-IN_PLACE path can name the identical
+    coordination file, and the pinned contract expects exactly one entry.
+    """
     coord_files: list[Path] = []
+    seen: set[Path] = set()
     staged_sources: list[tuple[Path, Path]] = []
+    write_dirs: dict[MissionArtifactKind, WriteLocation] = {}
+    named_files = frozenset(files)
 
     for src in files:
         rel = src.relative_to(repo_root)
-        # A path under ``.worktrees/`` is never copied: it is committed in place when
-        # it lives in THIS coordination worktree, and dropped otherwise. This runs
-        # before the STATUS_STATE skip below, whose purpose is to never copy a stale
-        # PRIMARY status log over the coord one; a log already authored in the coord
-        # worktree needs no copy, and dropping it reported ``no_op_already_committed``
-        # while the log stayed uncommitted there (#5353). The re-homed
-        # ``analysis-report.md`` stays skipped (FR-003, below).
-        if is_under_worktrees_segment(rel):
-            if src.name != _ANALYSIS_REPORT_FILENAME and _is_directly_in_worktree(src, coord_worktree):
-                coord_files.append(src)
-            continue
-        # WP13 (IC-07c): single-source through the canonical file→kind classifier
-        # instead of a locally-duplicated ``{"status.events.jsonl", "status.json"}``
-        # literal. Narrow ON PURPOSE (STATUS_STATE only, not the full
-        # ``is_coord_residue_churn`` union): ``acceptance-matrix.json`` /
-        # ``issue-matrix.md`` (``ACCEPTANCE_MATRIX`` / ``ISSUE_MATRIX``) STAY COORD
-        # and must continue to be staged below — only the status log/snapshot are
-        # authored directly in the coord worktree and must never be copied from a
-        # stale primary.
-        if kind_for_mission_file(rel) is MissionArtifactKind.STATUS_STATE:
-            # #5513: a status log named by its PRIMARY path is never copied, but its
-            # coordination twin is committed in place when the twin carries the
-            # uncommitted change. Skipping it outright reported
-            # ``no_op_already_committed`` while the coord log stayed dirty. A clean
-            # twin stays skipped, so a primary-only change still classifies as
-            # wrong-surface below. A twin the caller also named directly is
-            # committed through the in-place branch above, never twice.
-            twin = coord_worktree / rel
-            if twin not in files and _is_uncommitted_in_worktree(coord_worktree, rel):
-                coord_files.append(twin)
-            continue
-        # FR-003 (coord-commit-integrity): ``analysis-report.md`` was re-homed
-        # COORD→PRIMARY — it lands on the primary ``target_branch`` and is NEVER
-        # a second copy on the coordination worktree. Skip its copy2 staging path
-        # (mirroring the STATUS_STATE skip above) so a coord commit that
-        # happens to sweep it makes no coord residue. ``acceptance-matrix.json`` /
-        # ``issue-matrix.md`` STAY COORD and continue to be staged below.
-        #
-        # NOTE (coord-commit-integrity SURFACE A #2, DEFERRED): the operator asked
-        # to generalise this to a by-construction
-        # ``is_primary_artifact_kind(kind_for_mission_file(src))`` skip. That is
-        # UNSAFE as specified: this helper legitimately stages OTHER PRIMARY-kind
-        # planning artifacts (``tasks.md`` / ``lanes.json``) into the coord worktree
-        # for a combined commit — a pinned contract
-        # (``test_finalize_coord_staging.py`` / ``test_finalize_clobber_e2e.py``).
-        # There is no partition-derived distinction between ``analysis-report.md``
-        # (must-skip, re-homed) and ``tasks.md`` (must-stage), so a blanket
-        # primary-kind skip regresses those tests. Closing the "next re-home
-        # silently regresses" class requires first retiring the tasks.md/lanes.json
-        # → coord staging (a separate finalize-flow change); until then this stays
-        # the narrow, behaviour-correct analysis-report skip.
-        if src.name == _ANALYSIS_REPORT_FILENAME:
-            continue
-        dst = coord_worktree / rel
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-            staged_sources.append((src, dst))
-        coord_files.append(dst)
+        plan = _classify_stage_path(src, rel, coord_worktree)
+        coord_file, staged_pair = _act_on_stage_plan(
+            plan, src, rel, coord_worktree, repo_root, mission_slug=mission_slug, owned=owned, write_dirs=write_dirs, named_files=named_files
+        )
+        if coord_file is not None and coord_file not in seen:
+            seen.add(coord_file)
+            coord_files.append(coord_file)
+        if staged_pair is not None:
+            staged_sources.append(staged_pair)
 
-    if primary_paths_created_this_invocation:
-        for src, dst in staged_sources:
-            if src not in primary_paths_created_this_invocation:
-                continue
-            if not src.exists() or not dst.exists():
-                continue
-            try:
-                if src.read_bytes() != dst.read_bytes():
-                    logger.warning(
-                        "commit_router: residue cleanup skipped %s: primary copy diverged",
-                        src.relative_to(repo_root),
-                    )
-                    continue
-                src.unlink()
-            except OSError as exc:
-                logger.warning(
-                    "commit_router: residue cleanup failed for %s: %s",
-                    src.relative_to(repo_root),
-                    exc,
-                )
-
+    _cleanup_staging_residue(staged_sources, primary_paths_created_this_invocation, repo_root)
     return coord_files
 
 
@@ -1278,6 +1906,51 @@ def _is_uncommitted_in_worktree(worktree: Path, rel: Path) -> bool:
     return bool(status_entries(worktree, pathspecs=(rel.as_posix(),), untracked=None))
 
 
+def _relpath(repo_root: Path, path: Path) -> str:
+    """Render *path* as the POSIX repo-relative string a :class:`PathFate` carries (WP05).
+
+    Falls back to the raw ``str(path)`` when *path* is not actually under
+    *repo_root* (e.g. a coordination-worktree path compared against the
+    PRIMARY ``repo_root``) — this is cosmetic-only (the contract's ``path``
+    field has no format guarantee beyond "as the caller passed it"), never a
+    classification decision.
+    """
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _dirty_paths_in_checkout(checkout_root: Path, files: tuple[Path, ...]) -> tuple[Path, ...]:
+    """Return the subset of *files* that are present on disk AND carry uncommitted
+    content (untracked or modified) in *checkout_root*.
+
+    WP05 (T028): the single primitive both :func:`_paths_uncommitted_in_primary`
+    (the #2739 B16 wrong-surface discriminator) and the root-checkout-dirt
+    refinement (:func:`_refine_unchanged_for_root_checkout_dirt`) consult — one
+    dirty check, not two independently-written loops.
+
+    Each path is asked of git by itself through the typed, NUL-safe
+    :func:`kernel.git.status_entries` (a path with a space, a quote, or a
+    non-ASCII byte needs no un-quoting, and a rename needs no arrow parsing),
+    so no porcelain text is parsed here. Guard (FR-013): an unreadable status
+    must not read as "clean" and let a wrong-surface no-op pass as benign, so
+    ``GitCommandError`` propagates. An ignored (``!!``) entry is never reported,
+    matching the bare ``git status --porcelain`` this predicate always ran.
+    """
+    dirty: list[Path] = []
+    for path in files:
+        if not path.exists():
+            continue
+        try:
+            rel = path.resolve().relative_to(checkout_root.resolve())
+        except ValueError:
+            continue
+        if status_entries(checkout_root, pathspecs=(rel.as_posix(),), untracked=None):
+            dirty.append(path)
+    return tuple(dirty)
+
+
 def _paths_uncommitted_in_primary(repo_root: Path, files: tuple[Path, ...]) -> bool:
     """Return True iff any source path is present on disk under *repo_root* AND
     carries uncommitted content (untracked or modified) in the primary checkout.
@@ -1290,18 +1963,7 @@ def _paths_uncommitted_in_primary(repo_root: Path, files: tuple[Path, ...]) -> b
     living in a linked worktree is not tracked by the primary checkout, so both
     correctly return ``False``.
     """
-    for path in files:
-        if not path.exists():
-            continue
-        try:
-            rel = path.resolve().relative_to(repo_root.resolve())
-        except ValueError:
-            continue
-        # Guard (FR-013): an unreadable status must not read as "clean" and let a
-        # wrong-surface no-op pass as benign, so ``GitCommandError`` propagates.
-        if status_entries(repo_root, pathspecs=(rel.as_posix(),), untracked=None):
-            return True
-    return False
+    return bool(_dirty_paths_in_checkout(repo_root, files))
 
 
 def _is_empty_changeset_error(exc: RuntimeError) -> bool:
@@ -1312,50 +1974,8 @@ def _is_empty_changeset_error(exc: RuntimeError) -> bool:
     return "safe_commit: nothing to commit" in str(exc)
 
 
-def _try_advance_ref(
-    repo_root: Path,
-    primary_branch: str,
-    coord_worktree: Path,
-    *,
-    mission_slug: str | None = None,
-) -> None:
-    """Best-effort fast-forward of *primary_branch* to the coord HEAD (#1878).
-
-    ``advance_branch_ref`` advances the ref to a *SHA* (it does not accept a
-    worktree path), so resolve the coordination worktree's HEAD here first.
-    Toolchain-generated churn (coordination status residue, spec-kitty's own
-    bookkeeping) on the primary checkout is legitimate after a coord-branch
-    write, so exclude it from the dirty gate via the single canonical churn
-    owner (#1878 / #2795 / FR-012 / WP13-IC-07c) — mirrors the merge-pipeline
-    call sites.
-    """
-    try:
-        import functools
-
-        from specify_cli.coordination.coherence import is_toolchain_generated_churn
-        from specify_cli.git.ref_advance import advance_branch_ref
-
-        head = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(coord_worktree),
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
-        advance_branch_ref(
-            repo_root,
-            primary_branch,
-            head,
-            is_residue=functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug),
-        )
-    except Exception:  # noqa: BLE001  # best-effort only
-        logger.debug(
-            "commit_router: _try_advance_ref best-effort advance failed silently",
-        )
-
-
 __all__ = [
     "CommitRouterResult",
     "commit_for_mission",
+    "partition_for_mission_path",
 ]

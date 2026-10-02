@@ -39,9 +39,12 @@ point, and a ``next_step`` hint.
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+from kernel.git import GitCommandError, commit_paths
 
 from mission_runtime import MissionTopology
 
@@ -54,6 +57,7 @@ __all__ = [
     "CoordinationBranchResult",
     "coordination_branch_name",
     "ensure_coordination_branch",
+    "is_expected_coordination_divergence",
     "topology_mints_coordination_branch",
 ]
 
@@ -65,9 +69,7 @@ __all__ = [
 #: The two coordination-bearing cells of the orthogonal coordination × lanes
 #: grid. A mission in either shape gets a per-mission coordination branch at
 #: creation; the branch-flat shapes (``SINGLE_BRANCH`` / ``LANES``) do not.
-_COORDINATION_BEARING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
-    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
-)
+_COORDINATION_BEARING_TOPOLOGIES: frozenset[MissionTopology] = frozenset({MissionTopology.COORD, MissionTopology.LANES_WITH_COORD})
 
 
 def topology_mints_coordination_branch(topology: MissionTopology) -> bool:
@@ -112,10 +114,7 @@ class CoordinationBranchDiverged(RuntimeError):
             f"or re-run mission create with --force-recreate-coordination-branch "
             f"to reset the branch to the target."
         )
-        super().__init__(
-            f"Coordination branch '{coordination_branch}' has diverged from "
-            f"target '{target_branch}'. {self.next_step}"
-        )
+        super().__init__(f"Coordination branch '{coordination_branch}' has diverged from target '{target_branch}'. {self.next_step}")
 
     def to_dict(self) -> dict[str, str]:
         """Return a JSON-serialisable representation for structured CLI output."""
@@ -125,6 +124,134 @@ class CoordinationBranchDiverged(RuntimeError):
             "target_branch": self.target_branch,
             "next_step": self.next_step,
         }
+
+
+# ---------------------------------------------------------------------------
+# Expected coordination-vs-target divergence (T034, D6 "divergence model")
+# ---------------------------------------------------------------------------
+
+
+def _rev_list(repo_root: Path, rev_range: str) -> list[str] | None:
+    """Return the commits in *rev_range*, or ``None`` on a git failure (e.g. a shallow clone)."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-list", rev_range],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _merge_base_or_none(repo_root: Path, ref_a: str, ref_b: str) -> str | None:
+    """Return the merge-base of two refs, or ``None`` when they share no history."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "merge-base", ref_a, ref_b],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _changed_paths_for_commit(repo_root: Path, commit: str) -> list[str] | None:
+    """Return the paths one commit changes, or ``None`` on a git failure.
+
+    ``--first-parent -m`` (brownfield scout, T034 edge case): ``diff-tree``
+    prints nothing for a merge commit without ``-m``, which would silently
+    read as "touches nothing" -- a merge commit is diffed against its first
+    parent instead of being skipped.
+    """
+    try:
+        return [str(path) for path in commit_paths(repo_root, commit, first_parent=True)]
+    except GitCommandError:
+        return None
+
+
+def _is_coord_only_path(path: str, *, mission_dir_name: str) -> bool:
+    """True iff *path* is a COORD-partition file of THIS Mission (T034).
+
+    ``kind_for_mission_file`` already returns ``None`` for a path outside
+    ``kitty-specs/<mission_dir_name>/`` (when ``mission_slug`` is supplied)
+    and for an unrecognised file under it -- both fail CLOSED here (treated
+    as NOT a coord-only path), so an unexpected commit never slips through
+    as "expected divergence" merely because its paths went unclassified.
+    """
+    from mission_runtime import is_primary_artifact_kind, kind_for_mission_file
+
+    kind = kind_for_mission_file(path, mission_slug=mission_dir_name)
+    if kind is None:
+        return False
+    return not is_primary_artifact_kind(kind)
+
+
+def _commits_all_touch_only_coord_paths(repo_root: Path, rev_range: str, *, mission_dir_name: str) -> bool:
+    """True iff every commit in *rev_range* changes ONLY this Mission's COORD paths."""
+    commits = _rev_list(repo_root, rev_range)
+    if commits is None:
+        return False
+    for commit in commits:
+        changed = _changed_paths_for_commit(repo_root, commit)
+        if changed is None:
+            return False
+        if any(not _is_coord_only_path(path, mission_dir_name=mission_dir_name) for path in changed):
+            return False
+    return True
+
+
+def _commits_touch_any_coord_path(repo_root: Path, rev_range: str, *, mission_dir_name: str) -> bool:
+    """True iff ANY commit in *rev_range* changes one of this Mission's COORD paths."""
+    commits = _rev_list(repo_root, rev_range)
+    if commits is None:
+        # Fail toward reporting (treat as "does touch", i.e. NOT expected) --
+        # an unreadable range must never silently pass the divergence check.
+        return True
+    for commit in commits:
+        changed = _changed_paths_for_commit(repo_root, commit)
+        if changed is None:
+            return True
+        if any(_is_coord_only_path(path, mission_dir_name=mission_dir_name) for path in changed):
+            return True
+    return False
+
+
+def is_expected_coordination_divergence(
+    repo_root: Path,
+    *,
+    coordination_branch: str,
+    target_branch: str,
+    mission_dir_name: str,
+) -> bool:
+    """Return whether *coordination_branch* is ahead of *target_branch* BY DESIGN (T034, D6).
+
+    One predicate shared by :func:`ensure_coordination_branch` (below) and
+    ``_coordination_doctor.py``'s staleness finding (T035) -- neither
+    re-derives it (C-001 / DIRECTIVE_044). True iff ALL of:
+
+    * ``merge-base(coordination_branch, target_branch)`` exists (a shallow
+      clone, or genuinely unrelated histories, fails CLOSED to ``False`` --
+      "fail toward reporting", T034 edge case);
+    * every commit unique to the coordination branch (``target..coord``)
+      changes only this Mission's COORD-partition paths (classified with
+      :func:`mission_runtime.kind_for_mission_file`; a path outside
+      ``kitty-specs/<mission_dir_name>/``, or an unrecognised one, is
+      rejected);
+    * the target's own commits since the merge base (``merge_base..target``)
+      never touch those same COORD paths.
+
+    Trivial/identical tips (``target..coord`` and ``merge_base..target`` both
+    empty) are vacuously expected -- an unchanged coordination branch can
+    never be a genuine divergence.
+    """
+    merge_base = _merge_base_or_none(repo_root, coordination_branch, target_branch)
+    if merge_base is None:
+        return False
+    if not _commits_all_touch_only_coord_paths(repo_root, f"{target_branch}..{coordination_branch}", mission_dir_name=mission_dir_name):
+        return False
+    return not _commits_touch_any_coord_path(repo_root, f"{merge_base}..{target_branch}", mission_dir_name=mission_dir_name)
 
 
 # ---------------------------------------------------------------------------
@@ -240,17 +367,35 @@ def ensure_coordination_branch(
     existing = _branch_exists(repo_root, branch)
 
     if existing and force_recreate:
+        # T031 (coord-artifact-single-home-01M3V4BE): create now eagerly
+        # materializes the coordination worktree, so ``force_recreate`` can
+        # meet a worktree checked out to the very branch it is about to
+        # delete -- git refuses to delete a checked-out branch. Clear it
+        # first; the operator escape hatch is for abandoning/re-forking a
+        # mission's whole coordination history, so discarding a worktree it
+        # left behind is sanctioned.
+        _teardown_coordination_worktree_if_present(repo_root, mission_slug, mission_id)
         _delete_branch(repo_root, branch)
         _create_branch(repo_root, branch, target_branch)
-        return CoordinationBranchResult(
-            branch_name=branch, created=True, force_recreated=True
-        )
+        return CoordinationBranchResult(branch_name=branch, created=True, force_recreated=True)
 
     if existing:
         if _is_ancestor(repo_root, branch, target_branch):
             # Branch is already at-or-behind target → reusable as-is.
             return CoordinationBranchResult(branch_name=branch, created=False)
-        # Existing branch has diverged from the target.
+        # T034/D6: a coordination branch ahead of target by design (every
+        # commit it carries past target seeds/records only this Mission's own
+        # COORD-partition files, and target's own history since the fork
+        # point never touches them) is reusable too -- it is NOT the genuine
+        # divergence this guard exists to catch.
+        if is_expected_coordination_divergence(
+            repo_root,
+            coordination_branch=branch,
+            target_branch=target_branch,
+            mission_dir_name=mission_slug,
+        ):
+            return CoordinationBranchResult(branch_name=branch, created=False)
+        # Existing branch has genuinely diverged from the target.
         raise CoordinationBranchDiverged(
             coordination_branch=branch,
             target_branch=target_branch,
@@ -302,10 +447,7 @@ def _create_branch(repo_root: Path, branch: str, parent: str) -> None:
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to create coordination branch '{branch}' off '{parent}': "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise RuntimeError(f"Failed to create coordination branch '{branch}' off '{parent}': {result.stderr.strip() or result.stdout.strip()}")
 
 
 def _delete_branch(repo_root: Path, branch: str) -> None:
@@ -317,7 +459,24 @@ def _delete_branch(repo_root: Path, branch: str) -> None:
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to delete coordination branch '{branch}': "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise RuntimeError(f"Failed to delete coordination branch '{branch}': {result.stderr.strip() or result.stdout.strip()}")
+
+
+def _teardown_coordination_worktree_if_present(repo_root: Path, mission_slug: str, mission_id: str) -> None:
+    """Best-effort: remove a materialized coordination worktree before ``force_recreate`` deletes its branch.
+
+    T031 (coord-artifact-single-home-01M3V4BE) eagerly materializes the
+    coordination worktree at create time, so a later ``force_recreate`` can
+    now meet a worktree checked out to the branch it is about to delete --
+    ``git branch -D`` refuses that. Never raises: if teardown is refused
+    (e.g. a genuinely dirty worktree) or the worktree never existed,
+    ``_delete_branch`` still runs right after and raises its own clear,
+    typed error if the branch truly cannot be deleted.
+    """
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.lanes.branch_naming import resolve_mid8 as _seam_resolve_mid8
+
+    mid8 = _seam_resolve_mid8("", mission_id=mission_id)
+    with contextlib.suppress(Exception):
+        # The single shared teardown seam; a force-recreated mission persists no retrospective here.
+        teardown_coordination_topology(repo_root, mission_slug, mid8, persist=False)

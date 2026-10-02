@@ -317,18 +317,23 @@ _NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset(
     {
         "tasks",
         "checklists",
-        # #3928: the Decision Moment ledger directory (``decisions/index.json``
-        # + ``decisions/DM-<ulid>.md``, ``decisions/store.py``) -- SINGLE-WRITER
-        # coordination bookkeeping, not both-sides-divergent: Decision Moments
-        # are opened/resolved only by the decisions service during the
-        # charter/specify/plan interview flows (``OriginFlow`` has no implement
-        # lane), the manual ``spec-kitty decision`` command, and Slack-extraction
-        # resolve in ``widen/review.py`` -- one writer path, never independent
-        # target-side appends like ``traces/``. Each ``DM-<ulid>.md`` is a
-        # one-shot write under a ULID-unique name (no filename collision to
-        # union), and ``index.json`` is an atomic single-writer rewrite -- the
-        # ``issue-matrix.md`` single-writer coordination class, not the #2709
-        # ``traces`` append class.
+        # coord-artifact-single-home-01M3V4BE WP12 (FR-009/FR-009b, #5023): the
+        # Decision Moment ledger directory (``decisions/index.json`` +
+        # ``decisions/DM-<ulid>.md``, ``decisions/store.py``) is now a
+        # PRIMARY-partition kind (``DECISION_LEDGER``, re-homed from COORD) --
+        # it is no longer coordination-residue bookkeeping at all. It STAYS in
+        # this (non-divergent) set rather than moving to the divergent one:
+        # this guard hard-asserts ``divergent_dirs == {"traces"}`` and requires
+        # a ``kitty-specs/**/<dir>/*.md`` driver per divergent dir, but
+        # ``DM-<ulid>.md`` files are ULID-unique one-shot writes with no
+        # filename collision to union, so no ``decisions/*.md`` driver exists
+        # or is needed. ``index.json`` IS concurrently writable across lane
+        # branches now that it travels as a PRIMARY artifact, so it carries
+        # WP11's ``spec-kitty-decision-index`` union-merge driver (verified
+        # registered below, via the ``_MERGE_DRIVERS`` registry rather than a
+        # literal). The directory-kind classifier
+        # (``_COORD_RESIDUE_DIRS["decisions"]``) still maps this dir to the
+        # ``DECISION_LEDGER`` kind -- only the kind's PARTITION moved.
         "decisions",
     }
 )
@@ -383,6 +388,34 @@ def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
         "-X theirs`. Register a reconcile driver (C-006) or, if genuinely "
         "single-writer/derived/human-source, classify in "
         f"_NON_DIVERGENT_CANONICAL_ARTIFACTS: {uncovered}"
+    )
+
+
+def test_decision_ledger_index_driver_is_registered() -> None:
+    """WP12 (FR-009b, ``plan.design.merge-class-guard-set``): the decision-index driver.
+
+    ``decisions`` stays in ``_NON_DIVERGENT_COORD_RESIDUE_DIRS`` (see its
+    comment above), but ``index.json`` is concurrently writable across lane
+    branches now that the ledger is a PRIMARY-partition artifact -- WP11's
+    ``spec-kitty-decision-index`` merge driver MUST be registered for it.
+    Resolved through the ``_MERGE_DRIVERS`` registry's ``config_key``, never a
+    literal driver name, so a future rename cannot silently desync this
+    assertion from the real registration.
+    """
+    registered_patterns = _gitattributes_merge_drivers()
+    decision_index_driver = next(
+        (driver for driver in _MERGE_DRIVERS if driver.pattern.endswith("decisions/index.json")),
+        None,
+    )
+    assert decision_index_driver is not None, (
+        "no _MERGE_DRIVERS entry covers decisions/index.json -- WP11's "
+        "spec-kitty-decision-index driver must be registered before the "
+        "ledger travels with lane branches as a PRIMARY-partition artifact "
+        "(FR-009b)"
+    )
+    assert registered_patterns.get(decision_index_driver.pattern) == decision_index_driver.config_key, (
+        f"decisions/index.json merge driver {decision_index_driver.config_key!r} is "
+        "declared in _MERGE_DRIVERS but not registered in root .gitattributes"
     )
 
 

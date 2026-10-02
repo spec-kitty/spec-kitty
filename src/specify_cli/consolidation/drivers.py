@@ -1,6 +1,6 @@
-"""Merge-driver bodies: the single owner of all six registered drivers (#5119).
+"""Merge-driver bodies: the single owner of all seven registered drivers (#5119).
 
-Six custom drivers keep mission bookkeeping semantic under the mission→target
+Seven custom drivers keep mission bookkeeping semantic under the mission→target
 ``git merge --squash`` in ``lanes/consolidation.py::_merge_branch_into`` (#4892 dropped
 the old ``-X theirs``; ordinary source paths now fail closed on conflict). A
 custom driver takes over conflict resolution on the paths it is registered for,
@@ -27,6 +27,9 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
   WP09/FR-014/D-PLAN-6 now that the ``.md`` is non-authoritative, unread
   prose — see :func:`run_review_cycle_driver`'s own docstring for the full
   history and why a divergent collision no longer aborts the squash).
+- ``merge-driver-decision-index``     — ``decisions/index.json`` union keyed
+  by ``decision_id``, terminal-beats-open fold precedence (FR-009b / D13 /
+  #5023 — see :func:`run_decision_index_driver`).
 
 Git invokes a driver with ``%O %A %B`` = base / ours / theirs and expects the
 merged result written to the ``ours`` (``%A``) path with exit 0. Under the squash
@@ -74,12 +77,16 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from pydantic import ValidationError
+
 from specify_cli.acceptance import (
     ACCEPTANCE_HISTORY_FIELD,
     ACCEPTANCE_PROVENANCE_FIELDS,
 )
 from specify_cli.acceptance.matrix import AcceptanceMatrix, AcceptanceMatrixParseError
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
+from specify_cli.decisions.index_fold import is_allowed_terminal_reopen
+from specify_cli.decisions.models import DecisionIndex, DecisionStatus
 from specify_cli.mission_metadata import parse_meta_file
 from specify_cli.status import EventLogMergeError, merge_event_log_files
 from specify_cli.tasks.issue_matrix import _SCAFFOLD_VERDICT_PLACEHOLDER, ISSUE_MATRIX_SCHEMA_VERSION
@@ -1110,6 +1117,206 @@ def run_review_cycle_driver(base_path: str, ours_path: str, theirs_path: str) ->
 
 
 # ---------------------------------------------------------------------------
+# decisions/index.json (FR-009b / D13 / #5023): entries keyed by decision_id,
+# terminal-beats-open fold precedence
+# ---------------------------------------------------------------------------
+#
+# When the decision ledger becomes a PRIMARY-partition record (WP12),
+# ``decisions/index.json`` starts travelling with lane and mission branches:
+# two lanes that each add a decision then both rewrite the same file, and a
+# plain ``git merge`` either conflicts or (under ``-X theirs``) silently
+# drops one lane's entry. This driver unions ``entries`` keyed by
+# ``decision_id`` so lane integration never loses an index entry.
+#
+# ``index_fold.apply_terminal``/``_select_terminal_event`` (the canonical
+# event -> IndexEntry fold) only ever apply a terminal transition to ONE
+# entry -- they never compare two independently-evolved ``IndexEntry``
+# versions, so the terminal-beats-open precedence below has to be written
+# here, reusing ``index_fold.is_allowed_terminal_reopen`` (the single
+# transition-rule authority, #4919) rather than re-deriving which
+# terminal-to-terminal transition is a legal reopen.
+
+
+class DecisionIndexMergeError(MergeDriverError):
+    """Raised when a ``decisions/index.json`` document cannot be parsed/reconciled.
+
+    Covers malformed ``entries``, an entry missing (or non-string)
+    ``decision_id``, an entry with an invalid ``status``, and a genuine
+    collision this driver must never silently resolve -- a same-``decision_id``
+    divergence that is neither "one side is OPEN, the other terminal" nor
+    "the two terminal statuses form the one legal reopen pair" (see
+    :func:`_resolve_decision_entry`). Mirrors the row-matrix drivers'
+    ``RowMatrixMergeError``/the review-cycle driver's embedded-collision
+    discipline: never silently drop a side, never silently pick one.
+    """
+
+
+def _decision_index_entries(doc: Mapping[str, Any], *, side: str) -> dict[str, dict[str, Any]]:
+    """Canonicalize one side's ``entries`` to ``{decision_id: entry}``.
+
+    Raises :class:`DecisionIndexMergeError` for a non-list ``entries``, a
+    non-object entry, or an entry missing (or non-string) ``decision_id`` --
+    never fabricates a merge over malformed input.
+    """
+    entries = doc.get("entries", [])
+    if not isinstance(entries, list):
+        raise DecisionIndexMergeError(f"{side}: 'entries' is not a list ({entries!r})")
+    by_id: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, Mapping):
+            raise DecisionIndexMergeError(f"{side}: entry is not a JSON object ({entry!r})")
+        decision_id = entry.get("decision_id")
+        if not isinstance(decision_id, str) or not decision_id:
+            raise DecisionIndexMergeError(f"{side}: entry missing 'decision_id' ({entry!r})")
+        by_id[decision_id] = dict(entry)
+    return by_id
+
+
+_DECISION_TERMINAL_STATUSES = frozenset({DecisionStatus.RESOLVED, DecisionStatus.DEFERRED, DecisionStatus.CANCELED})
+
+
+def _decision_entry_status(entry: Mapping[str, Any], *, side: str, decision_id: str) -> DecisionStatus:
+    try:
+        return DecisionStatus(entry.get("status"))
+    except ValueError as exc:
+        raise DecisionIndexMergeError(f"{side}: decision {decision_id!r} has an invalid 'status' ({entry.get('status')!r})") from exc
+
+
+def _resolve_decision_entry(
+    decision_id: str,
+    ours_entry: dict[str, Any] | None,
+    theirs_entry: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Resolve one ``decision_id``'s entry across ``ours``/``theirs``.
+
+    - present on only one side -> taken as is;
+    - identical content on both -> kept once;
+    - one OPEN and the other terminal (resolved/deferred/canceled) -> the
+      terminal entry wins (a terminal status always beats an open one);
+    - both terminal, forming the one legal reopen pair
+      (:func:`~specify_cli.decisions.index_fold.is_allowed_terminal_reopen`
+      -- today only deferred -> resolved) -> the reopen TARGET wins, the
+      same rule the forward write path (``decisions/service.py``) enforces;
+    - any other divergence (two conflicting terminals, or a same-status
+      content divergence) -- a genuine collision -- raises
+      :class:`DecisionIndexMergeError`, exactly like the review-cycle
+      driver's two-verdict collision, never silently picking a side.
+    """
+    if ours_entry is None:
+        if theirs_entry is None:  # pragma: no cover - unreachable: caller only unions present ids
+            raise DecisionIndexMergeError(f"decision {decision_id!r} resolved with no entry on either side")
+        return theirs_entry
+    if theirs_entry is None:
+        return ours_entry
+    if ours_entry == theirs_entry:
+        return ours_entry
+
+    ours_status = _decision_entry_status(ours_entry, side="ours", decision_id=decision_id)
+    theirs_status = _decision_entry_status(theirs_entry, side="theirs", decision_id=decision_id)
+    ours_terminal = ours_status in _DECISION_TERMINAL_STATUSES
+    theirs_terminal = theirs_status in _DECISION_TERMINAL_STATUSES
+
+    if ours_terminal and not theirs_terminal:
+        return ours_entry
+    if theirs_terminal and not ours_terminal:
+        return theirs_entry
+    if ours_terminal and theirs_terminal and ours_status != theirs_status:
+        if is_allowed_terminal_reopen(ours_status, theirs_status):
+            return theirs_entry
+        if is_allowed_terminal_reopen(theirs_status, ours_status):
+            return ours_entry
+
+    raise DecisionIndexMergeError(
+        f"decision {decision_id!r} diverged on both sides with no safe precedence "
+        f"(ours status={ours_status.value!r}, theirs status={theirs_status.value!r}) "
+        "-- refusing to silently pick a side"
+    )
+
+
+def union_decision_index(ours: Mapping[str, Any], theirs: Mapping[str, Any]) -> dict[str, Any]:
+    """Pure union of two ``decisions/index.json`` documents (T060/P-M6).
+
+    Shared by the git merge-driver body (:func:`run_decision_index_driver`)
+    below and ``doctor decisions --repair``'s coordination-only-ledger merge,
+    so there is exactly one union implementation (#5023) -- never a second,
+    independently-maintained copy.
+
+    ``entries`` is unioned keyed by ``decision_id`` with terminal-beats-open
+    fold precedence (see :func:`_resolve_decision_entry`). Every OTHER
+    top-level key (``version``, ``mission_id``) is target-authoritative --
+    ``ours`` wins when present and non-empty, falling back to ``theirs`` --
+    mirroring the row-matrix drivers' :func:`_reconcile_identity_fields` tie
+    convention. The merged ``entries`` list is sorted deterministically by
+    ``(created_at, decision_id)`` so a no-op union (``ours == theirs``) is
+    byte-stable.
+
+    Raises:
+        DecisionIndexMergeError: malformed ``entries``, an entry missing
+            ``decision_id``/with an invalid ``status``, or a genuine
+            collision this function must never silently resolve (see
+            :func:`_resolve_decision_entry`).
+    """
+    ours_entries = _decision_index_entries(ours, side="ours")
+    theirs_entries = _decision_index_entries(theirs, side="theirs")
+
+    merged_by_id = {
+        decision_id: _resolve_decision_entry(decision_id, ours_entries.get(decision_id), theirs_entries.get(decision_id))
+        for decision_id in dict.fromkeys((*ours_entries, *theirs_entries))
+    }
+    merged_entries = sorted(
+        merged_by_id.values(),
+        key=lambda entry: (str(entry.get("created_at", "")), str(entry.get("decision_id", ""))),
+    )
+
+    top_level_keys = (set(ours) | set(theirs)) - {"entries"}
+    result: dict[str, Any] = {}
+    for key in top_level_keys:
+        ours_value = ours.get(key)
+        result[key] = ours_value if ours_value not in (None, "") else theirs.get(key)
+    result["entries"] = merged_entries
+    return result
+
+
+def run_decision_index_driver(base_path: str, ours_path: str, theirs_path: str) -> MergeDriverOutcome:
+    """Union ``decisions/index.json`` entries keyed by ``decision_id`` (FR-009b/#5023).
+
+    Like :func:`run_meta_driver`, this is a 2-way field union over
+    ``ours``/``theirs`` -- ``%O`` (the common ancestor) is unused.
+    ``decisions/index.json`` entries are append-only (a decision is opened
+    once and only ever transitions forward), so no base-aware
+    delete-vs-stale disambiguation like the row-matrix drivers' is needed.
+
+    Collision semantics (see :func:`union_decision_index`/
+    :func:`_resolve_decision_entry`): a terminal status (resolved / deferred
+    / canceled) always beats ``open``; the one legal terminal-to-terminal
+    reopen (deferred -> resolved) takes the reopen target; any other
+    divergence -- two conflicting terminal statuses, or malformed input --
+    raises :class:`MergeDriverError` (a git merge conflict) and never
+    fabricates a merge.
+
+    Output is byte-stable for ``ours == theirs``: the merged document is
+    round-tripped through :class:`~specify_cli.decisions.models.DecisionIndex`
+    and re-serialized with the exact ``decisions.store.save_index`` writer
+    bytes (``sort_keys=True``, 2-space indent, trailing newline) -- never a
+    raw-dict ``json.dumps``, whose output would NOT byte-match
+    ``save_index``'s pydantic ``model_dump(mode="json")`` form (pydantic's
+    datetime JSON form differs from plain ``isoformat()``).
+    """
+    base, ours, theirs = _resolve_merge_driver_paths(base_path, ours_path, theirs_path)
+    _ = base  # %O ancestor unused -- see docstring (2-way union, append-only entries).
+    merged = union_decision_index(_parse_json_document(ours), _parse_json_document(theirs))
+    try:
+        index = DecisionIndex.model_validate(merged)
+    except ValidationError as exc:
+        raise MergeDriverError(f"decisions/index.json: merged document failed schema validation ({exc})") from exc
+    sorted_entries = tuple(sorted(index.entries, key=lambda e: (e.created_at.isoformat(), e.decision_id)))
+    sorted_index = index.model_copy(update={"entries": sorted_entries})
+    payload = json.dumps(sorted_index.model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
+    ours.write_text(payload, encoding="utf-8")
+    return MergeDriverOutcome()
+
+
+# ---------------------------------------------------------------------------
 # Registry (#5119 / FR-002): the single table both callers resolve against
 # ---------------------------------------------------------------------------
 
@@ -1121,6 +1328,7 @@ MERGE_DRIVER_BODIES: Mapping[str, MergeDriverBody] = MappingProxyType(
         "merge-driver-issue-matrix": run_issue_matrix_driver,
         "merge-driver-acceptance-matrix": run_acceptance_matrix_driver,
         "merge-driver-review-cycle": run_review_cycle_driver,
+        "merge-driver-decision-index": run_decision_index_driver,
     }
 )
 

@@ -388,3 +388,52 @@ def test_teardown_without_gate_is_unchanged(tmp_path: Path) -> None:
     assert ok is True
     assert persist.called
     assert destroy.called
+
+
+# ---------------------------------------------------------------------------
+# WP17 (T090 R16 teardown half, FR-009c, #5023) -- a coordination-only ledger
+# refuses teardown, fail-closed, before persist/destroy.
+# ---------------------------------------------------------------------------
+
+
+def test_teardown_refuses_coord_only_ledger(tmp_path: Path) -> None:
+    """Red at base: ``teardown_coordination_topology`` has no concept of the
+    decisions ledger at all, so it destroys a coordination branch that holds
+    the ONLY copy of ``decisions/index.json`` + ``DM-*.md`` (the pre-fix
+    #3928 placement) -- the bookkeeping projection excludes PRIMARY kinds,
+    so that ledger is lost for good. Fixed: teardown raises
+    ``ProjectionTeardownAbort(error_code="COORDINATION_LEDGER_UNREPAIRED")``
+    BEFORE persist/destroy, naming the mission, the coordination branch and
+    the `doctor decisions --repair` hint -- and the coordination branch still
+    exists afterwards.
+    """
+    import subprocess
+
+    from mission_runtime import MissionTopology
+    from specify_cli.coordination.teardown import (
+        ProjectionTeardownAbort,
+        teardown_coordination_topology,
+    )
+    from tests._factories.coord_mission import make_fork_fixture
+
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+
+    persist_p, destroy_p = _patched_teardown_legs()
+    with persist_p as persist, destroy_p as destroy, pytest.raises(ProjectionTeardownAbort) as excinfo:
+        teardown_coordination_topology(fixture.repo_root, fixture.mission_dir_name, fixture.mid8)
+
+    assert excinfo.value.error_code == "COORDINATION_LEDGER_UNREPAIRED"
+    assert "doctor decisions" in str(excinfo.value)
+    assert "--repair" in str(excinfo.value)
+    assert fixture.mission_dir_name in str(excinfo.value)
+    # Nothing torn down, nothing persisted (fail-closed BEFORE either leg).
+    assert not destroy.called
+    assert not persist.called
+
+    branch_list = subprocess.run(
+        ["git", "-C", str(fixture.repo_root), "branch", "--list", fixture.coordination_branch],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert branch_list.stdout.strip(), "the coordination branch must still exist after the refusal"

@@ -45,20 +45,24 @@ refused write never calls ``stage()``, so it leaves zero untracked residue.
 No per-writer reordering is needed or permitted; the single call site here
 IS the contract.
 
-**Caller census (priti B1 / paula M2, T014/T018).** Of :func:`write_artifact`'s
-callers, exactly THREE pre-stage a LOCAL file before calling in (candidates
-for the ``stage=`` migration): ``retrospective/tracer_writer.py`` (migrated
-here, T015), ``acceptance/matrix.py`` (WP05 T024), and
-``tasks/issue_matrix.py`` (WP06 T029). Every other caller passes
-PRE-EXISTING, already-dirty paths it did not just materialize (a
-commit-existing-dirty sweep, not a stage-then-probe hazard) --
-``cli/commands/accept.py``'s ``_commit_coord_residuals`` is the canonical
-example and is intentionally NOT migrated to ``stage=``: it commits
-whatever the working tree already holds, so there is no residue to guard
-against (a refused commit there leaves exactly the pre-existing dirty state,
-not NEW untracked files this seam created). This claim is explicit, not
-assumed -- it was checked against every caller of this function at WP04
-authorship time.
+**Caller census (priti B1 / paula M2, T014/T018; updated coord-artifact-
+single-home-01M3V4BE WP16 B4).** Of :func:`write_artifact`'s callers, exactly
+THREE pre-stage a LOCAL file before calling in (candidates for the ``stage=``
+migration): ``retrospective/tracer_writer.py`` (migrated here, T015),
+``acceptance/matrix.py`` (WP05 T024), and ``tasks/issue_matrix.py`` (WP06
+T029) -- all three USE ``stage=`` today. ``cli/commands/accept.py``'s
+``_commit_coord_residuals`` was this module's one remaining ``files=``
+(non-``stage``) example -- "commits whatever the working tree already
+holds, so a refused commit leaves exactly the pre-existing dirty state, not
+NEW untracked files this seam created." WP16 removed that function: accept's
+residual-commit paths now route through
+:func:`~specify_cli.coordination.commit_router.commit_for_mission` directly,
+passing ``primary_ref`` (the unprotected HEAD) so only that PRIMARY group
+moves off the stored target. There is no direct ``safe_commit`` residual
+path. There is currently no remaining non-``stage`` (``files=``) caller of
+:func:`write_artifact` to cite; the NEXT caller that passes pre-existing
+dirty paths (rather than staging a fresh artifact) re-establishes this leg
+of the contract.
 
 **Off-checkout refuse-with-recovery (FR-006).** WP03's resolver
 (``mission_runtime.resolve_placement_only``) raises a structured
@@ -112,6 +116,7 @@ from mission_runtime import (
     assert_coord_write_materialized,
     placement_seam,
 )
+from specify_cli.coordination.commit_outcome import SurfaceOutcome
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
@@ -227,6 +232,22 @@ class WriteSeamResult:
     belongs to without re-threading its own bookkeeping. ``destination_surface``
     is the resolved placement ref on every non-refused outcome, and ``None``
     on ``"refused"`` (there is no destination -- nothing was resolved).
+
+    WP10 (FR-007, contracts/commit-outcome.md rule 1): ``surfaces`` carries one
+    :class:`~specify_cli.coordination.commit_outcome.SurfaceOutcome` per
+    partition group the underlying write touched (PRIMARY then coordination),
+    projected straight from :attr:`~specify_cli.coordination.commit_router.
+    CommitRouterResult.surfaces` for the routed outcomes, or synthesised (one
+    entry) for the E2 CONSOLIDATED direct-commit path. Additive -- empty for
+    the FR-011 zero-write ``"refused"`` outcome (no router call was ever
+    made, so there is nothing to report per-surface) and for the S-C
+    fail-closed coordination-surface refusal below. ``commit_hashes`` mirrors
+    :attr:`CommitRouterResult.commit_hashes` (the full ``(placement_ref,
+    commit_hash)`` pair set); ``reason`` mirrors :attr:`CommitRouterResult.
+    reason` (the machine-readable ``"unchanged"`` disambiguator). Every
+    consumer renders through :func:`~specify_cli.coordination.commit_outcome.
+    render_commit_outcome` / ``commit_outcome_payload`` -- never by hand
+    (contract rule 6).
     """
 
     status: Literal["committed", "unchanged", "no_op_wrong_surface", "error", "refused"]
@@ -234,6 +255,9 @@ class WriteSeamResult:
     destination_surface: str | None
     commit_hash: str | None = None
     diagnostic: str | None = None
+    surfaces: tuple[SurfaceOutcome, ...] = ()
+    commit_hashes: tuple[tuple[str, str], ...] = ()
+    reason: str | None = None
 
 
 def _probe_write_target(
@@ -423,16 +447,32 @@ def _commit_post_consolidation_write(
     """
     from specify_cli.git import safe_commit
 
+    # WP10 (T054): the E2 CONSOLIDATED bypass resolves to exactly ONE
+    # destination (the repository-root checkout, never a coordination
+    # worktree -- module docstring) -- so it always synthesises a single
+    # ``SurfaceOutcome`` of its own, so consumers render uniformly through
+    # the shared trio regardless of which path produced the ``WriteSeamResult``.
+    repo_relative_committed = tuple(str(path.relative_to(repo_root)) if path.is_absolute() else str(path) for path in files)
+
     if not files:
-        return WriteSeamResult(status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref)
+        unchanged_surface = SurfaceOutcome(surface="primary", branch=resolved.ref, status=_STATUS_UNCHANGED, commit_hash=None)
+        return WriteSeamResult(status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref, surfaces=(unchanged_surface,))
     if any(not path.exists() for path in files):
+        diagnostic = (
+            f"Artifact(s) not present at resolved CONSOLIDATED placement ({resolved.ref}); commit would no-op against the wrong surface and was not created."
+        )
+        # ``SurfaceOutcome.status`` has no ``"no_op_wrong_surface"`` member
+        # (contract vocabulary, commit-outcome.md "Types") -- this genuinely
+        # unexpected shape (the artifact the caller just staged is missing at
+        # its own resolved placement) is reported as ``"error"`` so the
+        # shared exit-code rule (non-zero on error/refused) still flags it.
+        wrong_surface = SurfaceOutcome(surface="primary", branch=resolved.ref, status="error", commit_hash=None, diagnostic=diagnostic)
         return WriteSeamResult(
             status="no_op_wrong_surface",
             entry_id=entry_id,
             destination_surface=resolved.ref,
-            diagnostic=(
-                f"Artifact(s) not present at resolved CONSOLIDATED placement ({resolved.ref}); commit would no-op against the wrong surface and was not created."
-            ),
+            diagnostic=diagnostic,
+            surfaces=(wrong_surface,),
         )
 
     try:
@@ -446,14 +486,25 @@ def _commit_post_consolidation_write(
         )
     except RuntimeError as exc:
         if str(exc).startswith(_EMPTY_CHANGESET_PREFIX):
-            return WriteSeamResult(status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref)
-        return WriteSeamResult(status="error", entry_id=entry_id, destination_surface=resolved.ref, diagnostic=str(exc))
+            unchanged_surface = SurfaceOutcome(surface="primary", branch=resolved.ref, status=_STATUS_UNCHANGED, commit_hash=None)
+            return WriteSeamResult(status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref, surfaces=(unchanged_surface,))
+        error_surface = SurfaceOutcome(surface="primary", branch=resolved.ref, status="error", commit_hash=None, diagnostic=str(exc))
+        return WriteSeamResult(status="error", entry_id=entry_id, destination_surface=resolved.ref, diagnostic=str(exc), surfaces=(error_surface,))
 
+    committed_surface = SurfaceOutcome(
+        surface="primary",
+        branch=resolved.ref,
+        status=_STATUS_COMMITTED,
+        commit_hash=commit_result.sha,
+        committed=repo_relative_committed,
+    )
     return WriteSeamResult(
         status=_STATUS_COMMITTED,
         entry_id=entry_id,
         destination_surface=resolved.ref,
         commit_hash=commit_result.sha,
+        surfaces=(committed_surface,),
+        commit_hashes=((resolved.ref, commit_result.sha),),
     )
 
 
@@ -562,4 +613,7 @@ def write_artifact(
         destination_surface=result.placement_ref,
         commit_hash=result.commit_hash,
         diagnostic=result.diagnostic,
+        surfaces=result.surfaces,
+        commit_hashes=result.commit_hashes,
+        reason=result.reason,
     )

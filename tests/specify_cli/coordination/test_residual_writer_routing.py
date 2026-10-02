@@ -80,6 +80,7 @@ class TestDecisionLogRoutesThroughPlacementPort:
             worktree_root=tmp_path,
             destination_ref=wrong_ambient_ref,
             mission_slug=_SLUG,
+            mission_dir=tmp_path / "kitty-specs" / _SLUG,
             inner=NullEmitter(),
         )
 
@@ -100,6 +101,7 @@ class TestDecisionLogRoutesThroughPlacementPort:
             worktree_root=tmp_path,
             destination_ref=_COORD_BRANCH,
             mission_slug=_SLUG,
+            mission_dir=tmp_path / "kitty-specs" / _SLUG,
             inner=NullEmitter(),
             target=injected,
         )
@@ -119,6 +121,7 @@ class TestDecisionLogRoutesThroughPlacementPort:
             worktree_root=tmp_path,
             destination_ref=ambient_ref,
             mission_slug=_SLUG,
+            mission_dir=tmp_path / "kitty-specs" / _SLUG,
             inner=NullEmitter(),
         )
 

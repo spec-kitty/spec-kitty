@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import logging
 import subprocess
 from dataclasses import dataclass, field
@@ -778,11 +777,16 @@ def reconcile_status(
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionRequest  # noqa: PLC0415
 
-    # KEEP coord-aware (C-001 / #2155 analog): this ``feature_dir`` feeds
-    # ``emit_status_transition_transactional`` below — a STATUS-WRITE leg. The
-    # status event log lives on the coordination worktree for coord-topology
-    # missions, so this MUST stay on the coord-aware resolver — never route it.
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    # coord-artifact-single-home-01M3V4BE WP07 (T041): the write location for
+    # this STATUS-WRITE leg comes from the single write-location accessor
+    # (``placement_seam(...).write_dir``), never a read resolver (FR-014) --
+    # ``resolve_feature_dir_for_mission`` (the prior resolver here) silently
+    # substituted the repository root checkout on an EMPTY/UNMATERIALIZED
+    # coordination surface instead of materializing/seeding it. The status
+    # event log still lives on the coordination worktree for coord-topology
+    # missions; ``write_dir`` is the coord-aware authority that now owns
+    # getting it there (materialize, seed, restore, or refuse loudly).
+    feature_dir = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
     current_lane = state.status_lane
 
     # Determine target lane based on evidence
@@ -818,7 +822,19 @@ def reconcile_status(
                 )
             )
             emitted += 1
-        except Exception:
+        except Exception as exc:
+            # Recovery is best-effort: log and stop this WP's catch-up rather
+            # than letting an unexpected failure propagate out of a crash-
+            # recovery sweep.
+            logger.warning(
+                "reconcile_status: stopped emitting catch-up transitions for WP %s (mission %s) at %s "
+                "after %s: %s",
+                state.wp_id,
+                mission_slug,
+                next_lane,
+                type(exc).__name__,
+                exc,
+            )
             break
 
         if next_lane == target:

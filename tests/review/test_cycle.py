@@ -1918,14 +1918,19 @@ def test_real_commit_is_durable_only_after_exact_ref_readback(tmp_path: Path) ->
         commit_router=RealCoordCommitRouter(),
     )
 
-    assert created.persistence == VerdictPersistenceOutcome(
-        classification="durable",
-        verdict_durably_persisted=True,
-        evidence_ref="kitty-specs/001-mission/tasks/WP01-core/review-cycle-1.md",
-        destination_ref="main",
-        reason=None,
-        message="Review-cycle evidence is committed and verified at main.",
-    )
+    # Review cycle 2 (B3, contract rule 6): the durable arm now also carries
+    # the shared `render_commit_outcome` surface detail appended to its
+    # message -- re-pinned to a prefix + substring check (rather than exact
+    # equality) since the appended surface line embeds a real, non-
+    # deterministic commit hash.
+    persistence = created.persistence
+    assert persistence.classification == "durable"
+    assert persistence.verdict_durably_persisted is True
+    assert persistence.evidence_ref == "kitty-specs/001-mission/tasks/WP01-core/review-cycle-1.md"
+    assert persistence.destination_ref == "main"
+    assert persistence.reason is None
+    assert persistence.message.startswith("Review-cycle evidence is committed and verified at main."), persistence.message
+    assert "Surfaces: ✓ primary (main): committed" in persistence.message, persistence.message
 
 
 def test_nonidentical_retry_does_not_adopt_retained_record(tmp_path: Path) -> None:

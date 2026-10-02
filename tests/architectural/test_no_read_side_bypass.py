@@ -551,26 +551,6 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/specify_cli/retrospective/tracer_writer.py",
-        qualname="_local_staging_path",
-        token_substring="candidate_feature_dir_for_mission ( repo_root , mission_slug )",
-        occurrence=None,
-        rationale=(
-            "Ledger (write-side-seam-matrix-tracer-01KYP3MH, commit 2d96492ca): "
-            "_local_staging_path computes where a LOCAL traces/<category>.md "
-            "staging file should LAND before the mission's traces/ subdir exists "
-            "(the caller append_tracer_finding mkdir+write_text's it), then "
-            "commits through the WP03 write_seam.write_artifact whose FR-011 "
-            "probe is the canonical routability authority. Mirrors the sibling "
-            "retrospective/summary.py::_read_proposal_events (:220) staging "
-            "pattern -- same package, same 'candidate dir + local subpath' shape. "
-            "A read_dir(kind) route is wrong here: this resolves a write-then-"
-            "stage destination, not where to READ from. Replaced a raw "
-            "repo_root/KITTY_SPECS_DIR/mission_slug join (the deleted "
-            "surface-resolution/untrusted-path ghost sink)."
-        ),
-    ),
-    ContentDescriptor(
         rel_path="src/specify_cli/status/aggregate.py",
         qualname="MissionStatus._find_meta_path",
         token_substring="candidate_feature_dir_for_mission ( repo_root , mission_slug )",
@@ -603,24 +583,12 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     # ---- sites total; the 8th, decisions/emit.py:71, is migrate-fail-loud and
     # ---- deliberately NOT allow-listed -- it is an expected-red site until a
     # ---- later WP routes it).
-    ContentDescriptor(
-        rel_path="src/specify_cli/agent_tasks_ports.py",
-        qualname="RealCoordCommitRouter.feature_write_dir",
-        token_substring="resolve_feature_dir_for_mission (",
-        occurrence=None,
-        rationale=(
-            "Ledger :323: tasks_move_task.py:348-353's production comment is "
-            "the rationale of record -- 'feature_write_dir wraps "
-            "resolve_feature_dir_for_mission (the kind-blind coord-husk leg) "
-            "-- the SAME on-disk dir the pre-rewire body read; it feeds the "
-            "pre30 guard, the authoritative event-log lane read, and the "
-            "coord override persist. It is NEVER repointed to a primary kind "
-            "-- that would move the event-log read off the coord husk and "
-            "reintroduce the split-brain FR-010 closes.' Ambiguous whether a "
-            "COORD-kind read_dir() swap would preserve resolve_action_context's "
-            "richer resolution; defaulted lenient pending a bespoke fix."
-        ),
-    ),
+    # ---- agent_tasks_ports.py::RealCoordCommitRouter.feature_write_dir
+    # ---- (coord-artifact-single-home-01M3V4BE WP07, T040): ROUTED. It now
+    # ---- resolves through placement_seam(...).write_dir(STATUS_STATE) -- the
+    # ---- single write-location accessor, never a read resolver (FR-014) --
+    # ---- so this allow-list entry is removed (no `resolve_feature_dir_for_
+    # ---- mission` call site remains to allow-list).
     ContentDescriptor(
         rel_path="src/specify_cli/cli/commands/decision.py",
         qualname="_resolve_repo_root_and_slug",
@@ -679,19 +647,11 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "(degrade axis), preserving the resolver's typed diagnostic code."
         ),
     ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/lanes/recovery.py",
-        qualname="reconcile_status",
-        token_substring="resolve_feature_dir_for_mission ( repo_root , mission_slug )",
-        occurrence=None,
-        rationale=(
-            "Ledger :781: own comment -- 'KEEP coord-aware (C-001 / #2155 "
-            "analog): this feature_dir feeds emit_status_transition_"
-            "transactional below -- a STATUS-WRITE leg. The status event log "
-            "lives on the coordination worktree for coord-topology missions, "
-            "so this MUST stay on the coord-aware resolver -- never route it.'"
-        ),
-    ),
+    # ---- lanes/recovery.py::reconcile_status (coord-artifact-single-home-
+    # ---- 01M3V4BE WP07, T041): ROUTED. It now resolves through
+    # ---- placement_seam(...).write_dir(STATUS_STATE) -- the single
+    # ---- write-location accessor -- so this allow-list entry is removed (no
+    # ---- `resolve_feature_dir_for_mission` call site remains here).
     ContentDescriptor(
         rel_path="src/specify_cli/widen/state.py",
         qualname="WidenPendingStore.__init__",

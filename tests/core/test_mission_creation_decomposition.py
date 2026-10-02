@@ -18,15 +18,16 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import MissionTopology
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.core.mission_creation import (
     MissionAlreadyExistsError,
     MissionCreationError,
-    MissionCreationResult,
     create_mission_core,
 )
+from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
 
 from tests._factories import provision_test_charter
+from tests._factories.coord_mission import COORD_TOPOLOGIES, make_coord_mission
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -279,19 +280,18 @@ def test_documentation_mission_writes_documentation_state(repo: Path) -> None:
     assert "documentation_state" in on_disk_meta
 
 
-def _coordination_status_log(repo: Path, result: MissionCreationResult) -> Path:
-    """The coordination worktree copy of the mission's status log (#5440)."""
-    from specify_cli.coordination.surface_resolver import resolve_status_surface
-
-    surface: Path = resolve_status_surface(repo, result.mission_slug)
-    assert ".worktrees" in surface.parts, f"coord status surface must be the coordination worktree, got {surface}"
-    return surface
-
-
 def test_status_log_holds_exactly_created_and_specify_started(repo: Path) -> None:
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, D6): ``create_mission_core``
+    defaults to ``topology=COORD`` (S9), so the creation events now land on the
+    coordination branch's Mission dir, never the target-branch scaffold's
+    ``result.feature_dir`` (#5440). Read them back via the coordination branch's
+    ``meta.json``-recorded name instead of the old root-checkout path.
+    """
     result = create_mission_core(repo, "event-mission", **_summary("event-mission"))
-    log_path = _coordination_status_log(repo, result)
-    events = [json.loads(line) for line in log_path.read_text().splitlines() if line.strip()]
+    coordination_branch = result.meta["coordination_branch"]
+    assert coordination_branch, "a default (coord) create must mint a coordination branch"
+    log_content = _git(repo, "show", f"{coordination_branch}:kitty-specs/{result.mission_slug}/status.events.jsonl").stdout.decode()
+    events = [json.loads(line) for line in log_content.splitlines() if line.strip()]
     event_types = [event.get("event_type") for event in events]
     assert event_types.count("MissionCreated") == 1
     assert event_types.count("SpecifyStarted") == 1
@@ -299,7 +299,12 @@ def test_status_log_holds_exactly_created_and_specify_started(repo: Path) -> Non
 
 
 def test_scaffold_commit_is_single_commit_excluding_spec_md(repo: Path) -> None:
-    """Default ``coord`` create: one target commit without the status log (#5440)."""
+    """Re-pinned (coord-artifact-single-home-01M3V4BE WP06, D6/D4): a coord-topology
+    (the default, S9) create no longer scaffolds ``status.events.jsonl`` on the
+    target branch at all (#5440) -- it is seeded straight onto the coordination
+    branch instead and carries the D4 seed-marker trailer. ``meta.json`` /
+    ``tasks/*`` stay the positive controls (C-008: unchanged for every topology).
+    """
     result = create_mission_core(repo, "scaffold-commit", **_summary("scaffold-commit"))
     head = _git(repo, "rev-parse", "HEAD").stdout.decode().strip()
     parent_count = _git(repo, "rev-list", "--count", head).stdout.decode().strip()
@@ -312,11 +317,27 @@ def test_scaffold_commit_is_single_commit_excluding_spec_md(repo: Path) -> None:
     assert f"kitty-specs/{slug}/tasks/.gitkeep" in tree_files
     assert f"kitty-specs/{slug}/spec.md" not in tree_files
 
-    # The status log lives on the coordination branch instead, in its own commit.
-    assert result.coordination_branch is not None
-    coord_files = _git(repo, "ls-tree", "-r", "--name-only", result.coordination_branch).stdout.decode().splitlines()
-    assert f"kitty-specs/{slug}/status.events.jsonl" in coord_files
-    assert f"kitty-specs/{slug}/meta.json" not in coord_files
+    coordination_branch = result.meta["coordination_branch"]
+    coord_tree_files = _git(repo, "ls-tree", "-r", "--name-only", coordination_branch).stdout.decode().splitlines()
+    assert f"kitty-specs/{slug}/status.events.jsonl" in coord_tree_files, "the coordination branch must carry the seeded status log instead"
+    trailer = _git(repo, "log", "--format=%(trailers:key=Spec-Kitty-Coordination-Seed,valueonly)", coordination_branch).stdout.decode().splitlines()
+    assert result.meta["mission_id"] in {line.strip() for line in trailer if line.strip()}, "create's own commit must carry the D4 seed-marker trailer"
+
+
+def test_scaffold_commit_is_single_commit_excluding_spec_md_lanes_control(repo: Path) -> None:
+    """C-008 control: a ``lanes`` (non-coordination) create keeps the pre-WP06 tree byte-identical."""
+    result = create_mission_core(repo, "scaffold-commit-lanes", topology=MissionTopology.LANES, **_summary("scaffold-commit-lanes"))
+    head = _git(repo, "rev-parse", "HEAD").stdout.decode().strip()
+    parent_count = _git(repo, "rev-list", "--count", head).stdout.decode().strip()
+    assert parent_count == "2"  # init + scaffold commit
+    tree_files = _git(repo, "ls-tree", "-r", "--name-only", head).stdout.decode().splitlines()
+    slug = result.mission_slug
+    assert f"kitty-specs/{slug}/meta.json" in tree_files
+    assert f"kitty-specs/{slug}/status.events.jsonl" in tree_files
+    assert f"kitty-specs/{slug}/tasks/README.md" in tree_files
+    assert f"kitty-specs/{slug}/tasks/.gitkeep" in tree_files
+    assert f"kitty-specs/{slug}/spec.md" not in tree_files
+    assert not result.meta.get("coordination_branch")
 
 
 def test_single_branch_scaffold_commit_keeps_the_status_log(repo: Path) -> None:
@@ -529,3 +550,108 @@ def test_build_create_meta_single_branch_never_mints_coordination_branch(tmp_pat
     assert "coordination_branch" not in result.meta
     assert result.coordination_branch_created is False
     assert result.meta["topology"] == "single_branch"
+
+
+# ---------------------------------------------------------------------------
+# R1/R1b (coord-artifact-single-home-01M3V4BE WP06, #5440, FR-001/FR-002).
+# Folded in per FR-016/R-M8 (post-tasks squad) once green: originally adopted
+# via ``git cherry-pick -x`` from upstream PR #5518
+# (``tests/core/test_mission_create_coord_status_placement.py``, now deleted)
+# then extended with R1b and parametrized over both coordination topologies,
+# every ``via`` the production create path supports, and the real
+# protected-primary default-resolution path (no explicit ``--topology``).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("via", ["core", "cli_topology", "cli_pr_bound"])
+@pytest.mark.parametrize("topology", COORD_TOPOLOGIES, ids=lambda t: t.value)
+def test_coord_create_scaffold_commit_keeps_status_off_target_branch(
+    tmp_path: Path,
+    topology: MissionTopology,
+    via: str,
+) -> None:
+    """R1 (#5440): a HISTORY probe (never the tip tree -- squad finding R8)
+    proves no commit between the creation base and the target tip touches a
+    COORD-partition status byte-set, while the positive control
+    (``meta.json``, a PRIMARY-partition file) IS there.
+    """
+    coord = make_coord_mission(tmp_path, topology, via=via, slug="status-placement")
+    base = coord.creation_base_sha
+    target = coord.target_branch
+    mission_rel = f"kitty-specs/{coord.mission_dir_name}"
+
+    target_tip = _git(coord.repo_root, "rev-parse", target).stdout.decode().strip()
+    assert target_tip != base, "the create scaffold commit must land on the target branch"
+    target_tree = _git(coord.repo_root, "ls-tree", "-r", "--name-only", target).stdout.decode().splitlines()
+    assert f"{mission_rel}/meta.json" in target_tree, "primary-partition meta.json belongs on the target branch"
+
+    status_paths = [f"{mission_rel}/status.events.jsonl", f"{mission_rel}/status.json"]
+    touching_commits = _git(coord.repo_root, "log", "--format=%h %s", f"{base}..{target}", "--", *status_paths).stdout.decode()
+    assert touching_commits.strip() == "", (
+        f"coord mission {coord.mission_dir_name!r} (topology={topology.value}, via={via!r}): target branch "
+        f"{target!r} carries a commit touching a coord-owned status byte-set: {touching_commits!r}. "
+        "STATUS_STATE is a COORD-partition kind; it lives on the coordination surface, never the target branch (#5440)."
+    )
+
+
+@pytest.mark.parametrize("via", ["core", "cli_topology", "cli_pr_bound"])
+@pytest.mark.parametrize("topology", COORD_TOPOLOGIES, ids=lambda t: t.value)
+def test_coord_create_seeds_coordination_branch_and_reads_materialized(
+    tmp_path: Path,
+    topology: MissionTopology,
+    via: str,
+) -> None:
+    """R1b: the coordination branch carries ``MissionCreated`` + ``SpecifyStarted``
+    from birth, the production read classifier reports the surface MATERIALIZED,
+    and the coordination Mission dir holds COORD records only -- never ``meta.json``,
+    ``spec.md`` or ``tasks/README.md`` (US1.3).
+    """
+    coord = make_coord_mission(tmp_path, topology, via=via, slug="status-placement-materialized")
+    mission_rel = f"kitty-specs/{coord.mission_dir_name}"
+
+    coord_tree = _git(coord.repo_root, "ls-tree", "-r", "--name-only", coord.coordination_branch).stdout.decode().splitlines()
+    assert f"{mission_rel}/status.events.jsonl" in coord_tree, "the coordination branch must carry the seeded status log"
+
+    log_content = _git(coord.repo_root, "show", f"{coord.coordination_branch}:{mission_rel}/status.events.jsonl").stdout.decode()
+    event_types = [json.loads(line)["event_type"] for line in log_content.splitlines() if line.strip()]
+    assert event_types.count("MissionCreated") == 1
+    assert event_types.count("SpecifyStarted") == 1
+
+    read_location = placement_seam(coord.repo_root, coord.mission_dir_name, owned=None).read_dir(MissionArtifactKind.STATUS_STATE)
+    assert read_location.resolve() == coord.coord_mission_dir.resolve(), "the production read classifier must resolve inside the coordination worktree"
+    state = probe_coord_state(coord.repo_root, coord.mission_dir_name, coord.mid8, coordination_branch=coord.coordination_branch)
+    assert state is CoordState.MATERIALIZED
+
+    assert not (coord.coord_mission_dir / "meta.json").exists(), "no PRIMARY-partition file belongs in the coordination Mission dir (US1.3)"
+    assert not (coord.coord_mission_dir / "spec.md").exists()
+    assert not (coord.coord_mission_dir / "tasks" / "README.md").exists()
+
+
+def test_coord_create_protected_primary_default_topology_still_seeds(tmp_path: Path) -> None:
+    """Real default path (post-tasks squad R-m4): ``--pr-bound --start-branch
+    <topic>`` with NO explicit ``--topology`` on a protected primary resolves
+    the product default ``topology=coord`` (never falls back to
+    ``single_branch`` due to the ``origin/HEAD``-less fallback quirk), and
+    still carries the R1 history-probe + R1b seed/materialize shape.
+    """
+    coord = make_coord_mission(
+        tmp_path,
+        None,
+        via="cli_pr_bound",
+        protected_primary=True,
+        slug="status-placement-protected",
+    )
+
+    assert coord.topology is MissionTopology.COORD
+    mission_rel = f"kitty-specs/{coord.mission_dir_name}"
+    base = coord.creation_base_sha
+    target = coord.target_branch
+    target_tree = _git(coord.repo_root, "ls-tree", "-r", "--name-only", target).stdout.decode().splitlines()
+    assert f"{mission_rel}/meta.json" in target_tree
+
+    status_paths = [f"{mission_rel}/status.events.jsonl", f"{mission_rel}/status.json"]
+    touching_commits = _git(coord.repo_root, "log", "--format=%h", f"{base}..{target}", "--", *status_paths).stdout.decode()
+    assert touching_commits.strip() == ""
+
+    coord_tree = _git(coord.repo_root, "ls-tree", "-r", "--name-only", coord.coordination_branch).stdout.decode().splitlines()
+    assert f"{mission_rel}/status.events.jsonl" in coord_tree

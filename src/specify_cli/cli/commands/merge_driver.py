@@ -1,6 +1,6 @@
 """Hidden git merge-driver entrypoints for Spec Kitty repositories.
 
-Six custom drivers keep mission bookkeeping semantic under the mission→target
+Seven custom drivers keep mission bookkeeping semantic under the mission→target
 ``git merge --squash`` in ``lanes/consolidation.py::_merge_branch_into`` (#4892 dropped
 the old ``-X theirs``; ordinary source paths now fail closed on conflict). A
 custom driver takes over conflict resolution on the paths it is registered for,
@@ -24,6 +24,9 @@ hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
   best-effort, non-aborting reconciliation of a two-verdict collision (see
   ``specify_cli.consolidation.drivers.run_review_cycle_driver``'s docstring for the
   full history).
+- ``merge-driver-decision-index``    — ``decisions/index.json`` union keyed by
+  ``decision_id``, terminal-beats-open fold precedence (FR-009b / see
+  ``specify_cli.consolidation.drivers.run_decision_index_driver``'s docstring).
 
 Git invokes a driver with ``%O %A %B`` = base / ours / theirs and expects the
 merged result written to the ``ours`` (``%A``) path with exit 0. Under the squash
@@ -154,3 +157,20 @@ def merge_driver_review_cycle(
     and the squash proceeds.
     """
     _run(MERGE_DRIVER_BODIES["merge-driver-review-cycle"], base_path, ours_path, theirs_path)
+
+
+def merge_driver_decision_index(
+    base_path: str = typer.Argument(..., metavar="BASE"),
+    ours_path: str = typer.Argument(..., metavar="OURS"),
+    theirs_path: str = typer.Argument(..., metavar="THEIRS"),
+) -> None:
+    """Union ``decisions/index.json`` entries keyed by ``decision_id`` (FR-009b/#5023).
+
+    See ``specify_cli.consolidation.drivers.run_decision_index_driver``'s
+    docstring for the full collision/precedence semantics: a terminal status
+    (resolved/deferred/canceled) beats ``open``; the one legal reopen pair
+    (deferred -> resolved) takes the reopen target; any other divergence, or
+    malformed input, is a conflict (non-zero exit) -- never a silently
+    picked side.
+    """
+    _run(MERGE_DRIVER_BODIES["merge-driver-decision-index"], base_path, ours_path, theirs_path)

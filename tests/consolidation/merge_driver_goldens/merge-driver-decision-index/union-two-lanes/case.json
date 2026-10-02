@@ -1,0 +1,7 @@
+{
+  "absent": [],
+  "exit_code": 0,
+  "note": "base holds one decision; A adds lane-a's decision, B adds lane-b's -- the union keeps all three, sorted by (created_at, decision_id)",
+  "stderr": "",
+  "stdout": ""
+}

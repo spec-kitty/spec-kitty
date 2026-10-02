@@ -318,6 +318,7 @@ class TestIssue1617DecisionLogCoordRouting:
             worktree_root=coord_root,
             destination_ref="kitty/mission-my-mission",
             mission_slug=slug,
+            mission_dir=coord_root / "kitty-specs" / slug,
             inner=NullEmitter(),
         )
 
@@ -345,6 +346,7 @@ class TestIssue1617DecisionLogCoordRouting:
             worktree_root=coord_root,
             destination_ref="kitty/mission-my-mission",
             mission_slug=slug,
+            mission_dir=coord_root / "kitty-specs" / slug,
             inner=NullEmitter(),
         )
 

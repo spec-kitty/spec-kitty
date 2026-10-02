@@ -39,8 +39,8 @@ import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, NoReturn, cast
+from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING, Annotated, Final, NoReturn, cast
 
 import typer
 
@@ -51,7 +51,7 @@ from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
 
 from kernel._safe_re import re
-from kernel.git import GitCommandError, StatusEntry, status_entries
+from kernel.git import GitCommandError, StatusEntry, changed_paths, status_entries
 from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind, TopologyManifestMismatch
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
@@ -322,7 +322,18 @@ def _collect_finalize_artifacts(
         # tasks.md.
         feature_dir / "wps.yaml",
         feature_dir / META_JSON_FILENAME,
-        feature_dir / "acceptance-matrix.json",
+        # coord-artifact-single-home-01M3V4BE WP15 (B6, cycle 2): the root copy
+        # of ``acceptance-matrix.json`` is DELIBERATELY NOT a candidate here
+        # any more -- the owning copy (COORD for a coordination-routed
+        # Mission, PRIMARY otherwise) is resolved exclusively through
+        # ``_coord_candidate_dirt`` (``write_dir(ACCEPTANCE_MATRIX)``, T081).
+        # Including a stale root copy here would feed it into the SAME
+        # combined ``files`` tuple the coordination copy rides, and the
+        # router's still-unflipped ACCEPTANCE_MATRIX legacy ``copy2`` (the
+        # "owning copy wins" flip is WP20's commit_router.py change, out of
+        # this WP's owned_files) would then overwrite the real coordination
+        # content with root residue (Decision `plan.design.translate-if-
+        # present-kinds`).
         # write-surface-coherence WP08 (#2804 / #2404 T043 / G3): sweep the
         # terminal ``issue-matrix.json`` — the retired ``issue-matrix.md`` is
         # never authored by any canonical path any more (WP05), so it is no
@@ -2264,33 +2275,6 @@ def _emit_validate_only_report(
             )
 
 
-def _lifecycle_event_dir(planning_dir: Path, repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> Path:
-    """Directory of the mission's canonical status log, for lifecycle emission (#5440).
-
-    ``TasksStarted`` / ``WPCreated`` / ``TasksCompleted`` belong in the same log
-    the status surface reads, which for a coordination-routed mission is the
-    coordination worktree's copy (``setup-plan`` already emits there). Writing
-    them into ``planning_dir`` instead strands them in a primary-checkout file
-    no reader consults. Resolution goes through the canonical status-surface
-    authority; when it cannot resolve to an existing directory (an owned
-    checkout, a missing or malformed ``meta.json``, an unmaterialized
-    coordination worktree) the primary planning dir is kept, as before.
-    """
-    if owned is not None:
-        return planning_dir
-    from specify_cli.coordination.surface_resolver import (
-        CoordinationBranchDeleted,
-        StatusReadPathNotFound,
-        resolve_status_surface_with_anchor,
-    )
-
-    try:
-        read_dir: Path = resolve_status_surface_with_anchor(repo_root, mission_slug, for_write=True).read_dir
-    except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
-        return planning_dir
-    return read_dir if read_dir.is_dir() else planning_dir
-
-
 def _emit_local_canonical_events(
     planning_dir: Path,
     mission_slug: str,
@@ -2305,11 +2289,32 @@ def _emit_local_canonical_events(
     ``owned`` (item 6): when a fact is held, WPCreated and TasksCompleted are written against
     ``owned.repository_root`` directly instead of re-deriving R from the log
     path (``get_main_repo_root`` walk) after the fact was minted.
+
+    WP15/T080 (FR-003): the write directory is resolved through
+    ``PlacementSeam.write_dir(STATUS_STATE)`` — the single write-location
+    authority — so these two lifecycle events land in the SAME coordination
+    log ``move-task`` later appends to, never forked into a second copy under
+    the repository-root checkout's ``planning_dir``. ``planning_dir`` stays
+    the anchor for the PRIMARY-partition reads below (the WP task-file glob,
+    the ``tasks.md`` existence check) — only the WRITE target moves.
+
+    WP15 cycle 2 (B3, HIGH, FR-003a): ``write_dir`` is resolved OUTSIDE the
+    best-effort ``try`` below and its exceptions are NEVER caught here. A
+    named write-location refusal (a deleted or remote-only coordination
+    branch, a seed fork, a held status lock) must fail finalize closed with
+    the refusal's own recovery hint, in both text and JSON mode -- not
+    report ``result: success`` while WPCreated/TasksCompleted were written
+    nowhere. The best-effort ``except Exception`` below stays scoped to the
+    ACTUAL emission calls, which were always non-blocking by design (a
+    genuinely unexpected emission failure, e.g. a malformed WP dict, still
+    degrades to a console warning rather than aborting finalize).
     """
+    from mission_runtime import placement_seam
+
+    status_write_dir = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
     try:
         from specify_cli.status import TASKS_COMPLETED, emit_artifact_phase, emit_wp_created_local
 
-        event_dir = _lifecycle_event_dir(planning_dir, repo_root, mission_slug, owned=owned)
         for wp in work_packages:
             wp_id = str(wp["id"])
             wp_path: str | None = None
@@ -2320,7 +2325,7 @@ def _emit_local_canonical_events(
             except Exception:  # noqa: BLE001 — best-effort path resolution
                 wp_path = None
             emit_wp_created_local(
-                event_dir,
+                status_write_dir,
                 mission_slug=mission_slug,
                 wp_id=wp_id,
                 wp_title=str(wp.get("title") or wp_id),
@@ -2338,7 +2343,7 @@ def _emit_local_canonical_events(
             except ValueError:
                 tasks_artifact_rel = str(tasks_artifact)
         emit_artifact_phase(
-            event_dir,
+            status_write_dir,
             event_type=TASKS_COMPLETED,
             mission_slug=mission_slug,
             actor=FINALIZE_TASKS_COMMAND_NAME,
@@ -2450,6 +2455,18 @@ class PlanningCommitResolution:
     action: str
     previous_sha: str | None = None
     branch_tip: str | None = None
+    #: WP15 cycle 2 (B7, contracts/commit-outcome.md): the
+    #: ``planning_commit_classify.PinClass`` value (as its ``str`` form) the
+    #: no-flag AUTOMATIC decision classified the recorded pin as, when that
+    #: path ran. ``None`` for the pre-execution ``"captured"`` action (no
+    #: pin was classified) and for the explicit ``--refresh-planning-commit``
+    #: path (classified by a DIFFERENT decision function,
+    #: ``_resolve_refresh_planning_commit_decision``, not surfaced here).
+    pin_class: str | None = None
+    #: A short, machine-readable reason code for why the AUTOMATIC decision
+    #: landed on its action -- currently only populated for
+    #: ``"kept_with_warning"`` (the pin class name, e.g. ``"foreign"``).
+    refusal_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -2483,6 +2500,52 @@ def _planning_pin_change(
     return {
         "artifact": "lanes.json",
         "changes": {"planning_commit_sha": {"from": previous, "to": planning_sha.sha}},
+    }
+
+
+_PLANNING_REFRESH_STATUS_BY_ACTION: Final[dict[str, str]] = {
+    "preserved": "preserved",
+    "refreshed": "refreshed",
+    "kept_with_warning": "kept_with_warning",
+}
+
+
+def _planning_commit_refresh_payload(
+    planning_sha: PlanningCommitResolution | None,
+) -> dict[str, object] | None:
+    """Build the additive ``planning_commit_refresh`` JSON field (FR-012, contracts/commit-outcome.md).
+
+    Populated only for the three actions the AUTOMATIC (no-flag) decision
+    path can resolve once execution has begun (preserved/refreshed/
+    kept_with_warning) — ``None`` for a pre-execution ``"captured"`` run (no
+    pin was yet recorded to refresh) and for the explicit
+    ``--refresh-planning-commit``/``--allow-orphaned`` path (``"refreshed"``/
+    ``"repinned"``), which keeps reporting through the pre-existing
+    ``planning_commit`` field only (contract: "An explicit
+    --refresh-planning-commit keeps its existing refusals"). An orphaned pin
+    never reaches here — it fails closed before any write (#4827).
+
+    WP15 cycle 2 (B7/C2-1, contracts/commit-outcome.md): the payload also
+    carries ``pin_class`` (the recorded pin's ``PinClass``, as classified by
+    the automatic decision) and ``reason`` (populated only for
+    ``kept_with_warning``, where it names WHY the automatic refresh could not
+    proceed). The contract's INDETERMINATE row (``kept_with_warning`` for an
+    uncapturable tip) is implemented exactly as the contract states, per the
+    orchestrator's C2-1 ruling: INDETERMINATE is reported as a VISIBLE
+    ``kept_with_warning`` with ``reason="indeterminate_tip_uncapturable"``,
+    never a silent ``preserved``.
+    """
+    if planning_sha is None:
+        return None
+    status = _PLANNING_REFRESH_STATUS_BY_ACTION.get(planning_sha.action)
+    if status is None:
+        return None
+    return {
+        "status": status,
+        "recorded": planning_sha.previous_sha,
+        "candidate": planning_sha.branch_tip,
+        "pin_class": planning_sha.pin_class,
+        "reason": planning_sha.refusal_reason,
     }
 
 
@@ -2831,6 +2894,84 @@ def _commit_planning_pin_refresh(
         )
 
 
+def _guard_lanes_bytes_unchanged_before_commit(lanes_path: Path, expected_bytes: bytes) -> None:
+    """WP15/T004 campsite: the final compare-and-swap guard before the pin-refresh commit.
+
+    Extracted verbatim from :func:`_commit_planning_pin_refresh_locked` (the
+    tidy-first first commit) -- the LAST read of ``lanes_path`` before
+    ``commit_for_mission`` runs, so a concurrent writer that landed between
+    ``write_lanes_json`` and this exact instant is caught instead of silently
+    overwritten. Preserves compare-and-swap semantics exactly: raises
+    ``RuntimeError`` (never returns a status) so the caller's existing
+    ``except Exception`` handler restores the original bytes and reports one
+    real, single-ref outcome -- this helper has no restore/report
+    responsibility of its own.
+    """
+    if lanes_path.read_bytes() != expected_bytes:
+        raise RuntimeError("lanes.json changed before the conditional commit; concurrent content was left untouched")
+
+
+def _finalize_pin_refresh_commit_outcome(
+    result: CommitRouterResult,
+    plan: _PrimaryPinRefreshCommit,
+    *,
+    old_lanes_bytes: bytes,
+    candidate_lanes_bytes: bytes,
+    json_output: bool,
+) -> _CommitOutcome:
+    """WP15/T082/T004 (cycle 2 B10 campsite): interpret ``commit_for_mission``'s
+    result for the pin-only refresh commit -- extracted out of
+    :func:`_commit_planning_pin_refresh_locked` to keep it under the C901
+    ceiling. Renders the shared commit-outcome surfaces (contract rule 6) on
+    EVERY outcome arm, success or refusal, and derives the refusal decision
+    from :func:`~specify_cli.coordination.commit_outcome.commit_outcome_exit_code`
+    (never the legacy ``result.status`` alone) -- except for the
+    pin-refresh-SPECIFIC ``"unchanged"`` anomaly (see the inline note below),
+    which is a LOCAL invariant this single-ref commit owns, not something the
+    shared exit-code rule governs. Never returns on a refusal
+    (:func:`_refuse_planning_pin_refresh` is ``NoReturn``).
+    """
+    from specify_cli.coordination.commit_outcome import commit_outcome_exit_code, commit_outcome_payload, render_commit_outcome
+
+    commit_outcome = _CommitOutcome()
+    commit_outcome.commit_surfaces = cast("list[dict[str, object]]", commit_outcome_payload(result)["surfaces"])
+    commit_outcome.rendered_lines = render_commit_outcome(result)
+    if not json_output:
+        for line in commit_outcome.rendered_lines:
+            console.print(line, markup=False)
+
+    # This single-ref pin commit has exactly one PRIMARY surface, so
+    # ``commit_outcome_exit_code`` (contract rule 5: nonzero iff any surface
+    # is refused/error) is the correct outcome-consumer decision for a
+    # genuine router refusal/error. ``"unchanged"`` is handled as its OWN,
+    # LOCAL anomaly first: this call just wrote a NEW sha to lanes.json, so
+    # the router reporting no diff means a concurrent writer raced us --
+    # that is refused regardless of what the shared exit-code rule would say
+    # about an "unchanged" status (which is a legitimate success elsewhere).
+    if result.status == "unchanged":
+        restore_error = _restore_planning_pin_candidate(plan.lanes_path, candidate_lanes_bytes, old_lanes_bytes)
+        detail = "primary lanes.json changed but the commit seam reported unchanged"
+        if restore_error is not None:
+            detail = f"{detail}; {restore_error}"
+        _refuse_planning_pin_refresh(detail, json_output=json_output)
+    if commit_outcome_exit_code(result) != 0:
+        restore_error = _restore_planning_pin_candidate(plan.lanes_path, candidate_lanes_bytes, old_lanes_bytes)
+        detail = result.diagnostic or "primary lanes.json commit was refused"
+        if restore_error is not None:
+            detail = f"{detail}; {restore_error}"
+        _refuse_planning_pin_refresh(detail, json_output=json_output)
+
+    commit_outcome.commit_created = True
+    commit_outcome.commit_hash = result.commit_hash
+    commit_outcome.commit_hashes = [{"branch": ref, "hash": sha} for ref, sha in result.commit_hashes]
+    commit_outcome.diagnostic = result.diagnostic
+    committed_root = plan.worktree_root
+    commit_outcome.files_committed = [str(path.relative_to(committed_root)) for path in plan.files]
+    if result.diagnostic is not None and not json_output:
+        console.print(f"[yellow]Warning:[/yellow] {result.diagnostic}")
+    return commit_outcome
+
+
 def _commit_planning_pin_refresh_locked(
     planning_dir: Path,
     repo_root: Path,
@@ -2896,8 +3037,7 @@ def _commit_planning_pin_refresh_locked(
     write_lanes_json(planning_dir, lanes_manifest)
     candidate_lanes_bytes = plan.lanes_path.read_bytes()
     try:
-        if plan.lanes_path.read_bytes() != candidate_lanes_bytes:
-            raise RuntimeError("lanes.json changed before the conditional commit; concurrent content was left untouched")
+        _guard_lanes_bytes_unchanged_before_commit(plan.lanes_path, candidate_lanes_bytes)
         result = commit_for_mission(
             repo_root=plan.primary_root,
             mission_slug=mission_slug,
@@ -2917,25 +3057,13 @@ def _commit_planning_pin_refresh_locked(
             detail = f"{detail}; {restore_error}"
         _refuse_planning_pin_refresh(detail, json_output=json_output)
 
-    commit_outcome = _CommitOutcome()
-    if result.status == "committed":
-        commit_outcome.commit_created = True
-        commit_outcome.commit_hash = result.commit_hash
-        commit_outcome.commit_hashes = [{"branch": ref, "hash": sha} for ref, sha in result.commit_hashes]
-        commit_outcome.diagnostic = result.diagnostic
-        committed_root = plan.worktree_root
-        commit_outcome.files_committed = [str(path.relative_to(committed_root)) for path in plan.files]
-        if result.diagnostic is not None and not json_output:
-            console.print(f"[yellow]Warning:[/yellow] {result.diagnostic}")
-    else:
-        restore_error = _restore_planning_pin_candidate(plan.lanes_path, candidate_lanes_bytes, old_lanes_bytes)
-        if result.status == "unchanged":
-            detail = "primary lanes.json changed but the commit seam reported unchanged"
-        else:
-            detail = result.diagnostic or "primary lanes.json commit was refused"
-        if restore_error is not None:
-            detail = f"{detail}; {restore_error}"
-        _refuse_planning_pin_refresh(detail, json_output=json_output)
+    commit_outcome = _finalize_pin_refresh_commit_outcome(
+        result,
+        plan,
+        old_lanes_bytes=old_lanes_bytes,
+        candidate_lanes_bytes=candidate_lanes_bytes,
+        json_output=json_output,
+    )
 
     _report_planning_pin_refresh_success(
         planning_dir,
@@ -2964,7 +3092,18 @@ def _report_planning_pin_refresh_success(
     json_output: bool,
     unchanged: bool,
 ) -> None:
-    """Report a pin refresh in the selected output mode."""
+    """Report a pin refresh in the selected output mode.
+
+    WP13-review binding correction (applied here too): when
+    ``commit_outcome.commit_surfaces`` is populated, render it through the
+    SAME shared trio the main commit pipeline uses.
+
+    WP15 cycle 2 (B10): the text-mode, ``not unchanged`` (real commit
+    attempt) surface lines are printed by the CALLER
+    (:func:`_commit_planning_pin_refresh_locked`) BEFORE this function runs
+    at all -- on EVERY outcome arm, success or refusal -- so they are never
+    printed twice here.
+    """
     if json_output:
         _emit_success_report(
             planning_dir / "tasks",
@@ -3005,6 +3144,48 @@ def _restore_planning_pin_candidate(
     return None
 
 
+def _planning_changed_since_pin(
+    repo_root: Path,
+    mission_slug: str,
+    recorded_sha: str | None,
+    target_tip: str | None,
+) -> bool:
+    """FR-012 (T083): True iff a PRIMARY-partition planning file changed between ``recorded_sha`` and ``target_tip``.
+
+    Scoped to this Mission's own directory (``kitty-specs/<mission_slug>``)
+    and classified per changed path via the single file->kind authority
+    (:func:`~mission_runtime.kind_for_mission_file`) so only genuine
+    PRIMARY-partition planning content (spec/plan/tasks/WP files, …) counts —
+    never a COORD-kind residual (status/matrices) that might incidentally
+    live under the same directory tree. ``lanes.json`` is explicitly excluded
+    even though it classifies PRIMARY: it is finalize's OWN pin-refresh
+    output, so counting it would make the automatic refresh re-trigger itself
+    on its own prior commit (research D16's self-trigger hazard).
+
+    Returns ``False`` (nothing to compare) when either endpoint is missing or
+    the two endpoints are identical — never raises on a git probe failure,
+    degrading to "no change detected" (the safe default: callers only use
+    this to decide whether to ATTEMPT a refresh, never to skip a safety
+    check).
+    """
+    if recorded_sha is None or target_tip is None or recorded_sha == target_tip:
+        return False
+    from mission_runtime import is_primary_artifact_kind, kind_for_mission_file
+
+    try:
+        changed = changed_paths(repo_root, recorded_sha, target_tip, pathspecs=(f"{KITTY_SPECS_DIR}/{mission_slug}",))
+    except GitCommandError:
+        return False
+    for git_path in changed:
+        changed_path = str(git_path)
+        if not changed_path or PurePosixPath(changed_path).name == "lanes.json":
+            continue
+        kind = kind_for_mission_file(changed_path, mission_slug=mission_slug)
+        if kind is not None and is_primary_artifact_kind(kind):
+            return True
+    return False
+
+
 def _resolve_preserve_planning_commit_decision(
     *,
     repo_root: Path,
@@ -3014,14 +3195,40 @@ def _resolve_preserve_planning_commit_decision(
     tip: str | None,
     json_output: bool,
 ) -> PlanningCommitResolution:
-    """#3311/#4827: resolve the no-flag (preserve) branch of the decision.
+    """#3311/#4827/FR-012 (T083/T084): resolve the no-flag (preserve/auto-refresh) branch.
 
     Fails closed BEFORE any write only for a PROVEN ORPHAN against a
     capturable tip (D3/D4): the tool must not silently keep every
-    subsequently allocated lane merging a dead base. Every other shape
-    degrades to the historical #3311 preserve — ADVANCED (the normal, healthy
-    state), FOREIGN (absent object — #3311's own synthetic-absent-SHA
-    fixture), and INDETERMINATE (non-git workspace / uncapturable tip).
+    subsequently allocated lane merging a dead base (#4827, unchanged by this
+    WP — ``test_plain_finalize_fails_closed_on_orphaned_pin`` stays green).
+
+    For every other pin class, FR-012's default automatic refresh applies:
+    when a PRIMARY planning file changed since the recorded pin for a reason
+    OTHER than finalize's own prior bookkeeping commits
+    (:func:`_planning_changed_since_pin` AND NOT
+    :func:`_drift_is_finalize_bookkeeping_only` — the SAME #4178/D7(b)
+    distinction the preserve-path drift WARN already relies on, reused here
+    rather than re-implemented: without it, finalize's OWN first
+    ``tasks.md``/``meta.json``/WP-frontmatter bookkeeping commit — landed
+    AFTER the tip was captured for ``"captured"`` — would look like a
+    "planning change" on every subsequent re-finalize with zero operator
+    amendment), an ADVANCED pin (a provable safe advance -- the recorded
+    object IS present and diffable) is refreshed to the tip
+    (``action="refreshed"``). A FOREIGN pin's recorded object is absent
+    entirely, so no path-scoped diff can even run against it; the automatic
+    refresh cannot prove anything about it, so ANY tip advance over a FOREIGN
+    pin is reported with a WARNING rather than failing closed or silently
+    refreshing (ruling Q6, ``action="kept_with_warning"`` — the warning
+    itself is printed later by :func:`_report_planning_sha_decision`, AFTER
+    the write, per the #4178 print-after-write convention). An INDETERMINATE
+    pin (an uncapturable tip, e.g. a non-git workspace, or no recorded SHA at
+    all) is ALSO reported as ``action="kept_with_warning"`` (WP15 cycle 2,
+    C2-1, orchestrator ruling): the classifier's own docstring says callers
+    "degrade to their own historical preserve behavior", but finalize
+    specifically must not silently swallow an uncapturable tip — it gets a
+    dedicated ``refusal_reason="indeterminate_tip_uncapturable"`` distinct
+    from a classified FOREIGN refusal. No genuine planning change at all
+    degrades to the historical #3311 preserve (``action="preserved"``).
     """
     pin_class = classify_recorded_pin(repo_root, recorded, tip)
     if pin_class is PinClass.ORPHANED:
@@ -3038,7 +3245,43 @@ def _resolve_preserve_planning_commit_decision(
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
-    return PlanningCommitResolution(sha=recorded, action="preserved", previous_sha=recorded, branch_tip=tip)
+    if pin_class is PinClass.ADVANCED:
+        planning_changed = (
+            recorded is not None
+            and tip is not None
+            and _planning_changed_since_pin(repo_root, mission_slug, recorded, tip)
+            and not _drift_is_finalize_bookkeeping_only(repo_root, mission_slug, recorded, tip)
+        )
+        if planning_changed:
+            return PlanningCommitResolution(sha=tip, action="refreshed", previous_sha=recorded, branch_tip=tip, pin_class=pin_class.value)
+    elif pin_class is PinClass.FOREIGN and recorded != tip:
+        return PlanningCommitResolution(
+            sha=recorded,
+            action="kept_with_warning",
+            previous_sha=recorded,
+            branch_tip=tip,
+            pin_class=pin_class.value,
+            refusal_reason=pin_class.value,
+        )
+    elif pin_class is PinClass.INDETERMINATE:
+        # WP15 cycle 2 (C2-1, orchestrator ruling on contracts/commit-outcome.md):
+        # the classifier's OWN docstring says callers may degrade silently
+        # for INDETERMINATE ("nothing about it can be inspected at all"), but
+        # the ruling overrides that for finalize specifically -- a silent
+        # `preserved` here would mask a genuinely uncapturable target-branch
+        # tip from the operator. Report it as a VISIBLE, non-fatal warning
+        # (exit 0) instead, with a dedicated reason code distinct from the
+        # bare pin_class value so a consumer can tell "could not classify at
+        # all" apart from "classified as FOREIGN and refused".
+        return PlanningCommitResolution(
+            sha=recorded,
+            action="kept_with_warning",
+            previous_sha=recorded,
+            branch_tip=tip,
+            pin_class=pin_class.value,
+            refusal_reason="indeterminate_tip_uncapturable",
+        )
+    return PlanningCommitResolution(sha=recorded, action="preserved", previous_sha=recorded, branch_tip=tip, pin_class=pin_class.value)
 
 
 def _preserve_or_capture_planning_commit_sha(
@@ -3264,6 +3507,50 @@ def _report_planning_sha_decision(
             f"(lanes merge the {target_branch} tip at their next allocation)"
         )
         return
+    if planning_sha.action == "kept_with_warning":
+        # Ruling Q6 (FR-012/T084): the AUTOMATIC refresh could not prove a
+        # safe advance for a non-orphan FOREIGN pin (the recorded object is
+        # absent from the repository entirely) or classify an INDETERMINATE
+        # one (WP15 cycle 2 C2-1 — an uncapturable tip or no recorded SHA at
+        # all, also now reported here rather than degrading silently) — warn
+        # and keep the old pin rather than fail closed. Printed here (after
+        # ``write_lanes_json`` already ran with the OLD sha unchanged) per
+        # the #4178 print-after-write convention this function's docstring
+        # documents.
+        if planning_sha.refusal_reason == "indeterminate_tip_uncapturable":
+            # WP15 cycle 2 (C2-1): both pieces may be missing (that is
+            # exactly what makes the pin INDETERMINATE), so the message
+            # names whichever is actually absent instead of assuming either
+            # is present.
+            recorded_desc = planning_sha.previous_sha or "(no pin recorded yet)"
+            tip_desc = planning_sha.branch_tip or "(uncapturable)"
+            console.print(
+                f"[yellow]⚠[/yellow] planning_commit_sha could not be classified against the "
+                f"{target_branch!r} tip: recorded={recorded_desc}, tip={tip_desc} (the target "
+                "branch tip could not be resolved -- e.g. a non-git workspace, or the branch "
+                "does not exist yet -- or there is no recorded pin to classify); keeping the "
+                "recorded pin unchanged. No action is needed unless the target branch is "
+                "expected to exist."
+            )
+            return
+        # WP15 cycle 2 (B8): the remedy named below must actually work. A
+        # FOREIGN pin's object cannot be inspected at all, so
+        # ``--refresh-planning-commit --allow-orphaned`` is REFUSED for it
+        # too (``_resolve_refresh_planning_commit_decision`` refuses FOREIGN
+        # unconditionally -- ``--allow-orphaned`` only lifts the refusal for
+        # a proven ORPHAN, a different, inspectable shape). There is no
+        # automated recovery for a genuinely absent object; the message says
+        # so instead of pointing at a command that is guaranteed to fail.
+        console.print(
+            f"[yellow]⚠[/yellow] planning_commit_sha {planning_sha.previous_sha!r} could not be "
+            f"safely auto-refreshed to the {target_branch} tip {planning_sha.branch_tip} "
+            "(the recorded commit object is absent from this repository, so it cannot be "
+            "verified at all); keeping the recorded pin. This object cannot be re-pointed "
+            "automatically -- investigate how it was recorded (e.g. a stale clone or a "
+            "pruned object), then correct lanes.json's planning_commit_sha manually once "
+            "you have confirmed the right pin."
+        )
+        return
     if planning_sha.action == "preserved" and planning_sha.sha is not None and planning_sha.branch_tip is not None and planning_sha.branch_tip != planning_sha.sha:
         if (
             repo_root is not None
@@ -3443,27 +3730,33 @@ def _report_parallelization_risk(repo_root: Path, lanes_manifest: LanesManifest,
         raise typer.Exit(1)
 
 
-def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, *, owned: OwnedCheckout | None = None) -> Path:
-    """Resolve the acceptance matrix's declared home dir (FR-010 / C8 single-home).
+def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
+    """Resolve the acceptance matrix's declared home dir AND establish it (FR-010 / C8 / B6 cycle 2).
 
-    Reuses the gate's canonical read-dir resolver so the scaffolder's single-home
-    check consults exactly where the accept gate will read the matrix from. A
-    ``DELETED`` coordination branch (fail-loud) has no readable home, so we fall
-    back to the primary ``planning_dir`` — the scaffold is a convenience artifact
-    and must never fail finalize.
+    WP15 (Decision ``plan.design.translate-if-present-kinds``): resolves
+    through ``write_dir(ACCEPTANCE_MATRIX)`` -- the single write-location
+    authority -- never the gate's READ-side resolver
+    (``_acceptance_matrix_read_dir`` / ``read_dir``). The DoD line "no
+    finalize write leg uses a read resolver for a COORD kind" applies here
+    too: a READ resolver's EMPTY/UNMATERIALIZED -> PRIMARY degrade (C-002)
+    would misclassify a never-seeded coordination Mission's home as
+    ``planning_dir``, routing the scaffold's bare write there instead of
+    establishing the real coordination surface first. A ``DELETED``
+    coordination branch has no writable home at all, so we fall back to the
+    primary ``planning_dir`` -- the scaffold is a convenience artifact and
+    must never fail finalize (the caller's own ``except Exception`` is the
+    broader safety net for every OTHER write_dir refusal, e.g. a remote-only
+    branch).
     """
-    from specify_cli.acceptance.gates_core import _acceptance_matrix_read_dir
+    from mission_runtime import placement_seam
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
     if owned:
-        from mission_runtime import placement_seam
-
-        return placement_seam(owned.repository_root, owned.mission_slug, owned=owned).read_dir(MissionArtifactKind.ACCEPTANCE_MATRIX)
+        return placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_dir(MissionArtifactKind.ACCEPTANCE_MATRIX).path
     try:
-        read_dir: Path = _acceptance_matrix_read_dir(repo_root, planning_dir)
+        return placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.ACCEPTANCE_MATRIX).path
     except CoordinationBranchDeleted:
         return planning_dir
-    return read_dir
 
 
 def _scaffold_acceptance_matrix_if_lane_based(
@@ -3488,7 +3781,7 @@ def _scaffold_acceptance_matrix_if_lane_based(
         # sees an existing coord-homed matrix and never authors a divergent second
         # primary copy (#2882). A deleted coord branch (fail-loud) falls back to the
         # primary planning dir — the scaffold is a convenience artifact, never a gate.
-        home_dir = _resolve_acceptance_matrix_home(repo_root, planning_dir, **({"owned": owned} if owned else {}))
+        home_dir = _resolve_acceptance_matrix_home(repo_root, planning_dir, mission_slug, **({"owned": owned} if owned else {}))
         # write-surface-coherence WP08 (#2804 / #2404 T040/T041): thread
         # ``repo_root`` so the WRITE (not just the idempotency check) routes
         # through the coord-aware write-seam — never a stray PRIMARY husk
@@ -3555,6 +3848,21 @@ class _CommitOutcome:
     commit_hashes: list[dict[str, str]] = field(default_factory=list)
     files_committed: list[str] = field(default_factory=list)
     diagnostic: str | None = None
+    #: WP15/FR-007 (contracts/commit-outcome.md): the serialized per-surface
+    #: outcome -- ``commit_outcome_payload(router_result)["surfaces"]``, never
+    #: hand-formatted (rule 6). Empty for the pre-``surfaces`` legacy case
+    #: (no commit attempted) or any caller that never reached the router.
+    commit_surfaces: list[dict[str, object]] = field(default_factory=list)
+    #: True iff any surface in ``commit_surfaces`` is ``refused``/``error``
+    #: (:func:`~specify_cli.coordination.commit_outcome.commit_outcome_exit_code`
+    #: contract rule 5) -- the caller raises after rendering, never before.
+    surface_refusal: bool = False
+    #: WP13-review binding correction: ``render_commit_outcome(router_result)``'s
+    #: plain text lines, computed once alongside ``commit_surfaces`` from the
+    #: SAME real router result -- never re-derived from the serialized
+    #: ``commit_surfaces`` payload. Printed with ``markup=False`` by every
+    #: text-mode consumer (untrusted path/diagnostic content, never Rich markup).
+    rendered_lines: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -3575,13 +3883,92 @@ def _finalize_candidates_dirty(repo_root: Path, files_to_commit_rel: list[str]) 
     return bool(status_entries(repo_root, pathspecs=files_to_commit_rel, untracked=None))
 
 
+#: WP15/T081 (FR-007b): the COORD-partition filenames finalize may itself
+#: write, keyed by the :class:`~mission_runtime.MissionArtifactKind` whose
+#: ``write_dir`` resolves their owning directory. ``STATUS_STATE`` covers the
+#: two event-log/snapshot files; ``ISSUE_MATRIX``/``ACCEPTANCE_MATRIX`` each
+#: resolve their own kind-specific directory (identical to the STATUS_STATE
+#: one for a coordination-routed Mission's single Mission dir, but resolved
+#: independently so a kind-specific routing exception -- e.g. the
+#: PUBLISHED/E2 short-circuit -- is honored per kind rather than assumed).
+_COORD_CANDIDATE_FILENAMES: Final[dict[MissionArtifactKind, tuple[str, ...]]] = {
+    MissionArtifactKind.STATUS_STATE: ("status.events.jsonl", "status.json"),
+    MissionArtifactKind.ISSUE_MATRIX: ("issue-matrix.json",),
+    MissionArtifactKind.ACCEPTANCE_MATRIX: ("acceptance-matrix.json",),
+}
+
+
+@dataclass(frozen=True)
+class _CoordCandidateDirt:
+    """WP15/T081: resolved COORD-kind commit candidates plus whether any are dirty."""
+
+    files: list[Path]
+    is_dirty: bool
+
+
+def _coord_candidate_dirt(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None,
+) -> _CoordCandidateDirt:
+    """Resolve finalize's COORD-kind commit candidates and probe them for dirt (FR-007b).
+
+    ``_resolve_finalize_commit_candidates``'s own porcelain check runs only in
+    the repository-root checkout, so a coordination-routed Mission's
+    lifecycle records -- which land in the coordination worktree after
+    WP15/T080 -- read as "no changes" even while genuinely dirty there. This
+    helper resolves each COORD kind's write location FIRST (write-before-check,
+    research D2): a pending seed is committed by ``write_dir`` before the
+    porcelain probe ever runs, so a never-seeded pre-fix Mission reports real
+    dirt instead of silently reading clean. Deduplicates resolved
+    directories: under ``lanes``/``single_branch`` topology (C-008) every
+    kind's ``write_dir`` returns the SAME ``planning_dir`` the PRIMARY
+    candidates already cover, so this never double-reports or double-commits
+    those paths.
+    """
+    from mission_runtime import placement_seam
+
+    seam = placement_seam(repo_root, mission_slug, owned=owned)
+    checkout_roots_by_dir: dict[Path, Path] = {}
+    candidates: list[Path] = []
+    for kind, filenames in _COORD_CANDIDATE_FILENAMES.items():
+        location = seam.write_dir(kind)
+        checkout_roots_by_dir.setdefault(location.path, location.checkout_root)
+        for filename in filenames:
+            candidate = location.path / filename
+            if candidate.exists():
+                candidates.append(candidate)
+
+    seen: set[Path] = set()
+    files: list[Path] = []
+    for candidate in candidates:
+        if candidate not in seen:
+            files.append(candidate)
+            seen.add(candidate)
+
+    is_dirty = False
+    for directory, checkout_root in checkout_roots_by_dir.items():
+        rel_files = [str(path.relative_to(checkout_root)) for path in files if path.is_relative_to(directory)]
+        if not rel_files:
+            continue
+        # A failed probe propagates (``GitCommandError``) -- see ``_finalize_candidates_dirty``.
+        if _finalize_candidates_dirty(checkout_root, rel_files):
+            is_dirty = True
+
+    return _CoordCandidateDirt(files=files, is_dirty=is_dirty)
+
+
 def _resolve_finalize_commit_candidates(
     planning_dir: Path,
     tasks_dir: Path,
     repo_root: Path,
     lanes_path: Path | None,
+    *,
+    mission_slug: str,
+    owned: OwnedCheckout | None = None,
 ) -> _FinalizeCommitCandidates:
-    """Phase: collect and porcelain-check the finalize commit-candidate file list (T071).
+    """Phase: collect and porcelain-check the finalize commit-candidate file list (T071/WP15-T081).
 
     meta.json (#3466 / SK3466-RR-001) needs no special-cased ``extra_paths``
     threading here: :func:`_collect_finalize_artifacts` already includes it as
@@ -3593,19 +3980,48 @@ def _resolve_finalize_commit_candidates(
     additionally checked with :func:`_meta_json_delta_is_finalize_attributable`
     and dropped entirely when the pending delta is not confined to the
     fields finalize-tasks itself owns.
+
+    WP15/T081 (FR-007b): ``has_relevant_changes`` additionally honors
+    :func:`_coord_candidate_dirt` -- the COORD-kind commit candidates
+    (resolved via ``write_dir``, never the PRIMARY-anchored porcelain check
+    below) -- so coordination-only dirt is never reported as "no changes".
     """
     files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
     meta_json_path = planning_dir / META_JSON_FILENAME
     if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(meta_json_path, repo_root):
         files_to_commit = [path for path in files_to_commit if path != meta_json_path]
-    files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
 
-    has_relevant_changes = bool(files_to_commit_rel) and _finalize_candidates_dirty(repo_root, files_to_commit_rel)
+    primary_files_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
+    primary_dirty = bool(primary_files_rel) and _finalize_candidates_dirty(repo_root, primary_files_rel)
+
+    coord_dirt = _coord_candidate_dirt(repo_root, mission_slug, owned=owned)
+    seen_files = set(files_to_commit)
+    for candidate in coord_dirt.files:
+        if candidate not in seen_files:
+            files_to_commit.append(candidate)
+            seen_files.add(candidate)
+
+    files_to_commit_rel = [_finalize_candidate_display_path(path, repo_root) for path in files_to_commit]
     return _FinalizeCommitCandidates(
         files_to_commit=files_to_commit,
         files_to_commit_rel=files_to_commit_rel,
-        has_relevant_changes=has_relevant_changes,
+        has_relevant_changes=primary_dirty or coord_dirt.is_dirty,
     )
+
+
+def _finalize_candidate_display_path(path: Path, repo_root: Path) -> str:
+    """Repo-root-relative display form of a candidate, or an absolute fallback.
+
+    A COORD-kind candidate resolved via ``write_dir`` may live inside a
+    SEPARATE coordination worktree checkout, never under ``repo_root`` — this
+    is display-only (JSON ``files_committed`` / the console summary), never
+    fed back into a git invocation, so an absolute fallback is honest rather
+    than a crash or a misleading synthetic relative path.
+    """
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
 
 
 def _apply_finalize_commit_router_result(
@@ -3616,7 +4032,40 @@ def _apply_finalize_commit_router_result(
     json_output: bool,
     updated_count: int,
 ) -> None:
-    """Phase: fold ``commit_for_mission``'s result into ``outcome``, or refuse (T071)."""
+    """Phase: fold ``commit_for_mission``'s result into ``outcome``, or refuse (T071/WP15-T082).
+
+    Every status leg populates ``outcome.commit_surfaces``/``surface_refusal``
+    (contract rule 6: the shared trio is the ONLY renderer) so a refused
+    coordination surface is visible even when the top-level legacy
+    ``status`` still reads ``committed`` (the PRIMARY group landed fine) --
+    the caller (:func:`_run_commit_pipeline`) raises on ``surface_refusal``
+    AFTER the JSON/text report has already rendered it (FR-007 exit-code
+    rule: a refused/error surface must still be REPORTED, not swallowed by
+    an early raise).
+
+    WP13-review binding corrections (applied here too, first consumer):
+    when ``surfaces`` is populated, :func:`render_commit_outcome`'s lines are
+    printed on EVERY outcome arm -- including the legacy-error arm below --
+    THEN any existing actionable error line, never the legacy diagnostic
+    alone. Every rendered line is printed with ``markup=False``:
+    :func:`render_commit_outcome` returns plain, untrusted-content-bearing
+    strings (file paths, diagnostics), never Rich markup, so a literal ``[``
+    in a path/reason must not be interpreted as a markup tag.
+    """
+    from specify_cli.coordination.commit_outcome import (
+        commit_outcome_exit_code,
+        commit_outcome_payload,
+        render_commit_outcome,
+    )
+
+    outcome.commit_surfaces = cast("list[dict[str, object]]", commit_outcome_payload(router_result)["surfaces"])
+    outcome.surface_refusal = commit_outcome_exit_code(router_result) != 0
+    outcome.rendered_lines = render_commit_outcome(router_result)
+
+    def _print_surfaces() -> None:
+        for line in outcome.rendered_lines:
+            console.print(line, markup=False)
+
     if router_result.status == "committed":
         outcome.commit_hash = router_result.commit_hash
         outcome.commit_created = True
@@ -3624,21 +4073,33 @@ def _apply_finalize_commit_router_result(
         outcome.files_committed = list(files_to_commit_rel)
         outcome.commit_hashes = [{"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes]
         if not json_output:
-            console.print(f"[green]✓[/green] Tasks committed to {router_result.placement_ref}")
-            if outcome.commit_hash:
-                console.print(f"[dim]Commit: {outcome.commit_hash[:7]}[/dim]")
+            _print_surfaces()
             console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
     elif router_result.status == "unchanged":
         outcome.commit_created = False
         if not json_output:
-            console.print("[dim]Tasks unchanged, no commit needed[/dim]")
+            if outcome.rendered_lines:
+                _print_surfaces()
+            else:
+                console.print("[dim]Tasks unchanged, no commit needed[/dim]")
     else:
         error_output = router_result.diagnostic or "Failed to commit tasks updates"
         if json_output:
             print(json.dumps({"error": f"Git commit failed: {error_output}"}))
         else:
+            _print_surfaces()
             console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
         raise typer.Exit(1)
+
+
+class OwnedCheckoutCandidateOutsidePlanningError(RuntimeError):
+    """WP15 cycle 3 (fold): an owned-checkout commit candidate resolved outside
+    ``planning_dir`` -- the invariant ``_commit_finalize_artifacts`` relies on
+    to rewrite candidates onto the owned checkout root safely. Today this can
+    only happen if ``LIFECYCLE_OWNED_TOPOLOGIES`` widens beyond
+    single_branch to include a coordination-routing topology without this
+    call site being updated to match.
+    """
 
 
 def _commit_finalize_artifacts(
@@ -3663,7 +4124,7 @@ def _commit_finalize_artifacts(
     """
     outcome = _CommitOutcome()
     try:
-        candidates = _resolve_finalize_commit_candidates(planning_dir, tasks_dir, repo_root, lanes_path)
+        candidates = _resolve_finalize_commit_candidates(planning_dir, tasks_dir, repo_root, lanes_path, mission_slug=mission_slug, owned=owned)
         # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): report the
         # TRUE committed set — ``files_committed`` is populated ONLY once the router
         # actually lands a commit (below), never up front. Reporting the full
@@ -3680,8 +4141,32 @@ def _commit_finalize_artifacts(
         files_to_commit = candidates.files_to_commit
         tasks_policy = _mission_protection_policy(repo_root, mission_slug, owned)
         if owned:
+            # WP15 cycle 3 (fold, non-blocking from cycle 2): ``owned.files()``
+            # rewrites candidates onto the OWNED checkout root, which is sound
+            # only because ``LIFECYCLE_OWNED_TOPOLOGIES`` is single_branch-only
+            # today (``routes_through_coordination`` is False for it, so
+            # ``_resolve_finalize_commit_candidates`` never resolves a
+            # COORD-kind candidate via ``write_dir`` for an owned mission). If
+            # that set ever widens to include a coordination-routing topology,
+            # this guard fails loudly here instead of silently rewriting a
+            # coordination path onto the wrong checkout. A bare ``assert`` is
+            # stripped under ``python -O``, so this is a real, unconditional
+            # raise instead.
+            non_planning = [path for path in files_to_commit if not path.is_relative_to(planning_dir)]
+            if non_planning:
+                raise OwnedCheckoutCandidateOutsidePlanningError(
+                    "owned checkout commit candidates must all resolve under planning_dir; "
+                    f"LIFECYCLE_OWNED_TOPOLOGIES widened to a coordination-routing topology "
+                    f"without updating this guard (offending paths: {non_planning!r})"
+                )
             files_to_commit = owned.files(files_to_commit)
-        primary_created = frozenset(path for path in files_to_commit if path not in preexisting_primary_files)
+        # WP15/T081: ``primary_paths_created_this_invocation`` is, by name, a
+        # PRIMARY-partition residue-cleanup signal -- a COORD-kind candidate
+        # (resolved via ``write_dir``, never under ``planning_dir``) is never
+        # "preexisting" by the ``preexisting_primary_files`` snapshot (which
+        # only ever scanned ``planning_dir``), so it would otherwise be
+        # misclassified as newly-created PRIMARY residue on every run.
+        primary_created = frozenset(path for path in files_to_commit if path not in preexisting_primary_files and path.is_relative_to(planning_dir))
         router_result = commit_for_mission(
             repo_root=owned.repository_root if owned else repo_root,
             mission_slug=mission_slug,
@@ -3723,6 +4208,7 @@ def _emit_success_report(
     target_branch_persist: TargetBranchPersistOutcome | None = None,
     meta_committed_this_run: bool = False,
     planning_sha: PlanningCommitResolution | None = None,
+    planning_commit_refresh: dict[str, object] | None = None,
 ) -> None:
     """Phase: emit the terminal JSON success report.
 
@@ -3770,6 +4256,9 @@ def _emit_success_report(
             "commit_created": commit_outcome.commit_created,
             "commit_hash": commit_outcome.commit_hash,
             "commit_hashes": commit_outcome.commit_hashes,
+            # WP15/FR-007 (contracts/commit-outcome.md): per-surface outcome,
+            # beside the legacy caller-surface-only fields above.
+            "commit_surfaces": commit_outcome.commit_surfaces,
             "files_committed": commit_outcome.files_committed,
             "dependencies_parsed": dep_resolution.wp_dependencies,
             "requirement_refs_parsed": dep_resolution.wp_requirement_refs,
@@ -3802,6 +4291,10 @@ def _emit_success_report(
                 "persist_error": persist.persist_error,
             },
             "planning_commit": _planning_commit_payload(planning_sha, lanes_manifest),
+            # WP15/FR-012 (contracts/commit-outcome.md): the AUTOMATIC
+            # refresh decision, additive and distinct from the legacy
+            # ``planning_commit`` projection above.
+            "planning_commit_refresh": planning_commit_refresh,
             **({"commit_diagnostic": commit_outcome.diagnostic} if commit_outcome.diagnostic is not None else {}),
             **state.requirement_diagnostics,
         }
@@ -3819,33 +4312,48 @@ def _warn_missing_meta(planning_dir: Path, meta: dict[str, object] | None, *, js
 
 
 def _emit_tasks_started(
-    planning_dir: Path,
     mission_slug: str,
     state: _BootstrapState,
     *,
-    repo_root: Path,
     validate_only: bool,
+    repo_root: Path,
     owned: OwnedCheckout | None = None,
 ) -> None:
     """Phase: local canonical TasksStarted (idempotent; skipped in validate-only).
 
     ``owned`` (item 6): passes ``owned.repository_root`` so the event is written
     against the fact's repository root, never re-derived via ``get_main_repo_root``.
+
+    WP15/T080 (FR-003, finalize bootstrap writer family): writes through
+    ``PlacementSeam.write_dir(STATUS_STATE)`` — the SAME single write-location
+    authority :func:`_emit_local_canonical_events` uses — rather than
+    ``planning_dir`` directly. Without this, ``TasksStarted`` forked into a
+    SECOND copy of the lifecycle log on the repository-root checkout even
+    after the ``WPCreated``/``TasksCompleted`` leg was fixed.
+
+    WP15 cycle 2 (B3, HIGH, FR-003a): ``write_dir`` is resolved OUTSIDE the
+    best-effort ``try`` below (see :func:`_emit_local_canonical_events`'s
+    identical cycle-2 fix for the full rationale) -- a named write-location
+    refusal must fail finalize closed, never degrade to a silent
+    ``logger.debug`` line while the event is written nowhere.
     """
     if validate_only:
         return
+    from mission_runtime import placement_seam
+
+    status_write_dir = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
     try:
         from specify_cli.status import TASKS_STARTED, emit_artifact_phase
 
         emit_artifact_phase(
-            _lifecycle_event_dir(planning_dir, repo_root, mission_slug, owned=owned),
+            status_write_dir,
             event_type=TASKS_STARTED,
             mission_slug=mission_slug,
             actor=FINALIZE_TASKS_COMMAND_NAME,
             wp_count=len(state.work_packages),
             repo_root=owned.repository_root if owned else None,
         )
-    except Exception as tasks_started_exc:  # noqa: BLE001 — non-blocking
+    except Exception as tasks_started_exc:  # noqa: BLE001 — non-blocking emission call (not the write-location resolution above)
         logger.debug("TasksStarted emission skipped: %s", tasks_started_exc)
 
 
@@ -4017,7 +4525,18 @@ def _run_commit_pipeline(
             target_branch_persist=target_branch_persist,
             meta_committed_this_run=meta_committed_this_run,
             planning_sha=planning_sha,
+            planning_commit_refresh=_planning_commit_refresh_payload(planning_sha),
         )
+    # Non-JSON mode: the refresh decision (including a ``kept_with_warning``
+    # console WARN) was already reported inside ``_compute_and_write_lanes``
+    # via ``_report_planning_sha_decision`` -- nothing further to print here.
+
+    # WP15/T082 (FR-007 exit-code rule): a refused/error coordination surface
+    # exits non-zero even though the top-level legacy status above may have
+    # reported "committed" (the PRIMARY group landed). Raised AFTER the
+    # success report so a refused surface is reported, never swallowed.
+    if commit_outcome.surface_refusal:
+        raise typer.Exit(1)
 
 
 @dataclass
@@ -4808,14 +5327,21 @@ def finalize_tasks(
         typer.Option(
             "--refresh-planning-commit",
             help=(
-                "Advance the recorded planning_commit_sha in lanes.json to the current "
-                "target-branch tip after a legitimate planning amendment, even though "
-                "execution has begun (#4141). Without it, a re-finalize after execution "
-                "has begun preserves the recorded SHA (#3311) and every lane keeps merging "
-                "the stale planning snapshot. Refused when the recorded SHA is not an "
-                "ancestor of the tip (a history rewrite, not an amendment) -- if that's "
-                "because of a deliberate mid-mission rebase rather than a divergence, add "
-                "--allow-orphaned to re-point anyway (#4827)."
+                "Force a refresh-ONLY run: re-point the recorded planning_commit_sha in "
+                "lanes.json to the current target-branch tip and exit, without running the "
+                "rest of finalize-tasks (#4141). By default (no flag needed) a normal "
+                "re-finalize already advances the pin automatically whenever a PRIMARY "
+                "planning file genuinely changed since it was recorded (FR-012); use this "
+                "flag only to force JUST the pin refresh for an ADVANCED pin (the common "
+                "case) or to re-point a deliberate mid-mission rebase with --allow-orphaned "
+                "(#4827). It is advance-only and REFUSES when the recorded SHA is not an "
+                "ancestor of the tip without --allow-orphaned, and it CANNOT help a pin the "
+                "automatic path already warned about and kept unchanged (a FOREIGN object "
+                "absent from this repository entirely, or an INDETERMINATE pin whose target "
+                "tip could not even be resolved) -- WP15 cycle 2/3: neither shape is "
+                "inspectable, so --refresh-planning-commit --allow-orphaned refuses both the "
+                "same as a bare --refresh-planning-commit would; correct lanes.json's "
+                "planning_commit_sha by hand instead, per that warning's own text."
             ),
         ),
     ] = False,
@@ -5029,7 +5555,7 @@ def finalize_tasks(
         meta = _read_meta_for_emission(planning_dir)
         _warn_missing_meta(planning_dir, meta, json_output=json_output)
         if not refresh_planning_commit:
-            _emit_tasks_started(planning_dir, mission_slug, state, repo_root=repo_root, validate_only=validate_only, owned=owned)
+            _emit_tasks_started(mission_slug, state, validate_only=validate_only, repo_root=repo_root, owned=owned)
 
         if validate_only:
             _emit_validate_only_report(

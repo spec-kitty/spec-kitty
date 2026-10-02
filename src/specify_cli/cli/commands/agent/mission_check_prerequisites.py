@@ -229,12 +229,58 @@ def _resume_meta_problems(meta: dict[str, Any], feature_dir: Path) -> list[str]:
     return problems
 
 
+def _status_events_log_path(repo_root: Path, feature_dir: Path, meta: dict[str, Any]) -> tuple[Path | None, str | None]:
+    """Resolve the ``status.events.jsonl`` path for *feature_dir*, honoring coordination routing.
+
+    Out-of-map edit (declared, coord-artifact-single-home-01M3V4BE WP06,
+    review cycle 1 B1): :func:`_mission_created_snapshot_problems` previously
+    hard-coded ``feature_dir / "status.events.jsonl"``, which only ever names
+    the PRIMARY checkout. For a coordination-routed Mission (``coord`` /
+    ``lanes_with_coord``), ``MissionCreated``/``SpecifyStarted`` live on the
+    coordination surface from birth (T031, #5440) instead -- this resolves
+    through the SAME production read authority
+    (``placement_seam(...).read_dir(STATUS_STATE)``) every other status read
+    uses, never a second, parallel hard-coded path. A non-coordination
+    topology (no ``coordination_branch`` in ``meta.json``) keeps the
+    unchanged ``feature_dir``-relative path (C-008).
+
+    Returns ``(None, <problem message>)`` instead of raising on any
+    resolution failure -- this diagnostic probe must always return a report,
+    never crash the whole ``check-prerequisites`` command.
+
+    N2 (review cycle 2): when the coordination worktree is UNMATERIALIZED
+    (for example a fresh clone that only carries the coordination branch
+    ref, never checked out as a worktree), ``read_dir`` resolves to the
+    PRIMARY dir instead -- there is no live coordination worktree to read
+    from yet. The status log genuinely does not exist there for a
+    coordination-routed Mission, so the resume probe reports ``malformed``
+    rather than ``found``. That is acceptable: this probe exists to detect a
+    resumable FAILED create, and an unmaterialized coordination worktree on
+    an otherwise-complete Mission record is itself a signal worth surfacing,
+    not a false positive to suppress.
+    """
+    coordination_branch = meta.get("coordination_branch")
+    if not coordination_branch:
+        return feature_dir / "status.events.jsonl", None
+    try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        status_dir = placement_seam(repo_root, feature_dir.name).read_dir(MissionArtifactKind.STATUS_STATE)
+    except Exception as exc:  # diagnostic probe must report, never crash (BLE is not an enabled rule here, N1)
+        return None, f"status.events.jsonl location could not be resolved: {exc}"
+    return status_dir / "status.events.jsonl", None
+
+
 def _mission_created_snapshot_problems(
+    repo_root: Path,
     feature_dir: Path,
     meta: dict[str, Any],
 ) -> list[str]:
     """Validate the one canonical MissionCreated event against ``meta.json``."""
-    event_log = feature_dir / "status.events.jsonl"
+    event_log, resolution_problem = _status_events_log_path(repo_root, feature_dir, meta)
+    if resolution_problem is not None:
+        return [resolution_problem]
+    assert event_log is not None
     if not event_log.is_file():
         return ["status.events.jsonl is missing"]
 
@@ -355,7 +401,7 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
 
     if not spec_file.is_file():
         invalid.append("spec.md is missing")
-    invalid.extend(_mission_created_snapshot_problems(feature_dir, meta))
+    invalid.extend(_mission_created_snapshot_problems(repo_root, feature_dir, meta))
 
     if invalid:
         return {

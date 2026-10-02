@@ -40,9 +40,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 MISSION_SLUG = "outbound-feature"
-MID8 = "01J6OUTBD"
+MID8 = "01J6OUTB"  # exactly 8 chars (the mid8 contract) -- must match MISSION_ID[:8]
 MISSION_ID = "01J6OUTBD00000000000000000"  # 26-char placeholder ULID
 COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MID8}"
+FEATURE_DIRNAME = f"{MISSION_SLUG}-{MID8}"
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -66,6 +67,33 @@ def repo(tmp_path: Path) -> Path:
     return r
 
 
+def _write_modern_meta(repo: Path) -> None:
+    """Declare this mission's coordination branch in ``meta.json`` (WP07).
+
+    ``BookkeepingTransaction``'s coordination arm now resolves its write
+    location through the single write-location accessor
+    (``placement_seam(...).write_dir``, coord-artifact-single-home-01M3V4BE
+    WP07), which reads the declared topology from ``meta.json`` rather than
+    mechanically deriving a worktree from ``mission_slug``/``mid8`` alone --
+    this fixture's ``repo`` previously carried the coordination branch ref
+    with no mission metadata at all (an intentionally minimal unit-test
+    shape the old ``CoordinationWorkspace.resolve``-only call tolerated).
+    """
+    feature_dir = repo / "kitty-specs" / FEATURE_DIRNAME
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        (
+            "{\n"
+            f'  "mission_id": "{MISSION_ID}",\n'
+            f'  "mission_slug": "{FEATURE_DIRNAME}",\n'
+            '  "target_branch": "main",\n'
+            f'  "coordination_branch": "{COORD_BRANCH}"\n'
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+
+
 def _make_event(wp_id: str = "WP01") -> StatusEvent:
     return build_status_event(
         mission_slug=MISSION_SLUG,
@@ -85,6 +113,7 @@ def _make_event(wp_id: str = "WP01") -> StatusEvent:
 def test_saas_emits_after_commit_success(repo: Path, mock_saas_sink: Any) -> None:
     """On commit success, the deferred outbound fires and the sink receives
     exactly one event corresponding to the appended StatusEvent."""
+    _write_modern_meta(repo)
     event = _make_event()
 
     with BookkeepingTransaction.acquire(
@@ -115,6 +144,7 @@ def test_saas_emission_preserves_mission_slug_and_repo_root(
     repo: Path, mock_saas_sink: Any,
 ) -> None:
     """The deferred call routes through the canonical WPStatusChanged kwargs."""
+    _write_modern_meta(repo)
     event = _make_event()
 
     with BookkeepingTransaction.acquire(
@@ -162,6 +192,7 @@ def test_saas_does_not_emit_on_commit_failure(
     mock_saas_sink: Any,
 ) -> None:
     """SC-09 / NFR-009: a forced commit failure leaves the sink untouched."""
+    _write_modern_meta(repo)
     # Install a hook that rejects every commit, then mint the txn.
     _install_rejecting_pre_commit_hook(repo, tmp_path / "hooks")
 

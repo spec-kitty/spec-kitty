@@ -298,11 +298,15 @@ def test_accept_fails_when_residual_commit_fails_after_success(tmp_path: Path, m
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
-    def fail_residual_commit(_repo_root: Path, _mission_slug: str, *, owned: object | None = None) -> bool:
+    def fail_residual_commit(_repo_root: Path, _mission_slug: str, *, owned: object | None = None) -> object:
         raise RuntimeError("forced residual failure")
 
+    # WP16: ``_run_post_acceptance_steps`` calls the detailed
+    # ``_run_residual_acceptance_commit`` directly (not the ``bool`` wrapper
+    # this test used to patch) so it can thread the router result through to
+    # ``--json``/text rendering.
     monkeypatch.setattr(
-        "specify_cli.cli.commands.accept._commit_residual_acceptance_artifacts",
+        "specify_cli.cli.commands.accept._run_residual_acceptance_commit",
         fail_residual_commit,
     )
 
@@ -335,6 +339,18 @@ def test_residual_acceptance_commit_is_scoped_to_mission_paths(
     ``accept`` command normally blocks on a dirty tree, but ``--allow-fail`` /
     ``--lenient`` paths can reach the commit step with other changes present, so
     the commit itself must be scoped.)
+
+    B1 (cycle 2 review) / brownfield scout round 3 (its own sanctioned
+    "re-pin deliberately, with rationale" option for exactly this fixture):
+    checked out on ``topic``, not ``main`` -- with no ``meta.json`` at all,
+    ``acceptance-matrix.json``'s resolved ``target_branch`` defaults to "the
+    primary branch", which on ``main`` is ``main`` itself, so the commit
+    would hit the ROUTER's protected-branch refusal (correctly -- a mission
+    accepted directly on a protected primary with no escape is refused by
+    design, N3). That refusal is an orthogonal concern this test does not
+    exercise (covered by the ``#2739`` suite); renaming the branch isolates
+    the ACTUAL claim under test -- an unrelated pre-staged file survives
+    untouched.
     """
     from specify_cli.cli.commands.accept import _commit_residual_acceptance_artifacts
 
@@ -343,7 +359,7 @@ def test_residual_acceptance_commit_is_scoped_to_mission_paths(
     _git(repo_root, "init", ".")
     _git(repo_root, "config", "user.email", "test@test.com")
     _git(repo_root, "config", "user.name", "Test")
-    _git(repo_root, "branch", "-M", "main")
+    _git(repo_root, "branch", "-M", "topic")
 
     feature_dir = repo_root / "kitty-specs" / _SLUG
     feature_dir.mkdir(parents=True)

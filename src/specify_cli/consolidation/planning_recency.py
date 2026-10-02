@@ -26,6 +26,7 @@ commit that touched the path on each side — target wins on a strictly-later da
 
 from __future__ import annotations
 
+import fnmatch
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
@@ -37,15 +38,44 @@ from specify_cli.core.vcs.git import git_diff_names_checked, git_merge_base
 __all__ = ["target_newer_primary_artifacts"]
 
 
+def _is_driver_covered(rel: str) -> bool:
+    """True iff *rel* matches a registered git merge-driver pattern (driver-covered wins).
+
+    coord-artifact-single-home-01M3V4BE WP12 (operator decision, "planning_recency
+    hazard", FR-009b / #5023): a PRIMARY-partition kind whose path is ALSO
+    covered by a registered merge driver (today: only ``decisions/index.json``
+    -- WP11's ``spec-kitty-decision-index`` driver; ``_MERGE_DRIVERS`` also
+    covers several COORD-partition paths such as ``decisions.events.jsonl``,
+    but ``kind_is_coordination_residue`` already excludes those from this
+    module's PRIMARY-only candidate set via :func:`_is_primary_planning_path`'s
+    own ``is_primary_artifact_kind`` check above, so ``index.json`` is the
+    only PRIMARY-partition driver-covered path this leg needs to catch today)
+    must be excluded from this module's own target-favouring ``git merge-file
+    --ours`` recency restore --
+    the driver already unions both sides' entries; blindly overwriting its
+    squash result with the target's pre-squash bytes would silently drop a
+    lane-added decision entry. Function-local import avoids a module-top
+    ``consolidation -> lanes`` import cycle (``lanes.consolidation`` already
+    imports FROM ``specify_cli.consolidation`` at its own module top).
+    """
+    from specify_cli.lanes.consolidation import _MERGE_DRIVERS
+
+    return any(fnmatch.fnmatch(rel, spec.pattern) for spec in _MERGE_DRIVERS)
+
+
 def _is_primary_planning_path(rel: str) -> bool:
     """True iff ``rel`` classifies to a PRIMARY-partition (planning) artifact kind.
 
     Driver-covered ``kitty-specs/**`` bookkeeping kinds return False here (they
     are not in the primary partition), so they are left to their merge drivers
-    (FR-003).
+    (FR-003). A PRIMARY-partition kind that is ALSO driver-covered (WP12: the
+    decision ledger's ``index.json``) is likewise excluded -- the driver, not
+    this recency policy, owns reconciling it (FR-009b).
     """
     kind = kind_for_mission_file(rel)
-    return kind is not None and is_primary_artifact_kind(kind)
+    if kind is None or not is_primary_artifact_kind(kind):
+        return False
+    return not _is_driver_covered(rel)
 
 
 def _diff_names_or_refuse(repo: Path, base: str, head: str) -> tuple[str, ...]:

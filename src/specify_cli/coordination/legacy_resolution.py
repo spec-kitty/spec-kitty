@@ -53,6 +53,19 @@ def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
     return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
+def _checkout_mission_dir(checkout_root: Path, mission_slug: str, mid8: str) -> Path:
+    """Return ``<checkout_root>/kitty-specs/<slug>-<mid8>`` for a NON-coordination checkout.
+
+    Only for the checkouts a transaction anchors on without a coordination
+    write location: the legacy LANE worktree (C-008) and the primary checkout
+    (the coordination-less and ``commit_to_primary_target`` arms). The
+    coordination arm NEVER composes through this helper -- it carries the
+    ``WriteLocation.path`` that ``write_dir`` already returned (FR-014).
+    """
+    mission_dir: Path = checkout_root / KITTY_SPECS_DIR / _mission_specs_dir_name(mission_slug, mid8)
+    return mission_dir
+
+
 def _validate_safe_segment(name: str, value: str) -> str:
     """Return a single safe path segment or raise a bookkeeping error.
 
@@ -78,9 +91,7 @@ def _load_mission_meta(
     path and the identical malformed-tolerant contract, so a malformed
     ``meta.json`` is treated as new-topology rather than repaired here.
     """
-    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
-    return load_meta(feature_dir, on_malformed="none")
+    return load_meta(_checkout_mission_dir(repo_root, mission_slug, mid8), on_malformed="none")
 
 
 def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:

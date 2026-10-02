@@ -43,10 +43,13 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionTopology
 from specify_cli.coordination.surface_resolver import (
     resolve_status_surface_with_anchor,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+
+from tests._factories.coord_mission import make_coord_mission, make_prefix_coord_mission
 
 pytestmark = pytest.mark.git_repo
 
@@ -215,3 +218,58 @@ def test_coord_empty_solo_no_lanes_stays_quiet_and_returns_primary(
         f"checkout (Option B routing unchanged). Got: {resolved.read_dir}"
     )
     assert resolved.primary_anchor.resolve() == primary_dir.resolve()
+
+
+# ---------------------------------------------------------------------------
+# T033/R6 (coord-artifact-single-home-01M3V4BE, #2533): a fresh coordination
+# create no longer trips the split-brain warning, because T031 seeds the
+# coordination surface eagerly at create time -- by the time anything probes
+# it, the worktree is MATERIALIZED, never EMPTY. The legacy pre-fix shape
+# (built explicitly, never through today's create) is the control: it still
+# warns, unchanged.
+# ---------------------------------------------------------------------------
+
+
+def test_no_split_brain_warning_after_new_coord_create(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """RED at the WP06 lane base: pre-fix, ``create_mission_core`` never seeds
+    the coordination surface, so a fresh ``lanes_with_coord`` mission's coord
+    worktree is materialized (by the time something resolves it) but EMPTY --
+    the true-positive warning above fires for it too. Post-fix (T031), create
+    seeds + commits the Mission dir onto the coordination branch itself, so
+    the surface is already MATERIALIZED and this warning must stay silent.
+    """
+    coord = make_coord_mission(tmp_path, MissionTopology.LANES_WITH_COORD, via="core")
+    # Force materialization (idempotent under the fix: T031 already
+    # materialized + seeded the worktree at create time, so this is a no-op
+    # returning the same, non-empty path). At the WP06 lane BASE, pre-fix
+    # create never touches the worktree at all, so this is the first thing
+    # that creates it -- with no Mission dir inside, reproducing the real
+    # #2533 "materialized but EMPTY" shape the warning exists for.
+    CoordinationWorkspace.resolve(coord.repo_root, coord.mission_dir_name, coord.mid8)
+
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        resolved = resolve_status_surface_with_anchor(coord.repo_root, coord.mission_dir_name)
+
+    warning_records = [r for r in caplog.records if r.name == _LOGGER_NAME and r.levelno == logging.WARNING]
+    assert not warning_records, (
+        "a freshly created coordination-routed mission must not trip the coord-empty "
+        f"split-brain warning (#2533, R6). Records seen: {[(r.name, r.levelname, r.getMessage()) for r in warning_records]}"
+    )
+    assert resolved.read_dir.resolve() == coord.coord_mission_dir.resolve(), (
+        f"a materialized, seeded coordination surface must resolve to the COORD dir, not fall back to PRIMARY. Got: {resolved.read_dir}"
+    )
+
+
+def test_legacy_empty_coord_still_warns(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Control (R6): WP02's explicit pre-fix shape (committed root log, coordination
+    branch cut BEFORE it, EMPTY worktree) still trips the split-brain warning --
+    T031 changes create's OWN placement going forward; it never silently heals an
+    existing pre-fix Mission's already-empty worktree.
+    """
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.LANES_WITH_COORD, worktree="empty")
+
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        resolve_status_surface_with_anchor(coord.repo_root, coord.mission_dir_name)
+
+    warning_records = [r for r in caplog.records if r.name == _LOGGER_NAME and r.levelno == logging.WARNING]
+    assert warning_records, "a legacy pre-fix, genuinely empty coord surface must still warn (control, unchanged by T031)"

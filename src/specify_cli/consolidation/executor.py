@@ -48,6 +48,7 @@ from specify_cli.coordination.coherence import (
     is_toolchain_generated_churn,
     repair_coord_strand,
 )
+from specify_cli.coordination.coord_seed import CoordSeedForkRefused
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
@@ -174,10 +175,12 @@ from specify_cli.consolidation.state import (
 )
 from specify_cli.consolidation.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.status.locking import FeatureStatusLockTimeoutError
 from mission_runtime import (
     ActionContextError,
     MissionArtifactKind,
     MissionTopology,
+    PlacementSeam,
     placement_seam,
     resolve_placement_only,
 )
@@ -768,6 +771,52 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
                 raise typer.Exit(1)
 
 
+def _primary_mission_is_merged(primary_dir: Path) -> bool:
+    """True when the PRIMARY Mission dir carries merge evidence (non-raising).
+
+    Same predicate ``resolve_status_surface`` applies before re-anchoring a
+    completed Mission on the repository root checkout: a corrupt or unreadable
+    ``meta.json`` reads as not-merged.
+    """
+    from specify_cli.status import StoreError, is_mission_merged
+
+    if not (primary_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_merged(primary_dir))
+    except (StoreError, MissionMetaReadError):
+        return False
+
+
+def _completed_mission_projected_events_path(run: _MergeRunState) -> Path | None:
+    """The completed-Mission ``--resume`` events path, or ``None`` when the Mission is not completed.
+
+    The ONE sanctioned read of a status surface in this module (FR-008): after a
+    landed consolidation the records are already projected onto the target, so a
+    ``--resume`` re-entering a completed Mission keeps the PRIMARY answer
+    ``resolve_status_surface`` returns. This is a READ of projected records, not a
+    write location.
+    """
+    if not _primary_mission_is_merged(run.target_feature_dir):
+        return None
+    # Explicit annotation: under ``follow_imports = "skip"`` the cross-module
+    # return is seen as ``Any``; the function IS typed ``-> Path``.
+    projected: Path = resolve_status_surface(run.main_repo, run.mission_slug)
+    return projected
+
+
+def _resolve_run_status_surface(run: _MergeRunState) -> Path:
+    """The run's canonical ``status.events.jsonl`` path: ONE authority per run (ruling Q4).
+
+    ``run.feature_dir`` was resolved once through the write accessor in the
+    unlocked pre-phase; the locked driver does not re-derive the surface, except
+    for the completed-Mission ``--resume`` case (see
+    :func:`_completed_mission_projected_events_path`).
+    """
+    projected = _completed_mission_projected_events_path(run)
+    return projected if projected is not None else run.feature_dir / _STATUS_EVENTS_FILENAME
+
+
 def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     """Capture target baseline SHA, resolve canonical mission_id + status surface paths."""
     lanes_manifest = run.lanes_manifest
@@ -794,7 +843,7 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         run.baseline_mission_id = None
 
-    status_surface_path = resolve_status_surface(run.main_repo, run.mission_slug)
+    status_surface_path = _resolve_run_status_surface(run)
     from specify_cli.lanes.single_branch_landing import lands_mission_branch
 
     in_worktree_surface = is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
@@ -1798,6 +1847,17 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
         console.print("\nThis may indicate a sparse-checkout or filter-driver issue. Run\n  spec-kitty doctor sparse-checkout --fix\nbefore retrying the merge.")
     else:
         console.print("\nUnexpected working-tree state after merge. Run `git status` to investigate before retrying.")
+    if any("/decisions/" in entry.display() for entry in offending_entries):
+        # WP12 (#5023) reclassified the decision ledger to the PRIMARY
+        # partition, so this predicate no longer exempts uncommitted
+        # ``decisions/`` content as coord-residue churn (message-only
+        # change -- the predicate itself, ``is_toolchain_generated_churn``,
+        # is untouched here).
+        console.print(
+            f"\nUncommitted decision-ledger files under kitty-specs/{run.mission_slug}/decisions/ are real "
+            'content now (WP12) -- commit them with `spec-kitty accept` or `spec-kitty spec-commit -m "..." '
+            f"kitty-specs/{run.mission_slug}/decisions/` before retrying."
+        )
     _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots)
     raise typer.Exit(1)
 
@@ -3298,9 +3358,42 @@ def _pre_mutation_safety_preflight(
     if not teardown_coordination:
         return
 
+    # WP17 (FR-009c, #5023): refuse BEFORE any mutation (NFR-001) when the
+    # decisions ledger exists only on the coordination branch this merge is
+    # about to tear down -- the bookkeeping projection excludes PRIMARY
+    # kinds, so it would otherwise be silently lost.
+    _refuse_if_coordination_ledger_unrepaired(main_repo, mission_slug)
+
     coord_worktree = _resolve_coord_worktree_for_preflight(main_repo, mission_slug, primary_meta_dir)
     if coord_worktree is not None and coord_worktree.exists():
         assert_worktree_clean(coord_worktree, is_residue=is_residue, treat_untracked_as_dirty=True)
+
+
+def _refuse_if_coordination_ledger_unrepaired(main_repo: Path, mission_slug: str) -> None:
+    """WP17 preflight leg of :func:`_pre_mutation_safety_preflight` (FR-009c).
+
+    Raises :class:`DestructiveOpRefused` with ``error_code=
+    "COORDINATION_LEDGER_UNREPAIRED"`` -- the SAME code
+    ``coordination/teardown.py`` raises for the coupled discard/close/abort
+    paths (NFR-004 single authority over the detection; this is a distinct
+    refusal family/exception type for the consolidation preflight's own
+    established fail-closed mechanism). Late-imported so the heavy
+    ``decisions.fork`` dependency chain is paid only when this leg actually
+    runs (``teardown_coordination`` true).
+    """
+    from specify_cli.decisions.fork import coordination_only_ledger, ledger_is_coordination_only  # noqa: PLC0415
+
+    ledger = coordination_only_ledger(main_repo, mission_slug)
+    if not ledger_is_coordination_only(ledger):
+        return
+    raise DestructiveOpRefused(
+        error_code="COORDINATION_LEDGER_UNREPAIRED",
+        remediation=(
+            f"Mission {mission_slug!r}'s decisions ledger (decisions/index.json / DM-*.md) exists only "
+            f"on the coordination branch. Run `spec-kitty doctor decisions --mission {mission_slug} "
+            "--repair` to copy it into the PRIMARY ledger, then retry."
+        ),
+    )
 
 
 def _record_operator_attestations(
@@ -3902,6 +3995,62 @@ def _require_lanes_json_naming_mission_branch(main_repo: Path, lanes_read_dir: P
         ) from exc
 
 
+_MERGE_ABORT_NOTICE = "[yellow]Merge aborted before any state change.[/yellow]"
+
+
+def _abort_before_state_change(exc: Exception, hint: str) -> typer.Exit:
+    """Render *exc*'s own remediation plus a clean-no-op notice; return the ``Exit(1)`` to raise."""
+    console.print(f"[red]Error:[/red] {exc}")
+    console.print(f"{_MERGE_ABORT_NOTICE} {hint}")
+    return typer.Exit(1)
+
+
+def _resolve_run_status_dir(seam: PlacementSeam) -> Path:
+    """The Mission dir the run's status writes and reads land in (ruling Q4, FR-003).
+
+    Resolved through the WRITE accessor, so the single authority also
+    establishes the surface: a pre-fix EMPTY coordination surface is seeded
+    once and an UNMATERIALIZED surface with a local head is materialized. This
+    runs in the UNLOCKED pre-phase of ``_run_lane_based_consolidation``, before
+    the global merge lock and before both pre-mutation captures
+    (``_resolve_pre_mutation_coord_sha`` and
+    ``rollback.capture_pre_mutation_snapshot``), so a seed commit is part of the
+    pre-mutation state and a later FAIL/REFUSE rollback never undoes it. The
+    seed takes the status lock outside the merge lock, so lock ordering has no
+    inversion (the locked driver's status writes re-enter the reentrant lock).
+
+    Fail closed, but NOT with a traceback, for every write-location refusal:
+    nothing has been mutated, so each one is a clean no-op abort that renders
+    the exception's own remediation (its ``next_step``, already in ``str(exc)``).
+    """
+    try:
+        return seam.write_dir(MissionArtifactKind.STATUS_STATE).path
+    except CoordinationBranchDeleted as exc:
+        raise _abort_before_state_change(
+            exc,
+            "Recover the mission's status authority, then re-run [bold]spec-kitty consolidate[/bold].",
+        ) from exc
+    except CoordinationWorktreeUnmaterialized as exc:
+        # Raised only for a REMOTE-ONLY coordination branch (#4970): a local head is
+        # materialized by ``write_dir`` itself.
+        raise _abort_before_state_change(
+            exc,
+            "Create the local coordination branch from its remote "
+            "(for example [bold]git branch <coordination-branch> <remote>/<coordination-branch>[/bold]), "
+            "then re-run [bold]spec-kitty consolidate[/bold].",
+        ) from exc
+    except CoordSeedForkRefused as exc:
+        raise _abort_before_state_change(
+            exc,
+            "Inspect the diverged event logs with [bold]spec-kitty doctor decisions[/bold], then re-run [bold]spec-kitty consolidate[/bold].",
+        ) from exc
+    except FeatureStatusLockTimeoutError as exc:
+        raise _abort_before_state_change(
+            exc,
+            "Wait for the other status writer to finish, then re-run [bold]spec-kitty consolidate[/bold].",
+        ) from exc
+
+
 def _run_lane_based_consolidation(
     repo_root: Path,
     mission_slug: str,
@@ -3955,33 +4104,11 @@ def _run_lane_based_consolidation(
     main_repo = get_main_repo_root(repo_root)
     # STATUS leg (C-001 / KEEP): ``feature_dir`` is threaded into
     # ``_run_lane_based_consolidation_locked`` as ``run.feature_dir`` and feeds the
-    # coord-aware STATUS legs (``status_feature_dir``). It MUST stay on the
-    # topology-aware resolver so the append-only event log resolves the coord
-    # worktree for a coord-topology mission.
+    # coord-aware STATUS legs (``status_feature_dir``). Its location comes from the
+    # WRITE accessor (ruling Q4, FR-003), never from a read resolver: this is where
+    # the done bookkeeping, the birth cutover and the status reads land.
     seam = placement_seam(main_repo, mission_slug)
-    # Fail-closed, but NOT with a traceback, for either coord-partition read
-    # failure sibling: a deleted coordination branch means the mission's status
-    # authority is gone, so the merge cannot proceed (``CoordinationBranchDeleted``);
-    # an unmaterialized-but-still-extant coordination worktree (fresh clone / CI /
-    # ``git worktree remove`` window) means the status authority is intact but not
-    # yet checked out (``CoordinationWorktreeUnmaterialized``, #4959) — neither is a
-    # traceback-worthy crash. Render each exception's own remediation (its
-    # ``next_step``, already folded into ``str(exc)``) and exit, matching the
-    # handler shape at ``agent/status.py`` and ``mission_finalize.py``.
-    try:
-        feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
-    except CoordinationBranchDeleted as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        console.print(
-            "[yellow]Merge aborted before any state change.[/yellow] Recover the mission's status authority, then re-run [bold]spec-kitty consolidate[/bold]."
-        )
-        raise typer.Exit(1) from exc
-    except CoordinationWorktreeUnmaterialized as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        console.print(
-            "[yellow]Merge aborted before any state change.[/yellow] Materialize the coordination worktree, then re-run [bold]spec-kitty consolidate[/bold]."
-        )
-        raise typer.Exit(1) from exc
+    feature_dir = _resolve_run_status_dir(seam)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
     # mission identity (PRIMARY_METADATA) and ``lanes.json`` (LANE_STATE) live ONLY

@@ -6,9 +6,10 @@ tests pin the paths around the fix through the real ``create_mission_core``
 entry point over real temporary git repositories (no commit mocks):
 
 * ``lanes_with_coord`` seeds the coordination branch exactly like ``coord``;
-* with no local coordination branch to hold it, the log keeps its primary home;
-* a late create failure removes the coordination worktree and the orphan
-  coordination branch, and keeps the status log next to the retained scaffold.
+* with no local coordination branch to hold it, the log keeps its primary home.
+
+The create-time salvage / seed-gate stopgap internals this file used to pin
+were superseded by the single-home seed machinery (coord-artifact-single-home).
 """
 
 from __future__ import annotations
@@ -16,14 +17,11 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import cast
 
 import pytest
 
-from mission_runtime import MissionArtifactKind, MissionTopology, kind_is_coordination_residue
-from specify_cli.core import mission_creation
-from specify_cli.core.mission_creation import _status_homes_on_coordination, create_mission_core
-from specify_cli.core.owned_mission import OwnedCreateRoot
+from mission_runtime import MissionTopology
+from specify_cli.core.mission_creation import create_mission_core
 
 from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
 
@@ -85,70 +83,3 @@ def test_coord_create_without_a_coordination_branch_keeps_the_primary_home(tmp_p
     assert _event_types(primary_log).count("MissionCreated") == 1
     assert primary_log in result.uncommitted_files
     assert not (tmp_path / ".worktrees").exists()
-
-
-def test_failed_create_removes_the_coordination_worktree_and_keeps_the_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _init_git_repo(tmp_path)
-    branches_before = _git(tmp_path, "branch", "--list", "kitty/mission-*")
-
-    def _refuse(*_args: object, **_kwargs: object) -> None:
-        raise RuntimeError("injected coordination commit failure")
-
-    monkeypatch.setattr(mission_creation, "_commit_coordination_status_seed", _refuse)
-
-    with pytest.raises(RuntimeError, match="status log commit on the coordination branch failed"):
-        create_mission_core(tmp_path, "late-failure", **_mission_summary("late-failure"))
-
-    # No orphan coordination branch, and no worktree left registered on it.
-    assert _git(tmp_path, "branch", "--list", "kitty/mission-*") == branches_before
-    assert "-coord" not in _git(tmp_path, "worktree", "list")
-    # The retained partial scaffold carries the status log for diagnosis.
-    (primary_log,) = (tmp_path / "kitty-specs").glob(f"*/{_STATUS_LOG}")
-    assert _event_types(primary_log).count("MissionCreated") == 1
-
-
-def test_salvage_never_overwrites_an_existing_primary_log(tmp_path: Path) -> None:
-    coord_dir = tmp_path / "coord" / "kitty-specs" / "m-01ABCDEF"
-    primary_dir = tmp_path / "primary" / "kitty-specs" / "m-01ABCDEF"
-    coord_dir.mkdir(parents=True)
-    primary_dir.mkdir(parents=True)
-    (coord_dir / _STATUS_LOG).write_text("coord\n", encoding="utf-8")
-    (primary_dir / _STATUS_LOG).write_text("primary\n", encoding="utf-8")
-    missing_primary = tmp_path / "coord" / "kitty-specs" / "other-01ABCDEF"
-    missing_primary.mkdir()
-    (missing_primary / _STATUS_LOG).write_text("orphan\n", encoding="utf-8")
-
-    mission_creation._salvage_status_logs(tmp_path / "coord", tmp_path / "primary")
-
-    assert (primary_dir / _STATUS_LOG).read_text(encoding="utf-8") == "primary\n"
-    assert not (tmp_path / "primary" / "kitty-specs" / "other-01ABCDEF").exists()
-
-
-def test_status_log_residue_accepts_only_status_logs_under_kitty_specs(tmp_path: Path) -> None:
-    mission_dir = tmp_path / "kitty-specs" / "m-01ABCDEF"
-    mission_dir.mkdir(parents=True)
-    (mission_dir / _STATUS_LOG).write_text("", encoding="utf-8")
-    is_residue = mission_creation._status_log_residue(tmp_path)
-
-    assert is_residue("kitty-specs")
-    assert is_residue(f"kitty-specs/m-01ABCDEF/{_STATUS_LOG}")
-
-    (mission_dir / "notes.md").write_text("operator work\n", encoding="utf-8")
-    (tmp_path / _STATUS_LOG).write_text("", encoding="utf-8")
-    assert not is_residue("kitty-specs")
-    assert not is_residue(_STATUS_LOG)
-    assert not is_residue("kitty-specs/missing")
-
-
-@pytest.mark.parametrize("topology", list(MissionTopology))
-def test_seed_gate_agrees_with_canonical_partition_predicate(topology: MissionTopology) -> None:
-    """``_status_homes_on_coordination`` must stay derived from the single
-    partition authority (``kind_is_coordination_residue``), not a hand-rolled
-    re-derivation -- else a future STATUS_STATE re-home could split-brain the
-    create-time seed gate against the write side (#5440 SSOT fold)."""
-    assert _status_homes_on_coordination(topology, owned=None) == kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, topology)
-    # A non-None ``owned`` always forces the primary home, regardless of topology
-    # or what the canonical predicate would say on its own. The function only
-    # checks `owned is None`, so a bare sentinel stands in for a real validated
-    # `OwnedCreateRoot` (which needs a full owned-checkout fixture to mint).
-    assert _status_homes_on_coordination(topology, owned=cast(OwnedCreateRoot, object())) is False

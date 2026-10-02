@@ -20,11 +20,19 @@ Classification:
   ``CoordinationBranchDeleted`` arm is a DIFFERENT (deleted) classification
   and is NOT a case here (it now surfaces its own flatten-guidance
   ``next_step`` instead of "Materialize it" — see ``test_bridge_parity.py``).
-* ``write_target_degrade.assert_coord_write_materialized`` — TWO arms both
-  reach the same raise: (a) remote-only (branch not a local head — a
-  MULTI-STEP remedy, exercised separately below, not in this parametrized
-  round trip) and (b) a STALE local head (branch present, worktree absent) —
-  unmaterialized. IN (single-command case).
+* ``write_target_degrade.assert_coord_write_materialized`` — ONE arm reaches
+  this raise: remote-only (branch not a local head — a MULTI-STEP remedy,
+  exercised separately below, not in this parametrized round trip). The
+  sibling arm -- a STALE local head (branch present, worktree absent) -- used
+  to also refuse here, but **re-pinned deliberately**
+  (coord-artifact-single-home-01M3V4BE WP03, research D22): the gate is now a
+  thin delegate to the single write authority
+  (``specify_cli.coordination.coord_seed.establish_coord_write_location``),
+  which self-materializes a local head regardless of committed content
+  instead of refusing it. See
+  ``test_write_target_degrade_local_head_self_materializes`` below (NOT in
+  this round trip, since it no longer raises and has no remedy text to
+  extract).
 * ``implement_cores.py::_resolve_placement_ref`` (consumed by
   ``implement()`` at the real ``_resolve_placement_ref(repo_root,
   mission_slug=..., wp_id=...)`` call site) routes through
@@ -195,17 +203,24 @@ def _make_stale_local_head(repo: Path, tmp_path: Path, mission_slug: str) -> str
     return coord_branch
 
 
-def _run_write_target_degrade_stale(repo: Path, tmp_path: Path, mission_slug: str) -> str:
+def test_write_target_degrade_local_head_self_materializes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Re-pinned (WP03, research D22): a STALE local head (branch present,
+    worktree absent, already carrying committed content) now self-materializes
+    through the gate instead of refusing -- not part of the parametrized round
+    trip above, since ALLOW produces no remedy text to extract."""
+    repo, mission_slug = _fresh_unmaterialized_coord_mission(tmp_path, "stale-local-head")
     coord_branch = _make_stale_local_head(repo, tmp_path, mission_slug)
-    with pytest.raises(ActionContextError) as excinfo:
-        assert_coord_write_materialized(
-            repo,
-            mission_slug,
-            MissionArtifactKind.ISSUE_MATRIX,
-            CommitTarget(ref=coord_branch),
-        )
-    assert excinfo.value.code == "COORD_WRITE_SURFACE_UNMATERIALIZED"
-    return str(excinfo.value)
+    monkeypatch.chdir(repo)
+
+    assert_coord_write_materialized(
+        repo,
+        mission_slug,
+        MissionArtifactKind.ISSUE_MATRIX,
+        CommitTarget(ref=coord_branch),
+    )  # must NOT raise
+
+    worktree = _worktree_path(repo, mission_slug)
+    assert worktree.exists(), "the gate must materialize the local-head coordination worktree"
 
 
 def _run_implement_claim_commit_target(repo: Path, mission_slug: str) -> str:
@@ -239,7 +254,10 @@ _CASE_NAMES = [
     "surface_resolver",
     "doctor_finding",
     "runtime_bridge",
-    "write_target_degrade_stale_local_head",
+    # "write_target_degrade_stale_local_head" removed (WP03, research D22):
+    # that arm now self-materializes instead of refusing, so it has no
+    # remedy text to extract. See
+    # test_write_target_degrade_local_head_self_materializes above.
     "implement_claim_commit_target",
 ]
 
@@ -262,8 +280,6 @@ def test_unmaterialized_remedy_round_trip(
         text = _run_doctor_finding(repo, mission_slug)
     elif case_name == "runtime_bridge":
         text = _run_runtime_bridge(repo, mission_slug)
-    elif case_name == "write_target_degrade_stale_local_head":
-        text = _run_write_target_degrade_stale(repo, tmp_path, mission_slug)
     else:
         assert case_name == "implement_claim_commit_target"
         text = _run_implement_claim_commit_target(repo, mission_slug)

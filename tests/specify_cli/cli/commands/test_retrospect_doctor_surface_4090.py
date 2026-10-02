@@ -45,22 +45,29 @@ Post-WP04 this test PASSES (the ``xfail`` marker was removed at the green-flip).
 from __future__ import annotations
 
 import json
+import logging
+import threading
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from mission_runtime import MissionTopology
 from specify_cli.audit.engine import run_audit
 from specify_cli.audit.models import AuditOptions
 from specify_cli.cli.commands.retrospect import (
     _canonical_events_path,
     _check_mission_completed,
 )
+from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.migration.mission_state import _anchor_repair_root
 from specify_cli.status import read_events
 from specify_cli.status import reduce as reduce_events
+from specify_cli.status.locking import feature_status_lock
+from tests._factories.coord_mission import CoordMission, make_coord_mission, make_prefix_coord_mission
 
 pytestmark = [pytest.mark.fast]
 
@@ -239,3 +246,166 @@ def test_retrospect_and_doctor_agree_on_merged_mission_wp_states(tmp_path: Path)
         f"{len(doctor_open_wps)} open WP(s). The merged mission's readers must "
         "agree on the authoritative post-merge surface."
     )
+
+
+# ---------------------------------------------------------------------------
+# WP14 / T074 — R11 (retrospect half): a skipped/refused coordination surface
+# must be visible in ``retrospect create``'s own output, not just logged
+# internally by the commit router (#5513, #5501). At the WP base
+# ``_maybe_auto_commit`` only inspects the CALLER-partition (top-level)
+# ``CommitRouterResult.status`` -- when the PRIMARY record commits cleanly
+# that top-level status reads "committed" even though the COORDINATION
+# surface (the canonical event log) was refused, so the operator never sees
+# the refusal from the CLI they actually ran.
+# ---------------------------------------------------------------------------
+
+_LOCK_TIMEOUT_PATCH_TARGET = "specify_cli.coordination.status_transition.BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS"
+#: ``commit_router``'s own debug/warning log of the full per-surface trail
+#: (``_log_split_commit_outcome``, WP05) is PRODUCTION diagnostics, not the
+#: CLI's own output -- Python's ``logging.lastResort`` handler would otherwise
+#: leak it onto the SAME redirected ``sys.stderr`` ``CliRunner`` captures,
+#: producing a false green regardless of whether ``retrospect.py`` itself
+#: renders anything. Silenced so this test observes only what the CLI itself
+#: prints.
+_COMMIT_ROUTER_LOGGER = "specify_cli.coordination.commit_router"
+
+
+def test_retrospect_reports_each_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A coordination-surface refusal must be named in ``retrospect create``'s own stderr.
+
+    Fixture precondition (post-tasks squad R-M4): this WP's lane base is
+    WP01-WP05 -- build the coordination-routed Mission with WP02's
+    ``make_coord_mission(..., materialized=True)``. Before driving the CLI,
+    assert the precondition the red depends on: a real coordination worktree
+    exists (MATERIALIZED) and auto-commit is enabled, so the mixed-surface
+    batch below is genuine, not an artefact of a wrong fixture.
+
+    RED on the WP base: the coordination group is refused with
+    ``STATUS_LOCK_HELD`` (the status lock is held by a background thread for
+    longer than the bounded lock timeout) while the PRIMARY record commits
+    cleanly -- ``retrospect create``'s own stderr carries only the generic
+    "auto-commit failed" message (naming the lock-timeout diagnostic, never
+    the surface name or the structured reason code). GREEN once
+    ``_maybe_auto_commit`` renders through ``render_commit_outcome`` for every
+    surface that is not ``committed``/``unchanged``.
+
+    The mission completion check's event-log append (``emit_captured``, a
+    best-effort, ``contextlib.suppress``-wrapped step BEFORE the auto-commit
+    under test) takes the SAME per-mission status lock with an UNBOUNDED wait
+    -- holding the lock across that step as well would block this test
+    indefinitely rather than exercising the auto-commit's OWN bounded
+    acquisition, so that unrelated step is stubbed out here.
+    """
+    mission = make_coord_mission(tmp_path, MissionTopology.COORD, materialized=True)
+    repo = mission.repo_root
+
+    # --- Precondition: a real, materialized coordination surface. ---
+    assert mission.coord_worktree_path.is_dir()
+    assert mission.coord_mission_dir.is_dir()
+
+    monkeypatch.setattr("specify_cli.cli.commands.retrospect.get_auto_commit_default", lambda _repo_root: True)
+    monkeypatch.setattr("specify_cli.cli.commands.retrospect.emit_captured", lambda *args, **kwargs: None)
+    # Bound the lock-contention wait so the test does not block for the
+    # production 10s default (the name is read at call time by
+    # ``coord_status_lock``, bound at import time into ``status_transition``'s
+    # own namespace -- see its module docstring).
+    monkeypatch.setattr(_LOCK_TIMEOUT_PATCH_TARGET, 0.3)
+    commit_router_logger = logging.getLogger(_COMMIT_ROUTER_LOGGER)
+    monkeypatch.setattr(commit_router_logger, "disabled", True)
+
+    lock_held = threading.Event()
+    release_lock = threading.Event()
+
+    def _hold_coordination_lock() -> None:
+        with feature_status_lock(repo, mission.mission_dir_name, timeout=-1):
+            lock_held.set()
+            release_lock.wait(timeout=5.0)
+
+    holder = threading.Thread(target=_hold_coordination_lock)
+    holder.start()
+    try:
+        assert lock_held.wait(timeout=5.0), "background thread never acquired the coordination status lock"
+
+        monkeypatch.chdir(repo)
+        result = CliRunner().invoke(retrospect_app, ["create", "--mission", mission.mission_dir_name, "--json"])
+    finally:
+        release_lock.set()
+        holder.join(timeout=5.0)
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["result"] == "success", result.output
+    # Load-bearing: the coordination surface's refusal must be named somewhere
+    # in the CLI's own output (stderr carries warnings; --json stdout stays
+    # machine-parseable per the existing contract). Masked at the WP base.
+    combined = result.stdout + result.stderr
+    assert "coordination" in combined, f"coordination surface's fate is not named in the CLI output: {combined!r}"
+    assert "STATUS_LOCK_HELD" in combined, f"the refusal reason is not named in the CLI output: {combined!r}"
+
+
+# ---------------------------------------------------------------------------
+# WP14 / T074 (step 3) -- retrospect/agent-retrospect event appends must land
+# on the coordination WRITE surface, never the repository root checkout
+# (FR-003: event appends are a writer family, not a read-resolver fallback).
+# ---------------------------------------------------------------------------
+
+
+def test_retrospect_append_on_prefix_mission_lands_on_coordination_surface(tmp_path: Path) -> None:
+    """A pre-fix coordination Mission's event append must seed + land on the coord surface.
+
+    Fixture premise (post-tasks squad R-M4): WP02's ``make_prefix_coord_mission``
+    builds the EXPLICIT pre-fix shape -- the root checkout's ``status.events.jsonl``
+    is committed on the target branch, the coordination branch is cut BEFORE
+    that scaffold commit (so it never contains the Mission dir), and
+    ``worktree="empty"`` materializes an EMPTY coordination worktree (Mission
+    dir absent). Before asserting the fix, assert this precondition directly:
+    the coordination copy does not exist yet and the root copy does.
+
+    RED on the WP base: ``agent_retrospect._canonical_events_dir`` (the READ
+    resolver) falls back to the root checkout's ``feature_dir`` for this exact
+    shape (an empty coordination worktree), and the pre-WP14
+    ``_create_empty_retrospective_record`` wrote its ``RetrospectiveCaptured``
+    event through THAT read resolver -- landing the append on the repository
+    root checkout, never the coordination surface. GREEN once the write goes
+    through ``_canonical_events_write_dir`` (``write_dir``, which seeds the
+    coordination surface from the root copy on first write per
+    ``contracts/seed.md``) instead.
+    """
+    from unittest.mock import patch
+
+    from specify_cli.cli.commands.agent_retrospect import _create_empty_retrospective_record
+    from specify_cli.retrospective.schema import ActorRef
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    root_events = coord.root_mission_dir / "status.events.jsonl"
+    coord_events = coord.coord_mission_dir / "status.events.jsonl"
+
+    # --- Precondition: the real pre-fix divergence this red depends on. ---
+    assert root_events.is_file()
+    root_events_before = root_events.read_text(encoding="utf-8")
+    assert not coord_events.exists()
+
+    with patch("specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"):
+        _create_empty_retrospective_record(
+            repo_root=coord.repo_root,
+            mission_id=_read_mission_id_for(coord),
+            mission_slug=coord.mission_dir_name,
+            feature_dir=coord.root_mission_dir,
+            actor=ActorRef(kind="agent", id="agent"),
+        )
+
+    # Load-bearing: the coordination surface gained exactly the one
+    # RetrospectiveCaptured row -- seeded from the root copy, then appended to.
+    assert coord_events.is_file(), "the coordination surface was never seeded/written -- the append landed elsewhere"
+    coord_types = [json.loads(line).get("type") for line in coord_events.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert coord_types.count("RetrospectiveCaptured") == 1
+    # The root checkout's own copy is untouched (restored/left alone) -- the
+    # append never lands in the repository root checkout for a coord Mission.
+    assert root_events.read_text(encoding="utf-8") == root_events_before
+
+
+def _read_mission_id_for(coord: CoordMission) -> str:
+    meta = json.loads((coord.root_mission_dir / "meta.json").read_text(encoding="utf-8"))
+    mission_id = meta["mission_id"]
+    assert isinstance(mission_id, str)
+    return mission_id

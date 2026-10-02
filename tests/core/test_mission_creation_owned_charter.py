@@ -239,3 +239,59 @@ def test_owned_create_leaves_repository_root_untouched(tmp_path: Path, monkeypat
     after = snapshotter.take()
 
     snapshotter.assert_unchanged(before, after, tolerate_status_mutex_for=result.feature_dir.name)
+
+
+# ---------------------------------------------------------------------------
+# B5' (review cycle 2, ruling reversed, coord-artifact-single-home-01M3V4BE):
+# an owned-checkout create combined with a coordination-routed topology is a
+# SUPPORTED path (FR-022's TestFr022CoordinationTwin ratchet), not a refusal
+# target. INV-COORD-HOME residual: the status log is never seeded onto the
+# coordination surface for an owned create -- it stays in the owned
+# checkout's own PRIMARY dir, scaffolded and committed exactly as at base
+# (e7b085d26c).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("topology", [MissionTopology.COORD, MissionTopology.LANES_WITH_COORD], ids=lambda t: t.value)
+def test_owned_checkout_with_coordination_topology_scaffolds_status_log_at_base_shape(tmp_path: Path, topology: MissionTopology) -> None:
+    """An owned coordination-routed create keeps the base (pre-WP06) scaffold shape.
+
+    INV-COORD-HOME residual: ``_seed_coord_surface_for_create`` never seeds
+    the coordination surface for an owned create (an ``OwnedCreateMission``
+    does not satisfy the ``mission_runtime.OwnedCheckout`` contract the
+    coordination write-path requires), so ``MissionCreated`` lands on
+    ``feature_dir`` in the owned checkout instead. This pins that the status
+    log is present there, carries ``MissionCreated``, and is part of the
+    owned checkout's own HEAD commit for this create -- not merely written
+    to disk and left uncommitted (the regression a prior cycle-2 fix
+    introduced by keying the scaffold's coordination-routed branch on
+    ``topology`` alone, ignoring ``owned``).
+    """
+    from specify_cli.status import MISSION_CREATED, read_lifecycle_events
+
+    repository_root, owned = _init_repository_root_and_owned(tmp_path)
+    slug = f"owned-coord-log-{topology.value.replace('_', '-')}"
+
+    result = create_mission_core(
+        repository_root,
+        slug,
+        owned_create_root=resolve_owned_create_root(repository_root, owned),
+        topology=topology,
+        friendly_name="Owned coord log",
+        purpose_tldr="Pin the owned coordination-topology create's status log shape.",
+        purpose_context="An owned coordination create keeps its status log in its own PRIMARY dir, committed exactly as at base.",
+    )
+
+    log_path = result.feature_dir / "status.events.jsonl"
+    assert log_path.exists(), "the status log must be scaffolded in the owned checkout's own PRIMARY dir"
+    event_types = [event.get("event_type") for event in read_lifecycle_events(log_path)]
+    assert MISSION_CREATED in event_types
+
+    committed = subprocess.run(
+        ["git", "show", f"HEAD:kitty-specs/{result.mission_slug}/status.events.jsonl"],
+        cwd=owned,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "MissionCreated" in committed.stdout, "the status log must be part of the owned checkout's own scaffold commit, not merely written-but-uncommitted"

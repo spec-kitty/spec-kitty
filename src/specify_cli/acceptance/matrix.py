@@ -529,6 +529,22 @@ def write_and_commit_acceptance_matrix(
         message=message,
         policy=resolved_policy,
         entry_id=entry_id,
+        # WP10 (T057/B4, cycle 2 correction): when ``matrix_dir`` is the
+        # OWNING write location (``write_dir(ACCEPTANCE_MATRIX)`` for
+        # ``acceptance_verdict.py``'s two commit=True legs; the already-
+        # resolved declared/write ``home`` for ``scaffold_acceptance_matrix``
+        # below, on a MATERIALIZED coordination Mission), the write lands IN
+        # PLACE under the coordination worktree and this entry is never
+        # matched by ``_cleanup_staging_residue`` (no COPY ever happens for
+        # an already-in-place source -- see ``commit_router
+        # ._classify_stage_path``'s IN_PLACE branch). Kept (not emptied)
+        # because ``scaffold_acceptance_matrix`` can still legitimately stage
+        # at the PRIMARY ``feature_dir`` for a pre-materialization EMPTY
+        # coordination Mission (AH-2's declared-read fallback for ``home``) --
+        # that case still relies on this residue-cleanup eligibility once the
+        # router's on-demand copy confirms the coordination surface holds a
+        # byte-identical copy. WP16's accept-residual leg and WP20's router
+        # flip are the only other callers this frozenset still serves.
         primary_paths_created_this_invocation=frozenset({matrix_path}),
         owned=owned,
     )
@@ -827,15 +843,19 @@ def scaffold_acceptance_matrix(
     _acceptance_matrix_read_dir`) is materialization-AWARE: when the mission's
     stored topology routes through coordination but the coord worktree has not
     been materialized yet (finalize can run before it does), it affirmatively
-    substitutes PRIMARY for READS (AH-2) — a legitimate read-time degrade. Using
-    that same substitution as a WRITE target would author the placeholder
-    scaffold directly onto the PRIMARY partition, creating exactly the add/add
-    divergence #2404 describes once the mission's real coord-authored fill
-    lands later. When ``repo_root`` is supplied, the write instead routes
-    through :func:`write_and_commit_acceptance_matrix` (the WP03 write-seam),
-    which resolves the destination via the materialization-BLIND write
-    resolver (``write_target(ACCEPTANCE_MATRIX)``, C-001) and self-materializes
-    the coordination worktree on demand — mirroring the sibling, already-fixed
+    substitutes PRIMARY for READS (AH-2) — a legitimate read-time degrade.
+    When ``repo_root`` is supplied, the write routes through
+    :func:`write_and_commit_acceptance_matrix` (the WP03 write-seam) staged
+    at ``home`` -- never the PRIMARY ``feature_dir`` (WP10 cycle 2, B4 /
+    decision ``plan.design.owning-copy-flip-allocation``): for a MATERIALIZED
+    coordination Mission ``home`` already IS the coordination Mission dir, so
+    the write lands IN PLACE and the router's legacy ``shutil.copy2`` never
+    fires; for the pre-materialization EMPTY window ``home`` still resolves
+    to PRIMARY (the same AH-2 read fallback), the scaffold stages there as
+    before, and the FIRST real coordination write (any ``write_dir`` caller)
+    carries it over as part of that write's own EMPTY-surface seed -- never
+    an add/add divergence, because there is still only ONE declared home at
+    any given time. This mirrors the sibling, already-fixed
     ``issue-matrix.json`` scaffold (:func:`~specify_cli.tasks.issue_matrix.
     scaffold_issue_matrix`). A coord-less topology (``SINGLE_BRANCH`` /
     ``LANES``) resolves to the SAME primary ``target_branch`` either way — no
@@ -907,10 +927,25 @@ def scaffold_acceptance_matrix(
 
     matrix = AcceptanceMatrix(mission_slug=mission_slug, criteria=criteria)
     if repo_root is not None:
+        # WP10 cycle 2 (B4, decision plan.design.owning-copy-flip-allocation):
+        # stage at ``home`` (the declared/write home the caller already
+        # resolved, above), NEVER the PRIMARY ``feature_dir`` -- staging at
+        # ``feature_dir`` for a MATERIALIZED coordination Mission left the
+        # router's legacy ``shutil.copy2`` as the only thing that ever moved
+        # the scaffold onto the coordination surface, and the function
+        # returned the stray PRIMARY path even once the coordination copy
+        # existed. For a MATERIALIZED mission ``home`` is already the
+        # coordination Mission dir (physically under ``.worktrees/``), so the
+        # write lands IN PLACE (``commit_router``'s IN_PLACE classification)
+        # and the router never copies. For the pre-materialization EMPTY
+        # window ``home`` still resolves to PRIMARY (AH-2's declared read
+        # fallback) -- the scaffold stages there exactly as before, and the
+        # FIRST real coordination write (any ``write_dir`` caller) carries it
+        # over as part of its own EMPTY-surface seed.
         result = write_and_commit_acceptance_matrix(
             repo_root,
             mission_slug,
-            feature_dir,
+            home,
             matrix,
             entry_id="finalize-scaffold",
             message=f"chore({mission_slug}): scaffold acceptance-matrix",
@@ -918,7 +953,7 @@ def scaffold_acceptance_matrix(
             owned=owned,
         )
         if result.status in ("committed", "unchanged"):
-            return path
+            return home_path
         if owned is not None:
             raise RuntimeError(result.diagnostic or "Owned acceptance matrix write failed.")
         # FR-011 zero-write refusal (or a genuine commit error): never fall

@@ -43,18 +43,25 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import typer
+from rich.text import Text
 
 from kernel._safe_re import re
 from mission_runtime import CommitTarget, MissionArtifactKind, placement_seam
-from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
+from specify_cli.agent_tasks_ports import CommitArtifactResult, MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_mapping_core import (
     TRACKER_ONLY_MODE,
     MappingPlan,
     MappingRequest,
 )
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
+from specify_cli.coordination.commit_outcome import (
+    COORD_RECORD_IN_ROOT_CHECKOUT,
+    commit_outcome_payload,
+    render_commit_outcome,
+)
 from specify_cli.requirement_mapping import CoverageSummary, grammar
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
@@ -168,6 +175,11 @@ class _MapReqState:
     committed: bool = False
     commit_sha: str | None = None
     commit_result_payload: dict[str, str] | None = None
+    #: WP08 (FR-007/SC-003): the raw router result from ``_mr_auto_commit``,
+    #: kept so ``_mr_emit_output`` can render the additive ``surfaces``
+    #: payload through the shared ``commit_outcome`` trio. ``None`` when
+    #: auto-commit never ran (nothing written, or auto-commit is off).
+    commit_router_result: CommitArtifactResult | None = None
 
 
 def _mr_validate_modes(st: _MapReqState) -> None:
@@ -642,6 +654,45 @@ def _mr_stale_gate(st: _MapReqState) -> None:
     raise typer.Exit(1)
 
 
+def _mr_surface_needs_warning(result: CommitArtifactResult) -> bool:
+    """True iff any surface is not a quiet (``committed``/``unchanged``)
+    no-op, OR carries an actionable ``COORD_RECORD_IN_ROOT_CHECKOUT`` skip.
+
+    Contract rule 5: "``skipped``/``unchanged`` exit 0 ... are rendered".
+    ``commit_outcome_exit_code`` alone only flags ``refused``/``error`` (a
+    non-zero exit) -- an exit-0 result can still carry an ACTIONABLE skip
+    (the operator's root-checkout edit never reaches the target), which D8
+    also requires a discarding caller to warn on.
+    """
+    for outcome in result.surfaces:
+        if outcome.status not in ("committed", "unchanged"):
+            return True
+        if any(fate.reason == COORD_RECORD_IN_ROOT_CHECKOUT for fate in outcome.skipped):
+            return True
+    return False
+
+
+def _mr_render_refused_surfaces(st: _MapReqState, result: CommitArtifactResult) -> None:
+    """Render the shared ``render_commit_outcome`` lines when a surface needs
+    an operator's attention (FR-007) -- an operator must never see this
+    silently skipped. The legacy ``st.committed`` projection above is
+    untouched (contract rule 4): this renders ADDITIONAL visibility, it does
+    not recompute "did this command succeed".
+
+    Review cycle 2 B2: the prefix is styled through a ``rich.text.Text``
+    segment (never markup-parsed) so a literal ``[...]`` substring in the
+    rendered line (a reason code, a path) survives verbatim instead of the
+    OLD ``markup=False`` call printing the ``[yellow]...[/yellow]`` tags
+    themselves as text.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    if st.json_output or not _mr_surface_needs_warning(result):
+        return
+    for line in render_commit_outcome(result):
+        _tasks.console.print(Text.assemble(("Warning: ", "yellow"), line))
+
+
 def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
     """Phase F(i): route the WP-file auto-commit through the WP02 ``commit_artifact`` port.
 
@@ -649,6 +700,11 @@ def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
     write-surface-coherence WP03 / T014). The coord router carries the resolved
     ``target_branch`` so the WP09 ff-advance fires for a coord write; the ``--json``
     ``commit_result`` envelope shape (#1891 / FR-013) is reconstructed byte-identically.
+
+    WP08 (FR-007/SC-003): the raw result is kept on ``st.commit_router_result``
+    for the additive ``surfaces`` JSON payload, and a refused/errored surface
+    renders through the shared ``render_commit_outcome`` trio instead of being
+    silently skipped (the pre-fix behaviour for any non-``"committed"`` result).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -672,6 +728,7 @@ def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
             kind=MissionArtifactKind.WORK_PACKAGE_TASK,
             policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
         )
+        st.commit_router_result = _router_result
         if _router_result.status == "committed":
             st.committed = True
             st.commit_sha = _router_result.commit_hash
@@ -680,9 +737,20 @@ def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
                 "destination_ref": _router_result.placement_ref,
                 "worktree_root": str(st.main_repo_root),
             }
+        _mr_render_refused_surfaces(st, _router_result)
     except Exception as exc_commit:
         if not st.json_output:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {exc_commit}")
+
+
+def _mr_surfaces_payload(st: _MapReqState) -> list[dict[str, object]]:
+    """The additive ``surfaces`` JSON field (WP08, FR-007 JSON shape), or
+    ``[]`` when auto-commit never ran (nothing written, or auto-commit off).
+    """
+    if st.commit_router_result is None:
+        return []
+    surfaces = commit_outcome_payload(st.commit_router_result)["surfaces"]
+    return cast("list[dict[str, object]]", surfaces)
 
 
 def _mr_emit_output(st: _MapReqState) -> None:
@@ -719,6 +787,7 @@ def _mr_emit_output(st: _MapReqState) -> None:
         "committed": st.committed,
         "commit_sha": st.commit_sha,
         "commit_result": st.commit_result_payload,
+        "surfaces": _mr_surfaces_payload(st),
         "requirement_extraction_warnings": st.requirement_extraction_warnings,
         # WP06 (#3396) T032: distinct, separately-labeled signal -- never
         # merged into ``coverage.unmapped_functional`` (Story 1 / FR-001 / FR-004).

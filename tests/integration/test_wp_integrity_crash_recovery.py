@@ -119,9 +119,16 @@ def _seed_coord_mission(tmp_path: Path) -> tuple[Path, Path, str]:
     _write_meta(feature_dir, coordination_branch=coord_branch)
     # PRIMARY-partition artifact (dirty, uncommitted).
     (feature_dir / "lanes.json").write_text('{"version": 1}\n', encoding="utf-8")
-    # COORD-residue artifact (dirty, uncommitted).
+    # COORD-residue artifact (dirty, uncommitted). WP07 re-pin
+    # (coord-artifact-single-home-01M3V4BE): the coordination commit leg now
+    # resolves through the single write-location accessor, which parses this
+    # file's event_id sequence to decide what (if anything) to carry onto the
+    # coordination branch on first write (contracts/seed.md) -- a line with
+    # no ``event_id`` key is a malformed-event-log refusal there, not a
+    # silent skip. Carries the minimal field the parser requires while
+    # staying the same deliberately-minimal placeholder otherwise.
     (feature_dir / "status.events.jsonl").write_text(
-        '{"wp_id": "WP01", "to_lane": "claimed"}\n', encoding="utf-8"
+        '{"event_id": "01TESTSEEDEDPLACEHOLDER01", "wp_id": "WP01", "to_lane": "claimed"}\n', encoding="utf-8"
     )
     return repo, feature_dir, coord_branch
 

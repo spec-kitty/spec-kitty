@@ -52,11 +52,13 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 
 def test_merge_driver_bodies_matches_the_two_other_driver_name_authorities() -> None:
     """``MERGE_DRIVER_BODIES`` keys == the registry-derived command names ==
-    the ``merge-driver-*`` keys of ``_COMMAND_REGISTRARS`` (6 each)."""
+    the ``merge-driver-*`` keys of ``_COMMAND_REGISTRARS`` (7 each, re-pinned
+    6 -> 7 by coord-artifact-single-home-01M3V4BE WP11's decision-index
+    driver)."""
     registry_derived = {match.group(1) for spec in _MERGE_DRIVERS if (match := _DRIVER_COMMAND_PATTERN.match(spec.command))}
     registrar_derived = {key for key in _COMMAND_REGISTRARS if key.startswith("merge-driver-")}
     assert set(MERGE_DRIVER_BODIES) == registry_derived == registrar_derived
-    assert len(MERGE_DRIVER_BODIES) == 6
+    assert len(MERGE_DRIVER_BODIES) == 7
 
 
 def test_drivers_module_imports_no_typer_or_cli() -> None:

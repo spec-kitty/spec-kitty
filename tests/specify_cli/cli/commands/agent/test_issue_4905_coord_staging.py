@@ -35,6 +35,7 @@ the real CLI gates require.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -751,6 +752,86 @@ def test_review_claim_does_not_stage_wp_file_on_coord(tmp_path: Path, monkeypatc
 
     flagged = _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname)
     assert flagged == [], f"#4905 regression: the review-claim funnel staged a WP file onto the coordination branch: {flagged!r}"
+
+
+def test_second_review_claim_advertises_cycle_two_with_no_primary_residue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP08 review cycle 2, B4 (MU7): ``workflow.py::review``'s advertised
+    feedback path must come from the SAME write-side resolver
+    (``_review_cycle_write_location`` / ``_review_cycle_write_dir``) the real
+    rejection writer uses, never the hand-joined ``WORK_PACKAGE_TASK`` read
+    dir -- reverting that one call survives 145/145 of the WP08 test set per
+    review-WP08.md's mutation table (MU7), because nothing else asserts the
+    SECOND claim's advertised cycle number or the PRIMARY-checkout absence.
+
+    Drives a full real cycle: claim -> for_review -> review (claims cycle 1,
+    advertises ``review-feedback-1.md`` on the coordination worktree) ->
+    reject (writes ``review-cycle-1.md`` there) -> re-claim -> for_review ->
+    review again. The second claim must advertise ``review-feedback-2.md``
+    (the stale hand-joined dir would instead see an EMPTY PRIMARY
+    ``tasks/WP01/`` and restart numbering at 1), and the PRIMARY repository
+    root checkout must gain no ``tasks/WP01/`` directory at all.
+    """
+    repo_root, mission_dirname, _coord_branch = _build_two_lane_coord_mission(tmp_path, monkeypatch, mission_slug="mu7-review-cycle")
+
+    claim = _run_implement(mission_dirname, "WP01")
+    assert claim.exit_code == 0, claim.output
+
+    to_for_review = runner.invoke(root_app, ["agent", "tasks", "move-task", "WP01", "--to", "for_review", "--mission", mission_dirname])
+    assert to_for_review.exit_code == 0, to_for_review.output
+
+    review1 = runner.invoke(root_app, ["agent", "action", "review", "WP01", "--mission", mission_dirname, "--agent", "reviewer-renata"])
+    assert review1.exit_code == 0, review1.output
+    match1 = re.search(r"--review-feedback-file (\S+)", review1.output)
+    assert match1 is not None, f"no --review-feedback-file hint in: {review1.output!r}"
+    feedback_path_1 = Path(match1.group(1))
+    assert feedback_path_1.name == "review-feedback-1.md", f"first claim must advertise cycle 1, got {feedback_path_1.name!r}"
+    coord_worktree = CoordinationWorkspace.worktree_path(repo_root, mission_dirname, mission_dirname.rsplit("-", 1)[-1])
+    assert coord_worktree in feedback_path_1.parents, (
+        f"the advertised feedback path must live under the coordination worktree {coord_worktree}, got {feedback_path_1}"
+    )
+
+    feedback_path_1.write_text("**Issue**: MU7 first pass.\n", encoding="utf-8")
+    reject1 = runner.invoke(
+        root_app,
+        [
+            "agent",
+            "tasks",
+            "move-task",
+            "WP01",
+            "--to",
+            "planned",
+            "--review-feedback-file",
+            str(feedback_path_1),
+            "--mission",
+            mission_dirname,
+            "--agent",
+            "reviewer-renata",
+        ],
+    )
+    assert reject1.exit_code == 0, reject1.output
+
+    reclaim = _run_implement(mission_dirname, "WP01")
+    assert reclaim.exit_code == 0, reclaim.output
+
+    to_for_review_2 = runner.invoke(root_app, ["agent", "tasks", "move-task", "WP01", "--to", "for_review", "--mission", mission_dirname])
+    assert to_for_review_2.exit_code == 0, to_for_review_2.output
+
+    review2 = runner.invoke(root_app, ["agent", "action", "review", "WP01", "--mission", mission_dirname, "--agent", "reviewer-renata"])
+    assert review2.exit_code == 0, review2.output
+    match2 = re.search(r"--review-feedback-file (\S+)", review2.output)
+    assert match2 is not None, f"no --review-feedback-file hint in: {review2.output!r}"
+    feedback_path_2 = Path(match2.group(1))
+    assert feedback_path_2.name == "review-feedback-2.md", (
+        f"second claim must continue numbering from the existing coordination-surface "
+        f"cycle (cycle 2), not restart at 1 from an empty PRIMARY dir: got {feedback_path_2.name!r}"
+    )
+    assert coord_worktree in feedback_path_2.parents
+
+    primary_wp_dir = repo_root / "kitty-specs" / mission_dirname / "tasks" / "WP01"
+    assert not primary_wp_dir.exists(), (
+        f"the review claim must never create a tasks/WP01/ directory in the PRIMARY "
+        f"repository-root checkout: {primary_wp_dir} exists with {sorted(p.name for p in primary_wp_dir.glob('*')) if primary_wp_dir.exists() else []}"
+    )
 
 
 def test_lanes_topology_control_unaffected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

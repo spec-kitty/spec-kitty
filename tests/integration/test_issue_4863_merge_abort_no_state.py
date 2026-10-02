@@ -28,7 +28,6 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.consolidate import consolidate as merge
 from specify_cli.coordination import CoordinationWorkspace
-from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
@@ -147,16 +146,39 @@ def _invoke_abort(repo: Path, mission_slug: str) -> Any:
         return CliRunner().invoke(app, ["--abort", "--mission", mission_slug])
 
 
+def _read_coord_ledger_via_git_show(repo: Path, mission_slug: str) -> bytes:
+    """Read ``status.events.jsonl`` from the coordination branch's git history.
+
+    Re-pinned (coord-artifact-single-home-01M3V4BE T031): the ledger now lives
+    on the coordination surface from birth (#5440), never the primary
+    checkout. A REAL abort tears down the coordination WORKTREE (teardown's
+    own contract: it "does NOT delete the coordination branch" -- branch
+    deletion belongs to ``spec-kitty merge``), so reading via ``git show
+    <branch>:<path>`` -- the branch's own git history -- survives that
+    teardown, unlike a now-destroyed worktree-relative file path.
+    """
+    meta = json.loads((repo / "kitty-specs" / mission_slug / "meta.json").read_text(encoding="utf-8"))
+    coordination_branch = str(meta["coordination_branch"])
+    result = _git(repo, "show", f"{coordination_branch}:kitty-specs/{mission_slug}/status.events.jsonl")
+    return result.stdout.encode("utf-8")
+
+
 def test_abort_valid_coord_mission_without_state_is_true_noop(
     cli_created_coord_mission: tuple[Path, str, str, str],
 ) -> None:
     """#4863: a resolved mission alone is not proof of an active merge."""
     repo, mission_slug, mission_id, mid8 = cli_created_coord_mission
     mission_dir = repo / "kitty-specs" / mission_slug
-    # #5440: the ledger's canonical home is the coordination surface.
-    ledger = resolve_status_surface(repo, mission_slug)
     head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    ledger_before = ledger.read_bytes()
+    ledger_before = _read_coord_ledger_via_git_show(repo, mission_slug)
+    # B4 (review cycle 2, MEDIUM): this no-state abort is a true no-op, so the
+    # coordination WORKTREE survives (asserted below) -- read its on-disk
+    # ledger bytes too. Comparing only the COMMITTED coordination blob (via
+    # git show) would pass even if abort appended an uncommitted row directly
+    # to the live worktree log; this closes that gap.
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)
+    coord_worktree_ledger = coord_worktree / "kitty-specs" / mission_slug / "status.events.jsonl"
+    worktree_ledger_before = coord_worktree_ledger.read_bytes()
 
     assert load_state(repo, mission_id) is None
     result = _invoke_abort(repo, mission_slug)
@@ -165,7 +187,12 @@ def test_abort_valid_coord_mission_without_state_is_true_noop(
     assert "No active merge state found" in result.output
     assert "Workspace cleaned up" not in result.output
     assert _git(repo, "rev-parse", "HEAD").stdout.strip() == head_before
-    assert ledger.read_bytes() == ledger_before
+    assert _read_coord_ledger_via_git_show(repo, mission_slug) == ledger_before
+    assert coord_worktree_ledger.read_bytes() == worktree_ledger_before
+    # #5440 regression guard: a no-state abort must never resurrect a
+    # status.events.jsonl on the PRIMARY (repository root) checkout -- its
+    # only home since T031 is the coordination surface.
+    assert not (mission_dir / "status.events.jsonl").exists()
     assert not (mission_dir / "retrospective.yaml").exists()
     assert CoordinationWorkspace.is_present(repo, mission_slug, mid8)
 
@@ -176,12 +203,8 @@ def test_real_abort_tears_down_without_completion_provenance(
     """A real abort keeps cleanup semantics but skips the completion terminus."""
     repo, mission_slug, mission_id, mid8 = cli_created_coord_mission
     mission_dir = repo / "kitty-specs" / mission_slug
-    # #5440: the ledger's canonical home is the coordination surface.
-    ledger = resolve_status_surface(repo, mission_slug)
-    coord_branch = CoordinationWorkspace.branch_name(mission_slug, mid8)
-    coord_tip_before = _git(repo, "rev-parse", coord_branch).stdout.strip()
     head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    ledger_before = ledger.read_bytes()
+    ledger_before = _read_coord_ledger_via_git_show(repo, mission_slug)
     save_state(
         ConsolidationState(
             mission_id=mission_id,
@@ -198,11 +221,10 @@ def test_real_abort_tears_down_without_completion_provenance(
     assert f"Aborted merge for {mission_slug}" in result.output
     assert load_state(repo, mission_id) is None
     assert _git(repo, "rev-parse", "HEAD").stdout.strip() == head_before
-    # The teardown removes the coordination worktree that held the ledger
-    # (#5440), so the ledger is checked where it persists: committed on the
-    # surviving coordination branch, whose tip gained no completion commit.
-    assert _git(repo, "rev-parse", coord_branch).stdout.strip() == coord_tip_before
-    ledger_path = ledger.relative_to(CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)).as_posix()
-    assert _git(repo, "show", f"{coord_branch}:{ledger_path}").stdout.encode() == ledger_before
+    assert _read_coord_ledger_via_git_show(repo, mission_slug) == ledger_before
+    # #5440 regression guard (B4, review cycle 2): a real abort's coordination
+    # teardown must never resurrect a status.events.jsonl on the PRIMARY
+    # (repository root) checkout either.
+    assert not (mission_dir / "status.events.jsonl").exists()
     assert not (mission_dir / "retrospective.yaml").exists()
     assert not CoordinationWorkspace.is_present(repo, mission_slug, mid8)

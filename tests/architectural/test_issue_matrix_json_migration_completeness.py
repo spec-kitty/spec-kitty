@@ -161,7 +161,6 @@ def test_canonical_writer_never_emits_markdown(
     write_issue_matrix(
         repo_root=tmp_path,
         mission_slug="999-completeness-demo",
-        feature_dir=feature_dir,
         rows={"#1": IssueMatrixEntry(verdict="fixed", evidence_ref="ref")},
         policy=_AlwaysUnprotectedPolicy(),
     )

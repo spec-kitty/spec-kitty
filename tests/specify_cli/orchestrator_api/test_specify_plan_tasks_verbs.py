@@ -186,6 +186,8 @@ _TASKS_SUCCESS_DATA_KEYS = frozenset(
         "commit_created",
         "commit_hash",
         "commit_hashes",
+        # coord-artifact-single-home: additive per-surface commit outcome + planning-commit refresh.
+        "commit_surfaces",
         "dependencies_parsed",
         "files_committed",
         "lanes",
@@ -193,6 +195,7 @@ _TASKS_SUCCESS_DATA_KEYS = frozenset(
         "modified_wps",
         "ownership_warnings",
         "planning_commit",
+        "planning_commit_refresh",
         "post_integration_acceptance_warnings",
         "preserved_wps",
         "requirement_extraction_warnings",

@@ -317,7 +317,6 @@ def test_healthy_coord_mission_commits_to_coord_surface(tmp_path: Path) -> None:
             return_value=[staged],
         ),
         patch.object(commit_router, "safe_commit", return_value=_FakeCommitResult()),
-        patch.object(commit_router, "_try_advance_ref"),
     ):
         result = commit_router.commit_for_mission(
             repo_root=tmp_path,

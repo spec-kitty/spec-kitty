@@ -63,7 +63,17 @@ class FeatureStatusLockTimeoutError(RuntimeError):
     ``timeout`` the budget that expired, and ``holder`` the recorded holder
     (``pid`` / ``thread`` / ``acquired_at``) when the holder's sidecar was
     readable, else ``None``. The message renders all three.
+
+    ``error_code`` (coord-artifact-single-home-01M3V4BE WP03): a stable
+    class-level code, matching the convention other spec-kitty errors expose
+    (e.g. ``ActionContextError.code``, ``StructuredError``-style errors'
+    ``error_code``), so a caller that does ``getattr(err, "error_code", ...)``
+    (the generic renderer idiom already used by ``tasks_mark_status.py`` /
+    ``next_cmd.py``) gets ``"STATUS_LOCK_HELD"`` instead of falling through to
+    a generic fallback. Additive: the message text is unchanged.
     """
+
+    error_code: str = "STATUS_LOCK_HELD"
 
     def __init__(
         self,

@@ -187,6 +187,25 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # single-row splice + write-and-commit critical section, mirroring
         # #4858 for the issue-matrix twin of the lost-update race.
         "specify_cli.cli.commands.agent.issue_verdict",
+        # coord-artifact-single-home-01M3V4BE WP07 (WP03 regression; ruling
+        # recorded at traces/design-decisions.md entry
+        # design-decisions-71f124fc4627): the single write-location
+        # accessor's one-time
+        # coordination seed (``coord_seed._seed_coord_surface``) composes
+        # ``feature_status_lock`` around a byte-level CARRY of events the
+        # root checkout already persisted onto the coordination branch
+        # (contracts/seed.md) -- it is not a transition emitter and never
+        # calls ``prepare_transition``/``validate_transition``. Routing it
+        # through either of the two emit-pipeline shells above would
+        # re-validate and re-stamp (new event_id/Lamport) every carried row,
+        # which breaks the event-id identity the seed's own fork/prefix
+        # check depends on (the merged root and coordination streams must
+        # agree on event_id, not merely on content). The lock composition
+        # here guards the SAME critical section (merge, write, commit) the
+        # two shells guard for a live transition; it is a third, narrower
+        # family (one-time administrative replay), not a third transition
+        # emitter.
+        "specify_cli.coordination.coord_seed",
     }
 )
 

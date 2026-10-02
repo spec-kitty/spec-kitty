@@ -1253,9 +1253,52 @@ def _seed_coord_wp_in_review(ctx: CoordTopologyContext, wp_id: str) -> None:
     fixture.py``'s module docstring) with a single, real, force-seeded
     ``in_review`` event on the COORD husk -- the same single-event seed shape
     every other cell in this file uses (``_seed_wp_event``), just written to
-    the coord husk's event log instead of a flat mission's."""
+    the coord husk's event log instead of a flat mission's.
+
+    **Re-pinned (coord-artifact-single-home-01M3V4BE WP08).** The base
+    ``_build_coord_topology`` fixture leaves the coord husk's ``kitty-specs/``
+    dir WHOLLY UNTRACKED (never ``git add``ed) with no seed trailer on the
+    coordination branch -- a deliberate pre-fix, decoy-vs-real DIVERGENCE
+    shape that exists for the OTHER (read-path) cells in this file, which
+    read the coord husk directly off disk and never touch ``write_dir``.
+    This helper's three callers (the review-cycle commit-to-coord-ref cell,
+    the neutered-commit red cell, and the revert cell) are different: they
+    drive ``create_rejected_review_cycle``, which now resolves its directory
+    through ``PlacementSeam.write_dir`` (WP08's single-home flip) -- and
+    ``write_dir`` runs a seed-time fork-safety check on this exact path for
+    the FIRST time (a pure ``read_dir`` resolution never ran it). Against the
+    base fixture's untracked, no-trailer, divergent-from-PRIMARY shape, that
+    check is RIGHT to see a genuine pre-fix fork and refuse
+    (``CoordSeedForkRefused`` is the ruled behaviour there -- a lockout that
+    only lifts for an already-materialized POST-FIX Mission).
+
+    So this helper now builds and COMMITS a POST-FIX (seed-trailer-bearing)
+    coordination surface instead of leaving the husk untracked: the whole
+    ``kitty-specs/<slug>/`` dir becomes tracked, so ``write_dir``'s
+    MATERIALIZED fast path (``_whole_dir_untracked_fast`` returns ``False``)
+    short-circuits before ever reaching the seed/fork check -- exactly the
+    steady state a real coordination-routed Mission reaches after its first
+    genuine write. The PRIMARY decoy (used by OTHER cells in this file) is
+    untouched; this leg never reads it, since the fast path never consults
+    PRIMARY at all.
+    """
+    from specify_cli.coordination.coord_seed import COORD_SEED_TRAILER
+
     ctx.status_events_path.unlink()
     _seed_wp_event(ctx.coord_feature_dir, wp_id, "in_review", seq=0)
+    coord_worktree_root = ctx.coord_feature_dir.parents[1]
+    subprocess.run(["git", "add", "-A"], cwd=coord_worktree_root, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "-m",
+            f"chore({ctx.slug}): seed coordination surface\n\n{COORD_SEED_TRAILER}: {ctx.mission_id}",
+        ],
+        cwd=coord_worktree_root,
+        check=True,
+        capture_output=True,
+    )
 
 
 def _disable_branch_protection_for_coord_cell(repo: Path) -> None:
@@ -1448,7 +1491,11 @@ def test_real_coord_topology_cell_reds_when_commit_artifact_is_neutered(
         destination_ref=ctx.coord_branch,
     )
     assert commit_hits == ["commit_artifact"]
-    assert (ctx.repo / evidence_ref).is_file(), payload
+    # coord-artifact-single-home-01M3V4BE WP08: the retained (uncommitted)
+    # evidence now lives under the coordination worktree -- never assumed to
+    # be ``ctx.repo`` directly (single-home: no PRIMARY staging copy).
+    coord_worktree_root = ctx.coord_feature_dir.parents[1]
+    assert (coord_worktree_root / evidence_ref).is_file(), payload
     assert _git_show(ctx.repo, ctx.coord_branch, evidence_ref).returncode != 0
     _assert_no_new_status_event(ctx.coord_feature_dir, event_ids_before)
     assert any("Failed to commit review-cycle" in r.message for r in caplog.records), (
@@ -1510,29 +1557,42 @@ def test_real_coord_topology_revert_deletes_and_commits_on_coord_ref(
     # field to read directly -- ``cycle_number`` is the checkable proxy for
     # "which write is the reader-visible latest", which is exactly what this
     # assertion is about: cycle-2's revert must not promote it over cycle-1.)
-    latest = ReviewCycleArtifact.latest(ctx.primary_feature_dir / "tasks" / "WP01")
+    # coord-artifact-single-home-01M3V4BE WP08: the review-cycle artifacts
+    # (both the pre-existing cycle-1 and the reverted cycle-2) now physically
+    # live under the coordination worktree -- never the PRIMARY feature dir
+    # (single-home: no PRIMARY staging copy).
+    latest = ReviewCycleArtifact.latest(ctx.coord_feature_dir / "tasks" / "WP01")
     assert latest is not None and latest.cycle_number == 1, (
         f"expected the pre-existing rejected cycle 1 to still be the reader-"
         f"visible latest after the coord-ref revert, got {latest!r}"
     )
 
-    # Coord worktree's tasks/ dir is clean after the revert-commit (no
-    # partially-reverted state) -- scoped to that subtree, not repo-wide: the
-    # fixture's own ``status.events.jsonl`` under the coord husk is
-    # deliberately left untracked by the builder (a different, unrelated
-    # concern -- see ``_build_coord_topology``'s own docstring) and would
-    # otherwise be a false positive here, mirroring ``test_move_task_
-    # durability.py``'s identical scoping choice for the single_branch case.
-    coord_tasks_rel = f"kitty-specs/{ctx.slug}/tasks"
-    coord_status = subprocess.run(
-        ["git", "status", "--porcelain", "--", coord_tasks_rel],
-        cwd=ctx.coord_feature_dir.parents[1],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    assert coord_status == "", (
-        f"coord worktree's tasks/ dir is not clean after the revert-commit:\n{coord_status}"
+    # Coord worktree's on-disk ``tasks/`` content is EXACTLY the pre-existing
+    # ``review-cycle-1.md`` local-only seed (``_seed_coord_rejected_cycle``
+    # passes ``commit_router=None`` -- deliberately never committed, matching
+    # every other cell's precondition) and nothing else -- no partially-
+    # reverted state (a leftover ``review-cycle-2.md``, or any other residue)
+    # from the revert-commit itself.
+    #
+    # Re-pinned (coord-artifact-single-home-01M3V4BE WP08, Standing Order 4):
+    # the prior ``git status --porcelain`` form asserted the subtree was
+    # BYTE-EMPTY of any change, which was true only because review-cycle-1.md
+    # physically lived on PRIMARY pre-WP08 and the coord worktree's ``tasks/``
+    # never existed at all there. Single-home write moves review-cycle-1.md's
+    # physical (uncommitted, local-only) home into THIS SAME coord worktree,
+    # so git now reports the whole untracked ``tasks/`` dir as one
+    # ``?? kitty-specs/<slug>/tasks/`` line by design -- a real, by-contract
+    # local-only artifact, not a revert leak. Listing the on-disk files keeps
+    # the assertion's original protective intent (no revert residue) without
+    # being fooled by directory collapsing the way a bare porcelain-emptiness
+    # check would be.
+    coord_tasks_dir = ctx.coord_feature_dir / "tasks"
+    on_disk = sorted(
+        str(path.relative_to(coord_tasks_dir)) for path in coord_tasks_dir.rglob("*") if path.is_file()
+    )
+    assert on_disk == ["WP01/review-cycle-1.md"], (
+        "coord worktree's tasks/ dir must carry ONLY the pre-existing "
+        f"local-only review-cycle-1.md seed after the revert-commit, got {on_disk}"
     )
 
 
@@ -2077,10 +2137,23 @@ def _sc004_pair_diagnostics(results: Sequence[_Sc004Result]) -> str:
     return json.dumps(projected, indent=2, sort_keys=True, default=repr)
 
 
-def _sc004_pointer_path(repo: Path, mission: str, pointer: str) -> Path:
+def _sc004_pointer_relpath(mission: str, pointer: str) -> str:
+    """The mission-relative (repo-root-relative, tree-relative) evidence path."""
     prefix = f"review-cycle://{mission}/"
     assert pointer.startswith(prefix), f"unstable evidence pointer: {pointer!r}"
-    return repo / "kitty-specs" / mission / "tasks" / pointer[len(prefix):]
+    return f"kitty-specs/{mission}/tasks/{pointer[len(prefix) :]}"
+
+
+def _sc004_pointer_path(repo: Path, mission: str, pointer: str) -> Path:
+    # coord-artifact-single-home-01M3V4BE WP08: the review-cycle artifact's
+    # physical write home is the checkout holding REVIEW_CYCLE's own governed
+    # ref (the coordination worktree for a coord-routed Mission, the
+    # repository-root checkout otherwise) -- never assumed to be ``repo``
+    # regardless of topology. ``write_dir`` is side-effect-free here: by the
+    # time this helper runs the coordination surface is already committed
+    # and materialized, so it only resolves the location (no seed/merge).
+    checkout_root = placement_seam(repo, mission).write_dir(MissionArtifactKind.REVIEW_CYCLE).checkout_root
+    return checkout_root / _sc004_pointer_relpath(mission, pointer)
 
 
 def _sc004_error_payload(result: _Sc004Result) -> dict[str, Any] | None:
@@ -2368,7 +2441,7 @@ def _sc004_committed_evidence(
         MissionArtifactKind.REVIEW_CYCLE
     ).ref
     shown = subprocess.run(
-        ["git", "show", f"{target_ref}:{evidence_path.relative_to(repo).as_posix()}"],
+        ["git", "show", f"{target_ref}:{_sc004_pointer_relpath(mission, pointer)}"],
         cwd=repo,
         capture_output=True,
         check=False,

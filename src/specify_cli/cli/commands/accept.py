@@ -7,12 +7,19 @@ import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, NoReturn
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
 import typer
 from rich.table import Table
-from kernel.git import GitCommandError, StatusEntry, changed_paths
+from kernel.git import StatusEntry
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode, TopologySurface
+
+if TYPE_CHECKING:
+    # WP16: annotation-only import (``from __future__ import annotations``
+    # keeps this cold at runtime) -- every real use of ``commit_router``
+    # stays function-local below, mirroring this module's established
+    # pattern for the ``coordination`` package.
+    from specify_cli.coordination.commit_router import CommitRouterResult
 
 from specify_cli.acceptance import (
     AcceptanceError,
@@ -26,6 +33,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.acceptance.ledger_dirt import mission_decision_ledger_files
 from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.config.path_conventions import PathConventionsConfigError
 from specify_cli.core.paths import assert_safe_path_segment
@@ -99,9 +107,19 @@ def _dirty_paths_with_prefix(status: Iterable[StatusEntry], prefix: str) -> list
 
 
 def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
-    """Return tracked-but-uncommitted spec/meta artifacts in the PRIMARY checkout."""
+    """Return tracked-but-uncommitted spec/meta artifacts in the PRIMARY checkout.
+
+    Also returns the current mission's dirty decision-ledger files -- including
+    an UNTRACKED new ``DM-*.md`` the tracked-only scan skips -- because accept is
+    a ledger committer (FR-009b / G1) and the dirty gate no longer blocks them.
+    """
     prefix = f"kitty-specs/{mission_slug}/"
-    return _dirty_paths_with_prefix(git_status_entries(repo_root), prefix)
+    dirty_entries = git_status_entries(repo_root)
+    dirty = _dirty_paths_with_prefix(dirty_entries, prefix)
+    for path in mission_decision_ledger_files(dirty_entries, repo_root=repo_root, mission_slug=mission_slug):
+        if path not in dirty:
+            dirty.append(path)
+    return dirty
 
 
 def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
@@ -154,33 +172,50 @@ def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, owned: Owne
     the caller actually writes keeps the site honest if the partition table ever
     splits them.
 
-    Routed through :meth:`~mission_runtime.PlacementSeam.read_dir` — the single
-    kind-aware placement authority — instead of re-deriving
-    ``<coord worktree>/kitty-specs/<slug>`` by hand. The hand-built join was also
-    latently wrong for identity-suffixed mission dirs (``<slug>-<mid8>``), which
-    the seam resolves correctly.
+    WP16 (FR-003, coord-artifact-single-home-01M3V4BE): the birth cutover is a
+    WRITE, so this now asks :meth:`~mission_runtime.PlacementSeam.write_dir`
+    rather than :meth:`~mission_runtime.PlacementSeam.read_dir`. The read
+    projection's declared EMPTY/UNMATERIALIZED-surface fallback to the PRIMARY
+    checkout (a sanctioned READ-side degrade, never meant for a write) used to
+    leak into this write call transitively, so a pre-fix or not-yet-materialised
+    coordination surface silently wrote the birth-cutover seed into the
+    repository-root checkout instead of its one true coordination home — the
+    exact single-home violation this mission exists to close. ``write_dir``
+    instead materialises an ``UNMATERIALIZED`` local-head worktree, seeds a
+    pre-fix ``EMPTY`` surface or restores a post-fix one, or refuses by raising
+    a named exception (never a silent primary substitution) — see the module
+    docstring of :meth:`~mission_runtime.PlacementSeam.write_dir` for the full
+    resolution order.
 
-    Returns ``None`` when the mission's ``STATUS_STATE`` surface is not ``COORD``
-    (coord-less topology, or a coordination worktree that is ``EMPTY`` /
-    ``UNMATERIALIZED``), preserving the pre-existing contract that
-    ``cutover_mission`` then collapses both legs onto the PRIMARY ``feature_dir``.
-    A ``DELETED`` coordination branch still raises
-    :class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted`
-    out of the surface resolver — accept must refuse rather than silently stamp a
-    stale primary (the same C3 "fail loud" posture as :func:`_coord_worktree_root`,
-    which the accept flow already hits earlier via :func:`_coord_dirty_paths`).
+    Returns ``None`` only when the mission's ``STATUS_STATE`` surface is
+    declared PRIMARY (a coord-less topology), preserving the pre-existing
+    contract that ``cutover_mission`` then collapses both legs onto the
+    PRIMARY ``feature_dir`` — there is no more EMPTY/UNMATERIALIZED ``None``
+    fallback for a coordination-routed Mission. For a coordination-routed
+    Mission, a ``DELETED`` coordination branch
+    (:class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted`),
+    a remote-only coordination branch
+    (:class:`~specify_cli.coordination.surface_resolver.CoordinationWorktreeUnmaterialized`),
+    a forked coordination log
+    (:class:`~specify_cli.coordination.coord_seed.CoordSeedForkRefused`), or a
+    held status lock
+    (:class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError`) all
+    propagate UNCHANGED out of this function (C3 "fail loud") — the caller,
+    :func:`_stamp_birth_cutover_for_accept`, converts each into an actionable
+    :class:`~specify_cli.acceptance.AcceptanceError` rather than crashing
+    unstructured or silently stamping a stale primary.
     """
-    from mission_runtime import placement_seam, resolve_artifact_surface
+    from mission_runtime import placement_seam
 
     # Guard the handle before it reaches the seam so both legs of the stamp carry
     # the same traversal check (the PRIMARY leg gets it from
     # ``primary_feature_dir_for_mission``).
     assert_safe_path_segment(mission_slug)
 
-    resolved = resolve_artifact_surface(repo_root, mission_slug, MissionArtifactKind.STATUS_STATE, owned=owned)
-    if resolved.surface_kind is not TopologySurface.COORD:
+    location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE)
+    if location.surface is not TopologySurface.COORD:
         return None
-    return placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
+    return location.path
 
 
 def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> list[str]:
@@ -295,7 +330,32 @@ def _stamp_birth_cutover_for_accept(
     # FR-003: ``owned`` is the fact the CLI edge validated, exactly once. This
     # function never re-validates from a bare root; a run with no fact is a
     # non-owned run and keeps the best-effort semantics below.
-    status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, owned=owned)
+    #
+    # WP16: ``_coord_status_feature_dir`` now asks ``write_dir`` (a WRITE
+    # resolution), which can refuse with two refusals a pre-WP16 ``read_dir``
+    # call never raised: a remote-only coordination branch
+    # (``CoordinationWorktreeUnmaterialized``, #4970 parity) and a forked
+    # coordination log (``CoordSeedForkRefused``) -- plus a held status lock
+    # (``FeatureStatusLockTimeoutError``). All three are converted into an
+    # actionable ``AcceptanceError`` here (T089) instead of crashing
+    # unstructured. ``CoordinationBranchDeleted`` is UNCHANGED -- the
+    # pre-existing fail-loud contract
+    # (``test_stamp_birth_cutover_resolves_primary_dir_regardless_of_coord_state``'s
+    # own docstring: "fail-loud is the intended contract for a real accept-time
+    # cutover, not a diagnostic") -- and still propagates raw.
+    from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        CoordinationWorktreeUnmaterialized,
+    )
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
+    try:
+        status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, owned=owned)
+    except CoordinationBranchDeleted:
+        raise
+    except (CoordinationWorktreeUnmaterialized, CoordSeedForkRefused, FeatureStatusLockTimeoutError) as exc:
+        raise AcceptanceError(f"Coordination status surface refused for {mission_slug} while stamping the birth cutover: {exc}") from exc
 
     try:
         result = stamp_accept_cutover(feature_dir, status_feature_dir=status_feature_dir, owned=owned)
@@ -357,106 +417,167 @@ def _record_pr_merge_for_accept(
     )
 
 
-def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
-    """Stage and commit leftover PRIMARY-checkout acceptance artifacts.
+def _residual_commit_files(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    primary_dirty: list[str],
+    coord_dirty: list[str],
+    owned: OwnedCheckout | None,
+) -> tuple[Path, ...]:
+    """Build the ONE absolute-path batch both residual legs feed to the router.
 
-    Byte-identical to the pre-WP02 direct-commit behaviour (DoD: "keep
-    PRIMARY-kind residuals working") — these files already live in ``repo_root``,
-    so a raw scoped commit on the current branch is safe regardless of the
-    mission's declared ``target_branch`` (unlike ``commit_for_mission``, which
-    resolves a kind-aware placement that may differ from HEAD, see
-    ``_commit_coord_residuals``).
+    WP16 (FR-005, research D9): primary-checkout dirt resolves against
+    ``repo_root`` (where it physically lives); coordination-worktree dirt
+    resolves against the COORDINATION worktree root (``_coord_worktree_root``),
+    never joined onto ``repo_root`` -- that join (the retired L427 bug) handed
+    the router non-existent root-relative paths for files that only exist in
+    the coordination worktree, which is why the coordination leg silently
+    no-opped before this WP. Passing each leg's paths already resolved against
+    the checkout they actually live in makes the coordination paths land
+    ``IN_PLACE`` in :func:`~specify_cli.coordination.commit_router
+    ._materialise_coord_worktree`'s staging classification -- no ``copy2``
+    overwrite risk, by construction (binding correction
+    ``plan.design.owning-copy-flip-allocation``).
     """
-    for path in dirty:
-        run_git(["add", path], cwd=repo_root, check=True)
-
-    # Scope the staged-check and the commit to the mission's dirty artifacts
-    # only. A bare ``git commit`` would sweep in any files the operator had
-    # pre-staged outside the mission dir; the explicit ``-- <paths>`` pathspec
-    # commits exactly these spec/meta artifacts and leaves unrelated staged work
-    # untouched.
-    try:
-        staged_files = changed_paths(repo_root, cached=True, renames=True, pathspecs=dirty)
-    except GitCommandError as exc:
-        # Guard: "nothing staged" skips the commit, so a failed probe must abort.
-        raise TaskCliError(str(exc)) from exc
-    if not staged_files:
-        return False
-
-    run_git(
-        ["commit", "-m", f"Finalize acceptance artifacts for {mission_slug}", "--", *dirty],
-        cwd=repo_root,
-        check=True,
-    )
-    return True
+    files: tuple[Path, ...] = tuple(repo_root / path for path in primary_dirty)
+    if not coord_dirty:
+        return files
+    coord_worktree_root = _coord_worktree_root(repo_root, mission_slug, owned=owned)
+    if coord_worktree_root is None:
+        # Defensive only: ``_coord_dirty_paths`` itself resolves
+        # ``_coord_worktree_root`` and returns ``[]`` whenever it is ``None``,
+        # so ``coord_dirty`` is non-empty here precisely when this is not
+        # ``None`` either. Kept so a future caller that hands this helper a
+        # pre-computed ``coord_dirty`` list fails closed instead of silently
+        # dropping coordination residuals.
+        return files
+    return files + tuple(coord_worktree_root / path for path in coord_dirty)
 
 
-def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
-    """Route coordination-partition residuals through the partition-aware seam.
+class ResidualCommitError(TaskCliError):
+    """Raised by :func:`_run_residual_acceptance_commit` when any surface is refused/error.
 
-    T007: these files physically live in the coordination worktree (M2), which
-    a primary-rooted raw ``git commit`` structurally cannot reach. Routes
-    through :func:`~specify_cli.coordination.write_seam.write_artifact` (WP04 /
-    T017, write-side-seam-matrix-tracer-01KYP3MH) — the WP03 seam wrapping the
-    SAME single canonical commit entry point ``spec_commit_cmd.py`` /
-    ``mission_finalize.py`` use (``commit_for_mission``), adding FR-011's
-    structured zero-write refusal on top. Files are NOT hand-classified here:
-    the router's own ``kind_for_mission_file`` classification (contracts/
-    partition-aware-commit-seam.md) resolves each file's placement and
-    materialises the coordination worktree on demand; ``ACCEPTANCE_MATRIX``
-    only seeds the fallback for an unrecognised path and which group's outcome
-    is reported. This IS the real accept-commit boundary that persists the
-    T016 recomputed ``overall_verdict`` write gates_core.py leaves on disk.
+    Carries the :class:`~specify_cli.coordination.commit_router.CommitRouterResult`
+    so the CLI boundary can render ``residual_commit.surfaces`` on the FAILURE
+    arm too (B3, cycle 2 review) -- not just the success arm T087 already covered.
     """
-    from specify_cli.coordination.write_seam import WriteSeamResult, write_artifact
+
+    def __init__(self, message: str, *, result: CommitRouterResult) -> None:
+        super().__init__(message)
+        self.result = result
+
+
+def _format_residual_failure_detail(result: CommitRouterResult) -> str:
+    """Render *result* for a :class:`ResidualCommitError` message (B2, cycle 2 review).
+
+    ``render_commit_outcome`` alone prints only ``path: reason`` for a named
+    refused/error path -- a bare machine code like ``error``, never the
+    ACTIONABLE diagnostic text a lower-level primitive (e.g. ``safe_commit``'s
+    ``SafeCommitHeadMismatch``: "HEAD is 'other', expected 'topic'. Run git
+    checkout topic first.") attaches to ``SurfaceOutcome.diagnostic``. This
+    appends every non-empty refused/error surface diagnostic so the operator
+    sees the actionable instruction, not just the bare reason code.
+    """
+    from specify_cli.coordination.commit_outcome import render_commit_outcome
+
+    parts = list(render_commit_outcome(result))
+    for surface in result.surfaces:
+        if surface.status in ("refused", "error") and surface.diagnostic:
+            detail_line = f"{surface.surface} ({surface.branch}): {surface.diagnostic}"
+            if detail_line not in parts:
+                parts.append(detail_line)
+    return "; ".join(parts) if parts else (result.diagnostic or "unknown error")
+
+
+def _run_residual_acceptance_commit(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> CommitRouterResult | None:
+    """Commit BOTH residual legs through the ONE router call (FR-005, C-001).
+
+    Replaces the retired two-mechanism split (a raw ``git commit`` for
+    PRIMARY-checkout residuals, a separate ``write_artifact`` call for
+    coordination-worktree residuals): this WP removes the raw commit
+    entirely and routes every dirty mission path -- from either checkout --
+    through :func:`~specify_cli.coordination.commit_router.commit_for_mission`
+    in one call. The router's own ``_group_files_by_partition`` groups the
+    batch by partition and commits each group to its own resolved surface
+    (R9 -- the SAME per-path verdict the dirty gate consults via
+    :func:`~specify_cli.coordination.commit_router.partition_for_mission_path`),
+    so neither leg is hand-classified here.
+
+    Decision ``plan.design.accept-primary-leg-ref``: when HEAD is unprotected,
+    the PRIMARY residual leg commits on that same branch (the branch
+    ``_commit_acceptance_meta`` uses for its raw commit). The branch is passed
+    as ``commit_for_mission``'s ``primary_ref``, which retargets only the
+    PRIMARY group. ``target_branch`` is left unset so this accept-only
+    override does not change ``spec-commit`` or write-seam callers. A
+    protected HEAD does not override: the router's
+    protected-branch guard still applies to the stored target. Coordination
+    groups are unaffected.
+
+    Returns ``None`` when neither checkout has any residual dirt (the
+    bool wrapper, :func:`_commit_residual_acceptance_artifacts`, reports that
+    as ``False``). Raises :class:`ResidualCommitError` (carrying the result,
+    B3) naming every refused/error surface's diagnostic (B2) when any
+    surface comes back ``refused`` or ``error``.
+    """
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.core.git_ops import get_current_branch
     from specify_cli.git.protection_policy import ProtectionPolicy
-    from mission_runtime import MissionArtifactKind
 
+    primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
+    coord_dirty = _coord_dirty_paths(repo_root, mission_slug, owned=owned)
+    if not primary_dirty and not coord_dirty:
+        return None
+
+    files = _residual_commit_files(repo_root, mission_slug, primary_dirty=primary_dirty, coord_dirty=coord_dirty, owned=owned)
     policy = ProtectionPolicy.resolve(repo_root)
-    files = tuple(repo_root / path for path in dirty)
-    result: WriteSeamResult = write_artifact(
-        repo_root=repo_root,
-        mission_slug=mission_slug,
+    current_branch = get_current_branch(repo_root)
+    primary_ref = current_branch if current_branch and not policy.is_protected(current_branch) else None
+    result = commit_for_mission(
+        repo_root,
+        mission_slug,
+        files,
+        f"Finalize acceptance artifacts for {mission_slug}",
+        policy,
         kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
-        files=files,
-        message=f"Finalize acceptance artifacts for {mission_slug}",
-        policy=policy,
-        entry_id=mission_slug,
+        primary_ref=primary_ref,
+        owned=owned,
     )
 
-    if result.status in ("error", "refused"):
-        raise TaskCliError(
-            f"Residual coordination artifact commit failed for {mission_slug} ({result.destination_surface}): {result.diagnostic or 'unknown error'}"
-        )
-    return bool(result.status == "committed")
+    if any(surface.status in ("refused", "error") for surface in result.surfaces):
+        detail = _format_residual_failure_detail(result)
+        raise ResidualCommitError(f"Residual acceptance artifact commit failed for {mission_slug}: {detail}", result=result)
+    return result
 
 
 def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> bool:
     """Stage and commit any leftover acceptance artifacts so the tree is clean.
 
-    Returns True when a follow-up commit was created. This preserves the
-    recorded ``accept_commit`` SHA (it still points at the real acceptance
-    commit) while guaranteeing a successful ``accept`` leaves no
-    staged-but-uncommitted or modified-unstaged spec/meta artifacts behind.
+    Returns True when a follow-up commit was created on at least one surface.
+    This preserves the recorded ``accept_commit`` SHA (it still points at the
+    real acceptance commit) while guaranteeing a successful ``accept`` leaves
+    no staged-but-uncommitted or modified-unstaged spec/meta artifacts behind
+    (modulo a root-checkout COORD-record copy, reported skipped -- never
+    committed to the target, see :func:`_run_residual_acceptance_commit`'s
+    ``COORD_RECORD_IN_ROOT_CHECKOUT`` fate).
 
-    T007/T008: dirt is now detected on BOTH the primary checkout and (under
-    coordination topology) the coordination worktree, and each surface commits
-    through the mechanism that can actually reach it — coordination residuals
-    via the partition-aware ``commit_for_mission`` seam, primary residuals via
-    the historical direct commit. A batch mixing both commits to each surface
-    independently (never a single cross-worktree commit, which git cannot do).
+    Kept as a ``bool`` return (operator decision, brownfield scout round 3):
+    ``test_accept_decomposition.py`` monkeypatches this name and asserts the
+    bool contract, and the CI-owned ``test_accept_matrix_coord_partition.py``
+    asserts ``created is True`` against the real function. The detailed
+    :class:`~specify_cli.coordination.commit_router.CommitRouterResult` (for
+    JSON/text rendering) lives on the private
+    :func:`_run_residual_acceptance_commit` helper this wrapper calls.
     """
-    coord_dirty = _coord_dirty_paths(repo_root, mission_slug, owned=owned)
-    primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
-    if not coord_dirty and not primary_dirty:
+    result = _run_residual_acceptance_commit(repo_root, mission_slug, owned=owned)
+    if result is None:
         return False
-
-    committed = False
-    if coord_dirty:
-        committed = _commit_coord_residuals(repo_root, mission_slug, coord_dirty) or committed
-    if primary_dirty:
-        committed = _commit_primary_residuals(repo_root, mission_slug, primary_dirty) or committed
-    return committed
+    return any(surface.status == "committed" for surface in result.surfaces)
 
 
 def _print_acceptance_warnings(summary: AcceptanceSummary) -> None:
@@ -741,21 +862,51 @@ class _FinalizeOutcome:
     pr_merge_exc: Exception | None = None
     residue_exc: Exception | None = None
     pr_merge_recorded: bool = False
+    #: T087: the router result behind the residual-artifacts commit, when one
+    #: ran (``None`` when neither checkout had any residual dirt). Threaded
+    #: through to ``_render_accept_result`` so ``--json`` can add
+    #: ``residual_commit.surfaces`` and text output can render the same
+    #: per-surface lines through the shared renderer (contract rule 6).
+    residual_commit_result: CommitRouterResult | None = None
 
 
-def _report_error(json_output: bool, message: str, *, tracker: StepTracker | None = None, step: str | None = None) -> None:
+def _report_error(
+    json_output: bool,
+    message: str,
+    *,
+    tracker: StepTracker | None = None,
+    step: str | None = None,
+    extra_json: dict[str, object] | None = None,
+) -> None:
     """Emit one error on the active output lane (JSON envelope or console).
 
     When ``tracker`` and ``step`` are given, the human lane also marks that
-    step failed and renders the tracker first.
+    step failed and renders the tracker first. ``extra_json`` merges additive
+    keys into the ``--json`` failure envelope (B3, cycle 2 review) --
+    ``residual_commit.surfaces`` on a residual-commit failure, so the
+    per-surface outcome is not lost behind the flattened error string.
+
+    B3 (cycle 2 review): ``message`` can embed ``render_commit_outcome``
+    lines and raw diagnostic text from an arbitrary lower-level git error
+    (e.g. a stray ``[/red]``), which would otherwise corrupt or crash Rich's
+    markup parser (``MarkupError``) when interpolated into ``[red]Error:
+    [/red] {message}`` or a tracker detail. ``rich.markup.escape`` makes the
+    text literal on BOTH the console line and the tracker, mirroring the
+    pattern WP10 cycle 2 established for ``render_commit_outcome`` consumers.
     """
     if json_output:
-        print(json.dumps({"error": message}))
+        payload: dict[str, object] = {"error": message}
+        if extra_json:
+            payload.update(extra_json)
+        print(json.dumps(payload))
         return
+    from rich.markup import escape
+
+    safe_message = escape(message)
     if tracker is not None and step is not None:
-        tracker.error(step, message)
+        tracker.error(step, safe_message)
         console.print(tracker.render())
-    console.print(f"[red]Error:[/red] {message}")
+    console.print(f"[red]Error:[/red] {safe_message}")
 
 
 def _fail(
@@ -765,9 +916,10 @@ def _fail(
     code: int = 1,
     tracker: StepTracker | None = None,
     step: str | None = None,
+    extra_json: dict[str, object] | None = None,
 ) -> NoReturn:
     """Emit one error and exit with ``code``."""
-    _report_error(json_output, message, tracker=tracker, step=step)
+    _report_error(json_output, message, tracker=tracker, step=step, extra_json=extra_json)
     raise typer.Exit(code)
 
 
@@ -1065,7 +1217,13 @@ def _run_post_acceptance_steps(run: _AcceptRun, outcome: _FinalizeOutcome, pr_me
     # them into a follow-up commit so all writing exit paths (including
     # error paths and accept_commit == None) leave a clean working tree.
     try:
-        _commit_residual_acceptance_artifacts(run.repo_root, run.mission_slug, owned=run.owned)
+        outcome.residual_commit_result = _run_residual_acceptance_commit(run.repo_root, run.mission_slug, owned=run.owned)
+    except ResidualCommitError as residue_exc:
+        # B3 (cycle 2 review): keep the merged result even on failure so the
+        # CLI boundary can still render ``residual_commit.surfaces`` -- not
+        # just flatten everything into the error string.
+        outcome.residue_exc = residue_exc
+        outcome.residual_commit_result = residue_exc.result
     except Exception as residue_exc:
         outcome.residue_exc = residue_exc
 
@@ -1117,11 +1275,17 @@ def _raise_on_finalize_errors(run: _AcceptRun, outcome: _FinalizeOutcome) -> Acc
     if outcome.pr_merge_exc is not None:
         _fail(run.json_output, f"PR merge recording failed: {outcome.pr_merge_exc}")
     if outcome.residue_exc is not None:
+        extra_json: dict[str, object] | None = None
+        if outcome.residual_commit_result is not None:
+            from specify_cli.coordination.commit_outcome import commit_outcome_payload
+
+            extra_json = {"residual_commit": commit_outcome_payload(outcome.residual_commit_result)}
         _fail(
             run.json_output,
             f"Residual artifact commit failed: {outcome.residue_exc}",
             tracker=run.tracker if run.commit_required else None,
             step="commit",
+            extra_json=extra_json,
         )
     return result
 
@@ -1142,9 +1306,29 @@ def _note_pr_merge_outcome(result: AcceptanceResult, pr_merge: _PrMergeRequest |
         result.notes.append("--merge-commit verified against this repository; re-run without --no-commit to record it as the review baseline")
 
 
-def _render_accept_result(run: _AcceptRun, result: AcceptanceResult) -> None:
+def _render_accept_result(
+    run: _AcceptRun,
+    result: AcceptanceResult,
+    *,
+    residual_commit_result: CommitRouterResult | None = None,
+) -> None:
+    """Render the acceptance result, plus the residual commit's per-surface outcome (T087).
+
+    ``residual_commit_result`` is additive on both lanes: ``None`` (no
+    residual dirt was found) changes nothing from before this WP. When
+    present, ``--json`` gains a ``residual_commit.surfaces`` key
+    (contracts/commit-outcome.md) and text output gains one line per
+    surface, then one per named path, through the shared
+    :func:`~specify_cli.coordination.commit_outcome.render_commit_outcome` —
+    never formatted by hand here (contract rule 6).
+    """
     if run.json_output:
-        print(json.dumps(_with_advisories(result.to_dict(), [run.provenance_note]), indent=2))
+        payload = _with_advisories(result.to_dict(), [run.provenance_note])
+        if residual_commit_result is not None:
+            from specify_cli.coordination.commit_outcome import commit_outcome_payload
+
+            payload["residual_commit"] = commit_outcome_payload(residual_commit_result)
+        print(json.dumps(payload, indent=2))
         return
     run.tracker.start("guide")
     run.tracker.complete("guide", "instructions ready")
@@ -1152,6 +1336,12 @@ def _render_accept_result(run: _AcceptRun, result: AcceptanceResult) -> None:
 
     _print_acceptance_summary(result.summary)
     _print_acceptance_result(result)
+
+    if residual_commit_result is not None:
+        from specify_cli.coordination.commit_outcome import render_commit_outcome
+
+        for line in render_commit_outcome(residual_commit_result):
+            console.print(line, markup=False)
 
 
 def accept(
@@ -1255,7 +1445,7 @@ def accept(
     outcome = _perform_and_finalize(run, summary, actor=actor, tests=test, pr_merge=pr_merge)
     result = _raise_on_finalize_errors(run, outcome)
     _note_pr_merge_outcome(result, pr_merge, recorded=outcome.pr_merge_recorded)
-    _render_accept_result(run, result)
+    _render_accept_result(run, result, residual_commit_result=outcome.residual_commit_result)
 
 
 __all__ = ["accept"]

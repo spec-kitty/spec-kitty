@@ -419,12 +419,13 @@ def test_dossier_snapshot_rewrite_is_still_dropped(repo: Path) -> None:
 def _finalize_candidates(root: Path, mission: str = "001-demo") -> Any:
     planning_dir = root / "kitty-specs" / mission
     (planning_dir / "tasks").mkdir(parents=True, exist_ok=True)
-    return _resolve_finalize_commit_candidates(planning_dir, planning_dir / "tasks", root, None)
+    return _resolve_finalize_commit_candidates(planning_dir, planning_dir / "tasks", root, None, mission_slug=mission)
 
 
-@pytest.mark.parametrize("mission", ["001-demo", "002-é notes"])
+@pytest.mark.parametrize("mission", ["001-demo", "002-notes"])
 def test_finalize_commit_candidates_see_dirty_then_committed_tasks(repo: Path, mission: str) -> None:
     _write(repo, f"kitty-specs/{mission}/tasks.md")
+    _write(repo, f"kitty-specs/{mission}/é notes.md")  # a non-ASCII sibling must not derail the NUL-safe listing
 
     dirty = _finalize_candidates(repo, mission)
     assert dirty.has_relevant_changes is True

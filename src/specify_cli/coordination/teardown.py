@@ -97,24 +97,37 @@ class ProjectionTeardownAbort(RuntimeError):
 
     error_code = "PROJECTION_TEARDOWN_ABORTED"
 
+    #: WP17 (FR-009c, #5023): the default remedy for a moved/unreachable
+    #: coordination tip. ``COORDINATION_LEDGER_UNREPAIRED`` overrides this
+    #: with the actual remedy (``doctor decisions --repair``), via the kw-only
+    #: ``remedy`` override below -- existing callers (no override) are
+    #: byte-identical to before.
+    _DEFAULT_REMEDY = "re-run the merge (`spec-kitty consolidate --resume`)"
+
     def __init__(
         self,
         *,
         reason: str,
         coord_ref: str,
-        expected_sha: str,
+        expected_sha: str | None = None,
         actual_sha: str | None = None,
+        error_code: str | None = None,
+        remedy: str | None = None,
     ) -> None:
         self.reason = reason
         self.coord_ref = coord_ref
         self.expected_sha = expected_sha
         self.actual_sha = actual_sha
-        moved = f" (expected {expected_sha[:12]}, found {actual_sha[:12]})" if actual_sha is not None else ""
+        if error_code is not None:
+            # Instance-level override (WP17): the class attribute stays the
+            # default for every pre-existing caller that omits it.
+            self.error_code = error_code
+        moved = f" (expected {expected_sha[:12]}, found {actual_sha[:12]})" if expected_sha is not None and actual_sha is not None else ""
+        remedy_text = remedy if remedy is not None else self._DEFAULT_REMEDY
         super().__init__(
             f"Refusing coordination teardown for {coord_ref!r}: {reason}{moved}. "
-            "Nothing was torn down and no refs/worktrees were mutated. Resolve the "
-            "coordination-surface issue, then re-run the merge (`spec-kitty consolidate "
-            "--resume`)."
+            f"Nothing was torn down and no refs/worktrees were mutated. Resolve the "
+            f"coordination-surface issue, then {remedy_text}."
         )
 
 
@@ -133,6 +146,40 @@ def _current_coord_ref_sha(repo_root: Path, coord_ref: str) -> str:
         cwd=repo_root,
     )
     return out.strip() if ret == 0 and out.strip() else ""
+
+
+def _enforce_coordination_ledger_repaired(repo_root: Path, mission_slug: str, coord_ref: str) -> None:
+    """WP17 (FR-009c, #5023): refuse to destroy a coordination branch that holds the
+    only copy of the decision ledger (``decisions/index.json`` / ``DM-*.md``).
+
+    The bookkeeping-projection teardown path excludes PRIMARY kinds
+    (``bookkeeping_projection.py``), so a pre-fix ledger committed only on
+    the coordination branch would otherwise be silently lost at teardown.
+    Checked BEFORE the projection gate and before persist/destroy (this
+    function's only caller runs at the very top of
+    :func:`teardown_coordination_topology`), so a refusal here mutates
+    NOTHING -- the coordination branch/marker/worktree survive as one
+    coupled triple, same invariant as every other
+    :class:`ProjectionTeardownAbort`.
+
+    Late-imported (module docstring: acyclic-import discipline --
+    ``coordination`` keeps only stdlib imports at the top).
+    """
+    from specify_cli.decisions.fork import coordination_only_ledger, ledger_is_coordination_only  # noqa: PLC0415
+
+    ledger = coordination_only_ledger(repo_root, mission_slug)
+    if not ledger_is_coordination_only(ledger):
+        return
+    raise ProjectionTeardownAbort(
+        reason=(
+            f"the decisions ledger for {mission_slug!r} exists only on this coordination branch "
+            f"({len(ledger.entries_only_on_coordination)} index entr(ies), "
+            f"{len(ledger.dm_files_only_on_coordination)} DM file(s))"
+        ),
+        coord_ref=coord_ref,
+        error_code="COORDINATION_LEDGER_UNREPAIRED",
+        remedy=f"run `spec-kitty doctor decisions --mission {mission_slug} --repair`",
+    )
 
 
 def _enforce_projection_teardown_gate(repo_root: Path, gate: ProjectionTeardownGate) -> None:
@@ -192,9 +239,7 @@ def _persist_retrospective(
     )
 
 
-def _destroy_coordination_worktree(
-    repo_root: Path, mission_slug: str, mid8: str
-) -> bool:
+def _destroy_coordination_worktree(repo_root: Path, mission_slug: str, mid8: str) -> bool:
     """Destroy the coordination worktree (best-effort). Returns ``True`` on success.
 
     Wraps ``CoordinationWorkspace.teardown`` in the best-effort ``except
@@ -280,6 +325,17 @@ def teardown_coordination_topology(
         unexpected persist-machinery error surfaces to the caller rather than
         being silently absorbed as "teardown was best-effort".
     """
+    if mid8:
+        # WP17 (FR-009c): checked FIRST, before the projection gate and
+        # before persist/destroy — a refusal here (like every
+        # ProjectionTeardownAbort) mutates nothing. ``mid8`` empty means the
+        # mission never had a coordination worktree/branch (legacy), so
+        # there is no ledger home to protect.
+        from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
+
+        coord_ref = CoordinationWorkspace.branch_name(mission_slug, mid8)
+        _enforce_coordination_ledger_repaired(repo_root, mission_slug, coord_ref)
+
     if projection_gate is not None:
         # Fail-closed BEFORE persist/destroy — an aborted gate mutates nothing.
         _enforce_projection_teardown_gate(repo_root, projection_gate)

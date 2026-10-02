@@ -157,6 +157,16 @@ def test_fallback_fails_loud_for_stored_coord_when_worktree_unresolvable(
     coord branch exists; only a genuinely coord-less topology may take the primary
     path. The coord-less primary path is still covered by
     ``test_fallback_preserves_primary_for_flat_topology`` above.
+
+    WP07 re-pin (coord-artifact-single-home-01M3V4BE): the coordination arm
+    now resolves through the single write-location accessor
+    (``placement_seam(...).write_dir``), whose MATERIALIZED fast path never
+    calls ``CoordinationWorkspace.resolve`` at all when the coord Mission dir
+    already has tracked content (the ``materialize_coord=True`` shape this
+    test previously built: a worktree eagerly resolved from a branch whose
+    tip already carries the committed Mission dir). The monkeypatched
+    ``resolve`` failure below is only reachable while the coord state is
+    genuinely UNMATERIALIZED, so this fixture no longer pre-materializes.
     """
     repo_root, mission_slug = _build_mission_repo(
         tmp_path,
@@ -164,7 +174,6 @@ def test_fallback_fails_loud_for_stored_coord_when_worktree_unresolvable(
         coord=True,
         mission_slug="write-authority-unresolvable",
         wp_lane="planned",
-        materialize_coord=True,
     )
     feature_dir = repo_root / "kitty-specs" / mission_slug
 

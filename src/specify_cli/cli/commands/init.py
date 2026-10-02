@@ -87,6 +87,13 @@ _ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec
 # Filename-anchored (never `tasks/*.md`), so `tasks/<wp>/baseline-tests.json`
 # and `tasks/WP*.md` are unaffected.
 _REVIEW_CYCLE_GITATTRIBUTES_ENTRY = "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
+# coord-artifact-single-home-01M3V4BE WP11 (FR-009b / D13 / #5023): once the
+# decisions/index.json ledger becomes a PRIMARY-partition record (WP12), it
+# travels with lane/mission branches like the other bookkeeping artifacts
+# above, so it needs the same union-merge wiring. ``DM-<ulid>.md`` artifacts
+# get no driver: they are ULID-named, one file per decision, so they cannot
+# collide.
+_DECISION_INDEX_GITATTRIBUTES_ENTRY = "kitty-specs/**/decisions/index.json merge=spec-kitty-decision-index"
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _PENDING_COMMAND_SKILLS = ".kittify/init-command-skills.pending.json"
 
@@ -466,6 +473,7 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
         _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY,
         _ISSUE_MATRIX_GITATTRIBUTES_ENTRY,
         _REVIEW_CYCLE_GITATTRIBUTES_ENTRY,
+        _DECISION_INDEX_GITATTRIBUTES_ENTRY,
         *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES,
     )
     missing = [entry for entry in required_entries if entry not in lines]

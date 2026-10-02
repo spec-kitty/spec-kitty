@@ -112,6 +112,10 @@ class Harness:
     stamp_error: Exception | None = None
     pr_merge_error: Exception | None = None
     residual_error: Exception | None = None
+    #: T087: when set, ``residual()`` returns THIS instead of ``None`` --
+    #: lets a test synthesise a ``CommitRouterResult`` with ``surfaces`` to
+    #: pin the ``--json``/text rendering without a real git-backed commit.
+    residual_result: object | None = None
 
     def invoke(self, *args: str, json_output: bool = True) -> Any:
         argv = [*args, *(["--json"] if json_output else [])]
@@ -153,10 +157,16 @@ class Harness:
         self.calls.append("record_pr_merge")
         _raise_if(self.pr_merge_error)
 
-    def residual(self, *_args: object, **_kwargs: object) -> bool:
+    def residual(self, *_args: object, **_kwargs: object) -> object | None:
+        # WP16: ``_run_post_acceptance_steps`` now calls the detailed
+        # ``_run_residual_acceptance_commit`` (``CommitRouterResult | None``)
+        # directly rather than the ``bool`` wrapper, so this fake is patched
+        # onto THAT name (see ``harness`` below). ``None`` mirrors the
+        # bool-``False`` "nothing to commit" case these tests only ever
+        # needed (none assert the detailed result shape here).
         self.calls.append("residual")
         _raise_if(self.residual_error)
-        return False
+        return self.residual_result
 
     def validate_ownership(self, *_args: object, **_kwargs: object) -> object | None:
         _raise_if(self.entry_error)
@@ -199,7 +209,11 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Harness:
     monkeypatch.setattr(accept_module, "resolve_acceptance_actor", lambda _actor: "tester")
     monkeypatch.setattr(accept_module, "_stamp_birth_cutover_for_accept", h.stamp)
     monkeypatch.setattr(accept_module, "_record_pr_merge_for_accept", h.record_pr_merge)
-    monkeypatch.setattr(accept_module, "_commit_residual_acceptance_artifacts", h.residual)
+    # WP16: ``_run_post_acceptance_steps`` calls the detailed
+    # ``_run_residual_acceptance_commit`` directly (not the ``bool`` wrapper)
+    # so it can thread the ``CommitRouterResult`` through to ``--json``/text
+    # rendering; patch that name instead.
+    monkeypatch.setattr(accept_module, "_run_residual_acceptance_commit", h.residual)
     _patch_owned_entry(monkeypatch, h)
     return h
 
@@ -363,6 +377,225 @@ class TestPerformAndFinalize:
         assert result.exit_code == 0, result.output
         assert harness.calls == ["perform_acceptance", "stamp", "residual"]
         assert "Acceptance metadata" in _flat(result.output)
+
+    def test_residual_commit_surfaces_rendered_in_json(self, harness: Harness) -> None:
+        """T087: ``--json`` gains ``residual_commit.surfaces`` additively when a residual commit ran."""
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+        from specify_cli.coordination.commit_router import CommitRouterResult
+
+        harness.residual_result = CommitRouterResult(
+            status="committed",
+            placement_ref="topic",
+            commit_hash="abc1234",
+            surfaces=(SurfaceOutcome(surface="primary", branch="topic", status="committed", commit_hash="abc1234", committed=("kitty-specs/m/spec.md",)),),
+        )
+        result = harness.invoke("--mission", _SLUG)
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["residual_commit"]["surfaces"] == [
+            {
+                "surface": "primary",
+                "branch": "topic",
+                "status": "committed",
+                "commit_hash": "abc1234",
+                "committed": ["kitty-specs/m/spec.md"],
+                "skipped": [],
+                "refused": [],
+                "diagnostic": None,
+            }
+        ]
+
+    def test_residual_commit_surfaces_rendered_in_text_is_markup_safe(self, harness: Harness) -> None:
+        """T087: a diagnostic containing rich markup syntax never corrupts the console render.
+
+        ``[/red]`` inside an interpolated diagnostic string would close an
+        unopened rich markup tag if printed with markup enabled; rendering
+        through ``console.print(line, markup=False)`` must show it literally.
+        """
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+        from specify_cli.coordination.commit_router import CommitRouterResult
+
+        dangerous_diagnostic = "status.events.jsonl: STATUS_LOCK_HELD [/red] still injected"
+        harness.residual_result = CommitRouterResult(
+            status="error",
+            placement_ref="kitty/mission-m-01ABCDEF",
+            surfaces=(
+                SurfaceOutcome(
+                    surface="coordination",
+                    branch="kitty/mission-m-01ABCDEF",
+                    status="error",
+                    commit_hash=None,
+                    diagnostic=dangerous_diagnostic,
+                ),
+            ),
+        )
+        result = harness.invoke("--mission", _SLUG, json_output=False)
+        assert result.exception is None, result.output
+        assert dangerous_diagnostic in result.output
+
+    def test_residual_refused_coordination_surface_fails_even_with_a_committed_primary(self, harness: Harness) -> None:
+        """Mutation-sensitive: primary ``committed`` + coordination ``refused`` must still exit non-zero.
+
+        ``_run_residual_acceptance_commit`` itself raises when ANY surface is
+        refused/error (even alongside an unrelated committed surface) -- this
+        pins that the CLI's error lane actually surfaces it, not merely that
+        the router computed it.
+        """
+        harness.residual_error = TaskCliError(
+            "Residual acceptance artifact commit failed for m: "
+            "✓ primary (topic): committed abc1234 — 1 files; "
+            "✗ coordination (kitty/mission-m-01ABCDEF): refused — status.events.jsonl: STATUS_LOCK_HELD"
+        )
+        result = harness.invoke("--mission", _SLUG)
+        assert result.exit_code == 1
+        assert "STATUS_LOCK_HELD" in json.loads(result.output)["error"]
+
+    def test_residual_commit_error_carries_surfaces_into_the_json_failure_envelope(self, harness: Harness) -> None:
+        """B3 (cycle 2 review): a REAL ``ResidualCommitError`` -- not a bare exception -- still
+        surfaces ``residual_commit.surfaces`` in the ``--json`` failure arm, not just the flattened
+        error string.
+        """
+        from specify_cli.cli.commands.accept import ResidualCommitError
+        from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
+        from specify_cli.coordination.commit_router import CommitRouterResult
+
+        failed_result = CommitRouterResult(
+            status="no_op_wrong_surface",
+            placement_ref="",
+            surfaces=(
+                SurfaceOutcome(
+                    surface="coordination",
+                    branch="kitty/mission-m-01ABCDEF",
+                    status="refused",
+                    commit_hash=None,
+                    refused=(PathFate(path="kitty-specs/m/status.events.jsonl", reason="STATUS_LOCK_HELD"),),
+                    diagnostic="status lock held",
+                ),
+            ),
+        )
+        harness.residual_error = ResidualCommitError("Residual acceptance artifact commit failed for m: STATUS_LOCK_HELD", result=failed_result)
+
+        result = harness.invoke("--mission", _SLUG)
+
+        assert result.exit_code == 1
+        payload = json.loads(result.output)
+        assert "STATUS_LOCK_HELD" in payload["error"]
+        assert payload["residual_commit"]["surfaces"] == [
+            {
+                "surface": "coordination",
+                "branch": "kitty/mission-m-01ABCDEF",
+                "status": "refused",
+                "commit_hash": None,
+                "committed": [],
+                "skipped": [],
+                "refused": [{"path": "kitty-specs/m/status.events.jsonl", "reason": "STATUS_LOCK_HELD", "owning_path": None}],
+                "diagnostic": "status lock held",
+            }
+        ]
+
+    def test_residual_failure_text_includes_the_head_mismatch_checkout_instruction(self) -> None:
+        """B2: a HEAD-mismatch diagnostic is the operator's checkout instruction, not only the reason code."""
+        from specify_cli.cli.commands.accept import _format_residual_failure_detail
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+        from specify_cli.coordination.commit_router import CommitRouterResult
+
+        checkout = "HEAD is 'other', expected 'topic'. Run git -C /repo checkout topic first."
+        result = CommitRouterResult(
+            status="error",
+            placement_ref="topic",
+            surfaces=(
+                SurfaceOutcome(
+                    surface="primary",
+                    branch="topic",
+                    status="error",
+                    commit_hash=None,
+                    diagnostic=f"safe_commit: {checkout}",
+                ),
+            ),
+        )
+        detail = _format_residual_failure_detail(result)
+        assert checkout in detail
+
+    def test_report_error_escapes_rich_markup_in_a_failure_message(self, harness: Harness) -> None:
+        """B3: the text failure lane passes a ``[/red]`` message through ``_report_error`` without MarkupError."""
+        from rich.errors import MarkupError
+
+        from specify_cli.cli.commands.accept import ResidualCommitError
+        from specify_cli.coordination.commit_outcome import SurfaceOutcome
+        from specify_cli.coordination.commit_router import CommitRouterResult
+
+        markup = "status.events.jsonl [/red] still injected"
+        failed = CommitRouterResult(
+            status="error",
+            placement_ref="topic",
+            surfaces=(
+                SurfaceOutcome(
+                    surface="primary",
+                    branch="topic",
+                    status="error",
+                    commit_hash=None,
+                    diagnostic=markup,
+                ),
+            ),
+        )
+        harness.residual_error = ResidualCommitError(f"Residual acceptance artifact commit failed for m: {markup}", result=failed)
+        try:
+            result = harness.invoke("--mission", _SLUG, json_output=False)
+        except MarkupError as exc:
+            raise AssertionError("failure text must not be parsed as rich markup") from exc
+        assert not isinstance(result.exception, MarkupError)
+        assert result.exit_code == 1
+        assert markup in _flat(result.output)
+
+    def test_target_branch_does_not_select_the_primary_commit_ref(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """B1: ``target_branch`` stays the owned-placement hint. Only ``primary_ref`` retargets a PRIMARY group."""
+        from mission_runtime import MissionArtifactKind
+
+        from specify_cli.coordination import commit_router as router
+
+        captured: dict[str, str | None] = {}
+
+        def _capture(*_args: object, **kwargs: object) -> router.CommitRouterResult:
+            override = kwargs.get("primary_ref_override")
+            captured["override"] = override if isinstance(override, str) else None
+            return router.CommitRouterResult(status="committed", placement_ref="stored-target")
+
+        monkeypatch.setattr(router, "_commit_partition_group", _capture)
+        monkeypatch.setattr(
+            router,
+            "_group_files_by_partition",
+            lambda *_args, **_kwargs: [(MissionArtifactKind.ACCEPTANCE_MATRIX, (Path("a"),))],
+        )
+
+        class _Policy:
+            def is_protected(self, _branch: str) -> bool:
+                return True
+
+        common = {
+            "kind": MissionArtifactKind.ACCEPTANCE_MATRIX,
+        }
+        router.commit_for_mission(
+            Path("."),
+            "m",
+            (Path("a"),),
+            "msg",
+            _Policy(),
+            target_branch="unprotected-work",
+            **common,
+        )
+        assert captured["override"] is None
+
+        router.commit_for_mission(
+            Path("."),
+            "m",
+            (Path("a"),),
+            "msg",
+            _Policy(),
+            target_branch="protected-main",
+            primary_ref="unprotected-work",
+            **common,
+        )
+        assert captured["override"] == "unprotected-work"
 
     def test_upper_case_mode_is_lowered_before_choose_mode(self, harness: Harness) -> None:
         harness.invoke("--mission", _SLUG, "--mode", "PR")

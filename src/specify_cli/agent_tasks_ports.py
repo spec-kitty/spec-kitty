@@ -53,6 +53,7 @@ from mission_runtime import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.paths import locate_project_root
+from specify_cli.coordination.commit_outcome import SurfaceOutcome
 from specify_cli.coordination.commit_router import (
     CommitRouterResult,
     commit_for_mission,
@@ -61,9 +62,6 @@ from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional,
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
-from specify_cli.missions._read_path_resolver import (
-    resolve_feature_dir_for_mission,
-)
 from specify_cli.status import StatusEvent, TransitionRequest
 
 # ---------------------------------------------------------------------------
@@ -113,12 +111,25 @@ class CommitArtifactResult:
     Mirrors the useful surface of ``commit_router.CommitRouterResult`` while
     keeping the port result decoupled from that concrete type (and off the
     ``CommitResult`` name).
+
+    ``commit_hashes``, ``reason`` and ``surfaces`` (coord-artifact-single-
+    home-01M3V4BE WP07 / T040, contracts/commit-outcome.md) are additive
+    passthroughs of :class:`~specify_cli.coordination.commit_router.
+    CommitRouterResult`'s own same-named fields -- no existing field's
+    meaning changes. ``surfaces`` carries one
+    :class:`~specify_cli.coordination.commit_outcome.SurfaceOutcome` per
+    partition group the request touched (PRIMARY then coordination); a
+    caller that renders per-surface outcomes (WP08) reads this field rather
+    than hand-deriving it from the legacy caller-partition projection above.
     """
 
     status: str
     placement_ref: str
     commit_hash: str | None = None
     diagnostic: str | None = None
+    commit_hashes: tuple[tuple[str, str], ...] = ()
+    reason: str | None = None
+    surfaces: tuple[SurfaceOutcome, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -354,13 +365,17 @@ class RealCoordCommitRouter:
         self._emit_fn = emit_fn or emit_status_transition_transactional
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
-        if mission.owned is not None:
-            write_dir: Path = _placement_for(mission).read_dir(MissionArtifactKind.STATUS_STATE)
-            return write_dir
-        # Non-owned handles keep calling this resolver, byte-identical.
-        write_dir = resolve_feature_dir_for_mission(
-            mission.repo_root, mission.mission_slug
-        )
+        # coord-artifact-single-home-01M3V4BE WP07 (T040): both arms now
+        # resolve through the single write-location accessor
+        # (``PlacementSeam.write_dir``, WP03/WP04), never ``read_dir`` /
+        # ``resolve_feature_dir_for_mission`` -- the read resolver is never a
+        # write location (FR-014). On a coordination-routed, pre-fix EMPTY
+        # mission this materializes/seeds the coordination surface instead of
+        # silently handing back the repository root checkout; on ``lanes`` /
+        # ``single_branch`` it returns the identical PRIMARY dir as before
+        # (C-008). No ``kind`` parameter is added (binding correction): 14
+        # test fakes implement the 1-argument protocol.
+        write_dir: Path = _placement_for(mission).write_dir(MissionArtifactKind.STATUS_STATE).path
         return write_dir
 
     def commit_status(
@@ -413,6 +428,9 @@ class RealCoordCommitRouter:
             placement_ref=result.placement_ref,
             commit_hash=result.commit_hash,
             diagnostic=result.diagnostic,
+            commit_hashes=result.commit_hashes,
+            reason=result.reason,
+            surfaces=result.surfaces,
         )
 
 

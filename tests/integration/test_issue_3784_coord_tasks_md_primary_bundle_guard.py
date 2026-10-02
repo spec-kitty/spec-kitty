@@ -68,6 +68,7 @@ own inputs.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -181,6 +182,26 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
     # coord surface matches a real post-finalize mission.
     coord_tasks_md = ctx.coord_feature_dir / "tasks.md"
     coord_tasks_md.write_text("# Tasks\n\n- [ ] WP01\n", encoding="utf-8")
+
+    # WP07 re-pin (coord-artifact-single-home-01M3V4BE): the coordination arm
+    # now resolves its write location through the single write-location
+    # accessor (placement_seam(...).write_dir), which probes whether the
+    # coord Mission dir is WHOLLY untracked to decide if a carry-over seed is
+    # pending (contracts/write-location-accessor.md). The re-seeded coord
+    # status log + the coord tasks.md above were both written directly to
+    # disk without committing them, which is indistinguishable from a
+    # genuinely-pending seed -- the accessor then ran a real fork-check
+    # against the PRIMARY's intentionally-divergent decoy content and
+    # refused. Committing them here makes the coord surface a steady-state
+    # MATERIALIZED branch (what a real prior BookkeepingTransaction commit
+    # always leaves behind), matching how every other MATERIALIZED coord
+    # fixture in this mission's own test suite is built.
+    subprocess.run(["git", "-C", str(ctx.coord_feature_dir.parent.parent), "add", "kitty-specs"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(ctx.coord_feature_dir.parent.parent), "commit", "-q", "-m", "seed coord husk status + tasks.md"],
+        check=True,
+        capture_output=True,
+    )
 
     # --- Drive the REAL move-task lane transition (the entry point the issue
     # names). It succeeds and — post the IC-04 event-only cutover — leaves the
