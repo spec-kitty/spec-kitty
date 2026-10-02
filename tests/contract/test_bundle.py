@@ -205,3 +205,15 @@ def test_verbose_prints_the_gradle_output_and_an_empty_bundle_lists_what_was_sta
     assert code == 1
     assert "GRADLE-TRANSCRIPT-LINE" in output
     assert "BUNDLE_EMPTY: alpha" in output and "openapi/openapi.yaml" in output, "the file the generator did write is named"
+
+
+def test_a_build_script_that_fails_to_configure_is_a_toolchain_failure_not_a_rejected_module(bundler: ModuleType, tmp_path: Path) -> None:
+    text = (
+        "FAILURE: Build failed with an exception.\n\n* Where:\nBuild file 'contracts/build.gradle' line: 25\n\n* What went wrong:\n"
+        "A problem occurred configuring root project 'contracts'.\n> Could not create task ':validate_alpha'.\n"
+    )
+
+    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle(None, returncode=1, output=text))
+
+    assert code == 2
+    assert "BUILD_SCRIPT_FAILED" in output

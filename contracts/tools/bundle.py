@@ -17,7 +17,8 @@ Failure codes (exit 1), printed as ``CONTRACT-CHECK bundle: <CODE>: <module>: <d
   that resolves.
 
 Cannot do its job (exit 2): ``NO_MODULE``, ``MODULE_WITHOUT_ROOT``, ``JVM_MISSING``,
-``GRADLE_MISSING``, ``PLUGIN_RESOLUTION_FAILED``, ``DEPENDENCY_VERIFICATION_FAILED``
+``GRADLE_MISSING``, ``PLUGIN_RESOLUTION_FAILED``, ``DEPENDENCY_VERIFICATION_FAILED``,
+``BUILD_SCRIPT_FAILED`` (the Gradle build itself failed to configure)
 and ``OUT_INSIDE_REPOSITORY``. The last line is always
 ``counts: modules=N bundles=N path_items=N``. Determinism (bundling twice and
 comparing digests) is added by the hardening work package.
@@ -171,6 +172,8 @@ def classify_gradle_failure(output: str, module: str) -> tuple[str, int]:
     """Map failed Gradle output to ``(code, exit status)``: toolchain failures are exit 2, a rejected module is exit 1."""
     if "Dependency verification failed" in output:
         return "DEPENDENCY_VERIFICATION_FAILED", 2
+    if "A problem occurred configuring" in output:
+        return "BUILD_SCRIPT_FAILED", 2
     if "Plugin [id:" in output or "Could not resolve" in output or "Could not GET" in output:
         return "PLUGIN_RESOLUTION_FAILED", 2
     if f"task ':validate_{module}'" in output:
