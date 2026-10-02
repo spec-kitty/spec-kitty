@@ -1,0 +1,24 @@
+get:
+  operationId: getWorkPackage
+  summary: Read one work package of a Mission in full.
+  description: >-
+    Returns the authored plan, the resolved state, the review evidence, the readiness and the
+    status history of one work package. The prompt body is included only when includePrompt is
+    true. An unknown Mission or an unknown work package is a 404.
+  tags:
+    - Missions
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+    - $ref: ../parameters/WpId.yaml
+    - $ref: ../parameters/IncludePrompt.yaml
+  responses:
+    '200':
+      description: The work package.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/WorkPackage.yaml
+    '404':
+      $ref: ../../_shared/responses/Problem.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

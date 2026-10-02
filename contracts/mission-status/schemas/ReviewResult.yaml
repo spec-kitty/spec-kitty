@@ -1,0 +1,30 @@
+title: ReviewResult
+description: >-
+  The latest recorded review outcome of a work package: who reviewed, the verdict, and a
+  reference to the review. The reference is a review-cycle reference or a legacy free-text
+  reference; the contract never exposes a location on the machine that holds the review notes.
+type: object
+additionalProperties: false
+required:
+  - reviewer
+  - verdict
+  - reference
+properties:
+  reviewer:
+    $ref: ActorHandle.yaml
+    description: The handle of the reviewer, or null when the stored value is not a valid handle.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: ReviewResult
+  verdict:
+    $ref: ReviewVerdict.yaml
+    description: The verdict of the review.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: ReviewResult
+  reference:
+    type: string
+    description: The review reference as recorded, a review-cycle reference or legacy free text. Human text; a host path inside it is replaced by a fixed token.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: ReviewResult

@@ -1,0 +1,54 @@
+missionId: 01JZBB3C4D5E6F7G8H9JKMNPQS
+mid8: null
+slug: example-mission-01JZBB3C
+friendlyName: Example Mission Beta
+displayNumber: null
+missionType: null
+targetBranch: main
+topology: unknown
+createdAt: '2026-09-21T09:00:00+02:00'
+statusLaneCounts:
+  planned: 0
+  claimed: 0
+  in_progress: 0
+  for_review: 0
+  in_review: 0
+  approved: 0
+  done: 0
+  blocked: 0
+  canceled: 0
+wpTotal: 0
+blockedCount: 0
+progress:
+  weightedPercentage: 0.0
+  donePercentage: 0.0
+  doneCount: 0
+  semantics: weighted_readiness
+lifecycleStatus: draft
+acceptedAt: null
+mergedAt: null
+discardedAt: null
+lastEventId: null
+lastActivityAt: null
+eventCount: 0
+streamCursor:
+  offset: 0
+  invariant: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+nextAction: null
+phases:
+- name: specify
+  status: complete
+  basis: artifact
+- name: plan
+  status: in_progress
+  basis: lifecycle_event
+- name: tasks
+  status: pending
+  basis: artifact
+- name: implement
+  status: pending
+  basis: derived_from_status_lanes
+- name: review
+  status: pending
+  basis: derived_from_status_lanes
+workPackages: []

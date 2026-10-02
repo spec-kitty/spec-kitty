@@ -1,0 +1,49 @@
+wpId: WP07
+title: Prepare the release notes
+phaseLabel: null
+authored:
+  role: null
+  agentProfile: null
+  model: null
+  subtasks: []
+ownedFiles: []
+dependencies:
+- WP06
+requirementRefs: []
+executionMode: null
+taskType: null
+priority: null
+mergeTargetBranch: null
+trackerRefs: []
+statusLane: null
+assignment:
+  agent: null
+  assignee: null
+  role: null
+  agentProfile: null
+  agentProfileVersion: null
+  model: null
+  provider: null
+subtasks: {}
+subtaskProgress:
+  done: 0
+  total: 0
+implementerOfRecord: null
+lastTransitionAt: null
+forceCount: 0
+lastEventId: null
+actor:
+  tool: null
+  role: null
+  profile: null
+cancellation: null
+readiness:
+  satisfied: false
+  unsatisfied:
+  - WP06
+readyToStart: false
+review:
+  latestResult: null
+  override: null
+history: []
+staleness: null

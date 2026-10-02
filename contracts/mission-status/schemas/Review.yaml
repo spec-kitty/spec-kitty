@@ -1,0 +1,26 @@
+title: Review
+description: >-
+  The review evidence of a work package: its latest review result and any review override.
+  Both are null until they exist.
+type: object
+additionalProperties: false
+required:
+  - latestResult
+  - override
+properties:
+  latestResult:
+    oneOf:
+      - $ref: ReviewResult.yaml
+      - type: 'null'
+    description: The latest review result, or null when the work package has none.
+    x-source:
+      path: src/specify_cli/status/reducer.py
+      symbol: review_result_from_state
+  override:
+    oneOf:
+      - $ref: ReviewOverride.yaml
+      - type: 'null'
+    description: The review override, or null when none was recorded.
+    x-source:
+      path: src/specify_cli/status/wp_review.py
+      symbol: resolve_snapshot_review

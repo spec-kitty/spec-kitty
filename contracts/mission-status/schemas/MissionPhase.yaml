@@ -1,0 +1,88 @@
+title: MissionPhase
+description: >-
+  One of the five phases of a Mission's workflow: specify, plan, tasks, implement, review. This
+  is the Mission phase, a stage of the workflow. It is not the glossary term phase and it is not
+  the phaseLabel of a work package. Each entry says how far the phase has got and what that
+  statement rests on. The first three phases rest on a planning artifact or a lifecycle event;
+  implement and review rest on the status lanes of the work packages and never on an artifact.
+type: object
+additionalProperties: false
+required:
+  - name
+  - status
+  - basis
+properties:
+  name:
+    type: string
+    enum:
+      - specify
+      - plan
+      - tasks
+      - implement
+      - review
+    description: Which phase this entry describes. The five phases always appear in this order.
+    x-derived:
+      rule: The fixed list of the five Mission phases, in workflow order; the phase names are not stored anywhere else.
+      inputs:
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: SPECIFY_STARTED
+  status:
+    type: string
+    enum:
+      - pending
+      - in_progress
+      - complete
+    description: How far the phase has got. The rule for each phase is written on the phases field of MissionDetail.
+    x-derived:
+      rule: >-
+        Specify, plan and tasks: complete when the planning artifact (spec.md, plan.md,
+        tasks.md) exists; else complete when the matching Completed lifecycle event exists; else
+        in_progress when the matching Started event exists; else pending. Implement and review:
+        taken from statusLaneCounts and wpTotal as written on MissionDetail.phases.
+      inputs:
+        - MissionHead.statusLaneCounts
+        - MissionHead.wpTotal
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: SPECIFY_COMPLETED
+  basis:
+    type: string
+    enum:
+      - artifact
+      - lifecycle_event
+      - derived_from_status_lanes
+    description: >-
+      What the status rests on. artifact: a planning file exists, or no evidence exists and the
+      phase is pending. lifecycle_event: a Started or Completed lifecycle event. derived_from_status_lanes:
+      the status lane counts, used for implement and review only.
+    x-derived:
+      rule: >-
+        artifact when the planning artifact exists or nothing exists yet; lifecycle_event when
+        the status comes from a Started or Completed lifecycle event; derived_from_status_lanes
+        for implement and review, always.
+      inputs:
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: TASKS_COMPLETED
+allOf:
+  - if:
+      properties:
+        name:
+          enum:
+            - implement
+            - review
+    then:
+      properties:
+        basis:
+          const: derived_from_status_lanes
+  - if:
+      properties:
+        name:
+          enum:
+            - specify
+            - plan
+            - tasks
+    then:
+      properties:
+        basis:
+          enum:
+            - artifact
+            - lifecycle_event

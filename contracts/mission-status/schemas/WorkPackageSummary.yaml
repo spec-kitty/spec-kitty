@@ -1,0 +1,90 @@
+title: WorkPackageSummary
+description: >-
+  The short form of a work package that a Mission detail lists. It carries identity, position
+  in the plan, status lane and readiness. It never carries the prompt body and none of the
+  review or history detail; those are on the work package resource.
+type: object
+additionalProperties: false
+required:
+  - wpId
+  - title
+  - phaseLabel
+  - statusLane
+  - dependencies
+  - readiness
+  - readyToStart
+  - subtaskProgress
+  - lastTransitionAt
+properties:
+  wpId:
+    $ref: WpId.yaml
+    description: The identifier of the work package inside its Mission.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  title:
+    type: string
+    minLength: 1
+    description: The human title of the work package. Human text; a host path inside it is replaced by a fixed token.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: read_authored_wp_frontmatter
+  phaseLabel:
+    type:
+      - string
+      - 'null'
+    description: >-
+      The grouping label the planning file gives the work package, or null. It is a label
+      written by the author of the plan; it is not a Mission phase and not the glossary term phase.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  statusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The status lane of the work package in the status snapshot, or null when it has no events.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  dependencies:
+    type: array
+    description: The work packages this one depends on, as authored; empty when there are none.
+    items:
+      $ref: WpId.yaml
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  readiness:
+    $ref: Readiness.yaml
+    description: Whether the dependencies have reached an acceptable ending.
+    x-source:
+      path: src/specify_cli/core/dependency_graph.py
+      symbol: dependency_readiness_for_wp
+  readyToStart:
+    type: boolean
+    description: True only when the status lane is planned and the dependencies are satisfied; false in every other case, including a null status lane.
+    x-derived:
+      rule: True when statusLane is planned and readiness.satisfied is true; false otherwise, including when statusLane is null.
+      inputs:
+        - statusLane
+        - readiness.satisfied
+        - path: src/specify_cli/core/dependency_graph.py
+          symbol: dependency_readiness_for_wp
+  subtaskProgress:
+    $ref: SubtaskProgress.yaml
+    description: How many subtasks are done, from the resolved subtask map.
+    x-derived:
+      rule: The counts of the resolved subtask map, as written on SubtaskProgress.
+      inputs:
+        - path: src/specify_cli/status/wp_view.py
+          symbol: ResolvedGroup
+  lastTransitionAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: When the work package last changed status lane, or null when it has no events.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot

@@ -1,0 +1,59 @@
+title: Assignment
+description: >-
+  The resolved assignment of a work package: who holds it now, and the binding that ran. It
+  is read from the status snapshot, never from the agent, assignee or shell keys that old work
+  package files still carry. A work package with no events has every field null. The internal
+  markers for an absent model, profile, profile version or provider read as null.
+type: object
+additionalProperties: false
+required:
+  - agent
+  - assignee
+  - role
+  - agentProfile
+  - agentProfileVersion
+  - model
+  - provider
+properties:
+  agent:
+    $ref: ActorHandle.yaml
+    description: The agent that currently holds the live claim, or null when none does (a release clears it).
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  assignee:
+    $ref: ActorHandle.yaml
+    description: The assignee recorded in the status snapshot, or null.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  role:
+    $ref: ActorHandle.yaml
+    description: The role of the resolved binding, or null.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  agentProfile:
+    $ref: ActorHandle.yaml
+    description: The agent profile of the resolved binding, or null when none resolved.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  agentProfileVersion:
+    $ref: ActorHandle.yaml
+    description: The version of the resolved agent profile, or null.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  model:
+    $ref: ActorHandle.yaml
+    description: The model of the resolved binding, or null. The internal marker for a pick-up that resolved no model reads as null.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  provider:
+    $ref: ActorHandle.yaml
+    description: The provider of the resolved binding, or null.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup

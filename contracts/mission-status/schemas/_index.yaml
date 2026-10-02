@@ -1,12 +1,31 @@
 files:
+  - Actor.yaml
   - ActorHandle.yaml
+  - Assignment.yaml
+  - Authored.yaml
+  - Cancellation.yaml
+  - HistoryEntry.yaml
   - LifecycleStatus.yaml
+  - MissionDetail.yaml
+  - MissionHead.yaml
   - MissionId.yaml
   - MissionOverview.yaml
   - MissionOverviewPage.yaml
+  - MissionPhase.yaml
   - MissionProgress.yaml
   - Project.yaml
+  - Readiness.yaml
+  - RelativeReference.yaml
+  - Review.yaml
+  - ReviewOverride.yaml
+  - ReviewResult.yaml
+  - ReviewVerdict.yaml
+  - Staleness.yaml
   - StatusLane.yaml
   - StatusLaneCounts.yaml
   - StreamCursor.yaml
+  - SubtaskProgress.yaml
   - Topology.yaml
+  - WorkPackage.yaml
+  - WorkPackageSummary.yaml
+  - WpId.yaml

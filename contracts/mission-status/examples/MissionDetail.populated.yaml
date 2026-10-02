@@ -1,0 +1,153 @@
+missionId: 01JZAB3C4D5E6F7G8H9JKMNPQR
+mid8: 01JZAB3C
+slug: example-mission-01JZAB3C
+friendlyName: Example Mission Alpha
+displayNumber: 12
+missionType: software-dev
+targetBranch: main
+topology: lanes
+createdAt: '2026-09-20T08:15:00Z'
+statusLaneCounts:
+  planned: 1
+  claimed: 0
+  in_progress: 1
+  for_review: 1
+  in_review: 0
+  approved: 0
+  done: 3
+  blocked: 0
+  canceled: 0
+wpTotal: 6
+blockedCount: 0
+progress:
+  weightedPercentage: 65.0
+  donePercentage: 50.0
+  doneCount: 3
+  semantics: weighted_readiness
+lifecycleStatus: active
+acceptedAt: null
+mergedAt: null
+discardedAt: null
+lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ01
+lastActivityAt: '2026-09-24T16:40:12Z'
+eventCount: 41
+streamCursor:
+  offset: 5120
+  invariant: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b
+nextAction: null
+phases:
+- name: specify
+  status: complete
+  basis: artifact
+- name: plan
+  status: complete
+  basis: artifact
+- name: tasks
+  status: complete
+  basis: lifecycle_event
+- name: implement
+  status: in_progress
+  basis: derived_from_status_lanes
+- name: review
+  status: in_progress
+  basis: derived_from_status_lanes
+workPackages:
+- wpId: WP01
+  title: Set up the project skeleton
+  phaseLabel: Foundation
+  statusLane: done
+  dependencies: []
+  readiness:
+    satisfied: true
+    unsatisfied: []
+  readyToStart: false
+  subtaskProgress:
+    done: 3
+    total: 3
+  lastTransitionAt: '2026-09-21T10:00:00Z'
+- wpId: WP02
+  title: Define the data model
+  phaseLabel: Foundation
+  statusLane: done
+  dependencies:
+  - WP01
+  readiness:
+    satisfied: true
+    unsatisfied: []
+  readyToStart: false
+  subtaskProgress:
+    done: 4
+    total: 4
+  lastTransitionAt: '2026-09-22T14:20:00Z'
+- wpId: WP03
+  title: Build the list view
+  phaseLabel: Screens
+  statusLane: done
+  dependencies:
+  - WP02
+  readiness:
+    satisfied: true
+    unsatisfied: []
+  readyToStart: false
+  subtaskProgress:
+    done: 5
+    total: 5
+  lastTransitionAt: '2026-09-23T09:05:00Z'
+- wpId: WP04
+  title: Build the detail view
+  phaseLabel: Screens
+  statusLane: for_review
+  dependencies:
+  - WP03
+  readiness:
+    satisfied: true
+    unsatisfied: []
+  readyToStart: false
+  subtaskProgress:
+    done: 4
+    total: 4
+  lastTransitionAt: '2026-09-24T16:40:12Z'
+- wpId: WP05
+  title: Add the event stream
+  phaseLabel: Screens
+  statusLane: in_progress
+  dependencies:
+  - WP03
+  readiness:
+    satisfied: true
+    unsatisfied: []
+  readyToStart: false
+  subtaskProgress:
+    done: 1
+    total: 3
+  lastTransitionAt: '2026-09-24T11:30:00Z'
+- wpId: WP06
+  title: Write the documentation
+  phaseLabel: Release
+  statusLane: planned
+  dependencies:
+  - WP05
+  readiness:
+    satisfied: false
+    unsatisfied:
+    - WP05
+  readyToStart: false
+  subtaskProgress:
+    done: 0
+    total: 2
+  lastTransitionAt: '2026-09-20T08:20:00Z'
+- wpId: WP07
+  title: Prepare the release notes
+  phaseLabel: null
+  statusLane: null
+  dependencies:
+  - WP06
+  readiness:
+    satisfied: false
+    unsatisfied:
+    - WP06
+  readyToStart: false
+  subtaskProgress:
+    done: 0
+    total: 0
+  lastTransitionAt: null

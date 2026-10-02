@@ -1,0 +1,11 @@
+title: WpId
+description: >-
+  The identifier of a work package inside one Mission, for example WP01. It is unique within
+  a Mission and is not unique across Missions, so it is always read together with a missionId.
+type: string
+minLength: 1
+maxLength: 64
+pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+x-source:
+  path: src/specify_cli/status/wp_metadata.py
+  symbol: WPMetadata

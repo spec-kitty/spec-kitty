@@ -1,0 +1,39 @@
+title: Staleness
+description: >-
+  Whether the work happening on a work package has gone quiet. It needs git and a worktree, so
+  it cannot be computed from the event log alone. Provisional: how staleness is measured and
+  whether v1 carries it is an open decision on #5528.
+type: object
+additionalProperties: false
+required:
+  - status
+  - reason
+  - minutesSinceCommit
+properties:
+  status:
+    type: string
+    enum:
+      - fresh
+      - stale
+      - not_applicable
+    description: fresh when recent work exists, stale when it has gone quiet, not_applicable when the work package is not being worked on.
+    x-source:
+      path: src/specify_cli/core/stale_detection.py
+      symbol: StaleState
+  reason:
+    type:
+      - string
+      - 'null'
+    description: A short machine-readable reason for the status, or null.
+    x-source:
+      path: src/specify_cli/core/stale_detection.py
+      symbol: StaleState
+  minutesSinceCommit:
+    type:
+      - number
+      - 'null'
+    minimum: 0
+    description: The minutes since the last meaningful commit of the work package, or null when unknown.
+    x-source:
+      path: src/specify_cli/core/stale_detection.py
+      symbol: StaleState

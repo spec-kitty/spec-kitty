@@ -1,0 +1,58 @@
+wpId: WP08
+title: Retire the old report
+phaseLabel: null
+authored:
+  role: null
+  agentProfile: null
+  model: null
+  subtasks: []
+ownedFiles: []
+dependencies: []
+requirementRefs: []
+executionMode: null
+taskType: null
+priority: null
+mergeTargetBranch: null
+trackerRefs: []
+statusLane: canceled
+assignment:
+  agent: null
+  assignee: null
+  role: null
+  agentProfile: null
+  agentProfileVersion: null
+  model: null
+  provider: null
+subtasks: {}
+subtaskProgress:
+  done: 0
+  total: 0
+implementerOfRecord: null
+lastTransitionAt: '2026-09-22T07:00:00Z'
+forceCount: 0
+lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ10
+actor: &id001
+  tool: claude
+  role: implementer
+  profile: implementer-ivan
+cancellation:
+  reasonSource: operator
+  reason: Superseded by WP09.
+readiness:
+  satisfied: true
+  unsatisfied: []
+readyToStart: false
+review:
+  latestResult: null
+  override: null
+history:
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ10
+  at: '2026-09-22T07:00:00Z'
+  kind: transition
+  fromStatusLane: planned
+  toStatusLane: canceled
+  actor: *id001
+  force: false
+  reason: Superseded by WP09.
+  reviewVerdict: null
+staleness: null

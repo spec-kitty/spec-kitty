@@ -1,4 +1,6 @@
 files:
+  - MissionDetail.early.yaml
+  - MissionDetail.populated.yaml
   - MissionOverview.discarded.yaml
   - MissionOverview.populated.yaml
   - MissionOverview.provisional.yaml
@@ -8,3 +10,12 @@ files:
   - MissionOverviewPage.last.yaml
   - MissionOverviewPage.middle.yaml
   - Project.example.yaml
+  - WorkPackage.actor-handle.yaml
+  - WorkPackage.actor-redacted.yaml
+  - WorkPackage.actor-structured.yaml
+  - WorkPackage.canceled.yaml
+  - WorkPackage.no-events.yaml
+  - WorkPackage.override.yaml
+  - WorkPackage.populated.yaml
+  - WorkPackage.provisional.yaml
+  - WorkPackage.with-prompt.yaml

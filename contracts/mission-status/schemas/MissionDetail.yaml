@@ -1,0 +1,79 @@
+title: MissionDetail
+description: >-
+  The detail of one Mission: every field of the overview (defined in MissionHead), the five
+  Mission phases and a summary of each work package. The schema is closed, so a record with any
+  other property is invalid.
+type: object
+allOf:
+  - $ref: MissionHead.yaml
+  - type: object
+    required:
+      - phases
+      - workPackages
+    properties:
+      phases:
+        type: array
+        minItems: 5
+        maxItems: 5
+        description: >-
+          Exactly five entries, in the order specify, plan, tasks, implement, review. No existing
+          reader computes these, so the rules are owned by this contract. Specify, plan and
+          tasks are evaluated alike: complete with basis artifact when the planning file
+          (spec.md, plan.md or tasks.md respectively) exists in the Mission directory; else
+          complete with basis lifecycle_event when the matching Completed lifecycle event
+          (SpecifyCompleted, PlanCompleted or TasksCompleted) exists; else in_progress with basis
+          lifecycle_event when the matching Started event exists; else pending with basis
+          artifact. Implement and review always carry basis derived_from_status_lanes and use
+          statusLaneCounts and wpTotal, evaluated in this order. Implement: complete when wpTotal
+          is above 0 and every work package is for_review, in_review, approved, done or canceled;
+          else pending when no work package has left planned or blocked (a Mission with no work
+          packages is pending); else in_progress. Review: complete when wpTotal is above 0 and
+          every work package is done or canceled; else pending when no work package is
+          for_review, in_review, approved or done; else in_progress. There is no lifecycle event
+          for implement or review. The Mission phase is not the glossary phase.
+        items:
+          $ref: MissionPhase.yaml
+        x-derived:
+          rule: >-
+            For specify, plan and tasks: the planning file exists, then complete by artifact;
+            else the Completed lifecycle event, then complete by lifecycle_event; else the
+            Started event, then in_progress by lifecycle_event; else pending by artifact. For
+            implement: complete when wpTotal is above 0 and every work package is for_review,
+            in_review, approved, done or canceled; else pending when none has left planned or
+            blocked; else in_progress. For review: complete when wpTotal is above 0 and every
+            work package is done or canceled; else pending when none is for_review, in_review,
+            approved or done; else in_progress. Implement is evaluated before review.
+          inputs:
+            - MissionHead.statusLaneCounts
+            - MissionHead.wpTotal
+            - path: src/specify_cli/status/lifecycle_events.py
+              symbol: SPECIFY_STARTED
+            - path: src/specify_cli/status/lifecycle_events.py
+              symbol: SPECIFY_COMPLETED
+            - path: src/specify_cli/status/lifecycle_events.py
+              symbol: PLAN_STARTED
+            - path: src/specify_cli/status/lifecycle_events.py
+              symbol: PLAN_COMPLETED
+            - path: src/specify_cli/status/lifecycle_events.py
+              symbol: TASKS_STARTED
+            - path: src/specify_cli/status/lifecycle_events.py
+              symbol: TASKS_COMPLETED
+      workPackages:
+        type: array
+        description: >-
+          One summary for each work package of the Mission, ordered by wpId ascending compared as
+          plain strings. A work package that has a planning file but no events is listed with a
+          null status lane; it is not counted in wpTotal or in statusLaneCounts, which count only
+          work packages the status model holds.
+        items:
+          $ref: WorkPackageSummary.yaml
+        x-derived:
+          rule: One WorkPackageSummary per work package of the Mission, from its planning files and the status snapshot, sorted by wpId ascending as plain strings.
+          inputs:
+            - MissionHead.wpTotal
+            - path: src/specify_cli/status/wp_view.py
+              symbol: reconstruct_wp_view
+unevaluatedProperties: false
+examples:
+  - $ref: ../examples/MissionDetail.populated.yaml
+  - $ref: ../examples/MissionDetail.early.yaml

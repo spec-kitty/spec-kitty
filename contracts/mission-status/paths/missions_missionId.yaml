@@ -1,0 +1,21 @@
+get:
+  operationId: getMission
+  summary: Read one Mission in detail.
+  description: >-
+    Returns the Mission overview fields, the five Mission phases and a summary of each work
+    package. The Mission is selected by its missionId only.
+  tags:
+    - Missions
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+  responses:
+    '200':
+      description: The Mission in detail.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/MissionDetail.yaml
+    '404':
+      $ref: ../../_shared/responses/Problem.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml
