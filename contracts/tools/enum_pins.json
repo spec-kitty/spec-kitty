@@ -1,0 +1,7 @@
+{
+  "mission-status": {
+    "LifecycleStatus": ["active", "planned", "done", "draft", "discarded"],
+    "StatusLane": ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled"],
+    "Topology": ["lanes", "single_branch", "coord", "lanes_with_coord", "unknown"]
+  }
+}
