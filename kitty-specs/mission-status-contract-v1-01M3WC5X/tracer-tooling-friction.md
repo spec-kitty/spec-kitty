@@ -98,6 +98,9 @@ Entries are short and dated; the entry is written when the friction happens.
   `WPView.subtasks` and a "seven lifecycle constants" set; the code has them on `MissionMetaRequired`,
   `MissionMetaOptional`, `ResolvedGroup.subtasks` and a twelve-member `LIFECYCLE_EVENT_TYPES`. Corrected
   in plan section (l) by reading each symbol. Lesson: cite by symbol and read the declaring file.
+- **F-13 (2026-10-02, plan review) - the plan-review loop ran past its round budget.**
+  The loop used one self-ruled extra fix round and a final verification beyond the standard round
+  budget, because the two surviving findings were low severity and each had a single remedy.
 - (append during implement and review)
 
 ## Assess at close

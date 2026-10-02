@@ -70,8 +70,9 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
   IC-03 (Mission page and work package page), both equally unvalidated.
 - Published as lightweight tags `preview/mission-status/p0`, `p1`, `p2` (outside the
   `contract-<module>-v<semver>` and `v*.*.*` namespaces), pushed by a maintainer, because a branch
-  hash does not survive the rebase and compact-history steps; re-published under a new suffixed tag
-  after compact-history. Record the tag names here (not hashes) when they exist.
+  hash does not survive the rebase and compact-history steps; re-published under a per-point increasing counter suffix (`-r2`, `-r3`, ...; independent for
+  `p0`, `p1`, `p2`) after compact-history or after a brace re-sweep that lands once a point is published,
+  each re-publication naming its cause. Record the tag names here (not hashes) when they exist.
 
 ## Log
 
