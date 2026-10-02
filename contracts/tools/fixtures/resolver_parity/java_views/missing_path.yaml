@@ -23,6 +23,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Thing'
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: integer
   /p2:
     get:
       operationId: op2
@@ -30,20 +38,12 @@ paths:
         '200':
           description: ok
           content:
-            application/json: {}
-  /p3:
-    get:
-      operationId: op3
-      responses:
-        '200':
-          description: ok
-          content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Thing'
-  /p4:
+  /p3:
     get:
-      operationId: op4
+      operationId: op3
       responses:
         '200':
           description: ok
@@ -56,9 +56,9 @@ components:
     Thing:
       title: Thing
       type: object
-      additionalProperties: false
-      required:
-      - id
+      additionalProperties: {}
+      example:
+        id: id
       properties:
         id:
           type: string
@@ -66,7 +66,5 @@ components:
         createdAt:
           type: string
           format: date-time
-      examples:
-      - id: abc
-        createdAt: '2026-10-02T09:30:00Z'
-      - id: def
+      required:
+      - id

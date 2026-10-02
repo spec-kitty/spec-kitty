@@ -1,5 +1,11 @@
 get:
   operationId: op1
+  parameters:
+    - name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
   responses:
     '200':
       description: ok

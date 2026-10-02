@@ -1,12 +1,13 @@
-"""Planted-violation tests for ``contracts/tools/resolver_parity.py`` (FR-019, plan D-P2).
+"""Planted-violation tests for ``contracts/tools/resolver_parity.py`` (FR-019, plan D-P2; E-1 ruling of 2026-10-02).
 
-Parity compares the Java generator's bundle with the Python resolver's tree. No
-JVM runs here, so the bundles are committed fixtures under
-``contracts/tools/fixtures/resolver_parity/bundles/``: a clean one that equals the
-resolver's tree and planted copies that drop one ``$ref`` target or alter one
-schema. The independent dereference check is exercised on three modules: a clean
-one, one with planted invalid examples both readings reject (no disagreement), and
-one where the resolver's sibling-keyword reading and the library's differ.
+The released bundle is written by the Python resolver, so parity no longer compares trees (the Java
+generator's re-emission drops 3.1 constructs, which is exactly why it is not the artefact). It proves
+that the Java parser ACCEPTS the bundle and sees the same *inventory*: path keys, operations
+(method plus operationId), parameters (name and location), response codes with media types, and
+schema names. The Java parser's view is the ``javaview`` re-emission; no JVM runs here, so the views
+are committed fixtures under ``contracts/tools/fixtures/resolver_parity/java_views/``: a clean one with
+the generator's typical synthesised keys, and planted copies that drop an operation, rename a schema,
+drop a response code, and so on. The independent dereference check is exercised on three modules.
 """
 
 from __future__ import annotations
@@ -27,9 +28,8 @@ pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
 TOOLS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "tools"
 FIXTURES = TOOLS_DIR / "fixtures" / "resolver_parity"
-BUNDLES = FIXTURES / "bundles"
+VIEWS = FIXTURES / "java_views"
 SCRIPT = TOOLS_DIR / "resolver_parity.py"
-THING_SCHEMA = "/paths/~1p0/get/responses/200/content/application~1json/schema"
 
 
 @pytest.fixture(scope="module")
@@ -48,16 +48,22 @@ def parity() -> Iterator[ModuleType]:
         sys.path.remove(str(TOOLS_DIR))
 
 
-def _stage(tmp_path: Path, bundle: str | None) -> Path:
-    """A bundle directory laid out as bundle.py stages it: ``<dir>/bundle/alpha/openapi.yaml``."""
+def _stage(tmp_path: Path, root: str, view: str | None, *, write_bundle: bool = True) -> Path:
+    """Stage ``<dir>/bundle/alpha/openapi.yaml`` (as bundle.py writes it) and ``<dir>/javaview/alpha/openapi.yaml``."""
     staged = tmp_path / "staged"
-    if bundle is not None:
-        target = staged / "bundle" / "alpha" / "openapi.yaml"
+    staged.mkdir()
+    if write_bundle:
+        sys.modules["bundle"].write_bundle(FIXTURES / root / "alpha", staged)
+    if view is not None:
+        target = staged / "javaview" / "alpha" / "openapi.yaml"
         target.parent.mkdir(parents=True)
-        shutil.copy(BUNDLES / f"{bundle}.yaml", target)
-    else:
-        staged.mkdir()
+        shutil.copy(VIEWS / f"{view}.yaml", target)
     return staged
+
+
+@pytest.fixture(autouse=True)
+def _bundle_module(parity: ModuleType) -> None:
+    assert "bundle" in sys.modules, "resolver_parity imports bundle by name"
 
 
 def _run(parity: ModuleType, root: str, staged: Path, *extra: str, **keywords: Any) -> tuple[int, str]:
@@ -72,131 +78,120 @@ def _counts(output: str) -> dict[str, int]:
     return {key: int(value) for key, value in (pair.split("=") for pair in last.removeprefix("counts: ").split())}
 
 
-# -- the tree comparison -------------------------------------------------------
+def _codes(output: str) -> list[str]:
+    return sorted({line.split(": ")[1] for line in output.splitlines() if line.startswith("CONTRACT-CHECK")})
 
 
-def test_clean_bundle_equals_the_resolver_tree_and_prints_every_count(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "ok"))
+# -- the inventory comparison -------------------------------------------------------------------------
+
+
+def test_clean_view_has_the_same_inventory_and_prints_every_count(parity: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(parity, "clean", _stage(tmp_path, "clean", "ok"))
 
     assert code == 0, output
-    assert _counts(output) == {"path_items": 5, "schemas": 1, "refs_resolved": 10, "normalisations": 0, "examples_cross_checked": 2}
+    assert _counts(output) == {
+        "path_items": 5,
+        "schemas": 1,
+        "refs_resolved": 10,
+        "operations": 5,
+        "parameters": 1,
+        "responses": 5,
+        "schema_names": 1,
+        "examples_cross_checked": 2,
+    }
 
 
-def test_a_dropped_ref_target_names_the_first_differing_pointer(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "drops_ref"))
+def test_the_comparison_tolerates_what_the_java_emitter_adds_and_rewrites(parity: ModuleType, tmp_path: Path) -> None:
+    view = yaml.safe_load((VIEWS / "ok.yaml").read_text(encoding="utf-8"))
+    thing = view["components"]["schemas"]["Thing"]
 
-    assert code == 1
-    assert "CONTRACT-CHECK resolver_parity: TREE_DIFFERS: alpha: /paths/~1p2/get/responses/200/content/application~1json " in output
-
-
-def test_an_altered_schema_names_the_pointer_of_the_altered_mapping(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "alters_schema"))
-
-    assert code == 1
-    assert f"TREE_DIFFERS: alpha: {THING_SCHEMA}/properties" in output
+    assert "example" in thing and thing["additionalProperties"] == {}, "the clean view carries synthesised keys the bundle never had"
+    assert _run(parity, "clean", _stage(tmp_path, "clean", "ok"))[0] == 0
 
 
-def test_report_all_lists_every_differing_pointer_for_the_spike(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "alters_schema"), "--report-all")
+@pytest.mark.parametrize(
+    ("view", "expected"),
+    [
+        ("missing_operation", ["OPERATIONS_DIFFER", "RESPONSES_DIFFER"]),
+        ("renamed_schema", ["SCHEMA_NAMES_DIFFER"]),
+        ("dropped_response_code", ["RESPONSES_DIFFER"]),
+        ("renamed_parameter", ["PARAMETERS_DIFFER"]),
+        ("missing_path", ["OPERATIONS_DIFFER", "PATHS_DIFFER", "RESPONSES_DIFFER"]),
+        ("changed_media_type", ["RESPONSES_DIFFER"]),
+    ],
+)
+def test_each_planted_difference_fails_with_its_stable_code(parity: ModuleType, tmp_path: Path, view: str, expected: list[str]) -> None:
+    code, output = _run(parity, "clean", _stage(tmp_path, "clean", view))
 
-    assert code == 1
-    assert output.count("TREE_DIFFERS") == 5, "the same alteration is reached through all five path items"
+    assert code == 1, output
+    assert _codes(output) == expected
 
 
-def test_key_order_never_matters(parity: ModuleType) -> None:
-    assert parity.first_difference({"a": 1, "b": {"c": 2, "d": 3}}, {"b": {"d": 3, "c": 2}, "a": 1}) is None
-    assert parity.first_difference({"a": [1, 2]}, {"a": [2, 1]}) == "/a/0"
-    assert parity.first_difference({"a/b": {"x": 1}}, {"a/b": {"x": 2}}) == "/a~1b/x"
+def test_a_difference_names_the_item_and_the_side_it_is_missing_from(parity: ModuleType, tmp_path: Path) -> None:
+    _, output = _run(parity, "clean", _stage(tmp_path, "clean", "dropped_response_code"))
+
+    assert "CONTRACT-CHECK resolver_parity: RESPONSES_DIFFER: alpha: only in the bundle: /p2 GET 200 application/json" in output
+    assert "only in the Java view: /p2 GET 201 application/json" in output
+
+
+def test_the_inventory_follows_internal_references_in_the_java_view(parity: ModuleType) -> None:
+    view = yaml.safe_load((VIEWS / "ok.yaml").read_text(encoding="utf-8"))
+
+    inventory = parity.inventory(view)
+
+    assert inventory.schema_names == {"Thing"}
+    assert ("/p2", "GET", "200", "application/json") in inventory.responses
+    assert ("/p1", "GET", "limit", "query") in inventory.parameters
+
+
+def test_the_stale_bundle_is_refused(parity: ModuleType, tmp_path: Path) -> None:
+    staged = _stage(tmp_path, "clean", "ok")
+    bundle = staged / "bundle" / "alpha" / "openapi.yaml"
+    bundle.write_text(bundle.read_text(encoding="utf-8").replace("op0", "opZero"), encoding="utf-8")
+
+    code, output = _run(parity, "clean", staged)
+
+    assert code == 1 and "BUNDLE_STALE: alpha" in output
+
+
+# -- cannot do the job ---------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("view", ["empty", None])
+def test_an_empty_or_absent_java_view_cannot_do_its_job(parity: ModuleType, tmp_path: Path, view: str | None) -> None:
+    code, output = _run(parity, "clean", _stage(tmp_path, "clean", view))
+
+    assert code == 2
+    assert "BUNDLE_MISSING_OR_EMPTY: alpha" in output and "javaview" in output
+
+
+def test_an_absent_python_bundle_cannot_do_its_job(parity: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(parity, "clean", _stage(tmp_path, "clean", "ok", write_bundle=False))
+
+    assert code == 2
+    assert "BUNDLE_MISSING_OR_EMPTY: alpha" in output and "bundle/alpha" in output
 
 
 def test_a_bundle_below_the_floor_cannot_do_its_job(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "four_paths"))
+    code, output = _run(parity, "clean", _stage(tmp_path, "clean", "ok"), "--min-paths", "6")
 
     assert code == 2
-    assert "BELOW_FLOOR" in output and "4 path items" in output
-
-
-@pytest.mark.parametrize("bundle", ["empty", None])
-def test_an_empty_or_absent_bundle_cannot_do_its_job(parity: ModuleType, tmp_path: Path, bundle: str | None) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, bundle))
-
-    assert code == 2
-    assert "BUNDLE_MISSING_OR_EMPTY" in output
+    assert "BELOW_FLOOR" in output and "5 path items" in output
 
 
 def test_an_unimportable_resolver_cannot_do_its_job(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "ok"), resolver_module="no_such_resolver_module")
+    code, output = _run(parity, "clean", _stage(tmp_path, "clean", "ok"), resolver_module="no_such_resolver_module")
 
     assert code == 2
     assert "RESOLVER_IMPORT_FAILED" in output
 
 
-# -- named normalisations ---------------------------------------------------------
+def test_the_tree_equality_machinery_is_gone(parity: ModuleType) -> None:
+    for name in ("NORMALISATIONS", "Normalisation", "MAX_NORMALISATIONS", "first_difference", "all_differences", "deref_bundle_tree"):
+        assert not hasattr(parity, name), name
 
 
-def _without_examples(tmp_path: Path) -> Path:
-    staged = _stage(tmp_path, "ok")
-    target = staged / "bundle" / "alpha" / "openapi.yaml"
-    document = yaml.safe_load(target.read_text(encoding="utf-8"))
-    del document["components"]["schemas"]["Thing"]["examples"]
-    target.write_text(yaml.safe_dump(document), encoding="utf-8")
-    return staged
-
-
-def _strip_examples(parity: ModuleType, **overrides: str) -> Any:
-    def strip(node: Any) -> Any:
-        if isinstance(node, dict):
-            return {key: strip(value) for key, value in node.items() if key != "examples"}
-        if isinstance(node, list):
-            return [strip(item) for item in node]
-        return node
-
-    fields = {
-        "name": "strip-examples",
-        "construct": "schema `examples` keyword",
-        "behaviour": "the generator does not carry schema examples into the bundle",
-        "planted_test": "test_a_named_normalisation_closes_a_known_generator_rewrite",
-    }
-    fields.update(overrides)
-    return parity.Normalisation(apply=strip, **fields)
-
-
-def test_a_generator_rewrite_is_a_difference_until_it_is_named(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _without_examples(tmp_path))
-
-    assert code == 1
-    assert "TREE_DIFFERS" in output
-
-
-def test_a_named_normalisation_closes_a_known_generator_rewrite(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _without_examples(tmp_path), normalisations=(_strip_examples(parity),))
-
-    assert code == 0, output
-    assert _counts(output)["normalisations"] == 1
-
-
-def test_a_normalisation_without_its_documentation_is_refused(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "clean", _stage(tmp_path, "ok"), normalisations=(_strip_examples(parity, behaviour=""),))
-
-    assert code == 1
-    assert "UNDOCUMENTED_NORMALISATION: strip-examples" in output
-
-
-def test_more_than_eight_normalisations_are_refused(parity: ModuleType, tmp_path: Path) -> None:
-    assert parity.MAX_NORMALISATIONS == 8
-    nine = tuple(_strip_examples(parity, name=f"strip-{index}") for index in range(9))
-
-    code, output = _run(parity, "clean", _stage(tmp_path, "ok"), normalisations=nine)
-
-    assert code == 1
-    assert "NORMALISATION_CAP_EXCEEDED" in output and "9" in output
-
-
-def test_no_normalisation_ships_until_the_spike_observes_one(parity: ModuleType) -> None:
-    assert parity.NORMALISATIONS == ()
-
-
-# -- the independent dereference check ------------------------------------------------
+# -- the independent dereference check ------------------------------------------------------------------
 
 
 def _verdicts(parity: ModuleType, root: str) -> list[tuple[str, int, bool, bool]]:
@@ -217,18 +212,18 @@ def test_planted_invalid_examples_are_rejected_by_both_readings_including_the_ti
 
 
 def test_agreeing_invalid_examples_are_not_a_parity_failure(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "invalid_example", _stage(tmp_path, None), "--examples-only")
+    code, output = _run(parity, "invalid_example", _stage(tmp_path, "invalid_example", None), "--examples-only")
 
     assert code == 0, output
     assert _counts(output)["examples_cross_checked"] == 3
 
 
-def test_a_resolver_defect_the_tree_comparison_cannot_see_is_found_by_the_library_reading(parity: ModuleType) -> None:
+def test_a_resolver_defect_the_inventory_cannot_see_is_found_by_the_library_reading(parity: ModuleType) -> None:
     assert _verdicts(parity, "shared_defect") == [("schemas/Child.yaml", 0, True, False)]
 
 
 def test_the_examples_only_run_fails_with_the_disagreement_named(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "shared_defect", _stage(tmp_path, None), "--examples-only")
+    code, output = _run(parity, "shared_defect", _stage(tmp_path, "shared_defect", None, write_bundle=False), "--examples-only")
 
     assert code == 1
     assert "CONTRACT-CHECK resolver_parity: INDEPENDENT_DEREF_DISAGREES: alpha: schemas/Child.yaml example 0" in output

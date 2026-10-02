@@ -23,6 +23,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Thing'
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: integer
   /p2:
     get:
       operationId: op2
@@ -55,12 +63,12 @@ paths:
                 $ref: '#/components/schemas/Thing'
 components:
   schemas:
-    Thing:
-      title: Thing
+    Item:
+      title: Item
       type: object
-      additionalProperties: false
-      required:
-      - id
+      additionalProperties: {}
+      example:
+        id: id
       properties:
         id:
           type: string
@@ -68,7 +76,5 @@ components:
         createdAt:
           type: string
           format: date-time
-      examples:
-      - id: abc
-        createdAt: '2026-10-02T09:30:00Z'
-      - id: def
+      required:
+      - id

@@ -10,7 +10,7 @@ paths:
         '200':
           description: ok
           content:
-            application/json:
+            text/plain:
               schema:
                 $ref: '#/components/schemas/Thing'
   /p1:
@@ -23,6 +23,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Thing'
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: integer
   /p2:
     get:
       operationId: op2
@@ -58,13 +66,15 @@ components:
     Thing:
       title: Thing
       type: object
-      additionalProperties: false
-      required:
-      - id
+      additionalProperties: {}
+      example:
+        id: id
       properties:
         id:
-          type: integer
-      examples:
-      - id: abc
-        createdAt: '2026-10-02T09:30:00Z'
-      - id: def
+          type: string
+          pattern: ^[a-z]+$
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
