@@ -75,8 +75,8 @@ class Report:
         return f"counts: modules={self.modules} bundles={self.bundles} path_items={self.path_items}"
 
 
-def finding(code: str, module: str, detail: str) -> str:
-    return f"CONTRACT-CHECK {CHECK_NAME}: {code}: {module}: {detail}"
+def finding(code: str, module: str, detail: str, check: str = CHECK_NAME) -> str:
+    return f"CONTRACT-CHECK {check}: {code}: {module}: {detail}"
 
 
 def discover_modules(root: Path) -> tuple[list[Path], list[Path]]:
@@ -138,7 +138,7 @@ def find_unresolved_refs(document: Any) -> list[str]:
     return bad
 
 
-def _tail(output: str) -> str:
+def tail(output: str) -> str:
     lines = [line for line in output.splitlines() if line.strip()]
     return " | ".join(lines[-DETAIL_LINES:])
 
@@ -200,8 +200,8 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
         if status != 0:
             code, exit_status = classify_gradle_failure(output, module.name)
             if exit_status == 2:
-                return blocked(code, f"{module.name}: {_tail(output)}")
-            report.findings.append(finding(code, module.name, _tail(output)))
+                return blocked(code, f"{module.name}: {tail(output)}")
+            report.findings.append(finding(code, module.name, tail(output)))
             continue
         bundle = args.out / "bundle" / module.name / ROOT_DOCUMENT
         document = yaml.safe_load(bundle.read_text(encoding="utf-8")) if bundle.is_file() else None
