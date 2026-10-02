@@ -844,6 +844,7 @@ jobs:
             tests/contract/test_install_tools.py \
             tests/contract/test_layout_check.py \
             tests/contract/test_leak_patterns.py \
+            tests/contract/test_mission_status_examples.py \
             tests/contract/test_resolver_parity.py \
             tests/contract/test_schema_formats.py \
             tests/integration/test_mission_review_contract_gate.py \
