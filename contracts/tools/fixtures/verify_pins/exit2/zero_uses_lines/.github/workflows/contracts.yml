@@ -1,0 +1,9 @@
+name: Fixture
+on:
+  push:
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo nothing pinned here
