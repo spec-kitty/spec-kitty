@@ -1,0 +1,9 @@
+title: Thing
+type: object
+properties:
+  color:
+    $ref: Color.yaml
+  size:
+    $ref: Size.yaml
+  board:
+    $ref: BoardColumns.yaml

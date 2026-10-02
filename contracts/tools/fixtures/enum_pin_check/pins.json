@@ -1,0 +1,79 @@
+{
+  "clean": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  },
+  "clean_dashboard_word": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  },
+  "v_board_columns_property": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  },
+  "v_board_columns_schema": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  },
+  "v_value_added": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  },
+  "v_value_removed": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  },
+  "v_value_swapped": {
+    "Color": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "Size": [
+      "small",
+      "large"
+    ]
+  }
+}
