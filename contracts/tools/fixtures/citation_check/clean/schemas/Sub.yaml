@@ -1,0 +1,10 @@
+title: Sub
+type: object
+additionalProperties: false
+properties:
+  size:
+    type: integer
+    description: Size.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
