@@ -1,15 +1,17 @@
 """Generate a throwaway TypeScript client from the SPLIT contract files (plan D-P13).
 
 For each module (a direct subdirectory of ``--root`` holding a root
-``openapi.yaml``) this runs the pinned Gradle build's ``clientSmoke_<module>`` task,
-the openapi-generator ``typescript-fetch`` generator pointed at the split root
-document, so a reference layout the generator reads badly is found long before a
-consumer meets it. Generation only: the output is staged under ``--out`` (outside
+``openapi.yaml``) this first writes the resolver-produced bundle (``bundle.write_bundle``, the
+released artefact) and then runs the pinned Gradle build's ``clientSmoke_<module>`` task, the
+openapi-generator ``typescript-fetch`` generator pointed at that bundle, so a construct the
+generator reads badly is found long before a consumer meets it. Generation only: the output is staged
+under ``--out`` (outside
 the repository tree), counted, and never compiled (compiling needs Node, which
 this repository does not use, C-005).
 
 Failure codes (exit 1), printed as ``CONTRACT-CHECK client_smoke: <CODE>: <module>: <detail>``:
 
+* ``RESOLVE_FAILED``: the resolver refused the module, so there is no bundle to generate from.
 * ``GENERATION_FAILED``: the generator exited non-zero, or printed a warning that
   matches ``FATAL_WARNING_PATTERNS`` / ``--fail-on-warning`` (the condition the
   pushed spike run proved). The detail carries the generator's own message.
@@ -34,6 +36,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import bundle
+import contract_resolver
 
 CHECK_NAME = "client_smoke"
 # Warning texts that mean the generator read the contract wrongly although it exited 0.
@@ -81,25 +84,19 @@ def run(
         out(counts_line())
         return 2
 
-    modules, without_root = bundle.discover_modules(args.root)
-    if without_root:
-        return blocked("MODULE_WITHOUT_ROOT", f"{without_root[0].name} has no {bundle.ROOT_DOCUMENT}")
-    if args.module:
-        modules = [module for module in modules if module.name in args.module]
-    if not modules:
-        return blocked("NO_MODULE", f"no module with a root {bundle.ROOT_DOCUMENT} under {args.root}")
-    if bundle.inside_repository(args.out):
-        return blocked("OUT_INSIDE_REPOSITORY", f"{args.out} is inside the repository working tree; stage output outside it")
-    if which("java") is None:
-        return blocked("JVM_MISSING", "no java on PATH (the workflow installs the pinned JDK before this step)")
-    gradle = which("gradle")
-    if gradle is None:
-        return blocked("GRADLE_MISSING", "no gradle on PATH (run install_tools.py first)")
+    modules, gradle, refusal = bundle.preflight(args.root, args.module, args.out, which)
+    if refusal is not None or gradle is None:
+        return blocked(*(refusal or ("NO_MODULE", "no module")))
 
     fatal = [re.compile(pattern) for pattern in (*FATAL_WARNING_PATTERNS, *args.fail_on_warning)]
     modules_seen = len(modules)
     findings: list[str] = []
     for module in modules:
+        try:
+            bundle.write_bundle(module, args.out)
+        except contract_resolver.ResolveError as error:
+            findings.append(bundle.finding("RESOLVE_FAILED", module.name, str(error), CHECK_NAME))
+            continue
         status, output = runner(
             bundle.gradle_command(gradle, args.root, args.out, (f"clientSmoke_{module.name}",), write_metadata=args.write_verification_metadata)
         )

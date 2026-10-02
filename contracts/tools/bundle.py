@@ -123,6 +123,25 @@ def inside_repository(path: Path) -> bool:
     return root is not None and (resolved == root or root in resolved.parents)
 
 
+def preflight(root: Path, only: Sequence[str], out_dir: Path, which: Which) -> tuple[list[Path], str | None, tuple[str, str] | None]:
+    """Find the modules and the tools. Returns ``(modules, gradle, None)`` or ``([], None, (code, detail))`` when the job cannot be done."""
+    modules, without_root = discover_modules(root)
+    if without_root:
+        return [], None, ("MODULE_WITHOUT_ROOT", f"{without_root[0].name} has no {ROOT_DOCUMENT}")
+    if only:
+        modules = [module for module in modules if module.name in only]
+    if not modules:
+        return [], None, ("NO_MODULE", f"no module with a root {ROOT_DOCUMENT} under {root}")
+    if inside_repository(out_dir):
+        return [], None, ("OUT_INSIDE_REPOSITORY", f"{out_dir} is inside the repository working tree; stage output outside the repository")
+    if which("java") is None:
+        return [], None, ("JVM_MISSING", "no java on PATH (the workflow installs the pinned JDK before this step)")
+    gradle = which("gradle")
+    if gradle is None:
+        return [], None, ("GRADLE_MISSING", "no gradle on PATH (run install_tools.py first)")
+    return modules, gradle, None
+
+
 def _sorted(node: Any) -> Any:
     if isinstance(node, dict):
         return {key: _sorted(node[key]) for key in sorted(node, key=str)}
@@ -245,20 +264,9 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
         out(report.counts_line())
         return 2
 
-    modules, without_root = discover_modules(args.root)
-    if without_root:
-        return blocked("MODULE_WITHOUT_ROOT", f"{without_root[0].name} has no {ROOT_DOCUMENT}")
-    if args.module:
-        modules = [module for module in modules if module.name in args.module]
-    if not modules:
-        return blocked("NO_MODULE", f"no module with a root {ROOT_DOCUMENT} under {args.root}")
-    if inside_repository(args.out):
-        return blocked("OUT_INSIDE_REPOSITORY", f"{args.out} is inside the repository working tree; stage bundles outside the repository")
-    java, gradle = which("java"), which("gradle")
-    if java is None:
-        return blocked("JVM_MISSING", "no java on PATH (the workflow installs the pinned JDK before this step)")
-    if gradle is None:
-        return blocked("GRADLE_MISSING", "no gradle on PATH (run install_tools.py first)")
+    modules, gradle, refusal = preflight(args.root, args.module, args.out, which)
+    if refusal is not None or gradle is None:
+        return blocked(*(refusal or ("NO_MODULE", "no module")))
 
     report.modules = len(modules)
     for module in modules:

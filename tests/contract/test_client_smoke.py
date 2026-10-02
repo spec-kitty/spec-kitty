@@ -171,3 +171,31 @@ def test_verbose_prints_the_gradle_output(smoke: ModuleType, tmp_path: Path) -> 
 
     assert code == 0, output
     assert "GRADLE-TRANSCRIPT-LINE" in output
+
+
+def test_the_client_is_generated_from_the_resolver_written_bundle_which_is_written_first(smoke: ModuleType, tmp_path: Path) -> None:
+    seen_at_run: list[bool] = []
+
+    def runner(command: list[str]) -> tuple[int, str]:
+        out_dir = Path(next(part.split("=", 1)[1] for part in command if part.startswith("-PoutDir=")))
+        seen_at_run.append((out_dir / "bundle" / "alpha" / "openapi.yaml").is_file())
+        return _fake_generator(1)(command)
+
+    code, output = _run(smoke, CLEAN_ROOT, tmp_path / "out", runner)
+
+    assert code == 0, output
+    assert seen_at_run == [True], "the bundle exists before Gradle runs, so the build consumes it"
+
+
+def test_a_module_the_resolver_refuses_is_reported_without_running_the_generator(smoke: ModuleType, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(command: list[str]) -> tuple[int, str]:
+        calls.append(command)
+        return 0, ""
+
+    code, output = _run(smoke, PLANTS_ROOT, tmp_path / "out", runner, "--module", "dangling_ref")
+
+    assert code == 1
+    assert "CONTRACT-CHECK client_smoke: RESOLVE_FAILED: dangling_ref: UNRESOLVED_REF" in output
+    assert calls == []
