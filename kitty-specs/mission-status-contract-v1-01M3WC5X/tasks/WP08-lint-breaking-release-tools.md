@@ -99,12 +99,13 @@ Add the vacuum lint ruleset and job, `breaking_check.py` (oasdiff) with its job,
 - Conventions as in WP06 (scripts: stdlib plus locked dependencies, never pytest/`tests/`/`scripts.`, `CONTRACT-CHECK <name>: <CODE>: <detail>`, `counts:`, exit 0/1/2). Python in the contracts workflow only through the shared prelude (D-P12). The fork guard applies to root jobs and `always()` jobs; the three new jobs have `needs`, so none needs it, `contracts-gate` keeps it.
 - Version choices are the implementer's, recorded from vendor releases at implement time; the plan invents none.
 - Baseline from WP01's hand-off; overlap check 2026-10-02: no open PR touches `.github/workflows/` or `contracts/`. Re-run at start. Does not touch the migration chain, runtime-state schema or event contract.
+- **Python hygiene and S-rules (binding for this WP)**: run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). `contracts/tools/*.py` are non-test code, so ruff's bandit rules (`S`) apply there in full: shell out only with argument lists and `shutil.which`-resolved binaries (S603, S607), call `urlopen` only after an explicit `https` scheme check (S310), and make any suppression a one-line `# noqa: S###` with a stated rationale, never a blanket one. Run `mypy --strict` locally over new modules as discipline (no CI job). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
 - Registry rows: this WP owns `tests/architectural/test_ci_corpus_trigger_completeness.py` for one purpose, sorted rows for the corpus-marked unit-test modules added (`test_breaking_check.py`, `test_release_check.py`, `test_lint_ruleset.py`).
 
 ### Test surface, gates and baseline
 
 - Targeted: `tests/contract/test_breaking_check.py tests/contract/test_release_check.py tests/contract/test_lint_ruleset.py tests/contract/test_bundle.py tests/contract/test_install_tools.py`; `tests/ci/test_fork_guard.py tests/ci/test_fleet_verdict.py`.
-- Named gates: `tests/architectural/test_ci_corpus_trigger_completeness.py tests/architectural/test_workflow_coherence.py tests/architectural/test_no_duplicate_suite_execution.py`. Plus ruff. No directory sweep.
+- Named gates: `tests/architectural/test_clock_import_ban.py tests/architectural/test_clock_call_ban.py` `tests/architectural/test_ci_corpus_trigger_completeness.py tests/architectural/test_workflow_coherence.py tests/architectural/test_no_duplicate_suite_execution.py`. Plus ruff. No directory sweep.
 
 ## Subtasks
 
@@ -133,24 +134,28 @@ Add the vacuum lint ruleset and job, `breaking_check.py` (oasdiff) with its job,
 
 **Purpose**: NFR-002.
 **Steps**: failing test first (two differing builds simulated by fixture outputs) then double-build digest comparison and `BUILDS_DIFFER`; upload step in the job.
+**Files**: `contracts/tools/bundle.py` (double build, ~60 lines changed), `tests/contract/test_bundle.py`, `contracts/tools/fixtures/bundle/**`.
 **Validation**: unit test green; CI shows equal digests.
 
 ### Subtask T052: `pins.json` appends and `install_tools.py` extension
 
 **Purpose**: FR-018 for the Go tools.
 **Steps**: failing tests (altered checksum, missing checksum for the new entries) then append vacuum and oasdiff entries with all fields; `install_tools.py` installs them only after verification.
+**Files**: `contracts/tools/pins.json` (append), `contracts/tools/install_tools.py`, `tests/contract/test_install_tools.py`, `contracts/tools/fixtures/install_tools/**`.
 **Validation**: `verify_pins.py` (WP07) accepts the manifest once merged; locally validate the entries by reading them against the shape in `contracts/tools-and-workflows.md`.
 
 ### Subtask T053: Jobs `breaking-change` and `release-dry-run`, gate extension
 
 **Purpose**: FR-016, FR-022 jobs.
 **Steps**: add `breaking-change` (full-history checkout with tags, `needs: validate-bundle`, job summary for the no-baseline state), `release-dry-run` (`needs: validate-bundle`, uploads `release-dry-run-<module>`), extend `contracts-gate`'s `needs`. SHA-pin every `uses:` with a version comment; no Node; no pytest; every job has `timeout-minutes`.
+**Files**: `.github/workflows/contracts.yml` (second writer after WP02; WP09 writes last; about 80 lines added).
 **Validation**: read against the job table in `contracts/tools-and-workflows.md`; the exact `needs` sets are asserted later by WP09's guard tests.
 
 ### Subtask T054: Registry rows, local runs and the pushed-run hand-off
 
 **Purpose**: close.
-**Steps**: append sorted registry rows; run the targeted tests, gates and ruff; produce the hand-off for the orchestrator record step: tool versions, publication dates, advisory feeds, one pushed planted input per tool with the log excerpt, and the `lint`/`breaking-change`/`release-dry-run` first-run results.
+**Steps**: append sorted registry rows; run the targeted tests, gates and ruff; produce the hand-off for the orchestrator record step, using fixed fields: `tool_versions`, `publication_dates`, `advisory_feeds`, per tool `planted_input` with `expected_reason`, `log_excerpt` and `run_id`, and the first-run result of `lint`, `breaking-change` and `release-dry-run`. The fields are: tool versions, publication dates, advisory feeds, one pushed planted input per tool with the log excerpt, and the `lint`/`breaking-change`/`release-dry-run` first-run results.
+**Files**: `tests/architectural/test_ci_corpus_trigger_completeness.py` (+3 rows); hand-off record only otherwise.
 **Validation**: green; hand-off complete.
 
 ## Orchestrator record step: IC-07b tooling and supply-chain evidence (writes `kitty-specs/`, so not an agent action)
@@ -161,7 +166,8 @@ After this WP is approved and its pushed run has executed, the orchestrator writ
 
 - Ruleset, three tools' unit tests (planted plus clean control, codes asserted), three workflow jobs and extended gate exist; first commit per tool is red.
 - Every Go and JVM download is pinned, HTTPS-only, checksum-verified before execution; no adverse freshness result left unacknowledged.
-- Pushed-run evidence (one planted input per tool plus log excerpt) is in the hand-off.
+- Pushed-run evidence (one planted input per tool plus log excerpt) is in the hand-off, in the fixed fields named in T054.
+- `ruff check .` and `ruff format --check .` clean; no S603, S607 or S310 finding left unjustified (`bundle.py`, `install_tools.py`, `breaking_check.py`, `release_check.py` shell out and download); the two clock-ban gate files green.
 - `contracts.yml` has no unpinned `uses:`, no Node, no pytest, every job has `timeout-minutes`.
 - Registry rows appended in sorted order; gates green.
 - Per-subtask completion recorded with `spec-kitty agent tasks mark-status <Txxx> --status done`.

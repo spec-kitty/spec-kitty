@@ -51,9 +51,11 @@
         "contracts/tools/codeowners_check.py",
         "contracts/tools/contract_resolver.py",
         "contracts/tools/enum_pin_check.py",
+        "contracts/tools/enum_pins.json",
         "contracts/tools/event_mapping_check.py",
         "contracts/tools/example_check.py",
         "contracts/tools/fixture_builder.py",
+        "contracts/tools/fixtures/**",
         "contracts/tools/fixtures/breaking_check/**",
         "contracts/tools/fixtures/bundle/**",
         "contracts/tools/fixtures/citation_check/**",
@@ -99,6 +101,7 @@
         "tests/ci/test_fleet_verdict.py",
         "tests/contract/_mission_status_payloads.py",
         "tests/contract/fixtures/mission_status_expected.json",
+        "tests/contract/test_*.py",
         "tests/contract/test_breaking_check.py",
         "tests/contract/test_bundle.py",
         "tests/contract/test_citation_check.py",
@@ -160,12 +163,12 @@
       "parallel_group": 1
     }
   ],
-  "computed_at": "2026-10-02T09:35:02.731203+00:00",
+  "computed_at": "2026-10-02T09:49:57.717927+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP12"
   ],
-  "planning_commit_sha": "a640209e89370d974a1b2fdd7da3eaa936cd9e2f",
+  "planning_commit_sha": "842368717514f8fb21b3513fe02015011cd263f5",
   "collapse_report": {
     "events": [
       {
@@ -214,7 +217,7 @@
         "wp_a": "WP01",
         "wp_b": "WP09",
         "rule": "write_scope_overlap",
-        "evidence": "overlapping globs: 'contracts/tools/contract_resolver.py' vs 'contracts/tools/contract_resolver.py', 'contracts/tools/layout_check.py' vs 'contracts/tools/layout_check.py', 'contracts/tools/fixtures/layout_check/**' vs 'contracts/tools/fixtures/layout_check/**', 'tests/contract/test_layout_check.py' vs 'tests/contract/test_layout_check.py', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+        "evidence": "overlapping globs: 'contracts/tools/contract_resolver.py' vs 'contracts/tools/contract_resolver.py', 'contracts/tools/layout_check.py' vs 'contracts/tools/layout_check.py', 'contracts/tools/fixtures/contract_resolver/**' vs 'contracts/tools/fixtures/**', 'contracts/tools/fixtures/layout_check/**' vs 'contracts/tools/fixtures/layout_check/**', 'contracts/tools/fixtures/layout_check/**' vs 'contracts/tools/fixtures/**', 'tests/contract/test_contract_resolver.py' vs 'tests/contract/test_*.py', 'tests/contract/test_leak_patterns.py' vs 'tests/contract/test_*.py', 'tests/contract/test_schema_formats.py' vs 'tests/contract/test_*.py', 'tests/contract/test_layout_check.py' vs 'tests/contract/test_layout_check.py', 'tests/contract/test_layout_check.py' vs 'tests/contract/test_*.py', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
       },
       {
         "wp_a": "WP01",

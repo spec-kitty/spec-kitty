@@ -38,6 +38,7 @@ create_intent:
 - contracts/tools/example_check.py
 - contracts/tools/event_mapping_check.py
 - contracts/tools/enum_pin_check.py
+- contracts/tools/enum_pins.json
 - contracts/tools/leak_scan.py
 - contracts/tools/fixture_builder.py
 - tests/contract/test_citation_check.py
@@ -55,6 +56,7 @@ owned_files:
 - contracts/tools/example_check.py
 - contracts/tools/event_mapping_check.py
 - contracts/tools/enum_pin_check.py
+- contracts/tools/enum_pins.json
 - contracts/tools/leak_scan.py
 - contracts/tools/fixture_builder.py
 - contracts/tools/fixtures/citation_check/**
@@ -110,6 +112,7 @@ Implement the six Python content checks that guard the contract, plus the run-ti
   - `leak_scan.py`: `FORBIDDEN_PROPERTY_NAME` (parsed YAML and JSON keys only), `HOST_PATH`, `EMAIL`, `PLANTED_NOT_DETECTED`; counts `files values_strict values_human values_all`; exit 2 `ZERO_FILES`, `ZERO_VALUES_IN_CLASS`.
 - **Citation resolution (FR-010, PQ-10)**: by defined name, not text match. In a `.py` file the symbol must be a `def`, a `class`, or an assignment target (module or class level) found by parsing the syntax tree, **including annotated class-level targets without a value** (`x: int`), because the stream cursor's `invariant` is the bare annotated attribute `content_invariant` of `TailCursor`; a name that appears only in a comment, a string or as a substring of another name does not resolve. In a YAML or JSON file the symbol is a key path that must exist. Line numbers optional and unchecked. Traversal covers every property at any depth (nested objects, array `items`, `allOf`/`oneOf`/`anyOf` branches, `additionalProperties` value schemas, properties reached only through `$ref`); computes the total itself and fails unless the `x-source` and `x-derived` counts sum to it and the total is above zero. `x-derived` is the structured form `{rule, inputs}`; each input is a code citation or a contract-field property path that must exist.
 - **D-P11 leak fixtures are built at run time, not committed.** `fixture_builder.py` assembles each leak-class planted fixture (host path, e-mail, forbidden property name, absolute path in a human-text field) from string fragments into a temporary root (`build(kind, out_dir)`, CLI `--out <dir>`); only clean controls are committed. `leak_scan` has no exempt directory and no exempt marker line. Self-reference control: a unit test runs `leak_scan` over the real `contracts/tools` tree, expects zero findings and asserts a floor on files scanned (at least the number of `.py` files found by globbing). `leak_patterns.py` and `fixture_builder.py` write their patterns from fragments so they do not match their own rules. Committed non-leak plants may sit under `contracts/tools/fixtures/` because they contain nothing leak-shaped.
+- **Python hygiene and S-rules (binding for this WP)**: run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). `contracts/tools/*.py` are non-test code, so ruff's bandit rules (`S`) apply there in full: shell out only with argument lists and `shutil.which`-resolved binaries (S603, S607), call `urlopen` only after an explicit `https` scheme check (S310), and make any suppression a one-line `# noqa: S###` with a stated rationale, never a blanket one. Run `mypy --strict` locally over new modules as discipline (no CI job). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
 - Public repository (C-006): nothing in this WP's files holds a literal absolute host path, e-mail address, credential or private-discussion reference.
 - Baseline: WP01's hand-off (recorded in `research.md` R-8); overlap check 2026-10-02: #5540 and #5326 touch none of this WP's files.
 - Red-first (C-010): first commit per script is its failing unit test and planted fixtures; reviewers verify red then green.
@@ -117,7 +120,7 @@ Implement the six Python content checks that guard the contract, plus the run-ti
 ### Test surface, gates and baseline
 
 - Targeted: `tests/contract/test_citation_check.py tests/contract/test_provisional_check.py tests/contract/test_example_check.py tests/contract/test_event_mapping_check.py tests/contract/test_enum_pin_check.py tests/contract/test_leak_scan.py tests/contract/test_fixture_builder.py tests/contract/test_leak_patterns.py tests/contract/test_schema_formats.py`.
-- Named gate: `tests/architectural/test_ci_corpus_trigger_completeness.py`. Also `ruff check .`, `ruff format --check .`; local `mypy --strict` over new modules as discipline.
+- Named gates: `tests/architectural/test_clock_import_ban.py tests/architectural/test_clock_call_ban.py` and `tests/architectural/test_ci_corpus_trigger_completeness.py`. Also `ruff check .`, `ruff format --check .`; local `mypy --strict` over new modules as discipline.
 - Each unit-test module carries the single-line marker `pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]` (a multi-line list is not detected by the registry gate).
 
 ## Subtasks
@@ -162,8 +165,8 @@ Implement the six Python content checks that guard the contract, plus the run-ti
 ### Subtask T039: `enum_pin_check.py`
 
 **Purpose**: FR-008.
-**Steps**: commit a pinned list for `StatusLane` (nine), `LifecycleStatus` (five), `Topology` (five); planted add and remove; `BOARD_GROUPING_PRESENT` when a `columns` or board grouping schema appears; empty pin and unreadable enum exit 2.
-**Files**: ~110 lines plus tests and pin file under `fixtures/enum_pin_check/` (the real pin lives next to the script; name it in the hand-off so WP09 wires the right path).
+**Steps**: commit the real pin file `contracts/tools/enum_pins.json` (a non-fixture file next to the script, owned by this WP) with the pinned lists for `StatusLane` (nine), `LifecycleStatus` (five), `Topology` (five); make its path the **default** of `enum_pin_check.py` (`--pins` overrides it for fixtures only); planted add and remove; `BOARD_GROUPING_PRESENT` when a `columns` or board grouping schema appears; empty pin and unreadable enum exit 2.
+**Files**: `contracts/tools/enum_pin_check.py` (~110 lines), `contracts/tools/enum_pins.json` (the real pin, default path of the script; WP09 asserts the CI invocation uses this default with a non-empty pin), tests, and planted pins under `contracts/tools/fixtures/enum_pin_check/**`.
 **Validation**: codes asserted.
 
 ### Subtask T040: `leak_scan.py`
@@ -177,6 +180,7 @@ Implement the six Python content checks that guard the contract, plus the run-ti
 
 **Purpose**: keep gates green; record evidence.
 **Steps**: append the seven sorted registry rows; run targeted tests and the gate; run each script by hand against its clean control and its plants and record the exit codes and codes; list the real-contract results for WP09 (`citation_check`, `provisional_check`, `example_check`, `event_mapping_check`, `enum_pin_check`, `leak_scan` against `contracts/` once WP05 is merged: record exit codes, or "not yet runnable" with the reason).
+**Files**: `tests/architectural/test_ci_corpus_trigger_completeness.py` (+7 rows).
 **Validation**: green; counts recorded.
 
 ## Definition of Done
@@ -184,12 +188,12 @@ Implement the six Python content checks that guard the contract, plus the run-ti
 - Seven modules with unit tests, each with planted violations and clean control, stable codes asserted, input floors asserted; red first.
 - `leak_scan` self-reference test passes with a floor; no literal leak-shaped string committed anywhere in this WP's files.
 - Registry rows appended in sorted order; completeness gate green.
-- `ruff` clean; no import of pytest, `tests/` or `scripts.` from `contracts/tools/`.
+- `ruff check .` and `ruff format --check .` clean; no S603, S607 or S310 finding left unjustified; the two clock-ban gate files green; no import of pytest, `tests/` or `scripts.` from `contracts/tools/`.
 - Per-subtask completion recorded with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 
 ## Risks
 
-- Citation check rejects the spec's own cursor citation unless annotated targets count (PQ-10): covered by T043.
+- Citation check rejects the spec's own cursor citation unless annotated targets count (PQ-10): covered by T035 (the annotated-target positive case).
 - A leak pattern literal sneaking into a fixture or test: assemble from fragments.
 - Matching the event mapping format of `events.yaml` before it is stable: read the merged file, adapt the parser, keep the check strict.
 

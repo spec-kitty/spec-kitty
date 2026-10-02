@@ -87,19 +87,20 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 - Response object schemas are closed (`additionalProperties: false`, or `unevaluatedProperties: false` where composed); open maps only where documented. Every property is described and carries `x-source` (repo-relative file path plus symbol) or structured `x-derived` (`{rule: <non-empty prose>, inputs: [<non-empty list>]}`; inputs are code citations or contract-field property paths). Never cite a path `git ls-files` does not list on the branch tip; verify every cited symbol by reading the file (defined name via `def`, `class`, assignment or annotated target).
 - **Preview point (partial)**: the last commit of this WP is an "earlier partial point" (project header and Mission list usable by a UI team, unvalidated). The plan defines no tag name for partial points, only `p0`, `p1`, `p2`; no tag is created for it unless the orchestrator decides otherwise. Record the commit hash in the hand-off.
 - Baseline: judge against WP01's baseline hand-off (recorded by the orchestrator in `research.md` R-8).
-- **Precondition (verify read-only, stop and report if absent):** the IC-07a record (WP02's orchestrator record step) is committed: `git show <target-branch>:kitty-specs/mission-status-contract-v1-01M3WC5X/research.md` contains the dated sentence "IC-07a complete". It fixes the canonical brace `$ref` spelling that WP04 will use.
+- **Precondition (verify read-only, stop and report if absent):** the IC-07a record (WP02's orchestrator record step) is committed: `git show <target-branch>:kitty-specs/mission-status-contract-v1-01M3WC5X/research.md` contains the dated sentence "IC-07a complete" (it fixes the canonical brace `$ref` spelling that WP04 will use), **or** the dated time-box fallback sentence "IC-07a pending, default spelling provisional" (WP02 record step): in that case WP04 uses the default `%7B`/`%7D` spelling provisionally and WP09's re-sweep covers a later change. If neither sentence is present, stop and report.
+- **Python hygiene (binding for this WP)**: this WP edits `tests/contract/test_mission_status_examples.py`, so run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
 - **Open-PR overlap check (2026-10-02)**: #5540 and #5326 touch none of this WP's files. Re-check at start.
 - Red-first (C-010): the first commit is a failing examples test and a planted malformed `date-time` example; the contract makes it green.
 - Terminology: Mission, never feature; examples and descriptions follow the same rule. No absolute host path, e-mail address, credential or private-discussion reference anywhere (C-006). Example actors are handles such as `claude`, `implementer`, never person names or addresses.
 
 ### Test surface, gates and baseline
 
-- Targeted: `tests/contract/test_mission_status_examples.py`, and the already-landed `tests/contract/test_layout_check.py` plus a local run of `.venv/bin/python contracts/tools/layout_check.py --root contracts` (WP01 tool) which must exit 0 once the module exists and its index files are consistent.
-- Named gates: `tests/architectural/test_ci_corpus_trigger_completeness.py`, `tests/architectural/test_workflow_coherence.py` (router globs must match a tracked path; `contracts/**` now does). No architectural directory sweep.
+- Targeted: `tests/contract/test_mission_status_examples.py`, `tests/contract/test_contract_resolver.py` (this WP owns the resolver files; run it even if the resolver is untouched), and the already-landed `tests/contract/test_layout_check.py` plus a local run of `.venv/bin/python contracts/tools/layout_check.py --root contracts` (WP01 tool) which must exit 0 once the module exists and its index files are consistent.
+- Named gates: `tests/architectural/test_clock_import_ban.py tests/architectural/test_clock_call_ban.py`, `tests/architectural/test_ci_corpus_trigger_completeness.py`, `tests/architectural/test_workflow_coherence.py` (router globs must match a tracked path; `contracts/**` now does). No architectural directory sweep.
 
 ## Subtasks
 
-### Subtask T022: Failing examples test with a planted malformed timestamp
+### Subtask T016: Failing examples test with a planted malformed timestamp
 
 **Purpose**: red-first harness for every example (also the basis of preview claim "every example validates").
 
@@ -109,9 +110,9 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 3. Red because there is no module yet.
 
 **Files**: test module (~180 lines).
-**Validation**: test fails on the base for the right reason (no module), passes after T019.
+**Validation**: test fails on the base for the right reason (no module), passes once T022 (the root map) lands the module.
 
-### Subtask T020: Vocabularies and shared-style schemas
+### Subtask T017: Vocabularies and shared-style schemas
 
 **Purpose**: FR-008, FR-009.
 
@@ -123,7 +124,7 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 **Files**: ~7 YAML files (~25 lines each) plus `_index.yaml`.
 **Validation**: `layout_check` passes on the directory; enum values match exactly.
 
-### Subtask T021: `Project` resource
+### Subtask T018: `Project` resource
 
 **Purpose**: FR-003.
 
@@ -132,9 +133,10 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 2. `paths/project.yaml`: `GET /project`, `operationId`, tag, 200 with `Project`, error responses via the shared `Problem` response only.
 3. `examples/project.yaml` (or the naming scheme `layout_check` enforces), referenced by the response.
 
+**Files**: `contracts/mission-status/schemas/Project.yaml`, `contracts/mission-status/paths/project.yaml`, `contracts/mission-status/examples/` (project example).
 **Validation**: example validates; `missionCount` description states the definition.
 
-### Subtask T022: `MissionOverview` schema and progress, with citations
+### Subtask T019: `MissionOverview` schema and progress, with citations
 
 **Purpose**: FR-004 field catalogue, FR-010.
 
@@ -154,6 +156,7 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 1. `paths/missions.yaml`: `GET /missions`, shared page parameters from `_shared`, 200 body a closed `MissionOverviewPage` (items plus `PageInfo` from `_shared`). The operation description names the sort key `createdAt` descending, ties broken by `missionId` ascending (a total key), and states pagination uses the shared opaque page cursor.
 2. Query parameters live in `parameters/`; error responses reference the shared `Problem` response only.
 
+**Files**: `contracts/mission-status/paths/missions.yaml`, `contracts/mission-status/parameters/**`, `contracts/mission-status/schemas/MissionOverviewPage.yaml`.
 **Validation**: layout check passes; description names both sort keys (the reality check in WP10 asserts strict ordering).
 
 ### Subtask T021: Examples for project and overview, including list pages
@@ -164,6 +167,7 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 1. Examples: a project example; an overview example with a populated Mission; an overview with `displayNumber` null, `topology` `unknown`, `mid8` null; a populated provisional example (`nextAction` non-null) and a discarded-Mission example (`lifecycleStatus` `discarded` with `discardedAt`); list-page examples for first page, a middle page and the exhausted cursor.
 2. No example contains an absolute path, e-mail address or person name; use placeholder slugs such as `example-mission-01ABCDEF`.
 
+**Files**: `contracts/mission-status/examples/**` (about 8 example files), `contracts/mission-status/responses/**` where a response references them.
 **Validation**: all validate in the examples test; every example is referenced by a schema or response (orphans fail later in `example_check`).
 
 ### Subtask T022: Root map, info, CHANGELOG and registry row
@@ -176,6 +180,7 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 3. Append the registry row for `tests/contract/test_mission_status_examples.py` (sorted).
 4. Run the targeted commands; record counts.
 
+**Files**: `contracts/mission-status/openapi.yaml` (created here; WP04 and WP05 append), `contracts/mission-status/CHANGELOG.md` (created here), `tests/architectural/test_ci_corpus_trigger_completeness.py` (+1 row).
 **Validation**: examples test green; `layout_check` exits 0 on the real tree; registry gate green.
 
 ## Definition of Done
@@ -184,6 +189,7 @@ Create the `contracts/mission-status/` module skeleton and its first two resourc
 - Examples test red first, then green, including the planted malformed-timestamp rejection through both resolution paths.
 - `layout_check` over the real `contracts/` exits 0; `contracts/_shared/` untouched except by reference.
 - Registry row appended in sorted order; the two named architectural gates green.
+- `ruff check .` and `ruff format --check .` clean; the two clock-ban gate files green.
 - No `src/` change; no absolute path or e-mail in any file.
 - Per-subtask completion recorded with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 

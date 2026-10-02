@@ -101,7 +101,8 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 - **Provisioning (PQ-1)**: no committed Gradle wrapper jar. The workflow downloads the pinned Gradle distribution over HTTPS, verifies its sha256 from `contracts/tools/pins.json`, unpacks and runs it. The openapi-generator Gradle plugin and its transitive artefacts resolve under **strict Gradle dependency verification** with a committed `contracts/gradle/verification-metadata.xml` produced by `gradle --write-verification-metadata sha256 <task>` (never hand-edited). A tampered-checksum fixture is a copy under `contracts/tools/fixtures/` altered by a test helper at run time, not by hand in the real file. Versions are chosen by the implementer from vendor releases at implement time and recorded in `pins.json` with `name`, `version`, `url` (HTTPS only), `sha256`, `published` (date) and `advisory_feed_checked`; the plan invents no version. Freshness rule: an artefact published less than 14 days before the pin date is adverse and needs maintainer acknowledgement (record it; do not proceed past an adverse result without the orchestrator). Build script DSL (Groovy or Kotlin) is the implementer's choice, recorded in the hand-off.
 - Tools here: `install_tools.py` (downloads over HTTPS, verifies sha256 **before** anything executes, refuses an empty manifest; codes `CHECKSUM_MISMATCH`; exit 2 `MANIFEST_EMPTY`, `DOWNLOAD_FAILED`), `bundle.py` (validate every module and bundle with the `openapi-yaml` generator; codes `BUNDLE_EMPTY`, `FEWER_THAN_FIVE_PATHS`, `UNRESOLVED_REFERENCE_LEFT`; exit 2 `NO_MODULE`, `MODULE_WITHOUT_ROOT`, `JVM_MISSING`, `GRADLE_MISSING`, `PLUGIN_RESOLUTION_FAILED`, `DEPENDENCY_VERIFICATION_FAILED`; determinism comparison is WP08), `resolver_parity.py` (first cut: dereference the CI bundle and the resolver's tree, compare ignoring key order after the named normalisations capped at `MAX_NORMALISATIONS = 8`; codes `TREE_DIFFERS` naming the first differing JSON pointer, `UNDOCUMENTED_NORMALISATION`, `NORMALISATION_CAP_EXCEEDED`, `INDEPENDENT_DEREF_DISAGREES`; exit 2 `RESOLVER_IMPORT_FAILED`, `BUNDLE_MISSING_OR_EMPTY`, `BELOW_FLOOR` for fewer than five path items, zero schemas, zero resolved refs; prints the counts), `client_smoke.py` (openapi-generator TypeScript client generation through the pinned Gradle build against the **split** root of every module, generation only, output not compiled; codes `GENERATION_FAILED`; exit 2 `NO_MODULE`, `ZERO_FILES_EMITTED`, `JVM_MISSING`, `GRADLE_MISSING`; prints `modules`, `files_emitted`, `generator_warnings`). Every script follows the conventions: stdlib plus locked dependencies only, never imports pytest, `tests/` or `scripts.`, prints `CONTRACT-CHECK <name>: <CODE>: <detail>` and a final `counts:` line, exit 0/1/2. Checksum code carries a one-line `# noqa: TID251` with a file-integrity rationale.
 - **The independent dereference check** (D-P2): validates every committed example against its schema twice, once through the resolver's tree and once through `jsonschema` with a `referencing.Registry` that retrieves the split files itself (library resolution, no code from `contract_resolver.py`), using `schema_formats.FORMAT_CHECKER`; fails when the two verdicts differ for any example, planted invalid ones included. The parity script is a consistency check, never described as an independent proof.
-- **CI-only feedback loop (tracer F-7)**: there is no JVM, Gradle, vacuum or oasdiff on the workstation, so the JVM steps are exercised only by pushing to the draft PR. The agent never pushes; the orchestrator pushes the branch and relays run results. Plan for several iterations; keep every Python script locally testable.
+- **CI-only feedback loop (tracer F-7)**: there is no JVM, Gradle, vacuum or oasdiff on the workstation, so the JVM steps are exercised only by pushing to the draft PR. The agent never pushes; the orchestrator pushes the branch and relays run results, **after the orchestrator pre-step below has opened the draft PR** (the workflow triggers only on `pull_request` and on push to `main`, so no spike run can exist before that PR). Plan for several iterations; keep every Python script locally testable. The spike is time-boxed (see the record step).
+- **Python hygiene and S-rules (binding for this WP)**: run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). `contracts/tools/*.py` are non-test code, so ruff's bandit rules (`S`) apply there in full: shell out only with argument lists and `shutil.which`-resolved binaries (S603, S607), call `urlopen` only after an explicit `https` scheme check (S310), and make any suppression a one-line `# noqa: S###` with a stated rationale, never a blanket one. Run `mypy --strict` locally over new modules as discipline (no CI job). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
 - **Exit criterion** (what the orchestrator record step below writes into `research.md` R-3): the spike table (named normalisations, canonical brace `$ref` spelling tested against the Python resolver, the Java parser and a generated TypeScript client, client-smoke result), E-1 and E-4 closed or escalated, and, from a pushed run, the exact plant that makes the pinned generator exit non-zero (a dangling `$ref` target is a candidate, not an assumption; if the generator only warns and still emits files, the warning text that `client_smoke.py` counts and fails on). WP06 and WP08 do not start before it is recorded.
 - Baseline from WP01's hand-off; overlap check 2026-10-02: #5540 and #5326 touch none of this WP's files (`.github/workflows/`, `scripts/ci/`, `tests/ci/`, `contracts/`); re-run at start.
 - Red-first (C-010): first commit per tool is a failing unit test or planted fixture; the skeleton's first commit is the failing `PR_WORKFLOWS`/fleet test edit.
@@ -110,7 +111,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 ### Test surface, gates and baseline
 
 - Targeted: `tests/contract/test_install_tools.py tests/contract/test_bundle.py tests/contract/test_resolver_parity.py tests/contract/test_client_smoke.py tests/ci/test_fleet_verdict.py tests/ci/test_fleet_main.py tests/ci/test_fork_guard.py`.
-- Named gates: `tests/architectural/test_module_shard_registry.py tests/architectural/test_workflow_coherence.py tests/architectural/test_no_duplicate_suite_execution.py tests/architectural/test_ci_corpus_trigger_completeness.py tests/release/test_pinning_inventory_fresh.py` and the `tests/release` directory. No architectural directory sweep. Append sorted registry rows for the four new corpus-marked unit-test modules (declared exception, out-of-map edit).
+- Named gates: `tests/architectural/test_clock_import_ban.py tests/architectural/test_clock_call_ban.py` `tests/architectural/test_module_shard_registry.py tests/architectural/test_workflow_coherence.py tests/architectural/test_no_duplicate_suite_execution.py tests/architectural/test_ci_corpus_trigger_completeness.py tests/release/test_pinning_inventory_fresh.py` and the `tests/release` directory. No architectural directory sweep. Append sorted registry rows for the four new corpus-marked unit-test modules (declared exception, out-of-map edit).
 
 ## Subtasks
 
@@ -123,6 +124,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 2. In one commit add `scripts/ci/fleet_verdict.py` entry, the `Contracts` name in `ci-fleet-verdict.yml`'s `workflow_run` list, a first `.github/workflows/contracts.yml`, and the regenerated inventory. Run the fleet tests green; run `tests/ci/test_fleet_main.py` and edit it only if a test says so (the plan expects none: record the result either way).
 3. Run `tests/ci/test_fork_guard.py` (the discovered-jobs parametrisation covers the new jobs).
 
+**Files**: `tests/ci/test_fleet_verdict.py` (first), `scripts/ci/fleet_verdict.py` (+1 entry), `.github/workflows/ci-fleet-verdict.yml` (+1 name), `.github/workflows/contracts.yml` (new skeleton; first of the writers WP02, WP08, WP09), `tests/release/pinning_rule_inventory.json` (derived), `tests/ci/test_fleet_main.py` (only if a test says so).
 **Validation**: all named files green; inventory freshness green.
 
 ### Subtask T010: Toolchain bootstrap: `pins.json`, Gradle build, verification metadata, `install_tools.py`
@@ -134,6 +136,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 2. Implement `install_tools.py`; create `pins.json` (JDK setup action is a `uses:` SHA, not a download; Gradle distribution; plugin entries) with every field populated and the freshness check recorded.
 3. Create `contracts/build.gradle*` and `contracts/settings.gradle*` (a build that validates each module and bundles with the `openapi-yaml` generator, and exposes a TypeScript client generation task for the smoke), run `gradle --write-verification-metadata sha256 <task>` in CI (or document why it must be done on a runner) to produce `contracts/gradle/verification-metadata.xml` in strict mode; never hand-edit it. XML is read, if at all, by a narrow regex or a justified suppression (ruff S314 forbids `xml.etree`).
 
+**Files**: `contracts/tools/install_tools.py` (~150 lines), `contracts/tools/pins.json` (created here; WP08 appends), `contracts/build.gradle*`, `contracts/settings.gradle*`, `contracts/gradle/**` (generated), `tests/contract/test_install_tools.py`, `contracts/tools/fixtures/install_tools/**`.
 **Validation**: unit tests green; the workflow step fails on a planted tampered metadata copy (the copy is made at run time by a helper).
 
 ### Subtask T011: `bundle.py` first cut
@@ -142,6 +145,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 
 **Steps**: failing unit tests with fixtures (module without root file, empty output, fewer than five path items in a fixture bundle) then `bundle.py`; discovery per the script conventions (module = direct subdirectory with a root `openapi.yaml`; `_shared`, `fixtures`, `gradle`, `tools` never modules); output staged outside the repository tree (the bundle is never committed; a tracked bundle fails `layout_check`).
 
+**Files**: `contracts/tools/bundle.py` (~200 lines; WP08 extends it with determinism), `tests/contract/test_bundle.py`, `contracts/tools/fixtures/bundle/**`.
 **Validation**: unit tests green; on the spike module the CI job produces a non-empty bundle.
 
 ### Subtask T012: `resolver_parity.py` and the independent dereference check
@@ -150,6 +154,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 
 **Steps**: failing tests with a planted divergent resolver (a copy that drops one `$ref` target or alters one schema, under `contracts/tools/fixtures/resolver_parity/`) and a planted resolver defect that both sides share (the independent check disagrees); cap test for `MAX_NORMALISATIONS`; then implement. The normalisation list starts **empty**; entries are added only from the spike's observations, each naming the construct and tool behaviour with a planted unit test; an entry that drops information is an E-1 decision for the maintainers, not a normalisation.
 
+**Files**: `contracts/tools/resolver_parity.py` (~250 lines), `tests/contract/test_resolver_parity.py`, `contracts/tools/fixtures/resolver_parity/**`.
 **Validation**: unit tests green; counts printed (`path_items`, `schemas`, `refs_resolved`, `normalisations`, `examples_cross_checked`).
 
 ### Subtask T013: `client_smoke.py`
@@ -158,6 +163,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 
 **Steps**: failing tests first for the exit-2 conditions and `GENERATION_FAILED`; implement; the actual failing plant is recorded from a pushed run (the orchestrator records it in `research.md`; a fixture under `contracts/tools/fixtures/client_smoke/` captures it with a clean control).
 
+**Files**: `contracts/tools/client_smoke.py` (~150 lines), `tests/contract/test_client_smoke.py`, `contracts/tools/fixtures/client_smoke/**`.
 **Validation**: unit tests green; step prints the counted result in CI.
 
 ### Subtask T014: The spike module and skeleton jobs
@@ -169,6 +175,7 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 2. Fill `contracts.yml` with `validate-bundle`, `resolver-parity`, the interim `contracts-gate`, and the smoke step as above, pointing the spike at the fixture root through the `--root` parameter.
 3. Hand the exact pushed-run results to the orchestrator for the record step below.
 
+**Files**: `contracts/tools/fixtures/spike/**` (~15 small YAML files), `.github/workflows/contracts.yml` (second write in this WP, still the first writer overall).
 **Validation**: workflow guard shape checked locally by reading it against `contracts/tools-and-workflows.md`; the CI result is the spike evidence.
 
 ### Subtask T015: Registry rows and final local runs
@@ -177,18 +184,27 @@ Land the minimal `contracts.yml` skeleton that can execute the bundler-fidelity 
 
 **Steps**: append sorted registry rows for the four new test modules; run targeted and gate files; run `ruff check .` and `ruff format --check .`; record counts.
 
+**Files**: `tests/architectural/test_ci_corpus_trigger_completeness.py` (+4 rows).
 **Validation**: all green.
+
+## Orchestrator pre-step: push the branch and open the draft PR (precondition of the CI-only spike; not an agent action)
+
+Before any spike run (the first push of T014's skeleton), the **orchestrator** pushes the mission branch and opens the **DRAFT** pull request targeting `main`, and records the PR number in the hand-off and in the WP12 evidence list. The PR stays a draft until a maintainer acknowledges the design on #5528 (C-001, SC-010); it is never marked ready by an agent. Agents never push and never open pull requests. If the orchestrator decided to split the PR (see the PR shape paragraph in WP01), this pre-step opens the first PR of the split. WP08, WP09 and WP12 rely on this PR already existing; WP12 only finalises its body.
 
 ## Orchestrator record step: IC-07a exit criterion (writes `kitty-specs/`, so not an agent action)
 
 **Completion of IC-07a is exactly this record.** After the pushed spike run the orchestrator writes into `research.md`, from this WP's hand-off and the run results it relays: (1) in R-3, the table of named normalisations (construct, tool behaviour, planted test name; cap eight; an entry that drops information is an E-1 decision), the canonical brace `$ref` spelling tested against the Python resolver, the Java parser and the generated TypeScript client (say whether it equals the default `%7B`/`%7D`), the client-smoke counts, and the exact plant that makes the pinned generator exit non-zero (or the warning text `client_smoke.py` fails on); (2) the E-1 and E-4 outcomes, closed or escalated (no workable spelling is escalation E-4: stop the Mission and ask the maintainers); (3) in R-9, the five supply-chain control rows for the JDK, Gradle and plugin (repositories, publication dates against the 14-day rule, advisory feeds consulted, adverse list); (4) the closing sentence "IC-07a complete: IC-05 and IC-07b may start", dated. It commits this with `spec-kitty safe-commit` on the planning surface **before dispatching WP03 and before WP06 and WP08 are claimed**. Those WPs verify the sentence as a precondition (read-only: `git show <target-branch>:kitty-specs/mission-status-contract-v1-01M3WC5X/research.md`). WP12 re-verifies the record.
 
+**Time-box and fallback (the plan's provisional-spelling clause).** The spike must not hold p0 hostage. Limit: 4 pushed spike iterations or 5 calendar days after the draft PR opens, whichever comes first (the orchestrator may adjust the limit and records the figure it chose). If the spike has not produced the record by then, the orchestrator writes into `research.md` R-3, dated, the sentence "IC-07a pending, default spelling provisional" (naming what is still open), commits it with `spec-kitty safe-commit`, and may then release WP03 and WP04 under the plan's provisional-spelling clause: they use the default `BRACE_REF_SPELLING` (percent-encoded `%7B`/`%7D`) provisionally. If the spike later records a different spelling, WP09's opening re-sweep applies it and each already-published preview point is re-published with the cause `brace re-sweep`. The fallback releases **WP03 to WP05 only**: WP06 and WP08 still require the full "IC-07a complete" sentence.
+
 ## Definition of Done
 
 - Skeleton workflow, `PR_WORKFLOWS` entry, `workflow_run` name and regenerated inventory landed together; fleet and fork-guard tests green; `fleet_main.py` and the module registry untouched; `test_fleet_main.py` edited only if red.
 - `install_tools.py`, `bundle.py`, `resolver_parity.py`, `client_smoke.py`, `pins.json`, Gradle build and verification metadata exist with unit tests (planted violation plus clean control each, asserting the stable code).
-- A pushed run has executed the spike; its raw results are in the hand-off for the orchestrator record step.
+- The orchestrator pre-step is recorded (draft PR number; PR still a draft).
+- A pushed run has executed the spike; its raw results are in the hand-off for the orchestrator record step (or the time-box fallback sentence was recorded).
 - Workflow file count recorded (expected 18); ceiling test green.
+- `ruff check .` and `ruff format --check .` clean; no S603, S607 or S310 finding left unjustified; the two clock-ban gate files green.
 - No `src/` change; no contract file or resolver constant edited.
 - Per-subtask completion recorded with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 

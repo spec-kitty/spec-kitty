@@ -74,34 +74,36 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 ## Context
 
 - Plan concern **IC-03**, second of the sequential content WPs (WP03, then WP04, then WP05). It appends to the root map, the `_index.yaml` files and the module CHANGELOG written by WP03; it never reorders or rewrites WP03's entries. No registry row is needed (the examples test module already has its row); if you add a new corpus-marked module, add its row (the registry file is owned by the WPs that add corpus-marked modules; this WP does not own it, so make that a one-line recorded out-of-map edit, or avoid adding a module).
-- **Brace spelling.** This WP creates the first brace-named path files: `missions_{missionId}.yaml` and `missions_{missionId}_work-packages_{wpId}.yaml` (names derived from the path with `/` to `_` and `{param}` kept). References to them use the value of `BRACE_REF_SPELLING` in `contracts/tools/contract_resolver.py` (provisional default: percent-encoded `%7B`/`%7D`). The IC-07a spike (WP02) runs before this WP in the lane and its result is recorded in `research.md` R-3 by the orchestrator, so **use the recorded spelling now** (verify read-only with `git show <target-branch>:kitty-specs/mission-status-contract-v1-01M3WC5X/research.md`; stop and report if the "IC-07a complete" sentence is absent), set `BRACE_REF_SPELLING` accordingly in `contracts/tools/contract_resolver.py` (this WP owns the file after WP01) with a red-first change, and no sweep is then needed. WP09 keeps the conditional re-sweep only as a safety net should the spelling change after this WP; your tests and fixtures derive file names from a directory listing and the constant, never hard-code them.
+- **Brace spelling.** This WP creates the first brace-named path files: `missions_{missionId}.yaml` and `missions_{missionId}_work-packages_{wpId}.yaml` (names derived from the path with `/` to `_` and `{param}` kept). References to them use the value of `BRACE_REF_SPELLING` in `contracts/tools/contract_resolver.py` (provisional default: percent-encoded `%7B`/`%7D`). The IC-07a spike (WP02) runs before this WP in the lane and its result is recorded in `research.md` R-3 by the orchestrator, so **use the recorded spelling now** (verify read-only with `git show <target-branch>:kitty-specs/mission-status-contract-v1-01M3WC5X/research.md`; stop and report if neither the "IC-07a complete" sentence nor the dated time-box fallback sentence "IC-07a pending, default spelling provisional" is present; under the fallback use the default spelling provisionally and expect WP09's re-sweep if the spike later records another), set `BRACE_REF_SPELLING` accordingly in `contracts/tools/contract_resolver.py` (this WP owns the file after WP01) with a red-first change, and no sweep is then needed. WP09 keeps the conditional re-sweep only as a safety net should the spelling change after this WP; your tests and fixtures derive file names from a directory listing and the constant, never hard-code them.
 - Binding sources: `spec.md` FR-005, FR-006, FR-009, FR-010, FR-011, FR-012, FR-013, D-1 to D-6, D-8, D-10, D-14 and the Field Catalogue (Mission detail, Work package); `data-model.md` (derivation rules, projection rules, field classes); `plan.md` section (l), which governs over the spec for citations (notably `subtaskProgress` cites `ResolvedGroup.subtasks` reached as `WPView.resolved.subtasks`; `WPView` has no `subtasks` attribute; `AuthoredGroup.subtasks` is not used; `discardedAt` is not declared in either meta TypedDict).
 - The prompt body parameter and the `x-derived` phase rules are the review-heavy parts. No property named `promptPath`, `prompt_path`, `feedback_path`, `record_path`, `feature_dir`, `worktree`/`project_path` or their camel-case forms exists anywhere (FR-012).
 - Resolved state (status lane, assignment, actor) is read from the status snapshot, not from stale frontmatter keys (`agent`, `shell_pid`, `lane`, `assignee`, `review_status`); the schema descriptions say so, and WP10's equality assertion enforces it.
 - History lists status transitions only (`kind` is the single value `transition`); annotation and lifecycle rows never appear. `reason` is a human-text field (D-14).
 - Baseline, overlap, hygiene, terminology and red-first rules: as in WP03. **Open-PR overlap check (2026-10-02)**: #5540 and #5326 touch none of this WP's files.
 - Does not touch the migration chain, runtime-state schema, event contract implementation or a shared CI gate.
+- **Python hygiene (binding for this WP)**: this WP edits `tests/contract/test_mission_status_examples.py`, so run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
 - **Preview point (partial)**: the last commit of this WP is an "earlier partial point" (Mission page and work package page, unvalidated). No tag is created for it unless the orchestrator decides; record the commit hash in the hand-off.
 
 ### Test surface, gates and baseline
 
-- Targeted: `tests/contract/test_mission_status_examples.py` (extended), `.venv/bin/python contracts/tools/layout_check.py --root contracts`, `tests/contract/test_layout_check.py`.
-- Named gates: `tests/architectural/test_ci_corpus_trigger_completeness.py`, `tests/architectural/test_workflow_coherence.py`. No directory sweep.
+- Targeted: `tests/contract/test_mission_status_examples.py` (extended), `tests/contract/test_contract_resolver.py` (this WP changes the resolver's `BRACE_REF_SPELLING`), `.venv/bin/python contracts/tools/layout_check.py --root contracts`, `tests/contract/test_layout_check.py`.
+- Named gates: `tests/architectural/test_clock_import_ban.py tests/architectural/test_clock_call_ban.py`, `tests/architectural/test_ci_corpus_trigger_completeness.py`, `tests/architectural/test_workflow_coherence.py`. No directory sweep.
 
 ## Subtasks
 
-### Subtask T026: Extend the examples test red-first
+### Subtask T023: Extend the examples test red-first
 
 **Purpose**: each new resource gets its failing example case before the contract exists.
 
 **Steps**:
 1. In `tests/contract/test_mission_status_examples.py` add cases that require: one example per new resource (Mission detail; work package without `promptMarkdown`; work package with `promptMarkdown` requested), a populated provisional work package example (staleness non-null), and negative cases: a phase entry without `basis` fails; an `implement` or `review` entry with basis `artifact` fails; a `history` entry with `kind` other than `transition` fails; a work package example carrying a `promptPath` property fails (closed schema).
-2. Names come from a directory listing; counts asserted before properties.
+2. FR-009 schema tests in the same file (red first, each with a planted violating schema and a floor on what was found): (a) walking the resolved tree, the transitive `$ref` closures of `PageCursor` and `StreamCursor` are disjoint; (b) every path parameter named `missionId` carries the ULID pattern and no path parameter is named `displayNumber`, with a floor on path parameters found. Name the test ids in the Definition of Done.
+3. Names come from a directory listing; counts asserted before properties.
 
-**Files**: test additions (~120 lines).
+**Files**: `tests/contract/test_mission_status_examples.py` additions (~120 lines).
 **Validation**: red on the WP03 tree.
 
-### Subtask T027: Mission detail schema and phases
+### Subtask T024: Mission detail schema and phases
 
 **Purpose**: FR-005.
 
@@ -111,9 +113,9 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 3. `schemas/WorkPackageSummary.yaml`: identifier, title, `phaseLabel`, `statusLane` (nullable), `dependencies`, `readiness`, `readyToStart`, `subtaskProgress`, `lastTransitionAt`; never the prompt body.
 
 **Files**: three schemas (~60 to 150 lines each).
-**Validation**: negative cases from T020 now fail for the intended reason.
+**Validation**: negative cases from T023 now fail for the intended reason.
 
-### Subtask T028: Work package detail schema
+### Subtask T025: Work package detail schema
 
 **Purpose**: FR-006, field catalogue.
 
@@ -130,9 +132,11 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 **Purpose**: FR-005, FR-006, FR-009 path rules.
 
 **Steps**:
+0. Red first, in `tests/contract/test_contract_resolver.py` with a golden tree under `contracts/tools/fixtures/contract_resolver/`: a case that resolves a brace-named file through the recorded spelling and fails against the unchanged `BRACE_REF_SPELLING`; then set the constant in `contracts/tools/contract_resolver.py` (see Context) and turn it green.
 1. `paths/missions_{missionId}.yaml` and `paths/missions_{missionId}_work-packages_{wpId}.yaml` (or the recorded spelling); path parameters `missionId` (ULID pattern, the only identifier accepted; `displayNumber` is accepted nowhere) and `wpId` in `parameters/`; the optional boolean query parameter that requests the prompt body (`includePrompt`, description states the default is absent and the response omits `promptMarkdown`).
 2. Append both path items to the root map in `openapi.yaml` and to every affected `_index.yaml`; do not reorder existing entries. All non-2xx responses reference the shared `Problem` response (404 for unknown Mission or work package).
 
+**Files**: `contracts/mission-status/paths/missions_*.yaml` (two new path files), `contracts/mission-status/parameters/**`, `contracts/mission-status/openapi.yaml` (append), `contracts/mission-status/**/_index.yaml` (append), `contracts/tools/contract_resolver.py` (`BRACE_REF_SPELLING`), `tests/contract/test_contract_resolver.py`, `contracts/tools/fixtures/contract_resolver/**`.
 **Validation**: `layout_check` over the real tree exits 0 (no orphan path file, names match the rule, indices consistent).
 
 ### Subtask T027: Examples
@@ -143,6 +147,7 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 1. Examples: Mission detail with all five phases (one per basis kind); work package without the prompt body; work package with `promptMarkdown` (authored markdown that contains no host path or e-mail address, since examples are scanned); populated provisional staleness example; a work package with null `statusLane` (event-less); one example per actor source form (structured, plain handle string, e-mail source projected to all-null) per D-10; cancellation and review override populated.
 2. Reference each from its response so none is orphaned.
 
+**Files**: `contracts/mission-status/examples/**` (about 10 example files), `contracts/mission-status/responses/**` where referenced.
 **Validation**: all validate under `FORMAT_CHECKER`.
 
 ### Subtask T028: CHANGELOG, root map consistency, final run
@@ -154,19 +159,21 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 2. Run the targeted commands and gate files; record counts.
 3. Confirm no file under `contracts/fixtures/` or `src/` changed (`git diff --stat`).
 
+**Files**: `contracts/mission-status/CHANGELOG.md` (append), no other file (final run and `git diff --stat` check).
 **Validation**: examples test and layout check green.
 
 ## Definition of Done
 
 - Both resources defined; phases rule text complete; work package schema matches the catalogue; closed schemas; no forbidden property name; no leak-shaped value.
 - 100 percent of properties cited or `x-derived` with inputs (hand-count recorded; WP06 enforces later); provisional fields carry `x-provisional` with a description naming the open decision on #5528 and are nullable.
-- Examples test red first, then green; `layout_check` exits 0.
+- Examples test red first, then green; `layout_check` exits 0; the FR-009 schema tests (cursor closures disjoint; ULID `missionId` path parameter, no `displayNumber` path parameter) exist with planted violations, are named by test id in the hand-off, and the resolver golden-tree case for the brace spelling failed before the constant changed.
+- `ruff check .` and `ruff format --check .` clean; the two clock-ban gate files green.
 - Per-subtask completion recorded with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 
 ## Risks
 
 - Brace `$ref` spelling may be re-decided by the spike: derive names, never hard-code; WP09 applies any re-sweep.
-- Sibling keywords beside `$ref` and `allOf` composition are bundler-fidelity risks (R-3): keep constructs within the resolver's supported list; adding one means extending `contracts/tools/contract_resolver.py` (WP01 wrote it; this WP also owns it, sequentially after WP01) together with its golden-tree test and fixture in the same commit that first uses the construct (resolver change control, D-P2). Check whether the construct survives bundling is WP02/@@SPIKEREC@@'s spike, so prefer constructs already in the supported list.
+- Sibling keywords beside `$ref` and `allOf` composition are bundler-fidelity risks (R-3): keep constructs within the resolver's supported list; adding one means extending `contracts/tools/contract_resolver.py` (WP01 wrote it; this WP also owns it, sequentially after WP01) together with its golden-tree test and fixture in the same commit that first uses the construct (resolver change control, D-P2). Check whether the construct survives bundling is the IC-07a spike's (the spike record, `research.md` R-3), so prefer constructs already in the supported list.
 
 ## Reviewer Guidance
 

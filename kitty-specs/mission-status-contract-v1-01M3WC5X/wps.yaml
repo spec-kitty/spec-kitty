@@ -234,6 +234,7 @@ work_packages:
       - "contracts/tools/example_check.py"
       - "contracts/tools/event_mapping_check.py"
       - "contracts/tools/enum_pin_check.py"
+      - "contracts/tools/enum_pins.json"
       - "contracts/tools/leak_scan.py"
       - "contracts/tools/fixture_builder.py"
       - "contracts/tools/fixtures/citation_check/**"
@@ -385,6 +386,8 @@ work_packages:
       - "tests/contract/test_run_negative_cases.py"
       - "tests/contract/test_mission_status_examples.py"
       - "tests/contract/test_layout_check.py"
+      - "contracts/tools/fixtures/**"
+      - "tests/contract/test_*.py"
       - "tests/architectural/test_ci_corpus_trigger_completeness.py"
     requirement_refs:
       - "FR-001"
@@ -408,7 +411,6 @@ work_packages:
       - "T058"
       - "T059"
       - "T060"
-      - "T061"
     prompt_file: "tasks/WP09-remaining-jobs-release-negative-tests-p1.md"
 
   - id: WP10
@@ -490,12 +492,17 @@ work_packages:
       - "kitty-specs/mission-status-contract-v1-01M3WC5X/tracer-tooling-friction.md"
     requirement_refs:
       - "C-001"
+      - "C-002"
+      - "C-003"
+      - "C-004"
+      - "C-005"
       - "C-006"
       - "NFR-001"
       - "NFR-007"
       - "SC-002"
       - "SC-003"
       - "SC-007"
+      - "SC-008"
       - "SC-009"
       - "SC-010"
     plan_concern_refs:

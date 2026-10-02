@@ -87,6 +87,7 @@ Implement `structure_check.py`, `codeowners_check.py`, `no_pytest_scan.py` and `
 - `structure_check.py`: README headings (one per required topic, see WP01's README skeleton list) and CHANGELOG headings (added, changed, removed, provisional, and a heading for the module's current `info.version`); codes `README_HEADING_MISSING`, `CHANGELOG_HEADING_MISSING`, `CHANGELOG_VERSION_HEADING_MISSING`; counts `readme_headings changelog_headings`; exit 2 `ZERO_HEADINGS`. Node-free (C-005): markdown lint of those files stays advisory; do not add a Node markdownlint step.
 - `no_pytest_scan.py`: scans every script in `contracts/tools/` **including itself**; detects an import, a `python -m` invocation, a subprocess or shell string, or a `make` target that reaches pytest; builds its own search strings from fragments so it does not flag itself; count `scripts_scanned`; code `PYTEST_REFERENCE`; exit 2 `ZERO_SCRIPTS`. **Keep it last in this WP** so it covers all scripts present (a scan that ran before the other three exist would pass vacuously on them). It runs on every `contracts/**` edit through the workflow path filter (WP09 wires the job); the `tests/ci/` half of the guard is WP09's.
 - Conventions: as in WP06 (bare scripts, stdlib plus locked dependencies, `--root`, `CONTRACT-CHECK <name>: <CODE>: <detail>`, `counts:`, exit 0/1/2, floors before properties, no import of pytest/`tests/`/`scripts.`).
+- **Python hygiene and S-rules (binding for this WP)**: run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). `contracts/tools/*.py` are non-test code, so ruff's bandit rules (`S`) apply there in full: shell out only with argument lists and `shutil.which`-resolved binaries (S603, S607), call `urlopen` only after an explicit `https` scheme check (S310), and make any suppression a one-line `# noqa: S###` with a stated rationale, never a blanket one. Run `mypy --strict` locally over new modules as discipline (no CI job). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
 - Registry rows: this WP owns `tests/architectural/test_ci_corpus_trigger_completeness.py` for one purpose, four sorted rows.
 - Does not touch the migration chain, runtime-state schema, event contract or any shared CI gate other than `.gitignore`, the new `.github/CODEOWNERS` and the registry rows.
 - Baseline from WP01's hand-off; red-first per script (C-010).
@@ -94,7 +95,7 @@ Implement `structure_check.py`, `codeowners_check.py`, `no_pytest_scan.py` and `
 ### Test surface, gates and baseline
 
 - Targeted: `tests/contract/test_structure_check.py tests/contract/test_codeowners_check.py tests/contract/test_no_pytest_scan.py tests/contract/test_verify_pins.py`.
-- Named gates: `tests/architectural/test_ci_corpus_trigger_completeness.py`, `tests/architectural/test_workflow_coherence.py`. Plus `ruff check .` and `ruff format --check .`.
+- Named gates: `tests/architectural/test_clock_import_ban.py tests/architectural/test_clock_call_ban.py`, `tests/architectural/test_ci_corpus_trigger_completeness.py`, `tests/architectural/test_workflow_coherence.py`. Plus `ruff check .` and `ruff format --check .`.
 - Verify by command, record output: `git ls-files .github/CODEOWNERS`, `git check-ignore -v .github/CODEOWNERS` (must print nothing).
 
 ## Subtasks
@@ -102,7 +103,7 @@ Implement `structure_check.py`, `codeowners_check.py`, `no_pytest_scan.py` and `
 ### Subtask T042: `structure_check.py`
 
 **Purpose**: FR-001 structural check and FR-024 current-version heading.
-**Steps**: failing tests and fixtures first (README with a heading removed; CHANGELOG missing the current-version heading; zero headings read; clean control on the same root); implement with the heading list shared with WP01's skeleton (read the README skeleton; the topic list is: layout, path-file naming, relative `$ref` rules, `_shared/` admission, versioning and `/api/v1`, extensions, status-lane terminology, workflow-phase terminology, Topology distinction, bundle is a build product).
+**Steps**: failing tests and fixtures first (README with a heading removed; CHANGELOG missing the current-version heading; zero headings read; clean control on the same root); implement with the README heading list defined as a constant in `structure_check.py`, **copied verbatim from the exact heading strings in WP01's T007 hand-off** (WP01's T007 list is the single authority: it includes every topic WP11 lists, among them the local validate-and-bundle command with its prerequisite, the `src/specify_cli/contracts/` collision note, the board-column mapping convention, the versioning rule, the residual-risk statement, the reader-author warning and the preview tag namespace). Add a test that plants the removal of each heading in turn and expects `README_HEADING_MISSING` each time.
 **Files**: ~140 lines plus tests.
 **Validation**: codes asserted; real `contracts/` run recorded (README skeleton passes; final text is WP11).
 
@@ -138,6 +139,7 @@ Implement `structure_check.py`, `codeowners_check.py`, `no_pytest_scan.py` and `
 
 **Purpose**: gates green.
 **Steps**: append four sorted rows; run targeted tests, the gate files and ruff; record counts.
+**Files**: `tests/architectural/test_ci_corpus_trigger_completeness.py` (+4 rows).
 **Validation**: green.
 
 ## Definition of Done
@@ -146,6 +148,8 @@ Implement `structure_check.py`, `codeowners_check.py`, `no_pytest_scan.py` and `
 - `.github/CODEOWNERS` tracked (`git ls-files` non-empty, `git check-ignore` empty); `.gitignore` diff is exactly the two lines.
 - `no_pytest_scan` covers all sibling scripts including itself.
 - Registry rows appended in sorted order.
+- `structure_check.py`'s heading constant equals WP01's T007 list entry for entry (the planted-removal test covers every heading).
+- `ruff check .` and `ruff format --check .` clean; no S603, S607 or S310 finding left unjustified; the two clock-ban gate files green.
 - Per-subtask completion recorded with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 
 ## Risks
