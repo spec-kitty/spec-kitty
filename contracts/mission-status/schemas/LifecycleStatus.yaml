@@ -1,0 +1,18 @@
+title: LifecycleStatus
+description: >-
+  The Mission-level lifecycle state. It is derived by the contract-owned rule written on
+  the lifecycleStatus property of MissionOverview, never stored. It is not a work package
+  status lane and not a workflow phase.
+type: string
+enum:
+  - active
+  - planned
+  - done
+  - draft
+  - discarded
+x-derived:
+  rule: >-
+    The vocabulary of the lifecycleStatus derivation; each value is produced by one branch
+    of the rule written on MissionOverview.lifecycleStatus.
+  inputs:
+    - MissionOverview.lifecycleStatus

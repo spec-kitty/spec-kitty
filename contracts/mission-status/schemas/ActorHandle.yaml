@@ -1,0 +1,15 @@
+title: ActorHandle
+description: >-
+  A short machine handle for an actor (a tool, a role or an agent profile), or null. It
+  holds letters, digits and the characters dot, underscore, colon and hyphen only, at most
+  128 characters, so it can never be an e-mail address, a path or free text. A stored value
+  that does not fit is projected to null rather than forwarded.
+type:
+  - string
+  - 'null'
+minLength: 1
+maxLength: 128
+pattern: '^[A-Za-z0-9._:-]+$'
+x-source:
+  path: src/specify_cli/status/models.py
+  symbol: decode_actor

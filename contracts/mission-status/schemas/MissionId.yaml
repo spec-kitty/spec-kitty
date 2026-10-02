@@ -1,0 +1,10 @@
+title: MissionId
+description: >-
+  The canonical machine identity of a Mission: a 26-character Crockford ULID minted when the
+  Mission is created and never changed. Never confuse it with displayNumber, which is
+  display-only and repeats.
+type: string
+pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+x-source:
+  path: src/specify_cli/status/models.py
+  symbol: ULID_PATTERN

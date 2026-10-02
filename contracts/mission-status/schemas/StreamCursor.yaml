@@ -1,0 +1,29 @@
+title: StreamCursor
+description: >-
+  A resumable position in one Mission's physical event log. It is bound to that one file: the
+  offset counts bytes and the invariant is the digest of the last consumed line, so a cursor
+  taken from one log is refused against another. It has no relationship to the opaque page
+  cursor used for paging lists.
+type: object
+additionalProperties: false
+required:
+  - offset
+  - invariant
+properties:
+  offset:
+    type: integer
+    minimum: 0
+    description: The byte offset in the event log just after the last consumed line; 0 means nothing consumed yet.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: TailCursor
+  invariant:
+    type: string
+    pattern: '^[0-9a-f]{64}$'
+    description: >-
+      The 64-character lowercase hexadecimal SHA-256 digest of the last consumed line, or the
+      digest of the empty input when the offset is 0. The stored attribute is named
+      content_invariant.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: TailCursor
