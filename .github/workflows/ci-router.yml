@@ -816,7 +816,10 @@ jobs:
   # run in the `charter` module row). tests/conftest.py skips that class per-PR unless
   # SPEC_KITTY_RUN_PERFORMANCE=1; its executing home is the nightly `performance` job.
   # Keeping it in this selection preserves "selected by exactly one required job".
-  # Packs' advisory corpus run deselects exactly these three selections, so nothing
+  # The eight contract tool test modules (tests/contract/test_bundle.py .. test_schema_formats.py)
+  # are listed too: corpus-marked, outside the module matrix, so this is their blocking home
+  # (deliberate widening of the mission's one-line router edit, operator ruling 2026-10-02).
+  # Packs' advisory corpus run deselects exactly these selections, so nothing
   # runs twice. Pinned by tests/ci/test_corpus_blocking_home.py.
   tests-corpus-blocking:
     name: tests (corpus-blocking)
@@ -835,6 +838,14 @@ jobs:
           uv sync --frozen --all-extras
           uv run --frozen pytest -m "corpus and not windows_ci" \
             tests/contract/test_example_round_trip.py \
+            tests/contract/test_bundle.py \
+            tests/contract/test_client_smoke.py \
+            tests/contract/test_contract_resolver.py \
+            tests/contract/test_install_tools.py \
+            tests/contract/test_layout_check.py \
+            tests/contract/test_leak_patterns.py \
+            tests/contract/test_resolver_parity.py \
+            tests/contract/test_schema_formats.py \
             tests/integration/test_mission_review_contract_gate.py \
             "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
