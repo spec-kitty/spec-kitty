@@ -9,7 +9,7 @@ For implementers and reviewers of Mission `mission-status-contract-v1-01M3WC5X`.
 | Every `contracts/tools/*.py` Python check | yes | also in the contracts workflow |
 | Reality check and every unit-test module in `tests/contract/` | yes | also in `tests-corpus` |
 | Workflow guard tests in `tests/ci/` | yes | also in the `ci` module shard |
-| Validate, bundle, lint, breaking-change diff, resolver parity, release dry run | only with a JDK, Gradle, vacuum and oasdiff installed through `install_tools.py` | the contracts workflow (the planning workstation has none of these tools) |
+| Validate, bundle, generate-from-split client smoke, lint, breaking-change diff, resolver parity, release dry run | only with a JDK, Gradle, vacuum and oasdiff installed through `install_tools.py` | the contracts workflow (the planning workstation has none of these tools) |
 
 ## Python checks over the contract
 
@@ -32,7 +32,7 @@ Each prints a final `counts:` line; exit 0 is pass, 1 is a violation, 2 means th
 
 ```bash
 PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_mission_status_reality.py
-PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_contract_resolver.py tests/contract/test_leak_patterns.py tests/contract/test_layout_check.py
+PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_contract_resolver.py tests/contract/test_leak_patterns.py tests/contract/test_schema_formats.py tests/contract/test_layout_check.py tests/contract/test_mission_status_examples.py
 .venv/bin/python -m pytest --collect-only -q -m "corpus and not windows_ci" tests/contract/test_mission_status_reality.py
 ```
 

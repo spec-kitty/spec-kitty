@@ -148,9 +148,10 @@ dry run prints the argument list, and a maintainer verifies the Latest release a
 
 ## DD-19: one date-time policy, independent of the installed extras
 
-`rfc3339-validator` reaches the lockfile only through the `lint` extra, so the contracts prelude lacks
-it and `tests-corpus` (all extras) has it. One `FORMAT_CHECKER` with an explicit stdlib `date-time`
-check (`contracts/tools/schema_formats.py`) is passed everywhere, so one example gets one verdict in
+`rfc3339-validator` and `jsonpointer` reach the lockfile only through the `format-nongpl` extra of
+`jsonschema` (itself pulled in by the `lint` extra), so the contracts prelude lacks them and
+`tests-corpus` (all extras) has them. One `FORMAT_CHECKER = FormatChecker(formats=())` with an explicit
+stdlib `date-time` check (`contracts/tools/schema_formats.py`) is passed everywhere, so one example gets one verdict in
 both environments (plan D-P14).
 
 ## DD-20: early-start mechanics are plan-level additions

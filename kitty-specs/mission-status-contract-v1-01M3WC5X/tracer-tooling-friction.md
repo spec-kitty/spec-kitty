@@ -38,7 +38,7 @@ Entries are short and dated; the entry is written when the friction happens.
   `(Add|Update) (meta|spec|tasks|plan) for (feature|mission)`; the word "scaffold" is **not** in that
   alternation, so the subject is outside the ignore list. No gate fails for a different reason: the
   `commit-msg` job in `ci-router.yml` only prints commit subjects and ends in `|| true`, so it never
-  runs commitlint and cannot fail .  The terminology guard does not read commit messages. It is a wording defect in the
+  runs commitlint and cannot fail. The terminology guard does not read commit messages. It is a wording defect in the
   tool. Handled at PR prep by the history-compaction step, which rewrites the subject to canonical
   wording. Not fixable from this Mission (C-002: no `src/` change).
 - **F-4 (2026-10-01, planning) - `make ci-parity` shells out to bare `uv run`.**

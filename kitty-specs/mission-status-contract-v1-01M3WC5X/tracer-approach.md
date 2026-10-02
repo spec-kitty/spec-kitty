@@ -78,6 +78,7 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
 - 2026-10-01: plan written; ten implementation concerns, three lanes of parallel work after IC-01.
 - 2026-10-01: plan review findings folded in; IC-07 split into IC-07a (skeleton, shared-CI edits, spike) and IC-07b, so eleven concerns; the spike result now gates IC-05.
 - 2026-10-02: plan review round 2 folded in: single owners for `contracts.yml`, `pins.json`, `.gitignore` and the corpus registry rules; date-time policy made environment-independent (D-P14); client smoke counted and guarded; ratchet priced.
+- 2026-10-02: plan review round 3 folded in: IC-09 dependencies, brace re-sweep owner, date-time test method, client smoke plant proof.
 - (append during implement and review)
 
 ## Assess at close
