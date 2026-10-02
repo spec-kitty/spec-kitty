@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: alpha
+  version: 0.0.1
+paths:
+  /p0:
+    get:
+      operationId: op0
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+  /p1:
+    get:
+      operationId: op1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+  /p2:
+    get:
+      operationId: op2
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+  /p3:
+    get:
+      operationId: op3
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+  /p4:
+    get:
+      operationId: op4
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+components:
+  schemas:
+    Thing:
+      title: Thing
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z]+$
+        createdAt:
+          type: string
+          format: date-time
+      examples:
+      - id: abc
+        createdAt: '2026-10-02T09:30:00Z'
+      - id: def
