@@ -1,0 +1,11 @@
+get:
+  operationId: listThings
+  x-note:
+    $ref: ../examples/Thing.param.yaml
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Thing.yaml

@@ -1,0 +1,84 @@
+{
+  "modules": {
+    "clean": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_bad_date_time": [
+      {
+        "example": "Thing.date.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_extra_property": [
+      {
+        "example": "Thing.extra.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_invalid": [
+      {
+        "example": "Thing.bad.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_non_schema_reference": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_orphan": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_required_missing": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      },
+      {
+        "example": "Thing.discarded.yaml",
+        "reason": "discarded Mission",
+        "schema": "Thing"
+      }
+    ],
+    "v_required_wrong_schema": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      },
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "wrong schema",
+        "schema": "Other"
+      }
+    ],
+    "v_unreachable": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ],
+    "v_validates_nothing": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      }
+    ]
+  }
+}
