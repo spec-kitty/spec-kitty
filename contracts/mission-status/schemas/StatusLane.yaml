@@ -1,0 +1,21 @@
+title: StatusLane
+description: >-
+  The display state of a work package in the status model. Exactly nine values. The
+  runtime enum also carries genesis and uninitialized, which are not display values: a
+  work package with no events reads as a null status lane, never as one of those two.
+  This is the status lane, not a code lane or the repo-root lane; the contract never
+  groups these values into board columns.
+type: string
+enum:
+  - planned
+  - claimed
+  - in_progress
+  - for_review
+  - in_review
+  - approved
+  - done
+  - blocked
+  - canceled
+x-source:
+  path: src/specify_cli/status/models.py
+  symbol: Lane

@@ -1,0 +1,17 @@
+title: Topology
+description: >-
+  The shape of a Mission's branches and lanes as stored in its meta.json. A Mission with no
+  stored topology, or with a stored value outside the four known shapes, is reported as
+  unknown; it does not inherit the runtime default that treats an unstamped Mission as lanes.
+  This is the stored meta.json shape and is unrelated to the topology field of the status
+  aggregate (legacy or coordination).
+type: string
+enum:
+  - lanes
+  - single_branch
+  - coord
+  - lanes_with_coord
+  - unknown
+x-source:
+  path: src/mission_runtime/context.py
+  symbol: MissionTopology
