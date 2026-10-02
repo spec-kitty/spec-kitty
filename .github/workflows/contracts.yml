@@ -1,5 +1,5 @@
 # Contracts: validates, bundles and cross-checks the machine-readable contracts under contracts/.
-# Skeleton (IC-07a): the bundler-fidelity and client-smoke spike plus the first two jobs. Later
+# Skeleton (IC-07a): the bundle written by the Python resolver, consumed by the JVM toolchain, plus the first two jobs. Later
 # work packages extend this file in order (never in parallel). Node is not used anywhere (C-005),
 # pytest never runs here, and no tool or Gradle directory is cached.
 name: Contracts
@@ -51,10 +51,10 @@ jobs:
           java-version: '21'
       - name: Install the pinned toolchain
         run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins contracts/tools/pins.json --dest "$RUNNER_TEMP/tools"
-      - name: Validate and bundle every module
+      - name: Write the bundle, validate it with the JVM toolchain and re-emit it as the Java parser reads it
         run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
       # The client smoke is non-failing only while the spike runs; it becomes failing with the hardening work package.
-      - name: Generate a TypeScript client from the split root (smoke)
+      - name: Generate a TypeScript client from the bundle (smoke)
         if: always()
         continue-on-error: true
         run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
@@ -68,30 +68,15 @@ jobs:
           sed -i 's/<sha256 value="/<sha256 value="00/' "$RUNNER_TEMP/tamper-contracts/gradle/verification-metadata.xml"
           uv run --frozen --no-sync python "$RUNNER_TEMP/tamper-contracts/tools/bundle.py" --root "$RUNNER_TEMP/tamper-contracts/tools/fixtures/spike" --out "$RUNNER_TEMP/tamper-out" --module full
           echo "SPIKE-RESULT tampered metadata exit=$? (expect 2, DEPENDENCY_VERIFICATION_FAILED)"
-      - name: "Spike: which plant makes the pinned generator exit non-zero"
+      - name: "Spike: the written bundle, the Java parser's view of it, and their parity"
         if: always()
         continue-on-error: true
         run: |
           set +e
-          for p in dangling_ref dangling_pointer cycle invalid_type; do
-            echo "::group::plant $p"
-            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p" --verbose
-            echo "SPIKE-RESULT client plant $p exit=$?"
-            uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p" --min-paths 1 --verbose
-            echo "SPIKE-RESULT bundle plant $p exit=$?"
-            echo "::endgroup::"
-          done
-      - name: "Spike: what the openapi-yaml generator wrote, and how it differs from the resolver's tree"
-        if: always()
-        continue-on-error: true
-        run: |
-          set +e
-          for m in full; do
-            echo "::group::bundle of $m"
-            cat "$RUNNER_TEMP/spike-out/bundle/$m/openapi.yaml"
-            echo "::endgroup::"
-          done
-          uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module full --report-all
+          echo "::group::javaview of full"
+          cat "$RUNNER_TEMP/spike-out/javaview/full/openapi.yaml"
+          echo "::endgroup::"
+          uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module full
           echo "SPIKE-RESULT parity full exit=$?"
           echo "::group::generated client files of full"
           find "$RUNNER_TEMP/spike-out/client/full" -type f | sort | head -80
@@ -100,7 +85,9 @@ jobs:
         if: always()
         with:
           name: bundle-spike
-          path: ${{ runner.temp }}/spike-out/bundle
+          path: |
+            ${{ runner.temp }}/spike-out/bundle
+            ${{ runner.temp }}/spike-out/javaview
           if-no-files-found: warn
           overwrite: true
 
@@ -120,9 +107,9 @@ jobs:
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: bundle-spike
-          path: ${{ runner.temp }}/staged/bundle
-      - name: Compare the bundle with the resolver's tree and cross-check every example
-        run: uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/staged" --module full --report-all
+          path: ${{ runner.temp }}/staged
+      - name: Check that the Java view shares the bundle's inventory and cross-check every example
+        run: uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/staged" --module full
 
   # Interim terminal gate: it lists the jobs that exist so far; later work packages extend the list.
   contracts-gate:

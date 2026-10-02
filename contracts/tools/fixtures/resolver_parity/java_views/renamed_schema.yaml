@@ -12,7 +12,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Thing'
+                $ref: '#/components/schemas/Item'
   /p1:
     get:
       operationId: op1
@@ -22,7 +22,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Thing'
+                $ref: '#/components/schemas/Item'
       parameters:
       - name: limit
         in: query
@@ -40,7 +40,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Thing'
+                $ref: '#/components/schemas/Item'
   /p3:
     get:
       operationId: op3
@@ -50,7 +50,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Thing'
+                $ref: '#/components/schemas/Item'
   /p4:
     get:
       operationId: op4
@@ -60,7 +60,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Thing'
+                $ref: '#/components/schemas/Item'
 components:
   schemas:
     Item:

@@ -1,38 +1,34 @@
-"""Compare the Java generator's bundle with the Python resolver's tree, and read every example twice (FR-019, plan D-P2).
+"""Prove the Java parser accepts the resolver-written bundle and sees the same inventory; read every example twice (FR-019, plan D-P2; E-1 ruling of 2026-10-02).
 
-Every content check reads the resolver's dereferenced tree, so this script is the
-evidence that the tree is what a second implementation makes of the same files. It
-is a **consistency check, never an independent proof**: when the generator and the
-resolver read a construct the same wrong way it cannot tell. The independent
-dereference check narrows that gap.
+The released bundle is written by the Python resolver (``bundle.py``), because the Java
+``openapi-yaml`` generator drops OpenAPI 3.1 constructs. This script therefore no longer
+compares trees. ``bundle.py`` has the Gradle build validate the bundle and re-emit it as the Java
+parser reads it (``<bundles>/javaview/<module>/openapi.yaml``); here the *inventory* of that view
+is compared with the inventory of the written bundle
+(``<bundles>/bundle/<module>/openapi.yaml``): the path keys, the operations (method plus
+operationId), the parameters (name and location), the response codes with their media types, and the
+schema names (the ``title`` of every schema reached from a path). Keys the emitter adds or rewrites
+(synthesised examples, ``nullable``, ``style`` defaults, open ``additionalProperties``) are not part
+of the inventory. The bundle must also equal the resolver's tree (``BUNDLE_STALE``), so a stale file
+cannot pass.
 
-*Tree comparison.* The bundle (``<bundles>/bundle/<module>/openapi.yaml``, staged by
-``bundle.py``) is dereferenced through its internal ``$ref`` values; its
-``components`` container (a generator artefact: the schemas it holds are already
-inlined where used) is set aside. Both trees are then passed through the named
-:data:`NORMALISATIONS` and compared ignoring key order. The list starts empty and
-gains an entry only from an observed generator behaviour, each naming the construct
-and the behaviour with a planted test; at most :data:`MAX_NORMALISATIONS`.
-A normalisation that drops information is a decision for the maintainers, not an
-entry.
-
-*Independent dereference check.* Every example under a schema file's ``examples``
-keyword is validated twice: once against the schema as the resolver's tree has it,
-and once with ``jsonschema`` and a ``referencing.Registry`` that retrieves the split
-files itself (no code from ``contract_resolver.py``). Both use
-``schema_formats.FORMAT_CHECKER``. The verdicts must agree for every example, invalid
-planted ones included: agreement on "invalid" is not a failure here (that is
-``example_check``'s job), disagreement is.
+It is a **consistency check, never an independent proof**: a construct both readers get wrong the
+same way is invisible to it. The independent dereference check narrows that gap: every example under a
+schema file's ``examples`` keyword is validated twice, once against the schema as the resolver's tree
+has it and once with ``jsonschema`` and a ``referencing.Registry`` that retrieves the split files itself
+(no code from ``contract_resolver.py``), both with ``schema_formats.FORMAT_CHECKER``. The verdicts must
+agree for every example, invalid planted ones included (agreement on "invalid" is ``example_check``'s
+business).
 
 Failure codes (exit 1), printed ``CONTRACT-CHECK resolver_parity: <CODE>: <module>: <detail>``:
-``TREE_DIFFERS`` (first differing JSON pointer; every one with ``--report-all``),
-``UNDOCUMENTED_NORMALISATION``, ``NORMALISATION_CAP_EXCEEDED``,
-``INDEPENDENT_DEREF_DISAGREES``, ``RESOLVE_FAILED`` (the resolver refused the
-module). Cannot do its job (exit 2): ``RESOLVER_IMPORT_FAILED``,
-``BUNDLE_MISSING_OR_EMPTY``, ``BELOW_FLOOR`` (fewer than ``--min-paths`` path items
-in the tree or the bundle, zero schemas, zero resolved references) and ``NO_MODULE``.
-The last line is always
-``counts: path_items=N schemas=N refs_resolved=N normalisations=N examples_cross_checked=N``.
+``PATHS_DIFFER``, ``OPERATIONS_DIFFER``, ``PARAMETERS_DIFFER``, ``RESPONSES_DIFFER``,
+``SCHEMA_NAMES_DIFFER`` (each names what is only in the bundle and what is only in the Java view),
+``BUNDLE_STALE``, ``INDEPENDENT_DEREF_DISAGREES``, ``RESOLVE_FAILED``, ``VIEW_UNREADABLE`` (the Java
+view has a reference that does not resolve). Cannot do its job (exit 2): ``RESOLVER_IMPORT_FAILED``,
+``BUNDLE_MISSING_OR_EMPTY`` (either file), ``BELOW_FLOOR`` (fewer than ``--min-paths`` path items in the
+tree or the bundle, zero schemas, zero resolved references) and ``NO_MODULE``. The last line is always
+``counts: path_items=N schemas=N refs_resolved=N operations=N parameters=N responses=N schema_names=N
+examples_cross_checked=N`` on one line.
 
 Run as a bare script (``python contracts/tools/resolver_parity.py --root DIR --bundles DIR``).
 Standard library, PyYAML and jsonschema with ``referencing``; imports only sibling modules.
@@ -61,27 +57,13 @@ import bundle
 from schema_formats import FORMAT_CHECKER
 
 CHECK_NAME = "resolver_parity"
-MAX_NORMALISATIONS = 8
 DEFAULT_MIN_PATHS = 5
-MAX_REPORTED_DIFFERENCES = 200
-SHORT_VALUE_LENGTH = 80
 LIBRARY_BASE_URI = "https://contract.invalid/"
-BUNDLE_ONLY_KEYS = frozenset({"components"})
-
-
-@dataclass(frozen=True)
-class Normalisation:
-    """A documented, observed generator rewrite, applied to both trees before they are compared."""
-
-    name: str
-    construct: str
-    behaviour: str
-    planted_test: str
-    apply: Callable[[Any], Any]
-
-
-# Starts empty. An entry is added only from a pushed spike run that observed the behaviour.
-NORMALISATIONS: tuple[Normalisation, ...] = ()
+HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
+NO_MEDIA_TYPE = "-"
+# Keys whose values are data, not schemas: a ``title`` inside them is not a schema name.
+DATA_KEYS = frozenset({"example", "examples", "default", "enum", "const", "value"})
+SEPARATOR = "; "
 
 
 @dataclass(frozen=True)
@@ -92,71 +74,42 @@ class ExampleVerdict:
     library_valid: bool
 
 
+@dataclass(frozen=True)
+class Inventory:
+    """What a reader of the contract can see, independent of how an emitter shapes the document."""
+
+    paths: frozenset[str]
+    operations: frozenset[tuple[str, str, str]]
+    parameters: frozenset[tuple[str, str, str, str]]
+    responses: frozenset[tuple[str, str, str, str]]
+    schema_names: frozenset[str]
+
+
 @dataclass
 class Totals:
     path_items: int = 0
     schemas: int = 0
     refs_resolved: int = 0
-    normalisations: int = 0
+    operations: int = 0
+    parameters: int = 0
+    responses: int = 0
+    schema_names: int = 0
     examples_cross_checked: int = 0
     findings: list[str] = field(default_factory=list)
 
     def counts_line(self) -> str:
         return (
-            f"counts: path_items={self.path_items} schemas={self.schemas} refs_resolved={self.refs_resolved} "
-            f"normalisations={self.normalisations} examples_cross_checked={self.examples_cross_checked}"
+            f"counts: path_items={self.path_items} schemas={self.schemas} refs_resolved={self.refs_resolved} operations={self.operations} "
+            f"parameters={self.parameters} responses={self.responses} schema_names={self.schema_names} "
+            f"examples_cross_checked={self.examples_cross_checked}"
         )
 
 
 class BundleError(Exception):
-    """The bundle could not be dereferenced (a reference that does not resolve, or a cycle)."""
+    """A document could not be dereferenced (a reference that does not resolve, or a cycle)."""
 
 
-# -- comparison -----------------------------------------------------------------------
-
-
-def _escape(token: str) -> str:
-    return token.replace("~", "~0").replace("/", "~1")
-
-
-def _same_scalar(left: Any, right: Any) -> bool:
-    if isinstance(left, bool) or isinstance(right, bool):
-        return isinstance(left, bool) and isinstance(right, bool) and left == right
-    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-        return bool(left == right)
-    return type(left) is type(right) and bool(left == right)
-
-
-def all_differences(left: Any, right: Any, pointer: str = "", limit: int = MAX_REPORTED_DIFFERENCES) -> list[str]:
-    """JSON pointers of the places where ``left`` and ``right`` differ, ignoring key order; at most ``limit``."""
-    found: list[str] = []
-
-    def walk(a: Any, b: Any, here: str) -> None:
-        if len(found) >= limit:
-            return
-        if isinstance(a, dict) and isinstance(b, dict):
-            if set(a) != set(b):
-                found.append(here)
-                return
-            for key in sorted(a, key=str):
-                walk(a[key], b[key], f"{here}/{_escape(str(key))}")
-        elif isinstance(a, list) and isinstance(b, list):
-            if len(a) != len(b):
-                found.append(here)
-                return
-            for index, (x, y) in enumerate(zip(a, b, strict=True)):
-                walk(x, y, f"{here}/{index}")
-        elif isinstance(a, (dict, list)) or isinstance(b, (dict, list)) or not _same_scalar(a, b):
-            found.append(here)
-
-    walk(left, right, pointer)
-    return found
-
-
-def first_difference(left: Any, right: Any) -> str | None:
-    """The first differing JSON pointer (keys visited in sorted order), or ``None`` when the trees are equal."""
-    found = all_differences(left, right, limit=1)
-    return found[0] if found else None
+# -- the inventory --------------------------------------------------------------------------
 
 
 def _node_at(document: Any, pointer: str) -> Any:
@@ -167,9 +120,71 @@ def _node_at(document: Any, pointer: str) -> Any:
     return node
 
 
-def _short(value: Any) -> str:
-    text = repr(value)
-    return text if len(text) <= SHORT_VALUE_LENGTH else text[: SHORT_VALUE_LENGTH - 3] + "..."
+def _titles(node: Any, found: set[str]) -> None:
+    if isinstance(node, dict):
+        title = node.get("title")
+        if isinstance(title, str):
+            found.add(title)
+        for key, value in node.items():
+            if key not in DATA_KEYS and not str(key).startswith("x-"):
+                _titles(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _titles(item, found)
+
+
+def _parameters(owner: dict[str, Any], path: str, method: str) -> set[tuple[str, str, str, str]]:
+    listed = owner.get("parameters")
+    return {(path, method, str(item.get("name")), str(item.get("in"))) for item in listed if isinstance(item, dict)} if isinstance(listed, list) else set()
+
+
+def inventory(document: dict[str, Any]) -> Inventory:
+    """The inventory of an OpenAPI document, following its internal ``#/...`` references."""
+    resolved = deref_bundle(document)
+    paths = resolved.get("paths") if isinstance(resolved, dict) else None
+    operations: set[tuple[str, str, str]] = set()
+    parameters: set[tuple[str, str, str, str]] = set()
+    responses: set[tuple[str, str, str, str]] = set()
+    names: set[str] = set()
+    for path, item in (paths or {}).items():
+        if not isinstance(item, dict):
+            continue
+        parameters |= _parameters(item, str(path), "*")
+        for method in HTTP_METHODS:
+            operation = item.get(method)
+            if not isinstance(operation, dict):
+                continue
+            verb = method.upper()
+            operations.add((str(path), verb, str(operation.get("operationId"))))
+            parameters |= _parameters(operation, str(path), verb)
+            for code, response in (operation.get("responses") or {}).items():
+                content = response.get("content") if isinstance(response, dict) else None
+                for media in content if isinstance(content, dict) and content else [NO_MEDIA_TYPE]:
+                    responses.add((str(path), verb, str(code), str(media)))
+        _titles({key: value for key, value in item.items() if key not in {"summary", "description"}}, names)
+    return Inventory(frozenset(str(path) for path in (paths or {})), frozenset(operations), frozenset(parameters), frozenset(responses), frozenset(names))
+
+
+def _describe(item: Any) -> str:
+    return " ".join(item) if isinstance(item, tuple) else str(item)
+
+
+def compare_inventories(module: str, bundle_side: Inventory, view_side: Inventory) -> list[str]:
+    """One finding per kind of difference, naming what is only in the bundle and what only in the Java view."""
+    findings: list[str] = []
+    for code, mine, theirs in (
+        ("PATHS_DIFFER", bundle_side.paths, view_side.paths),
+        ("OPERATIONS_DIFFER", bundle_side.operations, view_side.operations),
+        ("PARAMETERS_DIFFER", bundle_side.parameters, view_side.parameters),
+        ("RESPONSES_DIFFER", bundle_side.responses, view_side.responses),
+        ("SCHEMA_NAMES_DIFFER", bundle_side.schema_names, view_side.schema_names),
+    ):
+        if mine == theirs:
+            continue
+        only_bundle = SEPARATOR.join(sorted(_describe(item) for item in mine - theirs)) or "nothing"
+        only_view = SEPARATOR.join(sorted(_describe(item) for item in theirs - mine)) or "nothing"
+        findings.append(f"CONTRACT-CHECK {CHECK_NAME}: {code}: {module}: only in the bundle: {only_bundle} | only in the Java view: {only_view}")
+    return findings
 
 
 def deref_bundle(document: dict[str, Any]) -> Any:
@@ -199,19 +214,6 @@ def deref_bundle(document: dict[str, Any]) -> Any:
         return {**target, **siblings}
 
     return walk(document, ())
-
-
-def _check_registry(normalisations: Sequence[Normalisation], report: Callable[[str], None]) -> bool:
-    ok = True
-    if len(normalisations) > MAX_NORMALISATIONS:
-        report(f"CONTRACT-CHECK {CHECK_NAME}: NORMALISATION_CAP_EXCEEDED: {len(normalisations)} normalisations, the cap is {MAX_NORMALISATIONS}")
-        ok = False
-    for entry in normalisations:
-        missing = [name for name in ("construct", "behaviour", "planted_test") if not getattr(entry, name).strip()]
-        if not entry.name.strip() or missing:
-            report(f"CONTRACT-CHECK {CHECK_NAME}: UNDOCUMENTED_NORMALISATION: {entry.name}: no {', '.join(missing) or 'name'}")
-            ok = False
-    return ok
 
 
 # -- the library reading (no resolver code below this line until the resolver reading) --
@@ -288,14 +290,22 @@ def _cross_check(root: Path, module: Path, resolver_module: str, totals: Totals)
             )
 
 
-def _compare_bundle(module: Path, resolution: Any, args: argparse.Namespace, active: Sequence[Normalisation], totals: Totals) -> tuple[str, str] | None:
-    """Compare the module's bundle with its tree. Returns ``(code, detail)`` when the check cannot do its job, else ``None``."""
+def _load(path: Path) -> dict[str, Any] | None:
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else None
+    return loaded if isinstance(loaded, dict) and loaded else None
+
+
+def _compare_inventories(module: Path, resolution: Any, args: argparse.Namespace, totals: Totals) -> tuple[str, str] | None:
+    """Compare the written bundle with the Java view. Returns ``(code, detail)`` when the check cannot do its job, else ``None``."""
     bundle_file = args.bundles / "bundle" / module.name / bundle.ROOT_DOCUMENT
-    document = yaml.safe_load(bundle_file.read_text(encoding="utf-8")) if bundle_file.is_file() else None
-    if not isinstance(document, dict) or not document:
-        return "BUNDLE_MISSING_OR_EMPTY", f"{module.name}: {bundle_file.name} is missing or empty under {args.bundles}"
+    view_file = args.bundles / "javaview" / module.name / bundle.ROOT_DOCUMENT
+    written, view = _load(bundle_file), _load(view_file)
+    if written is None:
+        return "BUNDLE_MISSING_OR_EMPTY", f"{module.name}: {bundle_file} is missing or empty (run bundle.py first)"
+    if view is None:
+        return "BUNDLE_MISSING_OR_EMPTY", f"{module.name}: the Java view {view_file} is missing or empty (the Gradle javaView task did not write it)"
     counts = resolution.counts
-    bundle_paths = document.get("paths")
+    bundle_paths = written.get("paths")
     bundle_count = len(bundle_paths) if isinstance(bundle_paths, dict) else 0
     floors = [
         (counts["path_items"] < args.min_paths, f"{counts['path_items']} path items in the tree"),
@@ -305,42 +315,33 @@ def _compare_bundle(module: Path, resolution: Any, args: argparse.Namespace, act
     ]
     below = [text for failed, text in floors if failed]
     if below:
-        return "BELOW_FLOOR", f"{module.name}: {'; '.join(below)} (floor {args.min_paths})"
-    try:
-        dereferenced = {key: value for key, value in deref_bundle(document).items() if key not in BUNDLE_ONLY_KEYS}
-    except BundleError as error:
-        totals.findings.append(f"CONTRACT-CHECK {CHECK_NAME}: TREE_DIFFERS: {module.name}: bundle cannot be dereferenced: {error}")
+        return "BELOW_FLOOR", f"{module.name}: {SEPARATOR.join(below)} (floor {args.min_paths})"
+    if written != resolution.tree:
+        totals.findings.append(f"CONTRACT-CHECK {CHECK_NAME}: BUNDLE_STALE: {module.name}: {bundle_file.name} is not the resolver's tree of the split files")
         return None
-    tree: Any = resolution.tree
-    for entry in active:
-        tree, dereferenced = entry.apply(tree), entry.apply(dereferenced)
-    for pointer in all_differences(tree, dereferenced, limit=MAX_REPORTED_DIFFERENCES if args.report_all else 1):
-        try:
-            detail = f" (tree {_short(_node_at(tree, pointer))}, bundle {_short(_node_at(dereferenced, pointer))})"
-        except (KeyError, IndexError, ValueError, TypeError):
-            detail = ""
-        totals.findings.append(f"CONTRACT-CHECK {CHECK_NAME}: TREE_DIFFERS: {module.name}: {pointer}{detail}")
+    try:
+        mine, theirs = inventory(written), inventory(view)
+    except BundleError as error:
+        totals.findings.append(f"CONTRACT-CHECK {CHECK_NAME}: VIEW_UNREADABLE: {module.name}: {error}")
+        return None
+    totals.operations += len(mine.operations)
+    totals.parameters += len(mine.parameters)
+    totals.responses += len(mine.responses)
+    totals.schema_names += len(mine.schema_names)
+    totals.findings.extend(compare_inventories(module.name, mine, theirs))
     return None
 
 
-def run(
-    argv: Sequence[str] | None = None,
-    *,
-    out: Callable[[str], None] = print,
-    normalisations: Sequence[Normalisation] | None = None,
-    resolver_module: str = "contract_resolver",
-) -> int:
-    parser = argparse.ArgumentParser(description="Compare the bundle with the resolver's tree and cross-check every example.")
+def run(argv: Sequence[str] | None = None, *, out: Callable[[str], None] = print, resolver_module: str = "contract_resolver") -> int:
+    parser = argparse.ArgumentParser(description="Compare the Java view's inventory with the resolver-written bundle and cross-check every example.")
     parser.add_argument("--root", default="contracts", type=Path)
     parser.add_argument("--bundles", required=True, type=Path, help="the --out directory bundle.py staged into")
     parser.add_argument("--module", action="append", default=[], help="restrict to this module (repeatable)")
     parser.add_argument("--min-paths", type=int, default=DEFAULT_MIN_PATHS)
-    parser.add_argument("--report-all", action="store_true", help="list every differing pointer, not only the first")
     parser.add_argument("--examples-only", action="store_true", help="run the independent dereference check without a bundle")
     args = parser.parse_args(argv)
-    active = NORMALISATIONS if normalisations is None else tuple(normalisations)
 
-    totals = Totals(normalisations=len(active))
+    totals = Totals()
 
     def blocked(code: str, detail: str) -> int:
         out(f"CONTRACT-CHECK {CHECK_NAME}: {code}: {detail}")
@@ -357,11 +358,6 @@ def run(
         modules = [module for module in modules if module.name in args.module]
     if not modules:
         return blocked("NO_MODULE", f"no module with a root {bundle.ROOT_DOCUMENT} under {args.root}")
-    if not _check_registry(active, totals.findings.append):
-        for line in totals.findings:
-            out(line)
-        out(totals.counts_line())
-        return 1
 
     for module in modules:
         try:
@@ -374,7 +370,7 @@ def run(
         _cross_check(args.root, module, resolver_module, totals)
         if args.examples_only:
             continue
-        stop = _compare_bundle(module, resolution, args, active, totals)
+        stop = _compare_inventories(module, resolution, args, totals)
         if stop is not None:
             return blocked(*stop)
 

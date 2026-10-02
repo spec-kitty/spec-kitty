@@ -30,26 +30,35 @@ def setPath = { property, File file ->
 }
 
 modules.each { module ->
-    def spec = new File(module, 'openapi.yaml')
+    def split = new File(module, 'openapi.yaml')
+    // The released single-file contract, written by the Python resolver (bundle.py) before Gradle runs.
+    def bundle = new File(outDir, "bundle/${module.name}/openapi.yaml")
 
-    // Validate the split document with the generator's own OpenAPI validator.
+    // Validate the split root document with the generator's own OpenAPI validator.
     tasks.register("validate_${module.name}", ValidateTask) {
-        setPath(inputSpec, spec)
+        setPath(inputSpec, split)
         recommend = true
     }
 
-    // Bundle the split document into one openapi.yaml with the openapi-yaml generator.
-    tasks.register("bundle_${module.name}", GenerateTask) {
+    // Validate the Python-written bundle the same way: the Java parser must accept what is released.
+    tasks.register("validateBundle_${module.name}", ValidateTask) {
+        setPath(inputSpec, bundle)
+        recommend = true
+    }
+
+    // Re-emit the bundle as the Java parser reads it. NOT an artefact (the openapi-yaml generator
+    // drops 3.1 constructs); resolver_parity.py compares its inventory with the bundle's.
+    tasks.register("javaView_${module.name}", GenerateTask) {
         generatorName = 'openapi-yaml'
-        setPath(inputSpec, spec)
-        setPath(outputDir, new File(outDir, "bundle/${module.name}"))
+        setPath(inputSpec, bundle)
+        setPath(outputDir, new File(outDir, "javaview/${module.name}"))
         configOptions = [outputFile: 'openapi.yaml']
     }
 
-    // Generate a TypeScript client from the SPLIT root. Generation only; the output is not compiled.
+    // Generate a TypeScript client from the bundle. Generation only; the output is not compiled.
     tasks.register("clientSmoke_${module.name}", GenerateTask) {
         generatorName = 'typescript-fetch'
-        setPath(inputSpec, spec)
+        setPath(inputSpec, bundle)
         setPath(outputDir, new File(outDir, "client/${module.name}"))
     }
 }
