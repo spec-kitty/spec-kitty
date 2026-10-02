@@ -86,13 +86,21 @@ def test_the_clean_control_has_no_finding_and_the_floor_is_met(planted_report: A
 def test_the_clean_module_counts_each_element_kind_once(provisional: Any) -> None:
     report = provisional.check(FIXTURE_ROOT, modules=("clean",))
     assert report.findings == []
-    # nextAction, staleness, the Cursor schema, the streamCursor parameter and the operation
-    assert report.counts["provisional_elements"] == 5
+    # nextAction, staleness, code, the Cursor schema, the streamCursor parameter and the operation
+    assert report.counts["provisional_elements"] == 6
 
 
 def test_a_missing_marker_names_the_property(planted_report: Any) -> None:
     subjects = {f.subject for f in planted_report.findings if f.code == "MISSING_MARKER"}
     assert subjects == {"v_missing_marker_staleness:Thing.staleness", "v_missing_marker_next_action:Thing.nextAction"}
+
+
+def test_only_the_fr_011_fields_must_be_nullable_not_every_provisional_property(provisional: Any) -> None:
+    # the clean control marks an enum-valued property provisional without making it nullable: the marker
+    # there says the value set is open, and a refusal always has a code
+    report = provisional.check(FIXTURE_ROOT, modules=("clean",))
+    assert report.findings == []
+    assert set(provisional.REQUIRED_PROVISIONAL_PROPERTIES) == {"staleness", "nextAction"}
 
 
 def test_a_nullable_provisional_field_may_use_a_type_array_or_a_null_branch(provisional: Any) -> None:
@@ -123,7 +131,7 @@ def test_command_line_output_grammar_and_exit_status() -> None:
     assert any(line.startswith("CONTRACT-CHECK provisional_check: UNDESCRIBED_MARKER: v_undescribed_true:") for line in lines)
     clean = _run("--root", str(FIXTURE_ROOT), "--module", "clean")
     assert clean.returncode == 0, clean.stdout
-    assert clean.stdout.splitlines()[-1] == "counts: provisional_elements=5"
+    assert clean.stdout.splitlines()[-1] == "counts: provisional_elements=6"
 
 
 def test_the_real_mission_status_module_passes_with_a_floor() -> None:

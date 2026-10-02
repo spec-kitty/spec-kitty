@@ -11,4 +11,5 @@
 - `Thing.nextAction` is provisional: its shape is an open decision.
 - `Thing.staleness` is provisional: whether it is measured is an open decision.
 - `Cursor` and the `streamCursor` parameter are provisional.
+- The `code` values are provisional.
 - The `/things` operation framing is provisional.

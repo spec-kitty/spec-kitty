@@ -21,3 +21,12 @@ properties:
     x-provisional:
       open_decision: Whether staleness is measured at all in version one is an open
         decision on the tracker issue.
+  code:
+    type: string
+    enum:
+    - a
+    - b
+    description: A value set whose mapping is open.
+    x-provisional:
+      open_decision: Which of the two values a refusal takes is an open decision on
+        the tracker issue.
