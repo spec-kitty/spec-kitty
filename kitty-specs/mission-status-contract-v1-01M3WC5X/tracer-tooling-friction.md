@@ -103,6 +103,30 @@ Entries are short and dated; the entry is written when the friction happens.
   budget, because the two surviving findings were low severity and each had a single remedy.
 - **F-14 (2026-10-02, tasks review) - the tasks-review loop ran past its round budget, and one refuter verdict was overridden.**
   The loop ran four fix rounds because rewritten expect-empty grep checks kept failing on legitimate content; the final two survivors were low severity with one remedy each, so the orchestrator ruled one extra fix round plus one final verification (recorded in `reviews/tasks.orchestrator-ruling.yaml`). Separately, the phase agent overrode refuted SEQ-002 to confirmed after checking that no draft PR or remote branch existed; that is a content judgment the phase agent must not make, kept only because the premise was factually false. Also: the CLI cannot carry narrative in `tasks.md` (generated from `wps.yaml`), so the PR-shape statement lives in the WP01 and WP12 Contexts.
+- **F-15 (2026-10-02, WP01) - the lane worktree has no `.venv`, but the WP prompt names `.venv/bin/...`.**
+  `implement` allocated the lane worktree without a virtual environment, so every `.venv/bin/<tool>`
+  command from the prompt failed there. The repository-root `.venv` was used with the lane as the working
+  directory instead. One test that shells out to `uv run --frozen --no-sync python` from the lane
+  (`tests/docs/test_docs_index.py::test_render_index_is_byte_stable_across_hash_seeds`) is red in the lane
+  and green in the root checkout; classed as environment. Cost: one baseline re-run and one classification.
+- **F-16 (2026-10-02, WP01) - the prompt's job and count names were stale.**
+  The prompt calls the corpus job `tests-corpus`; on `main` it is `tests-corpus-blocking`
+  (`router.job_gates` is the authority, and the routing test now derives it from there). The planning-time
+  baseline of 265 passed is 291 passed on the re-synced base (main grew). Cost: a few minutes reading the router.
+- **F-17 (2026-10-02, WP01) - `cutover-guard` blocks this Mission's own diff.**
+  `spec-kitty cutover-guard --base-ref origin/main` reports this Mission as un-cut-over ("status_phase not
+  flipped despite event-log runtime evidence") and names `spec-kitty migrate backfill-runtime-state` as the
+  remedy, which writes Mission state. Not run by the agent; left to the orchestrator.
+- **F-18 (2026-10-02, WP01) - a relative `--root` printed a host path in a finding.**
+  Found by running `layout_check.py --root contracts/tools/fixtures/layout_check` from the repository root.
+  The unit tests used an absolute root, which hid it. Fixed in the same WP with a relative-root regression
+  test. Lesson: run each new script by its documented command line, not only through the unit-test API.
+- **F-19 (2026-10-02, WP01) - the single-source scan reads the whole test tree.**
+  Rule BRACE-1's scan over `tests/` costs about 30 s on a cold file cache and under 1 s warm. Kept as the
+  prompt specifies; the file text is cached per process.
+- **F-20 (2026-10-02, WP01) - no `diff-cover` job was observable.**
+  The recent pull-request and `main` runs sampled all skipped `tests (corpus-blocking)` or did not run a
+  `diff-cover` job; the empty-critical-diff expectation is therefore unchecked here, and WP12 should say so.
 - (append during implement and review)
 
 ## Assess at close
