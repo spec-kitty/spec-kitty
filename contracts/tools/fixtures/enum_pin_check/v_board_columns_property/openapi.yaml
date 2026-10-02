@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: Enum fixture
+  version: 1.0.0
+paths:
+  /things:
+    $ref: paths/things.yaml

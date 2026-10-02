@@ -1,0 +1,11 @@
+title: Thing
+type: object
+properties:
+  color:
+    $ref: Color.yaml
+  size:
+    $ref: Size.yaml
+  columns:
+    type: array
+    items:
+      type: string

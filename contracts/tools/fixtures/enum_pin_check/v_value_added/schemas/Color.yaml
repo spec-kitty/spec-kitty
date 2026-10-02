@@ -1,0 +1,7 @@
+title: Color
+type: string
+enum:
+- red
+- green
+- blue
+- violet

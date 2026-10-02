@@ -1,0 +1,7 @@
+title: BoardColumns
+type: object
+properties:
+  todo:
+    type: array
+    items:
+      type: string
