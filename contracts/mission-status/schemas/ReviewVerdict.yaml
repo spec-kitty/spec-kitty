@@ -1,0 +1,11 @@
+title: ReviewVerdict
+description: >-
+  The verdict of a review: approved, or changes_requested. A work package that was rejected
+  and sent back carries changes_requested; one that passed review carries approved.
+type: string
+enum:
+  - approved
+  - changes_requested
+x-source:
+  path: src/specify_cli/status/models.py
+  symbol: ReviewResult

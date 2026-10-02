@@ -1,0 +1,112 @@
+wpId: WP04
+title: Build the detail view
+phaseLabel: Screens
+authored:
+  role: implementer
+  agentProfile: implementer-ivan
+  model: sonnet
+  subtasks:
+  - T023
+  - T024
+  - T025
+  - T026
+ownedFiles:
+- src/example/detail_view.py
+- tests/example/test_detail_view.py
+dependencies:
+- WP03
+requirementRefs:
+- FR-005
+- FR-006
+executionMode: code_change
+taskType: null
+priority: null
+mergeTargetBranch: main
+trackerRefs:
+- '#5558'
+statusLane: for_review
+assignment:
+  agent: claude
+  assignee: null
+  role: implementer
+  agentProfile: implementer-ivan
+  agentProfileVersion: '1.0'
+  model: sonnet
+  provider: anthropic
+subtasks:
+  T023: done
+  T024: done
+  T025: done
+  T026: done
+subtaskProgress:
+  done: 4
+  total: 4
+implementerOfRecord: claude
+lastTransitionAt: '2026-09-25T08:00:00Z'
+forceCount: 0
+lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ05
+actor: &id001
+  tool: claude
+  role: implementer
+  profile: implementer-ivan
+cancellation: null
+readiness:
+  satisfied: true
+  unsatisfied: []
+readyToStart: false
+review:
+  latestResult:
+    reviewer: reviewer-renata
+    verdict: changes_requested
+    reference: review-cycle://example-mission-01JZAB3C/WP04/review-cycle-1.md
+  override: null
+history:
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ01
+  at: '2026-09-23T09:10:00Z'
+  kind: transition
+  fromStatusLane: planned
+  toStatusLane: claimed
+  actor: *id001
+  force: false
+  reason: null
+  reviewVerdict: null
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ02
+  at: '2026-09-23T09:12:00Z'
+  kind: transition
+  fromStatusLane: claimed
+  toStatusLane: in_progress
+  actor: *id001
+  force: false
+  reason: null
+  reviewVerdict: null
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ03
+  at: '2026-09-24T10:00:00Z'
+  kind: transition
+  fromStatusLane: in_progress
+  toStatusLane: for_review
+  actor: *id001
+  force: false
+  reason: null
+  reviewVerdict: null
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ04
+  at: '2026-09-24T16:40:12Z'
+  kind: transition
+  fromStatusLane: for_review
+  toStatusLane: in_progress
+  actor:
+    tool: claude
+    role: reviewer
+    profile: reviewer-renata
+  force: false
+  reason: Changes requested after review.
+  reviewVerdict: changes_requested
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ05
+  at: '2026-09-25T08:00:00Z'
+  kind: transition
+  fromStatusLane: in_progress
+  toStatusLane: for_review
+  actor: *id001
+  force: false
+  reason: null
+  reviewVerdict: null
+staleness: null

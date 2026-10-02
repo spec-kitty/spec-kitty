@@ -1,0 +1,9 @@
+name: includePrompt
+in: query
+required: false
+description: >-
+  Set to true to include the work package's prompt body as promptMarkdown. When the parameter
+  is absent, or false, the response omits promptMarkdown; there is no default body.
+schema:
+  type: boolean
+  default: false

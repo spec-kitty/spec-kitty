@@ -1,0 +1,84 @@
+wpId: WP05
+title: Add the event stream
+phaseLabel: Screens
+authored:
+  role: implementer
+  agentProfile: implementer-ivan
+  model: sonnet
+  subtasks:
+  - T023
+  - T024
+  - T025
+  - T026
+ownedFiles:
+- src/example/detail_view.py
+- tests/example/test_detail_view.py
+dependencies:
+- WP03
+requirementRefs:
+- FR-005
+- FR-006
+executionMode: code_change
+taskType: null
+priority: null
+mergeTargetBranch: main
+trackerRefs:
+- '#5558'
+statusLane: in_progress
+assignment:
+  agent: claude
+  assignee: null
+  role: implementer
+  agentProfile: implementer-ivan
+  agentProfileVersion: '1.0'
+  model: sonnet
+  provider: anthropic
+subtasks:
+  T023: done
+  T024: in_progress
+  T025: planned
+subtaskProgress:
+  done: 1
+  total: 3
+implementerOfRecord: claude
+lastTransitionAt: '2026-09-23T09:12:00Z'
+forceCount: 0
+lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ02
+actor:
+  tool: claude
+  role: implementer
+  profile: implementer-ivan
+cancellation: null
+readiness:
+  satisfied: true
+  unsatisfied: []
+readyToStart: false
+review:
+  latestResult: null
+  override: null
+history:
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ01
+  at: '2026-09-23T09:10:00Z'
+  kind: transition
+  fromStatusLane: planned
+  toStatusLane: claimed
+  actor: &id001
+    tool: claude
+    role: implementer
+    profile: implementer-ivan
+  force: false
+  reason: null
+  reviewVerdict: null
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ02
+  at: '2026-09-23T09:12:00Z'
+  kind: transition
+  fromStatusLane: claimed
+  toStatusLane: in_progress
+  actor: *id001
+  force: false
+  reason: null
+  reviewVerdict: null
+staleness:
+  status: stale
+  reason: no_recent_commits
+  minutesSinceCommit: 1440.5

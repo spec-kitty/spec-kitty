@@ -14,8 +14,8 @@ properties:
     x-derived:
       rule: The overview records of the requested page, sorted by createdAt descending then missionId ascending.
       inputs:
-        - MissionOverview.createdAt
-        - MissionOverview.missionId
+        - MissionHead.createdAt
+        - MissionHead.missionId
   pageInfo:
     $ref: ../../_shared/schemas/PageInfo.yaml
     description: Whether another page follows and the token that fetches it.

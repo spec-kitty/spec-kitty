@@ -1,0 +1,6 @@
+name: wpId
+in: path
+required: true
+description: The identifier of the work package inside the Mission, for example WP01.
+schema:
+  $ref: ../schemas/WpId.yaml

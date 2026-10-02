@@ -1,0 +1,33 @@
+title: Actor
+description: >-
+  Who performed a status change, as three handles. tool is the agent handle, role the role
+  and profile the agent profile. The model is not part of an actor. A stored actor that is a
+  structured record is copied field by field; a plain handle string becomes tool with the
+  other two null (a colon-joined string is not split); anything else, such as an e-mail
+  address or free text, becomes three nulls. Each handle that does not fit the handle shape
+  is null.
+type: object
+additionalProperties: false
+required:
+  - tool
+  - role
+  - profile
+properties:
+  tool:
+    $ref: ActorHandle.yaml
+    description: The handle of the agent or tool that acted, or null when unknown or not a valid handle.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: decode_actor
+  role:
+    $ref: ActorHandle.yaml
+    description: The handle of the role the actor held, or null when unknown or not a valid handle.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: decode_actor
+  profile:
+    $ref: ActorHandle.yaml
+    description: The handle of the agent profile the actor used, or null when unknown or not a valid handle.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: decode_actor

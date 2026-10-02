@@ -1,0 +1,84 @@
+title: HistoryEntry
+description: >-
+  One status transition of a work package. History lists transitions only: annotations and
+  lifecycle rows of the event log are never shown here, so kind has the single value
+  transition.
+type: object
+additionalProperties: false
+required:
+  - eventId
+  - at
+  - kind
+  - fromStatusLane
+  - toStatusLane
+  - actor
+  - force
+  - reason
+  - reviewVerdict
+properties:
+  eventId:
+    type: string
+    minLength: 1
+    maxLength: 64
+    description: The identifier of the event, unique within the Mission's event log.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  at:
+    type: string
+    format: date-time
+    description: When the transition happened, an RFC 3339 date-time with an offset.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  kind:
+    type: string
+    const: transition
+    description: The kind of row; always transition.
+    x-derived:
+      rule: Always the constant transition, because only status transitions are projected into history.
+      inputs:
+        - path: src/specify_cli/status/models.py
+          symbol: StatusEvent
+  fromStatusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The status lane the work package left, or null for its first transition (the runtime's genesis lane is not a display value).
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  toStatusLane:
+    $ref: StatusLane.yaml
+    description: The status lane the work package entered.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  actor:
+    $ref: Actor.yaml
+    description: Who made the transition, as three handles.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: decode_actor
+  force:
+    type: boolean
+    description: True when the transition bypassed the usual guards.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  reason:
+    type:
+      - string
+      - 'null'
+    description: The human text recorded with the transition, or null when none was recorded. A host path inside it is replaced by a fixed token.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  reviewVerdict:
+    oneOf:
+      - $ref: ReviewVerdict.yaml
+      - type: 'null'
+    description: The verdict recorded with the transition, or null when the transition carried no review result.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent

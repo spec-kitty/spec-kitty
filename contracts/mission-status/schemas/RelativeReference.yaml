@@ -1,0 +1,13 @@
+title: RelativeReference
+description: >-
+  A short reference string that is never an absolute location: a requirement reference, a
+  tracker reference, a subtask identifier or a repository-relative file pattern. It never
+  starts with a slash, a backslash, a tilde or a drive letter, so it cannot be a path on the
+  machine that serves the contract.
+type: string
+minLength: 1
+maxLength: 256
+pattern: '^(?![A-Za-z]:)[^/\\~].*$'
+x-source:
+  path: src/specify_cli/status/wp_metadata.py
+  symbol: WPMetadata

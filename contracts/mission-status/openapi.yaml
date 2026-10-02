@@ -19,3 +19,7 @@ paths:
     $ref: paths/project.yaml
   /missions:
     $ref: paths/missions.yaml
+  /missions/{missionId}:
+    $ref: paths/missions_missionId.yaml
+  /missions/{missionId}/work-packages/{wpId}:
+    $ref: paths/missions_missionId_work-packages_wpId.yaml

@@ -1,0 +1,286 @@
+title: WorkPackage
+description: >-
+  One work package of a Mission in full. The fields fall in three groups. Authored plan: read
+  from the planning file; what was intended (authored, ownedFiles, dependencies, requirementRefs,
+  executionMode, taskType, priority, mergeTargetBranch, trackerRefs, phaseLabel, title). Resolved
+  state: read from the status snapshot, never from the agent, assignee, shell, lane or review
+  status keys that old planning files still carry (statusLane, assignment, subtasks,
+  subtaskProgress, implementerOfRecord, lastTransitionAt, forceCount, lastEventId, actor,
+  cancellation). Derived and review evidence: readiness, readyToStart, review, history, staleness.
+  The prompt body is returned only when the request asks for it.
+type: object
+additionalProperties: false
+required:
+  - wpId
+  - title
+  - phaseLabel
+  - authored
+  - ownedFiles
+  - dependencies
+  - requirementRefs
+  - executionMode
+  - taskType
+  - priority
+  - mergeTargetBranch
+  - trackerRefs
+  - statusLane
+  - assignment
+  - subtasks
+  - subtaskProgress
+  - implementerOfRecord
+  - lastTransitionAt
+  - forceCount
+  - lastEventId
+  - actor
+  - cancellation
+  - readiness
+  - readyToStart
+  - review
+  - history
+  - staleness
+properties:
+  wpId:
+    $ref: WpId.yaml
+    description: The identifier of the work package inside its Mission.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  title:
+    type: string
+    minLength: 1
+    description: The human title of the work package. Human text; a host path inside it is replaced by a fixed token.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: read_authored_wp_frontmatter
+  phaseLabel:
+    type:
+      - string
+      - 'null'
+    description: >-
+      Authored plan. The grouping label the planning file gives the work package, or null. It is
+      a label written by the author of the plan; it is not a Mission phase and not the glossary
+      term phase.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  authored:
+    $ref: Authored.yaml
+    description: Authored plan. The recommended assignment and subtask roster from the planning file. What was intended, never what ran.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  ownedFiles:
+    type: array
+    description: Authored plan. The repository-relative files or patterns the work package owns; empty when none are declared.
+    items:
+      $ref: RelativeReference.yaml
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  dependencies:
+    type: array
+    description: Authored plan. The work packages this one depends on; empty when there are none.
+    items:
+      $ref: WpId.yaml
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  requirementRefs:
+    type: array
+    description: Authored plan. The requirements the work package covers, as authored references; empty when none are listed.
+    items:
+      $ref: RelativeReference.yaml
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  executionMode:
+    type:
+      - string
+      - 'null'
+    description: Authored plan. How the work package executes, as an open string such as code_change or planning_artifact; null when the planning file names none.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  taskType:
+    type:
+      - string
+      - 'null'
+    description: Authored plan. The kind of task, as an open string; null when the planning file names none.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  priority:
+    type:
+      - string
+      - 'null'
+    description: Authored plan. The priority the planning file gives the work package, as an open string; null when none.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  mergeTargetBranch:
+    type:
+      - string
+      - 'null'
+    description: Authored plan. The branch the work package merges into, or null when the planning file names none.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  trackerRefs:
+    type: array
+    description: Authored plan. External tracker references such as an issue number; empty when none are listed.
+    items:
+      $ref: RelativeReference.yaml
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: WPMetadata
+  statusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: Resolved state. The status lane in the status snapshot, or null when the work package has no events.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  assignment:
+    $ref: Assignment.yaml
+    description: Resolved state. Who holds the work package and the binding that ran, from the status snapshot.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  subtasks:
+    type: object
+    description: >-
+      Resolved state. The state of each subtask, keyed by subtask identifier. This is a
+      deliberately open map, the one exception to closed objects: the keys are the subtask
+      identifiers of the work package and cannot be listed in the contract. Empty when no subtask
+      state was recorded.
+    propertyNames:
+      pattern: '^(?![A-Za-z]:)[^/\\~].*$'
+    additionalProperties:
+      $ref: StatusLane.yaml
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: ResolvedGroup
+  subtaskProgress:
+    $ref: SubtaskProgress.yaml
+    description: Resolved state. How many subtasks are done and how many exist, both from the resolved subtask map.
+    x-derived:
+      rule: The counts of the resolved subtask map; the authored roster is not used.
+      inputs:
+        - subtasks
+        - path: src/specify_cli/status/wp_view.py
+          symbol: ResolvedGroup
+  implementerOfRecord:
+    $ref: ActorHandle.yaml
+    description: Resolved state. The agent that last claimed the work package for implementation, kept after the live claim is released; null when no claim was recorded or the snapshot predates the field.
+    x-source:
+      path: src/specify_cli/status/reducer.py
+      symbol: _project_implementer_attribution
+  lastTransitionAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: Resolved state. When the work package last changed status lane, or null when it has no events.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  forceCount:
+    type: integer
+    minimum: 0
+    description: Resolved state. How many of the work package's transitions bypassed the usual guards; 0 when it has no events.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  lastEventId:
+    type:
+      - string
+      - 'null'
+    description: Resolved state. The identifier of the last event that touched the work package, or null when it has no events.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  actor:
+    $ref: Actor.yaml
+    description: Resolved state. Who made the latest status change, as three handles; three nulls when the work package has no events or the stored actor is not a valid handle.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: decode_actor
+  cancellation:
+    oneOf:
+      - $ref: Cancellation.yaml
+      - type: 'null'
+    description: Resolved state. The reason and its source while the work package is canceled; null otherwise.
+    x-source:
+      path: src/specify_cli/status/reducer.py
+      symbol: _project_cancellation_provenance
+  readiness:
+    $ref: Readiness.yaml
+    description: Whether every dependency has reached an acceptable ending, and which have not.
+    x-source:
+      path: src/specify_cli/core/dependency_graph.py
+      symbol: dependency_readiness_for_wp
+  readyToStart:
+    type: boolean
+    description: True only when the status lane is planned and the dependencies are satisfied; false in every other case, including a null status lane.
+    x-derived:
+      rule: True when statusLane is planned and readiness.satisfied is true; false otherwise, including when statusLane is null.
+      inputs:
+        - statusLane
+        - readiness.satisfied
+        - path: src/specify_cli/core/dependency_graph.py
+          symbol: dependency_readiness_for_wp
+  review:
+    $ref: Review.yaml
+    description: Review evidence. The latest review result and any review override; each is null until it exists.
+    x-source:
+      path: src/specify_cli/status/reducer.py
+      symbol: review_result_from_state
+  history:
+    type: array
+    description: >-
+      Review evidence. The status transitions of the work package, oldest first, ordered by time
+      then event identifier. Only transitions appear; annotation and lifecycle rows of the event
+      log are not exposed.
+    items:
+      $ref: HistoryEntry.yaml
+    x-derived:
+      rule: The status transition events of the work package from the event log, sorted by at then eventId ascending; annotation, lifecycle and retrospective rows are dropped.
+      inputs:
+        - path: src/specify_cli/status/models.py
+          symbol: StatusEvent
+  staleness:
+    oneOf:
+      - $ref: Staleness.yaml
+      - type: 'null'
+    description: >-
+      Provisional. Whether work on the work package has gone quiet, or null when it was not
+      computed. It needs git and a worktree, so a payload built from events alone carries null.
+      How staleness is measured, and whether v1 carries it at all, is an open decision on #5528.
+    x-provisional:
+      open_decision: How staleness is measured, and whether v1 carries it at all, is open on #5528.
+    x-source:
+      path: src/specify_cli/core/stale_detection.py
+      symbol: StaleState
+  promptMarkdown:
+    type:
+      - string
+      - 'null'
+    description: >-
+      The authored markdown body of the work package's planning file. It is returned only when
+      the request sets the includePrompt query parameter to true; otherwise the property is
+      absent from the response. It passes through as authored: corpus-derived payloads are not
+      scanned for it, but the examples in this contract are.
+    x-source:
+      path: src/specify_cli/status/wp_metadata.py
+      symbol: read_authored_wp_frontmatter
+examples:
+  - $ref: ../examples/WorkPackage.populated.yaml
+  - $ref: ../examples/WorkPackage.with-prompt.yaml
+  - $ref: ../examples/WorkPackage.provisional.yaml
+  - $ref: ../examples/WorkPackage.no-events.yaml
+  - $ref: ../examples/WorkPackage.actor-structured.yaml
+  - $ref: ../examples/WorkPackage.actor-handle.yaml
+  - $ref: ../examples/WorkPackage.actor-redacted.yaml
+  - $ref: ../examples/WorkPackage.canceled.yaml
+  - $ref: ../examples/WorkPackage.override.yaml

@@ -1,0 +1,45 @@
+title: Authored
+description: >-
+  The authored assignment recommendation of a work package, read from the planning file. It is
+  what was intended, not what ran: the resolved assignment is a separate field and the two are
+  never merged.
+type: object
+additionalProperties: false
+required:
+  - role
+  - agentProfile
+  - model
+  - subtasks
+properties:
+  role:
+    type:
+      - string
+      - 'null'
+    description: The recommended role, or null when the planning file names none.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  agentProfile:
+    type:
+      - string
+      - 'null'
+    description: The recommended agent profile, or null when the planning file names none.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  model:
+    type:
+      - string
+      - 'null'
+    description: The recommended model, or null when the planning file names none.
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup
+  subtasks:
+    type: array
+    description: The subtask identifiers the planning file lists, in authored order; empty when there are none.
+    items:
+      $ref: RelativeReference.yaml
+    x-source:
+      path: src/specify_cli/status/wp_view.py
+      symbol: AuthoredGroup

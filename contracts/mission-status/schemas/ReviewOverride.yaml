@@ -1,0 +1,30 @@
+title: ReviewOverride
+description: >-
+  A recorded override of the review step: when it was recorded, by whom, and the stated reason.
+  It is present only when an operator overrode the review.
+type: object
+additionalProperties: false
+required:
+  - at
+  - actor
+  - reason
+properties:
+  at:
+    type: string
+    format: date-time
+    description: When the override was recorded, an RFC 3339 date-time with an offset.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: ReviewOverride
+  actor:
+    $ref: ActorHandle.yaml
+    description: The handle of whoever recorded the override, or null when the stored value is not a valid handle.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: ReviewOverride
+  reason:
+    type: string
+    description: The reason given for the override. Human text; a host path inside it is replaced by a fixed token.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: ReviewOverride

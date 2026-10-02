@@ -1,0 +1,31 @@
+title: SubtaskProgress
+description: >-
+  How many of a work package's subtasks are done. Both numbers come from the resolved subtask
+  map of the status snapshot; the authored roster is not mixed in, so authored intent never
+  counts as progress.
+type: object
+additionalProperties: false
+required:
+  - done
+  - total
+properties:
+  done:
+    type: integer
+    minimum: 0
+    description: The number of subtasks whose resolved state is done.
+    x-derived:
+      rule: The count of entries of the resolved subtask map whose value is done.
+      inputs:
+        - WorkPackage.subtasks
+        - path: src/specify_cli/status/wp_view.py
+          symbol: ResolvedGroup
+  total:
+    type: integer
+    minimum: 0
+    description: The number of entries in the resolved subtask map.
+    x-derived:
+      rule: The number of entries of the resolved subtask map.
+      inputs:
+        - WorkPackage.subtasks
+        - path: src/specify_cli/status/wp_view.py
+          symbol: ResolvedGroup

@@ -1,0 +1,25 @@
+title: Readiness
+description: >-
+  Whether every dependency of a work package has reached an acceptable ending (approved, done,
+  or canceled with a documented reason), and which dependencies have not. A dependency with no
+  status counts as planned, so it is unsatisfied.
+type: object
+additionalProperties: false
+required:
+  - satisfied
+  - unsatisfied
+properties:
+  satisfied:
+    type: boolean
+    description: True when no dependency is unsatisfied.
+    x-source:
+      path: src/specify_cli/core/dependency_graph.py
+      symbol: DependencyReadiness
+  unsatisfied:
+    type: array
+    description: The dependencies that have not reached an acceptable ending, in dependency order; empty when satisfied.
+    items:
+      $ref: WpId.yaml
+    x-source:
+      path: src/specify_cli/core/dependency_graph.py
+      symbol: dependency_readiness_for_wp

@@ -1,0 +1,27 @@
+title: Cancellation
+description: >-
+  Why a canceled work package was canceled, and whether a person wrote the reason. It is
+  present only while the work package sits in the canceled status lane.
+type: object
+additionalProperties: false
+required:
+  - reasonSource
+  - reason
+properties:
+  reasonSource:
+    type: string
+    enum:
+      - operator
+      - synthetic
+    description: operator when a person wrote the reason; synthetic when the tool filled in a default.
+    x-source:
+      path: src/specify_cli/status/reducer.py
+      symbol: _cancellation_reason_source
+  reason:
+    type:
+      - string
+      - 'null'
+    description: The human text recorded with the cancellation, or null when none was recorded.
+    x-source:
+      path: src/specify_cli/status/reducer.py
+      symbol: _project_cancellation_provenance

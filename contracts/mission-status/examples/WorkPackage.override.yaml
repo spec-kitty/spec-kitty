@@ -1,0 +1,79 @@
+wpId: WP09
+title: Ship the release
+phaseLabel: Screens
+authored:
+  role: implementer
+  agentProfile: implementer-ivan
+  model: sonnet
+  subtasks:
+  - T023
+  - T024
+  - T025
+  - T026
+ownedFiles:
+- src/example/detail_view.py
+- tests/example/test_detail_view.py
+dependencies:
+- WP03
+requirementRefs:
+- FR-005
+- FR-006
+executionMode: code_change
+taskType: null
+priority: null
+mergeTargetBranch: main
+trackerRefs:
+- '#5558'
+statusLane: approved
+assignment:
+  agent: claude
+  assignee: null
+  role: implementer
+  agentProfile: implementer-ivan
+  agentProfileVersion: '1.0'
+  model: sonnet
+  provider: anthropic
+subtasks:
+  T023: done
+  T024: done
+  T025: done
+  T026: done
+subtaskProgress:
+  done: 4
+  total: 4
+implementerOfRecord: claude
+lastTransitionAt: '2026-09-26T09:35:00Z'
+forceCount: 1
+lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ21
+actor:
+  tool: claude
+  role: implementer
+  profile: implementer-ivan
+cancellation: null
+readiness:
+  satisfied: true
+  unsatisfied: []
+readyToStart: false
+review:
+  latestResult:
+    reviewer: reviewer-renata
+    verdict: approved
+    reference: review-cycle://example-mission-01JZAB3C/WP09/review-cycle-2.md
+  override:
+    at: '2026-09-26T09:30:00Z'
+    actor: operator
+    reason: Reviewed out of band by the maintainer.
+history:
+- eventId: 01JZAB3C4D5E6F7G8H9JKMNQ21
+  at: '2026-09-26T09:35:00Z'
+  kind: transition
+  fromStatusLane: in_review
+  toStatusLane: approved
+  actor:
+    tool: claude
+    role: reviewer
+    profile: reviewer-renata
+  force: true
+  reason: Approved after the override.
+  reviewVerdict: approved
+staleness: null
