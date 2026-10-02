@@ -1,0 +1,5 @@
+title: Cursor
+type: string
+description: A cursor.
+x-provisional:
+  open_decision: The text form of the cursor is an open decision on the tracker issue.

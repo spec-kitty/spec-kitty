@@ -1,0 +1,23 @@
+title: Thing
+type: object
+additionalProperties: false
+properties:
+  name:
+    type: string
+    description: A name.
+  nextAction:
+    type:
+    - string
+    - 'null'
+    description: A hint for the operator, or null.
+    x-provisional:
+      open_decision: How the next action is worded is an open decision on the tracker
+        issue and may change before release.
+  staleness:
+    description: Staleness, or null.
+    oneOf:
+    - $ref: Staleness.yaml
+    - type: 'null'
+    x-provisional:
+      open_decision: Whether staleness is measured at all in version one is an open
+        decision on the tracker issue.
