@@ -40,7 +40,11 @@ properties:
       - string
       - 'null'
     pattern: '^[0-9A-HJKMNP-TV-Z]{8}$'
-    description: The first eight characters of the Mission identity, used to disambiguate branch and worktree names; null when the Mission has no identity, never an empty string.
+    description: >-
+      The first eight characters of the Mission identity, used to disambiguate branch and worktree
+      names. It is derived from missionId, which is always present, so null is a defensive branch of
+      the reader (the identity could not be resolved) and not a state a Mission is expected to reach;
+      it is never an empty string.
     x-source:
       path: src/mission_runtime/identity.py
       symbol: resolve_mid8
@@ -54,7 +58,11 @@ properties:
   friendlyName:
     type: string
     minLength: 1
-    description: The human display name of the Mission, the friendly_name key of its meta.json; the slug stands in when the key is empty.
+    description: >-
+      The human display name of the Mission, the friendly_name key of its meta.json. When the key is
+      empty or absent this contract defines the slug as the display name; that fallback is a rule of
+      this contract and has no code source. Human text. A host path inside it is replaced by `[path]`
+      and an e-mail address by `[email]`.
     x-source:
       path: src/specify_cli/mission_metadata.py
       symbol: MissionMetaRequired
@@ -222,8 +230,11 @@ properties:
       embedding the Mission slug: the review-then-accept sentence when the Mission carries a
       merge baseline and is not accepted, or the consolidate sentence when every work package
       is done or canceled with at least one done and the Mission is not accepted. It is null
-      once the Mission is accepted and in every other case. The shape is undecided; see the
-      open decision on #5528.
+      once the Mission is accepted and in every other case. A Mission whose work packages are all
+      canceled has no done work package, so its hint is null; that is a deliberate divergence from
+      the replaced dashboard, not an omission. Human text. A host path inside it is replaced by
+      `[path]` and an e-mail address by `[email]`. The shape is undecided; see the open decision
+      on #5528.
     x-provisional:
       open_decision: Whether v1 carries a next-action hint at all, and whether it is prose or a structured value, is open on #5528.
     x-derived:

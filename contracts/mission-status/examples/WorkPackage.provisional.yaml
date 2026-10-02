@@ -80,5 +80,5 @@ history:
   reviewVerdict: null
 staleness:
   status: stale
-  reason: no_recent_commits
+  reason: null
   minutesSinceCommit: 1440.5

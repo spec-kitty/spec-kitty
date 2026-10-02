@@ -4,7 +4,8 @@ required: false
 description: >-
   The same text as streamCursor. A browser sends it by itself when it reconnects, with the id of
   the last event it received, so the stream resumes where it stopped. It requires missionId in
-  the same way. When both this header and streamCursor are sent, streamCursor is used.
+  the same way, and only a Mission-scoped stream sends event ids, so a browser never sends it to
+  an unscoped stream. When both this header and streamCursor are sent, streamCursor is used.
 schema:
   $ref: ../schemas/StreamCursorString.yaml
 x-provisional:

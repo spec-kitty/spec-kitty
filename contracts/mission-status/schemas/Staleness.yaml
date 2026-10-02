@@ -24,7 +24,16 @@ properties:
     type:
       - string
       - 'null'
-    description: A short machine-readable reason for the status, or null.
+    enum:
+      - planning_artifact_repo_root_shared_workspace
+      - live_claim_process
+      - null
+    description: >-
+      A short machine-readable reason for the status, or null. Exactly the two reasons the code
+      sets today: planning_artifact_repo_root_shared_workspace (a planning-artifact work package
+      shares the repository root, so there is no worktree to measure) and live_claim_process (the
+      claiming process is alive). Whether more reasons exist is pending the open decision on
+      #5528.
     x-source:
       path: src/specify_cli/core/stale_detection.py
       symbol: StaleState

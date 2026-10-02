@@ -4,10 +4,40 @@ description: >-
   of five values: negative, out_of_range, misaligned and content_mismatch, which are the reasons
   of the tail reader's ResumeRefused, and cursor_without_mission, the refusal of a streamCursor
   or Last-Event-ID sent without a missionId. A refused request is answered before any event is
-  sent; the stream never resynchronises silently. Consumers branch on code, never on title.
+  sent; the stream never resynchronises silently. The status follows from the code: 400 for negative,
+  misaligned and cursor_without_mission, 409 for out_of_range and content_mismatch. Consumers branch on code, never on title.
 type: object
 allOf:
   - $ref: ../../_shared/schemas/Problem.yaml
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          enum:
+            - negative
+            - misaligned
+            - cursor_without_mission
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 400
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          enum:
+            - out_of_range
+            - content_mismatch
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 409
   - type: object
     required:
       - code

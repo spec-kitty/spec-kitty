@@ -5,7 +5,8 @@ get:
     Returns one page of Mission overviews. The order is a total key: createdAt descending,
     with ties broken by missionId ascending. Paging uses the shared opaque page cursor: pass
     the nextPageCursor of one response as pageCursor to fetch the next page, and stop when
-    hasNextPage is false.
+    hasNextPage is false. A pageCursor that is malformed, forged or no longer valid is answered
+    with 400 and a problem whose code is invalid_page_cursor.
   tags:
     - Missions
   parameters:
@@ -18,5 +19,7 @@ get:
         application/json:
           schema:
             $ref: ../schemas/MissionOverviewPage.yaml
+    '400':
+      $ref: ../../_shared/responses/Problem.yaml
     default:
       $ref: ../../_shared/responses/Problem.yaml

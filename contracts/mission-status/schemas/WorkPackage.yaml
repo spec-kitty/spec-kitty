@@ -48,7 +48,7 @@ properties:
   title:
     type: string
     minLength: 1
-    description: The human title of the work package. Human text; a host path inside it is replaced by a fixed token.
+    description: The human title of the work package. Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`; only the matching text is replaced.
     x-source:
       path: src/specify_cli/status/wp_metadata.py
       symbol: read_authored_wp_frontmatter
@@ -59,7 +59,8 @@ properties:
     description: >-
       Authored plan. The grouping label the planning file gives the work package, or null. It is
       a label written by the author of the plan; it is not a Mission phase and not the glossary
-      term phase.
+      term phase. Human text. A host path inside it is replaced by `[path]` and an e-mail address
+      by `[email]`.
     x-source:
       path: src/specify_cli/status/wp_metadata.py
       symbol: WPMetadata
@@ -97,7 +98,11 @@ properties:
     type:
       - string
       - 'null'
-    description: Authored plan. How the work package executes, as an open string such as code_change or planning_artifact; null when the planning file names none.
+    description: >-
+      Authored plan. How the work package executes, as an open string such as code_change or
+      planning_artifact; null when the planning file names none. Some planning files store the
+      value with a balanced pair of literal quotes around it; one such pair is stripped, so a
+      stored "code_change" in quotes is read as code_change.
     x-source:
       path: src/specify_cli/status/wp_metadata.py
       symbol: WPMetadata
@@ -183,23 +188,23 @@ properties:
     format: date-time
     description: Resolved state. When the work package last changed status lane, or null when it has no events.
     x-source:
-      path: src/specify_cli/status/models.py
-      symbol: StatusSnapshot
+      path: src/specify_cli/status/reducer.py
+      symbol: wp_snapshot_state
   forceCount:
     type: integer
     minimum: 0
     description: Resolved state. How many of the work package's transitions bypassed the usual guards; 0 when it has no events.
     x-source:
-      path: src/specify_cli/status/models.py
-      symbol: StatusSnapshot
+      path: src/specify_cli/status/reducer.py
+      symbol: wp_snapshot_state
   lastEventId:
     type:
       - string
       - 'null'
     description: Resolved state. The identifier of the last event that touched the work package, or null when it has no events.
     x-source:
-      path: src/specify_cli/status/models.py
-      symbol: StatusSnapshot
+      path: src/specify_cli/status/reducer.py
+      symbol: wp_snapshot_state
   actor:
     $ref: Actor.yaml
     description: Resolved state. Who made the latest status change, as three handles; three nulls when the work package has no events or the stored actor is not a valid handle.
@@ -269,8 +274,12 @@ properties:
     description: >-
       The authored markdown body of the work package's planning file. It is returned only when
       the request sets the includePrompt query parameter to true; otherwise the property is
-      absent from the response. It passes through as authored: corpus-derived payloads are not
-      scanned for it, but the examples in this contract are.
+      absent from the response. It is the one text field that is not redacted: it passes through
+      as authored (Mission D-14), so it can carry host paths and e-mail addresses that the
+      `[path]` and `[email]` tokens would have replaced elsewhere. Authored prompts are the reason it
+      is opt-in; the includePrompt request parameter is the only guard, and a consumer must treat
+      the value as sensitive. Corpus-derived payloads are not scanned for it, but the examples in
+      this contract are.
     x-source:
       path: src/specify_cli/status/wp_metadata.py
       symbol: read_authored_wp_frontmatter
