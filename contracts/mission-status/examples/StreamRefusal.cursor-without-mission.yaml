@@ -1,0 +1,5 @@
+type: about:blank
+title: The resume cursor was refused
+status: 400
+code: cursor_without_mission
+detail: A streamCursor was sent without a missionId; a cursor needs the Mission whose log it belongs to.

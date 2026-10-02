@@ -1,0 +1,6 @@
+missionId: 01JZAB3C4D5E6F7G8H9JKMNPQR
+reason: content_mismatch
+detectedAtOffset: 1912
+streamCursor:
+  offset: 0
+  invariant: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

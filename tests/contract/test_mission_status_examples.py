@@ -398,7 +398,7 @@ def test_planted_identity_violations_are_found(tmp_path: Path) -> None:
     shutil.copytree(CONTRACTS / "_shared", root / "_shared")
     module = root / MODULE.name
     assert not _identity_findings(module)[0]
-    parameter_file = next(path for path in sorted((module / "parameters").glob("*.yaml")) if _read(path).get("name") == "missionId")
+    parameter_file = next(path for path in sorted((module / "parameters").glob("*.yaml")) if {"name": "missionId", "in": "path"}.items() <= _read(path).items())
     document = _read(parameter_file)
     document["schema"] = {"type": "string"}
     parameter_file.write_text(yaml.safe_dump(document), encoding="utf-8")
@@ -572,7 +572,8 @@ def test_all_five_paths_are_mapped_each_to_a_brace_free_file() -> None:
 
 
 def _events_operation() -> dict[str, Any]:
-    return _read(MODULE / "paths" / "events.yaml")["get"]
+    operation: dict[str, Any] = _read(MODULE / "paths" / "events.yaml")["get"]
+    return operation
 
 
 def test_the_events_operation_streams_event_stream_and_documents_the_request_shape() -> None:
@@ -582,8 +583,8 @@ def test_the_events_operation_streams_event_stream_and_documents_the_request_sha
     parameters = [_read(MODULE / "paths" / ref["$ref"]) for ref in operation["parameters"]]
     shape = {(parameter["name"], parameter["in"], parameter["required"]) for parameter in parameters}
     assert shape == {("missionId", "query", False), ("streamCursor", "query", False), ("Last-Event-ID", "header", False)}, shape
-    text = operation["description"]
-    for needle in ("Last-Event-ID", ": heartbeat", "30 seconds", "live-only", "log-truncated", "per Mission", "provisional", "TailCursor"):
+    text = " ".join(operation["description"].split())
+    for needle in ("Last-Event-ID", ": heartbeat", "30 seconds", "live only", "log-truncated", "per Mission", "provisional", "TailCursor"):
         assert needle in text, f"the stream description does not mention {needle!r}"
     mapped = [schema for schema in EVENT_SCHEMAS.values() if schema in text]
     assert sorted(mapped) == sorted(EVENT_SCHEMAS.values())

@@ -1,6 +1,10 @@
 files:
+  - LogTruncatedEvent.content-mismatch.yaml
+  - LogTruncatedEvent.size-shrink.yaml
   - MissionDetail.early.yaml
   - MissionDetail.populated.yaml
+  - MissionLifecycleEvent.mission-created.yaml
+  - MissionLifecycleEvent.plan-completed.yaml
   - MissionOverview.discarded.yaml
   - MissionOverview.populated.yaml
   - MissionOverview.provisional.yaml
@@ -10,6 +14,14 @@ files:
   - MissionOverviewPage.last.yaml
   - MissionOverviewPage.middle.yaml
   - Project.example.yaml
+  - StatusTransitionEvent.first.yaml
+  - StatusTransitionEvent.forced.yaml
+  - StatusTransitionEvent.moved.yaml
+  - StreamRefusal.content-mismatch.yaml
+  - StreamRefusal.cursor-without-mission.yaml
+  - StreamRefusal.misaligned.yaml
+  - StreamRefusal.negative.yaml
+  - StreamRefusal.out-of-range.yaml
   - WorkPackage.actor-handle.yaml
   - WorkPackage.actor-redacted.yaml
   - WorkPackage.actor-structured.yaml

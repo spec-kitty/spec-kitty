@@ -14,6 +14,8 @@ tags:
     description: The project header.
   - name: Missions
     description: Mission overviews.
+  - name: Events
+    description: The change stream of Missions.
 paths:
   /project:
     $ref: paths/project.yaml
@@ -23,3 +25,5 @@ paths:
     $ref: paths/missions_missionId.yaml
   /missions/{missionId}/work-packages/{wpId}:
     $ref: paths/missions_missionId_work-packages_wpId.yaml
+  /events:
+    $ref: paths/events.yaml

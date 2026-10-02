@@ -1,0 +1,5 @@
+type: about:blank
+title: The resume cursor was refused
+status: 400
+code: negative
+detail: The offset of the streamCursor is below 0.

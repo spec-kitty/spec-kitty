@@ -1,0 +1,7 @@
+description: >-
+  The event stream request was refused before any event was sent. The body is a problem details
+  object whose code names the refusal.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/StreamRefusal.yaml

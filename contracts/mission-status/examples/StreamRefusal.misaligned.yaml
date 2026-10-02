@@ -1,0 +1,5 @@
+type: about:blank
+title: The resume cursor was refused
+status: 400
+code: misaligned
+detail: The offset of the streamCursor is not at the start of a line of the event log.
