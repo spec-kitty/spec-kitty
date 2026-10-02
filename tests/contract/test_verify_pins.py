@@ -103,7 +103,7 @@ def test_without_artifacts_or_fetch_nothing_is_downloaded_and_the_manifest_is_st
 
 def test_fetch_mode_downloads_through_the_injected_function(pins: Any) -> None:
     clean = FIXTURE_ROOT / "clean"
-    payload = (clean / "artifacts" / "tool-1.0.zip").read_bytes()
+    payload = (clean / "artifacts" / "tool-1.0.bin").read_bytes()
     fetched: list[str] = []
 
     def fetch(url: str) -> bytes:
