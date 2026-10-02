@@ -53,6 +53,12 @@ def count_warnings(output: str) -> int:
     return sum(1 for line in output.splitlines() if _WARNING_LINE.search(line))
 
 
+def fatal_warnings(module: str, output: str, fatal: Sequence[re.Pattern[str]]) -> list[str]:
+    """One ``GENERATION_FAILED`` finding when a warning line matches a pattern the spike proved fatal."""
+    matched = [line for line in output.splitlines() if _WARNING_LINE.search(line) and any(pattern.search(line) for pattern in fatal)]
+    return [bundle.finding("GENERATION_FAILED", module, f"fatal generator warning: {matched[0].strip()}", CHECK_NAME)] if matched else []
+
+
 def run(
     argv: Sequence[str] | None = None, *, runner: bundle.Runner = bundle.subprocess_runner, which: bundle.Which = shutil.which, out: Callable[[str], None] = print
 ) -> int:
@@ -62,6 +68,7 @@ def run(
     parser.add_argument("--module", action="append", default=[], help="restrict to this module (repeatable)")
     parser.add_argument("--fail-on-warning", action="append", default=[], metavar="REGEX", help="a generator warning that fails the smoke (repeatable)")
     parser.add_argument("--write-verification-metadata", action="store_true")
+    parser.add_argument("--verbose", action="store_true", help="print the full Gradle output of every module")
     args = parser.parse_args(argv)
 
     modules_seen = files_emitted = warnings = 0
@@ -96,6 +103,8 @@ def run(
         status, output = runner(
             bundle.gradle_command(gradle, args.root, args.out, (f"clientSmoke_{module.name}",), write_metadata=args.write_verification_metadata)
         )
+        if args.verbose:
+            out(f"--- gradle output for {module.name} (exit {status}) ---\n{output}\n--- end ---")
         warnings += count_warnings(output)
         if status != 0:
             code, exit_status = bundle.classify_gradle_failure(output, module.name)
@@ -107,9 +116,7 @@ def run(
         files_emitted += emitted
         if emitted == 0:
             return blocked("ZERO_FILES_EMITTED", f"{module.name}: the generator exited 0 but emitted no file")
-        matched = [line for line in output.splitlines() if _WARNING_LINE.search(line) and any(pattern.search(line) for pattern in fatal)]
-        if matched:
-            findings.append(bundle.finding("GENERATION_FAILED", module.name, f"fatal generator warning: {matched[0].strip()}", CHECK_NAME))
+        findings.extend(fatal_warnings(module.name, output, fatal))
 
     for line in findings:
         out(line)

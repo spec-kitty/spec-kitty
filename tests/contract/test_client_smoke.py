@@ -164,3 +164,10 @@ def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path:
 
     assert result.returncode == 2
     assert result.stdout.splitlines()[-1] == "counts: modules=0 files_emitted=0 generator_warnings=0"
+
+
+def test_verbose_prints_the_gradle_output(smoke: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(smoke, CLEAN_ROOT, tmp_path / "out", _fake_generator(1, output="GRADLE-TRANSCRIPT-LINE"), "--verbose")
+
+    assert code == 0, output
+    assert "GRADLE-TRANSCRIPT-LINE" in output

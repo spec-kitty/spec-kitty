@@ -190,3 +190,18 @@ def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path:
 
     assert result.returncode == 2
     assert result.stdout.splitlines()[-1] == "counts: modules=0 bundles=0 path_items=0"
+
+
+def test_verbose_prints_the_gradle_output_and_an_empty_bundle_lists_what_was_staged(bundler: ModuleType, tmp_path: Path) -> None:
+    def runner(command: list[str]) -> tuple[int, str]:
+        out_dir = Path(next(part.split("=", 1)[1] for part in command if part.startswith("-PoutDir=")))
+        stray = out_dir / "bundle" / "alpha" / "openapi" / "openapi.yaml"
+        stray.parent.mkdir(parents=True)
+        stray.write_text("openapi: 3.1.0\n", encoding="utf-8")
+        return 0, "GRADLE-TRANSCRIPT-LINE"
+
+    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", runner, "--verbose")
+
+    assert code == 1
+    assert "GRADLE-TRANSCRIPT-LINE" in output
+    assert "BUNDLE_EMPTY: alpha" in output and "openapi/openapi.yaml" in output, "the file the generator did write is named"

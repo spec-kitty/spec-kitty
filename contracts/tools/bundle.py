@@ -106,6 +106,12 @@ def inside_repository(path: Path) -> bool:
     return root is not None and (resolved == root or root in resolved.parents)
 
 
+def staged_files(directory: Path) -> str:
+    """A short listing of what the generator did write, for the message of an empty bundle."""
+    files = sorted(path.relative_to(directory).as_posix() for path in directory.rglob("*") if path.is_file()) if directory.is_dir() else []
+    return ", ".join(files[:DETAIL_LINES]) or "none"
+
+
 def find_unresolved_refs(document: Any) -> list[str]:
     """``$ref`` values that are not internal pointers resolving inside ``document``."""
     bad: list[str] = []
@@ -138,6 +144,24 @@ def find_unresolved_refs(document: Any) -> list[str]:
     return bad
 
 
+def check_bundle(module: str, out_dir: Path, min_paths: int, report: Report) -> None:
+    """Check the staged bundle of one module and record what it finds on ``report``."""
+    bundle_file = out_dir / "bundle" / module / ROOT_DOCUMENT
+    document = yaml.safe_load(bundle_file.read_text(encoding="utf-8")) if bundle_file.is_file() else None
+    if not isinstance(document, dict) or not document:
+        report.findings.append(finding("BUNDLE_EMPTY", module, f"{bundle_file.name} is missing or empty; files staged: {staged_files(bundle_file.parent)}"))
+        return
+    report.bundles += 1
+    paths = document.get("paths")
+    count = len(paths) if isinstance(paths, dict) else 0
+    report.path_items += count
+    if count < min_paths:
+        report.findings.append(finding("FEWER_THAN_FIVE_PATHS", module, f"{count} path items, floor is {min_paths}"))
+    left = find_unresolved_refs(document)
+    if left:
+        report.findings.append(finding("UNRESOLVED_REFERENCE_LEFT", module, f"{len(left)} reference(s) left, first {left[0]!r}"))
+
+
 def tail(output: str) -> str:
     lines = [line for line in output.splitlines() if line.strip()]
     return " | ".join(lines[-DETAIL_LINES:])
@@ -168,6 +192,7 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
     parser.add_argument("--module", action="append", default=[], help="restrict to this module (repeatable)")
     parser.add_argument("--min-paths", type=int, default=DEFAULT_MIN_PATHS)
     parser.add_argument("--write-verification-metadata", action="store_true")
+    parser.add_argument("--verbose", action="store_true", help="print the full Gradle output of every module")
     args = parser.parse_args(argv)
 
     report = Report()
@@ -197,26 +222,15 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
         status, output = runner(
             gradle_command(gradle, args.root, args.out, (f"validate_{module.name}", f"bundle_{module.name}"), write_metadata=args.write_verification_metadata)
         )
+        if args.verbose:
+            out(f"--- gradle output for {module.name} (exit {status}) ---\n{output}\n--- end ---")
         if status != 0:
             code, exit_status = classify_gradle_failure(output, module.name)
             if exit_status == 2:
                 return blocked(code, f"{module.name}: {tail(output)}")
             report.findings.append(finding(code, module.name, tail(output)))
             continue
-        bundle = args.out / "bundle" / module.name / ROOT_DOCUMENT
-        document = yaml.safe_load(bundle.read_text(encoding="utf-8")) if bundle.is_file() else None
-        if not isinstance(document, dict) or not document:
-            report.findings.append(finding("BUNDLE_EMPTY", module.name, f"{bundle.name} is missing or empty under {args.out}"))
-            continue
-        report.bundles += 1
-        paths = document.get("paths")
-        count = len(paths) if isinstance(paths, dict) else 0
-        report.path_items += count
-        if count < args.min_paths:
-            report.findings.append(finding("FEWER_THAN_FIVE_PATHS", module.name, f"{count} path items, floor is {args.min_paths}"))
-        left = find_unresolved_refs(document)
-        if left:
-            report.findings.append(finding("UNRESOLVED_REFERENCE_LEFT", module.name, f"{len(left)} reference(s) left, first {left[0]!r}"))
+        check_bundle(module.name, args.out, args.min_paths, report)
 
     for line in report.findings:
         out(line)

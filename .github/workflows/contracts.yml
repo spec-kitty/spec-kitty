@@ -57,8 +57,8 @@ jobs:
         if: hashFiles('contracts/gradle/verification-metadata.xml') == ''
         continue-on-error: true
         run: |
-          uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/metadata-out" --module full --write-verification-metadata
-          uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/metadata-out" --module full --write-verification-metadata
+          uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/metadata-out" --module full --write-verification-metadata --verbose
+          uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/metadata-out" --module full --write-verification-metadata --verbose
       - name: Upload the generated verification metadata
         if: always() && hashFiles('contracts/gradle/verification-metadata.xml') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -68,12 +68,12 @@ jobs:
           if-no-files-found: warn
           overwrite: true
       - name: Validate and bundle every module
-        run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full
+        run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
       # The client smoke is non-failing only while the spike runs; it becomes failing with the hardening work package.
       - name: Generate a TypeScript client from the split root (smoke)
         if: always()
         continue-on-error: true
-        run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full
+        run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
       # SPIKE-ONLY: observations that are never gates. Each prints the tool's exit status and output.
       - name: "Spike: brace spelling candidates (bundle and client)"
         if: always()
@@ -82,11 +82,11 @@ jobs:
           set +e
           for m in brace_raw brace_pct_lower; do
             echo "::group::bundle $m"
-            uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m" --min-paths 1
+            uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m" --min-paths 1 --verbose
             echo "SPIKE-RESULT bundle $m exit=$?"
             echo "::endgroup::"
             echo "::group::client $m"
-            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m"
+            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m" --verbose
             echo "SPIKE-RESULT client $m exit=$?"
             echo "::endgroup::"
           done
@@ -97,9 +97,9 @@ jobs:
           set +e
           for p in dangling_ref dangling_pointer cycle invalid_type; do
             echo "::group::plant $p"
-            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p"
+            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p" --verbose
             echo "SPIKE-RESULT client plant $p exit=$?"
-            uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p" --min-paths 1
+            uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p" --min-paths 1 --verbose
             echo "SPIKE-RESULT bundle plant $p exit=$?"
             echo "::endgroup::"
           done
