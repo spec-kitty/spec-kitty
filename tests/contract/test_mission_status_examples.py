@@ -190,3 +190,218 @@ def test_a_planted_malformed_date_time_is_rejected_through_both_paths(tmp_path: 
 def test_the_planted_example_is_what_the_orphan_check_would_catch(tmp_path: Path) -> None:
     module = _plant(tmp_path)
     assert PLANTED_FILE in set(_example_files(module)) - set(_example_refs(module))
+
+
+# --------------------------------------------------------------------------------------
+# WP04: Mission detail and work package resources (FR-005, FR-006, FR-009, FR-013)
+# --------------------------------------------------------------------------------------
+
+DETAIL_SCHEMA = "MissionDetail"
+WORK_PACKAGE_SCHEMA = "WorkPackage"
+MIN_DETAIL_EXAMPLES = 1
+MIN_WORK_PACKAGE_EXAMPLES = 8
+PHASE_COUNT = 5
+PHASE_BASES = {"artifact", "lifecycle_event", "derived_from_status_lanes"}
+MIN_PATH_PARAMETERS = 3
+MIN_MISSION_ID_PARAMETERS = 2
+ULID_PATTERN = "^[0-9A-HJKMNP-TV-Z]{26}$"
+PAGE_CURSOR_FILE = "_shared/schemas/PageCursor.yaml"
+STREAM_CURSOR_FILE = "mission-status/schemas/StreamCursor.yaml"
+FORBIDDEN_PROPERTY = "prompt" + "Path"
+
+
+def _instances_of(schema: str) -> dict[str, dict[str, Any]]:
+    """Every example instance the module attaches to ``schema``, by file name."""
+    return {name: _read(MODULE / "examples" / name) for name, stem in sorted(_example_refs(MODULE).items()) if stem == schema}
+
+
+def _both_paths(module: Path, schema: str, instance: Any) -> tuple[list[str], list[str]]:
+    return _resolver_errors(module, schema, instance), _library_errors(module, schema, instance)
+
+
+def _first(instances: dict[str, dict[str, Any]], predicate: Any) -> tuple[str, dict[str, Any]]:
+    for name, instance in instances.items():
+        if predicate(instance):
+            return name, instance
+    raise AssertionError(f"no example satisfies {getattr(predicate, '__name__', 'the predicate')}; found {sorted(instances)}")
+
+
+def _all_handles_null(actor: Any) -> bool:
+    return isinstance(actor, dict) and set(actor) == {"tool", "role", "profile"} and all(value is None for value in actor.values())
+
+
+def test_the_new_resources_have_examples_in_the_required_cases() -> None:
+    details = _instances_of(DETAIL_SCHEMA)
+    packages = _instances_of(WORK_PACKAGE_SCHEMA)
+    assert len(details) >= MIN_DETAIL_EXAMPLES, f"found {len(details)} {DETAIL_SCHEMA} examples: {sorted(details)}"
+    assert len(packages) >= MIN_WORK_PACKAGE_EXAMPLES, f"found {len(packages)} {WORK_PACKAGE_SCHEMA} examples: {sorted(packages)}"
+    for name, detail in details.items():
+        assert len(detail["phases"]) == PHASE_COUNT, f"{name}: {len(detail['phases'])} phases"
+    bases = {phase["basis"] for detail in details.values() for phase in detail["phases"]}
+    assert bases == PHASE_BASES, f"the detail examples cover the bases {sorted(bases)}"
+    _first(packages, lambda wp: "promptMarkdown" not in wp)
+    _first(packages, lambda wp: isinstance(wp.get("promptMarkdown"), str) and wp["promptMarkdown"] != "")
+    _first(packages, lambda wp: wp.get("staleness") is not None)
+    _first(packages, lambda wp: wp["statusLane"] is None)
+    _first(packages, lambda wp: _all_handles_null(wp["actor"]))
+    _first(packages, lambda wp: wp["actor"]["tool"] is not None and wp["actor"]["role"] is None and wp["actor"]["profile"] is None)
+    _first(packages, lambda wp: all(value is not None for value in wp["actor"].values()))
+    _first(packages, lambda wp: wp["cancellation"] is not None)
+    _first(packages, lambda wp: wp["review"]["override"] is not None)
+    _first(packages, lambda wp: wp["review"]["latestResult"] is not None)
+    _first(packages, lambda wp: len(wp["history"]) > 0)
+
+
+def test_a_phase_entry_without_a_basis_is_rejected_through_both_paths() -> None:
+    name, detail = next(iter(_instances_of(DETAIL_SCHEMA).items()))
+    assert not any(_both_paths(MODULE, DETAIL_SCHEMA, detail)), f"{name} is not a clean control"
+    del detail["phases"][0]["basis"]
+    resolver_errors, library_errors = _both_paths(MODULE, DETAIL_SCHEMA, detail)
+    assert any("basis" in message for message in resolver_errors), resolver_errors
+    assert any("basis" in message for message in library_errors), library_errors
+
+
+@pytest.mark.parametrize("phase_name", ["implement", "review"])
+def test_an_implement_or_review_phase_claiming_an_artifact_basis_is_rejected(phase_name: str) -> None:
+    _, detail = next(iter(_instances_of(DETAIL_SCHEMA).items()))
+    entry = next(phase for phase in detail["phases"] if phase["name"] == phase_name)
+    assert entry["basis"] == "derived_from_status_lanes"
+    entry["basis"] = "artifact"
+    resolver_errors, library_errors = _both_paths(MODULE, DETAIL_SCHEMA, detail)
+    assert resolver_errors, f"the resolver path accepted a {phase_name} phase with an artifact basis"
+    assert library_errors, f"the library path accepted a {phase_name} phase with an artifact basis"
+
+
+def test_a_specify_phase_claiming_a_lane_derived_basis_is_rejected() -> None:
+    _, detail = next(iter(_instances_of(DETAIL_SCHEMA).items()))
+    entry = next(phase for phase in detail["phases"] if phase["name"] == "specify")
+    entry["basis"] = "derived_from_status_lanes"
+    assert any(_both_paths(MODULE, DETAIL_SCHEMA, detail))
+
+
+def test_a_history_entry_with_a_kind_other_than_transition_is_rejected() -> None:
+    packages = _instances_of(WORK_PACKAGE_SCHEMA)
+    name, package = _first(packages, lambda wp: len(wp["history"]) > 0)
+    assert all(entry["kind"] == "transition" for entry in package["history"]), f"{name} is not a clean control"
+    assert not any(_both_paths(MODULE, WORK_PACKAGE_SCHEMA, package))
+    package["history"][0]["kind"] = "annotation"
+    resolver_errors, library_errors = _both_paths(MODULE, WORK_PACKAGE_SCHEMA, package)
+    assert resolver_errors, "the resolver path accepted a history entry of kind annotation"
+    assert library_errors, "the library path accepted a history entry of kind annotation"
+
+
+def test_a_work_package_carrying_a_path_property_is_rejected() -> None:
+    _, package = next(iter(_instances_of(WORK_PACKAGE_SCHEMA).items()))
+    assert not any(_both_paths(MODULE, WORK_PACKAGE_SCHEMA, package))
+    package[FORBIDDEN_PROPERTY] = "tasks/WP01-example.md"
+    resolver_errors, library_errors = _both_paths(MODULE, WORK_PACKAGE_SCHEMA, package)
+    assert any(FORBIDDEN_PROPERTY in message for message in resolver_errors), resolver_errors
+    assert any(FORBIDDEN_PROPERTY in message for message in library_errors), library_errors
+
+
+def test_a_work_package_with_a_stale_frontmatter_key_is_rejected() -> None:
+    _, package = next(iter(_instances_of(WORK_PACKAGE_SCHEMA).items()))
+    for key in ("agent", "shell_pid", "lane", "assignee", "review_status"):
+        planted = {**package, key: "x"}
+        assert any(_both_paths(MODULE, WORK_PACKAGE_SCHEMA, planted)), f"a stale frontmatter key {key!r} was accepted"
+
+
+# FR-009: the two cursors never share a reference, and path parameters select a Mission by ULID only.
+
+
+def _ref_closure(contracts: Path, start: str) -> set[str]:
+    """The files reachable from ``start`` by following ``$ref`` values, ``start`` included."""
+    seen: set[str] = set()
+    pending = [(contracts / start).resolve()]
+    root = contracts.resolve()
+    while pending:
+        current = pending.pop()
+        key = current.relative_to(root).as_posix()
+        if key in seen:
+            continue
+        seen.add(key)
+        stack: list[Any] = [_read(current)]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                ref = node.get("$ref")
+                if isinstance(ref, str) and ref.partition("#")[0]:
+                    pending.append((current.parent / ref.partition("#")[0]).resolve())
+                stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+    return seen
+
+
+def _cursor_overlap(contracts: Path) -> tuple[set[str], int, int]:
+    page = _ref_closure(contracts, PAGE_CURSOR_FILE)
+    stream = _ref_closure(contracts, STREAM_CURSOR_FILE)
+    return page & stream, len(page), len(stream)
+
+
+def test_page_cursor_and_stream_cursor_closures_are_disjoint() -> None:
+    shared, page_size, stream_size = _cursor_overlap(CONTRACTS)
+    assert page_size >= 1 and stream_size >= 1, f"closure sizes {page_size} and {stream_size}"
+    assert not shared, f"the page cursor and the stream cursor both reach {sorted(shared)}"
+
+
+def test_a_planted_shared_reference_makes_the_cursor_closures_overlap(tmp_path: Path) -> None:
+    contracts = tmp_path / "contracts"
+    shutil.copytree(MODULE, contracts / MODULE.name)
+    shutil.copytree(CONTRACTS / "_shared", contracts / "_shared")
+    stream_file = contracts / STREAM_CURSOR_FILE
+    document = _read(stream_file)
+    document["properties"]["offset"] = {"$ref": "../../_shared/schemas/PageCursor.yaml"}
+    stream_file.write_text(yaml.safe_dump(document), encoding="utf-8")
+    shared, _, _ = _cursor_overlap(contracts)
+    assert PAGE_CURSOR_FILE in shared
+
+
+def _path_parameters(node: Any) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    if isinstance(node, dict):
+        if node.get("in") == "path" and "name" in node:
+            found.append(node)
+        for value in node.values():
+            found.extend(_path_parameters(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_path_parameters(item))
+    return found
+
+
+def _identity_findings(module: Path) -> tuple[list[str], int, int]:
+    parameters = _path_parameters(resolver.resolve(module).tree.get("paths"))
+    findings: list[str] = []
+    mission_ids = 0
+    for parameter in parameters:
+        name = parameter["name"]
+        if name == "displayNumber":
+            findings.append("a path parameter is named displayNumber")
+        if name == "missionId":
+            mission_ids += 1
+            if parameter.get("schema", {}).get("pattern") != ULID_PATTERN:
+                findings.append("a missionId path parameter does not carry the ULID pattern")
+    return findings, len(parameters), mission_ids
+
+
+def test_mission_id_path_parameters_carry_the_ulid_pattern_and_no_display_number_parameter() -> None:
+    findings, total, mission_ids = _identity_findings(MODULE)
+    assert total >= MIN_PATH_PARAMETERS, f"found {total} path parameters, the floor is {MIN_PATH_PARAMETERS}"
+    assert mission_ids >= MIN_MISSION_ID_PARAMETERS, f"found {mission_ids} missionId path parameters"
+    assert not findings, findings
+
+
+def test_planted_identity_violations_are_found(tmp_path: Path) -> None:
+    root = tmp_path / "contracts"
+    shutil.copytree(MODULE, root / MODULE.name)
+    shutil.copytree(CONTRACTS / "_shared", root / "_shared")
+    module = root / MODULE.name
+    assert not _identity_findings(module)[0]
+    parameter_file = next(path for path in sorted((module / "parameters").glob("*.yaml")) if _read(path).get("name") == "missionId")
+    document = _read(parameter_file)
+    document["schema"] = {"type": "string"}
+    parameter_file.write_text(yaml.safe_dump(document), encoding="utf-8")
+    assert any("ULID" in finding for finding in _identity_findings(module)[0])
+    parameter_file.write_text(yaml.safe_dump({**document, "name": "displayNumber"}), encoding="utf-8")
+    assert any("displayNumber" in finding for finding in _identity_findings(module)[0])
