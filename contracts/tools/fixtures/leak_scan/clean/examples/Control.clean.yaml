@@ -1,0 +1,15 @@
+friendlyName: ~/.kittify Runtime Centralization
+missionId: 01JZAB3C4D5E6F7G8H9JKMNPQR
+ownedFiles:
+- src/example/**
+- docs/guide.md
+promptMarkdown: '# Heading
+
+
+  A paragraph that mentions the tool by name only.
+
+  '
+reason: Nothing sensitive in this sentence.
+slug: example-mission-01JZAB3C
+targetBranch: main
+title: '/tmp burn-down: sync'
