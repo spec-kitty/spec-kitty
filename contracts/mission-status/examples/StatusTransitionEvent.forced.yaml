@@ -1,0 +1,14 @@
+missionId: 01JZAB3C4D5E6F7G8H9JKMNPQR
+eventId: 01JZAB3C4D5E6F7G8H9JKMNQ33
+wpId: WP02
+fromStatusLane: blocked
+toStatusLane: planned
+at: '2026-09-27T10:15:00Z'
+actor:
+  tool: null
+  role: null
+  profile: null
+force: true
+streamCursor:
+  offset: 2406
+  invariant: 1f3a5c7e9b0d2f4a6c8e0b1d3f5a7c9e1b3d5f7a9c0e2b4d6f8a0c1e3b5d7f90

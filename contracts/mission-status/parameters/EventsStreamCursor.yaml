@@ -1,0 +1,10 @@
+name: streamCursor
+in: query
+required: false
+description: >-
+  Resumes the stream of one Mission after the event that carried this cursor, in the text form
+  offset, colon, invariant. It requires missionId: a cursor sent without one is refused with the
+  code cursor_without_mission. The cursor is bound to one physical event log, so a cursor taken
+  from another log is refused with content_mismatch.
+schema:
+  $ref: ../schemas/StreamCursorString.yaml

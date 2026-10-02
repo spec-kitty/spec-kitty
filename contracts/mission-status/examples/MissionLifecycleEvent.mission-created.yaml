@@ -1,0 +1,7 @@
+missionId: 01JZAB3C4D5E6F7G8H9JKMNPQR
+eventId: 01JZAB3C4D5E6F7G8H9JKMNQ34
+eventType: MissionCreated
+at: '2026-09-26T07:00:00Z'
+streamCursor:
+  offset: 312
+  invariant: 9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6b5a4

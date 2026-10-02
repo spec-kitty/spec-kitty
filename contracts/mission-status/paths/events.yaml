@@ -1,0 +1,80 @@
+get:
+  operationId: streamEvents
+  summary: Stream the changes of Missions as server-sent events.
+  description: |-
+    A change stream, served as text/event-stream. OpenAPI 3.1 has no native way to describe a
+    stream of named events, so the stream is documented here as a convention; the schema of the
+    200 response is the schema of the data field of each event, not of the whole body.
+
+    Event names and data schemas. There are exactly three event names, each with one data
+    schema, and no other event name is ever sent:
+
+    - `status-transition` -> StatusTransitionEvent: a work package changed status lane.
+    - `mission-lifecycle` -> MissionLifecycleEvent: the Mission was created, or a planning phase started or completed.
+    - `log-truncated` -> LogTruncatedEvent: the Mission's event log shrank or changed; resynchronise.
+
+    Framing. Each event is sent as three lines and a blank line: an `event:` line with the event
+    name, an `id:` line with the StreamCursorString of the event, and a `data:` line with the
+    JSON of the data schema. The id is the same string the streamCursor parameter and the
+    Last-Event-ID header accept. A heartbeat is a comment line, `: heartbeat`, sent every 30
+    seconds; it carries no data and is not an event.
+
+    Projection. Raw rows of the Mission's event log never appear. Only a status transition and
+    seven lifecycle types (MissionCreated, SpecifyStarted, SpecifyCompleted, PlanStarted,
+    PlanCompleted, TasksStarted, TasksCompleted) are forwarded; annotation rows, decision-point
+    rows, retrospective rows, reviewer self-approval rows, work package creation rows and every
+    unknown row are dropped, never forwarded. The seven lifecycle types are owned by this
+    contract and are a subset of the runtime's twelve; a type added upstream later is dropped.
+
+    Scope and ordering. With missionId the stream carries that Mission only. Without it the
+    stream carries every Mission, live only: it never replays and no cursor can be used. A new
+    connection without a cursor is live only from the moment it connects. Order is guaranteed
+    per Mission, in the order of that Mission's log; there is no order across Missions, and a
+    log-truncated event of one Mission may arrive between events of others.
+
+    Resume. A cursor is a StreamCursor position in one Mission's own physical event log (the
+    TailCursor of the tail reader, the same position `spec-kitty events tail` resumes from), so
+    it is valid for that log only and always needs missionId. Send the id of the last event you
+    consumed as streamCursor, or let the browser send it as Last-Event-ID. A cursor that cannot
+    be trusted is refused before any event is sent, with a problem whose code is negative,
+    out_of_range, misaligned or content_mismatch (the reasons of the tail reader's
+    ResumeRefused), or cursor_without_mission when a cursor comes without missionId.
+
+    Consumer actions. On log-truncated, discard the stored cursor of that Mission, read the
+    Mission detail again, and resume from the streamCursor of that detail; the cursor inside the
+    event is only the reset one, offset 0 with the digest of the empty input. A value inside a
+    known kind that a consumer does not know, such as an unlisted eventType, is treated as
+    unknown and is not a failure; the schemas stay closed, so a producer must not send one.
+
+    Provisional. These parts are provisional: the framing of the stream, the text form of the cursor, the rule that
+    streamCursor wins over Last-Event-ID, the HTTP status of each refusal and the heartbeat
+    interval are conventions owned by this contract; the tail reader has no text form of a
+    cursor and no transport. They are open on #5528 and may change before release. No emitter,
+    server or transport exists yet: this describes a stream that a later change implements.
+  tags:
+    - Events
+  parameters:
+    - $ref: ../parameters/EventsMissionId.yaml
+    - $ref: ../parameters/EventsStreamCursor.yaml
+    - $ref: ../parameters/LastEventId.yaml
+  responses:
+    '200':
+      description: >-
+        The event stream. The connection stays open and carries named events and heartbeat
+        comment lines until either side closes it.
+      content:
+        text/event-stream:
+          schema:
+            description: >-
+              The schema of the data field of one event. The event name selects which of the
+              three schemas applies, as listed in the description of the operation.
+            oneOf:
+              - $ref: ../schemas/StatusTransitionEvent.yaml
+              - $ref: ../schemas/MissionLifecycleEvent.yaml
+              - $ref: ../schemas/LogTruncatedEvent.yaml
+    '400':
+      $ref: ../responses/StreamRefused.yaml
+    '409':
+      $ref: ../responses/StreamRefused.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

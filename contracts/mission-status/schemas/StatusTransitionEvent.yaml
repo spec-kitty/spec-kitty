@@ -1,0 +1,85 @@
+title: StatusTransitionEvent
+description: >-
+  The data of a status-transition event: one work package changed status lane. It is projected
+  from a status-transition row of the Mission's event log by an allow-list, so no other field of
+  the row is ever shown. missionId is the identity stored in the Mission's metadata (meta.json),
+  never the aggregate_id of the row: aggregate_id is the Mission ULID only on MissionCreated, the
+  slug on several other rows and the work package id on WPCreated. The schema is closed.
+type: object
+additionalProperties: false
+required:
+  - missionId
+  - eventId
+  - wpId
+  - fromStatusLane
+  - toStatusLane
+  - at
+  - actor
+  - force
+  - streamCursor
+properties:
+  missionId:
+    $ref: MissionId.yaml
+    description: The identity of the Mission whose log carried the transition, from the Mission's metadata and never from aggregate_id.
+    x-derived:
+      rule: The mission_id of the Mission's meta.json, whichever row the event came from; aggregate_id is never used.
+      inputs:
+        - path: src/specify_cli/mission_metadata.py
+          symbol: load_meta
+  eventId:
+    type: string
+    minLength: 1
+    maxLength: 64
+    description: The identifier of the event, unique within the Mission's event log.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  wpId:
+    $ref: WpId.yaml
+    description: The work package that changed status lane.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  fromStatusLane:
+    oneOf:
+      - $ref: StatusLane.yaml
+      - type: 'null'
+    description: The status lane the work package left, or null for its first transition (the runtime's genesis lane is not a display value).
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  toStatusLane:
+    $ref: StatusLane.yaml
+    description: The status lane the work package entered.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  at:
+    type: string
+    format: date-time
+    description: When the transition happened, an RFC 3339 date-time with an offset.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  actor:
+    $ref: Actor.yaml
+    description: Who made the transition, as three handles.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: decode_actor
+  force:
+    type: boolean
+    description: True when the transition bypassed the usual guards.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent
+  streamCursor:
+    $ref: StreamCursor.yaml
+    description: The position just after this event in the Mission's own event log; resume from it.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: poll_once
+examples:
+  - $ref: ../examples/StatusTransitionEvent.first.yaml
+  - $ref: ../examples/StatusTransitionEvent.forced.yaml
+  - $ref: ../examples/StatusTransitionEvent.moved.yaml

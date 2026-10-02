@@ -6,9 +6,11 @@ files:
   - Cancellation.yaml
   - HistoryEntry.yaml
   - LifecycleStatus.yaml
+  - LogTruncatedEvent.yaml
   - MissionDetail.yaml
   - MissionHead.yaml
   - MissionId.yaml
+  - MissionLifecycleEvent.yaml
   - MissionOverview.yaml
   - MissionOverviewPage.yaml
   - MissionPhase.yaml
@@ -23,7 +25,10 @@ files:
   - Staleness.yaml
   - StatusLane.yaml
   - StatusLaneCounts.yaml
+  - StatusTransitionEvent.yaml
   - StreamCursor.yaml
+  - StreamCursorString.yaml
+  - StreamRefusal.yaml
   - SubtaskProgress.yaml
   - Topology.yaml
   - WorkPackage.yaml

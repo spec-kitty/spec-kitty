@@ -1,4 +1,7 @@
 files:
+  - EventsMissionId.yaml
+  - EventsStreamCursor.yaml
   - IncludePrompt.yaml
+  - LastEventId.yaml
   - MissionId.yaml
   - WpId.yaml

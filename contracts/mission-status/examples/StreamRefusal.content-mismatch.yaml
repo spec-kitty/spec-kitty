@@ -1,0 +1,5 @@
+type: about:blank
+title: The resume cursor was refused
+status: 409
+code: content_mismatch
+detail: The digest of the streamCursor does not match the event log of this Mission at that offset.

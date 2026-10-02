@@ -1,0 +1,9 @@
+name: missionId
+in: query
+required: false
+description: >-
+  Restricts the stream to one Mission, by its 26-character ULID. Without it the stream carries
+  the events of every Mission, live only, and no cursor can be used. The display number is never
+  accepted.
+schema:
+  $ref: ../schemas/MissionId.yaml

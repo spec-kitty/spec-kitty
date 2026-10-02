@@ -1,0 +1,46 @@
+title: StreamRefusal
+description: >-
+  The problem details body of a refused event stream request. It is a Problem whose code is one
+  of five values: negative, out_of_range, misaligned and content_mismatch, which are the reasons
+  of the tail reader's ResumeRefused, and cursor_without_mission, the refusal of a streamCursor
+  or Last-Event-ID sent without a missionId. A refused request is answered before any event is
+  sent; the stream never resynchronises silently. Consumers branch on code, never on title.
+type: object
+allOf:
+  - $ref: ../../_shared/schemas/Problem.yaml
+  - type: object
+    required:
+      - code
+      - detail
+    properties:
+      code:
+        type: string
+        enum:
+          - negative
+          - out_of_range
+          - misaligned
+          - content_mismatch
+          - cursor_without_mission
+        description: >-
+          negative: the offset is below 0. out_of_range: the offset is beyond the end of the log.
+          misaligned: the offset is not at the start of a line. content_mismatch: the digest does
+          not match the log at that offset. cursor_without_mission: a cursor was sent with no missionId.
+        x-source:
+          path: src/specify_cli/status/tail_reader.py
+          symbol: ResumeRefused
+      status:
+        type: integer
+        enum:
+          - 400
+          - 409
+        x-provisional:
+          open_decision: >-
+            The tail reader names the refusal reasons but no HTTP status. Which of 400 and 409 each
+            reason takes is a proposal open on #5528: negative, misaligned and cursor_without_mission
+            as 400, out_of_range and content_mismatch as 409.
+examples:
+  - $ref: ../examples/StreamRefusal.negative.yaml
+  - $ref: ../examples/StreamRefusal.out-of-range.yaml
+  - $ref: ../examples/StreamRefusal.misaligned.yaml
+  - $ref: ../examples/StreamRefusal.content-mismatch.yaml
+  - $ref: ../examples/StreamRefusal.cursor-without-mission.yaml

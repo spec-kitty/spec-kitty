@@ -1,0 +1,7 @@
+missionId: 01JZAB3C4D5E6F7G8H9JKMNPQR
+eventId: 01JZAB3C4D5E6F7G8H9JKMNQ35
+eventType: PlanCompleted
+at: '2026-09-26T07:45:00+02:00'
+streamCursor:
+  offset: 868
+  invariant: 1f3a5c7e9b0d2f4a6c8e0b1d3f5a7c9e1b3d5f7a9c0e2b4d6f8a0c1e3b5d7f90

@@ -1,0 +1,81 @@
+title: MissionLifecycleEvent
+description: >-
+  The data of a mission-lifecycle event: a marker that the Mission was created or that one of
+  its planning phases started or completed. Only seven lifecycle types are forwarded, a set owned
+  by this contract and deliberately smaller than the runtime's list of lifecycle types; a type
+  added upstream later is dropped, not forwarded. missionId is the identity stored in the
+  Mission's metadata (meta.json), never the aggregate_id of the row. The schema is closed.
+type: object
+additionalProperties: false
+required:
+  - missionId
+  - eventId
+  - eventType
+  - at
+  - streamCursor
+properties:
+  missionId:
+    $ref: MissionId.yaml
+    description: The identity of the Mission whose log carried the row, from the Mission's metadata and never from aggregate_id.
+    x-derived:
+      rule: The mission_id of the Mission's meta.json, whichever row the event came from; aggregate_id is the Mission ULID only on MissionCreated and is never used.
+      inputs:
+        - path: src/specify_cli/mission_metadata.py
+          symbol: load_meta
+  eventId:
+    type: string
+    minLength: 1
+    maxLength: 64
+    description: The identifier of the event, unique within the Mission's event log.
+    x-source:
+      path: src/specify_cli/status/lifecycle_events.py
+      symbol: _build_envelope
+  eventType:
+    type: string
+    enum:
+      - MissionCreated
+      - SpecifyStarted
+      - SpecifyCompleted
+      - PlanStarted
+      - PlanCompleted
+      - TasksStarted
+      - TasksCompleted
+    description: >-
+      Which lifecycle marker this is. Exactly these seven values are forwarded; every other
+      lifecycle type of the log is dropped. A consumer that meets another value inside this kind
+      treats it as unknown and does not fail.
+    x-derived:
+      rule: >-
+        The event_type of the row when it is one of the seven listed values, which this contract
+        owns (a subset of the lifecycle types the runtime knows); the row is dropped otherwise.
+      inputs:
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: MISSION_CREATED
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: SPECIFY_STARTED
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: SPECIFY_COMPLETED
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: PLAN_STARTED
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: PLAN_COMPLETED
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: TASKS_STARTED
+        - path: src/specify_cli/status/lifecycle_events.py
+          symbol: TASKS_COMPLETED
+  at:
+    type: string
+    format: date-time
+    description: When the marker was recorded, an RFC 3339 date-time with an offset; the timestamp of the row.
+    x-source:
+      path: src/specify_cli/status/lifecycle_events.py
+      symbol: _build_envelope
+  streamCursor:
+    $ref: StreamCursor.yaml
+    description: The position just after this event in the Mission's own event log; resume from it.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: poll_once
+examples:
+  - $ref: ../examples/MissionLifecycleEvent.mission-created.yaml
+  - $ref: ../examples/MissionLifecycleEvent.plan-completed.yaml

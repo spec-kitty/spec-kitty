@@ -1,0 +1,59 @@
+title: LogTruncatedEvent
+description: >-
+  The data of a log-truncated event: the Mission's event log shrank or changed under the reader,
+  so everything the consumer stored for that Mission is stale. It carries a reset cursor, offset
+  0 with the digest of the empty input. The consumer discards the Mission's stored cursor, reads
+  the Mission detail again and resumes from the streamCursor of that detail. The schema is closed.
+type: object
+additionalProperties: false
+required:
+  - missionId
+  - reason
+  - detectedAtOffset
+  - streamCursor
+properties:
+  missionId:
+    $ref: MissionId.yaml
+    description: The identity of the Mission whose log was truncated, from the Mission's metadata.
+    x-derived:
+      rule: The mission_id of the Mission's meta.json.
+      inputs:
+        - path: src/specify_cli/mission_metadata.py
+          symbol: load_meta
+  reason:
+    type: string
+    enum:
+      - size_shrink
+      - content_mismatch
+    description: >-
+      Why the reader concluded the log was truncated: size_shrink when the file became shorter
+      than the cursor, content_mismatch when the bytes before the cursor no longer hash to the
+      cursor's invariant. Exactly these two values exist.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: _truncation_signal
+  detectedAtOffset:
+    type: integer
+    minimum: 0
+    description: The byte offset of the cursor the reader held when it detected the truncation.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: _truncation_signal
+  streamCursor:
+    allOf:
+      - $ref: StreamCursor.yaml
+      - type: object
+        properties:
+          offset:
+            const: 0
+          invariant:
+            const: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    description: >-
+      The reset cursor: offset 0 and the SHA-256 digest of the empty input, the position of an
+      empty log.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: EMPTY_DIGEST
+examples:
+  - $ref: ../examples/LogTruncatedEvent.size-shrink.yaml
+  - $ref: ../examples/LogTruncatedEvent.content-mismatch.yaml

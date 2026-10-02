@@ -1,0 +1,5 @@
+type: about:blank
+title: The resume cursor was refused
+status: 409
+code: out_of_range
+detail: The offset of the streamCursor is beyond the end of the event log of this Mission.
