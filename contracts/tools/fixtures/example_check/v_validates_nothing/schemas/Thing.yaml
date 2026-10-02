@@ -1,0 +1,19 @@
+title: Thing
+type: object
+additionalProperties: false
+required:
+- name
+- at
+properties:
+  name:
+    type: string
+    description: n
+  at:
+    type: string
+    format: date-time
+    description: t
+  loose:
+    $ref: Loose.yaml
+    description: loose
+examples:
+- $ref: ../examples/Thing.ok.yaml
