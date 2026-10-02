@@ -1,7 +1,7 @@
 {
-  "event_count": 11,
-  "last_event_id": "01M3XZF5DDG28J18EX0BTWE4F0",
-  "materialized_at": "2026-10-02T09:35:02.061806+00:00",
+  "event_count": 12,
+  "last_event_id": "01M3XZF5TXY4376CCC9H81SVG8",
+  "materialized_at": "2026-10-02T09:35:02.493947+00:00",
   "mission_number": "",
   "mission_slug": "mission-status-contract-v1-01M3WC5X",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 11
+    "planned": 12
   },
   "work_packages": {
     "WP01": {
@@ -94,6 +94,13 @@
       "lane": "planned",
       "last_event_id": "01M3XZF5DDG28J18EX0BTWE4F0",
       "last_transition_at": "2026-10-02T09:35:02.061806+00:00"
+    },
+    "WP12": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M3XZF5TXY4376CCC9H81SVG8",
+      "last_transition_at": "2026-10-02T09:35:02.493947+00:00"
     }
   }
 }
