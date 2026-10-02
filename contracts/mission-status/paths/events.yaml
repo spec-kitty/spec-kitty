@@ -51,6 +51,12 @@ get:
     interval are conventions owned by this contract; the tail reader has no text form of a
     cursor and no transport. They are open on #5528 and may change before release. No emitter,
     server or transport exists yet: this describes a stream that a later change implements.
+  x-provisional:
+    open_decision: >-
+      The framing of the stream (the event:, id: and data: lines and the blank line), the
+      heartbeat comment line and its interval of 30 seconds, and the HTTP status of each refusal
+      (400 or 409) are conventions owned by this contract: the tail reader has no transport. They
+      are proposals open on #5528 and may change before release.
   tags:
     - Events
   parameters:

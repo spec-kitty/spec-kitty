@@ -28,6 +28,11 @@ allOf:
         x-source:
           path: src/specify_cli/status/tail_reader.py
           symbol: ResumeRefused
+        x-provisional:
+          open_decision: >-
+            Only negative, out_of_range, misaligned and content_mismatch come from the tail reader's
+            ResumeRefused. cursor_without_mission is owned by this contract: the tail reader has no
+            such reason and no HTTP mapping, so the fifth value is a proposal open on #5528.
       status:
         type: integer
         enum:

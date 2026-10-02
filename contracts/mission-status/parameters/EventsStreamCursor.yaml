@@ -8,3 +8,7 @@ description: >-
   from another log is refused with content_mismatch.
 schema:
   $ref: ../schemas/StreamCursorString.yaml
+x-provisional:
+  open_decision: >-
+    That streamCursor wins over the Last-Event-ID header when both are sent is a proposal for the
+    event stream convention, open on #5528.
