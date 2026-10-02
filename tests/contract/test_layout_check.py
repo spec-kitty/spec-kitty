@@ -261,3 +261,14 @@ def test_layout_check_never_imports_test_machinery() -> None:
     imported |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
 
     assert not imported & {"pytest", "tests", "scripts"}
+
+
+def test_findings_name_paths_relative_to_the_root_never_absolute(tmp_path: Path) -> None:
+    """Regression: a relative --root once printed the absolute host path of a mapped file."""
+    shutil.copytree(FIXTURE_ROOT, tmp_path / "layout_check")
+
+    completed = subprocess.run([sys.executable, str(SCRIPT), "--root", "layout_check"], capture_output=True, text=True, timeout=120, check=False, cwd=tmp_path)
+
+    assert completed.returncode == 1
+    assert str(tmp_path) not in completed.stdout
+    assert "PATH_FILE_NAME: v_path_file_name/paths/pingy.yaml:" in completed.stdout

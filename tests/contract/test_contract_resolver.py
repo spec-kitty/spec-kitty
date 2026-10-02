@@ -384,3 +384,20 @@ def test_layout_check_imports_the_spelling_constant() -> None:
             imported_names.add("BRACE_REF_SPELLING")
 
     assert "BRACE_REF_SPELLING" in imported_names
+
+
+@pytest.mark.parametrize(
+    ("ref", "code"),
+    [
+        ("https://example.invalid/a.yaml", "URL_REF"),
+        ("/a.yaml", "ABSOLUTE_REF"),
+        ("~/a.yaml", "ABSOLUTE_REF"),
+        ("C:/a.yaml", "ABSOLUTE_REF"),
+        ("a.yaml#/x/a~1b", "TILDE_POINTER"),
+        ("a.yaml", None),
+        ("../schemas/A.yaml#/properties/x", None),
+        ("#/properties/x", None),
+    ],
+)
+def test_refusal_code_for_ref_is_the_one_definition_of_a_bad_ref_form(resolver: ModuleType, ref: str, code: str | None) -> None:
+    assert resolver.refusal_code_for_ref(ref) == code

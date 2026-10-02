@@ -96,6 +96,20 @@ def encode_brace_ref(path: str) -> str:
     return path.replace(OPEN_BRACE, open_piece).replace(CLOSE_BRACE, close_piece)
 
 
+def refusal_code_for_ref(ref: str) -> str | None:
+    """The stable refusal code for a ``$ref`` form that is never allowed, or ``None`` when the form is fine.
+
+    The one definition of an allowed form: layout_check uses it too, so the two never disagree.
+    """
+    if _URL_SCHEME.match(ref):
+        return "URL_REF"
+    if ref.startswith(("/", "\\", "~")) or _DRIVE_PREFIX.match(ref):
+        return "ABSOLUTE_REF"
+    if "~" in ref.partition("#")[2]:
+        return "TILDE_POINTER"
+    return None
+
+
 def resolve(module_dir: str | Path) -> Resolution:
     """Dereference the module rooted at ``module_dir`` and return the tree and counts."""
     return _Resolver(Path(module_dir)).run()
@@ -141,13 +155,10 @@ class _Resolver:
     # -- reference parsing -------------------------------------------------
 
     def _split_ref(self, ref: str, origin: Path) -> tuple[Path, tuple[str, ...]]:
-        if _URL_SCHEME.match(ref):
-            raise ResolveError("URL_REF", f"{ref!r} in {self._display(origin)} is a URL")
-        if ref.startswith(("/", "\\", "~")) or _DRIVE_PREFIX.match(ref):
-            raise ResolveError("ABSOLUTE_REF", f"{ref!r} in {self._display(origin)} is an absolute path")
+        refused = refusal_code_for_ref(ref)
+        if refused is not None:
+            raise ResolveError(refused, f"{ref!r} in {self._display(origin)} is refused")
         file_part, _, pointer = ref.partition("#")
-        if "~" in pointer:
-            raise ResolveError("TILDE_POINTER", f"{ref!r} in {self._display(origin)} uses a ~ pointer escape")
         target = origin if not file_part else (origin.parent / unquote(file_part))
         tokens = tuple(unquote(token) for token in pointer.split("/")[1:]) if pointer else ()
         if pointer and not pointer.startswith("/"):
