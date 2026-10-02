@@ -1,0 +1,86 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-GOV-001
+  status: resolved
+  reason: Campsite now rests on the whole-string ".github/workflows" literal, which I counted five times in tests/ci/test_fleet_verdict.py (lines 112, 114, 122, 386, 388) with the stated function split, the false pair claim is withdrawn, and a drop rule exists.
+- id: PLAN-GOV-004
+  status: resolved
+  reason: F-3 now correctly says the subject sits outside the ignore alternation and that the commit-msg job never runs commitlint (SK-246), SK-64 is no longer cited, and F-1 states the documented-example trap is out of C-002 scope and handed to the orchestrator as a ledger or doc-fix candidate.
+- id: PLAN-ARCH-001
+  status: resolved
+  reason: The end of IC-04 is now P0, an explicitly unvalidated preview with no stability promise, a generate-from-split client smoke is planned in the IC-07a skeleton, and P1 (green contracts-gate) and P2 (end of IC-09) carry the real promises.
+- id: PLAN-ARCH-002
+  status: unresolved
+  remaining_severity: 2
+  reason: The plan and DD-15 withdraw the nullability-relaxing promise, but tracer-approach.md step 6 (Reality check, IC-09) still says any forced schema fix is additive or a nullability relaxation, contradicting the plan's own breaking-change rule and its Pre-release shape change heading.
+- id: PLAN-ARCH-003
+  status: resolved
+  reason: Plan, E-3 and the tracers now hand the UI team lightweight tags under preview/mission-status/ (outside both release namespaces) re-published after compact-history, instead of a branch commit hash.
+- id: PLAN-ARCH-004
+  status: resolved
+  reason: IC-07 is split so IC-07a (workflow skeleton, fleet-verdict edit, spike) follows IC-01 directly and its recorded result gates IC-05 and IC-07b, so the spike has a runnable job before any content check is built.
+- id: PLAN-ARCH-005
+  status: resolved
+  reason: D-P2 now states parity is a consistency check not an independent proof, adds hand-written golden trees and a library-based independent dereference check (INDEPENDENT_DEREF_DISAGREES), caps named normalisations at eight with a review rule, and makes the resolver feature set a floor with change
+    control.
+- id: PLAN-ARCH-006
+  status: resolved
+  reason: Section (l) now cites friendly_name in MissionMetaRequired, accepted_at and merged_at in MissionMetaOptional with record_acceptance and record_baseline_merge_commit, and discarded_at via record_discard with no TypedDict, all of which I confirmed in src/specify_cli/mission_metadata.py and consolidation/baseline.py.
+- id: PLAN-ARCH-007
+  status: resolved
+  reason: The plan now cites ResolvedGroup.subtasks reached as WPView.resolved.subtasks (confirmed in wp_view.py), says the seven-type allow-list is contract-owned within the twelve-member LIFECYCLE_EVENT_TYPES (confirmed), and prints the difference on every run.
+- id: PLAN-ARCH-009
+  status: resolved
+  reason: Reflexivity item 7 and risk P-9 now state the unrouted meta.json and status.events.jsonl data-drift exposure, name the push-to-main and nightly full runs as the detection point, add a first-red triage rule, and respect the C-001 comment in the completeness test.
+- id: PLAN-ARCH-010
+  status: resolved
+  reason: D-P11 builds leak-class plants at run time from fragments via fixture_builder.py, commits only clean controls, and the plan, tools contract and DD-17 consistently say leak_scan has no exempt directory or marker line.
+- id: PLAN-ARCH-011
+  status: resolved
+  reason: D-P5, the tools contract, the guard-test list, risk P-12 and the post-merge close-out now require gh release create --latest=false (--prerelease only for prerelease semver), print it in dry run, assert it in a guard test and have the operator verify the Latest release.
+- id: PLAN-ARCH-012
+  status: resolved
+  reason: The plan now states the fleet-verdict integration is observable only after merge because workflow_run uses the default-branch copy, relies on unit coverage pre-merge, and adds a post-merge close-out check on the first contracts-touching PR.
+- id: PLAN-VERIFY-001
+  status: resolved
+  reason: Gate-set and Generated-artefacts rows now say the regenerated tests/release inventory also selects the release module whose shard runs all 15 tests/release modules (count confirmed), and the baseline adds the whole tests/release directory.
+- id: PLAN-VERIFY-002
+  status: resolved
+  reason: The gate set now has docs-lint and tests-docs rows (65 test modules confirmed, named files exist), requires American spelling in changelog and docs text, and handles the docs-retrieval-index regeneration and CHANGELOG symlink.
+- id: PLAN-VERIFY-005
+  status: resolved
+  reason: The diff-cover row now names the hard-coded CRITICAL_PATHS tuple in scripts/ci/aggregate_source.py (list matches the code), states the gate is vacuous here, and specifies the expected zero-line observable to record at implement start.
+- id: PLAN-VERIFY-007
+  status: resolved
+  reason: The reality-check gate now derives cases from the same enumeration as the floors pass, makes an empty case list a collection error (pytest.ini sets no empty_parameter_set_mark, confirmed), and adds a last-in-file counting test asserting generated equals executed equals the Missions-with-meta
+    count.
+- id: PLAN-VERIFY-008
+  status: resolved
+  reason: D-P4 and the tools contract now give contracts-gate the guard as first conjunct plus always() and the release job a guard the test accepts, matching tests/ci/test_fork_guard.py which treats always() jobs as self-starting and requires a top-level conjunct.
+- id: PLAN-VERIFY-009
+  status: resolved
+  reason: D-P12 adds a shared prelude (SHA-pinned setup-uv already used in release.yml, Python 3.12, uv sync --frozen --no-install-project) over base dependencies pyyaml and jsonschema, with verify_pins UNPINNED_INSTALL planted fixture and clean control.
+- id: PLAN-VERIFY-010
+  status: resolved
+  reason: The per-AC table now names REQUIRED_EXAMPLE_MISSING with a discarded-Mission fixture, breaking fixtures for removed path and newly required parameter, the provisional-section report, release-workflow trigger-rule tests, and assertions for cursor independence and transitions-only history.
+- id: PLAN-VERIFY-011
+  status: resolved
+  reason: Baseline now extends to ruff pair, router guards, prose-only, module-wiring, terminology, whole tests/release, named tests/docs files, docs-lint and a read-only cutover-guard record (with a gate-set row), with an explicit rule that reds outside the eight files are unclassed until those steps
+    run.
+- id: PLAN-VERIFY-012
+  status: resolved
+  reason: Reflexivity item 8 and risk P-10 now record the tests/contract-only selection hole as accepted, cite C-003 for why no second glob is added, and add a README local command and a PR-body question.
+- id: PLAN-VERIFY-013
+  status: resolved
+  reason: The plan now defines three enforcement tiers, labels every new contracts job tier 2 (reported, not blocking) and the reality check tier 1 via router-gate, and states no branch protection exists.
+- id: PLAN-VERIFY-014
+  status: resolved
+  reason: NFR-001 baseline step 5, the packs-gate row, risk P-5 and IC-10 now measure the reality check under built-in-corpus-suite (20 minute timeout, coverage tracer) as well as tests-corpus, including a full-mode packs dispatch.
+- id: PLAN-VERIFY-015
+  status: resolved
+  reason: D-P4 mermaid, the prose and the job-contract table now agree that negative-tests needs only verify-pins, installs its own JVM tools, and the guard test pins the exact needs set of every job.
+- id: PLAN-VERIFY-016
+  status: resolved
+  reason: The plan and tools contract now state non_src_router_groups is hand-maintained (nothing reads it, confirmed by grep), and the contracts/** root is added by hand to its corpus group in the same IC-01 commit as the router line.

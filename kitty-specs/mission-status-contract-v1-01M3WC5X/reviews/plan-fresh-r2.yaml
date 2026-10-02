@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PLAN-FRESH2-001
+    lens: charter-scope
+    severity: 3
+    title: "The ratchet drain_by proposal names a CLI release version (4.0.0), against C-008 and Standing Order 7"
+    evidence:
+      - artifact: "plan.md § Charter Check, Standing Order 5 row ('this plan proposes the first stable 4.0.0 release as the latest date')"
+      - artifact: "spec.md C-008 (nothing in this Mission names or alters a CLI release version)"
+      - code: ".kittify/charter/charter.md:109 and :223 (assign no version numbers in scope)"
+      - code: ".kittify/charter/charter.md:643-648 (Burn-down Policy (a): an owner and a drain date)"
+    claim: "The revision prices the FR-019 ratchet (good) but proposes its exit as a CLI release version. That puts a CLI release number in the Mission's scope text, which C-008 and the charter forbid, and it is not a date, which the Burn-down Policy asks for. The owner ('the maintainer of the status-snapshot readers') is also a role, not a named holder."
+    remediation: "State the exit as a calendar date or as the condition alone (disagreement list of length zero) with the date left to the maintainers on the tracker issue; delete the release-version proposal. Name the owner as a GitHub handle or team to be filled when the issue is opened, and keep the unit test that fails on a missing or empty issue, owner or drain_by."
+  - id: PLAN-FRESH2-002
+    lens: dependencies
+    severity: 3
+    title: "IC-09 uses fixture_builder.py but does not depend on IC-05, which writes it"
+    evidence:
+      - artifact: "contracts/tools-and-workflows.md § Libraries (fixture_builder.py 'Used by': negative-tests, the unit tests of leak_scan.py and the payload scan)"
+      - artifact: "plan.md § Implementation concerns, IC-05 (writes fixture_builder.py) and IC-09 (Depends on: IC-01 to IC-04)"
+      - artifact: "plan.md § Test strategy, FR-012 row (planted values assembled by fixture_builder.py in the payload scan)"
+    claim: "The reality check's payload scan is owned by IC-09 and its planted leak classes come from fixture_builder.py, but IC-09 is declared dependent on IC-01 to IC-04 only. IC-05 runs in a parallel lane, so IC-09 can start and merge without the builder, or re-create it, giving two authorities for leak plants (charter: single canonical authority)."
+    remediation: "Add IC-05 to IC-09's Depends on (and to the critical-path sentence), or move fixture_builder.py into IC-01 beside leak_patterns.py and schema_formats.py. Either way make the single owner explicit."
+  - id: PLAN-FRESH2-003
+    lens: acceptance-criteria
+    severity: 3
+    title: "D-P14 lists the validating code paths but omits the IC-02 examples test that gates P0"
+    evidence:
+      - artifact: "plan.md § D-P14 (every validating code path passes FORMAT_CHECKER: example_check, resolver_parity, the reality check, fixture_builder controls)"
+      - artifact: "plan.md § UI early-start point, P0 (every example validates against its schema in tests/contract/test_mission_status_examples.py)"
+      - artifact: "plan.md § IC-02 write scope (tests/contract/test_mission_status_examples.py)"
+      - artifact: "spec.md Contract Field Catalogue (createdAt, acceptedAt, lastActivityAt are string, date-time)"
+    claim: "jsonschema ignores format unless a format checker is passed. The examples test in IC-02 is a validating path that runs first (before example_check exists in IC-05) and is the stated basis of P0, yet neither D-P14 nor the tools contract says it passes FORMAT_CHECKER. As written it can pass a malformed timestamp, so the P0 claim 'every example validates' is weaker than it reads and the same example gets a different verdict from example_check later."
+    remediation: "Add tests/contract/test_mission_status_examples.py to the D-P14 list and to the 'Used by' cell of schema_formats.py; state in IC-02 that it passes FORMAT_CHECKER (a planted malformed date-time example in that test module). schema_formats.py is in IC-01, so the dependency already holds."
+  - id: PLAN-FRESH2-004
+    lens: non-vacuity
+    severity: 2
+    title: "The D-P14 environment-independence test can be vacuous, and only date-time is made independent"
+    evidence:
+      - artifact: "plan.md § D-P14 (a unit test asserts the verdict is the same with the optional validator blocked from import via a sys.modules stub and not blocked)"
+      - code: ".venv jsonschema registers its date-time checker at import time of jsonschema._format when rfc3339_validator is importable; uv.lock:766-767 pulls jsonpointer and the other format libraries in with the same format-nongpl extra"
+    claim: "Stubbing sys.modules after jsonschema has been imported does not change an already-registered checker, so the test passes with or without the explicit override (no mutation proof). Separately, FormatChecker() with no arguments also enables uri, json-pointer, duration and similar formats when format-nongpl is present (tests-corpus) and not otherwise (contracts prelude), so any later use of another format reopens the divergence."
+    remediation: "Build the checker as FormatChecker(formats=()) and register only the formats the contract uses (date-time now), so nothing else varies by environment. Specify that the blocked/unblocked comparison runs in subprocesses with a meta-path blocker installed before jsonschema is imported, and that deleting the override makes the test fail in the environment where the validator is installed."
+  - id: PLAN-FRESH2-005
+    lens: citation-accuracy
+    severity: 3
+    title: "research.md R-1 still calls jsonpointer part of the locked base set; it has the same extra-only reach as rfc3339-validator"
+    evidence:
+      - artifact: "research.md § R-1 Evidence ('jsonpointer and PyYAML 6.0.3 are in the locked base set')"
+      - code: "uv.lock:738 (jsonpointer) is reached only from the jsonschema format-nongpl extra (uv.lock:766), requested by cyclonedx-python-lib; pyproject.toml:35 lists only jsonschema>=4.0 and pyyaml>=6.0 as base"
+    claim: "The revision corrected the rfc3339-validator claim in the same sentence but left jsonpointer, which has the identical provenance. An implementer who imports jsonpointer for the resolver's in-file pointer handling would work in .venv and tests-corpus and fail in the contracts prelude (uv sync --frozen --no-install-project)."
+    remediation: "Remove jsonpointer from the base-set claim and say the resolver implements JSON-pointer fragments itself (as OQ-1 already states); add jsonpointer to the 'not available after the prelude' sentence."
+  - id: PLAN-FRESH2-006
+    lens: write-scope
+    severity: 3
+    title: "Nobody owns the brace-reference re-sweep when the IC-07a spike finishes after IC-03 or IC-09"
+    evidence:
+      - artifact: "plan.md § IC-03 ('the content lane that is current at that time re-sweeps every $ref and path-file name')"
+      - artifact: "plan.md § IC-09 write scope ('also the brace re-sweep of IC-02 to IC-04 files if the spike changes the spelling') and Depends on (IC-01 to IC-04)"
+      - artifact: "plan.md § IC-07a write scope (only 'the one-constant edit to contract_resolver.py')"
+    claim: "The spike gates IC-05 and IC-07b but not IC-02 to IC-04 or IC-09. If the spelling changes after IC-09 has merged, no WP lists the contract files in its write scope; if it changes while IC-02 to IC-04 are in flight, 'the content lane that is current' is not a write scope and conflicts with the disjoint-lane rule. The bounded-rework claim therefore has no accountable writer."
+    remediation: "Make IC-07a the owner of the mechanical re-sweep (add contracts/mission-status/** path files, root map and _index.yaml to its write scope for that one commit, sequenced after IC-04 merges), or add the spike's recorded result to IC-09's Depends on and keep the sweep there. State one owner and one trigger."
+  - id: PLAN-FRESH2-007
+    lens: traceability
+    severity: 2
+    title: "P2 requires a green contracts-gate at the last commit of IC-09, but IC-09 does not depend on IC-08"
+    evidence:
+      - artifact: "plan.md § UI early-start point, P2 (last commit of IC-09, reality check green and contracts-gate green)"
+      - artifact: "plan.md § IC-09 Depends on (IC-01 to IC-04); IC-08 Depends on (IC-04, IC-05, IC-06, IC-07b)"
+    claim: "The revision made IC-08 the first point at which the gate can be green, yet IC-09 and IC-08 are unordered. The pin-grade point can land on an IC-09 commit where the gate has not yet existed in full, so the 'pin to this' promise to the outside UI team is not guaranteed by the dependency graph."
+    remediation: "Define P2 as the first commit at which both the IC-09 reality check and the IC-08 gate are green (record commit and run id like P1), or add IC-08 to IC-09's Depends on."
+  - id: PLAN-FRESH2-008
+    lens: non-vacuity
+    severity: 2
+    title: "The client_smoke negative test assumes the generator rejects a dangling $ref, with no step that proves it"
+    evidence:
+      - artifact: "plan.md § New gates table, 'Generate-from-split client smoke' row (planted module the generator rejects: a path file whose $ref target is missing)"
+      - artifact: "plan.md § IC-07a exit criterion (spike table: normalisations, brace spelling, client-smoke result)"
+    claim: "openapi-generator frequently warns on an unresolved reference and still emits files, depending on validateSpec and the parser's lenient resolution. If so the planted case exits 0 and the 'GENERATION_FAILED' code is unreachable by that plant, which would only be noticed when negative-tests first runs in IC-08. The spike table records a pass/fail for the real module, not for the planted rejection."
+    remediation: "Add to the IC-07a exit criterion: the spike records, from a pushed run, the exact plant that makes the pinned generator exit non-zero (or have client_smoke fail on any unresolved-reference warning and count it as generator_warnings above zero); name that plant in the negative-tests row."
+  - id: PLAN-FRESH2-009
+    lens: public-repo-hygiene
+    severity: 1
+    title: "Review-trail narration leaks into normative text"
+    evidence:
+      - artifact: "plan.md § Test strategy, FR-023 row ('the .gitignore allowlist line, FRESH-001' - the finding id is PLAN-FRESH-001 and lives in reviews/)"
+      - artifact: "plan.md § D-P14 ('The wrong earlier claim (R-1 evidence, checked on a hand-built environment) is corrected in research.md')"
+      - artifact: "tracer-approach.md § Log ('plan review round 2 folded in')"
+    claim: "Normative plan text cites a review finding by a shortened id and narrates a prior wrong claim. Neither helps a reader of the contract plan, and the id does not resolve to the real one."
+    remediation: "Drop the finding id from the FR-023 row and the 'wrong earlier claim' sentence from D-P14 (state the corrected fact only); the tracer log entry may stay as a dated log line."
+  - id: PLAN-FRESH2-010
+    lens: consistency
+    severity: 1
+    title: "Small drifts: tree indentation, stray space in a tracer entry, stale quickstart, contradictory sentence in shared-edit item 4"
+    evidence:
+      - artifact: "plan.md § Source layout (contract_resolver.py and the bundle.py/client_smoke.py line indented 8 spaces, breaking the tools/ tree)"
+      - artifact: "tracer-tooling-friction.md F-3 ('cannot fail .  The terminology guard')"
+      - artifact: "quickstart.md (CI-only table omits the client smoke; the targeted unit-test command omits test_schema_formats.py)"
+      - artifact: "contracts/tools-and-workflows.md § Shared-CI edits item 4 (item 6 regenerated in IC-01 'no later WP edits a scanned file', while IC-07a edits scripts/ci/fleet_verdict.py and tests/ci/test_fleet_verdict.py and regenerates it)"
+    claim: "Cosmetic and cross-reference drifts left by the revision; none changes behaviour, but item 4's last clause reads as contradicting the IC-07a regeneration stated two sentences earlier."
+    remediation: "Fix the indentation and the stray space; add client_smoke to the quickstart CI-only row and test_schema_formats.py to its unit-test command; reword item 4 to 'no WP after IC-07a edits a scanned file'."

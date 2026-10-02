@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 2
+verdicts:
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: contracts.yml is owned by IC-08 (depends on IC-05..07) while IC-07 and R-3 call for a CI-run spike first, and no skeleton workflow is planned earlier, so E-1 cannot be answered early.
+  - id: PLAN-ARCH-005
+    verdict: confirmed
+    reason: The plan never fixes the canonical $ref spelling for brace-named path files (spec keeps {param} in file names) and fixes the resolver scope (OQ-1) before the contract content exists, with no change-control rule.
+  - id: PLAN-ARCH-006
+    verdict: confirmed
+    reason: Plan section (l) cites MissionIdentity fields for friendly_name/accepted/merged/discarded, but MissionIdentity holds only slug, number, type and id; the fields live in the MissionMeta TypedDicts and discarded_at is undeclared.
+  - id: PLAN-ARCH-007
+    verdict: confirmed
+    reason: WPView has only wp_id, resolved and authored (subtasks sit on ResolvedGroup as a mapping and AuthoredGroup as a tuple), and LIFECYCLE_EVENT_TYPES has twelve members so the seven-constant allow-list is not a source constant.
+  - id: PLAN-ARCH-008
+    verdict: refuted
+    reason: spec.md line 505 already labels every scanner.py citation as historic evidence replaced by x-derived rules, and plan (l) plus research already require git ls-files-based existence, so the dangling-citation risk is handled.
+  - id: PLAN-ARCH-009
+    verdict: confirmed
+    reason: The router corpus group omits meta.json and status.events.jsonl by design while the reality check reads them, and the plan's accepted risk R-14 covers only reader drift, not data drift from status-only commits.
+  - id: PLAN-ARCH-010
+    verdict: confirmed
+    reason: contracts/tools-and-workflows.md says the text-level scan allow-lists exactly the fixtures directory holding committed planted leaks, contradicting the plan's "no allowlist is added" and its fragment-assembly rule.
+  - id: PLAN-ARCH-011
+    verdict: confirmed
+    reason: A search of plan, research, spec and contracts finds no --latest or prerelease decision for the gh release create publication in D-P5.

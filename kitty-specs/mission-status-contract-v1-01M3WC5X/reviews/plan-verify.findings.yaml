@@ -1,0 +1,319 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates (module shards) / Mission-derived lens 3 (router selection claim)
+    severity: 3
+    title: "Plan says only the ci module shard is selected; the regenerated tests/release inventory also selects the release module"
+    evidence:
+      - artifact: "plan.md § The gate set (e), row 'Per-module shards and modules-gate' ('ci module only ... no other module row is selected by this diff (simulated)')"
+      - artifact: "plan.md § Generated artefacts, row tests/release/pinning_rule_inventory.json (a regenerated file under tests/release/ is part of the diff)"
+      - code: "scripts/ci/gate_selection.py:221-267 (_modules_for_test_paths maps ANY changed path under tests/<leaf> to the module whose src root has that leaf)"
+      - code: ".github/ci-module-registry.yml (module 'release': roots src/specify_cli/release/**, no test_dirs, shard_count 1)"
+    claim: >-
+      select_modules unions in every module whose canonical test mirror contains a changed path (any file type). The plan's
+      own diff includes tests/release/pinning_rule_inventory.json, so the `release` module row (mirror tests/release) is
+      selected and its shard runs the whole tests/release directory (about 21 other test files). The plan's simulation
+      claim is therefore false for the full mission diff, those files are not in the 8-file baseline, and a red there
+      could be misattributed. The same mechanism explains why the inventory gate is "hidden": a PR that edits
+      fleet_verdict.py and tests/ci/ without touching tests/release selects only the `ci` shard, so
+      test_pinning_inventory_fresh.py never runs on that PR. The plan does not say where the gate actually runs.
+    remediation: >-
+      Correct the module-shard row to "ci and release (release is selected by the regenerated inventory file)". Add the
+      tests/release test files to the WP01 baseline command (run before the first change) and to the named gate list.
+      State in the inventory rows that the freshness gate only runs per PR when tests/release is in the diff, so
+      regeneration is a hard obligation of every WP that shifts a scanned line, not something CI will catch for it.
+
+  - id: PLAN-VERIFY-002
+    lens: Gates (omitted enforced gates) / Mission-derived lens 3
+    severity: 3
+    title: "docs-lint and tests-docs are selected by the plan's own docs and CHANGELOG edits but are absent from the gate set, which says tests-docs is not selected"
+    evidence:
+      - artifact: "plan.md § The gate set (e), row 'Routed test groups' ('the others no ... verified by simulation'); no row for docs-lint anywhere in § The gate set; plan.md § PQ-7 and § Source code (CHANGELOG.md, docs/development/reference/ci-gate-mechanics.md edited)"
+      - artifact: "research.md line 42 itself lists 'contracts/tools/<script>.py plus docs/x.md -> groups corpus and docs'"
+      - code: ".github/workflows/ci-router.yml:489 (docs-lint job, always on: scripts.docs.check_spelling and scripts.docs.check_changelog_style; in router-gate needs at :750)"
+      - code: ".github/workflows/ci-router.yml (filter group docs: docs/**, tests/docs/**, scripts/docs/**; job tests-docs runs pytest tests/docs)"
+      - code: "CHANGELOG.md is a symlink to docs/changelog/CHANGELOG.md (ls -l); scripts/docs/check_spelling.py:75-78 (TYPO_ROOTS docs, packs/built-in; the 'unreleased' pass applies US spelling to the [Unreleased] section); scripts/docs/check_changelog_style.py:35 (DEFAULT_CHANGELOG)"
+      - code: "docs/development/docs-retrieval-index.yaml:10826-10832 (committed per-page 'anchors' list derived from ## headings of ci-gate-mechanics.md)"
+    claim: >-
+      The Mission edits docs/development/reference/ci-gate-mechanics.md and the changelog (a symlink into docs/changelog/),
+      so the router's docs group matches: tests-docs (pytest tests/docs) is selected and docs-lint (spelling plus
+      changelog style) runs. Both are enforced (they sit in router-gate needs). The plan gives docs-lint no row and says
+      the other routed groups are not selected. Consequences left unplanned: the [Unreleased] entry is checked for American
+      spelling and house style while the plan's own prose is British (artefact, behaviour, normalisation); a new ## section
+      in ci-gate-mechanics.md changes the committed docs-retrieval-index anchors; writing through the CHANGELOG.md symlink
+      with a tool that replaces files would turn the symlink into a regular file.
+    remediation: >-
+      Add docs-lint and tests-docs rows (Yes; run `python -m scripts.docs.check_spelling` and
+      `python -m scripts.docs.check_changelog_style` plus the named tests/docs files that read the touched page). Say the
+      CHANGELOG edit goes to docs/changelog/CHANGELOG.md, in American spelling, in the house entry shape. Add the
+      docs-retrieval-index.yaml line to Generated artefacts (regenerate with the docs index tool, or avoid a new ## heading)
+      and add tests/docs and docs-lint to the WP01 baseline.
+
+  - id: PLAN-VERIFY-003
+    lens: Hidden inventory gate (regeneration sequencing)
+    severity: 3
+    title: "Inventory regeneration is sequenced only in IC-01 and IC-08, but the inventory also pins lines of files that open PR #5557 edits"
+    evidence:
+      - artifact: "plan.md § Generated artefacts row 'tests/release/pinning_rule_inventory.json' ('regenerated ... in the WP that makes those edits'); § PQ-6; § Reflexivity item 6 and IC-08 ('rebase on #5557 state before and after')"
+      - artifact: "spec.md C-003 (#5557 edits test_no_duplicate_suite_execution.py, test_workflow_coherence.py, test_module_shard_registry.py and rewrites test_ci_corpus_trigger_completeness.py)"
+      - code: "tests/release/pinning_rule_inventory.json rows: tests/architectural/test_no_duplicate_suite_execution.py lines 288..1789, tests/architectural/test_workflow_coherence.py lines 22..276, tests/architectural/test_ci_corpus_trigger_completeness.py lines 28 and 45"
+      - code: "tests/release/test_pinning_inventory_fresh.py:100-111 (byte-for-byte re-derivation); scripts/ci/derive_pinning_inventory.py:113 (scan roots tests and scripts)"
+    claim: >-
+      The claim that the freshness gate is byte-for-byte including line numbers is verified (including PR_WORKFLOWS at
+      fleet_verdict.py:42 and four test_fleet_verdict.py rows at lines 107, 348, 437, 452). But the inventory is a derived
+      file whose content depends on every scanned file, not just the three the plan names. Any rebase onto a main that
+      carries #5557 (or any other change to a scanned file) shifts recorded lines and also produces a textual conflict in
+      the JSON. The plan regenerates when this Mission edits its three files, not after each rebase, and does not say how a
+      JSON conflict is resolved. Hand-merging it would be exactly the hand-edit the gate forbids.
+    remediation: >-
+      Add a rule to the Baseline and Reflexivity sections: after every rebase or merge of main, and as the last step before
+      PR prep, re-run `python3 scripts/ci/derive_pinning_inventory.py` and `tests/release/test_pinning_inventory_fresh.py`;
+      resolve any conflict in the JSON by discarding both sides and regenerating. Put the same step in IC-10 close-out.
+
+  - id: PLAN-VERIFY-004
+    lens: Baseline honesty / Campsite (claim about existing code)
+    severity: 3
+    title: "The opening tidy-first commit rests on duplicated literals that do not exist"
+    evidence:
+      - artifact: "plan.md § Campsite-clean (g) ('repeats the same hand-written set of path-filtered workflow names ... across three assertions'; 'Sonar S1192 class')"
+      - code: "tests/ci/test_fleet_verdict.py:104 (the only occurrence of the release-readiness.yml / check-spec-kitty-events-alignment.yml pair in the file; line 107 is a different set; line 204 is a run-dict key)"
+    claim: >-
+      grep finds the pair once, in one assertion, not in three. There is no duplicated literal, S1192 (three or more
+      occurrences) is not triggered, and the stated debt is not present. The charter's campsite rule asks for real debt in
+      a method about to change; the justification as written is a misreading. The commit is still harmless, but its proof
+      ("identical counts before and after") would pass while the stated rationale is false, and it adds an inventory
+      regeneration obligation for no debt removed.
+    remediation: >-
+      Either re-justify the commit honestly (the pair will appear in three expected sets once FR-017 adds the contracts
+      workflow, so a named constant prevents the duplication this Mission is about to create) or drop the opening commit
+      and make the constant part of the IC-08 edit. Re-run grep on the file before the plan is finalised.
+
+  - id: PLAN-VERIFY-005
+    lens: Coverage floors (diff-cover vacuity claim)
+    severity: 2
+    title: "diff-cover scope is described wrongly; the real scope is a hard-coded critical-path list, not the coverage source map"
+    evidence:
+      - artifact: "plan.md § gate set row diff-cover ('It scores changed src/ lines'); § 'How coverage is held for diff-cover (honestly)' ('under the coverage configuration's source map, which is src/')"
+      - code: "scripts/ci/aggregate_source.py:18-26 (CRITICAL_PATHS: src/kernel, src/charter, src/specify_cli/status, branch_naming.py, src/specify_cli/consolidation, src/runtime/next, src/mission_runtime)"
+      - code: "scripts/ci/aggregate_source.py:111-132 (critical.diff.patch limited to those pathspecs); pyproject.toml:2891-2898 ([tool.coverage.paths] is only a path-remapping table)"
+      - code: ".github/workflows/ci-aggregate.yml diff-cover job: if requires needs.collect.outputs.coverage == 'true'"
+    claim: >-
+      The conclusion (vacuous for this Mission) is right, and stronger than stated: no file under tests/, scripts/ or
+      contracts/ can ever be scored, and most of src/ is not either. But the mechanism the plan gives is wrong, and the
+      plan then defers "behaviour on a zero-line diff" to implement start. An implementer reading the plan would think any
+      src/ change is scored.
+    remediation: >-
+      Replace the explanation with the CRITICAL_PATHS list and cite aggregate_source.py. Keep baseline step 6 but phrase
+      the expected observable concretely: critical.diff.patch is empty, validate_diff_coverage writes an empty statement
+      patch, and diff-cover reports no scorable lines. Record whether the diff-cover job runs at all when the diff
+      selects only the ci module and tests-corpus.
+
+  - id: PLAN-VERIFY-006
+    lens: Coverage floors (how coverage is actually held)
+    severity: 2
+    title: "The only coverage floor for the new Python is a pasted local run; nothing a reviewer or CI can re-check"
+    evidence:
+      - artifact: "plan.md § 'How coverage is held for diff-cover (honestly)'; spec.md NFR-007"
+      - code: ".github/workflows/ci-router.yml tests-corpus step (pytest -m 'corpus and not windows_ci' -n auto --dist loadfile, no --cov)"
+    claim: >-
+      The plan is honest that coverage is local discipline, which matches NFR-007. But "every projection helper function has
+      a direct unit test" and "a planted case per branch" are asserted with no mechanism that fails when a function or
+      branch is added without a test; the 90 percent figure is self-reported output pasted into a PR body. Revert
+      discipline for the helper rests on reviewer diligence only.
+    remediation: >-
+      Add one cheap enforced check in tests-corpus: an AST scan that enumerates the public functions of
+      tests/contract/_mission_status_payloads.py and each contracts/tools script and fails when one is not referenced by
+      its unit-test module (with a floor on the number of functions found). Also require the PR body to include the exact
+      `pytest --cov` command and the per-file branch figures so a reviewer can re-run it.
+
+  - id: PLAN-VERIFY-007
+    lens: Silent-success (empty-corpus guards)
+    severity: 3
+    title: "The reality check's per-Mission parametrisation can collect zero cases and skip silently; the exit-5 floor the plan cites does not protect this module"
+    evidence:
+      - artifact: "plan.md § New gates table, row 'Reality check' ('Collection of zero tests is already an exit-5 failure in tests-corpus'); § D-P8 (parametrised per-Mission test plus corpus-level tests)"
+      - code: "pytest.ini:11 (addopts has no empty_parameter_set_mark, so an empty parameter set is a skip, not a failure)"
+      - code: ".github/workflows/ci-router.yml tests-corpus (exit 5 fires only when the whole corpus marker selects zero tests, about 1400 are collected)"
+    claim: >-
+      The exit-5 floor applies to the whole corpus selection, so it says nothing about this module. If the collection-time
+      enumeration of Missions returns nothing (wrong cwd, a glob mistake), the parametrised test is reported as skipped and
+      the job stays green. The floors the plan names (500 Missions, 3000 payloads) are computed by a separate own-directory
+      pass, so they can pass while the per-Mission cases silently number zero. The lens requires counting what the loop
+      iterates.
+    remediation: >-
+      State that the case list comes from the same function as the own-directory pass and that a corpus-level, non-skippable
+      test asserts (a) the number of generated cases equals the Missions-with-meta count and is at least the floor, and (b)
+      the number of cases that actually executed equals that count (a session-scoped counter). Convert an empty parameter
+      set into a failure explicitly. Delete the exit-5 sentence from that row.
+
+  - id: PLAN-VERIFY-008
+    lens: Gates (workflow shape / fork guard)
+    severity: 2
+    title: "The terminal contracts-gate is a self-starting job under test_fork_guard but the plan guards only root jobs"
+    evidence:
+      - artifact: "plan.md § D-P4 ('python-checks and verify-pins are root jobs with the canonical fork guard'); § gate set row 'contracts-gate terminal job'; contracts/tools-and-workflows.md 'Root (fork guard): no' for contracts-gate"
+      - code: "tests/ci/test_fork_guard.py:105-108 (_self_starting_jobs: a job with no needs OR with always() in its if is guarded)"
+      - code: "tests/ci/test_fork_guard.py:142-152 (the guard must be the leading top-level conjunct and keep fork pull_request and dispatch live)"
+    claim: >-
+      A gate job that reads needs.*.result must use always() to run after a failed need, which makes it self-starting for
+      the guard test and requires the canonical guard as the first conjunct of its if. The plan marks it non-root and
+      names no guard, so the named gate file would go red on the first run. The same applies to the single job of the
+      release workflow (push trigger).
+    remediation: >-
+      In the workflow job contract, give contracts-gate an if of the form
+      "(<canonical guard>) && always()" and mark it guarded; add it to the guard-test cases in
+      tests/ci/test_contracts_workflows.py. Confirm the release workflow's job carries the same guard.
+
+  - id: PLAN-VERIFY-009
+    lens: Gates (tooling installation, FR-018)
+    severity: 3
+    title: "No step is specified for installing the Python dependencies of the contracts tools in the contracts workflow"
+    evidence:
+      - artifact: "plan.md § Technical Context ('Locked Python dependencies only (pyyaml, jsonschema with referencing)'); § D-P4 ('No tool is installed through an unpinned package-manager command'); contracts/tools-and-workflows.md job table (python-checks, verify-pins, negative-tests)"
+      - artifact: "spec.md FR-018 ('No tool is installed through an unpinned package-manager command in the workflow')"
+      - code: ".github/workflows/ci-router.yml prose-scan step (the repo's own precedent: pip install pyyaml==6.0.2 pinned with --only-binary)"
+    claim: >-
+      The ten Python checks and the parity and release scripts need PyYAML, jsonschema and referencing, and
+      resolver/leak/citation tests import them. The plan says they are locked but never states how the workflow gets them
+      (uv sync --frozen, a pinned pip line, or the system Python). A bare `pip install` would violate FR-018, and
+      verify_pins' UNPINNED_INSTALL code would then fail the Mission's own workflow. The Python version of the job is also
+      unspecified (the tools target py311).
+    remediation: >-
+      Add to the workflow job contract: a SHA-pinned setup action, `uv sync --frozen` (or an exact-version pinned pip line
+      with hash or --only-binary) as the one install step shared by python-checks, verify-pins and negative-tests, the
+      Python version, and a verify_pins case that accepts exactly that form.
+
+  - id: PLAN-VERIFY-010
+    lens: Revert discipline (per-AC test strategy)
+    severity: 3
+    title: "Several acceptance-criteria sub-bullets have no failing-observable test in the per-AC table"
+    evidence:
+      - artifact: "plan.md § Test strategy per acceptance criterion, rows FR-002, FR-004, FR-006, FR-013, FR-016, FR-017, FR-018"
+      - artifact: "spec.md FR-013 (at least one validating example per resource and per event kind plus provisional-populated and discarded-Mission examples), FR-004 (first, middle and exhausted-cursor examples), FR-002 (page cursor has no schema relationship to the stream cursor), FR-016 (provisional elements diffed in their own section; removed path and newly required parameter), FR-017 (ii) (release workflow has no pull_request trigger or non-tag push), FR-006 (history lists transitions only)"
+    claim: >-
+      FR coverage is complete in the traceability table, but these sub-criteria name an observable that no listed test or
+      fixture would turn red if the behaviour were reverted: example_check is specified for invalid and orphan examples,
+      not for a missing required example (a contract with no discarded-Mission example passes); the breaking-change
+      fixtures omit removed path, newly required parameter and the provisional-section report; the guard row lists the
+      contracts workflow trigger set but not the release workflow's trigger rules; the page-cursor independence and the
+      transitions-only history have no assertion. Under C-010 these are untested requirements.
+    remediation: >-
+      Extend the rows: add a required-example manifest (resource, event kind, provisional-populated, discarded Mission, the
+      three cursor pages) to example_check with a planted missing-example fixture; add removed-path, new-required-parameter
+      and provisional-section fixtures to the breaking_check pair; add the release-workflow trigger cases to
+      test_contracts_workflows.py; add a schema test that the page cursor and stream cursor share no $ref and that
+      history entries have kind constrained to transition.
+
+  - id: PLAN-VERIFY-011
+    lens: Baseline honesty
+    severity: 2
+    title: "The baseline covers the 8 gate files and 2 router guards but not the other enforced gates the plan marks 'Yes'"
+    evidence:
+      - artifact: "plan.md § Baseline (f) steps 1-6; § gate set rows for ruff, terminology, prose-only, ci module"
+      - code: "tests/ci/test_prose_only.py, tests/ci/test_ci_module_wiring.py, tests/architectural/test_no_legacy_terminology.py exist and are named or implied as gates but have no baseline run"
+      - code: ".github/workflows/release-readiness.yml:197 (cutover-guard job)"
+    claim: >-
+      Re-run confirmed the plan's own figure: the 8 files give 265 passed, 1 skipped (two invocations: 135 passed, then 130
+      passed with 1 skipped), and `ruff check .` and `ruff format --check .` are clean on this checkout (2922 files). But
+      the ruff pair, terminology, test_prose_only, test_ci_module_wiring, the tests/release and tests/docs scopes
+      (PLAN-VERIFY-001, -002) and the release-readiness cutover-guard job are enforced and relevant yet absent from the
+      baseline, so a red there cannot be classed pre-existing or introduced. The plan's release-readiness row also never
+      mentions cutover-guard, which checks every kitty-specs/<mission> touched by the diff, this Mission's own directory
+      included (src/specify_cli/cli/commands/cutover_guard.py:1-30).
+    remediation: >-
+      Add to baseline step 2 or 3: ruff check and format, the terminology file, test_prose_only, test_ci_module_wiring and
+      the tests/release and tests/docs files. Add a cutover-guard row to the gate set and a read-only
+      `spec-kitty cutover-guard --base-ref origin/main` record at implement start and at PR prep.
+
+  - id: PLAN-VERIFY-012
+    lens: Silent-success / CI placement (edit-only paths)
+    severity: 2
+    title: "An edit confined to tests/contract/ selects no job at all, so the reality check's own code is not run when only it changes"
+    evidence:
+      - artifact: "plan.md § Reflexivity item 5 (R-14 covers reader paths only); § Seam row tests/contract/"
+      - code: ".github/ci-module-registry.yml:716 (tests/contract is excluded from the module matrix, home is the corpus lane)"
+      - code: "scripts/ci/gate_selection.py:221-267 and .github/workflows/ci-router.yml (corpus group has no tests/contract/** glob; only contracts/** is added)"
+    claim: >-
+      After merge, a PR that edits only tests/contract/_mission_status_payloads.py or a tool's unit-test module matches no
+      router group and no module row, so neither the edited test nor its helper runs per PR; the push-to-main
+      built-in-corpus-suite is the only net. The plan accepts reader drift (R-14) but not this closely related hole, and
+      the spec's single-glob constraint (C-003) rules out a second glob.
+    remediation: >-
+      Record this as an accepted residual next to R-14, name the push-to-main run as the catch, and put the one-line local
+      command in the README next to the reader-author warning. Alternatively ask the maintainers in the PR whether
+      `tests/contract/**` may join the same corpus filter line.
+
+  - id: PLAN-VERIFY-013
+    lens: Gates (enforcement vocabulary) / Mission-derived lens 3
+    severity: 2
+    title: "By the plan's own definition of 'enforced' the new contracts jobs are not enforced, and the plan never states their tier"
+    evidence:
+      - artifact: "plan.md § Charter Check drift paragraph and § The gate set ('Enforced means a job whose red turns router-gate or aggregate-gate red and is read by the fleet verdict')"
+      - artifact: "plan.md § New gates table (no enforcement column); spec.md FR-017 ('The contracts checks are still not in router-gate')"
+      - code: ".github/workflows/ci-router.yml router-gate needs list (contains no contracts job); scripts/ci/fleet_verdict.py:42-53 (PR_WORKFLOWS, path-filtered workflows join only when their paths match)"
+    claim: >-
+      The contracts workflow is observed by the fleet verdict comment only. It does not turn router-gate, modules-gate or
+      aggregate-gate red, so under the plan's own definition none of its jobs is "enforced". The new-gates table lists
+      them beside enforced gates without saying so, and a red contracts run on a contracts-only PR is reported, not
+      blocking. Readers (and SC-007) could take the validate, lint and breaking-change jobs as merge gates.
+      The router and module routing claims themselves were checked and hold: a contracts-only path currently matches no
+      group and selects no job; with `contracts/**` it matches only corpus, selects tests-corpus, no code shard and no
+      module (the corpus group has no registry row).
+    remediation: >-
+      Add a column "Tier" to the new-gates table: reality check (blocking via router-gate through tests-corpus), contracts
+      jobs (reported through the fleet verdict, conditional main gate, not blocking), guard tests (blocking via the ci
+      module shard). State it in the PR body text outline.
+
+  - id: PLAN-VERIFY-014
+    lens: Coverage floors / timing (packs lane)
+    severity: 2
+    title: "NFR-001 timing is baselined only for tests-corpus, but the same module also runs on every push to main under built-in-corpus-suite"
+    evidence:
+      - artifact: "plan.md § Baseline step 5 and § P-5 (tests-corpus 10 minute timeout only); § gate set row 'Packs gate' (also runs on push to main with --cov=src/doctrine)"
+      - code: ".github/workflows/packs.yml built-in-corpus-suite (timeout-minutes 20; pytest -m 'corpus and not windows_ci' -n auto --dist loadfile --cov=src/doctrine; built_in output forced true on push)"
+    claim: >-
+      The plan correctly notes that the reality check must pass in built-in-corpus-suite on push, but measures duration
+      and headroom only against tests-corpus. Under that job the whole corpus plus a 539-Mission reality check runs with a
+      coverage tracer attached, a different cost profile and a 20 minute budget. A timeout there is red on main only
+      after merge, which is the worst place to learn it.
+    remediation: >-
+      Add a step to the baseline and IC-10 measurement: read the latest push-to-main built-in-corpus-suite log, record its
+      duration, and re-check after the first draft-PR run by dispatching packs.yml in full mode (read from the job log).
+      State the 60 second per-case budget as applying under --cov as well.
+
+  - id: PLAN-VERIFY-015
+    lens: Gates (workflow job graph)
+    severity: 2
+    title: "negative-tests needs is inconsistent between the job graph and the job contract table"
+    evidence:
+      - artifact: "plan.md § D-P4 mermaid (vb --> neg and pins --> neg)"
+      - artifact: "contracts/tools-and-workflows.md § Workflow job contract (negative-tests: Needs verify-pins only; Does 'every script and tool' including JVM tools)"
+    claim: >-
+      The graph makes negative-tests wait for validate-bundle; the table makes it depend on verify-pins only. The JVM
+      negative cases (planted dangling reference, tampered verification metadata, vacuum and oasdiff fixtures) need the
+      installed toolchain, which the table does not give this job. Two lanes will implement different graphs and the
+      guard test for workflow shape has nothing to pin.
+    remediation: >-
+      Pick one: negative-tests needs verify-pins and runs install_tools.py itself, or needs validate-bundle and reuses its
+      installed tools; make the plan and the contract note agree and have the guard test assert the chosen needs set.
+
+  - id: PLAN-VERIFY-016
+    lens: Generated artefacts (documentation mirror)
+    severity: 1
+    title: "The retirement-scrub JSON keeps a documentation copy of the corpus globs that the router edit makes stale"
+    evidence:
+      - artifact: "plan.md § gate set row 'Router derivation guards' ('corpus group is not a row of the scrub JSON groups list'); contracts/tools-and-workflows.md ('Untouched by design: ci_retirement_scrub.json')"
+      - code: "tests/release/ci_retirement_scrub.json non_src_router_groups[group=corpus].roots (lists the nine current corpus globs)"
+      - code: "tests/architectural/test_ci_router_transcription_guards.py:63 (reads scrub['groups'] only; no Python consumer of non_src_router_groups found by grep)"
+    claim: >-
+      The plan's reading is correct (the guard reads only `groups`), but the same file carries the corpus roots under
+      `non_src_router_groups`, which will no longer equal the router after `contracts/**` is added. Nothing reads it, so no
+      gate goes red, which is why it will rot silently.
+    remediation: >-
+      Say so in the plan: either leave the file untouched and note the intentional staleness in the PR body, or add the
+      glob to that documentation list in the same commit (any tests/release edit also selects the release shard, see
+      PLAN-VERIFY-001).

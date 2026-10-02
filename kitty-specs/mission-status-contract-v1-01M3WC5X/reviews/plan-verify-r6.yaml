@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: NEW-1
+    status: resolved
+    reason: The brace-spelling paragraph and the IC-08 row both state the planted fixture as a pre-edit red test against the unchanged BRACE_REF_SPELLING constant (red on the planning base) with the constant edit in the same commit turning it green, and the IC-08 intro sentence and the contracts notes (applied by IC-08's opening re-sweep commit) do not contradict it.
+  - id: NEW-2
+    status: resolved
+    reason: E-3, P-11, tracer-approach.md and the post-P0 paragraph now all describe the per-point increasing counter (-r2, -r3, independent per point) with the two causes (compact history, brace re-sweep), and no mission file still says "a new suffixed tag" without the counter rule or names compact-history as the only cause.

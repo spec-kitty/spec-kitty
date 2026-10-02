@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: In test_all_existing_pr_workflows_are_registered the release-readiness/events-alignment pair appears once (line 104), so the plan's "across three assertions" and S1192 claim (needs 3+ uses per CLAUDE.md) are false.
+  - id: PLAN-GOV-002
+    verdict: refuted
+    reason: Spec D-4 already treats the snapshot-vs-files gap as a pre-existing reader limit with a listed shrink-only ceiling and an upstream issue, the charter has no ledger-accounting requirement, and SK-309 being the cause of the 45 disagreements is unreproduced speculation.
+  - id: PLAN-GOV-003
+    verdict: refuted
+    reason: The plan openly states DEV-2 is planned as written and asks E-2 to confirm it, lists both DEVs and the PQ-1 FR-018 departure as PR-body items, so nothing is silent; the finding itself concedes it is flagged.
+  - id: PLAN-GOV-004
+    verdict: confirmed
+    reason: F-3 says commitlint ignores the scaffold shape on purpose, but commitlint.config.cjs ignores only (meta|spec|tasks|plan), SK-64 is retracted and replaced by a GAP entry, and F-1 gives no disposition for the CLAUDE.md materialize example.
+  - id: PLAN-GOV-005
+    verdict: refuted
+    reason: The plan's Terminology row already says the README states the distinctions and line 84 says no glossary entry changes, and spec R-9 notes the glossary question is out of scope, so a severity-1 wording nit is already handled.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: Plan item 3 promises a client can be generated from the split files at the IC-04 commit, yet no generator is named and no step (IC-07 spike included) generates a client against the split tree, while the validators and parity checks run only later.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: The plan permits nullability relaxations after the early-start point, nothing checks the promise before the first tag (breaking_check has no baseline), and it does not say whether a CL-1 maintainer-requested structural change overrides the promise.
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: Plan records a branch commit hash for the UI team (E-3) while Reflexivity item 6 plans a rebase and compact-history step at PR prep, which rewrites that hash with no stable ref offered.

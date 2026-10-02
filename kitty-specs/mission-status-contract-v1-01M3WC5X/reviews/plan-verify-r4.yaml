@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: false
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: The conditional re-sweep is now the opening commit of IC-08 (depends on IC-04), IC-07a stays finished at spike recording, IC-05/IC-07b cells gate on IC-07a completion, topology exceptions (2) and (4) cover path files, root map, indices and the resolver constant, the post-P0 re-publish under a suffixed tag with a CHANGELOG line is stated, and the DAG and critical path remain acyclic and consistent.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: The tracer log entry is now decision-level ("plan decisions revised: ...") with no review-round number.

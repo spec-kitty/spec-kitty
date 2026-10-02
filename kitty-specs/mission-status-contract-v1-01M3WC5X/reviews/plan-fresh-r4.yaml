@@ -1,0 +1,32 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PLAN-FRESH4-001
+    lens: internal-consistency
+    severity: 2
+    title: IC-08 opening commit is conditional and is a rename, contradicting "first commit of every WP is its red test"
+    evidence:
+      - artifact: "plan.md § Phases, work-package decomposition intent (opening paragraph: 'The first commit of every WP is its red test or planted fixture')"
+      - artifact: "plan.md § Implementation Concern Map, IC-08 write scope and the 'Canonical $ref spelling for brace-named files' paragraph"
+    claim: The revision makes the re-sweep (constant edit, file renames, ref rewrite) the opening commit of IC-08. That conflicts with the stated rule that every WP opens with a red test or planted fixture, and the plan does not say what the opening commit is when the spike keeps the default (the rule then implies a different first commit than when it does not). The IC-08 row does not say whether the re-sweep is red-first (the layout_check BRACE_REF_SPELLING planted fixture failing against the new constant) or an exception to the rule.
+    remediation: Add one sentence to the IC-08 row and the sweep paragraph - the re-sweep opens with the layout_check planted non-canonical fixture going red against the edited constant, and the same commit (or its immediate successor) turns it green - or name it as an explicit exception to the red-first rule. State that IC-08 opens with its own red test when there is no sweep.
+  - id: PLAN-FRESH4-002
+    lens: traceability
+    severity: 2
+    title: IC-08 now owns a layout change but its row cites no layout requirement and its sweep scope omits tests naming path files
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map, IC-08 (Requirements: FR-017, FR-018, FR-021, FR-022; Purpose column silent on the re-sweep)"
+      - artifact: "plan.md § Implementation Concern Map, IC-02 and IC-05 write scopes (tests/contract/test_mission_status_examples.py, per-script fixtures)"
+    claim: The re-sweep implements FR-001 (layout, brace spelling rule) but IC-08 lists no FR-001 and its Purpose cell does not mention the sweep, so the requirement trace for that change is lost. The sweep scope lists only contracts/mission-status/** and the resolver constant. Tests and fixtures owned by IC-02 to IC-06 that reference path-file names or brace-named refs literally (the examples test, layout_check and resolver fixtures) are outside it, so a rename could leave them red with no owner, and IC-08 cannot touch them without breaking the disjoint-write-scope rule.
+    remediation: Add FR-001 (conditional) to IC-08 Requirements and a clause to its Purpose. Either extend the sweep scope to name any test or fixture that spells a path-file name or brace ref (and add that to topology exception 2), or state that IC-02 to IC-06 tests derive such names from the resolver constant and never hard-code them, and add that as an acceptance check.
+  - id: PLAN-FRESH4-003
+    lens: consistency
+    severity: 2
+    title: Suffix scheme for re-published preview tags can collide (p0-r2 used for two different causes)
+    evidence:
+      - artifact: "plan.md § UI early-start point, 'What can still change after P0' (new preview point p0-r2) and 'Immutable refs for the UI team' (after the compact-history step and after a conditional re-sweep, re-publish under a suffixed tag, for example p1-r2)"
+    claim: Both the conditional re-sweep and the compact-history step re-publish published points under the same "-r2" example. If both happen, or the re-sweep follows P1 or P2 being published, the plan does not say which suffix each uses, so two different trees could claim p0-r2. The re-sweep sentence also covers only P0 although the sweep renames files that any already-published point contains.
+    remediation: Define the suffix as an increasing counter per point (r2, r3, ...) applied in order of re-publication, say each re-publication names the cause in its #5528 note, and word the re-sweep sentence for every already-published point, not only P0.

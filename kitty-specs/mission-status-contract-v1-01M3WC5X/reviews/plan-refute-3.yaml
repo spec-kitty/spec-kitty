@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 3
+verdicts:
+  - id: PLAN-ARCH-012
+    verdict: confirmed
+    reason: workflow_run uses the default-branch copy so the new inventory entry is unobservable pre-merge, and plan P-8 and the post-merge SC-009 step cover only the release workflow, not fleet-verdict coverage.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: The release module has root src/specify_cli/release/** whose canonical mirror is tests/release, and _modules_for_test_paths matches any changed test path, so the regenerated inventory selects release while plan row says ci module only.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: The plan edits docs/development/reference/ci-gate-mechanics.md which matches the router docs group (tests-docs selected), docs-lint is always-on in router-gate, CHANGELOG.md is a symlink, and the gate-set rows say the other routed groups are not selected and have no docs-lint row.
+  - id: PLAN-VERIFY-003
+    verdict: refuted
+    reason: The freshness gate fails loudly rather than silently, and the plan already regenerates in the editing WP, runs the test as a named gate and rebases on #5557 state before and after in IC-08; the finding is a procedural nicety, not an unhandled defect.
+  - id: PLAN-VERIFY-005
+    verdict: confirmed
+    reason: aggregate_source.py CRITICAL_PATHS is a hard-coded list of seven src paths driving critical.diff.patch, so the plan's claim that diff-cover scores changed src/ lines under the coverage source map misstates the mechanism.
+  - id: PLAN-VERIFY-006
+    verdict: refuted
+    reason: The plan explicitly follows spec NFR-007, which defines the criterion as checkable local behaviour with recorded commands; demanding a new enforced AST gate is a scope expansion, not a defect in the plan.
+  - id: PLAN-VERIFY-007
+    verdict: confirmed
+    reason: pytest.ini addopts has no empty_parameter_set_mark so an empty parametrisation skips, and plan row 163 claims it fails never skips while citing a tests-corpus-wide exit-5 floor that does not protect this module.
+  - id: PLAN-VERIFY-008
+    verdict: confirmed
+    reason: _self_starting_jobs treats any job with always() in its if as self-starting needing the leading canonical guard, and the plan marks contracts-gate non-root with a gate that must run after failed or skipped needs, naming no guard while D-P4 guards only root jobs.

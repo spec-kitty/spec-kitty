@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 4
+verdicts:
+  - id: PLAN-VERIFY-009
+    verdict: confirmed
+    reason: Neither plan.md nor the job table gives any dependency install step or Python version for python-checks, verify-pins or negative-tests, only "locked dependencies".
+  - id: PLAN-VERIFY-010
+    verdict: confirmed
+    reason: The per-AC rows for FR-013, FR-016, FR-017 and others list only invalid/orphan examples and removed property, narrowed enum, changed type fixtures, with no required-example, removed-path, new-required-parameter or release-trigger test.
+  - id: PLAN-VERIFY-011
+    verdict: confirmed
+    reason: Baseline steps 2-3 name only the 8 gate files and router guards, cutover-guard (release-readiness.yml) appears nowhere in the plan, and test_prose_only and ci_module_wiring are not baselined.
+  - id: PLAN-VERIFY-012
+    verdict: confirmed
+    reason: The ci-router corpus filter has no tests/contract glob, the registry excludes tests/contract, and plan R-14 covers only reader paths, so a tests/contract-only edit selects nothing.
+  - id: PLAN-VERIFY-013
+    verdict: confirmed
+    reason: The plan defines enforced as turning router-gate or aggregate-gate red, the contracts workflow is a separate fleet-verdict-observed workflow outside router-gate, and the new-gates table has no tier column.
+  - id: PLAN-VERIFY-014
+    verdict: confirmed
+    reason: Baseline step 5 and P-5 measure only tests-corpus against 10 minutes while the plan itself says built-in-corpus-suite also runs the check on push with --cov and has a separate budget.
+  - id: PLAN-VERIFY-015
+    verdict: confirmed
+    reason: The mermaid graph has vb --> neg and pins --> neg while the job table gives negative-tests Needs verify-pins only.
+  - id: PLAN-VERIFY-016
+    verdict: confirmed
+    reason: tests/release/ci_retirement_scrub.json non_src_router_groups lists the corpus roots as a documentation mirror that will diverge once contracts/** is added, and the plan does not mention it.
