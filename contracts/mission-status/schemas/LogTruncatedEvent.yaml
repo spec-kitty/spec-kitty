@@ -2,7 +2,8 @@ title: LogTruncatedEvent
 description: >-
   The data of a log-truncated event: the Mission's event log shrank or changed under the reader,
   so everything the consumer stored for that Mission is stale. It carries a reset cursor, offset
-  0 with the digest of the empty input. The consumer discards the Mission's stored cursor, reads
+  0 with the digest of the empty input. It is sent without an SSE id line, so a browser's stored
+  Last-Event-ID is never moved to the reset position. The consumer discards the Mission's stored cursor, reads
   the Mission detail again and resumes from the streamCursor of that detail. The schema is closed.
 type: object
 additionalProperties: false
@@ -34,6 +35,7 @@ properties:
       symbol: _truncation_signal
   detectedAtOffset:
     type: integer
+    format: int64
     minimum: 0
     description: The byte offset of the cursor the reader held when it detected the truncation.
     x-source:

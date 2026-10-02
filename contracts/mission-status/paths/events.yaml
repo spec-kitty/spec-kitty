@@ -13,11 +13,16 @@ get:
     - `mission-lifecycle` -> MissionLifecycleEvent: the Mission was created, or a planning phase started or completed.
     - `log-truncated` -> LogTruncatedEvent: the Mission's event log shrank or changed; resynchronise.
 
-    Framing. Each event is sent as three lines and a blank line: an `event:` line with the event
-    name, an `id:` line with the StreamCursorString of the event, and a `data:` line with the
-    JSON of the data schema. The id is the same string the streamCursor parameter and the
-    Last-Event-ID header accept. A heartbeat is a comment line, `: heartbeat`, sent every 30
-    seconds; it carries no data and is not an event.
+    Framing. Each event is sent as an `event:` line with the event name, an `id:` line with the
+    StreamCursorString of the event, a `data:` line with the JSON of the data schema, and a blank
+    line. The id is the same string the streamCursor parameter and the Last-Event-ID header
+    accept. Two kinds of event carry no `id:` line, so that a browser's automatic Last-Event-ID
+    never holds a position that cannot be resumed from. Every event of an unscoped stream (no
+    missionId) is sent without an `id:` line, because a cursor is a position in one Mission's log
+    and the unscoped stream interleaves Missions. A log-truncated event is sent without an `id:`
+    line on every stream, because its own cursor is the reset position, offset 0, and resuming
+    from it would replay the whole log; the cursor stays inside its data. A heartbeat is a comment
+    line, `: heartbeat`, sent every 30 seconds; it carries no data and is not an event.
 
     Projection. Raw rows of the Mission's event log never appear. Only a status transition and
     seven lifecycle types (MissionCreated, SpecifyStarted, SpecifyCompleted, PlanStarted,
@@ -26,7 +31,8 @@ get:
     unknown row are dropped, never forwarded. The seven lifecycle types are owned by this
     contract and are a subset of the runtime's twelve; a type added upstream later is dropped.
 
-    Scope and ordering. With missionId the stream carries that Mission only. Without it the
+    Scope and ordering. With missionId the stream carries that Mission only; a missionId that
+    names no Mission is answered with 404 before any event is sent. Without it the
     stream carries every Mission, live only: it never replays and no cursor can be used. A new
     connection without a cursor is live only from the moment it connects. Order is guaranteed
     per Mission, in the order of that Mission's log; there is no order across Missions, and a
@@ -38,7 +44,14 @@ get:
     consumed as streamCursor, or let the browser send it as Last-Event-ID. A cursor that cannot
     be trusted is refused before any event is sent, with a problem whose code is negative,
     out_of_range, misaligned or content_mismatch (the reasons of the tail reader's
-    ResumeRefused), or cursor_without_mission when a cursor comes without missionId.
+    ResumeRefused), or cursor_without_mission when a cursor comes without missionId. The status
+    of each code is fixed: negative, misaligned and cursor_without_mission are 400; out_of_range
+    and content_mismatch are 409 (StreamRefusal states this as a checkable rule). A browser
+    EventSource cannot read the body of a refused connection, it only closes, so a consumer that
+    must tell these refusals apart opens the stream with a fetch that streams the response body
+    instead of EventSource. After a log-truncated event on a Mission-scoped stream the last id the
+    browser holds is the one before the truncation, and a reconnect with it is refused; the consumer
+    then resynchronises as below.
 
     Consumer actions. On log-truncated, discard the stored cursor of that Mission, read the
     Mission detail again, and resume from the streamCursor of that detail; the cursor inside the
@@ -46,17 +59,18 @@ get:
     known kind that a consumer does not know, such as an unlisted eventType, is treated as
     unknown and is not a failure; the schemas stay closed, so a producer must not send one.
 
-    Provisional. These parts are provisional: the framing of the stream, the text form of the cursor, the rule that
+    Provisional. These parts are provisional: the framing of the stream and which events carry an id line, the text form of the cursor, the rule that
     streamCursor wins over Last-Event-ID, the HTTP status of each refusal and the heartbeat
     interval are conventions owned by this contract; the tail reader has no text form of a
     cursor and no transport. They are open on #5528 and may change before release. No emitter,
     server or transport exists yet: this describes a stream that a later change implements.
   x-provisional:
     open_decision: >-
-      The framing of the stream (the event:, id: and data: lines and the blank line), the
-      heartbeat comment line and its interval of 30 seconds, and the HTTP status of each refusal
-      (400 or 409) are conventions owned by this contract: the tail reader has no transport. They
-      are proposals open on #5528 and may change before release.
+      The framing of the stream (the event:, id: and data: lines and the blank line), which events
+      carry an id: line (none on an unscoped stream, none for log-truncated), the heartbeat comment
+      line and its interval of 30 seconds, and the HTTP status of each refusal (400 or 409) are
+      conventions owned by this contract: the tail reader has no transport. They are proposals open
+      on #5528 and may change before release.
   tags:
     - Events
   parameters:
@@ -80,6 +94,8 @@ get:
               - $ref: ../schemas/LogTruncatedEvent.yaml
     '400':
       $ref: ../responses/StreamRefused.yaml
+    '404':
+      $ref: ../../_shared/responses/Problem.yaml
     '409':
       $ref: ../responses/StreamRefused.yaml
     default:

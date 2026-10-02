@@ -3,11 +3,13 @@ description: >-
   The text form of a StreamCursor: the decimal byte offset, a colon, and the 64 lowercase
   hexadecimal characters of the invariant, for example an offset of 0 followed by a colon and
   the digest of the empty input. It is the value of the streamCursor query parameter, of the
-  Last-Event-ID request header and of the SSE id field of every event, all the same string. The
+  Last-Event-ID request header and of the SSE id field of the events of a Mission-scoped stream
+  (log-truncated carries no id), all the same string. The offset has no leading zeros, so one
+  cursor has exactly one text. The
   JSON object form, StreamCursor, is what travels inside the data of an event. It has no
   relationship to the opaque page cursor used for paging lists.
 type: string
-pattern: '^[0-9]+:[0-9a-f]{64}$'
+pattern: '^(0|[1-9][0-9]*):[0-9a-f]{64}$'
 x-derived:
   rule: >-
     The offset and the invariant of a StreamCursor joined as offset, colon, invariant, with the

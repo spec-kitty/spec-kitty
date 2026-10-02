@@ -12,6 +12,7 @@ required:
 properties:
   offset:
     type: integer
+    format: int64
     minimum: 0
     description: The byte offset in the event log just after the last consumed line; 0 means nothing consumed yet.
     x-source:

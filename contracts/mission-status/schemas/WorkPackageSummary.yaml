@@ -25,7 +25,7 @@ properties:
   title:
     type: string
     minLength: 1
-    description: The human title of the work package. Human text; a host path inside it is replaced by a fixed token.
+    description: The human title of the work package. Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`; only the matching text is replaced.
     x-source:
       path: src/specify_cli/status/wp_metadata.py
       symbol: read_authored_wp_frontmatter
@@ -36,6 +36,7 @@ properties:
     description: >-
       The grouping label the planning file gives the work package, or null. It is a label
       written by the author of the plan; it is not a Mission phase and not the glossary term phase.
+      Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`.
     x-source:
       path: src/specify_cli/status/wp_metadata.py
       symbol: WPMetadata

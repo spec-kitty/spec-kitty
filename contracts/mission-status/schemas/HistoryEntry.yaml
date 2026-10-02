@@ -70,7 +70,7 @@ properties:
     type:
       - string
       - 'null'
-    description: The human text recorded with the transition, or null when none was recorded. A host path inside it is replaced by a fixed token.
+    description: The human text recorded with the transition, or null when none was recorded. Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`; only the matching text is replaced.
     x-source:
       path: src/specify_cli/status/models.py
       symbol: StatusEvent

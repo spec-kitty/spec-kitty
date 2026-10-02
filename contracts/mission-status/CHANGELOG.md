@@ -42,6 +42,39 @@ Initial entry. This version is not yet released.
   `additionalProperties: false` cannot be extended by composition. Citation inputs that named
   `MissionOverview.createdAt` and `MissionOverview.missionId` now name `MissionHead`.
 
+- Pre-release shape change: the event stream sends no `id:` line on an unscoped stream (no
+  `missionId`) and none on a `log-truncated` event of any stream. An unscoped stream has no usable
+  cursor, and the `log-truncated` cursor is the reset position, so a browser's automatic
+  `Last-Event-ID` no longer holds a position that is refused or that replays the whole log. The
+  cursor stays inside the `log-truncated` data. `StreamCursorString` and the `Last-Event-ID`
+  description say so.
+- Pre-release shape change: `GET /events` gains a `404` response (the shared `Problem`) for a
+  `missionId` that names no Mission, as `getMission` and `getWorkPackage` have. `StreamRefusal`
+  now states the status of each `code` as a checkable rule: `negative`, `misaligned` and
+  `cursor_without_mission` carry `400`; `out_of_range` and `content_mismatch` carry `409`.
+- Pre-release shape change: `GET /missions` gains a `400` response (the shared `Problem`, code
+  `invalid_page_cursor`) for a malformed, forged or stale `pageCursor`.
+- Pre-release shape change: `StreamCursorString` accepts no leading zeros in the offset (pattern
+  `^(0|[1-9][0-9]*):[0-9a-f]{64}$`), so one cursor has one text. `StreamCursor.offset` and
+  `LogTruncatedEvent.detectedAtOffset` are `format: int64`, so a generated client does not use a
+  32-bit integer for a byte offset.
+- Pre-release shape change: `WpId` is `^WP[0-9]{2,}$`, the rule the planning-file reader enforces,
+  instead of any identifier-like text.
+- Pre-release shape change: `Staleness.reason` is an enum of the two reasons the code sets,
+  `planning_artifact_repo_root_shared_workspace` and `live_claim_process`, or null.
+- Pre-release shape change: `ReviewOverride` is present only for a complete override (`at`,
+  `actor` and `reason` all non-empty); a partial record and the release marker are projected as
+  null, so `at` stays a `date-time`.
+- Redaction is named in every human text field description: a host path is replaced by `[path]`
+  and an e-mail address by `[email]`. `promptMarkdown` is stated to be the one text field that is
+  not redacted; `includePrompt` is its only guard.
+- `MissionOverview.sparse` example now carries the `mid8` that its `missionId` implies; `mid8`
+  null is documented as a defensive branch. `friendlyName` documents the slug fallback as a rule
+  of this contract. `nextAction` is null for a Mission whose work packages are all canceled, a
+  deliberate divergence from the replaced dashboard. `executionMode` documents the stripping of
+  one pair of literal quotes. The per-work-package keys `lastTransitionAt`, `forceCount` and
+  `lastEventId` cite the work package state of the status snapshot.
+
 ### Removed
 
 - Nothing yet.
@@ -58,7 +91,7 @@ Initial entry. This version is not yet released.
 - `StreamRefusal.code` value `cursor_without_mission` is provisional: it is owned by this
   contract (the tail reader's `ResumeRefused` has no such reason and no HTTP mapping), so it is
   an open decision on #5528.
-- The event stream framing (`event:`, `id:`, `data:` lines) and the 30 second heartbeat are
+- The event stream framing (`event:`, `id:`, `data:` lines, which events carry an `id:` line) and the 30 second heartbeat are
   marked `x-provisional` on `GET /events`, and the `Last-Event-ID` precedence rule on the
   `streamCursor` parameter, as open decisions on #5528.
 - `StreamCursorString` is a deliberately stricter rule than the code: `validate_resume_cursor`

@@ -1,7 +1,10 @@
 title: ReviewOverride
 description: >-
   A recorded override of the review step: when it was recorded, by whom, and the stated reason.
-  It is present only when an operator overrode the review.
+  It is present only when an operator overrode the review and the record is complete: at, actor
+  and reason all non-empty. A partial record, and the release marker that clears an override (all
+  fields empty), are not review overrides and are projected as null, never as an object with
+  blank members.
 type: object
 additionalProperties: false
 required:
@@ -24,7 +27,7 @@ properties:
       symbol: ReviewOverride
   reason:
     type: string
-    description: The reason given for the override. Human text; a host path inside it is replaced by a fixed token.
+    description: The reason given for the override. Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`; only the matching text is replaced.
     x-source:
       path: src/specify_cli/status/models.py
       symbol: ReviewOverride
