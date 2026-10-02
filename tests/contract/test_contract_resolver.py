@@ -17,6 +17,7 @@ here by an executable scan, and the scan is shown to be able to fail.
 from __future__ import annotations
 
 import ast
+import functools
 import importlib.util
 import json
 import sys
@@ -286,12 +287,17 @@ def _string_literals(source: str) -> list[str]:
     return [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
 
 
+@functools.cache
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
 def _spelling_offenders(files: list[Path], fragments: tuple[str, ...]) -> list[Path]:
     """Files holding any fragment as a string literal; a file is parsed only if its text could hold one."""
     lowered = tuple(f.lower() for f in fragments)
     offenders: list[Path] = []
     for path in files:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = _read(path)
         if not any(fragment in text.lower() for fragment in lowered):
             continue
         try:
@@ -317,7 +323,7 @@ def test_scan_covers_a_meaningful_number_of_files() -> None:
 def test_brace_spelling_constant_is_assigned_in_the_resolver_only(resolver: ModuleType) -> None:
     assignments: list[Path] = []
     for path in _scan_files(SCAN_ROOTS):
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = _read(path)
         if "BRACE_REF_SPELLING" not in text:
             continue
         try:
