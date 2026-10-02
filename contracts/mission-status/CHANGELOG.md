@@ -22,6 +22,16 @@ Initial entry. This version is not yet released.
   `includePrompt` is true, the prompt body as `promptMarkdown`.
 - The path parameters `missionId` (a ULID, the only identifier accepted) and `wpId`, and the
   query parameter `includePrompt`.
+- `GET /events`: the change stream, served as `text/event-stream`, with exactly three event
+  names, each with one data schema: `status-transition` (`StatusTransitionEvent`),
+  `mission-lifecycle` (`MissionLifecycleEvent`, seven lifecycle types) and `log-truncated`
+  (`LogTruncatedEvent`, reasons `size_shrink` and `content_mismatch`, reset cursor). Raw log
+  rows are never forwarded. The framing, resume, heartbeat and per-Mission ordering are
+  documented as a convention in the operation description.
+- `StreamCursorString` (`offset:invariant`, the value of the `streamCursor` query parameter, the
+  `Last-Event-ID` header and the SSE `id`), `StreamRefusal` (a `Problem` whose `code` is
+  `negative`, `out_of_range`, `misaligned`, `content_mismatch` or `cursor_without_mission`) and
+  the query parameters `missionId` and `streamCursor` of `GET /events`.
 
 ### Changed
 
@@ -41,3 +51,7 @@ Initial entry. This version is not yet released.
 - `MissionOverview.nextAction` is provisional: its shape is an open decision on #5528.
 - `WorkPackage.staleness` is provisional: how staleness is measured, and whether v1 carries
   it, is an open decision on #5528. It is null when it was not computed.
+- `StreamCursorString`, the `Last-Event-ID` precedence rule and the HTTP status of each
+  `StreamRefusal` code (400 or 409) are provisional: the tail reader has no text form of its
+  cursor and no HTTP mapping, so they are open decisions on #5528. The event stream framing and
+  heartbeat interval are conventions of this contract and are likewise open.
