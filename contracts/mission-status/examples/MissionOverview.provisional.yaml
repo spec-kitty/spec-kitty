@@ -1,0 +1,37 @@
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+mid8: 01JZCB3C
+slug: example-mission-01JZCB3C
+friendlyName: Example Mission Gamma
+displayNumber: 13
+missionType: software-dev
+targetBranch: main
+topology: lanes_with_coord
+createdAt: '2026-09-22T10:30:00Z'
+statusLaneCounts:
+  planned: 0
+  claimed: 0
+  in_progress: 0
+  for_review: 0
+  in_review: 0
+  approved: 0
+  done: 4
+  blocked: 0
+  canceled: 1
+wpTotal: 5
+blockedCount: 0
+progress:
+  weightedPercentage: 80.0
+  donePercentage: 80.0
+  doneCount: 4
+  semantics: weighted_readiness
+lifecycleStatus: active
+acceptedAt: null
+mergedAt: '2026-09-26T12:00:00Z'
+discardedAt: null
+lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ02
+lastActivityAt: '2026-09-26T11:58:30Z'
+eventCount: 58
+streamCursor:
+  offset: 7340
+  invariant: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+nextAction: 'Run /spec-kitty.review in your coding agent, then: spec-kitty accept --mission example-mission-01JZCB3C'

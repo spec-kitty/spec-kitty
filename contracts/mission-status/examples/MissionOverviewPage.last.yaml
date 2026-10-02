@@ -1,0 +1,42 @@
+items:
+- missionId: 01JZDB3C4D5E6F7G8H9JKMNPQV
+  mid8: 01JZDB3C
+  slug: example-mission-01JZDB3C
+  friendlyName: Example Mission Delta
+  displayNumber: null
+  missionType: research
+  targetBranch: main
+  topology: single_branch
+  createdAt: '2026-09-18T07:45:00Z'
+  statusLaneCounts:
+    planned: 1
+    claimed: 0
+    in_progress: 0
+    for_review: 0
+    in_review: 0
+    approved: 0
+    done: 0
+    blocked: 0
+    canceled: 1
+  wpTotal: 2
+  blockedCount: 0
+  progress:
+    weightedPercentage: 0.0
+    donePercentage: 0.0
+    doneCount: 0
+    semantics: weighted_readiness
+  lifecycleStatus: discarded
+  acceptedAt: null
+  mergedAt: null
+  discardedAt: '2026-09-19T08:00:00Z'
+  lastEventId: 01JZAB3C4D5E6F7G8H9JKMNQ03
+  lastActivityAt: '2026-09-18T17:20:00Z'
+  eventCount: 9
+  streamCursor:
+    offset: 980
+    invariant: 2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+  nextAction: null
+pageInfo:
+  hasNextPage: false
+  nextPageCursor: null
+  pageSize: 2

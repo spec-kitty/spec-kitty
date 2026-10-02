@@ -1,0 +1,21 @@
+openapi: 3.1.0
+info:
+  title: Mission Status API
+  version: 1.0.0
+  summary: Read-only status of the Missions of one project.
+  description: >-
+    The contract of the Mission Status read API. This file holds the document header and the
+    map from each path to the file that defines it; every definition lives in a small file
+    next to it.
+servers:
+  - url: /api/v1
+tags:
+  - name: Project
+    description: The project header.
+  - name: Missions
+    description: Mission overviews.
+paths:
+  /project:
+    $ref: paths/project.yaml
+  /missions:
+    $ref: paths/missions.yaml
