@@ -1,10 +1,12 @@
-"""Planted-violation tests for ``contracts/tools/bundle.py`` (FR-014, FR-018).
+"""Planted-violation tests for ``contracts/tools/bundle.py`` (FR-014, FR-018; E-1 ruling of 2026-10-02).
 
-There is no JVM in the unit-test environment, so the Gradle run is replaced by an
-injected runner that writes a chosen fixture bundle where the real build would
-(``<out>/bundle/<module>/openapi.yaml``) and returns the canned build output. The
-real Gradle step is exercised only by the Contracts workflow. Each violation is
-asserted on its own planted fixture with a clean control on the same module.
+The released single-file contract is written by the Python resolver, byte-deterministically, and
+is faithful to OpenAPI 3.1 (the openapi-yaml generator drops ``const``, ``unevaluatedProperties``,
+``x-provisional`` and more, so it is never an artefact). The JVM build only *consumes* it: it
+validates the split root and the written bundle and re-emits the bundle as the Java parser sees it
+(``javaview``, used by the parity check). There is no JVM in the unit-test environment, so the Gradle
+run is an injected runner and the resolver step is real. Each violation is asserted on its own planted
+fixture with a clean control.
 """
 
 from __future__ import annotations
@@ -13,11 +15,13 @@ import importlib.util
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
+import yaml
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -25,11 +29,15 @@ TOOLS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "tools"
 FIXTURES = TOOLS_DIR / "fixtures" / "bundle"
 CLEAN_ROOT = FIXTURES / "roots" / "clean"
 NO_ROOT = FIXTURES / "roots" / "no_root"
+SPIKE_ROOT = TOOLS_DIR / "fixtures" / "spike"
+PLANTS_ROOT = TOOLS_DIR / "fixtures" / "client_smoke" / "plants"
 SCRIPT = TOOLS_DIR / "bundle.py"
+
+Runner = Callable[[list[str]], tuple[int, str]]
 
 
 @pytest.fixture(scope="module")
-def bundler() -> ModuleType:
+def bundler() -> Iterator[ModuleType]:
     sys.path.insert(0, str(TOOLS_DIR))
     try:
         spec = importlib.util.spec_from_file_location("bundle_under_test", SCRIPT)
@@ -37,43 +45,100 @@ def bundler() -> ModuleType:
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
+        yield module
     finally:
         sys.path.remove(str(TOOLS_DIR))
-    return module
 
 
 def _tool(name: str) -> str | None:
     return f"/fixture/bin/{name}"
 
 
-def _fake_gradle(fixture: str | None, *, returncode: int = 0, output: str = "BUILD SUCCESSFUL") -> Callable[[list[str]], tuple[int, str]]:
-    """A runner that writes ``fixture`` as the bundle of every module whose bundle task it is asked to run."""
-
-    def run(command: list[str]) -> tuple[int, str]:
-        out_dir = Path(next(part.split("=", 1)[1] for part in command if part.startswith("-PoutDir=")))
-        for task in command:
-            if task.startswith("bundle_") and fixture is not None:
-                target = out_dir / "bundle" / task.removeprefix("bundle_") / "openapi.yaml"
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(FIXTURES / f"{fixture}.yaml", target)
+def _gradle(returncode: int = 0, output: str = "BUILD SUCCESSFUL") -> Runner:
+    def run(_command: list[str]) -> tuple[int, str]:
         return returncode, output
 
     return run
 
 
-def _run(
-    bundler: ModuleType, root: Path, out: Path, runner: Callable[[list[str]], tuple[int, str]], *extra: str, which: Callable[[str], str | None] = _tool
-) -> tuple[int, str]:
+def _run(bundler: ModuleType, root: Path, out: Path, runner: Runner, *extra: str, which: Callable[[str], str | None] = _tool) -> tuple[int, str]:
     lines: list[str] = []
     code = bundler.run(["--root", str(root), "--out", str(out), *extra], runner=runner, which=which, out=lines.append)
     return code, "\n".join(lines)
 
 
-def test_clean_control_bundles_and_prints_counts(bundler: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle("ok_bundle"))
+def _bundle(out: Path, module: str = "full") -> dict[str, Any]:
+    loaded = yaml.safe_load((out / "bundle" / module / "openapi.yaml").read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+# -- the released bundle is written by the resolver ------------------------------------------------
+
+
+def test_clean_control_writes_and_checks_the_bundle_and_prints_counts(bundler: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(), "--module", "full")
 
     assert code == 0, output
     assert output.splitlines()[-1] == "counts: modules=1 bundles=1 path_items=5"
+
+
+def test_the_bundle_keeps_every_31_construct_the_openapi_yaml_generator_dropped(bundler: ModuleType, tmp_path: Path) -> None:
+    _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(), "--module", "full")
+    document = _bundle(tmp_path / "out")
+    mission = document["paths"]["/missions/{missionId}"]["get"]["responses"]["200"]["content"]["application/json"]
+    schema = mission["schema"]
+    pong = document["paths"]["/ping"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+
+    assert document["info"]["summary"].startswith("A one-module fixture"), "info.summary is kept"
+    assert pong["properties"]["ok"] == {"const": True} and pong["additionalProperties"] is False, "const and closed objects are kept"
+    assert schema["unevaluatedProperties"] is False and schema["properties"]["kind"] == {"const": "mission"}
+    assert schema["properties"]["title"]["type"] == ["string", "null"], "type arrays are kept, not rewritten to nullable"
+    assert "x-provisional" in schema["properties"]["nextAction"] and "x-provisional" in schema["properties"]["stale"]
+    assert schema["properties"]["nextAction"]["oneOf"][1] == {"type": "null"}, "oneOf with null is kept"
+    assert schema["properties"]["summary"]["description"].startswith("A sibling keyword"), "$ref siblings are kept"
+    assert schema["x-source"]["symbol"] == "Mission" and schema["properties"]["isDone"]["x-derived"]["inputs"] == ["lifecycle", "workPackages"]
+    assert schema["examples"] and "example" not in schema, "the authored examples list is kept and nothing is invented"
+    assert mission["examples"]["discarded"]["value"]["title"] is None, "null members of an Example Object are kept"
+    assert "text/event-stream" in document["paths"]["/missions/{missionId}/events"]["get"]["responses"]["200"]["content"]
+
+
+def test_the_bundle_is_the_resolver_tree_and_holds_no_reference(bundler: ModuleType, tmp_path: Path) -> None:
+    sys.path.insert(0, str(TOOLS_DIR))
+    try:
+        import contract_resolver
+
+        tree = contract_resolver.resolve(SPIKE_ROOT / "full").tree
+    finally:
+        sys.path.remove(str(TOOLS_DIR))
+    _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(), "--module", "full")
+    text = (tmp_path / "out" / "bundle" / "full" / "openapi.yaml").read_text(encoding="utf-8")
+
+    assert yaml.safe_load(text) == tree
+    assert "$ref" not in text
+
+
+def test_two_runs_write_byte_identical_bundles_with_a_documented_key_order(bundler: ModuleType, tmp_path: Path) -> None:
+    _run(bundler, SPIKE_ROOT, tmp_path / "a", _gradle(), "--module", "full")
+    _run(bundler, SPIKE_ROOT, tmp_path / "b", _gradle(), "--module", "full")
+    first = (tmp_path / "a" / "bundle" / "full" / "openapi.yaml").read_bytes()
+    second = (tmp_path / "b" / "bundle" / "full" / "openapi.yaml").read_bytes()
+
+    assert first == second
+    assert first.endswith(b"\n") and not first.endswith(b"\n\n")
+    top = list(yaml.safe_load(first))
+    assert top == [key for key in bundler.TOP_LEVEL_ORDER if key in top], "top-level keys follow the documented order"
+    assert list(yaml.safe_load(first)["info"]) == sorted(yaml.safe_load(first)["info"]), "every other mapping is key-sorted"
+
+
+def test_rendering_is_independent_of_the_source_key_order(bundler: ModuleType) -> None:
+    one = {"paths": {}, "openapi": "3.1.0", "info": {"b": 1, "a": 2}}
+    other = {"info": {"a": 2, "b": 1}, "openapi": "3.1.0", "paths": {}}
+
+    assert bundler.render_bundle(one) == bundler.render_bundle(other)
+
+
+# -- planted bundle violations -----------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -86,30 +151,58 @@ def test_clean_control_bundles_and_prints_counts(bundler: ModuleType, tmp_path: 
     ],
 )
 def test_each_planted_bundle_fails_with_its_code_naming_the_module(bundler: ModuleType, tmp_path: Path, fixture: str, expected: str) -> None:
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle(fixture))
+    staged = tmp_path / "bundle" / "alpha"
+    staged.mkdir(parents=True)
+    shutil.copy(FIXTURES / f"{fixture}.yaml", staged / "openapi.yaml")
+    report = bundler.Report()
+
+    bundler.check_bundle("alpha", tmp_path, 5, report)
+
+    assert [line.split(": ")[1] for line in report.findings] == [expected]
+    assert report.findings[0].startswith(f"CONTRACT-CHECK bundle: {expected}: alpha")
+
+
+def test_an_absent_bundle_file_is_an_empty_bundle_and_names_what_was_staged(bundler: ModuleType, tmp_path: Path) -> None:
+    stray = tmp_path / "bundle" / "alpha" / "openapi" / "openapi.yaml"
+    stray.parent.mkdir(parents=True)
+    stray.write_text("openapi: 3.1.0\n", encoding="utf-8")
+    report = bundler.Report()
+
+    bundler.check_bundle("alpha", tmp_path, 5, report)
+
+    assert "BUNDLE_EMPTY: alpha" in report.findings[0] and "openapi/openapi.yaml" in report.findings[0]
+
+
+def test_a_module_below_the_path_floor_fails_and_the_floor_is_a_parameter(bundler: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "a", _gradle())
+    relaxed_code, _ = _run(bundler, CLEAN_ROOT, tmp_path / "b", _gradle(), "--min-paths", "0")
+
+    assert code == 1 and "FEWER_THAN_FIVE_PATHS: alpha" in output
+    assert relaxed_code == 0
+
+
+def test_a_module_the_resolver_refuses_is_a_violation_and_never_reaches_gradle(bundler: ModuleType, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(command: list[str]) -> tuple[int, str]:
+        calls.append(command)
+        return 0, ""
+
+    code, output = _run(bundler, PLANTS_ROOT, tmp_path / "out", runner, "--module", "dangling_ref", "--min-paths", "0")
 
     assert code == 1
-    assert f"CONTRACT-CHECK bundle: {expected}: alpha" in output
-    assert output.splitlines()[-1].startswith("counts: modules=1 ")
+    assert "CONTRACT-CHECK bundle: RESOLVE_FAILED: dangling_ref: UNRESOLVED_REF" in output
+    assert calls == []
+    assert output.splitlines()[-1] == "counts: modules=1 bundles=0 path_items=0"
 
 
-def test_a_missing_bundle_file_is_an_empty_bundle(bundler: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle(None))
-
-    assert code == 1
-    assert "BUNDLE_EMPTY: alpha" in output
-
-
-def test_the_floor_is_a_parameter_and_defaults_to_five(bundler: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle("few_paths_bundle"), "--min-paths", "4")
-
-    assert code == 0, output
+# -- cannot do the job -------------------------------------------------------------------------------
 
 
 def test_no_module_cannot_do_its_job(bundler: ModuleType, tmp_path: Path) -> None:
     (tmp_path / "empty").mkdir()
 
-    code, output = _run(bundler, tmp_path / "empty", tmp_path / "out", _fake_gradle("ok_bundle"))
+    code, output = _run(bundler, tmp_path / "empty", tmp_path / "out", _gradle())
 
     assert code == 2
     assert "NO_MODULE" in output
@@ -117,7 +210,7 @@ def test_no_module_cannot_do_its_job(bundler: ModuleType, tmp_path: Path) -> Non
 
 
 def test_a_module_directory_without_a_root_document_cannot_do_its_job(bundler: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(bundler, NO_ROOT, tmp_path / "out", _fake_gradle("ok_bundle"))
+    code, output = _run(bundler, NO_ROOT, tmp_path / "out", _gradle())
 
     assert code == 2
     assert "MODULE_WITHOUT_ROOT: orphan" in output
@@ -128,59 +221,74 @@ def test_a_missing_tool_cannot_do_its_job(bundler: ModuleType, tmp_path: Path, m
     def which(name: str) -> str | None:
         return None if name == missing else _tool(name)
 
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle("ok_bundle"), which=which)
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(), "--module", "full", which=which)
 
     assert code == 2
     assert expected in output
+
+
+_CONFIG_FAILURE = (
+    "FAILURE: Build failed with an exception.\n\n* Where:\nBuild file 'contracts/build.gradle' line: 25\n\n* What went wrong:\n"
+    "A problem occurred configuring root project 'contracts'.\n> Could not create task ':validate_full'.\n"
+)
 
 
 @pytest.mark.parametrize(
     ("canned", "expected"),
     [
-        ("gradle_plugin_failure.txt", "PLUGIN_RESOLUTION_FAILED"),
-        ("gradle_verification_failure.txt", "DEPENDENCY_VERIFICATION_FAILED"),
+        ((FIXTURES / "gradle_plugin_failure.txt").read_text(encoding="utf-8"), "PLUGIN_RESOLUTION_FAILED"),
+        ((FIXTURES / "gradle_verification_failure.txt").read_text(encoding="utf-8"), "DEPENDENCY_VERIFICATION_FAILED"),
+        (_CONFIG_FAILURE, "BUILD_SCRIPT_FAILED"),
     ],
 )
 def test_toolchain_failures_cannot_do_the_job(bundler: ModuleType, tmp_path: Path, canned: str, expected: str) -> None:
-    text = (FIXTURES / canned).read_text(encoding="utf-8")
-
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle(None, returncode=1, output=text))
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(1, canned), "--module", "full")
 
     assert code == 2
     assert expected in output
 
 
-def test_a_rejected_specification_is_a_violation_not_a_toolchain_failure(bundler: ModuleType, tmp_path: Path) -> None:
-    text = (FIXTURES / "gradle_validation_failure.txt").read_text(encoding="utf-8")
+@pytest.mark.parametrize("task", ["validate_full", "validateBundle_full"])
+def test_a_rejected_specification_is_a_violation_for_the_split_root_and_for_the_bundle(bundler: ModuleType, tmp_path: Path, task: str) -> None:
+    text = f"Spec is invalid.\n\nIssues:\n\n\tattribute paths.'/p0'(get).responses is missing\n\n* What went wrong:\nExecution failed for task ':{task}'.\n"
 
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle(None, returncode=1, output=text))
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(1, text), "--module", "full")
 
     assert code == 1
-    assert "VALIDATION_FAILED: alpha" in output
-    assert "attribute paths" in output, "the validator's own message is carried"
+    assert "VALIDATION_FAILED: full" in output and "attribute paths" in output
 
 
 def test_output_inside_the_repository_is_refused(bundler: ModuleType) -> None:
-    code, output = _run(bundler, CLEAN_ROOT, TOOLS_DIR / "bundle-output-must-not-be-here", _fake_gradle("ok_bundle"))
+    code, output = _run(bundler, SPIKE_ROOT, TOOLS_DIR / "bundle-output-must-not-be-here", _gradle(), "--module", "full")
 
     assert code == 2
     assert "OUT_INSIDE_REPOSITORY" in output
 
 
-def test_the_gradle_command_pins_the_inputs_and_never_uses_a_daemon(bundler: ModuleType, tmp_path: Path) -> None:
+def test_the_gradle_command_validates_the_split_root_and_the_bundle_and_never_uses_a_daemon(bundler: ModuleType, tmp_path: Path) -> None:
     seen: list[list[str]] = []
 
     def runner(command: list[str]) -> tuple[int, str]:
         seen.append(command)
-        return _fake_gradle("ok_bundle")(command)
+        return 0, ""
 
-    _run(bundler, CLEAN_ROOT, tmp_path / "out", runner, "--write-verification-metadata")
+    _run(bundler, SPIKE_ROOT, tmp_path / "out", runner, "--module", "full", "--write-verification-metadata")
 
     command = seen[0]
-    assert command[0] == "/fixture/bin/gradle"
-    assert "--no-daemon" in command and any(part.startswith("-PcontractsRoot=") for part in command)
+    assert command[0] == "/fixture/bin/gradle" and "--no-daemon" in command
+    assert any(part.startswith("-PcontractsRoot=") for part in command) and any(part.startswith("-PoutDir=") for part in command)
     assert command[command.index("--write-verification-metadata") + 1] == "sha256"
-    assert [part for part in command if part.startswith(("validate_", "bundle_"))] == ["validate_alpha", "bundle_alpha"]
+    assert [part for part in command if "_" in part and part.split("_")[0] in {"validate", "validateBundle", "javaView"}] == [
+        "validate_full",
+        "validateBundle_full",
+        "javaView_full",
+    ]
+
+
+def test_verbose_prints_the_gradle_output(bundler: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(0, "GRADLE-TRANSCRIPT-LINE"), "--module", "full", "--verbose")
+
+    assert code == 0 and "GRADLE-TRANSCRIPT-LINE" in output
 
 
 def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path: Path) -> None:
@@ -190,30 +298,3 @@ def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path:
 
     assert result.returncode == 2
     assert result.stdout.splitlines()[-1] == "counts: modules=0 bundles=0 path_items=0"
-
-
-def test_verbose_prints_the_gradle_output_and_an_empty_bundle_lists_what_was_staged(bundler: ModuleType, tmp_path: Path) -> None:
-    def runner(command: list[str]) -> tuple[int, str]:
-        out_dir = Path(next(part.split("=", 1)[1] for part in command if part.startswith("-PoutDir=")))
-        stray = out_dir / "bundle" / "alpha" / "openapi" / "openapi.yaml"
-        stray.parent.mkdir(parents=True)
-        stray.write_text("openapi: 3.1.0\n", encoding="utf-8")
-        return 0, "GRADLE-TRANSCRIPT-LINE"
-
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", runner, "--verbose")
-
-    assert code == 1
-    assert "GRADLE-TRANSCRIPT-LINE" in output
-    assert "BUNDLE_EMPTY: alpha" in output and "openapi/openapi.yaml" in output, "the file the generator did write is named"
-
-
-def test_a_build_script_that_fails_to_configure_is_a_toolchain_failure_not_a_rejected_module(bundler: ModuleType, tmp_path: Path) -> None:
-    text = (
-        "FAILURE: Build failed with an exception.\n\n* Where:\nBuild file 'contracts/build.gradle' line: 25\n\n* What went wrong:\n"
-        "A problem occurred configuring root project 'contracts'.\n> Could not create task ':validate_alpha'.\n"
-    )
-
-    code, output = _run(bundler, CLEAN_ROOT, tmp_path / "out", _fake_gradle(None, returncode=1, output=text))
-
-    assert code == 2
-    assert "BUILD_SCRIPT_FAILED" in output
