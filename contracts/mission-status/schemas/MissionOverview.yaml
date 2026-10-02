@@ -1,0 +1,243 @@
+title: MissionOverview
+description: >-
+  The overview of one Mission: its identity, branch shape, work package counts, progress,
+  lifecycle state and the position of its event log. Every field is defined here and nowhere
+  else; displayNumber is display-only and is never an identifier.
+type: object
+additionalProperties: false
+required:
+  - missionId
+  - mid8
+  - slug
+  - friendlyName
+  - displayNumber
+  - missionType
+  - targetBranch
+  - topology
+  - createdAt
+  - statusLaneCounts
+  - wpTotal
+  - blockedCount
+  - progress
+  - lifecycleStatus
+  - acceptedAt
+  - mergedAt
+  - discardedAt
+  - lastEventId
+  - lastActivityAt
+  - eventCount
+  - streamCursor
+  - nextAction
+properties:
+  missionId:
+    $ref: MissionId.yaml
+    description: The canonical machine identity of the Mission (a 26-character ULID), the only identifier clients may use for lookup.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionIdentity
+  mid8:
+    type:
+      - string
+      - 'null'
+    pattern: '^[0-9A-HJKMNP-TV-Z]{8}$'
+    description: The first eight characters of the Mission identity, used to disambiguate branch and worktree names; null when the Mission has no identity, never an empty string.
+    x-source:
+      path: src/mission_runtime/identity.py
+      symbol: resolve_mid8
+  slug:
+    type: string
+    minLength: 1
+    description: The human handle of the Mission, a kebab-case slug fixed when the Mission was created.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionMetaRequired
+  friendlyName:
+    type: string
+    minLength: 1
+    description: The human display name of the Mission, the friendly_name key of its meta.json; the slug stands in when the key is empty.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionMetaRequired
+  displayNumber:
+    type:
+      - integer
+      - 'null'
+    description: >-
+      A display-only sequence number assigned when the Mission is consolidated; null before
+      that. It is not unique, repeats across Missions, and must never be used as an identifier.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionIdentity
+  missionType:
+    type:
+      - string
+      - 'null'
+    description: The kind of Mission, as an open string (new kinds may appear without a contract change); null when none is recorded.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionMetaRequired
+  targetBranch:
+    type: string
+    minLength: 1
+    description: The branch the Mission lands on, as recorded in its meta.json.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionMetaRequired
+  topology:
+    $ref: Topology.yaml
+    description: >-
+      The stored shape of the Mission's branches and lanes; unknown when none is stored or
+      the stored value is not one of the four known shapes.
+    x-source:
+      path: src/mission_runtime/context.py
+      symbol: MissionTopology
+  createdAt:
+    type: string
+    format: date-time
+    description: When the Mission was created, an RFC 3339 date-time with an offset.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionMetaRequired
+  statusLaneCounts:
+    $ref: StatusLaneCounts.yaml
+    description: How many work packages sit in each of the nine status lanes; every key is present and none are grouped.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  wpTotal:
+    type: integer
+    minimum: 0
+    description: >-
+      The number of work packages the status model holds for the Mission, that is the length
+      of the snapshot's work package map. It can differ from the number of work package
+      files, because a work package without events is not counted.
+    x-source:
+      path: src/specify_cli/status/progress.py
+      symbol: ProgressResult
+  blockedCount:
+    type: integer
+    minimum: 0
+    description: The number of work packages in the blocked status lane.
+    x-derived:
+      rule: Equal to statusLaneCounts.blocked.
+      inputs:
+        - statusLaneCounts.blocked
+  progress:
+    $ref: MissionProgress.yaml
+    description: Weighted readiness and done-only completion of the Mission, computed from the status lanes of its work packages.
+    x-source:
+      path: src/specify_cli/status/progress.py
+      symbol: compute_weighted_progress
+  lifecycleStatus:
+    $ref: LifecycleStatus.yaml
+    description: >-
+      The Mission lifecycle state, derived in this order. 1: discardedAt is set, so
+      discarded. 2: wpTotal is 0 (including an unreadable event log), so draft. 3: any work
+      package is claimed, in_progress, for_review, in_review or approved, so active. 4:
+      otherwise, any work package planned or blocked, so planned. 5: otherwise (every work
+      package done or canceled), active until acceptedAt is set, then done. Two quirks are
+      part of the rule: a Mission whose only remaining work packages are blocked reads as
+      planned, and a Mission whose work packages are all canceled reads as done once
+      acceptedAt is set.
+    x-derived:
+      rule: >-
+        Evaluated in order: discardedAt set gives discarded; wpTotal 0 gives draft; any work
+        package claimed, in_progress, for_review, in_review or approved gives active; any
+        planned or blocked work package gives planned; otherwise active until acceptedAt is
+        set, then done.
+      inputs:
+        - statusLaneCounts
+        - wpTotal
+        - discardedAt
+        - acceptedAt
+  acceptedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: When the Mission was accepted, or null while it is not accepted.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: MissionMetaOptional
+  mergedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: When the Mission was consolidated into its target branch, or null before that. Recorded together with the post-consolidation review baseline.
+    x-source:
+      path: src/specify_cli/consolidation/baseline.py
+      symbol: record_baseline_merge_commit
+  discardedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      When the Mission was abandoned, or null. It is the discarded_at key of the raw mapping
+      that load_meta returns; no typed dictionary declares it.
+    x-source:
+      path: src/specify_cli/mission_metadata.py
+      symbol: load_meta
+  lastEventId:
+    type:
+      - string
+      - 'null'
+    description: The identifier of the last event in the Mission's event log, or null when the log is empty.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  lastActivityAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      The latest moment any work package changed status lane, or null when none has. There is
+      no Mission-level event time, so this is the maximum over the work packages.
+    x-derived:
+      rule: The maximum last_transition_at over the work packages of the status snapshot; null when no work package has one.
+      inputs:
+        - path: src/specify_cli/status/models.py
+          symbol: StatusSnapshot
+  eventCount:
+    type: integer
+    minimum: 0
+    description: The number of events in the Mission's event log.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  streamCursor:
+    $ref: StreamCursor.yaml
+    description: The position at the end of the Mission's event log, from which a stream resumes. Offset 0 with the empty-input digest means an empty log.
+    x-source:
+      path: src/specify_cli/status/tail_reader.py
+      symbol: TailCursor
+  nextAction:
+    type:
+      - string
+      - 'null'
+    description: >-
+      A provisional hint for the operator, or null. It is one of two English sentences, both
+      embedding the Mission slug: the review-then-accept sentence when the Mission carries a
+      merge baseline and is not accepted, or the consolidate sentence when every work package
+      is done or canceled with at least one done and the Mission is not accepted. It is null
+      once the Mission is accepted and in every other case. The shape is undecided; see the
+      open decision on #5528.
+    x-provisional:
+      open_decision: Whether v1 carries a next-action hint at all, and whether it is prose or a structured value, is open on #5528.
+    x-derived:
+      rule: >-
+        Null when acceptedAt is set. Otherwise the review-then-accept sentence when the
+        meta.json carries a baseline_merge_commit; otherwise the consolidate sentence when
+        every work package is done or canceled and at least one is done; otherwise null.
+      inputs:
+        - statusLaneCounts
+        - acceptedAt
+        - path: src/specify_cli/consolidation/baseline.py
+          symbol: record_baseline_merge_commit
+examples:
+  - $ref: ../examples/MissionOverview.populated.yaml
+  - $ref: ../examples/MissionOverview.sparse.yaml
+  - $ref: ../examples/MissionOverview.provisional.yaml
+  - $ref: ../examples/MissionOverview.discarded.yaml

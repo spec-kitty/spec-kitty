@@ -1,0 +1,72 @@
+title: StatusLaneCounts
+description: >-
+  The number of work packages in each status lane. All nine keys are always present, a lane
+  with no work packages counts 0, and no lanes are grouped. A work package with no events is
+  in none of them.
+type: object
+additionalProperties: false
+required: [planned, claimed, in_progress, for_review, in_review, approved, done, blocked, canceled]
+properties:
+  planned:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is planned.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  claimed:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is claimed.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  in_progress:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is in_progress.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  for_review:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is for_review.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  in_review:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is in_review.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  approved:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is approved.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  done:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is done.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  blocked:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is blocked.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot
+  canceled:
+    type: integer
+    minimum: 0
+    description: The number of work packages whose current status lane is canceled.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusSnapshot

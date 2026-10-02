@@ -1,0 +1,38 @@
+title: MissionProgress
+description: >-
+  How far a Mission has progressed, computed from its work package status lanes. The weighted
+  figure is readiness, not completion; the done-only figure counts finished work packages.
+type: object
+additionalProperties: false
+required: [weightedPercentage, donePercentage, doneCount, semantics]
+properties:
+  weightedPercentage:
+    type: number
+    minimum: 0
+    maximum: 100
+    description: Lane-weighted readiness of the Mission as a percentage from 0 to 100, rounded to four decimals; 0 when there are no work packages.
+    x-source:
+      path: src/specify_cli/status/progress.py
+      symbol: compute_weighted_progress
+  donePercentage:
+    type: number
+    minimum: 0
+    maximum: 100
+    description: The percentage of work packages in the done lane, rounded to four decimals; 0 when there are no work packages.
+    x-source:
+      path: src/specify_cli/status/progress.py
+      symbol: ProgressResult
+  doneCount:
+    type: integer
+    minimum: 0
+    description: The number of work packages in the done lane.
+    x-source:
+      path: src/specify_cli/status/progress.py
+      symbol: ProgressResult
+  semantics:
+    type: string
+    const: weighted_readiness
+    description: Names what weightedPercentage means. It is always weighted_readiness, a readiness measure and not a completion measure.
+    x-source:
+      path: src/specify_cli/status/progress.py
+      symbol: PROGRESS_SEMANTICS
