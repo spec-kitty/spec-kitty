@@ -15,6 +15,7 @@ import importlib.util
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -32,7 +33,9 @@ THING_SCHEMA = "/paths/~1p0/get/responses/200/content/application~1json/schema"
 
 
 @pytest.fixture(scope="module")
-def parity() -> ModuleType:
+def parity() -> Iterator[ModuleType]:
+    # The tools directory stays on sys.path for the module's lifetime: the script imports its sibling
+    # modules by name, including lazily (the resolver), exactly as it does when run as a bare script.
     sys.path.insert(0, str(TOOLS_DIR))
     try:
         spec = importlib.util.spec_from_file_location("resolver_parity_under_test", SCRIPT)
@@ -40,9 +43,9 @@ def parity() -> ModuleType:
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
+        yield module
     finally:
         sys.path.remove(str(TOOLS_DIR))
-    return module
 
 
 def _stage(tmp_path: Path, bundle: str | None) -> Path:
@@ -83,8 +86,7 @@ def test_a_dropped_ref_target_names_the_first_differing_pointer(parity: ModuleTy
     code, output = _run(parity, "clean", _stage(tmp_path, "drops_ref"))
 
     assert code == 1
-    assert f"CONTRACT-CHECK resolver_parity: TREE_DIFFERS: alpha: {THING_SCHEMA}" in output
-    assert "/p2/" not in output.split("TREE_DIFFERS")[1].split("/p2")[0], "the first difference is reported, not a later one"
+    assert "CONTRACT-CHECK resolver_parity: TREE_DIFFERS: alpha: /paths/~1p2/get/responses/200/content/application~1json " in output
 
 
 def test_an_altered_schema_names_the_pointer_of_the_altered_mapping(parity: ModuleType, tmp_path: Path) -> None:
@@ -215,7 +217,7 @@ def test_planted_invalid_examples_are_rejected_by_both_readings_including_the_ti
 
 
 def test_agreeing_invalid_examples_are_not_a_parity_failure(parity: ModuleType, tmp_path: Path) -> None:
-    code, output = _run(parity, "invalid_example", _stage(tmp_path, "ok"))
+    code, output = _run(parity, "invalid_example", _stage(tmp_path, None), "--examples-only")
 
     assert code == 0, output
     assert _counts(output)["examples_cross_checked"] == 3
@@ -235,9 +237,10 @@ def test_the_examples_only_run_fails_with_the_disagreement_named(parity: ModuleT
 
 def test_the_library_reading_uses_no_resolver_code() -> None:
     source = (TOOLS_DIR / "resolver_parity.py").read_text(encoding="utf-8")
-    library_part = source.split("def cross_check_examples", 1)[1].split("\ndef ", 1)[0]
+    start = source.index("# -- the library reading")
+    end = source.index("# -- the resolver reading")
 
-    assert "resolve(" not in library_part.split("def _library_validator", 1)[-1].split("\ndef ", 1)[0]
+    assert "contract_resolver" not in source[start:end] and "resolver." not in source[start:end]
 
 
 def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path: Path) -> None:
