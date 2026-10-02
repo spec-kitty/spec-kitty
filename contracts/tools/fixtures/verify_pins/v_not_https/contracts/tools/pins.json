@@ -4,7 +4,7 @@
       "name": "gradle",
       "kind": "archive",
       "version": "1.0",
-      "url": "http://example.invalid/tool-1.0.zip",
+      "url": "http://example.invalid/tool-1.0.bin",
       "sha256": "56041e4ee0a24a42dac2f5d1774519dd4548a2fbba2c9b72d75a21b47fb1d9bc",
       "published": "2026-05-07",
       "advisory_feed_checked": "fixture advisory feed read, nothing listed"
