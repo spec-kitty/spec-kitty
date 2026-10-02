@@ -1,0 +1,25 @@
+{
+  "modules": {
+    "mission-status": [
+      {"schema": "Project", "example": "Project.example.yaml", "reason": "resource: the project"},
+      {"schema": "MissionOverview", "example": "MissionOverview.populated.yaml", "reason": "resource: a Mission overview"},
+      {"schema": "MissionOverview", "example": "MissionOverview.sparse.yaml", "reason": "resource: a Mission overview with unknown fields"},
+      {"schema": "MissionOverview", "example": "MissionOverview.provisional.yaml", "reason": "a populated provisional field validates (FR-011)"},
+      {"schema": "MissionOverview", "example": "MissionOverview.discarded.yaml", "reason": "a discarded Mission (FR-005)"},
+      {"schema": "MissionOverviewPage", "example": "MissionOverviewPage.first.yaml", "reason": "page cursor: first page"},
+      {"schema": "MissionOverviewPage", "example": "MissionOverviewPage.middle.yaml", "reason": "page cursor: a middle page"},
+      {"schema": "MissionOverviewPage", "example": "MissionOverviewPage.last.yaml", "reason": "page cursor: last page"},
+      {"schema": "MissionDetail", "example": "MissionDetail.populated.yaml", "reason": "resource: a Mission in detail"},
+      {"schema": "WorkPackage", "example": "WorkPackage.populated.yaml", "reason": "resource: a work package"},
+      {"schema": "WorkPackage", "example": "WorkPackage.provisional.yaml", "reason": "a populated provisional field validates (FR-011)"},
+      {"schema": "StatusTransitionEvent", "example": "StatusTransitionEvent.moved.yaml", "reason": "event kind: status-transition"},
+      {"schema": "MissionLifecycleEvent", "example": "MissionLifecycleEvent.mission-created.yaml", "reason": "event kind: mission-lifecycle"},
+      {"schema": "LogTruncatedEvent", "example": "LogTruncatedEvent.size-shrink.yaml", "reason": "event kind: log-truncated"},
+      {"schema": "StreamRefusal", "example": "StreamRefusal.negative.yaml", "reason": "stream refusal: negative"},
+      {"schema": "StreamRefusal", "example": "StreamRefusal.out-of-range.yaml", "reason": "stream refusal: out_of_range"},
+      {"schema": "StreamRefusal", "example": "StreamRefusal.misaligned.yaml", "reason": "stream refusal: misaligned"},
+      {"schema": "StreamRefusal", "example": "StreamRefusal.content-mismatch.yaml", "reason": "stream refusal: content_mismatch"},
+      {"schema": "StreamRefusal", "example": "StreamRefusal.cursor-without-mission.yaml", "reason": "stream refusal: cursor_without_mission"}
+    ]
+  }
+}
