@@ -1,0 +1,169 @@
+# Contracts: validates, bundles and cross-checks the machine-readable contracts under contracts/.
+# Skeleton (IC-07a): the bundler-fidelity and client-smoke spike plus the first two jobs. Later
+# work packages extend this file in order (never in parallel). Node is not used anywhere (C-005),
+# pytest never runs here, and no tool or Gradle directory is cached.
+name: Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/CODEOWNERS'
+      - '.github/workflows/contracts.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - '.github/CODEOWNERS'
+      - '.github/workflows/contracts.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The spike points the scripts at the one-module fixture; the real module replaces it later.
+  CONTRACTS_ROOT: contracts/tools/fixtures/spike
+
+jobs:
+  validate-bundle:
+    # A root job: it carries the canonical fork guard as the first conjunct.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # Prelude: the only Python install form (FR-018, plan D-P12).
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen --no-install-project
+      # The JDK is an action pinned by SHA; Gradle and the generator plugin come from pins.json.
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install the pinned toolchain
+        run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins contracts/tools/pins.json --dest "$RUNNER_TEMP/tools"
+      # SPIKE-ONLY: with no committed verification-metadata.xml yet, record the checksums of everything
+      # Gradle resolves. The file is generated here, downloaded from the artifact and committed, never hand-edited.
+      - name: Write the Gradle dependency verification metadata (first run only)
+        if: hashFiles('contracts/gradle/verification-metadata.xml') == ''
+        continue-on-error: true
+        run: |
+          uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/metadata-out" --module full --write-verification-metadata
+          uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/metadata-out" --module full --write-verification-metadata
+      - name: Upload the generated verification metadata
+        if: always() && hashFiles('contracts/gradle/verification-metadata.xml') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gradle-verification-metadata
+          path: contracts/gradle/verification-metadata.xml
+          if-no-files-found: warn
+          overwrite: true
+      - name: Validate and bundle every module
+        run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full
+      # The client smoke is non-failing only while the spike runs; it becomes failing with the hardening work package.
+      - name: Generate a TypeScript client from the split root (smoke)
+        if: always()
+        continue-on-error: true
+        run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full
+      # SPIKE-ONLY: observations that are never gates. Each prints the tool's exit status and output.
+      - name: "Spike: brace spelling candidates (bundle and client)"
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          for m in brace_raw brace_pct_lower; do
+            echo "::group::bundle $m"
+            uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m" --min-paths 1
+            echo "SPIKE-RESULT bundle $m exit=$?"
+            echo "::endgroup::"
+            echo "::group::client $m"
+            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m"
+            echo "SPIKE-RESULT client $m exit=$?"
+            echo "::endgroup::"
+          done
+      - name: "Spike: which plant makes the pinned generator exit non-zero"
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          for p in dangling_ref dangling_pointer cycle invalid_type; do
+            echo "::group::plant $p"
+            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p"
+            echo "SPIKE-RESULT client plant $p exit=$?"
+            uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts/tools/fixtures/client_smoke/plants --out "$RUNNER_TEMP/plant-out" --module "$p" --min-paths 1
+            echo "SPIKE-RESULT bundle plant $p exit=$?"
+            echo "::endgroup::"
+          done
+      - name: "Spike: what the openapi-yaml generator wrote, and how it differs from the resolver's tree"
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          for m in full brace_raw brace_pct_lower; do
+            echo "::group::bundle of $m"
+            cat "$RUNNER_TEMP/spike-out/bundle/$m/openapi.yaml"
+            echo "::endgroup::"
+          done
+          uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module full --report-all
+          echo "SPIKE-RESULT parity full exit=$?"
+          uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module brace_raw --module brace_pct_lower --min-paths 1 --report-all
+          echo "SPIKE-RESULT parity variants exit=$?"
+          echo "::group::generated client files of full"
+          find "$RUNNER_TEMP/spike-out/client/full" -type f | sort | head -80
+          echo "::endgroup::"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: bundle-spike
+          path: ${{ runner.temp }}/spike-out/bundle
+          if-no-files-found: warn
+          overwrite: true
+
+  resolver-parity:
+    needs: validate-bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen --no-install-project
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: bundle-spike
+          path: ${{ runner.temp }}/staged/bundle
+      - name: Compare the bundle with the resolver's tree and cross-check every example
+        run: uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/staged" --module full --report-all
+
+  # Interim terminal gate: it lists the jobs that exist so far; later work packages extend the list.
+  contracts-gate:
+    needs: [validate-bundle, resolver-parity]
+    # always() makes the job self-starting, so the canonical fork guard is required here too.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless every needed job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "needed job results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::a needed job did not succeed: $RESULTS"
+              exit 1
+            fi
+          done

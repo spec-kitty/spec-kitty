@@ -43,6 +43,7 @@ PR_WORKFLOWS = frozenset(
         "ci-windows.yml",
         "release-readiness.yml",
         "check-spec-kitty-events-alignment.yml",
+        "contracts.yml",
     }
 )
 AGGREGATE = "ci-aggregate.yml"
