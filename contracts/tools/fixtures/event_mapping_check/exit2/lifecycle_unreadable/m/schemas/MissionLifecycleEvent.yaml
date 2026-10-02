@@ -1,0 +1,10 @@
+title: MissionLifecycleEvent
+type: object
+additionalProperties: false
+properties:
+  eventType:
+    type: string
+    enum:
+    - MissionCreated
+    - PlanStarted
+    description: t

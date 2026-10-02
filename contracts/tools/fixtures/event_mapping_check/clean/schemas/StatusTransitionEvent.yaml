@@ -1,0 +1,7 @@
+title: StatusTransitionEvent
+type: object
+additionalProperties: false
+properties:
+  missionId:
+    type: string
+    description: id
