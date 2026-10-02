@@ -1,0 +1,12 @@
+// The contracts build: validates every contract module, bundles it with the
+// openapi-yaml generator and generates a throwaway TypeScript client from the
+// split files (generation only). Invoked by contracts/tools/bundle.py and
+// contracts/tools/client_smoke.py with a pinned Gradle distribution; there is no
+// committed wrapper jar (see tools/install_tools.py and tools/pins.json).
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'contracts'

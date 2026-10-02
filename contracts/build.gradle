@@ -1,0 +1,43 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+import org.openapitools.generator.gradle.plugin.tasks.ValidateTask
+
+plugins {
+    // Pinned in tools/pins.json; resolved under the strict dependency
+    // verification in gradle/verification-metadata.xml (generated, never hand-edited).
+    id 'org.openapi.generator' version '7.25.0'
+}
+
+// -PcontractsRoot: the directory whose direct subdirectories are the modules.
+// -PoutDir: where bundles and generated clients are staged (outside the repository tree).
+def contractsRoot = file(findProperty('contractsRoot') ?: projectDir).canonicalFile
+def outDir = file(findProperty('outDir') ?: layout.buildDirectory.dir('contracts-out').get().asFile).canonicalFile
+def nonModules = ['_shared', 'fixtures', 'gradle', 'tools', 'build', 'node_modules'] as Set
+
+def modules = (contractsRoot.listFiles() ?: [] as File[]).findAll {
+    it.isDirectory() && !(it.name in nonModules) && new File(it, 'openapi.yaml').isFile()
+}.sort { it.name }
+
+modules.each { module ->
+    def spec = new File(module, 'openapi.yaml').absolutePath
+
+    // Validate the split document with the generator's own OpenAPI validator.
+    tasks.register("validate_${module.name}", ValidateTask) {
+        inputSpec = spec
+        recommend = true
+    }
+
+    // Bundle the split document into one openapi.yaml with the openapi-yaml generator.
+    tasks.register("bundle_${module.name}", GenerateTask) {
+        generatorName = 'openapi-yaml'
+        inputSpec = spec
+        outputDir = new File(outDir, "bundle/${module.name}").absolutePath
+        configOptions = [outputFile: 'openapi.yaml']
+    }
+
+    // Generate a TypeScript client from the SPLIT root. Generation only; the output is not compiled.
+    tasks.register("clientSmoke_${module.name}", GenerateTask) {
+        generatorName = 'typescript-fetch'
+        inputSpec = spec
+        outputDir = new File(outDir, "client/${module.name}").absolutePath
+    }
+}
