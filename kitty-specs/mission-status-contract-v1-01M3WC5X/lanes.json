@@ -162,12 +162,12 @@
       "parallel_group": 1
     }
   ],
-  "computed_at": "2026-10-02T09:55:38.392080+00:00",
+  "computed_at": "2026-10-02T10:00:24.565697+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP12"
   ],
-  "planning_commit_sha": "9ab3621082bbd998ecdf3fd13425e9c0414a028e",
+  "planning_commit_sha": "dc02f123ca34b2887d9802aec8e5f15284fdc9f6",
   "collapse_report": {
     "events": [
       {
