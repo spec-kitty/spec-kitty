@@ -1,0 +1,9 @@
+get:
+  operationId: listPairs
+  responses:
+    '200':
+      description: The pairs.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Pair.yaml#/properties/second

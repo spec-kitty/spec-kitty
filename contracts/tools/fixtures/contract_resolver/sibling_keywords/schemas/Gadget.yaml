@@ -1,0 +1,6 @@
+type: object
+description: A gadget.
+properties:
+  id:
+    type: string
+    description: Identifier.

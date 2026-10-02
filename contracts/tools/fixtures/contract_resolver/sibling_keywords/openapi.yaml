@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: Golden sibling keywords
+  version: 1.0.0
+paths:
+  /gadgets:
+    $ref: paths/gadgets.yaml

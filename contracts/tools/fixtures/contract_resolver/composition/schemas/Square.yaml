@@ -1,0 +1,5 @@
+type: object
+properties:
+  side:
+    type: number
+    description: Side length.

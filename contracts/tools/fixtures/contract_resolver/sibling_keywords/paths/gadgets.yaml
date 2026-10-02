@@ -1,0 +1,11 @@
+get:
+  operationId: listGadgets
+  responses:
+    '200':
+      description: The gadgets.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Gadget.yaml
+            description: A gadget as listed, narrower than the shared text.
+            nullable: true

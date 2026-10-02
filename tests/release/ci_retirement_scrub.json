@@ -275,7 +275,8 @@
         "kitty-specs/**/acceptance-matrix.json",
         ".kittify/charter/**",
         ".kittify/glossaries/**",
-        ".kittify/doctrine/**"
+        ".kittify/doctrine/**",
+        "contracts/**"
       ],
       "note": "Wheel-shipped doctrine corpus + mission data leaves (#3008); non-src, no --cov subject."
     },

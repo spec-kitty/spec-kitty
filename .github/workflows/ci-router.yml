@@ -228,6 +228,7 @@ jobs:
               - '.kittify/charter/**'
               - '.kittify/glossaries/**'
               - '.kittify/doctrine/**'
+              - 'contracts/**'
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
