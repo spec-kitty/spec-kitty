@@ -106,11 +106,13 @@ def _resolver_errors(module: Path, schema_title: str, instance: Any) -> list[str
 
 
 def _library_registry(module: Path) -> Registry:
-    def retrieve(uri: str) -> Resource:
-        path = Path(uri.removeprefix("file://"))
-        return Resource.from_contents(_read(path), default_specification=DRAFT202012)
-
-    return Registry(retrieve=retrieve)
+    """Every YAML file of the module and its ``_shared`` sibling, registered under its own file URI."""
+    resources = [
+        (path.resolve().as_uri(), Resource.from_contents(_read(path), default_specification=DRAFT202012))
+        for base in (module, module.parent / "_shared")
+        for path in sorted(base.rglob("*.yaml"))
+    ]
+    return Registry().with_resources(resources)
 
 
 def _library_errors(module: Path, schema_title: str, instance: Any) -> list[str]:
