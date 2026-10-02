@@ -21,6 +21,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+import yaml
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -272,3 +273,83 @@ def test_findings_name_paths_relative_to_the_root_never_absolute(tmp_path: Path)
     assert completed.returncode == 1
     assert str(tmp_path) not in completed.stdout
     assert "PATH_FILE_NAME: v_path_file_name/paths/pingy.yaml:" in completed.stdout
+
+
+# -- the real shared pieces (FR-002) pass the layout check ---------------------
+
+SHARED_DIR = Path(__file__).resolve().parents[2] / "contracts" / "_shared"
+
+
+def _load_yaml(path: Path) -> Any:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _all_properties(node: Any) -> list[tuple[str, Any]]:
+    """Every (name, schema) pair under any ``properties`` mapping of a loaded document."""
+    found: list[tuple[str, Any]] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "properties" and isinstance(value, dict):
+                found.extend(value.items())
+            found.extend(_all_properties(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_all_properties(item))
+    return found
+
+
+def test_real_shared_pieces_pass_the_layout_check_beside_a_one_file_module(layout: Any, tmp_path: Path) -> None:
+    shutil.copytree(SHARED_DIR, tmp_path / "_shared")
+    _copy_modules(tmp_path, "clean")
+
+    report = layout.check(tmp_path)
+
+    assert report.findings == [] and report.blocked == []
+    assert report.counts == {"modules": 1, "path_files": 2, "index_files": 4}
+
+
+@pytest.mark.parametrize(
+    ("directory", "listed"),
+    [
+        ("schemas", {"PageCursor.yaml", "PageInfo.yaml", "Problem.yaml"}),
+        ("parameters", {"PageCursor.yaml", "PageSize.yaml"}),
+        ("responses", {"Problem.yaml"}),
+    ],
+)
+def test_shared_indexes_list_exactly_the_pieces_present(directory: str, listed: set[str]) -> None:
+    index = _load_yaml(SHARED_DIR / directory / "_index.yaml")
+
+    assert set(index["files"]) == listed
+    assert {p.name for p in (SHARED_DIR / directory).iterdir() if p.name != "_index.yaml"} == listed
+
+
+def test_shared_problem_response_uses_the_problem_media_type() -> None:
+    response = _load_yaml(SHARED_DIR / "responses" / "Problem.yaml")
+
+    assert list(response["content"]) == ["application/problem+json"]
+    assert response["content"]["application/problem+json"]["schema"] == {"$ref": "../schemas/Problem.yaml"}
+
+
+def test_every_shared_property_is_described_and_no_field_is_the_bare_word_cursor() -> None:
+    properties: list[tuple[str, Any]] = []
+    for schema_file in (SHARED_DIR / "schemas").glob("*.yaml"):
+        if schema_file.name != "_index.yaml":
+            properties.extend(_all_properties(_load_yaml(schema_file)))
+
+    assert len(properties) >= 6, "the floor: the shared schemas define their properties"
+    assert [name for name, schema in properties if not (isinstance(schema, dict) and schema.get("description"))] == []
+    assert "cursor" not in {name.lower() for name, _ in properties}
+
+
+def test_page_cursor_is_an_opaque_string_with_no_link_to_the_stream_cursor() -> None:
+    cursor = _load_yaml(SHARED_DIR / "schemas" / "PageCursor.yaml")
+
+    assert cursor["type"] == "string" and "properties" not in cursor
+    assert "opaque" in cursor["description"].lower()
+    page_info_fields = {name for name, _ in _all_properties(_load_yaml(SHARED_DIR / "schemas" / "PageInfo.yaml"))}
+    assert not {"offset", "invariant"} & page_info_fields
+
+
+@pytest.mark.parametrize("schema_name", ["Problem", "PageInfo"])
+def test_shared_object_schemas_are_closed(schema_name: str) -> None:
+    assert _load_yaml(SHARED_DIR / "schemas" / f"{schema_name}.yaml")["additionalProperties"] is False
