@@ -1,0 +1,1 @@
+No script lives here: the scanner must refuse to pass on zero inputs.
