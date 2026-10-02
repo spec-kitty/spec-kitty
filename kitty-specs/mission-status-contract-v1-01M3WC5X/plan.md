@@ -41,8 +41,8 @@ The Mission is delivered as **six stacked seam PRs**, not one. This supersedes t
 | 2 | Five-section body; known-red baseline; example-test counts; p0 tag name (the PR 2 head); SC-008 assertions against the seam 1 head; stray/missing check against the seam 1 head |
 | 3 | Five-section body; known-red baseline; class A and class B evidence of the content and hygiene checks; the CODEOWNERS advisory statement (review is advisory, nothing on GitHub enforces it, charter); SC-008 assertions against the seam 2 head; stray/missing check against the seam 2 head |
 | 4 | Five-section body; known-red baseline; release-dry-run artifact (SC-006: bundle and `openapi.yaml.sha256`, `sha256sum -c`, run id); p1 tag name with this PR's contracts-workflow run id; IC-07b supply-chain record; fleet-verdict observability limit; SC-008 assertions against the seam 3 head; stray/missing check against the seam 3 head |
-| 5 | Five-section body; known-red baseline; NFR-001 timing and the SC-002 reality check (floors, controls); NFR-007 coverage paste; ratchet issue; p2 tag name (the PR 5 head); SC-008 assertions against the seam 4 head; stray/missing check against the seam 4 head |
-| 6 | Five-section body; known-red baseline; `close-out.md` ledger; post-merge close-out list (SC-009); SC-010 acknowledgement link; stack-level SC-008 and stray/missing check of the cumulative diff against `origin/main`, and the same check against the seam 5 head for PR 6 |
+| 5 | Five-section body; known-red baseline; NFR-001 timing (measured by WP12 T076 in PR 6, then written into this draft body by the orchestrator) and the SC-002 reality check (floors, controls); NFR-007 coverage paste; ratchet issue; p2 tag name (the PR 5 head); SC-008 assertions against the seam 4 head; stray/missing check against the seam 4 head |
+| 6 | Five-section body; known-red baseline; NFR-001 measurement (WP12 T076, post-IC-09 CI runs); `close-out.md` ledger; post-merge close-out list (SC-009); SC-010 acknowledgement link; stack-level SC-008 and stray/missing check of the cumulative diff against `origin/main`, and the same check against the seam 5 head for PR 6 |
 
 **Reading rule.** Elsewhere in this plan "the PR", "the PR body" and "the draft PR" mean the PR that carries the evidence in question, per the table above; "the stack" means all six.
 
@@ -556,7 +556,7 @@ These steps cannot be done or observed before merge, so the body of PR 6 lists t
 |---|---|---|
 | Two languages and a JVM in CI | CL-6 fixes the toolchain (Gradle, vacuum, oasdiff) | The maintainers chose it; Node-free is a hard constraint (C-005). |
 | A custom Python resolver beside the JVM bundler | OQ-1: a JVM-less corpus job must give a real verdict | The three alternatives each break a spec constraint (see OQ-1). Cost is bounded by the parity check and the independent dereference check. |
-| Eleven work packages (IC-07 is split in two) | The tree is large and has three chokepoints | Fewer, larger WPs would collide on the root map, the registry and shared CI. |
+| Twelve work packages (IC-07 and IC-10 are each split in two) | The tree is large and has three chokepoints | Fewer, larger WPs would collide on the root map, the registry and shared CI. |
 
 ## Traceability: spec identifiers to plan elements
 

@@ -98,7 +98,7 @@ No code. Run, record and cite read-only: `.venv/bin/python contracts/tools/leak_
 ### Subtask T076: NFR-001 measurements
 
 **Purpose**: performance numbers from CI logs.
-**Steps**: from relayed run logs, record the reality-check module duration (at most 120 s), the slowest case (at most 60 s), the whole `tests-corpus` job duration against its 10 minute timeout (headroom at least 50 percent), and the `built-in-corpus-suite` duration against its 20 minute timeout from a full-mode `packs.yml` dispatch on the branch after the first draft-PR run (the orchestrator dispatches; agents do not). Compare with WP01's baseline readings. Put the numbers in `research.md` R-8 and `close-out.md`.
+**Steps**: from relayed run logs, record the reality-check module duration (at most 120 s), the slowest case (at most 60 s), the whole `tests-corpus` job duration against its 10 minute timeout (headroom at least 50 percent), and the `built-in-corpus-suite` duration against its 20 minute timeout from a full-mode `packs.yml` dispatch on the branch after the first draft-PR run (the orchestrator dispatches; agents do not). Compare with WP01's baseline readings. Put the numbers in `research.md` R-8 and `close-out.md`. WP12 T076 measures the numbers and relays them; the orchestrator then updates PR 5's draft body with them (a body edit on a draft PR, not a merge).
 **Files**: `kitty-specs/mission-status-contract-v1-01M3WC5X/research.md` (R-8 numbers), `kitty-specs/mission-status-contract-v1-01M3WC5X/close-out.md`.
 **Validation**: each number has a run identifier.
 
@@ -146,7 +146,7 @@ No code. Run, record and cite read-only: `.venv/bin/python contracts/tools/leak_
 
 ## Definition of Done
 
-- `close-out.md` has all twelve sections with artefact citations; NFR-001 numbers recorded; preview tag names recorded; post-merge steps listed; the per-PR evidence table (six rows) present and each row confirmed against its PR body; realised six-seam shape recorded.
+- `close-out.md` has all thirteen sections with artefact citations; NFR-001 numbers recorded; preview tag names recorded; post-merge steps listed; the per-PR evidence table (six rows) present and each row confirmed against its PR body; realised six-seam shape recorded.
 - Orchestrator-written records verified against their sources; gaps listed.
 - Mission-wide diff constraints (SC-008, C-002, C-003, C-004, C-005) recorded over the cumulative diff; terminology guard and `uv lock --check` results recorded; the F-3 commit subject verified.
 - Tracer files assessed; only the five owned files changed; public-repository hygiene holds.
