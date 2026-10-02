@@ -1,0 +1,13 @@
+{
+  "tools": [
+    {
+      "name": "fixture-tool",
+      "kind": "archive",
+      "version": "1.0",
+      "url": "https://downloads.example.invalid/fixture-tool-1.0.zip",
+      "sha256": "5723c5af4478eb111615661a3fb637a45e457eb7d75ae12a751c9b83296e2115",
+      "published": "2026-01-01",
+      "advisory_feed_checked": "fixture only"
+    }
+  ]
+}

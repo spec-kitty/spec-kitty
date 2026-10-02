@@ -1,0 +1,22 @@
+{
+  "tools": [
+    {
+      "name": "gradle",
+      "kind": "archive",
+      "version": "8.14.5",
+      "url": "https://services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      "sha256": "6f74b601422d6d6fc4e1f9a1ab6522f642c2fdcbc15ae33ebd30ba3d7198e854",
+      "published": "2026-05-07",
+      "advisory_feed_checked": "GitHub security advisories of gradle/gradle (GHSA-mqwm-5m85-gmcv and GHSA-w78c-w6vf-rw82 are patched in 8.14.4 and later), checked 2026-10-02"
+    },
+    {
+      "name": "openapi-generator-gradle-plugin",
+      "kind": "gradle-plugin",
+      "version": "7.25.0",
+      "url": "https://plugins.gradle.org/m2/org/openapitools/openapi-generator-gradle-plugin/7.25.0/openapi-generator-gradle-plugin-7.25.0.jar",
+      "sha256": "34bf234e8b4ec44fca491769bd1acbf81eb956ca31e8e375215829914497fa73",
+      "published": "2026-08-24",
+      "advisory_feed_checked": "GitHub security advisories of OpenAPITools/openapi-generator (every listed advisory is fixed before 7.25.0), checked 2026-10-02"
+    }
+  ]
+}
