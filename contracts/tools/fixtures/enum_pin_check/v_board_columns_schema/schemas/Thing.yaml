@@ -5,5 +5,5 @@ properties:
     $ref: Color.yaml
   size:
     $ref: Size.yaml
-  board:
+  layout:
     $ref: BoardColumns.yaml
