@@ -154,11 +154,11 @@ def classify_gradle_failure(output: str, module: str) -> tuple[str, int]:
     return "BUNDLE_FAILED", 1
 
 
-def gradle_command(gradle: str, root: Path, out: Path, module: str, *, write_metadata: bool) -> list[str]:
+def gradle_command(gradle: str, root: Path, out: Path, tasks: Sequence[str], *, write_metadata: bool) -> list[str]:
     command = [gradle, "--no-daemon", "--console=plain", "-p", str(GRADLE_PROJECT_DIRECTORY), f"-PcontractsRoot={root.resolve()}", f"-PoutDir={out.resolve()}"]
     if write_metadata:
         command += ["--write-verification-metadata", "sha256"]
-    return [*command, f"validate_{module}", f"bundle_{module}"]
+    return [*command, *tasks]
 
 
 def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner, which: Which = shutil.which, out: Callable[[str], None] = print) -> int:
@@ -194,7 +194,9 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
 
     report.modules = len(modules)
     for module in modules:
-        status, output = runner(gradle_command(gradle, args.root, args.out, module.name, write_metadata=args.write_verification_metadata))
+        status, output = runner(
+            gradle_command(gradle, args.root, args.out, (f"validate_{module.name}", f"bundle_{module.name}"), write_metadata=args.write_verification_metadata)
+        )
         if status != 0:
             code, exit_status = classify_gradle_failure(output, module.name)
             if exit_status == 2:

@@ -1,0 +1,5 @@
+title: Thing
+type: object
+properties:
+  next:
+    $ref: Other.yaml
