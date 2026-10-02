@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: Brace spelling candidate (brace_pct_double)
+  version: 0.0.1
+paths:
+  /items/{itemId}:
+    $ref: paths/items_%257BitemId%257D.yaml

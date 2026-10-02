@@ -1,0 +1,15 @@
+get:
+  operationId: getItem
+  parameters:
+    - name: itemId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: One item.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Item.yaml
