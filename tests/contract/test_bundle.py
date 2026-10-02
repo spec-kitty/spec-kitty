@@ -61,7 +61,9 @@ def _fake_gradle(fixture: str | None, *, returncode: int = 0, output: str = "BUI
     return run
 
 
-def _run(bundler: ModuleType, root: Path, out: Path, runner: Callable[[list[str]], tuple[int, str]], *extra: str, which: Callable[[str], str | None] = _tool) -> tuple[int, str]:
+def _run(
+    bundler: ModuleType, root: Path, out: Path, runner: Callable[[list[str]], tuple[int, str]], *extra: str, which: Callable[[str], str | None] = _tool
+) -> tuple[int, str]:
     lines: list[str] = []
     code = bundler.run(["--root", str(root), "--out", str(out), *extra], runner=runner, which=which, out=lines.append)
     return code, "\n".join(lines)
@@ -182,7 +184,9 @@ def test_the_gradle_command_pins_the_inputs_and_never_uses_a_daemon(bundler: Mod
 
 
 def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path: Path) -> None:
-    result = subprocess.run([sys.executable, str(SCRIPT), "--root", str(tmp_path), "--out", str(tmp_path / "o")], capture_output=True, text=True, timeout=60, check=False)
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", str(tmp_path), "--out", str(tmp_path / "o")], capture_output=True, text=True, timeout=60, check=False
+    )
 
     assert result.returncode == 2
     assert result.stdout.splitlines()[-1] == "counts: modules=0 bundles=0 path_items=0"
