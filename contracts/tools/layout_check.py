@@ -5,7 +5,8 @@ A *module* is a direct subdirectory of the contracts root holding a root
 modules. The check reads files only and fails, naming the offending path, when:
 
 * ``PATH_FILE_NAME``: a mapped path file is not named after its path item (the
-  path with ``/`` turned into ``_`` and ``{param}`` kept, plus ``.yaml``).
+  path with ``/`` turned into ``_`` and each ``{param}`` turned into ``param``, plus
+  ``.yaml``; ``contract_resolver.path_file_name`` is the one definition).
 * ``MAPPED_FILE_MISSING``: the root ``openapi.yaml`` maps a path to a file that
   does not exist (or maps it inline, with no ``$ref``).
 * ``ORPHAN_PATH_FILE``: a ``paths/`` file is mapped by no root entry.
@@ -13,9 +14,10 @@ modules. The check reads files only and fails, naming the offending path, when:
 * ``INDEX_MISSING_FILE`` / ``INDEX_OMITS_FILE`` / ``INDEX_MALFORMED``: an
   ``_index.yaml`` (``files: [...]``) lists a file that is absent, omits one that
   is present, or is not a mapping with a ``files`` list.
-* ``BAD_REF_FORM``: a ``$ref`` is a URL, an absolute path or uses a ``~`` pointer.
-* ``BRACE_REF_SPELLING``: a ``$ref`` to a brace-named file is not spelled as the
-  ``BRACE_REF_SPELLING`` constant of ``contract_resolver`` says.
+* ``BAD_REF_FORM``: a ``$ref`` is a URL, an absolute path, uses a ``~`` pointer or carries a
+  brace in any spelling (path files are named brace-free).
+* ``PATH_FILE_COLLISION``: two path items map to the same file name (``/a/{b}`` and
+  ``/a/b`` both want ``a_b.yaml``).
 * ``SHARED_MISUSE``: a ``$ref`` reaches into ``_shared/`` outside its admitted
   ``schemas/``, ``parameters/`` and ``responses/`` directories, or a ``_shared``
   piece depends on a piece inside a module (a module-specific piece in the
@@ -90,13 +92,6 @@ class Report:
         return "counts: " + " ".join(f"{key}={value}" for key, value in self.counts.items())
 
 
-def derived_path_file_name(path_key: str) -> str | None:
-    """The file name a path item must live in, or ``None`` when ``path_key`` is not a usable path."""
-    if not path_key.startswith("/") or path_key == "/":
-        return None
-    return path_key[1:].replace("/", "_") + ".yaml"
-
-
 class _Check:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -144,7 +139,9 @@ class _Check:
         document = self.load(root_doc_path)
         mapped: set[Path] = set()
         entries = document.get("paths") if isinstance(document, dict) else None
+        names: dict[str, str] = {}
         for path_key, entry in (entries or {}).items():
+            self._check_collision(root_doc_path, str(path_key), names)
             target = self._mapped_target(module, root_doc_path, str(path_key), entry)
             if target is not None:
                 mapped.add(target)
@@ -154,6 +151,15 @@ class _Check:
         for path_file in present:
             if path_file.resolve() not in mapped:
                 self.add("ORPHAN_PATH_FILE", path_file, "no entry of the root openapi.yaml maps this file")
+
+    def _check_collision(self, root_doc_path: Path, path_key: str, names: dict[str, str]) -> None:
+        name = contract_resolver.path_file_name(path_key)
+        if name is None:
+            return
+        if name in names:
+            self.add("PATH_FILE_COLLISION", root_doc_path, f"paths {names[name]!r} and {path_key!r} both map to {name!r}")
+        else:
+            names[name] = path_key
 
     def _mapped_target(self, module: Path, root_doc_path: Path, path_key: str, entry: Any) -> Path | None:
         ref = entry.get("$ref") if isinstance(entry, dict) else None
@@ -165,7 +171,7 @@ class _Check:
         if not target.is_file():
             self.add("MAPPED_FILE_MISSING", root_doc_path, f"path {path_key!r} maps {file_part!r}, which does not exist")
             return None
-        expected = derived_path_file_name(path_key)
+        expected = contract_resolver.path_file_name(path_key)
         if target.parent != (module / PATHS_DIRECTORY).resolve() or target.name != expected:
             self.add("PATH_FILE_NAME", target, f"path {path_key!r} must live in {PATHS_DIRECTORY}/{expected}")
         return target
@@ -221,17 +227,8 @@ class _Check:
         if not file_part:
             return
         decoded = unquote(file_part)
-        self._check_brace_spelling(origin, ref, file_part, decoded)
         target = (origin.parent / decoded).resolve()
         self._check_shared_use(origin, ref, target, inside_shared=inside_shared)
-
-    def _check_brace_spelling(self, origin: Path, ref: str, file_part: str, decoded: str) -> None:
-        if contract_resolver.OPEN_BRACE not in decoded and contract_resolver.CLOSE_BRACE not in decoded:
-            return
-        open_piece, close_piece = contract_resolver.BRACE_REF_SPELLING
-        canonical = decoded.replace(contract_resolver.OPEN_BRACE, open_piece).replace(contract_resolver.CLOSE_BRACE, close_piece)
-        if file_part != canonical:
-            self.add("BRACE_REF_SPELLING", origin, f"{ref!r} must spell the braces of the file name as {canonical!r}")
 
     def _check_shared_use(self, origin: Path, ref: str, target: Path, *, inside_shared: bool) -> None:
         shared_root = (self.root / SHARED_DIRECTORY).resolve()

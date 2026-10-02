@@ -26,19 +26,20 @@ older hand-written hand-off fixtures and is not touched by this tree's tooling.
 
 ## Path file naming
 
-One file per path item under `paths/`. The file name is the path with `/` turned
-into `_` and `{param}` kept, plus `.yaml`: the path for a Mission by identifier
-lives in a file whose name is the path with its leading slash dropped. The root
-`openapi.yaml` maps each path to its file with a `$ref` and holds nothing else
-about the path.
+One file per path item under `paths/`. The file name is the path with its leading
+slash dropped, each `/` turned into `_` and each `{param}` turned into `param`
+(braces dropped, the parameter name kept), plus `.yaml`: the path
+`/missions/{missionId}/events` lives in `paths/missions_missionId_events.yaml`.
+The path key inside the root `openapi.yaml` keeps the real template, and the root
+maps each path to its file with a plain relative `$ref` and holds nothing else about
+the path. Two paths that would share a file name (`/a/{b}` and `/a/b`) are refused.
 
 ## Relative $ref rules
 
 A `$ref` is a relative file path, optionally followed by a JSON pointer. A URL,
-an absolute path and a `~` pointer escape are refused. A `$ref` to a file whose
-name contains braces spells the braces in one canonical way, which the layout
-check reads from the `BRACE_REF_SPELLING` constant of
-`contracts/tools/contract_resolver.py`. A schema file carries a `title` equal to
+an absolute path and a `~` pointer escape are refused, and so is a brace in any
+spelling (raw, or percent-encoded once or more): path files are named brace-free.
+A schema file carries a `title` equal to
 its file name without the extension, and each `schemas/`, `parameters/` and
 `responses/` directory lists its files in an `_index.yaml` with a `files:` list.
 

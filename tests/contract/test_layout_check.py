@@ -114,8 +114,8 @@ def test_every_planted_module_exists_on_disk_so_the_table_is_not_stale() -> None
 
 def test_the_whole_planted_root_fails_with_the_counts_it_inspected(planted_report: Any) -> None:
     assert planted_report.exit_code == 1
-    assert planted_report.counts == {"modules": 11, "path_files": 12, "index_files": 5}
-    assert planted_report.counts_line() == "counts: modules=11 path_files=12 index_files=5"
+    assert planted_report.counts == {"modules": 12, "path_files": 13, "index_files": 5}
+    assert planted_report.counts_line() == "counts: modules=12 path_files=13 index_files=5"
 
 
 def test_bad_ref_forms_are_named_url_absolute_and_tilde(planted_report: Any) -> None:
@@ -143,7 +143,7 @@ def test_script_prints_codes_and_a_final_counts_line(tmp_path: Path) -> None:
 
     assert failing.returncode == 1
     lines = failing.stdout.splitlines()
-    assert lines[-1] == "counts: modules=11 path_files=12 index_files=5"
+    assert lines[-1] == "counts: modules=12 path_files=13 index_files=5"
     assert all(line.startswith("CONTRACT-CHECK layout_check: ") for line in lines[:-1])
     assert any(": PATH_FILE_NAME: " in line for line in lines)
     assert clean.returncode == 0

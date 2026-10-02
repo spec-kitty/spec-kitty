@@ -26,13 +26,11 @@ from urllib.parse import unquote
 
 import yaml
 
-# The canonical ``$ref`` spelling of the two brace characters in a brace-named
-# path file. Rule BRACE-1: this is the only place the spelling is defined; every
-# other module imports or derives it. The value is provisional until the CI-only
-# spike records the decision, and a change here is a one-line edit followed by a
-# mechanical re-sweep of the contract files.
-BRACE_REF_SPELLING: tuple[str, str] = ("%7B", "%7D")
-
+# Rule BRACE-1: path files are named brace-free and no ``$ref`` carries a brace in any
+# spelling. :func:`path_file_name` is the single definition of the path-to-file-name
+# mapping; every other module calls it. (The bundler pinned for the contract percent-decodes
+# a reference and then rejects the raw brace as an illegal URI character, so no spelling of a
+# brace in a ``$ref`` is usable; operator ruling of 2026-10-02.)
 OPEN_BRACE = chr(123)
 CLOSE_BRACE = chr(125)
 
@@ -59,8 +57,10 @@ ERROR_CODES: tuple[str, ...] = (
     "CYCLE",
     "NOT_A_MAPPING",
     "UNSUPPORTED_CONSTRUCT",
+    "BRACE_IN_REF",
 )
 
+MAX_DECODE_ROUNDS = 4
 ROOT_DOCUMENT = "openapi.yaml"
 SCHEMAS_DIRECTORY = "schemas"
 
@@ -90,10 +90,36 @@ class Resolution:
     counts: dict[str, int]
 
 
-def encode_brace_ref(path: str) -> str:
-    """Spell the braces of ``path`` for use inside a ``$ref``, per :data:`BRACE_REF_SPELLING`."""
-    open_piece, close_piece = BRACE_REF_SPELLING
-    return path.replace(OPEN_BRACE, open_piece).replace(CLOSE_BRACE, close_piece)
+_PATH_PARAMETER = re.compile(r"\{([^{}/]+)\}")
+
+
+def path_file_name(path_key: str) -> str | None:
+    """The file name a path item lives in, or ``None`` when ``path_key`` is not a usable path.
+
+    The path with its leading slash dropped, each ``/`` turned into ``_`` and each ``{param}``
+    turned into ``param``, plus ``.yaml``: ``/missions/{missionId}/events`` lives in
+    ``missions_missionId_events.yaml``. The path key inside the root document keeps its template.
+    Two path keys can map to one name (``/a/{b}`` and ``/a/b``); the layout check refuses that.
+    """
+    if not path_key.startswith("/") or path_key == "/":
+        return None
+    stem = _PATH_PARAMETER.sub(r"\1", path_key[1:]).replace("/", "_")
+    if OPEN_BRACE in stem or CLOSE_BRACE in stem:
+        return None
+    return stem + ".yaml"
+
+
+def _carries_brace(file_part: str) -> bool:
+    """True when the file part holds a brace raw or percent-encoded, however many times it is encoded."""
+    text = file_part
+    for _ in range(MAX_DECODE_ROUNDS):
+        if OPEN_BRACE in text or CLOSE_BRACE in text:
+            return True
+        decoded = unquote(text)
+        if decoded == text:
+            return False
+        text = decoded
+    return OPEN_BRACE in text or CLOSE_BRACE in text
 
 
 def refusal_code_for_ref(ref: str) -> str | None:
@@ -107,6 +133,8 @@ def refusal_code_for_ref(ref: str) -> str | None:
         return "ABSOLUTE_REF"
     if "~" in ref.partition("#")[2]:
         return "TILDE_POINTER"
+    if _carries_brace(ref.partition("#")[0]):
+        return "BRACE_IN_REF"
     return None
 
 
