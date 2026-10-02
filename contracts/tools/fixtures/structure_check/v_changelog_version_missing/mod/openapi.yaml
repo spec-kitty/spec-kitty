@@ -1,0 +1,5 @@
+openapi: 3.0.3
+info:
+  title: Fixture
+  version: 2.0.0
+paths: {}

@@ -854,6 +854,7 @@ jobs:
             tests/contract/test_provisional_check.py \
             tests/contract/test_resolver_parity.py \
             tests/contract/test_schema_formats.py \
+            tests/contract/test_structure_check.py \
             tests/integration/test_mission_review_contract_gate.py \
             "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
