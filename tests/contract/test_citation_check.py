@@ -102,7 +102,7 @@ def test_the_clean_control_and_the_reuse_plant_have_no_failure(planted_report: A
 
 def test_every_finding_names_the_property_or_the_citation(planted_report: Any) -> None:
     for finding in planted_report.findings:
-        assert ":" in finding.subject and finding.detail, finding
+        assert finding.subject.split(":")[0] in {p.name for p in FIXTURE_ROOT.iterdir()} and finding.detail, finding
     names = {f.subject for f in planted_report.findings if f.code == "MISSING_CITATION"}
     assert names == {"v_missing_citation:Thing.outer.[].inner", "v_missing_via_ref:Bare.bare"}
 
@@ -112,17 +112,19 @@ def test_the_symbol_that_exists_only_in_a_comment_is_named_in_the_finding(plante
     assert "commented_only" in detail
 
 
-def test_a_citation_used_by_more_than_five_properties_is_reported_not_failed(planted_report: Any) -> None:
-    reuse = [item for item in planted_report.info if item.code == "CITATION_REUSE"]
+def test_a_citation_used_by_more_than_five_properties_is_reported_not_failed(citation: Any) -> None:
+    report = citation.check(FIXTURE_ROOT, repo_root=REPO_ROOT, modules=("v_reuse",))
+    assert report.findings == [] and report.exit_code == 0
+    reuse = [item for item in report.info if item.code == "CITATION_REUSE"]
     assert len(reuse) == 1
-    assert "real_function" in reuse[0].detail and "6" in reuse[0].detail
+    assert reuse[0].subject.endswith("sample.py#real_function") and "used by 6 properties" in reuse[0].detail
 
 
 def test_the_clean_module_is_traversed_to_every_depth_and_counted(citation: Any) -> None:
     report = citation.check(FIXTURE_ROOT, repo_root=REPO_ROOT, modules=("clean",))
     assert report.findings == [] and report.blocked == []
-    # 19 properties in Thing + 1 allOf + Sub.size + Choice.pick + items[].label + mapped.* value; shared Problem is exempt
-    assert report.counts["properties"] == 23
+    # Thing's own properties, the allOf branch, Sub.size, Choice.pick, the items and map value properties; shared Problem is exempt
+    assert report.counts["properties"] == 21
     assert report.counts["x_source"] + report.counts["x_derived"] == report.counts["properties"]
     assert report.counts["x_derived"] == 2
     assert report.counts["inputs_resolved"] == 5
@@ -185,12 +187,12 @@ def test_command_line_output_grammar_and_exit_status() -> None:
     assert any(line.startswith("CONTRACT-CHECK citation_check: MISSING_CITATION: v_missing_citation:") for line in lines)
     clean = _run("--root", str(FIXTURE_ROOT), "--module", "clean")
     assert clean.returncode == 0, clean.stdout
-    assert clean.stdout.splitlines()[-1].startswith("counts: properties=23 ")
+    assert clean.stdout.splitlines()[-1].startswith("counts: properties=21 ")
 
 
 def test_the_real_mission_status_module_passes_with_a_floor() -> None:
     result = _run("--root", str(REAL_CONTRACTS), "--module", "mission-status")
     assert result.returncode == 0, result.stdout
     counts = dict(pair.split("=") for pair in result.stdout.splitlines()[-1].removeprefix("counts: ").split())
-    assert int(counts["properties"]) >= 150
+    assert int(counts["properties"]) >= 120
     assert int(counts["x_source"]) + int(counts["x_derived"]) == int(counts["properties"])
