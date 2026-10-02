@@ -56,8 +56,48 @@ under `/api/v1`.
 
 ## x-source, x-derived and x-provisional
 
-Skeleton: the three extensions that say where a property comes from, how it is
-computed, and that it is not yet stable.
+Three extensions say where a property comes from, how it is computed, and that it
+is not yet stable. `citation_check.py` and `provisional_check.py` enforce the
+grammar below.
+
+**x-source** is `{path, symbol}` (an optional `line` is allowed and never checked).
+`path` is a repository-relative file that git tracks. `symbol` resolves by defined
+name, never by text. In a Python file it is a `class`, a `def` or an assignment
+target at module or class level, found in the syntax tree, including an annotated
+target without a value (`content_invariant: str`); write it bare
+(`content_invariant`) or dotted (`TailCursor.content_invariant`). A name that occurs
+only in a comment, a string, a function body or as a substring of another name does
+not resolve. In a YAML or JSON file it is a dotted key path that must exist, for
+example `{path: .kittify/config.yaml, symbol: project.slug}`.
+
+**x-derived** is `{rule, inputs}`. `rule` is non-empty prose. `inputs` is a non-empty
+list whose items are either contract-field property paths (strings) or code inputs
+`{path, symbol}` resolved exactly like an `x-source`; a list may mix both. A bare
+property path (`statusLaneCounts.blocked`, `items`) is relative to the property's own
+schema: its siblings first, then the schema root. `Schema.property`
+(`MissionHead.createdAt`) names a property of another schema of the same module.
+Free text, an empty rule, empty or missing inputs and an input that does not resolve
+are each a failure.
+
+**One citation per property.** Every property of every resource schema carries
+exactly one of `x-source` and `x-derived`, at any depth: nested objects, array
+`items`, map values, `allOf`/`oneOf`/`anyOf` branches and properties reached only
+through a `$ref`. A citation written on the root of a referenced schema file is
+inherited by every property that refers to it, unless the property states the other
+kind itself. A property that an `allOf` branch redeclares only to narrow it (a
+`const` or `enum` refinement of a property declared earlier) is a refinement, not a
+new property, and needs no citation of its own. The pieces under `_shared/`
+(`Problem`, `PageInfo`, the cursors) are cross-module vocabulary, not resource
+schemas of the module that uses them: they are not counted and need no citations.
+The check reports, without failing, any single citation shared by more than five
+properties, so reuse stays visible.
+
+**x-provisional** is `{open_decision: <text>}` on a property, a schema, a parameter or
+an operation, and the text names what is undecided (at least four words). The
+properties `staleness` and `nextAction` must carry it and must be nullable. Every
+`x-provisional` element is also named in the `Provisional` section of the module's
+`CHANGELOG.md`: its own name (the property name, schema title, parameter name or
+operation path) appears there as a whole word.
 
 ## Lane terminology
 
