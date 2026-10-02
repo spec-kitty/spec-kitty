@@ -1,0 +1,30 @@
+title: MissionOverviewPage
+description: >-
+  One page of Mission overviews, ordered by createdAt descending with ties broken by
+  missionId ascending, plus the shared pagination state.
+type: object
+additionalProperties: false
+required: [items, pageInfo]
+properties:
+  items:
+    type: array
+    description: The Mission overviews of this page, in the order the operation defines.
+    items:
+      $ref: MissionOverview.yaml
+    x-derived:
+      rule: The overview records of the requested page, sorted by createdAt descending then missionId ascending.
+      inputs:
+        - MissionOverview.createdAt
+        - MissionOverview.missionId
+  pageInfo:
+    $ref: ../../_shared/schemas/PageInfo.yaml
+    description: Whether another page follows and the token that fetches it.
+    x-derived:
+      rule: Computed by the service from the page size, the incoming page cursor and the number of overview records that follow this page.
+      inputs:
+        - items
+examples:
+  - $ref: ../examples/MissionOverviewPage.first.yaml
+  - $ref: ../examples/MissionOverviewPage.middle.yaml
+  - $ref: ../examples/MissionOverviewPage.last.yaml
+  - $ref: ../examples/MissionOverviewPage.exhausted.yaml
