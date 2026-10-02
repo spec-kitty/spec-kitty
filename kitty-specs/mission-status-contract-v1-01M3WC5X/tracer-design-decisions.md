@@ -6,7 +6,7 @@ Rationale log, seeded at planning with the decisions made so far. Each entry: th
 reason, what was rejected. The full register with alternatives is in `plan.md` (Decision
 register) and `research.md`. Append at each decision point during implementation.
 
-## DD-1: OQ-4 closed by operator ruling (2026-10-01); DEV-1 accepted
+## DD-1: OQ-4 closed by a maintainer ruling recorded on the issue and the draft PR (2026-10-01); DEV-1 accepted
 
 The reality check runs once, in the router's `tests-corpus` job, which a contracts-only change
 selects through one added glob (`contracts/**`). The contracts workflow runs a resolver-parity
@@ -26,7 +26,7 @@ constraint).
 
 ## DD-3: Python checks read the resolved tree, not the bundle
 
-Keeps ten checks JVM-free, local and fast; parity proves tree equals bundle, and parity is a
+Keeps the nine content and hygiene checks (and the tenth script, the no-pytest scan) JVM-free, local and fast; parity proves tree equals bundle, and parity is a
 `needs` of the terminal gate. The bundle-based jobs are only validate, lint, breaking-change,
 parity and the release dry run.
 
@@ -119,8 +119,7 @@ tier 1 stops a merge only because the merge agent declines a red gate. CODEOWNER
 ## DD-15: the end of IC-04 is an unvalidated preview; stable is a green contracts run; pin-grade is the end of IC-09
 
 At the end of IC-04 only the Python resolver and the examples test have read the split contract, so
-that point carries no stability promise. The stable marker is the first green contracts-workflow run
-with the client smoke green on the real split root; pin-grade is the end of IC-09. After the preview
+that point carries no stability promise. The stable marker is the first green contracts-workflow run (the client smoke is a counted step of `validate-bundle`, so it is included); pin-grade is the end of IC-09. After the preview
 point the commitment is a process one: shape changes are announced in the module CHANGELOG under
 `Pre-release shape change`, unless the #5528 acknowledgement requests otherwise (CL-1). Making a
 property optional or nullable is breaking for generated clients, so "additive or nullability
@@ -145,7 +144,20 @@ committed. The text-level leak scan therefore has no exempt directory or marker 
 
 A GitHub Release for a contract tag would otherwise be a candidate for the repository's Latest
 marker. `--prerelease` is added only for a prerelease semver. The guard test asserts the flags, the
-dry run prints the argument list, and the operator verifies the Latest release after merge.
+dry run prints the argument list, and a maintainer verifies the Latest release after merge.
+
+## DD-19: one date-time policy, independent of the installed extras
+
+`rfc3339-validator` reaches the lockfile only through the `lint` extra, so the contracts prelude lacks
+it and `tests-corpus` (all extras) has it. One `FORMAT_CHECKER` with an explicit stdlib `date-time`
+check (`contracts/tools/schema_formats.py`) is passed everywhere, so one example gets one verdict in
+both environments (plan D-P14).
+
+## DD-20: early-start mechanics are plan-level additions
+
+The preview tag namespace, the informational `PREVIEW_DELTA` report, the `Pre-release shape change`
+heading and the counted client smoke have no spec requirement behind them (plan D-P13). They are
+bounded and removable, and are listed for maintainer confirmation next to DEV-1 and DEV-2 (E-2).
 
 - (append during implement and review)
 

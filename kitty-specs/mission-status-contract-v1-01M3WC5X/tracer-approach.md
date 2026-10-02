@@ -35,14 +35,12 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
    so it is the schedule risk.
 5. **Checks in parallel lanes (IC-05, IC-06, IC-07b) and the remaining workflow (IC-08).**
    Python content checks against planted fixtures (leak-class plants built at run time); hygiene
-   checks and CODEOWNERS; the remaining JVM and Go tools. Then the remaining contracts jobs, the
-   release workflow, guard tests and the negative-test job. The first full execution of every job
+   checks and CODEOWNERS; the remaining JVM and Go tools, which bring their own three jobs (`lint`, `breaking-change`, `release-dry-run`) into `contracts.yml`. Then the remaining contracts jobs (`verify-pins`, `python-checks`, `negative-tests`), the release workflow, guard tests and the full gate. IC-08 depends on IC-04 as well, because a green gate needs the real contract. The first full execution of every job
    is the draft-PR push.
 6. **Reality check (IC-09).**
    Helper and its unit tests first, then the parametrised per-Mission test, the pinned
    expected-output fixture from the dashboard derivation at the recorded base commit, floors,
-   controls, read-only hash proof. Any schema fix it forces is additive or a nullability
-   relaxation and is logged in the module CHANGELOG.
+   controls, read-only hash proof. Any schema fix it forces is logged in the module CHANGELOG under `Pre-release shape change`; making a property optional or nullable is itself breaking for generated clients (DD-15), so such a fix is announced there and never treated as a safe relaxation.
 7. **Close-out (IC-10).** README, CHANGELOG entries, docs reference section, NFR-001 numbers from
    a CI log, evidence for the PR body (class A links, class B test ids, the list of
    `x-derived` properties, the citation counts, the uncovered reader paths).
@@ -66,12 +64,12 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
   validating examples, fixed vocabularies). Only the Python resolver and the examples test have
   read the split contract at that point.
 - P1, **stable marker**: the first commit whose contracts-workflow run is green on the draft PR
-  (`contracts-gate`) with the client smoke green on the real split root.
+  (`contracts-gate`, which includes the counted client smoke step of `validate-bundle`).
 - P2, **pin-grade**: the last commit of IC-09 (reality check green, zero exclusions,
   `contracts-gate` green). Partial points: end of IC-02 (project header and Mission list), end of
   IC-03 (Mission page and work package page), both equally unvalidated.
 - Published as lightweight tags `preview/mission-status/p0`, `p1`, `p2` (outside the
-  `contract-<module>-v<semver>` and `v*.*.*` namespaces), pushed by the operator, because a branch
+  `contract-<module>-v<semver>` and `v*.*.*` namespaces), pushed by a maintainer, because a branch
   hash does not survive the rebase and compact-history steps; re-published under a new suffixed tag
   after compact-history. Record the tag names here (not hashes) when they exist.
 
@@ -79,6 +77,7 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
 
 - 2026-10-01: plan written; ten implementation concerns, three lanes of parallel work after IC-01.
 - 2026-10-01: plan review findings folded in; IC-07 split into IC-07a (skeleton, shared-CI edits, spike) and IC-07b, so eleven concerns; the spike result now gates IC-05.
+- 2026-10-02: plan review round 2 folded in: single owners for `contracts.yml`, `pins.json`, `.gitignore` and the corpus registry rules; date-time policy made environment-independent (D-P14); client smoke counted and guarded; ratchet priced.
 - (append during implement and review)
 
 ## Assess at close

@@ -16,24 +16,19 @@ Entries are short and dated; the entry is written when the friction happens.
   in `src/specify_cli/status/reducer.py` and differ only by a verb, and `materialize` is the name
   the repo's own CLAUDE.md "Status Model Patterns" section shows as the example read call. That
   is the trap: the documented example is the writer.
-  **OPERATOR-AUTHORISED EXCEPTION.** The operator authorised the orchestrator to path-scoped
-  restore the 33 tracked and delete the 32 untracked `kitty-specs/*/status.json` files that the
-  fixer's call dirtied. This ran under that authorisation only, scoped to those paths. The tree
-  was confirmed clean afterwards and nothing of the incident was committed.
+  **Authorised cleanup exception (recorded for the audit trail).** The 33 tracked `kitty-specs/*/status.json` files that call rewrote were restored, and the 32 untracked ones it created were deleted, by a path-scoped restore and removal carried out under a maintainer's authorisation and limited to those paths. The working tree was confirmed clean afterwards and nothing of the incident was committed.
   Standing rule from here on: planning and implementation use `materialize_snapshot` or
   `read_events` only; the reality check (FR-019) additionally hashes every tracked file under
   `kitty-specs/` before and after, so a writer cannot slip back in unnoticed.
   **Disposition of the documented-example trap.** The CLAUDE.md "Status Model Patterns" example
   presents `materialize` as a read call; it is a writer. That is a documentation defect outside
   C-002's `src/` scope and is not folded into this Mission and not edited here (CLAUDE.md is untouched).
-  It is recorded as a friction and ledger candidate and handed to the orchestrator for a ledger entry
-  or a doc fix by a separate change.
+  It is recorded here as a friction item; a documentation fix belongs to a separate change.
 - **F-2 (2026-10-01, mission create) - topology derived `lanes`, not `single_branch`.**
   `spec-kitty agent mission create` run with a non-primary `--start-branch` on 4.0.0rc5 derived
-  topology `lanes` (recorded in `meta.json`). The `sk` hub predicts `single_branch` for this
-  situation. The checkout's own CLAUDE.md ("Create-time topology": on a non-primary branch the
+  topology `lanes` (recorded in `meta.json`). Planning guidance written before this tool version expected `single_branch` for this situation. The checkout's own CLAUDE.md ("Create-time topology": on a non-primary branch the
   create default is `lanes`; `single_branch` only from `--topology single_branch` or
-  `--owned-checkout`) matches the tool, so the hub text is the stale party. Consequence for this
+  `--owned-checkout`) matches the tool, so that guidance is the stale party. Consequence for this
   Mission: WPs run in lane worktrees, not sequentially in the write checkout, and the plan's WP
   write scopes must be disjoint across lanes.
 - **F-3 (2026-10-01, mission create) - scaffold commit message violates the terminology canon.**
@@ -43,9 +38,7 @@ Entries are short and dated; the entry is written when the friction happens.
   `(Add|Update) (meta|spec|tasks|plan) for (feature|mission)`; the word "scaffold" is **not** in that
   alternation, so the subject is outside the ignore list. No gate fails for a different reason: the
   `commit-msg` job in `ci-router.yml` only prints commit subjects and ends in `|| true`, so it never
-  runs commitlint and cannot fail (ledger entry SK-246, open). The older ledger entry SK-64 was
-  retracted and replaced (its real finding is a gap in the tool-commit ignore list), so it is not the
-  reason either. The terminology guard does not read commit messages. It is a wording defect in the
+  runs commitlint and cannot fail .  The terminology guard does not read commit messages. It is a wording defect in the
   tool. Handled at PR prep by the history-compaction step, which rewrites the subject to canonical
   wording. Not fixable from this Mission (C-002: no `src/` change).
 - **F-4 (2026-10-01, planning) - `make ci-parity` shells out to bare `uv run`.**
@@ -70,8 +63,7 @@ Entries are short and dated; the entry is written when the friction happens.
 - **F-6 (2026-10-01, planning) - the tracer-file location differs between doctrine and sibling missions.**
   The `mission-tracer-files` procedure says `traces/tooling-friction.md` etc. Both layouts exist
   in `kitty-specs/`: 83 Mission directories carry a `traces/` subdirectory and 57 carry flat
-  `tracer-tooling-friction.md` files (counted by a read-only listing). The dispatch for this
-  Mission named the flat form, so the flat form is used. Worth reconciling in the procedure text
+  `tracer-tooling-friction.md` files (counted by a read-only listing). The flat form was chosen for this Mission and is used here. Worth reconciling in the procedure text
   (a doctrine edit, out of scope here).
 - **F-7 (2026-10-01, planning) - no JVM, Gradle, vacuum or oasdiff on the workstation.**
   `java`, `gradle`, `vacuum`, `oasdiff` and `go` are all absent from the PATH here. The contracts
@@ -88,10 +80,9 @@ Entries are short and dated; the entry is written when the friction happens.
   modules or aggregate gate), tier 2 is fleet-reported only, tier 3 is local; never "a GitHub required
   check". CLAUDE.md drift flagged, not fixed here.
 - **F-9 (2026-10-01, planning) - the committed `MissionCreated` event carries a git e-mail identity.**
-  `status.events.jsonl` of this Mission (written by the tool at create time) holds the operator's
-  noreply git identity in `MissionCreated.payload.actor`. C-006 forbids e-mail addresses in files
+  `status.events.jsonl` of this Mission (written by the tool at create time) holds the author's noreply git identity in `MissionCreated.payload.actor`. C-006 forbids e-mail addresses in files
   this Mission authors; this one is a CLI record. Follows the existing username-leak policy: the
-  CLI-written record stays, the PR cites it (ledger SK-223 lineage), and it is exactly the source
+  CLI-written record stays, the PR cites it, and it is exactly the source
   form the reality check's actor-projection assertion (D-10) exercises.
 - **F-10 (2026-10-01, planning) - an untracked `src/specify_cli/dashboard/` remnant.**
   After the #5545 dashboard removal the directory `src/specify_cli/dashboard/` still exists on disk

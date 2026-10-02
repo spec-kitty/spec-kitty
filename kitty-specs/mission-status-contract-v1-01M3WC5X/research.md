@@ -8,7 +8,7 @@ Mission `mission-status-contract-v1-01M3WC5X` (#5558). Phase 0 output of the pla
 - **Rationale.** The corpus-marker jobs (`tests-corpus` in `ci-router.yml` and `built-in-corpus-suite` in `packs.yml`) have no JVM and must not be edited (C-003, FR-017, SC-008). The reality check still has to give a real verdict in them and may never skip (FR-019). The resolver implements only what the contract uses, which keeps it small enough to prove equal.
 - **Alternatives.** (a) Add a JDK and Gradle step to the two corpus jobs: edits two existing jobs, excluded by the spec. (b) Commit the bundle and read it: the bundle is a build product that is never committed (CL-5, FR-001). (c) Have the test download the CI artefact: makes a per-change test depend on another job, the network and artefact access from forks, and gives a local run no verdict. (d) A second resolver with no equality proof: excluded by the OQ-1 constraint ("no second unproven resolution authority").
 - **Resolver scope (what it must support, and refuse; a floor, not the final set).** Support: relative file `$ref` (including into `contracts/_shared/`), in-file JSON-pointer fragments, sibling keywords beside `$ref` (legal in 3.1), and the composition keywords `allOf`, `oneOf`, `anyOf`. Refuse loudly, with a stable message code: a URL `$ref`, an absolute-path `$ref`, a `~1` pointer, a cycle, an unresolved target, a non-mapping document. Output: one dereferenced tree plus the three counts (path items, schemas, resolved references) that the parity script prints. Change control: a contract keyword outside this list (`$defs`, `$anchor`, `discriminator`, brace-named files) is added to the resolver and its parity fixtures in the same commit that first uses it.
-- **Evidence.** Locked dependencies available: `jsonschema` 4.26.0 (with `referencing`), `rfc3339-validator`, `jsonpointer`, PyYAML 6.0.3, all importable in the repository's `.venv` (verified). `openapi-spec-validator` and `openapi-schema-validator` are **not** installed, so OpenAPI-document validation is the JVM tool's job and payload validation is `jsonschema` with the Draft 2020-12 validator, which is the 3.1 schema dialect.
+- **Evidence.** Locked dependencies available: `jsonschema` 4.26.0 (with `referencing`), `jsonpointer` and PyYAML 6.0.3 are in the locked base set. `rfc3339-validator` is **not** in the base set: `uv.lock` reaches it only through the `format-nongpl` extra of `jsonschema`, requested by `cyclonedx-python-lib` for `cyclonedx-bom`, which `pyproject.toml` lists in the `lint` extra. It is importable in a hand-built `.venv` and in `tests-corpus` (`uv sync --frozen --all-extras`) but not after the contracts prelude, so the plan does not rely on it (plan D-P14: one stdlib `date-time` check in `contracts/tools/schema_formats.py`). `openapi-spec-validator` and `openapi-schema-validator` are **not** installed, so OpenAPI-document validation is the JVM tool's job and payload validation is `jsonschema` with the Draft 2020-12 validator, which is the 3.1 schema dialect.
 
 ## R-2 Gradle provisioning without a wrapper jar
 
@@ -16,7 +16,7 @@ Mission `mission-status-contract-v1-01M3WC5X` (#5558). Phase 0 output of the pla
 - **Rationale.** R-10 of the spec prefers a pinned distribution over a committed binary. FR-018's parenthetical (`distributionSha256Sum`) is a wrapper-properties field and needs the wrapper, so the manifest check replaces it with the same guarantee: a missing or mismatching checksum fails before execution.
 - **Alternatives.** Commit the wrapper (jar plus properties) and validate the jar with a validation action: adds a committed binary and a third-party action. A setup action that downloads Gradle by version: its checksum source is the same host as the download.
 - **Dependency verification.** `gradle --write-verification-metadata sha256 <task>` (Java toolguide, `packs/built-in/toolguides/java-supply-chain.toolguide.yaml`) generates `contracts/gradle/verification-metadata.xml`; the build runs with strict verification. The Gradle plugin portal and Maven Central are the only repositories the build may use. The tamper test is a copy of the metadata with one checksum altered at run time.
-- **To verify at IC-07.** The exact Gradle, plugin, vacuum and oasdiff versions, their publication dates and checksums (none are invented in the plan).
+- **To verify at IC-07a (JDK, Gradle, plugin) and IC-07b (vacuum, oasdiff).** The exact Gradle, plugin, vacuum and oasdiff versions, their publication dates and checksums (none are invented in the plan).
 
 ## R-3 Bundler fidelity spike (the exit criterion of IC-07a)
 
@@ -41,7 +41,7 @@ Mission `mission-status-contract-v1-01M3WC5X` (#5558). Phase 0 output of the pla
 | `contracts/mission-status/openapi.yaml` | no test job selected; always-on lint jobs only | group `corpus`, job `tests-corpus`, no code shard, no module shard |
 | `contracts/tools/<script>.py` plus `docs/x.md` | no test job | groups `corpus` and `docs`, `tests-corpus` selected, no code shard |
 | `.github/CODEOWNERS` | no test job | nothing selected by the router (the contracts workflow's own path filter covers it) |
-| `tests/contract/test_mission_status_reality.py` alone | no test job | no test job (accepted residual R-14: a change confined to the reality check selects nothing) |
+| `tests/contract/test_mission_status_reality.py` alone | no test job | no test job (accepted residual P-10 in the plan: a change confined to the reality check selects nothing) |
 | `scripts/ci/fleet_verdict.py`, `tests/ci/test_fleet_verdict.py` | module `ci` | module `ci` |
 | the same plus `tests/release/pinning_rule_inventory.json` or `tests/release/ci_retirement_scrub.json` | module `ci` | modules `ci` and `release` (the `release` shard runs all of `tests/release`, 15 test modules) |
 | `docs/development/reference/ci-gate-mechanics.md`, `docs/changelog/CHANGELOG.md` | group `docs`: `tests-docs` and the always-on `docs-lint` | same |
@@ -75,17 +75,17 @@ One invocation of the named gate files on the planning base: **265 passed, 1 ski
 
 ## R-9 Supply-chain evidence (DIRECTIVE_051, `supply-chain-install-safety`)
 
-The plan adds dependencies in two ecosystems (JVM through Gradle; Go binaries). Python gains none. Results per threat-class control; none is silently skipped. "Result" is the design decision now; the measured outcome is recorded in the PR body by IC-07 and any adverse result needs explicit operator acknowledgement.
+The plan adds dependencies in two ecosystems (JVM through Gradle; Go binaries). Python gains none. Results per threat-class control; none is silently skipped. "Result" is the design decision now; the measured outcome is recorded in the PR body by IC-07a and IC-07b and any adverse result needs explicit maintainer acknowledgement.
 
-| Control | Design for this Mission | Result now | Evidence captured at IC-07 |
+| Control | Design for this Mission | Result now | Evidence captured at IC-07a and IC-07b |
 |---|---|---|---|
 | 1 Registry authenticity | JVM artefacts only from the Gradle plugin portal and Maven Central, strict verification; Go binaries and the Gradle distribution only from their vendors' official HTTPS release locations; no mirror | Designed | The repositories block of the Gradle build; the download URLs in `pins.json` |
-| 2 Package freshness | `pins.json` records each artefact's publication date; a version published less than 14 days before the pin date is adverse and needs operator acknowledgement | Designed | Dates in `pins.json`; the adverse list (empty expected) |
+| 2 Package freshness | `pins.json` records each artefact's publication date; a version published less than 14 days before the pin date is adverse and needs maintainer acknowledgement | Designed | Dates in `pins.json`; the adverse list (empty expected) |
 | 3 Deny-by-default lifecycle scripts | Gradle plugin resolution runs no install scripts; the Go binaries are downloaded and checksum-verified, never piped to a shell (no download-and-run one-liners); no package-manager install in the workflow | Designed | The workflow text, asserted by the SHA-pin and no-unpinned-install guard tests |
 | 4 Lockfile-driven installs | `verification-metadata.xml` (sha256 for every resolved artefact, strict mode) and `pins.json` are the lock; Python uses the existing `uv.lock` through a frozen sync | Designed | The two files; the tamper fixtures |
-| 5 Incident list and IoC posture | Before each pin, the vendor's advisory feed for the artefact is read and the result recorded; no incident package name is hard-coded in the repository | To do at IC-07 | The cited advisory feeds consulted and the result |
+| 5 Incident list and IoC posture | Before each pin, the vendor's advisory feed for the artefact is read and the result recorded; no incident package name is hard-coded in the repository | To do at IC-07a and IC-07b | The cited advisory feeds consulted and the result |
 
-Adversarial challenge pass: **deferred to the orchestrator** (this plan author had no sub-agent budget); no contested finding exists to disposition. It is requested after the plan point-cut and before implementation, per the `adversarial-squad-deployment` procedure; the lenses that matter most are supply chain, gate non-vacuity and the bundler-fidelity risk.
+Adversarial challenge pass: requested after the plan point-cut and before implementation, per the `adversarial-squad-deployment` procedure; the lenses that matter most are supply chain, gate non-vacuity and the bundler-fidelity risk. No contested finding is left undispositioned in this file.
 
 ## R-10 Event stream cursor naming (verified)
 
@@ -98,7 +98,7 @@ The dashboard sources removed by #5545 and #5530 remain readable at the recorded
 ## R-12 What is not known yet (honest list)
 
 1. Bundler fidelity (R-3): needs CI.
-2. Exact tool versions, dates and checksums (R-2, R-9): chosen at IC-07.
+2. Exact tool versions, dates and checksums (R-2, R-9): chosen at IC-07a (JDK, Gradle, plugin) and IC-07b (vacuum, oasdiff).
 3. How `diff-cover` behaves on a pull request with no changed critical-path lines (the scope is the `CRITICAL_PATHS` tuple in `scripts/ci/aggregate_source.py`): read at implement start from an existing pull request with the same module selection; baseline step 6.
 4. Whole-job duration of `tests-corpus` and of the push-to-`main` `built-in-corpus-suite` (20 minute budget, coverage tracer attached) after this Mission (NFR-001): baselined from existing logs, then measured from the first draft-PR run and a full-mode `packs.yml` dispatch.
 5. Whether the two new workflow files trip `test_dual_mode_contract.py` or the release-ownership guard: read as no; run as named files at implement start to confirm.
