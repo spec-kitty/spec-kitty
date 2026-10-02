@@ -52,35 +52,12 @@ jobs:
       - name: Install the pinned toolchain
         run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins contracts/tools/pins.json --dest "$RUNNER_TEMP/tools"
       - name: Write the bundle, validate it with the JVM toolchain and re-emit it as the Java parser reads it
-        run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
+        run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full
       # The client smoke is non-failing only while the spike runs; it becomes failing with the hardening work package.
       - name: Generate a TypeScript client from the bundle (smoke)
         if: always()
         continue-on-error: true
-        run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
-      # SPIKE-ONLY: observations that are never gates. Each prints the tool's exit status and output.
-      - name: "Spike: a tampered verification-metadata copy must be refused"
-        if: always()
-        continue-on-error: true
-        run: |
-          set +e
-          cp -r contracts "$RUNNER_TEMP/tamper-contracts"
-          sed -i 's/<sha256 value="/<sha256 value="00/' "$RUNNER_TEMP/tamper-contracts/gradle/verification-metadata.xml"
-          uv run --frozen --no-sync python "$RUNNER_TEMP/tamper-contracts/tools/bundle.py" --root "$RUNNER_TEMP/tamper-contracts/tools/fixtures/spike" --out "$RUNNER_TEMP/tamper-out" --module full
-          echo "SPIKE-RESULT tampered metadata exit=$? (expect 2, DEPENDENCY_VERIFICATION_FAILED)"
-      - name: "Spike: the written bundle, the Java parser's view of it, and their parity"
-        if: always()
-        continue-on-error: true
-        run: |
-          set +e
-          echo "::group::javaview of full"
-          cat "$RUNNER_TEMP/spike-out/javaview/full/openapi.yaml"
-          echo "::endgroup::"
-          uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module full
-          echo "SPIKE-RESULT parity full exit=$?"
-          echo "::group::generated client files of full"
-          find "$RUNNER_TEMP/spike-out/client/full" -type f | sort | head -80
-          echo "::endgroup::"
+        run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
