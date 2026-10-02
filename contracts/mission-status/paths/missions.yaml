@@ -1,0 +1,22 @@
+get:
+  operationId: listMissions
+  summary: List Mission overviews.
+  description: >-
+    Returns one page of Mission overviews. The order is a total key: createdAt descending,
+    with ties broken by missionId ascending. Paging uses the shared opaque page cursor: pass
+    the nextPageCursor of one response as pageCursor to fetch the next page, and stop when
+    hasNextPage is false.
+  tags:
+    - Missions
+  parameters:
+    - $ref: ../../_shared/parameters/PageSize.yaml
+    - $ref: ../../_shared/parameters/PageCursor.yaml
+  responses:
+    '200':
+      description: One page of Mission overviews.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/MissionOverviewPage.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

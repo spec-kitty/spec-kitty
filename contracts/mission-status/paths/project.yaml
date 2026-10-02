@@ -1,0 +1,15 @@
+get:
+  operationId: getProject
+  summary: Read the project header.
+  description: Returns the project name and the number of Missions the service lists.
+  tags:
+    - Project
+  responses:
+    '200':
+      description: The project header.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Project.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml
