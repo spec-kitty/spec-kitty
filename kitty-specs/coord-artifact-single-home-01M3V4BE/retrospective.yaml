@@ -1,0 +1,969 @@
+schema_version: 1
+mission_id: 01M3V4BEWYPR3TP9N6A95A44KN
+mission_slug: coord-artifact-single-home-01M3V4BE
+mission_number: 211
+friendly_name: Coordination artifacts get one durable home
+mission_type: software-dev
+target_branch: issue-5440-coord-artifact-single-home
+created_at: '2026-10-02T19:36:06.740861+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-02T19:36:06.740861+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-027
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-027
+- id: h-003
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-027
+- id: h-004
+  category: implementation
+  summary: WP18 completed without rejection cycles
+  evidence_refs:
+  - e-027
+- id: h-005
+  category: implementation
+  summary: WP20 completed without rejection cycles
+  evidence_refs:
+  - e-027
+- id: h-006
+  category: implementation
+  summary: WP21 completed without rejection cycles
+  evidence_refs:
+  - e-027
+- id: h-007
+  category: implementation
+  summary: WP22 completed without rejection cycles
+  evidence_refs:
+  - e-027
+not_helpful:
+- id: n-045
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-073
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-031
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-059
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-032
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-060
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-033
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-061
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-034
+  category: implementation
+  summary: WP06 needed 3 implementation cycles
+  evidence_refs:
+  - e-062
+  details: WP WP06 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-035
+  category: implementation
+  summary: WP07 needed 3 implementation cycles
+  evidence_refs:
+  - e-063
+  details: WP WP07 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-036
+  category: implementation
+  summary: WP08 needed 2 implementation cycles
+  evidence_refs:
+  - e-064
+  details: WP WP08 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-037
+  category: implementation
+  summary: WP09 needed 4 implementation cycles
+  evidence_refs:
+  - e-065
+  details: WP WP09 entered in_progress 4 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-038
+  category: implementation
+  summary: WP10 needed 2 implementation cycles
+  evidence_refs:
+  - e-066
+  details: WP WP10 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-039
+  category: implementation
+  summary: WP12 needed 2 implementation cycles
+  evidence_refs:
+  - e-067
+  details: WP WP12 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-040
+  category: implementation
+  summary: WP13 needed 2 implementation cycles
+  evidence_refs:
+  - e-068
+  details: WP WP13 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-041
+  category: implementation
+  summary: WP14 needed 2 implementation cycles
+  evidence_refs:
+  - e-069
+  details: WP WP14 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-042
+  category: implementation
+  summary: WP15 needed 3 implementation cycles
+  evidence_refs:
+  - e-070
+  details: WP WP15 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-043
+  category: implementation
+  summary: WP16 needed 2 implementation cycles
+  evidence_refs:
+  - e-071
+  details: WP WP16 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-044
+  category: implementation
+  summary: WP19 needed 3 implementation cycles
+  evidence_refs:
+  - e-072
+  details: WP WP19 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-016
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-043
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-017
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-044
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-018
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-045
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-019
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-046
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-020
+  category: process
+  summary: WP07 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-047
+  details: WP WP07 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-021
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-048
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-022
+  category: process
+  summary: WP09 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-049
+  details: WP WP09 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-023
+  category: process
+  summary: WP10 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-050
+  details: WP WP10 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-024
+  category: process
+  summary: WP12 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-051
+  details: WP WP12 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-025
+  category: process
+  summary: WP13 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-052
+  details: WP WP13 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-026
+  category: process
+  summary: WP14 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-053
+  details: WP WP14 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-027
+  category: process
+  summary: WP15 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-054
+  details: WP WP15 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-028
+  category: process
+  summary: WP16 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-055
+  details: WP WP16 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-029
+  category: process
+  summary: WP17 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-056
+  details: WP WP17 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-030
+  category: process
+  summary: WP19 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-057
+  details: WP WP19 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-028
+  details: WP WP02 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-029
+  details: WP WP03 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-030
+  details: WP WP05 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-031
+  details: WP WP06 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP07 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-032
+  details: WP WP07 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-033
+  details: WP WP08 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-007
+  category: review_loop
+  summary: WP09 required 3 rejection cycle(s) before approval
+  evidence_refs:
+  - e-034
+  details: WP WP09 was sent back from review/approval to an earlier lane 3 time(s).
+- id: n-008
+  category: review_loop
+  summary: WP10 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-035
+  details: WP WP10 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-009
+  category: review_loop
+  summary: WP12 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-036
+  details: WP WP12 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-010
+  category: review_loop
+  summary: WP13 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-037
+  details: WP WP13 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-011
+  category: review_loop
+  summary: WP14 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-038
+  details: WP WP14 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-012
+  category: review_loop
+  summary: WP15 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-039
+  details: WP WP15 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-013
+  category: review_loop
+  summary: WP16 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-040
+  details: WP WP16 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-014
+  category: review_loop
+  summary: WP17 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-041
+  details: WP WP17 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-015
+  category: review_loop
+  summary: WP19 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-042
+  details: WP WP19 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-068
+  category: tooling
+  summary: 'Tracer: #4827.'
+  evidence_refs:
+  - e-075
+  details: "- **#4827.** The orphan fail-closed is kept. The automatic `planning_commit_sha` refresh rides the no-flag preserve-decision
+    path, and Q6's warn-and-continue covers only non-orphan cases."
+- id: n-069
+  category: tooling
+  summary: 'Tracer: C-008.'
+  evidence_refs:
+  - e-075
+  details: "- **C-008.** ~~Topology-less residue readers keep today's `decisions/` answer through a shrink-only compatibility
+    set.~~ Superseded 2026-10-01 (round 4) by `plan.design.topology-less-callers`; see the entry below."
+- id: n-066
+  category: tooling
+  summary: 'Tracer: C1.'
+  evidence_refs:
+  - e-075
+  details: '- **C1.** NFR-001 is recorded as an accepted charter deviation (Decision Moment `plan.nfr.create-latency`).'
+- id: n-046
+  category: tooling
+  summary: 'Tracer: Close the defect class at the write side.'
+  evidence_refs:
+  - e-074
+  details: '- **Close the defect class at the write side.** Add one write-location accessor, `PlacementSeam.write_dir(kind)`,
+    on the existing placement seam. For COORD-partition kinds of a coordination-routed Mission it owns materialize, seed and
+    refuse. Every COORD writer moves to it, and the existing write-side rederivation gate is extended so a writer cannot fall
+    back to a read resolver.'
+- id: n-076
+  category: tooling
+  summary: 'Tracer: Create rollback.'
+  evidence_refs:
+  - e-075
+  details: '- **Create rollback.** It tears down the create-owned worktree and branch despite the dirty-worktree refusal.'
+- id: n-047
+  category: tooling
+  summary: 'Tracer: Create seeds eagerly.'
+  evidence_refs:
+  - e-074
+  details: '- **Create seeds eagerly.** Create materializes the coordination worktree and commits the creation records on
+    the coordination branch through the existing coordination commit path.'
+- id: n-052
+  category: tooling
+  summary: 'Tracer: Decision ledger partition.'
+  evidence_refs:
+  - e-075
+  details: '- **Decision ledger partition.** The ledger (`DM-*.md`, `index.json`) is PRIMARY-partition; decision events stay
+    COORD (decision `specify.scope.decision-ledger-partition`).'
+- id: n-055
+  category: tooling
+  summary: 'Tracer: Fork check.'
+  evidence_refs:
+  - e-075
+  details: '- **Fork check.** Runs at seed time only. Carry over when one event-id sequence is a prefix of the other, and
+    refuse on a true fork. There is no lockout for already-materialized forked Missions (decision `specify.design.fork-check`).'
+- id: n-053
+  category: tooling
+  summary: 'Tracer: Forked logs.'
+  evidence_refs:
+  - e-075
+  details: '- **Forked logs.** Detect and guide only, with no automatic merge or re-sequencing (decision `specify.scope.forked-log-recovery`,
+    C-003).'
+- id: n-067
+  category: tooling
+  summary: 'Tracer: G1.'
+  evidence_refs:
+  - e-075
+  details: '- **G1.** The ledger committers are narrowed to spec-commit and accept (`plan.scope.ledger-committers`).'
+- id: n-048
+  category: tooling
+  summary: 'Tracer: Honest commits.'
+  evidence_refs:
+  - e-074
+  details: '- **Honest commits.** The commit router commits the owning-surface copy and reports a per-surface outcome. One
+    shared renderer serves every consumer. Accept drops its raw commit.'
+- id: n-084
+  category: tooling
+  summary: 'Tracer: I12.'
+  evidence_refs:
+  - e-075
+  details: '- **I12.** mark-status is not a commit-outcome consumer; its live write path commits nothing. The tracer-append
+    CLI is.'
+- id: n-085
+  category: tooling
+  summary: 'Tracer: I13.'
+  evidence_refs:
+  - e-075
+  details: "- **I13.** FR-017's anchors include the new 4.x ledger ADR."
+- id: n-081
+  category: tooling
+  summary: 'Tracer: I7, `plan.design.merge-class-guard-set`.'
+  evidence_refs:
+  - e-075
+  details: '- **I7, `plan.design.merge-class-guard-set`.** `decisions` stays in `_NON_DIVERGENT_COORD_RESIDUE_DIRS`, because
+    the guard hard-asserts the divergent set is `{traces}`. The ruling text is amended, and an assertion requires the `decisions/index.json`
+    driver pattern to be registered.'
+- id: n-082
+  category: tooling
+  summary: 'Tracer: I8, `plan.design.topology-less-callers`.'
+  evidence_refs:
+  - e-075
+  details: "- **I8, `plan.design.topology-less-callers`.** The fix lives at one point: `coherence.py` resolves the stored
+    topology from the slug when `topology is None`.\n    - `lanes`/`single_branch` keep today's verdict (C-008).\n    - Coordination
+    Missions get the PRIMARY ledger rule at every caller.\n    - The compatibility set is dropped.\n    - Coordination-Mission
+    tests are added at move-task, implement and auto-rebase."
+- id: n-077
+  category: tooling
+  summary: 'Tracer: Imports.'
+  evidence_refs:
+  - e-075
+  details: '- **Imports.** `coord_seed.py` imports `mission_runtime` from the root only.'
+- id: n-080
+  category: tooling
+  summary: 'Tracer: Ledger ADR.'
+  evidence_refs:
+  - e-075
+  details: "- **Ledger ADR.** The ledger reversal gets its own 4.x ADR.\n- 2026-10-01 (analyze re-run folds, round 4; recorded
+    as plan Decision Moments):"
+- id: n-049
+  category: tooling
+  summary: 'Tracer: Ledger reclassified.'
+  evidence_refs:
+  - e-074
+  details: '- **Ledger reclassified.** The decision ledger is reclassified to the PRIMARY partition, with every reader that
+    flips enumerated. `doctor decisions` gains fork detection and a non-destructive repair.'
+- id: n-078
+  category: tooling
+  summary: 'Tracer: Matrix writes.'
+  evidence_refs:
+  - e-075
+  details: '- **Matrix writes.** `write_dir` is resolved before the lock.'
+- id: n-070
+  category: tooling
+  summary: 'Tracer: Merge drivers.'
+  evidence_refs:
+  - e-075
+  details: '- **Merge drivers.** Paths covered by a merge driver are skipped by planning recency.'
+- id: n-071
+  category: tooling
+  summary: 'Tracer: Merge-class guard.'
+  evidence_refs:
+  - e-075
+  details: '- **Merge-class guard.** ~~`decisions` moves into its divergent set~~ Superseded 2026-10-01 (round 4) by `plan.design.merge-class-guard-set`;
+    see the entry below.'
+- id: n-073
+  category: tooling
+  summary: 'Tracer: PUBLISHED kinds.'
+  evidence_refs:
+  - e-075
+  details: '- **PUBLISHED kinds.** They follow the existing E2 resolution (D23).'
+- id: n-059
+  category: tooling
+  summary: 'Tracer: Plan: seed under the status lock.'
+  evidence_refs:
+  - e-075
+  details: "- **Plan: seed under the status lock.** The seed runs under the existing per-Mission status lock, which both surfaces
+    already share because it is keyed on the Mission directory name. It runs before the write reduces the log (research D2).\n\
+    \n## Entries\n\n- 2026-10-01 (operator rulings on the plan's open questions; recorded as plan Decision Moments):"
+- id: n-058
+  category: tooling
+  summary: 'Tracer: Plan: the accessor is a method on the existing seam.'
+  evidence_refs:
+  - e-075
+  details: '- **Plan: the accessor is a method on the existing seam.** It is `PlacementSeam.write_dir(kind)`, not a new module
+    or class. The seed body lives in the new `coordination/coord_seed.py`, which calls `materialize_coord_surface_for_write`
+    (`surface_resolver.py`) as its first step; the pure prefix classifier lives in `coordination/event_prefix.py`. (Corrected
+    2026-10-01: an earlier wording placed the seed in `surface_resolver.py`.) The seam reaches it through a lazy import over
+    the `coordination` edge that `_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI` already lists, so the ledger does not grow (research
+    D1).'
+- id: n-074
+  category: tooling
+  summary: 'Tracer: Post-fix discriminator.'
+  evidence_refs:
+  - e-075
+  details: '- **Post-fix discriminator.** It is a `Spec-Kitty-Coordination-Seed` commit trailer (the branch-tree test over-matched),
+    and the restore copies COORD-kind paths only.'
+- id: n-056
+  category: tooling
+  summary: 'Tracer: Pre-fix coordination-only ledger.'
+  evidence_refs:
+  - e-075
+  details: '- **Pre-fix coordination-only ledger.** Fixed forward via `doctor decisions --repair`, with no read fallback.
+    Teardown refuses until the repair has run (decision `specify.scope.legacy-ledger`).'
+- id: n-060
+  category: tooling
+  summary: 'Tracer: Q1.'
+  evidence_refs:
+  - e-075
+  details: '- **Q1.** Keep the #4970 refusal for a remote-only coordination branch, with a recovery hint. Materialize-then-write
+    applies only when the local branch exists.'
+- id: n-061
+  category: tooling
+  summary: 'Tracer: Q2.'
+  evidence_refs:
+  - e-075
+  details: '- **Q2.** NFR-001 is "at most +1.0 s over the measured base median" (about 2.64 s), with no absolute bound.'
+- id: n-062
+  category: tooling
+  summary: 'Tracer: Q3.'
+  evidence_refs:
+  - e-075
+  details: '- **Q3.** On a post-fix EMPTY surface: restore the Mission dir from the coordination branch tip, warn loudly,
+    then write.'
+- id: n-063
+  category: tooling
+  summary: 'Tracer: Q4.'
+  evidence_refs:
+  - e-075
+  details: '- **Q4.** The consolidation executor (`executor.py:825`, `:4183`) and `materialize` writers migrate to `write_dir`
+    in this Mission (new IC-18). The FR-014 gate allowlist starts empty.'
+- id: n-064
+  category: tooling
+  summary: 'Tracer: Q5.'
+  evidence_refs:
+  - e-075
+  details: '- **Q5.** The pre-fix seed commits once on the coordination branch before the triggering write.'
+- id: n-065
+  category: tooling
+  summary: 'Tracer: Q6.'
+  evidence_refs:
+  - e-075
+  details: "- **Q6.** A refused automatic `planning_commit_sha` refresh warns and continues, keeping the old pin.\n- 2026-10-01:
+    Q4 made two existing pins deliberate behaviour changes, not stale tests. Consolidation on an UNMATERIALIZED surface with
+    a local branch now materializes instead of aborting, which re-pins `test_merge_status_commit.py:271` (R23). The completed-Mission
+    `--resume` PRIMARY answer at `executor.py:825` is preserved and pinned by characterization test R1d.\n- 2026-10-01 (analyze
+    folds plus brownfield-scout decisions):"
+- id: n-079
+  category: tooling
+  summary: 'Tracer: Review cycle.'
+  evidence_refs:
+  - e-075
+  details: '- **Review cycle.** `_review_cycle_wp_dir` defaults to `REVIEW_CYCLE`, so readers and writers move together.'
+- id: n-075
+  category: tooling
+  summary: 'Tracer: Seed lock.'
+  evidence_refs:
+  - e-075
+  details: '- **Seed lock.** It uses the owned root, the `coord_mission_dir_name` key and a bounded timeout.'
+- id: n-054
+  category: tooling
+  summary: 'Tracer: Seed mechanism.'
+  evidence_refs:
+  - e-075
+  details: '- **Seed mechanism.** Eager materialization at create, committing through the existing coordination commit path.
+    A direct ref commit was rejected (decision `specify.design.seed-mechanism`).'
+- id: n-050
+  category: tooling
+  summary: 'Tracer: Sequencing.'
+  evidence_refs:
+  - e-074
+  details: '- **Sequencing.** Campsite-clean first. Every defect gets a red-first reproduction through its existing entry
+    point before its fix. Then one end-to-end test over both coordination topologies.'
+- id: n-072
+  category: tooling
+  summary: 'Tracer: Single write authority.'
+  evidence_refs:
+  - e-075
+  details: '- **Single write authority.** `write_dir` absorbs `assert_coord_write_materialized` (D22).'
+- id: n-051
+  category: tooling
+  summary: 'Tracer: Tests.'
+  evidence_refs:
+  - e-074
+  details: "- **Tests.** Targeted module tests plus the named architectural gate files only. No full heavy suites locally.\n\
+    \n## Entries\n- 2026-10-01: The scope widened by operator ruling Q4. The consolidation and `materialize` COORD writers
+    migrate too, as a separate concern (IC-18) guarded by the #5001 terminus-integrity tests. The spec moved to revision 3
+    with the plan-phase folds.\n\n2026-10-01 · claude · 2026-10-01 WP11: added the new migration module to tests/architectural/test_no_dead_modules.py's
+    Category-1 (auto-discovered migrations) allowlist, outside this WP's owned_files, mirroring every sibling merge-driver
+    migration (m_3_2_6_*, m_3_2_7_review_cycle_merge_driver) already listed there -- unavoidable for an auto-discovered-via-pkgutil
+    migration module with no static src/ importer. Distinct from the WP12-owned test_merge_reconciliation_class_guard.py amendment,
+    which was deliberately NOT touched per the prompt's binding instruction.\n\n2026-10-01 · claude · 2026-10-01 WP19: Implemented
+    FR-013"
+- id: n-083
+  category: tooling
+  summary: 'Tracer: U3, `plan.design.seed-trailer-ownership`.'
+  evidence_refs:
+  - e-075
+  details: "- **U3, `plan.design.seed-trailer-ownership`.** One constant, `COORD_SEED_TRAILER`, is owned by `coord_seed.py`
+    (WP03) and written by the seed commit (WP03 T015) and create's commit (WP06 T031). A refused seed commit is retried with
+    the trailer by the next seed attempt; there is no router change. The tree-content alternative is removed."
+- id: n-057
+  category: tooling
+  summary: 'Tracer: `planning_commit_sha`.'
+  evidence_refs:
+  - e-075
+  details: "- **`planning_commit_sha`.** `finalize-tasks` refreshes it automatically; the opt-in flag's behaviour becomes
+    the default (decision `specify.scope.planning-commit-refresh`)."
+gaps:
+- id: g-001
+  category: process
+  summary: Arbiter override needed for WP09 (2x)
+  evidence_refs:
+  - e-058
+  details: WP WP09 required 2 arbiter override(s). Arbiter overrides are an escape hatch. Recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+- id: g-002
+  category: tooling
+  summary: 'Tracer: I9.'
+  evidence_refs:
+  - e-075
+  details: "- **I9.** If FR-013 touches the `lanes`/`single_branch` receipt, the change is output-only and additive (spec
+    edge case).\n\n2026-10-01 · claude · 2026-10-01 WP01: _StagePlan modeled as a 5-member Enum (IN_PLACE/SKIP_STATUS_LOG/SKIP_ANALYSIS_REPORT/DROP_FOREIGN_WORKTREE/COPY)
+    per brownfield scout round-3 correction, with DROP_FOREIGN_WORKTREE kept distinct from the two SKIP members so WP05 can
+    later translate a SKIP without touching the foreign-worktree drop.\n\n2026-10-01 · claude · 2026-10-01 WP01: extracted
+    _meta_unreadable_fallback (beyond the prompt's two named helpers) from resolve_status_surface_with_anchor for C901 headroom;
+    extracting only the EMPTY branch left it at 11, one over the <=10 target, so the scout-suggested second extraction was
+    required to reach 9.\n\n2026-10-01 · claude · 2026-10-01 WP02: coord_mission.py factory built on create_mission_core/CLI
+    create path; make_prefix_coord_mission reuses make_coord_mission(via=core) since the current (pre-WP06) create already
+    cuts t"
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP01-campsite-clean-touched-god-surfaces.md
+- id: e-006
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP02-coord-mission-fixture-harness.md
+- id: e-007
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP03-coord-seed-and-establish-core.md
+- id: e-008
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP04-placement-seam-write-dir.md
+- id: e-009
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP05-commit-router-owning-surface-outcomes.md
+- id: e-010
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP06-create-seeds-coordination-surface.md
+- id: e-011
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP07-transactional-status-writers.md
+- id: e-012
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP08-review-cycle-and-tasks-port-writers.md
+- id: e-013
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP09-decision-event-writers.md
+- id: e-014
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP10-write-seam-writers-tracer-matrices.md
+- id: e-015
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP11-decision-index-merge-driver.md
+- id: e-016
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP12-decision-ledger-primary-partition.md
+- id: e-017
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP13-spec-commit-argument-fates.md
+- id: e-018
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP14-planning-command-outcome-consumers.md
+- id: e-019
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP15-finalize-tasks-single-home.md
+- id: e-020
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP16-accept-residual-legs-via-router.md
+- id: e-021
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP17-decisions-doctor-fork-detection.md
+- id: e-022
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP18-consolidation-materialize-writers.md
+- id: e-023
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP19-implement-receipts-real-branch.md
+- id: e-024
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP20-write-side-gate-extension.md
+- id: e-025
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP21-coord-single-home-e2e.md
+- id: e-026
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/tasks/WP22-adr-and-seam-docs.md
+- id: e-027
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+- id: e-028
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3VH3S7JXSJPGA67G4STE47P
+- id: e-029
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3VQF3DQWHTT5ARFT2D6Z0MR
+- id: e-030
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3W6FSX7S32KJ1CADQGHKYG5
+- id: e-031
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WM1BC37G0HPFNXQ8C0BA55..01M3WQDJ77H24HFQEGKD8RF468
+- id: e-032
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WNGSHJXP629Z4FSSVDYCF8..01M3WVWN2X06385JNH1JG4SPZ3
+- id: e-033
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3X629GVPCYDYZH709HD3KY5
+- id: e-034
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3XA629WKPYYGW9SCM5AXR4M..01M3XJQP89PWWNGTVXY788Q6TN
+- id: e-035
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3X4YQWDC6NGXHYHYEJRE2TD
+- id: e-036
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WEA645C9QQ3150FWYCHBAX
+- id: e-037
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WD3ZYRQRYCTRAKVAVQTWCN
+- id: e-038
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WKAY4MXEKH57JXQE5AP253..01M3YH052F53GG26DXRFQJPWG3
+- id: e-039
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WKQKTBNG14V1FPTWH7S7ZW..01M3WR8FME0WSQYSP7YW5KPZKC
+- id: e-040
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3XF5Y8G9DSWJCC5ANE9P3GP..01M3YH09CM3W4RREV022NK93H4
+- id: e-041
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3YGDPM377BG3Z9VT79BTZSP
+- id: e-042
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3VMV53AZT72Q7F47NZEEPZX..01M3VP3KB0WKTVJN8WJJAH6TEC
+- id: e-043
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3VH3S7JXSJPGA67G4STE47P
+- id: e-044
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3VQF3DQWHTT5ARFT2D6Z0MR
+- id: e-045
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3W6FSX7S32KJ1CADQGHKYG5
+- id: e-046
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WM1BC37G0HPFNXQ8C0BA55..01M3WQDJ77H24HFQEGKD8RF468
+- id: e-047
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WM9NGWRVF3MQ08QVV05SDS..01M3WVWN2X06385JNH1JG4SPZ3
+- id: e-048
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3X629GVPCYDYZH709HD3KY5
+- id: e-049
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3XA629WKPYYGW9SCM5AXR4M..01M3XJQP89PWWNGTVXY788Q6TN
+- id: e-050
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3X4YQWDC6NGXHYHYEJRE2TD
+- id: e-051
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WEA645C9QQ3150FWYCHBAX
+- id: e-052
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WD3ZYRQRYCTRAKVAVQTWCN
+- id: e-053
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WKAY4MXEKH57JXQE5AP253
+- id: e-054
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3WKQKTBNG14V1FPTWH7S7ZW..01M3WR8FME0WSQYSP7YW5KPZKC
+- id: e-055
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3XF5Y8G9DSWJCC5ANE9P3GP
+- id: e-056
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3YFMFEXPJ09P3F77SFAZZ29..01M3YGSYGZRW22DGDM6FD45BXD
+- id: e-057
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3VMV53AZT72Q7F47NZEEPZX..01M3VP3KB0WKTVJN8WJJAH6TEC
+- id: e-058
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: 01M3XMGT9TK12VR1C7BRFDDXBQ..01M3XN14TA32T73SK2WXERCJTZ
+- id: e-059
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-060
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-061
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-062
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-063
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-064
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-065
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-066
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-067
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-068
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-069
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-070
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-071
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-072
+  kind: event_range
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/status.events.jsonl
+  range: implementation_cycles
+- id: e-073
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/analysis-report.md
+- id: e-074
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/traces/approach.md
+- id: e-075
+  kind: file
+  path: kitty-specs/coord-artifact-single-home-01M3V4BE/traces/design-decisions.md
+generator_version: '1.0'
+provenance_history: []
