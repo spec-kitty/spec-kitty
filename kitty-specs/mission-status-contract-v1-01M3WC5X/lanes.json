@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "mission_slug": "mission-status-contract-v1-01M3WC5X",
+  "mission_id": "01M3WC5XGBJ0DZ91CP66BWB7PS",
+  "mission_branch": "kitty/mission-mission-status-contract-v1-01M3WC5X",
+  "target_branch": "issue-5558-mission-status-contract-v1",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11"
+      ],
+      "write_scope": [
+        ".github/CODEOWNERS",
+        ".github/workflows/ci-fleet-verdict.yml",
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/contracts-release.yml",
+        ".github/workflows/contracts.yml",
+        ".gitignore",
+        "contracts/README.md",
+        "contracts/_shared/**",
+        "contracts/build.gradle*",
+        "contracts/gradle/**",
+        "contracts/lint/**",
+        "contracts/mission-status/**",
+        "contracts/mission-status/CHANGELOG.md",
+        "contracts/mission-status/examples/**",
+        "contracts/mission-status/openapi.yaml",
+        "contracts/mission-status/parameters/**",
+        "contracts/mission-status/paths/events.yaml",
+        "contracts/mission-status/paths/missions.yaml",
+        "contracts/mission-status/paths/missions_*.yaml",
+        "contracts/mission-status/paths/project.yaml",
+        "contracts/mission-status/responses/**",
+        "contracts/mission-status/schemas/**",
+        "contracts/settings.gradle*",
+        "contracts/tools/breaking_check.py",
+        "contracts/tools/bundle.py",
+        "contracts/tools/citation_check.py",
+        "contracts/tools/client_smoke.py",
+        "contracts/tools/codeowners_check.py",
+        "contracts/tools/contract_resolver.py",
+        "contracts/tools/enum_pin_check.py",
+        "contracts/tools/event_mapping_check.py",
+        "contracts/tools/example_check.py",
+        "contracts/tools/fixture_builder.py",
+        "contracts/tools/fixtures/breaking_check/**",
+        "contracts/tools/fixtures/bundle/**",
+        "contracts/tools/fixtures/citation_check/**",
+        "contracts/tools/fixtures/client_smoke/**",
+        "contracts/tools/fixtures/codeowners_check/**",
+        "contracts/tools/fixtures/contract_resolver/**",
+        "contracts/tools/fixtures/enum_pin_check/**",
+        "contracts/tools/fixtures/event_mapping_check/**",
+        "contracts/tools/fixtures/example_check/**",
+        "contracts/tools/fixtures/install_tools/**",
+        "contracts/tools/fixtures/layout_check/**",
+        "contracts/tools/fixtures/leak_scan/**",
+        "contracts/tools/fixtures/no_pytest_scan/**",
+        "contracts/tools/fixtures/provisional_check/**",
+        "contracts/tools/fixtures/release_check/**",
+        "contracts/tools/fixtures/resolver_parity/**",
+        "contracts/tools/fixtures/spike/**",
+        "contracts/tools/fixtures/structure_check/**",
+        "contracts/tools/fixtures/vacuum/**",
+        "contracts/tools/fixtures/verify_pins/**",
+        "contracts/tools/install_tools.py",
+        "contracts/tools/layout_check.py",
+        "contracts/tools/leak_patterns.py",
+        "contracts/tools/leak_scan.py",
+        "contracts/tools/negative_cases.json",
+        "contracts/tools/no_pytest_scan.py",
+        "contracts/tools/pins.json",
+        "contracts/tools/provisional_check.py",
+        "contracts/tools/release_check.py",
+        "contracts/tools/resolver_parity.py",
+        "contracts/tools/run_negative_cases.py",
+        "contracts/tools/schema_formats.py",
+        "contracts/tools/structure_check.py",
+        "contracts/tools/verify_pins.py",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "scripts/ci/fleet_verdict.py",
+        "tests/architectural/test_ci_corpus_trigger_completeness.py",
+        "tests/ci/test_contracts_routing.py",
+        "tests/ci/test_contracts_workflows.py",
+        "tests/ci/test_fleet_main.py",
+        "tests/ci/test_fleet_verdict.py",
+        "tests/contract/_mission_status_payloads.py",
+        "tests/contract/fixtures/mission_status_expected.json",
+        "tests/contract/test_breaking_check.py",
+        "tests/contract/test_bundle.py",
+        "tests/contract/test_citation_check.py",
+        "tests/contract/test_client_smoke.py",
+        "tests/contract/test_codeowners_check.py",
+        "tests/contract/test_contract_resolver.py",
+        "tests/contract/test_enum_pin_check.py",
+        "tests/contract/test_event_mapping_check.py",
+        "tests/contract/test_example_check.py",
+        "tests/contract/test_fixture_builder.py",
+        "tests/contract/test_install_tools.py",
+        "tests/contract/test_layout_check.py",
+        "tests/contract/test_leak_patterns.py",
+        "tests/contract/test_leak_scan.py",
+        "tests/contract/test_lint_ruleset.py",
+        "tests/contract/test_mission_status_examples.py",
+        "tests/contract/test_mission_status_payloads.py",
+        "tests/contract/test_mission_status_reality.py",
+        "tests/contract/test_no_pytest_scan.py",
+        "tests/contract/test_provisional_check.py",
+        "tests/contract/test_release_check.py",
+        "tests/contract/test_resolver_parity.py",
+        "tests/contract/test_run_negative_cases.py",
+        "tests/contract/test_schema_formats.py",
+        "tests/contract/test_structure_check.py",
+        "tests/contract/test_verify_pins.py",
+        "tests/release/ci_retirement_scrub.json",
+        "tests/release/pinning_rule_inventory.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "kitty-specs/mission-status-contract-v1-01M3WC5X/close-out.md",
+        "kitty-specs/mission-status-contract-v1-01M3WC5X/research.md",
+        "kitty-specs/mission-status-contract-v1-01M3WC5X/tracer-approach.md",
+        "kitty-specs/mission-status-contract-v1-01M3WC5X/tracer-design-decisions.md",
+        "kitty-specs/mission-status-contract-v1-01M3WC5X/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-02T09:35:02.731203+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP12"
+  ],
+  "planning_commit_sha": "a640209e89370d974a1b2fdd7da3eaa936cd9e2f",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/ci/test_fleet_verdict.py' vs 'tests/ci/test_fleet_verdict.py', 'tests/release/pinning_rule_inventory.json' vs 'tests/release/pinning_rule_inventory.json', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/tools/contract_resolver.py' vs 'contracts/tools/contract_resolver.py', 'contracts/tools/fixtures/contract_resolver/**' vs 'contracts/tools/fixtures/contract_resolver/**', 'tests/contract/test_contract_resolver.py' vs 'tests/contract/test_contract_resolver.py', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/tools/contract_resolver.py' vs 'contracts/tools/contract_resolver.py', 'contracts/tools/fixtures/contract_resolver/**' vs 'contracts/tools/fixtures/contract_resolver/**', 'tests/contract/test_contract_resolver.py' vs 'tests/contract/test_contract_resolver.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/tools/contract_resolver.py' vs 'contracts/tools/contract_resolver.py', 'contracts/tools/fixtures/contract_resolver/**' vs 'contracts/tools/fixtures/contract_resolver/**', 'tests/contract/test_contract_resolver.py' vs 'tests/contract/test_contract_resolver.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/tools/contract_resolver.py' vs 'contracts/tools/contract_resolver.py', 'contracts/tools/layout_check.py' vs 'contracts/tools/layout_check.py', 'contracts/tools/fixtures/layout_check/**' vs 'contracts/tools/fixtures/layout_check/**', 'tests/contract/test_layout_check.py' vs 'tests/contract/test_layout_check.py', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py'"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP11",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/README.md' vs 'contracts/README.md'"
+      }
+    ],
+    "total_merges": 10,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 10
+    }
+  }
+}
