@@ -55,3 +55,12 @@ Initial entry. This version is not yet released.
   `StreamRefusal` code (400 or 409) are provisional: the tail reader has no text form of its
   cursor and no HTTP mapping, so they are open decisions on #5528. The event stream framing and
   heartbeat interval are conventions of this contract and are likewise open.
+- `StreamRefusal.code` value `cursor_without_mission` is provisional: it is owned by this
+  contract (the tail reader's `ResumeRefused` has no such reason and no HTTP mapping), so it is
+  an open decision on #5528.
+- The event stream framing (`event:`, `id:`, `data:` lines) and the 30 second heartbeat are
+  marked `x-provisional` on `GET /events`, and the `Last-Event-ID` precedence rule on the
+  `streamCursor` parameter, as open decisions on #5528.
+- `StreamCursorString` is a deliberately stricter rule than the code: `validate_resume_cursor`
+  accepts an offset without an invariant, the contract requires both. This is provisional and an
+  open decision on #5528.

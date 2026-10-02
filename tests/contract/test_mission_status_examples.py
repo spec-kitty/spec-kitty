@@ -552,11 +552,74 @@ def test_the_cursor_string_agrees_with_the_cursor_object_examples() -> None:
         assert not any(_both_paths(MODULE, CURSOR_STRING_SCHEMA, text)), name
 
 
+STREAM_CONTRACT_FILES = (
+    f"mission-status/schemas/{CURSOR_STRING_SCHEMA}.yaml",
+    "mission-status/schemas/StatusTransitionEvent.yaml",
+    "mission-status/schemas/LogTruncatedEvent.yaml",
+    "mission-status/schemas/MissionLifecycleEvent.yaml",
+    f"mission-status/schemas/{REFUSAL_SCHEMA}.yaml",
+    "mission-status/parameters/EventsMissionId.yaml",
+    "mission-status/parameters/EventsStreamCursor.yaml",
+    "mission-status/parameters/LastEventId.yaml",
+)
+
+
+def _page_cursor_reaches(contracts: Path) -> list[str]:
+    return [start for start in STREAM_CONTRACT_FILES if PAGE_CURSOR_FILE in _ref_closure(contracts, start)]
+
+
 def test_the_stream_cursor_string_never_reaches_the_page_cursor() -> None:
-    for start in (f"mission-status/schemas/{CURSOR_STRING_SCHEMA}.yaml", "mission-status/schemas/StatusTransitionEvent.yaml"):
-        reached = _ref_closure(CONTRACTS, start)
-        assert PAGE_CURSOR_FILE not in reached, f"{start} reaches the page cursor"
-        assert STREAM_CURSOR_FILE in _ref_closure(CONTRACTS, "mission-status/schemas/LogTruncatedEvent.yaml")
+    assert not _page_cursor_reaches(CONTRACTS), _page_cursor_reaches(CONTRACTS)
+    assert STREAM_CURSOR_FILE in _ref_closure(CONTRACTS, "mission-status/schemas/LogTruncatedEvent.yaml")
+
+
+def test_a_planted_page_cursor_reference_in_an_events_parameter_is_seen(tmp_path: Path) -> None:
+    contracts = tmp_path / "contracts"
+    shutil.copytree(MODULE, contracts / MODULE.name)
+    shutil.copytree(CONTRACTS / "_shared", contracts / "_shared")
+    target = contracts / "mission-status/parameters/EventsStreamCursor.yaml"
+    document = _read(target)
+    document["schema"] = {"$ref": "../../_shared/schemas/PageCursor.yaml"}
+    target.write_text(yaml.safe_dump(document), encoding="utf-8")
+    assert _page_cursor_reaches(contracts) == ["mission-status/parameters/EventsStreamCursor.yaml"]
+
+
+def _provisional_text(node: Any) -> str:
+    assert isinstance(node, dict) and "x-provisional" in node, "no x-provisional here"
+    decision = node["x-provisional"]["open_decision"]
+    assert isinstance(decision, str) and decision.strip()
+    return " ".join(decision.split())
+
+
+def test_the_contract_owned_refusal_code_is_provisional() -> None:
+    refusal = _read(MODULE / "schemas" / f"{REFUSAL_SCHEMA}.yaml")
+    code = next(p["properties"]["code"] for p in refusal["allOf"] if "properties" in p and "code" in p["properties"])
+    text = _provisional_text(code)
+    assert "cursor_without_mission" in text and "contract" in text and "#5528" in text
+
+
+def test_the_stream_framing_and_heartbeat_are_provisional_on_the_operation() -> None:
+    text = _provisional_text(_events_operation())
+    for needle in ("event:", "id:", "data:", "heartbeat", "30", "400", "409", "#5528"):
+        assert needle in text, f"the operation's open decision does not mention {needle!r}"
+
+
+def test_the_cursor_precedence_is_provisional_on_the_stream_cursor_parameter() -> None:
+    text = _provisional_text(_read(MODULE / "parameters" / "EventsStreamCursor.yaml"))
+    assert "Last-Event-ID" in text and "streamCursor" in text and "#5528" in text
+
+
+def test_the_stricter_cursor_rule_is_stated_as_provisional_on_the_cursor_string() -> None:
+    text = _provisional_text(_read(MODULE / "schemas" / f"{CURSOR_STRING_SCHEMA}.yaml"))
+    for needle in ("validate_resume_cursor", "invariant", "stricter", "#5528"):
+        assert needle in text, f"the cursor string's open decision does not mention {needle!r}"
+
+
+def test_the_changelog_lists_each_contract_owned_stream_part_as_provisional() -> None:
+    changelog = (MODULE / "CHANGELOG.md").read_text(encoding="utf-8")
+    section = " ".join(changelog.split("### Provisional", 1)[1].split())
+    for needle in ("cursor_without_mission", "framing", "heartbeat", "Last-Event-ID", "stricter", "validate_resume_cursor"):
+        assert needle in section, f"the Provisional section does not mention {needle!r}"
 
 
 def test_all_five_paths_are_mapped_each_to_a_brace_free_file() -> None:

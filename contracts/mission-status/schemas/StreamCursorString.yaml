@@ -21,3 +21,7 @@ x-provisional:
   open_decision: >-
     The tail reader has no text form of its cursor (its command takes the offset and the
     invariant as two options), so this string form is owned by the contract and is open on #5528.
+    It is also a deliberately stricter rule than the code: validate_resume_cursor in the tail
+    reader accepts an offset without an invariant (its checks are structural, and the command's
+    invariant option is optional), while this string requires both, so a client that holds only an
+    offset cannot resume. Whether the contract should relax to the code is open on #5528.
