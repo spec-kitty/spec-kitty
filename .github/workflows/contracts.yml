@@ -59,21 +59,6 @@ jobs:
         continue-on-error: true
         run: uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module full --verbose
       # SPIKE-ONLY: observations that are never gates. Each prints the tool's exit status and output.
-      - name: "Spike: brace spelling candidates (bundle and client)"
-        if: always()
-        continue-on-error: true
-        run: |
-          set +e
-          for m in brace_raw brace_pct_lower brace_pct_double brace_pct_double_literal_file; do
-            echo "::group::bundle $m"
-            uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m" --min-paths 1 --verbose
-            echo "SPIKE-RESULT bundle $m exit=$?"
-            echo "::endgroup::"
-            echo "::group::client $m"
-            uv run --frozen --no-sync python contracts/tools/client_smoke.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/spike-out" --module "$m" --verbose
-            echo "SPIKE-RESULT client $m exit=$?"
-            echo "::endgroup::"
-          done
       - name: "Spike: a tampered verification-metadata copy must be refused"
         if: always()
         continue-on-error: true
@@ -81,7 +66,7 @@ jobs:
           set +e
           cp -r contracts "$RUNNER_TEMP/tamper-contracts"
           sed -i 's/<sha256 value="/<sha256 value="00/' "$RUNNER_TEMP/tamper-contracts/gradle/verification-metadata.xml"
-          uv run --frozen --no-sync python "$RUNNER_TEMP/tamper-contracts/tools/bundle.py" --root "$RUNNER_TEMP/tamper-contracts/tools/fixtures/spike" --out "$RUNNER_TEMP/tamper-out" --module brace_raw --min-paths 1
+          uv run --frozen --no-sync python "$RUNNER_TEMP/tamper-contracts/tools/bundle.py" --root "$RUNNER_TEMP/tamper-contracts/tools/fixtures/spike" --out "$RUNNER_TEMP/tamper-out" --module full
           echo "SPIKE-RESULT tampered metadata exit=$? (expect 2, DEPENDENCY_VERIFICATION_FAILED)"
       - name: "Spike: which plant makes the pinned generator exit non-zero"
         if: always()
@@ -101,15 +86,13 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          for m in full brace_raw brace_pct_lower brace_pct_double brace_pct_double_literal_file; do
+          for m in full; do
             echo "::group::bundle of $m"
             cat "$RUNNER_TEMP/spike-out/bundle/$m/openapi.yaml"
             echo "::endgroup::"
           done
           uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module full --report-all
           echo "SPIKE-RESULT parity full exit=$?"
-          uv run --frozen --no-sync python contracts/tools/resolver_parity.py --root "$CONTRACTS_ROOT" --bundles "$RUNNER_TEMP/spike-out" --module brace_raw --module brace_pct_lower --module brace_pct_double --module brace_pct_double_literal_file --min-paths 1 --report-all
-          echo "SPIKE-RESULT parity variants exit=$?"
           echo "::group::generated client files of full"
           find "$RUNNER_TEMP/spike-out/client/full" -type f | sort | head -80
           echo "::endgroup::"

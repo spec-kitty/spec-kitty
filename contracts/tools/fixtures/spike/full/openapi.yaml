@@ -15,6 +15,6 @@ paths:
   /missions:
     $ref: paths/missions.yaml
   /missions/{missionId}:
-    $ref: paths/missions_%7BmissionId%7D.yaml
+    $ref: paths/missions_missionId.yaml
   /missions/{missionId}/events:
-    $ref: paths/missions_%7BmissionId%7D_events.yaml
+    $ref: paths/missions_missionId_events.yaml
