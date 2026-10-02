@@ -105,7 +105,7 @@ Checksum code needs a one-line `# noqa: TID251` with a file-integrity justificat
   --cov=tests.contract._mission_status_payloads --cov-branch --cov-fail-under=90
 ```
 
-Paste the output in the PR body. No CI job measures this; it is local discipline.
+Paste the output in the body of PR 5 (the seam that carries the reality check, NFR-007). No CI job measures this; it is local discipline.
 
 ## Reader authors: the reality check is not selected by a reader edit
 

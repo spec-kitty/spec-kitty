@@ -49,7 +49,7 @@ A JSON object with a list of tools, each with `name`, `version`, `url` (HTTPS on
 
 ## Workflow job contract
 
-`contracts.yml` (name `Contracts`): `pull_request` and `push`, `branches: [main]`, `paths` exactly `contracts/**`, `.github/CODEOWNERS`, `.github/workflows/contracts.yml`; top-level `permissions: contents: read`; concurrency per ref; every job has `timeout-minutes`.
+`contracts.yml` (name `Contracts`): `pull_request` and `push`; `push` carries `branches: [main]` and `pull_request` carries **no** `branches` key (stacked PRs 2 to 6 target seam branches; DD-7, DD-21); `paths` on both exactly `contracts/**`, `.github/CODEOWNERS`, `.github/workflows/contracts.yml`; top-level `permissions: contents: read`; concurrency per ref; every job has `timeout-minutes`.
 
 **Prelude (every job that runs a `contracts/tools/` script, FR-018, plan D-P12).** A SHA-pinned checkout; the SHA-pinned `astral-sh/setup-uv` action with `python-version: '3.12'`; `uv sync --frozen --no-install-project`; the scripts then run from the synced environment. This is the only Python install form. `verify_pins` fails any other (a bare `pip install`, an unfrozen sync) with `UNPINNED_INSTALL` and has a planted fixture for the bad form and a clean control that is exactly this prelude. The JVM jobs add `install_tools.py` after the prelude. The prelude installs the base set and the `dev` group, not the `lint` extra, so `rfc3339-validator` is absent here and present in `tests-corpus`; `schema_formats.py` makes that irrelevant (plan D-P14).
 

@@ -36,7 +36,7 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
 5. **Checks in parallel lanes (IC-05, IC-06, IC-07b) and the remaining workflow (IC-08).**
    Python content checks against planted fixtures (leak-class plants built at run time); hygiene
    checks and CODEOWNERS; the remaining JVM and Go tools, which bring their own three jobs (`lint`, `breaking-change`, `release-dry-run`) into `contracts.yml`. Then the remaining contracts jobs (`verify-pins`, `python-checks`, `negative-tests`), the release workflow, guard tests and the full gate. IC-08 depends on IC-04 as well, because a green gate needs the real contract. The first full execution of every job
-   is the draft-PR push.
+   is the push of the PR that carries it (PR 1 for the skeleton, PR 4 for the rest).
 6. **Reality check (IC-09).**
    Helper and its unit tests first, then the parametrised per-Mission test, the pinned
    expected-output fixture from the dashboard derivation at the recorded base commit, floors,
@@ -55,23 +55,25 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
   (tracer friction F-1). Use `materialize_snapshot` or `read_events`.
 - Every cited path or symbol is checked against `git ls-files` and the file text before it is
   written; no stale line numbers.
-- One PR, draft until the design is acknowledged on #5528; the tag push after merge is a
-  close-out step, not a follow-up issue.
+- Six stacked seam PRs (operator ruling of 2026-10-02, DD-21), all drafts until the design is
+  acknowledged on #5528, merged bottom-up by the operator or a maintainer; the tag push after merge
+  is a close-out step, not a follow-up issue. Seam re-syncs run lowest seam first, `rebase --onto`
+  for the seams above, `--force-with-lease` only.
 
 ## UI early-start point (to be filled when it exists)
 
-- P0, **unvalidated preview, no stability promise**: the last commit of IC-04 (all five paths,
+- P0, **unvalidated preview, no stability promise**: the last commit of IC-04, the head of PR 2 (all five paths,
   validating examples, fixed vocabularies). Only the Python resolver and the examples test have
   read the split contract at that point.
-- P1, **stable marker**: the first commit whose contracts-workflow run is green on the draft PR
+- P1, **stable marker**: inside PR 4, the first commit whose contracts-workflow run is green on PR 4
   (`contracts-gate`, which includes the counted client smoke step of `validate-bundle`).
-- P2, **pin-grade**: the last commit of IC-09 (reality check green, zero exclusions,
+- P2, **pin-grade**: the last commit of IC-09, the head of PR 5 (reality check green, zero exclusions,
   `contracts-gate` green). Partial points: end of IC-02 (project header and Mission list), end of
   IC-03 (Mission page and work package page), both equally unvalidated.
 - Published as lightweight tags `preview/mission-status/p0`, `p1`, `p2` (outside the
   `contract-<module>-v<semver>` and `v*.*.*` namespaces), pushed by a maintainer, because a branch
-  hash does not survive the rebase and compact-history steps; re-published under a per-point increasing counter suffix (`-r2`, `-r3`, ...; independent for
-  `p0`, `p1`, `p2`) after compact-history or after a brace re-sweep that lands once a point is published,
+  hash does not survive the per-seam rebase and compact-history steps; each tag is cut at its seam head and cites that seam's PR number; re-published under a per-point increasing counter suffix (`-r2`, `-r3`, ...; independent for
+  `p0`, `p1`, `p2`) after compact-history of its seam or any seam below it, or after a brace re-sweep that lands once a point is published,
   each re-publication naming its cause. Record the tag names here (not hashes) when they exist.
 
 ## Log
@@ -80,6 +82,7 @@ Seeded at planning from the spec and the plan. Append a dated entry at each appr
 - 2026-10-01: plan review findings folded in; IC-07 split into IC-07a (skeleton, shared-CI edits, spike) and IC-07b, so eleven concerns; the spike result now gates IC-05.
 - 2026-10-02: plan decisions revised: single owners for `contracts.yml`, `pins.json`, `.gitignore` and the corpus registry rules; date-time policy made environment-independent (D-P14); client smoke counted and guarded; ratchet priced.
 - 2026-10-02: plan decisions revised: IC-09 dependencies; the conditional brace re-sweep is the opening commit of IC-08 (IC-07a only records the spelling); date-time test method; client smoke plant proof.
+- 2026-10-02: operator ruling, DD-21: the Mission is delivered as six stacked seam PRs (WP01+WP02, WP03-WP05, WP06+WP07, WP08+WP09, WP10, WP11+WP12), all drafts until the #5528 acknowledgement; supersedes the single-PR shape. The contracts workflow's `pull_request` trigger loses `branches: [main]`; preview tags are cut per seam (p0 = PR 2 head, p1 inside PR 4, p2 = PR 5 head).
 - (append during implement and review)
 
 ## Assess at close

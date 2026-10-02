@@ -47,10 +47,14 @@ the PR body.
 Same build path for baseline and candidate, no release-host dependency. The first release is the
 loud, single allowed "no baseline" state.
 
-## DD-7: the contracts workflow triggers on `branches: [main]` with exactly three paths
+## DD-7: the contracts workflow has exactly three paths; `push` carries `branches: [main]`, `pull_request` carries no `branches`
 
-Matches the repository's other path-filtered workflows and leaves the release-branch expectation
-in `tests/ci/test_fleet_verdict.py` unchanged.
+Revised 2026-10-02 (DD-21). The original decision put `branches: [main]` on both triggers. With six
+stacked PRs, PRs 2 to 6 have a seam branch as base, so a `pull_request` `branches: [main]` filter
+never fires on them. `ci-router.yml` is already written this way (`pull_request` with `types` only,
+`push` with `branches: [main]`). The fleet-verdict applicability test defaults a missing `branches`
+to every base, and the release-branch expectation in `tests/ci/test_fleet_verdict.py` stays
+unchanged because it replays a `pyproject.toml` diff that the path filter excludes.
 
 ## DD-8: opening campsite commit is one test file, and only if the count holds
 
@@ -159,6 +163,23 @@ both environments (plan D-P14).
 The preview tag namespace, the informational `PREVIEW_DELTA` report, the `Pre-release shape change`
 heading and the counted client smoke have no spec requirement behind them (plan D-P13). They are
 bounded and removable, and are listed for maintainer confirmation next to DEV-1 and DEV-2 (E-2).
+
+## DD-21: the Mission is delivered as six stacked seam PRs (operator ruling, 2026-10-02)
+
+Supersedes "one PR for the Mission" in CL-1 and C-001 (spec amended for this ruling only; plan,
+quickstart, tracer approach and the WP prompts follow). Seams: (1) WP01+WP02; (2) WP03 to WP05;
+(3) WP06+WP07; (4) WP08+WP09; (5) WP10; (6) WP11+WP12. Rationale: reviewability (about 10,000
+added lines cannot be read as one diff), a different reviewer skill set per seam (OpenAPI
+authoring, Python tooling, GitHub Actions and supply chain, status-domain readers, docs), and p0
+being the natural UI early-start unit at the end of seam 2. All six PRs stay drafts until the
+single acknowledgement on #5528; the orchestrator never merges; the operator or a maintainer
+merges bottom-up and retargets after each lower merge. Consequences: (a) the contracts workflow's
+`pull_request` trigger drops `branches: [main]` (DD-7), because PRs 2 to 6 target seam branches;
+(b) the re-sync and compact-history steps run per seam, lowest first, with `rebase --onto` for the
+seams above and `--force-with-lease` only, each rewrite re-publishing any preview tag in or above
+the rewritten seam; (c) each preview tag is cut at its seam head and cites that seam's PR number
+(p0 = PR 2 head, p1 inside PR 4, p2 = PR 5 head); (d) each PR body carries its own evidence row
+(plan, "PR stack").
 
 - (append during implement and review)
 

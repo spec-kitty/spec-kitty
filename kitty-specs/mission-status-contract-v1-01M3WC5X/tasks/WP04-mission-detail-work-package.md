@@ -82,7 +82,7 @@ Add `GET /missions/{missionId}` (overview plus the five Mission phases and work 
 - Baseline, overlap, hygiene, terminology and red-first rules: as in WP03. **Open-PR overlap check (2026-10-02)**: #5540 and #5326 touch none of this WP's files.
 - Does not touch the migration chain, runtime-state schema, event contract implementation or a shared CI gate.
 - **Python hygiene (binding for this WP)**: this WP edits `tests/contract/test_mission_status_examples.py`, so run `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` before the final commit and record both results (NFR-007). In `tests/`, never import `datetime` and never call `datetime.now()` or `time.time()` (clock-ban gates, named below): compare ISO-8601 strings or use the kernel clock door.
-- **Preview point (partial)**: the last commit of this WP is an "earlier partial point" (Mission page and work package page, unvalidated). No tag is created for it unless the orchestrator decides; record the commit hash in the hand-off.
+- **Preview point (partial)**: the last commit of this WP is an "earlier partial point" (inside PR 2; Mission page and work package page, unvalidated). No tag is created for it unless the orchestrator decides; record the commit hash in the hand-off.
 
 ### Test surface, gates and baseline
 
