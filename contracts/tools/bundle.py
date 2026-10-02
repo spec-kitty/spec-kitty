@@ -1,34 +1,46 @@
-"""Validate every contract module and bundle it with the ``openapi-yaml`` generator (FR-014).
+"""Write the released single-file contract and have the JVM toolchain consume it (FR-014; E-1 ruling of 2026-10-02).
 
-For each module (a direct subdirectory of ``--root`` holding a root
-``openapi.yaml``; ``_shared``, ``fixtures``, ``gradle`` and ``tools`` are never
-modules) this runs the pinned Gradle build in ``contracts/`` (``validate_<module>``
-then ``bundle_<module>``) and checks the staged bundle. The bundle is a build
-product: it is written under ``--out``, which must lie outside the repository
-tree, and is never committed.
+For each module (a direct subdirectory of ``--root`` holding a root ``openapi.yaml``;
+``_shared``, ``fixtures``, ``gradle`` and ``tools`` are never modules):
+
+1. The **Python resolver writes the bundle**: ``<out>/bundle/<module>/openapi.yaml`` is the
+   resolver's fully dereferenced tree (:func:`render_bundle`). It is faithful to OpenAPI 3.1
+   (``const``, ``unevaluatedProperties``, ``x-*`` extensions, ``$ref`` siblings, ``oneOf`` with
+   null, type arrays, ``examples`` and Example Objects, ``info.summary``), which the
+   ``openapi-yaml`` generator is not. This file is the artefact that is released.
+2. The pinned Gradle build then only *consumes* it: ``validate_<module>`` validates the split
+   root, ``validateBundle_<module>`` validates the written bundle, and ``javaView_<module>``
+   re-emits the bundle as the Java parser reads it into ``<out>/javaview/<module>/``. That view is
+   an input of ``resolver_parity.py`` and is never released.
+
+*Deterministic output.* Key order rule: the top-level keys come first in the order of
+:data:`TOP_LEVEL_ORDER`, every other mapping is sorted by key, lists keep their order;
+block-style YAML, ``allow_unicode``, one trailing newline. The same files always give the same
+bytes. The bundle is a build product written under ``--out``, which must lie outside the
+repository tree, and is never committed.
 
 Failure codes (exit 1), printed as ``CONTRACT-CHECK bundle: <CODE>: <module>: <detail>``:
 
-* ``VALIDATION_FAILED``: the generator's OpenAPI validator rejected the module.
-* ``BUNDLE_FAILED``: the bundle task failed for a reason other than validation.
-* ``BUNDLE_EMPTY``: the bundle file is missing or empty.
+* ``RESOLVE_FAILED``: the resolver refused the module (its own stable code is in the detail).
+* ``VALIDATION_FAILED``: the generator's OpenAPI validator rejected the split root or the bundle.
+* ``BUNDLE_FAILED``: a Gradle task failed for a reason other than validation.
+* ``BUNDLE_EMPTY``: the written bundle is missing or empty.
 * ``FEWER_THAN_FIVE_PATHS``: the bundle has fewer path items than ``--min-paths`` (default five).
-* ``UNRESOLVED_REFERENCE_LEFT``: the bundle still holds a ``$ref`` that is not an internal pointer
-  that resolves.
+* ``UNRESOLVED_REFERENCE_LEFT``: the bundle still holds a ``$ref``.
 
 Cannot do its job (exit 2): ``NO_MODULE``, ``MODULE_WITHOUT_ROOT``, ``JVM_MISSING``,
 ``GRADLE_MISSING``, ``PLUGIN_RESOLUTION_FAILED``, ``DEPENDENCY_VERIFICATION_FAILED``,
-``BUILD_SCRIPT_FAILED`` (the Gradle build itself failed to configure)
-and ``OUT_INSIDE_REPOSITORY``. The last line is always
-``counts: modules=N bundles=N path_items=N``. Determinism (bundling twice and
-comparing digests) is added by the hardening work package.
+``BUILD_SCRIPT_FAILED`` (the Gradle build itself failed to configure) and
+``OUT_INSIDE_REPOSITORY``. The last line is always
+``counts: modules=N bundles=N path_items=N``. Comparing two builds' digests is added by the
+hardening work package.
 
-``--write-verification-metadata`` makes Gradle record the sha256 of every
-dependency it resolves into ``contracts/gradle/verification-metadata.xml`` (the
-only way that file is produced; it is never edited by hand).
+``--write-verification-metadata`` makes Gradle record the sha256 of every dependency it resolves
+into ``contracts/gradle/verification-metadata.xml`` (the only way that file is produced; it is
+never edited by hand).
 
 Run as a bare script (``python contracts/tools/bundle.py --root DIR --out DIR``).
-Standard library plus PyYAML; imports only sibling modules.
+Standard library, PyYAML and the sibling ``contract_resolver``.
 """
 
 from __future__ import annotations
@@ -44,6 +56,8 @@ from typing import Any
 
 import yaml
 
+import contract_resolver
+
 CHECK_NAME = "bundle"
 NON_MODULE_DIRECTORIES = frozenset({"_shared", "fixtures", "gradle", "tools", "build", "node_modules"})
 ROOT_DOCUMENT = "openapi.yaml"
@@ -51,6 +65,8 @@ MODULE_HINT_DIRECTORIES = frozenset({"paths", "schemas", "parameters", "response
 DEFAULT_MIN_PATHS = 5
 GRADLE_PROJECT_DIRECTORY = Path(__file__).resolve().parents[1]
 GRADLE_TIMEOUT_SECONDS = 1200
+# Top-level keys of the written bundle come first, in this order; every other mapping is key-sorted.
+TOP_LEVEL_ORDER = ("openapi", "info", "servers", "tags", "paths", "components")
 DETAIL_LINES = 12
 
 Runner = Callable[[list[str]], tuple[int, str]]
@@ -105,6 +121,30 @@ def inside_repository(path: Path) -> bool:
     root = repository_root(GRADLE_PROJECT_DIRECTORY)
     resolved = path.resolve()
     return root is not None and (resolved == root or root in resolved.parents)
+
+
+def _sorted(node: Any) -> Any:
+    if isinstance(node, dict):
+        return {key: _sorted(node[key]) for key in sorted(node, key=str)}
+    if isinstance(node, list):
+        return [_sorted(item) for item in node]
+    return node
+
+
+def render_bundle(tree: dict[str, Any]) -> str:
+    """The bundle text for a dereferenced tree: documented key order, block style, one trailing newline."""
+    ordered: dict[str, Any] = {key: _sorted(tree[key]) for key in TOP_LEVEL_ORDER if key in tree}
+    ordered.update({key: _sorted(tree[key]) for key in sorted(tree, key=str) if key not in ordered})
+    return yaml.safe_dump(ordered, sort_keys=False, default_flow_style=False, allow_unicode=True, width=1000)
+
+
+def write_bundle(module: Path, out_dir: Path) -> Path:
+    """Write the resolver-produced bundle of ``module`` under ``out_dir`` and return its path. Raises ``ResolveError``."""
+    tree = contract_resolver.resolve(module).tree
+    target = out_dir / "bundle" / module.name / ROOT_DOCUMENT
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_bundle(tree), encoding="utf-8", newline="\n")
+    return target
 
 
 def staged_files(directory: Path) -> str:
@@ -176,7 +216,7 @@ def classify_gradle_failure(output: str, module: str) -> tuple[str, int]:
         return "BUILD_SCRIPT_FAILED", 2
     if "Plugin [id:" in output or "Could not resolve" in output or "Could not GET" in output:
         return "PLUGIN_RESOLUTION_FAILED", 2
-    if f"task ':validate_{module}'" in output:
+    if f"task ':validate_{module}'" in output or f"task ':validateBundle_{module}'" in output:
         return "VALIDATION_FAILED", 1
     return "BUNDLE_FAILED", 1
 
@@ -222,9 +262,14 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
 
     report.modules = len(modules)
     for module in modules:
-        status, output = runner(
-            gradle_command(gradle, args.root, args.out, (f"validate_{module.name}", f"bundle_{module.name}"), write_metadata=args.write_verification_metadata)
-        )
+        try:
+            write_bundle(module, args.out)
+        except contract_resolver.ResolveError as error:
+            report.findings.append(finding("RESOLVE_FAILED", module.name, str(error)))
+            continue
+        check_bundle(module.name, args.out, args.min_paths, report)
+        tasks = (f"validate_{module.name}", f"validateBundle_{module.name}", f"javaView_{module.name}")
+        status, output = runner(gradle_command(gradle, args.root, args.out, tasks, write_metadata=args.write_verification_metadata))
         if args.verbose:
             out(f"--- gradle output for {module.name} (exit {status}) ---\n{output}\n--- end ---")
         if status != 0:
@@ -232,8 +277,6 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
             if exit_status == 2:
                 return blocked(code, f"{module.name}: {tail(output)}")
             report.findings.append(finding(code, module.name, tail(output)))
-            continue
-        check_bundle(module.name, args.out, args.min_paths, report)
 
     for line in report.findings:
         out(line)
