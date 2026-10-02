@@ -8,6 +8,7 @@ __pycache__/
 *.so
 .Python
 build/
+.gradle/
 develop-eggs/
 dist/
 downloads/
@@ -136,6 +137,7 @@ sdd-*/
 !.github/workflows/
 !.github/workflows/*.yml
 !.github/PULL_REQUEST_TEMPLATE.md
+!.github/CODEOWNERS
 !.github/ISSUE_TEMPLATE/
 !.github/ISSUE_TEMPLATE/*
 # Shared composite actions (mission ci-pipeline-reinstatement-01M1X35E, WP04/FR-003)
