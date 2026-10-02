@@ -12,6 +12,9 @@ fails (exit 1, ``CONTRACT-CHECK event_mapping_check: <CODE>: <module>:<name or s
 * ``NAME_WITHOUT_SCHEMA``: a name maps to a schema that is not a branch of the response schema.
 * ``SCHEMA_WITHOUT_NAME``: a branch schema is named by no bullet line.
 * ``SCHEMA_MULTI_NAME``: one schema is named by more than one event name.
+* ``ALLOWED_TYPE_NOT_IN_RUNTIME``: a member of the contract's allow-list (the ``eventType`` enum of
+  ``MissionLifecycleEvent``) is not in the runtime's ``LIFECYCLE_EVENT_TYPES``, so the contract would forward a
+  type the runtime never emits (the reverse of the informational direction below).
 
 Informational, never a failure and never a change of exit status: ``LIFECYCLE_TYPE_NOT_FORWARDED: <type>``
 for each member of the runtime's ``LIFECYCLE_EVENT_TYPES`` that is not one of the contract-owned allow-list
@@ -173,6 +176,7 @@ class _Check:
         self.lifecycle_source = lifecycle_source if lifecycle_source is not None else repo_root / DEFAULT_LIFECYCLE_SOURCE
         self.report = Report()
         self.allow: set[str] = set()
+        self.allow_owner: dict[str, str] = {}
 
     def add(self, code: str, module: str, subject: str, detail: str) -> None:
         self.report.findings.append(Finding(code, f"{module}:{subject}", detail))
@@ -197,7 +201,10 @@ class _Check:
         except contract_resolver.ResolveError as error:
             self.report.blocked.append(Finding("RESOLVE_FAILED", module.name, str(error)))
             return
-        self.allow |= lifecycle_allow_list(tree)
+        listed = lifecycle_allow_list(tree)
+        self.allow |= listed
+        for name in listed:
+            self.allow_owner.setdefault(name, module.name)
         for _label, operation, schemas in stream_operations(tree):
             names = [(match.group(1), match.group(2)) for line in str(operation.get("description", "")).splitlines() if (match := _MAPPING_LINE.match(line))]
             titles = [title for schema in schemas for title in branch_titles(schema)]
@@ -219,11 +226,16 @@ class _Check:
                 self.add("SCHEMA_MULTI_NAME", module, schema, f"is named by more than one event name: {', '.join(schema_names)}")
 
     def lifecycle(self) -> None:
+        # Reached only after every module resolved and named an event, so ``allow`` is the contract's allow-list.
         try:
             types = read_lifecycle_types(self.lifecycle_source)
         except (OSError, SyntaxError, ValueError) as error:
             self.report.blocked.append(Finding("LIFECYCLE_SOURCE_UNREADABLE", str(self.lifecycle_source), f"{type(error).__name__}: {error}"))
             return
+        for name in sorted(self.allow - types):
+            module = self.allow_owner.get(name, "")
+            detail = f"is in the contract's lifecycle allow-list but not in {LIFECYCLE_CONSTANT} of {self.lifecycle_source.name}"
+            self.add("ALLOWED_TYPE_NOT_IN_RUNTIME", module, name, detail)
         for name in sorted(types - self.allow):
             self.report.info.append(Finding("LIFECYCLE_TYPE_NOT_FORWARDED", name, "is a runtime lifecycle type the contract's lifecycle event does not forward"))
         self.report.counts["lifecycle_not_forwarded"] = len(self.report.info)

@@ -228,6 +228,7 @@ class _Check:
         self.manifest_path = manifest
         self.selected = modules
         self.report = Report()
+        self.deleted_required = False
 
     def add(self, code: str, module: str, subject: str, detail: str) -> None:
         self.report.findings.append(Finding(code, f"{module}:{subject}", detail))
@@ -246,7 +247,7 @@ class _Check:
             return self.report
         for module in modules:
             self.check_module(module, manifest)
-        if self.report.counts["examples"] == 0 and not self.report.blocked:
+        if self.report.counts["examples"] == 0 and not self.report.blocked and not self.deleted_required:
             self.block("ZERO_EXAMPLES", str(self.root), "no example was found under any schema's examples")
         return self.report
 
@@ -254,7 +255,8 @@ class _Check:
         try:
             tree = contract_resolver.resolve(module).tree
         except contract_resolver.ResolveError as error:
-            self.block("RESOLVE_FAILED", module.name, str(error))
+            if not self.report_deleted_required(module, manifest.get(module.name), str(error)):
+                self.block("RESOLVE_FAILED", module.name, str(error))
             return
         required = manifest.get(module.name)
         if required is None:
@@ -285,6 +287,27 @@ class _Check:
                     f"{pair[0]}:{pair[1]}",
                     f"the manifest requires this example ({entry.get('reason', 'no reason given')}) and no validated example provides it",
                 )
+
+    def report_deleted_required(self, module: Path, required: list[dict[str, str]] | None, error_text: str) -> bool:
+        """Report each required example whose file is gone and whose name the resolver error mentions.
+
+        A deleted file that a schema still references stops the resolver before any example is read, so it
+        would only ever surface as ``RESOLVE_FAILED``. When the manifest names that very file the check says
+        so with ``REQUIRED_EXAMPLE_MISSING`` (exit 1). Returns False when nothing explains the resolver failure.
+        """
+        explained = False
+        for entry in required or []:
+            name = str(entry.get("example"))
+            if name in error_text and not (module / EXAMPLES_DIRECTORY / name).is_file():
+                explained = True
+                self.deleted_required = True
+                self.add(
+                    "REQUIRED_EXAMPLE_MISSING",
+                    module.name,
+                    f"{entry.get('schema')}:{name}",
+                    f"the manifest requires this example ({entry.get('reason', 'no reason given')}) and its file is missing, so the module cannot be resolved",
+                )
+        return explained
 
     def validate(self, module: Path, nodes: dict[str, dict[str, Any]], raws: list[RawExample]) -> set[tuple[str, str]]:
         """Validate every raw example; return the ``(schema, file)`` pairs that were checked against a real schema."""
