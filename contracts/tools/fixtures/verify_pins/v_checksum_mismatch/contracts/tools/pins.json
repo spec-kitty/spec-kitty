@@ -1,0 +1,22 @@
+{
+  "tools": [
+    {
+      "name": "gradle",
+      "kind": "archive",
+      "version": "1.0",
+      "url": "https://example.invalid/tool-1.0.zip",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "published": "2026-05-07",
+      "advisory_feed_checked": "fixture advisory feed read, nothing listed"
+    },
+    {
+      "name": "plugin",
+      "kind": "gradle-plugin",
+      "version": "2.0",
+      "url": "https://example.invalid/plugin-2.0.jar",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "published": "2026-08-24",
+      "advisory_feed_checked": "fixture advisory feed read, nothing listed"
+    }
+  ]
+}

@@ -131,6 +131,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/contract/test_resolver_parity.py",
         "tests/contract/test_schema_formats.py",
         "tests/contract/test_structure_check.py",
+        "tests/contract/test_verify_pins.py",
         "tests/doctrine/agent_profiles/test_builtin_document_memo.py",
         "tests/doctrine/agent_profiles/test_context_sources_migration.py",
         "tests/doctrine/agent_profiles/test_doctrine_daphne_canonical_structure.py",
