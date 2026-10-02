@@ -1,0 +1,22 @@
+title: Thing
+type: object
+additionalProperties: false
+properties:
+  name:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+  outer:
+    type: array
+    description: Cited outer.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+    items:
+      type: object
+      properties:
+        inner:
+          type: string
+          description: No citation.

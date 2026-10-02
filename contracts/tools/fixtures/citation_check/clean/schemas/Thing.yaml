@@ -1,0 +1,138 @@
+title: Thing
+type: object
+additionalProperties: false
+properties:
+  name:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+  invariant:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: content_invariant
+  dotted:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample.content_invariant
+  function:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: real_function
+  constant:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: REAL_CONSTANT
+  unpacked:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: SECOND
+  slug:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/data.yaml
+      symbol: project.slug
+  nested:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/data.yaml
+      symbol: project.nested.key
+  json:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/data.json
+      symbol: alpha.beta
+  items:
+    type: array
+    description: A list.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+    items:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+          description: A described property.
+          x-source:
+            path: contracts/tools/fixtures/citation_check/code/sample.py
+            symbol: Sample
+  mapped:
+    type: object
+    description: A map.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+    additionalProperties:
+      type: object
+      properties:
+        value:
+          type: string
+          description: A described property.
+          x-source:
+            path: contracts/tools/fixtures/citation_check/code/sample.py
+            symbol: Sample
+  sub:
+    $ref: Sub.yaml
+    description: Through a reference.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+  choice:
+    description: A choice.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+    oneOf:
+    - $ref: Choice.yaml
+    - type: 'null'
+  total:
+    type: integer
+    description: Derived.
+    x-derived:
+      rule: Counts the items.
+      inputs:
+      - items
+  crossed:
+    type: integer
+    description: Derived across schemas.
+    x-derived:
+      rule: Sub size plus code.
+      inputs:
+      - Sub.size
+      - path: contracts/tools/fixtures/citation_check/code/sample.py
+        symbol: real_function
+      - sub.size
+      - mapped.value
+  viaAny:
+    description: anyOf.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample
+    anyOf:
+    - type: string
+    - type: integer
+allOf:
+- type: object
+  properties:
+    extra:
+      type: string
+      description: A described property.
+      x-source:
+        path: contracts/tools/fixtures/citation_check/code/sample.py
+        symbol: Sample

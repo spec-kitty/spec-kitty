@@ -1,0 +1,10 @@
+title: Choice
+type: object
+additionalProperties: false
+properties:
+  pick:
+    type: string
+    description: A described property.
+    x-source:
+      path: contracts/tools/fixtures/citation_check/code/sample.py
+      symbol: Sample

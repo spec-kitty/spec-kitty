@@ -1,0 +1,6 @@
+properties:
+  a:
+    description: uncited
+    type: string
+title: Thing
+type: object

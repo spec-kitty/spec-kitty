@@ -1,0 +1,15 @@
+get:
+  operationId: listThings
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Thing.yaml
+    '400':
+      description: bad
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../_shared/schemas/Problem.yaml
