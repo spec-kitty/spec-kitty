@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: The PR-size warning and six-seam split recommendation appear only in WP12 Context, and WP01, WP02, tasks.md and plan.md carry no PR-shape or size statement.
+  - id: TASKS-DECOMP-002
+    verdict: refuted
+    reason: The 700-line ceiling in the tasks prompt template limits the WP prompt size (all prompts here are 130-242 lines), not the code lines the WP produces, so the finding compares unlike quantities.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: The tasks prompt guidance lists a Files field per subtask, and the per-WP counts cited (WP02 0 of 7, WP12 0 of 6, WP10 1 of 7, WP09 2 of 7, WP08 3 of 7) match the artifacts.
+  - id: TASKS-DECOMP-004
+    verdict: confirmed
+    reason: WP09 T061 has only a record-keeping step with the criterion "hand-off complete" and no file output, and WP01 T001/T002 produce results that go to research.md, which WP01 does not own.
+  - id: TASKS-DECOMP-005
+    verdict: refuted
+    reason: The finding itself says the IC-07 and IC-10 splits are reasoned and consistent with lanes.json and that no artifact change is required, so it is a note and not a defect.
+  - id: TASKS-DECOMP-006
+    verdict: refuted
+    reason: WP02 and WP03 state why the chain is serial (shared lane, append-only chokepoints, early CI feedback loop), and the finding is only a severity-1 request to add one sentence on p0 timing.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: WP01 T004 step 1 creates a corpus-marked module while T008 adds the registry rows later, and test_corpus_marked_modules_match_the_curated_registry fails for a marked module without a registry row, so the gate is red between T004 and T008.
+  - id: TASKS-SEQ-002
+    verdict: refuted
+    reason: The plan and DD-1 already refer to a draft PR on which the 2026-10-01 ruling was recorded, so the draft PR is treated as existing, and WP02 only requires the orchestrator to push to it.

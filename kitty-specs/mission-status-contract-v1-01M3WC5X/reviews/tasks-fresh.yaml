@@ -1,0 +1,113 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: TASKS-FRESH-001
+    lens: fresh
+    severity: 3
+    title: WP09 blanket owned_files glob tests/contract/test_*.py covers the protected C-004 reader test
+    evidence:
+      - "artifact: wps.yaml WP09 owned_files adds 'tests/contract/test_*.py' and 'contracts/tools/fixtures/**'"
+      - "artifact: spec.md C-004 (contracts/fixtures/ handoff fixtures and their reader tests/contract/test_handoff_fixtures.py are not modified)"
+      - "code: tests/contract/ already holds test_handoff_fixtures.py and other pre-existing contract tests, all matched by the glob"
+      - "artifact: WP09 prompt T055 Files line (the re-sweep only needs fixtures/tests of earlier WPs that WP09 already lists by name: test_mission_status_examples.py, test_layout_check.py, test_contract_resolver.py fixtures)"
+    claim: >
+      The revision grants WP09 write ownership over every present and future tests/contract/test_*.py,
+      including the C-004-protected test_handoff_fixtures.py and WP10's later files, and over all
+      contracts/tools/fixtures/**. The stated purpose (conditional brace re-sweep over earlier WPs'
+      literals; plan IC-08 names the examples test, layout_check and resolver fixtures) is already
+      served by the named entries. The glob widens scope beyond plan exception (2) and makes the
+      owned-files boundary meaningless for review of WP09.
+    remediation: >
+      Replace the two globs with the explicit earlier-WP modules and fixture roots that can carry brace
+      literals (the test_<script>.py modules of WP01 to WP08 and their fixtures/<script>/ subtrees, plus
+      fixtures/negative/**), and state that test_handoff_fixtures.py is never touched.
+  - id: TASKS-FRESH-002
+    lens: fresh
+    severity: 2
+    title: WP12 mission-wide C-004/C-003 diff check omits the protected test file and the completeness-test rows-only rule
+    evidence:
+      - "artifact: WP12 T078 diff constraints list 'git diff --stat origin/main...HEAD -- src contracts/fixtures pytest.ini .github/ci-module-registry.yml'"
+      - "artifact: spec.md C-004 names tests/contract/test_handoff_fixtures.py; C-003 says the completeness test gains registry rows only"
+    claim: >
+      The cumulative-diff proof of C-004 checks only contracts/fixtures/, not the reader test the
+      constraint also protects (made more likely by the WP09 glob), and C-003's rows-only restriction on
+      test_ci_corpus_trigger_completeness.py is not checked at all.
+    remediation: >
+      Add tests/contract/test_handoff_fixtures.py to the empty-diff path list, and add a check that the
+      only changes to the completeness test are added registry rows (no removed lines, no glob or data-root edits).
+  - id: TASKS-FRESH-003
+    lens: fresh
+    severity: 2
+    title: WP12 Node-ban grep over the whole diff cannot return empty and is not a clean C-005 check
+    evidence:
+      - "artifact: WP12 T078 'a grep over the added lines of the whole diff (git diff origin/main...HEAD) for node, npm, npx, yarn, pnpm, setup-node returns nothing outside the planted strings of the guard tests'"
+      - "artifact: spec.md C-005 scopes the ban to 'contracts tooling, workflows or tests'"
+      - "artifact: WP11 README binding rules and close-out.md/plan text legitimately say 'Node-free', and 'node' is a substring of common words"
+    claim: >
+      The whole diff includes kitty-specs records, README and docs prose that mention Node by design
+      (and this very instruction), and an unbounded 'node' substring matches ordinary words. The check
+      will always produce hits that a human must triage, so it cannot serve as the SC-008 evidence and
+      its pass condition is not decidable.
+    remediation: >
+      Scope the grep to added lines under contracts/, .github/workflows/ and tests/, use word-boundary
+      matching and exact tool names (npm, npx, yarn, pnpm, setup-node, plus 'node' as a whole word in
+      run/uses lines), and exclude kitty-specs and docs prose explicitly.
+  - id: TASKS-FRESH-004
+    lens: fresh
+    severity: 3
+    title: WP11 README-topic equality assertion has no owned test file or mechanism
+    evidence:
+      - "artifact: WP11 Test surface 'README topic equality: a test-surface line asserts that the heading constant in structure_check.py ... equals the topic list of this WP's Binding rules'"
+      - "artifact: wps.yaml WP11 owned_files contain no tests/ file (only README, CHANGELOGs, docs)"
+      - "artifact: WP07 owns tests/contract/test_structure_check.py and structure_check.py"
+    claim: >
+      WP11 and its DoD require an equality check between the structure_check heading constant and the
+      README topic list, with planted removal of each heading, but WP11 may write no test and the
+      Binding-rules list is prose. The assertion has no executable form owned by WP11; only WP07's
+      planted-removal test exists, and it cannot see WP11's list. The AC reduces to a manual comparison.
+    remediation: >
+      Either make the check mechanical inside WP07 (the structure_check test parses the real README
+      headings, so WP11's final text must satisfy it by running structure_check, which T069 already
+      does), and reword WP11's line to that; or add the test module to WP11's owned_files with a corpus
+      registry row.
+  - id: TASKS-FRESH-005
+    lens: fresh
+    severity: 2
+    title: WP12 T074 only recognises the "IC-07a complete" sentence, not the new time-box fallback sentence
+    evidence:
+      - "artifact: WP12 T074 Steps 'R-3 (WP02: ... the \"IC-07a complete\" sentence)'"
+      - "artifact: WP02 'Time-box and fallback' records 'IC-07a pending, default spelling provisional'; WP03/WP04/WP09 were updated to accept it"
+    claim: >
+      The revision introduced a fallback record in R-3 and updated WP03, WP04 and WP09, but not the
+      close-out verification; if the fallback fired and the spike later completed, T074 has no step to
+      confirm both records and the re-publication causes.
+    remediation: >
+      Extend T074 to accept either sentence, and when the fallback fired require the later "IC-07a
+      complete" record, the WP09 re-sweep outcome and any brace re-sweep re-publication tags.
+  - id: TASKS-FRESH-006
+    lens: fresh
+    severity: 2
+    title: WP10 header-format test cannot reject a role word as an owner
+    evidence:
+      - "artifact: WP10 precondition 'owner must match a GitHub handle pattern (no spaces, optional leading @; a role word is not a handle)'; T067 'each with a planted bad value'"
+    claim: >
+      A single-token role word (for example 'maintainers') satisfies a no-spaces handle pattern, so the
+      planted-bad-value test for the role case is either unwritable or vacuous; the stated owner rule
+      (a role is not an owner) is not enforced by the test.
+    remediation: >
+      Restrict the planted bad values to what a pattern can reject (spaces, empty, TBD, leading junk),
+      and state that the role-versus-handle rule is verified by the orchestrator at hand-off, or add an
+      explicit deny-list of role words.
+  - id: TASKS-FRESH-007
+    lens: fresh
+    severity: 1
+    title: Minor prose defects introduced by the revision
+    evidence:
+      - "artifact: WP04 Context 'Check whether the construct survives bundling is the IC-07a spike's (the spike record, research.md R-3)' (broken sentence left after the @@SPIKEREC@@ fix)"
+      - "artifact: WP08 T054 Steps state the hand-off fields twice ('using fixed fields ... The fields are: ...')"
+      - "artifact: WP09/tasks.md subtask IDs jump T060 to T062 after folding T061"
+    claim: Ungrammatical or duplicated text; the T061 gap is harmless but may confuse a reader checking continuity.
+    remediation: Reword the WP04 sentence, drop the duplicated WP08 field list, and note the retired T061 in WP09 or leave as is.

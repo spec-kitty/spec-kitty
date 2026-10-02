@@ -1,0 +1,113 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: mission-status-contract-v1-01M3WC5X
+severity_rubric: |
+  | 1 | nit | Wording/style; no effect on implementation |
+  | 2 | minor | Small gap; implementation would still come out right |
+  | 3 | moderate | Ambiguity or gap likely to cause rework inside one work package |
+  | 4 | high | Would produce a wrong implementation: untestable/vacuous AC, FR without coverage, contradicts existing code |
+  | 5 | critical | Charter or scope violation, breaks a stability contract, production-safety breach, or security/credential hazard |
+profile_applied: "paula-patterns (squad-delegate mode): directives 001 (boundary/ownership), 003 (decision documentation), 032 (conceptual alignment); tactics: ownership modelling, chokepoint/boundary-leak scan applied to the WP split"
+findings:
+  - id: TASKS-DECOMP-001
+    lens: PR-shape statement surfaced where the orchestrator looks
+    severity: 3
+    title: The one-PR size warning and per-WP split recommendation live only in WP12, the last WP, in a separate planning lane
+    evidence:
+      - artifact: "tasks/WP12-close-out-evidence-record.md § Context, bullets 'One PR for the Mission' and 'PR size and reviewability'"
+      - artifact: "tasks.md (whole file): no mention of PR shape, size, or the per-WP review order"
+      - artifact: "lanes.json: WP12 is alone in lane-planning; WP01-WP11 are in lane-a"
+      - artifact: "plan.md § Phases, work-package decomposition intent: says only 'One PR for the whole Mission, draft until acknowledged', no size statement"
+    claim: >
+      The only place that says the single PR is about 10,000+ added lines, not readable in a sitting, and offers a six-group
+      split is WP12 Context. An orchestrator dispatching WP01 to WP11 reads tasks.md and the early WP prompts, and meets
+      the decision only after all code is written, when the split is no longer cheap. The decision point (before
+      implementation, or at least before the PR is opened) is not attached to any step. Neither tasks.md nor WP01 carries it.
+    remediation: >
+      Add a short "PR shape" paragraph to WP01 Context (first WP an orchestrator opens): one draft PR per C-001, estimated
+      size, review order = WP order, the six candidate seams, and that the operator decides before WP03 starts whether to
+      stack PRs. Keep the full text in WP12. tasks.md is CLI-owned, so note the CLI limitation (severity 1) and put the same
+      paragraph in the hand-off the orchestrator is told to read (tasks/README.md is also generated; WP01 is the safe home).
+  - id: TASKS-DECOMP-002
+    lens: Work packages reviewable in one sitting; sizing rules
+    severity: 3
+    title: Most WPs exceed the 700-line sizing rule by the artifacts' own estimates, with no exemption reasoned
+    evidence:
+      - artifact: "tasks/WP06-content-checks.md § Subtasks T034-T040 (sum of stated estimates about 1,740 lines of scripts and tests, before fixtures): seven scripts plus fixture_builder, 8 subtasks"
+      - artifact: "tasks/WP01-libraries-layout-shared-corpus-wiring.md § T004-T008 (about 1,445 lines stated)"
+      - artifact: "tasks/WP09 (about 920), WP10 (about 900: helper about 500 + tests about 400 + reality test + fixture), WP08 (about 765 plus workflow YAML and rulesets)"
+      - artifact: "tasks/WP12 § Context: 'on the order of 10,000 or more added lines'"
+    claim: >
+      WP12 argues the diff is unreadable as one PR and that review should go "per work package", but the WPs it points to
+      are themselves 2 to 3 times the stated 700-line ceiling (WP06 worst: citation_check, provisional, example,
+      event-mapping, enum-pin and leak-scan checks, each with fixtures, in one WP). The stated sum of the per-subtask
+      estimates (about 7,700 lines of code and tests, plus about 40 YAML files and fixtures) is consistent with WP12's 10k
+      figure, but WP12 gives no breakdown, so the figure is asserted, not evidenced. The "WP list as table of contents"
+      mitigation only works if each WP is a sitting.
+    remediation: >
+      Split WP06 into two (for example 6a: fixture_builder, leak_scan, citation_check; 6b: provisional, example,
+      event_mapping, enum_pin checks) and consider moving WP01 T006 layout_check to its own WP or into WP07. If the split
+      is rejected because of the single-lane chokepoints, add an explicit "size exemption" sentence per oversized WP naming
+      the reason and the per-subtask review order. Give WP12's estimate a per-category breakdown (scripts, tests, YAML,
+      fixtures, docs) that sums to the figure, and correct "about 25 scripts" (the owned_files list shows 22 tool scripts).
+  - id: TASKS-DECOMP-003
+    lens: Subtasks with Steps/Files/Validation per task-prompt template
+    severity: 2
+    title: The **Files** field is missing from most subtasks in WP02, WP08, WP09, WP10 and WP12
+    evidence:
+      - artifact: "tasks/WP02-workflow-skeleton-bundler-spike.md § T009-T015: 0 of 7 have **Files**"
+      - artifact: "tasks/WP10-reality-check-p2.md § T062-T068: 1 of 7; WP09: 2 of 7; WP08: 3 of 7; WP12: 0 of 6; WP03/WP04: 3 of 7 and 3 of 6"
+    claim: >
+      Steps and Validation are present everywhere, Files is not. The WPs with the most chokepoint files (contracts.yml,
+      pins.json, bundle.py, the shared inventory) are exactly those lacking per-subtask file lists, so an implementer must
+      re-derive which owned file each subtask touches from prose.
+    remediation: >
+      Add a **Files** line to every subtask, naming the owned_files entries it writes (and its order in the shared-file
+      write sequence for contracts.yml, pins.json, bundle.py), with a rough size where known.
+  - id: TASKS-DECOMP-004
+    lens: No padding, no vacuous tasks
+    severity: 2
+    title: Pure record-keeping subtasks produce no artifact in the WP's owned files (T061, T001/T002, T054, T060)
+    evidence:
+      - artifact: "tasks/WP09-remaining-jobs-release-negative-tests-p1.md § Subtask T061 'Record the p1 inputs': Validation is 'hand-off complete'"
+      - artifact: "tasks/WP01-libraries-layout-shared-corpus-wiring.md § T001-T002: results go to a hand-off, written into research.md R-8 by the orchestrator; research.md is owned by WP12, not WP01"
+    claim: >
+      T061 has no file output and no checkable criterion; it only restates the orchestrator hand-off. T001 and T002 are
+      real measurement work, but their deliverable lies outside WP01's owned files, so a reviewer cannot verify the
+      subtask from the WP diff. These count toward the 10-subtask limit without adding a reviewable change.
+    remediation: >
+      Fold T061 into T060 as a closing line of its Steps, and give each such hand-off a concrete shape (named message
+      template with required fields, e.g. the T001 base hash, counts, binned reds with issue numbers) in the DoD so it is
+      checkable. For T001/T002 state in the WP that the evidence is verified later by WP12 T074 and cite that.
+  - id: TASKS-DECOMP-005
+    lens: Merge/split of the plan's ICs reasoned
+    severity: 1
+    title: IC-07a/IC-07b and IC-10 a/b are reasoned, but the IC-07 collapse is only visible as a CLI limitation note
+    evidence:
+      - artifact: "tasks.md § WP02 and WP08: both 'Plan Concerns: IC-07'"
+      - artifact: "tasks/WP12-close-out-evidence-record.md § Context (LANE_DEPENDENCY_CYCLE rationale for IC-10 b as the only planning WP) and § T075 item 12"
+      - artifact: "lanes.json: lane-a holds WP01-WP11, lane-planning holds WP12"
+    claim: >
+      The IC-10 split is reasoned (a planning WP in a separate lane cannot sit between code WPs) and consistent with
+      lanes.json. The IC-07 a/b split is reasoned in WP02 Context and plan.md, but wps.yaml can only say IC-07 for both
+      (manifest accepts IC-## only), so tasks.md loses the a/b distinction apart from the title suffix. Note only.
+    remediation: >
+      No artifact change required; CLI limitation. Optionally append "(a)" / "(b)" in the WP02 and WP08 Plan Concerns
+      prose in the prompts so a reader of tasks.md can match them to the plan's IC-07a and IC-07b rows.
+  - id: TASKS-DECOMP-006
+    lens: Dependency shape vs plan (UI early-start point)
+    severity: 1
+    title: Fully serial WP chain delays p0 versus the plan's critical path, with the cost not stated against the early-start promise
+    evidence:
+      - artifact: "tasks.md § WP02-WP08 Dependencies: strict chain WP01 to WP08"
+      - artifact: "plan.md § Phases ... 'IC-07a starts after IC-01, beside IC-02 to IC-04' and 'IC-06 runs in parallel after IC-01'"
+      - artifact: "tasks/WP03-vocabularies-project-overview.md § Context and WP02 § Context (reasoning for ordering)"
+    claim: >
+      The plan placed IC-07a beside IC-02 to IC-04 and IC-06 in parallel; the tasks serialize all of them, so p0 (end of
+      WP05) now waits behind the whole WP02 spike. The reason (single lane, append-only chokepoints) is given in WP02 and
+      WP03, but the effect on the UI team's earliest usable point is not mentioned.
+    remediation: >
+      Add one sentence to WP05 Context or WP12 T077 stating that the serial ordering moves p0 after WP02 and why that is
+      accepted; no re-ordering needed.

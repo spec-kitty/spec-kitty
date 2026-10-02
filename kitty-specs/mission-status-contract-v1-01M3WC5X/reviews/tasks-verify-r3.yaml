@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: false
+phase: tasks
+results:
+  - id: TASKS-FRESH-R2-001
+    status: unresolved
+    remaining_severity: 2
+    reason: "Part 1 (tooling tokens plus node-version) can return empty, but Part 2 regex '^\\+\\s*(run:\\s*)?node\\s' still matches ordinary Python statements such as 'node = stack.pop()' (121 such lines already exist in tests/contracts/scripts), so it cannot return empty over the new ast/YAML-walking scripts and contradicts the text saying a bare identifier is not a hit; restrict Part 2 to workflow YAML (.github/workflows and run:/uses: lines) or drop the line-start branch."
+  - id: TASKS-FRESH-R2-002
+    status: resolved
+    reason: "WP01 T007 now says WP07 owns the heading constant in structure_check.py and WP11 only runs structure_check on the final README and adds no test, matching revised WP11."
+  - id: TASKS-FRESH-R2-003
+    status: resolved
+    reason: "The exemption now names test_layout_check.py, test_contract_resolver.py and the layout_check and contract_resolver fixture subtrees (the only places the brace spelling is legitimately exercised per WP01/WP04), with a per-file count guard, so the grep can really succeed; plan.md is deliberately left unedited and the deviation is stated."
+  - id: TASKS-FRESH-R2-004
+    status: resolved
+    reason: "The duplication legitimately remains and WP09 now carries a note explaining that finalize validation requires listing non-existent literal owned paths and naming the five files this WP actually creates."
+  - id: TASKS-FRESH-R2-005
+    status: unresolved
+    remaining_severity: 2
+    reason: "fleet_main.py was added to the empty-diff list, but the new C-003 name-only allow-list omits tests/ci/test_contracts_routing.py, which WP01 creates and owns, so the check as written would report a false violation (add it to the allowed set)."
+  - id: TASKS-FRESH-R2-006
+    status: resolved
+    reason: "WP09 DoD now reads all eight jobs and contracts-gate (nine in total), consistent with the job table and the gate needing the eight others."
+complete: true

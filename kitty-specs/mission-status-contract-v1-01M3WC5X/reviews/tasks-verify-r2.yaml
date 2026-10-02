@@ -1,0 +1,26 @@
+schema: review-verify/v1
+complete: false
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: Both blanket globs are replaced by explicit earlier-WP test modules and fixtures/<script>/ subtrees plus fixtures/negative/**, wps.yaml and WP09 frontmatter agree, every listed path has an earlier owner (or is WP09's own create_intent), no WP owns test_handoff_fixtures.py or contracts/fixtures, and the prompt states they are never touched.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: T079 now adds tests/contract/test_handoff_fixtures.py to the empty-diff path list and adds a no-removed-lines, rows-only check on the completeness test with _CORPUS_GLOBS and _CORPUS_DATA_ROOTS untouched.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: The Node-ban grep is scoped to added lines under contracts, .github/workflows and tests, uses whole-word matching on exact tool names, excludes kitty-specs, docs and README by construction, and lists the planted guard-test hits explicitly, so the pass condition is decidable.
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: WP11 now delegates the heading equality to WP07's existing planted-removal test and structure_check run over the final README (T069), adds no unowned test, and its DoD line matches.
+  - id: TASKS-FRESH-005
+    status: resolved
+    reason: T074 now accepts either the IC-07a complete sentence or the time-box fallback sentence, and when only the fallback is present requires the later complete record, the WP09 re-sweep outcome and any re-publication tags, recording absence as a gap.
+  - id: TASKS-FRESH-006
+    status: resolved
+    reason: The owner rule is now an explicit regex requiring a leading @ (optional org/team suffix) so a bare role word is rejected, and T067 plants maintainers, @two words, empty and TBD.
+  - id: TASKS-FRESH-007
+    status: resolved
+    reason: The WP04 sentence is reworded, the duplicated WP08 field list is removed, and WP09 carries an explicit numbering note that T061 was folded into T055 and retired.
+complete: true

@@ -1,0 +1,466 @@
+schema: review-findings/v1
+phase: tasks
+note: 'TASKS-SEQ-002 overridden refuted->confirmed by orchestrator: gh shows no PR and no remote branch
+  exist for this mission branch, contradicting the refuter premise; see tasks.orchestrator-ruling.yaml'
+findings:
+- id: TASKS-DECOMP-001
+  lens: PR-shape statement surfaced where the orchestrator looks
+  severity: 3
+  title: The one-PR size warning and per-WP split recommendation live only in WP12, the last WP, in a
+    separate planning lane
+  evidence:
+  - artifact: "tasks/WP12-close-out-evidence-record.md \xA7 Context, bullets 'One PR for the Mission'\
+      \ and 'PR size and reviewability'"
+  - artifact: 'tasks.md (whole file): no mention of PR shape, size, or the per-WP review order'
+  - artifact: 'lanes.json: WP12 is alone in lane-planning; WP01-WP11 are in lane-a'
+  - artifact: "plan.md \xA7 Phases, work-package decomposition intent: says only 'One PR for the whole\
+      \ Mission, draft until acknowledged', no size statement"
+  claim: 'The only place that says the single PR is about 10,000+ added lines, not readable in a sitting,
+    and offers a six-group split is WP12 Context. An orchestrator dispatching WP01 to WP11 reads tasks.md
+    and the early WP prompts, and meets the decision only after all code is written, when the split is
+    no longer cheap. The decision point (before implementation, or at least before the PR is opened) is
+    not attached to any step. Neither tasks.md nor WP01 carries it.
+
+    '
+  remediation: 'Add a short "PR shape" paragraph to WP01 Context (first WP an orchestrator opens): one
+    draft PR per C-001, estimated size, review order = WP order, the six candidate seams, and that the
+    operator decides before WP03 starts whether to stack PRs. Keep the full text in WP12. tasks.md is
+    CLI-owned, so note the CLI limitation (severity 1) and put the same paragraph in the hand-off the
+    orchestrator is told to read (tasks/README.md is also generated; WP01 is the safe home).
+
+    '
+- id: TASKS-DECOMP-003
+  lens: Subtasks with Steps/Files/Validation per task-prompt template
+  severity: 2
+  title: The **Files** field is missing from most subtasks in WP02, WP08, WP09, WP10 and WP12
+  evidence:
+  - artifact: "tasks/WP02-workflow-skeleton-bundler-spike.md \xA7 T009-T015: 0 of 7 have **Files**"
+  - artifact: "tasks/WP10-reality-check-p2.md \xA7 T062-T068: 1 of 7; WP09: 2 of 7; WP08: 3 of 7; WP12:\
+      \ 0 of 6; WP03/WP04: 3 of 7 and 3 of 6"
+  claim: 'Steps and Validation are present everywhere, Files is not. The WPs with the most chokepoint
+    files (contracts.yml, pins.json, bundle.py, the shared inventory) are exactly those lacking per-subtask
+    file lists, so an implementer must re-derive which owned file each subtask touches from prose.
+
+    '
+  remediation: 'Add a **Files** line to every subtask, naming the owned_files entries it writes (and its
+    order in the shared-file write sequence for contracts.yml, pins.json, bundle.py), with a rough size
+    where known.
+
+    '
+- id: TASKS-DECOMP-004
+  lens: No padding, no vacuous tasks
+  severity: 2
+  title: Pure record-keeping subtasks produce no artifact in the WP's owned files (T061, T001/T002, T054,
+    T060)
+  evidence:
+  - artifact: "tasks/WP09-remaining-jobs-release-negative-tests-p1.md \xA7 Subtask T061 'Record the p1\
+      \ inputs': Validation is 'hand-off complete'"
+  - artifact: "tasks/WP01-libraries-layout-shared-corpus-wiring.md \xA7 T001-T002: results go to a hand-off,\
+      \ written into research.md R-8 by the orchestrator; research.md is owned by WP12, not WP01"
+  claim: 'T061 has no file output and no checkable criterion; it only restates the orchestrator hand-off.
+    T001 and T002 are real measurement work, but their deliverable lies outside WP01''s owned files, so
+    a reviewer cannot verify the subtask from the WP diff. These count toward the 10-subtask limit without
+    adding a reviewable change.
+
+    '
+  remediation: 'Fold T061 into T060 as a closing line of its Steps, and give each such hand-off a concrete
+    shape (named message template with required fields, e.g. the T001 base hash, counts, binned reds with
+    issue numbers) in the DoD so it is checkable. For T001/T002 state in the WP that the evidence is verified
+    later by WP12 T074 and cite that.
+
+    '
+- id: TASKS-SEQ-001
+  lens: Phasing / campsite-clean sequencing (corpus gate never red)
+  severity: 3
+  title: WP01 lands corpus-marked test modules (T004-T006) before the registry rows and router glob (T008)
+  evidence:
+  - artifact: "tasks/WP01-libraries-layout-shared-corpus-wiring.md \xA7 T004 step 1 (single-line corpus\
+      \ marker on test_contract_resolver.py), T005, T006 versus \xA7 T008 steps 2-3 (glob and registry\
+      \ rows added last)"
+  - artifact: 'plan.md Implementation Concern Map, IC-01 row: ''Land the glob in the same commit as the
+      first corpus-marked module so the corpus-completeness gate is never red'''
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:246-258 (test_corpus_marked_modules_match_the_curated_registry
+      fails when a marked module exists on disk without a registry row)
+  claim: T008 says the glob goes in 'the same commit as the first corpus-marked module registry row',
+    but the first corpus-marked module is created in T004, four subtasks earlier. In subtask order every
+    commit from T004 to T008 leaves the named gate red, so the implementer's own per-subtask gate runs
+    are red for a reason the WP says cannot happen, and the commit-by-commit green property the plan required
+    is lost.
+  remediation: Reorder WP01 so the router glob, scrub-JSON entry, routing test and the registry row for
+    the resolver module land with T004's first module commit (or make T008 the first corpus-wiring subtask),
+    and require each of T005/T006 to append its own sorted registry row in its own commit. State in T008
+    that no commit between may leave the completeness gate red.
+- id: TASKS-SEQ-002
+  lens: Orchestrator-only actions / phasing of the CI-only spike
+  severity: 3
+  title: Nobody is scheduled to open the draft PR before WP02's spike, which depends on a pushed PR run
+  evidence:
+  - artifact: "tasks/WP02-workflow-skeleton-bundler-spike.md \xA7 Context 'CI-only feedback loop' and\
+      \ \xA7 Orchestrator record step (needs a pushed run) and \xA7 Workflow shape (triggers: pull_request\
+      \ and push with branches [main], three paths)"
+  - artifact: "tasks/WP12-close-out-evidence-record.md \xA7 Context: 'The PR is opened by the orchestrator,\
+      \ never by an agent' (placed at close-out)"
+  - artifact: "tasks/WP08 \xA7 Context 'CI-only feedback, moved early' and WP09 \xA7 Context 'draft-PR\
+      \ push is the first possible green contracts-gate'"
+  claim: 'The workflow only triggers on pull_request or push to main, so the IC-07a spike, the exit criterion
+    that gates WP03, WP06 and WP08, can only execute once a draft PR exists. WP02, WP08 and WP09 each
+    say ''pushes to the draft PR'', while WP12 places PR opening at close-out. No WP or orchestrator step
+    says when the branch is first pushed and the draft PR opened (and that it stays draft until the #5528
+    acknowledgement, C-001). The mission''s critical early risk therefore has an unowned, unscheduled
+    prerequisite.'
+  remediation: 'Add an explicit orchestrator pre-step to WP02 (after the WP01 record step): push the branch
+    and open the draft PR targeting main, record the PR number in the hand-off, with the C-001 draft rule
+    restated. Reword WP12 to say the PR already exists and WP12 only finalises its body.'
+- id: TASKS-SEQ-003
+  lens: Orchestrator-only actions (preview tag publication)
+  severity: 3
+  title: Who pushes preview tags is stated three different ways; WP09 and WP10 imply the orchestrator
+    pushes
+  evidence:
+  - artifact: 'plan.md decision register E-3 and ''Immutable refs for the UI team'': ''the tags are pushed,
+      and named on #5528, by a maintainer ... the push stays a maintainer act'''
+  - artifact: "tasks/WP05-event-stream-p0.md \xA7 Close-out step: 'pushed, and named on #5528, by a maintainer\
+      \ or the orchestrator acting for one'"
+  - artifact: "tasks/WP09 \xA7 Close-out step p1 and tasks/WP10 \xA7 Close-out step p2: 'the orchestrator\
+      \ publishes the immutable preview tag' with no maintainer qualifier"
+  claim: Tags in the public upstream namespace are effectively irrevocable (the old tags stay by design)
+    and the task brief says agents never push. The plan reserves the push to a maintainer; WP05 widens
+    it to the orchestrator 'acting for one'; WP09/WP10 drop the qualifier entirely. An orchestrator reading
+    WP09 or WP10 alone could push a public tag without maintainer action.
+  remediation: 'In WP05, WP09 and WP10 use identical wording: the orchestrator prepares the tag command
+    and the #5528 note; creation of the remote tag and the comment is a maintainer act (E-3), with the
+    git-archive tarball fallback if none. Record ''prepared'' versus ''pushed by <maintainer>'' separately
+    in the hand-off.'
+- id: TASKS-SEQ-004
+  lens: Phasing (dependency order versus plan; UI early-start)
+  severity: 2
+  title: Serialising IC-07a ahead of all contract content hard-blocks p0 on the CI-only spike with no
+    time-box or fallback
+  evidence:
+  - artifact: "wps.yaml: WP03 depends on WP02; tasks/WP03 \xA7 Context 'Precondition ... dated sentence\
+      \ IC-07a complete' (stop and report if absent)"
+  - artifact: 'plan.md section (j) critical path: IC-07a ''starts after IC-01, beside IC-02 to IC-04''
+      and ''Brace spelling'' paragraph: IC-03 may use the default provisionally and an IC-08 re-sweep
+      covers a changed spelling'
+  - artifact: "tasks/WP02 \xA7 Context: 'Plan for several iterations' of a pushed-run loop; tasks/WP01\
+      \ \xA7 Context 'Lane model'"
+  claim: The task decomposition is acyclic, risk-first and documented (the single-lane collapse is faithfully
+    described in WP01), and it removes the re-sweep risk. But the plan's purpose in splitting IC-07 was
+    to let the spike run beside IC-02..IC-04 so the UI preview is not hostage to it. Now every contract
+    file waits on an orchestrator-written record that needs several pushed runs. A stalled spike delays
+    p0, the only deliverable an outside team is waiting for, and the plan's own fallback (provisional
+    default plus IC-08 re-sweep) is no longer usable because WP03 stops hard.
+  remediation: 'Add a time-box to WP02/WP03: after N pushed iterations or a stated number of days, the
+    orchestrator may record ''IC-07a pending, default spelling provisional'' and release WP03 under the
+    plan''s provisional-spelling clause (re-sweep stays WP09''s opening commit). Note the p0-latency cost
+    of serialisation in WP01''s lane-model paragraph.'
+- id: TASKS-SEQ-005
+  lens: Write scopes (owned_files completeness)
+  severity: 2
+  title: WP09's conditional re-sweep and negative-test wiring edit files WP09 does not own
+  evidence:
+  - artifact: "tasks/WP09 \xA7 Context 'Differs from the default': rewrites 'any literal path-file name\
+      \ or brace $ref in tests and fixtures from WP01 to WP07' (acceptance grep over tests/contract and\
+      \ contracts/tools/fixtures)"
+  - artifact: 'wps.yaml WP09 owned_files: only fixtures/layout_check/**, tests/contract/test_layout_check.py,
+      test_mission_status_examples.py; no example_check, citation_check, provisional_check, event_mapping_check,
+      enum_pin_check, leak_scan or contract_resolver fixtures, nor their tests'
+  - artifact: "tasks/WP09 \xA7 Negative-test wiring: 'adds none except for tools without a fixture, which\
+      \ it records' (no owned location)"
+  claim: In the one case where the re-sweep runs, the grep it must make clean spans fixtures and tests
+    owned by WP02, WP04 and WP06, outside WP09's declared scope; the same applies to any fixture WP09
+    must add for a tool that lacks one. Ownership-based review would reject the necessary edits, and the
+    CLI's lane scope omits nothing only because everything is in one lane.
+  remediation: 'Add to WP09 owned_files (and re-run finalize-tasks): contracts/tools/fixtures/contract_resolver/**,
+    citation_check/**, provisional_check/**, example_check/**, event_mapping_check/**, enum_pin_check/**
+    with the matching tests/contract/test_*.py, plus contracts/tools/fixtures/negative/** for new plants;
+    or narrow the re-sweep text to the files WP09 owns and state that others are fixed via a rejected-review
+    round.'
+- id: TASKS-SEQ-010
+  lens: Phasing (cross-reference accuracy)
+  severity: 1
+  title: WP09 T056 validation cites T069 for the guard tests, which is WP11's README subtask
+  evidence:
+  - artifact: "tasks/WP09 \xA7 Subtask T056 Validation: 'guard tests (T069) green'; guard tests are T058;\
+      \ T069 is 'README final' in tasks/WP11 line 80"
+  claim: A wrong subtask id sends an implementer to the wrong work; the right subtask is T058.
+  remediation: Replace T069 with T058 in WP09 T056's validation line.
+- id: TASKS-SEQ-011
+  lens: Write scopes / CLI limitation note
+  severity: 1
+  title: Single lane-a and lane-planning are faithful; CLI-generated predicted_surfaces and redundant
+    dependency edges are noise (note)
+  evidence:
+  - artifact: lanes.json lane-a predicted_surfaces ['api','app-shell','dashboard','tracker-integration',...];
+      collapse_report lists only WP01-versus-later overlaps
+  - artifact: wps.yaml WP09 dependencies [WP05,WP06,WP07,WP08] and WP10 [WP06,WP09] are transitively redundant
+  claim: Dependencies form a strict acyclic chain WP01..WP11 (WP12 after WP11), so one lane would result
+    regardless of overlaps; the overlap evidence in collapse_report is true but not the binding cause,
+    and WP01's lane-model paragraph describes the outcome accurately. The plan's parallel lanes (IC-05,
+    IC-06, IC-07b) are dropped with no required output lost, but also no schedule benefit (see TASKS-SEQ-004).
+    predicted_surfaces is a CLI heuristic that does not match this mission (contracts, CI).
+  remediation: No change to artifacts. Optionally drop the redundant dependency edges; ignore predicted_surfaces.
+    CLI note only.
+- id: TASKS-VERIFY-001
+  lens: 7 requirement_refs / traceability (subtask identity)
+  severity: 3
+  title: WP03, WP04 and WP05 prompt bodies reuse and skip subtask IDs, so mark-status cannot track them
+  evidence:
+  - artifact: tasks/WP03-vocabularies-project-overview.md frontmatter subtasks T016..T022 versus headings
+      T022, T020, T021, T022, T020, T021, T022 (T016 to T019 never appear)
+  - artifact: tasks/WP04-mission-detail-work-package.md frontmatter subtasks T023..T028 versus headings
+      T026, T027, T028, T026, T027, T028 (T023 to T025 never appear)
+  - artifact: tasks/WP05-event-stream-p0.md frontmatter subtasks T029..T033 versus headings T032, T033,
+      T031, T032, T033 (T029, T030 never appear)
+  - artifact: wps.yaml and tasks.md list T016-T033 as the subtasks of these WPs; a script comparing headings
+      to frontmatter shows heads_ok False for exactly WP03, WP04, WP05
+  claim: Every WP states 'Per-subtask completion recorded with spec-kitty agent tasks mark-status <Txxx>
+    --status done' as a Definition of Done item. In WP03 to WP05 the same ID labels two different subtasks
+    (for example WP03 T022 is both 'Failing examples test' and 'MissionOverview schema' and 'Root map,
+    info, CHANGELOG'), and nine declared IDs (T016-T019, T023-T025, T029-T030) have no subtask text at
+    all. The red-first examples-test subtask is also labelled with the last ID, so ordering by ID inverts
+    the red-first order. Marking by ID will either mark the wrong work or leave declared subtasks permanently
+    open; WP03 T022 even says 'passes after T019', an ID with no body.
+  remediation: 'Renumber the headings to match frontmatter in order: WP03 T016 (failing examples test),
+    T017 (vocabularies), T018 (Project), T019 (MissionOverview), T020 (GET /missions), T021 (examples),
+    T022 (root map, info, CHANGELOG, registry row); WP04 T023 to T028 in the same way (extend examples
+    test, MissionDetail and phases, WorkPackage, paths and parameters, examples, CHANGELOG and final run);
+    WP05 T029 to T033 (failing example cases, event schemas, events.yaml path, examples, CHANGELOG and
+    p0 close-out). Fix the internal references (''passes after T019'' becomes the MissionOverview subtask).
+    Then re-run the heading-versus-frontmatter comparison and require equality.'
+- id: TASKS-VERIFY-002
+  lens: 7 requirement_refs / traceability (stale references)
+  severity: 2
+  title: Unrendered placeholder tokens and stale cross-WP subtask references in prompts
+  evidence:
+  - artifact: "tasks/WP04-mission-detail-work-package.md \xA7 Risks: 'is WP02/@@SPIKEREC@@'s spike'"
+  - artifact: "tasks/WP11-readme-changelog-docs.md \xA7 Test surface: 'Baseline for them is @@BASE@@'s\
+      \ record'"
+  - artifact: "tasks/WP06-content-checks.md \xA7 Risks: 'covered by T043' (T043 is verify_pins in WP07;\
+      \ the annotated-target case is T035)"
+  - artifact: "tasks/WP09-remaining-jobs-release-negative-tests-p1.md \xA7 T056 Validation: 'guard tests\
+      \ (T069) green' (T069 is README final in WP11; the guard tests are T058)"
+  claim: Two prompts carry literal @@...@@ template tokens that were never substituted, and two cite subtask
+    IDs that belong to other work packages. An implementer or reviewer following 'covered by T043' or
+    'guard tests (T069)' lands on the wrong deliverable, and @@BASE@@ leaves WP11's baseline source undefined.
+  remediation: Replace @@SPIKEREC@@ with 'the IC-07a spike record (research.md R-3)', @@BASE@@ with 'WP01's
+    baseline hand-off (research.md R-8)', 'T043' with 'T035' in WP06, and 'T069' with 'T058' in WP09.
+    Add a grep for '@@' across tasks/ to the tasks-phase final check.
+- id: TASKS-VERIFY-003
+  lens: 1 per-AC test strategy concrete
+  severity: 3
+  title: Two FR-009 checks promised by plan.md Test strategy have no task or test in any WP
+  evidence:
+  - artifact: "plan.md \xA7 Test strategy per acceptance criterion, row FR-003 to FR-006: 'schema tests\
+      \ that the page cursor and the stream cursor share no $ref (FR-009)'; row FR-009: 'path parameters\
+      \ accept only the ULID pattern'"
+  - artifact: 'spec.md FR-009: ''displayNumber ... is not accepted as a path parameter anywhere'''
+  - artifact: tasks/WP03 T020 (StreamCursor, 'no $ref relationship to the shared page cursor') and tasks/WP04
+      paths-and-parameters subtask are prose requirements only; WP04 test additions list example negatives
+      only; WP08 lint rule list (operationId, tags, Problem, descriptions, x-source, forbidden names,
+      enum case, closed schemas) has no path-parameter pattern rule
+  claim: Only the duplicate-missionId reality-check half of FR-009 has a failing-capable test (WP10).
+    The cursor-independence assertion and the 'path parameters accept only a ULID missionId, displayNumber
+    never' assertion are stated as design in WP03 and WP04 but no WP writes a test, lint rule or check
+    that goes red when they are violated, and neither appears in the WP09 negative-case manifest. Reverting
+    either property (adding a $ref from StreamCursor to PageCursor, or a displayNumber path parameter)
+    would pass every gate.
+  remediation: Add to WP04 (red-first, T026-equivalent) a small schema test in tests/contract/test_mission_status_examples.py
+    or test_contract_resolver.py that walks the resolved tree and asserts (a) the transitive $ref closures
+    of PageCursor and StreamCursor are disjoint, (b) every path parameter named missionId carries the
+    ULID pattern and no path parameter is named displayNumber, with a planted violating schema for each
+    and a floor on parameters found; or add the equivalent rule to the WP08 vacuum ruleset and negative_cases.json.
+    State the test ids in the WP Definition of Done.
+- id: TASKS-VERIFY-004
+  lens: 1 per-AC test strategy concrete / 2 red-first
+  severity: 3
+  title: WP09 negative-case manifest omits planted proofs the plan lists for FR-014, NFR-002 and FR-024
+  evidence:
+  - artifact: "plan.md \xA7 Test strategy, row FR-014: 'Planted dangling reference, planted schema that\
+      \ breaks 3.1, planted module without a root file, double-build digest comparison'; row FR-024: 'breaking-change\
+      \ job fails when the bundle changed but info.version did not'"
+  - artifact: "tasks/WP09 \xA7 T057 enumerates 'bundle with a dangling reference and a module without\
+      \ a root file, a tampered-metadata copy, client smoke plant, lint rules via vacuum, breaking-change\
+      \ pair ...'; no schema-that-breaks-3.1 plant, no BUILDS_DIFFER plant, no BUNDLE_CHANGED_VERSION_SAME\
+      \ plant"
+  - artifact: "tasks/WP08 \xA7 T051: determinism is proved by 'two differing builds simulated by fixture\
+      \ outputs' (unit test only)"
+  claim: FR-021 requires class A evidence (a real failing CI run on a planted violation) for every check.
+    The 3.1-invalid-schema case, the non-deterministic double build, and the 'bundle changed, version
+    unchanged' case are in the plan's table but not in the manifest that drives the negative-tests job.
+    NFR-002 therefore has only a simulated unit test, so a bundler that stops comparing digests, or a
+    validator that stops rejecting 3.1-invalid schemas, passes CI.
+  remediation: 'Extend the T057 case list and negative_cases.json with: a fixture module whose schema
+    is invalid under OpenAPI 3.1 (expected bundle.py code), a harness that makes the second build differ
+    (for example a fixture hook that perturbs the output) expecting BUILDS_DIFFER, and a breaking_check
+    pair where the bundle changes with info.version unchanged expecting BUNDLE_CHANGED_VERSION_SAME, each
+    with a clean control. Add a WP09 Definition-of-Done line that the manifest covers every plan Test
+    strategy row for FR-014, FR-016 and FR-024, and that run_negative_cases.py asserts case count equals
+    manifest length.'
+- id: TASKS-VERIFY-005
+  lens: 4 NO_FULL_HEAVY_SUITES / named architectural gates
+  severity: 3
+  title: Repo-wide clock-ban architectural gates scan tests/ but are in no named gate set
+  evidence:
+  - code: tests/architectural/_clock_gate_scan.py:21 SCAN_ROOTS = (SRC_ROOT, REPO_ROOT / "tests", REPO_ROOT
+      / "scripts")
+  - code: tests/architectural/test_clock_import_ban.py:3-5 walks every .py under src/, tests/ and scripts/
+      for raw datetime imports; test_clock_call_ban.py bans datetime.now() and time.time() calls
+  - artifact: "plan.md \xA7 The gate set (e) names neither file; no WP names them; WP10 helper and the\
+      \ verify_pins, release_check and breaking_check tests all handle timestamps, publication dates and\
+      \ ordering by createdAt"
+  claim: The Mission adds about 22 modules and a roughly 1000-line helper under tests/, several of which
+    compare or parse dates (createdAt ordering, lastActivityAt maximum, the 14-day publication freshness
+    rule, date-time format checks). A raw datetime import or datetime.now() in any of them reds the architectural-heavy
+    battery on the PR, but no WP runs the two clock gate files, so the failure first appears in CI after
+    the work is approved. The charter forbids sweeping the architectural directory, which makes naming
+    the relevant files the only local protection.
+  remediation: 'Add tests/architectural/test_clock_import_ban.py and tests/architectural/test_clock_call_ban.py
+    to the plan gate table (Architectural heavy battery row) and to the named-gate lists of WP01, WP02,
+    WP06, WP07, WP08, WP09 and WP10 (every WP that adds a tests/ module); add a one-line rule to WP10
+    and the tools WPs: compare ISO-8601 strings or use the kernel clock door, never import datetime in
+    tests/. Record both files in WP01 T001 baseline so any pre-existing red is classed.'
+- id: TASKS-VERIFY-006
+  lens: 5 gate set appears in WPs / 7 requirement_refs
+  severity: 3
+  title: No WP verifies the Mission-wide diff constraints SC-008, C-002, C-003, C-004 at the end
+  evidence:
+  - artifact: 'spec.md SC-008: zero files under src/ and contracts/fixtures/, zero lines of ci-module-registry.yml
+      and pytest.ini, exactly one added line in ci-router.yml, no Node anywhere in the diff'
+  - artifact: 'wps.yaml requirement_refs: SC-008 appears only in WP01 and WP02; C-002 only in WP10; WP12
+      refs are C-001, C-006, NFR-001, NFR-007, SC-002, SC-003, SC-009, SC-010'
+  - artifact: 'tasks/WP12 T079: ''git diff --stat confirms only the five owned files changed'' (WP12''s
+      own diff, not the Mission diff)'
+  claim: SC-008 is a property of the whole PR diff. Each earlier WP checks its own slice ('git diff --stat
+    shows nothing under src/'), but 11 WPs share one lane over many commits and the compact-history and
+    rebase steps rewrite it. The cumulative diff is never checked, so a later WP re-touching pytest.ini,
+    the registry file, a second router line, or a Node token would pass every per-WP check.
+  remediation: 'Add SC-008, C-002, C-003, C-004 and C-005 to WP12 requirement_refs and a T-step (or an
+    extra step of T079) that records read-only: ''git diff --stat origin/main...HEAD -- src contracts/fixtures
+    pytest.ini .github/ci-module-registry.yml'' empty, ''git diff -U0 origin/main...HEAD -- .github/workflows/ci-router.yml''
+    showing exactly one added line, and a grep over the whole diff for node, npm, npx, yarn, pnpm, setup-node
+    returning nothing outside the guard tests'' planted strings.'
+- id: TASKS-VERIFY-007
+  lens: 5 gate set from plan.md appears with a task
+  severity: 3
+  title: Plan close-out gates (uv lock --check, terminology guard re-run, scaffold-commit wording fix)
+    have no task
+  evidence:
+  - artifact: 'plan.md gate table: ''uv lock --check ... No (run once at close-out)''; terminology guard
+      ''Yes'' (new prose lands in tests/ and docs/); commitlint note: ''the scaffold commit''s legacy
+      wording is fixed at PR prep (tracer F-3)'''
+  - artifact: tasks/WP01 T001 baselines tests/architectural/test_no_legacy_terminology.py once; grep of
+      tasks/WP*.md finds no 'uv lock' command, no later run of test_no_legacy_terminology.py (WP11 and
+      WP12 run docs-lint only), and no step that fixes the F-3 commit message
+  - code: tests/architectural/test_no_legacy_terminology.py exists; tracer-tooling-friction.md F-3 records
+      the scaffold commit message problem
+  claim: Three items the plan itself assigns to the Mission have no owner. The terminology guard is baselined
+    but never re-run after WP03 to WP05 and WP11 add the Mission's prose, so a 'feature' regression surfaces
+    only in CI. 'uv lock --check' is promised at close-out but appears nowhere. The F-3 scaffold-commit
+    wording fix (a public-history terminology defect) is deferred to 'PR prep' with no WP or orchestrator
+    step.
+  remediation: 'Add to WP11 T073 and WP12 final runs: ''PWHEADLESS=1 .venv/bin/python -m pytest -q tests/architectural/test_no_legacy_terminology.py''
+    and ''uv lock --check'' (read-only), recorded in close-out.md. Add an orchestrator pre-PR step in
+    WP12 Context for the F-3 commit wording (reword during the compact-history step, then verify with
+    git log --format=%s) and a Definition-of-Done line for it.'
+- id: TASKS-VERIFY-008
+  lens: 4 owned files / named targets
+  severity: 3
+  title: WP06 creates the real enum-pin file but does not own its path
+  evidence:
+  - artifact: "tasks/WP06 \xA7 T039: 'pin file under fixtures/enum_pin_check/ (the real pin lives next\
+      \ to the script; name it in the hand-off so WP09 wires the right path)'"
+  - artifact: 'wps.yaml WP06 owned_files: contracts/tools/*.py scripts, contracts/tools/fixtures/*/**
+      and tests; no contracts/tools/<pin file>'
+  claim: The pin that enum_pin_check compares the live StatusLane, LifecycleStatus and Topology enums
+    against is a real, non-fixture file next to the script, but it is outside every owned_files glob (fixtures/**
+    is the only nearby glob). Either the implementer writes it outside its ownership or places the real
+    pin in a fixture directory, in which case the CI python-checks job has no stable real path to read
+    and WP09 wires a guess. Because the pin is what makes enum drift detectable (FR-008), an unowned or
+    misplaced pin makes that check vacuous in CI.
+  remediation: 'Fix the path now: add contracts/tools/enum_pins.json (or the chosen name) to WP06 owned_files
+    and wps.yaml, state it in T039, make the pin file path a default of enum_pin_check.py, and add a WP09
+    guard assertion that the python-checks invocation uses that default with a non-empty pin.'
+- id: TASKS-VERIFY-009
+  lens: 7 ratchet-issue step acceptance
+  severity: 2
+  title: Ratchet acceptance checks only that header keys are non-empty; shrink-only is not enforced
+  evidence:
+  - artifact: "tasks/WP10 \xA7 Context Precondition: 'a unit test fails when any [of issue, owner, drain_by]\
+      \ is missing or empty'; \xA7 Disagreement list: 'assert the list length at or below a pinned shrink-only\
+      \ ceiling'"
+  - artifact: 'plan.md Standing Order 5 row: priced debt needs a named owner, an exit condition and a
+      drain_by date'
+  claim: An issue value of 'TBD', an owner of 'maintainers' or a past or malformed drain_by date satisfies
+    'non-empty'. And 'at or below' a pinned ceiling lets the disagreement list shrink without the ceiling
+    being lowered, so the ratchet never tightens and the debt silently stops draining.
+  remediation: 'In the WP10 unit test require issue to match a numeric issue reference, owner to match
+    a GitHub handle pattern (no spaces, optional leading @), and drain_by to parse as an ISO date without
+    importing datetime in tests/ (string-compare to a pinned floor date or use the kernel clock door).
+    Add a test that fails when the measured disagreement length is strictly below the ceiling (''stale
+    ceiling: lower it to N''), so the ceiling only ever moves down. Record the issue number in close-out.md
+    section 5 as already specified.'
+- id: TASKS-VERIFY-012
+  lens: 5 gate set (ruff check and format hard-enforced)
+  severity: 3
+  title: WP09 and the YAML WPs omit ruff, and the S-rule subprocess and network hazards are not anticipated
+  evidence:
+  - artifact: 'grep of tasks/WP*.md: ruff count is 0 in WP03, WP04, WP05 and WP09; mypy appears only in
+      WP01 and WP06'
+  - artifact: tasks/WP09 adds contracts/tools/run_negative_cases.py, a ~500-line tests/ci/test_contracts_workflows.py
+      and test_run_negative_cases.py; T060 and Definition of Done name no ruff run. WP03 to WP05 edit
+      tests/contract/test_mission_status_examples.py
+  - code: pyproject.toml:2402 selects S; pyproject.toml:2426 relaxes S only for tests/**; contracts/tools/*.py
+      therefore get bandit rules in full
+  - artifact: plan.md gate row names only S314 and TID251 as the live ruff risks
+  claim: Ruff check AND format are hard-enforced and NFR-007 requires both for all new Python. WP09 (the
+    largest test file and a subprocess driver) and the example-test edits in WP03 to WP05 never run them
+    locally, so a format diff first appears in CI. Separately, run_negative_cases.py, install_tools.py,
+    bundle.py, client_smoke.py and breaking_check.py shell out (git, gradle, vacuum, oasdiff) and download
+    over HTTPS, which triggers S603, S607 and S310 in non-test code; no WP tells the implementer to use
+    argument lists, absolute resolved binaries, scheme-checked urlopen, or a narrow justified noqa, so
+    each script risks a red ruff or an unjustified blanket suppression.
+  remediation: 'Add ''.venv/bin/ruff check .'' and ''.venv/bin/ruff format --check .'' to the final-run
+    steps and Definition of Done of WP03, WP04, WP05 and WP09. Add to the shared script conventions (tools-and-workflows.md
+    and the WP02 conventions paragraph) a rule: subprocess only with argument lists and shutil.which-resolved
+    binaries, urlopen only after an https scheme check, any S603, S607 or S310 suppression is a one-line
+    noqa with a rationale, reviewed. Extend the mypy --strict discipline line to WP02, WP07, WP08, WP09
+    and WP10.'
+- id: TASKS-VERIFY-013
+  lens: 7 requirement_refs plausibility (FR-001 README topics)
+  severity: 2
+  title: structure_check heading list in WP07 is shorter than the README topic list in WP01 and WP11
+  evidence:
+  - artifact: "tasks/WP07 \xA7 T042: ten topics (layout, path-file naming, relative $ref rules, _shared/\
+      \ admission, versioning and /api/v1, extensions, status-lane terminology, workflow-phase terminology,\
+      \ Topology distinction, bundle is a build product)"
+  - artifact: "tasks/WP01 \xA7 T007 README skeleton and WP11 \xA7 Binding rules list additionally: markdown\
+      \ lint advisory, the src/specify_cli/contracts/ collision note, the one local validate-and-bundle\
+      \ command with prerequisite (NFR-006), board-column mapping as consumer convention, versioning rule,\
+      \ residual-risk statement on handle-shaped strings, and the reader-author warning with its local\
+      \ command"
+  claim: FR-001 and NFR-006 require the README topics, and WP11's red-first step relies on structure_check
+    going red when a heading is missing. Topics present in WP11 but absent from the structure_check list
+    (notably the local command and prerequisite for NFR-006, the collision note, and the board-mapping
+    convention) can be deleted from the README with every check still green.
+  remediation: 'Make WP01''s README skeleton heading list the single authority: write it as a constant
+    in structure_check.py (WP07) copied verbatim from the WP01 hand-off, include every topic WP11 lists,
+    and add a WP11 test-surface line that the constant and the WP11 list are equal (planted removal of
+    each heading fails).'
+- id: TASKS-VERIFY-014
+  lens: 3 targeted test surface
+  severity: 2
+  title: WP03 and WP04 own and change contract_resolver.py but their targeted tests omit its test module
+  evidence:
+  - artifact: "tasks/WP04 \xA7 Context: 'set BRACE_REF_SPELLING accordingly in contracts/tools/contract_resolver.py\
+      \ ... with a red-first change'; \xA7 Test surface lists test_mission_status_examples.py, layout_check\
+      \ and test_layout_check.py only"
+  - artifact: "tasks/WP03 owned_files include contracts/tools/contract_resolver.py, tests/contract/test_contract_resolver.py\
+      \ and fixtures/contract_resolver/**; \xA7 Test surface omits test_contract_resolver.py"
+  claim: The constant change in WP04 is a resolver behaviour change (which brace spelling resolves), and
+    the golden-tree tests for it live in test_contract_resolver.py, which neither WP runs. The red-first
+    test named for that change (a layout_check fixture) does not exercise the resolver's percent-decoding
+    lookup, so a resolver regression from the spelling switch can pass WP04.
+  remediation: Add tests/contract/test_contract_resolver.py to the targeted lists of WP03 and WP04; in
+    WP04 require a golden-tree case that resolves a brace-named file through the recorded spelling, failing
+    against the unchanged constant.

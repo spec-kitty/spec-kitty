@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 3
+verdicts:
+  - id: TASKS-SEQ-011
+    verdict: confirmed
+    reason: lanes.json has one lane-a for WP01-WP11 plus lane-planning, wps.yaml shows a strict chain with WP09 and WP10 carrying transitively redundant edges, and the predicted_surfaces do not fit this mission (note only).
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: WP03 frontmatter lists T016-T022 but headings run T022,T020,T021,T022,T020,T021,T022, WP04 headings are T026-T028 twice, WP05 headings are T032,T033,T031,T032,T033, so IDs are reused and T016-T019, T023-T025, T029-T030 have no body.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: grep finds literal @@SPIKEREC@@ in WP04 and @@BASE@@ in WP11, WP06 says covered by T043 (verify_pins, WP07) and WP09 says guard tests (T069) while T069 is README final in WP11 and T058 is the guard tests.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: plan.md test table promises schema tests for cursor no-shared-ref and ULID-only path parameters, yet WP03/WP04 state them as prose only and no WP test, lint rule or negative case asserts either.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: plan.md FR-014 and FR-024 rows list a 3.1-breaking schema plant and a bundle-changed-version-unchanged check, but WP09 T057 enumerates neither, and WP08 T051 proves determinism only by simulated fixture outputs.
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: test_clock_import_ban.py and _clock_gate_scan.py scan src, tests and scripts for raw datetime imports, and neither plan.md nor any WP names these gate files (grep for clock finds nothing relevant), so the mission's new tests modules are unprotected locally.
+  - id: TASKS-VERIFY-006
+    verdict: confirmed
+    reason: SC-008 appears in wps.yaml only for WP01 and WP02, WP12 requirement_refs omit SC-008 and C-002 to C-004, and T079 only checks the five owned files, so no cumulative-diff check exists.
+  - id: TASKS-VERIFY-007
+    verdict: confirmed
+    reason: plan.md promises a uv lock --check close-out run, a terminology guard re-run and an F-3 scaffold-commit wording fix, but grep of tasks finds uv lock nowhere, the terminology test only in WP01 baseline, and F-3 only in plan.md.

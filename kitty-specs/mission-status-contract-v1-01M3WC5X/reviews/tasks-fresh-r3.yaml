@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: TASKS-FRESH-R3-001
+    lens: fresh
+    severity: 3
+    title: WP12 allowed-set for shared-CI paths omits a file WP01 creates under tests/ci
+    evidence:
+      - "artifact: tasks/WP12-close-out-evidence-record.md T079 lists the only allowed output of `git diff --name-only origin/main...HEAD -- .github/workflows scripts/ci tests/ci` as ci-router.yml, ci-fleet-verdict.yml, contracts.yml, contracts-release.yml, fleet_verdict.py, test_fleet_verdict.py, test_contracts_workflows.py and conditionally test_fleet_main.py"
+      - "artifact: wps.yaml and tasks/WP01 owned_files include tests/ci/test_contracts_routing.py (new file, T008 red-first routing test)"
+      - "artifact: spec.md C-003 and SC-008 enumerate only the four fleet-verdict files as other shared-CI edits"
+    claim: "The check as written cannot return its expected result. A correct implementation always lists tests/ci/test_contracts_routing.py, so the WP12 agent must either flag a legitimate file as a defect (the prose says never wave through) or silently widen the set. The deeper cause is that spec C-003/SC-008 wording does not name this new test file."
+    remediation: "Add tests/ci/test_contracts_routing.py to the allowed set with a note that it is a new routing test added by WP01 (not an edit of an existing shared file), and have WP12 record it in close-out.md as a wording gap against SC-008/C-003 to be stated in the PR body."
+  - id: TASKS-FRESH-R3-002
+    lens: fresh
+    severity: 3
+    title: Brace-spelling acceptance grep exemption list is incomplete, so the grep cannot return its stated result
+    evidence:
+      - "artifact: tasks/WP01 DoD and WP09 opening commit: grep -rn 'missions_{\\|%7B' tests/contract contracts/tools/fixtures must match nothing outside test_layout_check.py, test_contract_resolver.py, fixtures/layout_check/** and fixtures/contract_resolver/**"
+      - "artifact: tasks/WP02 T-step at line ~174 and Context: the IC-07a spike fixture under contracts/tools/fixtures/spike/** exists to test the canonical brace $ref spelling against the Python resolver, the Java parser and the generated TypeScript client; WP02 also owns fixtures/resolver_parity/**, fixtures/bundle/**, tests/contract/test_resolver_parity.py and test_bundle.py"
+    claim: "The spike, resolver_parity and bundle fixtures and their tests legitimately carry candidate or canonical brace spellings, yet are not in the named exempt set, so the grep returns hits outside it on a correct tree (at WP09, and at any point after WP02). Implementers will either fail the DoD or expand the set ad hoc, which hollows the 'matches nothing outside' guarantee."
+    remediation: "Enumerate every file or glob that legitimately holds the spelling (add contracts/tools/fixtures/spike/**, resolver_parity/**, bundle/** and their test modules, plus any examples test that derives names) or switch the grep to an explicit per-file expected-count table recorded at WP02 and re-checked at WP09."
+  - id: TASKS-FRESH-R3-003
+    lens: fresh
+    severity: 3
+    title: Count guard (exempt files must show at least one hit) contradicts the rule that tests and fixtures never hard-code the spelling
+    evidence:
+      - "artifact: tasks/WP01 Context line ~104: 'Tests and fixtures never hard-code a path-file name or a brace $ref: derive from the constant and from a directory listing (acceptance grep in the DoD)'"
+      - "artifact: tasks/WP01 DoD (revised): 'the exempt files must each show at least one hit (a zero there means the test or fixture does not exercise the spelling, which is itself a failure)'"
+      - "artifact: tasks/WP01 T004 step 1 says the brace-named golden case is 'referenced through the constant'; WP04 step 0 is where the golden tree under fixtures/contract_resolver/ gets its brace-named file"
+    claim: "A test that derives the spelling from BRACE_REF_SPELLING produces zero literal hits and so fails the new count guard; a test that hard-codes it passes the guard but breaks the Context rule. At WP01 time the WP04 golden tree does not exist, so fixtures/contract_resolver/** may have zero hits by design. Two instructions in the same WP cannot both be met."
+    remediation: "Pick one rule. Suggested: permit literal planted spellings only inside fixtures (planted violations and golden trees), require tests to derive from the constant, and apply the at-least-one-hit guard to fixture directories that are in existence at the WP being checked (layout_check at WP01, contract_resolver from WP04); drop it for test modules."
+  - id: TASKS-FRESH-R3-004
+    lens: fresh
+    severity: 2
+    title: Grep is hard-wired to the provisional spelling and exempts exactly the files a re-sweep must rewrite
+    evidence:
+      - "artifact: tasks/WP09 opening commit: re-sweep applies only if BRACE_REF_SPELLING changed after WP04; acceptance grep stays literal 'missions_{\\|%7B'"
+      - "artifact: tasks/WP09 owned_files include tests/contract/test_layout_check.py, test_contract_resolver.py, fixtures/layout_check/** and fixtures/contract_resolver/** (the exempt set)"
+    claim: "If the final spelling differs from the %7B default, the pattern no longer identifies the old spelling in general, and stale old-spelling references inside the exempt files (the likeliest place) pass by construction. The sweep outcome is then unverified exactly where it matters."
+    remediation: "Parameterise the grep on the OLD spelling recorded in R-3 (the value being retired) and require zero occurrences of it in the exempt files too, except inside planted non-canonical fixtures named by path."
+  - id: TASKS-FRESH-R3-005
+    lens: fresh
+    severity: 2
+    title: WP12 Node-ban Part 2 regex misses common YAML step forms and the per-part count guard is ambiguous
+    evidence:
+      - "artifact: tasks/WP12 T079 Part 2: grep -E '^\\+\\s*(run:\\s*)?node\\s|[;&|]\\s*node\\s|uses:.*node'"
+      - "artifact: tasks/WP12 T079 count guard: 'the allow-listed file must show at least one hit' (not stated per part)"
+    claim: "A workflow line '+      - run: node build.js' is not matched: the optional '- ' list marker sits between the leading whitespace and 'run:'. Likewise a planted string inside a Python test ('      - run: node x') has a quote or dash before the word. So Part 2 can return empty on a real violation, which is the vacuity the revision set out to remove. Separately, only Part 1 is guaranteed a planted hit (setup-node); whether Part 2 must also hit the allow-listed file is unstated and may be unsatisfiable."
+    remediation: "Allow an optional list marker: '^\\+\\s*(-\\s+)?(run:\\s*)?node\\s'; also match run: node anywhere on the line. State that the at-least-one-hit guard applies to Part 1 only, or require WP09's guard test to plant a bare 'run: node' line so Part 2 is non-vacuous too."
+  - id: TASKS-FRESH-R3-006
+    lens: fresh
+    severity: 1
+    title: WP11 red-first for README headings is not naturally demonstrable
+    evidence:
+      - "artifact: tasks/WP11 line ~77: 'show structure_check red on a README lacking one, then green on the final text'"
+      - "artifact: tasks/WP01 T007: README skeleton already holds every heading; WP07 test plants each removal"
+    claim: "At WP11 start the README is the WP01 skeleton with all headings, so structure_check is green; red can only be shown by deleting a heading by hand. The equality is also one-directional (README must contain the constant's headings; nothing detects a topic WP11 adds that is not in the constant). The revision removed the WP11 equality test, so this is the only remaining WP11 red-first claim and it is contrived."
+    remediation: "State that the red demonstration is an uncommitted deletion run, or drop the red-first claim for WP11 and rely on WP07's planted-removal test, saying so explicitly."
+  - id: TASKS-FRESH-R3-007
+    lens: fresh
+    severity: 1
+    title: WP09 create_intent note names the creating WPs incompletely
+    evidence:
+      - "artifact: tasks/WP09 note on create_intent: entries are files 'earlier WPs (WP01, WP02, WP06 to WP08) create'"
+      - "artifact: wps.yaml WP03 owned_files include tests/contract/test_mission_status_examples.py, which is also in WP09 create_intent"
+    claim: "tests/contract/test_mission_status_examples.py is created by WP03, not by any WP in the listed set; the note is slightly wrong for a validation-explanation paragraph."
+    remediation: "Change to 'WP01 to WP03 and WP06 to WP08'."

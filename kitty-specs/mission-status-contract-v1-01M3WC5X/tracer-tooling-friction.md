@@ -101,6 +101,8 @@ Entries are short and dated; the entry is written when the friction happens.
 - **F-13 (2026-10-02, plan review) - the plan-review loop ran past its round budget.**
   The loop used one self-ruled extra fix round and a final verification beyond the standard round
   budget, because the two surviving findings were low severity and each had a single remedy.
+- **F-14 (2026-10-02, tasks review) - the tasks-review loop ran past its round budget, and one refuter verdict was overridden.**
+  The loop ran four fix rounds because rewritten expect-empty grep checks kept failing on legitimate content; the final two survivors were low severity with one remedy each, so the orchestrator ruled one extra fix round plus one final verification (recorded in `reviews/tasks.orchestrator-ruling.yaml`). Separately, the phase agent overrode refuted SEQ-002 to confirmed after checking that no draft PR or remote branch existed; that is a content judgment the phase agent must not make, kept only because the premise was factually false. Also: the CLI cannot carry narrative in `tasks.md` (generated from `wps.yaml`), so the PR-shape statement lives in the WP01 and WP12 Contexts.
 - (append during implement and review)
 
 ## Assess at close

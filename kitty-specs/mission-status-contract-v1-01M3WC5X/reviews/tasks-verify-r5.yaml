@@ -1,0 +1,10 @@
+schema: review-verify/v1
+phase: tasks
+results:
+  - id: TASKS-FRESH-R3-004
+    status: resolved
+    reason: WP09 re-sweep now names the layout_check planted-case dir, fixtures/spike/**, fixtures/resolver_parity/** and fixtures/bundle/** as the only allowed holders (paths match WP02 and WP08 file scopes), every other hit is stale, non-vacuity still requires the new pair in contracts/mission-status/ and the contract_resolver golden tree, and no other WP contradicts it.
+  - id: TASKS-FRESH-R3-003
+    status: resolved
+    reason: Rule BRACE-1, its grep non-vacuity clause, WP01 DoD and WP04 DoD now all say the required hit comes from the layout_check clean-control file (WP01) or a golden-tree file (WP04) and not from the planted violation, and no "none required" wording remains in any WP.
+complete: true
