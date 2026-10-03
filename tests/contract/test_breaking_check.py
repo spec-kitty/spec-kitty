@@ -500,6 +500,38 @@ def test_a_snapshot_release_tag_is_never_the_baseline(checker: ModuleType) -> No
 
 
 @pytest.mark.parametrize(
+    ("lower", "higher"),
+    [
+        ("1.0.0-rc.1", "1.0.0-rc.2"),
+        ("1.0.0-rc.9", "1.0.0-rc.10"),  # numeric identifiers compare numerically, not lexically
+        ("1.0.0-alpha", "1.0.0-beta"),  # alphanumeric identifiers compare lexically
+        ("1.0.0-rc.1", "1.0.0-rc.x"),  # a numeric identifier sorts below an alphanumeric one
+        ("1.0.0-rc", "1.0.0-rc.1"),  # a shorter set sorts below a longer one with an equal prefix
+        ("1.0.0-alpha.1", "1.0.0-alpha.beta"),
+        ("1.0.0-rc.2", "1.0.0"),  # a release is above every one of its prereleases
+        ("1.0.0-rc.99", "1.0.1-rc.1"),
+        ("0.9.0", "1.0.0-rc.1"),
+    ],
+)
+def test_prerelease_ordering_follows_semver_two(checker: ModuleType, lower: str, higher: str) -> None:
+    assert checker.parse_semver(lower) < checker.parse_semver(higher)
+    assert checker.parse_semver(higher) > checker.parse_semver(lower)
+    for tags in ([f"contract-things-v{lower}", f"contract-things-v{higher}"], [f"contract-things-v{higher}", f"contract-things-v{lower}"]):
+        assert checker.latest_release_tag(tags, "things") == f"contract-things-v{higher}", "the input order does not matter"
+
+
+def test_build_metadata_does_not_change_the_precedence(checker: ModuleType) -> None:
+    assert checker.parse_semver("1.0.0-rc.1+b1") == checker.parse_semver("1.0.0-rc.1+b2")
+    assert checker.parse_semver("1.0.0+b1") == checker.parse_semver("1.0.0")
+    assert checker.parse_semver("not-a-version") is None
+
+
+def test_a_snapshot_still_sorts_below_its_release_and_above_the_earlier_release(checker: ModuleType) -> None:
+    assert checker.parse_semver("0.9.0") < checker.parse_semver("1.0.0-SNAPSHOT") < checker.parse_semver("1.0.0")
+    assert checker.parse_semver("1.0.0-rc.1") < checker.parse_semver("1.0.0-rc.1-SNAPSHOT")
+
+
+@pytest.mark.parametrize(
     ("version", "snapshot"),
     [
         ("1.0.0-SNAPSHOT", True),

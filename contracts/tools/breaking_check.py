@@ -160,18 +160,34 @@ def finding(code: str, module: str, detail: str) -> str:
     return f"CONTRACT-CHECK {CHECK_NAME}: {code}: {module}: {detail}"
 
 
-def parse_semver(text: str) -> tuple[int, int, int, bool] | None:
-    """``(major, minor, patch, is_release)`` of a semver string, or ``None``. A prerelease sorts below its release."""
+SemverKey = tuple[int, int, int, tuple[Any, ...]]
+NUMERIC_IDENTIFIER = 0  # semver 2.0 section 11: a numeric identifier sorts below an alphanumeric one
+ALPHANUMERIC_IDENTIFIER = 1
+RELEASE_KEY: tuple[Any, ...] = (1,)  # above every prerelease key, which all start with 0
+
+
+def _prerelease_key(prerelease: str) -> tuple[Any, ...]:
+    """The semver 2.0 precedence key of a prerelease: numeric identifiers numerically, the rest lexically, a shorter set first."""
+    identifiers = tuple((NUMERIC_IDENTIFIER, int(item)) if item.isdigit() else (ALPHANUMERIC_IDENTIFIER, item) for item in prerelease.split("."))
+    return (0, *identifiers)
+
+
+def parse_semver(text: str) -> SemverKey | None:
+    """``(major, minor, patch, prerelease_key)`` of a semver string, or ``None``; tuples compare by semver 2.0 precedence.
+
+    A release sorts above every prerelease of its own version. Build metadata is ignored.
+    """
     match = SEMVER.match(text)
     if match is None:
         return None
-    return int(match.group(1)), int(match.group(2)), int(match.group(3)), match.group(4) is None
+    prerelease = match.group(4)
+    return int(match.group(1)), int(match.group(2)), int(match.group(3)), RELEASE_KEY if prerelease is None else _prerelease_key(prerelease)
 
 
 def latest_release_tag(tags: Sequence[str], module: str, exclude: str | None = None) -> str | None:
     """The tag ``contract-<module>-v<semver>`` with the highest version, or ``None``. ``exclude`` is the tag being released."""
     prefix = f"contract-{module}-v"
-    best: tuple[tuple[int, int, int, bool], str] | None = None
+    best: tuple[SemverKey, str] | None = None
     for tag in tags:
         if not tag.startswith(prefix) or tag == exclude:
             continue
