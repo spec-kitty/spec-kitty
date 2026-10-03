@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: confirmed
+    reason: The corpus filter (ci-router.yml:221-232) has no src/specify_cli/status glob, tests/contract is outside the module matrix, and P-9/P-10 in plan.md cover only data files and test edits, not producer-code drift.
+  - id: PR-BOUNDARY-002
+    verdict: refuted
+    reason: tests/ci/test_contracts_workflows.py (lines 457-468) already pins contracts-release.yml uses-SHAs and the frozen install form and runs on any workflow edit, so those drifts are not unchecked.
+  - id: PR-TESTS-002
+    verdict: confirmed
+    reason: packs.yml:285 --deselects all 27 modules, so plan.md P-10's claimed push-to-main built-in-corpus-suite net does not run them, and the router push run is path-scoped.
+  - id: PR-TESTS-006
+    verdict: refuted
+    reason: The needs_vacuum skip reason already names the lint workflow job as the executing home, and the finding itself concedes no behaviour is uncovered.
+  - id: PR-TESTS-007
+    verdict: confirmed
+    reason: load_cases (run_negative_cases.py:111) only checks the code is a str and code_in treats a non-stable code such as an empty string as a substring found in any output, so a trivial code degrades the case (latent, as stated).
+  - id: PR-TESTS-005
+    verdict: confirmed
+    reason: grep finds UNREADABLE_FILE, BUNDLE_FAILED and BUNDLE_STEP_BLOCKED only in the tool sources, with no test or manifest naming them.

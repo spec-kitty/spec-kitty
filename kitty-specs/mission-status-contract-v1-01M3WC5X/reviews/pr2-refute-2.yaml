@@ -1,0 +1,32 @@
+schema: review-refute/v1
+complete: true
+phase: pr2
+verdicts:
+  - id: PR2-INTEGRATION-001
+    verdict: partial
+    severity: 1
+    reason: "DD-32 is cited already at seam 4 head (94e937236 ci-router.yml) and the record (tracer-design-decisions.md) lands only in seam 6, so seams 4/5 carry a dangling id and the unnamed 'operator ruling' wording stays unresolved for a reader; once seam 6 merges the id resolves, so this is a transient wording nit, not a defect (cheapest fix: say 'maintainer decision' plus the 7m20s rationale in the prose)."
+  - id: PR2-TESTS-002
+    verdict: confirmed
+    severity: 1
+    reason: "test_mission_status_reality.py:371-376 asserts with a message listing offenders and counts plus tracker/owner, and ceiling_problem (_mission_status_payloads.py:352) says 'grew' or 'stale ceiling: lower it'; neither says a new Mission must commit its snapshot with its WP files. Shrink-only is intended, so only the message text is lacking."
+  - id: PR2-CI-RELEASE-007
+    verdict: confirmed
+    severity: 1
+    reason: "contracts-release.yml installs Gradle and runs bundle.py (lines 47-49) before release_check.py (line 52), while contracts/README.md:308 says a SNAPSHOT tag is refused 'before it builds anything'; true only inside release_check, publish is unreachable. The verify-pins comment half duplicates INTEGRATION-002."
+  - id: PR2-INTEGRATION-002
+    verdict: confirmed
+    severity: 1
+    reason: "contracts.yml:47-49 literally says 'Nothing is downloaded by this job, so --fetch downloads each pinned artefact', a self-contradiction, and the step runs verify_pins.py --fetch. Pure comment wording; duplicate of the second half of CI-RELEASE-007."
+  - id: PR2-INTEGRATION-003
+    verdict: partial
+    severity: 1
+    reason: "Subjects 'list the two IC-09 corpus modules' and 'list the WP08 corpus test modules' exist (git log origin/main..HEAD, lines 16 and 37) and the jargon is real, but the planned compaction into a few sliced commits per seam rewrites these subjects anyway, so it only needs to be avoided when re-authoring; no action on the current history."
+  - id: PR2-TESTS-003
+    verdict: confirmed
+    severity: 1
+    reason: "The module docstring (test_mission_status_reality.py:20) cites --dist loadfile, but the only job running it (ci-router.yml:843) passes no -n or --dist, so it runs serially; the guarantee holds today and the sentence is only misleading. A docstring-only fix is enough."
+  - id: PR2-TESTS-004
+    verdict: confirmed
+    severity: 1
+    reason: "TOOL_TEST_MARKER is a literal (test_contracts_workflows.py:912); router_contract_modules (line 932-935) extracts only module paths from the router command and never asserts its -m expression, so a changed router -m would not trip the guard. Add an equality assert as proposed."

@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 2
+verdicts:
+  - id: PR-CONTRACT-001
+    verdict: refuted
+    reason: "Spec defines the bundle as the resolved, inlined single document (spec.md layout check, SC-001 zero unresolved references, bundle.py UNRESOLVED_REFERENCE_LEFT) and DD-24 makes it equal the resolver's dereferenced tree (BUNDLE_STALE), so the inlining is the chosen design; the generator type-name instability is asserted, not reproduced."
+  - id: PR-CONTRACT-006
+    verdict: refuted
+    reason: "Spec D-2 explicitly chose unevaluatedProperties false for composed closed schemas, and the claimed generator naming and ignore behaviour is unreproduced speculation about tools the contract does not target as a requirement."
+  - id: PR-CONTRACT-005
+    verdict: refuted
+    reason: "Spec FR text for events.yaml (line 303, D-18) explicitly chooses a prose event-name-to-schema mapping guarded by an event-mapping check, and the oneOf is documented as the data-field schema only, so the criticised behaviour is the specified one."
+  - id: PR-CONTRACT-009
+    verdict: confirmed
+    reason: "StreamCursorString pattern ^[0-9]+: admits padded offsets although its own x-derived rule says no padding, and offset/detectedAtOffset integers carry no int64 format for a byte offset (the missing 400 on listMissions is weaker since the default Problem response covers it)."
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: "Reproduced on the lane: baseline 560 passed, and each of three mutations in run_case (errors = [], dropping the payload_leaks extension, deleting the snapshot_equality_problems line) still gave 560 passed; all restored."
+  - id: PR-TESTS-004
+    verdict: confirmed
+    reason: "Reproduced: replacing the read_bytes content with b\"x\" in tree_fingerprint leaves the hash-proof test green (1 passed) because the staged-then-rewritten file already flips porcelain, so the digest half is unproven; restored."

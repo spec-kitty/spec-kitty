@@ -1,0 +1,100 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR-FRESH-001
+    lens: contract-consistency
+    severity: 3
+    title: WpId tightened to WP## but StatusTransitionEvent.wpId is fed from an unvalidated event-log field
+    evidence:
+      - code: "contracts/mission-status/schemas/WpId.yaml:8"
+      - code: "contracts/mission-status/schemas/StatusTransitionEvent.yaml:38"
+      - code: "tests/contract/_mission_status_payloads.py:971"
+      - code: "tests/contract/_mission_status_payloads.py:101"
+    claim: >-
+      The fold narrowed WpId to ^WP[0-9]{2,}$ and described it as the rule the planning-file reader enforces
+      (wp_metadata.py:354). The same schema is also the type of StatusTransitionEvent.wpId, whose source is
+      StatusEvent.wp_id, a free string with no such rule. The reference projector passes row.get("wp_id") through
+      unchecked, so an event-log row with another id (a legacy or hand-edited one, or the store's own ^WP\d+$
+      shape WP1) yields a schema-invalid event, with no drop rule and no test planting one. The projector's own
+      _WP_ID (line 101) was not updated to the new rule either, so the two disagree.
+    remediation: >-
+      Either keep a looser id type for event and history wpId, or state in the contract that a transition whose
+      wp_id fails WpId is dropped and counted, implement that in project_events, and add a planted-row test.
+      Align _WP_ID with WpId.yaml.
+  - id: PR-FRESH-002
+    lens: spec-code-fidelity
+    severity: 3
+    title: ReviewOverride "complete" omits wp_id and hides partial overrides that still block the merge gate
+    evidence:
+      - code: "tests/contract/_mission_status_payloads.py:826"
+      - code: "src/specify_cli/status/models.py:443"
+      - code: "contracts/mission-status/schemas/ReviewOverride.yaml:3"
+    claim: >-
+      The code defines ReviewOverride.complete as at, actor, wp_id and reason all non-empty, and documents that a
+      partial override is deliberately kept in the snapshot so it keeps blocking the merge gate. The fold's
+      contract and reference projector define completeness on at, actor and reason only, and project every
+      partial record as null. A consumer therefore sees no override while the gate is blocked by one, and a record
+      with a blank wp_id is called complete where the code calls it incomplete. The x-source still cites
+      ReviewOverride, so the citation now misdescribes the rule.
+    remediation: >-
+      Document the divergence as a deliberate contract rule with its reason, or carry the partial state (for
+      example a nullable at plus a complete flag). At minimum state in ReviewOverride.yaml and the CHANGELOG that
+      the merge gate can be blocked by a record this field hides, and either include wp_id in the check or say why not.
+  - id: PR-FRESH-003
+    lens: gate-coverage
+    severity: 2
+    title: New check codes have no negative_cases.json plant
+    evidence:
+      - code: "contracts/tools/event_mapping_check.py:228"
+      - code: "contracts/tools/negative_cases.json:668"
+    claim: >-
+      Every other event_mapping_check violation code (NAME_WITHOUT_SCHEMA, SCHEMA_WITHOUT_NAME, SCHEMA_MULTI_NAME)
+      has a plant plus clean control in the manifest that run_negative_cases drives. The new
+      ALLOWED_TYPE_NOT_IN_RUNTIME, and the new example_check path for a deleted required example, were only given
+      pytest tests, so the tool-level plant-and-control gate does not cover them.
+    remediation: >-
+      Add a plant and control case for ALLOWED_TYPE_NOT_IN_RUNTIME using the new stand-in lifecycle fixture, and
+      bump the count assertion in test_run_negative_cases accordingly.
+  - id: PR-FRESH-004
+    lens: docs-consistency
+    severity: 2
+    title: Mission plan and WP10 still state the reality check runs on push to main, which the fold proved false
+    evidence:
+      - code: "kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:162"
+      - code: "kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:549"
+      - code: "kitty-specs/mission-status-contract-v1-01M3WC5X/tasks/WP10-reality-check-p2.md:79"
+    claim: >-
+      contracts/README.md and ci-gate-mechanics.md now say the push-to-main Packs run deselects these modules and
+      the nightly shard 4 is the only net. The plan (P-10 and the mitigation list) and WP10 still say the
+      built-in-corpus-suite on push to main is the net, so the public repo carries two contradictory statements.
+    remediation: >-
+      Update the three lines to the corrected claim (nightly ci-nightly.yml shard 4 and a manual full-mode router dispatch).
+  - id: PR-FRESH-005
+    lens: tooling-semantics
+    severity: 1
+    title: Interpreter-capability refusal reuses UNSAFE_ARCHIVE, whose documented meaning is a hostile member
+    evidence:
+      - code: "contracts/tools/install_tools.py:120"
+      - code: "contracts/tools/install_tools.py:19"
+    claim: >-
+      The module header defines UNSAFE_ARCHIVE as a member that would be written outside the destination. The
+      missing-data_filter refusal is an environment problem, reported with the same code and exit 1, so a consumer
+      branching on the code reads a Python-version problem as an archive attack. The message also says 3.11.4 although
+      the filter was backported to earlier security releases; with requires-python >=3.11 only 3.11.0 to 3.11.3 can trip it.
+    remediation: >-
+      Use a distinct code (for example UNSUPPORTED_INTERPRETER) and document it, or widen the UNSAFE_ARCHIVE
+      description; word the message as "tarfile extraction filters are missing".
+  - id: PR-FRESH-006
+    lens: gate-strength
+    severity: 1
+    title: code_problem still accepts generic words as an expected code
+    evidence:
+      - code: "contracts/tools/run_negative_cases.py:99"
+    claim: >-
+      The RULE_TOKEN branch accepts any text containing a four-letter word, so plant codes such as "error" or
+      "Traceback" pass the new guard although they match almost any failing output, the exact vacuity it claims to refuse.
+    remediation: >-
+      Require lint ids to contain a hyphen or be listed in the ruleset, or reject a small set of generic words.

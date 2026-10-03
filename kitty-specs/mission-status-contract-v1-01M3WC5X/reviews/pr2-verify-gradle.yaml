@@ -1,0 +1,29 @@
+schema: review-findings/v1
+complete: true
+phase: pr2
+lens_group: gradle-fold
+head: 6b8aced71
+verdict: pass
+summary: >
+  gradle_pin_check.py meets the maintainer's note on PR #5566. It compares build.gradle plugin version (every id line), every
+  openapi-generator plugin component of verification-metadata.xml, the wrapper distributionUrl (only if the file exists, none is
+  committed), every gradle-version workflow input (none exist today), and that each manifest url carries its entry's version. Fail
+  closed with exit 2 on GRADLE_PIN_UNREADABLE, GRADLE_PIN_UNPARSEABLE, ZERO_COMPARISONS; GRADLE_PIN_MISMATCH exit 1. Real repo:
+  pinned=2 compared=5 rc=0; plant rc=1 with the code. 117 tests pass (test_gradle_pin_check + test_contracts_workflows); mypy --strict,
+  ruff check and format clean. Neutering each of the five comparisons (build, metadata, wrapper, workflow, url) turned 1-6 tests red,
+  each restored with git checkout. verify-pins runs the step after verify_pins.py --fetch (uv sync gives PyYAML); contracts-gate needs
+  verify-pins; the negative case gradle-pin-mismatch (plant + clean control) is in negative_cases.json, the README paragraph is accurate.
+  Boundaries: 5286ffa89..51ff92876 is only the 10 fold-in files (contracts.yml +4, verify_pins.py --fetch kept); seam4 head tree holds the
+  tool and the step; 51ff92876..4870d2ebd touches no fold-in file; 2082704254..6b8aced71 is the 11 fold-in files (adds README +7).
+findings: []
+notes:
+  - severity: nit
+    title: gradle is compared against a build value only by url in the real repo
+    evidence: no gradle-wrapper.properties and no gradle-version input exist, so the gradle pin is checked only against its own url
+    claim: by design (the note says "if present"); the wrapper and workflow comparisons are covered by tests and activate when added
+    remediation: none
+  - severity: nit
+    title: negative driver case not executed end to end
+    evidence: run_negative_cases needs the whole toolchain; the plant and control were run directly (rc 1 with the code, rc 0)
+    claim: the case manifest entry is consistent with direct runs
+    remediation: none
