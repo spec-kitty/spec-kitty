@@ -35,8 +35,8 @@ charter API seam. That seam does not exist yet. It is planned under
 [#645](https://github.com/spec-kitty/spec-kitty/issues/645), the stable application API,
 which the [4.0.0 roadmap](../../plans/4-0-0-milestone-roadmap.md) lists as the precondition
 for moving charter code. Java will implement production reads after cross-language
-conformance. Python remains the production write path initially; Java writes migrate later,
-one operation at a time.
+conformance. Python code remains the production writer initially (see "Write cut-over" for
+the current write paths); Java writes migrate later, one operation at a time.
 
 Today callers reach into charter internals directly. `specify_cli`, `runtime`, and `glossary`
 import `charter.drg` (about 55 imports), `charter.activation.pack_context` (about 34),
@@ -158,7 +158,9 @@ contract consists of:
 - expected action-specific guidance and graph-query results.
 
 The configured built-in, organization, and project inputs remain explicit. Implementations
-must not infer the internal pack from directory presence.
+must not infer the internal pack from directory presence. They read the packs listed under
+`charter_packs.org.packs` in `.kittify/config.yaml`. The retired `doctrine.org.packs` key is
+still read as a legacy form.
 
 ### Read cut-over
 
@@ -185,7 +187,22 @@ Read cut-over does not wait for YAML write parity.
 
 ### Write cut-over
 
-Python remains the production write path initially, behind the same seam. Java write
+Python remains the production writer initially, behind the same seam. There is no single
+Python write adapter today. Three paths write authored or derived YAML:
+
+- **Activation:** `commit_plan` in `charter.activation.activation_engine` writes the
+  activation lists with a single save. `resolve_activation_write_target` in
+  `charter.activation.pack_manager` picks the file: `.kittify/config.yaml` for a project
+  without a `charter:` pointer, `charter.yaml` for a migrated one.
+- **Charter document:** `charter.activation.charter_yaml_io` (`prepare_yaml_write`,
+  `apply_yaml_write`, `save_charter_yaml`) writes `charter.yaml` and preserves the authored
+  sections.
+- **Compile:** `write_compiled_charter` in `charter.activation.compiler` refreshes only the
+  derived `catalog` and `metadata` sections of `charter.yaml`, through `charter_yaml_io`.
+  `charter.bundle` validates bundles and writes nothing.
+
+Each of these is a write operation to migrate. The seam must front all three before any
+moves. Java write
 support uses a lossless YAML document representation at the infrastructure edge and a
 semantic domain representation in the centre. An unchanged document must survive a
 round-trip without a byte diff, including comments, ordering, scalar styles, anchors,

@@ -111,7 +111,7 @@ flowchart LR
 
     subgraph Python["Spec Kitty CLI (specify_cli) — current"]
       callers["CLI, runtime, and glossary callers — import charter internals directly"]
-      writer["Python YAML write adapter — current"]
+      writer["Current Python write paths — activation commit_plan, charter_yaml_io, compile"]
       lifecycle["Service launch and lifecycle — planned"]
     end
 
