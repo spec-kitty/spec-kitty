@@ -1,0 +1,214 @@
+schema_version: 1
+mission_id: 01M409594NGTBPVDG442V81F8Y
+mission_slug: upgrade-windows-drift-01M40959
+mission_number: 212
+friendly_name: Upgrade and Windows drift
+mission_type: software-dev
+target_branch: kitty/upgrade-windows-drift
+created_at: '2026-10-03T09:34:39.281970+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-03T09:34:39.281970+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-009
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-009
+  category: tooling
+  summary: 'Tracer: Cause'
+  evidence_refs:
+  - e-011
+  details: '- **Cause**: lifecycle and planning commands resolve the repository root checkout; `LIFECYCLE_OWNED_TOPOLOGIES`
+    admits only `single_branch`, so a `lanes_with_coord` mission created in a linked worktree is invisible to them.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: Cause'
+  evidence_refs:
+  - e-011
+  details: '- **Cause**: I committed `status.events.jsonl` (10 mission-lifecycle events: MissionCreated…TasksCompleted) and
+    `status.json` to the target branch directly (`938d6e7388` plain commit, `2ef559d4d1` safe-commit of the whole mission
+    dir). These are coordination-partition files; `finalize-tasks` had deliberately left them uncommitted on the target. The
+    target copies then shared no event with the coordination log, so the squash content proof could not attribute them.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: Fix'
+  evidence_refs:
+  - e-011
+  details: '- **Fix**: set both target files byte-equal to the coordination branch copy (the squash would project that content
+    anyway); lifecycle events stay in target git history.'
+- id: n-003
+  category: tooling
+  summary: 'Tracer: Fix false drift at the owner.'
+  evidence_refs:
+  - e-010
+  details: 2. **Fix false drift at the owner.** `command_installer` treats canonical bytes as fresh and refreshes the
+    recorded hash in the adoption pass; providers stay thin.
+- id: n-011
+  category: tooling
+  summary: 'Tracer: Follow-up'
+  evidence_refs:
+  - e-011
+  details: "- **Follow-up**: candidate upstream issue — `agent mission create --owned-checkout` accepts `lanes_with_coord`
+    but every later lifecycle command refuses it; either refuse at create time or support it.\n\n## 2026-10-03 — Squash consolidation
+    refused on diverged status files (self-inflicted)"
+- id: n-004
+  category: tooling
+  summary: 'Tracer: Git object ids decide planning staging.'
+  evidence_refs:
+  - e-010
+  details: 3. **Git object ids decide planning staging.** `hash-object --path` versus `ls-tree`, batched, fail closed;
+    `show_blob` unchanged.
+- id: n-015
+  category: tooling
+  summary: 'Tracer: Lesson / upstream candidate'
+  evidence_refs:
+  - e-011
+  details: '- **Lesson / upstream candidate**: never `safe-commit` a whole mission directory on a `lanes_with_coord` mission;
+    the `implement` "commit planning artifacts first" hint suggests exactly that command and should exclude coordination-kind
+    files. The coordination log also never receives the mission-lifecycle events.'
+- id: n-002
+  category: tooling
+  summary: 'Tracer: No new public flag'
+  evidence_refs:
+  - e-010
+  details: 1. **No new public flag** (C-002). Consent to replace an edited command skill is `doctor tool-surfaces --fix`
+    (or an interactive upgrade "yes"), carried as `ApplyConsent.overwrite_paths` — the agent-profile pattern.
+- id: n-007
+  category: tooling
+  summary: 'Tracer: Out of scope held'
+  evidence_refs:
+  - e-010
+  details: '6. **Out of scope held**: #702, the Codex skill-drift programme, #2527, spec-kitty-qa#766.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: Standalone clone as mission workspace'
+  evidence_refs:
+  - e-010
+  details: 4. **Standalone clone as mission workspace** instead of a linked worktree, to keep `lanes_with_coord` and
+    leave the primary checkout untouched (see tooling-friction).
+- id: n-008
+  category: tooling
+  summary: 'Tracer: Symptom'
+  evidence_refs:
+  - e-011
+  details: "- **Symptom**: from a linked worktree on `kitty/upgrade-windows-drift`, `spec-kitty agent mission spec-commit`
+    refused with \"Refusing to commit planning artifacts to the protected branch 'main'\" (`placement_ref: main`). With `--owned-checkout`
+    it refused with `OWNED_TOPOLOGY_UNSUPPORTED`. `agent mission setup-plan` then failed with `PLAN_CONTEXT_UNRESOLVED` (\"\
+    Mission not found\")."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: Symptom'
+  evidence_refs:
+  - e-011
+  details: '- **Symptom**: `spec-kitty consolidate` refused twice ("projected coordination bookkeeping content did not land
+    on the target"), rolling back cleanly each time.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: Workaround'
+  evidence_refs:
+  - e-011
+  details: '- **Workaround**: spec committed with plain `git add`/`git commit` in the worktree (improvised, logged here);
+    then the worktree was replaced by a standalone local clone at the same path, which is its own repository root. All later
+    commands ran through the CLI.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: `init` drift path left out.'
+  evidence_refs:
+  - e-010
+  details: '5. **`init` drift path left out.** Brownfield check found `init.py` ~1499-1506 exits 1 on the same false drift,
+    because `init` never runs the adoption pass. It is not one of #5574/#5575/#5576 (C-001). Follow-up issue candidate.'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/tasks/WP01-installer-canonical-fresh-and-consent.md
+- id: e-006
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/tasks/WP02-command-skill-repair-consent.md
+- id: e-007
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/tasks/WP03-planning-staging-git-object-ids.md
+- id: e-008
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/status.events.jsonl
+- id: e-009
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/analysis-report.md
+- id: e-010
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/traces/design-decisions.md
+- id: e-011
+  kind: file
+  path: kitty-specs/upgrade-windows-drift-01M40959/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

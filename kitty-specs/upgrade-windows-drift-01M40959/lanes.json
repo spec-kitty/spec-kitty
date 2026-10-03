@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-windows-drift-01M40959",
+  "mission_id": "01M409594NGTBPVDG442V81F8Y",
+  "mission_branch": "kitty/mission-upgrade-windows-drift-01M40959",
+  "target_branch": "kitty/upgrade-windows-drift",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/skills/command_installer.py",
+        "src/specify_cli/skills/manifest_store.py",
+        "tests/specify_cli/cli/commands/test_upgrade_command_skill_drift.py",
+        "tests/specify_cli/skills/test_command_installer.py",
+        "tests/specify_cli/skills/test_manifest_repair.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement_cores.py",
+        "tests/architectural/test_trio_seam_only.py",
+        "tests/specify_cli/cli/commands/test_implement_coord_idempotency.py",
+        "tests/specify_cli/cli/commands/test_implement_cores.py",
+        "tests/specify_cli/cli/commands/test_meta_bypass_diagnosability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/providers/command_skills.py",
+        "tests/specify_cli/cli/commands/test_doctor_command_skill_repair_consent.py",
+        "tests/specify_cli/tool_surface/providers/test_command_skills.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-03T07:53:49.939339+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "454e0450181459939d7c6b53dfd3f438b090c95f"
+}

@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2527": {
+      "evidence_ref": "spec.md C-001: mission closes #5574/#5575/#5576 only; WP01 prompt forbids widening into #2527",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5281": {
+      "evidence_ref": "spec.md C-001: mission closes #5574/#5575/#5576 only; WP01 prompt forbids widening into #5281",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5574": {
+      "evidence_ref": "Owned by WP01 (lane-a, in_review at WP03 review time); outcome to be recorded by WP01's own reviewer",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5575": {
+      "evidence_ref": "Owned by WP02 (lane-b, planned at WP03 review time); outcome to be recorded by WP02's own reviewer",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#5576": {
+      "evidence_ref": "WP03 lane-c 868a9adf0c: GitPort.changed_vs_ref (git hash-object --stdin-paths vs ls-tree blob ids); red-first ba232393f3 (4 failed) -> 6 passed at HEAD",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#702": {
+      "evidence_ref": "spec.md C-001: mission closes #5574/#5575/#5576 only; WP01 prompt forbids widening into #702",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
