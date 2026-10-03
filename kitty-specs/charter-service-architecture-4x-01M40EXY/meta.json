@@ -1,0 +1,34 @@
+{
+  "created_at": "2026-10-03T08:43:43.890129+00:00",
+  "documentation_state": {
+    "coverage_percentage": 0.0,
+    "divio_types_selected": [],
+    "generators_configured": [
+      {
+        "config_path": "",
+        "language": "javascript",
+        "name": "jsdoc"
+      },
+      {
+        "config_path": "",
+        "language": "python",
+        "name": "sphinx"
+      }
+    ],
+    "iteration_mode": "initial",
+    "last_audit_date": null,
+    "target_audience": "developers"
+  },
+  "flattened": false,
+  "friendly_name": "Charter Service Architecture for 4.x",
+  "mid8": "01M40EXY",
+  "mission_id": "01M40EXYC53DQNK52C126E5RD5",
+  "mission_number": null,
+  "mission_slug": "charter-service-architecture-4x-01M40EXY",
+  "mission_type": "documentation",
+  "purpose_context": "Promote the operator-agreed Java read-path and staged Java write-path design from gitignored research notes into the repository's canonical architecture surfaces without duplicating authority or affecting the active landing-pass checkout.",
+  "purpose_tldr": "Consolidate the reviewed charter read/write redesign into canonical 4.x architecture, ADR, C4, and roadmap documents.",
+  "slug": "charter-service-architecture-4x-01M40EXY",
+  "target_branch": "docs/charter-service-architecture",
+  "topology": "single_branch"
+}

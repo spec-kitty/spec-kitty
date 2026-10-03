@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#2519": {
+      "evidence_ref": "Planning anchor only; later write implementation remains outside this documentation Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "CLI 4.x stable planning anchor",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#645": {
+      "evidence_ref": "Planning anchor only; this Mission records architecture and does not implement or close #645.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Stable Application API Surface planning anchor",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
