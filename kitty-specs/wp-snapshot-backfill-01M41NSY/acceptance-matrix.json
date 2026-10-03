@@ -1,0 +1,129 @@
+{
+  "mission_slug": "wp-snapshot-backfill-01M41NSY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py gap tests (set-based, both directions); WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:10.563232+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py planned seeding tests; WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:13.298855+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py finished-Mission forced-done tests; 203 forced done events in WP03 drain",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:16.164860+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py terminal-evidence order merged_at>accepted_at>manifest",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:18.946990+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py idempotence + dry-run; second corpus dry-run 0 would-seed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:21.655694+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py deleted-coord-branch fixture; writer reuses backfill_runtime_state lock+append; arch writes-gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:24.314543+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_migrate_backfill_wp_status.py 54 passed; docs/migrations/backfill-wp-status.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:26.998179+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commit 1270000bdc 417 events over 44 Missions; WP03 review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:34:11.811828+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py 9 passed; red on 1270000bdc^ (45 files_only)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:32.313073+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py deterministic ids; 417/417 recomputed in WP03 review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:35.105185+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py validate_transition legality + evidence=None readers",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:37.881959+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_wp_status_backfill.py interleaving with backfill_runtime_state",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-03T22:33:40.665616+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

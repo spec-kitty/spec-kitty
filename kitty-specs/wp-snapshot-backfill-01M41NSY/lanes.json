@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "mission_slug": "wp-snapshot-backfill-01M41NSY",
+  "mission_id": "01M41NSYWN5Y93G51HSPFAZ7QV",
+  "mission_branch": "kitty/mission-wp-snapshot-backfill-01M41NSY",
+  "target_branch": "issue-5579-wp-snapshot-backfill",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "src/specify_cli/migration/wp_status_backfill.py",
+        "tests/unit/migration/test_wp_status_backfill.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/migrate/backfill_wp_status.py",
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/cli/test_migrate_backfill_wp_status.py",
+        "tests/cli/test_migrate_group_flags_4964.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03",
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/**",
+        "kitty-specs/*/status.events.jsonl",
+        "kitty-specs/*/status.json",
+        "kitty-specs/wp-snapshot-backfill-01M41NSY/evidence-manifest.yaml"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_archive_root_byte_identical.py",
+        "tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-planning"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-03T20:16:04.258336+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03",
+    "WP05"
+  ],
+  "planning_commit_sha": "dce2d98a744e4bd97cbaa967fef1ce4b7aae74e3"
+}
