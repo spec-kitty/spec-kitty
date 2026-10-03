@@ -19,6 +19,7 @@ not a package.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -58,11 +59,13 @@ ERROR_CODES: tuple[str, ...] = (
     "NOT_A_MAPPING",
     "UNSUPPORTED_CONSTRUCT",
     "BRACE_IN_REF",
+    "ESCAPES_ROOT",
 )
 
 MAX_DECODE_ROUNDS = 4
 ROOT_DOCUMENT = "openapi.yaml"
 SCHEMAS_DIRECTORY = "schemas"
+SHARED_DIRECTORY = "_shared"
 
 _URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 _DRIVE_PREFIX = re.compile(r"^[A-Za-z]:[\\/]")
@@ -122,10 +125,13 @@ def _carries_brace(file_part: str) -> bool:
     return OPEN_BRACE in text or CLOSE_BRACE in text
 
 
-def refusal_code_for_ref(ref: str) -> str | None:
-    """The stable refusal code for a ``$ref`` form that is never allowed, or ``None`` when the form is fine.
+def refusal_code_for_ref(ref: str, *, origin: Path | None = None, roots: Sequence[Path] = ()) -> str | None:
+    """The stable refusal code for a ``$ref`` that is never allowed, or ``None`` when it is fine.
 
-    The one definition of an allowed form: layout_check uses it too, so the two never disagree.
+    The one definition of an allowed ref: layout_check uses it too, so the two never disagree.
+    The form checks need only ``ref``. When ``origin`` (the file holding the ref) and ``roots`` are
+    given, a relative ref whose target lies outside every root is refused as ``ESCAPES_ROOT``;
+    without them only the form is judged.
     """
     if _URL_SCHEME.match(ref):
         return "URL_REF"
@@ -135,17 +141,36 @@ def refusal_code_for_ref(ref: str) -> str | None:
         return "TILDE_POINTER"
     if _carries_brace(ref.partition("#")[0]):
         return "BRACE_IN_REF"
+    if origin is not None and roots and _escapes_roots(ref, origin, roots):
+        return "ESCAPES_ROOT"
     return None
 
 
-def resolve(module_dir: str | Path) -> Resolution:
-    """Dereference the module rooted at ``module_dir`` and return the tree and counts."""
-    return _Resolver(Path(module_dir)).run()
+def _escapes_roots(ref: str, origin: Path, roots: Sequence[Path]) -> bool:
+    """True when the file a ``$ref`` names, resolved from ``origin`` with symlinks followed, is inside none of ``roots``."""
+    file_part = ref.partition("#")[0]
+    if not file_part:
+        return False
+    target = (origin.parent / unquote(file_part)).resolve()
+    return not any(target.is_relative_to(root.resolve()) for root in roots)
+
+
+def resolve(module_dir: str | Path, *, roots: Sequence[str | Path] | None = None) -> Resolution:
+    """Dereference the module rooted at ``module_dir`` and return the tree and counts.
+
+    A ``$ref`` may reach only the files under ``roots``; by default the module itself and the
+    ``_shared`` directory beside it (the contracts root's shared tree). A caller that reads
+    a file through a throwaway root document passes the contracts root it is reading in.
+    """
+    module = Path(module_dir)
+    allowed = (module, module.parent / SHARED_DIRECTORY) if roots is None else tuple(Path(root) for root in roots)
+    return _Resolver(module, allowed).run()
 
 
 class _Resolver:
-    def __init__(self, module_dir: Path) -> None:
+    def __init__(self, module_dir: Path, roots: Sequence[Path]) -> None:
         self._module_dir = module_dir
+        self._roots = roots
         self._documents: dict[Path, Any] = {}
         self._refs_resolved = 0
         self._schema_files: set[Path] = set()
@@ -183,7 +208,7 @@ class _Resolver:
     # -- reference parsing -------------------------------------------------
 
     def _split_ref(self, ref: str, origin: Path) -> tuple[Path, tuple[str, ...]]:
-        refused = refusal_code_for_ref(ref)
+        refused = refusal_code_for_ref(ref, origin=origin, roots=self._roots)
         if refused is not None:
             raise ResolveError(refused, f"{ref!r} in {self._display(origin)} is refused")
         file_part, _, pointer = ref.partition("#")

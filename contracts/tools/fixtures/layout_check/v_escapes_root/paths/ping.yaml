@@ -1,0 +1,9 @@
+get:
+  operationId: ping
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            $ref: ../../../../outside/Evil.yaml#/x

@@ -45,6 +45,7 @@ PLANTED = {
     "v_brace_in_ref": ["BAD_REF_FORM"],
     "v_path_file_collision": ["PATH_FILE_COLLISION"],
     "v_shared_misuse": ["SHARED_MISUSE"],
+    "v_escapes_root": ["BAD_REF_FORM"],
     "v_tracked_bundle": ["TRACKED_BUNDLE"],
 }
 CLEAN_MODULES = ("clean", "_shared")
@@ -108,14 +109,20 @@ def test_every_planted_module_exists_on_disk_so_the_table_is_not_stale() -> None
 
 def test_the_whole_planted_root_fails_with_the_counts_it_inspected(planted_report: Any) -> None:
     assert planted_report.exit_code == 1
-    assert planted_report.counts == {"modules": 12, "path_files": 13, "index_files": 5}
-    assert planted_report.counts_line() == "counts: modules=12 path_files=13 index_files=5"
+    assert planted_report.counts == {"modules": 13, "path_files": 14, "index_files": 5}
+    assert planted_report.counts_line() == "counts: modules=13 path_files=14 index_files=5"
 
 
 def test_bad_ref_forms_are_named_url_absolute_and_tilde(planted_report: Any) -> None:
     details = " ".join(f.detail for f in _by_module(planted_report)["v_bad_ref_form"])
 
     assert "URL_REF" in details and "ABSOLUTE_REF" in details and "TILDE_POINTER" in details
+
+
+def test_a_ref_leaving_the_contracts_root_is_a_bad_ref_form_named_escapes_root(planted_report: Any) -> None:
+    (finding,) = _by_module(planted_report)["v_escapes_root"]
+
+    assert "ESCAPES_ROOT" in finding.detail
 
 
 # -- the clean control passes ---------------------------------------------------
@@ -137,7 +144,7 @@ def test_script_prints_codes_and_a_final_counts_line(tmp_path: Path) -> None:
 
     assert failing.returncode == 1
     lines = failing.stdout.splitlines()
-    assert lines[-1] == "counts: modules=12 path_files=13 index_files=5"
+    assert lines[-1] == "counts: modules=13 path_files=14 index_files=5"
     assert all(line.startswith("CONTRACT-CHECK layout_check: ") for line in lines[:-1])
     assert any(": PATH_FILE_NAME: " in line for line in lines)
     assert clean.returncode == 0

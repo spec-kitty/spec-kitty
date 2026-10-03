@@ -14,8 +14,9 @@ modules. The check reads files only and fails, naming the offending path, when:
 * ``INDEX_MISSING_FILE`` / ``INDEX_OMITS_FILE`` / ``INDEX_MALFORMED``: an
   ``_index.yaml`` (``files: [...]``) lists a file that is absent, omits one that
   is present, or is not a mapping with a ``files`` list.
-* ``BAD_REF_FORM``: a ``$ref`` is a URL, an absolute path, uses a ``~`` pointer or carries a
-  brace in any spelling (path files are named brace-free).
+* ``BAD_REF_FORM``: a ``$ref`` is a URL, an absolute path, uses a ``~`` pointer, carries a
+  brace in any spelling (path files are named brace-free) or names a file outside the contracts
+  root (``ESCAPES_ROOT``; the resolver's own check).
 * ``PATH_FILE_COLLISION``: two path items map to the same file name (``/a/{b}`` and
   ``/a/b`` both want ``a_b.yaml``).
 * ``SHARED_MISUSE``: a ``$ref`` reaches into ``_shared/`` outside its admitted
@@ -219,7 +220,7 @@ class _Check:
                 self._check_ref(yaml_file, ref, inside_shared=inside_shared)
 
     def _check_ref(self, origin: Path, ref: str, *, inside_shared: bool) -> None:
-        refused = contract_resolver.refusal_code_for_ref(ref)
+        refused = contract_resolver.refusal_code_for_ref(ref, origin=origin, roots=(self.root,))
         if refused is not None:
             self.add("BAD_REF_FORM", origin, f"{ref!r} is refused: {refused}")
             return

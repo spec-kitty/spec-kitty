@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: Escapes-root fixture
+  version: 1.0.0
+paths:
+  /x:
+    $ref: paths/x.yaml

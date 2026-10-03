@@ -247,12 +247,15 @@ def _library_validator(root: Path, schema_file: Path) -> Draft202012Validator:
 # -- the resolver reading ------------------------------------------------------------------
 
 
-def _resolver_schema(resolver: ModuleType, schema_file: Path) -> dict[str, Any]:
-    """The schema file as the resolver's dereferenced tree has it, reached through a throwaway root document."""
+def _resolver_schema(resolver: ModuleType, root: Path, schema_file: Path) -> dict[str, Any]:
+    """The schema file as the resolver's dereferenced tree has it, reached through a throwaway root document.
+
+    The throwaway root lies outside the contracts tree, so the resolver is told ``root`` is where refs may reach.
+    """
     with tempfile.TemporaryDirectory() as scratch:
         relative = os.path.relpath(schema_file, scratch).replace(os.sep, "/")
         Path(scratch, "openapi.yaml").write_text(yaml.safe_dump({"schema": {"$ref": quote(relative, safe="/")}}), encoding="utf-8")
-        tree = resolver.resolve(scratch).tree
+        tree = resolver.resolve(scratch, roots=(root,)).tree
     schema: dict[str, Any] = tree["schema"]
     return schema
 
@@ -266,7 +269,7 @@ def cross_check_examples(root: Path, module_dir: Path, resolver_module: str = "c
         raw = yaml.safe_load(schema_file.read_text(encoding="utf-8"))
         if schema_file.name == "_index.yaml" or not isinstance(raw, dict) or not isinstance(raw.get("examples"), list):
             continue
-        resolved = _resolver_schema(resolver, schema_file)
+        resolved = _resolver_schema(resolver, root, schema_file)
         resolver_validator = Draft202012Validator({key: value for key, value in resolved.items() if key != "examples"}, format_checker=FORMAT_CHECKER)
         library_validator = _library_validator(root, schema_file)
         name = schema_file.relative_to(module_dir).as_posix()

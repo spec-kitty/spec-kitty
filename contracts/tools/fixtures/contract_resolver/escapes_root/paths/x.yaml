@@ -1,0 +1,9 @@
+get:
+  operationId: getX
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            $ref: ../../file_ref/schemas/Thing.yaml

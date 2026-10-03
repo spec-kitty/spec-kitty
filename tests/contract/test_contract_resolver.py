@@ -292,6 +292,53 @@ def test_supported_constructs_are_one_constant_and_disjoint_from_the_refused_one
     assert {"$defs", "$anchor", "discriminator"} <= set(resolver.UNSUPPORTED_KEYWORDS)
 
 
+def test_ref_that_leaves_the_module_is_refused_even_when_the_target_is_valid_yaml(resolver: ModuleType) -> None:
+    """The fixture refs a real, readable YAML file in a sibling directory: only the root check can stop it."""
+    error = _resolve_error(resolver, FIXTURES / "escapes_root")
+
+    assert error.code == "ESCAPES_ROOT"
+    assert "../../file_ref/schemas/Thing.yaml" in error.detail
+
+
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "../../../../../../../../etc/passwd#/x",
+        "../../../outside.yaml",
+        "..%2f..%2f..%2foutside.yaml",
+        "../../mod_two/schemas/Other.yaml",
+    ],
+)
+def test_relative_ref_outside_the_contracts_root_is_refused(resolver: ModuleType, tmp_path: Path, ref: str) -> None:
+    module = _module_with_path_file(tmp_path / "contracts" / "mod", f"get:\n  schema:\n    $ref: '{ref}'\n")
+    _write(tmp_path, "outside.yaml", "x: 1\n")
+    _write(tmp_path, "contracts/mod_two/schemas/Other.yaml", "type: object\n")
+
+    assert _resolve_error(resolver, module).code == "ESCAPES_ROOT"
+
+
+def test_ref_into_the_sibling_shared_directory_still_resolves(resolver: ModuleType, tmp_path: Path) -> None:
+    module = _module_with_path_file(tmp_path / "contracts" / "mod", "get:\n  schema:\n    $ref: ../../_shared/schemas/S.yaml\n")
+    _write(tmp_path, "contracts/_shared/schemas/S.yaml", "type: string\n")
+
+    assert resolver.resolve(module).tree["paths"]["/x"]["get"]["schema"] == {"type": "string"}
+
+
+def test_a_caller_can_widen_the_roots_to_the_contracts_tree_it_reads_in(resolver: ModuleType) -> None:
+    widened = resolver.resolve(FIXTURES / "escapes_root", roots=(FIXTURES,))
+
+    assert widened.tree["paths"]["/x"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["type"] == "object"
+
+
+def test_the_root_check_is_one_definition_shared_through_the_ref_refusal(resolver: ModuleType, tmp_path: Path) -> None:
+    origin = tmp_path / "mod" / "paths" / "x.yaml"
+
+    assert resolver.refusal_code_for_ref("../../other/A.yaml", origin=origin, roots=(tmp_path / "mod",)) == "ESCAPES_ROOT"
+    assert resolver.refusal_code_for_ref("../schemas/A.yaml", origin=origin, roots=(tmp_path / "mod",)) is None
+    assert resolver.refusal_code_for_ref("../../other/A.yaml") is None, "without a root there is nothing to escape"
+    assert "ESCAPES_ROOT" in resolver.ERROR_CODES
+
+
 def test_resolver_codes_are_the_stable_set(resolver: ModuleType) -> None:
     assert set(resolver.ERROR_CODES) >= {"UNRESOLVED_REF", "URL_REF", "ABSOLUTE_REF", "TILDE_POINTER", "CYCLE", "NOT_A_MAPPING"}
 
