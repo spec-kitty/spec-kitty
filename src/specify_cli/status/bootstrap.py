@@ -49,7 +49,20 @@ class BootstrapResult:
 
 
 def _collect_wp_ids(tasks_dir: Path, result: BootstrapResult) -> list[str]:
-    """Return valid WP IDs discovered in ``tasks_dir`` and record skips."""
+    """Return valid WP IDs discovered in ``tasks_dir`` and record skips.
+
+    Bootstrap seeds ``planned`` events *at creation time*, for the WPs of a Mission
+    being finalised. ``spec-kitty migrate backfill-wp-status`` (#5579) is its
+    **retroactive arm**: it seeds the same ``genesis -> planned`` event for WP files
+    that a committed Mission's log never seeded. The two deliberately do NOT share
+    this collector: bootstrap reads through :func:`read_wp_frontmatter` (which
+    refreshes runtime fields from the event log, once per file), keeps duplicates
+    in file order and records skips into :class:`BootstrapResult`; the planner
+    (``migration.wp_status_backfill.collect_wp_file_ids``) reads the *authored*
+    frontmatter, returns a set and a malformed-name tuple, and also treats
+    undecodable or unreadable files as malformed. If you change what counts as a WP
+    id here, change it there too.
+    """
     wp_ids: list[str] = []
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:

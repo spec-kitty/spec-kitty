@@ -175,10 +175,15 @@ def wp_task_files(tasks_dir: Path) -> list[Path]:
 def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...]]:
     """Return ``(valid WP ids, malformed file names)`` for ``tasks/WP*.md``.
 
-    Mirrors ``status.bootstrap._collect_wp_ids`` (frontmatter ``work_package_id``,
-    malformed files reported and skipped) but reads the *authored* frontmatter:
-    ``read_wp_frontmatter`` re-reduces the whole event log once per file to refresh
-    runtime fields this planner never looks at.
+    This is the retroactive arm of ``status.bootstrap._collect_wp_ids``: the same
+    identity rule (frontmatter ``work_package_id``; malformed files reported and
+    skipped), but NOT the same code, because the semantics differ. Bootstrap reads
+    through ``read_wp_frontmatter``, which re-reduces the whole event log once per
+    file to refresh runtime fields this planner never looks at, keeps duplicate ids
+    and records skips into its ``BootstrapResult``. This reader uses the *authored*
+    frontmatter, returns a set plus the malformed names, and also files undecodable
+    or unreadable entries under malformed. If you change what counts as a WP id
+    here, change it in bootstrap too.
     """
     ids: set[str] = set()
     malformed: list[str] = []
