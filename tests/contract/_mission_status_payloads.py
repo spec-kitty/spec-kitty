@@ -98,7 +98,11 @@ _REVIEWED_OR_LATER = ("for_review", "in_review", "approved", "done", "canceled")
 _REVIEW_STARTED = ("for_review", "in_review", "approved", "done")
 _HANDLE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _RELATIVE_REFERENCE = re.compile(r"^(?![A-Za-z]:)[^/\\~].{0,255}$")
-_WP_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_WP_ID_SCHEMA = yaml.safe_load((Path(__file__).resolve().parents[2] / "contracts" / "mission-status" / "schemas" / "WpId.yaml").read_text(encoding="utf-8"))
+# The one definition of a work package id is the contract's own WpId schema; the projector reads it, it does not copy it.
+WP_ID_PATTERN: str = _WP_ID_SCHEMA["pattern"]
+WP_ID_MAX_LENGTH: int = _WP_ID_SCHEMA["maxLength"]
+_WP_ID = re.compile(WP_ID_PATTERN)
 _MISSION_ID = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 _SENTINELS = frozenset({"__resolved_model_absent__", "__resolved_profile_absent__", "__resolved_profile_version_absent__", "__resolved_provider_absent__"})
 _PATH_TOKEN = "[path]"
@@ -117,6 +121,8 @@ SCHEMA_WORK_PACKAGE = "WorkPackage"
 SCHEMA_PROJECT = "Project"
 SCHEMA_TRANSITION_EVENT = "StatusTransitionEvent"
 SCHEMA_LIFECYCLE_EVENT = "MissionLifecycleEvent"
+SCHEMA_REVIEW_OVERRIDE = "ReviewOverride"
+DROPPED_INVALID_WP_ID = "status-transition:invalid-wp-id"
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +182,7 @@ def require_cases(cases: Sequence[str]) -> list[str]:
 
 @dataclass(frozen=True)
 class Fingerprint:
-    """Bytes of every tracked file under one path, plus ``git status`` for it (catches created files)."""
+    """Bytes of every file under one path (tracked, untracked and ignored), plus ``git status`` for it."""
 
     files: int
     digest: str
@@ -190,19 +196,33 @@ def _git() -> str:
     return git
 
 
+def _listed(git: str, repo_root: Path, *arguments: str) -> set[bytes]:
+    listing = subprocess.run([git, "-C", str(repo_root), "ls-files", "-z", *arguments], capture_output=True, check=True).stdout
+    return {name for name in listing.split(b"\0") if name}
+
+
 def tree_fingerprint(repo_root: Path, subpath: str) -> Fingerprint:
-    """Fingerprint every tracked file under ``subpath`` (``git ls-files``) and the porcelain status of it."""
+    """Fingerprint every file under ``subpath``: tracked, untracked and ignored (``git ls-files``), bytes and ``git status``.
+
+    The bytes are the deciding signal for a reader that rewrites an already dirty file (the porcelain line does not
+    move). Ignored files are included on purpose: ``git status`` omits them, and a reader that wrote an ignored lock or
+    cache file under ``kitty-specs/`` would otherwise go unseen.
+    """
     git = _git()
-    listing = subprocess.run([git, "-C", str(repo_root), "ls-files", "-z", "--", subpath], capture_output=True, check=True).stdout
-    names = sorted(name for name in listing.split(b"\0") if name)
-    if not names:
+    tracked = _listed(git, repo_root, "--", subpath)
+    if not tracked:
         raise EmptyFingerprintError(f"git lists no file under {subpath}, so nothing could be hashed")
+    names = sorted(
+        tracked
+        | _listed(git, repo_root, "--others", "--exclude-standard", "--", subpath)
+        | _listed(git, repo_root, "--others", "--ignored", "--exclude-standard", "--", subpath)
+    )
     digest = hashlib.blake2b()
     for name in names:
         path = repo_root / name.decode("utf-8")
         content = path.read_bytes() if path.is_file() else b"<missing>"
         digest.update(name + b"\0" + hashlib.blake2b(content).digest())
-    status = subprocess.run([git, "-C", str(repo_root), "status", "--porcelain", "--", subpath], capture_output=True, check=True, text=True).stdout
+    status = subprocess.run([git, "-C", str(repo_root), "status", "--porcelain", "--ignored", "--", subpath], capture_output=True, check=True, text=True).stdout
     return Fingerprint(files=len(names), digest=digest.hexdigest(), porcelain=tuple(sorted(status.splitlines())))
 
 
@@ -393,7 +413,7 @@ class Projector:
         """A human text field: clean text passes through; only the matching substring is replaced otherwise."""
         if value is None:
             return None
-        text = str(value)
+        text: str = str(value)
         for pattern in self.leak.HUMAN_HOST_PATH_PATTERNS:
             widened = re.compile(pattern.pattern + r"\S*", pattern.flags)
             text, replaced = widened.subn(_PATH_TOKEN, text)
@@ -404,7 +424,7 @@ class Projector:
             self.redactions.append((self.mission, field_name, "email"))
         if self.leak.leak_codes(text, self.leak.HUMAN):
             raise ProjectionError(self.mission, field_name, "redaction left a leak in a human text field")
-        return text
+        return str(text)
 
     def lane(self, value: Any, field_name: str) -> str | None:
         """A display lane, or null for the non-display lanes and for no lane at all."""
@@ -449,17 +469,41 @@ def load_contract_tools(mp: pytest.MonkeyPatch, repo_root: Path) -> ContractTool
     )
 
 
-def _schema_nodes(tree: Any, found: dict[str, dict[str, Any]]) -> None:
+def is_wp_id(value: Any) -> bool:
+    """True when ``value`` is a work package id by the contract's ``WpId`` schema (pattern and length)."""
+    return isinstance(value, str) and len(value) <= WP_ID_MAX_LENGTH and bool(_WP_ID.fullmatch(value))
+
+
+def _schema_nodes(tree: Any, found: dict[str, dict[str, Any]], *, examples_required: bool = True) -> None:
     if isinstance(tree, list):
         for item in tree:
-            _schema_nodes(item, found)
+            _schema_nodes(item, found, examples_required=examples_required)
     elif isinstance(tree, dict):
         title = tree.get("title")
-        if isinstance(title, str) and isinstance(tree.get("examples"), list):
+        if isinstance(title, str) and (isinstance(tree.get("examples"), list) or not examples_required):
             found.setdefault(title, tree)
         for key, value in tree.items():
             if key not in {"examples", "example", "default", "enum", "const"}:
-                _schema_nodes(value, found)
+                _schema_nodes(value, found, examples_required=examples_required)
+
+
+@dataclass
+class CallLedger:
+    """How often each check of the reality case actually ran.
+
+    The case compares these counts with the number of payloads it built, so a check that is removed or neutralised
+    in the case (it then never reaches its callee) turns every per-Mission case red instead of leaving it green.
+    """
+
+    contract_validations: int = 0
+    leak_scans: int = 0
+    snapshot_comparisons: int = 0
+
+    def snapshot(self) -> tuple[int, int, int]:
+        return (self.contract_validations, self.leak_scans, self.snapshot_comparisons)
+
+
+LEDGER = CallLedger()
 
 
 class Contract:
@@ -469,7 +513,8 @@ class Contract:
         resolution = tools.resolver.resolve(module_dir)
         nodes: dict[str, dict[str, Any]] = {}
         _schema_nodes(resolution.tree, nodes)
-        wanted = (SCHEMA_OVERVIEW, SCHEMA_DETAIL, SCHEMA_WORK_PACKAGE, SCHEMA_PROJECT, SCHEMA_TRANSITION_EVENT, SCHEMA_LIFECYCLE_EVENT)
+        _schema_nodes(resolution.tree, nodes, examples_required=False)
+        wanted = (SCHEMA_OVERVIEW, SCHEMA_DETAIL, SCHEMA_WORK_PACKAGE, SCHEMA_PROJECT, SCHEMA_TRANSITION_EVENT, SCHEMA_LIFECYCLE_EVENT, SCHEMA_REVIEW_OVERRIDE)
         missing = [title for title in wanted if title not in nodes]
         if missing:
             raise RuntimeError(f"the resolved contract has no schema titled {missing}")
@@ -477,6 +522,7 @@ class Contract:
 
     def errors(self, title: str, instance: Any) -> list[str]:
         """Every validation error as ``<json pointer>: <message>``, sorted by pointer."""
+        LEDGER.contract_validations += 1
         found = sorted(self._validators[title].iter_errors(instance), key=lambda error: [str(part) for part in error.absolute_path])
         return ["/" + "/".join(str(part) for part in error.absolute_path) + ": " + error.message for error in found]
 
@@ -487,6 +533,7 @@ def payload_leaks(payload: Any, tools: ContractTools, *, authored_markdown: Sequ
 
     ``promptMarkdown`` is authored markdown: it passes through and is excluded from corpus payload scans.
     """
+    LEDGER.leak_scans += 1
     strict_names = frozenset(tools.fixtures.STRICT_FIELDS)
     findings: list[str] = []
 
@@ -785,13 +832,39 @@ def _review_result(state: Mapping[str, Any], projector: Projector, where: str) -
     }
 
 
-def _review_override(view_review: Mapping[str, Any] | None, projector: Projector, where: str) -> dict[str, Any] | None:
+def _is_dated(value: str) -> bool:
+    """True when ``value`` reads as an instant with an offset, the form the contract shows a time in."""
+    try:
+        return parse_iso(value).tzinfo is not None
+    except ValueError:
+        return False
+
+
+def review_override(view_review: Mapping[str, Any] | None, projector: Projector, where: str) -> dict[str, Any] | None:
+    """The review override, or null only for no record or the release marker (every field empty).
+
+    The rule is the code's, member for member: a value counts as present when it is a non-empty string, and
+    whitespace is a value (``ReviewOverride.complete`` and ``is_release_sentinel`` use plain truthiness). The
+    code keeps a partial record in the snapshot, where it keeps blocking the merge gate, so it is shown with
+    ``complete`` false and each blank member null; ``wp_id`` is read for the rule and not shown, the override
+    sitting inside its own work package. A time that is not an instant is shown as null on a partial record; a
+    record the code calls complete with such a time cannot be shown as complete, so the projection fails.
+    """
     if not isinstance(view_review, Mapping):
         return None
+    present = {key: isinstance(view_review.get(key), str) and view_review[key] != "" for key in ("at", "actor", "wp_id", "reason")}
+    if not any(present.values()):
+        return None
+    complete = all(present.values())
+    dated = present["at"] and _is_dated(view_review["at"])
+    if complete and not dated:
+        raise ProjectionError(projector.mission, f"{where}.review.override.at", "a complete override holds a time that is not representable")
+    at = view_review["at"] if dated else None
     return {
-        "at": view_review.get("at"),
-        "actor": projector.handle(view_review.get("actor")),
-        "reason": projector.human(view_review.get("reason") if view_review.get("reason") is not None else "", f"{where}.review.override.reason"),
+        "complete": complete,
+        "at": at,
+        "actor": projector.handle(view_review.get("actor")) if present["actor"] else None,
+        "reason": projector.human(view_review["reason"], f"{where}.review.override.reason") if present["reason"] else None,
     }
 
 
@@ -876,7 +949,7 @@ def build_work_package(source: MissionSource, authored: AuthoredWorkPackage, pro
         "cancellation": _cancellation(state, lane, projector, wp_id),
         "readiness": readiness,
         "readyToStart": derive_ready_to_start(lane, bool(readiness["satisfied"])),
-        "review": {"latestResult": _review_result(state, projector, wp_id), "override": _review_override(resolved.review, projector, wp_id)},
+        "review": {"latestResult": _review_result(state, projector, wp_id), "override": review_override(resolved.review, projector, wp_id)},
         "history": history_entries(source, wp_id, projector),
         "staleness": None,
     }
@@ -918,6 +991,9 @@ def _row_label(row: Mapping[str, Any]) -> str:
 def project_events(mission_id: str, rows: Iterable[Mapping[str, Any]], projector: Projector) -> EventProjection:
     """Forward only status transitions and the seven contract-owned lifecycle types; count and drop everything else.
 
+    A transition whose ``wp_id`` fails the contract's ``WpId`` rule is dropped under ``DROPPED_INVALID_WP_ID``
+    (counted and printed by the reality report), never forwarded and never repaired.
+
     ``missionId`` is the identity of ``meta.json`` (passed in), never the row's ``aggregate_id``. The cursor of
     each event is the tail reader's own position just after the row.
     """
@@ -925,6 +1001,9 @@ def project_events(mission_id: str, rows: Iterable[Mapping[str, Any]], projector
     for row in rows:
         cursor = {"offset": row.get("tail_offset"), "invariant": row.get("tail_invariant")}
         if "to_lane" in row:
+            if not is_wp_id(row.get("wp_id")):
+                projection.dropped[DROPPED_INVALID_WP_ID] += 1
+                continue
             projection.events.append(
                 (
                     "status-transition",
