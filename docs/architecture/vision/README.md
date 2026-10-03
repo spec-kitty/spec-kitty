@@ -2,7 +2,7 @@
 title: Architecture Vision (living)
 description: 'Landing page for the living architecture vision: the current and future, still-changeable forward intent for Spec Kitty, above the per-era history slots.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-03'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
@@ -50,6 +50,9 @@ points at:
   source of lifecycle truth.
 - **One governed front door.** A stable, versioned application API that the CLI, UI, MCP
   and SDK consumers build against, rather than parallel ad-hoc surfaces.
+- **Charter service strangler.** Move charter reads, then writes, behind the stable
+  boundary described by [ADR 2026-10-03-1](../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md)
+  and the [living C4 model](../diagrams/README.md).
 - **No new shadow paths.** Route or extract onto an existing authority; never build a
   parallel one.
 
