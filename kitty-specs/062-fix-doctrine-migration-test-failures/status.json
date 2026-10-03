@@ -1,5 +1,5 @@
 {
-  "event_count": 30,
+  "event_count": 32,
   "last_event_id": "01KN8039A5785Z8MWAQFA6WZKX",
   "materialized_at": "2026-04-02T21:02:58.373981+00:00",
   "mission_number": "62",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 8
   },
   "work_packages": {
     "WP01": {
@@ -138,6 +138,13 @@
         "T031": "done"
       }
     },
+    "WP10": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "6KMC1901R57137TCEPPTY7WHGA",
+      "last_transition_at": "2026-04-02T16:48:38.348783+00:00"
+    },
     "WP11": {
       "actor": "migration:backfill_runtime_state",
       "agent": "opencode",
@@ -146,6 +153,13 @@
       "last_event_id": "1M3VC8KWJ7WHBJ94JV4XTDY9AP",
       "last_transition_at": "2026-04-02T16:48:38.348783+00:00",
       "shell_pid": 254171
+    },
+    "WP12": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "6AD8WYKRA24VD66P7ZM9D86X4G",
+      "last_transition_at": "2026-04-02T16:48:38.348783+00:00"
     }
   }
 }

@@ -214,6 +214,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/doctrine/test_wp_authoring_contract_roundtrip.py",
         "tests/glossary/test_gate_terms.py",
         "tests/integration/test_mission_review_contract_gate.py",
+        "tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py",
     }
 )
 
