@@ -72,6 +72,11 @@ _LS_TREE_CHUNK = 500
 #: (160000) are never compared by object id -- they stay "changed".
 _PLAIN_BLOB_MODES = frozenset({"100644", "100755"})
 
+#: Seconds before the ``hash-object`` probe is killed. A clean filter can block
+#: on a prompt (an LFS credential request) and ``implement`` must not wait on
+#: it forever; a timeout reads as "unknown", which the caller treats as changed.
+_GIT_OBJECT_ID_PROBE_TIMEOUT_SECONDS = 60.0
+
 
 def _is_hashable_planning_path(repo_root: Path, repo_rel_path: str) -> bool:
     """True when *repo_rel_path* can be proven clean through ``hash-object --stdin-paths``."""
@@ -193,8 +198,9 @@ class _SubprocessGitPort:
                 input=stdin,
                 capture_output=True,
                 check=False,
+                timeout=_GIT_OBJECT_ID_PROBE_TIMEOUT_SECONDS,
             )
-        except OSError:
+        except (OSError, subprocess.TimeoutExpired):
             return None
         if result.returncode != 0:
             return None
