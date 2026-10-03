@@ -1,0 +1,83 @@
+# Contracts Release: publishes one contract module as a GitHub release when a contract-<module>-v<semver> tag is pushed.
+# The tag namespace is disjoint from the CLI release (v*.*.*) and from the preview tags (preview/<module>/p<N>). A manual run
+# is a dry run: it builds, checksums and prints the release command, and never publishes. Node is not used (C-005), pytest never
+# runs here, and the only publisher is the runner's own gh CLI.
+name: Contracts Release
+
+on:
+  push:
+    tags:
+      - 'contract-*-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and check only; nothing is published (a manual run never publishes)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contracts-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # A fork's tag push skips; a fork's manual dry run stays allowed.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      # Prelude: the only Python install form (FR-018, plan D-P12).
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen --no-install-project
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install the pinned Gradle (checksum verified before it runs)
+        run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins contracts/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+      - name: Validate and bundle every module
+        run: uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts --out "$RUNNER_TEMP/bundle-out"
+      - name: Check the tag, build the release assets and verify the checksum (nothing is published here)
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -eu
+          if [ "$REF_TYPE" = tag ]; then
+            uv run --frozen --no-sync python contracts/tools/release_check.py --root contracts --out "$RUNNER_TEMP/release-out" --tag "$TAG_NAME"
+          else
+            uv run --frozen --no-sync python contracts/tools/release_check.py --root contracts --out "$RUNNER_TEMP/release-out"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: contract-release-assets
+          path: ${{ runner.temp }}/release-out/release
+          if-no-files-found: error
+          overwrite: true
+      # The one publish step: reachable only from a push of a contract tag (never from a pull request, a manual run or a branch push).
+      - name: Publish the release with the bundle and its checksum as assets
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          version="${TAG_NAME##*-v}"
+          module="${TAG_NAME#contract-}"
+          module="${module%-v"$version"}"
+          assets="$RUNNER_TEMP/release-out/release/$module"
+          flags="--latest=false"
+          case "$version" in *-*) flags="$flags --prerelease" ;; esac
+          # shellcheck disable=SC2086 -- the flags are two fixed words
+          gh release create "$TAG_NAME" "$assets/openapi.yaml" "$assets/openapi.yaml.sha256" $flags --verify-tag --title "$TAG_NAME" --notes "Contract $module $version. Verify the bundle with: sha256sum -c openapi.yaml.sha256"

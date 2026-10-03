@@ -1,0 +1,1871 @@
+{
+  "cases": [
+    {
+      "id": "layout-path-file-name",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_path_file_name"
+        ],
+        "code": "PATH_FILE_NAME"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-mapped-file-missing",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_mapped_file_missing"
+        ],
+        "code": "MAPPED_FILE_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-orphan-path-file",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_orphan_path_file"
+        ],
+        "code": "ORPHAN_PATH_FILE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-schema-name-mismatch",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_schema_name_mismatch"
+        ],
+        "code": "SCHEMA_NAME_MISMATCH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-index-missing-file",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_index_missing_file"
+        ],
+        "code": "INDEX_MISSING_FILE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-index-omits-file",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_index_omits_file"
+        ],
+        "code": "INDEX_OMITS_FILE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-bad-ref-form",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_bad_ref_form"
+        ],
+        "code": "BAD_REF_FORM"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-brace-in-ref",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_brace_in_ref"
+        ],
+        "code": "BAD_REF_FORM"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-path-file-collision",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_path_file_collision"
+        ],
+        "code": "PATH_FILE_COLLISION"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-shared-misuse",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_shared_misuse"
+        ],
+        "code": "SHARED_MISUSE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "layout-tracked-bundle",
+      "tool": "layout_check.py",
+      "root": "contracts/tools/fixtures/layout_check",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean",
+          "v_tracked_bundle"
+        ],
+        "code": "TRACKED_BUNDLE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "keep": [
+          "_shared",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-missing-citation",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_missing_citation"
+        ],
+        "code": "MISSING_CITATION"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-cited-path-missing",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_cited_path_missing"
+        ],
+        "code": "CITED_PATH_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-empty-rule",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_empty_rule"
+        ],
+        "code": "EMPTY_RULE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-empty-inputs",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_empty_inputs"
+        ],
+        "code": "EMPTY_INPUTS"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-free-text-derived",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_free_text_derived"
+        ],
+        "code": "BAD_DERIVED_FORM"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-unresolved-input",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_input_missing_symbol"
+        ],
+        "code": "UNRESOLVED_INPUT"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-unresolved-symbol",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_comment_symbol"
+        ],
+        "code": "CITED_SYMBOL_UNRESOLVED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "citation-count-mismatch",
+      "tool": "citation_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "v_both_citations"
+        ],
+        "code": "COUNT_MISMATCH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/citation_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "provisional-missing-marker",
+      "tool": "provisional_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/provisional_check",
+          "--module",
+          "v_missing_marker_next_action"
+        ],
+        "code": "MISSING_MARKER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/provisional_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "provisional-undescribed-marker",
+      "tool": "provisional_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/provisional_check",
+          "--module",
+          "v_undescribed_empty"
+        ],
+        "code": "UNDESCRIBED_MARKER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/provisional_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "provisional-not-nullable",
+      "tool": "provisional_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/provisional_check",
+          "--module",
+          "v_not_nullable"
+        ],
+        "code": "NOT_NULLABLE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/provisional_check",
+          "--module",
+          "clean"
+        ]
+      }
+    },
+    {
+      "id": "example-invalid",
+      "tool": "example_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "v_invalid",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ],
+        "code": "EXAMPLE_INVALID"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "clean",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "example-bad-date-time",
+      "tool": "example_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "v_bad_date_time",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ],
+        "code": "EXAMPLE_INVALID"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "clean",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "example-orphan",
+      "tool": "example_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "v_orphan",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ],
+        "code": "ORPHAN_EXAMPLE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "clean",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "example-validates-nothing",
+      "tool": "example_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "v_validates_nothing",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ],
+        "code": "EXAMPLE_VALIDATES_NOTHING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "clean",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "example-required-missing",
+      "tool": "example_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "v_required_missing",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ],
+        "code": "REQUIRED_EXAMPLE_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "clean",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "event-mapping-name-without-schema",
+      "tool": "event_mapping_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "v_name_without_schema",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ],
+        "code": "NAME_WITHOUT_SCHEMA"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "clean",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ]
+      }
+    },
+    {
+      "id": "event-mapping-schema-without-name",
+      "tool": "event_mapping_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "v_schema_without_name",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ],
+        "code": "SCHEMA_WITHOUT_NAME"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "clean",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ]
+      }
+    },
+    {
+      "id": "event-mapping-schema-multi-name",
+      "tool": "event_mapping_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "v_schema_multi_name",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ],
+        "code": "SCHEMA_MULTI_NAME"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "clean",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ]
+      }
+    },
+    {
+      "id": "enum-pin-value-added",
+      "tool": "enum_pin_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/enum_pin_check",
+          "--module",
+          "v_value_added",
+          "--pins",
+          "contracts/tools/fixtures/enum_pin_check/pins.json"
+        ],
+        "code": "ENUM_VALUE_ADDED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/enum_pin_check",
+          "--module",
+          "clean",
+          "--pins",
+          "contracts/tools/fixtures/enum_pin_check/pins.json"
+        ]
+      }
+    },
+    {
+      "id": "enum-pin-value-removed",
+      "tool": "enum_pin_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/enum_pin_check",
+          "--module",
+          "v_value_removed",
+          "--pins",
+          "contracts/tools/fixtures/enum_pin_check/pins.json"
+        ],
+        "code": "ENUM_VALUE_REMOVED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/enum_pin_check",
+          "--module",
+          "clean",
+          "--pins",
+          "contracts/tools/fixtures/enum_pin_check/pins.json"
+        ]
+      }
+    },
+    {
+      "id": "enum-pin-board-grouping",
+      "tool": "enum_pin_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/enum_pin_check",
+          "--module",
+          "v_board_columns_property",
+          "--pins",
+          "contracts/tools/fixtures/enum_pin_check/pins.json"
+        ],
+        "code": "BOARD_GROUPING_PRESENT"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/enum_pin_check",
+          "--module",
+          "clean",
+          "--pins",
+          "contracts/tools/fixtures/enum_pin_check/pins.json"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-host-path-strict",
+      "tool": "leak_scan.py",
+      "build": "leak:host-path-strict",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-host-path-human",
+      "tool": "leak_scan.py",
+      "build": "leak:host-path-human",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-email",
+      "tool": "leak_scan.py",
+      "build": "leak:email",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "EMAIL"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-forbidden-property",
+      "tool": "leak_scan.py",
+      "build": "leak:forbidden-property",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "FORBIDDEN_PROPERTY_NAME"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "structure-readme-heading",
+      "tool": "structure_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/structure_check/v_readme_heading_missing"
+        ],
+        "code": "README_HEADING_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/structure_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "structure-changelog-heading",
+      "tool": "structure_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/structure_check/v_changelog_no_changed"
+        ],
+        "code": "CHANGELOG_HEADING_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/structure_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "structure-changelog-version",
+      "tool": "structure_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/structure_check/v_changelog_version_missing"
+        ],
+        "code": "CHANGELOG_VERSION_HEADING_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/structure_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "codeowners-rule-missing",
+      "tool": "codeowners_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/codeowners_check/v_rule_missing"
+        ],
+        "code": "RULE_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/codeowners_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "codeowners-handle-missing",
+      "tool": "codeowners_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/codeowners_check/v_handle_missing_none"
+        ],
+        "code": "HANDLE_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/codeowners_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "codeowners-pattern-not-covering",
+      "tool": "codeowners_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/codeowners_check/v_pattern_not_covering_star"
+        ],
+        "code": "PATTERN_DOES_NOT_COVER_MODULE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/codeowners_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "no-pytest-reference",
+      "tool": "no_pytest_scan.py",
+      "build": "no-pytest",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "PYTEST_REFERENCE"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "verify-pins-checksum-mismatch",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/v_checksum_mismatch",
+          "--artifacts",
+          "contracts/tools/fixtures/verify_pins/v_checksum_mismatch/artifacts"
+        ],
+        "code": "CHECKSUM_MISMATCH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--artifacts",
+          "contracts/tools/fixtures/verify_pins/clean/artifacts"
+        ]
+      }
+    },
+    {
+      "id": "verify-pins-checksum-missing",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/v_checksum_missing"
+        ],
+        "code": "CHECKSUM_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean"
+        ]
+      }
+    },
+    {
+      "id": "verify-pins-not-https",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/v_not_https"
+        ],
+        "code": "NOT_HTTPS"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean"
+        ]
+      }
+    },
+    {
+      "id": "verify-pins-unpinned-uses",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/v_unpinned_uses_tag"
+        ],
+        "code": "UNPINNED_USES"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean"
+        ]
+      }
+    },
+    {
+      "id": "verify-pins-unpinned-install",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/v_unpinned_install_pip"
+        ],
+        "code": "UNPINNED_INSTALL"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean"
+        ]
+      }
+    },
+    {
+      "id": "verify-pins-publication-date-missing",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/v_publication_date_missing"
+        ],
+        "code": "PUBLICATION_DATE_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean"
+        ]
+      }
+    },
+    {
+      "id": "gradle-pin-mismatch",
+      "tool": "gradle_pin_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/gradle_pin_check/v_build_mismatch"
+        ],
+        "code": "GRADLE_PIN_MISMATCH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/gradle_pin_check/clean"
+        ]
+      }
+    },
+    {
+      "id": "bundle-dangling-reference",
+      "tool": "bundle.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/plants",
+          "--module",
+          "dangling_ref",
+          "--out",
+          "{out}",
+          "--bundle-only",
+          "--min-paths",
+          "0"
+        ],
+        "code": "RESOLVE_FAILED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/clean",
+          "--module",
+          "alpha",
+          "--out",
+          "{out}",
+          "--bundle-only",
+          "--min-paths",
+          "1"
+        ]
+      }
+    },
+    {
+      "id": "bundle-module-without-root-document",
+      "tool": "bundle.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/bundle/roots/no_root",
+          "--out",
+          "{out}",
+          "--bundle-only"
+        ],
+        "code": "MODULE_WITHOUT_ROOT",
+        "exit": 2
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/clean",
+          "--module",
+          "alpha",
+          "--out",
+          "{out}",
+          "--bundle-only",
+          "--min-paths",
+          "1"
+        ]
+      }
+    },
+    {
+      "id": "bundle-builds-differ",
+      "tool": "fixtures/negative/builds_differ.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/clean",
+          "--module",
+          "alpha",
+          "--out",
+          "{out}",
+          "--bundle-only",
+          "--min-paths",
+          "1"
+        ],
+        "code": "BUILDS_DIFFER"
+      },
+      "control": {
+        "tool": "bundle.py",
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/clean",
+          "--module",
+          "alpha",
+          "--out",
+          "{out}",
+          "--bundle-only",
+          "--min-paths",
+          "1"
+        ]
+      }
+    },
+    {
+      "id": "bundle-invalid-openapi-31",
+      "tool": "bundle.py",
+      "tags": [
+        "jvm"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/negative/invalid_31",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1"
+        ],
+        "code": "VALIDATION_FAILED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/clean",
+          "--module",
+          "alpha",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1"
+        ]
+      }
+    },
+    {
+      "id": "gradle-verification-metadata-tampered",
+      "tool": "tamper_check.py",
+      "tags": [
+        "jvm"
+      ],
+      "plant": {
+        "args": [
+          "--contracts",
+          "contracts"
+        ],
+        "code": "PLANT_DETECTED",
+        "exit": 0
+      },
+      "control": {
+        "tool": "bundle.py",
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/spike",
+          "--out",
+          "{out}",
+          "--module",
+          "full"
+        ]
+      }
+    },
+    {
+      "id": "client-smoke-unresolvable-module",
+      "tool": "client_smoke.py",
+      "tags": [
+        "jvm"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/plants",
+          "--module",
+          "dangling_ref",
+          "--out",
+          "{out}"
+        ],
+        "code": "RESOLVE_FAILED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/client_smoke/clean",
+          "--module",
+          "alpha",
+          "--out",
+          "{out}"
+        ]
+      }
+    },
+    {
+      "id": "resolver-parity-independent-dereference",
+      "tool": "resolver_parity.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/shared_defect",
+          "--bundles",
+          "{out}",
+          "--examples-only"
+        ],
+        "code": "INDEPENDENT_DEREF_DISAGREES"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{out}",
+          "--examples-only"
+        ]
+      }
+    },
+    {
+      "id": "resolver-parity-missing-operation",
+      "tool": "resolver_parity.py",
+      "build": "parity:missing_operation",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ],
+        "code": "OPERATIONS_DIFFER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "resolver-parity-renamed-parameter",
+      "tool": "resolver_parity.py",
+      "build": "parity:renamed_parameter",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ],
+        "code": "PARAMETERS_DIFFER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "resolver-parity-renamed-schema",
+      "tool": "resolver_parity.py",
+      "build": "parity:renamed_schema",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ],
+        "code": "SCHEMA_NAMES_DIFFER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "resolver-parity-dropped-response-code",
+      "tool": "resolver_parity.py",
+      "build": "parity:dropped_response_code",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ],
+        "code": "RESPONSES_DIFFER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "resolver-parity-missing-path",
+      "tool": "resolver_parity.py",
+      "build": "parity:missing_path",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ],
+        "code": "PATHS_DIFFER"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/resolver_parity/clean",
+          "--bundles",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "release-changelog-heading",
+      "tool": "release_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-no-heading-v1.2.0"
+        ],
+        "code": "CHANGELOG_HEADING_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-clean-v1.0.0"
+        ]
+      }
+    },
+    {
+      "id": "release-version-mismatch",
+      "tool": "release_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-mismatch-v1.0.0"
+        ],
+        "code": "VERSION_MISMATCH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-clean-v1.0.0"
+        ]
+      }
+    },
+    {
+      "id": "release-tag-form",
+      "tool": "release_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-clean-1.0.0"
+        ],
+        "code": "TAG_FORM"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-clean-v1.0.0"
+        ]
+      }
+    },
+    {
+      "id": "release-module-unknown",
+      "tool": "release_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-absent-v1.0.0"
+        ],
+        "code": "MODULE_UNKNOWN"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-clean-v1.0.0"
+        ]
+      }
+    },
+    {
+      "id": "lint-enum-case",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/enum-case.yaml"
+        ],
+        "code": ": enum-case: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-non-2xx-is-problem",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/non-2xx-is-problem.yaml"
+        ],
+        "code": ": non-2xx-is-problem: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-operation-operationId",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/operation-operationId.yaml"
+        ],
+        "code": ": operation-operationId: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-operation-operationId-unique",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/operation-operationId-unique.yaml"
+        ],
+        "code": ": operation-operationId-unique: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-operation-tags",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/operation-tags.yaml"
+        ],
+        "code": ": operation-tags: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-property-described",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/property-described.yaml"
+        ],
+        "code": ": property-described: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-resource-property-cited",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/resource-property-cited.yaml"
+        ],
+        "code": ": resource-property-cited: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-response-schema-closed",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/response-schema-closed.yaml"
+        ],
+        "code": ": response-schema-closed: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-forbidden-property-name",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "build": "lint-forbidden-property",
+      "plant": {
+        "args": [
+          "--file",
+          "{root}"
+        ],
+        "code": "forbidden-property-name"
+      },
+      "control": {
+        "args": [
+          "--file",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "breaking-removed-property",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/removed_property",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-removed-path",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/removed_path",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-required-parameter",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/required_parameter",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-narrowed-enum",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/narrowed_enum",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-changed-type",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/changed_type",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-bundle-changed-version-same",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/changed_same_version",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BUNDLE_CHANGED_VERSION_SAME"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    }
+  ]
+}

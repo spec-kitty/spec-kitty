@@ -187,6 +187,9 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
         "design — a PR event can never start it, and it never enters a merge-blocking "
         "needs chain."
     ),
+    "contracts-release.yml": (
+        "contract-tag push + workflow_dispatch (a dry run) only: publishes a contract release, never runs the test suite and is not a change-triggered workflow."
+    ),
     "module-tests.yml": (
         "workflow_call only: a reusable workflow with no triggers of its own, spliced "
         "into ci-modules.yml's caller job. Counting it standalone would double-count THE matrix."
