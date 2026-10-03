@@ -9,6 +9,7 @@ Planted leak values are assembled from fragments, so this source holds no litera
 from __future__ import annotations
 
 import json
+from itertools import product
 import re
 import subprocess
 from collections.abc import Callable, Iterator, Mapping
@@ -16,9 +17,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
+from specify_cli.status.lifecycle_events import LIFECYCLE_EVENT_TYPES
+from specify_cli.status.models import ReviewOverride
+from specify_cli.status.tail_reader import EMPTY_DIGEST
 from tests.contract import _mission_status_payloads as helper
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
@@ -562,7 +567,7 @@ def test_a_mission_with_no_event_log_is_a_draft_with_the_empty_cursor(fixture_re
     assert contract.errors(helper.SCHEMA_OVERVIEW, overview) == []
     assert overview["lifecycleStatus"] == "draft"
     assert overview["wpTotal"] == 0 and overview["lastEventId"] is None and overview["lastActivityAt"] is None
-    assert overview["streamCursor"] == {"offset": 0, "invariant": helper.EMPTY_DIGEST}
+    assert overview["streamCursor"] == {"offset": 0, "invariant": EMPTY_DIGEST}
     assert overview["topology"] == "unknown", "no stored topology"
     assert overview["displayNumber"] is None
 
@@ -603,6 +608,71 @@ def test_the_detail_lists_the_file_backed_work_packages_sorted_with_five_phases(
     assert summaries["WP01"]["subtaskProgress"] == {"done": 1, "total": 2}
 
 
+def test_a_release_marker_is_not_an_override(tools: helper.ContractTools) -> None:
+    """All four fields empty clears an override; it is the only record projected as null."""
+    marker = {"at": "", "actor": "", "wp_id": "", "reason": ""}
+    assert helper.review_override(marker, helper.Projector(tools.leak, "m"), "WP01") is None
+    assert helper.review_override(None, helper.Projector(tools.leak, "m"), "WP01") is None
+    assert helper.review_override({}, helper.Projector(tools.leak, "m"), "WP01") is None
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        ({"at": "", "actor": "operator", "wp_id": "WP01", "reason": "out of band"}, {"complete": False, "at": None, "actor": "operator", "reason": "out of band"}),
+        (
+            {"at": "2026-09-01T10:11:00+00:00", "actor": "", "wp_id": "WP01", "reason": "out of band"},
+            {"complete": False, "at": "2026-09-01T10:11:00+00:00", "actor": None, "reason": "out of band"},
+        ),
+        (
+            {"at": "2026-09-01T10:11:00+00:00", "actor": "operator", "wp_id": "WP01", "reason": ""},
+            {"complete": False, "at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": None},
+        ),
+        (
+            {"at": "2026-09-01T10:11:00+00:00", "actor": "operator", "wp_id": "", "reason": "out of band"},
+            {"complete": False, "at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"},
+        ),
+        (
+            {"at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"},
+            {"complete": False, "at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"},
+        ),
+        (
+            {"at": None, "actor": "operator", "wp_id": "WP01", "reason": "out of band"},
+            {"complete": False, "at": None, "actor": "operator", "reason": "out of band"},
+        ),
+        (
+            {"at": "2026-09-01T10:11:00+00:00", "actor": "operator", "wp_id": "   ", "reason": "out of band"},
+            {"complete": True, "at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"},
+        ),
+        (
+            {"at": "   ", "actor": "operator", "wp_id": "WP01", "reason": ""},
+            {"complete": False, "at": None, "actor": "operator", "reason": None},
+        ),
+    ],
+    ids=["blank-at", "blank-actor", "blank-reason", "blank-wp-id", "missing-wp-id", "null-at", "whitespace-wp-id", "whitespace-at-partial"],
+)
+def test_a_partial_review_override_is_shown_as_incomplete_never_hidden(
+    tools: helper.ContractTools, contract: helper.Contract, stored: dict[str, Any], expected: dict[str, Any]
+) -> None:
+    """The code keeps a partial record (it blocks the merge gate); the contract shows it with complete false and null blanks.
+
+    Whitespace is a value, as in the code: a whitespace-only wp_id is complete (``bool("   ")`` is true).
+    """
+    projected = helper.review_override(stored, helper.Projector(tools.leak, "m"), "WP01")
+
+    assert projected == expected
+    assert contract.errors(helper.SCHEMA_REVIEW_OVERRIDE, projected) == []
+
+
+def test_a_complete_review_override_needs_the_work_package_id_too(tools: helper.ContractTools, contract: helper.Contract) -> None:
+    stored = {"at": "2026-09-01T10:11:00+00:00", "actor": "operator", "wp_id": "WP01", "reason": "out of band"}
+
+    projected = helper.review_override(stored, helper.Projector(tools.leak, "m"), "WP01")
+
+    assert projected == {"complete": True, "at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"}
+    assert contract.errors(helper.SCHEMA_REVIEW_OVERRIDE, projected) == []
+
+
 def test_resolved_state_comes_from_the_snapshot_not_from_stale_frontmatter(
     source: helper.MissionSource, tools: helper.ContractTools, contract: helper.Contract
 ) -> None:
@@ -620,7 +690,7 @@ def test_resolved_state_comes_from_the_snapshot_not_from_stale_frontmatter(
     assert first["forceCount"] == 1 and first["implementerOfRecord"] == "claude"
     assert first["actor"] == {"tool": None, "role": None, "profile": None}, "the latest actor was an e-mail address"
     assert first["review"]["latestResult"] == {"reviewer": "reviewer-renata", "verdict": "approved", "reference": "cycle at [path]"}
-    assert first["review"]["override"] == {"at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"}
+    assert first["review"]["override"] == {"complete": True, "at": "2026-09-01T10:11:00+00:00", "actor": "operator", "reason": "out of band"}
     assert first["cancellation"] is None and first["staleness"] is None
     assert "promptMarkdown" not in first
     redacted = {(field, kind) for _, field, kind in projector.redactions}
@@ -754,6 +824,28 @@ def test_only_transitions_and_the_seven_lifecycle_types_are_forwarded(source: he
     assert dict(projection.dropped) == {"annotation": 2, "WPCreated": 1}
 
 
+def test_the_projector_work_package_rule_is_the_contracts_wpid_pattern() -> None:
+    document = yaml.safe_load((REPO_ROOT / "contracts" / "mission-status" / "schemas" / "WpId.yaml").read_text(encoding="utf-8"))
+    assert document["pattern"] == helper.WP_ID_PATTERN and document["maxLength"] == helper.WP_ID_MAX_LENGTH
+    assert helper.is_wp_id("WP01") and helper.is_wp_id("WP100")
+    for bad in ("WP1", "wp01", "WP-01", "01", "WP01 ", "", None, 1, "WP" + "0" * 70):
+        assert not helper.is_wp_id(bad), bad
+
+
+@pytest.mark.parametrize("bad_id", ["WP1", "wp01", "legacy-7", "", None], ids=["one-digit", "lower-case", "legacy", "empty", "null"])
+def test_a_transition_whose_work_package_id_fails_the_contract_rule_is_dropped_counted_and_never_forwarded(
+    bad_id: Any, source: helper.MissionSource, tools: helper.ContractTools, contract: helper.Contract
+) -> None:
+    good = next(row for row in source.rows if "to_lane" in row)
+    planted = {**good, "wp_id": bad_id, "event_id": "PLANTED"}
+    projection = helper.project_events(helper.fixture_ulid(1), [planted, good], helper.Projector(tools.leak, MISSION))
+
+    assert [event["eventId"] for kind, event in projection.events if kind == "status-transition"] == [good["event_id"]]
+    assert projection.dropped == {helper.DROPPED_INVALID_WP_ID: 1}
+    for kind, event in projection.events:
+        assert contract.errors(helper.SCHEMA_TRANSITION_EVENT if kind == "status-transition" else helper.SCHEMA_LIFECYCLE_EVENT, event) == []
+
+
 @pytest.mark.parametrize("event_type", sorted(helper.LIFECYCLE_ALLOW_LIST))
 def test_each_of_the_seven_lifecycle_types_is_forwarded(event_type: str, tools: helper.ContractTools, contract: helper.Contract) -> None:
     row = {**helper.lifecycle_row(1, event_type, LATER), "tail_offset": 10, "tail_invariant": "0" * 64}
@@ -762,14 +854,14 @@ def test_each_of_the_seven_lifecycle_types_is_forwarded(event_type: str, tools: 
     assert contract.errors(helper.SCHEMA_LIFECYCLE_EVENT, projection.events[0][1]) == []
 
 
-@pytest.mark.parametrize("event_type", sorted(set(helper.LIFECYCLE_EVENT_TYPES) - helper.LIFECYCLE_ALLOW_LIST))
+@pytest.mark.parametrize("event_type", sorted(set(LIFECYCLE_EVENT_TYPES) - helper.LIFECYCLE_ALLOW_LIST))
 def test_every_other_runtime_lifecycle_type_is_dropped_and_counted(event_type: str, tools: helper.ContractTools) -> None:
     projection = helper.project_events(helper.fixture_ulid(1), [helper.lifecycle_row(1, event_type, LATER)], helper.Projector(tools.leak, "m"))
     assert projection.events == [] and projection.dropped == {event_type: 1}
 
 
 def test_an_unknown_row_kind_is_dropped_never_forwarded(tools: helper.ContractTools) -> None:
-    rows = [
+    rows: list[dict[str, Any]] = [
         {"event_id": "x", "weird": True},
         {"event_id": "y", "type": "RetrospectiveCaptured", "record_path": SLASH + "somewhere"},
         {"event_id": "z", "event_type": "FutureLifecycleType", "timestamp": LATER},
@@ -788,7 +880,7 @@ def test_the_events_carry_the_tail_readers_cursor_after_each_row(source: helper.
 
 
 def test_the_types_dropped_by_design_are_listed() -> None:
-    assert helper.undeclared_lifecycle_types() == sorted(set(helper.LIFECYCLE_EVENT_TYPES) - helper.LIFECYCLE_ALLOW_LIST)
+    assert helper.undeclared_lifecycle_types() == sorted(set(LIFECYCLE_EVENT_TYPES) - helper.LIFECYCLE_ALLOW_LIST)
     assert "WPCreated" in helper.undeclared_lifecycle_types() and "MissionCreated" not in helper.undeclared_lifecycle_types()
 
 
@@ -815,13 +907,16 @@ def _raise(error: Exception) -> Callable[..., Any]:
 
 def _unavailable(kind: str, root: Path) -> Exception:
     place = root / "kitty-specs" / MISSION
+    error: Exception
     if kind == "CoordAuthorityUnavailable":
-        return CoordAuthorityUnavailable(mission_slug=MISSION, coord_candidate=root / "coord", primary_candidate=place)
-    if kind == "MissionMetadataUnavailable":
-        return MissionMetadataUnavailable(mission_slug=MISSION, meta_path=place / "meta.json", primary_candidate=place, reason="unreadable")
-    return CoordinationBranchDeleted(
-        repo_root=root, mission_slug=MISSION, mid8="01234567", coordination_branch="kitty/coord", coord_candidate=root / "coord", primary_candidate=place
-    )
+        error = CoordAuthorityUnavailable(mission_slug=MISSION, coord_candidate=root / "coord", primary_candidate=place)
+    elif kind == "MissionMetadataUnavailable":
+        error = MissionMetadataUnavailable(mission_slug=MISSION, meta_path=place / "meta.json", primary_candidate=place, reason="unreadable")
+    else:
+        error = CoordinationBranchDeleted(
+            repo_root=root, mission_slug=MISSION, mid8="01234567", coordination_branch="kitty/coord", coord_candidate=root / "coord", primary_candidate=place
+        )
+    return error
 
 
 @pytest.mark.parametrize("kind", ["CoordAuthorityUnavailable", "MissionMetadataUnavailable", "CoordinationBranchDeleted"])
@@ -929,3 +1024,28 @@ def test_the_fixture_directory_lists_exactly_what_git_tracks_and_holds_no_archiv
     assert on_disk == sorted(tracked), "find and git ls-files must list the same files"
     assert not [name for name in on_disk if name.endswith(".zip")], "fixtures are never archives"
     assert json.loads((directory / "mission_status_expected.json").read_text(encoding="utf-8"))
+
+
+def test_projected_completeness_is_the_code_rule_for_every_whitespace_and_empty_combination(tools: helper.ContractTools) -> None:
+    """Mirror ``ReviewOverride`` itself over all 81 blank/whitespace/filled combinations of its four members."""
+    values = ("", "   ", "x")
+    for at, actor, wp_id, reason in product(values, repeat=4):
+        code = ReviewOverride(at=at, actor=actor, wp_id=wp_id, reason=reason)
+        stored = {"at": "2026-09-01T10:11:00+00:00" if at == "x" else at, "actor": actor, "wp_id": wp_id, "reason": reason}
+        projector = helper.Projector(tools.leak, "m")
+        if code.is_release_sentinel:
+            assert helper.review_override(stored, projector, "WP01") is None, stored
+        elif code.complete and at == "   ":
+            with pytest.raises(helper.ProjectionError, match="not representable"):
+                helper.review_override(stored, projector, "WP01")
+        else:
+            shown = helper.review_override(stored, projector, "WP01")
+            assert shown is not None and shown["complete"] is code.complete, stored
+
+
+def test_an_all_whitespace_record_is_not_a_release_marker(tools: helper.ContractTools) -> None:
+    """The code keeps it (it is truthy), so the projection never hides it as null."""
+    record = {"at": "   ", "actor": "   ", "wp_id": "   ", "reason": "   "}
+    assert not ReviewOverride(**record).is_release_sentinel
+    with pytest.raises(helper.ProjectionError, match="not representable"):
+        helper.review_override(record, helper.Projector(tools.leak, "m"), "WP01")
