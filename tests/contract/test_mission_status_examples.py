@@ -678,3 +678,34 @@ def test_no_event_example_carries_a_leak_shaped_value_or_a_raw_log_key() -> None
         assert instances, f"no examples for {schema}"
         for name, instance in instances.items():
             assert not raw_keys & set(instance), f"{name} carries a raw log key"
+
+
+_OVERRIDE_AT = "2026-09-01T10:11:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "instance",
+    [
+        {"complete": True, "at": None, "actor": "operator", "reason": "out of band"},
+        {"complete": True, "at": _OVERRIDE_AT, "actor": "operator", "reason": None},
+        {"complete": True, "at": None, "actor": "operator", "reason": None},
+    ],
+    ids=["null-at", "null-reason", "null-both"],
+)
+def test_a_complete_review_override_without_its_at_and_reason_is_rejected_through_both_paths(instance: dict[str, Any]) -> None:
+    """The if/then of ReviewOverride is what makes ``complete`` trustworthy; nothing else enforces it."""
+    resolved, library = _both_paths(MODULE, "ReviewOverride", instance)
+    assert resolved and library, (resolved, library)
+
+
+@pytest.mark.parametrize(
+    "instance",
+    [
+        {"complete": False, "at": None, "actor": None, "reason": None},
+        {"complete": False, "at": _OVERRIDE_AT, "actor": "operator", "reason": None},
+        {"complete": True, "at": _OVERRIDE_AT, "actor": "operator", "reason": "out of band"},
+    ],
+    ids=["incomplete-all-null", "incomplete-null-reason", "complete-filled"],
+)
+def test_an_incomplete_review_override_may_carry_nulls_through_both_paths(instance: dict[str, Any]) -> None:
+    assert _both_paths(MODULE, "ReviewOverride", instance) == ([], [])
