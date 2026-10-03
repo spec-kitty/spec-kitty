@@ -430,6 +430,38 @@ class TestIsSelfWriteOnlyDiff:
         fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
         assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is False
 
+    def _crlf_wp(self, tmp_path: Path, working: bytes) -> str:
+        wp_rel = "kitty-specs/m/tasks/WP01.md"
+        wp_path = tmp_path / wp_rel
+        wp_path.parent.mkdir(parents=True)
+        wp_path.write_bytes(working)
+        return wp_rel
+
+    def test_drops_crlf_checkout_of_runtime_frontmatter_only_wp_diff(self, tmp_path: Path) -> None:
+        """#5576: an autocrlf checkout (CRLF working file, LF blob) whose only change is runtime frontmatter is clean."""
+        wp_rel = self._crlf_wp(
+            tmp_path,
+            b"---\r\nwork_package_id: WP01\r\nshell_pid: 4242\r\n---\r\n\r\n# WP01\r\nbody\r\nmore\r\n",
+        )
+        committed = b"---\nwork_package_id: WP01\n---\n\n# WP01\nbody\nmore\n"
+        fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is True
+
+    def test_drops_lf_checkout_of_crlf_committed_runtime_frontmatter_only_wp_diff(self, tmp_path: Path) -> None:
+        wp_rel = self._crlf_wp(tmp_path, b"---\nwork_package_id: WP01\nshell_pid: 1\n---\n# WP01\nbody\n")
+        committed = b"---\r\nwork_package_id: WP01\r\n---\r\n# WP01\r\nbody\r\n"
+        fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is True
+
+    def test_keeps_crlf_checkout_wp_diff_with_a_real_body_edit(self, tmp_path: Path) -> None:
+        wp_rel = self._crlf_wp(
+            tmp_path,
+            b"---\r\nwork_package_id: WP01\r\nshell_pid: 4242\r\n---\r\n# WP01\r\nnew body\r\n",
+        )
+        committed = b"---\nwork_package_id: WP01\n---\n# WP01\nold body\n"
+        fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is False
+
     def test_missing_wp_source_is_not_dropped_defensively(self, tmp_path: Path) -> None:
         assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/tasks/WP01.md", None, git=_FakeGitPort()) is False
 
