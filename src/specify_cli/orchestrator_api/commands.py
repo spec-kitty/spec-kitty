@@ -920,6 +920,53 @@ def _resolve_lane_merge_retention(
     return retention, mission_branch_deletable
 
 
+def _branch_tip_sha(main_repo_root: Path, branch: str) -> str | None:
+    """The tip SHA of ``refs/heads/<branch>``, or ``None`` when the branch does not exist."""
+    from specify_cli.core.git_ops import run_command
+
+    ret, out, _err = run_command(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo_root,
+    )
+    return out.strip() if ret == 0 and out.strip() else None
+
+
+def _delete_mission_branch_at(main_repo_root: Path, lanes_manifest: LanesManifest, approved_tip: str | None) -> None:
+    """Delete the mission branch only while it still sits at *approved_tip* (#5570).
+
+    Replaces an unconditional ``git branch -D`` (``check_return=False``) that made a commit
+    landing after the merge unreachable and still reported success. A branch that moved keeps
+    its commits and the merge reports a failure (``RuntimeError``, which ``merge_mission``
+    envelopes); an already-absent branch has nothing to protect. A branch git refuses to
+    drop for another reason (e.g. checked out in a coordination worktree this path does not
+    remove, a pre-existing limitation) is left in place with a warning, as before.
+
+    Raises:
+        RuntimeError: the branch moved past *approved_tip*; it was NOT deleted.
+    """
+    import logging
+
+    from specify_cli.git.ref_advance import RefDeleteError, RefDeleteMismatchError, delete_branch_ref
+
+    branch = lanes_manifest.mission_branch
+    if approved_tip is None or branch == lanes_manifest.target_branch:
+        return
+    try:
+        delete_branch_ref(main_repo_root, branch, approved_tip)
+    except RefDeleteMismatchError as exc:
+        if exc.actual_sha is None:
+            return  # already gone: nothing was destroyed by us
+        raise RuntimeError(
+            f"Merge landed, but mission branch {branch!r} moved to {exc.actual_sha[:12]} during cleanup (it was at {approved_tip[:12]}); "
+            f"it was NOT deleted. Review the commit(s) with `git log {lanes_manifest.target_branch}..{branch}`, "
+            "land any that belong on the target, then delete the branch yourself."
+        ) from exc
+    except RefDeleteError as exc:
+        logging.getLogger(__name__).warning("Mission branch %s was not deleted: %s", branch, exc)
+
+
 def _apply_lane_merge_cleanup(
     main_repo_root: Path,
     mission_slug: str,
@@ -938,6 +985,12 @@ def _apply_lane_merge_cleanup(
     from specify_cli.git.destructive_guard import guarded_worktree_remove
     from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
     from specify_cli.lanes.compute import is_planning_lane
+
+    # #5570: the mission branch is deleted as a compare-and-swap at the tip read
+    # HERE, before the worktree/lane-branch legs below open a window for a commit
+    # to land on it. No teardown gate runs on this path, so the cleanup's own start
+    # is the earliest approval point.
+    mission_branch_tip = _branch_tip_sha(main_repo_root, lanes_manifest.mission_branch) if mission_branch_deletable else None
 
     if retention.remove_worktree:
         for lane in lanes_manifest.lanes:
@@ -986,11 +1039,7 @@ def _apply_lane_merge_cleanup(
     # teardown is the executor/CLI path's job (pre-existing orchestrator-api
     # limitation, tracked separately).
     if mission_branch_deletable:
-        run_command(
-            ["git", "branch", "-D", lanes_manifest.mission_branch],
-            cwd=main_repo_root,
-            check_return=False,
-        )
+        _delete_mission_branch_at(main_repo_root, lanes_manifest, mission_branch_tip)
 
 
 def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
