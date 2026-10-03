@@ -1,5 +1,5 @@
 {
-  "event_count": 21,
+  "event_count": 33,
   "last_event_id": "01KMHKSG9GMTDX2NZWPWH0QWJ4",
   "materialized_at": "2026-03-25T04:24:37.424750+00:00",
   "mission_number": "57",
@@ -10,13 +10,55 @@
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 3,
+    "done": 9,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
+    "WP01": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "1MVK4877164ARWXGQN8CKTDBXA",
+      "last_transition_at": "2026-03-19T20:17:29.155851+00:00"
+    },
+    "WP02": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "60JHH527TMKP4MHD6Q83KVCPM9",
+      "last_transition_at": "2026-03-19T20:17:29.155851+00:00"
+    },
+    "WP03": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01DQ6BR8Z412GZCD38APE62EAT",
+      "last_transition_at": "2026-03-19T20:17:29.155851+00:00"
+    },
+    "WP04": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "7CBV94F1WW5W9FZZYTABB3T467",
+      "last_transition_at": "2026-03-19T20:17:29.155851+00:00"
+    },
+    "WP05": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "3B88B768FME0B522TTG9TTQ2E9",
+      "last_transition_at": "2026-03-19T20:17:29.155851+00:00"
+    },
+    "WP06": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "0SJQ76WHNSX1SBWHN12MRAJMMQ",
+      "last_transition_at": "2026-03-19T20:17:29.155851+00:00"
+    },
     "WP07": {
       "actor": "unknown",
       "agent": "claude",

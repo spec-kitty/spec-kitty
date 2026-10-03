@@ -1,5 +1,5 @@
 {
-  "event_count": 8,
+  "event_count": 26,
   "last_event_id": "01KN2376K7E90C87ME73488ZKW",
   "materialized_at": "2026-03-31T14:02:05.777295+00:00",
   "mission_number": "55",
@@ -10,13 +10,76 @@
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 2,
+    "done": 11,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
+    "WP01": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "1QP5VTZ8MYMP033B781S77A568",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP02": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "5M8CJY0KRGV92PDRG35Q5CA2QR",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP03": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "2TF5PN5W0CKQ4Q1K75N1MWS2F6",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP04": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "2NBN7KVHCR0AAW38D45KZMQFW8",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP05": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "6KB31CGAWAE4PSXGTY3YFHJJM1",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP06": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "4W63WCQNDYZX39K2RWG96M4595",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP07": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "3Q0FWZWXR77NS8SG34M3XEEJBA",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP08": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "0CCEPG580E0TBNFS7FWQ4TS94K",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
+    "WP09": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "0E3MWNH68D5G49T6E0SWFD80PP",
+      "last_transition_at": "2026-03-21T07:33:55.046048+00:00"
+    },
     "WP10": {
       "actor": "migration",
       "force_count": 4,

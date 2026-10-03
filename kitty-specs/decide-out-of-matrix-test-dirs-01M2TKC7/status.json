@@ -1,20 +1,49 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
+  "event_count": 8,
+  "last_event_id": "7NQE7CKRPHW3V2KEKG0845N7XD",
+  "materialized_at": "2026-09-18T15:50:18.974682+00:00",
   "mission_number": "",
-  "mission_slug": "",
+  "mission_slug": "decide-out-of-matrix-test-dirs-01M2TKC7",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 4,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "74KNZJ1QJ2ST5ZZ5085VSMV6PH",
+      "last_transition_at": "2026-09-18T15:50:18.974682+00:00"
+    },
+    "WP02": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "6H9XN0WMA815ETCYHWQHJ5Z6SC",
+      "last_transition_at": "2026-09-18T15:50:18.974682+00:00"
+    },
+    "WP03": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "7NQE7CKRPHW3V2KEKG0845N7XD",
+      "last_transition_at": "2026-09-18T15:50:18.974682+00:00"
+    },
+    "WP04": {
+      "actor": "migration:backfill_wp_status",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "470B51AFXMFGBDGNC1KYYXDR57",
+      "last_transition_at": "2026-09-18T15:50:18.974682+00:00"
+    }
+  }
 }
