@@ -28,8 +28,9 @@ properties:
       - content_mismatch
     description: >-
       Why the reader concluded the log was truncated: size_shrink when the file became shorter
-      than the cursor, content_mismatch when the bytes before the cursor no longer hash to the
-      cursor's invariant. Exactly these two values exist.
+      than the cursor, content_mismatch when the SHA-256 of the last complete line before the
+      cursor's offset no longer equals the cursor's invariant. Only that one line is hashed, not
+      the whole log before the offset. Exactly these two values exist.
     x-source:
       path: src/specify_cli/status/tail_reader.py
       symbol: _truncation_signal

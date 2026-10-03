@@ -774,3 +774,17 @@ def test_a_null_mid8_is_rejected_through_both_paths(schema: str) -> None:
     instance["mid8"] = None
     resolved, library = _both_paths(MODULE, schema, instance)
     assert resolved and library, (resolved, library)
+
+
+def _description(schema: str, *path: str) -> str:
+    node: Any = _read(MODULE / "schemas" / f"{schema}.yaml")
+    for key in path:
+        node = node[key]
+    return " ".join(node["description"].split())
+
+
+def test_the_content_mismatch_reason_names_the_last_line_digest_not_the_prefix() -> None:
+    text = _description("LogTruncatedEvent", "properties", "reason")
+    assert "last complete line" in text and "SHA-256" in text, text
+    assert "bytes before the cursor" not in text, text
+
