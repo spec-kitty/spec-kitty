@@ -266,3 +266,17 @@ def test_canceled_lane_depending_on_a_canceled_lane_does_not_count_as_a_live_dep
     _git(dep.repo, "branch", "-D", _branch("lane-a"))
 
     assert _unreadable_canceled_dependency_lanes(dep.repo, both, frozenset({"WP01", "WP03"}), dep.base) == []
+
+
+def test_multi_lane_contribution_is_recorded_at_an_authored_commit_not_a_canceled_tip(dep: Dep) -> None:
+    """The recorded lane commit feeds the three-way merge guard, so it must be one the lane authored."""
+    _git(dep.repo, "checkout", "-q", "-b", _branch("lane-c"), dep.base)
+    _commit(dep.repo, _ALPHA, "ALPHA = 'another lane'\n")
+    manifest = _manifest(_lane("lane-b", "WP02"), _lane("lane-c", "WP03"))
+    approved = {"WP02": {"lane": "approved"}, "WP03": {"lane": "approved"}}
+    # lane-b's tip is dep.approved_sha; mark it canceled so lane-b authors only dep.canceled_sha (ALPHA).
+    *_, multi_lane_paths = _collect_authored(dep.repo, manifest, approved, dep.base, None, frozenset({dep.approved_sha}))
+
+    first, second = multi_lane_paths[_ALPHA]
+    by_lane = {contribution.lane_id: contribution for contribution in (first, second)}
+    assert by_lane["lane-b"].lane_commit == dep.canceled_sha

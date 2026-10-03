@@ -1834,13 +1834,15 @@ def _record_lane_path_contribution(
     path_contributions: dict[str, list[LaneContribution]],
     lane: ExecutionLane,
     lane_blobs: set[tuple[str, str]],
-    first_parent: list[str],
+    authored: list[str],
 ) -> None:
     """Record *lane*'s contribution to every path in its own FINAL blob set.
 
     Extracted from :func:`_collect_authored` (Sonar complexity ceiling): a lane
-    with no first-parent commits or no final blobs contributes nothing (there is
-    no still-resolvable lane commit to record). ``first_parent[0]`` (newest) is
+    with no authored commits or no final blobs contributes nothing (there is
+    no still-resolvable lane commit to record). *authored* is the lane's first-parent
+    spine AFTER the fully-canceled lanes' commits are dropped (#5569), so a canceled
+    commit is never recorded as the lane's commit. ``authored[0]`` (newest) is
     the lane's own tip on its first-parent spine — a raw SHA, always resolvable
     for the lifetime of the transaction even after a branch ref is deleted; it
     CAN be a merge commit, which is exactly why a fresh :class:`LaneContribution`
@@ -1851,9 +1853,9 @@ def _record_lane_path_contribution(
     the lane's raw tip-tree blob against before trusting a simulation that feeds
     that tip's FULL tree (#5124 landing fold).
     """
-    if not lane_blobs or not first_parent:
+    if not lane_blobs or not authored:
         return
-    lane_commit = first_parent[0]
+    lane_commit = authored[0]
     for path, blob in lane_blobs:
         path_contributions.setdefault(path, []).append(LaneContribution(lane_id=lane.lane_id, lane_commit=lane_commit, authored_blob=blob))
 
@@ -1932,7 +1934,7 @@ def _collect_authored(
         lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
         blobs |= lane_blobs
         deletions |= lane_deletions
-        _record_lane_path_contribution(path_contributions, lane, lane_blobs, first_parent)
+        _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
     multi_lane_paths = {path: (contributions[0], contributions[1]) for path, contributions in path_contributions.items() if len(contributions) == 2}
     return frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths
 
