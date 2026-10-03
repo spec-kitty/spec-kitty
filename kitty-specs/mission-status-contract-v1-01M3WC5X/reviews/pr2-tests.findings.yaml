@@ -1,0 +1,63 @@
+schema: review-findings/v1
+complete: true
+phase: pr2
+lens_group: tests
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR2-TESTS-001
+    lens: tests
+    severity: 4
+    title: History ordering is unguarded (vacuous test, mutation survives)
+    evidence:
+      - code: "tests/contract/_mission_status_payloads.py:895"
+      - code: "tests/contract/test_mission_status_payloads.py:713"
+    claim: >
+      Replacing the sorted(...) by (at, eventId) in history_entries with a plain return of entries leaves
+      test_mission_status_reality.py and test_mission_status_payloads.py fully green (verified by mutation, 17 of 18
+      mutants were killed). The only ordering assertion (line 713) runs on a fixture whose log is already
+      chronological, so it cannot fail. The contract promises history oldest first by time then event id.
+    remediation: >
+      Plant out-of-order rows (and two rows with equal at but swapped event ids) in the fixture log and assert the
+      resulting history order. Also make line 713 compare against a deliberately shuffled input.
+  - id: PR2-TESTS-002
+    lens: tests
+    severity: 2
+    title: Ratchet pinned exactly at the ceiling can fail a PR that adds a Mission mid-flight
+    evidence:
+      - code: "tests/contract/test_mission_status_reality.py:407"
+      - code: "tests/contract/fixtures/mission_status_expected.json (header.ceiling 52, measured 52)"
+    claim: >
+      Measured 542 Missions, 3178 payloads, 23871 events, 52 of 52 disagreements. A new Mission committed with
+      tasks/WP*.md files before its snapshot has the same work package count (or after a WP file is removed) adds a
+      disagreement and fails the blocking job. Equally, fixing one disagreement fails test_the_ceiling_is_not_stale
+      until the fixture is edited in the same PR. This is by design (shrink-only) but the failure message names no
+      remedy for the add case.
+    remediation: >
+      Keep the design. Have the failure text say that a new Mission must commit its status snapshot together with its
+      work package files, and name the fixture field to lower.
+  - id: PR2-TESTS-003
+    lens: tests
+    severity: 1
+    title: Reality module docstring promises --dist loadfile but the only job that runs it uses no xdist
+    evidence:
+      - code: "tests/contract/test_mission_status_reality.py:20"
+      - code: ".github/workflows/ci-router.yml:843"
+    claim: >
+      The counting test relies on file-order execution. The router corpus job runs the module serially, so it holds,
+      and the contracts job ignores the module. The claim in the docstring is only true if someone later adds -n, and
+      the module-scoped _build_index cache and EXECUTED set are also correct only under file-local ordering.
+      The cache itself is sound: roots are resolved, planted repos under basetemp are walked fresh, and the
+      fingerprint fixture proves the tree unchanged. No leakage was found.
+    remediation: Say in the docstring that the module must stay serial or on loadfile, no code change needed.
+  - id: PR2-TESTS-004
+    lens: tests
+    severity: 1
+    title: Single-home guard marker is a literal duplicated from the workflows
+    evidence:
+      - code: "tests/ci/test_contracts_workflows.py:912"
+      - code: ".github/workflows/ci-router.yml:843"
+    claim: >
+      The guard now uses real collection (robust to indirect marks, proven by the indirect-mark control), but
+      TOOL_TEST_MARKER is a literal; only the contracts job's -m is asserted against it (line 899). If the router
+      job's -m changed, the guard would not follow.
+    remediation: Assert the router corpus job's -m expression equals TOOL_TEST_MARKER too.

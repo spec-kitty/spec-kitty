@@ -1,0 +1,240 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+- id: PR-BOUNDARY-001
+  lens: mission-derived (reflexivity / boundary)
+  severity: 3
+  title: Reality check imports src/specify_cli/status readers but a change to them selects no job that runs it
+  evidence:
+  - code: .github/workflows/ci-router.yml:221
+  - code: .github/workflows/ci-router.yml:829
+  - code: tests/contract/_mission_status_payloads.py:43
+  - code: tests/contract/test_mission_status_reality.py:38
+  - code: tests/contract/_mission_status_payloads.py:46
+  - code: tests/contract/_mission_status_payloads.py:49
+  - code: .github/workflows/ci-router.yml:221
+  - select_gates(['src/specify_cli/status/reducer.py'], mode pr) -> groups core_misc, execution_context, status, unit; corpus
+    absent, unmatched_src False.
+  claim: 'The contract is a mirror of what src/specify_cli/status (reducer, aggregate, wp_view, tail_reader, lifecycle_events)
+    produces, and the reality and payload tests import those modules directly. They run only in tests-corpus-blocking, which
+    is gated by the router corpus filter. That filter gains only contracts/**; it has no src/specify_cli/status/** entry (those
+    globs live in the unit and module groups, so the unmatched fallback is false too). contracts.yml is path-gated to contracts/**
+    and runs no pytest. A PR that changes the status readers therefore never runs the one check that proves the contract still
+    matches them; the only net is the push-to-main run. P-9 and P-10 in plan.md accept data-file and tests/contract-only gaps
+    but do not mention producer-code drift.
+
+    '
+  remediation: 'Either add the status reader globs the helper imports (src/specify_cli/status/**, coordination/surface_resolver.py,
+    core/dependency_graph.py, mission_metadata.py, kernel/clock.py) to the corpus filter as a ratified widening, or record
+    producer-code drift as an explicit accepted risk (P-11) in plan.md and the PR body with the push-to-main run named as
+    the detection point.
+
+    '
+  merged_from:
+  - PR-TESTS-003
+  refute_reason: The corpus filter (ci-router.yml:221-232) has no src/specify_cli/status glob, tests/contract is outside the
+    module matrix, and P-9/P-10 in plan.md cover only data files and test edits, not producer-code drift.
+  operator_ruling: "2026-10-02: ACCEPTED RISK \u2014 status-reader drift is caught by the nightly run (shard 4), not on the\
+    \ PR. Remedy is documentation only: correct plan P-10 (it wrongly names the push-to-main built-in-corpus-suite as a safety\
+    \ net; packs.yml deselects the modules) and state the nightly coverage in contracts/README.md and ci-gate-mechanics.md.\
+    \ No router change."
+- id: PR-CONTRACT-002
+  lens: contract
+  severity: 3
+  title: Unscoped /events stream emits id lines and a refusing Last-Event-ID, so a browser reconnect loop is built in
+  evidence:
+  - code: contracts/mission-status/paths/events.yaml:16
+  - code: contracts/mission-status/paths/events.yaml:29
+  - code: contracts/mission-status/parameters/LastEventId.yaml:6
+  claim: 'Framing says each event carries an id: line with its StreamCursorString, without exception. Scope says that without
+    missionId the stream is live only and no cursor can be used, and a cursor without missionId is refused (cursor_without_mission,
+    400). A browser EventSource that was connected to the unscoped stream automatically sends the last id as Last-Event-ID
+    on reconnect, receives a 400, and the EventSource moves to CLOSED with no retry and no access to the problem body. Also,
+    the cursor is a position in one Mission''s log, and the unscoped stream interleaves Missions, so the id does not identify
+    which log it belongs to.'
+  remediation: 'State that on the unscoped stream no id: line is sent (and heartbeat only comments), or that Last-Event-ID
+    is ignored rather than refused when missionId is absent. Say which, and add a client note that a refused connection must
+    be handled outside EventSource (fetch streaming).'
+  refute_reason: events.yaml Framing says every event has an id line while Scope/Resume say the unscoped stream has no usable
+    cursor and a cursor without missionId is refused 400, so a browser Last-Event-ID reconnect on the unscoped stream is refused
+    and the x-provisional note covers only framing and status choices, not this contradiction.
+- id: PR-CONTRACT-003
+  lens: contract
+  severity: 3
+  title: log-truncated event id is the reset cursor, so automatic reconnect replays the whole log from offset 0
+  evidence:
+  - code: contracts/mission-status/paths/events.yaml:16
+  - code: contracts/mission-status/paths/events.yaml:43
+  - code: contracts/mission-status/schemas/LogTruncatedEvent.yaml:34
+  claim: 'The id: line of every event is its StreamCursorString, so for log-truncated it is offset 0 with the empty digest.
+    The documented consumer action is to discard the stored cursor and re-read the detail, but a browser stores the last event
+    id itself and sends it as Last-Event-ID on the next reconnect. The stream would then resume from offset 0 and re-emit
+    the entire log as live events, contradicting the resync instruction.'
+  remediation: 'Specify that the log-truncated event carries no id: line (so Last-Event-ID is not advanced), or define that
+    a resume from the reset cursor is refused with content_mismatch. Document the chosen behavior in the Framing paragraph
+    and add an example frame.'
+  refute_reason: LogTruncatedEvent.streamCursor is const offset 0 with the empty digest and Framing makes it the id line,
+    so an automatic Last-Event-ID resume from offset 0 is a valid cursor (empty digest always matches) and would replay the
+    log, contradicting the resync instruction.
+- id: PR-CONTRACT-004
+  lens: contract
+  severity: 3
+  title: GET /events has no 404 for an unknown missionId, and stream error statuses are not tied to codes
+  evidence:
+  - code: contracts/mission-status/paths/events.yaml:81
+  - code: contracts/mission-status/paths/events.yaml:85
+  - code: contracts/mission-status/schemas/StreamRefusal.yaml:36
+  - code: contracts/mission-status/paths/missions_missionId.yaml:16
+  claim: getMission and getWorkPackage answer an unknown Mission with 404, but streamEvents lists only 400, 409 and the shared
+    default. A missionId that is a valid ULID but names no Mission has no defined response, so the service author and a generated
+    client must guess. Separately, StreamRefusal accepts any of its five codes with either 400 or 409; the code-to-status
+    table is only prose in an x-provisional note.
+  remediation: Add a '404' response (shared Problem) to streamEvents with the description "no such Mission". Optionally split
+    the refusal into two named responses or add an if/then on code in StreamRefusal so the statuses are checkable.
+  refute_reason: streamEvents lists only 200, 400, 409 and default while sibling getMission and getWorkPackage define 404,
+    and an unknown but well-formed missionId has no stated response.
+- id: PR-CONTRACT-008
+  lens: contract
+  severity: 3
+  title: Host-path redaction token is undefined, emails in free text are not covered, promptMarkdown is unredacted
+  evidence:
+  - code: contracts/mission-status/schemas/WorkPackage.yaml:51
+  - code: contracts/mission-status/schemas/WorkPackage.yaml:269
+  - code: contracts/mission-status/schemas/ReviewResult.yaml:112
+  - code: contracts/tools/leak_patterns.py:50
+  claim: title, reference, reason and cancellation text say a host path is replaced by "a fixed token", but no schema or example
+    names that token, so a service author cannot implement or a consumer cannot recognise it. Emails are in the leak patterns
+    for examples but the free-text fields promise only path replacement. promptMarkdown "passes through as authored" and is
+    not scanned, while real prompts carry absolute host paths and e-mail addresses, which the lenses require not to leak.
+  remediation: Define the token once (for example a shared description or an x-redaction-token extension, such as the literal
+    <path>) and state it in all five fields. Say whether emails are redacted. For promptMarkdown either apply the same redaction
+    in the service rule or mark the field x-sensitive and state it is exempt, with the opt-in includePrompt as the only guard.
+  refute_reason: The fixed token appears in spec.md D-14 as [path] and [email] but no schema description or example in contracts/mission-status
+    names it (grep for [path] finds nothing), and the five free-text field descriptions promise only path replacement, not
+    email.
+- id: PR-CONTRACT-009
+  lens: contract
+  severity: 2
+  title: Invalid pageCursor and cursor numeric typing are unspecified
+  evidence:
+  - code: contracts/mission-status/paths/missions.yaml:6
+  - code: contracts/_shared/schemas/PageCursor.yaml:6
+  - code: contracts/mission-status/schemas/StreamCursor.yaml:7
+  - code: contracts/mission-status/schemas/StreamCursorString.yaml:8
+  claim: listMissions has only 200 and default, so a stale, forged or malformed pageCursor has no defined status or code,
+    and a service would answer with an arbitrary Problem. StreamCursor.offset and detectedAtOffset are integers with no format,
+    so the Spring generator emits 32-bit Integer for a byte offset. StreamCursorString accepts leading zeros ('^[0-9]+:')
+    although its x-derived rule says no padding, so two strings can name one cursor.
+  remediation: 'Add a ''400'' Problem response to listMissions with a stable code (for example invalid_page_cursor). Add format:
+    int64 to offset and detectedAtOffset. Tighten the pattern to ''^(0|[1-9][0-9]*):[0-9a-f]{64}$''.'
+  refute_reason: 'StreamCursorString pattern ^[0-9]+: admits padded offsets although its own x-derived rule says no padding,
+    and offset/detectedAtOffset integers carry no int64 format for a byte offset (the missing 400 on listMissions is weaker
+    since the default Problem response covers it).'
+- id: PR-TESTS-001
+  lens: tests
+  severity: 4
+  title: Reality check per-Mission case stays green (560 passed) with its contract validation, leak scan and snapshot-equality
+    wiring removed
+  evidence:
+  - code: tests/contract/test_mission_status_reality.py:149
+  - code: tests/contract/test_mission_status_reality.py:153
+  - code: tests/contract/test_mission_status_reality.py:165
+  - code: tests/contract/test_mission_status_reality.py:182
+  - 'Revert experiment 1: replacing `errors = contract.errors(title, payload)` with `errors = []` in run_case, `pytest tests/contract/test_mission_status_reality.py`
+    -> 560 passed. Experiment 2: dropping the `helper.payload_leaks(payload, tools)` extension -> 560 passed. Experiment 3:
+    deleting the `snapshot_equality_problems(...)` line -> 560 passed. All restored with git checkout.'
+  claim: The three assertions the 539-case corpus run exists for are never proven to be wired. The positive/negative controls
+    (lines 328-357) call contract.errors, payload_leaks and snapshot_equality_problems directly, never through run_case. The
+    real corpus is clean today, so deleting the checks inside run_case changes nothing; a future edit that drops one passes
+    CI. Spec FR-025 reality-check row and D-19 class B require the controls inside the module to run through the same path.
+  remediation: Parameterise run_case by repo_root (and bypass the CASE_RESULTS cache for controls), then add one control test
+    that calls run_case on the control_repo fixture with a planted email in a title, a planted schema defect (unknown lane)
+    and a frontmatter-versus-snapshot mismatch, and asserts result.failures contains each of the three message kinds. Keep
+    the real-corpus parametrised case unchanged.
+  refute_reason: 'Reproduced on the lane: baseline 560 passed, and each of three mutations in run_case (errors = [], dropping
+    the payload_leaks extension, deleting the snapshot_equality_problems line) still gave 560 passed; all restored.'
+- id: PR-TESTS-002
+  lens: mission-derived
+  severity: 3
+  title: Accepted risk P-10 states a push-to-main safety net (built-in-corpus-suite) that deselects exactly these modules;
+    the only real net is the 03:17 nightly
+  evidence:
+  - code: .github/workflows/packs.yml:285
+  - code: .github/workflows/ci-router.yml:829
+  - code: .github/workflows/ci-nightly.yml:640
+  - 'Selection simulation (scripts.ci.gate_selection.select_gates, mode pr): tests/contract/test_bundle.py, tests/contract/_mission_status_payloads.py
+    and tests/contract/fixtures/mission_status_expected.json each match no group and no unmatched src, so tests-corpus-blocking
+    (needs corpus == true) does not run. contracts.yml paths are contracts/**, .github/CODEOWNERS and its own file, so it
+    does not run either.'
+  claim: A change confined to tests/contract/** runs none of the 27 new modules (1405 collected tests, 1393 passing plus 12
+    vacuum skips locally) per PR and none on push to main. plan.md:162 and :549 say the push-to-main built-in-corpus-suite
+    catches it, but packs.yml:285 passes --deselect for every one of the 27 modules, so that job never runs them. The only
+    net is ci-nightly shard 4 (`-m "fast or unit" ... tests/contract`, scheduled 03:17, py3.13), which does run them because
+    each module is marked fast. The risk text is therefore factually wrong about detection latency (up to a day, not a push).
+    The tests/ci guard modules are unaffected (module row ci runs on any workflow edit).
+  remediation: Correct plan.md P-10 and the README note to name ci-nightly shard 4 as the net, not Packs; and, preferably,
+    add `tests/contract/**` to the router corpus filter line (one glob, the question the PR body already plans to ask) so
+    tests-corpus-blocking selects on test edits. If C-003 stays binding, add a tests/ci pin asserting that ci-nightly's shard-4
+    command still names tests/contract, so the sole net cannot be dropped silently.
+  refute_reason: packs.yml:285 --deselects all 27 modules, so plan.md P-10's claimed push-to-main built-in-corpus-suite net
+    does not run them, and the router push run is path-scoped.
+- id: PR-TESTS-004
+  lens: tests
+  severity: 3
+  title: The fingerprint's byte-hash half is untested (control passes with content hashing neutralised) and ignored files
+    are invisible to it
+  evidence:
+  - code: tests/contract/_mission_status_payloads.py:203
+  - code: tests/contract/_mission_status_payloads.py:205
+  - code: tests/contract/test_mission_status_reality.py:210
+  - 'Revert experiment: replacing `content = path.read_bytes() if path.is_file() else b"<missing>"` with `content = b"x"`;
+    test_the_hash_proof_sees_a_changed_file_and_refuses_to_hash_nothing -> 1 passed. By contrast porcelain=() -> red, and
+    removing the empty-listing guard -> red.'
+  claim: The module docstring promises bytes plus git status. In the control the file is staged (status `A `), then rewritten,
+    so porcelain alone flips (`AM`); the digest is never the deciding signal. A reader that rewrites an already-dirty tracked
+    file (a dirty local tree, an uncommitted status.json) leaves porcelain unchanged and only the digest would catch it, but
+    nothing proves the digest works. Separately `git status --porcelain` omits ignored files, and .gitignore:55 ignores *.lock
+    under kitty-specs, so a reader writing a lock or ignored cache is never seen.
+  remediation: Add a control that commits the file, modifies it before the first fingerprint (porcelain ` M`), then rewrites
+    it with different bytes and asserts the fingerprints differ with equal porcelain. Add `--ignored` to the status call (or
+    hash `git ls-files -o` output) and a control that creates an ignored file.
+  refute_reason: 'Reproduced: replacing the read_bytes content with b"x" in tree_fingerprint leaves the hash-proof test green
+    (1 passed) because the staged-then-rewritten file already flips porcelain, so the digest half is unproven; restored.'
+- id: PR-TESTS-005
+  lens: tests
+  severity: 3
+  title: Three failure codes are never asserted; renaming or misclassifying them leaves their modules green
+  evidence:
+  - code: contracts/tools/layout_check.py:118
+  - code: contracts/tools/bundle.py:270
+  - code: contracts/tools/release_check.py:166
+  - 'Revert experiments: UNREADABLE_FILE renamed -> test_layout_check.py 42 passed; `return "BUNDLE_FAILED", 1` changed to
+    VALIDATION_FAILED -> test_bundle.py 30 passed; BUNDLE_STEP_BLOCKED renamed -> test_release_check.py 22 passed.'
+  claim: test_malformed_index_is_reported_not_skipped (test_layout_check.py:235) asserts INDEX_MALFORMED, not UNREADABLE_FILE
+    (an unparseable YAML file); the generic Gradle failure fall-through BUNDLE_FAILED and the release script's bundle-step
+    refusal (exit 2, before any publication) have no test naming the code or exit. FR-025 requires the specific code and exit
+    for Bundle and Release rows. The same literal scan found every other emitted code in the 24 tools present in some test
+    or the negative manifest.
+  remediation: 'Add three cases: a path file with invalid YAML expecting UNREADABLE_FILE (exit 1); a fake Gradle runner whose
+    failure output matches no classifier expecting BUNDLE_FAILED with exit 1; a release_check run whose bundle step returns
+    2 expecting BUNDLE_STEP_BLOCKED, exit 2 and no checksum file written.'
+  refute_reason: grep finds UNREADABLE_FILE, BUNDLE_FAILED and BUNDLE_STEP_BLOCKED only in the tool sources, with no test
+    or manifest naming them.
+- id: PR-TESTS-007
+  lens: mission-derived
+  severity: 2
+  title: Negative-case manifest validation accepts an empty or trivial expected code, which matches any output
+  evidence:
+  - code: contracts/tools/run_negative_cases.py:111
+  - code: contracts/tools/run_negative_cases.py:216
+  claim: 'The manifest check requires only `isinstance(plant[''code''], str)`. code_in treats anything that is not an upper-case
+    stable code as a plain substring, so `""` (or `":"`) is found in every output and the case degrades to a bare non-zero-exit
+    check. All 81 committed cases currently carry specific codes (9 lint cases carry `: <rule>: ` substrings, the rest stable
+    codes) and 79 expect exit 1, one 0, one 2, so this is latent, not live.'
+  remediation: In load_cases reject a code shorter than 4 characters or one that is neither a stable code nor contains an
+    alphabetic rule token, and add a unit test with an empty code expecting MANIFEST_INVALID.
+  refute_reason: load_cases (run_negative_cases.py:111) only checks the code is a str and code_in treats a non-stable code
+    such as an empty string as a substring found in any output, so a trivial code degrades the case (latent, as stated).

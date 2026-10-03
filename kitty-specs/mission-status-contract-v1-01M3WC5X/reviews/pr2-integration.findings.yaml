@@ -1,0 +1,41 @@
+schema: review-findings/v1
+complete: true
+phase: pr2
+lens_group: integration
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR2-INTEGRATION-001
+    lens: integration
+    severity: 2
+    title: Public docs and code comments cite "DD-32" and "ruled 2026-10-02", which no reader of the PR can resolve
+    evidence:
+      - code: "docs/development/reference/ci-gate-mechanics.md:558 (operator ruling DD-32), :588 (operator ruling 2026-10-02)"
+      - code: ".github/workflows/contracts.yml:4, .github/workflows/ci-router.yml:823, tests/architectural/_gate_coverage.py:139, tests/architectural/test_no_duplicate_suite_execution.py:249, tests/ci/test_contracts_workflows.py:41,906, contracts/README.md (ruled 2026-10-02)"
+      - code: "origin/main:kitty-specs/mission-status-contract-v1-01M3WC5X/tracer-design-decisions.md has 0 occurrences of DD-32; the PR stack does not add it (only the root checkout has it, line 284)"
+    claim: DD-32 exists only in an uncommitted working copy of the Mission's decisions file. In the public PRs the id points at nothing, and "the operator" is an unnamed role. The accepted-risk statements (reader drift caught by the nightly run) carry the same weakness, with a date only.
+    remediation: Commit tracer-design-decisions.md with DD-32 on the PR branch (or drop the id) and rewrite the prose as a self-contained rationale, e.g. "the tool tests moved to the Contracts workflow to keep the router's corpus job inside its 10 minute timeout (7m20s with them)". Replace "operator ruling" with "maintainer decision" or cite the PR comment.
+  - id: PR2-INTEGRATION-002
+    lens: integration
+    severity: 1
+    title: verify-pins comment contradicts itself
+    evidence:
+      - code: ".github/workflows/contracts.yml:47-49 'Nothing is downloaded by this job, so --fetch downloads each pinned artefact'"
+    claim: The sentence says nothing is downloaded and then that --fetch downloads. The job does download all four pinned artefacts. The README says "A job that has already downloaded the tools passes --artifacts", which does not apply to this job.
+    remediation: Reword to "This job installs no tools itself, so --fetch downloads each pinned artefact over https and hashes it".
+  - id: PR2-INTEGRATION-003
+    lens: integration
+    severity: 1
+    title: Commit subjects carry internal work-package and decision-record jargon
+    evidence:
+      - code: "git log: ci(contracts): list the WP08 corpus test modules ... ; ci(contracts): list the two IC-09 corpus modules ..."
+    claim: WP08 and IC-09 mean nothing to a reader of the public history. All 49 commits are otherwise valid commitlint types (feat, fix, test, ci, docs, chore), the commitlint config has no header-length rule, and no username or path leaks in any message.
+    remediation: Optional. Reword at the next history collapse, e.g. "list the lint, breaking-change and release corpus test modules".
+verified_clean:
+  - "(a) Landing folds: UNREADABLE (contract_resolver.py:63) vs UNREADABLE_FILE (layout_check.py:31) are different tools and both are exercised; ESCAPES_ROOT, PARSE_FAILED, WORKFLOW_UNREADABLE, CHECKSUMS_UNVERIFIED are untouched or only documented; mid8 stays non-nullable in the schema while the helper projects 'or None' (guarded by test_a_null_mid8_is_rejected_through_both_paths); PageCursorRefusal only gains a description, and shape (const 400) is unchanged; prerelease heading rule agrees with release_check CHANGELOG_HEADING_MISSING and breaking_check; no landing fold is reverted or duplicated"
+  - "(b) 1.0.0-SNAPSHOT is in openapi.yaml, CHANGELOG heading, README example and prose; closed-response rule, verify_pins --fetch/--artifacts/--pins-only (bare run exits 2 with CHECKSUMS_UNVERIFIED, checked), the 10-job count and the contracts-gate needs list (nine), tool-test command with three --ignore modules, the nightly shard-4 03:17 UTC claim, and the packs deselect list all match the workflow YAML; the router corpus filter has contracts/** and lacks tests/contract/** and status/** for that group as the docs say"
+  - "(c) Seam heads: s4 94e937236 and s5 9747846c2 each pass tests/ci, tests/release, docs-index freshness, corpus-trigger completeness and the no-duplicate-suite guard; seam6 touches docs, CHANGELOGs and one README test only, with no seam4/5 behaviour change"
+  - "(d) Diff grep for /home, usernames, e-mails, chat and private links found nothing; the only real handle is @stijn-dejongh as ratchet owner (a maintainer, the README header rule requires an owner)"
+  - "(f) No 'feature' used for Mission in new prose"
+notes:
+  - "tests/docs/test_docs_index.py::test_render_index_is_byte_stable_across_hash_seeds fails in this sandbox at every head, including s4: its uv subprocess has no environment in the worktree, so this is environmental, not a finding"
+  - "Another lens left an uncommitted experiment in the shared restack worktree (tests/contract/_mission_status_payloads.py, ceiling_problem '+ 100'); I did not touch it, and it must be restored with git checkout -- before the worktree is called clean"

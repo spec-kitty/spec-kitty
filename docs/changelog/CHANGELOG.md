@@ -30,6 +30,7 @@ this section at publish._
 
 ### Added
 
+- **A versioned, machine-readable contract for Mission status under `contracts/mission-status/`** (#5558, #5528). It describes the project header, Mission overviews, one Mission, one work package and the change stream, as a split OpenAPI 3.1 document with one file per path. The Python resolver writes the released single-file bundle, which is never committed. A new Contracts workflow checks the tree, lints the bundle, compares it with the last release with `oasdiff`, generates a TypeScript client from it as a consumer check and dry-runs the release. A reality check validates every Mission against it. Response schemas are closed, and an unreleased version carries `-SNAPSHOT`. A tag `contract-mission-status-v<semver>` publishes `openapi.yaml` and its checksum through the new Contracts Release workflow. See `contracts/README.md` and `docs/development/reference/ci-gate-mechanics.md`.
 - **A coordination mission keeps its status, decision and trace records in one place from the moment it is created** (#5440). **Before:** those records were written in your repository root checkout until a coordination worktree existed, and later commands could look in a different place. **After:** create puts them on the coordination surface immediately. `spec-kitty accept` commits an uncommitted decision ledger for the current mission onto your target branch. A real `spec-kitty consolidate` creates a missing coordination worktree and continues. `spec-kitty consolidate --dry-run` still stops without creating one.
 
 ### Fixed

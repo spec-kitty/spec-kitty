@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+profile: 'debugger-debbie (directives 001 architectural integrity, 003 decision documentation, 030 test quality gate, 032 conceptual alignment; hypothesis-driven revert experiments, no fix authored)'
+range: 547f0c86c..c02b14852
+verdicts:
+- id: PR-FRESH2-001
+  verdict: resolved
+  reason: 'test_mission_status_examples.py adds test_a_complete_review_override_without_its_at_and_reason_is_rejected_through_both_paths (null-at, null-reason, null-both, resolved tree and library) plus accepting controls. Revert experiment (allOf if/then cut from ReviewOverride.yaml) turned the 3 rejection cases red, restored with git checkout.'
+- id: PR-FRESH2-002
+  verdict: resolved
+  reason: 'review_override (_mission_status_payloads.py) now uses value != "" for present, exactly the truthiness of ReviewOverride.complete and is_release_sentinel (models.py:443-448). New 81-combination test mirrors the real ReviewOverride class, and the all-whitespace record is no longer a release marker. Revert experiment (.strip() back) turned 3 tests red (whitespace-wp-id, the 81-combination mirror, the all-whitespace marker), restored.'
+- id: PR-FRESH2-003
+  verdict: resolved
+  reason: 'contracts/README.md gains "Pattern matching is ECMA 262" naming WpId, ActorHandle, MissionId, StreamCursor, the trailing line feed case, and consumer guidance; states the patterns are not changed. git diff of the range touches no schema file; structure_check passes (20 README headings).'
+- id: PR-FRESH2-004
+  verdict: partially-resolved
+  reason: 'In the root checkout (branch issue-5558-mission-status-contract-v1) plan.md lines 159, 161, 162, 186, 214, 255 are corrected, but plan.md:548 (P-9 mitigation) still says data defects are "detected on push to main by built-in-corpus-suite and the nightly full run", the claim README and ci-gate-mechanics call false. Table rows intact. See PR-FRESH3-001. Line 524 (post-merge step: read the push-to-main run) is an observation step, not a safety-net claim.'
+judgement:
+  at_not_a_date_time_raises_projection_error:
+    verdict: fail-loud is right
+    reason: 'The code calls the record complete, the contract says complete true requires a string at (schema if/then, now tested), and format date-time. The only alternatives are complete false (contradicts the code the contract cites) or at null with complete true (invalid against the schema, so a silently wrong or self-rejecting payload). A reference projector that cannot represent a record faithfully should say so. Confirmed not reachable: the reality run projects 541 Missions with no ProjectionError, so no real Mission hits it. No severity.'

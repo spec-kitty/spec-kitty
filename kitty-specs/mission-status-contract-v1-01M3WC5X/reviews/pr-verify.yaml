@@ -1,0 +1,104 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+profile: debugger-debbie (directives 001 architectural integrity, 003 decision documentation, 030 test quality gate, 032 conceptual alignment; hypothesis-driven revert experiments, no fix authored)
+range: 059efad2c..8a67418bc
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: resolved
+    reason: "Documentation-only per operator ruling: contracts/README.md (reality-check paragraph) and docs/development/reference/ci-gate-mechanics.md state that src/specify_cli/status/** selects no corpus job, Packs deselects the modules, nightly shard 4 (ci-nightly.yml:609/640, cron 17 3) is the net, with the full-mode dispatch command; plan.md P-10 corrected; no router change in the diff."
+  - id: PR-CONTRACT-002
+    verdict: resolved
+    reason: "events.yaml:16-25 framing sends no id: line on an unscoped stream, LastEventId.yaml and StreamCursorString.yaml agree, x-provisional open_decision (events.yaml:68-73) names it, and CHANGELOG has the Pre-release shape change line; example_check 32/32, provisional_check passes."
+  - id: PR-CONTRACT-003
+    verdict: resolved
+    reason: "events.yaml framing and LogTruncatedEvent.yaml:5 make log-truncated carry no id: on any stream (cursor stays in data), the post-truncation reconnect is documented as refused, same x-provisional and CHANGELOG line."
+  - id: PR-CONTRACT-004
+    verdict: resolved
+    reason: "events.yaml adds a 404 (shared Problem) to streamEvents and StreamRefusal.yaml gains if/then status rules; I validated 400/409 pairings against the resolved schema (wrong pairings invalid, 409 content_mismatch and 400 negative valid); CHANGELOG line present."
+  - id: PR-CONTRACT-008
+    verdict: resolved
+    reason: "[path] and [email] are named in title, reference, reason, cancellation text, friendlyName, nextAction, label fields (WorkPackage.yaml, HistoryEntry.yaml, ReviewResult.yaml, ReviewOverride.yaml, Cancellation.yaml, MissionHead.yaml) and match _mission_status_payloads.py:104; WorkPackage.yaml promptMarkdown states it is the one unredacted field with includePrompt as its guard; CHANGELOG records it."
+  - id: PR-CONTRACT-009
+    verdict: resolved
+    reason: "StreamCursorString.yaml pattern is ^(0|[1-9][0-9]*):[0-9a-f]{64}$, StreamCursor.offset and LogTruncatedEvent.detectedAtOffset are format int64, missions.yaml gains 400 invalid_page_cursor; CHANGELOG line present and the corpus examples still validate."
+  - id: PR-TESTS-001
+    verdict: resolved
+    reason: "Reproduced: run_case (test_mission_status_reality.py:166-209) now counts each check via helper.LEDGER and _wiring_problems fails the case; errors = [] gave 'contract validation ran 0 times for 339 payloads', dropping payload_leaks gave 'leak scan ran 0 times', deleting the snapshot line gave 'snapshot comparison ran 0 times', each a red per-Mission case, plus three planted-defect run_case controls on control_repo; all restored."
+  - id: PR-TESTS-002
+    verdict: resolved
+    reason: "plan.md:162 and :549 now name the nightly run (packs.yml deselects), README and ci-gate-mechanics.md state it with nightly job interpreter-matrix-shard-4 and the 03:17 schedule, matching ci-nightly.yml:48,609,640; operator ruling forbids a router change and none was made."
+  - id: PR-TESTS-004
+    verdict: resolved
+    reason: "Reproduced: replacing the read_bytes content with b'x' turns test_the_byte_digest_alone_sees_a_rewrite_that_git_status_cannot red ('the byte digest must'), and removing the ignored-file listing and the --ignored status flag turns test_an_ignored_file_is_part_of_the_fingerprint red; tree_fingerprint (_mission_status_payloads.py:201-220) now includes ignored files; restored."
+  - id: PR-TESTS-005
+    verdict: resolved
+    reason: "New tests assert UNREADABLE_FILE with exit 1 (test_layout_check.py), BUNDLE_FAILED with exit 1 (test_bundle.py), and BUNDLE_STEP_BLOCKED with exit 2 and nothing written (test_release_check.py)."
+  - id: PR-TESTS-007
+    verdict: resolved
+    reason: "run_negative_cases.py code_problem/load_manifest (lines 99-129) rejects empty, short or rule-less codes with MANIFEST_INVALID; test_run_negative_cases.py parametrizes ten trivial codes and four accepted ones; all 80 runnable committed cases still pass (3 jvm skipped)."
+  - id: Q-WP03-1
+    verdict: resolved
+    reason: "MissionOverview.sparse.yaml now carries mid8 01JZBB3C and MissionHead.yaml mid8 description documents null as a defensive branch; example_check validates it."
+  - id: Q-WP03-2
+    verdict: resolved
+    reason: "README.md:108-116 and citation_check.py:20-25 document form, resolution order (siblings, schema root, Schema.property) and the UNRESOLVED_INPUT failure; minor residual: the implemented stepping through array items and map values in a bare input path (citation_check.py:390) is not stated, but no contract input uses it and it only widens acceptance."
+  - id: Q-WP03-3
+    verdict: resolved
+    reason: "MissionHead.yaml friendlyName now says the slug fallback is a rule of this contract with no code source."
+  - id: Q-WP03-4
+    verdict: resolved
+    reason: "MissionHead.yaml nextAction description and a CHANGELOG line state that an all-canceled Mission yields null as a deliberate divergence from the replaced dashboard."
+  - id: Q-WP04-1
+    verdict: resolved
+    reason: "ReviewOverride.yaml says only a complete override is projected (partial and release marker are null), review_override (_mission_status_payloads.py:818-832) implements it, six planted-incomplete cases and a complete case are tested, CHANGELOG line present, at stays date-time."
+  - id: Q-WP04-2
+    verdict: resolved
+    reason: "WpId.yaml pattern is ^WP[0-9]{2,}$ matching wp_metadata.py:354 (^WP\\d{2,}$), with a CHANGELOG Pre-release shape change line; examples validate."
+  - id: Q-WP04-3
+    verdict: resolved
+    reason: "WorkPackage.yaml executionMode description documents stripping one balanced pair of literal quotes, matching normalise_quoted at wp_metadata.py:428."
+  - id: Q-WP04-4
+    verdict: resolved
+    reason: "Staleness.yaml reason is an enum of exactly the two constants at stale_detection.py:33-34 plus null, the stale example uses null (a real case at stale_detection.py:414), enum_pin_check and example_check pass, CHANGELOG line present."
+  - id: Q-WP04-5
+    verdict: resolved
+    reason: "WorkPackage.yaml lastTransitionAt, forceCount and lastEventId now cite reducer.py#wp_snapshot_state (the work_packages state dict reader) and citation_check resolves them."
+  - id: Q-WP06-1
+    verdict: resolved
+    reason: "event_mapping_check.py adds ALLOWED_TYPE_NOT_IN_RUNTIME (allow minus LIFECYCLE_EVENT_TYPES, exit 1), tested with the lifecycle_events_without_plan_started.py stand-in in test_event_mapping_check.py."
+  - id: Q-WP06-2
+    verdict: resolved
+    reason: "example_check.py report_deleted_required emits REQUIRED_EXAMPLE_MISSING only when the manifest-required file is gone and named in the resolver error; test shows an unrequired dangling example still gives RESOLVE_FAILED exit 2, so other resolver errors are not swallowed."
+  - id: Q-WP08-1
+    verdict: resolved
+    reason: "ruleset.yaml adds maxProperties 1 to the const/enum exemptions of property-described and resource-property-cited (narrowing only, nothing newly exempt), test_lint_ruleset.py proves typed enum/const fail, two new vacuum negative cases pass, and the real bundle lints with 0 violations."
+  - id: Q-WP08-2
+    verdict: resolved
+    reason: "install_tools.py _unpack_tarball refuses with UNSAFE_ARCHIVE when tarfile.data_filter is missing (checked before extraction), with a monkeypatched test."
+  - id: Q-WP08-3
+    verdict: resolved
+    reason: "test_install_tools.py adds absolute, dotdot, escaping symlink and hardlink, and relative-escape link member cases, all expecting UNSAFE_ARCHIVE and nothing written outside."
+  - id: Q-WP08-4
+    verdict: resolved
+    reason: "breaking_check.py catches CannotRun on the preview tag listing and reports preview_ref=unavailable informationally, while the release-tag listing stays TAG_LIST_ERROR exit 2; both are tested in test_breaking_check.py and the docstring agrees."
+  - id: Q-WP09-1
+    verdict: resolved
+    reason: "tests/ci/test_contracts_workflows.py gate_script_violations is run on the real gate script and refuses five planted tolerant variants including = failure, || cancelled, set +e and a missing exit 1."
+  - id: Q-WP09-2
+    verdict: resolved
+    reason: "negative_cases.json client-smoke-unresolvable-module carries a rationale explaining GENERATION_FAILED becoming RESOLVE_FAILED (DD-24), pinned by a test in test_run_negative_cases.py."
+  - id: Q-WP09-3
+    verdict: resolved
+    reason: "contracts-release.yml publish step runs mapfile over release_check's gh-release-args.txt and re-derives nothing (still gated on push and refs/tags, --args-file only on the tag branch, ARGS_FILE_NEEDS_TAG without --tag), with workflow guard tests refusing re-derivation or a missing args file."
+  - id: Q-WP09-4
+    verdict: resolved
+    reason: "The shell ##*-v parsing is gone, release_check TAG_PATTERN and is_prerelease are tested for 1.0.0-v2, 1.0.0+build-x and 1.0.0-rc.1+build-x (test_release_check.py parametrized, prerelease only for a hyphen before +)."
+  - id: Q-README-1
+    verdict: resolved
+    reason: "contracts/README.md (after line 195) adds the consumer note directing generators wanting stable type names to the split contracts/mission-status/openapi.yaml, stating the bundle is fully dereferenced by design."
+notes:
+  - "Brief counted 19 queued items; the list in section B holds 20 (including README), all verdicted, so 31 verdicts not 30."
+  - "Full tests/contract plus tests/ci/test_contracts_workflows.py: all pass except test_terminology_guards orchestrator-api docs guard (docs/guides/how-to/monitoring/index.md:13), not touched by the fold range (pre-existing)."
+  - "Reality test: 541 Missions, 3156 WP payloads, 23594 events, 52<=52, 567 passed, no skips; layout, structure, example, citation, provisional, enum_pin, event_mapping and leak checks pass; negative runner 80 passed, 3 jvm skipped."
+  - "Tier-2 (JVM) not run locally."

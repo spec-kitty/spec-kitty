@@ -1,0 +1,55 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-r2
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+- id: PR-FRESH2-001
+  lens: gate-coverage
+  severity: 2
+  title: The ReviewOverride if/then (complete true needs string at and reason) is enforced by nothing
+  evidence:
+  - code: contracts/mission-status/schemas/ReviewOverride.yaml:51
+  - code: tests/contract/test_mission_status_payloads.py (test_a_partial_review_override_is_shown_as_incomplete_never_hidden)
+  claim: Deleting the allOf if/then block from ReviewOverride.yaml leaves test_mission_status_examples.py, test_mission_status_payloads.py (196 passed) and example_check (33/33) green. Every test and example
+    uses a valid object, and none plants complete true with a null at or reason, so the constraint that makes complete trustworthy to a consumer could be silently removed or broken. A jsonschema probe confirms
+    the block works today (complete true with null at is rejected), so this is an untested rule, not a wrong one.
+  remediation: Add a negative check that complete true with null at, and complete true with null reason, are invalid against ReviewOverride (a payload test using contract.errors, or an invalid example the
+    example tooling rejects).
+- id: PR-FRESH2-002
+  lens: spec-code-fidelity
+  severity: 2
+  title: Whitespace-only override members diverge from the code's truthiness rule the contract cites
+  evidence:
+  - code: tests/contract/_mission_status_payloads.py:840
+  - code: src/specify_cli/status/models.py:443
+  - code: src/specify_cli/status/models.py:448
+  claim: The contract says complete is 'the rule of the code' (all four fields non-empty), but ReviewOverride.complete and is_release_sentinel use plain truthiness while the projector strips. A record whose
+    wp_id is '   ' is complete=True in the code and projected complete=false (the test whitespace-wp-id asserts that); an all-whitespace record is not a release sentinel in the code (it is kept) yet is
+    projected as null. Edge case, but the divergence is exactly the class PR-FRESH-002 closed, now hidden behind a test that blesses it.
+  remediation: Use the code's truthiness (value != '' rather than strip) in review_override, or state the strip rule in ReviewOverride.yaml and the CHANGELOG as a deliberate contract rule and change the
+    whitespace test's comment to say so.
+- id: PR-FRESH2-003
+  lens: contract-consistency
+  severity: 1
+  title: The $-anchored WpId pattern accepts a trailing newline in non-ECMA validators
+  evidence:
+  - code: contracts/mission-status/schemas/WpId.yaml:8
+  claim: 'Probe: re.search of ''^WP[0-9]{2,}$'' on ''WP01\n'' matches, re.fullmatch does not. Python jsonschema (re.search) and Java find() let ''WP01\n'' validate; ECMA 262 does not. The producer is strict
+    (is_wp_id uses fullmatch plus maxLength), so no such id is ever emitted and nothing wrong crosses the boundary; only a consumer validating inbound ids leniently would accept it. The same holds for every
+    $-anchored pattern of the module (ActorHandle, MissionId, StreamCursor). Severity 1: no wrong output, consumer leniency only.'
+  remediation: Leave as is and optionally note in the README that patterns are matched as ECMA 262 full-string; or write each as ^...$(?![\s\S]) if a stricter cross-engine pattern is wanted, as one module-wide
+    change.
+- id: PR-FRESH2-004
+  lens: docs-consistency
+  severity: 1
+  title: plan.md still names push-to-main built-in-corpus-suite as a net in five places
+  evidence:
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:159
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:161
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:186
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:214
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:255
+  claim: Only plan.md:162 and :549 were corrected. Lines 159 (R-14), 161 (P-9), 186, 214 and 255 still say the push-to-main built-in-corpus-suite runs the reality check and catches reader or data drift,
+    which README and ci-gate-mechanics now state is false (packs.yml deselects the modules). A planning artifact outside the PR diff, but it is in the public repo and contradicts the corrected docs.
+  remediation: Reword those five lines to the nightly shard 4 plus manual full-mode dispatch, as done for P-10.

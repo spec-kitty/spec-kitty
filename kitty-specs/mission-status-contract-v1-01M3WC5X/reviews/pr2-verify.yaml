@@ -1,0 +1,61 @@
+schema: review-verify/v1
+complete: true
+phase: pr2
+mission: mission-status-contract-v1-01M3WC5X
+head: 17d09989f
+verdicts:
+  - id: PR2-TESTS-001
+    verdict: resolved
+    reason: New test plants an out-of-order log with two rows sharing an instant; reverting history_entries to "return entries" or sorting by "at" only each fails it (both reverts run, restored). The mutation that survived before is now killed.
+  - id: PR2-CI-RELEASE-001
+    verdict: resolved
+    reason: RESPONSE_ADDITION_IDS now holds response-body-all-of-added and response-property-all-of-added. Pinned oasdiff 1.32.1 on fixtures added_response_allof_branch and added_response_property_allof gives BREAKING_WITHOUT_MAJOR, and passes after a 2.0.0 bump. Removing the six new ids makes test_breaking_change_fails_without_a_major_move[added_response_allof_branch] fail.
+  - id: PR2-CI-RELEASE-002
+    verdict: resolved
+    reason: The four status, media-type and header ids are raised too (code decision, README updated to list them). Real oasdiff on the success_status, error_status, media_type and header pairs is BREAKING_WITHOUT_MAJOR and passes with major 2.0.0. clean_minor (optional request query parameter) and clean_same stay at breaking=0.
+  - id: PR2-CI-RELEASE-004
+    verdict: resolved
+    reason: breaking_check now imports is_snapshot from release_check, so +build forms are skipped as baselines; the new parity test fails if latest_release_tag reverts to endswith (revert run, 2 params fail, restored). Lower-case and SNAPSHOT.1 stay non-snapshot, as the refute ruled.
+  - id: PR2-CI-RELEASE-005
+    verdict: resolved
+    reason: contracts-release.yml now has an is-ancestor-of-origin/main step, a Contracts-success step (gh api, fail closed) and breaking_check --release-tag before release_check and publish, with actions:read and fetch-depth 0; tests/ci release_gate_violations plants each weakening. Usability caveats of the Contracts-success rule are in PR2-FRESH-001.
+  - id: PR2-CI-RELEASE-006
+    verdict: resolved
+    reason: negative_cases.json adds verify-pins-checksums-unverified (bare run, exit 2, code CHECKSUMS_UNVERIFIED, control with --artifacts); run_negative_cases reports PASS (85 ran, 0 failed).
+  - id: PR2-INTEGRATION-001
+    verdict: resolved
+    reason: DD-32, "operator ruling" and "ruled 2026-10-02" are gone from the touched docs, workflows, README and test comments in the diff, replaced by the 7m20s-of-10-minutes rationale. (contract_resolver.py:34 still says "operator ruling of 2026-10-02" but is a merged slice, outside this stack.)
+  - id: PR2-TESTS-002
+    verdict: resolved
+    reason: ceiling_problem now names the remedy (commit the status snapshot with the WP files, header.ceiling only lowered, which file); test_the_ceiling_only_ever_moves_down asserts the text.
+  - id: PR2-CI-RELEASE-007
+    verdict: resolved
+    reason: README and the workflow header comment now state that Gradle and bundling happen before the refusal and that no publish step is reachable; contracts.yml verify-pins comment no longer contradicts itself.
+  - id: PR2-INTEGRATION-002
+    verdict: resolved
+    reason: contracts.yml now reads "This job installs no tools itself, so --fetch downloads each pinned artefact".
+  - id: PR2-TESTS-003
+    verdict: resolved
+    reason: Docstring now says the module must stay serial or on --dist loadfile and that the router job runs it serially.
+  - id: PR2-TESTS-004
+    verdict: resolved
+    reason: marker_problems asserts both the contracts tool-test job and the router corpus job select TOOL_TEST_MARKER; test mutates each side and fails for it.
+judgments:
+  a_release_flow: >
+    Usable but brittle, not wrong. Contracts is path-filtered (contracts/**, tests/contract/**, CODEOWNERS, contracts.yml), so
+    the exact-SHA rule refuses a tag on any main commit that did not itself touch those paths, and a run cancelled by the
+    cancel-in-progress concurrency group never counts. The error message and README tell the releaser to tag the contracts
+    commit, which is the normal flow. Minimal correct rule: query the run for the most recent commit that touched the filter
+    paths (git log -1 --format=%H $GITHUB_SHA -- contracts tests/contract .github/CODEOWNERS .github/workflows/contracts.yml),
+    and add event=push and branch=main. See PR2-FRESH-001.
+  b_release_tag_exclusion: >
+    Correct. The release job runs on the pushed tag, so without exclusion the newest tag is the commit itself and the check
+    compares it with itself (test_the_tag_being_released_is_never_its_own_baseline fails when the exclusion is reverted).
+    Exclusion is by exact string, the first release falls back to no-baseline, and a backport tag lower than the newest release
+    would still be compared with the newest (pre-existing, single-module today).
+  c_gh_api_query: >
+    Fail-closed: set -eu makes a gh failure abort the step, a non-integer or empty answer fails the -lt test, and zero runs
+    refuses. The jq filter re-checks head_sha and conclusion. It cannot be satisfied by a run for another SHA. It can be
+    satisfied by any event or branch that ran on the same SHA, including a pull_request run (which tests the merge ref with
+    main, not the SHA alone) or a fork PR run listed in the base repo; both are for a commit already on main, so the exposure
+    is small. Filtering event=push and branch=main closes it.

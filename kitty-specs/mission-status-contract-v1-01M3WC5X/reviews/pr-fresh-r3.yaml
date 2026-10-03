@@ -1,0 +1,14 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-r3
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+- id: PR-FRESH3-001
+  lens: docs-consistency
+  severity: 1
+  title: 'plan.md P-9 mitigation still names the push-to-main built-in-corpus-suite as a detection point'
+  evidence:
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:548
+  claim: 'Row P-9 says data defects are "detected on push to main by built-in-corpus-suite and the nightly full run". packs.yml deselects these modules (DD-22), which plan.md:161, README and ci-gate-mechanics already state. The round-2 fix covered 159, 161, 162, 186, 214 and 255 but missed this table row. Planning artifact, public repo, no behaviour impact.'
+  remediation: 'Reword the P-9 mitigation to the nightly full run (shard 4) plus manual full-mode dispatch, as done on line 161.'
