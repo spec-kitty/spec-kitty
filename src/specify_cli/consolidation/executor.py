@@ -3001,6 +3001,30 @@ def _carry_pass_anchor_over_own_commit(run: _MergeRunState, commit_sha: str) -> 
     save_state(run.state, run.main_repo)
 
 
+def _refuse_unbuildable_late_window(run: _MergeRunState) -> None:
+    """Fail closed when a resumed teardown has no window to project a late commit from (#5570).
+
+    The window is ``pre_mutation_coord_sha..branch``. Without the recorded tip (or the
+    coordination checkpoint) there is nothing to compare the branch against, and the delete
+    that follows would compare-and-swap at the LIVE tip, so a commit that landed after the
+    gate would be destroyed at exit 0. Nothing to protect when the branch is already gone.
+
+    Raises:
+        CoordinationTeardownError: the branch exists, so it is kept for the operator to review.
+    """
+    branch = run.lanes_manifest.mission_branch
+    target = run.lanes_manifest.target_branch
+    if _mission_branch_tip(run) is None:
+        return
+    raise CoordinationTeardownError(
+        f"cannot tell whether coordination commits landed on {branch!r} during teardown: the pre-mutation coordination tip "
+        f"or the coordination checkpoint was not recorded, so there is no window to project them from; "
+        f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+        f"Review the branch with `git log {target}..{branch}`, land anything that belongs on {target}, "
+        "then run `spec-kitty consolidate --resume` again."
+    )
+
+
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
     """Project coordination commits that landed after the teardown gate onto the target (#5570).
 
@@ -3014,11 +3038,19 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     projection still refuses instead of being lost.
 
     A no-op on a fresh run (the teardown gate covers it) and when nothing landed late.
+    A resume that cannot build the window (no recorded coordination checkpoint or
+    pre-mutation tip) while the branch still exists FAILS CLOSED instead: it cannot tell
+    whether a late commit sits on the branch, and the delete that follows reads the live tip.
     """
     checkpoint = run.coord_checkpoint
     base = run.state.pre_mutation_coord_sha
     branch = run.lanes_manifest.mission_branch
-    if not run.is_resume or checkpoint is None or not base or checkpoint.ref not in (branch, f"refs/heads/{branch}"):
+    if not run.is_resume:
+        return
+    if checkpoint is None or not base:
+        _refuse_unbuildable_late_window(run)
+        return
+    if checkpoint.ref not in (branch, f"refs/heads/{branch}"):
         return
     target = run.lanes_manifest.target_branch
     try:

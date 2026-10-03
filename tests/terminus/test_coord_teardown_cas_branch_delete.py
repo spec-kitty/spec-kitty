@@ -24,8 +24,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation.state import ConsolidationState
 
 from tests.terminus.conftest import CoordMission, build_coord_mission, run_terminus
 from tests.terminus.conftest import _cli_env as cli_env
@@ -293,3 +297,89 @@ def test_5570_unmoved_coordination_branch_is_still_deleted(tmp_path: Path) -> No
     output = f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     assert result.returncode == 0, f"a clean consolidate must succeed\n{output}"
     assert not _branch_exists(mission, mission.coord_branch), f"an unmoved coordination branch must still be deleted\n{output}"
+
+
+# --------------------------------------------------------------------------- #
+# Resume without a buildable projection window must fail closed, not delete
+# --------------------------------------------------------------------------- #
+
+_WINDOW_SLUG = "window-less"
+_WINDOW_BRANCH = f"kitty/mission-{_WINDOW_SLUG}-01M5570W"
+
+
+def _windowless_resume_run(tmp_path: Path, *, is_resume: bool, with_branch: bool = True) -> ex._MergeRunState:
+    """A resumed teardown whose pre-mutation coordination tip / checkpoint was never recorded."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.invalid")
+    git("config", "user.name", "Test")
+    git("config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-qm", "init")
+    if with_branch:
+        git("checkout", "-q", "-b", _WINDOW_BRANCH)
+        (repo / "late.md").write_text("a coordination commit the target never received\n", encoding="utf-8")
+        git("add", ".")
+        git("commit", "-qm", "late coordination commit")
+        git("checkout", "-q", "main")
+    manifest = SimpleNamespace(
+        mission_slug=_WINDOW_SLUG,
+        target_branch="main",
+        mission_branch=_WINDOW_BRANCH,
+        lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
+    )
+    state = ConsolidationState(mission_id="01M5570W" + "0" * 18, mission_slug=_WINDOW_SLUG, target_branch="main", wp_order=["WP01"])
+    assert state.pre_mutation_coord_sha is None
+    return ex._MergeRunState(
+        main_repo=repo,
+        mission_slug=_WINDOW_SLUG,
+        canonical_id=state.mission_id,
+        canonical_mission_id=state.mission_id,
+        feature_dir=repo / "kitty-specs" / _WINDOW_SLUG,
+        target_feature_dir=repo / "kitty-specs" / _WINDOW_SLUG,
+        lanes_manifest=manifest,
+        all_wp_ids=["WP01"],
+        push=False,
+        delete_branch=True,
+        remove_worktree=True,
+        teardown_coordination=True,
+        strategy=ex.MergeStrategy.SQUASH,
+        assume_yes=True,
+        planning_artifact_only=False,
+        state=state,
+        is_resume=is_resume,
+        coord_checkpoint=None,
+    )
+
+
+def test_resume_without_a_projection_window_keeps_the_coordination_branch(tmp_path: Path) -> None:
+    run = _windowless_resume_run(tmp_path, is_resume=True)
+
+    with pytest.raises(ex.CoordinationTeardownError) as raised:
+        ex._land_late_coordination_commits(run)
+
+    message = " ".join(str(raised.value).split())
+    assert _WINDOW_BRANCH in message
+    assert "NOT deleted" in message
+    assert f"git log main..{_WINDOW_BRANCH}" in message
+    assert (
+        subprocess.run(["git", "-C", str(run.main_repo), "rev-parse", "--verify", f"refs/heads/{_WINDOW_BRANCH}"], capture_output=True, check=False).returncode == 0
+    )
+
+
+def test_resume_without_a_window_and_without_a_branch_has_nothing_to_protect(tmp_path: Path) -> None:
+    run = _windowless_resume_run(tmp_path, is_resume=True, with_branch=False)
+
+    ex._land_late_coordination_commits(run)  # no branch: nothing is destroyed, so nothing to refuse
+
+
+def test_fresh_run_without_a_window_is_covered_by_the_teardown_gate(tmp_path: Path) -> None:
+    run = _windowless_resume_run(tmp_path, is_resume=False)
+
+    ex._land_late_coordination_commits(run)  # the fresh run's CAS gate owns this window
