@@ -245,6 +245,7 @@ def build_summary(results: Sequence[WpStatusBackfillResult]) -> dict[str, int]:
         "snapshot_only_missions": sum(1 for r in results if r.snapshot_only),
         "malformed_missions": sum(1 for r in results if r.malformed),
         "coord_surface_live_missions": sum(1 for r in results if r.skip_reason == COORD_SURFACE_LIVE),
+        "refresh_warnings": sum(1 for r in results if r.refresh_error is not None),
         "skipped": sum(1 for r in results if r.error is None and _new_events(r) == 0),
         "errors": sum(1 for r in results if r.error is not None),
     }
@@ -260,6 +261,7 @@ def _mission_row(result: WpStatusBackfillResult) -> dict[str, Any]:
         "malformed": list(result.malformed),
         "terminal_reason": result.terminal_reason,
         "status_json_refreshed": result.status_json_refreshed,
+        "refresh_error": result.refresh_error,
         "skip_reason": result.skip_reason,
         "error": result.error,
     }
@@ -305,6 +307,7 @@ def _print_counters(summary: Mapping[str, int], *, dry_run: bool) -> None:
         ("Snapshot-only WPs reported", f"{summary['snapshot_only_missions']} mission(s)"),
         ("Malformed WP files", f"{summary['malformed_missions']} mission(s)"),
         ("Refused (live coord surface)", f"{summary['coord_surface_live_missions']} mission(s)"),
+        ("Refresh warnings (status.json)", str(summary["refresh_warnings"])),
         ("Skipped (nothing to seed)", str(summary["skipped"])),
         ("Errors", str(summary["errors"])),
     )
@@ -322,6 +325,8 @@ def _print_mission_lines(results: Sequence[WpStatusBackfillResult], *, dry_run: 
         elif _new_events(result) > 0:
             done = f" -> done ({escape(result.terminal_reason or '')})" if result.terminal_reason else ""
             console.print(f"  [green]{verb}[/green] {escape(result.slug)}: {_new_events(result)} event(s) for {', '.join(result.files_only)}{done}")
+        if result.refresh_error is not None:
+            console.print(f"  [yellow]warning[/yellow] {escape(result.slug)}: {escape(result.refresh_error)} (events are written; run `spec-kitty materialize`)")
         if result.snapshot_only:
             console.print(f"  [yellow]snapshot-only[/yellow] {escape(result.slug)}: {', '.join(result.snapshot_only)} (no WP file; not repaired)")
         if result.malformed:

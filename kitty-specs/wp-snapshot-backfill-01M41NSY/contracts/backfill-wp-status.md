@@ -23,12 +23,12 @@ contract the tests hold.
 
 The PRIMARY-partition log is not the authority for a live-coordination Mission, so seeding it would split-brain the Mission: consolidate the Mission first, or run from the coordination checkout. Only a gone coordination branch (`CoordinationBranchDeleted`) keeps the degrade to the PRIMARY-partition directory. Liveness is decided by the canonical surface authority (`coordination.surface_resolver.resolve_status_surface_with_anchor`), via `wp_status_backfill.coordination_surface_is_live`.
 
-Event ids are deterministic; re-runs append nothing. Terminal evidence supplied on a later run is a no-op. `status.json` is regenerated only where it already exists. Writes go through the existing migration writer (`migration/backfill_runtime_state.py`, same lock and atomic verified append).
+Event ids are deterministic; re-runs append nothing. Terminal evidence supplied on a later run is a no-op. `status.json` is regenerated only where it already exists; if that regeneration fails after a successful append, the row carries `refresh_error` (not `error`), the summary counts it in `refresh_warnings`, and the exit stays `0` (the events are durable; `spec-kitty materialize` regenerates the file). Writes go through the existing migration writer (`migration/backfill_runtime_state.py`, same lock and atomic verified append).
 
 ## Output
 
 - Exit `0`: every visited Mission repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` (counted as skipped, never an error). Exit `1`: any per-Mission error, invalid manifest, unknown/ambiguous handle.
-- JSON keys: `dry_run`, `result`, `mission`, `summary{scanned, missions_seeded, missions_would_seed, events_seeded, events_would_seed, finished_missions, snapshot_only_missions, malformed_missions, coord_surface_live_missions, skipped, errors}`, `manifest{path, entries, unused[{mission, reason}]}`, `missions[{slug, seeded, would_seed, files_only, snapshot_only, malformed, terminal_reason, status_json_refreshed, skip_reason, error}]`. Pre-write failure: `{success: false, error_code, error}`.
+- JSON keys: `dry_run`, `result`, `mission`, `summary{scanned, missions_seeded, missions_would_seed, events_seeded, events_would_seed, finished_missions, snapshot_only_missions, malformed_missions, coord_surface_live_missions, refresh_warnings, skipped, errors}`, `manifest{path, entries, unused[{mission, reason}]}`, `missions[{slug, seeded, would_seed, files_only, snapshot_only, malformed, terminal_reason, status_json_refreshed, refresh_error, skip_reason, error}]`. Pre-write failure: `{success: false, error_code, error}`.
 
 ## Invariant held by the corpus gate
 

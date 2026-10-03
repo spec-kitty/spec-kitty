@@ -1574,9 +1574,11 @@ class WpStatusBackfillResult:
         malformed: ``tasks/`` file names skipped for unusable frontmatter.
         terminal_reason: Evidence cited for the forced ``done`` events, if any.
         status_json_refreshed: ``status.json`` was regenerated (only if it existed).
+        refresh_error: ``status.json`` regeneration failed AFTER a successful append.
+            The events are durable, so this is a warning, never an ``error``.
         skip_reason: Why nothing was written, when that is not an error
             (``COORD_SURFACE_LIVE`` for a refused live-coordination Mission).
-        error: Unrecoverable per-mission error text, else ``None``.
+        error: Unrecoverable per-mission error text (the plan or the append failed), else ``None``.
     """
 
     feature_dir: Path
@@ -1588,6 +1590,7 @@ class WpStatusBackfillResult:
     malformed: tuple[str, ...] = ()
     terminal_reason: str | None = None
     status_json_refreshed: bool = False
+    refresh_error: str | None = None
     skip_reason: str | None = None
     error: str | None = None
 
@@ -1693,7 +1696,7 @@ def _apply_wp_status_backfill_locked(
         seeded=len(new_events),
         would_seed=len(new_events),
         status_json_refreshed=refreshed,
-        error=refresh_error,
+        refresh_error=refresh_error,
     )
 
 
