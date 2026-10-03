@@ -3397,6 +3397,30 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "supersession", text: "Supersession", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md"
+    title: "ADR: replace charter reads and writes through a staged Java service strangler"
+    divio_type: "none"
+    abstract: "Define the staged transition from the Python charter implementation to a per-worktree Java read service and, later, Java write adapters."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "staged-ownership", text: "Staged ownership", level: 3}
+    - {slug: "hexagonal-dependency-direction", text: "Hexagonal dependency direction", level: 3}
+    - {slug: "cross-language-contract", text: "Cross-language contract", level: 3}
+    - {slug: "read-cut-over", text: "Read cut-over", level: 3}
+    - {slug: "write-cut-over", text: "Write cut-over", level: 3}
+    - {slug: "service-boundary", text: "Service boundary", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-python-only", text: "Option 1: Python only", level: 3}
+    - {slug: "option-2-permanent-python-compiler-with-java-projection-server", text: "Option 2: permanent Python compiler with Java projection server", level: 3}
+    - {slug: "option-3-staged-java-reads-then-writes", text: "Option 3: staged Java reads, then writes", level: 3}
+    - {slug: "option-4-one-step-replacement", text: "Option 4: one-step replacement", level: 3}
+    - {slug: "deferred-decisions", text: "Deferred Decisions", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4787,12 +4811,13 @@ pages:
   - path: "docs/architecture/diagrams/01_context/README.md"
     title: "System Context (living)"
     divio_type: "none"
-    abstract: "Living system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, including Team Kitty and its Zeitgeist relay."
+    abstract: "Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "scope-rules", text: "Scope Rules", level: 2}
     - {slug: "primary-audience", text: "Primary Audience", level: 2}
     - {slug: "context-diagram-mermaid", text: "Context Diagram (Mermaid)", level: 2}
+    - {slug: "planned-charter-read-and-write-transition", text: "Planned Charter Read and Write Transition", level: 2}
     - {slug: "external-interaction-contracts", text: "External Interaction Contracts", level: 2}
     - {slug: "domain-context-map", text: "Domain Context Map", level: 2}
     - {slug: "branch-and-routing-boundary", text: "Branch and Routing Boundary", level: 2}
@@ -4802,11 +4827,12 @@ pages:
   - path: "docs/architecture/diagrams/02_containers/README.md"
     title: "Containers (living)"
     divio_type: "none"
-    abstract: "Living containers view (C4 level 2): the current decomposition of Spec Kitty into logical containers, including the Zeitgeist moment publisher."
+    abstract: "Living containers view (C4 level 2): current logical containers and the planned charter read-service transition."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "scope-rules", text: "Scope Rules", level: 2}
     - {slug: "container-diagram-mermaid", text: "Container Diagram (Mermaid)", level: 2}
+    - {slug: "planned-charter-service-containers", text: "Planned Charter Service Containers", level: 2}
     - {slug: "container-responsibilities", text: "Container Responsibilities", level: 2}
     - {slug: "canonical-shape-notes-what-these-containers-are-not", text: "Canonical-shape notes (what these containers are NOT)", level: 2}
     - {slug: "domain-to-container-allocation", text: "Domain-to-Container Allocation", level: 2}
@@ -4835,11 +4861,12 @@ pages:
   - path: "docs/architecture/diagrams/03_components/README.md"
     title: "Components (living)"
     divio_type: "none"
-    abstract: "Living components view (C4 level 3): the current breakdown of Spec Kitty container internals into components, part of the living C4 model."
+    abstract: "Living components view (C4 level 3): current Spec Kitty internals and the planned charter service hexagon."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "scope-rules", text: "Scope Rules", level: 2}
     - {slug: "component-diagram-mermaid", text: "Component Diagram (Mermaid)", level: 2}
+    - {slug: "planned-charter-service-components", text: "Planned Charter Service Components", level: 2}
     - {slug: "component-responsibility-map", text: "Component Responsibility Map", level: 2}
     - {slug: "canonical-shape-notes", text: "Canonical-shape notes", level: 2}
     - {slug: "domain-alignment-matrix", text: "Domain Alignment Matrix", level: 2}
