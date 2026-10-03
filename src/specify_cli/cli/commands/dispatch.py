@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
 from specify_cli.cli.helpers import exit_git_resolution_failure
+from specify_cli.feedback.agent_block import op_close_guidance_line
 from specify_cli.invocation.errors import (
     InvocationWriteError,
     ProfileNotFoundError,
@@ -236,6 +237,7 @@ def render_open_hint_task_execution(payload: InvocationPayload) -> None:
         f"\\[--evidence <file>] \\[--artifact <path>] \\[--commit <sha>][/dim]"
     )
     console.print("[dim]Unclosed Ops are reported by `spec-kitty doctor ops` and swept to 'abandoned' when stale.[/dim]")
+    console.print(f"[dim]{op_close_guidance_line()}[/dim]")
 
 
 def _emit_routing_error_and_exit(e: RouterAmbiguityError) -> NoReturn:

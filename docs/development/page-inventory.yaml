@@ -3368,6 +3368,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/feedback.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/glossary-conventions.md
   tag: current
   divio_type: reference
@@ -3747,6 +3753,12 @@
   current_target: true
   notes: null
 - path: docs/guides/how-to/collaboration/build-custom-orchestrator.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/guides/how-to/collaboration/give-feedback.md
   tag: current
   divio_type: how-to
   owning_workstream: none

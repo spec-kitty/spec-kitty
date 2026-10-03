@@ -1,0 +1,10 @@
+id: feedback
+display_name: "Feedback"
+step_type: agent
+prompt_template: prompt.md
+agent_profile: null
+guidance: null
+delegates_to: []
+depends_on: []
+sequence_index: null
+in_action_sequence: false

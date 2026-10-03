@@ -34,6 +34,9 @@ root-level `glossary/` stub and the previously homeless context docs:
   schema every context page follows (folded from the root `glossary/` stub).
 - [Contextive Glossary Integration](contextive-glossaries.md) — how the context
   pages generate Contextive-compatible IDE hover glossaries.
+- [Context: Feedback](feedback.md) — the four canonical terms (Feedback Survey,
+  Feedback Submission, Survey Trigger, Feedback Endpoint) for the optional,
+  anonymous experience feedback Spec Kitty can ask for.
 - [Team Kitty and Zeitgeist](team-kitty.md) — the hosted product model:
   CLI → per-team Zeitgeist relay → Team Kitty Pulse, the canonical vocabulary
   (moment, relay, capability, admission), and why "sync" is a dead word.

@@ -340,6 +340,27 @@ mission types without research templates, e.g. `software-dev`):
 
 ---
 
+## /spec-kitty.feedback
+
+**Syntax**: `/spec-kitty.feedback`
+
+**Purpose**: Send a short feedback note about Spec Kitty on demand.
+
+**Prerequisites**:
+- A human is available to answer, and the agent harness has a question UI.
+- A feedback endpoint is configured; otherwise the command says so and sends nothing.
+
+**What it does**:
+- Checks availability with `spec-kitty feedback --agent-check --trigger on_demand`.
+- Asks for a 1 to 5 rating, an optional comment, an optional email, and consent.
+- Submits with `--agent-submit --trigger on_demand`; the weekly offer is not used up.
+
+**Creates/updates**: None (answers are handed off, never stored in the repository).
+
+**Related**: `/spec-kitty.consolidate`
+
+---
+
 ## /spec-kitty.analyze
 
 **Syntax**: `/spec-kitty.analyze [notes]`

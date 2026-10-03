@@ -88,8 +88,8 @@ class TestPromptDrivenCommands:
     def test_is_frozenset(self) -> None:
         assert isinstance(PROMPT_DRIVEN_COMMANDS, frozenset)
 
-    def test_has_eight_commands(self) -> None:
-        assert len(PROMPT_DRIVEN_COMMANDS) == 8
+    def test_has_nine_commands(self) -> None:
+        assert len(PROMPT_DRIVEN_COMMANDS) == 9
 
     @pytest.mark.parametrize(
         "skill",

@@ -11,9 +11,11 @@ Each generated Markdown file contains exactly:
   5. A mission hint line.
   6. A direct canonical CLI call that passes all arguments through.
 
-No workflow logic is embedded in command files.  Each file calls the
-canonical ``spec-kitty`` CLI command directly -- there is no intermediate
-shim dispatch layer.
+No workflow logic is embedded in command files, except the post-command
+Feedback Survey Check for trigger commands (see
+``specify_cli.feedback.agent_block``).  Each file calls the canonical
+``spec-kitty`` CLI command directly -- there is no intermediate shim
+dispatch layer.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from specify_cli.agent_utils.directories import (
     AGENT_DIR_TO_KEY,
     get_agent_dirs_for_project,
 )
+from specify_cli.feedback.agent_block import append_feedback_survey_check
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
 
 # Human-readable one-line descriptions shown by agent slash-command pickers
@@ -48,7 +51,7 @@ def _get_cli_version() -> str:
     except Exception:
         from specify_cli import __version__
 
-        return __version__
+        return str(__version__)
 
 # Agent-specific argument placeholders.
 # Claude Code passes slash-command arguments as $ARGUMENTS.
@@ -119,6 +122,7 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
         "\n"
         f"`{cli_call}`\n"
     )
+    body = append_feedback_survey_check(body, command, cli_driven=True)
     return (
         "---\n"
         f"description: {description}\n"
@@ -155,7 +159,9 @@ def generate_shim_content_toml(
         "\n"
         f"`{cli_call}`\n"
     )
-    body_escaped = body.replace('"""', '""\\"')
+    body = append_feedback_survey_check(body, command, cli_driven=True)
+    # TOML basic multi-line strings treat backslash as an escape (the survey block's quoting rule contains a backslash).
+    body_escaped = body.replace("\\", "\\\\").replace('"""', '""\\"')
     return (
         f'description = "{description}"\n'
         "\n"

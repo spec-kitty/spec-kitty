@@ -39,6 +39,7 @@ ALL_COMMANDS = [
     "analyze",
     "research",
     "charter",
+    "feedback",
     "implement",
     "review",
     "accept",

@@ -595,9 +595,36 @@ Provide summary with:
 - MVP scope
 - Next command
 
+Then run the Feedback Survey Check below (only when a human is in the loop), and only afterwards go to Step 10.
+
+<!-- spec-kitty:feedback-survey-check:begin -->
+## Feedback Survey Check
+
+Run this once per session, only after the command above has succeeded, and only when a human is in the loop (skip it entirely in unattended or automated runs):
+
+```bash
+spec-kitty feedback --agent-check --trigger planning_complete --agent <your-agent-key> --json
+```
+
+If JSON `action` is `none`, continue silently; do not mention the survey.
+If `action` is `prompt`, ask the human using your host-native question UI (plain text if you have none), with the exact wording from the JSON `survey` object: the rating (1-5), the optional comment, and the optional email. Then ask the consent question "Send feedback?". Offer "Skip" and "Don't ask again" at the first question. Never answer on the human's behalf and never pre-fill answers. If the comment is longer than `comment_max_length`, tell the human it will be cut before asking for consent.
+
+Record exactly one result:
+
+```bash
+spec-kitty feedback --agent-submit --trigger planning_complete --agent <your-agent-key> --rating <1-5> [--comment '<text>'] [--email '<address>'] --consent yes --json
+spec-kitty feedback --agent-choice skip --trigger planning_complete --json    # human skipped or declined
+spec-kitty feedback --agent-choice never --trigger planning_complete --json   # human chose "Don't ask again"
+```
+
+Pass `<text>` and `<address>` as single-quoted shell arguments, writing each `'` inside them as `'\''`, and collapse newlines to spaces; never put the human's words in double quotes (`$(...)` and backticks would run).
+
+Show the returned `message` if present, then continue. Never report delivery problems: sending is fire-and-forget.
+<!-- spec-kitty:feedback-survey-check:end -->
+
 ### Step 10: Implementation Handoff Offer
 
-After reporting, ask the user directly:
+After reporting, and after the Feedback Survey Check above is finished or skipped, ask the user directly:
 
 > **Should I use the `/spec-kitty-implement-review` skill to fully implement all WPs until completion?**
 > This will dispatch implementing and reviewing agents for every WP, handle rejection cycles, and merge all lanes when done.

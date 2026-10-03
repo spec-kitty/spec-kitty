@@ -1072,6 +1072,17 @@ def consolidate(
         attest_canceled_superseded=attested_wps,
         attest_reason=attest_reason if attested_wps else None,
     )
+    # Inline Feedback Survey (WP06): after a successful real merge only.
+    # ``_run_real_merge`` raises ``typer.Exit`` on failure, so this is skipped
+    # naturally; ``--dry-run`` / ``--abort`` return earlier.
+    from specify_cli.feedback.hooks import mission_type_for, offer_after_trigger
+    from specify_cli.feedback.models import SurveyTrigger
+
+    offer_after_trigger(
+        SurveyTrigger.MISSION_END,
+        json_output=json_output,
+        mission_type=mission_type_for(repo_root, resolved_mission),
+    )
 
 
 def _validated_attestation_flags(wp_ids: object, reason: object) -> tuple[str, ...]:

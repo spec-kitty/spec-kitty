@@ -56,6 +56,7 @@ from specify_cli.skills import command_renderer
 from specify_cli.skills.paths import SkillPathObservation, observe_skill_path
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
+from specify_cli.feedback.agent_block import append_feedback_survey_check
 from kernel.clock import now_utc_iso
 from kernel.no_follow import chmod_fd
 from kernel.resolution import resolve_rejecting_loops
@@ -82,6 +83,7 @@ PROMPT_BACKED_COMMANDS: tuple[str, ...] = (
     "accept",
     "analyze",
     "charter",
+    "feedback",
     "implement",
     "plan",
     "research",
@@ -283,7 +285,8 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
     if command in PROMPT_BACKED_COMMANDS:
         template = _resolve_template(repo_root, command)
         rendered = command_renderer.render(template, agent_key, version, repo_root=repo_root)
-        return rendered.to_skill_md().encode("utf-8")
+        skill_md: str = rendered.to_skill_md()
+        return skill_md.encode("utf-8")
 
     if command not in CLI_WRAPPER_COMMANDS:
         raise InstallerError("unknown_command", command=command)
@@ -311,6 +314,7 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
         "Report the command output and follow any next-step instructions it "
         "prints.\n"
     )
+    body = append_feedback_survey_check(body, command, cli_driven=True)
     body = prepend_agent_upgrade_check(body)
     skill_md = f"---\nname: spec-kitty.{command}\ndescription: {description}\nuser-invocable: true\n---\n{body if body.startswith(chr(10)) else chr(10) + body}"
     return skill_md.encode("utf-8")

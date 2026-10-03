@@ -1,0 +1,35 @@
+{
+  "accept_commit": "65a4f381877687067f9f36b9fc363f619a965f71",
+  "acceptance_history": [
+    {
+      "accept_commit": "65a4f381877687067f9f36b9fc363f619a965f71",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-01T20:42:26.481806+00:00",
+      "accepted_by": "zohar",
+      "accepted_from_commit": "7eaf5fd7685e36f81fb15da4df1704a6a04d3ab9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-01T20:42:26.481806+00:00",
+  "accepted_by": "zohar",
+  "accepted_from_commit": "7eaf5fd7685e36f81fb15da4df1704a6a04d3ab9",
+  "baseline_merge_commit": "ac7136655667ac8ce049461ba68d97c04241776e",
+  "created_at": "2026-10-01T14:54:30.851643+00:00",
+  "flattened": true,
+  "friendly_name": "Feedback slash command and input hardening",
+  "merged_at": "2026-10-01T20:45:26.217202+00:00",
+  "merged_commit": "c66abb83394c35048f5d86971582c146383f4e26",
+  "mid8": "01M3VZBD",
+  "mission_id": "01M3VZBDW0BV0HZX5ZY5VXBAW7",
+  "mission_number": 210,
+  "mission_slug": "feedback-slash-command-validation-01M3VZBD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The in-harness feedback survey only appears on throttled triggers, and its free-text validation is minimal. This mission adds an on-demand slash command rendered through the harness question UI, and hardens rating, comment and email validation in one shared validator used by every flow, including a visible 2000-character comment limit shown before the user types.",
+  "purpose_tldr": "Users open the feedback form on demand with /spec-kitty.feedback, and every answer is validated and sanitized before anything is sent.",
+  "slug": "feedback-slash-command-validation-01M3VZBD",
+  "status_phase": "1",
+  "target_branch": "feat/in-harness-feedback-survey",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-01T19:37:50.238931+00:00"
+}

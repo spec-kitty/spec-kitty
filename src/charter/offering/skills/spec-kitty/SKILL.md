@@ -128,6 +128,21 @@ completed work, `failed` for work that did not succeed, `abandoned` for work
 that was dropped. Optional flags: `--evidence <path>`, `--artifact <ref>`,
 `--commit <sha>`.
 
+### After closing
+
+When a human is in the loop, run the Feedback Survey Check once, only after
+closing the Op with outcome `done` or `failed` (never `abandoned`). Skip it
+entirely in unattended runs; never answer on the human's behalf:
+
+```bash
+spec-kitty feedback --agent-check --trigger op_close --agent <your-agent-key> --json
+```
+
+If `action` is `none`, continue silently. If `action` is `prompt`, ask with
+host-native UI using the JSON `survey` wording, then ask "Send feedback?" and
+record with `--agent-submit ... --consent yes` (without `--consent yes` nothing
+is sent) or `--agent-choice skip|never`.
+
 ### Review recent invocations
 
 ```bash

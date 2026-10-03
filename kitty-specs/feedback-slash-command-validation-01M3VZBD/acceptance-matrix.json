@@ -1,0 +1,169 @@
+{
+  "mission_slug": "feedback-slash-command-validation-01M3VZBD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:39:13.073192+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:39:21.626412+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:39:33.612470+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:39:42.419642+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:39:50.804737+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:39:59.156932+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:08.702752+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:17.130218+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:25.431985+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:33.917704+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:42.861448+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:51.161913+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:40:59.522695+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:41:08.123044+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:41:16.640980+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/feedback (WP01-WP04 review approvals)",
+      "pass_fail": "pass",
+      "verified_by": "cursor:reviewer",
+      "verified_at": "2026-10-01T20:41:25.601839+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

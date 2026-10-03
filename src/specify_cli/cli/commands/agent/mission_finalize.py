@@ -5102,6 +5102,17 @@ def finalize_tasks(
             planning_sha=planning_sha,
             **({"owned": owned} if owned else {}),
         )
+        # Inline Feedback Survey (WP06): after the commit pipeline succeeds.
+        # Placed on the success-only path (past ``validate_only`` early return)
+        # so the host gains no new branches; failures raise before this line.
+        from specify_cli.feedback.hooks import mission_type_for, offer_after_trigger
+        from specify_cli.feedback.models import SurveyTrigger
+
+        offer_after_trigger(
+            SurveyTrigger.PLANNING_COMPLETE,
+            json_output=json_output,
+            mission_type=mission_type_for(repo_root, mission_slug),
+        )
 
     except typer.Exit:
         revert_error = _revert_unpersisted_target_branch_override(

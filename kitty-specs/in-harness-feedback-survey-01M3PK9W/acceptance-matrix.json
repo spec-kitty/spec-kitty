@@ -1,0 +1,219 @@
+{
+  "mission_slug": "in-harness-feedback-survey-01M3PK9W",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP04,WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:15.441919+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP03,WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:19.936774+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP03,WP04,WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:24.624927+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP03 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:31.556380+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP06,WP07 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:35.858166+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP06,WP07 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:40.756139+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP06,WP07 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:45.255898+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:50.250465+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP05,WP07 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:54.787666+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP04,WP07 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:50:59.019406+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP01 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:51:03.256596+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP04,WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:51:07.963234+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP01,WP04 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:51:12.312185+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP03 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:51:16.809469+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP06 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:51:24.495603+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP02 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:52:07.462350+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP02,WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:52:21.820590+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP01,WP04,WP06 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:52:28.566271+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP05,WP08 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:52:33.870434+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP03,WP05 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:52:39.935493+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Delivered by WP03 (all approved with recorded reviews under tasks/*/review-cycle-*.md); covered by tests/specify_cli/feedback/ and gate files; see tasks/WP08*.md Activity Log for quickstart evidence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-01T11:52:45.960747+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

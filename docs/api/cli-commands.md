@@ -2733,6 +2733,29 @@ _Event log tailing commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty feedback
+
+```
+ Usage: spec-kitty feedback [OPTIONS]
+
+ Offer the Feedback Survey on demand, or inspect / toggle settings.
+
+ Submissions are anonymous unless an email is typed, and are sent only after
+ ``Send feedback?``. Automatic prompts ignore the weekly limit for this
+ on-demand command. Prefer ``--status`` to see the destination; the consent
+ step never prints a URL.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --status                     Show the effective destination, fields sent,    │
+│                              last-shown date, and automatic prompts.         │
+│ --prompts          [on|off]  Turn automatic feedback prompts on or off.      │
+│ --json                       Emit machine-readable JSON for --status or      │
+│                              hidden agent modes.                             │
+│ --help     -h                Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+
 ## spec-kitty glossary
 
 _Glossary management commands_

@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#2876": {
+      "evidence_ref": "research.md R-03 / plan KDD: is_interactive() is the prompt-gating authority for the #2876 defect class; WP05 owns the terminal form that consults it. WP01 only provides eligibility (non_interactive/ci gates), not the prompt UI.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}
