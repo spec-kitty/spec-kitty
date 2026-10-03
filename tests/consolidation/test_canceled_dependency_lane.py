@@ -300,3 +300,15 @@ def test_safety_parameters_are_required_keyword_only(function: Callable[..., obj
     declared = inspect.signature(function).parameters[parameter]
     assert declared.kind is inspect.Parameter.KEYWORD_ONLY
     assert declared.default is inspect.Parameter.empty
+
+
+def test_canceled_lane_content_recovery_offers_only_the_revert_that_survives_resume() -> None:
+    """A rebuilt lane trips the resume lane-tip CAS, so the advice must not suggest rebuilding it."""
+    from specify_cli.consolidation.reconciliation import _mixed_lane_recovery
+    from specify_cli.consolidation.wp_attribution import UnattributableReason
+
+    advice = _mixed_lane_recovery(UnattributableReason.CANCELED_LANE_CONTENT, "WP02")
+
+    assert "reverting them on it" in advice
+    assert "rebuild the lane without them" not in advice
+    assert "do not rebuild the lane" in advice

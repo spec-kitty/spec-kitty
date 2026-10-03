@@ -162,20 +162,21 @@ _STRANDED_COORD_REVERT_BRANCH_MISMATCH_HINT = (
 )
 
 #: UNRECORDED_STRAND variant (#5572): a live strand whose reconcile marker either
-#: recorded no strand commit SHAs (a legacy marker) or no longer matches the status
+#: recorded no strand commit SHAs (written by an older release, or the range was
+#: unreadable when it was written) or no longer matches the status
 #: log in ``captured_sha..HEAD`` (a reviewer's reopen or another status event landed
 #: after the strand). `repair_coord_strand` reverts ONLY the commits the marker
 #: recorded, so it refuses rather than guess — a revert would erase the later status
 #: event. It is STILL a committed-ref split-brain, so it stays an ``error`` (exit 1)
 #: and carries a manual-reconcile `next_step`, never the "run `--fix`" loop.
 _STRANDED_COORD_REVERT_UNRECORDED_CODE = "COORDINATION_STRANDED_COORD_REVERT_UNRECORDED"
-_STRANDED_COORD_REVERT_UNRECORDED_HINT = (
+_STRANDED_COORD_REVERT_UNRECORDED_HINT_TEMPLATE = (
     "`--fix` reverts only the strand commits recorded when the failed consolidation "
     "wrote its marker, and will not guess. Reconcile the coordination status log "
     "manually: list the status-log commits in the recorded range, revert only the "
     "stranded `done` commit(s) yourself (keeping any later reopen), then clear the "
     "stale `pending_coord_reconcile` marker in "
-    "`.kittify/runtime/merge/<mission_id>/state.json`."
+    "`.kittify/runtime/merge/{mission_id}/state.json`."
 )
 
 #: An enumerated ``pending_coord_reconcile`` marker that cannot be parsed into
@@ -1259,12 +1260,12 @@ def _unrecorded_strand_finding(
 ) -> DoctorFinding:
     """#5572: the honest ``error`` for a heal refused over unrecorded status commits.
 
-    Never a success claim: nothing was reverted and the marker is kept. A legacy
-    marker is named as such; otherwise the foreign commits are listed so the operator
+    Never a success claim: nothing was reverted and the marker is kept. A marker that
+    recorded no strand commits is named as such; otherwise the foreign commits are listed so the operator
     can see what a revert would have erased.
     """
     if outcome.legacy_marker:
-        detail = "its reconcile marker predates recorded strand commits"
+        detail = "its reconcile marker recorded no strand commits (written by an older release, or the range was unreadable when it was written)"
     elif outcome.foreign_status_commits:
         foreign = ", ".join(sha[:12] for sha in outcome.foreign_status_commits)
         detail = f"the status log holds commit(s) the marker did not record ({foreign}), e.g. a later reopen"
@@ -1276,7 +1277,7 @@ def _unrecorded_strand_finding(
             f"Refusing to revert the stranded `done` on {coord_ref!r} for mission "
             f"{mission_slug!r}: {detail}. Nothing was reverted; the marker is kept."
         ),
-        next_step=_STRANDED_COORD_REVERT_UNRECORDED_HINT,
+        next_step=_STRANDED_COORD_REVERT_UNRECORDED_HINT_TEMPLATE.format(mission_id=mission_id),
         error_code=_STRANDED_COORD_REVERT_UNRECORDED_CODE,
         extra={"mission_id": mission_id, "mission_slug": mission_slug},
     )

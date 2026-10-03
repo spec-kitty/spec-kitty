@@ -1281,7 +1281,8 @@ def _mixed_lane_recovery(reason: UnattributableReason, wp_id: str) -> str:
     if reason is UnattributableReason.CANCELED_LANE_CONTENT:
         return (
             "Re-running alone cannot clear this. "
-            "Recovery: remove those commits from the dependent lane (rebuild the lane without them, or revert them on it), "
+            "Recovery: remove those commits from the dependent lane by reverting them on it "
+            "(do not rebuild the lane: a rebuilt lane trips the resume lane-tip check), "
             f"{_RECOVERY_TAIL}; this refusal cannot be overridden"
         )
     if reason is UnattributableReason.COMMIT_OUTSIDE_WINDOWS:

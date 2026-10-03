@@ -1141,7 +1141,10 @@ def _report_refused_strand_heal(outcome: CoordRepairOutcome) -> None:
     still visible to ``doctor coordination``, which carries the manual-reconcile steps.
     """
     if outcome.legacy_marker:
-        reason = "the reconcile marker predates recorded strand commits, so the strand cannot be told apart from later work"
+        reason = (
+            "the reconcile marker recorded no strand commits (written by an older release, or the range was "
+            "unreadable when it was written), so the strand cannot be told apart from later work"
+        )
     elif outcome.foreign_status_commits:
         foreign = ", ".join(sha[:10] for sha in outcome.foreign_status_commits)
         reason = f"the status log holds commits the marker did not record (foreign: {foreign}), e.g. a later reopen"
@@ -1150,7 +1153,9 @@ def _report_refused_strand_heal(outcome: CoordRepairOutcome) -> None:
     console.print(
         "[yellow]Warning:[/yellow] the stranded coordination `done` was NOT reverted: "
         f"{escape(reason)}. The reconcile marker is kept. Reconcile the coordination status log "
-        "manually; see `spec-kitty doctor coordination`."
+        "manually; see `spec-kitty doctor coordination`. This resume continues and, unless the "
+        "coordination branch is retained, will tear down the coordination branch at the end, "
+        "so the stranded commit does not ship."
     )
 
 
@@ -4034,8 +4039,8 @@ def _unrefreshed_coordination_refusal(exc: DestructiveOpRefused, checkout: _LagC
             "mission branch but never refreshed this worktree) AND carries changes of its own. "
             "Do NOT stage or record these changes: the staged deletions are the integrated lanes read in "
             f"reverse and recording them reverts the merge. Save your own edits outside the worktree first, "
-            f"then refresh it with `git -C {path} reset --hard HEAD`, re-apply them, "
-            "and resume the operation (e.g. `spec-kitty consolidate --resume`)."
+            f"refresh the worktree with `git -C {path} reset --hard HEAD`, resume the operation "
+            "(e.g. `spec-kitty consolidate --resume`), and only then re-apply your edits."
         ),
     )
 

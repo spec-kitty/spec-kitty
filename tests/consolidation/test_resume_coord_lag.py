@@ -352,6 +352,12 @@ def test_report_lag_with_a_genuine_edit_never_advises_committing(tmp_path: Path,
     assert _COMMIT_ADVICE not in out
     assert _DO_NOT_RECORD in out
     assert "Save your own edits outside the worktree first" in out
+    # Order matters (#5571): refresh, THEN resume, and only then re-apply the saved edits --
+    # re-applying before the resume would let the resume's own refresh/guards clobber or refuse them.
+    refresh = out.index("reset --hard HEAD")
+    resume = out.index("spec-kitty consolidate --resume")
+    reapply = out.index("re-apply")
+    assert refresh < resume < reapply
     assert "D lane.py" in out  # (whitespace-collapsed) the dirty entries are still reported
     assert "Merge aborted before any state change" in out
 

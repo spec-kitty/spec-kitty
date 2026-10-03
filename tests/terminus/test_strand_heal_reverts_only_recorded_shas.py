@@ -203,7 +203,7 @@ def test_5572_marker_strand_shas_reader_is_tolerant_of_legacy_and_malformed_mark
 
 
 def test_5572_legacy_marker_without_recorded_shas_is_refused_not_guessed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A marker that predates ``strand_shas`` is refused even over a strand-only range."""
+    """A marker that recorded no ``strand_shas`` is refused even over a strand-only range."""
     mission = build_coord_mission(tmp_path, wps=_WPS, mid8="01M5572D")
     captured_sha, _ = _strand_commit(mission)
     _save_marker(mission, captured_sha, strand_shas=None)
@@ -214,7 +214,11 @@ def test_5572_legacy_marker_without_recorded_shas_is_refused_not_guessed(tmp_pat
 
     assert result.exit_code != 0, out
     assert _HEALED not in out, out
-    assert "predates recorded strand commits" in out, out
+    assert "recorded no strand commits (written by an older release, or the range was unreadable when it was written)" in out, out
+    assert "predates" not in out, out
+    # The manual-reconcile hint names THIS mission's state file, not a placeholder.
+    assert f".kittify/runtime/merge/{mission.mission_id}/state.json" in out.replace(" ", ""), out
+    assert "<mission_id>" not in out, out
     assert mission.rev(mission.coord_branch) == tip_before, "a legacy marker must not be healed by guessing the range"
     state = load_state(mission.repo, mission.mission_id)
     assert state is not None and state.pending_coord_reconcile is not None
@@ -228,7 +232,7 @@ def _resume(mission: CoordMission) -> str:
 
 
 def test_5572_resume_explains_a_refused_heal_for_a_legacy_marker(tmp_path: Path) -> None:
-    """The resume-start heal says WHY it refused a marker that predates recorded strand commits."""
+    """The resume-start heal says WHY it refused a marker that recorded no strand commits."""
     mission = build_coord_mission(tmp_path, wps=_WPS, mid8="01M5572E")
     captured_sha, _ = _strand_commit(mission)
     _save_marker(mission, captured_sha, strand_shas=None)
@@ -236,8 +240,12 @@ def test_5572_resume_explains_a_refused_heal_for_a_legacy_marker(tmp_path: Path)
     out = _resume(mission)
 
     assert "NOT reverted" in out, out
-    assert "the reconcile marker predates recorded strand commits" in out, out
+    assert "the reconcile marker recorded no strand commits (written by an older release, or the range was unreadable when it was written)" in out, out
     assert "none named" not in out, out
+    # The warning must say this run still proceeds and what happens to the stranded commit.
+    assert "This resume continues" in out, out
+    assert "tear down the coordination branch" in out, out
+    assert "does not ship" in out, out
 
 
 @pytest.mark.parametrize(
