@@ -254,6 +254,33 @@ def test_write_dir_status_state_bypasses_deleted_coordination_branch(tmp_path: P
     assert seam.write_target(MissionArtifactKind.STATUS_STATE) == CommitTarget(ref="main")
 
 
+def test_write_dir_published_owned_status_stays_in_the_owned_checkout(tmp_path: Path) -> None:
+    """A published coordination mission's status write from an owned checkout
+    lands in that checkout, not the repository-root mission directory."""
+    repo = tmp_path / "repo"
+    _init_flat_repo(repo)
+    mission_slug, feature_dir, target_branch, _coordination_branch = _build_e2_mission_coord_fully_retired(repo, mid8="01KYT4CC", mission_number=403)
+    owned_root = tmp_path / "owned-checkout"
+    owned_mission_dir = owned_root / "kitty-specs" / mission_slug
+    owned_mission_dir.mkdir(parents=True)
+    owned = mint_test_fact(
+        repository_root=repo,
+        owned_root=owned_root,
+        mission_dir=owned_mission_dir,
+        mission_slug=mission_slug,
+        write_branch=target_branch,
+        topology=MissionTopology.COORD,
+    )
+
+    location = placement_seam(repo, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE)
+
+    assert location.surface is TopologySurface.PRIMARY
+    assert location.path == owned_mission_dir
+    assert location.surface_root == owned_root
+    assert location.path != feature_dir
+    assert location.establishment == Establishment.NONE
+
+
 # ---------------------------------------------------------------------------
 # T019 -- the owned coordination arm. Owned+coordination is not yet
 # reachable through a real CLI flow today (LIFECYCLE_OWNED_TOPOLOGIES ==

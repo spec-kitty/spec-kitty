@@ -2531,7 +2531,20 @@ class PlacementSeam:
         classification, so this can never reach :func:`probe_coord_state`
         and can never raise against a coordination branch consolidation has
         already torn down.
+
+        An owned Mission uses the fact's own checkout. It does not call
+        :func:`~specify_cli.core.paths.get_main_repo_root`, so a published
+        status write cannot land in the repository-root mission directory
+        while reads of the same Mission stay in the owned checkout.
         """
+        if self.owned is not None:
+            return WriteLocation(
+                path=self.owned.mission_dir,
+                surface_root=self.owned.owned_root,
+                surface=TopologySurface.PRIMARY,
+                coord_state_before=None,
+                establishment=Establishment.NONE,
+            )
         from specify_cli.core.paths import get_main_repo_root
         from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
