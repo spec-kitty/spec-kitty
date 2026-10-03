@@ -13,6 +13,12 @@ on:
       - 'tests/contract/**'
       - '.github/CODEOWNERS'
       - '.github/workflows/contracts.yml'
+      - '.github/workflows/contracts-release.yml'
+      - 'uv.lock'
+      - 'pyproject.toml'
+      - 'pytest.ini'
+      - 'tests/conftest.py'
+      - 'src/specify_cli/status/lifecycle_events.py'
   push:
     branches: [main]
     paths:
@@ -20,13 +26,21 @@ on:
       - 'tests/contract/**'
       - '.github/CODEOWNERS'
       - '.github/workflows/contracts.yml'
+      - '.github/workflows/contracts-release.yml'
+      - 'uv.lock'
+      - 'pyproject.toml'
+      - 'pytest.ini'
+      - 'tests/conftest.py'
+      - 'src/specify_cli/status/lifecycle_events.py'
 
 permissions:
   contents: read
 
+# Per-SHA concurrency on push to main (the ci-router.yml #4347 pattern): each landed tip gets its own group, so a merge burst never
+# cancels the push run the release gate looks up for the last commit that touched the trigger paths. PRs keep the per-ref coalescing.
 concurrency:
-  group: contracts-${{ github.ref }}
-  cancel-in-progress: true
+  group: contracts-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 env:
   # Every job runs over the real contracts tree (module mission-status); the one-module spike fixture is a test fixture only.

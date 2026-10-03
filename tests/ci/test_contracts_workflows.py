@@ -35,7 +35,20 @@ CANONICAL_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event
 RELEASE_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')"
 PUBLISH_CONDITION = "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')"
 CONTRACT_TAG_FILTER = "contract-*-v*.*.*"
-EXPECTED_PATHS = ["contracts/**", "tests/contract/**", ".github/CODEOWNERS", ".github/workflows/contracts.yml"]
+# The corpus the Contracts tests read plus everything they run on: the release workflow, the locked environment, the pytest
+# configuration and conftest, and the lifecycle source event_mapping_check parses.
+EXPECTED_PATHS = [
+    "contracts/**",
+    "tests/contract/**",
+    ".github/CODEOWNERS",
+    ".github/workflows/contracts.yml",
+    ".github/workflows/contracts-release.yml",
+    "uv.lock",
+    "pyproject.toml",
+    "pytest.ini",
+    "tests/conftest.py",
+    "src/specify_cli/status/lifecycle_events.py",
+]
 # The one job that may run pytest: the contract tool unit tests. The router's corpus job runs only the modules that read
 # committed Missions, to stay within its time budget.
 TOOL_TEST_JOB = "contract-tool-tests"
@@ -532,7 +545,9 @@ def test_contracts_workflow_triggers_are_exactly_the_three_paths_on_both_trigger
     [
         ("  pull_request:\n    paths:", "  pull_request:\n    branches: [main]\n    paths:", "carries a branches key"),
         ("    branches: [main]\n", "", "does not carry branches: [main]"),
-        ("      - '.github/CODEOWNERS'\n      - '.github/workflows/contracts.yml'\n  push:", "      - '.github/workflows/contracts.yml'\n  push:", "paths are"),
+        ("      - '.github/CODEOWNERS'\n      - '.github/workflows/contracts.yml'\n", "      - '.github/workflows/contracts.yml'\n", "paths are"),
+        ("      - 'uv.lock'\n", "", "paths are"),
+        ("      - 'src/specify_cli/status/lifecycle_events.py'\n", "", "paths are"),
     ],
 )
 def test_planted_trigger_violations_are_refused(old: str, new: str, reason: str) -> None:
@@ -588,7 +603,11 @@ def test_the_fork_guard_must_be_a_top_level_conjunct_not_a_disjunct() -> None:
 def test_every_job_has_a_timeout_and_the_workflow_has_a_concurrency_group_per_ref() -> None:
     assert timeout_violations(CONTRACTS_TEXT) == []
     assert timeout_violations(RELEASE_TEXT) == []
-    assert "github.ref" in str(load(CONTRACTS_TEXT)["concurrency"]["group"])
+    concurrency = load(CONTRACTS_TEXT)["concurrency"]
+    assert "github.ref" in str(concurrency["group"])
+    # push to main: one group per SHA, nothing to cancel (a merge burst must not cancel the run the release gate looks up); PRs coalesce per ref
+    assert "github.event_name == 'push' && github.sha" in str(concurrency["group"])
+    assert "github.event_name != 'push'" in str(concurrency["cancel-in-progress"])
     planted = load(CONTRACTS_TEXT)
     del planted["jobs"]["lint"]["timeout-minutes"]
     assert timeout_violations(yaml.safe_dump(planted)) == ["lint"]

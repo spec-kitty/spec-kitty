@@ -101,8 +101,9 @@ class API:
 
 
 def test_all_existing_pr_workflows_are_registered() -> None:
+    # pyproject.toml is a Contracts trigger path too (the contract tools run under its pins).
+    assert applicable_workflows(ROOT, pull(), ["pyproject.toml"]) == PR_WORKFLOWS
     expected = PR_WORKFLOWS - {CONTRACTS}
-    assert applicable_workflows(ROOT, pull(), ["pyproject.toml"]) == expected
     docs_only = expected - {"release-readiness.yml", "check-spec-kitty-events-alignment.yml"}
     assert applicable_workflows(ROOT, pull(), ["docs/example.md"]) == docs_only
     # The contracts workflow is path-gated: only a change under contracts/ (or its own files) selects it.
@@ -110,7 +111,7 @@ def test_all_existing_pr_workflows_are_registered() -> None:
     assert CONTRACTS in PR_WORKFLOWS
     release = pull()
     release["base"]["ref"] = "release/3.2.6.x"
-    assert applicable_workflows(ROOT, release, ["pyproject.toml"]) == {"ci-router.yml", "ci-modules.yml", "ci-quality.yml", "packs.yml"}
+    assert applicable_workflows(ROOT, release, ["pyproject.toml"]) == {"ci-router.yml", "ci-modules.yml", "ci-quality.yml", "packs.yml", CONTRACTS}
 
 
 @pytest.mark.parametrize("extension", ["yml", "yaml"])
