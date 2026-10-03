@@ -278,7 +278,7 @@
         ".kittify/doctrine/**",
         "contracts/**"
       ],
-      "note": "Wheel-shipped doctrine corpus + mission data leaves (#3008); non-src, no --cov subject."
+      "note": "Doctrine corpus + mission data leaves (#3008), plus the contracts/ tree, which stays out of the wheel; non-src, no --cov subject."
     },
     {
       "group": "e2e",
