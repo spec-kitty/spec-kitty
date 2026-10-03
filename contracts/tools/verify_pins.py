@@ -10,6 +10,10 @@ the manifest. Failures, one stable code per cause:
 * ``CHECKSUM_MISSING``: a tool carries no sha256, or one that is not 64 hexadecimal digits.
 * ``UNPINNED_USES``: a workflow ``uses:`` is not ``owner/repo@<40-hex commit>`` (a local ``./`` action
   is exempt; a container needs an ``@sha256:`` digest).
+  Scope: this action-pin rule covers the contracts workflows only (``contracts*.yml``, or the files
+  named with ``--workflow``). It is not a repository-wide gate: every other workflow under
+  ``.github/workflows/`` is outside it. A future repo-wide action-pin gate would take the rule over, and
+  this tool would then keep only the manifest and install-form checks.
 * ``NOT_HTTPS``: a tool url is not an ``https`` URL (never fetched).
 * ``UNPINNED_INSTALL``: any Python install form but the shared prelude, which is the SHA-pinned
   ``astral-sh/setup-uv`` with ``python-version: '3.12'`` followed by ``uv sync --frozen
