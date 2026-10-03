@@ -65,7 +65,8 @@ flowchart LR
 ## Planned Charter Read and Write Transition
 
 The planned charter service is a separate governance-domain system reached
-through the existing CLI charter seam or its own governed MCP interface. Java
+through a CLI charter API seam that #645 plans, or through its own governed MCP interface.
+Today no such seam exists; callers import charter internals directly. Java
 becomes the production reader only after conformance; Python remains the
 production writer until each write operation migrates. Shadow reads and the
 temporary loud fallback are transition stages owned by
@@ -84,8 +85,8 @@ flowchart LR
     operator -->|current commands and writes| cli
     harness -->|current CLI calls| cli
     harness -.->|planned governed MCP reads| charter
-    cli -->|current Python write seam| sources
-    cli -.->|planned reads through stable charter API seam| charter
+    cli -->|current direct writes in Python| sources
+    cli -.->|planned reads through the charter API seam (#645)| charter
     charter -.->|planned authored-source read| sources
     ui -->|mission status only| status
 ```

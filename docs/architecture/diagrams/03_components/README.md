@@ -113,12 +113,12 @@ flowchart TB
 
 The planned service uses separate read and later write application modules over
 one pure domain. Every infrastructure dependency points inward through a port.
-The Python charter API seam remains outside this hexagon. See
+The Python charter API seam, planned under #645, stays outside this hexagon. See
 [ADR 2026-10-03-1](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md).
 
 ```mermaid
 flowchart TB
-    python["Python charter API seam — current external caller"]
+    python["Python charter API seam — planned (#645), external caller"]
     agent["Agent harness — planned MCP client"]
 
     subgraph Inbound["Inbound infrastructure"]

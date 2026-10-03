@@ -198,8 +198,10 @@ they no longer gate GA.*
    It is a pull over the committed ledger, so it does not wait for produce/drain
    decoupling.
    The separate charter strangler moves production reads to a planned Java service under
-   #645 / 4.x Work, while operation-by-operation Java writes remain #2519 / CLI 4.x stable;
-   neither gates milestone 11. See
+   #645 / 4.x Work. It starts only after callers move onto the #645 stable application API,
+   because `specify_cli`, `runtime`, and `glossary` import charter internals directly today.
+   Java writes move one operation at a time and remain #2519 / CLI 4.x stable.
+   Neither gates milestone 11. See
    [ADR 2026-10-03-1](../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md).
 3. **Hosted work is frozen, not cancelled.** Nothing on that lane is deleted; it waits.
 4. **Quality debt is a standing campsite epic**, deliberately outside the blocking graph
