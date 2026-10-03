@@ -1,0 +1,387 @@
+{
+  "header": {
+    "purpose": "Pinned expected output of the Mission lifecycle derivation, produced once by the dashboard code it replaces. The reality check compares the test-side helper with it on every run and never skips.",
+    "commit": "d78aa2345",
+    "source": "src/specify_cli/dashboard/scanner.py at that commit (read with git show, run in a scratch directory)",
+    "functions": [
+      "_derive_mission_status",
+      "_derive_next_action"
+    ],
+    "inputs": "dashboard board columns counted from the work package lanes through _KANBAN_COLUMN_FOR_LANE, and the Mission's meta.json mapping",
+    "sample_rule": "Missions whose work package files and snapshot work packages carry the same ids, last activity before 2026-09-01, in directory-name order: the first one of each (lifecycleStatus, nextAction kind, baseline, accepted) combination the corpus holds; plus synthetic entries for the combinations it does not hold (discarded, blocked-only, all-canceled with acceptedAt, zero work packages)",
+    "generator_committed": false,
+    "issue": "#5579",
+    "owner": "@stijn-dejongh",
+    "drain_by": "2026-12-31",
+    "ceiling": 52,
+    "exit_condition": "a snapshot-versus-files disagreement list of length zero"
+  },
+  "sample": [
+    {
+      "mission": "002-lightweight-pypi-release",
+      "kind": "real",
+      "lastActivityAt": "2025-11-02T16:58:36Z",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 4,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 4,
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": "Run: spec-kitty consolidate --mission 002-lightweight-pypi-release"
+      }
+    },
+    {
+      "mission": "011-constitution-packaging-safety-and-redesign",
+      "kind": "real",
+      "lastActivityAt": "2026-01-12T12:30:00Z",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 6,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 6,
+      "expected": {
+        "lifecycleStatus": "done",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "017-smarter-feature-merge-with-preflight",
+      "kind": "real",
+      "lastActivityAt": "2026-01-18T10:37:13Z",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 3,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 3,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 6,
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "066-review-loop-stabilization",
+      "kind": "real",
+      "lastActivityAt": "2026-04-06T17:21:16.004842+00:00",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 6,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 6,
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": "Run: spec-kitty consolidate --mission 066-review-loop-stabilization"
+      }
+    },
+    {
+      "mission": "079-post-555-release-hardening",
+      "kind": "real",
+      "lastActivityAt": "2026-04-09T09:35:08Z",
+      "statusLaneCounts": {
+        "planned": 5,
+        "claimed": 0,
+        "in_progress": 2,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 0,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 7,
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": "Run /spec-kitty.review in your coding agent, then: spec-kitty accept --mission 079-post-555-release-hardening"
+      }
+    },
+    {
+      "mission": "accept-path-remediation-honesty-01M0TWZP",
+      "kind": "real",
+      "lastActivityAt": "2026-08-25T01:18:17.030583+00:00",
+      "statusLaneCounts": {
+        "planned": 4,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 0,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 4,
+      "expected": {
+        "lifecycleStatus": "planned",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "agent-profile-projection-plugin-production-01KV3NGS",
+      "kind": "real",
+      "lastActivityAt": "2026-06-15T04:50:25.690896+00:00",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 1,
+        "approved": 8,
+        "done": 0,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 9,
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "annoying-bugs-sweep-01KYHQ9F",
+      "kind": "real",
+      "lastActivityAt": "2026-07-28T08:17:08.072011+00:00",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 5,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 5,
+      "expected": {
+        "lifecycleStatus": "done",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "cascade-asset-silent-drop-01M0RME0",
+      "kind": "real",
+      "lastActivityAt": "2026-08-24T08:23:37.890279+00:00",
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 4,
+        "done": 0,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 4,
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "charter-activation-split-01M16ZSE",
+      "kind": "real",
+      "lastActivityAt": null,
+      "statusLaneCounts": {
+        "planned": 0,
+        "claimed": 0,
+        "in_progress": 0,
+        "for_review": 0,
+        "in_review": 0,
+        "approved": 0,
+        "done": 0,
+        "blocked": 0,
+        "canceled": 0
+      },
+      "wpTotal": 0,
+      "expected": {
+        "lifecycleStatus": "draft",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "discarded-wins-over-lanes",
+      "kind": "synthetic",
+      "inputs": {
+        "statusLaneCounts": {
+          "planned": 1,
+          "claimed": 0,
+          "in_progress": 0,
+          "for_review": 0,
+          "in_review": 0,
+          "approved": 0,
+          "done": 2,
+          "blocked": 0,
+          "canceled": 0
+        },
+        "wpTotal": 3,
+        "acceptedAt": null,
+        "discardedAt": "2026-09-01T00:00:00+00:00",
+        "hasBaseline": false,
+        "slug": "synthetic-example"
+      },
+      "expected": {
+        "lifecycleStatus": "discarded",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "blocked-only-reads-as-planned",
+      "kind": "synthetic",
+      "inputs": {
+        "statusLaneCounts": {
+          "planned": 0,
+          "claimed": 0,
+          "in_progress": 0,
+          "for_review": 0,
+          "in_review": 0,
+          "approved": 0,
+          "done": 0,
+          "blocked": 2,
+          "canceled": 0
+        },
+        "wpTotal": 2,
+        "acceptedAt": null,
+        "discardedAt": null,
+        "hasBaseline": false,
+        "slug": "synthetic-example"
+      },
+      "expected": {
+        "lifecycleStatus": "planned",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "blocked-and-done-reads-as-planned",
+      "kind": "synthetic",
+      "inputs": {
+        "statusLaneCounts": {
+          "planned": 0,
+          "claimed": 0,
+          "in_progress": 0,
+          "for_review": 0,
+          "in_review": 0,
+          "approved": 0,
+          "done": 1,
+          "blocked": 1,
+          "canceled": 0
+        },
+        "wpTotal": 2,
+        "acceptedAt": null,
+        "discardedAt": null,
+        "hasBaseline": false,
+        "slug": "synthetic-example"
+      },
+      "expected": {
+        "lifecycleStatus": "planned",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "all-canceled-with-acceptedAt-reads-as-done",
+      "kind": "synthetic",
+      "inputs": {
+        "statusLaneCounts": {
+          "planned": 0,
+          "claimed": 0,
+          "in_progress": 0,
+          "for_review": 0,
+          "in_review": 0,
+          "approved": 0,
+          "done": 0,
+          "blocked": 0,
+          "canceled": 2
+        },
+        "wpTotal": 2,
+        "acceptedAt": "2026-09-02T00:00:00+00:00",
+        "discardedAt": null,
+        "hasBaseline": false,
+        "slug": "synthetic-example"
+      },
+      "expected": {
+        "lifecycleStatus": "done",
+        "nextAction": null
+      }
+    },
+    {
+      "mission": "all-done-unaccepted-reads-as-active",
+      "kind": "synthetic",
+      "inputs": {
+        "statusLaneCounts": {
+          "planned": 0,
+          "claimed": 0,
+          "in_progress": 0,
+          "for_review": 0,
+          "in_review": 0,
+          "approved": 0,
+          "done": 3,
+          "blocked": 0,
+          "canceled": 0
+        },
+        "wpTotal": 3,
+        "acceptedAt": null,
+        "discardedAt": null,
+        "hasBaseline": false,
+        "slug": "synthetic-example"
+      },
+      "expected": {
+        "lifecycleStatus": "active",
+        "nextAction": "Run: spec-kitty consolidate --mission synthetic-example"
+      }
+    },
+    {
+      "mission": "zero-work-packages-reads-as-draft",
+      "kind": "synthetic",
+      "inputs": {
+        "statusLaneCounts": {
+          "planned": 0,
+          "claimed": 0,
+          "in_progress": 0,
+          "for_review": 0,
+          "in_review": 0,
+          "approved": 0,
+          "done": 0,
+          "blocked": 0,
+          "canceled": 0
+        },
+        "wpTotal": 0,
+        "acceptedAt": null,
+        "discardedAt": null,
+        "hasBaseline": false,
+        "slug": "synthetic-example"
+      },
+      "expected": {
+        "lifecycleStatus": "draft",
+        "nextAction": null
+      }
+    }
+  ]
+}
