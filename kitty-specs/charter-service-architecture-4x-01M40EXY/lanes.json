@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "charter-service-architecture-4x-01M40EXY",
+  "mission_id": "01M40EXYC53DQNK52C126E5RD5",
+  "mission_branch": "docs/charter-service-architecture",
+  "target_branch": "docs/charter-service-architecture",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md",
+        "docs/architecture/diagrams/01_context/README.md",
+        "docs/architecture/diagrams/02_containers/README.md",
+        "docs/architecture/diagrams/03_components/README.md",
+        "docs/architecture/vision/README.md",
+        "docs/plans/4-0-0-milestone-roadmap.md",
+        "docs/plans/charter-resolution/README.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-03T08:52:09.378160+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c00d5bc8c31155b2b03f8bca8e09f0d3efd669bc"
+}

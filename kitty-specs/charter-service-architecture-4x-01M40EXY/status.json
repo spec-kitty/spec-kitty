@@ -1,0 +1,110 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M40HHF5BJD56BTXF4TVHXN35",
+  "materialized_at": "2026-10-03T09:29:20.811715+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-service-architecture-4x-01M40EXY",
+  "mission_type": "documentation",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "cursor",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M40G1MSAX38EB22RCJTWE6DM",
+      "last_transition_at": "2026-10-03T09:03:13.706377+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent architecture review passed after six findings were folded."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/Documents/_code/SDD/fork/sk-charter-service-architecture/kitty-specs/charter-service-architecture-4x-01M40EXY/tasks/WP01-charter-redesign-adr/review-cycle-1.md",
+        "reference": "review-cycle://charter-service-architecture-4x-01M40EXY/WP01-charter-redesign-adr/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "diagram-daisy",
+      "agent": "diagram-daisy",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "cursor",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M40GRCPD6XZ8M6QR65DNPSPV",
+      "last_transition_at": "2026-10-03T09:15:39.085162+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent C4 review passed after adapter and lifecycle labels were corrected."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/Documents/_code/SDD/fork/sk-charter-service-architecture/kitty-specs/charter-service-architecture-4x-01M40EXY/tasks/WP02-living-c4-views/review-cycle-1.md",
+        "reference": "review-cycle://charter-service-architecture-4x-01M40EXY/WP02-living-c4-views/review-cycle-1.md",
+        "reviewer": "diagram-daisy",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "curator-carla",
+      "agent": "curator-carla",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "cursor",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M40HHF5BJD56BTXF4TVHXN35",
+      "last_transition_at": "2026-10-03T09:29:20.811715+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Validation: 99 passed (terminology and live-tree relative links); all 12 Mermaid blocks independently parsed.",
+        "Independent placement review passed after roadmap and docs-index findings were folded. Validation: 99 terminology/link tests and 23 docs freshness tests passed; all Mermaid blocks parsed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/Documents/_code/SDD/fork/sk-charter-service-architecture/kitty-specs/charter-service-architecture-4x-01M40EXY/tasks/WP03-roadmap-links-validation/review-cycle-1.md",
+        "reference": "review-cycle://charter-service-architecture-4x-01M40EXY/WP03-roadmap-links-validation/review-cycle-1.md",
+        "reviewer": "curator-carla",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}
