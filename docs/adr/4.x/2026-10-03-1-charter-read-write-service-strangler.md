@@ -76,7 +76,7 @@ intended owner of each write operation once that operation's gates pass.
 ### Staged ownership
 
 | Stage | Production reads | Production writes | Required evidence |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Current | Python | Python | Existing Python behavior |
 | Callers move onto the seam | Python, behind the #645 seam | Python, behind the #645 seam | The seam exists; callers outside `charter` no longer import charter internals; a ratchet holds the count at zero |
 | Read shadow | Python; Java compared out of band | Python | Contract and fixture equivalence |
