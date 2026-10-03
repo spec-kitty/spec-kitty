@@ -5,8 +5,10 @@ module version is the `info.version` of `openapi.yaml`.
 
 ## 1.0.0-SNAPSHOT
 
-Initial entry. This version is not yet released: an unreleased contract version carries the `-SNAPSHOT` suffix and
-becomes `1.0.0` in the release commit.
+Initial entry. This version is not yet released: an unreleased contract version carries the `-SNAPSHOT`
+suffix and becomes `1.0.0` in the release commit. The release is the tag `contract-mission-status-v1.0.0`,
+pushed by a maintainer. Until then the breaking-change job has no baseline and reports
+`NO_BASELINE_INITIAL_VERSION`.
 
 ### Added
 
@@ -89,7 +91,7 @@ becomes `1.0.0` in the release commit.
 
 ### Removed
 
-- Nothing yet.
+- Nothing. This is the initial version.
 
 ### Provisional
 
