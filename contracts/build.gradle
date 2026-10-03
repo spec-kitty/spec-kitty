@@ -1,0 +1,64 @@
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+import org.openapitools.generator.gradle.plugin.tasks.ValidateTask
+
+plugins {
+    // Pinned in tools/pins.json; resolved under the strict dependency
+    // verification in gradle/verification-metadata.xml (generated, never hand-edited).
+    id 'org.openapi.generator' version '7.25.0'
+}
+
+// -PcontractsRoot: the directory whose direct subdirectories are the modules.
+// -PoutDir: where bundles and generated clients are staged (outside the repository tree).
+def contractsRoot = file(findProperty('contractsRoot') ?: projectDir).canonicalFile
+def outDir = file(findProperty('outDir') ?: layout.buildDirectory.dir('contracts-out').get().asFile).canonicalFile
+def nonModules = ['_shared', 'fixtures', 'gradle', 'tools', 'build', 'node_modules'] as Set
+
+def modules = (contractsRoot.listFiles() ?: [] as File[]).findAll {
+    it.isDirectory() && !(it.name in nonModules) && new File(it, 'openapi.yaml').isFile()
+}.sort { it.name }
+
+// The plugin's path properties are typed differently across tasks and versions (String or
+// RegularFile/Directory); set each in the form its type takes.
+def setPath = { property, File file ->
+    if (property instanceof RegularFileProperty || property instanceof DirectoryProperty) {
+        property.set(file)
+    } else {
+        property.set(file.absolutePath)
+    }
+}
+
+modules.each { module ->
+    def split = new File(module, 'openapi.yaml')
+    // The released single-file contract, written by the Python resolver (bundle.py) before Gradle runs.
+    def bundle = new File(outDir, "bundle/${module.name}/openapi.yaml")
+
+    // Validate the split root document with the generator's own OpenAPI validator.
+    tasks.register("validate_${module.name}", ValidateTask) {
+        setPath(inputSpec, split)
+        recommend = true
+    }
+
+    // Validate the Python-written bundle the same way: the Java parser must accept what is released.
+    tasks.register("validateBundle_${module.name}", ValidateTask) {
+        setPath(inputSpec, bundle)
+        recommend = true
+    }
+
+    // Re-emit the bundle as the Java parser reads it. NOT an artefact (the openapi-yaml generator
+    // drops 3.1 constructs); resolver_parity.py compares its inventory with the bundle's.
+    tasks.register("javaView_${module.name}", GenerateTask) {
+        generatorName = 'openapi-yaml'
+        setPath(inputSpec, bundle)
+        setPath(outputDir, new File(outDir, "javaview/${module.name}"))
+        configOptions = [outputFile: 'openapi.yaml']
+    }
+
+    // Generate a TypeScript client from the bundle. Generation only; the output is not compiled.
+    tasks.register("clientSmoke_${module.name}", GenerateTask) {
+        generatorName = 'typescript-fetch'
+        setPath(inputSpec, bundle)
+        setPath(outputDir, new File(outDir, "client/${module.name}"))
+    }
+}

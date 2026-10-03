@@ -1,0 +1,10 @@
+title: NextAction
+description: The next step for a mission. Provisional.
+type: object
+additionalProperties: false
+required: [kind]
+properties:
+  kind:
+    $ref: ActionKind.yaml
+  reason:
+    type: [string, 'null']

@@ -1,0 +1,15 @@
+get:
+  operationId: listMissions
+  tags: [spike]
+  parameters:
+    - $ref: ../../_shared/parameters/PageSize.yaml
+    - $ref: ../../_shared/parameters/PageCursor.yaml
+  responses:
+    '200':
+      description: One page of missions.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/MissionList.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml

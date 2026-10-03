@@ -1,0 +1,8 @@
+> Task :clientSmoke_alpha FAILED
+[main] ERROR o.o.codegen.DefaultGenerator - generation failed
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':clientSmoke_alpha'.
+> Error resolving reference: Missing.yaml

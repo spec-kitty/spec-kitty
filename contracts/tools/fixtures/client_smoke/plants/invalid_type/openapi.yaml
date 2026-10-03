@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: invalid_type
+  version: 0.0.1
+paths:
+  /thing:
+    $ref: paths/thing.yaml

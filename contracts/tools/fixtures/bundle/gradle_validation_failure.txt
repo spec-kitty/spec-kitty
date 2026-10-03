@@ -1,0 +1,12 @@
+Validating spec /x/openapi.yaml
+Spec is invalid.
+
+Issues:
+
+	attribute paths.'/p0'(get).responses is missing
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':validate_alpha'.
+> Validation failed.

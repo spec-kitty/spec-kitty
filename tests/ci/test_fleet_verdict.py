@@ -28,6 +28,8 @@ from scripts.ci.fleet_verdict import (
 
 pytestmark = pytest.mark.fast
 ROOT = Path(__file__).resolve().parents[2]
+WORKFLOWS_DIR = ".github/workflows"
+CONTRACTS = "contracts.yml"
 REPO = "spec-kitty/spec-kitty"
 HEAD = "a" * 40
 IDS = {name: i for i, name in enumerate(sorted(PR_WORKFLOWS | {AGGREGATE}), start=1)}
@@ -99,9 +101,13 @@ class API:
 
 
 def test_all_existing_pr_workflows_are_registered() -> None:
-    expected = PR_WORKFLOWS
+    expected = PR_WORKFLOWS - {CONTRACTS}
     assert applicable_workflows(ROOT, pull(), ["pyproject.toml"]) == expected
-    assert applicable_workflows(ROOT, pull(), ["docs/example.md"]) == expected - {"release-readiness.yml", "check-spec-kitty-events-alignment.yml"}
+    docs_only = expected - {"release-readiness.yml", "check-spec-kitty-events-alignment.yml"}
+    assert applicable_workflows(ROOT, pull(), ["docs/example.md"]) == docs_only
+    # The contracts workflow is path-gated: only a change under contracts/ (or its own files) selects it.
+    assert applicable_workflows(ROOT, pull(), ["contracts/README.md"]) == docs_only | {CONTRACTS}
+    assert CONTRACTS in PR_WORKFLOWS
     release = pull()
     release["base"]["ref"] = "release/3.2.6.x"
     assert applicable_workflows(ROOT, release, ["pyproject.toml"]) == {"ci-router.yml", "ci-modules.yml", "ci-quality.yml", "packs.yml"}
@@ -109,9 +115,9 @@ def test_all_existing_pr_workflows_are_registered() -> None:
 
 @pytest.mark.parametrize("extension", ["yml", "yaml"])
 def test_new_pr_workflow_fails_closed(tmp_path: Path, extension: str) -> None:
-    directory = tmp_path / ".github/workflows"
+    directory = tmp_path / WORKFLOWS_DIR
     directory.mkdir(parents=True)
-    for path in (ROOT / ".github/workflows").glob("*.yml"):
+    for path in (ROOT / WORKFLOWS_DIR).glob("*.yml"):
         (directory / path.name).write_bytes(path.read_bytes())
     (directory / f"new.{extension}").write_text("on: {pull_request: {}}\njobs: {}\n")
     with pytest.raises(ValueError, match="inventory changed"):
@@ -119,7 +125,7 @@ def test_new_pr_workflow_fails_closed(tmp_path: Path, extension: str) -> None:
 
 
 def test_reporter_trigger_covers_every_registered_workflow_and_reruns() -> None:
-    workflows = ROOT / ".github/workflows"
+    workflows = ROOT / WORKFLOWS_DIR
     reporter = yaml.safe_load((workflows / "ci-fleet-verdict.yml").read_text())
     trigger = reporter[True]["workflow_run"]
     assert set(trigger["workflows"]) == {yaml.safe_load((workflows / name).read_text())["name"] for name in PR_WORKFLOWS | {AGGREGATE}}
@@ -383,9 +389,9 @@ def replay_fixture(tmp_path: Path) -> tuple[API, Path, dict[str, Any]]:
     checkout = tmp_path / "reviewed"
     checkout.mkdir()
     subprocess.run(["git", "init", "-q", str(checkout)], check=True)
-    workflows = checkout / ".github/workflows"
+    workflows = checkout / WORKFLOWS_DIR
     workflows.mkdir(parents=True)
-    for path in (ROOT / ".github/workflows").glob("*.yml"):
+    for path in (ROOT / WORKFLOWS_DIR).glob("*.yml"):
         (workflows / path.name).write_bytes(path.read_bytes())
     subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
     subprocess.run(["git", "-C", str(checkout), "-c", "user.name=CI Test", "-c", "user.email=ci@example.invalid", "commit", "-qm", "reviewed reporter"], check=True)

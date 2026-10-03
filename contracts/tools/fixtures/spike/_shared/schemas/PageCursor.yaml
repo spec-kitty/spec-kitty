@@ -1,0 +1,7 @@
+title: PageCursor
+description: >-
+  An opaque pagination token. A consumer passes it back unchanged to fetch the
+  next page and never parses, builds or compares it. It has no relationship to
+  the event stream position that GET /events uses for resuming a stream.
+type: string
+minLength: 1

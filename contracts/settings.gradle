@@ -1,0 +1,13 @@
+// The contracts build only CONSUMES the contract: it validates the split root and the
+// resolver-written bundle, re-emits the bundle as the Java parser reads it (for the parity
+// check) and generates a throwaway TypeScript client from the bundle (generation only).
+// The released bundle itself is written by the Python resolver. Invoked by contracts/tools/bundle.py and
+// contracts/tools/client_smoke.py with a pinned Gradle distribution; there is no
+// committed wrapper jar (see tools/install_tools.py and tools/pins.json).
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'contracts'

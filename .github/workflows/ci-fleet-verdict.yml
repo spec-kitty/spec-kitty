@@ -2,7 +2,7 @@
 name: CI Fleet Verdict
 on:
   workflow_run:
-    workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, CI Aggregate]
+    workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, Contracts, CI Aggregate]
     # A verdict is a function of terminal upstream state only (#4371): requested /
     # in_progress transitions are pure fan-out with no verdict value.
     types: [completed]

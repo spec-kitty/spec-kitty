@@ -1,0 +1,11 @@
+title: MissionList
+type: object
+additionalProperties: false
+required: [items, pageInfo]
+properties:
+  items:
+    type: array
+    items:
+      $ref: Mission.yaml
+  pageInfo:
+    $ref: ../../_shared/schemas/PageInfo.yaml

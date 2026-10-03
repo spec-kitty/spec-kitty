@@ -1,0 +1,5 @@
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Dependency verification failed for configuration 'classpath'
+- On artifact thing-1.0.jar (org.example:thing:1.0) in repository 'Gradle Central Plugin Repository': Checksum was 0000 but expected 1111

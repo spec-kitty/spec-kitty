@@ -1,0 +1,10 @@
+title: Project
+type: object
+unevaluatedProperties: false
+required: [name]
+x-source:
+  path: src/specify_cli/status/models.py
+  symbol: ProjectModel
+properties:
+  name:
+    type: string

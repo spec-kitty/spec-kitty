@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: cycle
+  version: 0.0.1
+paths:
+  /thing:
+    $ref: paths/thing.yaml
