@@ -4,7 +4,7 @@ description: 'Roadmap for the 4.0.0 cycle: the 2026-10-01 direction update (host
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-01'
+updated: '2026-10-03'
 related:
 - docs/changelog/4.0.0.md
 - docs/changelog/index.md
@@ -168,6 +168,7 @@ they no longer gate GA.*
 
    STRANGLER PREP (4.x line, does NOT gate GA)
        #645 stable application API  ──▶  charter imports move onto it  ──▶  charter ships alone
+       #645 planned Java charter reads (4.x Work) · #2519 later Java writes (CLI 4.x stable)
        #5530 bundled dashboard removed FIRST  ──▶  #5528 mission status read API  ──▶
          #5532 readers re-point · #5533 routes rehome  (external UI consumes the API)
        produce / drain decoupling    ──▶  adapter module as pub/sub seam ──▶  external UI and
@@ -196,6 +197,10 @@ they no longer gate GA.*
    continue afterwards as the replacement read path.
    It is a pull over the committed ledger, so it does not wait for produce/drain
    decoupling.
+   The separate charter strangler moves production reads to a planned Java service under
+   #645 / 4.x Work, while operation-by-operation Java writes remain #2519 / CLI 4.x stable;
+   neither gates milestone 11. See
+   [ADR 2026-10-03-1](../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md).
 3. **Hosted work is frozen, not cancelled.** Nothing on that lane is deleted; it waits.
 4. **Quality debt is a standing campsite epic**, deliberately outside the blocking graph
    (same pattern as 3.2.x's #1931). It burns down opportunistically per touched file; it
