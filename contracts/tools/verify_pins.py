@@ -17,13 +17,15 @@ the manifest. Failures, one stable code per cause:
   ``uv run`` without ``--frozen`` all fail, as does a job that syncs without that setup step.
 * ``PUBLICATION_DATE_MISSING``: a tool has no ``published`` date in ``YYYY-MM-DD`` form.
 
-Cannot do its job (exit 2): ``MANIFEST_EMPTY`` (unreadable, or lists no tool), ``ZERO_TOOLS_VERIFIED``
+Cannot do its job (exit 2): ``CHECKSUMS_UNVERIFIED`` (a tool with a valid pinned sha256 and an https url
+was never hashed: no ``--artifacts`` copy, no ``--fetch``, and no explicit ``--pins-only``; one finding per
+tool), ``MANIFEST_EMPTY`` (unreadable, or lists no tool), ``ZERO_TOOLS_VERIFIED``
 (no entry was a mapping), ``ZERO_USES_LINES`` (no ``uses:`` line in any workflow) and
 ``DOWNLOAD_FAILED``. Output ``CONTRACT-CHECK verify_pins: <CODE>: <file>: <detail>`` per violation and a
 last ``counts: tools=N uses_lines=N downloads=N`` line; exit 0 pass, 1 violation, 2 cannot do its job.
 
 Run as a bare script (``python contracts/tools/verify_pins.py [--root DIR] [--pins FILE]
-[--workflow FILE ...] [--artifacts DIR] [--fetch]``); ``--root`` is the repository root. Standard library
+[--workflow FILE ...] [--artifacts DIR] [--fetch] [--pins-only]``); ``--root`` is the repository root. Standard library
 plus PyYAML; imports nothing from ``tests/`` or ``scripts/``.
 """
 
@@ -107,7 +109,7 @@ def _rel(path: Path, root: Path) -> str:
         return path.as_posix()
 
 
-def _check_manifest(report: Report, root: Path, pins: Path, artifacts: Path | None, fetch: Fetch | None) -> None:
+def _check_manifest(report: Report, root: Path, pins: Path, artifacts: Path | None, fetch: Fetch | None, pins_only: bool) -> None:
     subject = _rel(pins, root)
     try:
         manifest: Any = json.loads(pins.read_text(encoding="utf-8"))
@@ -122,12 +124,12 @@ def _check_manifest(report: Report, root: Path, pins: Path, artifacts: Path | No
         if not isinstance(tool, dict):
             continue
         report.counts["tools"] += 1
-        _check_tool(report, subject, tool, artifacts, fetch)
+        _check_tool(report, subject, tool, artifacts, fetch, pins_only)
     if report.counts["tools"] == 0:
         report.blocked.append(Finding("ZERO_TOOLS_VERIFIED", subject, "no manifest entry was a mapping"))
 
 
-def _check_tool(report: Report, subject: str, tool: dict[str, Any], artifacts: Path | None, fetch: Fetch | None) -> None:
+def _check_tool(report: Report, subject: str, tool: dict[str, Any], artifacts: Path | None, fetch: Fetch | None, pins_only: bool) -> None:
     name = str(tool.get("name", "<unnamed>"))
     pinned = tool.get("sha256")
     digest_ok = isinstance(pinned, str) and bool(_SHA256.match(pinned))
@@ -153,6 +155,9 @@ def _check_tool(report: Report, subject: str, tool: dict[str, Any], artifacts: P
             report.blocked.append(Finding("DOWNLOAD_FAILED", subject, f"{name}: {type(error).__name__}: {error}"))
             return
     if data is None:
+        if not pins_only:
+            detail = f"{name} carries a pinned sha256 but its bytes were never hashed (pass --artifacts or --fetch, or --pins-only to check pins alone)"
+            report.blocked.append(Finding("CHECKSUMS_UNVERIFIED", subject, detail))
         return
     report.counts["downloads"] += 1
     actual = sha256_hex(data)
@@ -232,10 +237,11 @@ def check(
     workflows: list[Path] | None = None,
     artifacts: str | Path | None = None,
     fetch: Fetch | None = None,
+    pins_only: bool = False,
 ) -> Report:
     root = Path(root)
     report = Report()
-    _check_manifest(report, root, Path(pins) if pins else root / DEFAULT_PINS, Path(artifacts) if artifacts else None, fetch)
+    _check_manifest(report, root, Path(pins) if pins else root / DEFAULT_PINS, Path(artifacts) if artifacts else None, fetch, pins_only)
     files = workflows if workflows is not None else sorted((root / WORKFLOW_DIRECTORY).glob(DEFAULT_WORKFLOW_GLOB))
     for workflow in files:
         _check_workflow(report, root, workflow)
@@ -251,9 +257,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workflow", action="append", default=None, help="workflow file (repeatable; default: <root>/.github/workflows/contracts*.yml)")
     parser.add_argument("--artifacts", default=None, help="directory of local artefact copies, matched by file name")
     parser.add_argument("--fetch", action="store_true", help="download each https artefact and compare its checksum")
+    parser.add_argument("--pins-only", action="store_true", help="check the manifest fields and the workflow pins without hashing any artefact (never the default)")
     arguments = parser.parse_args(argv)
     workflows = [Path(w) for w in arguments.workflow] if arguments.workflow else None
-    report = check(arguments.root, arguments.pins, workflows, arguments.artifacts, default_fetch if arguments.fetch else None)
+    report = check(arguments.root, arguments.pins, workflows, arguments.artifacts, default_fetch if arguments.fetch else None, arguments.pins_only)
     for finding in (*report.blocked, *report.findings):
         print(finding.render())
     print(report.counts_line())

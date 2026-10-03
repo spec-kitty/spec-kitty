@@ -14,7 +14,7 @@
       "kind": "gradle-plugin",
       "version": "2.0",
       "url": "https://example.invalid/plugin-2.0.jar",
-      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sha256": "86b15f59756ab16259bf48e8de17752d8cbf8233f59e3c218f9a464a3cd82585",
       "published": "2026-08-24",
       "advisory_feed_checked": "fixture advisory feed read, nothing listed"
     }

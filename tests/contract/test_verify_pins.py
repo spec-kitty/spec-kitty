@@ -77,7 +77,7 @@ def test_the_clean_control_has_no_finding_and_the_floors_are_met(pins: Any) -> N
     assert report.findings == []
     assert report.blocked == []
     assert report.exit_code == 0
-    assert report.counts == {"tools": 2, "uses_lines": 2, "downloads": 1}
+    assert report.counts == {"tools": 2, "uses_lines": 2, "downloads": 2}
 
 
 def test_a_checksum_mismatch_names_the_tool_and_both_digests(pins: Any) -> None:
@@ -89,10 +89,50 @@ def test_a_checksum_mismatch_names_the_tool_and_both_digests(pins: Any) -> None:
 
 
 def test_without_artifacts_or_fetch_nothing_is_downloaded_and_the_manifest_is_still_checked(pins: Any) -> None:
-    report = pins.check(FIXTURE_ROOT / "v_checksum_mismatch")
+    report = pins.check(FIXTURE_ROOT / "v_checksum_mismatch", pins_only=True)
     assert report.findings == []
+    assert report.blocked == []
     assert report.counts["downloads"] == 0
-    assert [f.code for f in pins.check(FIXTURE_ROOT / "v_checksum_missing").findings] == ["CHECKSUM_MISSING"]
+    assert [f.code for f in pins.check(FIXTURE_ROOT / "v_checksum_missing", pins_only=True).findings] == ["CHECKSUM_MISSING"]
+
+
+def test_a_run_that_never_hashed_a_pinned_digest_refuses_with_exit_two(pins: Any) -> None:
+    clean = FIXTURE_ROOT / "clean"
+    report = pins.check(clean)
+    assert [f.code for f in report.blocked] == ["CHECKSUMS_UNVERIFIED", "CHECKSUMS_UNVERIFIED"]
+    assert [name in f.detail for f, name in zip(report.blocked, ("gradle", "plugin"), strict=True)] == [True, True]
+    assert report.findings == []
+    assert report.exit_code == 2
+    result = _run("--root", str(clean))
+    assert result.returncode == 2, result.stdout
+    assert "CONTRACT-CHECK verify_pins: CHECKSUMS_UNVERIFIED: " in result.stdout
+    assert result.stdout.rstrip().splitlines()[-1] == "counts: tools=2 uses_lines=2 downloads=0"
+
+
+def test_a_tool_missing_from_the_artifact_directory_is_unverified(pins: Any, tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    shutil.copytree(FIXTURE_ROOT / "clean", root)
+    (root / "artifacts" / "plugin-2.0.jar").unlink()
+    report = pins.check(root, artifacts=root / "artifacts")
+    assert [(f.code, "plugin" in f.detail) for f in report.blocked] == [("CHECKSUMS_UNVERIFIED", True)]
+    assert report.counts["downloads"] == 1
+    assert report.exit_code == 2
+
+
+def test_pins_only_is_the_explicit_way_to_skip_hashing() -> None:
+    clean = FIXTURE_ROOT / "clean"
+    result = _run("--root", str(clean), "--pins-only")
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.rstrip().splitlines()[-1] == "counts: tools=2 uses_lines=2 downloads=0"
+    both = _run("--root", str(clean), "--pins-only", "--artifacts", str(clean / "artifacts"))
+    assert both.returncode == 0, both.stdout
+    assert both.stdout.rstrip().splitlines()[-1] == "counts: tools=2 uses_lines=2 downloads=2"
+
+
+def test_an_unhashable_tool_is_not_reported_as_unverified(pins: Any) -> None:
+    # v_not_https: the http tool is never fetched and carries NOT_HTTPS; only the https tool is unverified.
+    report = pins.check(FIXTURE_ROOT / "v_not_https")
+    assert [(f.code, "plugin" in f.detail) for f in report.blocked] == [("CHECKSUMS_UNVERIFIED", True)]
 
 
 def test_fetch_mode_downloads_through_the_injected_function(pins: Any) -> None:
@@ -105,7 +145,7 @@ def test_fetch_mode_downloads_through_the_injected_function(pins: Any) -> None:
         return payload
 
     report = pins.check(clean, fetch=fetch)
-    # the payload matches the first tool only; the second tool's pinned digest is a placeholder
+    # the payload matches the first tool only; the second tool pins different bytes
     assert [(f.code, "plugin" in f.detail) for f in report.findings] == [("CHECKSUM_MISMATCH", True)]
     assert report.counts["downloads"] == 2
     assert all(url.startswith("https://") for url in fetched)
@@ -127,7 +167,7 @@ def test_a_malformed_checksum_counts_as_missing(pins: Any, tmp_path: Path) -> No
     data = json.loads(manifest.read_text(encoding="utf-8"))
     data["tools"][0]["sha256"] = "not-a-digest"
     manifest.write_text(json.dumps(data), encoding="utf-8")
-    assert [f.code for f in pins.check(root).findings] == ["CHECKSUM_MISSING"]
+    assert [f.code for f in pins.check(root, pins_only=True).findings] == ["CHECKSUM_MISSING"]
 
 
 def test_a_malformed_publication_date_counts_as_missing(pins: Any, tmp_path: Path) -> None:
@@ -137,7 +177,7 @@ def test_a_malformed_publication_date_counts_as_missing(pins: Any, tmp_path: Pat
     data = json.loads(manifest.read_text(encoding="utf-8"))
     data["tools"][1]["published"] = "last spring"
     manifest.write_text(json.dumps(data), encoding="utf-8")
-    assert [f.code for f in pins.check(root).findings] == ["PUBLICATION_DATE_MISSING"]
+    assert [f.code for f in pins.check(root, pins_only=True).findings] == ["PUBLICATION_DATE_MISSING"]
 
 
 @pytest.mark.parametrize(
@@ -159,7 +199,7 @@ def test_every_install_form_other_than_the_prelude_is_unpinned(pins: Any, tmp_pa
     shutil.copytree(FIXTURE_ROOT / "clean", root)
     workflow = root / ".github" / "workflows" / "contracts.yml"
     workflow.write_text(workflow.read_text(encoding="utf-8") + f"      - run: {line}\n", encoding="utf-8")
-    assert [f.code for f in pins.check(root).findings] == ["UNPINNED_INSTALL"]
+    assert [f.code for f in pins.check(root, pins_only=True).findings] == ["UNPINNED_INSTALL"]
 
 
 def test_a_sync_without_the_pinned_python_setup_is_unpinned(pins: Any, tmp_path: Path) -> None:
@@ -167,7 +207,7 @@ def test_a_sync_without_the_pinned_python_setup_is_unpinned(pins: Any, tmp_path:
     shutil.copytree(FIXTURE_ROOT / "clean", root)
     workflow = root / ".github" / "workflows" / "contracts.yml"
     workflow.write_text(workflow.read_text(encoding="utf-8").replace("'3.12'", "'3.13'"), encoding="utf-8")
-    assert [f.code for f in pins.check(root).findings] == ["UNPINNED_INSTALL"]
+    assert [f.code for f in pins.check(root, pins_only=True).findings] == ["UNPINNED_INSTALL"]
 
 
 def test_local_and_container_uses_are_judged_by_their_own_rule(pins: Any, tmp_path: Path) -> None:
@@ -176,9 +216,9 @@ def test_local_and_container_uses_are_judged_by_their_own_rule(pins: Any, tmp_pa
     workflow = root / ".github" / "workflows" / "contracts.yml"
     base = workflow.read_text(encoding="utf-8")
     workflow.write_text(base + "      - uses: ./.github/actions/local\n", encoding="utf-8")
-    assert pins.check(root).findings == []
+    assert pins.check(root, pins_only=True).findings == []
     workflow.write_text(base + "      - uses: docker://alpine:3\n", encoding="utf-8")
-    assert [f.code for f in pins.check(root).findings] == ["UNPINNED_USES"]
+    assert [f.code for f in pins.check(root, pins_only=True).findings] == ["UNPINNED_USES"]
 
 
 @pytest.mark.parametrize(("case", "code"), sorted(EXIT2.items()))
@@ -206,15 +246,15 @@ def test_command_line_output_grammar_and_exit_status() -> None:
     result = _run(*_case("v_unpinned_uses_tag"))
     assert result.returncode == 1
     lines = result.stdout.splitlines()
-    assert lines[-1] == "counts: tools=2 uses_lines=2 downloads=1"
+    assert lines[-1] == "counts: tools=2 uses_lines=2 downloads=2"
     assert any(line.startswith("CONTRACT-CHECK verify_pins: UNPINNED_USES: ") for line in lines)
     clean = _run(*_case("clean"))
     assert clean.returncode == 0, clean.stdout
-    assert clean.stdout.splitlines()[-1] == "counts: tools=2 uses_lines=2 downloads=1"
+    assert clean.stdout.splitlines()[-1] == "counts: tools=2 uses_lines=2 downloads=2"
 
 
 def test_the_real_manifest_and_workflows_pass_with_floors() -> None:
-    result = _run("--root", str(REPO_ROOT))
+    result = _run("--root", str(REPO_ROOT), "--pins-only")
     assert result.returncode == 0, result.stdout
     counts = _counts(result.stdout)
     assert counts["tools"] >= 2
