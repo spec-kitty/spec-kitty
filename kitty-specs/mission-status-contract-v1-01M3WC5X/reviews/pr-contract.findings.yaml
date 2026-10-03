@@ -1,0 +1,167 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR-CONTRACT-001
+    lens: mission-derived
+    severity: 4
+    title: Released bundle has no components.schemas; every schema is inlined, so consumer type names are heuristic and unstable
+    evidence:
+      - code: "contracts/tools/bundle.py:7"
+      - code: "contracts/tools/client_smoke.py:1"
+    claim: >-
+      bundle.py writes the resolver's "fully dereferenced tree". Running bundle.py --bundle-only gives a 4330-line
+      document with 5 path items, zero $ref and no components section. ActorHandle is inlined 19 times, MissionHead
+      and Problem several times each, and the 400 and 409 responses are copied ten times. openapi-generator (spring
+      interfaceOnly, typescript-fetch) names inline schemas from the nearest title or from operation plus status
+      (ListMissions200Response style). Type names then depend on structural identity checks, can get _1/_2
+      suffixes, and change when any nested schema changes. That breaks the stability contract this bundle is meant to
+      be. client_smoke only counts emitted files and never inspects the generated names, so nothing catches it.
+    remediation: >-
+      Have the resolver emit the bundle with a components.schemas, components.parameters and components.responses
+      section keyed by file stem (MissionOverview, ActorHandle, StreamRefusal and so on), and rewrite every $ref to
+      #/components/... . This is already implied by the TOP_LEVEL_ORDER that lists components. Add a bundle check that
+      the generated type names equal the set of schema file stems, and a client_smoke assertion that no InlineObject,
+      _1 or *200Response name is emitted.
+  - id: PR-CONTRACT-002
+    lens: contract
+    severity: 3
+    title: Unscoped /events stream emits id lines and a refusing Last-Event-ID, so a browser reconnect loop is built in
+    evidence:
+      - code: "contracts/mission-status/paths/events.yaml:16"
+      - code: "contracts/mission-status/paths/events.yaml:29"
+      - code: "contracts/mission-status/parameters/LastEventId.yaml:6"
+    claim: >-
+      Framing says each event carries an id: line with its StreamCursorString, without exception. Scope says that
+      without missionId the stream is live only and no cursor can be used, and a cursor without missionId is refused
+      (cursor_without_mission, 400). A browser EventSource that was connected to the unscoped stream automatically
+      sends the last id as Last-Event-ID on reconnect, receives a 400, and the EventSource moves to CLOSED with no
+      retry and no access to the problem body. Also, the cursor is a position in one Mission's log, and the unscoped
+      stream interleaves Missions, so the id does not identify which log it belongs to.
+    remediation: >-
+      State that on the unscoped stream no id: line is sent (and heartbeat only comments), or that Last-Event-ID is
+      ignored rather than refused when missionId is absent. Say which, and add a client note that a refused
+      connection must be handled outside EventSource (fetch streaming).
+  - id: PR-CONTRACT-003
+    lens: contract
+    severity: 3
+    title: log-truncated event id is the reset cursor, so automatic reconnect replays the whole log from offset 0
+    evidence:
+      - code: "contracts/mission-status/paths/events.yaml:16"
+      - code: "contracts/mission-status/paths/events.yaml:43"
+      - code: "contracts/mission-status/schemas/LogTruncatedEvent.yaml:34"
+    claim: >-
+      The id: line of every event is its StreamCursorString, so for log-truncated it is offset 0 with the empty
+      digest. The documented consumer action is to discard the stored cursor and re-read the detail, but a browser
+      stores the last event id itself and sends it as Last-Event-ID on the next reconnect. The stream would then resume
+      from offset 0 and re-emit the entire log as live events, contradicting the resync instruction.
+    remediation: >-
+      Specify that the log-truncated event carries no id: line (so Last-Event-ID is not advanced), or define that a
+      resume from the reset cursor is refused with content_mismatch. Document the chosen behavior in the Framing
+      paragraph and add an example frame.
+  - id: PR-CONTRACT-004
+    lens: contract
+    severity: 3
+    title: GET /events has no 404 for an unknown missionId, and stream error statuses are not tied to codes
+    evidence:
+      - code: "contracts/mission-status/paths/events.yaml:81"
+      - code: "contracts/mission-status/paths/events.yaml:85"
+      - code: "contracts/mission-status/schemas/StreamRefusal.yaml:36"
+      - code: "contracts/mission-status/paths/missions_missionId.yaml:16"
+    claim: >-
+      getMission and getWorkPackage answer an unknown Mission with 404, but streamEvents lists only 400, 409 and the
+      shared default. A missionId that is a valid ULID but names no Mission has no defined response, so the service
+      author and a generated client must guess. Separately, StreamRefusal accepts any of its five codes with either
+      400 or 409; the code-to-status table is only prose in an x-provisional note.
+    remediation: >-
+      Add a '404' response (shared Problem) to streamEvents with the description "no such Mission". Optionally split
+      the refusal into two named responses or add an if/then on code in StreamRefusal so the statuses are checkable.
+  - id: PR-CONTRACT-005
+    lens: mission-derived
+    severity: 2
+    title: SSE 200 schema is an undiscriminated oneOf; event name to schema mapping is prose only
+    evidence:
+      - code: "contracts/mission-status/paths/events.yaml:70"
+    claim: >-
+      The text/event-stream schema is oneOf of three closed objects with no discriminator or mapping, because the
+      event name is outside the data. A generated Spring interface gets a oneOf wrapper return type, and the
+      typescript-fetch client will call response.json() on an event stream. A consumer cannot generate the
+      event-name to type table from the document.
+    remediation: >-
+      Add a vendor extension on the operation, for example x-sse-events: {status-transition: StatusTransitionEvent,
+      mission-lifecycle: MissionLifecycleEvent, log-truncated: LogTruncatedEvent}, and tell client generators in the
+      description to treat the operation as hand-written (x-skip or ignore). Keep the oneOf only for documentation.
+  - id: PR-CONTRACT-006
+    lens: mission-derived
+    severity: 2
+    title: Anonymous allOf halves will generate as inline or merged classes with unstable names
+    evidence:
+      - code: "contracts/mission-status/schemas/MissionDetail.yaml:7"
+      - code: "contracts/mission-status/schemas/StreamRefusal.yaml:9"
+      - code: "contracts/mission-status/schemas/LogTruncatedEvent.yaml:35"
+    claim: >-
+      MissionDetail, StreamRefusal and LogTruncatedEvent.streamCursor each compose a $ref with an unnamed inline
+      object. spring and typescript-fetch merge or name these by heuristic (MissionDetailAllOf, InlineObject style),
+      and unevaluatedProperties false, used to close MissionDetail and MissionOverview, is ignored by both
+      generators, so the generated types are open. Nullable unions (oneOf with null) vary by generator version too.
+    remediation: >-
+      Give each inline half a named schema (MissionDetailBody, StreamRefusalExtension, ResetStreamCursor) referenced
+      from allOf, and for the closed MissionOverview/MissionDetail also state in the description that generators
+      ignore unevaluatedProperties and clients must tolerate none-extra properties only by validation.
+  - id: PR-CONTRACT-007
+    lens: contract
+    severity: 3
+    title: Assignment model, provider and agentProfileVersion reuse ActorHandle and silently become null for real values
+    evidence:
+      - code: "contracts/mission-status/schemas/Assignment.yaml:42"
+      - code: "contracts/mission-status/schemas/Assignment.yaml:48"
+      - code: "contracts/mission-status/schemas/ActorHandle.yaml:8"
+    claim: >-
+      ActorHandle allows only [A-Za-z0-9._:-], up to 128 characters, and the description says a non-matching stored
+      value is projected to null. Model identifiers routinely contain brackets, slashes, plus signs or spaces (for
+      example a vendor/model path or a context-size suffix in brackets), so a bound model would read as unknown while
+      statusLane shows the work package claimed. This is a silent loss in the very data the board shows. The type
+      name also misdescribes a version or a model.
+    remediation: >-
+      Introduce separate schemas (ModelId, ProviderId, ProfileVersion) with a pattern that rejects whitespace,
+      leading slash, tilde, drive letters and @ but accepts [] / + ; or document the null-on-mismatch rule on each
+      field with an example and an x-provisional note. Add a fixture with a bracketed model id.
+  - id: PR-CONTRACT-008
+    lens: contract
+    severity: 3
+    title: Host-path redaction token is undefined, emails in free text are not covered, promptMarkdown is unredacted
+    evidence:
+      - code: "contracts/mission-status/schemas/WorkPackage.yaml:51"
+      - code: "contracts/mission-status/schemas/WorkPackage.yaml:269"
+      - code: "contracts/mission-status/schemas/ReviewResult.yaml:112"
+      - code: "contracts/tools/leak_patterns.py:50"
+    claim: >-
+      title, reference, reason and cancellation text say a host path is replaced by "a fixed token", but no schema or
+      example names that token, so a service author cannot implement or a consumer cannot recognise it. Emails are in
+      the leak patterns for examples but the free-text fields promise only path replacement. promptMarkdown "passes
+      through as authored" and is not scanned, while real prompts carry absolute host paths and e-mail addresses,
+      which the lenses require not to leak.
+    remediation: >-
+      Define the token once (for example a shared description or an x-redaction-token extension, such as the literal
+      <path>) and state it in all five fields. Say whether emails are redacted. For promptMarkdown either apply the
+      same redaction in the service rule or mark the field x-sensitive and state it is exempt, with the opt-in
+      includePrompt as the only guard.
+  - id: PR-CONTRACT-009
+    lens: contract
+    severity: 2
+    title: Invalid pageCursor and cursor numeric typing are unspecified
+    evidence:
+      - code: "contracts/mission-status/paths/missions.yaml:6"
+      - code: "contracts/_shared/schemas/PageCursor.yaml:6"
+      - code: "contracts/mission-status/schemas/StreamCursor.yaml:7"
+      - code: "contracts/mission-status/schemas/StreamCursorString.yaml:8"
+    claim: >-
+      listMissions has only 200 and default, so a stale, forged or malformed pageCursor has no defined status or code,
+      and a service would answer with an arbitrary Problem. StreamCursor.offset and detectedAtOffset are integers with
+      no format, so the Spring generator emits 32-bit Integer for a byte offset. StreamCursorString accepts leading
+      zeros ('^[0-9]+:') although its x-derived rule says no padding, so two strings can name one cursor.
+    remediation: >-
+      Add a '400' Problem response to listMissions with a stable code (for example invalid_page_cursor). Add
+      format: int64 to offset and detectedAtOffset. Tighten the pattern to '^(0|[1-9][0-9]*):[0-9a-f]{64}$'.

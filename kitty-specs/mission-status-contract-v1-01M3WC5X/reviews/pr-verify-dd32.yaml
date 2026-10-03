@@ -1,0 +1,69 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: dd32
+mission: mission-status-contract-v1-01M3WC5X
+verdict: pass
+summary: >
+  DD-32 implemented correctly, no weakening. Router corpus job keeps reality, payloads and example_round_trip; the 25 other
+  corpus-marked tests/contract modules run only in contracts.yml contract-tool-tests. Independently computed from the YAML
+  against a real collection (28 corpus modules, regex guard equals collection): every one has exactly one home, Packs
+  deselects exactly those 28. Plants (unrun module, twice-run module, pytest in lint job) all red, restored. Reality module
+  70.5 s -> 22.4 s wall, byte-identical report (541/3156/23594, 52<=52, 0 skips). Three revert experiments red per-Mission.
+  Tool tests pass in a fresh --no-install-project env (763 passed, 14 vacuum skips, same as the router had, 36 s).
+  tests/ci, tests/release, and the architectural gate tests pass (2014 + 84). Lane status clean.
+findings:
+  - id: PR-DD32-001
+    severity: 2
+    title: "Mission contract doc tools-and-workflows.md job table not updated for the tenth job"
+    evidence:
+      - "kitty-specs/mission-status-contract-v1-01M3WC5X/contracts/tools-and-workflows.md:61-68 (contracts-gate lists 'the eight jobs above', no contract-tool-tests)"
+      - "tests/ci/test_contracts_workflows.py:44 (EXPECTED_NEEDS comment still calls that doc 'the job table')"
+      - "kitty-specs/mission-status-contract-v1-01M3WC5X/plan.md:361,380 (D-P4: 'no pytest on any event', 'all eight other jobs')"
+    claim: >
+      The planning artifacts the guard test cites as its source still describe eight needed jobs and no pytest in the
+      Contracts workflow. The code and the shipped docs are right; only the mission-side contract is stale.
+    remediation: >
+      Orchestrator/close-out: add the contract-tool-tests row (needs none, fork guard, pytest allowed) and change 'eight' to
+      'nine' in tools-and-workflows.md; note DD-32 in plan D-P4.
+  - id: PR-DD32-002
+    severity: 2
+    title: "Single-home guard decides 'corpus-marked' by a source regex, not by collection"
+    evidence:
+      - "tests/ci/test_contracts_workflows.py: _CORPUS_MARK (the ^\\s*@pytest.mark.corpus / pytestmark=...pytest.mark.corpus pattern)"
+    claim: >
+      A module that gets the corpus marker through a conftest hook, an aliased mark, or an import form the regex misses
+      would be treated as unmarked, so the guard would not demand a home for it. I verified the regex set equals the real
+      collected set today (28 = 28, no difference), so it is not vacuous now; the exposure is a future module only. The
+      tool-test job's directory selection still runs such a module (and the router's live collection guard
+      test_corpus_blocking_home covers orphans), so the practical risk is a double home, not a lost one.
+    remediation: >
+      Optional: have the guard compare against a real --collect-only -m corpus module set, as test_corpus_blocking_home does.
+  - id: PR-DD32-003
+    severity: 1
+    title: "Reality index cache is only proven stable for the checkout under test"
+    evidence:
+      - "tests/contract/test_mission_status_reality.py:95-122 (identity_index_is_walked_once); fingerprint fixture at :85-91 covers REPO_ROOT only"
+    claim: >
+      In a lane worktree the readers also resolve to the primary checkout (a second cached root) that the read-only
+      fingerprint does not cover. Stale data needs a concurrent write to that root during the run, which an uncached run
+      would race on as well. In CI, root == primary. Planted repos live under getbasetemp() and are always walked fresh
+      (control tests unchanged and green). Cached list is returned as a copy of immutable (frozen) records. No finding of
+      substance; recorded for completeness.
+    remediation: none required.
+  - id: PR-DD32-004
+    severity: 1
+    title: "Docs nits: over-long paragraph line and an unverifiable timing figure"
+    evidence:
+      - "docs/development/reference/ci-gate-mechanics.md (the '(An edit under tests/contract/** ...' line is a single over-long line after reflow)"
+      - "docs/development/reference/ci-gate-mechanics.md (7m20s of a 10 minute timeout, from CI run 37087659251 quoted in DD-32)"
+      - "contracts/tools/no_pytest_scan.py:3-4 (docstring: 'CI jobs that install no test runner')"
+    claim: >
+      Cosmetic. The 7m20s figure is DD-32's own measurement, not reproducible locally. The no_pytest_scan docstring is
+      still true for the scripts it scans but reads oddly now that one Contracts job installs and runs pytest.
+    remediation: optional reflow; leave the figure (sourced).
+notes:
+  - "test_example_round_trip.py staying in the router job is correct: it walks kitty-specs/*/contracts/*.md (a committed-corpus reader), was already a router corpus module on main, and moving it would change main's blocking home beyond the ruling. DD-32's two-module list is incomplete; the implementer's reading matches its intent."
+  - "contracts.yml: contract-tool-tests is in contracts-gate needs, and the gate fails on any non-success result (skipped included). Triggers include tests/contract/** on pull_request and push. No '|| true' or continue-on-error; pytest exit code fails the step. -n 4 --dist loadfile keeps each module on one worker, compatible with module-scoped fixtures (run green)."
+  - "Guards: WORKFLOW_FILES += contracts.yml and the AUTHORIZED_PER_CHANGE_SUITE_JOBS row are legitimate amendments (a new pytest-running required job), not weakenings; the pytest ban is narrowed to one named job, and a plant of pytest in lint and the new test_the_release_workflow_and_every_other_contracts_job_still_refuse_pytest keep it refused elsewhere (release workflow gets an empty allow-list)."
+  - "Revert experiments (per-Mission case red, restored with git checkout): contract validation -> 'ran 0 times for 10 payloads'; leak scan -> 'ran 0 times for 10 payloads'; snapshot comparison -> 'ran 0 times for 4 payloads'. Not tried: a neutralisation that keeps the ledger increment (caught by the pre-existing control tests, unchanged by this diff)."

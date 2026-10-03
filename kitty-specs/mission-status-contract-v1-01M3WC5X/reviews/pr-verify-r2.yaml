@@ -1,0 +1,45 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+profile: debugger-debbie (directives 001 architectural integrity, 003 decision documentation, 030 test quality gate, 032 conceptual alignment; hypothesis-driven revert experiments, no fix authored)
+range: 8a67418bc..547f0c86c
+verdicts:
+- id: PR-FRESH-001
+  verdict: resolved
+  reason: 'Projector reads WpId.yaml pattern/maxLength itself (_mission_status_payloads.py:101-105, is_wp_id) and project_events drops a non-matching transition under DROPPED_INVALID_WP_ID, counted in projection.dropped
+    and printed by the reality report (test_mission_status_reality.py:551); WpId.yaml/StatusTransitionEvent.yaml/CHANGELOG state the rule. Revert experiment (guard removed) turned 5 of 7 targeted tests
+    red, restored. Reality run: no invalid-wp-id key, so no real row is dropped.'
+- id: PR-FRESH-002
+  verdict: resolved
+  reason: 'ReviewOverride.yaml adds required boolean complete (x-derived from models.py ReviewOverride), nullable at/reason, if/then forcing string at/reason when complete is true; review_override (_mission_status_payloads.py:830-848)
+    returns null only for no record or all-empty marker and shows partial records with complete false; wp_id is part of complete, matching models.py:443. Example WorkPackage.override-partial.yaml, CHANGELOG,
+    Review.yaml and tests updated. Revert experiments: hiding partials turned 7 tests red, dropping wp_id from complete turned 3 red, restored. Residual: the if/then branch itself is untested and whitespace-only
+    values diverge from the code (see PR-FRESH2-001, -002).'
+- id: PR-FRESH-003
+  verdict: resolved
+  reason: 'negative_cases.json adds event-mapping-allowed-type-not-in-runtime (plant code ALLOWED_TYPE_NOT_IN_RUNTIME on lifecycle_events_without_plan_started.py, clean control on lifecycle_events.py) and
+    example-required-deleted (REQUIRED_EXAMPLE_MISSING on v_required_deleted, clean control). Both plants run by hand emit exactly their code; run_negative_cases --exclude-tag jvm with vacuum and oasdiff
+    on PATH: cases=85 ran=82 skipped=3 passed=82 failed=0.'
+- id: PR-FRESH-004
+  verdict: resolved
+  reason: contracts/README.md:324-331 and ci-gate-mechanics.md:588-610 agree (Packs deselects the modules, nightly shard 4 plus manual full-mode router dispatch); plan.md:162 and :549 are corrected. Other
+    plan.md lines still state the old claim, recorded as PR-FRESH2-004.
+- id: PR-FRESH-005
+  verdict: resolved
+  reason: install_tools.py:119-124 returns UNSUPPORTED_INTERPRETER by feature detection (hasattr tarfile.data_filter), documented in the module header (:20-21), message no longer names 3.11.4; test_tar_gz_unpacking_is_refused_where_the_data_filter_is_unavailable
+    asserts the new code and the absence of UNSAFE_ARCHIVE. Revert experiment (code swapped back) turned that test red, restored.
+- id: PR-FRESH-006
+  verdict: resolved
+  reason: 'code_problem (run_negative_cases.py:112-125) accepts only an UPPER_SNAKE code of at least 4 characters or an id in the ruleset (lint_rule_ids reads contracts/lint/ruleset.yaml, with the '': rule:
+    '' delimiters stripped); the parametrised test now plants error, Traceback, '': error: '', failed, invalid-input, not-a-rule. Revert experiment (any 4-letter word accepted) turned 6 tests red, restored.'
+- id: Q-WP03-2-residual
+  verdict: resolved
+  reason: 'citation_check.py:23-24 docstring and contracts/README.md:112-114 state that a bare x-derived path steps through array items and map values, up to three steps per segment, matching the resolver
+    at citation_check.py:390; citation_check over the real tree: x_derived=25 inputs_resolved=55.'
+- id: LINT-LOOP
+  verdict: resolved
+  reason: 'Ran the workflow''s own rule-extraction line (sed ''# rule:'' header, head -n 1) with pinned vacuum 0.30.6 over clean.yaml (passes) and all 10 plants: each declares a header, each fails with
+    exactly ''LINT_VIOLATION: <plant>: <rule>:'' (enum-case, non-2xx-is-problem, operation-operationId-unique, operation-operationId, operation-tags, property-described x2, resource-property-cited x2, response-schema-closed);
+    status 0. The old basename derivation could not match the three variant plant names (property-described-enum-without-description, resource-property-cited-enum-without-citation, operation-operationId-unique
+    vs operation-operationId). Guard tests in tests/ci/test_contracts_workflows.py run the same shell line over every plant, check the header against the ruleset and refuse a bare, wrong or misnamed plant
+    (61 passed).'

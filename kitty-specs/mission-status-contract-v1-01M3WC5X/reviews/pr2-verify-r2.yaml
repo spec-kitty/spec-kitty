@@ -1,0 +1,26 @@
+schema: review-verify/v1
+complete: true
+phase: pr2
+round: 2
+mission: mission-status-contract-v1-01M3WC5X
+head: f86142ac7
+verdicts:
+  - id: PR2-FRESH-001
+    verdict: resolved
+    reason: >
+      contracts-release.yml now reads the path list from contracts.yml on.push.paths (uv run python -c, pyyaml is locked; the on/True key
+      is handled; the line, run for real, prints the four paths), resolves base with git log -1 over them (fetch-depth 0; glob pathspecs
+      such as contracts/** match, checked at head), and queries head_sha=base with event=push and branch=main, filtering again in jq.
+      Every step fails closed under bash -e plus set -eu (no pipes, so pipefail is not needed): a failed uv, an empty path file
+      (test -s), an empty base, a failed gh api, or a count below 1 all exit 1. Real actionlint on both workflows is clean. Reverts
+      killed by tests: dropping event=push, using the tagged SHA, a hand-copied list, removing git log -- paths (each by a parametrized
+      case; removing &event=push from the real workflow fails 2 tests). Residual (nit, not filed): a push run cancelled by a quick
+      second contracts push still never counts; it fails closed and the error tells the releaser to re-run.
+  - id: PR2-FRESH-002
+    verdict: resolved
+    reason: >
+      A tests/ci check now compares the plant loop in contracts.yml with the candidate directories (minus the four controls and
+      same-version plant). Removing added_response_header from the real loop fails two tests; repointing the header case in
+      negative_cases.json away from its candidate fails test_every_planted_breaking_candidate_has_a_negative_case. All six new plants
+      have manifest cases (run_negative_cases: cases=94 ran=91 skipped=3 passed=91 failed=0 with --exclude-tag jvm and the pinned
+      oasdiff); the count assertion is 13.

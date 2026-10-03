@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: pr2
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR2-FRESH-001
+    lens: fresh
+    severity: 2
+    title: The Contracts-success gate keys on the exact tagged SHA although Contracts is path-filtered and cancel-in-progress
+    evidence:
+      - code: ".github/workflows/contracts-release.yml:59"
+      - code: ".github/workflows/contracts.yml:11-24 (path filter) and :30-32 (concurrency cancel-in-progress)"
+    claim: >
+      The query requires a successful Contracts run whose head_sha equals the tagged commit. Contracts runs on a main push only
+      when contracts/**, tests/contract/**, CODEOWNERS or contracts.yml changed, so a tag on any later main commit that touched
+      none of them is refused with no run found, although its contracts are byte-identical to a commit that passed. A run
+      cancelled by a quick second contracts push to main (group contracts-refs/heads/main) also never counts. The query accepts
+      a run of any event or branch, so a pull_request run on the same SHA satisfies it although it tested the merge ref.
+      Fail-closed, so safe, but a releaser has to find the right commit by hand.
+    remediation: >
+      Resolve the commit to check: base=$(git log -1 --format=%H "$GITHUB_SHA" -- contracts tests/contract .github/CODEOWNERS
+      .github/workflows/contracts.yml) and query head_sha=$base with event=push and branch=main (add a tests/ci check that the
+      path list equals the on.push.paths of contracts.yml). Alternatively run the gate jobs inside the release workflow.
+  - id: PR2-FRESH-002
+    lens: fresh
+    severity: 2
+    title: The six new response-addition plants are pinned by nothing but the inline shell loop
+    evidence:
+      - code: ".github/workflows/contracts.yml:258"
+      - code: "tests/contract/test_breaking_check.py:259-269 (real-oasdiff tests, skipif no oasdiff)"
+      - code: "contracts/tools/negative_cases.json (only breaking-added-response-property among the response additions)"
+    claim: >
+      The only runs of the six new fixture pairs against the real oasdiff (breaking without a major, passing with one) are the
+      for-loop in the breaking-change job. Dropping a name from that loop changes no test: no tests/ci or architectural test
+      reads the loop or compares it with the candidates directory, the manifest holds just one of the new plants, and the
+      real-oasdiff unit tests skip in contract-tool-tests, which does not install oasdiff. I ran all seven pairs by hand at
+      17d09989f and they behave, so this is a regression guard gap, not a defect today.
+    remediation: >
+      Add a tests/ci check that the loop's names equal the candidate directories (minus controls and changed_same_version), or
+      add the six plants to negative_cases.json with the major-moved control, which run_negative_cases already exercises
+      against the real oasdiff.
