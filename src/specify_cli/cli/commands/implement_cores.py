@@ -84,6 +84,7 @@ def _is_hashable_planning_path(repo_root: Path, repo_rel_path: str) -> bool:
     if "\n" in repo_rel_path or "\r" in repo_rel_path or repo_rel_path.startswith('"'):
         return False
     candidate = repo_root / repo_rel_path
+    # Not atomic with the later hash-object batch: a file vanishing in between fails the whole batch closed.
     return candidate.is_file() and not candidate.is_symlink()
 
 
