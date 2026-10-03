@@ -74,12 +74,17 @@ Initial entry. This version is not yet released.
 - Redaction is named in every human text field description: a host path is replaced by `[path]`
   and an e-mail address by `[email]`. `promptMarkdown` is stated to be the one text field that is
   not redacted; `includePrompt` is its only guard.
-- `MissionOverview.sparse` example now carries the `mid8` that its `missionId` implies; `mid8`
-  null is documented as a defensive branch. `friendlyName` documents the slug fallback as a rule
+- `mid8` is a non-nullable string, the first eight characters of `missionId`; every example
+  carries the `mid8` its `missionId` implies. `friendlyName` documents the slug fallback as a rule
   of this contract. `nextAction` is null for a Mission whose work packages are all canceled, a
   deliberate divergence from the replaced dashboard. `executionMode` documents the stripping of
   one pair of literal quotes. The per-work-package keys `lastTransitionAt`, `forceCount` and
   `lastEventId` cite the work package state of the status snapshot.
+
+- `GET /missions` answers an invalid page cursor with `PageCursorRefusal`: a `Problem` whose
+  `code` is `invalid_page_cursor` and whose `status` is 400.
+- `StatusTransitionEvent` names the `StatusEvent` fields it leaves out, so projecting one later
+  is a visible contract change.
 
 ### Removed
 
@@ -87,6 +92,8 @@ Initial entry. This version is not yet released.
 
 ### Provisional
 
+- `StreamCursor`, the structured `{offset, invariant}` cursor, is provisional like its text
+  form: it exposes the tail reader's byte offset, so its shape is an open decision on #5528.
 - `MissionOverview.nextAction` is provisional: its shape is an open decision on #5528.
 - `WorkPackage.staleness` is provisional: how staleness is measured, and whether v1 carries
   it, is an open decision on #5528. It is null when it was not computed.
