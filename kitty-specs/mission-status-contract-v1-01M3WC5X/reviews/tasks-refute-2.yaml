@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-SEQ-003
+    verdict: confirmed
+    reason: Plan E-3 and Immutable refs reserve the push to a maintainer, while WP05 line 142 and WP09/WP10 close-out text say the orchestrator publishes the tag with no maintainer qualifier, so the three statements genuinely differ.
+  - id: TASKS-SEQ-004
+    verdict: confirmed
+    reason: WP03 has a hard stop-and-report precondition on the IC-07a record, while plan IC-03 and the Brace spelling paragraph allow provisional default spelling with a re-sweep, and WP02 itself says to plan for several pushed iterations with no time-box.
+  - id: TASKS-SEQ-005
+    verdict: confirmed
+    reason: WP09 owned_files lack the example/citation/provisional/event_mapping/enum_pin fixtures and tests, yet its re-sweep acceptance grep spans all of tests/contract and contracts/tools/fixtures and its negative-test wiring may add fixtures with no owned location.
+  - id: TASKS-SEQ-006
+    verdict: refuted
+    reason: Speculative, since the subject patterns are the specific strings make test-fast, ci-quality.yml and sonarcloud, no task text is shown to require them, and WP09 already lists test_pinning_inventory_fresh.py in its named gates so a hit would be caught.
+  - id: TASKS-SEQ-007
+    verdict: refuted
+    reason: Placing the real-corpus reality check at IC-09/WP10 is the plan's explicit sequencing with a documented 'contract-shape changes forced by this WP' path and pre-release shape-change handling, not a task-decomposition defect.
+  - id: TASKS-SEQ-008
+    verdict: refuted
+    reason: The ratchet issue is an orchestrator action already flagged in WP09 line 158 and enforced as a stop-and-report precondition in WP10, so its absence cannot pass silently.
+  - id: TASKS-SEQ-009
+    verdict: refuted
+    reason: The -r2 re-publication rule and its orchestrator ownership are stated in WP05/WP09/WP10 and WP12 T077 records the counter history and cause, so the finding's no-owner claim is overstated.
+  - id: TASKS-SEQ-010
+    verdict: confirmed
+    reason: WP09 T056 validation line 120 says guard tests (T069), but the guard tests are T058 and T069 is WP11's README final subtask.

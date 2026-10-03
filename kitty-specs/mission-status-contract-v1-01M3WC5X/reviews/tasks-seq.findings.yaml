@@ -1,0 +1,110 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: TASKS-SEQ-001
+    lens: "Phasing / campsite-clean sequencing (corpus gate never red)"
+    severity: 3
+    title: "WP01 lands corpus-marked test modules (T004-T006) before the registry rows and router glob (T008)"
+    evidence:
+      - artifact: "tasks/WP01-libraries-layout-shared-corpus-wiring.md § T004 step 1 (single-line corpus marker on test_contract_resolver.py), T005, T006 versus § T008 steps 2-3 (glob and registry rows added last)"
+      - artifact: "plan.md Implementation Concern Map, IC-01 row: 'Land the glob in the same commit as the first corpus-marked module so the corpus-completeness gate is never red'"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:246-258 (test_corpus_marked_modules_match_the_curated_registry fails when a marked module exists on disk without a registry row)"
+    claim: "T008 says the glob goes in 'the same commit as the first corpus-marked module registry row', but the first corpus-marked module is created in T004, four subtasks earlier. In subtask order every commit from T004 to T008 leaves the named gate red, so the implementer's own per-subtask gate runs are red for a reason the WP says cannot happen, and the commit-by-commit green property the plan required is lost."
+    remediation: "Reorder WP01 so the router glob, scrub-JSON entry, routing test and the registry row for the resolver module land with T004's first module commit (or make T008 the first corpus-wiring subtask), and require each of T005/T006 to append its own sorted registry row in its own commit. State in T008 that no commit between may leave the completeness gate red."
+  - id: TASKS-SEQ-002
+    lens: "Orchestrator-only actions / phasing of the CI-only spike"
+    severity: 3
+    title: "Nobody is scheduled to open the draft PR before WP02's spike, which depends on a pushed PR run"
+    evidence:
+      - artifact: "tasks/WP02-workflow-skeleton-bundler-spike.md § Context 'CI-only feedback loop' and § Orchestrator record step (needs a pushed run) and § Workflow shape (triggers: pull_request and push with branches [main], three paths)"
+      - artifact: "tasks/WP12-close-out-evidence-record.md § Context: 'The PR is opened by the orchestrator, never by an agent' (placed at close-out)"
+      - artifact: "tasks/WP08 § Context 'CI-only feedback, moved early' and WP09 § Context 'draft-PR push is the first possible green contracts-gate'"
+    claim: "The workflow only triggers on pull_request or push to main, so the IC-07a spike, the exit criterion that gates WP03, WP06 and WP08, can only execute once a draft PR exists. WP02, WP08 and WP09 each say 'pushes to the draft PR', while WP12 places PR opening at close-out. No WP or orchestrator step says when the branch is first pushed and the draft PR opened (and that it stays draft until the #5528 acknowledgement, C-001). The mission's critical early risk therefore has an unowned, unscheduled prerequisite."
+    remediation: "Add an explicit orchestrator pre-step to WP02 (after the WP01 record step): push the branch and open the draft PR targeting main, record the PR number in the hand-off, with the C-001 draft rule restated. Reword WP12 to say the PR already exists and WP12 only finalises its body."
+  - id: TASKS-SEQ-003
+    lens: "Orchestrator-only actions (preview tag publication)"
+    severity: 3
+    title: "Who pushes preview tags is stated three different ways; WP09 and WP10 imply the orchestrator pushes"
+    evidence:
+      - artifact: "plan.md decision register E-3 and 'Immutable refs for the UI team': 'the tags are pushed, and named on #5528, by a maintainer ... the push stays a maintainer act'"
+      - artifact: "tasks/WP05-event-stream-p0.md § Close-out step: 'pushed, and named on #5528, by a maintainer or the orchestrator acting for one'"
+      - artifact: "tasks/WP09 § Close-out step p1 and tasks/WP10 § Close-out step p2: 'the orchestrator publishes the immutable preview tag' with no maintainer qualifier"
+    claim: "Tags in the public upstream namespace are effectively irrevocable (the old tags stay by design) and the task brief says agents never push. The plan reserves the push to a maintainer; WP05 widens it to the orchestrator 'acting for one'; WP09/WP10 drop the qualifier entirely. An orchestrator reading WP09 or WP10 alone could push a public tag without maintainer action."
+    remediation: "In WP05, WP09 and WP10 use identical wording: the orchestrator prepares the tag command and the #5528 note; creation of the remote tag and the comment is a maintainer act (E-3), with the git-archive tarball fallback if none. Record 'prepared' versus 'pushed by <maintainer>' separately in the hand-off."
+  - id: TASKS-SEQ-004
+    lens: "Phasing (dependency order versus plan; UI early-start)"
+    severity: 2
+    title: "Serialising IC-07a ahead of all contract content hard-blocks p0 on the CI-only spike with no time-box or fallback"
+    evidence:
+      - artifact: "wps.yaml: WP03 depends on WP02; tasks/WP03 § Context 'Precondition ... dated sentence IC-07a complete' (stop and report if absent)"
+      - artifact: "plan.md section (j) critical path: IC-07a 'starts after IC-01, beside IC-02 to IC-04' and 'Brace spelling' paragraph: IC-03 may use the default provisionally and an IC-08 re-sweep covers a changed spelling"
+      - artifact: "tasks/WP02 § Context: 'Plan for several iterations' of a pushed-run loop; tasks/WP01 § Context 'Lane model'"
+    claim: "The task decomposition is acyclic, risk-first and documented (the single-lane collapse is faithfully described in WP01), and it removes the re-sweep risk. But the plan's purpose in splitting IC-07 was to let the spike run beside IC-02..IC-04 so the UI preview is not hostage to it. Now every contract file waits on an orchestrator-written record that needs several pushed runs. A stalled spike delays p0, the only deliverable an outside team is waiting for, and the plan's own fallback (provisional default plus IC-08 re-sweep) is no longer usable because WP03 stops hard."
+    remediation: "Add a time-box to WP02/WP03: after N pushed iterations or a stated number of days, the orchestrator may record 'IC-07a pending, default spelling provisional' and release WP03 under the plan's provisional-spelling clause (re-sweep stays WP09's opening commit). Note the p0-latency cost of serialisation in WP01's lane-model paragraph."
+  - id: TASKS-SEQ-005
+    lens: "Write scopes (owned_files completeness)"
+    severity: 2
+    title: "WP09's conditional re-sweep and negative-test wiring edit files WP09 does not own"
+    evidence:
+      - artifact: "tasks/WP09 § Context 'Differs from the default': rewrites 'any literal path-file name or brace $ref in tests and fixtures from WP01 to WP07' (acceptance grep over tests/contract and contracts/tools/fixtures)"
+      - artifact: "wps.yaml WP09 owned_files: only fixtures/layout_check/**, tests/contract/test_layout_check.py, test_mission_status_examples.py; no example_check, citation_check, provisional_check, event_mapping_check, enum_pin_check, leak_scan or contract_resolver fixtures, nor their tests"
+      - artifact: "tasks/WP09 § Negative-test wiring: 'adds none except for tools without a fixture, which it records' (no owned location)"
+    claim: "In the one case where the re-sweep runs, the grep it must make clean spans fixtures and tests owned by WP02, WP04 and WP06, outside WP09's declared scope; the same applies to any fixture WP09 must add for a tool that lacks one. Ownership-based review would reject the necessary edits, and the CLI's lane scope omits nothing only because everything is in one lane."
+    remediation: "Add to WP09 owned_files (and re-run finalize-tasks): contracts/tools/fixtures/contract_resolver/**, citation_check/**, provisional_check/**, example_check/**, event_mapping_check/**, enum_pin_check/** with the matching tests/contract/test_*.py, plus contracts/tools/fixtures/negative/** for new plants; or narrow the re-sweep text to the files WP09 owns and state that others are fixed via a rejected-review round."
+  - id: TASKS-SEQ-006
+    lens: "Chokepoints (hidden pinning inventory)"
+    severity: 2
+    title: "Pinning inventory is owned only by WP01/WP02 but every later test file is inside its scan roots"
+    evidence:
+      - code: "scripts/ci/derive_pinning_inventory.py:113 (SCAN_ROOTS = ('tests', 'scripts')) and :131-135 (subjects: ci-quality\\.yml, sonarcloud, 'make test-fast')"
+      - artifact: "wps.yaml owned_files of tests/release/pinning_rule_inventory.json: WP01 and WP02 only; tasks/WP12 § chokepoint summary 'no scanned file edited later'"
+      - artifact: "tasks/WP09 § Guard tests (planted workflow texts testing 'pytest reachable ... through make') and § Named gates (test_pinning_inventory_fresh.py)"
+    claim: "WP06-WP10 add roughly twenty test modules, several of which (WP09's workflow guard with planted `make` indirection, WP10's reality test) are the likeliest to quote `make test-fast` or `ci-quality.yml`. If one does, the freshness gate goes red and the owning WP cannot regenerate the JSON because it is not in its owned_files, while WP01 T008 only forbids those strings in WP01's own text."
+    remediation: "Add a standing rule to WP06-WP10: new tests/scripts text must not contain the three subject patterns (grep as part of the WP's gate), and add tests/release/pinning_rule_inventory.json to WP09's owned_files as the conditional regenerate target (or run test_pinning_inventory_fresh.py in every test-adding WP's gate list)."
+  - id: TASKS-SEQ-007
+    lens: "Phasing (risky/unknown work front-loaded)"
+    severity: 2
+    title: "Real-corpus shape risk (IC-09) is back-loaded after p0 and p1 are published"
+    evidence:
+      - artifact: "plan.md IC-09 row: 'May force changes to IC-02 to IC-04 schemas ... breaking for generated clients'; tasks/WP10 § 'Contract-shape changes forced by this WP'"
+      - artifact: "tasks/WP03, WP04, WP05 contain no probe of the real status data (grep for real data/corpus/probe: none)"
+    claim: "The bundler spike is correctly first, but the other known unknown, whether required/non-null claims hold across the real Missions, is first tested at WP10, after p0 (WP05) and p1 (WP09) are tagged. Any resulting optional/nullable change is breaking for generated clients, triggers Pre-release shape change entries and tag re-publication."
+    remediation: "Add to WP03-WP05 a read-only, non-committed probe step (own-directory `materialize_snapshot` or file reads only, never `materialize()`) that counts each required/non-null field's null/absent occurrences across the corpus, with results listed in the hand-off, so most nullability corrections land before p0."
+  - id: TASKS-SEQ-008
+    lens: "Orchestrator-only actions (ratchet tracker issue)"
+    severity: 2
+    title: "The ratchet tracker issue is a scheduling note outside WP09's Definition of Done and depends on a maintainer-set drain_by"
+    evidence:
+      - artifact: "tasks/WP09 line 158 'Orchestrator scheduling note for WP10 ... Open it while this WP is in review' (not in WP09 § Definition of Done)"
+      - artifact: "tasks/WP10 § Context Precondition: 'drain_by calendar date set by the maintainers on the issue'; implementer must 'stop and report' if not provided"
+    claim: "Ordering is right (issue before IC-09 starts), but the step is only a note, so a WP09 approval checklist will not catch its absence, and the date is a human input with unbounded latency that can idle the critical-path WP10 at start."
+    remediation: "Add a DoD line to WP09 ('ratchet issue opened, number/owner/drain_by recorded in hand-off, or marked awaiting maintainer'), and have the orchestrator open it at WP08 start, asking the maintainers for owner and date early so the wait overlaps WP08/WP09."
+  - id: TASKS-SEQ-009
+    lens: "Orchestrator-only actions (tag re-publication after history rewrite)"
+    severity: 2
+    title: "PR-prep rebase and compact-history, which certainly happens after WP12, has no owning step for the -r2 tag re-publication and its record"
+    evidence:
+      - artifact: "plan.md Branch contract item 6 and section (j): history is rewritten 'before the first implementation commit, and again at PR prep'; every published point is then re-published as -r2"
+      - artifact: "tasks/WP05/WP09/WP10 close-out steps: re-publication only phrased as 'if the history is rewritten'; tasks/WP12 § T077 records tag names 'or not yet published' before that rewrite"
+    claim: "The second rewrite is certain, not conditional, and runs after WP12 is merged-ready, so p0, p1, p2 will all need -r2 (cause: compact history). WP12's record is necessarily stale at that point and no step or document owns publishing -r2 or updating the PR body."
+    remediation: "Add to WP12 close-out.md an orchestrator wrap-up checklist: rebase and compaction, then maintainer-pushed p0-r2/p1-r2/p2-r2 with notes on #5528, then update tracer-approach.md and the PR body (plain 'tag names', not hashes). State that WP12's T077 record is the pre-compaction state."
+  - id: TASKS-SEQ-010
+    lens: "Phasing (cross-reference accuracy)"
+    severity: 1
+    title: "WP09 T056 validation cites T069 for the guard tests, which is WP11's README subtask"
+    evidence:
+      - artifact: "tasks/WP09 § Subtask T056 Validation: 'guard tests (T069) green'; guard tests are T058; T069 is 'README final' in tasks/WP11 line 80"
+    claim: "A wrong subtask id sends an implementer to the wrong work; the right subtask is T058."
+    remediation: "Replace T069 with T058 in WP09 T056's validation line."
+  - id: TASKS-SEQ-011
+    lens: "Write scopes / CLI limitation note"
+    severity: 1
+    title: "Single lane-a and lane-planning are faithful; CLI-generated predicted_surfaces and redundant dependency edges are noise (note)"
+    evidence:
+      - artifact: "lanes.json lane-a predicted_surfaces ['api','app-shell','dashboard','tracker-integration',...]; collapse_report lists only WP01-versus-later overlaps"
+      - artifact: "wps.yaml WP09 dependencies [WP05,WP06,WP07,WP08] and WP10 [WP06,WP09] are transitively redundant"
+    claim: "Dependencies form a strict acyclic chain WP01..WP11 (WP12 after WP11), so one lane would result regardless of overlaps; the overlap evidence in collapse_report is true but not the binding cause, and WP01's lane-model paragraph describes the outcome accurately. The plan's parallel lanes (IC-05, IC-06, IC-07b) are dropped with no required output lost, but also no schedule benefit (see TASKS-SEQ-004). predicted_surfaces is a CLI heuristic that does not match this mission (contracts, CI)."
+    remediation: "No change to artifacts. Optionally drop the redundant dependency edges; ignore predicted_surfaces. CLI note only."

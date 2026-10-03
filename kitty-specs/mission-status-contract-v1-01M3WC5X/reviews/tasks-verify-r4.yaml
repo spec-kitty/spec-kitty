@@ -1,0 +1,34 @@
+schema: review-verify/v1
+complete: false
+phase: tasks
+results:
+  - id: TASKS-FRESH-R3-001
+    status: resolved
+    reason: "The WP12 C-003 allow-list is now computed from the wps.yaml work_packages[].owned_files entries under the three CI roots (snippet is syntactically sound, uses the real keys, and when run read-only over the real wps.yaml yields 9 owned paths including tests/ci/test_contracts_routing.py, and reports a non-empty missing list on an empty diff, so it is non-vacuous), and the wording gap against SC-008/C-003 is to be recorded in close-out.md and the PR body."
+  - id: TASKS-FRESH-R3-002
+    status: resolved
+    reason: "The file-by-file exemption list is gone: Rule BRACE-1 makes Python never hold literals and treats spike, resolver_parity, bundle and golden fixtures as data excluded from the production grep by --exclude-dir=fixtures, and WP02 now cross-refers to the rule so no legitimate holder of the spelling can trip the grep."
+  - id: TASKS-FRESH-R3-003
+    status: unresolved
+    remaining_severity: 1
+    reason: "The tests-versus-count-guard conflict is removed (no guard on test modules, guard only on fixture dirs that exist), but the fix introduces a fresh inconsistency: Rule BRACE-1 and the grep parenthetical say no fixture or exempt file is required to contain a literal, while the WP01 DoD non-vacuity clause and WP04 DoD require the layout_check and contract_resolver fixture dirs to contain a piece of the tuple (and the WP01 DoD attributes that hit to the planted violation, which by definition is the non-canonical form, not the canonical piece); state that the hit comes from the clean-control or golden file and drop the 'none required' wording."
+  - id: TASKS-FRESH-R3-004
+    status: unresolved
+    remaining_severity: 2
+    reason: "The re-sweep grep is now correctly parameterised on the retired pair with no file exemption, but it collides with WP02 and Rule BRACE-1: the IC-07a spike fixture (and resolver_parity/bundle inputs) are specified to hold the default AND the candidate spelling literally, so whenever a re-sweep happens (spike chose a non-default spelling) the retired pair is legitimately present there and the 'must match nothing' check cannot return empty unless the spike evidence is rewritten; name the spike fixture path as an allowed holder in the WP09 exception (as is already done for the layout_check planted case) or state that it is rewritten to the new pair."
+  - id: TASKS-FRESH-R3-005
+    status: resolved
+    reason: "Part 2 is now scoped to workflow YAML with an optional list marker, an optional run-block indicator and a (run|uses):.*\\bnode\\b branch (so a quoted or list-marked 'run: node build.js' hits), it returns empty over legitimate workflow additions, and the new Part 3 runs it over test_contracts_workflows.py where WP09 now owns a planted bare 'run: node build.js', making it non-vacuous."
+  - id: TASKS-FRESH-R3-006
+    status: resolved
+    reason: "WP11 no longer claims a red state for structure_check (WP07's planted-removal test is named as the red evidence, WP11 adds no test) and the docs-lint red run is explicitly an uncommitted demonstration."
+  - id: TASKS-FRESH-R3-007
+    status: resolved
+    reason: "The WP09 create_intent note now reads 'WP01 to WP03 and WP06 to WP08', which covers test_mission_status_examples.py created by WP03 and contracts.yml created by WP02."
+  - id: TASKS-FRESH-R2-001
+    status: resolved
+    reason: "Python files are no longer scanned for bare node (Part 2 is limited to the .github/workflows diff, so ast.walk loop variables cannot hit), Part 1 uses only tooling tokens plus node-version with a single allow-listed file, and each part now has a stated expected result."
+  - id: TASKS-FRESH-R2-005
+    status: resolved
+    reason: "scripts/ci/fleet_main.py is in the empty-diff list and the computed allow-list (verified to run and to include tests/ci/test_contracts_routing.py) replaces the hand-listed set, with test_fleet_main.py handled as a conditional case."
+complete: true

@@ -1,0 +1,55 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-FRESH-001
+  status: resolved
+  reason: Verified .github/CODEOWNERS is still ignored by .gitignore:135 and now IC-06 owns a '!.github/CODEOWNERS' negation (valid after the '.github/*' rule), a git ls-files acceptance, a NOT_TRACKED exit-2 check with a planted test, and an edits-list item 8.
+- id: PLAN-FRESH-002
+  status: resolved
+  reason: IC-07b now owns lint, breaking-change and release-dry-run in contracts.yml (sequential writer chain IC-07a, IC-07b, IC-08), so those tools first run in CI at IC-07b's push, with the permanent planted proof honestly deferred to IC-08.
+- id: PLAN-FRESH-003
+  status: resolved
+  reason: The registry file is now listed in every WP that adds a corpus-marked module (IC-05, IC-06, IC-07a, IC-07b, IC-09 and the earlier ones) and the Branch contract names it as a declared append-only shared file with the later-merging lane keeping the union.
+- id: PLAN-FRESH-004
+  status: resolved
+  reason: uv.lock confirms rfc3339-validator is reached only via jsonschema[format-nongpl] from cyclonedx-python-lib (lint extra), and D-P14/DD-19 add schema_formats.py with an explicit stdlib date-time FORMAT_CHECKER passed everywhere, a planted malformed-timestamp test and a blocked-import parity test; R-1 evidence is corrected.
+- id: PLAN-FRESH-005
+  status: resolved
+  reason: BRACE_REF_SPELLING is now one constant in contract_resolver.py that layout_check imports, IC-03 declares its use provisional with a defined mechanical re-sweep on the spike result, and IC-09 may touch IC-02 to IC-04 files for exactly that.
+- id: PLAN-FRESH-006
+  status: resolved
+  reason: The client smoke is now client_smoke.py with counted outputs, exit 2 on zero modules or files, a GENERATION_FAILED code, a planted negative plus clean control, a row in the new-gates table, and is failing from IC-08 so contracts-gate sees it through validate-bundle; P1 is redefined accordingly.
+- id: PLAN-FRESH-007
+  status: resolved
+  reason: New D-P13 and DD-20 justify the preview tags, PREVIEW_DELTA, shape-change heading and client smoke as plan-level additions with a traceability row and E-2 asking maintainers to confirm them next to DEV-1/DEV-2.
+- id: PLAN-FRESH-008
+  status: resolved
+  reason: P-3 now says IC-01 and IC-07a and item 4 of the shared-CI edits makes the campsite commit the distinct opening IC-01 commit with only the new-member edit in the IC-07a skeleton commit.
+- id: PLAN-FRESH-009
+  status: resolved
+  reason: IC-04 is added to IC-08's dependencies with the rationale (NO_MODULE/ZERO_PATH_FILES exit 2 without a module), and the critical-path paragraph is updated to match.
+- id: PLAN-FRESH-010
+  status: resolved
+  reason: The dispatch, sub-agent-budget, sk-hub, operator-ruling and ledger-id narration is rewritten into neutral maintainer-ruling and self-contained wording across plan, research and the tracer files, and a grep finds no remaining dispatch or orchestrator-budget text.
+- id: PLAN-FRESH-011
+  status: resolved
+  reason: D-P11 and the leak_scan row now state property-name detection is on parsed YAML/JSON keys only, pattern libraries are written from fragments, and a unit test scans the real contracts/tools tree expecting zero findings with a file-count floor.
+- id: PLAN-FRESH-012
+  status: resolved
+  reason: Charter Check cell now reads 'pass with priced debt' with tracker issue opened before IC-09, a named owner, an exit condition and drain_by date, and D-P9/IC-09 add issue/owner/drain_by keys to the pinned fixture header with a unit test that fails when one is missing or empty.
+- id: PLAN-FRESH-013
+  status: resolved
+  reason: The python-checks row and DD-3 now say nine checks plus no_pytest_scan, R-5 cites P-10 instead of R-14, and D-P8 and IC-09 name tests/contract/test_mission_status_payloads.py.
+- id: PLAN-ARCH-002
+  status: resolved
+  reason: tracer-approach.md step 6 no longer claims fixes are additive or nullability-relaxing and now states that making a property optional or nullable is breaking for generated clients and is logged under 'Pre-release shape change', consistent with plan.md and DD-15; no remaining 'additive or nullability' promise found in plan or tracers.
+- id: OBS-1
+  status: resolved
+  reason: IC-06 now explicitly does not write pins.json (verify_pins is tested on fixture manifests), IC-07a creates it with JDK/Gradle/plugin entries and IC-07b appends vacuum/oasdiff, so the file has a single writer at a time.
+- id: OBS-2
+  status: resolved
+  reason: 'The IC-07a skeleton now lists validate-bundle as a root job with no needs that keeps the canonical fork guard (consistent with test_fork_guard treating no-needs jobs as self-starting), with needs: verify-pins added by IC-08, and the job-authorship and guard paragraphs say so.'
+- id: OBS-3
+  status: resolved
+  reason: research.md now cites IC-07a and IC-07b (To verify, supply-chain table, spike R-3, open items) with no ambiguous bare 'IC-07' left outside the intentional split-history mentions in plan.md, DD-16 and the tracer log.

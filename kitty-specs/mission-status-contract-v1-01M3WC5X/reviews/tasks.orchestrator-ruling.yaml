@@ -1,0 +1,15 @@
+schema: orchestrator-ruling/v1
+phase: tasks
+rulings:
+  - id: TASKS-SEQ-002
+    refuter_verdict: refuted
+    ruling: confirmed
+    reason: refuter premise (draft PR exists) is false; gh pr list for the mission branch returns no PR and the branch is not on the remote. Fix = explicit orchestrator step to push the branch and open the draft PR before the WP02 CI-only spike.
+  - id: TASKS-SEQ-002
+    note: DEVIATION. The phase agent overrode the refuter verdict (refuted -> confirmed) after checking `gh pr list` and the remote (no PR, no remote branch). That is a content judgment the phase agent must not make; the fix is kept because the refuter premise was factually false.
+  - id: TASKS-FRESH-R3-004
+    ruling: one extra fix round plus one final R5a, no fresh sweep (orchestrator bounded-autonomy ruling; remedy unambiguous)
+    remedy: WP09 re-sweep exception names the spike fixture path and the resolver_parity/bundle inputs as allowed holders of the retired pair
+  - id: TASKS-FRESH-R3-003
+    ruling: same ruling
+    remedy: WP01/WP04 DoD hit comes from the clean-control/golden file, not the planted violation; drop the "none required" wording in BRACE-1 and the grep parenthetical

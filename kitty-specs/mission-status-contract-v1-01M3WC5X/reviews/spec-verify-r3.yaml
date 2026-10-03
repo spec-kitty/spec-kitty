@@ -1,0 +1,37 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: Resolver parity now has a FR-025 row with floors (five paths, schemas, refs), appears in D-15 and FR-021, has a planted divergent-resolver fixture run by the negative-test job, a shared contracts/tools/contract_resolver.py with no pytest or tests import, and is cited in SC-002 and SC-003.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: The contracts/tools no-pytest scan is now contracts/tools/no_pytest_scan.py run by the contracts workflow (selected by contracts/**) with a tests/contract unit module, while only the workflow-file half stays in tests/ci, consistent across FR-017, D-19, FR-025 and the runner table.
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: D-17 and DEV-2 record the weighed alternative (pull_request trigger on the release workflow versus a release-dry-run job in the contracts workflow), the chosen shape removes the fleet_main.py edit, and FR-017, FR-022, C-003 and SC-008 are mutually consistent on two workflows, one PR_WORKFLOWS entry and no fleet_main.py edit.
+  - id: SPEC-FRESH2-004
+    status: resolved
+    reason: C-003 and R-1 now name the files each PR really touches (verified with gh; neither #5557 nor #5545 edits any fleet file, #5557 rewrites test_ci_corpus_trigger_completeness.py and adds test_corpus_blocking_home.py, #5545 edits ci-router, registry, ci-windows, ci-nightly) and the _CORPUS_GLOBS/_CORPUS_DATA_ROOTS documentation edit is dropped in D-16, FR-017, FR-020 and C-003.
+  - id: SPEC-FRESH2-005
+    status: resolved
+    reason: The Clarifications intro now carves out CL-2 bullet 3 and CL-4 placement as flagged deviations DEV-1 and DEV-2 needing confirmation (OQ-4), and DEV-1 lists the FRs, decisions and SCs that change under the literal reading.
+  - id: SPEC-FRESH2-006
+    status: resolved
+    reason: FR-021, SC-003 and the runner table now define class A (linked failing negative-test run) and class B (in-test planted case, green run with test ids listed) consistently, assigning the reality check and tests/ci guards to class B.
+  - id: SPEC-FRESH2-007
+    status: resolved
+    reason: D-17 places the planted dry-run fixtures under contracts/tools/fixtures/ outside module discovery, gives release_check.py a module-root parameter for the negative-test job, and adds a clean control, matched by FR-022 and the FR-025 release row.
+  - id: SPEC-FRESH2-008
+    status: resolved
+    reason: FR-017 now scopes the exactly-three-paths rule to the contracts workflow, states the release workflow is tag push plus workflow_dispatch only, and checks its tag glob and publication through the namespace and publish-step guards.
+  - id: SPEC-FRESH2-009
+    status: resolved
+    reason: New risk R-14 records that reader and reality-check-test edits do not select tests-corpus (confirmed against the router corpus filter) and states the accepted mitigation via the push-to-main packs run.
+  - id: SPEC-FRESH2-010
+    status: resolved
+    reason: FR-017 item (c) now says the existing expected sets additionally exclude the contracts workflow and keeps the docs diff's existing release-readiness and events-alignment exclusions, which matches tests/ci/test_fleet_verdict.py.
+  - id: SPEC-FRESH2-011
+    status: resolved
+    reason: D-9 is now cited from FR-012 and D-12 from FR-016, and the word operator no longer appears in the spec.

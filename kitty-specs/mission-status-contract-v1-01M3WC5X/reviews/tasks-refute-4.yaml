@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 4
+verdicts:
+  - id: TASKS-VERIFY-008
+    verdict: confirmed
+    reason: WP06 T039 says the real pin lives next to the script, but owned_files has only contracts/tools/fixtures/enum_pin_check/** and no contracts/tools pin path, so the real pin is unowned and WP09's wiring path is unnamed.
+  - id: TASKS-VERIFY-009
+    verdict: confirmed
+    reason: WP10 only asserts header keys are non-empty and asserts the disagreement count is at or below a pinned ceiling, so the ceiling is never forced down when the list shrinks.
+  - id: TASKS-VERIFY-010
+    verdict: refuted
+    reason: Tags are deliberately orchestrator-only actions recorded by name (not hash) with pending as an accepted state, and agents cannot push or verify remotes, so the missing remote check is a design choice rather than a defect.
+  - id: TASKS-VERIFY-011
+    verdict: refuted
+    reason: WP01 records the baseline before its first change as the plan requires, and the claimed post-rebase re-measurement gap is speculative hardening beyond the stated rule.
+  - id: TASKS-VERIFY-012
+    verdict: confirmed
+    reason: grep shows WP03, WP04, WP05 and WP09 have no ruff check or format step while pyproject selects S for non-test code, and no WP anticipates S603, S607 or S310 in the subprocess and download scripts.
+  - id: TASKS-VERIFY-013
+    verdict: confirmed
+    reason: WP07 T042 lists ten topics while WP01 T007 skeleton and WP11 list more (markdown lint advisory, contracts-directory collision line, local command), so those headings can be removed without structure_check going red.
+  - id: TASKS-VERIFY-014
+    verdict: confirmed
+    reason: WP04 changes BRACE_REF_SPELLING in contract_resolver.py yet its test surface (and WP03's) lists only the examples test and layout_check, omitting tests/contract/test_contract_resolver.py.
+  - id: TASKS-VERIFY-015
+    verdict: refuted
+    reason: Citations are src-relative (specify_cli/... and mission_runtime/... are siblings under src/), so mission_runtime/identity.py is consistent and the finding itself admits citation_check would catch any slip.

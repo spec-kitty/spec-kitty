@@ -1,0 +1,188 @@
+# Tracer: Design Decisions
+
+Mission: `mission-status-contract-v1-01M3WC5X` (issue #5558, part of #5528).
+
+Rationale log, seeded at planning with the decisions made so far. Each entry: the decision, the
+reason, what was rejected. The full register with alternatives is in `plan.md` (Decision
+register) and `research.md`. Append at each decision point during implementation.
+
+## DD-1: OQ-4 closed by a maintainer ruling recorded on the issue and the draft PR (2026-10-01); DEV-1 accepted
+
+The reality check runs once, in the router's `tests-corpus` job, which a contracts-only change
+selects through one added glob (`contracts/**`). The contracts workflow runs a resolver-parity
+script instead of a second pytest run. Consequence: no duplicate-suite ledger row, no
+`WORKFLOW_FILES` row, no deselection from `tests-corpus`, `.github/ci-module-registry.yml`
+untouched. DEV-2 (the PR-green release dry run is a job of the contracts workflow) is planned as
+written, because OQ-4 covers both deviations and the ruling closes OQ-4; the PR body still lists
+both as confirmation items, and the plan asks once whether the ruling's scope includes DEV-2.
+
+## DD-2: OQ-1 resolved: a Python resolver proven equal to the CI bundle
+
+One resolution authority, `contracts/tools/contract_resolver.py`, used by the reality check, the
+parity script and every Python check. Rejected: a JDK in the corpus jobs (edits two existing
+jobs), a committed bundle (never committed), a test that downloads the CI artefact (cross-job and
+network dependency, no local verdict), a second unproven resolver (excluded by the question's own
+constraint).
+
+## DD-3: Python checks read the resolved tree, not the bundle
+
+Keeps the nine content and hygiene checks (and the tenth script, the no-pytest scan) JVM-free, local and fast; parity proves tree equals bundle, and parity is a
+`needs` of the terminal gate. The bundle-based jobs are only validate, lint, breaking-change,
+parity and the release dry run.
+
+## DD-4: stable message codes and a three-valued exit status
+
+0 pass, 1 violation, 2 could not do its job. Negative tests assert the code, so a check that fails
+for the wrong reason is not counted as evidence (FR-021, silent-success rule D-15).
+
+## DD-5: no committed Gradle wrapper jar
+
+The pinned distribution archive is verified by sha256 from `pins.json` before it runs. FR-018's
+parenthetical names `distributionSha256Sum`, a wrapper-only property; the manifest check gives
+the same guarantee and honours R-10's preference for no committed binary. Departure recorded in
+the PR body.
+
+## DD-6: breaking-change baseline is rebuilt from the latest tag
+
+Same build path for baseline and candidate, no release-host dependency. The first release is the
+loud, single allowed "no baseline" state.
+
+## DD-7: the contracts workflow has exactly three paths; `push` carries `branches: [main]`, `pull_request` carries no `branches`
+
+Revised 2026-10-02 (DD-21). The original decision put `branches: [main]` on both triggers. With six
+stacked PRs, PRs 2 to 6 have a seam branch as base, so a `pull_request` `branches: [main]` filter
+never fires on them. `ci-router.yml` is already written this way (`pull_request` with `types` only,
+`push` with `branches: [main]`). The fleet-verdict applicability test defaults a missing `branches`
+to every base, and the release-branch expectation in `tests/ci/test_fleet_verdict.py` stays
+unchanged because it replays a `pyproject.toml` diff that the path filter excludes.
+
+## DD-8: opening campsite commit is one test file, and only if the count holds
+
+Hoist the whole-string literal `".github/workflows"`, which appears five times in
+`tests/ci/test_fleet_verdict.py` (twice in `test_new_pr_workflow_fails_closed`, once in
+`test_reporter_trigger_covers_every_registered_workflow_and_reruns`, twice in `replay_fixture`),
+into one module constant. Two of those functions are the ones FR-017 exercises, and the literal
+avoids the pinning-inventory subjects so no new inventory rule appears. The first draft named a
+repeated pair of workflow names in `test_all_existing_pr_workflows_are_registered`; that was false
+(the pair occurs once there) and is withdrawn. Drop rule: if the re-count after the implement-start
+rebase finds fewer than three occurrences, the opening commit is none and the PR body says no
+domain-matched debt was found. Rejected as grab-bag items: the stale `_CORPUS_GLOBS` documentation
+(open PR #5557 rewrites the file), the `ruff.toml` legacy baseline (unrelated), any `src/` debt
+(C-002).
+
+## DD-9: a hidden byte-for-byte gate is part of the gate set
+
+`tests/release/test_pinning_inventory_fresh.py` pins line numbers in three files the spec edits.
+Regenerate with `scripts/ci/derive_pinning_inventory.py`; never hand-edit; keep new text free of
+the inventory's three subjects.
+
+## DD-10: `tests/ci/test_fleet_main.py` is edited only if a test turns red
+
+The spec expects its conditional-gate expectations to gain the contracts workflow. On this
+checkout `MainAPI` builds a run for every `PR_WORKFLOWS` member and the one conditional-gate test
+pops only the drift workflow, so adding a member should not change it. Decide by running the file
+red-first after the `PR_WORKFLOWS` edit.
+
+## DD-11: citation resolution accepts annotated class attributes
+
+The stream cursor's contract field `invariant` is the dataclass attribute `content_invariant`
+(`TailCursor`, a bare annotation). Without accepting annotated targets, the spec's own citation
+would not resolve.
+
+## DD-12: the checks that need no source file are the ones that run on every contracts edit
+
+All `contracts/tools/` checks run on any `contracts/**` change (the workflow's path filter), so a
+README-only edit still runs the structure check, as D-19 requires.
+
+## DD-13: dashboard references re-verified; corrections made in the plan, spec.md left unedited
+
+Spec rows citing the removed dashboard scanner are replaced as follows (full table in `plan.md`):
+lifecycle derivation, next action, workflow phases, mission count and the registry cross-check
+become contract-owned `x-derived` rules with cited contract-field or status-domain inputs;
+friendly name cites the `friendly_name` key in `MissionMetaRequired` (`specify_cli/mission_metadata.py`;
+`MissionIdentity` has no such field); title, phase label, authored lists and prompt body cite
+`read_authored_wp_frontmatter` and `WPMetadata` in `specify_cli/status/wp_metadata.py`; subtask
+progress is `x-derived` from `ResolvedGroup.subtasks` (reached as `WPView.resolved.subtasks`;
+`WPView` has no `subtasks` attribute); accepted and merged stamps cite `MissionMetaOptional` and the
+stamping functions `record_acceptance` and `record_baseline_merge_commit`; `discarded_at` is stamped by
+`record_discard` and declared in no TypedDict. The seven-type lifecycle allow-list is contract-owned (a
+subset of the twelve-member `LIFECYCLE_EVENT_TYPES`) and the difference is printed on every run. These
+corrections are binding; `spec.md` stays unedited. Not corrected here: stale
+line-number cites inside the Proposed read-API ADR (history, C-011), and two spec mentions of
+paths that do not exist on this checkout (`tests/ci/test_corpus_blocking_home.py`, from open PR
+#5557; `.kittify/release/downstream-verified.json`, a documentation-only glob).
+
+## DD-14: charter and CLAUDE.md drift on merge enforcement; charter wins
+
+Probed read-only: no branch protection, no rulesets. The plan uses three tiers and never "enforced"
+without one: tier 1 is a job that is a `needs` of `router-gate`, `modules-gate` or `aggregate-gate`;
+tier 2 is a job whose workflow the fleet verdict reads but whose red turns no terminal gate red (all
+the new contracts jobs); tier 3 is local discipline. No tier is a GitHub required check, so even
+tier 1 stops a merge only because the merge agent declines a red gate. CODEOWNERS review is advisory.
+
+## DD-15: the end of IC-04 is an unvalidated preview; stable is a green contracts run; pin-grade is the end of IC-09
+
+At the end of IC-04 only the Python resolver and the examples test have read the split contract, so
+that point carries no stability promise. The stable marker is the first green contracts-workflow run (the client smoke is a counted step of `validate-bundle`, so it is included); pin-grade is the end of IC-09. After the preview
+point the commitment is a process one: shape changes are announced in the module CHANGELOG under
+`Pre-release shape change`, unless the #5528 acknowledgement requests otherwise (CL-1). Making a
+property optional or nullable is breaking for generated clients, so "additive or nullability
+relaxing" is withdrawn as a safety claim. Refs go out as tags outside the release namespaces, not as
+commit hashes, because the plan rebases and compacts history.
+
+## DD-16: IC-07 is split so a workflow skeleton can run the bundler-fidelity spike early
+
+CI is the only place the JVM tools run, and the workflow was originally authored last, after
+IC-01 and IC-05 had built on the resolver. IC-07a (skeleton, shared-CI edits, spike) now follows IC-01
+directly and its recorded result gates IC-05 and IC-07b; IC-08 keeps the remaining jobs, release
+workflow, guards and negative tests.
+
+## DD-17: planted leak fixtures are built at run time
+
+Leak-class plants (host paths, e-mail addresses, forbidden property names) are assembled from
+fragments by `contracts/tools/fixture_builder.py` into a temporary root; only clean controls are
+committed. The text-level leak scan therefore has no exempt directory or marker line, and the plan's
+"no allowlist" statement holds (C-006).
+
+## DD-18: contract releases are created with `--latest=false`
+
+A GitHub Release for a contract tag would otherwise be a candidate for the repository's Latest
+marker. `--prerelease` is added only for a prerelease semver. The guard test asserts the flags, the
+dry run prints the argument list, and a maintainer verifies the Latest release after merge.
+
+## DD-19: one date-time policy, independent of the installed extras
+
+`rfc3339-validator` and `jsonpointer` reach the lockfile only through the `format-nongpl` extra of
+`jsonschema` (itself pulled in by the `lint` extra), so the contracts prelude lacks them and
+`tests-corpus` (all extras) has them. One `FORMAT_CHECKER = FormatChecker(formats=())` with an explicit
+stdlib `date-time` check (`contracts/tools/schema_formats.py`) is passed everywhere, so one example gets one verdict in
+both environments (plan D-P14).
+
+## DD-20: early-start mechanics are plan-level additions
+
+The preview tag namespace, the informational `PREVIEW_DELTA` report, the `Pre-release shape change`
+heading and the counted client smoke have no spec requirement behind them (plan D-P13). They are
+bounded and removable, and are listed for maintainer confirmation next to DEV-1 and DEV-2 (E-2).
+
+## DD-21: the Mission is delivered as six stacked seam PRs (operator ruling, 2026-10-02)
+
+Supersedes "one PR for the Mission" in CL-1 and C-001 (spec amended for this ruling only; plan,
+quickstart, tracer approach and the WP prompts follow). Seams: (1) WP01+WP02; (2) WP03 to WP05;
+(3) WP06+WP07; (4) WP08+WP09; (5) WP10; (6) WP11+WP12. Rationale: reviewability (about 10,000
+added lines cannot be read as one diff), a different reviewer skill set per seam (OpenAPI
+authoring, Python tooling, GitHub Actions and supply chain, status-domain readers, docs), and p0
+being the natural UI early-start unit at the end of seam 2. All six PRs stay drafts until the
+single acknowledgement on #5528; the orchestrator never merges; the operator or a maintainer
+merges bottom-up and retargets after each lower merge. Consequences: (a) the contracts workflow's
+`pull_request` trigger drops `branches: [main]` (DD-7), because PRs 2 to 6 target seam branches;
+(b) the re-sync and compact-history steps run per seam, lowest first, with `rebase --onto` for the
+seams above and `--force-with-lease` only, each rewrite re-publishing any preview tag in or above
+the rewritten seam; (c) each preview tag is cut at its seam head and cites that seam's PR number
+(p0 = PR 2 head, p1 inside PR 4, p2 = PR 5 head); (d) each PR body carries its own evidence row
+(plan, "PR stack").
+
+- (append during implement and review)
+
+## Assess at close
+
+- (to be written at close)

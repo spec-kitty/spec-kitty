@@ -1,0 +1,285 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Falsifiability / real-data edge cases
+    severity: 4
+    title: The specified leak value scan flags legitimate real titles and names, so FR-012 and FR-019 contradict the corpus
+    evidence:
+      - artifact: "spec.md § FR-012 (value scan: absolute path if it starts with /, ~/ or contains a temporary-directory segment); § Contract Field Catalogue (title, friendlyName are not nullable); § D-14 (failing structured string projects to null)"
+      - code: "kitty-specs/036-kittify-runtime-centralization/meta.json:4 has friendly_name '~/.kittify Runtime Centralization'; kitty-specs/tmp-literal-offender-burn*/tasks/WP*.md frontmatter has titles such as '/tmp burn-down: sync' (11 WP titles contain /tmp at this checkout)"
+    claim: >-
+      Run against the real corpus, the stated scan rule classifies a non-nullable friendlyName (leading '~/') and
+      about eleven non-nullable WP titles ('/tmp ...') as host paths. D-14 says such a value is projected to null, but
+      the catalogue forbids null for those fields. Either the reality check fails on day one with zero exclusions
+      allowed (FR-019), or the projector invents a rule the spec does not state. The pattern for e-mail ('the usual
+      local-part-at-domain shape') and for 'home-directory, user-profile or temporary-directory path segment' is also
+      not concrete, so two implementers will diverge.
+    remediation: >-
+      Give the scan exact regexes (anchored: '^/(home|Users|root|tmp|var|etc)/', '^[A-Za-z]:\\\\', '^~/' only on
+      path-typed fields, a stated e-mail regex) and scope them per field class: strict on identifier/handle/path-like
+      fields, and a narrower 'looks like a real host path (root + user segment)' rule for human-title fields. State
+      the title/friendlyName/reason behaviour explicitly (pass-through vs null; make those fields nullable if null).
+      Add the two real cases above as named positive-pass controls.
+  - id: SPEC-VERIFY-002
+    lens: Silent-success / failure-mode coverage
+    severity: 3
+    title: FR-025 matrix omits checks that FR-021 and CL-10 say are in scope, and guard tests can pass on zero inputs
+    evidence:
+      - artifact: "spec.md § FR-025 (8 rows: validate, bundle, lint, breaking-change, citation, leak scan, reality check, release); § FR-021 (also lists layout check, pin and checksum verification); § CL-10 (pin and checksum verification)"
+      - artifact: "spec.md § FR-017 (guard test: no Node, path filter), § FR-018 (SHA-pin guard), § FR-022 (namespace guard), § FR-023 (CODEOWNERS guard), § FR-007 (event-name/schema mapping check), § FR-013 (orphan-example check)"
+    claim: >-
+      FR-025 says it is binding and 'each row has a planted-violation test', but it has no row for the layout check
+      (FR-001), the pin/checksum verification (FR-018), the example-validation and orphan-example check (FR-013), the
+      event-mapping check (FR-007), the enum-pinning check (FR-008), or any of the Python guard tests (workflow
+      shape, SHA pin, namespace, CODEOWNERS). Several of these would pass vacuously on zero inputs: a SHA-pin guard
+      that globs workflows and finds none, a namespace guard over an empty tag list, a mapping check over zero event
+      names, an example check over an empty examples/ directory, a layout check that finds no module.
+    remediation: >-
+      Extend the FR-025 table with one row per check named in FR-021/CL-10 and per guard test, each with its
+      'cannot do its job' condition (zero files globbed, zero uses: lines inspected, zero tags evaluated, zero
+      examples validated, zero event names mapped) and the required non-zero outcome. Add a general rule: every guard
+      test asserts a minimum input count before asserting properties.
+  - id: SPEC-VERIFY-003
+    lens: Silent-success / tool exit semantics
+    severity: 3
+    title: Breaking-change and lint checks do not require the tool's failure threshold, a known quiet-pass mode
+    evidence:
+      - artifact: "spec.md § FR-016, § FR-015, § FR-025 (Lint and Breaking-change rows)"
+    claim: >-
+      The spec requires 'fails' but never says how oasdiff or vacuum are invoked so that a finding yields a non-zero
+      exit. oasdiff 'breaking' reports without failing unless a fail-on severity is passed, and vacuum only fails at
+      or above its configured severity, so a ruleset whose rules are 'warn' (or an oasdiff run without --fail-on)
+      exits 0 on a planted violation. FR-021's 'asserts the message' would still pass if the message is printed but
+      the exit is 0, because the negative job is specified to check the message, not the exit code. The spec also does
+      not say whether an added enum value (FR-008 says it must fail without a version move) is classified as an
+      error or only a warning by the pinned oasdiff.
+    remediation: >-
+      Require in FR-015/FR-016: oasdiff invoked with an explicit fail-on level that includes added response enum
+      values and removed/narrowed items; every ruleset rule that FR-015 lists has severity error; the negative-test
+      job asserts BOTH non-zero exit AND the expected message. Add a planted 'enum value added without version move'
+      fixture to the breaking-change proof.
+  - id: SPEC-VERIFY-004
+    lens: Testability / falsifiability
+    severity: 4
+    title: FR-006 frontmatter-versus-snapshot AC is not detectable by schema validation
+    evidence:
+      - artifact: "spec.md § FR-006 ('a planted payload built from frontmatter-only state is detected by the reality check where it disagrees with the snapshot'); § FR-019 (projection is a test-side helper; validation is against the contract only)"
+    claim: >-
+      A JSON Schema validation of a payload cannot tell whether a value came from the snapshot or from stale
+      frontmatter; both are schema-valid strings. The detection claimed needs a second comparison (projected payload
+      versus an independent read of the snapshot), which FR-019 does not define. As written, the AC is unfalsifiable by
+      the stated mechanism, so a vacuous implementation (always build from the snapshot, never test the other path)
+      satisfies it.
+    remediation: >-
+      Restate as an explicit assertion in the reality check: for every WP, the payload's statusLane, assignment and
+      actor equal the value derived from materialize_snapshot, and a fixture WP whose frontmatter lane/agent
+      deliberately differ from its event log must produce the snapshot value (positive control), while a payload
+      patched with the frontmatter value fails the equality assertion (negative control).
+  - id: SPEC-VERIFY-005
+    lens: Falsifiability
+    severity: 3
+    title: Several FR-004 and FR-005 criteria have no observable that a contract-only deliverable can produce
+    evidence:
+      - artifact: "spec.md § FR-004 ('two requests over unchanged data return the same order'; 'overview payloads are built without reading any work package file')"
+      - artifact: "spec.md § Summary and Out of Scope (no service is implemented here)"
+    claim: >-
+      There is no server in this Mission, so 'two requests return the same order' can only be a documentation claim,
+      and nothing in FR-019 or the AC measures it. 'Built without reading any WP file' also names no observable
+      (no file-open audit, no monkeypatch). Both are satisfiable by prose alone.
+    remediation: >-
+      Make ordering a checkable artefact: the operation description must name a total sort key (for example
+      createdAt then missionId), and the reality check asserts the overview list it built is sorted by that key with
+      no ties. For the no-WP-read claim, require the overview builder test to run with tasks/WP*.md reads trapped
+      (patched open/Path.read_text) and fail if any is hit.
+  - id: SPEC-VERIFY-006
+    lens: Silent-success / non-vacuity floors
+    severity: 3
+    title: Corpus floors depend on transient states and can be satisfied by fixtures, which makes them vacuous or red over time
+    evidence:
+      - artifact: "spec.md § FR-019 (floors: one Mission per status lane; 'fails if any floor is not met and no fixture covers it'); § Edge Cases (Empty or shrunken corpus); § R-4"
+      - code: "Final per-WP lane across the 518 committed status.events.jsonl at this checkout: blocked in 1 Mission, canceled in 1, for_review in 2, in_review in 4, claimed in 5"
+    claim: >-
+      The nine-lane floor is satisfied today by one Mission each for blocked and canceled. Those are in-flight states
+      that drain as Missions merge, so the floor either goes red on unrelated PRs (the coupling R-4 describes) or is
+      silently carried by a fixture, in which case the 'reality' check is no longer exercising real data for that
+      lane. The 500 and 3000 floors also allow a roughly 7 percent shrink without any failure. The escape clause 'and
+      no fixture covers it' lets the fixture satisfy the floor, so the floor proves nothing about the corpus.
+    remediation: >-
+      Split the floors: (a) corpus-shape floors that only grow (Missions, WPs, topology values present) with the
+      current survey numbers as the minimum, and (b) per-status-lane and per-lifecycle coverage that is explicitly
+      fixture-guaranteed (a committed event-log fixture per lane, which the check proves is exercised) with corpus
+      presence reported but not required. Remove the 'no fixture covers it' disjunction from (a).
+  - id: SPEC-VERIFY-007
+    lens: Coverage / internal contradiction
+    severity: 4
+    title: FR-020's exactly-once option requires editing the router corpus job, contradicting FR-017, C-003, SC-008 and CL-2
+    evidence:
+      - artifact: "spec.md § FR-020 ('the router's corpus job deselects the test'); § FR-017 ('No existing job's needs, matrix or marker expression changes'); § C-003 and SC-008 ('adds exactly one glob line to ci-router.yml'); § OQ-1 option (a) (a JDK and Gradle step for the corpus jobs)"
+      - code: ".github/workflows/ci-router.yml:710 (tests-corpus runs 'pytest -m \"corpus and not windows_ci\"'); .github/workflows/ci-router.yml:683 (timeout-minutes 10)"
+    claim: >-
+      Deselecting the test from the router corpus job is a change to that job's marker expression (line 710), and
+      giving that job a JDK (OQ-1 option a) is a change to an existing job. Both are forbidden by FR-017/C-003/SC-008.
+      So one of the two plan shapes FR-020 offers, and one of the three OQ-1 options, cannot be built without
+      violating a binding constraint; the spec does not say which constraint wins. FR-020 also permits editing
+      ci-module-registry.yml 'if the plan finds a reason', while CL-2 and SC-008 say zero lines.
+    remediation: >-
+      Remove the contradiction: either state that the single-glob rule is the default and the plan may exceed it only
+      with a recorded rationale (and amend SC-008 and C-003 to match), or delete the 'deselect in router' shape and
+      OQ-1 option (a). Likewise delete the 'if the plan finds a reason' escape for ci-module-registry.yml or make
+      SC-008 conditional on it.
+  - id: SPEC-VERIFY-008
+    lens: Open Questions
+    severity: 3
+    title: FR-007 silently depends on OQ-3, and OQ-1 and OQ-2 partly pre-decided elsewhere
+    evidence:
+      - artifact: "spec.md § FR-007 ('Resume: the request carries a stream cursor ... an example exists for each' refusal reason); § D-8; § OQ-3; § FR-022 (already lists pull_request trigger); § OQ-2"
+    claim: >-
+      FR-007 requires resume examples and Problem mappings but never defines the request shape: is there a missionId
+      filter parameter, is the cursor a query parameter or the SSE Last-Event-ID header (a single string, while the
+      cursor is an object {offset, invariant}), and how is it encoded in the SSE 'id:' field. OQ-3 admits an unscoped
+      stream may not support resume, so the refusal examples may have no valid request to attach to. OQ-2 asks the
+      plan to choose a pull_request trigger that FR-022 already mandates, so the OQ is not an open choice. Also
+      'heartbeat if any' leaves a stream behaviour consumers need undecided.
+    remediation: >-
+      Resolve in the spec: GET /events takes an optional missionId; resume requires missionId and a cursor carried
+      in a named query parameter (and, if Last-Event-ID is supported, the encoded string form is specified);
+      unscoped is live-only. Then OQ-3 becomes a recorded decision. Reword OQ-2 to the real remaining question
+      (what the dry run uses as the 'tag' input on a pull_request event, and which module(s) it covers). Decide
+      heartbeat yes or no.
+  - id: SPEC-VERIFY-009
+    lens: Testability / release path
+    severity: 3
+    title: Release dry run on a pull_request event has no defined tag or module input, and publication-unreachability has no proof
+    evidence:
+      - artifact: "spec.md § FR-022 (tag rules checked 'in the dry run'; publication 'runs only on a tag push'); § OQ-2 (constraint: publication unreachable on any other event); § FR-021 (release dry run planted violation)"
+    claim: >-
+      On a pull_request event there is no tag, yet FR-022 requires 'the tag matches contract-<module>-v<semver>' to be
+      checked in the dry run, and does not say which module(s) the PR dry run builds. The requirement that
+      publication is unreachable except on a tag push is stated twice but no AC or guard test checks it (the FR-017
+      guard covers only path filters and Node). The namespace test evaluates 'a glob' without saying which glob
+      semantics (GitHub filter patterns do not let * cross a slash; fnmatch does).
+    remediation: >-
+      Specify: dry run loops over every discovered module and derives the candidate tag from info.version; a planted
+      mismatch is a fixture module. Add a guard test that every publish step (release creation, asset upload) carries
+      an if condition restricted to refs/tags/ and fails if any publish step lacks one. State the glob-matching
+      semantics the namespace test implements (GitHub filter syntax) and test one tag that differs only by a slash.
+  - id: SPEC-VERIFY-010
+    lens: Silent-success / citation check
+    severity: 3
+    title: Citation check can be satisfied by a substring match and by repeated reuse of one real citation
+    evidence:
+      - artifact: "spec.md § FR-010 ('a cited symbol is not found in the cited file'; fails on zero citations); § D-3; § SC-004"
+    claim: >-
+      'Symbol found in file' is satisfiable by a substring grep (a short symbol like 'lane' appears in almost every
+      status file), and a property that cites a real but unrelated file and symbol resolves. The traversal that
+      defines 'every property of every resource schema' (nested objects, array items, allOf/oneOf, properties reached
+      only through $ref) is not specified, so the check can cover only top-level properties and still print a non-zero
+      count.
+    remediation: >-
+      Require the symbol to resolve as a defined name (def, class, assignment, constant) via AST for .py and a key
+      lookup for YAML/JSON, with line numbers optional. Define the traversal over the bundle: every property at any
+      depth under every resource schema, with a required minimum count equal to the property count the check itself
+      computes (assert cited == total). Add a planted nested-property fixture without a citation.
+  - id: SPEC-VERIFY-011
+    lens: Permissions/secrets analogue
+    severity: 3
+    title: Leak scan coverage excludes the contract text, promptMarkdown examples, and commit messages that C-006 and NFR-004 cover
+    evidence:
+      - artifact: "spec.md § FR-012 (scan covers example and payload string values; name check on property names); § D-14 and NFR-004 (promptMarkdown excluded, including from examples/); § C-006 (no absolute path or e-mail in spec, plan, contract, tests, commit messages)"
+    claim: >-
+      NFR-004 and C-006 promise zero host paths and e-mails across the contract tree, but the scan only visits example
+      and reality-check payload values. Descriptions, x-source/x-derived strings, README, CHANGELOG, test fixtures and
+      the committed planted-violation fixtures are not scanned. Excluding promptMarkdown from examples/ is not
+      justified: examples are authored by us, not corpus data, so an absolute path there is a pure self-inflicted leak
+      in a public repo. C-006 also forbids e-mail addresses in commit messages while the required attribution trailer
+      on commits carries one.
+    remediation: >-
+      Add a text-level scan over every file under contracts/ and the new tests/ fixtures (same regex set, with an
+      explicit allowlist for the deliberately planted fixtures, each marked). Scan promptMarkdown inside examples/.
+      Reword C-006 to exclude the standard co-author trailer, or state how it is handled.
+  - id: SPEC-VERIFY-012
+    lens: Coverage / traceability
+    severity: 2
+    title: No FR-to-SC traceability; several FRs have no measurable outcome and SC-008 admits it is no-op passable
+    evidence:
+      - artifact: "spec.md § Success Criteria SC-001..SC-010; § FR table (all 25 rows marked 'No-op passable? no'); § NFR-001; § SC-008"
+    claim: >-
+      The spec has no FR-to-SC map. FR-002, FR-003, FR-006, FR-007, FR-009, FR-011, FR-015, FR-017, FR-018, FR-023 and
+      FR-024 are not referenced by any SC, and no SC cites an FR id, so the bidirectional mapping cannot be checked.
+      The blanket 'no' on every FR row is not backed per row (for example FR-023 and FR-024 are satisfied by writing
+      a file). NFR-001 (120 s) is explicitly not asserted anywhere. SC-008 concedes it is no-op passable.
+    remediation: >-
+      Add a short traceability table (SC to FRs, FR to SC or to the AC that is its only evidence), and cite FR ids in
+      each SC. Replace the blanket 'no' column with the named observable per row, or drop the column. Make NFR-001
+      a recorded measurement with a threshold the PR reviewer checks (it is already assigned to the PR body).
+  - id: SPEC-VERIFY-013
+    lens: Baseline honesty
+    severity: 2
+    title: Baseline is deferred to implement-start and names no concrete known-red test
+    evidence:
+      - artifact: "spec.md § R-3, § C-009, § Edge Cases (Unknown or pre-existing red tests), § SC-010"
+      - code: ".github/workflows/ci-router.yml:680-710 (tests-corpus is a blocking job selecting ~1400 corpus tests)"
+    claim: >-
+      R-3 admits that corpus and contract tests have been red on main but identifies none, and records the baseline
+      only 'at implement start'. The reality check is itself a new corpus-marked test that will run in that same
+      blocking job, so any existing red there is attributable to it by CI on day one. The spec also says nothing about
+      what happens when the baseline run is already red in one of the three named architectural gates that FR-020
+      must keep green.
+    remediation: >-
+      Require the plan to include the baseline run output (command, commit, counts, named red node ids) and require
+      the PR body table to separate three bins: red before this change, red caused by it, red fixed by it. If a named
+      architectural gate is red on the base, the plan must record that and use 'no new failures versus baseline' as
+      the bar for that gate rather than 'passes'.
+  - id: SPEC-VERIFY-014
+    lens: Silent-success / supply chain
+    severity: 3
+    title: Pinning requirements do not cover Gradle plugin and dependency resolution
+    evidence:
+      - artifact: "spec.md § FR-018 ('Gradle distribution checksum verified, the openapi-generator plugin ... have an exact version and, for downloaded binaries and distributions, a recorded sha256'); § R-10"
+    claim: >-
+      The Gradle build resolves the openapi-generator plugin and its transitive JVM dependencies from a plugin portal
+      or Maven repository at run time. FR-018 requires an exact version for the plugin but a sha256 only for binaries
+      and distributions, so transitive artefacts are unverified, and a missing JVM, Gradle, or unreachable repository
+      has no row in the fail-loud matrix beyond 'tool missing'. The bundle is also what consumers pin by sha256, so
+      the reproducibility of NFR-002 depends on this unverified resolution.
+    remediation: >-
+      Require Gradle dependency verification (a committed verification-metadata file) or an equivalent pinned,
+      checksummed resolution, with a planted tampered-checksum fixture, and add 'JVM absent, Gradle absent, plugin
+      resolution failure' to the Validate and Bundle rows.
+  - id: SPEC-VERIFY-015
+    lens: Coverage / prose tokens
+    severity: 1
+    title: Matrix-token hygiene is sound, but one in-prose reference style is fragile
+    evidence:
+      - artifact: "spec.md § R-7 (lists #5528, #5558, #5529, #957, #460, #5533, #5231, #5545, #5557)"
+    claim: >-
+      Verified: the only hash-number tokens in the spec are those nine real issue and PR numbers, every FR id cited in
+      prose is defined (FR-001 to FR-025), and CL, D, R, OQ, C, NFR ids all resolve. R-7 lists all nine.
+      The fragility is only forward-looking.
+      Any later edit that cites a ledger or bug number with a hash prefix (for example when R-3
+      is made concrete per SPEC-VERIFY-013) adds a matrix row.
+    remediation: >-
+      Instruct in R-7 that any known-red or ledger
+      reference added later is written without a hash prefix or is given a verdict row.
+  - id: SPEC-VERIFY-016
+    lens: Testability / SSE specifics
+    severity: 2
+    title: Event stream lacks specified behaviour for ordering, multi-log interleave and unknown kinds on the server side
+    evidence:
+      - artifact: "spec.md § FR-007, § D-8, § Contract Field Catalogue (Events)"
+      - code: "src/specify_cli/status/tail_reader.py:177-195 (log_truncated event carries tail_offset 0 and EMPTY_DIGEST)"
+    claim: >-
+      The three event kinds are specified, but not: whether events across Missions are ordered, whether a
+      log_truncated for one Mission interleaves with others, what a consumer does with a transition event whose
+      statusLane is outside the enum (FR-008 fixes the enum, FR-007 says only that unknown event names are ignored),
+      and what the stream emits for the first connection (snapshot replay versus live-only from cursor). The
+      truncation event's 'streamCursor reset to offset 0' is correct against the code, but the spec does not say the
+      consumer must drop its prior cursor.
+    remediation: >-
+      Add to the stream convention in FR-007: per-Mission ordering only, no cross-Mission order guarantee; initial
+      connection semantics; the required consumer action on the resync kind (discard the old cursor and re-read the
+      Mission detail); and a rule for unknown enum values inside a known event kind (treat as unknown, do not fail).

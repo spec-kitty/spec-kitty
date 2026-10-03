@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-GOV-008
+    verdict: refuted
+    reason: The spec's Reflexivity section already states this Mission's own scaffold directory is part of the corpus, fixing reader defects is explicitly out of scope, and the cited ledger is private so its ids cannot be public evidence.
+  - id: SPEC-GOV-009
+    verdict: refuted
+    reason: C-009 and R-3 already invoke the charter's pre-existing failure rule by reference, and campsite and tracer-file steps are process obligations for plan and tasks that the charter itself imposes without needing restatement in a spec.
+  - id: SPEC-GOV-010
+    verdict: confirmed
+    reason: CL-8 binds "agent, profile and role handles" while D-10 projects {tool, role, profile, model}, so model is a real unrecorded widening of the exposed surface.
+  - id: SPEC-GOV-011
+    verdict: confirmed
+    reason: spec_kitty_core.yaml (line 359) defines phase as a grouping container, the spec's Mission phase meaning clashes without naming it, and docs/context/orchestration.md:166 lists seven lanes against nine in the glossary.
+  - id: SPEC-GOV-012
+    verdict: refuted
+    reason: R-11 only promises a record and a pinning guard or test, which is not an edit to ci-router.yml and does not contradict SC-008 or C-003, so there is no demonstrated contradiction.
+  - id: SPEC-GOV-013
+    verdict: refuted
+    reason: The phrase names no private repository or material and leaks nothing, so it is a stylistic preference rather than a defect against C-006.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: packs.yml built-in-corpus-suite runs pytest -m "corpus and not windows_ci" over the whole tree and is forced on for every push to main, so CL-2 and SC-007 "exactly one blocking per-change job" are unachievable as written and the spec never mentions this job.

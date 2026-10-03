@@ -1,0 +1,21 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH4-001
+    status: resolved
+    reason: The Phases paragraph, the brace-spelling paragraph and the IC-08 row now state that the re-sweep opens red-first with the planted BRACE_REF_SPELLING fixture, and that IC-08 opens with its own tests/ci guard test when there is no re-sweep.
+  - id: PLAN-FRESH4-002
+    status: resolved
+    reason: IC-08 now lists FR-001 (conditional) and the re-sweep in its Purpose, its write scope and topology exception 2 cover literals in IC-02 to IC-06 tests and fixtures, and a grep acceptance check backs the derive-not-hard-code rule.
+  - id: PLAN-FRESH4-003
+    status: resolved
+    reason: The Immutable refs paragraph defines a per-point increasing counter (-r2, -r3) with the cause named in the #5528 note, and the post-P0 paragraph now covers every already-published point and points to that rule.
+  - id: NEW-1
+    status: unresolved
+    remaining_severity: 2
+    reason: The brace-spelling paragraph says the re-sweep's first commit plants a fixture that "fails against the edited constant" while the constant edit is listed as part of the re-sweep, so it is unclear whether the constant is edited before or in that commit and whether the commit is red on the planning base (C-010).
+  - id: NEW-2
+    status: unresolved
+    remaining_severity: 1
+    reason: Escalation E-3, risk P-11 and tracer-approach.md still say tags are re-published only after the compact-history step (and tracer says only "a new suffixed tag"), omitting the brace re-sweep cause and the per-point counter now defined in plan.md.

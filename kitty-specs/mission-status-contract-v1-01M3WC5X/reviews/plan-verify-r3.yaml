@@ -1,0 +1,43 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-FRESH2-001
+  status: resolved
+  reason: Release-version proposal removed; plan Standing Order 5 row now uses a calendar drain_by set by maintainers on the tracker issue, a named handle or team owner, a length-zero exit condition, and
+    a unit test failing on any missing or empty issue/owner/drain_by (also in D-P9 and IC-09).
+- id: PLAN-FRESH2-002
+  status: resolved
+  reason: IC-09 Depends on now lists IC-05 as the explicit single owner of fixture_builder.py and the critical-path sentence says IC-09 follows IC-08 and IC-05; the graph (IC-07a after IC-01, IC-05/07b
+    after the spike, IC-08 after IC-04/05/06/07b, IC-09 after IC-08) is acyclic.
+- id: PLAN-FRESH2-003
+  status: resolved
+  reason: D-P14, the schema_formats.py 'Used by' cell and IC-02 now include tests/contract/test_mission_status_examples.py passing FORMAT_CHECKER with a planted malformed date-time example, and the dependency
+    on IC-01 holds.
+- id: PLAN-FRESH2-004
+  status: resolved
+  reason: 'D-P14 specifies FormatChecker(formats=()) with only date-time registered (re-verified on jsonschema 4.26.0: the checkers dict is empty then exactly {''date-time''}; a bare FormatChecker lists
+    uri, json-pointer, duration etc.), a registered-set unit test, subprocess runs with a meta_path blocker installed before jsonschema import, and a mutation check with bare FormatChecker(), which does
+    fail when rfc3339-validator is present.'
+- id: PLAN-FRESH2-005
+  status: resolved
+  reason: Plan Primary Dependencies, D-P12/D-P14 and research R-1 now say jsonpointer, like rfc3339-validator, is reached only via the jsonschema format-nongpl extra (uv.lock lines 521, 762-767, requested
+    by cyclonedx-python-lib), is absent after the prelude, and the resolver implements pointers itself.
+- id: PLAN-FRESH2-006
+  status: resolved
+  reason: IC-03 and IC-07a now name IC-07a as the single owner of the one mechanical re-sweep commit over contracts/mission-status/** (added to its write scope, sequenced after IC-04 merges) with IC-08
+    depending on it, and no content lane is in flight then.
+- id: PLAN-FRESH2-007
+  status: resolved
+  reason: P2 is now defined as the last commit of IC-09 and IC-09 Depends on includes IC-08 (the first possible green contracts-gate), so the dependency graph guarantees both conditions.
+- id: PLAN-FRESH2-008
+  status: resolved
+  reason: IC-07a exit criterion now requires the spike to record from a pushed run the exact plant that makes the pinned generator exit non-zero, or the warning text client_smoke treats as GENERATION_FAILED
+    and counts in generator_warnings, and the negative-tests row and tools contract reference that recorded plant.
+- id: PLAN-FRESH2-009
+  status: resolved
+  reason: The finding id and the 'wrong earlier claim' sentence are gone from normative plan text (grep finds no FRESH or 'wrong earlier'); only the dated tracer log line remains.
+- id: PLAN-FRESH2-010
+  status: resolved
+  reason: Tools tree indentation, the tracer F-3 stray space, the quickstart client-smoke row and test_schema_formats.py in the targeted command, and item 4's 'no WP after IC-07a edits a scanned file' wording
+    are all fixed.

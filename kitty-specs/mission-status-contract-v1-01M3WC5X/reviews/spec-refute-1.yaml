@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: CL-2 bullet 3 requires the contracts workflow to run the reality check, FR-020's second shape has it run only on "non-change events (dry run)", yet FR-022 makes the dry run a path-filtered pull_request run, a real internal contradiction.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: FR-001 requires a markdownlint pass while C-005 bans npx/Node, and the only existing markdownlint job (ci-router.yml:425) is "npx ... || true", so the criterion is unsatisfiable or vacuous.
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: Reproduced on this checkout - reducer.py has no WPCreated handling, 20 of 218 WPCreated-bearing logs give a snapshot WP count different from the tasks/WP*.md count, and ADR D-3 requires reads via MissionStatus.load (the 3019 vs 3125 figure is wrong, 3125 matches, but the core claim holds).
+  - id: SPEC-GOV-004
+    verdict: confirmed
+    reason: docs/context/topology.md defines "Repo-root lane" and "Code lane" glossary terms, contradicting the spec's R-9/Terminology claim that the glossary only has the status meaning of lane.
+  - id: SPEC-GOV-005
+    verdict: refuted
+    reason: The five-value topology with unknown is stated verbatim in the maintainer issue body, and D-11 already documents the divergence and the reason, so the finding is a speculative documentation preference rather than a defect.
+  - id: SPEC-GOV-006
+    verdict: confirmed
+    reason: Issue #5558 body and the #5528 design comment do not contain the draft rule, tag name, or dry-run decision, while the spec labels CL-1..CL-10 (including author-derived CL-10) as binding maintainer decisions fixed before the spec.
+  - id: SPEC-GOV-007
+    verdict: confirmed
+    reason: The catalogue's WP history kind list includes annotation with a free-text reason while D-8/D-9 withhold annotation rows as leak-prone free text, and FR-006 does not resolve which wins.

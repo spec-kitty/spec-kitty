@@ -1,0 +1,70 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+- id: TASKS-DECOMP-001
+  status: resolved
+  reason: WP01 Context now carries a PR shape bullet (size, six seams, review order, decide before WP03) and WP12 keeps the full text.
+- id: TASKS-DECOMP-003
+  status: resolved
+  reason: Every subtask in all twelve WPs now has a Files line (8/7/7/6/5/8/6/7/6/7/5/6 counts equal subtask counts).
+- id: TASKS-DECOMP-004
+  status: resolved
+  reason: T061 is folded into T060 with named p1 hand-off fields, and WP01 T001/T002 state the hand-off template and WP12 T074 verification; IDs consistent across heading, frontmatter, wps.yaml and tasks.md.
+- id: TASKS-SEQ-001
+  status: resolved
+  reason: WP01 T004 first commit now carries router glob, scrub entry, routing test and registry row, with T005/T006 appending their own rows and an explicit never-red rule.
+- id: TASKS-SEQ-002
+  status: resolved
+  reason: WP02 has an explicit orchestrator pre-step to push and open the draft PR before the spike, and WP12 says the PR already exists.
+- id: TASKS-SEQ-003
+  status: resolved
+  reason: WP05, WP09 and WP10 now share identical tag-publication wording making the push a maintainer act with prepared vs published recorded separately and a tarball fallback.
+- id: TASKS-SEQ-004
+  status: resolved
+  reason: WP02 adds a time-box (4 iterations or 5 days) with provisional-spelling fallback releasing WP03-WP05, and WP01 notes the serialisation cost.
+- id: TASKS-SEQ-005
+  status: resolved
+  reason: WP09 owned_files now include contracts/tools/fixtures/** and tests/contract/test_*.py in wps.yaml, WP09 frontmatter and tasks.md, with lanes.json regenerated.
+- id: TASKS-SEQ-010
+  status: resolved
+  reason: WP09 T056 now cites T058 and no T069 remains in WP06/WP09.
+- id: TASKS-SEQ-011
+  status: resolved
+  reason: Note-only finding needing no artifact change; the serialisation cost it pointed at is now recorded in WP01 and WP02.
+- id: TASKS-VERIFY-001
+  status: resolved
+  reason: Headings in WP03-WP05 renumbered; a script comparing headings to frontmatter and wps.yaml shows equality with no duplicates for all twelve WPs.
+- id: TASKS-VERIFY-002
+  status: resolved
+  reason: No @@ tokens remain in tasks/ and the T043 and T069 references now point to T035 and T058.
+- id: TASKS-VERIFY-003
+  status: resolved
+  reason: WP04 adds red-first FR-009 schema tests (disjoint PageCursor/StreamCursor closures, ULID missionId and no displayNumber path parameter) with planted violations, floors, and a DoD line.
+- id: TASKS-VERIFY-004
+  status: resolved
+  reason: WP09 T057 manifest now lists the 3.1-invalid schema, BUILDS_DIFFER and BUNDLE_CHANGED_VERSION_SAME plants with controls and a case-count equals manifest-length assertion in DoD.
+- id: TASKS-VERIFY-005
+  status: resolved
+  reason: Both clock-ban gate files are named in WP01 through WP10 gate lists and baselined in WP01 T001 (plan.md table not edited, but every WP that adds tests/ carries them).
+- id: TASKS-VERIFY-006
+  status: resolved
+  reason: WP12 requirement_refs (frontmatter, wps.yaml, tasks.md) now include SC-008 and C-002..C-005 and its close-out step records the cumulative-diff commands with a DoD line.
+- id: TASKS-VERIFY-007
+  status: resolved
+  reason: WP11 and WP12 now run the terminology guard and uv lock --check read-only, and WP12 has an F-3 commit-subject orchestrator step with DoD line.
+- id: TASKS-VERIFY-008
+  status: resolved
+  reason: contracts/tools/enum_pins.json is in WP06 owned_files (wps.yaml, tasks.md, lanes.json), is the script default, and WP09 guard tests assert the default and non-empty pin.
+- id: TASKS-VERIFY-009
+  status: resolved
+  reason: WP10 test now requires numeric issue, handle-shaped owner, ISO drain_by with planted bad values, and a stale-ceiling failure when measured length is strictly below the ceiling.
+- id: TASKS-VERIFY-012
+  status: resolved
+  reason: WP03-WP05 and WP09 now run ruff check and format, S603/S607/S310 conventions are binding in WP01/WP02 and the tool WPs, and mypy discipline extends to WP02, WP07-WP10.
+- id: TASKS-VERIFY-013
+  status: resolved
+  reason: WP01 T007 heading list is the declared single authority covering all WP11 topics, and WP07 copies it verbatim into a constant with a per-heading planted-removal test.
+- id: TASKS-VERIFY-014
+  status: resolved
+  reason: WP03 and WP04 targeted tests now include test_contract_resolver.py and WP04 adds a red-first brace-spelling golden-tree case.

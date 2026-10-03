@@ -1,0 +1,49 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PLAN-FRESH3-001
+    lens: dependency-graph-consistency
+    severity: 3
+    title: IC-07a re-sweep after IC-04 contradicts IC-07a's dependency, "lane finished" claims, and the declared write-scope exceptions
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map, IC-07a row (Depends on = IC-01; last commit is a re-sweep 'after IC-04 merges')"
+      - artifact: "plan.md § IC-07b row ('sequential after IC-07a, whose lane is finished') and IC-08 row ('both lanes are finished')"
+      - artifact: "plan.md § Technical Context/Topology bullet, declared exceptions (2) and (3)"
+      - artifact: "plan.md § IC-05 and IC-07b rows (gated by IC-07a's recorded exit criterion, not by WP completion)"
+    claim: >
+      The round-3 fix moves the brace re-sweep into IC-07a as its last commit, sequenced after IC-04 merges.
+      Consequences left inconsistent. (1) IC-07a's Depends cell still says IC-01 only, yet its final commit
+      needs IC-04, so the WP cannot complete before IC-04. (2) IC-05 and IC-07b are 'gated' on IC-07a through an
+      informal exit criterion, but a work-package dependency in the tasks phase means the dependency WP is done;
+      a faithful finalize makes IC-05 and IC-07b wait for IC-04 (serialising the very early start the spike
+      exists for), or else the exit criterion is not enforceable by tooling. (3) IC-07b says IC-07a's lane is
+      finished and IC-08 says both lanes are finished; with a pending re-sweep that is false whenever a
+      re-sweep exists. (4) The re-sweep writes contracts/mission-status/** (path files, root map, _index.yaml),
+      which the topology bullet declares as written only by IC-02, IC-03, IC-04 in sequence, and the
+      contract_resolver.py constant edit is in IC-01's scope; neither is listed as an exception for IC-07a, so
+      the 'disjoint write scopes' statement is no longer true. (5) P0 (last commit of IC-04) and its immutable
+      preview tag are published before the re-sweep renames path files, but the 'Pre-release shape change'
+      commitment and the CHANGELOG obligation do not mention a post-P0 file rename.
+    remediation: >
+      Make the conditional re-sweep its own small work package (for example IC-07c, depends on IC-04 and
+      IC-07a, listed as an IC-08 dependency) or move it into IC-08 as its opening commit, and restore IC-07a's
+      'finished' state at spike recording. Then: correct the IC-07a/IC-07b/IC-08 'lane finished' wording, add the
+      re-sweep to the topology exceptions (root map and index files; resolver constant), state that a re-sweep
+      after P0 is a re-published point (new suffixed tag) with a CHANGELOG 'Pre-release shape change' line, and
+      state in the IC-05/IC-07b Depends cells that the gate is IC-07a WP completion (spike recorded).
+  - id: PLAN-FRESH3-002
+    lens: terminology-and-public-hygiene
+    severity: 1
+    title: Tracer log narrates review rounds
+    evidence:
+      - artifact: "tracer-approach.md (log lines '2026-10-02: plan review round 2/3 folded in')"
+    claim: >
+      The tracer log records review-round numbers and the list of fixes folded in; the other tracer entries
+      record decisions, not orchestration. Harmless but it is the only review-process narration in public
+      artefacts and will accumulate per round.
+    remediation: >
+      Reword to a decision-level entry (for example 'plan decisions revised: IC-09 ordering, re-sweep owner,
+      date-time test method') or drop the round number.

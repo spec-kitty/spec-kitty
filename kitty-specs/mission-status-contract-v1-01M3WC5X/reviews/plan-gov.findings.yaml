@@ -1,0 +1,130 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PLAN-GOV-001
+    lens: Campsite scope
+    severity: 3
+    title: Opening campsite commit cites duplication that does not exist in the named test
+    evidence:
+      - artifact: "plan.md § Campsite-clean (g), 'Surface and debt'"
+      - code: "tests/ci/test_fleet_verdict.py:101-107"
+      - code: "scripts/ci/fleet_verdict.py:44-45"
+    claim: >
+      The plan says test_all_existing_pr_workflows_are_registered repeats the pair
+      (release-readiness.yml, check-spec-kitty-events-alignment.yml) across three assertions, and
+      that hoisting it removes an S1192-class duplicate literal. In the checkout the pair appears
+      exactly once in that function (line 104, as a subtraction set); lines 103 and 107 do not
+      contain it (107 is a different four-name set). The pair is only listed twice in the whole
+      test tree if the production definition is counted (scripts/ci/fleet_verdict.py:44-45), and
+      test_fleet_main.py names the events-alignment workflow on its own. Sonar S1192 needs three or
+      more uses. So the claimed domain-matched debt is not there, the "behaviour-preserving" proof
+      is trivially true because the refactor is a single-use constant, and the commit is
+      justified only as pre-shaping the FR-017 edit (which is a one-element add to the same
+      expression either way). Charter Standing Order 2 asks for real, domain-matched debt, not an
+      invented one, and the inventory regeneration cost (tracer F-5) is paid for no debt removed.
+    remediation: >
+      Re-derive the opening campsite from the code about to change. Either name a real debt in
+      the FR-017 edit surface (cite file:line and a count of at least three, or another concrete
+      defect in the touched functions), or record in the plan that no domain-matched debt was
+      found and the opening commit is dropped (campsite is optional when nothing qualifies).
+      If the constant is kept as pure tidy-first, rewrite the justification honestly (single-use
+      named constant to localise the later edit), drop the S1192 claim, and have the WP record the
+      before/after test counts it already promises.
+  - id: PLAN-GOV-002
+    lens: Ledger
+    severity: 3
+    title: Ledger entries on the status snapshot reader and on writers-in-readers are not accounted for
+    evidence:
+      - artifact: "plan.md (no ledger section; Baseline step 4 'disagreement list 52 with 45 fewer and 7 more'; Reflexivity item 4)"
+      - artifact: "research.md § R-7 Corpus measurements"
+      - code: "SPEC-KITTY-LEDGER.md SK-309 (schema-5 finalizer events ignored by materialize_snapshot, empty snapshot)"
+      - code: "SPEC-KITTY-LEDGER.md SK-02, SK-190 (materialize writes derived views; a query-only call mutates the committed snapshot)"
+    claim: >
+      The reality check's snapshot-equality assertion, its floors and its pinned shrink-only
+      disagreement ceiling (FR-019) all rest on materialize_snapshot over the committed event
+      logs. SK-309 records that this reducer can yield event_count 0 and an empty work_packages
+      map for logs carrying schema-5 task-finalizer events, and the corpus contains many recent
+      Missions that are scaffolded by exactly that finalizer. The plan never mentions SK-309 and
+      does not say whether the 45 snapshot-fewer disagreements are this defect, a data defect or a
+      reader defect, nor how the ceiling avoids pinning a known tool bug as accepted baseline
+      (Standing Order 5, priced debt). SK-02 and SK-190 are the same class as spec-phase incident
+      F-1 (a reader that writes); the plan's hash-before-and-after proof is right, but it is not
+      tied to those entries.
+    remediation: >
+      Add a short "Ledger accounting" subsection to the plan. State for SK-309, SK-02, SK-190
+      (and SK-64/SK-246 for the scaffold subject) whether each is in scope, avoided, or
+      escalated, and how. For SK-309 specifically: at implement start classify the 52
+      disagreements against it and record the result in research.md R-7 before any ceiling is
+      pinned, and route a confirmed tool bug to the orchestrator for a ledger update instead of
+      baking it into the ceiling. Re-check the ledger entries' open status at that time.
+  - id: PLAN-GOV-003
+    lens: Decision-register faithfulness
+    severity: 2
+    title: OQ-4 ruling scope for DEV-2 is inferred by the plan, and the ruling has no public record
+    evidence:
+      - artifact: "plan.md § Decision register OQ-4 and E-2"
+      - artifact: "tracer-design-decisions.md § DD-1 (title says 'DEV-1 accepted')"
+      - artifact: "spec.md § Open Questions OQ-4; SC-010"
+    claim: >
+      DD-1 records the ruling as accepting DEV-1, while the plan's OQ-4 row says DEV-2 is planned
+      as written "because OQ-4 as the spec states it covers both and the ruling closes OQ-4".
+      That extends the ruling's scope by reading the spec text, which is the plan author
+      authorising an exception to a confirmation item; E-2 then asks the question that the same
+      row has already answered. The decision is flagged (not silent), but the register shows
+      DEV-2 as "Closed" while E-2 leaves it unconfirmed, and SC-010 still requires both DEVs in
+      the PR body. Separately the ruling is cited only as "operator ruling 2026-10-01", with no
+      public record (PR body, #5528 comment) a reader of this public repository can follow.
+      Also PQ-1 changes the literal FR-018 parenthetical (distributionSha256Sum) by plan-author
+      decision; it is recorded with reason, but a departure from a binding FR is listed as
+      resolved rather than escalated.
+    remediation: >
+      In the OQ-4 row and DD-1 state the ruling's actual scope (DEV-1 closed; DEV-2 planned as
+      written and pending confirmation under E-2), not "closed" for both. Record the ruling
+      verbatim in the PR body and in a #5528 comment the operator posts, and cite that link from
+      DD-1. Add PQ-1's FR-018 departure to the list of PR-body confirmation items (or to E-2) so
+      it is confirmed rather than only recorded.
+  - id: PLAN-GOV-004
+    lens: Tracer files
+    severity: 2
+    title: Tracer F-3 misstates why the scaffold subject passes, and F-1 has no disposition for the documented-example trap
+    evidence:
+      - artifact: "tracer-tooling-friction.md F-3, F-1"
+      - code: "commitlint.config.cjs:19-22 (ignore alternation is meta|spec|tasks|plan, not scaffold)"
+      - code: "CLAUDE.md 'Status Model Patterns' ('from specify_cli.status.reducer import materialize; snapshot = materialize(feature_dir)')"
+      - code: "SPEC-KITTY-LEDGER.md SK-64 (retracted and replaced), SK-246 (commit-msg job is vacuous)"
+    claim: >
+      F-3 says "commitlint ignores that shape on purpose". The ignore regex covers
+      (Add|Update) (meta|spec|tasks|plan) for (feature|mission); "scaffold" is not in the
+      alternation. No gate fails because the commit-msg job never runs commitlint (SK-246), not
+      because of the ignore list; SK-64 itself was retracted and replaced, so citing it as the
+      reason is stale. F-1 is accurate and carries the required operator-authorised exception
+      (33 tracked path-scoped restore, 32 untracked deleted, nothing committed), F-2 carries the
+      topology observation; but F-1 names the CLAUDE.md example as the trap without saying where
+      that is tracked (ledger, doc fix, or out of scope), and nothing in the artifacts hands it
+      to the sweep.
+    remediation: >
+      Reword F-3: the scaffold subject is outside the ignore alternation; it passes only because
+      the commit-msg job is vacuous (SK-246); cite SK-64 as the replaced entry. Add a line to F-1
+      stating the disposition: the CLAUDE.md example (the writer shown as a read call) is a
+      documentation defect outside C-002's src scope, handed to the orchestrator for a ledger
+      entry or a doc fix by a separate change, and not folded into this Mission.
+  - id: PLAN-GOV-005
+    lens: Terminology
+    severity: 1
+    title: New binding contract terms are not placed in the glossary, and the plan does not say why
+    evidence:
+      - artifact: "plan.md § Generated artefacts (Contextive glossary 'Not touched') and Charter Check Terminology row"
+      - artifact: "spec.md § Terminology (stream cursor, page cursor, lifecycle status, Mission phase, bundle, provisional)"
+    claim: >
+      The spec binds six new or disambiguated terms; the glossary today holds only lane and phase.
+      The plan correctly says no glossary file changes, but it does not state that the
+      disambiguations live in contracts/README.md only, so the Contextive sync lens cannot see a
+      deliberate choice. No Feature wording appears in any mission file except quoted legacy
+      identifiers (scan_all_features, a deleted source), which is acceptable as quoted data.
+    remediation: >
+      Add one sentence to the Terminology row: terms are scoped to the contract README by
+      design, no glossary entry is added, and a glossary or Contextive entry is a separate
+      maintainer decision.

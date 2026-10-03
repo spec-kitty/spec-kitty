@@ -1,0 +1,19 @@
+schema: review-ruling/v1
+phase: plan
+date: 2026-10-02
+basis: bounded autonomy; every surviving finding has exactly one remedy and none is above severity 2
+ruling: >
+  One extra fix round and one final anchored verification (R5a) are authorised beyond the
+  protocol's round budget. No further fresh sweep. If both findings resolve, the plan phase
+  passes; if either stays unresolved, the phase halts again with no further loop.
+findings:
+  - id: NEW-1
+    remedy: >
+      The planted brace-ref fixture is a pre-edit red test against the UNCHANGED
+      BRACE_REF_SPELLING constant; the constant edit lands in the same commit and turns it green
+      (red-first per C-010).
+  - id: NEW-2
+    remedy: >
+      Align escalation E-3, risk P-11 and tracer-approach.md (including the "new suffixed tag"
+      wording) with the plan's per-point counter and its two causes (compact history and
+      brace re-sweep).

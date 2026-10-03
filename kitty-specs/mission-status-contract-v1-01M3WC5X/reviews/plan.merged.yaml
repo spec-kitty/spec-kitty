@@ -1,0 +1,738 @@
+schema: review-merged/v1
+phase: plan
+mission: mission-status-contract-v1-01M3WC5X
+complete: true
+findings:
+- id: PLAN-GOV-001
+  lens: Campsite scope
+  severity: 3
+  title: Opening campsite commit cites duplication that does not exist in the named test
+  evidence:
+  - artifact: "plan.md \xA7 Campsite-clean (g), 'Surface and debt'"
+  - code: tests/ci/test_fleet_verdict.py:101-107
+  - code: scripts/ci/fleet_verdict.py:44-45
+  - artifact: "plan.md \xA7 Campsite-clean (g) ('repeats the same hand-written set of path-filtered workflow\
+      \ names ... across three assertions'; 'Sonar S1192 class')"
+  - code: tests/ci/test_fleet_verdict.py:104 (the only occurrence of the release-readiness.yml / check-spec-kitty-events-alignment.yml
+      pair in the file; line 107 is a different set; line 204 is a run-dict key)
+  claim: 'The plan says test_all_existing_pr_workflows_are_registered repeats the pair (release-readiness.yml,
+    check-spec-kitty-events-alignment.yml) across three assertions, and that hoisting it removes an S1192-class
+    duplicate literal. In the checkout the pair appears exactly once in that function (line 104, as a
+    subtraction set); lines 103 and 107 do not contain it (107 is a different four-name set). The pair
+    is only listed twice in the whole test tree if the production definition is counted (scripts/ci/fleet_verdict.py:44-45),
+    and test_fleet_main.py names the events-alignment workflow on its own. Sonar S1192 needs three or
+    more uses. So the claimed domain-matched debt is not there, the "behaviour-preserving" proof is trivially
+    true because the refactor is a single-use constant, and the commit is justified only as pre-shaping
+    the FR-017 edit (which is a one-element add to the same expression either way). Charter Standing Order
+    2 asks for real, domain-matched debt, not an invented one, and the inventory regeneration cost (tracer
+    F-5) is paid for no debt removed.
+
+    '
+  remediation: 'Re-derive the opening campsite from the code about to change. Either name a real debt
+    in the FR-017 edit surface (cite file:line and a count of at least three, or another concrete defect
+    in the touched functions), or record in the plan that no domain-matched debt was found and the opening
+    commit is dropped (campsite is optional when nothing qualifies). If the constant is kept as pure tidy-first,
+    rewrite the justification honestly (single-use named constant to localise the later edit), drop the
+    S1192 claim, and have the WP record the before/after test counts it already promises.
+
+    '
+  merged_duplicates:
+  - PLAN-VERIFY-004
+- id: PLAN-GOV-002
+  lens: Ledger
+  severity: 3
+  title: Ledger entries on the status snapshot reader and on writers-in-readers are not accounted for
+  evidence:
+  - artifact: plan.md (no ledger section; Baseline step 4 'disagreement list 52 with 45 fewer and 7 more';
+      Reflexivity item 4)
+  - artifact: "research.md \xA7 R-7 Corpus measurements"
+  - code: SPEC-KITTY-LEDGER.md SK-309 (schema-5 finalizer events ignored by materialize_snapshot, empty
+      snapshot)
+  - code: SPEC-KITTY-LEDGER.md SK-02, SK-190 (materialize writes derived views; a query-only call mutates
+      the committed snapshot)
+  claim: 'The reality check''s snapshot-equality assertion, its floors and its pinned shrink-only disagreement
+    ceiling (FR-019) all rest on materialize_snapshot over the committed event logs. SK-309 records that
+    this reducer can yield event_count 0 and an empty work_packages map for logs carrying schema-5 task-finalizer
+    events, and the corpus contains many recent Missions that are scaffolded by exactly that finalizer.
+    The plan never mentions SK-309 and does not say whether the 45 snapshot-fewer disagreements are this
+    defect, a data defect or a reader defect, nor how the ceiling avoids pinning a known tool bug as accepted
+    baseline (Standing Order 5, priced debt). SK-02 and SK-190 are the same class as spec-phase incident
+    F-1 (a reader that writes); the plan''s hash-before-and-after proof is right, but it is not tied to
+    those entries.
+
+    '
+  remediation: 'Add a short "Ledger accounting" subsection to the plan. State for SK-309, SK-02, SK-190
+    (and SK-64/SK-246 for the scaffold subject) whether each is in scope, avoided, or escalated, and how.
+    For SK-309 specifically: at implement start classify the 52 disagreements against it and record the
+    result in research.md R-7 before any ceiling is pinned, and route a confirmed tool bug to the orchestrator
+    for a ledger update instead of baking it into the ceiling. Re-check the ledger entries'' open status
+    at that time.
+
+    '
+- id: PLAN-GOV-003
+  lens: Decision-register faithfulness
+  severity: 2
+  title: OQ-4 ruling scope for DEV-2 is inferred by the plan, and the ruling has no public record
+  evidence:
+  - artifact: "plan.md \xA7 Decision register OQ-4 and E-2"
+  - artifact: "tracer-design-decisions.md \xA7 DD-1 (title says 'DEV-1 accepted')"
+  - artifact: "spec.md \xA7 Open Questions OQ-4; SC-010"
+  claim: 'DD-1 records the ruling as accepting DEV-1, while the plan''s OQ-4 row says DEV-2 is planned
+    as written "because OQ-4 as the spec states it covers both and the ruling closes OQ-4". That extends
+    the ruling''s scope by reading the spec text, which is the plan author authorising an exception to
+    a confirmation item; E-2 then asks the question that the same row has already answered. The decision
+    is flagged (not silent), but the register shows DEV-2 as "Closed" while E-2 leaves it unconfirmed,
+    and SC-010 still requires both DEVs in the PR body. Separately the ruling is cited only as "operator
+    ruling 2026-10-01", with no public record (PR body, #5528 comment) a reader of this public repository
+    can follow. Also PQ-1 changes the literal FR-018 parenthetical (distributionSha256Sum) by plan-author
+    decision; it is recorded with reason, but a departure from a binding FR is listed as resolved rather
+    than escalated.
+
+    '
+  remediation: 'In the OQ-4 row and DD-1 state the ruling''s actual scope (DEV-1 closed; DEV-2 planned
+    as written and pending confirmation under E-2), not "closed" for both. Record the ruling verbatim
+    in the PR body and in a #5528 comment the operator posts, and cite that link from DD-1. Add PQ-1''s
+    FR-018 departure to the list of PR-body confirmation items (or to E-2) so it is confirmed rather than
+    only recorded.
+
+    '
+- id: PLAN-GOV-004
+  lens: Tracer files
+  severity: 2
+  title: Tracer F-3 misstates why the scaffold subject passes, and F-1 has no disposition for the documented-example
+    trap
+  evidence:
+  - artifact: tracer-tooling-friction.md F-3, F-1
+  - code: commitlint.config.cjs:19-22 (ignore alternation is meta|spec|tasks|plan, not scaffold)
+  - code: CLAUDE.md 'Status Model Patterns' ('from specify_cli.status.reducer import materialize; snapshot
+      = materialize(feature_dir)')
+  - code: SPEC-KITTY-LEDGER.md SK-64 (retracted and replaced), SK-246 (commit-msg job is vacuous)
+  claim: 'F-3 says "commitlint ignores that shape on purpose". The ignore regex covers (Add|Update) (meta|spec|tasks|plan)
+    for (feature|mission); "scaffold" is not in the alternation. No gate fails because the commit-msg
+    job never runs commitlint (SK-246), not because of the ignore list; SK-64 itself was retracted and
+    replaced, so citing it as the reason is stale. F-1 is accurate and carries the required operator-authorised
+    exception (33 tracked path-scoped restore, 32 untracked deleted, nothing committed), F-2 carries the
+    topology observation; but F-1 names the CLAUDE.md example as the trap without saying where that is
+    tracked (ledger, doc fix, or out of scope), and nothing in the artifacts hands it to the sweep.
+
+    '
+  remediation: 'Reword F-3: the scaffold subject is outside the ignore alternation; it passes only because
+    the commit-msg job is vacuous (SK-246); cite SK-64 as the replaced entry. Add a line to F-1 stating
+    the disposition: the CLAUDE.md example (the writer shown as a read call) is a documentation defect
+    outside C-002''s src scope, handed to the orchestrator for a ledger entry or a doc fix by a separate
+    change, and not folded into this Mission.
+
+    '
+- id: PLAN-GOV-005
+  lens: Terminology
+  severity: 1
+  title: New binding contract terms are not placed in the glossary, and the plan does not say why
+  evidence:
+  - artifact: "plan.md \xA7 Generated artefacts (Contextive glossary 'Not touched') and Charter Check\
+      \ Terminology row"
+  - artifact: "spec.md \xA7 Terminology (stream cursor, page cursor, lifecycle status, Mission phase,\
+      \ bundle, provisional)"
+  claim: 'The spec binds six new or disambiguated terms; the glossary today holds only lane and phase.
+    The plan correctly says no glossary file changes, but it does not state that the disambiguations live
+    in contracts/README.md only, so the Contextive sync lens cannot see a deliberate choice. No Feature
+    wording appears in any mission file except quoted legacy identifiers (scan_all_features, a deleted
+    source), which is acceptable as quoted data.
+
+    '
+  remediation: 'Add one sentence to the Terminology row: terms are scoped to the contract README by design,
+    no glossary entry is added, and a glossary or Contextive entry is a separate maintainer decision.
+
+    '
+- id: PLAN-ARCH-001
+  lens: UI early-start claim
+  severity: 4
+  title: IC-04 'stable enough to generate a TypeScript client' is asserted before any validator, content
+    check or client generator has ever read the split contract
+  evidence:
+  - artifact: "plan.md \xA7 UI early-start point, items 1-3 and 'Earlier partial points'"
+  - artifact: "plan.md \xA7 Implementation Concern Map (IC-05, IC-07, IC-08 depend on IC-04 or run after\
+      \ it; IC-08 is the first real execution of the workflows, risk P-8)"
+  - artifact: "spec.md line 58 (path files named missions_{missionId}.yaml, braces kept) and plan.md \xA7\
+      \ Source code tree (contracts/_shared/ referenced from contracts/mission-status/, _index.yaml registries)"
+  - artifact: research.md R-3 (3.1 constructs may not survive the Java toolchain; spike is CI-only)
+  claim: 'At the last commit of IC-04 the only things that have touched the contract are the Python resolver
+    (refs) and the examples test. citation_check, provisional_check, enum_pin_check, leak_scan (IC-05),
+    the 3.1 validator and vacuum lint (IC-07/IC-08) and the whole-corpus reality check (IC-09) have not
+    run, and any of them can force schema changes. Item 3 (''a multi-file-capable generator can be generated
+    straight from the split files'') is never exercised by any step in the plan. Unproven risk factors
+    in the planned layout: unescaped braces in $ref file names, chained refs through _index.yaml, refs
+    that leave the module directory into ../_shared/, path-item $ref in the root paths map, and OpenAPI
+    3.1 type arrays and sibling keywords beside $ref, which many TypeScript generators handle partially.
+    The plan names no generator and no smoke test, yet tells an external team this commit is generatable.'
+  remediation: Either (a) move the advertised early-start point to the first commit after the contracts
+    workflow has been green on the draft PR (validate-bundle, lint, example and citation checks), or (b)
+    keep the IC-04 marker but label it 'unvalidated preview, no stability promise' and add an exit criterion
+    to IC-04 (resolver round-trip plus example_check green). In both cases add a CI-only client-smoke
+    step to the IC-07 spike that runs an openapi-generator typescript generator (Java, so Node-free, C-005
+    holds) against the SPLIT root and records the result, and pin the canonical $ref spelling for brace
+    file names (see PLAN-ARCH-005).
+- id: PLAN-ARCH-002
+  lens: UI early-start claim
+  severity: 3
+  title: '''Only additive or nullability-relaxing changes after the early-start point'' is incoherent
+    with the plan''s own breaking-change gate, unenforced, and exposed to CL-1'
+  evidence:
+  - artifact: "plan.md \xA7 UI early-start point, last paragraph ('additive or a nullability relaxation,\
+      \ never a removal or rename')"
+  - artifact: "plan.md \xA7 Contracts table row 'contracts/mission-status/ v1' and gate table row 'Breaking-change\
+      \ diff' (first release is the one allowed no-baseline state; D-P6)"
+  - artifact: "spec.md CL-1 / plan.md \xA7 Branch contract (PR is a draft until a maintainer acknowledges\
+      \ the design)"
+  claim: (1) Making a response property optional or nullable changes a generated TypeScript type (T becomes
+    T | null or optional) and is classified as breaking by oasdiff once a baseline exists, so the allowed
+    change class is exactly what the plan's own gate would fail after v1.0.0; the promise protects consumers
+    less than it reads. (2) Nothing in the plan checks the promise between the IC-04 commit and the IC-09
+    commit, because breaking_check has no baseline before the first tag. (3) CL-1 means the maintainers
+    can still request structural changes at acknowledgement, which the promise forbids; the plan does
+    not say which wins.
+  remediation: 'Reword the promise as a process commitment with an explicit exception (''unless the #5528
+    acknowledgement requests otherwise''), say that nullability relaxation is breaking for generated clients
+    and will be flagged in the module CHANGELOG under a ''pre-release shape change'' heading, and make
+    it checkable: record the early-start commit as a pre-release reference and have the draft-PR breaking-change
+    job print (informational, not gating) an oasdiff report against it. Pin consumers to the IC-09 point,
+    as the plan already says, and say the IC-04 point carries no compatibility promise.'
+- id: PLAN-ARCH-003
+  lens: UI early-start claim
+  severity: 3
+  title: The early-start commit hash recorded for the UI team will not survive the plan's own re-sync
+    and history-collapse steps
+  evidence:
+  - artifact: "plan.md \xA7 UI early-start point ('The commit hash ... is recorded in tracer-approach.md\
+      \ ... offered to the UI team on #5528') and E-3"
+  - artifact: "plan.md \xA7 Upgrade chain, migration impact and reflexivity item 6 (rebase onto current\
+      \ main, then the compact-history step of mission-wrap-up-sequence, again at PR prep)"
+  claim: The plan hands an external team a branch commit hash while also planning two history-rewriting
+    steps (rebase, compact-history). After either, the hash is unreachable on the branch, or reachable
+    only through reflog or an abandoned remote ref, so a UI team that pinned it loses its reference.
+  remediation: Publish the early-start and pin-grade points as immutable refs that survive the rewrite,
+    for example a lightweight tag in a non-release namespace that the breaking-change tag listing does
+    not match (not contract-<module>-v<semver>), or a copy of the split tree attached to the draft PR.
+    Record the recorded-hash caveat in E-3, and re-publish the point after the compact-history step.
+- id: PLAN-ARCH-004
+  lens: Resolver-parity and bundler fidelity
+  severity: 4
+  title: The bundler-fidelity spike (and the whole JVM toolchain) is scheduled before the workflow that
+    can execute it exists
+  evidence:
+  - artifact: research.md R-3 ('bundle it in the contracts workflow on the draft PR'; 'first task of IC-07')
+  - artifact: "plan.md \xA7 Implementation Concern Map (IC-07 'CI-only feedback loop'; IC-08 owns contracts.yml\
+      \ and depends on IC-07), risk P-1, P-2, decision E-1 ('The spike is the first task of WP07 so the\
+      \ question is answered early')"
+  claim: IC-07 can only get feedback from CI, but contracts.yml is authored in IC-08, which depends on
+    IC-05, IC-06 and IC-07. No job exists to run the spike, validate, bundle, lint, oasdiff or parity
+    during IC-07. E-1 is therefore not answered 'early', and a negative outcome (3.1 constructs rewritten)
+    arrives after IC-01 (resolver) and IC-05 (every content check, built on the resolver tree) are done,
+    which is the rework the escalation was meant to avoid.
+  remediation: 'Split the workflow: make a minimal contracts.yml skeleton (validate-bundle plus resolver-parity
+    over a spike module, with the fork guard and SHA pins) the first deliverable of IC-07, or move the
+    skeleton to IC-01 so the router and fleet edits and the first push exercise it early, and keep IC-08
+    for the remaining jobs, guards and negative-tests. State in the plan that the spike result gates IC-05,
+    not merely IC-07, and put the E-1 decision before IC-05 starts.'
+- id: PLAN-ARCH-005
+  lens: Resolver-parity and bundler fidelity
+  severity: 3
+  title: Parity proves less than claimed, and the resolver's required feature set is fixed before the
+    contract exists
+  evidence:
+  - artifact: "plan.md \xA7 Decision register OQ-1 and D-P1/D-P2"
+  - artifact: research.md R-1 (resolver scope), R-3
+  - artifact: spec.md line 58 ({param} kept in file names) and line 268 (BAD_REF_FORM rejects URL, absolute
+      and ~1 refs only)
+  claim: (1) The bundle is dereferenced by the same Python resolver (in-file pointers), so parity proves
+    only that the Java bundle is the split tree with refs hoisted; a resolver defect common to both sides
+    (sibling keywords beside $ref, composition) cannot be seen. The plan should say so and not describe
+    it as an independent check. (2) The openapi-generator output normally renames and de-duplicates components
+    and may rewrite 3.1 constructs; a differing tree can be an acceptable rename, so the 'named normalisations'
+    list is the real contract and needs a ceiling and review rule or it erodes into a vacuous comparison.
+    (3) The resolver (IC-01) is specified before IC-02..04 write the contract, so keywords the contract
+    ends up using ($defs, $anchor, discriminator, brace file names) can force resolver and parity changes
+    late. (4) The layout rules do not fix the canonical spelling of a $ref to a brace-named file (percent-encoded
+    versus raw), which the Python resolver, the Java parser and TypeScript tooling treat differently,
+    so a first-run parity failure would be a ref-form decision, not a named normalisation.
+  remediation: 'In the plan: state what parity does and does not prove; require that each normalisation
+    entry names the construct, the tool behaviour and a planted test, cap the list and make growth past
+    the cap a decision for the maintainers; add to the layout check a rule fixing the canonical $ref spelling
+    for brace file names (decide it in the spike and test it against Python, Java and a TypeScript generator);
+    and add a resolver change-control note: any contract keyword outside the OQ-1 list is added to the
+    resolver and its parity fixtures in the same commit.'
+- id: PLAN-ARCH-006
+  lens: Dashboard re-verification
+  severity: 3
+  title: Plan section (l) cites MissionIdentity as the source of friendly_name, acceptedAt, mergedAt and
+    discardedAt, but MissionIdentity has none of those fields
+  evidence:
+  - artifact: "plan.md \xA7 Dashboard references re-verified (l), row 'scanner.py friendly-name fallback\
+      \ ...' ('friendly_name ... (the MissionIdentity field)'; 'acceptedAt, mergedAt, discardedAt: the\
+      \ stamping functions and MissionIdentity fields')"
+  - code: 'src/specify_cli/mission_metadata.py:107 (MissionIdentity: mission_slug, mission_number, mission_type,
+      mission_id only)'
+  - code: src/specify_cli/mission_metadata.py:59 (friendly_name is a key of MissionMetaRequired)
+  - code: src/specify_cli/mission_metadata.py:72 (accepted_at) and :78 (merged_at) are MissionMetaOptional
+      keys; discarded_at is only stamped at :706-730 and is not declared in either TypedDict
+  claim: The citation check (FR-010, PQ-10) fails on a cited symbol that does not resolve. An implementer
+    who follows the plan and writes x-source MissionIdentity.friendly_name (or .accepted_at) produces
+    a citation that cannot resolve, or cites a different symbol from the plan's, which defeats the 'surviving
+    source' substitution the table was written to give.
+  remediation: 'Correct the table: cite MissionMetaRequired (friendly_name), MissionMetaOptional (accepted_at,
+    merged_at) and the discard stamp function in mission_metadata.py (name the function, line 706 area),
+    and note that discarded_at is undeclared in the TypedDicts (the contract''s x-derived or x-source
+    must say it is read from the raw meta mapping through load_meta). Re-run a symbol grep for every row
+    of (l) before the artifact is frozen.'
+- id: PLAN-ARCH-007
+  lens: Dashboard re-verification
+  severity: 2
+  title: WPView.subtasks does not exist; subtasks live on WPView.resolved and WPView.authored with different
+    types, and the 'seven lifecycle constants' are a subset of a twelve-member set
+  evidence:
+  - artifact: "plan.md \xA7 (l) ('subtaskProgress: x-derived from the subtasks mapping in WPView'; 'the\
+      \ seven lifecycle event type constants (SPECIFY_STARTED and siblings)')"
+  - code: src/specify_cli/status/wp_view.py:85 (ResolvedGroup.subtasks Mapping[str, str]) and :132 (AuthoredGroup.subtasks
+      tuple[str, ...]); WPView at :139 has only wp_id, resolved, authored
+  - code: src/specify_cli/status/lifecycle_events.py:107-122 (LIFECYCLE_EVENT_TYPES has twelve members)
+  - artifact: data-model.md line 47 ('The seven lifecycle event type constants are in lifecycle_events.py')
+  claim: No class named WPView carries a subtasks attribute, so a class-plus-attribute citation fails;
+    the two real attributes differ (an event-sourced status mapping versus an authored id tuple) and the
+    plan does not say which feeds subtaskProgress. For the event stream the allow-list of seven (spec
+    lines 310, 577) is a new set owned by the helper, not a constant in lifecycle_events.py, so a lifecycle
+    type added to src later is silently dropped by design with no check noticing.
+  remediation: Cite ResolvedGroup.subtasks (and say which of the two is the done/total source). For the
+    allow-list, say it is contract-owned, name the seven constants (MISSION_CREATED, SPECIFY_STARTED,
+    SPECIFY_COMPLETED, PLAN_STARTED, PLAN_COMPLETED, TASKS_STARTED, TASKS_COMPLETED), and have event_mapping_check
+    or the reality check print LIFECYCLE_EVENT_TYPES minus the allow-list so a new upstream type is a
+    visible, deliberate drop.
+- id: PLAN-ARCH-008
+  lens: Dashboard re-verification
+  severity: 2
+  title: The spec's field catalogue still cites the deleted scanner as live evidence; the correction exists
+    only in a plan table
+  evidence:
+  - artifact: spec.md lines 521, 531, 532, 537, 551, 559, 570 (specify_cli/dashboard/scanner.py:NNN citations);
+      spec.md R-2
+  - artifact: "plan.md \xA7 (l) (corrections), research.md line 94 ('No contract citation may point at\
+      \ a path that git ls-files does not list')"
+  - code: src/specify_cli/dashboard/ is on disk but git ls-files lists zero files there (untracked residue);
+      git show d78aa2345:src/specify_cli/dashboard/scanner.py resolves and still defines _derive_mission_status,
+      _derive_next_action, get_workflow_status, build_mission_registry, scan_all_features
+  claim: The task generator and implementers read spec.md first; seven catalogue rows still point at a
+    removed module. The plan states the substitutions but does not declare the table authoritative over
+    the spec rows, so a work package can copy a dangling citation. The untracked residue directory also
+    lets a naive os.path.exists check pass for a deleted path; the plan relies on git ls-files, which
+    is right, and should require it.
+  remediation: 'Add one sentence to plan (l): ''this table supersedes every spec.md catalogue row that
+    cites specify_cli/dashboard/; tasks and WPs cite the corrected source''. Require citation_check to
+    test existence by git ls-files (not the filesystem), with a planted fixture that points at the untracked
+    dashboard residue.'
+- id: PLAN-ARCH-009
+  lens: Blast radius
+  severity: 3
+  title: The router selects tests-corpus on the wrong triggers for a test that reads meta.json and status.events.jsonl;
+    the plan states the reverse risk only
+  evidence:
+  - artifact: "plan.md \xA7 Reflexivity item 2 and item 5; Gate set row 'Corpus-trigger completeness'"
+  - code: .github/workflows/ci-router.yml:174-183 (corpus group lists kitty-specs/**/spec.md, plan.md,
+      tasks/**, contracts/**, acceptance-matrix.json only)
+  - code: tests/architectural/test_ci_corpus_trigger_completeness.py:78-80 ('Never add bare kitty-specs/**
+      or status.events.jsonl (C-001) -- that would fire on routine WP status-event churn')
+  claim: The reality check reads every Mission's meta.json, status.events.jsonl and tasks/WP*.md, but
+    by design a commit touching only meta.json or status.events.jsonl (every status transition) does not
+    select tests-corpus. The plan reasons that a stranger's data defect can redden a PR that touches corpus
+    paths; the larger exposure is that a data defect committed by a status-only change merges unchecked
+    and surfaces on the push-to-main run of built-in-corpus-suite, or on the next unrelated corpus-selected
+    PR, attributed to the wrong author. Only reader drift is acknowledged (item 5), not data drift on
+    the unrouted files.
+  remediation: 'Add this to Reflexivity as an accepted, named risk (R-14 sibling) with its detection point
+    (push-to-main built-in-corpus-suite, nightly) and make the triage rule explicit: a red naming a Mission
+    the PR does not touch is classified first, and the first-red on main is routed to the Mission''s owner,
+    not the PR author. Do not widen the router globs (C-001 in the completeness test). In the PR body
+    list the data files the check reads that the router does not select.'
+- id: PLAN-ARCH-010
+  lens: Blast radius
+  severity: 3
+  title: Committed planted leak fixtures and a directory-wide allow-list in leak_scan contradict C-006
+    and the plan's 'no allowlist' claim
+  evidence:
+  - artifact: contracts/tools-and-workflows.md line 11 ('Planted files carry a marker line and are asserted
+      to be detected by the text-level scan, which allow-lists exactly this directory')
+  - artifact: "plan.md \xA7 Charter Check row Standing Order 5 ('no allowlist is added'); \xA7 Test strategy\
+      \ preamble ('planted values in test code are assembled from fragments so test sources do not hold\
+      \ literal paths or addresses'); plan.md line 30 (C-006, no absolute host path or e-mail in any file\
+      \ this Mission authors)"
+  claim: Class-A negative fixtures under contracts/tools/fixtures/ are committed files that must contain
+    literal planted host paths, e-mail addresses and forbidden property names to be detected. That puts
+    literal leak-shaped strings in a public repository, contradicts the fragment-assembly rule the plan
+    applies to test code, and creates a directory-wide exemption in the text scan (a real leak copied
+    under that directory is never reported). It also contradicts the 'empty allow-list' claim.
+  remediation: Generate the leak-class fixtures at negative-test time from fragments (a small fixture-builder
+    invoked by the job, writing to a temp root) and commit only the clean controls; if a committed file
+    is unavoidable, exempt individual marker lines, not the directory, and have the scan assert the exempted
+    count equals the committed marker count. Remove or rephrase the 'no allowlist is added' statement.
+- id: PLAN-ARCH-011
+  lens: Blast radius
+  severity: 3
+  title: Release workflow publishes GitHub Releases without stating --latest/prerelease handling, so a
+    contract tag can take the repository's 'Latest release' pointer
+  evidence:
+  - artifact: "plan.md \xA7 D-P5 ('publication is gh release create'; tag namespace contract-<module>-v<semver>)"
+  - artifact: "plan.md \xA7 Contracts table row 'New: release tag namespace' (disjoint from v*.*.*)"
+  claim: A release created for contract-mission-status-v1.0.0 is, by default, a candidate for the repository-level
+    'Latest' marker and appears in the releases feed that external tooling and users treat as the CLI's
+    release stream. Tag-filter disjointness (FR-022) protects the CLI release workflow triggers but not
+    the Releases UI and API. The plan does not decide this, and the CLI release process (RELEASE_CHECKLIST.md)
+    is owner-run.
+  remediation: State in D-P5 that the contract release is created with --latest=false (and decide prerelease
+    for the 1.0.0 draft), add the flag to the release_check/publish-step guard assertion, and add it to
+    the post-merge close-out step (SC-009) as something the operator verifies.
+- id: PLAN-ARCH-012
+  lens: Reflexivity
+  severity: 2
+  title: Fleet-verdict coverage of the new workflow cannot be observed on the delivering PR
+  evidence:
+  - artifact: "plan.md \xA7 Seam (ci-fleet-verdict.yml +1 name, fleet_verdict.py +1 entry); \xA7 Gate\
+      \ set row 'Fleet verdict and fleet main'; risk P-8"
+  - code: .github/workflows/ci-fleet-verdict.yml:5 (workflow_run; checkouts at lines 43, 79, 108 take
+      the default-branch ref)
+  - code: scripts/ci/fleet_verdict.py:52-76 (applicable_workflows walks the trusted checkout's workflows;
+      PR_WORKFLOWS must equal the set seen)
+  claim: 'workflow_run jobs execute the default-branch copy, so on this PR the verdict uses main''s inventory
+    and main''s workflow files and will not include contracts.yml at all. The plan''s ''enforced = read
+    by the fleet verdict'' wording for the contracts gate is therefore unverifiable until after merge,
+    and the first PR that touches contracts/ after merge is the first real test of the new inventory entry
+    and the applicability (branches: [main], three paths).'
+  remediation: Say in the plan and the PR body that the fleet-verdict integration is confirmed only post-merge,
+    add a post-merge close-out step (alongside SC-009) that opens or inspects a contracts-touching PR
+    to confirm the verdict lists the contracts workflow as required, and keep the unit-level coverage
+    in tests/ci/test_fleet_verdict.py as the pre-merge evidence.
+- id: PLAN-VERIFY-001
+  lens: Gates (module shards) / Mission-derived lens 3 (router selection claim)
+  severity: 3
+  title: Plan says only the ci module shard is selected; the regenerated tests/release inventory also
+    selects the release module
+  evidence:
+  - artifact: "plan.md \xA7 The gate set (e), row 'Per-module shards and modules-gate' ('ci module only\
+      \ ... no other module row is selected by this diff (simulated)')"
+  - artifact: "plan.md \xA7 Generated artefacts, row tests/release/pinning_rule_inventory.json (a regenerated\
+      \ file under tests/release/ is part of the diff)"
+  - code: scripts/ci/gate_selection.py:221-267 (_modules_for_test_paths maps ANY changed path under tests/<leaf>
+      to the module whose src root has that leaf)
+  - code: '.github/ci-module-registry.yml (module ''release'': roots src/specify_cli/release/**, no test_dirs,
+      shard_count 1)'
+  claim: 'select_modules unions in every module whose canonical test mirror contains a changed path (any
+    file type). The plan''s own diff includes tests/release/pinning_rule_inventory.json, so the `release`
+    module row (mirror tests/release) is selected and its shard runs the whole tests/release directory
+    (about 21 other test files). The plan''s simulation claim is therefore false for the full mission
+    diff, those files are not in the 8-file baseline, and a red there could be misattributed. The same
+    mechanism explains why the inventory gate is "hidden": a PR that edits fleet_verdict.py and tests/ci/
+    without touching tests/release selects only the `ci` shard, so test_pinning_inventory_fresh.py never
+    runs on that PR. The plan does not say where the gate actually runs.'
+  remediation: Correct the module-shard row to "ci and release (release is selected by the regenerated
+    inventory file)". Add the tests/release test files to the WP01 baseline command (run before the first
+    change) and to the named gate list. State in the inventory rows that the freshness gate only runs
+    per PR when tests/release is in the diff, so regeneration is a hard obligation of every WP that shifts
+    a scanned line, not something CI will catch for it.
+- id: PLAN-VERIFY-002
+  lens: Gates (omitted enforced gates) / Mission-derived lens 3
+  severity: 3
+  title: docs-lint and tests-docs are selected by the plan's own docs and CHANGELOG edits but are absent
+    from the gate set, which says tests-docs is not selected
+  evidence:
+  - artifact: "plan.md \xA7 The gate set (e), row 'Routed test groups' ('the others no ... verified by\
+      \ simulation'); no row for docs-lint anywhere in \xA7 The gate set; plan.md \xA7 PQ-7 and \xA7 Source\
+      \ code (CHANGELOG.md, docs/development/reference/ci-gate-mechanics.md edited)"
+  - artifact: research.md line 42 itself lists 'contracts/tools/<script>.py plus docs/x.md -> groups corpus
+      and docs'
+  - code: '.github/workflows/ci-router.yml:489 (docs-lint job, always on: scripts.docs.check_spelling
+      and scripts.docs.check_changelog_style; in router-gate needs at :750)'
+  - code: '.github/workflows/ci-router.yml (filter group docs: docs/**, tests/docs/**, scripts/docs/**;
+      job tests-docs runs pytest tests/docs)'
+  - code: CHANGELOG.md is a symlink to docs/changelog/CHANGELOG.md (ls -l); scripts/docs/check_spelling.py:75-78
+      (TYPO_ROOTS docs, packs/built-in; the 'unreleased' pass applies US spelling to the [Unreleased]
+      section); scripts/docs/check_changelog_style.py:35 (DEFAULT_CHANGELOG)
+  - code: 'docs/development/docs-retrieval-index.yaml:10826-10832 (committed per-page ''anchors'' list
+      derived from ## headings of ci-gate-mechanics.md)'
+  claim: 'The Mission edits docs/development/reference/ci-gate-mechanics.md and the changelog (a symlink
+    into docs/changelog/), so the router''s docs group matches: tests-docs (pytest tests/docs) is selected
+    and docs-lint (spelling plus changelog style) runs. Both are enforced (they sit in router-gate needs).
+    The plan gives docs-lint no row and says the other routed groups are not selected. Consequences left
+    unplanned: the [Unreleased] entry is checked for American spelling and house style while the plan''s
+    own prose is British (artefact, behaviour, normalisation); a new ## section in ci-gate-mechanics.md
+    changes the committed docs-retrieval-index anchors; writing through the CHANGELOG.md symlink with
+    a tool that replaces files would turn the symlink into a regular file.'
+  remediation: 'Add docs-lint and tests-docs rows (Yes; run `python -m scripts.docs.check_spelling` and
+    `python -m scripts.docs.check_changelog_style` plus the named tests/docs files that read the touched
+    page). Say the CHANGELOG edit goes to docs/changelog/CHANGELOG.md, in American spelling, in the house
+    entry shape. Add the docs-retrieval-index.yaml line to Generated artefacts (regenerate with the docs
+    index tool, or avoid a new ## heading) and add tests/docs and docs-lint to the WP01 baseline.'
+- id: PLAN-VERIFY-003
+  lens: Hidden inventory gate (regeneration sequencing)
+  severity: 3
+  title: 'Inventory regeneration is sequenced only in IC-01 and IC-08, but the inventory also pins lines
+    of files that open PR #5557 edits'
+  evidence:
+  - artifact: "plan.md \xA7 Generated artefacts row 'tests/release/pinning_rule_inventory.json' ('regenerated\
+      \ ... in the WP that makes those edits'); \xA7 PQ-6; \xA7 Reflexivity item 6 and IC-08 ('rebase\
+      \ on #5557 state before and after')"
+  - artifact: spec.md C-003 (#5557 edits test_no_duplicate_suite_execution.py, test_workflow_coherence.py,
+      test_module_shard_registry.py and rewrites test_ci_corpus_trigger_completeness.py)
+  - code: 'tests/release/pinning_rule_inventory.json rows: tests/architectural/test_no_duplicate_suite_execution.py
+      lines 288..1789, tests/architectural/test_workflow_coherence.py lines 22..276, tests/architectural/test_ci_corpus_trigger_completeness.py
+      lines 28 and 45'
+  - code: tests/release/test_pinning_inventory_fresh.py:100-111 (byte-for-byte re-derivation); scripts/ci/derive_pinning_inventory.py:113
+      (scan roots tests and scripts)
+  claim: 'The claim that the freshness gate is byte-for-byte including line numbers is verified (including
+    PR_WORKFLOWS at fleet_verdict.py:42 and four test_fleet_verdict.py rows at lines 107, 348, 437, 452).
+    But the inventory is a derived file whose content depends on every scanned file, not just the three
+    the plan names. Any rebase onto a main that carries #5557 (or any other change to a scanned file)
+    shifts recorded lines and also produces a textual conflict in the JSON. The plan regenerates when
+    this Mission edits its three files, not after each rebase, and does not say how a JSON conflict is
+    resolved. Hand-merging it would be exactly the hand-edit the gate forbids.'
+  remediation: 'Add a rule to the Baseline and Reflexivity sections: after every rebase or merge of main,
+    and as the last step before PR prep, re-run `python3 scripts/ci/derive_pinning_inventory.py` and `tests/release/test_pinning_inventory_fresh.py`;
+    resolve any conflict in the JSON by discarding both sides and regenerating. Put the same step in IC-10
+    close-out.'
+- id: PLAN-VERIFY-005
+  lens: Coverage floors (diff-cover vacuity claim)
+  severity: 2
+  title: diff-cover scope is described wrongly; the real scope is a hard-coded critical-path list, not
+    the coverage source map
+  evidence:
+  - artifact: "plan.md \xA7 gate set row diff-cover ('It scores changed src/ lines'); \xA7 'How coverage\
+      \ is held for diff-cover (honestly)' ('under the coverage configuration's source map, which is src/')"
+  - code: 'scripts/ci/aggregate_source.py:18-26 (CRITICAL_PATHS: src/kernel, src/charter, src/specify_cli/status,
+      branch_naming.py, src/specify_cli/consolidation, src/runtime/next, src/mission_runtime)'
+  - code: scripts/ci/aggregate_source.py:111-132 (critical.diff.patch limited to those pathspecs); pyproject.toml:2891-2898
+      ([tool.coverage.paths] is only a path-remapping table)
+  - code: '.github/workflows/ci-aggregate.yml diff-cover job: if requires needs.collect.outputs.coverage
+      == ''true'''
+  claim: 'The conclusion (vacuous for this Mission) is right, and stronger than stated: no file under
+    tests/, scripts/ or contracts/ can ever be scored, and most of src/ is not either. But the mechanism
+    the plan gives is wrong, and the plan then defers "behaviour on a zero-line diff" to implement start.
+    An implementer reading the plan would think any src/ change is scored.'
+  remediation: 'Replace the explanation with the CRITICAL_PATHS list and cite aggregate_source.py. Keep
+    baseline step 6 but phrase the expected observable concretely: critical.diff.patch is empty, validate_diff_coverage
+    writes an empty statement patch, and diff-cover reports no scorable lines. Record whether the diff-cover
+    job runs at all when the diff selects only the ci module and tests-corpus.'
+- id: PLAN-VERIFY-006
+  lens: Coverage floors (how coverage is actually held)
+  severity: 2
+  title: The only coverage floor for the new Python is a pasted local run; nothing a reviewer or CI can
+    re-check
+  evidence:
+  - artifact: "plan.md \xA7 'How coverage is held for diff-cover (honestly)'; spec.md NFR-007"
+  - code: .github/workflows/ci-router.yml tests-corpus step (pytest -m 'corpus and not windows_ci' -n
+      auto --dist loadfile, no --cov)
+  claim: The plan is honest that coverage is local discipline, which matches NFR-007. But "every projection
+    helper function has a direct unit test" and "a planted case per branch" are asserted with no mechanism
+    that fails when a function or branch is added without a test; the 90 percent figure is self-reported
+    output pasted into a PR body. Revert discipline for the helper rests on reviewer diligence only.
+  remediation: 'Add one cheap enforced check in tests-corpus: an AST scan that enumerates the public functions
+    of tests/contract/_mission_status_payloads.py and each contracts/tools script and fails when one is
+    not referenced by its unit-test module (with a floor on the number of functions found). Also require
+    the PR body to include the exact `pytest --cov` command and the per-file branch figures so a reviewer
+    can re-run it.'
+- id: PLAN-VERIFY-007
+  lens: Silent-success (empty-corpus guards)
+  severity: 3
+  title: The reality check's per-Mission parametrisation can collect zero cases and skip silently; the
+    exit-5 floor the plan cites does not protect this module
+  evidence:
+  - artifact: "plan.md \xA7 New gates table, row 'Reality check' ('Collection of zero tests is already\
+      \ an exit-5 failure in tests-corpus'); \xA7 D-P8 (parametrised per-Mission test plus corpus-level\
+      \ tests)"
+  - code: pytest.ini:11 (addopts has no empty_parameter_set_mark, so an empty parameter set is a skip,
+      not a failure)
+  - code: .github/workflows/ci-router.yml tests-corpus (exit 5 fires only when the whole corpus marker
+      selects zero tests, about 1400 are collected)
+  claim: The exit-5 floor applies to the whole corpus selection, so it says nothing about this module.
+    If the collection-time enumeration of Missions returns nothing (wrong cwd, a glob mistake), the parametrised
+    test is reported as skipped and the job stays green. The floors the plan names (500 Missions, 3000
+    payloads) are computed by a separate own-directory pass, so they can pass while the per-Mission cases
+    silently number zero. The lens requires counting what the loop iterates.
+  remediation: State that the case list comes from the same function as the own-directory pass and that
+    a corpus-level, non-skippable test asserts (a) the number of generated cases equals the Missions-with-meta
+    count and is at least the floor, and (b) the number of cases that actually executed equals that count
+    (a session-scoped counter). Convert an empty parameter set into a failure explicitly. Delete the exit-5
+    sentence from that row.
+- id: PLAN-VERIFY-008
+  lens: Gates (workflow shape / fork guard)
+  severity: 2
+  title: The terminal contracts-gate is a self-starting job under test_fork_guard but the plan guards
+    only root jobs
+  evidence:
+  - artifact: "plan.md \xA7 D-P4 ('python-checks and verify-pins are root jobs with the canonical fork\
+      \ guard'); \xA7 gate set row 'contracts-gate terminal job'; contracts/tools-and-workflows.md 'Root\
+      \ (fork guard): no' for contracts-gate"
+  - code: 'tests/ci/test_fork_guard.py:105-108 (_self_starting_jobs: a job with no needs OR with always()
+      in its if is guarded)'
+  - code: tests/ci/test_fork_guard.py:142-152 (the guard must be the leading top-level conjunct and keep
+      fork pull_request and dispatch live)
+  claim: A gate job that reads needs.*.result must use always() to run after a failed need, which makes
+    it self-starting for the guard test and requires the canonical guard as the first conjunct of its
+    if. The plan marks it non-root and names no guard, so the named gate file would go red on the first
+    run. The same applies to the single job of the release workflow (push trigger).
+  remediation: In the workflow job contract, give contracts-gate an if of the form "(<canonical guard>)
+    && always()" and mark it guarded; add it to the guard-test cases in tests/ci/test_contracts_workflows.py.
+    Confirm the release workflow's job carries the same guard.
+- id: PLAN-VERIFY-009
+  lens: Gates (tooling installation, FR-018)
+  severity: 3
+  title: No step is specified for installing the Python dependencies of the contracts tools in the contracts
+    workflow
+  evidence:
+  - artifact: "plan.md \xA7 Technical Context ('Locked Python dependencies only (pyyaml, jsonschema with\
+      \ referencing)'); \xA7 D-P4 ('No tool is installed through an unpinned package-manager command');\
+      \ contracts/tools-and-workflows.md job table (python-checks, verify-pins, negative-tests)"
+  - artifact: spec.md FR-018 ('No tool is installed through an unpinned package-manager command in the
+      workflow')
+  - code: '.github/workflows/ci-router.yml prose-scan step (the repo''s own precedent: pip install pyyaml==6.0.2
+      pinned with --only-binary)'
+  claim: The ten Python checks and the parity and release scripts need PyYAML, jsonschema and referencing,
+    and resolver/leak/citation tests import them. The plan says they are locked but never states how the
+    workflow gets them (uv sync --frozen, a pinned pip line, or the system Python). A bare `pip install`
+    would violate FR-018, and verify_pins' UNPINNED_INSTALL code would then fail the Mission's own workflow.
+    The Python version of the job is also unspecified (the tools target py311).
+  remediation: 'Add to the workflow job contract: a SHA-pinned setup action, `uv sync --frozen` (or an
+    exact-version pinned pip line with hash or --only-binary) as the one install step shared by python-checks,
+    verify-pins and negative-tests, the Python version, and a verify_pins case that accepts exactly that
+    form.'
+- id: PLAN-VERIFY-010
+  lens: Revert discipline (per-AC test strategy)
+  severity: 3
+  title: Several acceptance-criteria sub-bullets have no failing-observable test in the per-AC table
+  evidence:
+  - artifact: "plan.md \xA7 Test strategy per acceptance criterion, rows FR-002, FR-004, FR-006, FR-013,\
+      \ FR-016, FR-017, FR-018"
+  - artifact: spec.md FR-013 (at least one validating example per resource and per event kind plus provisional-populated
+      and discarded-Mission examples), FR-004 (first, middle and exhausted-cursor examples), FR-002 (page
+      cursor has no schema relationship to the stream cursor), FR-016 (provisional elements diffed in
+      their own section; removed path and newly required parameter), FR-017 (ii) (release workflow has
+      no pull_request trigger or non-tag push), FR-006 (history lists transitions only)
+  claim: 'FR coverage is complete in the traceability table, but these sub-criteria name an observable
+    that no listed test or fixture would turn red if the behaviour were reverted: example_check is specified
+    for invalid and orphan examples, not for a missing required example (a contract with no discarded-Mission
+    example passes); the breaking-change fixtures omit removed path, newly required parameter and the
+    provisional-section report; the guard row lists the contracts workflow trigger set but not the release
+    workflow''s trigger rules; the page-cursor independence and the transitions-only history have no assertion.
+    Under C-010 these are untested requirements.'
+  remediation: 'Extend the rows: add a required-example manifest (resource, event kind, provisional-populated,
+    discarded Mission, the three cursor pages) to example_check with a planted missing-example fixture;
+    add removed-path, new-required-parameter and provisional-section fixtures to the breaking_check pair;
+    add the release-workflow trigger cases to test_contracts_workflows.py; add a schema test that the
+    page cursor and stream cursor share no $ref and that history entries have kind constrained to transition.'
+- id: PLAN-VERIFY-011
+  lens: Baseline honesty
+  severity: 2
+  title: The baseline covers the 8 gate files and 2 router guards but not the other enforced gates the
+    plan marks 'Yes'
+  evidence:
+  - artifact: "plan.md \xA7 Baseline (f) steps 1-6; \xA7 gate set rows for ruff, terminology, prose-only,\
+      \ ci module"
+  - code: tests/ci/test_prose_only.py, tests/ci/test_ci_module_wiring.py, tests/architectural/test_no_legacy_terminology.py
+      exist and are named or implied as gates but have no baseline run
+  - code: .github/workflows/release-readiness.yml:197 (cutover-guard job)
+  claim: 'Re-run confirmed the plan''s own figure: the 8 files give 265 passed, 1 skipped (two invocations:
+    135 passed, then 130 passed with 1 skipped), and `ruff check .` and `ruff format --check .` are clean
+    on this checkout (2922 files). But the ruff pair, terminology, test_prose_only, test_ci_module_wiring,
+    the tests/release and tests/docs scopes (PLAN-VERIFY-001, -002) and the release-readiness cutover-guard
+    job are enforced and relevant yet absent from the baseline, so a red there cannot be classed pre-existing
+    or introduced. The plan''s release-readiness row also never mentions cutover-guard, which checks every
+    kitty-specs/<mission> touched by the diff, this Mission''s own directory included (src/specify_cli/cli/commands/cutover_guard.py:1-30).'
+  remediation: 'Add to baseline step 2 or 3: ruff check and format, the terminology file, test_prose_only,
+    test_ci_module_wiring and the tests/release and tests/docs files. Add a cutover-guard row to the gate
+    set and a read-only `spec-kitty cutover-guard --base-ref origin/main` record at implement start and
+    at PR prep.'
+- id: PLAN-VERIFY-012
+  lens: Silent-success / CI placement (edit-only paths)
+  severity: 2
+  title: An edit confined to tests/contract/ selects no job at all, so the reality check's own code is
+    not run when only it changes
+  evidence:
+  - artifact: "plan.md \xA7 Reflexivity item 5 (R-14 covers reader paths only); \xA7 Seam row tests/contract/"
+  - code: .github/ci-module-registry.yml:716 (tests/contract is excluded from the module matrix, home
+      is the corpus lane)
+  - code: scripts/ci/gate_selection.py:221-267 and .github/workflows/ci-router.yml (corpus group has no
+      tests/contract/** glob; only contracts/** is added)
+  claim: After merge, a PR that edits only tests/contract/_mission_status_payloads.py or a tool's unit-test
+    module matches no router group and no module row, so neither the edited test nor its helper runs per
+    PR; the push-to-main built-in-corpus-suite is the only net. The plan accepts reader drift (R-14) but
+    not this closely related hole, and the spec's single-glob constraint (C-003) rules out a second glob.
+  remediation: Record this as an accepted residual next to R-14, name the push-to-main run as the catch,
+    and put the one-line local command in the README next to the reader-author warning. Alternatively
+    ask the maintainers in the PR whether `tests/contract/**` may join the same corpus filter line.
+- id: PLAN-VERIFY-013
+  lens: Gates (enforcement vocabulary) / Mission-derived lens 3
+  severity: 2
+  title: By the plan's own definition of 'enforced' the new contracts jobs are not enforced, and the plan
+    never states their tier
+  evidence:
+  - artifact: "plan.md \xA7 Charter Check drift paragraph and \xA7 The gate set ('Enforced means a job\
+      \ whose red turns router-gate or aggregate-gate red and is read by the fleet verdict')"
+  - artifact: "plan.md \xA7 New gates table (no enforcement column); spec.md FR-017 ('The contracts checks\
+      \ are still not in router-gate')"
+  - code: .github/workflows/ci-router.yml router-gate needs list (contains no contracts job); scripts/ci/fleet_verdict.py:42-53
+      (PR_WORKFLOWS, path-filtered workflows join only when their paths match)
+  claim: 'The contracts workflow is observed by the fleet verdict comment only. It does not turn router-gate,
+    modules-gate or aggregate-gate red, so under the plan''s own definition none of its jobs is "enforced".
+    The new-gates table lists them beside enforced gates without saying so, and a red contracts run on
+    a contracts-only PR is reported, not blocking. Readers (and SC-007) could take the validate, lint
+    and breaking-change jobs as merge gates. The router and module routing claims themselves were checked
+    and hold: a contracts-only path currently matches no group and selects no job; with `contracts/**`
+    it matches only corpus, selects tests-corpus, no code shard and no module (the corpus group has no
+    registry row).'
+  remediation: 'Add a column "Tier" to the new-gates table: reality check (blocking via router-gate through
+    tests-corpus), contracts jobs (reported through the fleet verdict, conditional main gate, not blocking),
+    guard tests (blocking via the ci module shard). State it in the PR body text outline.'
+- id: PLAN-VERIFY-014
+  lens: Coverage floors / timing (packs lane)
+  severity: 2
+  title: NFR-001 timing is baselined only for tests-corpus, but the same module also runs on every push
+    to main under built-in-corpus-suite
+  evidence:
+  - artifact: "plan.md \xA7 Baseline step 5 and \xA7 P-5 (tests-corpus 10 minute timeout only); \xA7 gate\
+      \ set row 'Packs gate' (also runs on push to main with --cov=src/doctrine)"
+  - code: .github/workflows/packs.yml built-in-corpus-suite (timeout-minutes 20; pytest -m 'corpus and
+      not windows_ci' -n auto --dist loadfile --cov=src/doctrine; built_in output forced true on push)
+  claim: The plan correctly notes that the reality check must pass in built-in-corpus-suite on push, but
+    measures duration and headroom only against tests-corpus. Under that job the whole corpus plus a 539-Mission
+    reality check runs with a coverage tracer attached, a different cost profile and a 20 minute budget.
+    A timeout there is red on main only after merge, which is the worst place to learn it.
+  remediation: 'Add a step to the baseline and IC-10 measurement: read the latest push-to-main built-in-corpus-suite
+    log, record its duration, and re-check after the first draft-PR run by dispatching packs.yml in full
+    mode (read from the job log). State the 60 second per-case budget as applying under --cov as well.'
+- id: PLAN-VERIFY-015
+  lens: Gates (workflow job graph)
+  severity: 2
+  title: negative-tests needs is inconsistent between the job graph and the job contract table
+  evidence:
+  - artifact: "plan.md \xA7 D-P4 mermaid (vb --> neg and pins --> neg)"
+  - artifact: "contracts/tools-and-workflows.md \xA7 Workflow job contract (negative-tests: Needs verify-pins\
+      \ only; Does 'every script and tool' including JVM tools)"
+  claim: The graph makes negative-tests wait for validate-bundle; the table makes it depend on verify-pins
+    only. The JVM negative cases (planted dangling reference, tampered verification metadata, vacuum and
+    oasdiff fixtures) need the installed toolchain, which the table does not give this job. Two lanes
+    will implement different graphs and the guard test for workflow shape has nothing to pin.
+  remediation: 'Pick one: negative-tests needs verify-pins and runs install_tools.py itself, or needs
+    validate-bundle and reuses its installed tools; make the plan and the contract note agree and have
+    the guard test assert the chosen needs set.'
+- id: PLAN-VERIFY-016
+  lens: Generated artefacts (documentation mirror)
+  severity: 1
+  title: The retirement-scrub JSON keeps a documentation copy of the corpus globs that the router edit
+    makes stale
+  evidence:
+  - artifact: "plan.md \xA7 gate set row 'Router derivation guards' ('corpus group is not a row of the\
+      \ scrub JSON groups list'); contracts/tools-and-workflows.md ('Untouched by design: ci_retirement_scrub.json')"
+  - code: tests/release/ci_retirement_scrub.json non_src_router_groups[group=corpus].roots (lists the
+      nine current corpus globs)
+  - code: tests/architectural/test_ci_router_transcription_guards.py:63 (reads scrub['groups'] only; no
+      Python consumer of non_src_router_groups found by grep)
+  claim: The plan's reading is correct (the guard reads only `groups`), but the same file carries the
+    corpus roots under `non_src_router_groups`, which will no longer equal the router after `contracts/**`
+    is added. Nothing reads it, so no gate goes red, which is why it will rot silently.
+  remediation: 'Say so in the plan: either leave the file untouched and note the intentional staleness
+    in the PR body, or add the glob to that documentation list in the same commit (any tests/release edit
+    also selects the release shard, see PLAN-VERIFY-001).'

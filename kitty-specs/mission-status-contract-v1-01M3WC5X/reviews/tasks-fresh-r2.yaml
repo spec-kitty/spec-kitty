@@ -1,0 +1,60 @@
+schema: review-findings/v1
+phase: tasks
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: TASKS-FRESH-R2-001
+    lens: fresh
+    severity: 3
+    title: WP12 Node-ban grep cannot return empty because bare word node is ordinary code vocabulary
+    evidence:
+      - "artifact: tasks/WP12-close-out-evidence-record.md (revised close-out Steps): grep -E -w 'npm|npx|yarn|pnpm|setup-node|node' over added lines of git diff -U0 origin/main...HEAD -- contracts .github/workflows tests; expected to return nothing except planted strings of guard tests"
+      - "artifact: tasks/WP06-content-checks.md and spec.md FR-010: citation_check.py resolves cited symbols by AST, and event_mapping_check/example_check walk parsed YAML/AST"
+    claim: "The scope was widened to contracts/ and tests/ and the bare whole-word node was added. Ordinary Python in the new scripts and tests (for example a loop variable named node over ast.walk, or a YAML or JSON tree node in comments and docstrings) matches -w node. The acceptance step then cannot produce the expected empty result, and the only exemption is planted guard-test strings. WP12 would either fail a true-negative check or have the agent hand-wave the hits."
+    remediation: "Narrow the Node-ban check to tooling tokens (npm, npx, yarn, pnpm, setup-node, plus node as a command: shell-position or uses: lines) and restrict the bare node pattern to .github/workflows and contracts/tools shell strings, or state that legitimate identifier hits are listed and judged. Mirror the same token set the guard test asserts."
+  - id: TASKS-FRESH-R2-002
+    lens: fresh
+    severity: 2
+    title: WP01 T007 still says WP11 asserts README heading equality, contradicting revised WP11
+    evidence:
+      - "artifact: tasks/WP01-libraries-layout-shared-corpus-wiring.md line ~201 (T007 step 2): WP07 copies it verbatim into a constant in structure_check.py and WP11 asserts equality with its own topic list"
+      - "artifact: tasks/WP11-readme-changelog-docs.md (revised Test surface): README topic equality is mechanical and owned by WP07; This WP adds no test"
+    claim: "The revision removed the WP11 equality assertion but left WP01's description of it, so two prompts disagree about who proves README topic equality. An implementer of WP01 or reviewer may look for a WP11 test that will not exist."
+    remediation: "Edit WP01 T007 to say WP07 copies the list into structure_check.py and WP11 runs structure_check on the final README (no WP11 test)."
+  - id: TASKS-FRESH-R2-003
+    lens: fresh
+    severity: 2
+    title: Brace-literal acceptance grep exempts only fixtures but the tests that must contain the literals are in the grep scope
+    evidence:
+      - "artifact: tasks/WP09-remaining-jobs-release-negative-tests-p1.md (re-sweep acceptance grep): grep -rn \"missions_{\\|%7B\" tests/contract contracts/tools/fixtures matches nothing outside layout_check's own planted fixtures"
+      - "artifact: same file: the red-first test lives in tests/contract/test_layout_check.py and WP01/WP04 resolver tests percent-decode and golden-tree-check brace-named files (WP04 line ~77)"
+    claim: "tests/contract/test_layout_check.py and tests/contract/test_contract_resolver.py (and the resolver golden-tree fixtures) must contain the brace or %7B literal to test BRACE_REF_SPELLING and decoding, yet the exemption names only layout_check's fixtures. The check as worded cannot succeed, so it will be waved through or trigger needless churn."
+    remediation: "Word the exemption as: outside tests/contract/test_layout_check.py, tests/contract/test_contract_resolver.py, contracts/tools/fixtures/layout_check/** and contracts/tools/fixtures/contract_resolver/** (the files that legitimately test the spelling), and apply the same wording in WP01 and plan.md."
+  - id: TASKS-FRESH-R2-004
+    lens: fresh
+    severity: 1
+    title: WP09 create_intent lists about 25 files that earlier WPs create
+    evidence:
+      - "artifact: tasks/WP09-remaining-jobs-release-negative-tests-p1.md frontmatter create_intent: tests/contract/test_breaking_check.py, test_bundle.py, test_citation_check.py, ... test_verify_pins.py, contract_resolver.py, layout_check.py"
+      - "artifact: wps.yaml: WP01, WP02, WP06, WP07, WP08 each already list the same files in owned_files and create_intent"
+    claim: "The revision added the explicit per-module test files to create_intent so the owned globs would validate, but by WP09 those files already exist; only run_negative_cases.py, negative_cases.json, test_run_negative_cases.py, contracts-release.yml and test_contracts_workflows.py are WP09 creations. The same duplication was already present for contract_resolver.py and layout_check.py."
+    remediation: "If the CLI only needs owned_files to cover edits, reduce create_intent to the files WP09 really creates; otherwise leave it (no behavioural impact expected)."
+  - id: TASKS-FRESH-R2-005
+    lens: fresh
+    severity: 1
+    title: WP12 mission-wide SC-008 check omits scripts/ci/fleet_main.py untouched assertion
+    evidence:
+      - "artifact: spec.md SC-008: with scripts/ci/fleet_main.py, _CORPUS_GLOBS and _CORPUS_DATA_ROOTS untouched"
+      - "artifact: tasks/WP12-close-out-evidence-record.md revised Steps: path list is src contracts/fixtures tests/contract/test_handoff_fixtures.py pytest.ini .github/ci-module-registry.yml"
+    claim: "The revision made the C-003/C-004 close-out diff checks more complete but still does not assert fleet_main.py is unchanged, nor that only the four fleet-verdict files of C-003 changed in shared CI."
+    remediation: "Add scripts/ci/fleet_main.py to the empty-diff path list, and add a name-only diff over .github/workflows scripts/ci tests/ci listing the allowed set."
+  - id: TASKS-FRESH-R2-006
+    lens: fresh
+    severity: 1
+    title: WP09 Definition of Done says nine jobs and the gate; the job table has nine jobs including the gate
+    evidence:
+      - "artifact: tasks/WP09-remaining-jobs-release-negative-tests-p1.md DoD: All nine jobs and the gate exist"
+      - "artifact: contracts/tools-and-workflows.md job table: eight jobs plus contracts-gate; and WP09 Context: contracts-gate lists all eight other jobs"
+    claim: "Count drift: eight jobs plus the gate, nine in total."
+    remediation: "Say: all eight jobs and contracts-gate exist (nine in total)."
+complete: true

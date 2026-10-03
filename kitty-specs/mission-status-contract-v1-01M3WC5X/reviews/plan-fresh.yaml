@@ -1,0 +1,223 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PLAN-FRESH-001
+    lens: debugger-debbie squad-delegate (code-truth / divergence)
+    severity: 4
+    title: ".github/CODEOWNERS is git-ignored, so the file IC-06 creates cannot be committed as planned"
+    evidence:
+      - artifact: "plan.md § Project structure (.github/CODEOWNERS new; .gitignore '+ .gradle/' only) and IC-06 write scope"
+      - artifact: "contracts/tools-and-workflows.md § Edits to shared CI (no .gitignore item)"
+      - code: ".gitignore:135 ('.github/*' followed by an explicit allowlist of negations; CODEOWNERS is not among them)"
+    claim: >
+      `git check-ignore -v .github/CODEOWNERS` matches `.gitignore:135 .github/*`; the only negations are workflows,
+      PULL_REQUEST_TEMPLATE, ISSUE_TEMPLATE, actions and three named files. A plain `git add` of the new CODEOWNERS is
+      refused or skipped, `codeowners_check` passes locally against an untracked file, and CI never sees the file, so
+      FR-023 and its negative test are vacuous on the PR. The plan's only .gitignore edit (`.gradle/`) is owned by IC-07b,
+      a different lane from IC-06 which creates the file.
+    remediation: >
+      Add a `!.github/CODEOWNERS` negation to the .gitignore edit, move the whole .gitignore edit into the earliest lane
+      that needs it (IC-06 for the negation, IC-07b for `.gradle/`, or one owner for both), list it in the edits-to-shared-CI
+      table, and add an AC to IC-06 that `git ls-files .github/CODEOWNERS` is non-empty (and that codeowners_check reads the
+      tracked file).
+  - id: PLAN-FRESH-002
+    lens: write-scope disjointness / job graph
+    severity: 3
+    title: "IC-07b is declared a CI-only feedback loop but the jobs that run its tools do not exist until IC-08"
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map, IC-07a (skeleton jobs validate-bundle and resolver-parity only), IC-07b (lint, breaking_check, release_check, no workflow file in scope), IC-08 (adds lint, breaking-change, release-dry-run)"
+      - artifact: "plan.md § Risks P-2 and tracer-tooling-friction F-7 (JVM and Go tools only run in CI)"
+    claim: >
+      IC-07b writes the vacuum ruleset, breaking_check.py and release_check.py, and is told to record supply-chain
+      evidence, but its write scope excludes .github/workflows/contracts.yml and the skeleton from IC-07a has no lint,
+      breaking-change or release-dry-run job. Those tools therefore first execute in CI only after IC-08, which depends
+      on IC-07b, so the slow CI-only loop the split was meant to move early is only moved for the bundler.
+    remediation: >
+      Either let IC-07b extend contracts.yml with its own three jobs (and have IC-08 depend on that and add the rest), or
+      state in the IC-07b exit criteria that its tools are exercised by a throw-away push of a scratch workflow, and move
+      the first real execution evidence to IC-08 explicitly.
+  - id: PLAN-FRESH-003
+    lens: write-scope disjointness / hidden gate
+    severity: 3
+    title: "Corpus registry rows are required per module, but IC-06, IC-07a and IC-07b do not own the registry file"
+    evidence:
+      - artifact: "plan.md § IC-06, IC-07a, IC-07b write scopes ('tests', 'fixtures', no registry file) versus IC-01, IC-02, IC-05, IC-09 (registry rows)"
+      - artifact: "plan.md § Risks P-4 ('one row per module in the WP that adds it ... the integration merge resolves') and Branch contract ('write scopes below are disjoint across lanes')"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:test_corpus_marked_modules_match_the_curated_registry (exact set equality between marked modules and _CORPUS_MARKED_MODULES)"
+    claim: >
+      Every tests/contract/test_<tool>.py module carries the corpus marker (single-line pytestmark), and the registry test
+      requires exact set equality. IC-06 (structure, codeowners, no_pytest, verify_pins tests), IC-07a (install, bundle,
+      resolver_parity tests) and IC-07b (breaking, release tests) add such modules but list no registry edit, so each of
+      those WPs is red on the completeness gate by construction. Where the rows are listed (IC-01, IC-02, IC-05, IC-09)
+      the same frozenset is edited by up to six lanes in parallel, which contradicts the claim that write scopes are
+      disjoint and leaves conflict resolution to an unnamed integration merge.
+    remediation: >
+      Name the registry file in every WP that adds a corpus-marked module, say which lane owns the merge resolution, or
+      route all unit tests of contracts/tools through one aggregating module family per lane with a single pre-agreed
+      row block, and amend the Branch contract wording ('disjoint except the append-only registry').
+  - id: PLAN-FRESH-004
+    lens: gate non-vacuity / environment divergence
+    severity: 3
+    title: "The contracts prelude does not install rfc3339-validator, so date-time format checks diverge between the contracts workflow and tests-corpus"
+    evidence:
+      - artifact: "plan.md § Technical Context and D-P12 ('uv sync --frozen --no-install-project ... no extra is needed')"
+      - artifact: "research.md § R-1 Evidence (rfc3339-validator 'importable in the repository .venv (verified)')"
+      - code: "uv.lock (rfc3339-validator is reached only through cyclonedx-bom / pip-audit, which pyproject.toml lists in the 'lint' optional extra)"
+      - code: ".github/workflows/ci-router.yml:694 (tests-corpus runs 'uv sync --frozen --all-extras')"
+    claim: >
+      jsonschema only enforces `format: date-time` when rfc3339-validator is importable and a format checker is passed.
+      In the contracts workflow the prelude installs the base set plus the dev group, not the lint extra, so the validator
+      is absent; example_check, the independent dereference check and resolver_parity would accept a malformed timestamp
+      while the same example fails (or passes) differently in tests-corpus, which uses --all-extras. The plan's
+      'no extra is needed' claim and R-1's evidence were checked against a hand-built venv, not the locked base set.
+    remediation: >
+      Decide the format policy explicitly: pass a FormatChecker everywhere and make the tools exit 2 when the date-time
+      checker is unavailable (plus a planted malformed-timestamp example asserted to fail in both environments), or add
+      the needed extra to the one prelude (and to the verify_pins accepted form), or validate date-time with a small
+      stdlib check in contract_resolver's validation helper. Correct R-1's evidence line.
+  - id: PLAN-FRESH-005
+    lens: dependency ordering / rework risk
+    severity: 3
+    title: "IC-03 (first brace-named path files) is not gated on the IC-07a brace-spelling decision (E-4)"
+    evidence:
+      - artifact: "plan.md § Canonical $ref spelling for brace-named files (decided in the IC-07a spike), IC-03 (depends on IC-02 only), IC-01 (layout_check carries BRACE_REF_SPELLING), Critical path paragraph"
+    claim: >
+      The spelling is decided by the spike, which runs beside IC-02 to IC-04, but IC-03 creates
+      paths/missions_{missionId}.yaml and its root-map $ref without waiting for that result, and IC-01 already implements
+      the BRACE_REF_SPELLING rule before the spelling is known. If the spike picks a form other than the default
+      (E-4 is a live escalation), IC-03 and IC-04 and every example path reference are reworked, and the resolver and
+      layout_check change after content depends on them. Only IC-05 and IC-07b are gated on the spike result.
+    remediation: >
+      Make the brace spelling a single constant in contract_resolver and layout_check, state that IC-03 uses the default
+      candidate provisionally and re-sweeps its refs on the spike result, or add 'IC-07a exit criterion' to IC-03's
+      dependencies for the brace-named files only.
+  - id: PLAN-FRESH-006
+    lens: gate non-vacuity (D-15 silent success)
+    severity: 3
+    title: "Stable marker P1 depends on an informational client-smoke step that cannot fail and that contracts-gate cannot see"
+    evidence:
+      - artifact: "plan.md § UI early-start point (generate-from-split smoke 'informational until the stable marker'; P1 requires it green) and § New gates table (no row for it)"
+      - artifact: "contracts/tools-and-workflows.md § validate-bundle row"
+      - artifact: "spec.md D-15 (every check this Mission adds must fail loudly) and plan.md Charter Check, Standing Order 5"
+    claim: >
+      P1 is defined as 'contracts-gate succeeded AND the client smoke is green on the real split root', but the smoke is a
+      step that only records pass or fail and warnings in a job summary. It has no exit status in contracts-gate, no floor
+      (zero discovered modules passes), no planted-violation test, and is absent from the new-gates table and the
+      FR-025 matrix. The sole evidence the UI team is told to trust is therefore a human reading of a summary.
+    remediation: >
+      Give the smoke a counted result (modules generated, files emitted, exit 2 on zero), make a generation failure fail
+      the step once P1 is declared, add a planted module that the generator rejects plus a clean control to negative-tests,
+      and add the step to the new-gates table.
+  - id: PLAN-FRESH-007
+    lens: scope / traceability
+    severity: 2
+    title: "Revision adds mechanisms with no spec requirement and no traceability row"
+    evidence:
+      - artifact: "plan.md § UI early-start point (preview/mission-status/p0..p2 tag namespace, PREVIEW_DELTA mode, 'Pre-release shape change' heading, client smoke), § Traceability (no row), contracts/tools-and-workflows.md § breaking_check row"
+      - artifact: "spec.md (no mention of preview tags, a preview diff, or a client-generation step; FR-016 and FR-022 define the breaking-change and release scope)"
+    claim: >
+      A third tag namespace, an extra non-failing oasdiff mode against it, an extra CHANGELOG convention and an extra
+      generator step are all new surface in breaking_check.py, release_check/guard tests and the contracts workflow.
+      None maps to an FR, SC or NFR, the traceability table does not list them, and the plan does not say whether the
+      maintainers asked for them (CL-1 says the maintainers may still restructure at acknowledgement).
+    remediation: >
+      Add a traceability row naming the requirement or the plan decision (a new D-P number) that justifies each, or
+      demote them to PR-body guidance (tags and the shape-change heading) and keep PREVIEW_DELTA out of breaking_check.py
+      unless the maintainers confirm it, listing it as an item next to DEV-1/DEV-2 (E-2).
+  - id: PLAN-FRESH-008
+    lens: cross-reference drift
+    severity: 2
+    title: "Stale cross-references after the IC-07 split (inventory regeneration owner, campsite commit owner)"
+    evidence:
+      - artifact: "plan.md § Risks P-3 ('Regenerate by script in IC-01 and IC-08')"
+      - artifact: "plan.md § IC-07a write scope (regenerates pinning_rule_inventory.json after the fleet_verdict edits) and § Campsite-clean (opening commit is IC-01)"
+      - artifact: "contracts/tools-and-workflows.md § Edits to shared CI item 4 ('the optional opening campsite commit first ... Items 2 to 4 and 6 land in the IC-07a skeleton commit')"
+    claim: >
+      The edits that shift the pinned line numbers now land in IC-01 (campsite) and IC-07a (PR_WORKFLOWS entry and
+      fleet tests), but P-3 still assigns regeneration to IC-08, where no scanned file is edited. The contract note
+      moves the campsite commit into the IC-07a skeleton commit, contradicting the plan and the tracer, which make it
+      the opening, distinct, behaviour-preserving IC-01 commit (Standing Order 2 requires it to be distinct and first).
+    remediation: >
+      Change P-3 to 'IC-01 and IC-07a', and rewrite item 4 of the edits list so the campsite commit is IC-01 and only
+      the new member and expected-set edits are in the IC-07a skeleton commit.
+  - id: PLAN-FRESH-009
+    lens: job graph versus concern map
+    severity: 2
+    title: "IC-08 does not depend on IC-04, yet its acceptance (a full green contracts-gate) needs the real contract"
+    evidence:
+      - artifact: "plan.md § IC-08 (Depends on IC-05, IC-06, IC-07b) and § UI early-start point P1 (green gate on the real split root)"
+      - artifact: "contracts/tools-and-workflows.md § Scripts table (NO_MODULE, ZERO_PATH_FILES, ZERO_PROPERTIES exit 2) and § contracts-gate"
+    claim: >
+      With no module under contracts/mission-status, validate-bundle, python-checks (layout, citation, provisional, example,
+      event mapping) and resolver-parity all exit 2 by design, so contracts-gate is red. IC-08's own deliverable ('the
+      draft-PR push is the first full execution of the workflows') cannot be shown green unless IC-04 has landed, but
+      the dependency column omits it.
+    remediation: >
+      Add IC-04 to IC-08's dependencies (or state that IC-08 is verified against the spike module and that the real-contract
+      run is P1 evidence owned by IC-09/IC-10).
+  - id: PLAN-FRESH-010
+    lens: public-repo hygiene (C-006)
+    severity: 2
+    title: "Planning artifacts narrate private orchestration details in a public repository"
+    evidence:
+      - artifact: "plan.md § Charter Check, Standing Order 1 row ('This plan author was dispatched with no sub-agent budget') and research.md § R-9 ('deferred to the orchestrator ... no sub-agent budget')"
+      - artifact: "tracer-tooling-friction.md F-1 ('OPERATOR-AUTHORISED EXCEPTION ... authorised the orchestrator ... handed to the orchestrator'), F-2 ('The sk hub predicts single_branch'), F-6 ('The dispatch for this Mission named the flat form')"
+      - artifact: "plan.md § OQ-4 and tracer-design-decisions.md DD-1 ('operator ruling 2026-10-01')"
+    claim: >
+      C-006 forbids private-discussion references in files this Mission authors. These passages refer to a private
+      dispatch, an out-of-repo skill hub, an operator-authorised restore of working-tree files and a ruling whose source is
+      not in the repository, so a public reader cannot verify them and they expose how the maintainer's agent tooling
+      is run. The leak_scan this Mission builds would not catch them (they contain no path or address).
+    remediation: >
+      Rewrite as neutral, self-contained statements (for example 'the squad review is requested after this point-cut',
+      'maintainer decision recorded on #5528 (link)') and drop the dispatch, hub and authorisation narration; keep the
+      technical lesson of F-1 without the authorisation story.
+  - id: PLAN-FRESH-011
+    lens: gate non-vacuity / self-reference
+    severity: 2
+    title: "The no-exemption text leak scan must pass over leak_patterns.py and fixture_builder.py, which hold the patterns, with no stated control"
+    evidence:
+      - artifact: "plan.md § D-P11 ('no exempt directory and no exempt marker line'), Charter Check Standing Order 5 row, and 'forbidden-property-name list ... quoted data' in the Terminology row"
+      - artifact: "contracts/tools-and-workflows.md § Libraries (leak_patterns.py provides the host-path and e-mail patterns and the forbidden property names)"
+    claim: >
+      leak_scan reads every file under contracts/, including contracts/tools/leak_patterns.py, which by definition contains
+      the host-path regexes and the list of forbidden property names. Whether the scan flags its own library depends on
+      how the patterns are spelled and whether the property-name rule is YAML-key only or text-level; the plan states
+      neither, and the scan has no test that its own tree is clean. Either the scan reddens on first run (pressure to add
+      the exemption the plan forbids) or the library is silently skipped.
+    remediation: >
+      Specify that property-name detection applies to parsed YAML or JSON keys, that the pattern sources are written so
+      they do not self-match, and add a unit test running leak_scan over the real contracts/tools tree with a floor on
+      files scanned.
+  - id: PLAN-FRESH-012
+    lens: charter standing order 5 (priced debt)
+    severity: 2
+    title: "The one planned ratchet carries no exit date and sits beside an 'empty-allowlist invariant holds' claim"
+    evidence:
+      - artifact: "plan.md § Charter Check, Standing Order 5 row ('carries an issue, owner and drain note in the PR')"
+      - artifact: ".kittify/charter/charter.md Standing Order 5 ('give it an issue, an owner and an exit date, and drain it')"
+    claim: >
+      The pinned shrink-only ceiling for the 52-entry snapshot-versus-files disagreement list is a transient allowlist.
+      The charter requires an issue, an owner and an exit date; the plan names a 'drain note' and leaves issue creation
+      to the PR, and the same cell declares the empty-allowlist invariant held and the check 'pass'.
+    remediation: >
+      State that the tracker issue is opened before IC-09 starts, name the owner role and the exit condition with a date or
+      release, mark the Charter Check cell 'pass with priced debt', and make the ceiling test fail when the issue reference
+      is missing from the pinned fixture header.
+  - id: PLAN-FRESH-013
+    lens: terminology and numbering nits
+    severity: 1
+    title: "Small count and label drifts"
+    evidence:
+      - artifact: "contracts/tools-and-workflows.md § python-checks row ('the ten Python checks ..., then no_pytest_scan') and tracer-design-decisions.md DD-3 ('ten checks')"
+      - artifact: "research.md § R-5 table ('accepted residual R-14' for a tests/contract-only edit) versus plan.md Risk P-10 and Reflexivity item 5 (R-14 is reader drift)"
+      - artifact: "quickstart.md § Optional local coverage (tests/contract/test_mission_status_payloads.py) versus plan.md D-P8 (helper unit-test module unnamed)"
+    claim: >
+      The scripts listed produce nine content and hygiene checks plus no_pytest_scan (ten in all), not ten plus one; R-5
+      labels the P-10 residual with the spec's R-14 id; the quickstart names a helper unit-test file that the plan never
+      commits to.
+    remediation: >
+      Say 'the nine checks, then no_pytest_scan'; cite P-10 in R-5; name the helper unit-test module in D-P8 and IC-09.
