@@ -18,6 +18,7 @@ To see where every work package stands, run:
 spec-kitty agent tasks status --mission <handle>
 ```
 
-Add `--json` for machine-readable output; external tools can use `spec-kitty orchestrator-api mission-state`. A read-only Mission Status Read API ([#5528](https://github.com/spec-kitty/spec-kitty/issues/5528)) is planned, with a replacement UI in its own repository.
+Add `--json` for machine-readable output.
+External tools can use `spec-kitty orchestrator-api mission-state`, which prints JSON by default. A read-only Mission Status Read API ([#5528](https://github.com/spec-kitty/spec-kitty/issues/5528)) is planned, with a replacement UI in its own repository.
 
 See [Status & History](index.md) for the other monitoring guides.
