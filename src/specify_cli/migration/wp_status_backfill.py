@@ -92,7 +92,7 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
       coordination surface; this cheap pre-check skips the resolver, whose
       mission index is rebuilt on every call and is O(corpus));
     * the topology routes status to the PRIMARY partition, or the Mission is
-      completed (merge evidence makes the primary log the record);
+      completed (merge evidence makes the PRIMARY-partition log the record);
     * the coordination worktree root exists but is empty;
     * the coordination branch is gone (``CoordinationBranchDeleted``) -- the
       documented degrade, kept so a post-deletion Mission can still be repaired;
