@@ -127,6 +127,49 @@ def test_the_version_heading_may_carry_a_date_but_not_a_longer_version(structure
     assert [f.code for f in structure.check(root).findings] == ["CHANGELOG_VERSION_HEADING_MISSING"]
 
 
+def _snapshot_root(tmp_path: Path, info_version: str, heading: str) -> Path:
+    root = tmp_path / "root"
+    shutil.copytree(FIXTURE_ROOT / "clean", root)
+    openapi = root / "mod" / "openapi.yaml"
+    openapi.write_text(openapi.read_text(encoding="utf-8").replace("version: 1.0.0", f"version: {info_version}"), encoding="utf-8")
+    changelog = root / "mod" / "CHANGELOG.md"
+    changelog.write_text(changelog.read_text(encoding="utf-8").replace("## 1.0.0", f"## {heading}"), encoding="utf-8")
+    return root
+
+
+@pytest.mark.parametrize(
+    "heading",
+    ["1.0.0-SNAPSHOT", "[1.0.0-SNAPSHOT]", "1.0.0-SNAPSHOT - 2026-10-03", "[1.0.0-SNAPSHOT] 2026-10-03"],
+)
+def test_a_prerelease_info_version_passes_with_a_matching_changelog_heading(structure: Any, tmp_path: Path, heading: str) -> None:
+    root = _snapshot_root(tmp_path, "1.0.0-SNAPSHOT", heading)
+    report = structure.check(root)
+    assert report.findings == [], [f.render() for f in report.findings]
+    assert report.blocked == []
+    result = _run("--root", str(root))
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize(
+    ("info_version", "heading"),
+    [
+        pytest.param("1.0.0-SNAPSHOT", "1.0.0", id="heading-drops-the-suffix"),
+        pytest.param("1.0.0", "1.0.0-SNAPSHOT", id="heading-adds-a-suffix"),
+        pytest.param("1.0.0-SNAPSHOT", "1.0.0-RC1", id="different-prerelease"),
+        pytest.param("1.0.0-SNAPSHOT", "1.0.0-SNAPSHOT2", id="longer-suffix"),
+        pytest.param("1.0.0-SNAPSHOT", "1.0.1-SNAPSHOT", id="different-version-same-suffix"),
+    ],
+)
+def test_a_prerelease_info_version_fails_when_the_changelog_heading_differs(structure: Any, tmp_path: Path, info_version: str, heading: str) -> None:
+    root = _snapshot_root(tmp_path, info_version, heading)
+    report = structure.check(root)
+    assert [(f.code, f.subject) for f in report.findings] == [("CHANGELOG_VERSION_HEADING_MISSING", "mod/CHANGELOG.md")]
+    assert report.exit_code == 1
+    result = _run("--root", str(root))
+    assert result.returncode == 1
+    assert "CONTRACT-CHECK structure_check: CHANGELOG_VERSION_HEADING_MISSING: mod/CHANGELOG.md: " in result.stdout
+
+
 @pytest.mark.parametrize("case", EXIT2)
 def test_a_check_that_cannot_do_its_job_exits_two_with_zero_headings(structure: Any, case: str) -> None:
     root = FIXTURE_ROOT / "exit2" / case
