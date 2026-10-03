@@ -788,3 +788,8 @@ def test_the_content_mismatch_reason_names_the_last_line_digest_not_the_prefix()
     assert "last complete line" in text and "SHA-256" in text, text
     assert "bytes before the cursor" not in text, text
 
+
+def test_the_transition_event_names_the_status_event_fields_it_leaves_out() -> None:
+    text = _description("StatusTransitionEvent")
+    for field in ("reason", "reason_source", "review_ref", "evidence", "review_result", "policy_metadata", "execution_mode", "mission_slug"):
+        assert field in text, f"the transition event does not name the left-out field {field!r}"

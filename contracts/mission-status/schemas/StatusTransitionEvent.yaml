@@ -5,7 +5,10 @@ description: >-
   the row is ever shown. missionId is the identity stored in the Mission's metadata (meta.json),
   never the aggregate_id of the row: aggregate_id is the Mission ULID only on MissionCreated, the
   slug on several other rows and the work package id on WPCreated. A row whose `wp_id` does not match WpId is not a valid event: it is dropped, never forwarded or
-  repaired, and the drop is counted and reported. The schema is closed.
+  repaired, and the drop is counted and reported. The allow-list deliberately leaves out these
+  StatusEvent fields: reason, reason_source, review_ref, evidence, review_result,
+  policy_metadata, execution_mode and mission_slug, so adding one later is a contract decision.
+  The schema is closed.
 type: object
 additionalProperties: false
 required:
