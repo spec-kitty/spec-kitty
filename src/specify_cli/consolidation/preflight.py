@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 
+from kernel.git import GitCommandError, GitPath
+from kernel.git import changed_paths as git_changed_paths
+
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.core.env import is_interactive
@@ -857,17 +860,12 @@ def head_is_strictly_ahead_of(repo_root: Path, base_sha: str | None) -> bool:
     return bool(sha_reachable_from(repo_root, base_sha, "HEAD"))
 
 
-def _diff_paths(repo_root: Path, *revs: str) -> set[str]:
-    """Paths ``git diff --name-only <revs>`` reports in ``repo_root`` (``set()`` on any git error)."""
-    ret, out, _err = run_command(
-        ["git", "diff", "--name-only", "-z", *revs],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
+def _diff_paths(repo_root: Path, *revs: str) -> set[GitPath]:
+    """Paths ``git diff <revs>`` reports in ``repo_root`` (``set()`` on any git error)."""
+    try:
+        return set(git_changed_paths(repo_root, *revs))
+    except GitCommandError:
         return set()
-    return {path for path in out.split("\0") if path}
 
 
 def has_unrefreshed_head_advance(repo_root: Path, *, base_sha: str | None) -> bool:

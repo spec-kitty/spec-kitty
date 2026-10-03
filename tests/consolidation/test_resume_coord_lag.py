@@ -6,7 +6,7 @@ checkout. The coordination worktree lags the same way (the mission branch is adv
 checkout (path + persisted base SHA) rather than copied. These tests call that seam directly,
 in-process, against REAL temporary git repositories — the ancestry/diff probes must run for
 real — so ``coverage.py`` records every branch (the real-CLI proof lives in
-``tests/terminus/test_repro_5571.py``).
+``tests/terminus/test_resume_refreshes_lagging_coord_worktree.py``).
 
 Fixture shape: commit ``base`` on ``main``; a linked worktree ``coord`` on branch ``mission``;
 ``mission`` is advanced to ``advanced`` (adds ``lane.py``) with ``update-ref`` while the
@@ -23,6 +23,8 @@ from unittest.mock import patch
 
 import pytest
 import typer
+
+from kernel.git import GitCommandError
 
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation import preflight as pf
@@ -143,7 +145,7 @@ def test_has_unrefreshed_head_advance_false_for_dirt_on_paths_the_advance_never_
 def test_has_unrefreshed_head_advance_false_on_a_git_error(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
 
-    with patch.object(pf, "run_command", return_value=(128, "", "fatal")):
+    with patch.object(pf, "git_changed_paths", side_effect=GitCommandError(argv=("git", "diff"), cwd=lag.coord, returncode=128, stderr="fatal")):
         assert pf._diff_paths(lag.coord, "HEAD") == set()
 
 
