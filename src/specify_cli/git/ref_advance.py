@@ -756,9 +756,16 @@ def delete_branch_ref(
     protection ``git branch -D`` gave (#3926) is kept explicitly: a branch that
     any worktree has checked out is refused before the delete is attempted.
 
+    This keeps its own ``update-ref -d`` invocation rather than going through
+    :func:`_update_branch_ref_cas`: that helper builds the SET form
+    (``update-ref [-m] <ref> <new> <old>``), and a delete has no new value, so sharing it
+    would mean a ``new_sha=None`` special case in every advance caller's path.
+
     Raises:
         RefDeleteCheckedOutError: a worktree has ``branch`` checked out.
-        RefDeleteMismatchError: ``branch`` is missing or at a different tip.
+        RefDeleteMismatchError: ``branch`` is at a different tip, or absent
+            (``actual_sha is None``: the probe after the failed delete found no ref,
+            i.e. the branch is already gone and this call destroyed nothing).
         RefDeleteError: git refused the delete for another reason.
     """
     ref = f"refs/heads/{branch}"

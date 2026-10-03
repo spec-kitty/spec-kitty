@@ -2968,7 +2968,10 @@ def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None)
         delete_branch_ref(run.main_repo, branch, tip)
     except RefDeleteMismatchError as exc:
         if exc.actual_sha is None:
-            return True  # already gone: nothing was destroyed by us
+            # The post-failure probe found no ref at all, so the branch IS gone and the
+            # postcondition (absent) holds. If someone else removed it, that was not this
+            # delete: it never ran against a moved or surviving tip.
+            return True
         raise _tip_moved_teardown_error(branch, exc, coordination=_is_coord_topology_mission(run)) from exc
     except RefDeleteError as exc:
         logger.warning("Mission branch %s was not deleted: %s", branch, exc)
