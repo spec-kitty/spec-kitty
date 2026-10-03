@@ -20,10 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc6 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
-### Added
-
-- **A coordination mission keeps its status, decision and trace records in one place from the moment it is created** (#5440). **Before:** those records were written in your repository root checkout until a coordination worktree existed, and later commands could look in a different place. **After:** create puts them on the coordination surface immediately. `spec-kitty accept` commits an uncommitted decision ledger for the current mission onto your target branch. A real `spec-kitty consolidate` creates a missing coordination worktree and continues. `spec-kitty consolidate --dry-run` still stops without creating one.
-
 ### Upgrade Notes
 
 - **Four `spec-kitty consolidate` fixes listed under 4.0.0rc5 Fixed do not fully hold on rc5** (#5569, #5570, #5571, #5572). Release testing reproduced each of them on rc5. Until they are fixed, avoid these paths:
@@ -31,6 +27,10 @@ this section at publish._
   - Do not follow the "Commit" advice that `consolidate --resume` prints for a coordination worktree that lags its HEAD. Following it can drop an approved lane at exit 0 (#5571; rc5 entry for #4982).
   - Do not record status changes while a consolidation is tearing down its coordination branch. A change committed after its safety check can still be lost (#5570; rc5 entry for #4981).
   - Check `status.events.jsonl` after `doctor coordination --fix` reports "Healed". It can still revert a reviewer's later reopen (#5572; the doctor half of the rc5 entry for #4973; the `consolidate --resume` half holds).
+
+### Added
+
+- **A coordination mission keeps its status, decision and trace records in one place from the moment it is created** (#5440). **Before:** those records were written in your repository root checkout until a coordination worktree existed, and later commands could look in a different place. **After:** create puts them on the coordination surface immediately. `spec-kitty accept` commits an uncommitted decision ledger for the current mission onto your target branch. A real `spec-kitty consolidate` creates a missing coordination worktree and continues. `spec-kitty consolidate --dry-run` still stops without creating one.
 
 ## [4.0.0rc5] - 2026-10-02
 
