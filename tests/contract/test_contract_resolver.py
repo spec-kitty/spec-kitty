@@ -276,6 +276,29 @@ def test_construct_outside_the_supported_list_is_refused(resolver: ModuleType, t
     assert _resolve_error(resolver, module).code == "UNSUPPORTED_CONSTRUCT"
 
 
+def test_malformed_yaml_is_refused_with_a_stable_code_not_a_traceback(resolver: ModuleType, tmp_path: Path) -> None:
+    module = _module_with_path_file(tmp_path, "get: [unclosed\n")
+
+    error = _resolve_error(resolver, module)
+
+    assert error.code == "UNREADABLE"
+    assert "paths/x.yaml" in error.detail
+
+
+def test_a_file_that_is_not_utf8_is_refused_with_a_stable_code(resolver: ModuleType, tmp_path: Path) -> None:
+    module = _module_with_path_file(tmp_path, "get: {}\n")
+    (tmp_path / "paths" / "x.yaml").write_bytes(b"get: \xff\xfe\x00 not utf-8\n")
+
+    error = _resolve_error(resolver, module)
+
+    assert error.code == "UNREADABLE"
+    assert "paths/x.yaml" in error.detail
+
+
+def test_unreadable_is_one_of_the_stable_codes(resolver: ModuleType) -> None:
+    assert "UNREADABLE" in resolver.ERROR_CODES
+
+
 def test_missing_root_document_is_refused(resolver: ModuleType, tmp_path: Path) -> None:
     assert _resolve_error(resolver, tmp_path).code == "UNRESOLVED_REF"
 

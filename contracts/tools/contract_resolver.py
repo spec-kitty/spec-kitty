@@ -60,6 +60,7 @@ ERROR_CODES: tuple[str, ...] = (
     "UNSUPPORTED_CONSTRUCT",
     "BRACE_IN_REF",
     "ESCAPES_ROOT",
+    "UNREADABLE",
 )
 
 MAX_DECODE_ROUNDS = 4
@@ -202,7 +203,11 @@ class _Resolver:
         if key not in self._documents:
             if not path.is_file():
                 raise ResolveError("UNRESOLVED_REF", f"{self._display(path)} does not exist")
-            self._documents[key] = yaml.safe_load(path.read_text(encoding="utf-8"))
+            try:
+                self._documents[key] = yaml.safe_load(path.read_text(encoding="utf-8"))
+            except (yaml.YAMLError, UnicodeDecodeError) as error:
+                reason = str(error).splitlines()[0] if str(error) else type(error).__name__
+                raise ResolveError("UNREADABLE", f"{self._display(path)} cannot be read as YAML: {reason}") from error
         return self._documents[key]
 
     # -- reference parsing -------------------------------------------------

@@ -30,6 +30,7 @@ TOOLS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "tools"
 FIXTURES = TOOLS_DIR / "fixtures" / "bundle"
 CLEAN_ROOT = FIXTURES / "roots" / "clean"
 NO_ROOT = FIXTURES / "roots" / "no_root"
+UNREADABLE_ROOT = FIXTURES / "roots" / "unreadable"
 SPIKE_ROOT = TOOLS_DIR / "fixtures" / "spike"
 PLANTS_ROOT = TOOLS_DIR / "fixtures" / "client_smoke" / "plants"
 SCRIPT = TOOLS_DIR / "bundle.py"
@@ -183,6 +184,21 @@ def test_a_module_the_resolver_refuses_is_a_violation_and_never_reaches_gradle(b
 
     assert code == 1
     assert "CONTRACT-CHECK bundle: RESOLVE_FAILED: dangling_ref: UNRESOLVED_REF" in output
+    assert calls == []
+    assert output.splitlines()[-1] == "counts: modules=1 bundles=0 path_items=0"
+
+
+def test_a_module_with_an_unreadable_file_prints_the_stable_line_and_the_counts_line(bundler: ModuleType, tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def runner(command: list[str]) -> tuple[int, str]:
+        calls.append(command)
+        return 0, ""
+
+    code, output = _run(bundler, UNREADABLE_ROOT, tmp_path / "out", runner, "--min-paths", "0")
+
+    assert code == 1
+    assert "CONTRACT-CHECK bundle: RESOLVE_FAILED: alpha: UNREADABLE" in output
     assert calls == []
     assert output.splitlines()[-1] == "counts: modules=1 bundles=0 path_items=0"
 
