@@ -20,7 +20,8 @@ Citation grammar (pinned here and in ``contracts/README.md``):
 * ``x-derived: {rule, inputs}``. ``rule`` is non-empty prose; ``inputs`` is a non-empty list. Each
   input is a contract-field property path string or a code input ``{path, symbol}`` resolved exactly
   like an ``x-source``; a mixed list is allowed. A bare path (``statusLaneCounts.blocked``, ``items``)
-  is relative to the property's own schema, siblings first; ``Schema.property`` (``MissionHead.createdAt``)
+  is relative to the property's own schema, siblings first, and a segment that is not a property of the node it
+  is on steps through that node's array items or map value schema (up to three steps per segment); ``Schema.property`` (``MissionHead.createdAt``)
   names a property of another schema of the module. Any x-derived input that does not resolve is
   ``UNRESOLVED_INPUT``, whichever kind it is.
 * A property that an ``allOf`` branch redeclares to narrow it (a ``const`` or ``enum`` refinement of a
