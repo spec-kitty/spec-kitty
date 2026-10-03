@@ -1,7 +1,8 @@
 """Scan the contracts scripts for any path that reaches the test runner (spec FR-017, no-pytest half).
 
 The contracts checks run in CI jobs that install no test runner and must not need one. Every script
-directly under ``<root>/tools/`` is scanned, this scanner included: Python files (``*.py``), shell
+under ``<root>/tools/`` is scanned, at any depth except the committed ``fixtures/`` trees and bytecode
+caches, this scanner included: Python files (``*.py``), shell
 scripts (``*.sh``, ``*.bash``) and make files (``Makefile``, ``*.mk``). The check fails with
 ``PYTEST_REFERENCE`` when a script:
 
@@ -9,11 +10,20 @@ scripts (``*.sh``, ``*.bash``) and make files (``Makefile``, ``*.mk``). The chec
 * holds a string that invokes it: ``python -m <runner>``, a subprocess argument list, a shell string,
   or a dynamic ``import_module`` name (any string constant that names the runner as a word; docstrings
   are exempt, a message string is not);
-* has a make or shell line that runs it (comment lines are skipped).
+* has a make or shell line that runs it (comment lines are skipped);
+* hands ``importlib.import_module``, ``__import__``, a ``subprocess`` call (``run``, ``Popen``, ``call``,
+  ``check_call``, ``check_output``, ``getoutput``, ``getstatusoutput``), ``os.system`` or ``os.popen`` an
+  argument that *spells* the runner without holding the word in one literal: the argument is folded
+  (string constants, ``+``, f-strings, ``"sep".join([...])`` and module-level names assigned such a
+  value) and a list argument is judged element by element and joined by spaces. A part the folder cannot
+  resolve (a function result, an attribute, a parameter) is not judged, so a runner name that arrives at
+  run time from outside the file is out of reach of a static scan.
 
 A word is the runner's name not glued to other word characters, dots or hyphens, so a cache
 directory name (``.`` + name + ``_cache``) and a hyphenated word do not match. The search strings are
 assembled from fragments, so this file does not flag itself, and a unit test shows it does scan itself.
+There is no self-exemption: the scanner does assemble the runner name from fragments, but only to search for
+it, never to pass it to an import or process sink, so the sink check finds nothing in it.
 
 Cannot do its job (exit 2): ``ZERO_SCRIPTS`` (nothing to scan) and ``UNREADABLE_SCRIPT`` (a script that
 cannot be read or parsed is never reported as clean). Output ``CONTRACT-CHECK no_pytest_scan: <CODE>:
@@ -45,6 +55,12 @@ _ALT_NAME = "py" + "." + "test"
 RUNNER_NAMES: tuple[str, ...] = (_NAME, _ALT_NAME)
 _WORD = re.compile(r"(?<![\w.\-])(?:" + "|".join(re.escape(name) for name in RUNNER_NAMES) + r")(?![\w\-])")
 _IMPORT_ROOTS = frozenset({_NAME, "_" + _NAME})
+# Calls whose arguments are folded (constants, ``+``, f-strings, ``join``, module-level names) and judged:
+# a dynamic import, a process spawn, a shell string. A name the folder cannot resolve is not judged.
+IMPORT_SINKS = frozenset({"import_module", "importlib.import_module", "__import__"})
+SUBPROCESS_SINKS = frozenset({"run", "Popen", "call", "check_call", "check_output", "getoutput", "getstatusoutput"})
+SHELL_SINKS = frozenset({"os.system", "os.popen"})
+SKIPPED_DIRECTORIES = frozenset({"fixtures", "__pycache__"})
 
 
 @dataclass(frozen=True)
@@ -89,6 +105,86 @@ def _docstring_nodes(tree: ast.AST) -> set[int]:
     return exempt
 
 
+def _fold(node: ast.expr, env: dict[str, str]) -> str | None:
+    """The string ``node`` evaluates to when it is built only from constants, ``+``, f-strings, ``join`` and known names."""
+    if isinstance(node, ast.Constant):
+        return node.value if isinstance(node.value, str) else None
+    if isinstance(node, ast.Name):
+        return env.get(node.id)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _fold(node.left, env), _fold(node.right, env)
+        return left + right if left is not None and right is not None else None
+    if isinstance(node, ast.JoinedStr):
+        parts = [_fold(v.value, env) if isinstance(v, ast.FormattedValue) and v.format_spec is None and v.conversion == -1 else _fold(v, env) for v in node.values]
+        return None if any(part is None for part in parts) else "".join(part for part in parts if part is not None)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "join" and len(node.args) == 1 and not node.keywords:
+        separator, items = _fold(node.func.value, env), node.args[0]
+        pieces = [_fold(item, env) for item in items.elts] if isinstance(items, ast.List | ast.Tuple) else None
+        if separator is None or pieces is None or any(piece is None for piece in pieces):
+            return None
+        return separator.join(piece for piece in pieces if piece is not None)
+    return None
+
+
+def _module_strings(tree: ast.Module) -> dict[str, str]:
+    """Module-level ``NAME = <foldable string>`` assignments, in order, so a sink argument may be a name."""
+    env: dict[str, str] = {}
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign) and len(statement.targets) == 1 and isinstance(statement.targets[0], ast.Name):
+            value = _fold(statement.value, env)
+            if value is not None:
+                env[statement.targets[0].id] = value
+    return env
+
+
+def _sink_name(call: ast.Call) -> str | None:
+    function = call.func
+    if isinstance(function, ast.Name):
+        return function.id
+    if isinstance(function, ast.Attribute) and isinstance(function.value, ast.Name):
+        return f"{function.value.id}.{function.attr}"
+    return None
+
+
+def _is_sink(call: ast.Call) -> bool:
+    name = _sink_name(call)
+    if name is None:
+        return False
+    return name in IMPORT_SINKS or name in SHELL_SINKS or (name.startswith("subprocess.") and name.removeprefix("subprocess.") in SUBPROCESS_SINKS)
+
+
+def _names_runner(folded: str) -> bool:
+    return mentions_runner(folded) or folded.split(".")[0] in _IMPORT_ROOTS
+
+
+def _sink_argument_strings(call: ast.Call, env: dict[str, str]) -> list[tuple[int, str]]:
+    """Every string a sink call is handed, folded: each argument, each list element, and a list joined by spaces."""
+    strings: list[tuple[int, str]] = []
+    for argument in [*call.args, *(keyword.value for keyword in call.keywords)]:
+        folded = _fold(argument, env)
+        if folded is not None:
+            strings.append((argument.lineno, folded))
+        elif isinstance(argument, ast.List | ast.Tuple):
+            pieces = [_fold(item, env) for item in argument.elts]
+            strings.extend((item.lineno, piece) for item, piece in zip(argument.elts, pieces, strict=True) if piece is not None)
+            if all(piece is not None for piece in pieces):
+                strings.append((argument.lineno, " ".join(piece for piece in pieces if piece is not None)))
+    return strings
+
+
+def _scan_sinks(name: str, tree: ast.Module) -> list[Finding]:
+    env = _module_strings(tree)
+    found: list[Finding] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _is_sink(node):
+            found.extend(
+                Finding("PYTEST_REFERENCE", f"{name}:{line}", "an import or process call is handed an argument that spells the test runner")
+                for line, folded in _sink_argument_strings(node, env)
+                if _names_runner(folded)
+            )
+    return found
+
+
 def scan_python(name: str, source: str) -> list[Finding]:
     tree = ast.parse(source, filename=name)
     exempt = _docstring_nodes(tree)
@@ -103,7 +199,18 @@ def scan_python(name: str, source: str) -> list[Finding]:
                 found.append(Finding("PYTEST_REFERENCE", f"{name}:{node.lineno}", "imports from the test runner"))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in exempt and mentions_runner(node.value):
             found.append(Finding("PYTEST_REFERENCE", f"{name}:{node.lineno}", "a string names the test runner (an invocation or an import by name)"))
-    return found
+    found.extend(_scan_sinks(name, tree))
+    return _one_per_line(found)
+
+
+def _one_per_line(findings: list[Finding]) -> list[Finding]:
+    seen: set[str] = set()
+    unique: list[Finding] = []
+    for finding in findings:
+        if finding.subject not in seen:
+            seen.add(finding.subject)
+            unique.append(finding)
+    return unique
 
 
 def scan_shell(name: str, source: str) -> list[Finding]:
@@ -120,14 +227,20 @@ def scripts_of(root: Path) -> list[Path]:
     tools = root / TOOLS_DIRECTORY
     if not tools.is_dir():
         return []
-    return sorted(p for p in tools.iterdir() if p.is_file() and (p.suffix == PYTHON_SUFFIX or p.suffix in SHELL_SUFFIXES or p.name in MAKE_NAMES))
+    return sorted(
+        p
+        for p in tools.rglob("*")
+        if p.is_file()
+        and not any(part in SKIPPED_DIRECTORIES for part in p.relative_to(tools).parts[:-1])
+        and (p.suffix == PYTHON_SUFFIX or p.suffix in SHELL_SUFFIXES or p.name in MAKE_NAMES)
+    )
 
 
 def check(root: str | Path) -> Report:
     root = Path(root)
     report = Report()
     for script in scripts_of(root):
-        name = f"{TOOLS_DIRECTORY}/{script.name}"
+        name = f"{TOOLS_DIRECTORY}/{script.relative_to(root / TOOLS_DIRECTORY).as_posix()}"
         try:
             source = script.read_text(encoding="utf-8")
             findings = scan_python(name, source) if script.suffix == PYTHON_SUFFIX else scan_shell(name, source)

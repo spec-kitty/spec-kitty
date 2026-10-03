@@ -29,6 +29,7 @@ SCRIPT = TOOLS_DIR / "no_pytest_scan.py"
 
 # The name is assembled so that this test module does not itself contain the bare token.
 RUNNER = "pyt" + "est"
+HEAD, TAIL = RUNNER[:3], RUNNER[3:]
 
 # plant name -> (file name, file text); each must produce exactly one PYTEST_REFERENCE
 PLANTS = {
@@ -41,6 +42,22 @@ PLANTS = {
     "shell_string": ("plant_shell.py", f'import os\n\nos.system("cd tests && {RUNNER} -q")\n'),
     "make_target": ("Makefile", f"test:\n\t{RUNNER} -q\n"),
     "shell_script": ("plant_run.sh", f"#!/bin/sh\nset -e\n{RUNNER} -q\n"),
+}
+
+
+# fragment plant name -> source text; the sink call builds the runner name from fragments, and each must give one PYTEST_REFERENCE
+FRAGMENT_PLANTS = {
+    "import_module_concat": f'import importlib\n\nMODULE = importlib.import_module("{HEAD}" + "{TAIL}")\n',
+    "import_module_submodule": f'from importlib import import_module\n\nMODULE = import_module("{HEAD}" + "{TAIL}.config")\n',
+    "dunder_import_concat": f'MODULE = __import__("{HEAD}" + "{TAIL}")\n',
+    "private_dunder_import": f'MODULE = __import__("_" + "{HEAD}" + "{TAIL}")\n',
+    "import_module_fstring": f'import importlib\n\nPART = "{HEAD}"\nMODULE = importlib.import_module(f"{{PART}}{TAIL}")\n',
+    "import_module_join": f'import importlib\n\nMODULE = importlib.import_module("".join(["{HEAD}", "{TAIL}"]))\n',
+    "import_module_via_name": f'import importlib\n\nNAME = "{HEAD}" + "{TAIL}"\nMODULE = importlib.import_module(NAME)\n',
+    "subprocess_list_concat": f'import subprocess\n\nsubprocess.run(["uv", "run", "{HEAD}" + "{TAIL}", "-q"], check=False)\n',
+    "subprocess_string_concat": f'import subprocess\n\nsubprocess.check_call("python -m " + "{HEAD}" + "{TAIL}", shell=True)\n',
+    "subprocess_popen_name": f'import subprocess\n\nRUN = "{HEAD}" + "{TAIL}"\nsubprocess.Popen(["python", "-m", RUN])\n',
+    "os_system_concat": f'import os\n\nos.system("cd tests && " + "{HEAD}" + "{TAIL}")\n',
 }
 
 
@@ -148,3 +165,74 @@ def test_the_real_tools_directory_passes_and_the_count_is_the_number_of_scripts(
     count = int(result.stdout.splitlines()[-1].removeprefix("counts: scripts_scanned="))
     assert count == len(list(TOOLS_DIR.glob("*.py")))
     assert count >= 18
+
+
+# -- scripts in sub-directories and fragment-built runner names ---------------------------------------
+
+
+@pytest.mark.parametrize("plant", sorted(FRAGMENT_PLANTS))
+def test_a_runner_name_built_from_fragments_at_a_sink_is_a_reference(scan: Any, tmp_path: Path, plant: str) -> None:
+    root = _planted_root(tmp_path, None)
+    (root / "tools" / "plant_fragments.py").write_text(FRAGMENT_PLANTS[plant], encoding="utf-8")
+    report = scan.check(root)
+    assert [f.code for f in report.findings] == ["PYTEST_REFERENCE"], [f.render() for f in report.findings]
+    assert "plant_fragments.py" in report.findings[0].subject
+    assert report.exit_code == 1
+
+
+def test_a_fragment_plant_is_one_finding_per_line_even_when_a_literal_names_the_runner(scan: Any, tmp_path: Path) -> None:
+    root = _planted_root(tmp_path, None)
+    (root / "tools" / "plant_literal.py").write_text(f'import importlib\n\nMODULE = importlib.import_module("{RUNNER}")\n', encoding="utf-8")
+    assert [f.subject.rsplit(":", 1)[-1] for f in scan.check(root).findings] == ["3"]
+
+
+def test_fragments_that_do_not_spell_the_runner_or_sit_outside_a_sink_are_not_references(scan: Any, tmp_path: Path) -> None:
+    root = _planted_root(tmp_path, None)
+    (root / "tools" / "harmless.py").write_text(
+        'import importlib\nimport subprocess\n\nMODULE = importlib.import_module("json" + ".tool")\n'
+        'subprocess.run(["py" + "thon", "-V"], check=False)\n'
+        f'NAME = "{HEAD}" + "{TAIL}"\nWORDS = [NAME, "{HEAD}"]\n',
+        encoding="utf-8",
+    )
+    assert scan.check(root).findings == []
+
+
+@pytest.mark.parametrize("directory", ["helpers", "helpers/deeper"])
+def test_a_script_in_a_sub_directory_of_tools_is_scanned(scan: Any, tmp_path: Path, directory: str) -> None:
+    root = _planted_root(tmp_path, None)
+    nested = root / "tools" / directory
+    nested.mkdir(parents=True)
+    (nested / "plant_nested.py").write_text(PLANTS["import"][1], encoding="utf-8")
+    (nested / "run.sh").write_text(PLANTS["shell_script"][1], encoding="utf-8")
+    report = scan.check(root)
+    assert sorted(f.subject.split(":")[0] for f in report.findings) == [f"tools/{directory}/plant_nested.py", f"tools/{directory}/run.sh"]
+    assert report.counts["scripts_scanned"] == 4
+    result = _run("--root", str(root))
+    assert result.returncode == 1
+    assert f"tools/{directory}/plant_nested.py:1" in result.stdout
+
+
+def test_fixtures_and_bytecode_caches_are_not_scanned(scan: Any, tmp_path: Path) -> None:
+    root = _planted_root(tmp_path, None)
+    for excluded in ("fixtures/case/tools", "__pycache__", "fixtures"):
+        directory = root / "tools" / excluded
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "plant_excluded.py").write_text(PLANTS["import"][1], encoding="utf-8")
+    report = scan.check(root)
+    assert report.findings == []
+    assert report.counts == {"scripts_scanned": 2}
+
+
+def test_an_unparseable_script_in_a_sub_directory_exits_two(scan: Any, tmp_path: Path) -> None:
+    root = _planted_root(tmp_path, None)
+    (root / "tools" / "helpers").mkdir()
+    (root / "tools" / "helpers" / "broken.py").write_text("def broken(:\n", encoding="utf-8")
+    report = scan.check(root)
+    assert [(f.code, f.subject) for f in report.blocked] == [("UNREADABLE_SCRIPT", "tools/helpers/broken.py")]
+    assert report.exit_code == 2
+
+
+def test_the_scanner_builds_the_runner_name_from_fragments_yet_is_clean_without_an_exemption(scan: Any) -> None:
+    # it assembles the name for its own search, but never passes it to an import, subprocess or shell sink
+    assert scan.scan_python("tools/no_pytest_scan.py", SCRIPT.read_text(encoding="utf-8")) == []
+    assert scan.check(REPO_ROOT / "contracts").findings == []
