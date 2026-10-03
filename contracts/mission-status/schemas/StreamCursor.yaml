@@ -28,3 +28,9 @@ properties:
     x-source:
       path: src/specify_cli/status/tail_reader.py
       symbol: TailCursor
+x-provisional:
+  open_decision: >-
+    The {offset, invariant} object exposes the tail reader's TailCursor, a byte offset into the
+    physical event log plus the digest of its last consumed line, as a wire shape. Whether v1
+    commits to that physical position, or to an opaque cursor that does not leak the storage
+    layout, is open on #5528, together with the text form StreamCursorString.

@@ -709,3 +709,10 @@ def test_a_complete_review_override_without_its_at_and_reason_is_rejected_throug
 )
 def test_an_incomplete_review_override_may_carry_nulls_through_both_paths(instance: dict[str, Any]) -> None:
     assert _both_paths(MODULE, "ReviewOverride", instance) == ([], [])
+
+
+def test_the_structured_stream_cursor_is_provisional_like_its_text_form() -> None:
+    """The ``{offset, invariant}`` object exposes tail_reader byte offsets, as the string form does."""
+    text = _provisional_text(_read(MODULE / "schemas" / "StreamCursor.yaml"))
+    for needle in ("TailCursor", "byte offset", "#5528"):
+        assert needle in text, f"the structured cursor's open decision does not mention {needle!r}"
