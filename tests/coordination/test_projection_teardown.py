@@ -746,3 +746,49 @@ def test_resume_with_an_unreadable_window_refuses_and_keeps_the_branch(tmp_path:
         ex._teardown_coordination_triple(run)
 
     assert _branch_exists(repo, coord)
+
+
+def _move_branch_past(repo: Path, branch: str) -> tuple[str, str]:
+    """Return ``(approved_tip, moved_tip)`` after landing one more commit on *branch*."""
+    approved = _rev(repo, branch)
+    moved = _append_coord_commit(repo, branch, f"kitty-specs/{SLUG}/notes/late.md", "late\n", "late emit")
+    return approved, moved
+
+
+def test_moved_tip_refusal_names_the_coordination_branch_for_a_coordination_mission(tmp_path: Path) -> None:
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    approved, moved = _move_branch_past(repo, coord)
+
+    with pytest.raises(ex.CoordinationTeardownError) as caught:
+        ex._delete_mission_branch(run, approved)
+
+    message = str(caught.value)
+    assert message.startswith(f"coordination branch {coord!r} moved to {moved[:12]}")
+    assert "coordination marker was left intact" in message
+    assert "spec-kitty consolidate --resume" in message
+
+
+def test_moved_tip_refusal_names_the_mission_branch_without_coordination_topology(tmp_path: Path) -> None:
+    """#5570: a mission with no coordination topology has no coordination branch, marker or projection to resume."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    meta_path = _mission_dir(repo) / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["coordination_branch"]
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    approved, moved = _move_branch_past(repo, coord)
+
+    with pytest.raises(ex.CoordinationTeardownError) as caught:
+        ex._delete_mission_branch(run, approved)
+
+    message = str(caught.value)
+    assert message.startswith(f"mission branch {coord!r} moved to {moved[:12]}")
+    assert "coordination" not in message
+    assert "--resume" not in message
+    assert f"git log {approved[:12]}..{coord}" in message
+    assert _branch_exists(repo, coord)

@@ -2900,13 +2900,27 @@ def _mission_branch_tip(run: _MergeRunState) -> str | None:
     return _resolve_ref_sha(run.main_repo, f"refs/heads/{run.lanes_manifest.mission_branch}") or None
 
 
-def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError) -> CoordinationTeardownError:
-    """Operator-facing refusal for a mission branch that moved past the tip teardown approved (#5570)."""
+def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError, *, coordination: bool = True) -> CoordinationTeardownError:
+    """Operator-facing refusal for a mission branch that moved past the tip teardown approved (#5570).
+
+    A coordination mission names the branch, the intact marker and the ``--resume`` that projects
+    the late commit(s) and finishes teardown. A mission without coordination topology has no
+    coordination branch, marker or projection to resume, so it is called the *mission branch* and
+    the operator is told to land the commit(s) and delete the branch themselves.
+    """
+    moved = (exc.actual_sha or "")[:12]
+    approved = exc.expected_sha[:12]
+    review = f"Review the commit(s) with `git log {approved}..{branch}`"
+    if not coordination:
+        return CoordinationTeardownError(
+            f"mission branch {branch!r} moved to {moved} while teardown was deleting it (it was at {approved}; "
+            f"a commit landed during teardown); it was NOT deleted. {review}; if they belong on the target, "
+            "land them there, then delete the branch yourself."
+        )
     return CoordinationTeardownError(
-        f"coordination branch {branch!r} moved to {(exc.actual_sha or '')[:12]} after teardown approved "
-        f"{exc.expected_sha[:12]} (a commit landed during teardown); it was NOT deleted and the mission's "
-        f"coordination marker was left intact. Review the commit(s) with "
-        f"`git log {exc.expected_sha[:12]}..{branch}`, then run `spec-kitty consolidate --resume`: it projects "
+        f"coordination branch {branch!r} moved to {moved} after teardown approved "
+        f"{approved} (a commit landed during teardown); it was NOT deleted and the mission's "
+        f"coordination marker was left intact. {review}, then run `spec-kitty consolidate --resume`: it projects "
         "the late commit(s) onto the target, deletes the branch only if it has not moved again, and finishes teardown."
     )
 
@@ -2953,7 +2967,7 @@ def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None)
     except RefDeleteMismatchError as exc:
         if exc.actual_sha is None:
             return True  # already gone: nothing was destroyed by us
-        raise _tip_moved_teardown_error(branch, exc) from exc
+        raise _tip_moved_teardown_error(branch, exc, coordination=_is_coord_topology_mission(run)) from exc
     except RefDeleteError as exc:
         logger.warning("Mission branch %s was not deleted: %s", branch, exc)
         return False
