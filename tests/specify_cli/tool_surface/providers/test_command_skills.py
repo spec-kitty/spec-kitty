@@ -855,6 +855,33 @@ def test_probe_unknown_canonical_digest_keeps_the_drift_finding(tmp_path: Path, 
     assert _probe_skill(provider, tmp_path, skill).state == STATE_DRIFTED
 
 
+def test_5574_divergent_agent_renders_make_upgrade_and_probe_agree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Command-skill agents share one file per command, so divergent renders have no fresh bytes.
+
+    The install batch refuses the whole roster (``shared_content_conflict``) and
+    adopts nothing; the probe must then report the same stale entry as drift,
+    never as present.
+    """
+    (tmp_path / ".kittify").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - codex\n    - vibe\n", encoding="utf-8")
+    command_installer.install(tmp_path, "codex")
+    command_installer.install(tmp_path, "vibe")
+    skill = tmp_path / ".agents/skills/spec-kitty.accept/SKILL.md"
+    _set_recorded_hash(tmp_path, skill, "0" * 64)
+    stale_manifest = manifest_store.load(tmp_path)
+    original_render = command_installer._render_command_skill
+
+    def divergent(root: Path, command: str, agent: str, version: str) -> bytes:
+        return original_render(root, command, agent, version) + (b"\n# vibe only\n" if agent == "vibe" else b"")
+
+    monkeypatch.setattr(command_installer, "_render_command_skill", divergent)
+
+    with pytest.raises(command_installer.InstallerError, match="manifest_preparation_failed"):
+        manifest_store.repair_stale_manifest(tmp_path, canonical_commands=list(command_installer.CANONICAL_COMMANDS))
+    assert manifest_store.load(tmp_path) == stale_manifest
+    assert _probe_skill(CommandSkillsProvider(), tmp_path, skill).state == STATE_DRIFTED
+
+
 @pytest.mark.parametrize(
     ("rel", "expected"),
     [
