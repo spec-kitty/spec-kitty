@@ -218,3 +218,46 @@ def test_5572_legacy_marker_without_recorded_shas_is_refused_not_guessed(tmp_pat
     assert mission.rev(mission.coord_branch) == tip_before, "a legacy marker must not be healed by guessing the range"
     state = load_state(mission.repo, mission.mission_id)
     assert state is not None and state.pending_coord_reconcile is not None
+
+
+def _resume(mission: CoordMission) -> str:
+    from tests.terminus.conftest import run_terminus
+
+    result = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
+    return _flat(result.stdout + result.stderr)
+
+
+def test_5572_resume_explains_a_refused_heal_for_a_legacy_marker(tmp_path: Path) -> None:
+    """The resume-start heal says WHY it refused a marker that predates recorded strand commits."""
+    mission = build_coord_mission(tmp_path, wps=_WPS, mid8="01M5572E")
+    captured_sha, _ = _strand_commit(mission)
+    _save_marker(mission, captured_sha, strand_shas=None)
+
+    out = _resume(mission)
+
+    assert "NOT reverted" in out, out
+    assert "the reconcile marker predates recorded strand commits" in out, out
+    assert "none named" not in out, out
+
+
+@pytest.mark.parametrize(
+    ("foreign", "expected"),
+    [
+        (["abcdef0123456789"], "the status log holds commits the marker did not record (foreign: abcdef0123), e.g. a later reopen"),
+        ([], "the status log no longer matches the commits the marker recorded"),
+    ],
+    ids=["names-the-foreign-commits", "no-foreign-commit-named"],
+)
+def test_5572_resume_heal_refusal_text_for_a_strand_mismatch(capsys: pytest.CaptureFixture[str], foreign: list[str], expected: str) -> None:
+    """A mismatch that names no foreign commit must not print 'none named' — it says what disagrees."""
+    from specify_cli.consolidation import executor as ex
+    from specify_cli.coordination.coherence import CoordRepairOutcome
+
+    ex.console.width = 400
+    ex._report_refused_strand_heal(CoordRepairOutcome(healed=False, strand_mismatch=True, foreign_status_commits=foreign))
+
+    out = _flat(capsys.readouterr().out)
+    assert expected in out, out
+    assert "none named" not in out, out
+    assert "The reconcile marker is kept." in out, out
+    assert "spec-kitty doctor coordination" in out, out

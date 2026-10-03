@@ -1142,9 +1142,11 @@ def _report_refused_strand_heal(outcome: CoordRepairOutcome) -> None:
     """
     if outcome.legacy_marker:
         reason = "the reconcile marker predates recorded strand commits, so the strand cannot be told apart from later work"
-    else:
-        foreign = ", ".join(sha[:10] for sha in outcome.foreign_status_commits) or "none named"
+    elif outcome.foreign_status_commits:
+        foreign = ", ".join(sha[:10] for sha in outcome.foreign_status_commits)
         reason = f"the status log holds commits the marker did not record (foreign: {foreign}), e.g. a later reopen"
+    else:
+        reason = "the status log no longer matches the commits the marker recorded"
     console.print(
         "[yellow]Warning:[/yellow] the stranded coordination `done` was NOT reverted: "
         f"{escape(reason)}. The reconcile marker is kept. Reconcile the coordination status log "
