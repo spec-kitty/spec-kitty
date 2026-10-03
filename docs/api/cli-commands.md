@@ -94,8 +94,8 @@ record is the 2026-10-01 amendment of
 - **Decision-index merge driver.** `.gitattributes` registers `merge=spec-kitty-decision-index`
   for `kitty-specs/**/decisions/index.json`, so concurrent additions on lane branches union
   by `decision_id` instead of conflicting. Projects initialised earlier get the driver from the
-  upgrade migration `m_4_0_0rc5_decision_index_merge_driver`; run `spec-kitty upgrade`. The
-  driver is the hidden command `spec-kitty merge-driver-decision-index %O %A %B`.
+  upgrade migration `m_4_0_0rc5_decision_index_merge_driver`; run `spec-kitty upgrade`. Git runs
+  the driver itself during a merge; it is an internal command you never invoke by hand.
 
 ## Schema references
 
