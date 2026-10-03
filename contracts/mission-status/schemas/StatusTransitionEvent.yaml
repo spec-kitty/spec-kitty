@@ -4,7 +4,8 @@ description: >-
   from a status-transition row of the Mission's event log by an allow-list, so no other field of
   the row is ever shown. missionId is the identity stored in the Mission's metadata (meta.json),
   never the aggregate_id of the row: aggregate_id is the Mission ULID only on MissionCreated, the
-  slug on several other rows and the work package id on WPCreated. The schema is closed.
+  slug on several other rows and the work package id on WPCreated. A row whose `wp_id` does not match WpId is not a valid event: it is dropped, never forwarded or
+  repaired, and the drop is counted and reported. The schema is closed.
 type: object
 additionalProperties: false
 required:

@@ -62,9 +62,15 @@ Initial entry. This version is not yet released.
   instead of any identifier-like text.
 - Pre-release shape change: `Staleness.reason` is an enum of the two reasons the code sets,
   `planning_artifact_repo_root_shared_workspace` and `live_claim_process`, or null.
-- Pre-release shape change: `ReviewOverride` is present only for a complete override (`at`,
-  `actor` and `reason` all non-empty); a partial record and the release marker are projected as
-  null, so `at` stays a `date-time`.
+- Pre-release shape change: `ReviewOverride` gains the required boolean `complete`, the code's own
+  rule (`at`, `actor`, work package id and `reason` all non-empty), and `at` and `reason` become
+  nullable. A partial override record, which the code keeps and which still blocks the merge
+  gate, is now shown with `complete: false` and its blank members null, so a consumer can see
+  that an override exists and that the gate is blocked. Only the release marker (all four fields
+  empty) is projected as a null `override`.
+- Pre-release shape change: a status-transition row whose `wp_id` does not match `WpId`
+  (`^WP[0-9]{2,}$`) is not forwarded as a `status-transition` event; it is dropped, counted and
+  reported. `WpId` and `StatusTransitionEvent` state this.
 - Redaction is named in every human text field description: a host path is replaced by `[path]`
   and an e-mail address by `[email]`. `promptMarkdown` is stated to be the one text field that is
   not redacted; `includePrompt` is its only guard.

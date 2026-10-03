@@ -1,33 +1,63 @@
 title: ReviewOverride
 description: >-
   A recorded override of the review step: when it was recorded, by whom, and the stated reason.
-  It is present only when an operator overrode the review and the record is complete: at, actor
-  and reason all non-empty. A partial record, and the release marker that clears an override (all
-  fields empty), are not review overrides and are projected as null, never as an object with
-  blank members.
+  It is present whenever the status snapshot holds an override record, including a partial one.
+  `complete` is true only when the record's `at`, `actor`, work package id and `reason` are all
+  non-empty (the rule of the code). A partial record (`complete` false) is not discarded by the
+  code and keeps blocking the merge gate, so it is shown here with the blank members as null: a
+  consumer that sees `complete: false` knows an override exists and that the merge gate is blocked
+  by it. The work package id is not carried, because the override sits inside its own work
+  package. The release marker that clears an override (all four fields empty) is not an override
+  and is projected as null for the whole object.
 type: object
 additionalProperties: false
 required:
+  - complete
   - at
   - actor
   - reason
 properties:
+  complete:
+    type: boolean
+    description: True when at, actor, the work package id and reason of the record are all non-empty. False for a partial record, which still blocks the merge gate.
+    x-derived:
+      rule: True only when the stored at, actor, wp_id and reason are all non-empty strings, the definition of ReviewOverride.complete; the stored wp_id is read but not shown.
+      inputs:
+        - path: src/specify_cli/status/models.py
+          symbol: ReviewOverride
   at:
-    type: string
+    type:
+      - string
+      - 'null'
     format: date-time
-    description: When the override was recorded, an RFC 3339 date-time with an offset.
+    description: When the override was recorded, an RFC 3339 date-time with an offset, or null when the record has no time (a partial record).
     x-source:
       path: src/specify_cli/status/models.py
       symbol: ReviewOverride
   actor:
     $ref: ActorHandle.yaml
-    description: The handle of whoever recorded the override, or null when the stored value is not a valid handle.
+    description: The handle of whoever recorded the override, or null when the record has none or the stored value is not a valid handle.
     x-source:
       path: src/specify_cli/status/models.py
       symbol: ReviewOverride
   reason:
-    type: string
-    description: The reason given for the override. Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`; only the matching text is replaced.
+    type:
+      - string
+      - 'null'
+    description: The reason given for the override, or null when the record has none (a partial record). Human text. A host path inside it is replaced by `[path]` and an e-mail address by `[email]`; only the matching text is replaced.
     x-source:
       path: src/specify_cli/status/models.py
       symbol: ReviewOverride
+allOf:
+  - if:
+      properties:
+        complete:
+          const: true
+    then:
+      properties:
+        at:
+          type: string
+          description: A complete override always has a time.
+        reason:
+          type: string
+          description: A complete override always has a reason.

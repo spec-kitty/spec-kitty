@@ -1,6 +1,6 @@
 title: WpId
 description: >-
-  The identifier of a work package inside one Mission: the letters WP and at least two digits, for example WP01 (the same rule the planning-file reader enforces). It is unique within
+  The identifier of a work package inside one Mission: the letters WP and at least two digits, for example WP01 (the same rule the planning-file reader enforces). A status-transition row of the event log whose work package id does not match is not forwarded as an event and is counted as dropped. It is unique within
   a Mission and is not unique across Missions, so it is always read together with a missionId.
 type: string
 minLength: 1

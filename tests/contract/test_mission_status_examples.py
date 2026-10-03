@@ -254,7 +254,8 @@ def test_the_new_resources_have_examples_in_the_required_cases() -> None:
     _first(packages, lambda wp: wp["actor"]["tool"] is not None and wp["actor"]["role"] is None and wp["actor"]["profile"] is None)
     _first(packages, lambda wp: all(value is not None for value in wp["actor"].values()))
     _first(packages, lambda wp: wp["cancellation"] is not None)
-    _first(packages, lambda wp: wp["review"]["override"] is not None)
+    _first(packages, lambda wp: wp["review"]["override"] is not None and wp["review"]["override"]["complete"] is True)
+    _first(packages, lambda wp: wp["review"]["override"] is not None and wp["review"]["override"]["complete"] is False)
     _first(packages, lambda wp: wp["review"]["latestResult"] is not None)
     _first(packages, lambda wp: len(wp["history"]) > 0)
 
