@@ -12695,6 +12695,7 @@ pages:
     - {slug: "steps", text: "Steps", level: 2}
     - {slug: "mark-finished-missions-with-an-evidence-manifest", text: "Mark finished Missions with an evidence manifest", level: 2}
     - {slug: "what-the-command-changes", text: "What the command changes", level: 2}
+    - {slug: "missions-with-a-live-coordination-surface", text: "Missions with a live coordination surface", level: 3}
     - {slug: "read-the-result", text: "Read the result", level: 2}
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/migrations/charter-ownership-consolidation.md"

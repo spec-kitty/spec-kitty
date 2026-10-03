@@ -1420,9 +1420,12 @@ def backfill_wp_status_cmd(
     whose event log never seeded some ``tasks/WP*.md`` file under-counts on
     every read surface that lists WPs from the files. This command appends one
     deterministic ``planned`` seed per missing WP (actor ``migration:backfill_wp_status``)
-    through the existing migration writer, on the Mission's resolved primary
-    status surface. It is idempotent: a re-run appends nothing. WPs the
-    snapshot carries without a WP file are reported, never repaired.
+    through the existing migration writer, on the Mission's resolved
+    PRIMARY-partition status surface. It is idempotent: a re-run appends
+    nothing. WPs the snapshot carries without a WP file are reported, never
+    repaired. A Mission whose status log lives on a live coordination surface
+    is refused (``COORD_SURFACE_LIVE``, counted as skipped, nothing written):
+    consolidate it first, or run from the coordination checkout.
 
     A Mission with terminal evidence (``meta.json`` ``merged_at`` /
     ``accepted_at``, or an entry in ``--evidence-manifest``) has its freshly
@@ -1446,7 +1449,8 @@ def backfill_wp_status_cmd(
 
     Exit codes:
 
-    - ``0`` — every visited Mission was repaired or needed nothing
+    - ``0`` — every visited Mission was repaired, needed nothing, or was refused
+      as ``COORD_SURFACE_LIVE``
     - ``1`` — a per-Mission error, an invalid evidence manifest, or an unknown
       ``--mission`` handle
 

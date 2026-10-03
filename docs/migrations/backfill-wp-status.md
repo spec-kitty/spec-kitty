@@ -28,7 +28,9 @@ event never appears in it (see the *genesis* lane in
 [ADR 2026-06-07-3](../adr/3.x/2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.md)).
 A Mission whose log never seeded some `tasks/WP*.md` file therefore under-counts
 on every surface that lists WPs from the files. In this repository 51 Missions
-had a snapshot WP count that disagreed with their WP files (#5579).
+had a snapshot WP count that disagreed with their WP files (#5579): 44 were
+repaired with this command and 7 are permanent carve-outs whose WP files were
+never committed.
 
 ## Before you start
 

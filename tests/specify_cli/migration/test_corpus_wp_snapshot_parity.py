@@ -2,25 +2,28 @@
 
 The reduced status snapshot (``materialize_snapshot(dir).work_packages``) omits
 every WP that has no *lane* event, while read surfaces that list WPs from
-``tasks/WP*.md`` do not. Before the #5579 drain, ~20 committed Missions disagreed.
+``tasks/WP*.md`` do not. Before the #5579 drain, 51 committed Missions disagreed:
+44 were repaired by ``spec-kitty migrate backfill-wp-status`` and 7 are PERMANENT
+carve-outs (their WP files were never committed, or were deleted on purpose).
 This gate keeps the gap from regrowing, comparing the two WP-id **sets** for every
 committed ``kitty-specs/<slug>/`` that has WP files *or* a snapshot WP:
 
 * ``files_only`` (a WP file the snapshot lacks) is **never** exemptable. The fix is
   more seed events (``spec-kitty migrate backfill-wp-status``), never a waiver.
+* ``snapshot_only`` (a snapshot WP with no WP file) is reported by the repair CLI but
+  cannot be repaired: files are not invented and events are not deleted. Each such
+  Mission is a PERMANENT carve-out in :data:`SNAPSHOT_ONLY_EXEMPTIONS`, not drainable
+  debt: the WP file was never committed, so nothing can ever shrink the entry. The
+  entry names the exact WP ids and why the file is absent, and the stale check keeps
+  the list exact: it fails when an entry no longer equals the live ``snapshot_only``
+  set, or when its Mission is gone, so no carve-out can silently outlive its gap
+  and no new one can be added without a reason.
 * A Mission whose status authority is a **live coordination surface** is *skipped*,
   not exempted: its PRIMARY-partition log is not the authority, so a comparison
   against it proves nothing, and the repair CLI refuses it (``COORD_SURFACE_LIVE``)
   for the same reason. It uses the repair CLI's own detector
   (``wp_status_backfill.coordination_surface_is_live``) and is always listed in the
   gate's failure and diagnostic output so it cannot hide.
-* ``snapshot_only`` (a snapshot WP with no WP file) is reported by the repair CLI but
-  cannot be repaired: files are not invented and events are not deleted. Each such
-  Mission is a *priced exemption* in :data:`SNAPSHOT_ONLY_EXEMPTIONS` (Standing
-  Order #5): the entry names the exact WP ids and the reason the file is absent, and
-  it is **shrink-only**. The stale-exemption check fails when an entry no longer
-  equals the live ``snapshot_only`` set, or when its Mission is gone, so the list
-  cannot silently outlive the gap it prices.
 
 Read-only: the snapshot comes from ``materialize_snapshot`` (never ``materialize``,
 which rewrites ``status.json``). The corpus is this test file's own checkout, not the
@@ -60,8 +63,10 @@ _WP01 = "WP01"
 _TASKS = "tasks"
 _GITKEEP_ONLY_REASON = "tasks/ holds only a tracked .gitkeep (no WP files were ever committed); tasks.md names the WPs"
 
-#: Priced exemptions for ``snapshot_only`` WPs: ``{slug: (WP ids, reason)}`` (#5579, FR-009).
-#: Shrink-only. Each entry must equal the Mission's live ``snapshot_only`` set exactly.
+#: PERMANENT carve-outs for ``snapshot_only`` WPs: ``{slug: (WP ids, reason)}`` (#5579, FR-009).
+#: These 7 Missions' WP files were never committed (or were deleted on purpose), so this is
+#: not drainable debt and has no drain date. Each entry must equal the Mission's live
+#: ``snapshot_only`` set exactly; adding one needs a reason a reviewer can check.
 SNAPSHOT_ONLY_EXEMPTIONS: dict[str, tuple[frozenset[str], str]] = {
     "023-documentation-sprint-agent-management-cleanup": (
         frozenset({"WP07"}),
@@ -268,7 +273,7 @@ def corpus_scan() -> dict[str, MissionParity]:
 
 
 def test_corpus_wp_files_and_snapshot_agree(corpus_scan: dict[str, MissionParity]) -> None:
-    """THE GATE: no Mission's WP-file id set differs from its snapshot id set, bar priced exemptions."""
+    """THE GATE: no Mission's WP-file id set differs from its snapshot id set, bar the permanent carve-outs."""
     violations = parity_violations(corpus_scan, SNAPSHOT_ONLY_EXEMPTIONS)
     note = skipped_note(corpus_scan)
     if note:
@@ -277,7 +282,7 @@ def test_corpus_wp_files_and_snapshot_agree(corpus_scan: dict[str, MissionParity
 
 
 def test_snapshot_only_exemptions_are_exact_and_not_stale(corpus_scan: dict[str, MissionParity]) -> None:
-    """Shrink-only: each exemption equals the live snapshot_only set; no dead entries."""
+    """Exact carve-outs: each equals the live snapshot_only set; no dead entries."""
     violations = stale_exemption_violations(_kitty_specs(), corpus_scan, SNAPSHOT_ONLY_EXEMPTIONS)
     assert not violations, "\n  ".join(violations)
 

@@ -32,4 +32,4 @@ Event ids are deterministic; re-runs append nothing. Terminal evidence supplied 
 
 ## Invariant held by the corpus gate
 
-For every committed Mission, the WP-file id set is contained in the reduced snapshot's WP keys; extra snapshot keys are allowed only through a reasoned, shrink-only exemption (`tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py`).
+For every committed Mission, the WP-file id set is contained in the reduced snapshot's WP keys; extra snapshot keys are allowed only through a reasoned, exact, PERMANENT carve-out (the WP file was never committed; not drainable debt) (`tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py`).
