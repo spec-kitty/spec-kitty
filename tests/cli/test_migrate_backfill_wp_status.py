@@ -590,3 +590,37 @@ def test_manifest_entry_for_a_refused_mission_is_reported_as_coordination_surfac
 
     assert result.exit_code == 0, result.output
     assert _json(result)["manifest"]["unused"] == [{"mission": _SLUG_ONE, "reason": "coordination surface live"}]
+
+
+# ---------------------------------------------------------------------------
+# non-UTF-8 WP files and the scope of MISSION_SELECTOR_REJECTED
+# ---------------------------------------------------------------------------
+
+
+def test_non_utf8_wp_file_lands_in_malformed_and_the_payload_is_still_printed(repo: Path) -> None:
+    feature_dir = _mission(repo, _SLUG_ONE, _ID_ONE)
+    (feature_dir / "tasks" / "WP09-latin1.md").write_bytes("---\nwork_package_id: WP09\ntitle: caf\u00e9\n---\n".encode("latin-1"))
+    other = _mission(repo, _SLUG_TWO, _ID_TWO, seeded=())
+
+    result = _invoke(repo, "--json")
+
+    assert result.exit_code == 0, result.output
+    payload = _json(result)
+    row = next(r for r in payload["missions"] if r["slug"] == _SLUG_ONE)
+    assert row["malformed"] == ["WP09-latin1.md"] and row["error"] is None and row["seeded"] == 2
+    assert payload["summary"]["malformed_missions"] == 1
+    assert set(materialize_snapshot(other).work_packages) == set(_THREE)
+
+
+def test_a_planner_value_error_is_not_reported_as_a_rejected_selector(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+
+    def _planner_fault(*_a: Any, **_k: Any) -> Any:
+        raise ValueError("planner bug, nothing to do with --mission")
+
+    monkeypatch.setattr("specify_cli.migration.backfill_runtime_state.plan_wp_status_backfill", _planner_fault)
+
+    result = _invoke(repo, "--json")
+
+    assert isinstance(result.exception, ValueError)
+    assert "MISSION_SELECTOR_REJECTED" not in result.output

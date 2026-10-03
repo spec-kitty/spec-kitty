@@ -1474,6 +1474,15 @@ def _backfill_runtime_state_locked(
     return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, warnings=warnings)
 
 
+class MissionSelectorRejectedError(ValueError):
+    """The ``--mission`` selector is unsafe or names a Mission directory outside ``kitty-specs/``.
+
+    A :class:`ValueError` subclass so existing ``except ValueError`` callers keep
+    working, but distinct so the CLI maps *only* a selector refusal -- never an
+    unrelated ``ValueError`` raised by the planner -- to ``MISSION_SELECTOR_REJECTED``.
+    """
+
+
 def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
     """Return the contained mission directories a corpus walk should visit.
 
@@ -1489,7 +1498,10 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
         return []
 
     if mission_slug is not None:
-        assert_safe_path_segment(mission_slug)
+        try:
+            assert_safe_path_segment(mission_slug)
+        except ValueError as exc:
+            raise MissionSelectorRejectedError(str(exc)) from exc
         if not (kitty_specs / mission_slug).is_dir():
             logger.warning("No mission directory found for slug %r", mission_slug)
             return []
@@ -1497,7 +1509,7 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
         try:
             return [ensure_within_any(selected, roots=[kitty_specs])]
         except ValueError as exc:
-            raise ValueError(f"Mission directory resolves outside kitty-specs: {selected}") from exc
+            raise MissionSelectorRejectedError(f"Mission directory resolves outside kitty-specs: {selected}") from exc
 
     candidates: list[Path] = []
     for entry in sorted(kitty_specs.iterdir()):
@@ -2439,6 +2451,7 @@ __all__ = [
     "BackfillResult",
     "MigrationOrderingError",
     "VerifyResult",
+    "MissionSelectorRejectedError",
     "WpStatusBackfillResult",
     # ``apply_wp_status_backfill`` (the per-mission engine) is deliberately NOT exported: the
     # only public entry is the containment-checked repo walk below, which is what the CLI

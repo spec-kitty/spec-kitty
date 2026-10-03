@@ -235,6 +235,24 @@ def test_malformed_wp_file_is_reported_and_skipped(tmp_path: Path) -> None:
     assert result.seeded == 0
 
 
+def test_non_utf8_wp_file_is_reported_malformed_and_the_run_goes_on(tmp_path: Path) -> None:
+    feature_dir = _build_mission(tmp_path, wp_ids=("WP01",), seeded=("WP01",))
+    (feature_dir / "tasks" / "WP02-latin1.md").write_bytes("---\nwork_package_id: WP02\ntitle: caf\u00e9\n---\n".encode("latin-1"))
+
+    ids, malformed = planner.collect_wp_file_ids(feature_dir / "tasks")
+    result = b.apply_wp_status_backfill(feature_dir)
+
+    assert ids == frozenset({"WP01"}) and malformed == ("WP02-latin1.md",)
+    assert result.error is None and result.malformed == ("WP02-latin1.md",)
+
+
+def test_unreadable_wp_file_is_reported_malformed(tmp_path: Path) -> None:
+    feature_dir = _build_mission(tmp_path, wp_ids=("WP01",), seeded=("WP01",))
+    (feature_dir / "tasks" / "WP02-dir.md").mkdir()  # reading a directory raises OSError
+
+    assert planner.collect_wp_file_ids(feature_dir / "tasks")[1] == ("WP02-dir.md",)
+
+
 def test_mission_without_tasks_dir_is_skipped(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "no-tasks"
     feature_dir.mkdir(parents=True)
@@ -549,6 +567,14 @@ def test_repo_walk_without_kitty_specs_or_unknown_mission_returns_empty(tmp_path
     assert b.apply_wp_status_backfill_repo(tmp_path) == []
     (tmp_path / "kitty-specs").mkdir()
     assert b.apply_wp_status_backfill_repo(tmp_path, mission="missing") == []
+
+
+def test_unsafe_selector_raises_the_dedicated_selector_error_which_is_still_a_value_error(tmp_path: Path) -> None:
+    (tmp_path / "kitty-specs").mkdir()
+
+    with pytest.raises(b.MissionSelectorRejectedError):
+        b.apply_wp_status_backfill_repo(tmp_path, mission="../escape")
+    assert issubclass(b.MissionSelectorRejectedError, ValueError)
 
 
 @pytest.mark.parametrize("unsafe", ["../outside", "nested/mission", ".", ".."])

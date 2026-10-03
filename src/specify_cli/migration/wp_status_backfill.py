@@ -172,7 +172,8 @@ def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
-        except (FrontmatterError, ValidationError):
+        except (FrontmatterError, ValidationError, UnicodeDecodeError, OSError):
+            # Undecodable (non-UTF-8) or unreadable files are malformed too: the run goes on.
             logger.warning("Skipping %s: malformed frontmatter", wp_file.name)
             malformed.append(wp_file.name)
             continue

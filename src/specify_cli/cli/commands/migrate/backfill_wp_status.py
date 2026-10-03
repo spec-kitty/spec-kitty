@@ -45,6 +45,7 @@ from specify_cli.context.mission_resolver import (
     resolve_mission,
 )
 from specify_cli.migration.backfill_runtime_state import (
+    MissionSelectorRejectedError,
     WpStatusBackfillResult,
     apply_wp_status_backfill_repo,
 )
@@ -364,6 +365,32 @@ def _prepare(repo_root: Path, mission: str | None, manifest_path: Path | None) -
     return scope, manifest
 
 
+def _validate_and_apply(
+    repo_root: Path,
+    *,
+    mission: str | None,
+    dry_run: bool,
+    evidence_manifest: Path | None,
+) -> tuple[list[WpStatusBackfillResult], dict[str, str]]:
+    """Validate the inputs, then run the repair; selector refusals become ``BackfillWpStatusError``.
+
+    ``MISSION_SELECTOR_REJECTED`` is reserved for the selector itself: a
+    ``ValueError`` from :func:`_prepare`, or the repo walk's own
+    :class:`MissionSelectorRejectedError`. Any other ``ValueError`` -- a planner
+    fault -- is deliberately NOT translated; it propagates instead of
+    masquerading as a bad ``--mission``.
+    """
+    try:
+        scope, manifest = _prepare(repo_root, mission, evidence_manifest)
+    except ValueError as exc:
+        raise BackfillWpStatusError(ERR_BAD_SELECTOR, str(exc)) from exc
+    try:
+        results = apply_wp_status_backfill_repo(repo_root, mission=scope, dry_run=dry_run, evidence=manifest or None)
+    except MissionSelectorRejectedError as exc:
+        raise BackfillWpStatusError(ERR_BAD_SELECTOR, str(exc)) from exc
+    return results, manifest
+
+
 def run_backfill_wp_status(
     repo_root: Path,
     *,
@@ -379,13 +406,9 @@ def run_backfill_wp_status(
     per-Mission failures never abort the walk; any of them yields exit 1.
     """
     try:
-        scope, manifest = _prepare(repo_root, mission, evidence_manifest)
-        results = apply_wp_status_backfill_repo(repo_root, mission=scope, dry_run=dry_run, evidence=manifest or None)
+        results, manifest = _validate_and_apply(repo_root, mission=mission, dry_run=dry_run, evidence_manifest=evidence_manifest)
     except BackfillWpStatusError as exc:
         _emit_failure(exc, json_output=json_output)
-        return 1
-    except ValueError as exc:
-        _emit_failure(BackfillWpStatusError(ERR_BAD_SELECTOR, str(exc)), json_output=json_output)
         return 1
 
     payload = build_payload(results, dry_run=dry_run, mission=mission, manifest_path=evidence_manifest, manifest=manifest)
