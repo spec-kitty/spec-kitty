@@ -82,6 +82,7 @@ from specify_cli.consolidation.wp_attribution import (
     CanceledPathState,
     Unattributable,
     UnattributableReason,
+    lane_own_commits,
     resolve_canceled_wp,
 )
 
@@ -1180,8 +1181,18 @@ def build_approved_wp_set(
     # snapshot and the branch-resolvability check, before any of the existing
     # collectors, per plan.md D-3. Any Unattributable outcome refuses the WHOLE
     # claim immediately (refusals take precedence over FAIL by construction).
+    canceled_lane_commits = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, coord_base_ref, excluded_window_base)
     canceled_content, attested_wp_ids, mixed_lane_refusal = _resolve_mixed_lane_canceled_content(
-        repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base, sb_window
+        repo_root,
+        feature_dir,
+        lanes_manifest,
+        work_packages,
+        excluded_ids,
+        coord_base_ref,
+        planning_prefix,
+        excluded_window_base,
+        sb_window,
+        canceled_lane_commits,
     )
     if mixed_lane_refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
@@ -1191,7 +1202,7 @@ def build_approved_wp_set(
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
     authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths = _collect_authored(
-        repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window
+        repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, canceled_lane_commits
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -1288,6 +1299,7 @@ def _resolve_mixed_lane_canceled_content(
     planning_prefix: str | None,
     target_base: str | None = None,
     sb_window: tuple[str, str] | None = None,
+    canceled_lane_commits: frozenset[str] = frozenset(),
 ) -> tuple[frozenset[CanceledPathState], frozenset[str], str | None]:
     """Resolve every mixed lane's canceled-with-provenance WPs (T022/T023).
 
@@ -1308,6 +1320,9 @@ def _resolve_mixed_lane_canceled_content(
     refused), and an attested WP's overridable Unattributable reason falls back
     to the pre-change whole-lane behaviour (no per-WP canceled content).
     Visible canceled content still FAILs.
+
+    *canceled_lane_commits* (#5569, :func:`_fully_canceled_lane_commits`) are never
+    exempt from the closed world, whichever anchor reaches them.
     """
     mixed_lanes = _mixed_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
     if not mixed_lanes:
@@ -1344,7 +1359,8 @@ def _resolve_mixed_lane_canceled_content(
                 lane_branch=branch,
                 coord_base_ref=lane_base,
                 is_bookkeeping=is_bookkeeping,
-                closed_world_anchors=[*_closed_world_anchors(lanes_manifest, lane, target_base), *attestation_anchors],
+                closed_world_anchors=[*_closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids), *attestation_anchors],
+                never_exempt_commits=canceled_lane_commits,
             )
             if isinstance(outcome, Attributed):
                 canceled_content |= outcome.canceled_content
@@ -1369,14 +1385,60 @@ def _dependency_lane_ids(lanes_manifest: LanesManifest, lane: ExecutionLane) -> 
     return sorted(seen)
 
 
-def _closed_world_anchors(lanes_manifest: LanesManifest, lane: ExecutionLane, target_base: str | None) -> list[str]:
+def _closed_world_anchors(
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    target_base: str | None,
+    excluded_canceled_wp_ids: frozenset[str] = frozenset(),
+) -> list[str]:
     """FR-013 anchors for *lane*: dependency-lane tips (the allocator merges them in
     without ``--no-ff``, also on its reuse path after work began) and the target's
-    pre-consolidation tip (commits already on the target ship nothing new)."""
-    anchors = [_lane_branch_for(lanes_manifest, dep) for dep in _dependency_lane_ids(lanes_manifest, lane)]
+    pre-consolidation tip (commits already on the target ship nothing new).
+
+    A FULLY-canceled dependency lane is not an anchor (#5569): its tip carries
+    canceled content, which must never be exempt as history that predates *lane*.
+    Its commits before its own base are still covered by the anchors that reach
+    them (the approved dependencies it was cut from, the target tip).
+    """
+    by_id = {candidate.lane_id: candidate for candidate in lanes_manifest.lanes}
+    anchors = [
+        _lane_branch_for(lanes_manifest, dep) for dep in _dependency_lane_ids(lanes_manifest, lane) if not lane_fully_canceled(by_id[dep], excluded_canceled_wp_ids)
+    ]
     if target_base:
         anchors.append(target_base)
     return anchors
+
+
+def _fully_canceled_lane_commits(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    excluded_canceled_wp_ids: frozenset[str],
+    coord_base_ref: str,
+    target_base: str | None,
+) -> frozenset[str]:
+    """Commits authored by FULLY-canceled lanes since their own base (#5569).
+
+    A fully-canceled lane (every WP canceled-with-provenance) has no approved
+    work, so nothing reachable from its tip after its base is authorship of any
+    lane. The allocator merges a dependency lane into a dependent lane without
+    ``--no-ff``, so a fresh dependent lane fast-forwards and these commits sit on
+    the dependent lane's first-parent spine; this set is what
+    :func:`_collect_authored` and the closed world subtract so they cannot be
+    claimed as approved authorship. "After its base" is the shared
+    :func:`~specify_cli.consolidation.wp_attribution.lane_own_commits` over the
+    lane's own anchors, so ancestry the lane inherited from approved dependency
+    lanes or the target is never counted. A canceled lane whose branch is gone
+    yields nothing (claim building tolerates an unresolvable lane, as
+    :func:`_lane_tip_commits` documents).
+    """
+    own: set[str] = set()
+    for lane in lanes_manifest.lanes:
+        if is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
+            continue
+        tip_commits = _lane_tip_commits(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
+        anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids)
+        own |= lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
+    return frozenset(own)
 
 
 def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:
@@ -1735,6 +1797,7 @@ def _collect_authored(
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
     sb_window: tuple[str, str] | None = None,
+    canceled_lane_commits: frozenset[str] = frozenset(),
 ) -> tuple[
     frozenset[str],
     frozenset[str],
@@ -1751,6 +1814,15 @@ def _collect_authored(
     merged IN from another branch (a removed WP's commit smuggled via a carrier
     merge's second parent) is excluded, so it is never mistaken for approved work.
     Merge commits on the spine yield an empty patch-id and contribute only their SHA.
+
+    *canceled_lane_commits* (#5569, :func:`_fully_canceled_lane_commits`) are dropped
+    from every lane's spine before anything is derived from it: a fully-canceled
+    dependency lane's commit that the allocator fast-forwarded onto an approved lane's
+    first-parent spine is canceled content, never approved authorship. Dropping it
+    here removes its SHA, patch-id, blob and deletion from the claim at once, so
+    ``_collect_excluded`` keeps it excluded and the squash blob axis cannot attribute
+    it. Only the canceled lane's OWN commits go; the approved lane's own commits, and
+    ancestry both lanes inherited, stay.
 
     ``authored_blobs`` (#5013 WS1) is the squash-sound content axis's authority: the
     FINAL first-parent blob per (lane, path), unioned across approved lanes.
@@ -1784,12 +1856,13 @@ def _collect_authored(
             continue
         base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
         first_parent = _lane_first_parent_spine(repo_root, base, branch)
-        for sha in first_parent:
+        authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
+        for sha in authored:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
             if pid:
                 patch_ids.add(pid)
-        lane_blobs, lane_deletions = _final_authored_walk(repo_root, first_parent)
+        lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
         blobs |= lane_blobs
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, first_parent)

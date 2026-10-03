@@ -32,10 +32,15 @@ never-claimed-WP commit (residual 4) both land a content commit outside every
 resolved WP window, which the closed-world check now REFUSEs. Their leak is
 closed (the verdict is a safe non-PASS), so they are regular tests pinning the
 REFUSE instead of strict ``xfail`` pins. Residuals 1, 2 and 5 stay strict
-``xfail`` (their commits all sit inside a resolved window). Residuals 6 and 7
-(landing review, #5330) are gaps of the closed-world ANCHORS: a pre-claim
-out-of-workflow commit (first-claim anchor) and a fully-canceled dependency
-lane's content (dependency-tip anchor).
+``xfail`` (their commits all sit inside a resolved window). Residual 6
+(landing review, #5330) is a gap of the closed-world ANCHORS: a pre-claim
+out-of-workflow commit (first-claim anchor), still a strict ``xfail``.
+
+**#5569 update.** Residual 7 (a fully-canceled dependency lane's content exempt
+via the dependency-tip anchor) is FIXED: a fully-canceled lane's own commits are
+subtracted from the authored claim and never exempt from the closed world, so
+it is a regular test pinning the REFUSE
+(``test_fully_canceled_dependency_lane_content_does_not_ship``), not a ``xfail``.
 """
 
 from __future__ import annotations
@@ -675,24 +680,21 @@ def test_pre_claim_out_of_workflow_commit_ideally_refuses(tmp_path: Path) -> Non
 
 
 # --------------------------------------------------------------------------- #
-# Residual 7 -- a FULLY-canceled dependency lane's content fast-forwards into a
-# dependent mixed lane and is exempt via the dependency-tip anchor (#5330;
-# pre-existing gap: a fully-canceled lane is not mixed, so it is never checked)
+# Former residual 7 -- a FULLY-canceled dependency lane's content fast-forwards
+# into a dependent mixed lane (#5330 gap, fixed by #5569)
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="fully-canceled dependency lane content exempt via the dependency-tip anchor (#5330) — follow-up under the parent epic",
-)
-def test_fully_canceled_dependency_lane_content_ideally_does_not_ship(tmp_path: Path) -> None:
+def test_fully_canceled_dependency_lane_content_does_not_ship(tmp_path: Path) -> None:
     """lane-a holds only canceled WP03, which committed content; lane-b (approved
     WP01 + canceled WP02) depends on lane-a and fast-forwards it. lane-a is not
-    mixed, so its canceled content is never checked; in lane-b it is exempt via
-    the dependency-tip anchor and authored on lane-b's first-parent spine.
-    TODAY: PASS, WP03's canceled content ships (as it did before FR-013).
-    IDEAL: not PASS.
+    mixed, so its canceled content was never checked; in lane-b it was exempt via
+    the first-claim and dependency-tip anchors and authored on lane-b's
+    first-parent spine (#5569).
+
+    Fixed: a fully-canceled lane's own commits are subtracted from the authored
+    claim and are never exempt from the closed world, so the verdict is a REFUSE
+    (``commit_outside_windows``), never PASS.
     """
     slug = "residual-canceled-dep"
     repo, feature_dir, manifest, _base = _init_repo(tmp_path, slug=slug, wp_ids=("WP03",))
@@ -744,4 +746,6 @@ def test_fully_canceled_dependency_lane_content_ideally_does_not_ship(tmp_path: 
     target_ref = _squash_target(repo, _TARGET, branch_b)
 
     result = _verify_today_result(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02", "WP03"}))
-    assert result.status != VerifyStatus.PASS, "ideal: a canceled dependency lane's content must not ship"
+    assert result.status == VerifyStatus.REFUSE, f"a canceled dependency lane's content must not ship, got {result.status}"
+    assert _OUTSIDE_WINDOWS_WORDING in (result.refusal_reason or ""), result.refusal_reason
+    assert "wp03_canceled.py" in (result.refusal_reason or "")

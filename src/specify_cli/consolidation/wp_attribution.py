@@ -530,11 +530,43 @@ def _first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[
     return None
 
 
+def lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable[str]) -> frozenset[str]:
+    """Commits after *coord_base_ref* that predate a lane's own work (the lane-base authority).
+
+    The union of ``coord_base_ref..anchor`` over every anchor: the lane head at its
+    first governed claim, each dependency-lane tip, the target's pre-consolidation
+    tip, an operator attestation's own stamp. These name history that is NOT the
+    lane's own new work. An anchor git cannot read is skipped: that exempts less,
+    so it can only REFUSE/exclude more, never PASS more.
+
+    The single answer to "what did this lane author since its base" for BOTH the
+    FR-013 closed world (:func:`_outside_after_anchors`) and the authorship claim
+    (:func:`lane_own_commits`, #5569) — no second copy of the anchor walk.
+    """
+    exempt: set[str] = set()
+    for anchor in anchors:
+        try:
+            exempt.update(commits_in_range(repo_root, coord_base_ref, anchor))
+        except GitProbeError:
+            continue
+    return frozenset(exempt)
+
+
+def lane_own_commits(repo_root: Path, coord_base_ref: str, lane_commits: Iterable[str], anchors: Iterable[str]) -> frozenset[str]:
+    """The subset of *lane_commits* the lane authored itself: not reachable from any anchor (#5569).
+
+    Commits that precede the lane's base (shared ancestry reachable from an
+    anchor) are never "own" — an approved lane that shares them keeps them.
+    """
+    return frozenset(lane_commits) - lane_exempt_commits(repo_root, coord_base_ref, anchors)
+
+
 def _outside_after_anchors(
     repo_root: Path,
     coord_base_ref: str,
     outside: tuple[tuple[str, str], ...],
     anchors: Iterable[str],
+    never_exempt: frozenset[str] = frozenset(),
 ) -> tuple[tuple[str, str], ...]:
     """Drop outside-window commits reachable from any anchor (FR-013 closed world).
 
@@ -545,15 +577,15 @@ def _outside_after_anchors(
     the attestation stay checked). Only commits AFTER the lane's own base that
     lie in no own-WP window remain "outside". An anchor git cannot read is
     skipped: that exempts less, so it can only REFUSE more, never PASS more.
+
+    *never_exempt* (#5569) are commits a fully-canceled lane authored: however an
+    anchor reaches them (the dependent lane's first-claim stamp, a transitive
+    dependency tip), they are canceled content, never "history that predates the
+    lane", so they stay outside. This only shrinks the exempt set.
     """
     if not outside:
         return outside
-    exempt: set[str] = set()
-    for anchor in anchors:
-        try:
-            exempt.update(commits_in_range(repo_root, coord_base_ref, anchor))
-        except GitProbeError:
-            continue
+    exempt = lane_exempt_commits(repo_root, coord_base_ref, anchors) - never_exempt
     return tuple(item for item in outside if item[0] not in exempt)
 
 
@@ -577,6 +609,7 @@ def resolve_canceled_wp(
     coord_base_ref: str,
     is_bookkeeping: Callable[[str], bool],
     closed_world_anchors: Sequence[str] = (),
+    never_exempt_commits: frozenset[str] = frozenset(),
 ) -> AttributionOutcome:
     """Resolve one canceled WP's attributed commits + unsuperseded canceled content.
 
@@ -599,6 +632,9 @@ def resolve_canceled_wp(
     today's behaviour (an empty :class:`Attributed`, no git read). An operator
     attestation (FR-012) reaches this check only as one more anchor — its own
     ``lane_head`` stamp — so a straggler committed after it is still refused.
+
+    *never_exempt_commits* (#5569) are a fully-canceled lane's own commits; no
+    anchor may exempt them from the closed world (see :func:`_outside_after_anchors`).
     """
     wp_ids = frozenset(lane_wp_ids) | {canceled_wp_id}
     entered = _entered_implementation(events, canceled_wp_id)
@@ -655,7 +691,7 @@ def resolve_canceled_wp(
     if walk.outside_windows:
         base_anchor = _first_governed_open_stamp(events, wp_ids)
         anchors = [*([base_anchor] if base_anchor else []), *closed_world_anchors]
-        outside = _outside_after_anchors(repo_root, coord_base_ref, walk.outside_windows, anchors)
+        outside = _outside_after_anchors(repo_root, coord_base_ref, walk.outside_windows, anchors, never_exempt_commits)
         if outside:
             return _closed_world_refusal(replace(walk, outside_windows=outside), lane_id, canceled_wp_id)
 
@@ -669,5 +705,7 @@ __all__ = [
     "Unattributable",
     "UnattributableReason",
     "CanceledPathState",
+    "lane_exempt_commits",
+    "lane_own_commits",
     "resolve_canceled_wp",
 ]

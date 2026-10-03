@@ -30,8 +30,9 @@ from pathlib import Path
 from specify_cli.lanes.branch_naming import mission_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from tests.terminus import conftest as _harness
-from tests.terminus.conftest import CoordMission
+from tests.terminus.conftest import CoordMission, PlantedChange, git_rev
 
 # --- single adapter over the conftest private helpers (#5359 rename => one edit) ---
 _run = _harness._run
@@ -39,6 +40,10 @@ _git = _harness._git
 _approve_events = _harness._approve_events
 _now_iso = _harness._now_iso
 _STATUS_EVENTS_FILENAME = _harness._STATUS_EVENTS_FILENAME
+_event = _harness._event
+_cancel_event = _harness._cancel_event
+_plant_change = _harness._plant_change
+_APPROVE_CHAIN = _harness._APPROVE_CHAIN
 # -----------------------------------------------------------------------------------
 
 _PLANNING_LANE_ID = "lane-planning"
@@ -187,4 +192,103 @@ def build_lanes_mission(
     _git(repo, "commit", "-qm", f"chore({slug}): bootstrap lanes mission")
     _git(repo, "branch", mission_branch)
     _cut_lane_branches(m, wps, target_branch)
+    return m
+
+
+_DEP_CANCELED_PATH = "src/alpha/mod.py"
+_DEP_DEPENDENT_PATH = "src/beta/mod.py"
+
+
+def _dependency_lanes() -> list[ExecutionLane]:
+    """``lane-a`` (WP01, no deps) and ``lane-b`` (WP02, depends on ``lane-a``)."""
+    return [
+        ExecutionLane(
+            lane_id=lane_id,
+            wp_ids=(wp,),
+            write_scope=(scope,),
+            predicted_surfaces=("code",),
+            depends_on_lanes=deps,
+            parallel_group=group,
+        )
+        for lane_id, wp, scope, deps, group in (
+            ("lane-a", "WP01", "src/alpha/**", (), 0),
+            ("lane-b", "WP02", "src/beta/**", ("lane-a",), 1),
+        )
+    ]
+
+
+def _stamped(m: CoordMission, wp: str, frm: str, to: str, worktree: Path) -> dict[str, object]:
+    return _event(m, wp, frm, to, policy_metadata={"lane_head": git_rev(worktree, "HEAD")})
+
+
+def _approved_session(m: CoordMission, wp: str, worktree: Path, path: str) -> list[dict[str, object]]:
+    """Claim, commit *path* in *worktree*, then walk *wp* to ``approved``; every event is lane-head stamped."""
+    events = [_stamped(m, wp, frm, to, worktree) for frm, to in _APPROVE_CHAIN[:2]]
+    _plant_change(worktree, PlantedChange(path, f"{wp} = 'work'\n"), message=f"feat({m.slug}): {wp} work")
+    events.extend(_stamped(m, wp, frm, to, worktree) for frm, to in _APPROVE_CHAIN[2:])
+    return events
+
+
+def build_lanes_mission_canceled_dependency(tmp_path: Path, *, cancel_dependency: bool, mid8: str = "01M5569A") -> CoordMission:
+    """LANES mission where approved ``WP02`` (``lane-b``) depends on ``WP01`` (``lane-a``) (#5569).
+
+    Both lane worktrees come from the REAL allocator
+    (:func:`~specify_cli.lanes.worktree_allocator.allocate_lane_worktree`), so
+    ``lane-b`` is cut from the mission branch and the allocator's own
+    dependency merge (no ``--no-ff``) fast-forwards ``lane-a``'s WP01 commit onto
+    ``lane-b``'s first-parent spine -- never a hand-built merge. ``WP01``
+    commits ``src/alpha/mod.py`` and is approved; with ``cancel_dependency`` it
+    is then canceled with operator provenance (``lane-a`` holds only a canceled
+    WP), otherwise it stays approved (positive control).
+    """
+    mid8 = mid8.upper()
+    mission_id = (mid8 + "0" * 26)[:26]
+    slug = f"terminus-{mid8}"
+    mission_branch = mission_branch_name(slug, mission_id=mission_id)
+    m = CoordMission(
+        repo=tmp_path / "repo",
+        home=tmp_path / "home",
+        feature_dir=tmp_path / "repo" / "kitty-specs" / slug,
+        slug=slug,
+        mission_id=mission_id,
+        mid8=mid8,
+        coord_branch=mission_branch,
+        target_branch="develop",
+    )
+    m.home.mkdir(parents=True, exist_ok=True)
+    _init_repo(m.repo, m.target_branch)
+    (m.repo / ".gitignore").write_text(".worktrees/\n")
+    (m.feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(m, m.target_branch)
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=mission_id,
+        mission_branch=mission_branch,
+        target_branch=m.target_branch,
+        lanes=_dependency_lanes(),
+        computed_at=_now_iso(),
+        computed_from="terminus-red-first-fixture-canceled-dependency",
+    )
+    write_lanes_json(m.feature_dir, manifest)
+    for wp in ("WP01", "WP02"):
+        (m.feature_dir / "tasks" / f"{wp}-work.md").write_text(_wp_file_text(wp))
+    _git(m.repo, "add", ".")
+    _git(m.repo, "commit", "-qm", f"chore({slug}): bootstrap canceled-dependency mission")
+    _git(m.repo, "branch", mission_branch)
+
+    lane_a, branch_a = allocate_lane_worktree(m.repo, slug, "WP01", manifest)
+    events = _approved_session(m, "WP01", lane_a, _DEP_CANCELED_PATH)
+    lane_b, branch_b = allocate_lane_worktree(m.repo, slug, "WP02", manifest)
+    events.extend(_approved_session(m, "WP02", lane_b, _DEP_DEPENDENT_PATH))
+    if cancel_dependency:
+        events.append(_cancel_event(m, "WP01", from_lane="approved", policy_metadata={"lane_head": git_rev(lane_a, "HEAD")}))
+        m.canceled_wps.add("WP01")
+    m.lane_branches.update({"WP01": branch_a, "WP02": branch_b})
+
+    events_path = m.feature_dir / _STATUS_EVENTS_FILENAME
+    events_path.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events))
+    _git(m.repo, "add", ".")
+    _git(m.repo, "commit", "-qm", f"chore({slug}): canceled-dependency events")
+    _git(m.repo, "branch", "-f", mission_branch, m.target_branch)
     return m
