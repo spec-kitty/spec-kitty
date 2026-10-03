@@ -57,7 +57,6 @@ __all__ = [
     "coordination_only_ledger",
     "ledger_is_coordination_only",
     "read_coordination_ledger_raw",
-    "LedgerProbeError",
 ]
 
 #: The two decision-event streams compared per-mission (contract "Inputs read").

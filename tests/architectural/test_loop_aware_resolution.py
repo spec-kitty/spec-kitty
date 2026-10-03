@@ -80,39 +80,14 @@ ALLOWLIST: tuple[ContentDescriptor, ...] = (
     # `.resolve()`, so its `try:` body no longer calls `resolve`/`realpath`
     # at all -- the site is structurally clean, not merely allowlisted, and
     # the entry was removed. `_ALLOWLIST_CEILING` dropped from 9 to 8
-    # alongside this removal.)
+    # alongside this removal. The same happened for `spec_commit_command`
+    # and `record_report_transaction`: `ProtectionPolicy.resolve()` (policy
+    # resolution, not path resolution) no longer sits in a `try:` whose
+    # handler names `RuntimeError`, so both entries were removed and the
+    # ceiling dropped again, from 8 to 6. `_commit_analysis_report` was
+    # kept clean the same way, by resolving the policy outside its commit
+    # `try:`.)
     #
-    # Same broad command-layer except-all pattern `safe_commit_command` used
-    # to have: `spec_commit_command`'s try wraps `ProtectionPolicy.resolve()`
-    # (policy resolution, not path resolution) and `commit_for_mission`, and
-    # the `except (RuntimeError, ValueError, subprocess.CalledProcessError)`
-    # exists to produce one uniform CLI error exit, not to catch a loop.
-    ContentDescriptor(
-        "src/specify_cli/cli/commands/spec_commit_cmd.py",
-        "spec_commit_command",
-        "try :",
-        None,
-        "Broad command-layer except-all turns every failure into typer.Exit(1); "
-        "`ProtectionPolicy.resolve()` in the try body is policy resolution, not path resolution, "
-        "so there is no loop-shaped case to discriminate -- the CLI exit-code verdict is "
-        "identical on every interpreter.",
-    ),
-    # False positive (WP04 prompt names this explicitly): `ProtectionPolicy.resolve(repo_root)`
-    # is a classmethod that resolves a protection POLICY object from config,
-    # not a filesystem path -- there is no `Path.resolve()`/`os.path.realpath`
-    # call anywhere in this try body; the detector matches on the bare
-    # attribute name `resolve` only, which false-positives on this call.
-    # `record_report_transaction` has two `try:` statements; `occurrence=0`
-    # (source order) selects this one.
-    ContentDescriptor(
-        "src/specify_cli/git/report_transaction.py",
-        "record_report_transaction",
-        "try :",
-        0,
-        "False positive: `ProtectionPolicy.resolve` resolves a protection-policy object from "
-        "config, not a filesystem path -- the detector matches on the bare name `resolve`, not "
-        "on `Path.resolve`/`os.path.realpath` semantics.",
-    ),
     # The `os.readlink` fallback in `get_active_mission` is only reached
     # after `active_mission_link.exists()` returned True, and `exists()`
     # reports a symlink loop as absent on every interpreter. A looping
@@ -195,7 +170,7 @@ MIN_RESOLUTION_CALL_SITES = 452
 MIN_RESOLVE_REJECTING_LOOPS_CALL_SITES = 13
 
 #: Lower this when an entry is migrated; never raise it without an ownership decision.
-_ALLOWLIST_CEILING = 8
+_ALLOWLIST_CEILING = 6
 
 
 def _parse(path: Path) -> ast.AST:
@@ -308,7 +283,7 @@ def test_every_allowlist_entry_is_a_real_violation() -> None:
 
 
 def test_allowlist_never_grows_past_its_landing_size() -> None:
-    """T018.3 (shrink-only): the allowlist holds at most the 8 hits this fold left behind.
+    """T018.3 (shrink-only): the allowlist holds at most the 6 hits this fold left behind.
 
     This is a floor on the allowlist itself, distinct from the zero-offender
     assertion above: the allowlist may only ever SHRINK (a future WP
@@ -357,7 +332,7 @@ def test_resolution_call_site_floor_is_met() -> None:
 _DRIFT_FILES: tuple[str, ...] = tuple(sorted({descriptor.rel_path for descriptor in ALLOWLIST}))
 
 #: Floor on ``_DRIFT_FILES`` so the drift proof cannot pass over a shrunken set.
-_DRIFT_FILES_FLOOR = 4
+_DRIFT_FILES_FLOOR = 2
 
 
 def _exemption_count_for(relpath: str) -> int:

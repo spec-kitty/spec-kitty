@@ -608,13 +608,19 @@ def test_seed_lock_contention_from_a_different_holder_refuses_status_lock_held(t
     """
     import threading
 
-    import specify_cli.status.locking as locking_module
+    import specify_cli.status as status_package
     from specify_cli.status.locking import FeatureStatusLockTimeoutError, feature_status_lock
 
-    # ``coord_seed.py`` imports ``BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS`` LOCALLY
-    # (inside the function that uses it), re-reading the live module attribute
-    # on every call -- patch the defining module, not coord_seed's namespace.
-    monkeypatch.setattr(locking_module, "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", 0.3)
+    # ``coord_seed._seed_coord_surface`` does
+    # ``from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS``
+    # LOCALLY on every call, so the name it reads is the re-export on the
+    # ``specify_cli.status`` PACKAGE -- not the defining
+    # ``specify_cli.status.locking`` attribute (a re-export is a second,
+    # independent binding; patching only the defining module leaves the
+    # seed on the real 10 s bound, which outlives the holder's 5 s hold and
+    # lets the seed acquire the lock -- the "DID NOT RAISE" failure).
+    seed_budget_seconds = 0.3
+    monkeypatch.setattr(status_package, "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", seed_budget_seconds)
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
     root_status_before = _repo_root_coord_dir_porcelain(coord)
 
@@ -634,6 +640,10 @@ def test_seed_lock_contention_from_a_different_holder_refuses_status_lock_held(t
         with pytest.raises(FeatureStatusLockTimeoutError) as exc_info:
             _write_dir(coord)
         assert exc_info.value.error_code == "STATUS_LOCK_HELD"
+        # Proves the bounded budget the seed actually used is the patched one
+        # (and that the refusal came from the seed's own acquire), so a
+        # patch that silently misses the read site can never pass vacuously.
+        assert exc_info.value.timeout == seed_budget_seconds
     finally:
         release_holder.set()
         holder_thread.join(timeout=5.0)

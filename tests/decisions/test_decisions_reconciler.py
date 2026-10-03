@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import contextlib
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+from kernel.clock import now_utc
 from mission_runtime import MissionTopology
 from specify_cli import app as root_app
 from specify_cli.decisions import index_fold
@@ -886,7 +886,7 @@ def test_repair_keeps_primary_event_backed_entry_when_coord_log_is_absent(tmp_pa
         input_key="keep",
         question="keep the primary event?",
         status=DecisionStatus.OPEN,
-        created_at=datetime.now(UTC),
+        created_at=now_utc(),
         mission_id=str(meta["mission_id"]),
         mission_slug=fixture.mission_slug,
     )

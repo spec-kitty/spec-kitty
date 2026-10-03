@@ -255,10 +255,18 @@ def _commit_analysis_report(
     discarding the result entirely.
     """
     from specify_cli.coordination.commit_router import commit_for_mission
-    from specify_cli.git.protection_policy import ProtectionPolicy
+    from specify_cli.git.protection_policy import ProtectionConfigError, ProtectionPolicy
 
+    # Policy resolution is config/git I/O, not filesystem path resolution, so it
+    # sits outside the commit ``try`` below (which hand-catches ``RuntimeError``
+    # for commit failures). A malformed protection config stays best-effort
+    # (``None``), exactly as before the hoist.
     try:
         policy = ProtectionPolicy.resolve(repo_root)
+    except (ProtectionConfigError, subprocess.CalledProcessError, OSError, ValueError):
+        return None
+
+    try:
         return commit_for_mission(
             repo_root=repo_root,
             mission_slug=mission_slug,

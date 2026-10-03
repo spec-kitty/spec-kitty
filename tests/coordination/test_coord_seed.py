@@ -761,7 +761,11 @@ def test_decisions_stream_carries_on_normal_seed(tmp_path: Path) -> None:
 
 
 def test_bounded_lock_fires_status_lock_held_and_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("specify_cli.status.locking.BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", 1.0)
+    # ``coord_seed._seed_coord_surface`` reads the bound via
+    # ``from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS`` (the
+    # package re-export), so that is the binding to patch -- patching only
+    # ``specify_cli.status.locking`` leaves the seed on the real 10 s bound.
+    monkeypatch.setattr("specify_cli.status.BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", 1.0)
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
     flag = tmp_path / "held"
     code = (
@@ -781,6 +785,7 @@ def test_bounded_lock_fires_status_lock_held_and_writes_nothing(tmp_path: Path, 
         with pytest.raises(FeatureStatusLockTimeoutError) as excinfo:
             establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
         assert excinfo.value.error_code == "STATUS_LOCK_HELD"
+        assert excinfo.value.timeout == 1.0  # the patched bound reached the seed's acquire
         assert FeatureStatusLockTimeoutError.error_code == "STATUS_LOCK_HELD"
         assert not coord.coord_mission_dir.exists()
     finally:
