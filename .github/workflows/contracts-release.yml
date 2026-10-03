@@ -2,6 +2,9 @@
 # The tag namespace is disjoint from the CLI release (v*.*.*) and from the preview tags (preview/<module>/p<N>). A manual run
 # is a dry run: it builds, checksums and prints the release command, and never publishes. Node is not used (C-005), pytest never
 # runs here, and the only publisher is the runner's own gh CLI.
+# Least privilege: the `build` job (read-only token) runs every check and builds the release assets; the `publish` job
+# (`contents: write`, tag pushes only) downloads them and runs the one `gh release create`, after confirming the tag still
+# resolves to the commit that was built. A manual run is a dry run, so `publish` never runs for it and no write token exists.
 # A tag push publishes only a commit that is already on main and whose Contracts run passed (both checked first, failing
 # closed; the run that counts is the push run on main of the last commit that touched Contracts' own trigger paths), and only
 # after breaking_check compared the module with the previous release. A -SNAPSHOT tag is refused by release_check; the job
@@ -27,13 +30,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  build:
     # A fork's tag push skips; a fork's manual dry run stays allowed.
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
       actions: read  # to read the Contracts workflow's runs for the tagged commit
     steps:
       # Prelude: the only Python install form (FR-018, plan D-P12).
@@ -107,22 +110,54 @@ jobs:
           else
             uv run --frozen --no-sync python contracts/tools/release_check.py --root contracts --out "$RUNNER_TEMP/release-out"
           fi
+      # The hand-off to `publish`: the assets and (a tag run only) the approved argument list, under their common release-out root.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: contract-release-assets
-          path: ${{ runner.temp }}/release-out/release
+          path: |
+            ${{ runner.temp }}/release-out/release
+            ${{ runner.temp }}/release-out/gh-release-args.txt
           if-no-files-found: error
           overwrite: true
-      # The one publish step: reachable only from a push of a contract tag (never from a pull request, a manual run or a branch push).
+
+  publish:
+    # Reachable only from a push of a contract tag (never from a pull request, a manual run or a branch push), and only after
+    # `build` passed (a fork's tag push skips `build`, so this job is skipped with it). The only job holding a write token.
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # The assets and the argument list release_check approved in `build`, restored to the same $RUNNER_TEMP/release-out layout.
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: contract-release-assets
+          path: ${{ runner.temp }}/release-out
+      # The tag is a mutable ref until it is published: confirm it still resolves to the commit `build` checked (the peeled commit
+      # of an annotated tag). The tag name only ever reaches the shell through the environment.
+      - name: Require the tag to still resolve to the built commit
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          resolved=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG_NAME}" "refs/tags/${TAG_NAME}^{}" | awk '{print $1}' | tail -n 1)
+          if [ "$resolved" != "$GITHUB_SHA" ]; then
+            echo "::error::the tag ${TAG_NAME} resolves to '${resolved}', not the built commit ${GITHUB_SHA}; it was moved or deleted after the checks ran"
+            exit 1
+          fi
+      # The one publish step: reachable only from a push of a contract tag.
       - name: Publish the release with the bundle and its checksum as assets
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        # The arguments are the ones release_check approved above (module, version, --latest=false, --prerelease only for a
-        # prerelease semver, --verify-tag, notes). This step derives nothing: a second derivation could disagree with the check.
+          GH_REPO: ${{ github.repository }}
+        # The arguments are the ones release_check approved in `build` (module, version, --latest=false, --prerelease only for a
+        # prerelease semver, --verify-tag, notes). This step derives nothing but the target: it pins the release to the built commit.
         run: |
           set -eu
           args_file="$RUNNER_TEMP/release-out/gh-release-args.txt"
           test -s "$args_file"
           mapfile -t args < "$args_file"
-          gh release create "${args[@]}"
+          gh release create "${args[@]}" --target "$GITHUB_SHA"

@@ -367,12 +367,19 @@ def contracts_lookup_violations(gate: str) -> list[str]:
     return [message for holds, message in rules if not holds]
 
 
+def release_steps(text: str) -> list[dict[str, Any]]:
+    """The steps of the build job followed by those of the publish job, in the order the jobs run."""
+    found = jobs(load(text))
+    return [step for name in ("build", "publish") if name in found for step in steps_of(found[name])]
+
+
 def release_gate_violations(text: str) -> list[str]:
     """A tag push publishes only a commit on main that Contracts passed on, after breaking_check against the previous release."""
-    job = jobs(load(text)).get("release")
+    found = jobs(load(text))
+    job = found.get("build")
     if job is None:
-        return ["no release job"]
-    steps = steps_of(job)
+        return ["no build job"]
+    steps = release_steps(text)
     problems: list[str] = []
 
     def index_of(*tokens: str) -> int | None:
@@ -404,6 +411,9 @@ def release_gate_violations(text: str) -> list[str]:
     if publish is None:
         problems.append("no publish step")
     else:
+        publish_job = found.get("publish") or {}
+        if "build" not in needs_of(publish_job):
+            problems.append("the publish job does not need the build job, so it could run before the checks passed")
         for name, position in (("the ancestor check", ancestor), ("the Contracts-success check", contracts), ("breaking_check", breaking)):
             if position is not None and position > publish:
                 problems.append(f"{name} runs after the publish step")
@@ -463,9 +473,14 @@ def release_permission_violations(text: str) -> list[str]:
     problems = []
     if workflow.get("permissions") != {"contents": "read"}:
         problems.append(f"top-level permissions are {workflow.get('permissions')!r}")
-    writers = [name for name, job in jobs(workflow).items() if (job.get("permissions") or {}).get("contents") == "write"]
-    if len(jobs(workflow)) != 1 or len(writers) != 1:
-        problems.append(f"expected exactly one job holding contents: write, found {writers} of {len(jobs(workflow))}")
+    found = jobs(workflow)
+    writers = [name for name, job in found.items() if (job.get("permissions") or {}).get("contents") == "write"]
+    if set(found) != {"build", "publish"} or writers != ["publish"]:
+        problems.append(f"expected a build job and exactly one writer, the publish job, found {writers} of {sorted(found)}")
+    if (found.get("build", {}).get("permissions") or {}).get("contents") != "read":
+        problems.append("the build job does not hold exactly contents: read")
+    if (found.get("publish", {}).get("permissions") or {}) != {"contents": "write"}:
+        problems.append("the publish job holds more than contents: write")
     return problems
 
 
@@ -533,7 +548,7 @@ def namespace_violations(release_text: str, cli_text: str) -> list[str]:
 
 def test_the_real_workflows_parse_and_hold_the_expected_jobs() -> None:
     assert len(jobs(load(CONTRACTS_TEXT))) == len(EXPECTED_NEEDS)
-    assert len(jobs(load(RELEASE_TEXT))) == 1
+    assert set(jobs(load(RELEASE_TEXT))) == {"build", "publish"}
 
 
 def test_contracts_workflow_triggers_are_exactly_the_three_paths_on_both_triggers() -> None:
@@ -871,18 +886,24 @@ def test_planted_release_trigger_violations_are_refused(old: str, new: str, reas
     assert any(reason in problem for problem in release_trigger_violations(mutate(RELEASE_TEXT, old, new)))
 
 
-def test_release_permissions_are_read_at_the_top_and_write_on_the_one_job() -> None:
+def test_release_permissions_are_read_at_the_top_and_write_only_on_the_publish_job() -> None:
     assert release_permission_violations(RELEASE_TEXT) == []
     widened = mutate(RELEASE_TEXT, "permissions:\n  contents: read", "permissions:\n  contents: write")
     assert release_permission_violations(widened)
     no_write = load(RELEASE_TEXT)
-    del jobs(no_write)["release"]["permissions"]
+    del jobs(no_write)["publish"]["permissions"]
     assert release_permission_violations(yaml.safe_dump(no_write))
+    build_writes = load(RELEASE_TEXT)
+    jobs(build_writes)["build"]["permissions"]["contents"] = "write"
+    assert any("build job" in problem or "exactly one writer" in problem for problem in release_permission_violations(yaml.safe_dump(build_writes)))
+    publish_more = load(RELEASE_TEXT)
+    jobs(publish_more)["publish"]["permissions"]["actions"] = "write"
+    assert any("more than contents: write" in problem for problem in release_permission_violations(yaml.safe_dump(publish_more)))
 
 
 def test_the_release_job_carries_its_fork_guard_and_the_gate_carries_the_canonical_one() -> None:
     assert fork_guard_violations(RELEASE_TEXT, RELEASE_GUARD) == []
-    assert normalise(jobs(load(RELEASE_TEXT))["release"]["if"]) == RELEASE_GUARD
+    assert normalise(jobs(load(RELEASE_TEXT))["build"]["if"]) == RELEASE_GUARD
     planted = mutate(RELEASE_TEXT, RELEASE_GUARD, "true")
     assert fork_guard_violations(planted, RELEASE_GUARD)
 
@@ -895,14 +916,14 @@ def test_publication_is_reachable_only_from_a_contract_tag_push() -> None:
 
 
 def test_zero_publish_steps_fail_and_an_unconditional_or_dispatch_reachable_publish_is_refused() -> None:
-    assert publish_violations(mutate(RELEASE_TEXT, "gh release create", "gh release view")) == ["no publish step"]
+    assert publish_violations(mutate(RELEASE_TEXT, 'gh release create "${args[@]}"', 'gh release view "${args[@]}"')) == ["no publish step"]
     unconditional = load(RELEASE_TEXT)
-    for step in steps_of(jobs(unconditional)["release"]):
+    for step in steps_of(jobs(unconditional)["publish"]):
         if "gh release create" in str(step.get("run", "")):
             del step["if"]
     assert any("publishes for" in problem for problem in publish_violations(yaml.safe_dump(unconditional)))
     on_dispatch = load(RELEASE_TEXT)
-    for step in steps_of(jobs(on_dispatch)["release"]):
+    for step in steps_of(jobs(on_dispatch)["publish"]):
         if "gh release create" in str(step.get("run", "")):
             step["if"] = "github.event_name == 'push' || github.event_name == 'workflow_dispatch'"
     assert any("publishes for" in problem for problem in publish_violations(yaml.safe_dump(on_dispatch)))
@@ -936,12 +957,89 @@ def test_a_release_check_tag_step_that_writes_no_arguments_file_is_refused() -> 
 
 
 def test_the_release_workflow_publishes_through_the_runner_gh_and_runs_release_check_on_the_tag() -> None:
-    commands = run_text(jobs(load(RELEASE_TEXT))["release"])
+    commands = "\n".join(str(step.get("run", "")) for step in release_steps(RELEASE_TEXT))
 
     for script in ("install_tools.py", "bundle.py", "release_check.py"):
         assert script in commands
     assert "release_check.py" in commands and "--tag" in commands
     assert "gh release create" in commands and "--prerelease" not in commands, "the prerelease flag is release_check's, not the workflow's"
+
+
+def publish_job_violations(text: str) -> list[str]:
+    """The publish job is the only writer: it needs build, runs on a contract tag push only, builds nothing and re-checks the tag."""
+    found = jobs(load(text))
+    job, build = found.get("publish"), found.get("build")
+    if job is None or build is None:
+        return ["the workflow has no build and publish job pair"]
+    problems = []
+    if needs_of(job) != frozenset({"build"}):
+        problems.append(f"publish needs {sorted(needs_of(job))}, not exactly build")
+    reached = (
+        [(event, ref) for event, ref in PUBLISH_EVENTS if evaluate_condition(str(job.get("if", "true")), event, ref)] if job.get("if") else list(PUBLISH_EVENTS)
+    )
+    if reached != [PUBLISH_EVENTS[3]]:
+        problems.append(f"the publish job runs for {reached}, not only a contract tag push")
+    steps = steps_of(job)
+    if any("checkout" in str(step.get("uses", "")) or "setup-uv" in str(step.get("uses", "")) or "contracts/tools" in str(step.get("run", "")) for step in steps):
+        problems.append("the publish job checks out or runs repository code under its write token")
+    names = [str(step.get("uses", "")).split("@")[0] for step in steps]
+    if "actions/download-artifact" not in names:
+        problems.append("the publish job does not download the build artifact")
+    recheck = next((i for i, step in enumerate(steps) if "ls-remote" in str(step.get("run", ""))), None)
+    create = next((i for i, step in enumerate(steps) if "gh release create" in str(step.get("run", ""))), None)
+    if recheck is None or create is None or recheck > create:
+        problems.append("the publish job does not re-check the remote tag before gh release create")
+    elif '"$GITHUB_SHA"' not in str(steps[recheck]["run"]) or "exit 1" not in str(steps[recheck]["run"]):
+        problems.append("the tag re-check does not fail unless the tag resolves to GITHUB_SHA")
+    if create is not None and '--target "$GITHUB_SHA"' not in str(steps[create]["run"]):
+        problems.append('gh release create does not pass --target "$GITHUB_SHA"')
+    for step in steps:
+        if "${{" in str(step.get("run", "")):
+            problems.append(f"{step.get('name')}: an expression is interpolated into the script (pass it through env:)")
+    if not any((s.get("with") or {}).get("name") == "contract-release-assets" for s in steps_of(build)):
+        problems.append("the build job does not upload contract-release-assets")
+    if any("gh release create" in str(step.get("run", "")) for step in steps_of(build)):
+        problems.append("the build job (a read-only token) contains a publish step")
+    return problems
+
+
+def test_the_publish_job_is_the_only_writer_and_rechecks_the_tag() -> None:
+    assert publish_job_violations(RELEASE_TEXT) == []
+
+
+def test_the_publish_job_never_runs_for_a_dry_run_or_a_branch_push() -> None:
+    condition = str(jobs(load(RELEASE_TEXT))["publish"]["if"])
+    assert [evaluate_condition(condition, event, ref) for event, ref in PUBLISH_EVENTS] == [False, False, False, True]
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        ("    needs: build\n    if: github.event_name == 'push'", "    if: github.event_name == 'push'", "needs"),
+        (
+            "    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10",
+            "    runs-on: ubuntu-24.04\n    timeout-minutes: 10",
+            "not only a contract tag push",
+        ),
+        ('if [ "$resolved" != "$GITHUB_SHA" ]; then', "if false; then", "does not fail unless the tag resolves"),
+        ("git ls-remote", "git ls-files", "does not re-check the remote tag"),
+        (' --target "$GITHUB_SHA"', "", "--target"),
+        (
+            "          TAG_NAME: ${{ github.ref_name }}\n        run: |\n          set -eu\n          resolved",
+            "        run: |\n          TAG_NAME=${{ github.ref_name }}\n          set -eu\n          resolved",
+            "interpolated",
+        ),
+        ("      - uses: actions/download-artifact@", "      - uses: actions/checkout@", "download the build artifact"),
+    ],
+)
+def test_planted_publish_job_weakenings_are_refused(old: str, new: str, reason: str) -> None:
+    assert any(reason in problem for problem in publish_job_violations(mutate(RELEASE_TEXT, old, new))), reason
+
+
+def test_a_publish_step_in_the_build_job_is_refused() -> None:
+    planted = load(RELEASE_TEXT)
+    jobs(planted)["build"]["steps"].append({"name": "x", "run": "gh release create x"})
+    assert any("read-only token" in problem for problem in publish_job_violations(yaml.safe_dump(planted)))
 
 
 def test_a_tag_push_publishes_only_a_commit_on_main_that_contracts_passed_on_after_breaking_check() -> None:
@@ -950,8 +1048,8 @@ def test_a_tag_push_publishes_only_a_commit_on_main_that_contracts_passed_on_aft
 
 def _without_steps(text: str, token: str) -> str:
     planted = load(text)
-    job = jobs(planted)["release"]
-    job["steps"] = [step for step in steps_of(job) if token not in str(step.get("run", ""))]
+    for job in jobs(planted).values():
+        job["steps"] = [step for step in steps_of(job) if token not in str(step.get("run", ""))]
     return yaml.safe_dump(planted)
 
 
@@ -1008,7 +1106,7 @@ def derived_trigger_paths(release_text: str, contracts_text: str, workdir: Path)
     import subprocess
     import sys
 
-    gate = next(step for step in steps_of(jobs(load(release_text))["release"]) if "workflows/contracts.yml/runs" in str(step.get("run", "")))
+    gate = next(step for step in steps_of(jobs(load(release_text))["build"]) if "workflows/contracts.yml/runs" in str(step.get("run", "")))
     line = next(line.strip() for line in str(gate["run"]).splitlines() if "python -c" in line)
     command = line.replace("uv run --frozen --no-sync python", f'"{sys.executable}"', 1).split(' > "', 1)[0]
     (workdir / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
@@ -1038,12 +1136,13 @@ def test_a_derived_gate_follows_a_drifted_path_list_and_a_copied_list_is_refused
 
 
 def test_the_release_gate_steps_run_before_the_publish_step() -> None:
-    steps = steps_of(jobs(load(RELEASE_TEXT))["release"])
+    steps = release_steps(RELEASE_TEXT)
     publish = next(i for i, step in enumerate(steps) if "gh release create" in str(step.get("run", "")))
     moved = load(RELEASE_TEXT)
-    job = jobs(moved)["release"]
-    gate = next(step for step in steps_of(job) if "merge-base" in str(step.get("run", "")))
-    job["steps"] = [step for step in steps_of(job) if step is not gate] + [gate]
+    build = jobs(moved)["build"]
+    gate = next(step for step in steps_of(build) if "merge-base" in str(step.get("run", "")))
+    build["steps"] = [step for step in steps_of(build) if step is not gate]
+    jobs(moved)["publish"]["steps"].append(gate)
     assert publish > 0 and any("runs after the publish step" in problem for problem in release_gate_violations(yaml.safe_dump(moved)))
 
 
