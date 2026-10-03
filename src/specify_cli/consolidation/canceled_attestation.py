@@ -56,7 +56,8 @@ ATTEST_REASON_FLAG = "--attest-reason"
 #: Attribution-evidence reasons an attestation lifts (FR-012). The evidence can
 #: never appear later, so only the operator can resolve them. NOT here:
 #: ``EVENTS_UNREADABLE`` / ``SPINE_UNREADABLE`` (infrastructure — repair, never
-#: override) and ``COMMIT_OUTSIDE_WINDOWS``: for the closed world the
+#: override), ``CANCELED_LANE_CONTENT`` (a fully-canceled lane's inherited
+#: commits: no anchor may exempt them, #5569) and ``COMMIT_OUTSIDE_WINDOWS``: for the closed world the
 #: attestation is bounded in time instead — its ``lane_head`` stamp becomes an
 #: anchor, so only commits made up to the attestation are exempt. The
 #: verify-time "merged with an independent change" REFUSE is lifted in

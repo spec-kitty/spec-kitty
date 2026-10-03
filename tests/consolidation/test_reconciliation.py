@@ -2848,7 +2848,10 @@ def test_overridable_reason_refusal_names_the_override(tmp_path: Path, monkeypat
     assert lifted.refusal is None
 
 
-@pytest.mark.parametrize("reason", [UnattributableReason.EVENTS_UNREADABLE, UnattributableReason.SPINE_UNREADABLE])
+@pytest.mark.parametrize(
+    "reason",
+    [UnattributableReason.EVENTS_UNREADABLE, UnattributableReason.SPINE_UNREADABLE, UnattributableReason.CANCELED_LANE_CONTENT],
+)
 def test_infrastructure_refusal_is_not_overridable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: UnattributableReason) -> None:
     assert reason not in OVERRIDABLE_REASONS
     repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)

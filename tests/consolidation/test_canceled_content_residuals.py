@@ -52,6 +52,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY, CANCELED_SUPERSEDED
 from specify_cli.consolidation.reconciliation import MergeOutcomeVerifier, VerifyResult, VerifyStatus, build_approved_wp_set
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -747,5 +748,23 @@ def test_fully_canceled_dependency_lane_content_does_not_ship(tmp_path: Path) ->
 
     result = _verify_today_result(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02", "WP03"}))
     assert result.status == VerifyStatus.REFUSE, f"a canceled dependency lane's content must not ship, got {result.status}"
-    assert _OUTSIDE_WINDOWS_WORDING in (result.refusal_reason or ""), result.refusal_reason
     assert "wp03_canceled.py" in (result.refusal_reason or "")
+    # C-003: an attestation can never lift this refusal, so it is never offered as the fix.
+    refusal = result.refusal_reason or ""
+    assert "fully-canceled" in refusal, refusal
+    assert "cannot be overridden" in refusal, refusal
+    assert "--attest-canceled-superseded" not in refusal, refusal
+
+    # ... and an attested run of the same shape still refuses, with the same advice.
+    attestation = _event(12, "WP02", "canceled", "canceled", slug=slug, at="2026-01-04T00:00:00+00:00", stamp=_rev(repo, branch_b))
+    attestation.update(
+        actor="operator",
+        force=True,
+        reason="operator attests canceled content absent or superseded: checked",
+        reason_source="operator",
+        policy_metadata={ATTESTATION_KEY: CANCELED_SUPERSEDED, "lane_head": _rev(repo, branch_b)},
+    )
+    _write_events(repo, feature_dir, [*events, attestation])
+    attested = _verify_today_result(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02", "WP03"}))
+    assert attested.status == VerifyStatus.REFUSE, f"an attestation must not lift a canceled-lane refusal, got {attested.status}"
+    assert "--attest-canceled-superseded" not in (attested.refusal_reason or ""), attested.refusal_reason

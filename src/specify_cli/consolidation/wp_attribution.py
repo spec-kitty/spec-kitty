@@ -109,6 +109,10 @@ class UnattributableReason(StrEnum):
     #: FR-013 closed world: every WP window of the mixed lane resolved, yet a
     #: non-merge, non-bookkeeping first-parent commit lies in NO WP's window.
     COMMIT_OUTSIDE_WINDOWS = "commit_outside_windows"
+    #: #5569: some outside-window commit was authored by a FULLY-canceled lane and
+    #: inherited by this lane. No attestation anchor may exempt it, so unlike
+    #: ``COMMIT_OUTSIDE_WINDOWS`` it is never overridable.
+    CANCELED_LANE_CONTENT = "canceled_lane_content"
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +198,11 @@ _DETAIL_TEMPLATES: dict[UnattributableReason, str] = {
         "{lane_id} carries commit(s) {commits} (touching '{path}') that lie outside every WP's "
         "recorded work window — no governed WP owns them, so canceled {wp_id}'s content "
         "cannot be told apart from approved work"
+    ),
+    UnattributableReason.CANCELED_LANE_CONTENT: (
+        "{lane_id} carries commit(s) {commits} (touching '{path}') that a fully-canceled lane "
+        "authored and {lane_id} inherited — canceled work that must not ship (found while "
+        "attributing canceled {wp_id})"
     ),
 }
 
@@ -589,13 +598,17 @@ def _outside_after_anchors(
     return tuple(item for item in outside if item[0] not in exempt)
 
 
-def _closed_world_refusal(walk: _SpineWalk, lane_id: str, wp_id: str) -> Unattributable:
-    """FR-013: name the lane, up to three short shas and one offending path."""
-    shas = [sha for sha, _path in walk.outside_windows]
-    return Unattributable(
-        UnattributableReason.COMMIT_OUTSIDE_WINDOWS,
-        _detail_for(UnattributableReason.COMMIT_OUTSIDE_WINDOWS, lane_id, wp_id, commits=shas, path=walk.outside_windows[0][1]),
-    )
+def _closed_world_refusal(walk: _SpineWalk, lane_id: str, wp_id: str, never_exempt: frozenset[str] = frozenset()) -> Unattributable:
+    """FR-013: name the lane, up to three short shas and one offending path.
+
+    When any outside commit is a fully-canceled lane's own (*never_exempt*, #5569)
+    the refusal is the non-overridable ``CANCELED_LANE_CONTENT`` and names only
+    those commits: no attestation can lift it.
+    """
+    inherited = [(sha, path) for sha, path in walk.outside_windows if sha in never_exempt]
+    reason = UnattributableReason.CANCELED_LANE_CONTENT if inherited else UnattributableReason.COMMIT_OUTSIDE_WINDOWS
+    items = inherited or walk.outside_windows
+    return Unattributable(reason, _detail_for(reason, lane_id, wp_id, commits=[sha for sha, _path in items], path=items[0][1]))
 
 
 def resolve_canceled_wp(
@@ -693,7 +706,7 @@ def resolve_canceled_wp(
         anchors = [*([base_anchor] if base_anchor else []), *closed_world_anchors]
         outside = _outside_after_anchors(repo_root, coord_base_ref, walk.outside_windows, anchors, never_exempt_commits)
         if outside:
-            return _closed_world_refusal(replace(walk, outside_windows=outside), lane_id, canceled_wp_id)
+            return _closed_world_refusal(replace(walk, outside_windows=outside), lane_id, canceled_wp_id, never_exempt_commits)
 
     return Attributed(commits=canceled_commits, canceled_content=walk.canceled_content)
 

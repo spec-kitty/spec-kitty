@@ -1269,6 +1269,12 @@ def _mixed_lane_recovery(reason: UnattributableReason, wp_id: str) -> str:
         return f"Recovery: repair the mission's status event log (status.events.jsonl) so it reads cleanly, {_RECOVERY_TAIL}; this refusal cannot be overridden"
     if reason is UnattributableReason.SPINE_UNREADABLE:
         return f"Recovery: repair the lane branch so its git history reads from the coordination base, {_RECOVERY_TAIL}; this refusal cannot be overridden"
+    if reason is UnattributableReason.CANCELED_LANE_CONTENT:
+        return (
+            "Re-running alone cannot clear this. "
+            "Recovery: remove those commits from the dependent lane (rebuild the lane without them, or revert them on it), "
+            f"{_RECOVERY_TAIL}; this refusal cannot be overridden"
+        )
     if reason is UnattributableReason.COMMIT_OUTSIDE_WINDOWS:
         return (
             "No governed WP window will ever cover those commits, so re-running alone cannot clear this. "
