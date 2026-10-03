@@ -1,8 +1,8 @@
 ---
 title: Components (living)
-description: 'Living components view (C4 level 3): the current breakdown of Spec Kitty container internals into components, part of the living C4 model.'
+description: 'Living components view (C4 level 3): current Spec Kitty internals and the planned charter service hexagon.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-03'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -13,9 +13,9 @@ related:
 | Field | Value |
 |---|---|
 | Status | Living |
-| Date | 2026-06-11 |
+| Date | 2026-06-11 (charter service direction added 2026-10-03) |
 | Scope | C4 Level 3 logical component view |
-| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-06-1`, `2026-05-16-1` |
+| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-06-1`, `2026-05-16-1`, `2026-10-03-1` |
 
 ## Purpose
 
@@ -108,6 +108,70 @@ flowchart TB
 
     glossaryCorpus -. terminology guard .-> workflow
 ```
+
+## Planned Charter Service Components
+
+The planned service uses separate read and later write application modules over
+one pure domain. Every infrastructure dependency points inward through a port.
+The Python charter API seam remains outside this hexagon. See
+[ADR 2026-10-03-1](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md).
+
+```mermaid
+flowchart TB
+    python["Python charter API seam — current external caller"]
+    agent["Agent harness — planned MCP client"]
+
+    subgraph Inbound["Inbound infrastructure"]
+      rest["REST adapter — planned"]
+      mcp["MCP adapter — planned"]
+      writeApi["Write adapter — future"]
+    end
+
+    subgraph Application["Application"]
+      readApp["Read application — planned"]
+      writeApp["Write application — future"]
+    end
+
+    subgraph Domain["Pure charter domain"]
+      models["Domain models"]
+      policies["Validation, merge, activation, resolution policies"]
+      ports["Repository ports"]
+    end
+
+    subgraph Outbound["Outbound infrastructure"]
+      yaml["Lossless YAML adapter — future write path"]
+      document["Document projection adapter — format deferred"]
+      sql["SQL adapter — future and deferred"]
+    end
+
+    schemas[("Versioned schemas and conformance fixtures")]
+
+    python -.->|planned read delegation| rest
+    python -.->|future migrated writes| writeApi
+    agent -.->|planned governed read| mcp
+    rest --> readApp
+    mcp --> readApp
+    writeApi -.-> writeApp
+    readApp --> models
+    readApp --> policies
+    readApp --> ports
+    writeApp -.-> models
+    writeApp -.-> policies
+    writeApp -.-> ports
+    yaml -.-> ports
+    document --> ports
+    sql -.-> ports
+    schemas -.->|constrains| rest
+    schemas -.->|constrains| mcp
+    schemas -.->|constrains| readApp
+    schemas -.->|constrains| writeApp
+    schemas -.->|constrains| yaml
+```
+
+Read and write applications do not depend on each other. Domain components
+import no YAML, JSON, HTTP, MCP, database, or application-framework library.
+The SQL adapter is a replaceable storage edge, not a domain or API change.
+Direct MCP and Python-seam reads converge on the same read application.
 
 ## Component Responsibility Map
 
@@ -301,3 +365,4 @@ Guard summary:
 - Doctrine-layer merge semantics ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](../../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 - Context view: [`../01_context/README.md`](../01_context/README.md)
 - Container view: [`../02_containers/README.md`](../02_containers/README.md)
+- Charter service strangler ADR: [`2026-10-03-1`](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md)

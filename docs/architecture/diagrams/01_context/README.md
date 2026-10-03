@@ -1,8 +1,8 @@
 ---
 title: System Context (living)
-description: 'Living system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, including Team Kitty and its Zeitgeist relay.'
+description: 'Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-03'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
@@ -13,9 +13,9 @@ related:
 | Field | Value |
 |---|---|
 | Status | Living |
-| Date | 2026-06-11 (hosted boundary refreshed 2026-09-30) |
+| Date | 2026-06-11 (charter service direction added 2026-10-03) |
 | Scope | C4 Level 1 system boundary and external interactions |
-| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-09-1`, `2026-04-09-2`, `2026-09-06-1`, `2026-09-26-3` |
+| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-09-1`, `2026-04-09-2`, `2026-09-06-1`, `2026-09-26-3`, `2026-10-03-1` |
 
 ## Purpose
 
@@ -61,6 +61,41 @@ flowchart LR
     saas -->|hosted tracker connectors| tracker
     sk <-->|reads and writes canonical project state| repo
 ```
+
+## Planned Charter Read and Write Transition
+
+The planned charter service is a separate governance-domain system reached
+through the existing CLI charter seam or its own governed MCP interface. Java
+becomes the production reader only after conformance; Python remains the
+production writer until each write operation migrates. Shadow reads and the
+temporary loud fallback are transition stages owned by
+[ADR 2026-10-03-1](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md).
+
+```mermaid
+flowchart LR
+    operator["Operator"]
+    harness["Agent harness"]
+    cli["Spec Kitty CLI"]
+    charter["Charter Service — planned, per worktree"]
+    sources[("Authored charter and pack YAML")]
+    status["Mission Status Read service — sibling"]
+    ui["External Mission UI"]
+
+    operator -->|current commands and writes| cli
+    harness -->|current CLI calls| cli
+    harness -.->|planned governed MCP reads| charter
+    cli -->|current Python write seam| sources
+    cli -.->|planned reads through stable charter API seam| charter
+    charter -.->|planned authored-source read| sources
+    ui -->|mission status only| status
+```
+
+Solid arrows are current interactions; dotted arrows are planned or future.
+Direct MCP and Python-seam reads enter the same charter read application and
+cannot define different semantics.
+
+The Mission Status Read service is a sibling, not a shared process or domain.
+The external Mission UI consumes status and is not implicitly a charter client.
 
 ## External Interaction Contracts
 
@@ -139,3 +174,4 @@ flowchart LR
 - Container view: [`../02_containers/README.md`](../02_containers/README.md)
 - Component view: [`../03_components/README.md`](../03_components/README.md)
 - Hosted boundary: [Team Kitty and Zeitgeist](../../../context/team-kitty.md), ADR [`2026-09-26-3`](../../../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)
+- Charter service strangler ADR: [`2026-10-03-1`](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md)

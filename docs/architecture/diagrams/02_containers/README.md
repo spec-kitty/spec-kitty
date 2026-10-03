@@ -1,8 +1,8 @@
 ---
 title: Containers (living)
-description: 'Living containers view (C4 level 2): the current decomposition of Spec Kitty into logical containers, including the Zeitgeist moment publisher.'
+description: 'Living containers view (C4 level 2): current logical containers and the planned charter read-service transition.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-03'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -14,9 +14,9 @@ related:
 | Field | Value |
 |---|---|
 | Status | Living |
-| Date | 2026-06-11 |
+| Date | 2026-06-11 (charter service direction added 2026-10-03) |
 | Scope | C4 Level 2 container model — four bounded modules + Op tier |
-| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-25-1`, `2026-05-16-1` |
+| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-25-1`, `2026-05-16-1`, `2026-10-03-1` |
 
 ## Purpose
 
@@ -98,6 +98,53 @@ flowchart TB
     commitTarget --> commitGuard
     commitGuard -->|GuardVerdict on resolved ref| missionLifecycle
 ```
+
+## Planned Charter Service Containers
+
+This refinement marks planned and future elements explicitly. It does not claim
+that a Java service directory or release artifact exists. See
+[ADR 2026-10-03-1](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md).
+
+```mermaid
+flowchart LR
+    agent["Agent harness"]
+
+    subgraph Python["Spec Kitty CLI — current"]
+      seam["Stable charter API seam"]
+      writer["Python YAML write adapter — current"]
+    end
+
+    subgraph Java["Charter Service — planned, per worktree"]
+      readApi["REST and MCP read adapters — planned"]
+      reader["Java charter read application — planned"]
+      javaWriter["Java write application — future"]
+      projection["Document projection — format deferred"]
+    end
+
+    contract[("Shared schemas and conformance corpus")]
+    yaml[("Authored charter and pack YAML")]
+    status["Mission Status Read service — separate sibling"]
+
+    agent -->|CLI| seam
+    agent -.->|planned governed MCP read| readApi
+    seam -->|current write operations| writer
+    writer --> yaml
+    seam -.->|planned production reads| readApi
+    seam -.->|future migrated writes| javaWriter
+    readApi --> reader
+    reader -->|authored source| yaml
+    reader -->|derived read model| projection
+    javaWriter -.->|later, operation by operation| yaml
+    contract -.->|constrains| seam
+    contract -.->|constrains| reader
+    contract -.->|constrains| javaWriter
+    status ~~~ Java
+```
+
+The document projection is an implementation detail and not the rejected design where
+Java only serves a permanent Python-compiled projection. The Mission Status Read
+service shares neither charter domain nor process. Direct MCP and Python-seam
+reads enter the same application and domain policies.
 
 ## Container Responsibilities
 
@@ -201,3 +248,4 @@ execution/routing invariants.
 - Runtime/execution detail: [`runtime-execution-domain.md`](runtime-execution-domain.md)
 - Context view: [`../01_context/README.md`](../01_context/README.md)
 - Component view: [`../03_components/README.md`](../03_components/README.md)
+- Charter service strangler ADR: [`2026-10-03-1`](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md)
