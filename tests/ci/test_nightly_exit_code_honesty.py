@@ -68,6 +68,9 @@ _DIRECTORY_LANES = {
     "integration-next": "INTEGRATION_EXIT",
     "specify-cli-out-of-matrix": "SPECIFY_CLI_OOM_EXIT",
     "architectural-backstop": "ARCH_BACKSTOP_EXIT",
+    # The integration slice is marker-selected, but an empty collect is the
+    # lost signal, not a legitimate skip. It fails closed on exit 5.
+    "integration-slice": "INTEGRATION_SLICE_EXIT",
 }
 
 _ALL_EXIT_VARS = [var for var, _job in _MARKER_LANES.values()] + list(_DIRECTORY_LANES.values())

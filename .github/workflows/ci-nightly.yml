@@ -1192,13 +1192,106 @@ jobs:
           echo "architectural backstop passed (exit 0)."
 
   # ---------------------------------------------------------------------------
+  # integration-slice: integration-marked tests no other nightly lane selects.
+  #
+  # module-tests.yml's pytest line has no static paths (the file list is
+  # shard_tests.txt), so a marker-only reading claims the whole tree. The
+  # registry's test_dirs do not. Interpreter shards list many of the leftover
+  # directories under `-m "fast or unit"` only. tests/characterization/
+  # test_trio_json_envelope.py is the floor: integration + git_repo, not fast
+  # or unit, not a module test_dir. This job runs the selector's list. It does
+  # not replace integration-next: that lane stays `pytest tests/integration
+  # tests/next` BY DIRECTORY, because `-m integration` would drop tests/next's
+  # unmarked files.
+  #
+  # Empty selector output is exit 5 and FAILS the job. A marker-empty skip is
+  # the signal being lost, not a legitimate "nothing to run" (FIND-2's
+  # exemption is for suites whose marker can honestly match nothing).
+  # ---------------------------------------------------------------------------
+  integration-slice:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: Integration marker slice (nightly-only)
+    runs-on: ubuntu-24.04
+    # First-run ceiling. Recalibrate with a `# headroom (#5378)` comment once
+    # a scheduled run records the suite step's wall clock. The selector's
+    # current list is on the order of 150 modules, not a measured duration.
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Run integration-marked tests no other nightly lane selects
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run --frozen python -m scripts.ci.integration_slice > "$RUNNER_TEMP/integration-slice.txt"
+          select_code=$?
+          if [ "$select_code" -ne 0 ]; then
+            echo "INTEGRATION_SLICE_EXIT=$select_code" >> "$GITHUB_ENV"
+            echo "::error::integration slice selector exited $select_code"
+          else
+            mapfile -t files < "$RUNNER_TEMP/integration-slice.txt"
+            if [ "${#files[@]}" -eq 0 ]; then
+              echo "::error::integration slice selected no files; the marker signal would be lost"
+              echo "INTEGRATION_SLICE_EXIT=5" >> "$GITHUB_ENV"
+            else
+              echo "::notice::integration slice files=${#files[@]}"
+              uv run --frozen pytest "${files[@]}" \
+                -m "integration and not e2e and not fast and not live_adapter and not performance and not quarantine and not stress and not timing and not unit and not windows_ci" \
+                -q -n auto --dist loadfile \
+                --junitxml=out/reports/xunit-nightly-integration-slice.xml
+              code=$?
+              echo "INTEGRATION_SLICE_EXIT=$code" >> "$GITHUB_ENV"
+              echo "::notice::integration slice exit=$code"
+            fi
+          fi
+
+      - name: Upload nightly integration-slice reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-integration-slice-reports
+          path: out/reports/
+
+      - name: Escalate integration-slice red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${INTEGRATION_SLICE_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key integration-slice --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Fail the job if the integration slice was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${INTEGRATION_SLICE_EXIT:-1}" -ne 0 ]; then
+            echo "::error::integration slice exited ${INTEGRATION_SLICE_EXIT} (exit 5 is an empty slice, which is a lost signal, not a skip)"
+            exit 1
+          fi
+          echo "integration slice passed (exit 0)."
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix]
+    needs: [performance, e2e, stress, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1214,6 +1307,7 @@ jobs:
           echo "interpreter-matrix-shard-5: ${{ needs.interpreter-matrix-shard-5.result }}"
           echo "interpreter-matrix-shard-6: ${{ needs.interpreter-matrix-shard-6.result }}"
           echo "integration-next: ${{ needs.integration-next.result }}"
+          echo "integration-slice: ${{ needs.integration-slice.result }}"
           echo "specify-cli-out-of-matrix: ${{ needs.specify-cli-out-of-matrix.result }}"
           echo "architectural-backstop: ${{ needs.architectural-backstop.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
