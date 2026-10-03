@@ -114,14 +114,14 @@ flowchart LR
       writer["Python YAML write adapter — current"]
     end
 
-    subgraph Java["Charter Service — planned, per worktree"]
+    subgraph Java["Charter Service — planned, per worktree (Java 25, Spring Boot 4)"]
       readApi["REST and MCP read adapters — planned"]
       reader["Java charter read application — planned"]
       javaWriter["Java write application — future"]
       projection["Document projection — format deferred"]
     end
 
-    contract[("Shared schemas and conformance corpus")]
+    contract[("Charter contract: contracts/charter/ and conformance corpus")]
     yaml[("Authored charter and pack YAML")]
     status["Mission Status Read service — separate sibling"]
 

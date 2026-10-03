@@ -144,7 +144,7 @@ flowchart TB
       sql["SQL adapter — future and deferred"]
     end
 
-    schemas[("Versioned schemas and conformance fixtures")]
+    schemas[("Charter contract: contracts/charter/ and conformance fixtures")]
 
     python -.->|planned read delegation| rest
     python -.->|future migrated writes| writeApi
