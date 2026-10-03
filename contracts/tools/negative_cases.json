@@ -2162,6 +2162,150 @@
       }
     },
     {
+      "id": "breaking-added-response-default",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_default",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-range",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_range",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-became-readable-optional",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/became_readable_optional",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ]
+      }
+    },
+    {
+      "id": "breaking-became-readable-required",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/became_readable_required",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-pattern-property-body",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_pattern_property_body",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-pattern-property-nested",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_pattern_property_nested",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline_extended"
+        ]
+      }
+    },
+    {
       "id": "breaking-bundle-changed-version-same",
       "tool": "breaking_check.py",
       "tags": [

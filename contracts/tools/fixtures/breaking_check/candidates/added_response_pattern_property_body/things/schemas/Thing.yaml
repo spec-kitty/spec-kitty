@@ -1,0 +1,44 @@
+title: Thing
+description: A thing.
+type: object
+additionalProperties: false
+patternProperties:
+  '^x-':
+    type: string
+required:
+  - id
+  - name
+  - key
+properties:
+  id:
+    type: string
+    description: Identifier.
+  name:
+    type: string
+    description: Display name.
+  count:
+    type: integer
+    description: How many.
+  guess:
+    description: A provisional guess.
+    type:
+      - string
+      - 'null'
+    x-provisional:
+      open_decision: the shape of this guess is still being decided
+  token:
+    type: string
+    description: An optional property that is write-only, so a response never carries it.
+    writeOnly: true
+  key:
+    type: string
+    description: A required property that is write-only, so a response never carries it.
+    writeOnly: true
+  meta:
+    type: object
+    description: A nested object.
+    additionalProperties: false
+    properties:
+      note:
+        type: string
+        description: A note.

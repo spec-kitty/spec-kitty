@@ -13,7 +13,10 @@ published release. oasdiff reports an added response property at level INFO (com
 enough here: the check raises exactly the oasdiff change ids in ``RESPONSE_ADDITION_IDS`` to level ERR through oasdiff's own
 ``--severity-levels`` file, written into the scratch directory. They cover a property added to a response (optional or
 required, each also in its write-only form), a property added through a new ``allOf`` branch, and a new response status
-code, media type or header, so each of those needs a major version move like a removal does. A request-side optional
+code, media type or header, a write-only property that becomes readable and added ``patternProperties``, so each of those needs a
+major version move like a removal does. oasdiff reports nothing for a new ``default`` or range (``4XX``) response, so the check also compares each
+operation's response keys itself (``response-key-added``). ``additionalProperties: false -> true`` has no oasdiff check; the lint rule
+``response-schema-closed`` guards it. A request-side optional
 addition (a new optional parameter or request property) stays non-breaking.
 
 Failure codes (exit 1), printed as ``CONTRACT-CHECK breaking_check: <CODE>: <module>: <detail>``:
@@ -92,7 +95,20 @@ RESPONSE_ADDITION_IDS = (
     "response-non-success-status-added",
     "response-media-type-added",
     "response-header-added",
+    # a property that was write-only (never in a response) becomes readable: the response grows
+    "response-optional-property-became-not-write-only",
+    "response-required-property-became-not-write-only",
+    # patternProperties added to a response schema
+    "response-body-pattern-property-added",
+    "response-property-pattern-property-added",
 )
+# oasdiff has no change id for ``additionalProperties: false -> true`` on a response schema, so no id is listed for it: the lint
+# rule ``response-schema-closed`` guards that case (every response object schema stays closed).
+# oasdiff also reports nothing for a new ``default`` or range (``4XX``/``5XX``) response, so the check compares each operation's
+# response keys itself and reports a new key under this id (the same shape as an oasdiff change).
+RESPONSE_KEY_ADDED_ID = "response-key-added"
+STATUS_ADDED_IDS = ("response-success-status-added", "response-non-success-status-added")
+CLOSED_RESPONSE_IDS = (*RESPONSE_ADDITION_IDS, RESPONSE_KEY_ADDED_ID)
 SEVERITY_LEVELS_FILE = "severity-levels.txt"
 CLOSED_RESPONSE_NOTE = "closed response schemas: a response-shape change is a major version move and a new release"
 COMMAND_TIMEOUT_SECONDS = 300
@@ -210,6 +226,45 @@ def write_document(document: Any, target: Path) -> Path:
 
 def entry_key(entry: dict[str, Any]) -> tuple[str, str, str, str]:
     return (str(entry.get("id")), str(entry.get("operation")), str(entry.get("path")), str(entry.get("text")))
+
+
+def added_response_keys(baseline: dict[str, Any], candidate: dict[str, Any]) -> list[dict[str, Any]]:
+    """Changes (oasdiff's entry shape, level ERR) for each response key an operation gained: ``default``, ``4XX`` and any status.
+
+    Closed response schemas make any growth of an operation's response key set breaking. An operation that is new, or
+    a path that is new, is left to oasdiff (a new path or method is not a response change).
+    """
+    entries: list[dict[str, Any]] = []
+    old_paths, new_paths = baseline.get("paths"), candidate.get("paths")
+    if not isinstance(old_paths, dict) or not isinstance(new_paths, dict):
+        return entries
+    for path, new_item in new_paths.items():
+        old_item = old_paths.get(path)
+        if not isinstance(old_item, dict) or not isinstance(new_item, dict):
+            continue
+        for method in HTTP_METHODS:
+            old_operation, new_operation = old_item.get(method), new_item.get(method)
+            if not isinstance(old_operation, dict) or not isinstance(new_operation, dict):
+                continue
+            old_keys = _response_keys(old_operation)
+            for key in sorted(_response_keys(new_operation) - old_keys):
+                text = f"added the response with the key `{key}`"
+                entries.append({"id": RESPONSE_KEY_ADDED_ID, "text": text, "level": 3, "operation": method.upper(), "path": path, "key": key})
+    return entries
+
+
+def reported_by_oasdiff(own: dict[str, Any], entries: list[dict[str, Any]]) -> bool:
+    """Whether oasdiff already reports the new response key of ``own`` (a new status code), so it is not counted twice."""
+    status = f"`{own['key']}`"
+    return any(
+        entry.get("id") in STATUS_ADDED_IDS and entry.get("operation") == own["operation"] and entry.get("path") == own["path"] and status in str(entry.get("text"))
+        for entry in entries
+    )
+
+
+def _response_keys(operation: dict[str, Any]) -> set[str]:
+    responses = operation.get("responses")
+    return {str(key) for key in responses} if isinstance(responses, dict) else set()
 
 
 def write_severity_levels(target: Path) -> Path:
@@ -416,21 +471,20 @@ class Checker:
                 )
             )
 
+    def breaking_between(self, baseline: dict[str, Any], candidate: dict[str, Any], prefix: Path) -> list[dict[str, Any]]:
+        """oasdiff's WARN/ERR changes plus the response keys oasdiff does not see (a new ``default`` or range response)."""
+        base_file = write_document(baseline, prefix.parent / f"{prefix.name}-base.yaml")
+        cand_file = write_document(candidate, prefix.parent / f"{prefix.name}-cand.yaml")
+        entries = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file, self.severity_levels)
+        return entries + [own for own in added_response_keys(baseline, candidate) if not reported_by_oasdiff(own, entries)]
+
     def compare(self, module: str, baseline: dict[str, Any], candidate: dict[str, Any], base_version: str, version: str, label: str) -> None:
         report = self.report
         base_stripped, cand_stripped = strip_provisional(baseline), strip_provisional(candidate)
         full_changed = digest(baseline) != digest(candidate)
         stable_changed = digest(base_stripped) != digest(cand_stripped)
-        breaking_full: list[dict[str, Any]] = []
-        breaking_stable: list[dict[str, Any]] = []
-        if full_changed:
-            base_file = write_document(baseline, self.work / "cmp" / module / "full-base.yaml")
-            cand_file = write_document(candidate, self.work / "cmp" / module / "full-cand.yaml")
-            breaking_full = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file, self.severity_levels)
-        if stable_changed:
-            base_file = write_document(base_stripped, self.work / "cmp" / module / "stable-base.yaml")
-            cand_file = write_document(cand_stripped, self.work / "cmp" / module / "stable-cand.yaml")
-            breaking_stable = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file, self.severity_levels)
+        breaking_full = self.breaking_between(baseline, candidate, self.work / "cmp" / module / "full") if full_changed else []
+        breaking_stable = self.breaking_between(base_stripped, cand_stripped, self.work / "cmp" / module / "stable") if stable_changed else []
         stable_keys = {entry_key(entry) for entry in breaking_stable}
         provisional = [entry for entry in breaking_full if entry_key(entry) not in stable_keys]
         provisional_lines = [f"{entry.get('operation')} {entry.get('path')}: {entry.get('text')}" for entry in provisional]
@@ -452,7 +506,7 @@ class Checker:
             if parts[0] <= base_parts[0]:
                 for entry in breaking_stable[:MAX_LINES_PER_KIND]:
                     where = f"{entry.get('operation')} {entry.get('path')}: {entry.get('text')}"
-                    if entry.get("id") in RESPONSE_ADDITION_IDS:
+                    if entry.get("id") in CLOSED_RESPONSE_IDS:
                         where += f" ({CLOSED_RESPONSE_NOTE})"
                     report.findings.append(finding("BREAKING_WITHOUT_MAJOR", module, f"{where} (baseline {label} {base_version}, candidate {version})"))
             return

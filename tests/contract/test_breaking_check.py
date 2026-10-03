@@ -27,6 +27,8 @@ pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 TOOLS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "tools"
 FIXTURES = TOOLS_DIR / "fixtures" / "breaking_check"
 BASELINE = FIXTURES / "baseline"
+# The write-only and patternProperties cases need a baseline that already holds a write-only property and a nested object.
+BASELINE_EXTENDED = FIXTURES / "baseline_extended"
 CANDIDATES = FIXTURES / "candidates"
 SCRIPT = TOOLS_DIR / "breaking_check.py"
 REAL_OASDIFF = shutil.which("oasdiff")
@@ -49,8 +51,21 @@ RESPONSE_ADDITION_CASES = {
     "added_response_error_status": "response-non-success-status-added",
     "added_response_media_type": "response-media-type-added",
     "added_response_header": "response-header-added",
+    # A property that was write-only (never in a response) becomes readable, and patternProperties added to a response schema.
+    "became_readable_optional": "response-optional-property-became-not-write-only",
+    "became_readable_required": "response-required-property-became-not-write-only",
+    "added_response_pattern_property_body": "response-body-pattern-property-added",
+    "added_response_pattern_property_nested": "response-property-pattern-property-added",
 }
+# A new ``default`` or range response: oasdiff reports nothing at all, so the check's own response-key comparison finds it.
+RESPONSE_KEY_CASES = {"added_response_default": "default", "added_response_range": "4XX"}
 BREAKING_CASES.update(RESPONSE_ADDITION_CASES)
+BREAKING_CASES.update(dict.fromkeys(RESPONSE_KEY_CASES, "response-key-added"))
+EXTENDED_BASELINE_CASES = {"became_readable_optional", "became_readable_required", "added_response_pattern_property_body", "added_response_pattern_property_nested"}
+
+
+def _baseline_of(case: str) -> Path:
+    return BASELINE_EXTENDED if case in EXTENDED_BASELINE_CASES else BASELINE
 
 
 @pytest.fixture(scope="module")
@@ -82,9 +97,10 @@ def _response_additions(
             change("response-property-all-of-added", f"added `subschema #1` to the `{name}` response property `allOf` list for the response status `200`")
     if len(schema_new.get("allOf", [])) > len(schema_old.get("allOf", [])):
         change("response-body-all-of-added", "added `subschema #1` to the response body `allOf` list for the response status `200`")
+    _write_only_and_pattern_additions(schema_old, schema_new, change)
     responses_old, responses_new = thing_old["responses"], thing_new["responses"]
     for status in responses_new:
-        if status not in responses_old:
+        if status not in responses_old and status.isdigit():  # oasdiff names no change for ``default`` or a range such as ``4XX``
             kind = "success" if status.startswith("2") else "non-success"
             change(f"response-{kind}-status-added", f"added the {kind} response with the status `{status}`")
     for status in responses_old:
@@ -94,6 +110,18 @@ def _response_additions(
         for media in responses_new.get(status, {}).get("content", {}):
             if media not in responses_old[status].get("content", {}):
                 change("response-media-type-added", f"added the new `{media}` response media type for the response status `{status}`")
+
+
+def _write_only_and_pattern_additions(schema_old: dict[str, Any], schema_new: dict[str, Any], change: Callable[[str, str], None]) -> None:
+    for name, old_property in schema_old["properties"].items():
+        new_property = schema_new["properties"].get(name, {})
+        if old_property.get("writeOnly") and not new_property.get("writeOnly"):
+            kind = "required" if name in schema_new.get("required", []) else "optional"
+            change(f"response-{kind}-property-became-not-write-only", f"the `{name}` response property became not write-only")
+        if "patternProperties" in new_property and "patternProperties" not in old_property:
+            change("response-property-pattern-property-added", f"added a pattern property to the `{name}` response property")
+    if "patternProperties" in schema_new and "patternProperties" not in schema_old:
+        change("response-body-pattern-property-added", "added a pattern property to the response body")
 
 
 def _structural_entries(base: Path, revision: Path) -> list[dict[str, object]]:
@@ -150,7 +178,7 @@ def _run(checker: ModuleType, root: Path, *extra: str, runner: object = None, wh
 
 
 def _pair(checker: ModuleType, case: str, *extra: str, root: Path | None = None) -> tuple[int, str]:
-    return _run(checker, root or CANDIDATES / case, "--baseline-root", str(BASELINE), *extra)
+    return _run(checker, root or CANDIDATES / case, "--baseline-root", str(_baseline_of(case)), *extra)
 
 
 def _with_version(tmp_path: Path, case: str, version: str) -> Path:
@@ -252,7 +280,14 @@ def test_the_response_addition_rule_lists_every_oasdiff_id_that_reports_one(chec
         "response-non-success-status-added",
         "response-media-type-added",
         "response-header-added",
+        # a write-only property becomes readable
+        "response-optional-property-became-not-write-only",
+        "response-required-property-became-not-write-only",
+        # patternProperties added to a response schema (additionalProperties false -> true has no oasdiff id: the lint rule guards it)
+        "response-body-pattern-property-added",
+        "response-property-pattern-property-added",
     }
+    assert not [identifier for identifier in checker.RESPONSE_ADDITION_IDS if identifier.startswith("request-")], "a request-side addition stays minor"
     assert set(RESPONSE_ADDITION_CASES.values()) <= set(checker.RESPONSE_ADDITION_IDS)
 
 
@@ -264,10 +299,67 @@ def test_each_response_addition_names_its_own_change(checker: ModuleType, case: 
     assert "BREAKING_WITHOUT_MAJOR: things:" in output and "closed response schemas" in output
 
 
+@pytest.mark.parametrize("case", sorted(RESPONSE_KEY_CASES))
+def test_a_new_default_or_range_response_is_breaking_without_a_major_move(checker: ModuleType, case: str) -> None:
+    """oasdiff reports nothing for these, so the check's own response-key comparison names the key."""
+    code, output = _pair(checker, case)
+    assert code == 1, output
+    assert f"added the response with the key `{RESPONSE_KEY_CASES[case]}`" in output and "closed response schemas" in output
+    assert "breaking=1 " in output
+
+
+@pytest.mark.skipif(REAL_OASDIFF is None, reason="needs the real oasdiff to prove it reports nothing for a default or range response")
+@pytest.mark.parametrize("case", sorted(RESPONSE_KEY_CASES))
+def test_the_real_oasdiff_reports_nothing_for_a_default_or_range_response(checker: ModuleType, tmp_path: Path, case: str) -> None:
+    base = checker.write_document(checker.build_bundle(BASELINE / "things", tmp_path / "b"), tmp_path / "base.yaml")
+    head = checker.write_document(checker.build_bundle(CANDIDATES / case / "things", tmp_path / "h"), tmp_path / "head.yaml")
+    assert checker.oasdiff_changelog(_real_runner, REAL_OASDIFF or "", base, head) == [], "the gap the own comparison closes"
+
+
+def test_added_response_keys_ignores_request_side_additions_and_new_operations(checker: ModuleType) -> None:
+    old = {"paths": {"/a": {"get": {"responses": {"200": {}}}}}}
+    new = {
+        "paths": {
+            "/a": {
+                "get": {"parameters": [{"name": "q", "in": "query"}], "requestBody": {"content": {}}, "responses": {"200": {}}},
+                "post": {"responses": {"200": {}, "default": {}}},  # a new operation is oasdiff's business
+            },
+            "/b": {"get": {"responses": {"default": {}}}},  # so is a new path
+        }
+    }
+    assert checker.added_response_keys(old, new) == []
+    assert checker.added_response_keys({}, new) == [] and checker.added_response_keys(old, {"paths": []}) == []
+    assert checker.added_response_keys({"paths": {"/a": 1, "/c": {"get": 2}}}, {"paths": {"/a": 1, "/c": {"get": 2}}}) == []
+    grown = {"paths": {"/a": {"get": {"responses": {"200": {}, "default": {}, "5XX": {}}}}}}
+    assert [(e["operation"], e["path"], e["key"], e["level"]) for e in checker.added_response_keys(old, grown)] == [
+        ("GET", "/a", "5XX", 3),
+        ("GET", "/a", "default", 3),
+    ]
+    assert checker.added_response_keys({"paths": {"/a": {"get": {"responses": None}}}}, grown) == [
+        {"id": "response-key-added", "text": e["text"], "level": 3, "operation": "GET", "path": "/a", "key": e["key"]}
+        for e in checker.added_response_keys({"paths": {"/a": {"get": {}}}}, grown)
+    ]
+
+
+def test_a_new_numeric_status_is_counted_once_not_by_both_oasdiff_and_the_own_comparison(checker: ModuleType) -> None:
+    code, output = _pair(checker, "added_response_error_status")
+    assert code == 1 and output.count("BREAKING_WITHOUT_MAJOR") == 1 and "breaking=1 " in output, output
+
+
+def test_reported_by_oasdiff_matches_operation_path_and_status(checker: ModuleType) -> None:
+    own = {"operation": "GET", "path": "/a", "key": "404"}
+    seen = {"id": "response-non-success-status-added", "operation": "GET", "path": "/a", "text": "added the non-success response with the status `404`"}
+    assert checker.reported_by_oasdiff(own, [seen])
+    assert not checker.reported_by_oasdiff(own, [{**seen, "path": "/b"}])
+    assert not checker.reported_by_oasdiff(own, [{**seen, "text": "status `405`"}])
+    assert not checker.reported_by_oasdiff(own, [{**seen, "id": "response-header-added"}])
+    assert not checker.reported_by_oasdiff(own, [])
+
+
 @pytest.mark.skipif(REAL_OASDIFF is None, reason="needs the real oasdiff to prove which change id it reports")
 @pytest.mark.parametrize("case", sorted(RESPONSE_ADDITION_CASES))
 def test_the_real_oasdiff_reports_each_response_addition_under_the_listed_id(checker: ModuleType, tmp_path: Path, case: str) -> None:
-    base = checker.write_document(checker.build_bundle(BASELINE / "things", tmp_path / "b"), tmp_path / "base.yaml")
+    base = checker.write_document(checker.build_bundle(_baseline_of(case) / "things", tmp_path / "b"), tmp_path / "base.yaml")
     head = checker.write_document(checker.build_bundle(CANDIDATES / case / "things", tmp_path / "h"), tmp_path / "head.yaml")
     reported = {entry["id"]: entry["level"] for entry in checker.oasdiff_changelog(_real_runner, REAL_OASDIFF or "", base, head)}
     assert reported == {RESPONSE_ADDITION_CASES[case]: 1}, "the case plants exactly one change, which oasdiff alone calls INFO"
@@ -277,7 +369,7 @@ def test_the_real_oasdiff_reports_each_response_addition_under_the_listed_id(che
 @pytest.mark.parametrize("case", ["added_response_property", *sorted(RESPONSE_ADDITION_CASES)])
 def test_oasdiff_alone_does_not_call_an_added_response_property_breaking(checker: ModuleType, tmp_path: Path, case: str) -> None:
     """The reason the rule exists: the real binary reports each addition at INFO, which a plain ``breaking`` run would let through."""
-    base = checker.write_document(checker.build_bundle(BASELINE / "things", tmp_path / "b"), tmp_path / "base.yaml")
+    base = checker.write_document(checker.build_bundle(_baseline_of(case) / "things", tmp_path / "b"), tmp_path / "base.yaml")
     head = checker.write_document(checker.build_bundle(CANDIDATES / case / "things", tmp_path / "h"), tmp_path / "head.yaml")
     assert checker.oasdiff_breaking(_real_runner, REAL_OASDIFF or "", base, head) == []
 

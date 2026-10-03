@@ -251,21 +251,24 @@ jobs:
         run: |
           set -u
           fixtures=contracts/tools/fixtures/breaking_check
-          check() { uv run --frozen --no-sync python contracts/tools/breaking_check.py --root "$1" --baseline-root "$fixtures/baseline"; }
+          # The write-only and patternProperties plants need a baseline that already holds a write-only property and a nested object.
+          check() { uv run --frozen --no-sync python contracts/tools/breaking_check.py --root "$1" --baseline-root "$fixtures/${2:-baseline}"; }
           status=0
           for name in clean_same clean_minor provisional_only; do
             echo "== control $name"; check "$fixtures/candidates/$name" || { echo "::error::control $name failed"; status=1; }
           done
-          for name in removed_property removed_path required_parameter narrowed_enum changed_type added_response_property added_response_allof_branch added_response_property_allof added_response_success_status added_response_error_status added_response_media_type added_response_header; do
+          for name in removed_property removed_path required_parameter narrowed_enum changed_type added_response_property added_response_allof_branch added_response_property_allof added_response_success_status added_response_error_status added_response_media_type added_response_default added_response_range became_readable_optional became_readable_required added_response_pattern_property_body added_response_pattern_property_nested added_response_header; do
             echo "== plant $name"
-            if output=$(check "$fixtures/candidates/$name"); then
+            baseline=baseline
+            case "$name" in became_readable_*|added_response_pattern_property_*) baseline=baseline_extended ;; esac
+            if output=$(check "$fixtures/candidates/$name" "$baseline"); then
               echo "::error::planted $name passed without a major move"; status=1
             else
               echo "$output"; echo "$output" | grep -q "BREAKING_WITHOUT_MAJOR" || { echo "::error::planted $name failed for another reason"; status=1; }
             fi
             moved="$RUNNER_TEMP/moved-$name"; mkdir -p "$moved"; cp -r "$fixtures/candidates/$name/things" "$moved/things"
             sed -i 's/^  version: 1.0.0$/  version: 2.0.0/' "$moved/things/openapi.yaml"
-            check "$moved" || { echo "::error::planted $name failed although the major moved"; status=1; }
+            check "$moved" "$baseline" || { echo "::error::planted $name failed although the major moved"; status=1; }
           done
           echo "== plant changed_same_version"
           if output=$(check "$fixtures/candidates/changed_same_version"); then

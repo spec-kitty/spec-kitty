@@ -294,7 +294,9 @@ def test_every_vacuum_rule_and_every_breaking_plant_is_in_the_manifest_tagged_fo
     breaking = [case for case in cases if case["tool"] == "breaking_check.py"]
 
     assert len(lint) == 11 and all(case["tags"] == ["vacuum"] for case in lint), "nine rules, plus the two enum plants of the narrowed exemption"
-    assert len(breaking) == 13 and all(case["tags"] == ["oasdiff"] for case in breaking), "seven original plants plus the six response additions"
+    assert len(breaking) == 19 and all(case["tags"] == ["oasdiff"] for case in breaking), (
+        "seven original plants, the six response additions, and the default, range, write-only and patternProperties plants"
+    )
 
 
 def test_the_committed_manifest_runs_green_for_every_case_that_needs_no_binary(driver: ModuleType, tmp_path: Path) -> None:
