@@ -83,17 +83,21 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
     Asks the canonical surface authority
     (:func:`specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor`)
     where the Mission's ``status.events.jsonl`` currently lives, instead of
-    probing git here. The surface is *live* when it resolves somewhere other than
-    *feature_dir* (the PRIMARY-partition Mission directory): a coord-routing
-    topology whose coordination worktree is materialised, or whose branch still
-    exists. It is *not* live (the PRIMARY-partition log is the authority) when
+    probing git here. The surface is *live* only when it resolves somewhere other
+    than *feature_dir* (the PRIMARY-partition Mission directory) **and** something
+    is actually there: the resolved ``status.events.jsonl`` exists, or the
+    ``coordination_branch`` named in ``meta.json`` resolves as a local ref (a
+    branch whose worktree is not materialised yet). The resolver returns the
+    *would-be* coordination path even when no worktree and no branch exist, so a
+    path that resolved with nothing behind it is not live. It is *not* live (the
+    PRIMARY-partition log is the authority) when
 
     * the Mission declares no ``coordination_branch`` in ``meta.json`` (it has no
       coordination surface; this cheap pre-check skips the resolver, whose
       mission index is rebuilt on every call and is O(corpus));
     * the topology routes status to the PRIMARY partition, or the Mission is
       completed (merge evidence makes the PRIMARY-partition log the record);
-    * the coordination worktree root exists but is empty;
+    * the resolved coordination path has no log and the branch is not a local ref;
     * the coordination branch is gone (``CoordinationBranchDeleted``) -- the
       documented degrade, kept so a post-deletion Mission can still be repaired;
     * there is no repository, no readable ``meta.json`` or no resolvable root.
@@ -104,9 +108,11 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
     """
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, resolve_status_surface_with_anchor
     from specify_cli.core.paths import MissionMetaReadError, WorkspaceRootNotFound, resolve_canonical_root
+    from specify_cli.lanes._git import branch_exists
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
-    if not (load_meta(feature_dir, allow_missing=True, on_malformed="none") or {}).get("coordination_branch"):
+    branch = (load_meta(feature_dir, allow_missing=True, on_malformed="none") or {}).get("coordination_branch")
+    if not branch:
         return False
     try:
         repo_root = resolve_canonical_root(feature_dir)
@@ -117,7 +123,9 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
         return False
     except StatusReadPathNotFound:
         return True
-    return bool(surface.surface_path.parent.resolve() != feature_dir.resolve())
+    if surface.surface_path.parent.resolve() == feature_dir.resolve():
+        return False
+    return bool(surface.surface_path.is_file() or branch_exists(repo_root, str(branch)))
 
 
 @dataclass(frozen=True)
