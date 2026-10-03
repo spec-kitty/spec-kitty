@@ -28,7 +28,7 @@ See [`program-brief.md`](program-brief.md) for the full investigation-grounded b
 ## Missions
 
 | # | Mission | Closes | State | Artifact |
-|---|---------|--------|-------|----------|
+| --- | --- | --- | --- | --- |
 | M1 | Single-Authority Resolution Parity | #3490, #3426, #2981 | **spec'd** | `kitty-specs/single-authority-resolution-parity-01M0CEBQ/` |
 | M2 | DRG Read-Path Bridge | #3572, #3573 | **spec'd** | `kitty-specs/drg-read-path-bridge-01M0CHVZ/` |
 | M3 | Operating-Procedures Validate→Triage→Data-Drive | #2994, #3352, #3488(edges) | seed | [`seeds/seed-m3-operating-procedures.md`](seeds/seed-m3-operating-procedures.md) |
