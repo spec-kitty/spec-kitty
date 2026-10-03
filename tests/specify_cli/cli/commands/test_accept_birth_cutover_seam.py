@@ -59,7 +59,7 @@ class _RecordingSeam:
 def _write_location(*, surface: TopologySurface, path: Path) -> WriteLocation:
     return WriteLocation(
         path=path,
-        checkout_root=path,
+        surface_root=path,
         surface=surface,
         coord_state_before=None,
         establishment=Establishment.NONE,

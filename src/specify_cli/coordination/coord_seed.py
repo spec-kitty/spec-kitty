@@ -634,19 +634,32 @@ def _commit_and_restore(
     """
     warnings = list(merge.warnings)
     coord_commit: str | None = None
+    # Which root copies to restore (I-SEED-8) depends on the commit outcome:
+    #   committed -- the coordination copy is durable, so restore what THIS attempt
+    #                carried AND every path it just committed. A RETRY of a refused
+    #                commit carries nothing (``merge.carried`` is empty: root is
+    #                already a prefix of what is on disk), yet its root copies are
+    #                still untracked and must go once the commit finally lands;
+    #   unchanged / nothing to commit -- already durable, restore ``merge.carried`` only;
+    #   refused   -- the only copy of the carried records is untracked content in
+    #                the coordination worktree, so the root copies stay until a
+    #                later write commits them.
+    restore_relpaths: tuple[str, ...] = merge.carried
     commit_relpaths = _coord_kind_relpaths_on_disk(final_dir)
     if commit_relpaths:
         commit_paths = tuple(final_dir / relpath for relpath in commit_relpaths)
         result = _commit_seed(request, commit_paths)
         if result.status == _STATUS_COMMITTED:
             coord_commit = result.commit_hash
+            restore_relpaths = tuple(dict.fromkeys((*merge.carried, *commit_relpaths)))
         elif result.status != _STATUS_UNCHANGED:
+            restore_relpaths = ()
             reason = f", reason={result.reason!r}" if result.reason else ""
             warnings.append(
                 f"seed commit not applied (status={result.status!r}{reason}); the mission "
                 "dir is present but uncommitted. The next coordination write retries the commit."
             )
-    restored_root = _restore_root_files(request, merge.carried)
+    restored_root = _restore_root_files(request, restore_relpaths)
     if merge.carried or warnings or restored_from_branch:
         logger.warning(
             "coordination seed for mission %s: carried=%s restored_root=%s restored_from_branch=%s coord_commit=%s warnings=%s",
@@ -804,7 +817,7 @@ def _seed_coord_surface(request: _SeedRequest) -> SeedReport:
     not deadlocked. Module-private (review cycle 2, B7): by contract, the
     only caller is :func:`establish_coord_write_location` in this module.
     """
-    from specify_cli.status.locking import (
+    from specify_cli.status import (
         BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
         feature_status_lock,
     )
@@ -823,7 +836,7 @@ def _primary_write_location(repo_root: Path, mission_slug: str, kind: MissionArt
     checkout_root = owned.owned_root if owned is not None else repo_root
     return WriteLocation(
         path=path,
-        checkout_root=checkout_root,
+        surface_root=checkout_root,
         surface=TopologySurface.PRIMARY,
         coord_state_before=None,
         establishment=Establishment.NONE,
@@ -939,7 +952,7 @@ def _handle_materialized(
     if not _whole_dir_untracked_fast(ctx.coord_worktree, ctx.mission_dir_name):
         return WriteLocation(
             path=coord_dir,
-            checkout_root=ctx.coord_worktree,
+            surface_root=ctx.coord_worktree,
             surface=TopologySurface.COORD,
             coord_state_before=coord_state_before,
             establishment=base_establishment,
@@ -949,7 +962,7 @@ def _handle_materialized(
     seed = report if (report.carried or report.coord_commit or report.warnings) else None
     return WriteLocation(
         path=coord_dir,
-        checkout_root=ctx.coord_worktree,
+        surface_root=ctx.coord_worktree,
         surface=TopologySurface.COORD,
         coord_state_before=coord_state_before,
         establishment=base_establishment,
@@ -962,7 +975,7 @@ def _handle_empty_pre_fix(ctx: _EstablishContext, coord_state_before: CoordState
     coord_dir = ctx.coord_worktree / KITTY_SPECS_DIR / ctx.mission_dir_name
     return WriteLocation(
         path=coord_dir,
-        checkout_root=ctx.coord_worktree,
+        surface_root=ctx.coord_worktree,
         surface=TopologySurface.COORD,
         coord_state_before=coord_state_before,
         establishment=Establishment.SEEDED,
@@ -984,7 +997,7 @@ def _handle_empty_post_fix(ctx: _EstablishContext, coord_state_before: CoordStat
     coord_dir = ctx.coord_worktree / KITTY_SPECS_DIR / ctx.mission_dir_name
     return WriteLocation(
         path=coord_dir,
-        checkout_root=ctx.coord_worktree,
+        surface_root=ctx.coord_worktree,
         surface=TopologySurface.COORD,
         coord_state_before=coord_state_before,
         establishment=Establishment.RESTORED_FROM_BRANCH,

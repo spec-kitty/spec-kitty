@@ -15,8 +15,8 @@ written here: both :func:`detect_decision_forks` and
 READ-ONLY by construction (FR-016 US4.1 control): this module never calls
 ``write_dir``, ``CoordinationWorkspace.resolve``/``teardown``, or any
 status/decisions append primitive -- only :meth:`PlacementSeam.read_dir`,
-:meth:`CoordinationWorkspace.worktree_path` (pure path composition, no
-filesystem touch) and ``git show``/``git ls-tree``. A worktree is preferred
+:func:`~specify_cli.missions._read_path_resolver.coord_feature_dir` (pure path
+composition, no filesystem touch) and ``git show``/``git ls-tree``. A worktree is preferred
 when present for the event streams; a fresh clone with no coordination
 worktree falls back to reading the committed ref directly, so the detector
 reports the same fork from a bare clone (US4.1 "fresh clone" case). The
@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from kernel.git import GitCommandError, GitPath, tree_paths
+from kernel.git import GitCommandError, GitPath, tree_entry, tree_paths
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
@@ -45,9 +45,8 @@ from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POIN
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.coordination.event_prefix import classify_prefix
-from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.branch_naming import coord_mission_dir_name
-from specify_cli.missions._read_path_resolver import read_primary_meta
+from specify_cli.missions._read_path_resolver import coord_feature_dir, read_primary_meta
 
 __all__ = [
     "SurfaceLog",
@@ -58,6 +57,7 @@ __all__ = [
     "coordination_only_ledger",
     "ledger_is_coordination_only",
     "read_coordination_ledger_raw",
+    "LedgerProbeError",
 ]
 
 #: The two decision-event streams compared per-mission (contract "Inputs read").
@@ -71,6 +71,24 @@ Surface = Literal["primary", "coordination"]
 Source = Literal["worktree", "ref"]
 StreamState = Literal["single_home", "prefix", "forked", "absent"]
 LedgerState = Literal["primary", "coordination_only", "both", "absent"]
+
+
+class LedgerProbeError(RuntimeError):
+    """The coordination-side ledger could not be READ (as opposed to being absent).
+
+    A ref that does not resolve at all (the coordination branch is already gone), and
+    a resolvable ref whose ``decisions/`` directory or ``index.json`` is simply not
+    in the tree, are genuine absence and are NOT this error: there is no ledger left
+    to protect. A resolvable ref whose listing or ``git show`` then fails is: reporting
+    it as an empty ledger would let a teardown destroy the only copy. Only the
+    tolerant ``doctor decisions`` consumer (:func:`detect_decision_forks`) catches
+    it; the teardown and consolidation guards let it propagate so they refuse.
+    """
+
+    def __init__(self, ref: str, detail: str) -> None:
+        self.ref = ref
+        self.detail = detail
+        super().__init__(f"could not read the decisions ledger on coordination ref {ref!r}: {detail}")
 
 
 @dataclass(frozen=True)
@@ -160,10 +178,9 @@ def _resolve_coord_side(
     if not mid8 or not branch:
         return None
     # Pure path composition (no filesystem touch, never materializes a
-    # worktree) -- see ``CoordinationWorkspace.worktree_path`` docstring.
-    worktree_root: Path = CoordinationWorkspace.worktree_path(repo_root, primary_dir_name, mid8)
+    # worktree) through the ONE coordination mission-dir composer.
+    mission_dir = coord_feature_dir(repo_root, primary_dir_name, mid8)
     mission_subdir = coord_mission_dir_name(primary_dir_name, mid8=mid8)
-    mission_dir = worktree_root / KITTY_SPECS_DIR / mission_subdir
     return _CoordSide(mission_dir=mission_dir, branch=branch, mission_subdir=mission_subdir)
 
 
@@ -377,18 +394,73 @@ def _index_entry_ids_from_text(text: str) -> set[str]:
     return ids
 
 
+def _is_dm_file(name: str) -> bool:
+    """True for a Decision Moment ledger file basename (``DM-<id>.md``)."""
+    return name.startswith("DM-") and name.endswith(".md")
+
+
 def _dm_file_names(names: Iterable[str]) -> set[str]:
-    return {name for name in names if name.startswith("DM-") and name.endswith(".md")}
+    return {name for name in names if _is_dm_file(name)}
+
+
+def _coordination_ref_resolves(repo_root: Path, ref: str) -> bool:
+    """Whether *ref* names a commit: ``False`` is genuine absence, not a failed probe.
+
+    ``git rev-parse --verify --quiet`` exits 1 when the ref does not resolve; any
+    other non-zero exit (a broken repository, ...) means the probe itself failed
+    and raises :class:`LedgerProbeError`.
+    """
+    ret, _out, err = run_command(
+        ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret == 0:
+        return True
+    if ret == 1:
+        return False
+    raise LedgerProbeError(ref, f"git rev-parse failed: {err.strip()}")
 
 
 def _child_names_at_ref(repo_root: Path, ref: str, tree_relpath: str) -> list[str]:
-    """Names of the files directly under *tree_relpath* at *ref* (empty when the ref or directory is unreadable)."""
+    """Names of the files directly under *tree_relpath* at *ref*.
+
+    A *ref* that does not resolve, or a resolvable *ref* whose *tree_relpath* is
+    absent (``ls-tree`` exits 0 with empty output), is genuine absence, returned as
+    ``[]``. A listing that fails on a resolvable ref raises :class:`LedgerProbeError`.
+    """
+    if not _coordination_ref_resolves(repo_root, ref):
+        return []
     depth = len(GitPath.parse(tree_relpath).parts)
     try:
         paths = tree_paths(repo_root, ref, pathspecs=(tree_relpath,))
-    except GitCommandError:
-        return []
+    except GitCommandError as exc:
+        raise LedgerProbeError(ref, f"git ls-tree {tree_relpath} failed: {exc}") from exc
     return sorted(path.parts[-1] for path in paths if len(path.parts) == depth + 1)
+
+
+def _text_at_ref(repo_root: Path, ref: str, relpath: str) -> str | None:
+    """The text of *relpath* at *ref*, ``None`` when the ref or that path is absent.
+
+    Distinguishes absence (``None``: the ref does not resolve, or the tree lacks the
+    path) from a failed probe (:class:`LedgerProbeError`): the tree entry of a
+    resolvable ref is looked up first, so only a path the tree genuinely lacks reads
+    as absent, and a ``git show`` that then fails is an error rather than an empty file.
+    """
+    if not _coordination_ref_resolves(repo_root, ref):
+        return None
+    try:
+        entry = tree_entry(repo_root, ref, relpath)
+    except GitCommandError as exc:
+        raise LedgerProbeError(ref, f"git ls-tree {relpath} failed: {exc}") from exc
+    if entry is None:
+        return None
+    ret, out, err = run_command(["git", "show", f"{ref}:{relpath}"], capture=True, check_return=False, cwd=repo_root)
+    if ret != 0:
+        raise LedgerProbeError(ref, f"git show {relpath} failed: {err.strip()}")
+    text: str = out
+    return text
 
 
 def _ledger_contents_worktree(mission_dir: Path) -> tuple[set[str], set[str]]:
@@ -402,31 +474,25 @@ def _ledger_contents_worktree(mission_dir: Path) -> tuple[set[str], set[str]]:
 
 def _ledger_contents_ref(repo_root: Path, ref: str, mission_subdir: str) -> tuple[set[str], set[str]]:
     """The COORDINATION side: always the branch tip (the worktree copy may be stale, and the
-    branch is what teardown destroys -- contract rule 4 / T092 step 3)."""
-    index_relpath = f"{KITTY_SPECS_DIR}/{mission_subdir}/decisions/index.json"
-    ret, out, _err = run_command(["git", "show", f"{ref}:{index_relpath}"], capture=True, check_return=False, cwd=repo_root)
-    entries = _index_entry_ids_from_text(out) if ret == 0 else set()
+    branch is what teardown destroys -- contract rule 4 / T092 step 3).
+
+    Raises :class:`LedgerProbeError` when a resolvable branch tip cannot be read; a
+    missing branch, or a missing ``decisions/`` directory or ``index.json`` on a
+    readable tip, is empty.
+    """
+    index_text = _text_at_ref(repo_root, ref, f"{KITTY_SPECS_DIR}/{mission_subdir}/decisions/index.json")
+    entries = _index_entry_ids_from_text(index_text) if index_text is not None else set()
 
     tree_relpath = f"{KITTY_SPECS_DIR}/{mission_subdir}/decisions"
     return entries, _dm_file_names(_child_names_at_ref(repo_root, ref, tree_relpath))
 
 
-def coordination_only_ledger(repo_root: Path, mission_slug: str) -> LedgerHomeFinding:
-    """Detect a pre-fix Mission whose ledger was committed only on the coordination branch.
-
-    FR-009c: the bookkeeping-projection teardown path excludes PRIMARY kinds,
-    so such a ledger would otherwise be silently lost at teardown.
-    """
-    meta, declares_coordination = read_primary_meta(repo_root, mission_slug)
-    primary_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    primary_entries, primary_dm = _ledger_contents_worktree(primary_dir)
-
-    coord_info = _resolve_coord_side(repo_root, meta, declares_coordination, primary_dir.name)
-    coord_entries: set[str] = set()
-    coord_dm: set[str] = set()
-    if coord_info is not None:
-        coord_entries, coord_dm = _ledger_contents_ref(repo_root, coord_info.branch, coord_info.mission_subdir)
-
+def _classify_ledger(
+    primary_entries: set[str],
+    primary_dm: set[str],
+    coord_entries: set[str],
+    coord_dm: set[str],
+) -> LedgerHomeFinding:
     primary_has = bool(primary_entries or primary_dm)
     coord_has = bool(coord_entries or coord_dm)
     state: LedgerState
@@ -444,6 +510,35 @@ def coordination_only_ledger(repo_root: Path, mission_slug: str) -> LedgerHomeFi
         entries_only_on_coordination=tuple(sorted(coord_entries - primary_entries)),
         dm_files_only_on_coordination=tuple(sorted(coord_dm - primary_dm)),
     )
+
+
+def coordination_only_ledger(repo_root: Path, mission_slug: str) -> LedgerHomeFinding:
+    """Detect a pre-fix Mission whose ledger was committed only on the coordination branch.
+
+    FR-009c: the bookkeeping-projection teardown path excludes PRIMARY kinds,
+    so such a ledger would otherwise be silently lost at teardown.
+
+    Raises:
+        LedgerProbeError: an existing coordination branch tip could not be read. Callers
+            that gate a destroy (teardown, consolidation) must not catch it.
+    """
+    meta, declares_coordination = read_primary_meta(repo_root, mission_slug)
+    primary_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    primary_entries, primary_dm = _ledger_contents_worktree(primary_dir)
+
+    coord_info = _resolve_coord_side(repo_root, meta, declares_coordination, primary_dir.name)
+    coord_entries: set[str] = set()
+    coord_dm: set[str] = set()
+    if coord_info is not None:
+        coord_entries, coord_dm = _ledger_contents_ref(repo_root, coord_info.branch, coord_info.mission_subdir)
+    return _classify_ledger(primary_entries, primary_dm, coord_entries, coord_dm)
+
+
+def _primary_only_ledger(repo_root: Path, mission_slug: str) -> LedgerHomeFinding:
+    """The ledger verdict from the PRIMARY side alone (no coordination read)."""
+    primary_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    primary_entries, primary_dm = _ledger_contents_worktree(primary_dir)
+    return _classify_ledger(primary_entries, primary_dm, set(), set())
 
 
 def ledger_is_coordination_only(ledger: LedgerHomeFinding) -> bool:
@@ -499,7 +594,7 @@ def read_coordination_ledger_raw(repo_root: Path, mission_slug: str) -> tuple[di
     tree_relpath = f"{KITTY_SPECS_DIR}/{coord_info.mission_subdir}/decisions"
     dm_contents: dict[str, str] = {}
     for name in _child_names_at_ref(repo_root, coord_info.branch, tree_relpath):
-        if not (name.startswith("DM-") and name.endswith(".md")):
+        if not _is_dm_file(name):
             continue
         file_relpath = f"{tree_relpath}/{name}"
         ret3, out3, _err3 = run_command(["git", "show", f"{coord_info.branch}:{file_relpath}"], capture=True, check_return=False, cwd=repo_root)
@@ -535,7 +630,15 @@ def detect_decision_forks(repo_root: Path, mission_slug: str) -> DecisionsForkRe
         streams.append(finding)
         reconcile_steps.extend(steps)
 
-    ledger = coordination_only_ledger(repo_root, mission_slug)
+    # ``doctor decisions`` is a read-only report, so it tolerates an unreadable
+    # coordination ledger (degrading to the PRIMARY-side verdict plus a warning
+    # step). The destroy guards call ``coordination_only_ledger`` directly and
+    # let :class:`LedgerProbeError` propagate.
+    try:
+        ledger = coordination_only_ledger(repo_root, mission_slug)
+    except LedgerProbeError as exc:
+        ledger = _primary_only_ledger(repo_root, mission_slug)
+        reconcile_steps.append(f"the coordination ledger could not be read, so only the PRIMARY ledger is reported: {exc}")
     reconcile_steps.extend(_ledger_reconcile_steps(ledger, mission_slug, primary_dir.name, coord_info))
 
     forked = any(s.state == "forked" for s in streams)

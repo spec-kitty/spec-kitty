@@ -64,6 +64,7 @@ from mission_runtime import (
     MissionTopology,
     OwnedCheckout,
     classify_topology,
+    mission_file_basenames_for_kind,
     resolve_write_target_or_degrade,
     routes_through_coordination,
 )
@@ -829,7 +830,7 @@ def coord_branch_has_committed_artifact(
     unresolvable ref (⇒ fail-closed ``True`` + warning), so the two cases never
     collapse together.
     """
-    basenames = _artifact_basenames_for_kind(kind)
+    basenames = mission_file_basenames_for_kind(kind)
     if not basenames:
         return False
     mission_dir_name = mission_slug
@@ -856,19 +857,6 @@ def coord_branch_has_committed_artifact(
         )
         return True
     return any(path.name in basenames for path in committed)
-
-
-def _artifact_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]:
-    """Return the committed basenames that classify to *kind* (placement authority).
-
-    Derived by inverting ``mission_runtime.artifacts``'s basename→kind classifier —
-    the SAME authority that resolves the artifact home — never a hardcoded
-    ``issue-matrix.{json,md}`` literal, so the probe path can never drift out of
-    sync with the classifier (post-plan F2).
-    """
-    from mission_runtime import _MISSION_FILE_KIND_BY_BASENAME
-
-    return frozenset(name for name, mapped in _MISSION_FILE_KIND_BY_BASENAME.items() if mapped is kind)
 
 
 def resolve_for_write(

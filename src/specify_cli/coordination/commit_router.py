@@ -1921,9 +1921,9 @@ def _relpath(repo_root: Path, path: Path) -> str:
         return path.as_posix()
 
 
-def _dirty_paths_in_checkout(checkout_root: Path, files: tuple[Path, ...]) -> tuple[Path, ...]:
+def _dirty_paths_in_checkout(surface_root: Path, files: tuple[Path, ...]) -> tuple[Path, ...]:
     """Return the subset of *files* that are present on disk AND carry uncommitted
-    content (untracked or modified) in *checkout_root*.
+    content (untracked or modified) in *surface_root*.
 
     WP05 (T028): the single primitive both :func:`_paths_uncommitted_in_primary`
     (the #2739 B16 wrong-surface discriminator) and the root-checkout-dirt
@@ -1943,10 +1943,10 @@ def _dirty_paths_in_checkout(checkout_root: Path, files: tuple[Path, ...]) -> tu
         if not path.exists():
             continue
         try:
-            rel = path.resolve().relative_to(checkout_root.resolve())
+            rel = path.resolve().relative_to(surface_root.resolve())
         except ValueError:
             continue
-        if status_entries(checkout_root, pathspecs=(rel.as_posix(),), untracked=None):
+        if status_entries(surface_root, pathspecs=(rel.as_posix(),), untracked=None):
             dirty.append(path)
     return tuple(dirty)
 

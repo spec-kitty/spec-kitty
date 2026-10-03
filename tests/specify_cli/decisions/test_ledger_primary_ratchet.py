@@ -66,7 +66,7 @@ def test_ledger_writes_and_reads_stay_primary(tmp_path: Path, topology: MissionT
     """Open a decision through the production service; the ledger lands PRIMARY.
 
     ``decisions/service.py::_ledger_dir`` (≈L255-279) resolves
-    ``PRIMARY_METADATA`` -- the SAME dir ``_decisions_doctor.py`` (≈L146-156)
+    ``DECISION_LEDGER`` -- the SAME dir ``_decisions_doctor.py`` (≈L146-156)
     reads back from. Asserts both ``DM-*.md`` and ``index.json`` land under
     the repository root checkout's mission dir (the PRIMARY partition), never
     under ``.worktrees/`` (the coordination worktree), for both a

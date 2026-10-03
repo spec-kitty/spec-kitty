@@ -10,15 +10,19 @@ non-coordination control, per state (``single_home`` / ``prefix`` /
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 import pytest
 
+from kernel.git import GitCommandError
 from mission_runtime import MissionTopology
+from specify_cli.decisions import fork
 from specify_cli.decisions.fork import (
     DecisionsForkReport,
     LedgerHomeFinding,
+    LedgerProbeError,
     SurfaceLog,
     StreamForkFinding,
     coordination_only_ledger,
@@ -30,6 +34,8 @@ from tests._factories.coord_mission import make_coord_mission, make_fork_fixture
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+_MISSING_COORD_BRANCH = "kitty/mission-does-not-exist"
+
 
 def _git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout
@@ -38,6 +44,24 @@ def _git(repo: Path, *args: str) -> str:
 # ---------------------------------------------------------------------------
 # Value-object shape (data-model.md §4)
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("DM-01KXYZ.md", True),
+        ("DM-.md", True),
+        ("index.json", False),
+        ("DM-01KXYZ.json", False),
+        ("notes-DM-01KXYZ.md", False),
+        ("dm-01kxyz.md", False),
+    ],
+)
+def test_is_dm_file_matches_only_decision_moment_markdown(name: str, expected: bool) -> None:
+    from specify_cli.decisions.fork import _dm_file_names, _is_dm_file
+
+    assert _is_dm_file(name) is expected
+    assert _dm_file_names([name]) == ({name} if expected else set())
 
 
 def test_value_objects_are_frozen_dataclasses() -> None:
@@ -187,6 +211,71 @@ def test_coordination_only_ledger_control_post_fix_is_primary(tmp_path: Path) ->
 
     assert ledger.state == "absent"
     assert not ledger_is_coordination_only(ledger)
+
+
+def _point_meta_at_missing_coordination_branch(root_mission_dir: Path) -> None:
+    """Declare a coordination branch that does not exist (the branch is already gone)."""
+    meta_path = root_mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["coordination_branch"] = _MISSING_COORD_BRANCH
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _failing_tree_entry(*_args: object, **_kwargs: object) -> object:
+    """A listing probe that fails on a ref that DOES resolve."""
+    raise GitCommandError(argv=("ls-tree",), cwd=Path("."), returncode=128, stderr="fatal: simulated ls-tree failure")
+
+
+def test_readable_coordination_ref_without_a_ledger_is_genuine_absence(tmp_path: Path) -> None:
+    """A resolvable ref whose ``decisions/`` dir and ``index.json`` are absent is NOT a probe error."""
+    coord = make_coord_mission(tmp_path, MissionTopology.COORD, slug="absent-ledger")
+
+    ledger = coordination_only_ledger(coord.repo_root, coord.mission_dir_name)
+
+    assert ledger.state == "absent"
+
+
+def test_missing_coordination_branch_is_an_empty_coordination_side(tmp_path: Path) -> None:
+    """A coordination ref that does not resolve holds no ledger: absence, never a probe error."""
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+    _point_meta_at_missing_coordination_branch(fixture.root_mission_dir)
+
+    ledger = coordination_only_ledger(fixture.repo_root, fixture.mission_dir_name)
+
+    assert ledger.state == "absent"
+    assert not ledger_is_coordination_only(ledger)
+    assert fork._child_names_at_ref(fixture.repo_root, _MISSING_COORD_BRANCH, "kitty-specs") == []
+    assert fork._text_at_ref(fixture.repo_root, _MISSING_COORD_BRANCH, "kitty-specs/x/decisions/index.json") is None
+
+
+def test_failed_listing_on_an_existing_ref_raises_a_probe_error_not_an_empty_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ref resolves but the probe then fails: that must not read as "no ledger"."""
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+    monkeypatch.setattr(fork, "tree_entry", _failing_tree_entry)
+
+    with pytest.raises(LedgerProbeError) as excinfo:
+        coordination_only_ledger(fixture.repo_root, fixture.mission_dir_name)
+
+    assert excinfo.value.ref == fixture.coordination_branch
+
+
+def test_failed_tree_listing_on_an_existing_ref_raises_a_probe_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+    monkeypatch.setattr(fork, "tree_paths", _failing_tree_entry)
+
+    with pytest.raises(LedgerProbeError):
+        fork._child_names_at_ref(fixture.repo_root, fixture.coordination_branch, "kitty-specs")
+
+
+def test_doctor_report_tolerates_an_unreadable_coordination_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``detect_decision_forks`` (the ``doctor decisions`` consumer) degrades to the PRIMARY verdict."""
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+    monkeypatch.setattr(fork, "tree_entry", _failing_tree_entry)
+
+    report = detect_decision_forks(fixture.repo_root, fixture.mission_dir_name)
+
+    assert report.ledger.state == "absent"
+    assert any("could not be read" in step for step in report.reconcile_steps)
 
 
 def test_read_coordination_ledger_raw_returns_none_without_coordination(tmp_path: Path) -> None:

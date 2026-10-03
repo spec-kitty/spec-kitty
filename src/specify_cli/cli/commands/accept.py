@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 import typer
 from rich.table import Table
 from kernel.git import StatusEntry
+from kernel.paths import to_posix
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode, TopologySurface
 
 if TYPE_CHECKING:
@@ -122,8 +123,8 @@ def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return dirty
 
 
-def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
-    """Resolve the mission's materialised coordination worktree root, if any.
+def _coord_scan_target(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> tuple[Path, Path] | None:
+    """Resolve ``(worktree_root, coordination_mission_dir)`` for the dirt scan, if any.
 
     Returns ``None`` when the mission's stored topology does not route
     through coordination, or the coordination worktree has not been
@@ -142,6 +143,11 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedChec
     :class:`CoordinationBranchDeleted` (C3 "fail loud"): a deleted coord branch at
     accept-time carries unmerged status — accept must refuse, not silently scan a
     stale primary.
+
+    The returned mission dir is the seam's own ``resolved.path`` — the
+    coordination ``<slug>-<mid8>`` directory — NOT ``kitty-specs/<mission_slug>``:
+    for a backfilled mission the primary directory name carries no ``-<mid8>``, so
+    a prefix derived from ``mission_slug`` would match nothing in the worktree.
     """
     from mission_runtime import resolve_artifact_surface
 
@@ -156,7 +162,17 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedChec
 
     if worktree_root.resolve() == repo_root.resolve():
         return None
-    return worktree_root
+    return worktree_root, resolved.path
+
+
+def _coord_worktree_root(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
+    """Resolve the mission's materialised coordination worktree root, if any.
+
+    Thin projection of :func:`_coord_scan_target`; see it for the resolution
+    contract (no side effects, ``None`` for any non-COORD stamp).
+    """
+    target = _coord_scan_target(repo_root, mission_slug, owned=owned)
+    return None if target is None else target[0]
 
 
 def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path | None:
@@ -230,10 +246,13 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedChecko
     a completely separate git worktree. This mirrors :func:`_primary_dirty_paths`
     against that surface instead.
     """
-    worktree_root = _coord_worktree_root(repo_root, mission_slug, owned=owned)
-    if worktree_root is None:
+    target = _coord_scan_target(repo_root, mission_slug, owned=owned)
+    if target is None:
         return []
-    prefix = f"kitty-specs/{mission_slug}/"
+    worktree_root, mission_dir = target
+    # The COORDINATION mission dir (``<slug>-<mid8>``), relative to the worktree
+    # root -- never ``kitty-specs/<mission_slug>`` (the primary dir name).
+    prefix = to_posix(mission_dir.resolve().relative_to(worktree_root.resolve())) + "/"
     return _dirty_paths_with_prefix(git_status_entries(worktree_root), prefix)
 
 
@@ -348,7 +367,7 @@ def _stamp_birth_cutover_for_accept(
         CoordinationBranchDeleted,
         CoordinationWorktreeUnmaterialized,
     )
-    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
     try:
         status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, owned=owned)
@@ -566,10 +585,15 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *,
     committed to the target, see :func:`_run_residual_acceptance_commit`'s
     ``COORD_RECORD_IN_ROOT_CHECKOUT`` fate).
 
-    Kept as a ``bool`` return (operator decision, brownfield scout round 3):
-    ``test_accept_decomposition.py`` monkeypatches this name and asserts the
-    bool contract, and the CI-owned ``test_accept_matrix_coord_partition.py``
-    asserts ``created is True`` against the real function. The detailed
+    Kept as a ``bool`` return (operator decision, brownfield scout round 3),
+    but it is no longer on the ``accept`` command path:
+    :func:`_run_post_acceptance_steps` calls
+    :func:`_run_residual_acceptance_commit` directly, and
+    ``test_accept_decomposition.py`` monkeypatches that name (while still
+    asserting this wrapper's ``bool`` contract by calling it). The CI-owned
+    ``test_accept_matrix_coord_partition.py`` also calls this wrapper and
+    asserts ``created is True`` against the real function, which is why it is
+    not deleted. The detailed
     :class:`~specify_cli.coordination.commit_router.CommitRouterResult` (for
     JSON/text rendering) lives on the private
     :func:`_run_residual_acceptance_commit` helper this wrapper calls.

@@ -53,7 +53,7 @@ from specify_cli.cli.console import err_console
 from kernel._safe_re import re
 from kernel.git import GitCommandError, StatusEntry, changed_paths, status_entries
 from kernel.paths import repo_tree_path
-from mission_runtime import ActionContextError, MissionArtifactKind, TopologyManifestMismatch
+from mission_runtime import ActionContextError, MissionArtifactKind, TopologyManifestMismatch, mission_file_basenames_for_kind
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -3883,19 +3883,26 @@ def _finalize_candidates_dirty(repo_root: Path, files_to_commit_rel: list[str]) 
     return bool(status_entries(repo_root, pathspecs=files_to_commit_rel, untracked=None))
 
 
-#: WP15/T081 (FR-007b): the COORD-partition filenames finalize may itself
-#: write, keyed by the :class:`~mission_runtime.MissionArtifactKind` whose
-#: ``write_dir`` resolves their owning directory. ``STATUS_STATE`` covers the
-#: two event-log/snapshot files; ``ISSUE_MATRIX``/``ACCEPTANCE_MATRIX`` each
-#: resolve their own kind-specific directory (identical to the STATUS_STATE
-#: one for a coordination-routed Mission's single Mission dir, but resolved
-#: independently so a kind-specific routing exception -- e.g. the
-#: PUBLISHED/E2 short-circuit -- is honored per kind rather than assumed).
-_COORD_CANDIDATE_FILENAMES: Final[dict[MissionArtifactKind, tuple[str, ...]]] = {
-    MissionArtifactKind.STATUS_STATE: ("status.events.jsonl", "status.json"),
-    MissionArtifactKind.ISSUE_MATRIX: ("issue-matrix.json",),
-    MissionArtifactKind.ACCEPTANCE_MATRIX: ("acceptance-matrix.json",),
-}
+#: WP15/T081 (FR-007b): the COORD-partition kinds whose files finalize may itself
+#: write, each resolved through its own ``write_dir``. ``STATUS_STATE`` covers the
+#: event-log/snapshot files; ``ISSUE_MATRIX``/``ACCEPTANCE_MATRIX`` each resolve
+#: their own kind-specific directory (identical to the STATUS_STATE one for a
+#: coordination-routed Mission's single Mission dir, but resolved independently
+#: so a kind-specific routing exception -- e.g. the PUBLISHED/E2 short-circuit --
+#: is honored per kind rather than assumed). The FILENAMES are never listed here:
+#: :func:`_coord_candidate_filenames` derives them from the artifact classifier,
+#: so a classifier entry (e.g. the failover-read ``issue-matrix.md``) can never be
+#: invisible to this probe.
+_COORD_CANDIDATE_KINDS: Final[tuple[MissionArtifactKind, ...]] = (
+    MissionArtifactKind.STATUS_STATE,
+    MissionArtifactKind.ISSUE_MATRIX,
+    MissionArtifactKind.ACCEPTANCE_MATRIX,
+)
+
+
+def _coord_candidate_filenames(kind: MissionArtifactKind) -> tuple[str, ...]:
+    """The basenames the artifact classifier maps to *kind*, in a stable order."""
+    return tuple(sorted(mission_file_basenames_for_kind(kind)))
 
 
 @dataclass(frozen=True)
@@ -3932,10 +3939,10 @@ def _coord_candidate_dirt(
     seam = placement_seam(repo_root, mission_slug, owned=owned)
     checkout_roots_by_dir: dict[Path, Path] = {}
     candidates: list[Path] = []
-    for kind, filenames in _COORD_CANDIDATE_FILENAMES.items():
+    for kind in _COORD_CANDIDATE_KINDS:
         location = seam.write_dir(kind)
-        checkout_roots_by_dir.setdefault(location.path, location.checkout_root)
-        for filename in filenames:
+        checkout_roots_by_dir.setdefault(location.path, location.surface_root)
+        for filename in _coord_candidate_filenames(kind):
             candidate = location.path / filename
             if candidate.exists():
                 candidates.append(candidate)

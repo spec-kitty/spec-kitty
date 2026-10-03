@@ -53,7 +53,6 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import (
-    coord_mission_dir_name,
     mission_branch_name,
     mission_dir_name,
     resolve_mid8,
@@ -737,17 +736,17 @@ def _rollback_coordination_surface(ctx: _CoordCreateRollbackContext) -> None:
     otherwise orphan the worktree forever.
     """
     from specify_cli.coordination.teardown import teardown_coordination_topology
-    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.missions._read_path_resolver import coord_feature_dir
 
     repo_root = ctx.repo_root
-    worktree_path = CoordinationWorkspace.worktree_path(repo_root, ctx.mission_slug_formatted, ctx.mid8)
-    coord_mission_dir = worktree_path / KITTY_SPECS_DIR / coord_mission_dir_name(ctx.mission_slug_formatted, mid8=ctx.mid8)
+    coord_mission_dir = coord_feature_dir(repo_root, ctx.mission_slug_formatted, ctx.mid8)
     if coord_mission_dir.exists():
         with contextlib.suppress(OSError):
             shutil.rmtree(coord_mission_dir)
     with contextlib.suppress(Exception):
-        # The single shared teardown seam; a half-created mission has no retrospective to persist.
-        teardown_coordination_topology(repo_root, ctx.mission_slug_formatted, ctx.mid8, persist=False)
+        # The single shared teardown seam; a half-created mission has no retrospective to persist,
+        # and the surface being discarded is this create's own, so the ledger guard is skipped.
+        teardown_coordination_topology(repo_root, ctx.mission_slug_formatted, ctx.mid8, persist=False, check_ledger=False)
     subprocess.run(
         ["git", "-C", str(repo_root), "worktree", "prune"],
         capture_output=True,

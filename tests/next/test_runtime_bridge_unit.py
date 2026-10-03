@@ -2008,7 +2008,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
     coordination arm no longer composes ``worktree_root / KITTY_SPECS_DIR /
     coord_mission_dir_name(...)`` itself. It resolves through the same
     ``placement_seam(..., owned=owned).write_dir(DECISION_LOG)`` accessor as
-    the non-owned arm and uses ``WriteLocation.checkout_root`` / ``.path``
+    the non-owned arm and uses ``WriteLocation.surface_root`` / ``.path``
     verbatim; the accessor owns materialization (through the bounded-retry
     ``_resolve_owned_coordination_workspace``) and the typed owned refusal."""
 
@@ -2043,7 +2043,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
 
     def test_owned_arm_takes_worktree_root_and_dir_from_write_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """The owned coordination arm threads ``owned`` into the seam and uses
-        ``WriteLocation.checkout_root`` / ``.path`` verbatim -- a ``path`` that
+        ``WriteLocation.surface_root`` / ``.path`` verbatim -- a ``path`` that
         differs from any ``checkout_root / kitty-specs / <name>`` composition
         proves nothing is re-composed in the bridge."""
         from mission_runtime import Establishment, WriteLocation
@@ -2066,7 +2066,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         carried_dir = coord_root / "carried" / "mission-dir"
         location = WriteLocation(
             path=carried_dir,
-            checkout_root=coord_root,
+            surface_root=coord_root,
             surface=TopologySurface.COORD,
             coord_state_before=None,
             establishment=Establishment.NONE,
@@ -2110,7 +2110,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         )
         location = WriteLocation(
             path=tmp_path / "kitty-specs" / mission_slug,
-            checkout_root=tmp_path,
+            surface_root=tmp_path,
             surface=TopologySurface.PRIMARY,
             coord_state_before=None,
             establishment=Establishment.NONE,
@@ -2212,7 +2212,7 @@ class TestWrapWithDecisionGitLogOwnedCheckout:
         coord_mission_dir = coord_root / "kitty-specs" / mission_slug
         location = WriteLocation(
             path=coord_mission_dir,
-            checkout_root=coord_root,
+            surface_root=coord_root,
             surface=TopologySurface.COORD,
             coord_state_before=None,
             establishment=Establishment.NONE,

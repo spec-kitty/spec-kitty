@@ -321,7 +321,7 @@ def test_write_dir_agrees_with_write_target_on_materialized(tmp_path: Path, topo
             assert location.surface == TopologySurface.COORD, kind
             assert target == CommitTarget(ref=coord.coordination_branch), kind
             assert location.path.exists(), kind
-            assert _current_branch(location.checkout_root) == target.ref, kind
+            assert _current_branch(location.surface_root) == target.ref, kind
 
 
 @pytest.mark.parametrize("topology", _COORD_TOPOLOGIES)
@@ -373,8 +373,8 @@ def test_write_dir_checkout_root_reanchors_from_a_lane_worktree(tmp_path: Path) 
     seam = placement_seam(lane_worktree, coord.mission_dir_name)
     location = seam.write_dir(MissionArtifactKind.SPEC)
 
-    assert location.checkout_root == coord.repo_root
-    assert location.checkout_root != lane_worktree
+    assert location.surface_root == coord.repo_root
+    assert location.surface_root != lane_worktree
     assert location.path == coord.root_mission_dir
 
 

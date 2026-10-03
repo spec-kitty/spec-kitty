@@ -1511,7 +1511,7 @@ def _fake_write_location(path: Path) -> object:
 
     return WriteLocation(
         path=path,
-        checkout_root=path.parent,
+        surface_root=path.parent,
         surface=TopologySurface.COORD,
         coord_state_before=None,
         establishment=Establishment.NONE,
@@ -2104,9 +2104,9 @@ def test_decision_log_clean_coord_with_dirty_root_reports_coord_record_in_root_c
     owning_log = location.path / "decisions.events.jsonl"
     owning_log.parent.mkdir(parents=True, exist_ok=True)
     owning_log.write_text('{"simulated": "decision row"}\n', encoding="utf-8")
-    owning_rel = owning_log.relative_to(location.checkout_root)
-    subprocess.run(["git", "add", "--", str(owning_rel)], cwd=location.checkout_root, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-q", "-m", "baseline decision log"], cwd=location.checkout_root, check=True, capture_output=True)
+    owning_rel = owning_log.relative_to(location.surface_root)
+    subprocess.run(["git", "add", "--", str(owning_rel)], cwd=location.surface_root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "baseline decision log"], cwd=location.surface_root, check=True, capture_output=True)
 
     root_log = mission.feature_dir / "decisions.events.jsonl"
     root_log.parent.mkdir(parents=True, exist_ok=True)
@@ -2142,9 +2142,9 @@ def test_decision_log_both_clean_reports_unchanged(tmp_path: Path) -> None:
     owning_log = location.path / "decisions.events.jsonl"
     owning_log.parent.mkdir(parents=True, exist_ok=True)
     owning_log.write_text('{"simulated": "decision row"}\n', encoding="utf-8")
-    owning_rel = owning_log.relative_to(location.checkout_root)
-    subprocess.run(["git", "add", "--", str(owning_rel)], cwd=location.checkout_root, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-q", "-m", "baseline decision log"], cwd=location.checkout_root, check=True, capture_output=True)
+    owning_rel = owning_log.relative_to(location.surface_root)
+    subprocess.run(["git", "add", "--", str(owning_rel)], cwd=location.surface_root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-q", "-m", "baseline decision log"], cwd=location.surface_root, check=True, capture_output=True)
 
     root_log = mission.feature_dir / "decisions.events.jsonl"
     root_log.parent.mkdir(parents=True, exist_ok=True)

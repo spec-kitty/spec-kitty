@@ -2513,7 +2513,7 @@ class PlacementSeam:
         checkout_root = self.owned.owned_root if self.owned is not None else get_main_repo_root(self.repo_root)
         return WriteLocation(
             path=self.read_dir(kind),
-            checkout_root=checkout_root,
+            surface_root=checkout_root,
             surface=TopologySurface.PRIMARY,
             coord_state_before=None,
             establishment=Establishment.NONE,
@@ -2545,7 +2545,7 @@ class PlacementSeam:
         path = recovered if recovered is not None else primary_dir
         return WriteLocation(
             path=path,
-            checkout_root=primary_root,
+            surface_root=primary_root,
             surface=TopologySurface.PRIMARY,
             coord_state_before=None,
             establishment=Establishment.NONE,

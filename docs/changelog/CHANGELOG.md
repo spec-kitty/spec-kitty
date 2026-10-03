@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc6 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Added
+
+- **A coordination mission keeps its status, decision and trace records in one place from the moment it is created** (#5440). **Before:** those records were written in your repository root checkout until a coordination worktree existed, and later commands could look in a different place. **After:** create puts them on the coordination surface immediately. `spec-kitty accept` commits an uncommitted decision ledger for the current mission onto your target branch. A real `spec-kitty consolidate` creates a missing coordination worktree and continues. `spec-kitty consolidate --dry-run` still stops without creating one.
+
 ### Upgrade Notes
 
 - **Four `spec-kitty consolidate` fixes listed under 4.0.0rc5 Fixed do not fully hold on rc5** (#5569, #5570, #5571, #5572). Release testing reproduced each of them on rc5. Until they are fixed, avoid these paths:

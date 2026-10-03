@@ -53,10 +53,10 @@ from mission_runtime.context import (
 from mission_runtime.artifacts import (
     MissionArtifactKind,
     TopologySurface,
-    _MISSION_FILE_KIND_BY_BASENAME,
     is_primary_artifact_kind,
     kind_for_mission_file,
     kind_is_coordination_residue,
+    mission_file_basenames_for_kind,
 )
 
 # owned-checkout-lifecycle-authority WP12 (FR-025): the one claim-commit authority
@@ -147,11 +147,6 @@ __all__ = [
     # result value object (``write_location.py``) -- the public face of
     # ``establish_coord_write_location`` / the future ``PlacementSeam.write_dir``.
     "WriteLocation",
-    # coord-read-fail-closed landing (#5001): the basename->kind classifier map
-    # itself, re-exported so ``specify_cli.coordination.surface_resolver`` can
-    # invert it (kind -> basenames) without reaching into the
-    # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
-    "_MISSION_FILE_KIND_BY_BASENAME",
     "assert_coord_write_materialized",
     "assert_topology_matches_manifest",
     # owned-checkout-lifecycle-authority WP07 review cycle 2 MEDIUM: the ONE
@@ -171,6 +166,9 @@ __all__ = [
     "kind_is_coordination_residue",
     "mid8_from_slug",
     "mission_context_for",
+    # The kind -> basenames inversion of the basename->kind classifier; the ONE
+    # derivation ``surface_resolver`` and finalize's COORD dirt probe share.
+    "mission_file_basenames_for_kind",
     "placement_seam",
     "resolve_action_context",
     "resolve_artifact_surface",

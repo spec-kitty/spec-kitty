@@ -106,7 +106,7 @@ the bytes are written into. That second question belongs to `PlacementSeam.write
 `coord-artifact-single-home-01M3V4BE` (Mission contract
 `contracts/write-location-accessor.md`; decision record: the 2026-10-01 amendment of
 [ADR 2026-06-19-1](../adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md)). It returns a
-`WriteLocation` (`src/mission_runtime/write_location.py:77`: `path`, `checkout_root`,
+`WriteLocation` (`src/mission_runtime/write_location.py:77`: `path`, `surface_root`,
 `surface`, `coord_state_before`, `establishment`, `seed`).
 
 `write_dir` is **not a third composition root**: it consults the same materialization-blind

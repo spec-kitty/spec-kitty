@@ -51,6 +51,7 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from mission_runtime import CommitTarget, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+from specify_cli.missions import _read_path_resolver
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
@@ -211,8 +212,8 @@ def _resolve_coord_worktree_root_for_transaction(
     create the Mission dir itself and fork the log instead of carrying the
     root-checkout records over once. ``write_dir`` (WP03/WP04) materializes,
     seeds or restores as the state requires, or refuses loudly; its
-    ``checkout_root`` AND ``path`` are returned (never ``.path.parent.parent``,
-    never a re-composed ``checkout_root / KITTY_SPECS_DIR / name``): the
+    ``surface_root`` AND ``path`` are returned (never ``.path.parent.parent``,
+    never a re-composed ``surface_root / KITTY_SPECS_DIR / name``): the
     caller uses ``WriteLocation.path`` verbatim as the transaction's
     ``feature_dir`` (FR-014 -- a COORD writer never re-derives its write
     location; coordination-write-gate cap 0).
@@ -295,7 +296,7 @@ def _resolve_coord_worktree_root_for_transaction(
     # call (``location.seed.coord_commit is not None``) counts.
     seed_committed_this_txn = location.seed is not None and location.seed.coord_commit is not None
     return _CoordWriteTarget(
-        worktree_root=location.checkout_root,
+        worktree_root=location.surface_root,
         feature_dir=location.path,
         seed_committed=seed_committed_this_txn,
     )
@@ -627,6 +628,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             if _warrants_legacy_warning(arm_root, safe_mission_slug, safe_mid8):
                 return None
             worktree_root = arm_root
+            feature_dir = _checkout_mission_dir(worktree_root, safe_mission_slug, safe_mid8)
         else:
             caller_refusal = _caller_ref_refusal(
                 repo_root=arm_root,
@@ -641,7 +643,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 return caller_refusal
             worktree_root = CoordinationWorkspace.worktree_path(arm_root, safe_mission_slug, safe_mid8)
             effective_destination_ref = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
-        feature_dir = _checkout_mission_dir(worktree_root, safe_mission_slug, safe_mid8)
+            # Pure path, no git, no materialize: this probe is lock-free and must
+            # never create the coordination worktree (so NOT ``write_dir``).
+            feature_dir = _read_path_resolver.coord_feature_dir(arm_root, safe_mission_slug, safe_mid8)
         events_path = feature_dir / _EVENTS_FILENAME
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME
         verdict = _preflight_policy_verdict(

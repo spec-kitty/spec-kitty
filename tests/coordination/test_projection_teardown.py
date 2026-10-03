@@ -437,3 +437,59 @@ def test_teardown_refuses_coord_only_ledger(tmp_path: Path) -> None:
         check=True,
     )
     assert branch_list.stdout.strip(), "the coordination branch must still exist after the refusal"
+
+
+def test_teardown_refuses_when_the_coordination_ledger_probe_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A git failure on an EXISTING coordination ref refuses teardown; it never reads as an empty ledger.
+
+    The ref resolves but the listing then fails, so the ledger probe FAILS
+    (rather than finding the ledger absent). Teardown must not proceed to
+    persist or destroy: the typed probe error propagates out of the guard.
+    """
+    from kernel.git import GitCommandError
+    from mission_runtime import MissionTopology
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.decisions import fork
+    from specify_cli.decisions.fork import LedgerProbeError
+    from tests._factories.coord_mission import make_fork_fixture
+
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+
+    def _failing_tree_entry(*_args: object, **_kwargs: object) -> object:
+        raise GitCommandError(argv=("ls-tree",), cwd=Path("."), returncode=128, stderr="fatal: simulated ls-tree failure")
+
+    monkeypatch.setattr(fork, "tree_entry", _failing_tree_entry)
+
+    persist_p, destroy_p = _patched_teardown_legs()
+    with persist_p as persist, destroy_p as destroy, pytest.raises(LedgerProbeError):
+        teardown_coordination_topology(fixture.repo_root, fixture.mission_dir_name, fixture.mid8)
+
+    assert not destroy.called
+    assert not persist.called
+
+
+def test_teardown_of_a_missing_coordination_branch_is_not_refused(tmp_path: Path) -> None:
+    """A coordination branch that is already gone has no ledger left to protect: teardown proceeds.
+
+    This is the idempotent-teardown contract -- a second teardown after the
+    branch was deleted is a no-op, not a ``LedgerProbeError``.
+    """
+    import json
+
+    from mission_runtime import MissionTopology
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from tests._factories.coord_mission import make_fork_fixture
+
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+    meta_path = fixture.root_mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["coordination_branch"] = "kitty/mission-does-not-exist"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    persist_p, destroy_p = _patched_teardown_legs()
+    with persist_p as persist, destroy_p as destroy:
+        ok = teardown_coordination_topology(fixture.repo_root, fixture.mission_dir_name, fixture.mid8)
+
+    assert ok is True
+    assert persist.called
+    assert destroy.called

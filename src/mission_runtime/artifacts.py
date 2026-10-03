@@ -450,6 +450,19 @@ def kind_for_mission_file(
     return _artifact_kind_for_path(path, mission_slug=mission_slug)
 
 
+def mission_file_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]:
+    """Return the mission-file basenames that classify to *kind*.
+
+    The inverse of :func:`kind_for_mission_file`'s basename leg: it inverts
+    :data:`_MISSION_FILE_KIND_BY_BASENAME` -- the SAME classifier that resolves the
+    artifact home -- so a caller that needs "which files belong to this kind"
+    never restates a ``issue-matrix.{json,md}`` style literal that can drift out
+    of sync with the classifier. Directory-anchored kinds (``tasks/``,
+    ``traces/``, ...) have no basename entry and yield an empty set.
+    """
+    return frozenset(name for name, mapped in _MISSION_FILE_KIND_BY_BASENAME.items() if mapped is kind)
+
+
 def _artifact_kind_for_path(
     path: str | Path,
     *,

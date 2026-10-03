@@ -33,7 +33,7 @@ from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
-from specify_cli.status.locking import FeatureStatusLockTimeoutError
+from specify_cli.status import FeatureStatusLockTimeoutError
 import contextlib
 import json
 import subprocess

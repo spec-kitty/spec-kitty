@@ -12,7 +12,7 @@
 @dataclass(frozen=True)
 class WriteLocation:
     path: Path
-    checkout_root: Path                   # root of the checkout holding `path`: the coordination worktree root,
+    surface_root: Path                    # root of the checkout holding `path`: the coordination worktree root,
                                           # or the repository root checkout; consumers never guess `.parent.parent`
     surface: Literal["primary", "coordination"]
     coord_state_before: CoordState | None
@@ -34,7 +34,7 @@ class PlacementSeam:
 |------|--------|
 | `kind` is a PRIMARY-partition kind | `surface="primary"`, `path` = the declared PRIMARY dir (identical to `read_dir(kind)` today), `establishment=NONE`. No side effects. |
 | COORD kind, topology `lanes` or `single_branch` | the PRIMARY dir, as today (C-008). No side effects. |
-| E2-eligible COORD kind (`REVIEW_CYCLE`, `TRACER_FILE`, `ISSUE_MATRIX`, `ACCEPTANCE_MATRIX`) of a **PUBLISHED** (post-consolidation) Mission (`resolution.py:191-199`, E2 short-circuit L1961-1963) | `surface="primary"`, the PRIMARY Mission dir, `checkout_root` = the repository root checkout, `establishment=NONE`. This is checked **before** any coordination probe, so it never raises `CoordinationBranchDeleted` and never writes into a torn-down worktree (D23). |
+| E2-eligible COORD kind (`REVIEW_CYCLE`, `TRACER_FILE`, `ISSUE_MATRIX`, `ACCEPTANCE_MATRIX`) of a **PUBLISHED** (post-consolidation) Mission (`resolution.py:191-199`, E2 short-circuit L1961-1963) | `surface="primary"`, the PRIMARY Mission dir, `surface_root` = the repository root checkout, `establishment=NONE`. This is checked **before** any coordination probe, so it never raises `CoordinationBranchDeleted` and never writes into a torn-down worktree (D23). |
 | COORD kind, coordination-routed, state `MATERIALIZED` | the coordination Mission dir. No side effects **unless a seed commit is pending**: a seed commit is **pending** iff the coordination branch history has no `Spec-Kitty-Coordination-Seed: <mission_id>` trailer **and** the coordination tip has no COORD-kind blob under the Mission dir, i.e. the Mission dir is wholly untracked, which only a refused seed leaves. A never-seeded pre-fix MATERIALIZED Mission (#5519 shape) has committed COORD blobs at the tip, so it never matches. When it is pending, the next seed attempt re-commits the dir with the trailer before the write (contracts/seed.md). |
 | COORD kind, coordination-routed, state `UNMATERIALIZED` with a local branch (whether or not the branch already carries artifacts of this kind; D22) | the worktree is materialized via `CoordinationWorkspace.resolve`; then the `MATERIALIZED` or `EMPTY` row applies |
 | COORD kind, coordination-routed, state `EMPTY`, **no** seed marker on the coordination branch (pre-fix Mission, D4) | seeded (`contracts/seed.md`); `establishment=SEEDED` |

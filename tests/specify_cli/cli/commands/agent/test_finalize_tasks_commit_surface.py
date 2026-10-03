@@ -56,9 +56,7 @@ PROTECTED_REFUSAL = "Refusing to commit planning artifacts to the protected bran
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
-    )
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
 def _set_origin_head_main(repo: Path) -> None:
@@ -131,12 +129,9 @@ def test_finalize_tasks_index_placement_resolves_target_branch(coord_repo: Path)
     RED on the unfixed resolver (placement.ref == 'main'); GREEN after re-pointing
     ``get_feature_target_branch`` onto the primary surface (placement.ref == feat/...).
     """
-    placement = resolve_placement_only(
-        coord_repo, MISSION_DIRNAME, kind=MissionArtifactKind.TASKS_INDEX
-    )
+    placement = resolve_placement_only(coord_repo, MISSION_DIRNAME, kind=MissionArtifactKind.TASKS_INDEX)
     assert placement.ref == TARGET, (
-        "the finalize-tasks TASKS_INDEX commit must resolve the mission's "
-        f"target_branch, not the protected repo primary (got {placement.ref!r})"
+        f"the finalize-tasks TASKS_INDEX commit must resolve the mission's target_branch, not the protected repo primary (got {placement.ref!r})"
     )
 
 
@@ -164,17 +159,10 @@ def test_finalize_tasks_commit_lands_on_target_not_refused(coord_repo: Path) -> 
     )
 
     # The commit must NOT be refused with the protected-main diagnostic.
-    assert not (
-        result.diagnostic and PROTECTED_REFUSAL in result.diagnostic
-    ), f"finalize-tasks commit was refused on protected main: {result.diagnostic!r}"
+    assert not (result.diagnostic and PROTECTED_REFUSAL in result.diagnostic), f"finalize-tasks commit was refused on protected main: {result.diagnostic!r}"
     # The placement landed on the mission's target_branch (not protected main).
-    assert result.placement_ref == TARGET, (
-        f"finalize-tasks commit landed on {result.placement_ref!r}, expected {TARGET!r}"
-    )
-    assert result.status == "committed", (
-        f"expected a real commit on {TARGET}, got status={result.status!r} "
-        f"diagnostic={result.diagnostic!r}"
-    )
+    assert result.placement_ref == TARGET, f"finalize-tasks commit landed on {result.placement_ref!r}, expected {TARGET!r}"
+    assert result.status == "committed", f"expected a real commit on {TARGET}, got status={result.status!r} diagnostic={result.diagnostic!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -690,8 +678,7 @@ def test_finalize_warns_and_keeps_pin_when_recorded_sha_is_indeterminate(tmp_pat
     )
     refresh = success.get("planning_commit_refresh")
     assert refresh is not None and refresh.get("status") == "kept_with_warning", (
-        f"planning_commit_refresh must report 'kept_with_warning' for an INDETERMINATE pin, "
-        f"never a silent 'preserved'; got {refresh!r}"
+        f"planning_commit_refresh must report 'kept_with_warning' for an INDETERMINATE pin, never a silent 'preserved'; got {refresh!r}"
     )
     assert refresh.get("pin_class") == "indeterminate", f"planning_commit_refresh.pin_class must report 'indeterminate'; got {refresh!r}"
     assert refresh.get("reason") == "indeterminate_tip_uncapturable", f"an INDETERMINATE kept_with_warning must name its own reason; got {refresh!r}"
@@ -793,8 +780,8 @@ def test_coord_candidate_dirt_skips_a_kind_directory_with_no_files(tmp_path: Pat
 
     def _fake_write_dir(kind: MissionArtifactKind) -> WriteLocation:
         if kind is MissionArtifactKind.STATUS_STATE:
-            return WriteLocation(path=dirty_dir, checkout_root=dirty_dir, surface=TopologySurface.COORD, coord_state_before=None, establishment=Establishment.NONE)
-        return WriteLocation(path=empty_dir, checkout_root=empty_dir, surface=TopologySurface.COORD, coord_state_before=None, establishment=Establishment.NONE)
+            return WriteLocation(path=dirty_dir, surface_root=dirty_dir, surface=TopologySurface.COORD, coord_state_before=None, establishment=Establishment.NONE)
+        return WriteLocation(path=empty_dir, surface_root=empty_dir, surface=TopologySurface.COORD, coord_state_before=None, establishment=Establishment.NONE)
 
     mock_seam = MagicMock()
     mock_seam.write_dir.side_effect = _fake_write_dir
@@ -804,6 +791,50 @@ def test_coord_candidate_dirt_skips_a_kind_directory_with_no_files(tmp_path: Pat
 
     assert result.is_dirty is True
     assert dirty_dir / "status.events.jsonl" in result.files
+
+
+def test_coord_candidate_filenames_derive_from_the_artifact_classifier() -> None:
+    """The three finalize COORD kinds list every basename the classifier maps to them.
+
+    ``ISSUE_MATRIX`` carries BOTH the structured ``issue-matrix.json`` and the
+    failover-read ``issue-matrix.md``; a hand-written map listed only the former.
+    """
+    from specify_cli.cli.commands.agent.mission_finalize import _COORD_CANDIDATE_KINDS, _coord_candidate_filenames
+
+    assert set(_COORD_CANDIDATE_KINDS) == {
+        MissionArtifactKind.STATUS_STATE,
+        MissionArtifactKind.ISSUE_MATRIX,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+    }
+    assert _coord_candidate_filenames(MissionArtifactKind.STATUS_STATE) == ("status.events.jsonl", "status.json")
+    assert _coord_candidate_filenames(MissionArtifactKind.ISSUE_MATRIX) == ("issue-matrix.json", "issue-matrix.md")
+    assert _coord_candidate_filenames(MissionArtifactKind.ACCEPTANCE_MATRIX) == ("acceptance-matrix.json",)
+
+
+def test_coord_candidate_dirt_sees_a_mission_still_on_issue_matrix_md(tmp_path: Path) -> None:
+    """A mission that has not migrated off ``issue-matrix.md`` is visible to the COORD dirt probe."""
+    from mission_runtime import Establishment, TopologySurface, WriteLocation
+    from specify_cli.cli.commands.agent.mission_finalize import _coord_candidate_dirt
+
+    matrix_dir = tmp_path / "issue-matrix-kind-dir"
+    matrix_dir.mkdir()
+    (matrix_dir / "issue-matrix.md").write_text("| issue | verdict |\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=matrix_dir, check=True, capture_output=True)
+    empty_dir = tmp_path / "other-kind-dir"
+    empty_dir.mkdir()
+
+    def _fake_write_dir(kind: MissionArtifactKind) -> WriteLocation:
+        directory = matrix_dir if kind is MissionArtifactKind.ISSUE_MATRIX else empty_dir
+        return WriteLocation(path=directory, surface_root=directory, surface=TopologySurface.COORD, coord_state_before=None, establishment=Establishment.NONE)
+
+    mock_seam = MagicMock()
+    mock_seam.write_dir.side_effect = _fake_write_dir
+
+    with patch("mission_runtime.placement_seam", return_value=mock_seam):
+        result = _coord_candidate_dirt(tmp_path, "fixture-mission", owned=None)
+
+    assert result.files == [matrix_dir / "issue-matrix.md"]
+    assert result.is_dirty is True
 
 
 def test_apply_finalize_commit_router_result_text_mode_renders_surfaces_on_unchanged(
@@ -893,9 +924,7 @@ def test_finalize_fails_closed_on_remote_only_coordination_branch(tmp_path: Path
 
     emitted = _run_real_finalize(monkeypatch, coord)
 
-    assert not any(payload.get("result") == "success" for payload in emitted), (
-        f"a remote-only coordination branch must never report success; emitted={emitted}"
-    )
+    assert not any(payload.get("result") == "success" for payload in emitted), f"a remote-only coordination branch must never report success; emitted={emitted}"
     errors = _errors(emitted)
     assert errors, f"a remote-only coordination branch must emit a clean error, not a silent swallow; emitted={emitted}"
     assert _LAST_FINALIZE_EXIT_CODE and _LAST_FINALIZE_EXIT_CODE[-1] != 0, "the refusal must exit non-zero"
@@ -916,9 +945,7 @@ def test_finalize_fails_closed_on_coord_seed_fork_refused(tmp_path: Path, monkey
 
     emitted = _run_real_finalize(monkeypatch, fork)
 
-    assert not any(payload.get("result") == "success" for payload in emitted), (
-        f"a genuine fork must never report success; emitted={emitted}"
-    )
+    assert not any(payload.get("result") == "success" for payload in emitted), f"a genuine fork must never report success; emitted={emitted}"
     assert _errors(emitted), f"a genuine fork must emit a clean error, not a silent swallow; emitted={emitted}"
     assert _LAST_FINALIZE_EXIT_CODE and _LAST_FINALIZE_EXIT_CODE[-1] != 0, "the refusal must exit non-zero"
 
@@ -934,9 +961,7 @@ def test_finalize_fails_closed_on_coord_seed_fork_refused(tmp_path: Path, monkey
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-007b, direct unit coverage: with every root PRIMARY candidate
     committed (clean), and ONLY the coordination copy dirty,
     ``has_relevant_changes`` must still be ``True``.
@@ -978,9 +1003,7 @@ def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root
         mission_slug=coord.mission_dir_name,
         owned=None,
     )
-    assert candidates.has_relevant_changes is True, (
-        "coordination-only dirt (root fully clean) must still be reported as a relevant change (FR-007b)"
-    )
+    assert candidates.has_relevant_changes is True, "coordination-only dirt (root fully clean) must still be reported as a relevant change (FR-007b)"
 
     # Reproduce the M3 mutation's effect directly: if the coordination-dirt
     # leg were dropped from has_relevant_changes, a fully-clean root would
@@ -1006,9 +1029,7 @@ def test_resolve_finalize_commit_candidates_sees_coord_only_dirt_with_clean_root
 # ---------------------------------------------------------------------------
 
 
-def test_finalize_never_lets_a_stale_root_acceptance_matrix_overwrite_the_coord_copy(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_finalize_never_lets_a_stale_root_acceptance_matrix_overwrite_the_coord_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A stale, divergent root-checkout copy of ``acceptance-matrix.json``
     (planted directly, simulating residue from before this WP) must never be
     staged into finalize's combined commit -- the owning coordination copy
@@ -1032,9 +1053,7 @@ def test_finalize_never_lets_a_stale_root_acceptance_matrix_overwrite_the_coord_
     success = _success_payload(emitted)
     assert success.get("result") == "success", f"payload={emitted}"
 
-    assert coord_matrix.read_text(encoding="utf-8") == owning_content_before, (
-        "the stale root copy must never overwrite the owning coordination copy"
-    )
+    assert coord_matrix.read_text(encoding="utf-8") == owning_content_before, "the stale root copy must never overwrite the owning coordination copy"
     # The stale root copy is finalize's OWN scope concern no further than
     # "never staged" -- it is left on disk, untouched, for WP21's SC-001
     # residue sweep to handle.

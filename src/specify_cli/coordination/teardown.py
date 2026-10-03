@@ -272,6 +272,7 @@ def teardown_coordination_topology(
     persist: bool = True,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
     projection_gate: ProjectionTeardownGate | None = None,
+    check_ledger: bool = True,
 ) -> bool:
     """Persist the retrospective, then destroy the coordination worktree.
 
@@ -310,6 +311,14 @@ def teardown_coordination_topology(
             persist/destroy; a failing gate raises :class:`ProjectionTeardownAbort`
             and mutates nothing. ``None`` (the default) preserves the ungated
             behavior for callers that do not run the reconciliation seam.
+        check_ledger: When ``True`` (the default), refuse teardown while the
+            decisions ledger exists only on the coordination branch
+            (``COORDINATION_LEDGER_UNREPAIRED``). ``False`` skips that guard and
+            is reserved for the two create-time rollback callers
+            (``_rollback_coordination_surface`` and
+            ``_teardown_coordination_worktree_if_present``), which discard a
+            coordination surface this very create owns; ``mission close
+            --discard`` and ``consolidate --abort`` keep the default.
 
     Returns:
         ``True`` when the destroy leg succeeded (or no-op'd cleanly), ``False``
@@ -325,7 +334,7 @@ def teardown_coordination_topology(
         unexpected persist-machinery error surfaces to the caller rather than
         being silently absorbed as "teardown was best-effort".
     """
-    if mid8:
+    if mid8 and check_ledger:
         # WP17 (FR-009c): checked FIRST, before the projection gate and
         # before persist/destroy — a refusal here (like every
         # ProjectionTeardownAbort) mutates nothing. ``mid8`` empty means the

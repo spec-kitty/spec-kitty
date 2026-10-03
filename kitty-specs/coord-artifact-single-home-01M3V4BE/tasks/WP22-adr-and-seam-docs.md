@@ -22,14 +22,14 @@ agent_profile: curator-carla
 agent: claude
 authoritative_surface: docs/
 create_intent:
-- docs/adr/4.x/2026-10-01-2-decision-ledger-primary-partition.md
+- docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md
 execution_mode: planning_artifact
 model: claude-sonnet-5
 owned_files:
 - docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md
 - docs/adr/3.x/2026-09-24-2-coord-read-fail-closed.md
 - docs/architecture/artifact-placement-seam.md
-- docs/adr/4.x/2026-10-01-2-decision-ledger-primary-partition.md
+- docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md
 - docs/adr/4.x/index.md
 - docs/api/cli-commands.md
 - docs/api/agent-subcommands.md
@@ -256,7 +256,7 @@ Done means:
 
 > These corrections are binding and **override any conflicting text earlier in this prompt**. Source: `analysis-report.md` and the brownfield scout notes (pointer in Context & Constraints). Operator decisions are quoted where they apply.
 
-- **C5 (analyze)**: write a short, dedicated **4.x ADR**, `docs/adr/4.x/2026-10-01-2-decision-ledger-primary-partition.md`, for the decision-ledger partition reversal (the #3928 intent reversed: the ledger is PRIMARY, events stay COORD, the index merge driver, the doctor repair, the teardown refusal).
+- **C5 (analyze)**: write a short, dedicated **4.x ADR**, `docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md`, for the decision-ledger partition reversal (the #3928 intent reversed: the ledger is PRIMARY, events stay COORD, the index merge driver, the doctor repair, the teardown refusal).
   - Register it with `python -m scripts.docs.freshen_adr_inventory docs/adr/4.x/<adr>.md`, which updates `docs/adr/4.x/index.md` (now owned).
   - If 2026-10-01-2 is taken when you write it, use the next free N and ask the orchestrator to update owned_files.
   - ADR 2026-06-19-1's amendment links to this ADR instead of hosting the reversal.
@@ -359,7 +359,7 @@ Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-ta
 - 2026-10-02T19:10:48Z – curator-carla – Implemented T115-T118 in commit 7c5b337cc0. Tests (named files, repo root, .venv): 262 passed. Wider tests/docs run: 1726 passed, 2 skipped, 1 failed (tests/docs/test_docs_query_cli.py::test_human_table_renders_with_no_rich_markup_leak, pre-existing: fails identically with the changes stashed). FR-017 anchor list (checkable evidence, review-only):
   - docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md: heading "## Amendment (2026-10-01 — mission `coord-artifact-single-home-01M3V4BE`)" above the 2026-06-21 amendment; subsections "Status of this amendment", "Amended decision: writes never substitute the repository root checkout", "Per-state write behaviour" (table), "Read side (unchanged, C-002)", "Create", "Other writers", "Enforcement" (honest bound), "Decision ledger".
   - docs/adr/3.x/2026-09-24-2-coord-read-fail-closed.md: Consequences bullet "The write side is governed separately (amended 2026-10-01)"; Context note on DECISION_LEDGER reclassification.
-  - docs/adr/4.x/2026-10-01-2-decision-ledger-primary-partition.md (new, registered in docs/adr/4.x/index.md and docs/development/page-inventory.yaml).
+  - docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md (new, registered in docs/adr/4.x/index.md and docs/development/page-inventory.yaml).
   - docs/architecture/artifact-placement-seam.md: "### The write location (write_dir)"; "### Worked example: `DECISION_LEDGER` moved COORD to PRIMARY (2026-10-01)" with the "Coordination residue note"; Honest bounds "The write-side rederivation gate has a blind spot, and its cap is zero" and the re-measured 14 + 9 = 23 bypass table; "Current state (2026-10-02)" under #3055; all path:line citations re-derived on lane-q 1404842433; updated: '2026-10-02'.
   - docs/api/cli-commands.md "## Coordination-routed Missions: where writes land" (spec-commit, accept, consolidate vs --dry-run asymmetry, materialize, create, doctor decisions fork report, fresh clone, merge driver); docs/api/agent-subcommands.md "## Coordination-routed Missions: where agent writes land"; docs/api/finalize-tasks-internals.md "## 4. Automatic planning-pin refresh and `planning_commit_refresh`". Both generated pages edited outside BEGIN/END GENERATED markers.
   - Deviations: ADR descriptions shortened to the 180-char gate (the "append" instruction could not fit); page-inventory.yaml changed by freshen_adr_inventory (outside owned_files).

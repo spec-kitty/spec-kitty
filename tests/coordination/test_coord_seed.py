@@ -559,6 +559,12 @@ def test_refused_seed_commit_then_retried(tmp_path: Path, monkeypatch: pytest.Mo
     from specify_cli.coordination import coord_seed as cs
 
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    root_log = coord.root_mission_dir / _STATUS_LOG
+    root_bytes = root_log.read_bytes()
+    # An untracked COORD record in the root checkout: carried by the first attempt,
+    # its root copy must survive the refusal and go once a retry commits it.
+    untracked_path = coord.root_mission_dir / "issue-matrix.json"
+    untracked_path.write_text('{"rows": []}\n', encoding="utf-8")
     real_commit_seed = cs._commit_seed
     monkeypatch.setattr(cs, "_commit_seed", lambda req, paths: _RefusedCommit())
 
@@ -571,18 +577,55 @@ def test_refused_seed_commit_then_retried(tmp_path: Path, monkeypatch: pytest.Mo
     assert any("not applied" in record.message for record in caplog.records)
     assert probe_coord_state(coord.repo_root, coord.mission_dir_name, coord.mid8, coordination_branch=coord.coordination_branch) is CoordState.MATERIALIZED
     assert not _trailer_mission_ids(coord)
+    # Between the refusal and the retry the root copy is still there, untouched.
+    assert first.seed.restored_root == ()
+    assert root_log.read_bytes() == root_bytes
+    assert untracked_path.exists()
 
     monkeypatch.setattr(cs, "_commit_seed", real_commit_seed)
     second = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
     assert second.seed is not None
     assert second.seed.coord_commit is not None
     assert _trailer_mission_ids(coord)
+    # The retry carried nothing, yet its successful commit restores the root copy.
+    assert second.seed.carried == ()
+    assert second.seed.restored_root, "a successful retry must restore the root copies it just committed"
+    assert not untracked_path.exists()
+    assert root_log.read_bytes() == root_bytes, "a tracked, clean root copy is left untouched (C-004)"
 
     before = subprocess.run(["git", "-C", str(coord.repo_root), "rev-parse", coord.coordination_branch], capture_output=True, text=True, check=True).stdout
     third = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
     after = subprocess.run(["git", "-C", str(coord.repo_root), "rev-parse", coord.coordination_branch], capture_output=True, text=True, check=True).stdout
     assert before == after
     assert third.seed is None
+
+
+def test_refused_seed_commit_keeps_the_root_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A refused seed commit leaves the root copies in place.
+
+    The coordination copy is then untracked content in the coordination worktree,
+    the ONLY durable-looking copy of the carried records; unlinking the root
+    copies too would leave a later create rollback ``rmtree``-ing the sole copy.
+    """
+    from specify_cli.coordination import coord_seed as cs
+
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
+    root_log = coord.root_mission_dir / _STATUS_LOG
+    root_bytes = root_log.read_bytes()
+    untracked_path = coord.root_mission_dir / "issue-matrix.json"
+    untracked_path.write_text('{"rows": []}\n', encoding="utf-8")
+    monkeypatch.setattr(cs, "_commit_seed", lambda req, paths: _RefusedCommit())
+
+    location = establish_coord_write_location(coord.repo_root, coord.mission_dir_name, MissionArtifactKind.STATUS_STATE, owned=None)
+
+    assert location.seed is not None
+    assert location.seed.carried, "fixture invariant: the seed carried records out of the root checkout"
+    assert location.seed.coord_commit is None
+    assert location.seed.restored_root == ()
+    assert location.seed.warnings
+    assert root_log.read_bytes() == root_bytes
+    assert untracked_path.exists()
+    assert (location.path / _STATUS_LOG).exists()
 
 
 @pytest.mark.parametrize("show_untracked_files", ["all", "no", "normal"])
@@ -852,7 +895,13 @@ def test_owned_empty_pre_fix_seed_restores_against_owned_root_not_repository_roo
     assert repo_root_status_after == repo_root_status_before
 
 
-def test_owned_empty_pre_fix_seed_restores_dirty_root_copy_against_owned_root(tmp_path: Path) -> None:
+class _CommittedSeedCommit:
+    status = "committed"
+    reason = None
+    commit_hash = "0" * 40
+
+
+def test_owned_empty_pre_fix_seed_restores_dirty_root_copy_against_owned_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Review cycle 1 N4: the sibling clean-root test above never actually
     exercises ``_restore_root_files``'s ``git checkout --`` branch (the
     "dirty" status arm) -- a clean root copy takes the no-op "clean" arm
@@ -861,7 +910,15 @@ def test_owned_empty_pre_fix_seed_restores_dirty_root_copy_against_owned_root(tm
     it to ``"dirty"`` and the restore genuinely runs ``git checkout -- <path>``
     against ``owned_root`` -- never against ``coord.repo_root`` (same B4
     anchor-on-owned-root fix, now proven against the genuinely-dirty arm).
+
+    The seed commit is stubbed as committed: the root restore only runs once the
+    coordination copy is durable, and this fixture's real owned commit is
+    refused (which would otherwise keep the root copy, see
+    ``test_refused_seed_commit_keeps_the_root_copy``).
     """
+    from specify_cli.coordination import coord_seed as cs
+
+    monkeypatch.setattr(cs, "_commit_seed", lambda req, paths: _CommittedSeedCommit())
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
     owned_root = tmp_path / "owned-checkout"
     subprocess.run(["git", "-C", str(coord.repo_root), "checkout", "--detach", "-q"], check=True, capture_output=True)

@@ -175,7 +175,7 @@ from specify_cli.consolidation.state import (
 )
 from specify_cli.consolidation.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.status.locking import FeatureStatusLockTimeoutError
+from specify_cli.status import FeatureStatusLockTimeoutError
 from mission_runtime import (
     ActionContextError,
     MissionArtifactKind,

@@ -161,13 +161,13 @@ def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
     """Resolve the PRIMARY-partition dir holding the decision ledger content.
 
     #4966 AC-D2 (WP03 residual): must resolve the SAME dir
-    ``decisions/service.py::_ledger_dir`` resolves (the ``PRIMARY_METADATA``
+    ``decisions/service.py::_ledger_dir`` resolves (the ``DECISION_LEDGER``
     kind), so this reconciler's repair target AND its sidecar lock path
     (:func:`_decisions_lock_path`) stay in lockstep with the forward write
     path — a concurrent open/resolve cannot race a repair only if both sides
     serialize against the SAME ``index.json.lock``.
     """
-    ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.DECISION_LEDGER)
     return ledger_dir
 
 
@@ -429,7 +429,7 @@ def _diagnose(
     """Diagnose log/index divergence.
 
     ``events_dir`` (COORD/``STATUS_STATE``) and ``ledger_dir`` (PRIMARY/
-    ``PRIMARY_METADATA``) are resolved separately (#4966 AC-D2) -- the event
+    ``DECISION_LEDGER``) are resolved separately (#4966 AC-D2) -- the event
     log and the ledger content no longer share one directory.
 
     #4919: beyond the id-set comparison (missing/orphaned),

@@ -119,7 +119,7 @@ _PRE_WRITE_DIR_ADOPTED_MODULES: tuple[Path, ...] = (
 #: path" -- ``test_no_worktree_name_guess.py`` explicitly excludes that class
 #: (``.path.parent.parent``, deferred to #2007), so the scan scope is widened
 #: HERE, to the ``write_dir`` consumers, rather than there. Use
-#: ``WriteLocation.checkout_root`` instead of a ``.parent.parent`` walk.
+#: ``WriteLocation.surface_root`` instead of a ``.parent.parent`` walk.
 #:
 #: ``src/runtime/next/runtime_bridge.py`` lives outside ``_SRC`` (it is under
 #: ``src/runtime``), so every path here is spelled from ``_REPO_ROOT``.
@@ -1352,6 +1352,7 @@ _COORD_WRITER_CENSUS: tuple[tuple[str, str], ...] = (
     ("src/specify_cli/coordination/status_transition.py", "_resolve_fallback_coord_worktree"),
     ("src/specify_cli/coordination/status_transition.py", "_emit_on_coord_then_commit"),
     ("src/specify_cli/coordination/transaction.py", "BookkeepingTransaction._acquire_locked"),
+    ("src/specify_cli/coordination/transaction.py", "BookkeepingTransaction.preflight_refusal"),
     ("src/runtime/next/runtime_bridge.py", "_wrap_with_decision_git_log"),
     ("src/specify_cli/cli/commands/accept.py", "_coord_status_feature_dir"),
     ("src/specify_cli/cli/commands/retrospect.py", "_canonical_events_write_path"),
@@ -1672,7 +1673,7 @@ def test_coord_writers_do_not_derive_write_location_from_read_resolver() -> None
         "(FR-014 / contracts/write-location-accessor.md: read_dir is never a write "
         "location for a COORD kind). Route the write through "
         "placement_seam(...).write_dir(kind) and use WriteLocation.path / "
-        ".checkout_root. Offenders:\n" + "\n".join(finding.describe() for finding in offenders)
+        ".surface_root. Offenders:\n" + "\n".join(finding.describe() for finding in offenders)
     )
 
 
@@ -2000,11 +2001,11 @@ def test_root_walk_scope_keeps_the_retired_checkout_allowlist_frozen() -> None:
     ],
 )
 def test_root_walk_bites_on_parent_parent_from_a_write_location(planted: str) -> None:
-    """Guessing the checkout root from a ``WriteLocation`` path REDS; ``checkout_root`` does not."""
+    """Guessing the checkout root from a ``WriteLocation`` path REDS; ``surface_root`` does not."""
     source = f"def _synthetic_writer(seam):\n{planted}    return root\n"
     assert "root_walk" in {finding.kind for finding in _scan_source(source, _SRC / "decisions" / "emit.py")}
 
 
 def test_root_walk_does_not_flag_the_checkout_root_accessor() -> None:
-    source = "def _synthetic_writer(seam):\n    return seam.write_dir(MissionArtifactKind.STATUS_STATE).checkout_root\n"
+    source = "def _synthetic_writer(seam):\n    return seam.write_dir(MissionArtifactKind.STATUS_STATE).surface_root\n"
     assert _scan_source(source, _SRC / "decisions" / "emit.py") == []

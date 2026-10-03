@@ -88,6 +88,19 @@ def _write_wp(feature_dir: Path, *, wp_slug: str = _WP_SLUG, subtasks: tuple[str
     return wp_path
 
 
+def _unmaterialize_coord_worktree(repo: Path, mission_slug: str, mid8: str) -> Path:
+    """Drop the worktree create seeded, keeping its branch (UNMATERIALIZED).
+
+    Create now materializes the coordination surface eagerly. Scenarios that
+    still need a never-checked-out local head establish that state explicitly.
+    """
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)
+    assert coord_worktree.exists(), "create seeds the coordination worktree"
+    _git(repo, "worktree", "remove", "--force", str(coord_worktree))
+    assert not coord_worktree.exists()
+    return coord_worktree
+
+
 def _seed_in_review(repo: Path, mission_slug: str, status_dir: Path) -> None:
     request = TransitionRequest(
         feature_dir=status_dir,
@@ -228,7 +241,11 @@ def test_mark_status_materializes_coordination_surface_via_the_write_accessor(
     ``ports.coord.feature_write_dir`` (the write-location accessor), not the
     read-oriented ``resolve_status_surface(...).parent`` -- so a pre-fix
     EMPTY coordination Mission is materialized/seeded by this writer instead
-    of silently appending to the PRIMARY checkout only."""
+    of silently appending to the PRIMARY checkout only.
+
+    Create seeds the worktree eagerly, so the unmaterialized local head is
+    engineered by removing that worktree before mark-status runs.
+    """
     repo = tmp_path / "repo"
     _init_repo(repo)
     created = make_mission(repo, "mark-status-write-dir", topology=MissionTopology.COORD, target_branch=_TARGET_BRANCH)
@@ -238,8 +255,7 @@ def test_mark_status_materializes_coordination_surface_via_the_write_accessor(
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "seed WP08 mark-status fixture")
 
-    coord_worktree = CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)
-    assert not coord_worktree.exists(), "fixture precondition: coordination surface starts un-materialized"
+    coord_worktree = _unmaterialize_coord_worktree(repo, mission_slug, mid8)
 
     args = ["tasks", "mark-status", "T001", "--status", "done", "--mission", mission_slug, "--json"]
     with chdir(repo):
@@ -381,9 +397,10 @@ def test_rejection_on_a_never_touched_coordination_surface_still_materializes_in
     ``_review_cycle_wp_dir`` resolver is indistinguishable from the fix
     (mutation-surviving per review-WP08.md B4's MU2 finding).
 
-    This drives :func:`create_rejected_review_cycle` directly as the FIRST
-    coordination write this Mission has ever seen -- nothing has touched the
-    coordination surface yet -- so only the write-side accessor's own
+    This drives :func:`create_rejected_review_cycle` as the first coordination
+    write after the surface is torn back down. Create seeds the worktree
+    eagerly, so the never-checked-out local head is engineered by removing
+    that worktree first. Only the write-side accessor's own
     materialize-on-write behavior can make the assertion below pass.
     """
     from specify_cli.review.cycle import create_rejected_review_cycle
@@ -398,8 +415,7 @@ def test_rejection_on_a_never_touched_coordination_surface_still_materializes_in
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "seed fresh-unmaterialized fixture")
 
-    coord_worktree = CoordinationWorkspace.worktree_path(repo, mission_slug, mid8)
-    assert not coord_worktree.exists(), "fixture precondition: coordination surface starts un-materialized"
+    coord_worktree = _unmaterialize_coord_worktree(repo, mission_slug, mid8)
     registered_before = {
         Path(line.removeprefix("worktree ")) for line in _git(repo, "worktree", "list", "--porcelain").stdout.splitlines() if line.startswith("worktree ")
     }

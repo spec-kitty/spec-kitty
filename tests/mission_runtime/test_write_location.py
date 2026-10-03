@@ -1,7 +1,8 @@
 """Value-object tests for the write-location accessor (mission coord-artifact-single-home-01M3V4BE, WP03 T012).
 
-``WriteLocation`` / ``Establishment`` / ``SeedReport`` are imported from the
-``mission_runtime`` package root only (MR-1/MR-2).
+``WriteLocation`` / ``Establishment`` / ``SeedReport`` are used through the
+``mission_runtime`` package root (MR-1/MR-2). The submodule is imported so
+the module stays reachable to the source-reachability guard.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+import mission_runtime.write_location
 from mission_runtime import Establishment, SeedReport, TopologySurface, WriteLocation
 
 
@@ -53,19 +55,19 @@ class TestSeedReport:
 class TestWriteLocation:
     def test_frozen(self) -> None:
         location = WriteLocation(
-            path=Path("/tmp/a"),
-            checkout_root=Path("/tmp"),
+            path=Path("/worktrees/fixture/a"),
+            surface_root=Path("/worktrees/fixture"),
             surface=TopologySurface.PRIMARY,
             coord_state_before=None,
             establishment=Establishment.NONE,
         )
         with pytest.raises(dataclasses.FrozenInstanceError):
-            location.path = Path("/tmp/b")  # type: ignore[misc]
+            location.path = Path("/worktrees/fixture/b")  # type: ignore[misc]
 
     def test_defaults_seed_none(self) -> None:
         location = WriteLocation(
-            path=Path("/tmp/a"),
-            checkout_root=Path("/tmp"),
+            path=Path("/worktrees/fixture/a"),
+            surface_root=Path("/worktrees/fixture"),
             surface=TopologySurface.PRIMARY,
             coord_state_before=None,
             establishment=Establishment.NONE,
@@ -73,27 +75,28 @@ class TestWriteLocation:
         assert location.seed is None
 
     def test_checkout_root_field_exists_and_is_kw_only(self) -> None:
-        """Post-tasks squad P-M3: ``checkout_root`` is a real field, added after a
+        """Post-tasks squad P-M3: ``surface_root`` is a real field, added after a
         defaulted ``seed`` field -- ``kw_only=True`` keeps that legal."""
         fields = {f.name for f in dataclasses.fields(WriteLocation)}
-        assert "checkout_root" in fields
+        assert "surface_root" in fields
         location = WriteLocation(
             path=Path("/worktrees/demo-coord/kitty-specs/demo-01ABCDEF"),
-            checkout_root=Path("/worktrees/demo-coord"),
+            surface_root=Path("/worktrees/demo-coord"),
             surface=TopologySurface.COORD,
             coord_state_before=None,
             establishment=Establishment.SEEDED,
             seed=SeedReport(carried=("status.events.jsonl",)),
         )
-        assert location.checkout_root == Path("/worktrees/demo-coord")
+        assert location.surface_root == Path("/worktrees/demo-coord")
+        assert WriteLocation is mission_runtime.write_location.WriteLocation
         assert location.seed is not None
         assert location.seed.carried == ("status.events.jsonl",)
 
     def test_surface_is_the_topology_surface_enum_not_a_literal_string(self) -> None:
         """Binding correction: prefer ``TopologySurface`` over ``Literal`` strings."""
         location = WriteLocation(
-            path=Path("/tmp/a"),
-            checkout_root=Path("/tmp"),
+            path=Path("/worktrees/fixture/a"),
+            surface_root=Path("/worktrees/fixture"),
             surface=TopologySurface.COORD,
             coord_state_before=None,
             establishment=Establishment.NONE,

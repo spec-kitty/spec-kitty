@@ -201,7 +201,7 @@ def test_wrap_refuses_when_write_dir_resolves_primary_under_coord_topology(tmp_p
     monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
     fake_location = WriteLocation(
         path=coord.repo_root / "kitty-specs" / coord.mission_dir_name,
-        checkout_root=coord.repo_root,
+        surface_root=coord.repo_root,
         surface=TopologySurface.PRIMARY,
         coord_state_before=None,
         establishment=Establishment.NONE,

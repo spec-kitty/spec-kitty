@@ -357,7 +357,7 @@ def _wrap_with_decision_git_log(
         # refuses loudly as the coordination state requires -- the ladder it
         # replaces only materialized an UNMATERIALIZED worktree and was
         # blind to a pre-fix EMPTY surface (the #5519 fork this WP fixes).
-        # ``worktree_root`` is taken from ``WriteLocation.checkout_root``
+        # ``worktree_root`` is taken from ``WriteLocation.surface_root``
         # (never ``.parent.parent`` or a naming-convention guess) and
         # ``mission_dir`` from ``.path``.
         #
@@ -394,7 +394,7 @@ def _wrap_with_decision_git_log(
                     "under a coordination-routed topology; refusing to wrap a DecisionGitLog on the "
                     "wrong surface."
                 )
-            worktree_root = location.checkout_root
+            worktree_root = location.surface_root
             mission_dir = location.path
         else:
             # Coord-less topology: decisions land on the primary checkout's

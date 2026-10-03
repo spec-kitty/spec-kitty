@@ -121,11 +121,12 @@ _PUBLIC_SURFACE = sorted(
         # bare ``RuntimeError``, same precedent as ``IssueMatrixRefReadError``
         # above.
         "TopologyManifestMismatch",
-        # coord-read-fail-closed landing (#5001): the basename->kind classifier
-        # map itself, re-exported so ``specify_cli.coordination.surface_resolver``
-        # can invert it (kind -> basenames) without reaching into the
-        # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
-        "_MISSION_FILE_KIND_BY_BASENAME",
+        # coord-read-fail-closed landing (#5001): the kind -> basenames inversion
+        # of the basename->kind classifier, so ``surface_resolver`` and finalize's
+        # COORD dirt probe derive file lists from the classifier without reaching
+        # into the ``mission_runtime.artifacts`` submodule (MR-1/MR-2) or keeping
+        # a second private copy of the inversion.
+        "mission_file_basenames_for_kind",
         "classify_topology",
         # single-branch-topology-honesty (#5100 FR-013 / #2602, squad N7): the
         # runtime reading of a mission with NO stored topology -- never a

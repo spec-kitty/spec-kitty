@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     # stay function-local imports at every actual call site (cold-import
     # discipline this module already follows for similar seams).
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
-    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
 from mission_runtime import ActionContextError
 
@@ -447,7 +447,7 @@ def cmd_open(  # noqa: PLR0913
         return  # unreachable — _handle_action_context_error raises
 
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
-    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
     try:
         resp = open_decision(
@@ -533,7 +533,7 @@ def cmd_resolve(  # noqa: PLR0913
         return  # unreachable — _handle_action_context_error raises
 
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
-    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
     try:
         resp = resolve_decision(
@@ -599,7 +599,7 @@ def cmd_defer(
         return  # unreachable — _handle_action_context_error raises
 
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
-    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
     try:
         resp = defer_decision(
@@ -663,7 +663,7 @@ def cmd_cancel(
         return  # unreachable — _handle_action_context_error raises
 
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
-    from specify_cli.status.locking import FeatureStatusLockTimeoutError
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
     try:
         resp = cancel_decision(
@@ -722,7 +722,7 @@ def cmd_verify(
     # ``plan.md`` docs this verifier cross-checks against it) lives in the
     # SAME PRIMARY-partition dir the write path (``open``/``resolve``/
     # ``defer``/``cancel`` in ``decisions/service.py``) already resolves via
-    # ``_ledger_dir`` (``PRIMARY_METADATA``, topology-blind). Previously this
+    # ``_ledger_dir`` (``DECISION_LEDGER``, a PRIMARY-partition kind). Previously this
     # read routed through ``resolve_handle_to_read_path``, which on a
     # MATERIALIZED status-only coord husk returns the COORD worktree — a
     # directory the ledger writer never touches — so ``verify`` silently

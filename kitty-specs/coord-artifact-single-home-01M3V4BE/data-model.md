@@ -40,7 +40,7 @@ Non-coordination Missions keep exactly today's ledger handling. Paths covered by
 ```text
 WriteLocation (frozen)
   path: Path                     absolute Mission directory to write <kind> files into
-  checkout_root: Path            root of the checkout holding `path` (coordination worktree root, or repository root checkout)
+  surface_root: Path             root of the checkout holding `path` (coordination worktree root, or repository root checkout)
   surface: "primary" | "coordination"
   coord_state_before: CoordState | None   None for PRIMARY kinds / non-coord topologies
   establishment: Establishment   NONE | MATERIALIZED | SEEDED | RESTORED_FROM_BRANCH

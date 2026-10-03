@@ -478,5 +478,6 @@ def _teardown_coordination_worktree_if_present(repo_root: Path, mission_slug: st
 
     mid8 = _seam_resolve_mid8("", mission_id=mission_id)
     with contextlib.suppress(Exception):
-        # The single shared teardown seam; a force-recreated mission persists no retrospective here.
-        teardown_coordination_topology(repo_root, mission_slug, mid8, persist=False)
+        # The single shared teardown seam; a force-recreated mission persists no retrospective here,
+        # and the surface being replaced is this create's own, so the ledger guard is skipped.
+        teardown_coordination_topology(repo_root, mission_slug, mid8, persist=False, check_ledger=False)

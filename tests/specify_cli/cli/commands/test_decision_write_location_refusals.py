@@ -92,7 +92,7 @@ def test_decision_open_renders_coord_seed_fork_refused() -> None:
 def _lock_timeout_error() -> FeatureStatusLockTimeoutError:
     return FeatureStatusLockTimeoutError(
         "mission status lock held by another process",
-        lock_path=Path("/tmp/fake.lock"),
+        lock_path=Path("/worktrees/fixture/fake.lock"),
         timeout=5.0,
         holder={"pid": 12345},
     )

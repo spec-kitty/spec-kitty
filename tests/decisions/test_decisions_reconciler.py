@@ -664,15 +664,15 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
     tmp_path: Path,
 ) -> None:
     """COORD-topology variant of the lockstep pin above (pre-PR squad
-    hardening fold): the flat fixture above resolves PRIMARY_METADATA and
+    hardening fold): the flat fixture above resolves DECISION_LEDGER and
     STATUS_STATE to the SAME directory (AC-D3), so it cannot distinguish a
-    correct ``_ledger_dir`` (PRIMARY_METADATA) from a REGRESSED one that
+    correct ``_ledger_dir`` (DECISION_LEDGER) from a REGRESSED one that
     reverts to routing through STATUS_STATE (the COORD partition) -- both
     copies would still "agree" with each other while silently agreeing on the
     WRONG dir.
 
     Mocks ``placement_seam`` to hand back genuinely DIFFERENT directories for
-    the two kinds (the coord-topology shape, ``PRIMARY_METADATA`` != COORD
+    the two kinds (the coord-topology shape, ``DECISION_LEDGER`` != COORD
     ``STATUS_STATE``) and asserts BOTH ``decisions/service.py::_ledger_dir``
     and ``cli/commands/_decisions_doctor.py::_ledger_dir`` land on the
     PRIMARY dir, identically to each other (and their sidecar
@@ -694,7 +694,7 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
     assert primary_dir != coord_dir, "fixture invariant: the two surfaces must be genuinely distinct dirs"
 
     def _fake_read_dir(kind: MissionArtifactKind) -> Path:
-        if kind is MissionArtifactKind.PRIMARY_METADATA:
+        if kind is MissionArtifactKind.DECISION_LEDGER:
             return primary_dir
         if kind is MissionArtifactKind.STATUS_STATE:
             return coord_dir
@@ -715,8 +715,8 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
     service_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
     doctor_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
 
-    assert service_ledger_dir == primary_dir, "service.py::_ledger_dir must resolve PRIMARY_METADATA under coord topology, not drift to STATUS_STATE"
-    assert doctor_ledger_dir == primary_dir, "_decisions_doctor.py::_ledger_dir must resolve PRIMARY_METADATA under coord topology, not drift to STATUS_STATE"
+    assert service_ledger_dir == primary_dir, "service.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"
+    assert doctor_ledger_dir == primary_dir, "_decisions_doctor.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"
     assert service_ledger_dir == doctor_ledger_dir, "service.py and _decisions_doctor.py disagree on the ledger dir under coord topology"
 
     service_lock_path = _service_mod._decisions_lock_path(service_ledger_dir)

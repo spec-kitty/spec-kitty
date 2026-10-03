@@ -118,20 +118,24 @@ def _initial_matrix() -> AcceptanceMatrix:
     )
 
 
-def _build_coord_mission(repo_root: Path) -> tuple[Path, Path]:
+def _build_coord_mission(repo_root: Path, *, primary_dir_name: str = _HANDLE) -> tuple[Path, Path]:
     """Build a real coord-topology mission with a materialised coord worktree.
 
     Returns ``(primary_feature_dir, coord_feature_dir)``. The coord worktree is
     a genuine ``git worktree`` (via the canonical
     :class:`CoordinationWorkspace`), checked out on its own coordination
     branch — mirroring production, not a stub.
+
+    ``primary_dir_name`` is the PRIMARY ``kitty-specs/<dir>`` name; the coord
+    mission dir is always the canonical ``<slug>-<mid8>``. They differ for a
+    backfilled mission whose primary dir carries no ``-<mid8>``.
     """
     _git(repo_root, "init", "-q", ".")
     _git(repo_root, "config", "user.email", "t@t")
     _git(repo_root, "config", "user.name", "t")
     _git(repo_root, "branch", "-M", "main")
 
-    primary_feature_dir = repo_root / "kitty-specs" / _HANDLE
+    primary_feature_dir = repo_root / "kitty-specs" / primary_dir_name
     coord_branch = CoordinationWorkspace.branch_name(_HANDLE, _MID8)
     _write_meta(primary_feature_dir, coordination_branch=coord_branch)
 
@@ -203,6 +207,41 @@ def test_dirty_scan_detects_coord_worktree_residue(tmp_path: Path) -> None:
     assert f"kitty-specs/{_HANDLE}/acceptance-matrix.json" in dirty, (
         "coord-worktree dirt (where write_acceptance_matrix actually writes under coord topology) was not detected — M2 gap"
     )
+
+
+def test_dirty_scan_uses_coord_mission_dir_when_primary_dir_has_no_mid8(tmp_path: Path) -> None:
+    """The coord dirt prefix comes from the COORDINATION mission dir, not the primary name.
+
+    A backfilled mission's primary directory is ``kitty-specs/<slug>`` (no
+    ``-<mid8>``) while its coordination directory is ``kitty-specs/<slug>-<mid8>``.
+    Pre-fix the scan filtered with ``kitty-specs/<slug>/``, matched nothing in the
+    coordination worktree, and the residual commit silently committed zero files.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _primary_feature_dir, coord_feature_dir = _build_coord_mission(repo_root, primary_dir_name=_SLUG)
+    assert coord_feature_dir.name == _HANDLE != _SLUG
+
+    write_acceptance_matrix(
+        coord_feature_dir,
+        AcceptanceMatrix(
+            mission_slug=_HANDLE,
+            criteria=[],
+            negative_invariants=[
+                NegativeInvariant(
+                    invariant_id="NI1",
+                    description="legacy symbol must be absent",
+                    verification_method="grep_absence",
+                    verification_command="ZZZ_PATTERN_THAT_NEVER_MATCHES_ZZZ",
+                    result="confirmed_absent",
+                )
+            ],
+        ),
+    )
+
+    dirty = _spec_artifact_dirty_paths(repo_root, _SLUG)
+
+    assert dirty == [f"kitty-specs/{_HANDLE}/acceptance-matrix.json"]
 
 
 def test_residual_commit_routes_matrix_to_coord_branch(tmp_path: Path) -> None:

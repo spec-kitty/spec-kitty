@@ -78,7 +78,7 @@ class WriteLocation:
     """Where a write of one :class:`~mission_runtime.MissionArtifactKind` must land.
 
     See ``contracts/write-location-accessor.md``. ``kw_only=True`` (binding
-    correction): a later field (``checkout_root``, post-tasks squad P-M3)
+    correction): a later field (``surface_root``, post-tasks squad P-M3)
     after a defaulted one (``seed``) would otherwise be a ``TypeError`` under
     plain positional dataclass field ordering.
     """
@@ -89,10 +89,14 @@ class WriteLocation:
     #: root for ``surface=COORD``, the repository-root checkout for
     #: ``surface=PRIMARY``. Consumers use this instead of deriving
     #: ``path.parent.parent`` (``test_no_write_side_rederivation.py``).
-    checkout_root: Path
+    surface_root: Path
     surface: TopologySurface
     #: ``None`` for PRIMARY-partition kinds / non-coordination topologies.
     coord_state_before: CoordState | None
     establishment: Establishment
-    #: Set only when ``establishment`` is ``SEEDED`` or ``RESTORED_FROM_BRANCH``.
+    #: Set whenever a seed actually ran -- ``establishment`` is then ``SEEDED``
+    #: or ``RESTORED_FROM_BRANCH``, but a seed that ran alongside a worktree
+    #: materialization (or one that carried nothing) can leave ``establishment``
+    #: at ``WORKTREE_MATERIALIZED`` or ``NONE`` with ``seed`` still populated.
+    #: ``None`` only when no seed ran.
     seed: SeedReport | None = None

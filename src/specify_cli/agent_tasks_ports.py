@@ -175,7 +175,14 @@ class CoordCommitRouter(Protocol):
     """
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
-        """The kind-blind coord-husk write leg (``resolve_feature_dir_for_mission``)."""
+        """The WRITE location of the mission dir for ``STATUS_STATE``.
+
+        Resolves through ``placement_seam(...).write_dir(STATUS_STATE)`` -- the
+        single write-location accessor, never a read resolver -- and returns its
+        ``.path``. On a coordination-routed mission that is the coordination
+        surface (materialized or seeded as needed); on ``lanes`` /
+        ``single_branch`` it is the PRIMARY dir.
+        """
         ...
 
     def commit_status(

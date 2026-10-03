@@ -7,12 +7,12 @@ coord-artifact-single-home-01M3V4BE WP11 (FR-009b / D13 / #5023) registers
 ``spec-kitty-decision-index`` for already-initialized (upgraded) consumer
 clones, the same way those migrations registered their own drivers.
 
-**``target_version`` equals the installed package version.** Unlike
-``m_3_2_7``'s documented mismatch (filename vs. ``target_version``, chosen
-because the installed package was a release candidate below the module's own
-number), this repository's installed ``pyproject.toml`` version IS
-``4.0.0rc5`` at the time this migration is authored, so ``target_version``
-is pinned to that exact string. ``spec-kitty upgrade`` /
+**``target_version`` is pinned at or below the installed package version.**
+Unlike ``m_3_2_7``'s documented mismatch (filename vs. ``target_version``,
+chosen because the installed package was a release candidate below the
+module's own number), ``target_version`` here is ``4.0.0rc5`` -- at or below
+the installed ``pyproject.toml`` version (currently ``4.0.0rc6``), so it never
+exceeds it. ``spec-kitty upgrade`` /
 ``test_discovered_migration_targets_do_not_exceed_package_version`` skip/flag
 any migration whose ``target_version`` exceeds the installed package
 version -- a project already AT ``4.0.0rc5`` therefore only gains this

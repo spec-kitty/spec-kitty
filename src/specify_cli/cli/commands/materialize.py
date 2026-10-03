@@ -20,9 +20,8 @@ from specify_cli.cli.json_contract import json_error
 from mission_runtime import ActionContextError
 from specify_cli.core.paths import locate_project_root
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
-from specify_cli.status.locking import FeatureStatusLockTimeoutError
+from specify_cli.status import FeatureStatusLockTimeoutError
 from kernel.clock import now_utc_iso
-
 
 
 # Write-location refusals a per-Mission resolution can raise (nothing is mutated):
@@ -180,11 +179,13 @@ def materialize(
             files_written.append("progress.json")
             generate_lifecycle_json(feature_dir, derived_dir)
             files_written.append("lifecycle.json")
-            processed.append({
-                "mission_slug": slug,
-                "files_written": files_written,
-                "timestamp": now_utc_iso(),
-            })
+            processed.append(
+                {
+                    "mission_slug": slug,
+                    "files_written": files_written,
+                    "timestamp": now_utc_iso(),
+                }
+            )
         except Exception as exc:  # noqa: BLE001 — per-mission derived-view failure must not abort the full materialize pass
             errors.append(f"{slug}: {exc}")
 

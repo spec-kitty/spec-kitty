@@ -304,18 +304,20 @@ def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
     ``STATUS_STATE`` (COORD), so a deferred->resolved decision's ledger
     CONTENT never reached the dir ``accept`` reads from on a materialised
     coord husk -- a split-brain that left ``accept`` permanently blocked on a
-    resolved clarification marker. Delegates to the SAME ``PRIMARY_METADATA``
-    resolution :func:`_resolve_mission_id` uses (both are
-    ``_PRIMARY_ARTIFACT_KINDS`` members resolving to the identical
-    ``kitty-specs/<mission_slug>/`` root), so identity read and ledger
-    content read now agree on ONE partition.
+    resolved clarification marker. Asks the seam for the ledger's OWN kind,
+    ``DECISION_LEDGER`` -- a ``_PRIMARY_ARTIFACT_KINDS`` member (the same
+    partition ``PRIMARY_METADATA``, which :func:`_resolve_mission_id` uses,
+    belongs to), resolving to the identical ``kitty-specs/<mission_slug>/``
+    root -- so identity read and ledger content read agree on ONE partition
+    while the ledger no longer borrows the metadata kind's name.
 
     ``cli/commands/_decisions_doctor.py`` carries a PARALLEL ``_ledger_dir``
     copy that MUST resolve to this SAME dir -- both lock against the same
     sidecar ``index.json.lock`` (see :func:`_decisions_lock_path`) so a
     concurrent open/resolve cannot race a repair.
     """
-    return _primary_metadata_dir(repo_root, mission_slug)
+    ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.DECISION_LEDGER)
+    return ledger_dir
 
 
 def _parse_opened_events(content: bytes | str) -> list[dict[str, Any]]:

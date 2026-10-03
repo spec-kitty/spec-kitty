@@ -287,7 +287,7 @@ def _resolve_fallback_coord_worktree(identity: _TransactionIdentity, mission_slu
         raise FallbackCoordWorktreeUnresolved(mission_slug=mission_slug, mid8=identity.mid8, cause=exc) from exc
     if location.surface is not TopologySurface.COORD:
         return None
-    return location.checkout_root
+    return location.surface_root
 
 
 def _canonical_coord_mission_slug(identity: _TransactionIdentity, mission_slug: str) -> str:

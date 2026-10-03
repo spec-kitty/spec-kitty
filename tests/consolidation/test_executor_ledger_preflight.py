@@ -89,6 +89,36 @@ def test_consolidation_preflight_refuses_coord_only_ledger(tmp_path: Path) -> No
     assert "--repair" in str(excinfo.value)
 
 
+def test_consolidation_preflight_refuses_when_the_ledger_probe_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unreadable ledger on an existing coordination ref refuses (the probe error propagates)."""
+    from kernel.git import GitCommandError
+    from specify_cli.decisions import fork
+    from specify_cli.decisions.fork import LedgerProbeError
+
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+
+    def _failing_tree_entry(*_args: object, **_kwargs: object) -> object:
+        raise GitCommandError(argv=("ls-tree",), cwd=Path("."), returncode=128, stderr="fatal: simulated ls-tree failure")
+
+    monkeypatch.setattr(fork, "tree_entry", _failing_tree_entry)
+
+    with pytest.raises(LedgerProbeError):
+        ex._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
+
+
+def test_consolidation_preflight_is_silent_for_a_missing_coordination_branch(tmp_path: Path) -> None:
+    """A coordination branch that no longer exists holds no ledger: nothing to refuse."""
+    import json
+
+    fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
+    meta_path = fixture.root_mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["coordination_branch"] = "kitty/mission-does-not-exist"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    ex._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
+
+
 def test_consolidation_preflight_control_unforked_mission_is_silent(tmp_path: Path) -> None:
     """Positive control: a Mission with no coordination-only ledger raises nothing."""
     fixture = make_fork_fixture(tmp_path, "both_committed", MissionTopology.COORD)

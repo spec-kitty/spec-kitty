@@ -66,7 +66,7 @@ def test_coord_stamp_leg_does_not_round_trip_through_git(monkeypatch: pytest.Mon
         def write_dir(self, kind: MissionArtifactKind) -> WriteLocation:
             return WriteLocation(
                 path=surfaces["coord"],
-                checkout_root=surfaces["coord"],
+                surface_root=surfaces["coord"],
                 surface=mission_runtime.TopologySurface.COORD,
                 coord_state_before=None,
                 establishment=mission_runtime.Establishment.NONE,
