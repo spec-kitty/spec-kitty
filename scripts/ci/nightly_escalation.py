@@ -54,7 +54,23 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any, Protocol, cast
+
+# Actions runs this script as a file (`python3 scripts/ci/nightly_escalation.py`),
+# and the tests load it by path. `scripts.ci` resolves only with the repo root
+# on the path. Resolve from this file, never the caller's cwd.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.ci.nightly_xunit import (  # noqa: E402
+    XunitRead,
+    issue_evidence,
+    read_xunit,
+    recurrence_evidence,
+    with_recorded_ids,
+)
 
 _API_ROOT = "https://api.github.com"
 _MARKER_TEMPLATE = "<!-- nightly-escalation-key: {key} -->"
@@ -111,9 +127,9 @@ def issue_title(suite_key: str) -> str:
     return _ISSUE_TITLE_TEMPLATE.format(key=suite_key)
 
 
-def issue_body(suite_key: str, run_url: str | None) -> str:
+def issue_body(suite_key: str, run_url: str | None, *, report: XunitRead | None = None) -> str:
     """Return the body for a freshly created escalation issue (carries the marker)."""
-    return (
+    body = (
         f"The nightly `{suite_key}` suite failed on {_run_reference(run_url)}.\n\n"
         "This issue was opened automatically by the nightly red -> P0 escalation "
         "(`scripts/ci/nightly_escalation.py`, FR-007). It is deduped by the hidden "
@@ -121,10 +137,20 @@ def issue_body(suite_key: str, run_url: str | None) -> str:
         "and the next green nightly for this suite closes it automatically.\n\n"
         f"{escalation_marker(suite_key)}\n"
     )
+    if report is None:
+        return body
+    marker = escalation_marker(suite_key)
+    body = body.replace(marker, issue_evidence(report) + marker, 1)
+    if report.problem is None:
+        return with_recorded_ids(body, [item.test_id for item in report.failures])
+    return body
 
 
-def _recurrence_comment(suite_key: str, run_url: str | None) -> str:
-    return f"The nightly `{suite_key}` suite failed again on {_run_reference(run_url)}."
+def _recurrence_comment(suite_key: str, run_url: str | None, *, report: XunitRead | None = None, previous_body: str = "") -> str:
+    text = f"The nightly `{suite_key}` suite failed again on {_run_reference(run_url)}."
+    if report is None:
+        return text
+    return text + recurrence_evidence(previous_body, report)
 
 
 def _recovery_comment(suite_key: str, run_url: str | None) -> str:
@@ -151,6 +177,8 @@ class IssueClient(Protocol):
     def set_milestone(self, number: int, milestone_number: int) -> dict[str, Any]: ...
 
     def add_sub_issue(self, parent_number: int, sub_issue_id: int) -> dict[str, Any]: ...
+
+    def update_issue_body(self, number: int, body: str) -> dict[str, Any]: ...
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +274,16 @@ def _triage_note(failed: list[str]) -> str:
     return f" (triage incomplete: {', '.join(failed)})" if failed else ""
 
 
+def _record_failure_ids(client: IssueClient, number: int, previous_body: str, report: XunitRead | None, warn: Callable[[str], None]) -> None:
+    """Store this run's failure ids on the issue so the next recurrence can diff them."""
+    if report is None or report.problem is not None:
+        return
+    try:
+        client.update_issue_body(number, with_recorded_ids(previous_body, [item.test_id for item in report.failures]))
+    except EscalationError as exc:
+        warn(f"issue #{number} was commented, but recording its failing tests failed: {exc}")
+
+
 def run_escalation(
     client: IssueClient,
     *,
@@ -253,6 +291,7 @@ def run_escalation(
     conclusion: str,
     ref: str | None,
     run_url: str | None = None,
+    report: XunitRead | None = None,
     warn: Callable[[str], None] = _emit_warning,
 ) -> str:
     """Apply the dedup/open/close policy for one suite; return a human summary.
@@ -273,12 +312,14 @@ def run_escalation(
     if conclusion == CONCLUSION_FAILURE:
         if existing is not None:
             number = int(existing["number"])
-            client.comment_on_issue(number, _recurrence_comment(suite_key, run_url))
+            previous = str(existing.get("body") or "")
+            client.comment_on_issue(number, _recurrence_comment(suite_key, run_url, report=report, previous_body=previous))
+            _record_failure_ids(client, number, previous, report, warn)
             failed = triage_issue(client, existing, warn=warn)
             return f"updated existing escalation issue #{number} for {suite_key!r}{_triage_note(failed)}"
         created = client.create_issue(
             title=issue_title(suite_key),
-            body=issue_body(suite_key, run_url),
+            body=issue_body(suite_key, run_url, report=report),
             labels=list(ESCALATION_LABELS),
         )
         failed = triage_issue(client, created, warn=warn)
@@ -387,6 +428,9 @@ class GitHubIssueClient:
         url = f"{self._issue_url(parent_number)}/sub_issues"
         return cast("dict[str, Any]", self._request("POST", url, {"sub_issue_id": sub_issue_id}))
 
+    def update_issue_body(self, number: int, body: str) -> dict[str, Any]:
+        return cast("dict[str, Any]", self._request("PATCH", self._issue_url(number), {"body": body}))
+
 
 def _redact(text: str, token: str) -> str:
     return text.replace(token, "[redacted]") if token else text
@@ -401,6 +445,16 @@ def resolve_token() -> str | None:
     return None
 
 
+def _report_for(suite_key: str, conclusion: str, xunit: str | None) -> XunitRead | None:
+    """Load the suite report for a red run. A green run does not need it."""
+    if conclusion != CONCLUSION_FAILURE or not xunit:
+        return None
+    report = read_xunit(Path(xunit))
+    if report.problem:
+        _emit_warning(f"{suite_key}: {report.problem}")
+    return report
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Always exits ``0`` on a missing token / API error."""
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
@@ -408,6 +462,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--conclusion", required=True, choices=(CONCLUSION_SUCCESS, CONCLUSION_FAILURE), help="the suite's conclusion")
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"), help="owner/repo (default: $GITHUB_REPOSITORY)")
     parser.add_argument("--run-url", default=None, help="link to the failing/passing workflow run")
+    parser.add_argument("--xunit", default=None, help="junit xml the suite wrote; missing or unreadable degrades to the exit-code message")
     parser.add_argument(
         "--ref",
         default=os.environ.get("GITHUB_REF"),
@@ -430,7 +485,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         client = GitHubIssueClient(args.repo, token)
-        summary = run_escalation(client, suite_key=args.suite_key, conclusion=args.conclusion, ref=args.ref, run_url=args.run_url)
+        report = _report_for(args.suite_key, args.conclusion, args.xunit)
+        summary = run_escalation(
+            client,
+            suite_key=args.suite_key,
+            conclusion=args.conclusion,
+            ref=args.ref,
+            run_url=args.run_url,
+            report=report,
+        )
     except EscalationError as exc:
         print(f"warning: nightly P0 escalation degraded (fail-loud only): {exc}", file=sys.stderr)
         return EXIT_OK

@@ -152,6 +152,10 @@ class FakeClient:
         self._record("add_sub_issue", parent_number, sub_issue_id)
         return {"number": parent_number}
 
+    def update_issue_body(self, number: int, body: str) -> dict[str, Any]:
+        self.calls.append(("update_body", (number, body)))
+        return {"number": number, "body": body}
+
 
 def _call_names(client: FakeClient) -> list[str]:
     return [name for name, _ in client.calls]
@@ -921,3 +925,78 @@ def test_http_bumped_issue_back_fill_payloads(monkeypatch: pytest.MonkeyPatch, c
     captured = capsys.readouterr()
     assert "updated existing escalation issue #5258" in captured.out
     assert "::warning" not in captured.err
+
+
+# ---------------------------------------------------------------------------
+# xunit evidence (#5583): the issue names the failing tests, and a recurrence
+# says what changed. A missing report keeps today's message plus a warning.
+# ---------------------------------------------------------------------------
+def _failed(test_id: str, reason: str = "AssertionError: boom") -> Any:
+    from scripts.ci.nightly_xunit import FailedTest
+
+    file = test_id.split("::", 1)[0]
+    return FailedTest(test_id, reason, file, "12")
+
+
+def test_created_issue_names_the_failing_test_and_keeps_the_dedup_marker() -> None:
+    from scripts.ci.nightly_xunit import XunitRead
+
+    report = XunitRead((_failed("tests/e2e/test_owned.py::test_isolated"),), None)
+    body = mod.issue_body("performance", "https://run/9", report=report)
+    assert "tests/e2e/test_owned.py::test_isolated" in body
+    assert "AssertionError: boom" in body
+    assert "<!-- nightly-escalation-key: performance -->" in body
+    assert "<!-- nightly-failure-ids:" in body
+
+
+def test_unreadable_report_keeps_the_exit_code_message_and_records_no_ids() -> None:
+    from scripts.ci.nightly_xunit import XunitRead, recorded_ids
+
+    report = XunitRead((), "out/reports/xunit-nightly-performance.xml (No such file or directory)")
+    body = mod.issue_body("performance", "https://run/9", report=report)
+    assert "https://run/9" in body
+    assert "Could not read the xunit report" in body
+    assert recorded_ids(body) is None
+    assert "<!-- nightly-escalation-key: performance -->" in body
+
+
+def test_recurrence_comment_states_the_delta_and_records_the_new_ids() -> None:
+    from scripts.ci.nightly_xunit import XunitRead, recorded_ids, with_recorded_ids
+
+    previous = with_recorded_ids(mod.escalation_marker("integration"), ["tests/a.py::test_old"])
+    existing = _triaged_issue(77)
+    existing["body"] = previous
+    report = XunitRead((_failed("tests/b.py::test_new"),), None)
+    client = FakeClient(existing=existing)
+    mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", run_url="https://run/2", report=report)
+
+    comment = _call_args(client, "comment")[1]
+    assert "Newly failing" in comment
+    assert "tests/b.py::test_new" in comment
+    assert "Now passing" in comment
+    assert "tests/a.py::test_old" in comment
+    updated = _call_args(client, "update_body")[1]
+    assert recorded_ids(updated) == ("tests/b.py::test_new",)
+    assert "<!-- nightly-escalation-key: integration -->" in updated
+
+
+def test_recurrence_with_the_same_failures_says_so() -> None:
+    from scripts.ci.nightly_xunit import XunitRead, with_recorded_ids
+
+    nodeid = "tests/a.py::test_same"
+    existing = _triaged_issue(77)
+    existing["body"] = with_recorded_ids(mod.escalation_marker("integration"), [nodeid])
+    client = FakeClient(existing=existing)
+    mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", report=XunitRead((_failed(nodeid),), None))
+    assert "Same failing tests as the previous recorded failure." in _call_args(client, "comment")[1]
+
+
+def test_recurrence_does_not_record_ids_when_the_report_is_unreadable() -> None:
+    from scripts.ci.nightly_xunit import XunitRead
+
+    client = FakeClient(existing=_triaged_issue(77))
+    report = XunitRead((), "out/reports/x.xml (No such file or directory)")
+    mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", report=report)
+    assert "update_body" not in _call_names(client)
+    assert "Could not read the xunit report" in _call_args(client, "comment")[1]
+    assert "The previous failure did not record test ids." not in _call_args(client, "comment")[1]

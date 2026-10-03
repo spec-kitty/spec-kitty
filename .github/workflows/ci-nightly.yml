@@ -179,7 +179,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${PERF_EXIT:-1}" -ne 0 ] && [ "${PERF_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key performance --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key performance --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-performance.xml
 
       # Terminal fail-loud gate (#4212): the suite above ran under `set +e` +
       # `if: always()` (run-all-regardless), capturing its pytest exit into
@@ -197,6 +197,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key performance --xunit out/reports/xunit-nightly-performance.xml --log-step 'Run performance-marked suite (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${PERF_EXIT:-1}" -ne 0 ] && [ "${PERF_EXIT:-1}" -ne 5 ]; then
             echo "::error::performance suite exited ${PERF_EXIT}"
             exit 1
@@ -267,7 +268,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${E2E_EXIT:-1}" -ne 0 ] && [ "${E2E_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key e2e --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key e2e --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-e2e.xml
 
       # Terminal fail-loud gate (#4212): mirror of the performance job's gate
       # above, scoped to this job's own suite/exit code.
@@ -275,6 +276,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key e2e --xunit out/reports/xunit-nightly-e2e.xml --log-step 'Run heavy/e2e-marked suite (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${E2E_EXIT:-1}" -ne 0 ] && [ "${E2E_EXIT:-1}" -ne 5 ]; then
             echo "::error::e2e suite exited ${E2E_EXIT}"
             exit 1
@@ -363,7 +365,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${STRESS_EXIT:-1}" -ne 0 ] && [ "${STRESS_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key stress --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key stress --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-stress.xml
 
       # Terminal fail-loud gate (#4212): mirror of the performance job's gate
       # above, scoped to this job's own suite/exit code.
@@ -371,6 +373,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key stress --xunit out/reports/xunit-nightly-stress.xml --log-step 'Run stress-marked suite (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${STRESS_EXIT:-1}" -ne 0 ] && [ "${STRESS_EXIT:-1}" -ne 5 ]; then
             echo "::error::stress suite exited ${STRESS_EXIT}"
             exit 1
@@ -453,7 +456,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTERPRETER_SHARD_1_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_1_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-1" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-1" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-interpreter-3.13-shard-1.xml
 
       # Terminal fail-loud gate (#4212): mirror of the performance/e2e/stress
       # gate, applied independently PER SHARD (issue #4951). The suite above
@@ -469,6 +472,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key interpreter-3.13-shard-1 --xunit out/reports/xunit-nightly-interpreter-3.13-shard-1.xml --log-step 'Run fast/unit suite, shard 1 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTERPRETER_SHARD_1_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_1_EXIT:-1}" -ne 5 ]; then
             echo "::error::interpreter 3.13 shard 1 suite exited ${INTERPRETER_SHARD_1_EXIT}"
             exit 1
@@ -526,12 +530,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTERPRETER_SHARD_2_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_2_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-2" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-2" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-interpreter-3.13-shard-2.xml
 
       - name: Fail the leg if this shard's suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key interpreter-3.13-shard-2 --xunit out/reports/xunit-nightly-interpreter-3.13-shard-2.xml --log-step 'Run fast/unit suite, shard 2 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTERPRETER_SHARD_2_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_2_EXIT:-1}" -ne 5 ]; then
             echo "::error::interpreter 3.13 shard 2 suite exited ${INTERPRETER_SHARD_2_EXIT}"
             exit 1
@@ -593,12 +598,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTERPRETER_SHARD_3_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_3_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-3" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-3" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-interpreter-3.13-shard-3.xml
 
       - name: Fail the leg if this shard's suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key interpreter-3.13-shard-3 --xunit out/reports/xunit-nightly-interpreter-3.13-shard-3.xml --log-step 'Run fast/unit suite, shard 3 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTERPRETER_SHARD_3_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_3_EXIT:-1}" -ne 5 ]; then
             echo "::error::interpreter 3.13 shard 3 suite exited ${INTERPRETER_SHARD_3_EXIT}"
             exit 1
@@ -656,12 +662,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTERPRETER_SHARD_4_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_4_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-4" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-4" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-interpreter-3.13-shard-4.xml
 
       - name: Fail the leg if this shard's suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key interpreter-3.13-shard-4 --xunit out/reports/xunit-nightly-interpreter-3.13-shard-4.xml --log-step 'Run fast/unit suite, shard 4 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTERPRETER_SHARD_4_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_4_EXIT:-1}" -ne 5 ]; then
             echo "::error::interpreter 3.13 shard 4 suite exited ${INTERPRETER_SHARD_4_EXIT}"
             exit 1
@@ -719,12 +726,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTERPRETER_SHARD_5_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_5_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-5" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-5" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-interpreter-3.13-shard-5.xml
 
       - name: Fail the leg if this shard's suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key interpreter-3.13-shard-5 --xunit out/reports/xunit-nightly-interpreter-3.13-shard-5.xml --log-step 'Run fast/unit suite, shard 5 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTERPRETER_SHARD_5_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_5_EXIT:-1}" -ne 5 ]; then
             echo "::error::interpreter 3.13 shard 5 suite exited ${INTERPRETER_SHARD_5_EXIT}"
             exit 1
@@ -782,12 +790,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTERPRETER_SHARD_6_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_6_EXIT:-1}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-6" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-3.13-shard-6" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-interpreter-3.13-shard-6.xml
 
       - name: Fail the leg if this shard's suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key interpreter-3.13-shard-6 --xunit out/reports/xunit-nightly-interpreter-3.13-shard-6.xml --log-step 'Run fast/unit suite, shard 6 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTERPRETER_SHARD_6_EXIT:-1}" -ne 0 ] && [ "${INTERPRETER_SHARD_6_EXIT:-1}" -ne 5 ]; then
             echo "::error::interpreter 3.13 shard 6 suite exited ${INTERPRETER_SHARD_6_EXIT}"
             exit 1
@@ -967,7 +976,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTEGRATION_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key integration --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key integration --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-next.xml
 
       # Terminal fail-loud gate (#4212): mirror of the performance job's gate,
       # scoped to this suite/exit -- EXCEPT this directory-based lane does not
@@ -979,6 +988,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration --xunit out/reports/xunit-nightly-integration-next.xml --log-step 'Run integration + next suites by directory (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTEGRATION_EXIT:-1}" -ne 0 ]; then
             echo "::error::integration+next suite exited ${INTEGRATION_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
             exit 1
@@ -1072,7 +1082,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${SPECIFY_CLI_OOM_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key specify-cli-out-of-matrix --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key specify-cli-out-of-matrix --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-specify-cli-out-of-matrix.xml
 
       # Terminal fail-loud gate (#4212): only exit 0 passes. Exit 5 (zero
       # collected) and an unset/timeout-killed exit (`:-1`) both fail -- this
@@ -1081,6 +1091,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key specify-cli-out-of-matrix --xunit out/reports/xunit-nightly-specify-cli-out-of-matrix.xml --log-step 'Run out-of-matrix tests/specify_cli trees by directory (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${SPECIFY_CLI_OOM_EXIT:-1}" -ne 0 ]; then
             echo "::error::specify_cli out-of-matrix suite exited ${SPECIFY_CLI_OOM_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
             exit 1
@@ -1176,7 +1187,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${ARCH_BACKSTOP_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key architectural --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key architectural --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-architectural.xml
 
       # Terminal fail-loud gate (#4212): only exit 0 passes. Exit 5 (zero
       # collected) and an unset/timeout-killed exit (`:-1`) both fail -- this
@@ -1185,6 +1196,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key architectural --xunit out/reports/xunit-nightly-architectural.xml --log-step 'Run the full architectural battery base (no partition, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
           if [ "${ARCH_BACKSTOP_EXIT:-1}" -ne 0 ]; then
             echo "::error::architectural backstop exited ${ARCH_BACKSTOP_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
             exit 1
@@ -1272,12 +1284,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${INTEGRATION_SLICE_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key integration-slice --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python3 scripts/ci/nightly_escalation.py --suite-key integration-slice --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-slice.xml
 
       - name: Fail the job if the integration slice was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration-slice --xunit out/reports/xunit-nightly-integration-slice.xml --log-step 'Run integration-marked tests no other nightly lane selects' || echo "::warning::nightly xunit summary helper failed"
           if [ "${INTEGRATION_SLICE_EXIT:-1}" -ne 0 ]; then
             echo "::error::integration slice exited ${INTEGRATION_SLICE_EXIT} (exit 5 is an empty slice, which is a lost signal, not a skip)"
             exit 1
