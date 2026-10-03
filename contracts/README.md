@@ -79,12 +79,14 @@ Each module declares its own `info.version` in its root `openapi.yaml`, and
 modules move independently. Every module lists `servers: [{url: /api/v1}]`, so a
 path such as `/missions` is served at `/api/v1/missions`; the path keys never carry
 the prefix. The module's `CHANGELOG.md` must hold a heading for the current
-`info.version`; `structure_check.py` fails without it.
+`info.version`; `structure_check.py` fails without it. A version that is not yet
+released carries the `-SNAPSHOT` suffix (see [Versioning rule](#versioning-rule)), and
+its CHANGELOG heading carries it too.
 
 ```yaml
 info:
   title: Mission Status API
-  version: 1.0.0
+  version: 1.0.0-SNAPSHOT
 servers:
   - url: /api/v1
 ```
@@ -198,6 +200,15 @@ a module holds one.
 Example: after the local command below, `<out>/bundle/mission-status/openapi.yaml`
 exists under the directory you named; the repository tree is unchanged.
 
+**Consumer note: generating a client with stable type names.** The released bundle is
+fully dereferenced by design: every `$ref` is inlined, so one file is enough and a
+consumer needs no resolver. A generator then has no schema names to reuse and
+invents its own (an inline schema becomes `InlineObject3`, and a name can move when
+the contract grows). A consumer that wants stable type names generates from the split
+`contracts/mission-status/openapi.yaml` instead, which keeps its `$ref`s, so each
+named schema file stays one named type. Pin a commit or a release tag, and read the
+split tree from there.
+
 ## Validate and bundle locally
 
 The pinned JVM toolchain (the openapi-generator Gradle plugin 7.25.0 under Gradle
@@ -218,11 +229,34 @@ unpacks anything. `--out` must lie outside the repository. The last line of
 missing. Add `--bundle-only` to write and check only the bundle, with no JDK and no
 Gradle.
 
+`verify_pins.py` refuses a run that hashed nothing (`CHECKSUMS_UNVERIFIED`, exit 2), so
+the workflow's `verify-pins` job calls it as `verify_pins.py --fetch`, which downloads
+each pinned artefact over https and checks it against its sha256. A job that has
+already downloaded the tools passes the directory instead, `--artifacts DIR`; a bare
+call would hash nothing and fail. `--pins-only` checks the pins without hashing and is
+not what CI runs.
+
+`gradle_pin_check.py` closes the other half of that pin: `verify_pins.py` never reads the
+build, so the generator plugin version in `contracts/build.gradle`, in
+`contracts/gradle/verification-metadata.xml` and in any wrapper or `gradle-version`
+input must equal the version `pins.json` pins (`GRADLE_PIN_MISMATCH`, exit 1; a file it
+cannot read or parse is exit 2). It runs in the same `verify-pins` job and needs no
+download.
+
 The other tools run as bare scripts over the same tree, for example
 `.venv/bin/python contracts/tools/layout_check.py --root contracts`. Two further
 checks run in CI only, because they download prebuilt binaries: `vacuum` 0.30.6
 (lint) and `oasdiff` 1.32.1 (breaking-change comparison), each pinned by sha256 in
 `contracts/tools/pins.json`.
+
+Every lint plant under `contracts/tools/fixtures/vacuum/` declares the rule it must
+fail with on its first line, `# rule: <rule id>`, so a variant plant may be named
+`<rule id>-<variant>.yaml`. The `lint` job derives the expected rule from that header,
+not from the file name, and fails a plant with no header. `run_negative_cases.py`
+accepts only an UPPER_SNAKE code or a rule id of the ruleset as the code a plant
+expects; a generic word such as `error` is refused because it matches almost any
+output. `install_tools.py` reports a Python without tarfile extraction filters as
+`UNSUPPORTED_INTERPRETER` (an environment problem), never as `UNSAFE_ARCHIVE`.
 
 ## Markdown lint is advisory
 
@@ -260,6 +294,34 @@ A module's `info.version` is semantic.
 - An **additive** change moves the minor version.
 - A **documentation-only** change moves the patch version.
 
+**Response schemas are closed.** Every response object schema declares
+`additionalProperties: false` (or `unevaluatedProperties: false` where it is
+composed), so a consumer may rely on the set of properties. A change to the shape of
+a response therefore ships as a new schema version and a new published release.
+`breaking_check.py` enforces this: `oasdiff` reports a property added to a response at
+level INFO, which would let it through, so the check raises those change ids
+(`response-optional-property-added`, `response-required-property-added` and their
+write-only forms) to breaking, and an added response property needs a major move like
+a removal does. The same holds for the other ways a response grows: a property added
+through a new `allOf` branch (`response-body-all-of-added`,
+`response-property-all-of-added`; a new `oneOf` or `anyOf` branch is already an error
+in `oasdiff`), a new response status code (`response-success-status-added`,
+`response-non-success-status-added`), a new response media type
+(`response-media-type-added`) and a new response header (`response-header-added`). A request-side optional addition, such as a new optional query
+parameter, stays additive.
+
+**Unreleased versions carry `-SNAPSHOT`.** A version that has no release tag yet is
+written `1.0.0-SNAPSHOT`, as in Maven and Gradle: the work in progress of `1.0.0`, which
+sorts below `1.0.0`. `breaking_check.py` reads `X-SNAPSHOT` as the work in progress of
+`X`, so a snapshot of a later major excuses a breaking change and a snapshot of the
+released version itself fails with `VERSION_DECREASED` once the bundle changed. The
+CHANGELOG heading carries the suffix too (`## 1.0.0-SNAPSHOT`). The release commit
+drops the suffix from `info.version` and from the heading. `release_check.py` refuses
+a `-SNAPSHOT` tag with `SNAPSHOT_RELEASE_REFUSED` before it builds or checksums that
+module (the release workflow has already installed Gradle and bundled the modules by
+then, and no publish step is reachable after the refusal), so a snapshot is never
+published.
+
 The breaking-change job writes the bundle of the last release tag and of the
 candidate and compares them with `oasdiff`. It fails with `BREAKING_WITHOUT_MAJOR`
 when a breaking change leaves the major where it was, and with
@@ -269,14 +331,25 @@ a difference that exists only because of them never fails and is reported in its
 section.
 
 Until a release tag exists there is no baseline. The one allowed state is
-`info.version: 1.0.0` together with a `## 1.0.0` heading in the module's
-`CHANGELOG.md`; the job prints `NO_BASELINE_INITIAL_VERSION` and counts it, so the
+`info.version: 1.0.0-SNAPSHOT` (or `1.0.0` in the release commit) together with a
+heading of the same version in the module's `CHANGELOG.md`; the job prints `NO_BASELINE_INITIAL_VERSION` and counts it, so the
 state is never silent. A release is a tag `contract-<module>-v<semver>` (no leading
 `v` on the module part; for example `contract-mission-status-v1.0.0`), pushed to
 trigger the Contracts Release workflow. It publishes `openapi.yaml` and
 `openapi.yaml.sha256` as release assets, and only a tag push publishes: the
 Contracts workflow runs the same steps as a dry run on a pull request and cannot
-publish.
+publish. Before it publishes, the release workflow refuses a tagged commit that is not
+an ancestor of `origin/main`, and runs `breaking_check.py --release-tag <tag>` against the
+previous release, so a release never skips the comparison. It also refuses a tag
+for which the Contracts workflow has not passed. Contracts runs on a push to `main`
+only when one of its trigger paths changed, so the workflow finds the most recent commit
+at or before the tagged one that touched those paths (the list is read from
+`on.push.paths` of `contracts.yml`, never copied) and requires a Contracts run with
+conclusion `success`, event `push`, branch `main` and that commit as its head. A
+run for a pull request does not count, and no commit, no run or an unreadable answer
+(queried through the workflow's own token) means refused. A tag on a later `main`
+commit that changed none of those paths is therefore accepted once the earlier commit's
+run passed.
 
 ## Residual risk: handle-shaped strings
 
@@ -290,6 +363,18 @@ guarantee.
 Example: the shape rule accepts the handle `claude` and, equally, a string such as
 `jdoe`; only a person can say which of them is an account name.
 
+## Pattern matching is ECMA 262
+
+Every `pattern` in the schemas (`WpId`, `ActorHandle`, `MissionId`, `StreamCursor` and the
+other `$`-anchored ones) is an ECMA 262 regular expression, as OpenAPI and JSON Schema
+define. In ECMA 262 a non-multiline `$` matches only at the very end of the input, so
+`WP01` followed by a line feed does not match `^WP[0-9]{2,}$`. Python `re.search` and
+Java `Matcher.find` treat `$` as also matching before a final line feed, so a validator
+built on them accepts that value. A consumer that validates inbound values must use ECMA
+262 semantics, or full-string matching (`re.fullmatch`, `Matcher.matches`), or reject a
+value with a trailing line feed first. The producer matches with `fullmatch`, so it never
+emits such a value; the patterns are not changed.
+
 ## Reader-author warning
 
 The reality check projects every Mission in the repository (at delivery 541
@@ -301,11 +386,23 @@ locally first:
 PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_mission_status_reality.py
 ```
 
-CI will not always run it for you. A reader edit selects no job that runs the reality
-check, and a change confined to `tests/contract/**` selects no corpus job either
-(accepted risks, seen on a real pull request, which needed a manual run). The safety
-nets are the push-to-`main` run and a manual full-mode run of the router on your
-branch: `gh workflow run ci-router.yml -f mode=full --ref <branch>`.
+CI will not run it for you on the pull request. Two kinds of change select no job
+that runs the reality check: an edit under `src/specify_cli/status/**` (the readers
+the check imports), and an edit confined to `tests/contract/**`. The router's corpus
+filter matches `contracts/**` only. (An edit under `tests/contract/**` does start the
+Contracts workflow, but its `contract-tool-tests` job runs the unit tests of the contract
+tools and leaves the reality check and its payload helper to the router.) The Packs run
+on a push to `main` does not cover the gap either: it deselects these modules, which
+run once, in the router job. This is
+an accepted risk. The safety net is the nightly run
+(`ci-nightly.yml`, shard 4, scheduled daily at 03:17 UTC), which runs `tests/contract`
+on its full-mode cadence, so a reader that drifts from the contract is caught the
+next night, not on the pull request. To catch it sooner, dispatch the router in full
+mode on your branch:
+
+```bash
+gh workflow run ci-router.yml -f mode=full --ref <branch>
+```
 
 The check is read-only and never writes Mission state. It lets the status snapshot
 and the work package files disagree for a counted number of Missions (a ratchet,

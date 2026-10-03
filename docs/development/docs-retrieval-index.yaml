@@ -10926,6 +10926,10 @@ pages:
     - {slug: "accept-to-consolidate-gates", text: "Accept-to-consolidate gates", level: 2}
     - {slug: "the-issue-matrix-verdict-gate-blocks-wp-approval", text: "The issue-matrix verdict gate blocks WP approval", level: 3}
     - {slug: "the-other-close-out-gates", text: "The other close-out gates", level: 3}
+    - {slug: "contracts-gates", text: "Contracts gates", level: 2}
+    - {slug: "what-runs-where", text: "What runs where", level: 3}
+    - {slug: "a-reader-or-test-only-change-selects-no-corpus-job", text: "A reader or test-only change selects no corpus job", level: 3}
+    - {slug: "what-only-a-merge-can-confirm", text: "What only a merge can confirm", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/coverage-signals.md"
     title: "Coverage signals — reconciling the three \"coverage\" numbers"
