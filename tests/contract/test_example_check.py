@@ -110,8 +110,13 @@ def test_findings_name_the_example(planted_report: Any) -> None:
 
 
 @pytest.mark.parametrize(("case", "code"), sorted(EXIT2.items()))
-def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(examples: Any, case: str, code: str) -> None:
+def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(examples: Any, case: str, code: str, tmp_path: Path) -> None:
     root = FIXTURE_ROOT / "exit2" / case
+    if case == "manifest_unreadable":
+        # the invalid manifest is written at run time: the leak scan parses every committed .json
+        root = tmp_path / case
+        shutil.copytree(FIXTURE_ROOT / "exit2" / case, root)
+        (root / "manifest.json").write_text("{not json", encoding="utf-8")
     report = examples.check(root, root / "manifest.json")
     assert [f.code for f in report.blocked][:1] == [code]
     assert report.exit_code == 2

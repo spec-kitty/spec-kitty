@@ -127,6 +127,37 @@ def test_the_two_real_pass_controls_are_not_leaks(scan: Any, tmp_path: Path) -> 
     assert scan.check(tmp_path).findings == []
 
 
+# -- a file the structured pass cannot parse ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "content"),
+    [
+        pytest.param("broken.yaml", "slug: [unclosed\ntitle: x\n", id="yaml"),
+        pytest.param("broken.yml", "a: b\n\tc: d\n", id="yml"),
+        pytest.param("broken.json", '{"slug": "x",}', id="json"),
+    ],
+)
+def test_a_yaml_or_json_file_that_fails_to_parse_is_a_parse_failed_finding(scan: Any, tmp_path: Path, name: str, content: str) -> None:
+    (tmp_path / "ok.yaml").write_text("slug: example\ntitle: Example\n", encoding="utf-8")
+    (tmp_path / name).write_text(content, encoding="utf-8")
+    report = scan.check(tmp_path)
+    parse_failed = [f for f in report.findings if f.code == "PARSE_FAILED"]
+    assert [f.subject for f in parse_failed] == [name]
+    assert report.exit_code == 1
+    assert all(f.subject == name for f in report.findings)
+    result = _run("--root", str(tmp_path))
+    assert result.returncode == 1
+    assert f"CONTRACT-CHECK leak_scan: PARSE_FAILED: {name}: " in result.stdout
+
+
+def test_a_parse_failure_never_prints_the_file_content(scan: Any, tmp_path: Path) -> None:
+    (tmp_path / "ok.yaml").write_text("slug: example\ntitle: Example\n", encoding="utf-8")
+    (tmp_path / "bad.yaml").write_text(f"title: [{_home()}\n", encoding="utf-8")
+    (finding,) = [f for f in scan.check(tmp_path).findings if f.code == "PARSE_FAILED"]
+    assert "someone" not in finding.render()
+
+
 # -- cannot do its job -----------------------------------------------------------------------------
 
 

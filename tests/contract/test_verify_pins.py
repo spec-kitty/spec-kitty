@@ -44,8 +44,8 @@ EXIT2 = {
     "empty_manifest": "MANIFEST_EMPTY",
     "zero_tools_verified": "ZERO_TOOLS_VERIFIED",
     "zero_uses_lines": "ZERO_USES_LINES",
-    "workflow_unreadable": "WORKFLOW_UNREADABLE",
 }
+UNREADABLE_WORKFLOW = "name: Contracts\njobs: [unclosed\n  build: {\n"  # invalid YAML, written at run time: the leak scan parses every committed .yml
 
 
 @pytest.fixture(scope="module")
@@ -235,6 +235,18 @@ def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(pins: Any, case:
     result = _run("--root", str(root))
     assert result.returncode == 2
     assert f"CONTRACT-CHECK verify_pins: {code}" in result.stdout
+    assert result.stdout.rstrip().splitlines()[-1].startswith("counts: tools=")
+
+
+def test_an_unparseable_sole_workflow_exits_two_through_the_command_line(pins: Any, tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    shutil.copytree(FIXTURE_ROOT / "clean", root)
+    (root / ".github" / "workflows" / "contracts.yml").write_text(UNREADABLE_WORKFLOW, encoding="utf-8")
+    report = pins.check(root, pins_only=True)
+    assert "WORKFLOW_UNREADABLE" in [f.code for f in report.blocked]
+    result = _run("--root", str(root), "--pins-only")
+    assert result.returncode == 2
+    assert "CONTRACT-CHECK verify_pins: WORKFLOW_UNREADABLE: .github/workflows/contracts.yml: " in result.stdout
     assert result.stdout.rstrip().splitlines()[-1].startswith("counts: tools=")
 
 

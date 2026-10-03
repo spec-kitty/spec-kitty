@@ -18,7 +18,8 @@ Findings (exit 1), printed ``CONTRACT-CHECK leak_scan: <CODE>: <file>:<line or k
 leaked value is never echoed): ``FORBIDDEN_PROPERTY_NAME``, ``HOST_PATH``, ``EMAIL``,
 ``PLANTED_NOT_DETECTED`` (the built-in self test: each ``fixture_builder`` plant is built into a temporary
 root, scanned, and must be found, so a scan that went blind fails loudly), ``CONTROL_FLAGGED`` (the same
-self test found a leak in the clean control next to a plant). Cannot do its job (exit 2): ``ZERO_FILES``,
+self test found a leak in the clean control next to a plant), ``PARSE_FAILED`` (a ``.yaml``, ``.yml`` or
+``.json`` file that does not parse, so the structured pass could not read it; the text pass still ran). Cannot do its job (exit 2): ``ZERO_FILES``,
 ``ZERO_VALUES_IN_CLASS`` (no string value of the ``strict`` or ``human`` class was scanned). A file that is
 binary (a NUL byte or invalid UTF-8) is skipped and not counted. The last line is always
 ``counts: files=N values_strict=N values_human=N values_all=N`` (text files read; string values per class;
@@ -52,6 +53,7 @@ JSON_SUFFIX = ".json"
 CODE_FORBIDDEN = "FORBIDDEN_PROPERTY_NAME"
 CODE_NOT_DETECTED = "PLANTED_NOT_DETECTED"
 CODE_CONTROL_FLAGGED = "CONTROL_FLAGGED"
+CODE_PARSE_FAILED = "PARSE_FAILED"
 STRICT_FIELDS = frozenset(fixture_builder.STRICT_FIELDS)
 
 
@@ -134,7 +136,10 @@ class _Scanner:
     def scan_structured(self, name: str, suffix: str, text: str) -> None:
         try:
             document = json.loads(text) if suffix == JSON_SUFFIX else yaml.safe_load(text)
-        except (ValueError, yaml.YAMLError):
+        except (ValueError, yaml.YAMLError) as error:
+            # name the exception type only: a parser message quotes the offending source text
+            language = "JSON" if suffix == JSON_SUFFIX else "YAML"
+            self.add(CODE_PARSE_FAILED, name, f"not valid {language} ({type(error).__name__}), so the structured pass could not read it")
             return
         self.walk(name, document, "", False)
 

@@ -30,7 +30,8 @@ TOOLS_DIR = Path(__file__).resolve().parents[2] / "contracts" / "tools"
 FIXTURES = TOOLS_DIR / "fixtures" / "bundle"
 CLEAN_ROOT = FIXTURES / "roots" / "clean"
 NO_ROOT = FIXTURES / "roots" / "no_root"
-UNREADABLE_ROOT = FIXTURES / "roots" / "unreadable"
+# invalid YAML, written at run time: the leak scan parses every committed .yaml
+UNREADABLE_MODULE_YAML = "openapi: 3.1.0\ninfo:\n  title: Unreadable fixture\n  version: [1.0.0\npaths: {}\n"
 SPIKE_ROOT = TOOLS_DIR / "fixtures" / "spike"
 PLANTS_ROOT = TOOLS_DIR / "fixtures" / "client_smoke" / "plants"
 SCRIPT = TOOLS_DIR / "bundle.py"
@@ -195,7 +196,11 @@ def test_a_module_with_an_unreadable_file_prints_the_stable_line_and_the_counts_
         calls.append(command)
         return 0, ""
 
-    code, output = _run(bundler, UNREADABLE_ROOT, tmp_path / "out", runner, "--min-paths", "0")
+    unreadable_root = tmp_path / "unreadable"
+    (unreadable_root / "alpha").mkdir(parents=True)
+    (unreadable_root / "alpha" / "openapi.yaml").write_text(UNREADABLE_MODULE_YAML, encoding="utf-8")
+
+    code, output = _run(bundler, unreadable_root, tmp_path / "out", runner, "--min-paths", "0")
 
     assert code == 1
     assert "CONTRACT-CHECK bundle: RESOLVE_FAILED: alpha: UNREADABLE" in output

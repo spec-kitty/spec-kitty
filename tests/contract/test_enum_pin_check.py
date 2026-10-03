@@ -99,8 +99,13 @@ def test_the_counts_are_the_pinned_enums_and_their_current_values(pin: Any) -> N
 
 
 @pytest.mark.parametrize(("case", "code"), sorted(EXIT2.items()))
-def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(pin: Any, case: str, code: str) -> None:
+def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(pin: Any, case: str, code: str, tmp_path: Path) -> None:
     root = FIXTURE_ROOT / "exit2" / case
+    if case == "pins_unreadable":
+        # the invalid pin file is written at run time: the leak scan parses every committed .json
+        root = tmp_path / case
+        shutil.copytree(FIXTURE_ROOT / "exit2" / case, root)
+        (root / "pins.json").write_text("{not json", encoding="utf-8")
     report = pin.check(root, root / "pins.json")
     assert [f.code for f in report.blocked][:1] == [code]
     assert report.exit_code == 2
