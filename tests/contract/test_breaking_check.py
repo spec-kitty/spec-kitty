@@ -581,6 +581,61 @@ def test_the_tag_being_released_is_never_its_own_baseline(checker: ModuleType, t
     assert code == 1 and "BREAKING_WITHOUT_MAJOR: things:" in output and "baselines=1" in output, output
 
 
+def _repo_with_side_branch_tag(tmp_path: Path) -> Path:
+    """main holds 1.0.0; a side branch (not merged) holds a breaking change tagged 2.0.0."""
+    repo = _repo(tmp_path, "clean_same")
+    _git(repo, "tag", "contract-things-v1.0.0")
+    _git(repo, "checkout", "-q", "-b", "side")
+    shutil.rmtree(repo / "contracts" / "things")
+    shutil.copytree(CANDIDATES / "required_parameter" / "things", repo / "contracts" / "things")
+    document = repo / "contracts" / "things" / "openapi.yaml"
+    document.write_text(document.read_text(encoding="utf-8").replace("version: 1.0.0", "version: 2.0.0"), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "a major on a side branch")
+    _git(repo, "tag", "contract-things-v2.0.0")
+    _git(repo, "checkout", "-q", "main")
+    shutil.rmtree(repo / "contracts" / "things")
+    shutil.copytree(CANDIDATES / "clean_same" / "things", repo / "contracts" / "things")
+    return repo
+
+
+def test_a_higher_tag_on_a_side_branch_is_not_the_baseline(checker: ModuleType, tmp_path: Path) -> None:
+    repo = _repo_with_side_branch_tag(tmp_path)
+    code, output = _run(checker, repo / "contracts")
+    assert code == 0 and "baselines=1" in output, "the baseline is 1.0.0 (reachable), the unreachable 2.0.0 is ignored: " + output
+
+
+def test_the_ref_argument_chooses_which_tags_are_reachable(checker: ModuleType, tmp_path: Path) -> None:
+    repo = _repo_with_side_branch_tag(tmp_path)
+    code, output = _run(checker, repo / "contracts", "--ref", "side")
+    assert code == 1 and "baseline contract-things-v2.0.0" in output, "from the side branch the 2.0.0 tag is reachable and newest: " + output
+    code, output = _run(checker, repo / "contracts", "--ref", "main")
+    assert code == 0, output
+
+
+def test_an_unknown_ref_fails_closed_with_exit_2(checker: ModuleType, tmp_path: Path) -> None:
+    repo = _repo_with_side_branch_tag(tmp_path)
+    code, output = _run(checker, repo / "contracts", "--ref", "no-such-ref")
+    assert code == 2 and "TAG_LIST_ERROR" in output
+
+
+def test_the_tag_listing_asks_git_for_the_reachable_tags_of_the_ref(checker: ModuleType, tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    commands: list[list[str]] = []
+
+    def recording(command: Sequence[str], cwd: Path | None = None) -> tuple[int, str, str]:
+        commands.append(list(command))
+        return _real_runner(command, cwd)
+
+    _run(checker, repo / "contracts", runner=recording)
+    listings = [c for c in commands if "tag" in c and "contract-things-v*" in c]
+    assert listings and all(c[c.index("--merged") + 1] == "HEAD" for c in listings), listings
+    commands.clear()
+    _run(checker, repo / "contracts", "--ref", "main", runner=recording)
+    assert [c[c.index("--merged") + 1] for c in commands if "contract-things-v*" in c] == ["main"]
+    assert not any("--merged" in c for c in commands if "preview/things/*" in c), "the informational preview listing is not narrowed"
+
+
 def test_latest_release_tag_can_leave_out_the_tag_being_released(checker: ModuleType) -> None:
     tags = ["contract-things-v1.0.0", "contract-things-v1.1.0"]
     assert checker.latest_release_tag(tags, "things", exclude="contract-things-v1.1.0") == "contract-things-v1.0.0"

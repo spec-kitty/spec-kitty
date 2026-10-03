@@ -4,7 +4,9 @@ For each module (a direct subdirectory of ``--root`` holding a root ``openapi.ya
 by the Python resolver (:mod:`bundle`). The baseline is the same module and ``_shared/`` at the latest release tag
 ``contract-<module>-v<semver>``, extracted with ``git archive`` into a temporary directory and bundled by the same
 resolver, or, with ``--baseline-root DIR``, the module found under ``DIR`` (the fixture pairs). ``--release-tag TAG`` names
-the tag being released (the release workflow runs on the pushed tag): that tag is left out, so the previous release is the baseline. The two bundles are
+the tag being released (the release workflow runs on the pushed tag): that tag is left out, so the previous release is the baseline.
+Only tags reachable from the commit being checked (``--ref``, default ``HEAD``; ``git tag --merged``) are candidates, so a higher tag on a
+side branch is never the baseline. The two bundles are
 compared with ``oasdiff breaking`` (pinned in ``pins.json``). A change is *breaking* when oasdiff reports it at
 level WARN or ERR: a removed path or response property, a newly required parameter, a narrowed enum, a changed type.
 
@@ -79,6 +81,7 @@ from release_check import SNAPSHOT_SUFFIX, is_snapshot  # one definition of a sn
 
 CHECK_NAME = "breaking_check"
 INITIAL_VERSION = "1.0.0"
+DEFAULT_REF = "HEAD"
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 BREAKING_LEVEL = 2  # oasdiff levels: 1 info, 2 warning, 3 error
 # The oasdiff 1.32.1 change ids that report a response growing: a property added to a schema, a property added through a new
@@ -336,8 +339,11 @@ class GitRepo:
         if stdout.strip() == "true":
             raise CannotRun("SHALLOW_CHECKOUT", "the clone is shallow, so release tags may be hidden; fetch with full history and tags")
 
-    def tags(self, pattern: str, *, version_sort: bool = False) -> list[str]:
+    def tags(self, pattern: str, *, version_sort: bool = False, merged: str | None = None) -> list[str]:
+        """The tags matching ``pattern``; with ``merged``, only those reachable from that ref (``git tag --merged``)."""
         arguments = ["tag", "--list", pattern]
+        if merged is not None:
+            arguments += ["--merged", merged]
         if version_sort:
             arguments.append("--sort=-version:refname")
         status, stdout, stderr = self._run(*arguments)
@@ -457,7 +463,8 @@ class Checker:
             directory = self.args.baseline_root / module
             return (directory, "baseline-root") if (directory / bundle.ROOT_DOCUMENT).is_file() else (None, "")
         assert self.repo is not None
-        tag = latest_release_tag(self.repo.tags(f"contract-{module}-v*"), module, self.args.release_tag)
+        # only releases reachable from the commit being checked: a higher tag on a side branch is not this line's baseline
+        tag = latest_release_tag(self.repo.tags(f"contract-{module}-v*", merged=self.args.ref), module, self.args.release_tag)
         if tag is None:
             return None, ""
         return self.baseline_module(module, tag), tag
@@ -567,6 +574,7 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
     parser.add_argument("--module", action="append", default=[], help="restrict to this module (repeatable)")
     parser.add_argument("--baseline-root", type=Path, default=None, help="compare against the modules under this directory instead of the latest release tag")
     parser.add_argument("--release-tag", default=None, help="the tag being released (a tag push); it is never its own baseline, the previous release is")
+    parser.add_argument("--ref", default=DEFAULT_REF, help="the commit being checked; only release tags reachable from it can be the baseline (default: HEAD)")
     parser.add_argument("--summary", type=Path, default=None, help="append the job summary here (default: $GITHUB_STEP_SUMMARY)")
     args = parser.parse_args(argv)
 
