@@ -21,6 +21,8 @@ from specify_cli.consolidation.reconciliation import (
     _closed_world_anchors,
     _collect_authored,
     _fully_canceled_lane_commits,
+    _unreadable_canceled_dependency_lanes,
+    _unreadable_canceled_dependency_refusal_text,
 )
 from specify_cli.consolidation.wp_attribution import _outside_after_anchors, _lane_exempt_commits, lane_own_commits
 from specify_cli.lanes.branch_naming import lane_branch_name
@@ -217,3 +219,50 @@ def test_never_exempt_commits_stay_outside_even_when_an_anchor_reaches_them(dep:
 
 def test_never_exempt_is_a_no_op_without_outside_commits(dep: Dep) -> None:
     assert _outside_after_anchors(dep.repo, dep.base, (), [], frozenset({dep.canceled_sha})) == ()
+
+
+# --------------------------------------------------------------------------- #
+# Fail closed when a fully-canceled DEPENDENCY lane's tip is unreadable
+# --------------------------------------------------------------------------- #
+
+
+def test_fully_canceled_dependency_lane_whose_branch_is_gone_refuses(dep: Dep) -> None:
+    """lane-b inherited lane-a's canceled commit; with lane-a's branch gone nothing can subtract it."""
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+
+    unreadable = _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base)
+
+    assert unreadable == [("lane-a", _branch("lane-a"))]
+    text = _unreadable_canceled_dependency_refusal_text(unreadable)
+    assert "lane-a" in text
+    assert _branch("lane-a") in text
+
+
+def test_fully_canceled_dependency_lane_with_an_unreadable_range_refuses(dep: Dep) -> None:
+    unreadable = _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), "no-such-base")
+
+    assert [lane_id for lane_id, _branch_name in unreadable] == ["lane-a"]
+
+
+def test_readable_fully_canceled_dependency_lane_does_not_refuse(dep: Dep) -> None:
+    assert _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base) == []
+
+
+def test_fully_canceled_lane_nobody_depends_on_stays_tolerated(dep: Dep) -> None:
+    gone = _manifest(_lane("lane-a", "WP01"), _lane("lane-gone", "WP09"), _lane("lane-b", "WP02", ("lane-a",)))
+
+    assert _unreadable_canceled_dependency_lanes(dep.repo, gone, frozenset({"WP09"}), dep.base) == []
+
+
+def test_missing_branch_of_a_dependency_lane_that_is_not_canceled_is_not_this_check(dep: Dep) -> None:
+    """An approved lane's missing branch is the PD-5 check's business, not this one's."""
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+
+    assert _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset(), dep.base) == []
+
+
+def test_canceled_lane_depending_on_a_canceled_lane_does_not_count_as_a_live_dependent(dep: Dep) -> None:
+    both = _manifest(_lane("lane-a", "WP01"), _lane("lane-c", "WP03", ("lane-a",)))
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+
+    assert _unreadable_canceled_dependency_lanes(dep.repo, both, frozenset({"WP01", "WP03"}), dep.base) == []

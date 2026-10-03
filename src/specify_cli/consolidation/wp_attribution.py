@@ -545,8 +545,13 @@ def _lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable
     The union of ``coord_base_ref..anchor`` over every anchor: the lane head at its
     first governed claim, each dependency-lane tip, the target's pre-consolidation
     tip, an operator attestation's own stamp. These name history that is NOT the
-    lane's own new work. An anchor git cannot read is skipped: that exempts less,
-    so it can only REFUSE/exclude more, never PASS more.
+    lane's own new work. An anchor git cannot read is skipped, which exempts
+    less. Whether that is safe depends on the consumer's polarity: for the FR-013
+    closed world (:func:`_outside_after_anchors`) a smaller exempt set leaves more
+    commits "outside", so it can only REFUSE more; for :func:`lane_own_commits` it
+    makes more commits "own", which is the safe direction only for a set that is
+    SUBTRACTED from a claim (the fully-canceled lanes' commits) and would
+    over-claim if used to ADD authorship. It never widens what passes.
 
     The single answer to "what did this lane author since its base" for BOTH the
     FR-013 closed world (:func:`_outside_after_anchors`) and the authorship claim

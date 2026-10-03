@@ -1174,6 +1174,15 @@ def build_approved_wp_set(
             excluded_window_base,
             _missing_branch_refusal_text(unresolvable),
         )
+    unreadable_canceled = _unreadable_canceled_dependency_lanes(repo_root, lanes_manifest, excluded_ids, coord_base_ref)
+    if unreadable_canceled:
+        return _refusal_claim(
+            lanes_manifest,
+            manifest_wp_ids,
+            planning_prefix,
+            excluded_window_base,
+            _unreadable_canceled_dependency_refusal_text(unreadable_canceled),
+        )
     from specify_cli.lanes.single_branch_landing import authorship_window
 
     sb_window = authorship_window(repo_root, lanes_manifest.mission_slug, lanes_manifest.mission_branch, lanes_manifest.target_branch)
@@ -1435,7 +1444,9 @@ def _fully_canceled_lane_commits(
     lane's own anchors, so ancestry the lane inherited from approved dependency
     lanes or the target is never counted. A canceled lane whose branch is gone
     yields nothing (claim building tolerates an unresolvable lane, as
-    :func:`_lane_tip_commits` documents).
+    :func:`_lane_tip_commits` documents) — but only because
+    :func:`_unreadable_canceled_dependency_lanes` has already refused the claim
+    when a live lane depends on that lane; call this only after that check.
     """
     own: set[str] = set()
     for lane in lanes_manifest.lanes:
@@ -1445,6 +1456,56 @@ def _fully_canceled_lane_commits(
         anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids)
         own |= lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
     return frozenset(own)
+
+
+def _unreadable_canceled_dependency_lanes(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    excluded_canceled_wp_ids: frozenset[str],
+    coord_base_ref: str,
+) -> list[tuple[str, str]]:
+    """``(lane_id, branch)`` of every fully-canceled lane a live lane depends on whose tip is unreadable (#5569).
+
+    :func:`_fully_canceled_lane_commits` tolerates a canceled lane whose branch is gone
+    (or whose range git cannot read) and yields nothing for it. That is only safe while
+    nobody inherited the lane's commits: the allocator fast-forwards a dependency lane
+    into its dependent, so the canceled commits sit on the dependent lane's first-parent
+    spine, and an empty set for the canceled lane leaves nothing to subtract — the
+    canceled content would be attributed as approved authorship and ship. For such a
+    dependency lane the unreadable tip must therefore refuse. A canceled lane nobody
+    depends on stays tolerated (its commits are on no live lane's spine).
+    """
+    live_dependencies = {
+        dep
+        for lane in lanes_manifest.lanes
+        if not is_planning_lane(lane) and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
+        for dep in _dependency_lane_ids(lanes_manifest, lane)
+    }
+    unreadable: list[tuple[str, str]] = []
+    for lane in sorted(lanes_manifest.lanes, key=lambda candidate: candidate.lane_id):
+        if lane.lane_id not in live_dependencies or is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
+            continue
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        if not branch_exists(repo_root, branch):
+            unreadable.append((lane.lane_id, branch))
+            continue
+        try:
+            commits_in_range(repo_root, coord_base_ref, branch)
+        except GitProbeError:
+            unreadable.append((lane.lane_id, branch))
+    return unreadable
+
+
+def _unreadable_canceled_dependency_refusal_text(unreadable: list[tuple[str, str]]) -> str:
+    """The #5569 fail-closed refusal for a canceled dependency lane whose tip cannot be read."""
+    return "; ".join(
+        f"fully-canceled lane {lane_id} (branch '{branch}') is a dependency of a live lane but its commits cannot be read "
+        "(the branch is missing or its history is unreadable): its canceled content, which the dependent lane inherited, "
+        f"cannot be told apart from approved work. Recovery: restore '{branch}' (for example "
+        f"`git branch {branch} refs/spec-kitty/lane-tip/{branch}` when a lane-tip ref was recorded, or from `git reflog`), "
+        "then re-run `spec-kitty consolidate`; if the branch was rebuilt, run `spec-kitty consolidate --abort` before re-running"
+        for lane_id, branch in unreadable
+    )
 
 
 def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:
