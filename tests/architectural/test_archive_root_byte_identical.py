@@ -206,7 +206,8 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   gates the result.
 #   Follow-up: once these corrections are in main's baseline, these entries are
 #   dead weight and should be removed to restore the byte-freeze on the corrected
-#   files (#5579).
+#   files (#5608). Owner: stijn-dejongh; drain by 2026-12-31. This set is not
+#   governed by tests/architectural/_baselines.yaml, so the pricing lives here.
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
