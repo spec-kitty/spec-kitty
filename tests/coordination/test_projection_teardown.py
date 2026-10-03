@@ -680,3 +680,69 @@ def test_delete_mission_branch_with_no_branch_is_a_no_op(tmp_path: Path) -> None
     run = _coord_run_state(repo, f"kitty/mission-{SLUG}", _rev(repo, "main"))
 
     assert ex._delete_mission_branch(run) is True
+
+
+def test_pass_anchor_follows_only_a_target_advance_it_matched(tmp_path: Path) -> None:
+    """#5570: the PASS anchor moves over THIS run's own teardown commit, and only if it matched before."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    before = _rev(repo, "main")
+    (repo / "teardown-persisted.txt").write_text("retrospective\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "persist retrospective")
+    after = _rev(repo, "main")
+
+    run.state.reconciliation_passed_target_sha = "not-the-tip"
+    ex._carry_pass_anchor_to_tip(run, before)
+    assert run.state.reconciliation_passed_target_sha == "not-the-tip", "an anchor that never matched must stay put"
+
+    run.state.reconciliation_passed_target_sha = before
+    ex._carry_pass_anchor_to_tip(run, after)
+    assert run.state.reconciliation_passed_target_sha == before, "no advance since tip_before: nothing to carry"
+
+    ex._carry_pass_anchor_to_tip(run, before)
+    assert run.state.reconciliation_passed_target_sha == after
+
+
+def test_late_commits_are_only_landed_by_a_resume(tmp_path: Path) -> None:
+    """A fresh run is covered by the teardown gate; nothing is projected or committed by the landing step."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    run.is_resume = False
+    target_before = _rev(repo, "main")
+
+    ex._land_late_coordination_commits(run)
+
+    assert _rev(repo, "main") == target_before
+
+
+def test_resume_with_nothing_landed_late_commits_nothing(tmp_path: Path) -> None:
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    run.is_resume = True
+    run.state.pre_mutation_coord_sha = projected_tip
+    target_before = _rev(repo, "main")
+
+    ex._land_late_coordination_commits(run)
+
+    assert _rev(repo, "main") == target_before
+
+
+def test_resume_with_an_unreadable_window_refuses_and_keeps_the_branch(tmp_path: Path) -> None:
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    run.is_resume = True
+    run.state.pre_mutation_coord_sha = "0" * 40
+
+    with pytest.raises(ex.CoordinationTeardownError, match="could not be read"):
+        ex._teardown_coordination_triple(run)
+
+    assert _branch_exists(repo, coord)

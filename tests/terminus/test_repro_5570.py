@@ -19,6 +19,8 @@ product code is replaced.
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -50,6 +52,11 @@ def destroy_after_late_commit(repo_root, mission_slug, mid8):
     worktree = Path(os.environ["COORD_WORKTREE"])
     note = worktree / "kitty-specs" / mission_slug / "late-status-emit.md"
     note.write_text("late status emit\\n", encoding="utf-8")
+    late_event = os.environ.get("LATE_EVENT_JSON")
+    if late_event:
+        events = worktree / "kitty-specs" / mission_slug / "status.events.jsonl"
+        with events.open("a", encoding="utf-8") as handle:
+            handle.write(late_event + "\\n")
     def git(*args):
         return subprocess.run(["git", "-C", str(worktree), *args], check=True, capture_output=True, text=True)
     git("add", "-A")
@@ -85,8 +92,10 @@ def _branch_exists(mission: CoordMission, branch: str) -> bool:
     return subprocess.run(["git", "-C", str(mission.repo), "rev-parse", "--verify", ref], capture_output=True, check=False).returncode == 0
 
 
-def _consolidate_with_late_commit(mission: CoordMission) -> subprocess.CompletedProcess[str]:
+def _consolidate_with_late_commit(mission: CoordMission, *, late_event: str | None = None) -> subprocess.CompletedProcess[str]:
     env = cli_env(mission.home)
+    if late_event is not None:
+        env["LATE_EVENT_JSON"] = late_event
     env["COORD_WORKTREE"] = str(_coord_worktree(mission))
     env["LATE_SHA_FILE"] = str(mission.repo / _LATE_SHA_FILE)
     env["MISSION_SLUG"] = mission.slug
@@ -116,6 +125,73 @@ def test_5570_commit_landing_after_the_gate_survives_and_consolidate_fails_loud(
     combined = _flat(result)
     assert mission.coord_branch in combined, f"the refusal must name the branch\n{output}"
     assert late_sha[:12] in combined, f"the refusal must name the moved tip\n{output}"
+
+
+_RESUME_ADVICE = "spec-kitty consolidate --resume"
+
+
+def _advised_commands(combined: str) -> list[str]:
+    """The ``spec-kitty ...`` commands the refusal prints, exactly as an operator would copy them."""
+    return re.findall(r"`(spec-kitty [^`]+)`", combined)
+
+
+def _target_status_events(mission: CoordMission) -> str:
+    return git_out(mission.repo, "show", f"{mission.target_branch}:kitty-specs/{mission.slug}/status.events.jsonl")
+
+
+_LATE_EVENT_ID = "01HXYZ55700000000000000099"
+_LATE_EVENT = json.dumps(
+    {
+        "actor": "late-emitter",
+        "at": "2026-10-03T18:30:00+00:00",
+        "event_id": _LATE_EVENT_ID,
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": "terminus-01M5570C",
+        "force": True,
+        "from_lane": "done",
+        "reason": "late status emit",
+        "review_ref": None,
+        "to_lane": "in_progress",
+        "wp_id": "WP01",
+    },
+    sort_keys=True,
+)
+
+
+def test_5570_printed_recovery_advice_reaches_an_honest_end_state(tmp_path: Path) -> None:
+    """Follow the refusal's advice verbatim: it must work, or the refusal must say what does.
+
+    The refusal tells the operator how to finish. By then the retrospective has been persisted and
+    the coordination worktree destroyed, so the advice is only honest if running it really ends with
+    the late commit projected onto the target (its file AND its status event) and the coordination
+    branch deleted only after that, with the paired marker and the consolidation record cleaned up.
+    """
+    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5570C")
+    refused = _consolidate_with_late_commit(mission, late_event=_LATE_EVENT)
+    assert refused.returncode != 0, "fixture invalid: the first consolidate must refuse"
+    assert _branch_exists(mission, mission.coord_branch)
+    late_sha = (mission.repo / _LATE_SHA_FILE).read_text(encoding="utf-8").strip()
+
+    advice = _flat(refused)
+    commands = [c for c in _advised_commands(advice) if "consolidate" in c]
+    assert commands, f"the refusal must print a concrete consolidate command\n{advice}"
+    assert _RESUME_ADVICE in commands[-1], f"the refusal must advise {_RESUME_ADVICE!r}\n{advice}"
+
+    resumed = run_terminus(mission, [*commands[-1].split()[1:], "--mission", mission.slug, "--yes"])
+    output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
+
+    assert resumed.returncode == 0, f"#5570: the advised resume must finish teardown\n{output}"
+    assert "late-status-emit.md" in git_out(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch), (
+        f"#5570: the late coordination commit was not projected onto the target\n{output}"
+    )
+    assert _LATE_EVENT_ID in _target_status_events(mission), f"#5570: the late status event never reached the target's event log\n{output}"
+    assert not _branch_exists(mission, mission.coord_branch), f"the coordination branch must be deleted once the late commit is on the target\n{output}"
+    assert late_sha, "fixture invalid: no late commit recorded"
+    meta = json.loads(git_out(mission.repo, "show", f"{mission.target_branch}:kitty-specs/{mission.slug}/meta.json"))
+    assert "coordination_branch" not in meta, "the coordination marker must be flattened once the branch is gone"
+    assert git_out(mission.repo, "status", "--porcelain", "--", "kitty-specs").strip() == "", "the resume must leave the mission dir clean"
+    assert not list((mission.repo / ".kittify" / "runtime" / "merge").glob("*/state.json")), "a finished teardown must clear the consolidation record"
 
 
 def test_5570_unmoved_coordination_branch_is_still_deleted(tmp_path: Path) -> None:

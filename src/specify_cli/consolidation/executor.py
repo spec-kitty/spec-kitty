@@ -116,6 +116,7 @@ from specify_cli.consolidation.baseline import (
     record_baseline_merge_commit as _record_baseline_merge_commit,
 )
 from specify_cli.consolidation.bookkeeping_projection import (
+    _post_checkpoint_commit_shas,
     _post_checkpoint_mission_paths,
     _project_status_bookkeeping_to_target,
     _resolve_ref_sha,
@@ -2905,8 +2906,8 @@ def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError) -> Coord
         f"coordination branch {branch!r} moved to {(exc.actual_sha or '')[:12]} after teardown approved "
         f"{exc.expected_sha[:12]} (a commit landed during teardown); it was NOT deleted and the mission's "
         f"coordination marker was left intact. Review the commit(s) with "
-        f"`git log {exc.expected_sha[:12]}..{branch}`; if they belong on the target, land them, then re-run "
-        "`spec-kitty consolidate --resume` to finish teardown."
+        f"`git log {exc.expected_sha[:12]}..{branch}`, then run `spec-kitty consolidate --resume`: it projects "
+        "the late commit(s) onto the target, deletes the branch only if it has not moved again, and finishes teardown."
     )
 
 
@@ -2957,6 +2958,79 @@ def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None)
         logger.warning("Mission branch %s was not deleted: %s", branch, exc)
         return False
     return True
+
+
+def _carry_pass_anchor_to_tip(run: _MergeRunState, tip_before: str) -> None:
+    """Move the reconciliation PASS anchor over a target advance THIS run just made (#5570).
+
+    The anchor (:func:`_resume_reconciliation_already_passed`) is an exact-tip
+    compare-and-swap. Teardown's persist-before-destroy leg (retrospective) and the late
+    coordination landing below each add a bookkeeping commit to the target AFTER the gate
+    passed, so without this a ``--resume`` of a teardown that stopped right after would
+    no longer recognise the verified landing and re-run the claim against lane branches
+    that are already gone. Only an anchor that matched ``tip_before`` moves, and only to
+    the tip this run's own commit produced; an anchor that never matched (no PASS recorded,
+    the target moved by someone else) is left alone so the full gate still runs.
+    """
+    if not reconciliation_passed_for_tip(run.state, tip_before):
+        return
+    tip_after = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
+    if tip_after and tip_after != tip_before:
+        run.state.reconciliation_passed_target_sha = tip_after
+        save_state(run.state, run.main_repo)
+
+
+def _land_late_coordination_commits(run: _MergeRunState) -> None:
+    """Project coordination commits that landed after the teardown gate onto the target (#5570).
+
+    The recovery half of the tip-moved refusal (:func:`_tip_moved_teardown_error`): a
+    ``--resume`` finishing teardown must not delete a coordination branch carrying a commit
+    the target never received. Re-projects the window from the persisted pre-mutation
+    coordination tip to the branch's live tip through the same seam the merge used
+    (status union + non-status paths; idempotent for what already landed), commits what
+    changed onto the target, and moves the PASS anchor over that commit. The delete that
+    follows stays a compare-and-swap at the live tip, so a commit landing after THIS
+    projection still refuses instead of being lost.
+
+    A no-op on a fresh run (the teardown gate covers it) and when nothing landed late.
+    """
+    checkpoint = run.coord_checkpoint
+    base = run.state.pre_mutation_coord_sha
+    branch = run.lanes_manifest.mission_branch
+    if not run.is_resume or checkpoint is None or not base or checkpoint.ref not in (branch, f"refs/heads/{branch}"):
+        return
+    target = run.lanes_manifest.target_branch
+    try:
+        if not _post_checkpoint_commit_shas(run.main_repo, base, checkpoint.ref):
+            return
+        events_path, status_path = _project_status_bookkeeping_to_target(
+            main_repo=run.main_repo,
+            mission_slug=run.mission_slug,
+            status_feature_dir=run.feature_dir,
+            checkpoint_sha=base,
+            coord_ref=checkpoint.ref,
+        )
+        late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, checkpoint.ref)]
+    except GitCommandError as exc:
+        raise CoordinationTeardownError(
+            f"the coordination commits that landed during teardown could not be read ({escape(str(exc))}); "
+            f"branch {branch!r} was NOT deleted. Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        ) from exc
+    paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths]) if path.exists()]
+    if not _paths_have_status_changes(run.main_repo, paths):
+        return
+    tip_before = _resolve_ref_sha(run.main_repo, target)
+    commit_merge_bookkeeping(
+        repo_root=run.main_repo,
+        worktree_root=run.main_repo,
+        mission_slug=run.mission_slug,
+        branch=target,
+        destination_ref_override=target,
+        message=f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)",
+        paths=tuple(paths),
+    )
+    _carry_pass_anchor_to_tip(run, tip_before)
+    console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
 
 
 def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
@@ -3021,12 +3095,14 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
             expected_coord_sha=expected_coord_sha,
             reachability_ok=run.reconciliation_result.is_pass,
         )
+    target_tip_before_persist = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
     teardown_coordination_topology(
         run.main_repo,
         run.mission_slug,
         _mid8_for_teardown,
         projection_gate=projection_gate,
     )
+    _carry_pass_anchor_to_tip(run, target_tip_before_persist)
     logger.debug(
         "Coordination topology teardown for %s-%s completed",
         run.mission_slug,
@@ -3059,6 +3135,7 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     # #5570: the delete is a compare-and-swap at the tip approved BEFORE the
     # window opens -- the gate's tip when one ran, else the tip read now, ahead of
     # the persist/worktree-destroy legs. A commit landing in between survives.
+    _land_late_coordination_commits(run)
     pre_teardown_tip = _mission_branch_tip(run)
     approved_tip = _teardown_coord_worktree(run) or pre_teardown_tip
     if not _delete_mission_branch(run, approved_tip):
