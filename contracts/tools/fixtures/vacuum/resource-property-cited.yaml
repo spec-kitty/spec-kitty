@@ -1,0 +1,100 @@
+openapi: 3.1.0
+info:
+  title: Lint fixture
+  version: 1.0.0
+  summary: A tiny bundle that satisfies every rule of the lint ruleset.
+servers:
+- url: /api/v1
+tags:
+- name: Things
+  description: Things and gadgets.
+paths:
+  /things:
+    get:
+      operationId: listThings
+      summary: List things.
+      description: Returns the things.
+      tags:
+      - Things
+      responses:
+        '200':
+          description: The things.
+          content:
+            application/json:
+              schema:
+                title: Thing
+                description: A thing.
+                type: object
+                additionalProperties: false
+                required:
+                - id
+                - state
+                properties:
+                  id:
+                    type: string
+                    description: Identifier.
+                  state:
+                    type: string
+                    description: Where the thing stands.
+                    enum:
+                    - open
+                    - in_progress
+                    - Done
+                    x-derived:
+                      rule: Derived from the recorded events.
+                      inputs:
+                      - id
+        default:
+          description: The request failed.
+          content:
+            application/problem+json:
+              schema:
+                title: Problem
+                description: A problem details object.
+                type: object
+                additionalProperties: false
+                required:
+                - title
+                properties:
+                  title:
+                    type: string
+                    description: A short summary.
+  /gadgets:
+    get:
+      operationId: listGadgets
+      summary: List gadgets.
+      description: Returns the gadgets.
+      tags:
+      - Things
+      responses:
+        '200':
+          description: The gadgets.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  count:
+                    type: integer
+                    description: How many.
+        default:
+          description: The request failed.
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                - title: Problem
+                  description: A problem details object.
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - title
+                  properties:
+                    title:
+                      type: string
+                      description: A short summary.
+                - type: object
+                  properties:
+                    title:
+                      const: Gadgets refused

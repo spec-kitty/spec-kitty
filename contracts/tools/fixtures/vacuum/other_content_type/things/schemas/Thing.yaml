@@ -1,0 +1,13 @@
+title: Thing
+description: A thing.
+type: object
+additionalProperties: false
+required:
+  - id
+properties:
+  id:
+    type: string
+    description: Identifier.
+    x-source:
+      path: src/example/things.py
+      symbol: Thing.id

@@ -1,0 +1,34 @@
+get:
+  operationId: listThings
+  summary: List things.
+  description: Returns the things.
+  tags:
+    - Things
+  responses:
+    '200':
+      description: The things.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Thing.yaml
+    '404':
+      description: Not found, declared with a content type that is not problem details.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Thing.yaml
+    default:
+      description: The request failed.
+      content:
+        application/problem+json:
+          schema:
+            title: Problem
+            description: A problem details object.
+            type: object
+            additionalProperties: false
+            required:
+              - title
+            properties:
+              title:
+                type: string
+                description: A short summary.

@@ -1,0 +1,172 @@
+# Spectral-format ruleset for the contract bundles (FR-015). It is run by vacuum over each written bundle
+# (contracts/tools/lint_check.py wraps the run and fails on an empty ruleset, zero rules or zero files).
+#
+# The bundle is fully dereferenced: every $ref is already inlined, so "references Problem" is read as "the response
+# schema is titled Problem (the shared schema file's title) or composes it with allOf". Positions the rules cannot see
+# parents of are handled by choosing the position itself (properties[*], items, oneOf[*], anyOf[*], the response
+# schema); an allOf branch is a composition part and is judged through its composite.
+#
+# One rule id per convention. Each has a planted fixture under contracts/tools/fixtures/vacuum/ named <rule id>.yaml.
+extends:
+  - - vacuum:oas
+    - "off"
+
+rules:
+  # operationId present and unique (built-in rules, switched on by name).
+  operation-operationId: true
+  operation-operationId-unique: true
+
+  # every operation tagged (built-in).
+  operation-tags: true
+
+  # every non-2xx response (and `default`) is application/problem+json carrying Problem, and no other content type.
+  non-2xx-is-problem:
+    description: Every non-2xx response is application/problem+json carrying the Problem schema (directly or through allOf), and no other content type.
+    severity: error
+    given: $.paths[*][*].responses
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          type: object
+          patternProperties:
+            "^(1|3|4|5)[0-9][0-9]$|^[1345]XX$|^default$":
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: object
+                  required: ["application/problem+json"]
+                  maxProperties: 1
+                  properties:
+                    "application/problem+json":
+                      type: object
+                      required: [schema]
+                      properties:
+                        schema:
+                          anyOf:
+                            - required: [title]
+                              properties:
+                                title:
+                                  const: Problem
+                            - required: [allOf]
+                              properties:
+                                allOf:
+                                  contains:
+                                    required: [title]
+                                    properties:
+                                      title:
+                                        const: Problem
+
+  # every schema property is described. A refinement (a property redeclared with const or enum, as an allOf branch does to
+  # narrow a property described in the schema it extends) is exempt, as it is for citation_check.py.
+  property-described:
+    description: Every schema property has a description (a const or enum refinement is exempt).
+    severity: error
+    given: $..properties[*]
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          type: object
+          anyOf:
+            - required: [description]
+            - required: [const]
+            - required: [enum]
+
+  # x-source or x-derived on the properties of every titled schema (a resource schema); the shared vocabulary
+  # (Problem, PageInfo, PageCursor) is cross-module and exempt. citation_check.py is the exhaustive check on the resolved tree.
+  resource-property-cited:
+    description: Every property of a resource schema carries x-source or x-derived.
+    severity: error
+    given: $..[?(@.title && @.properties)]
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if:
+            properties:
+              title:
+                enum: [Problem, PageInfo, PageCursor]
+          then: {}
+          else:
+            properties:
+              properties:
+                type: object
+                additionalProperties:
+                  anyOf:
+                    - required: ["x-source"]
+                    - required: ["x-derived"]
+                    - required: [const]
+                    - required: [enum]
+
+  # no property carries a name that exposes a local path (any spelling, case, underscore or hyphen ignored).
+  forbidden-property-name:
+    description: No property is named like a local path (a worktree, a feedback or record path, a project path).
+    severity: error
+    given: $..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "(?i)^(feedback[_-]?path|record[_-]?path|prompt[_-]?path|feature[_-]?dir|worktree([_-]?path)?|project[_-]?path)$"
+
+  # enum values are snake_case words, or PascalCase names (the lifecycle event type names); integers and null are allowed.
+  enum-case:
+    description: Enum values are snake_case or PascalCase strings.
+    severity: error
+    given: $..enum
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          type: array
+          items:
+            anyOf:
+              - type: string
+                pattern: "^([a-z][a-z0-9]*(_[a-z0-9]+)*|[A-Z][A-Za-z0-9]*)$"
+              - type: integer
+              - type: "null"
+
+  # response object schemas are closed (D-2). Judged where a schema stands on its own: the response schema, a property,
+  # an array item, a oneOf or anyOf member. An allOf branch is a part of its composite, which must be closed itself or
+  # compose a closed branch.
+  response-schema-closed:
+    description: A response object schema is closed (additionalProperties false, or unevaluatedProperties false where composed).
+    severity: error
+    given:
+      - $.paths[*][*].responses[*].content[*].schema
+      - $.paths[*][*].responses[*].content[*].schema..properties[*]
+      - $.paths[*][*].responses[*].content[*].schema..items
+      - $.paths[*][*].responses[*].content[*].schema..oneOf[*]
+      - $.paths[*][*].responses[*].content[*].schema..anyOf[*]
+    then:
+      function: schema
+      functionOptions:
+        forceValidationOnCurrentNode: true
+        schema:
+          if:
+            anyOf:
+              - required: [properties]
+              - required: [allOf]
+          then:
+            anyOf:
+              - required: [additionalProperties]
+                properties:
+                  additionalProperties:
+                    const: false
+              - required: [unevaluatedProperties]
+                properties:
+                  unevaluatedProperties:
+                    const: false
+              - required: [allOf]
+                properties:
+                  allOf:
+                    contains:
+                      required: [additionalProperties]
+                      properties:
+                        additionalProperties:
+                          const: false
