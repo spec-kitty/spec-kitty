@@ -74,7 +74,10 @@ example `{path: .kittify/config.yaml, symbol: project.slug}`.
 list whose items are either contract-field property paths (strings) or code inputs
 `{path, symbol}` resolved exactly like an `x-source`; a list may mix both. A bare
 property path (`statusLaneCounts.blocked`, `items`) is relative to the property's own
-schema: its siblings first, then the schema root. `Schema.property`
+schema: its siblings first, then the schema root. A path segment that is not a property
+of the node it is on steps through that node's array items or its map value schema, up
+to three steps per segment, so `workPackages.wpId` resolves through the array's items.
+`Schema.property`
 (`MissionHead.createdAt`) names a property of another schema of the same module.
 Free text, an empty rule, empty or missing inputs and an input that does not resolve
 are each a failure.
