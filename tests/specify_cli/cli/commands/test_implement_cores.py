@@ -575,6 +575,21 @@ class TestSubprocessGitPortChangedVsRef:
         (repo / "d" / "a.txt").write_bytes(b"one\r\nTWO\r\n")
         assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
 
+    def test_hung_hash_object_times_out_and_fails_closed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5576: a hung clean filter (e.g. an LFS credential prompt) must not block implement forever."""
+        repo = _real_repo(tmp_path)
+        seen: list[object] = []
+
+        def fake_run(cmd: Sequence[str], *args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+            if "hash-object" in cmd:
+                seen.append(kwargs.get("timeout"))
+            raise subprocess.TimeoutExpired(cmd, 1)
+
+        monkeypatch.setattr("specify_cli.cli.commands.implement_cores.subprocess.run", fake_run)
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
+        assert seen
+        assert all(isinstance(value, (int, float)) and value > 0 for value in seen)
+
     def test_without_conversion_raw_difference_is_changed(self, tmp_path: Path) -> None:
         repo = _real_repo(tmp_path)
         (repo / "d" / "a.txt").write_bytes(b"one\r\ntwo\r\n")
