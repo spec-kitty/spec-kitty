@@ -526,6 +526,48 @@ def test_deleted_coordination_branch_is_not_live(tmp_path: Path) -> None:
     assert planner.coordination_surface_is_live(feature_dir) is False
 
 
+def _resolve_to_would_be_coord_path(monkeypatch: pytest.MonkeyPatch, repo_root: Path, feature_dir: Path) -> Path:
+    """Pin the resolver to the would-be coordination path it returns when nothing backs it."""
+    from specify_cli.coordination import surface_resolver
+    from specify_cli.missions._read_path_resolver import coord_feature_dir
+
+    coord_dir = coord_feature_dir(repo_root, feature_dir.name, "01JMISSI")
+    resolved = surface_resolver.ResolvedStatusSurface(surface_path=coord_dir / "status.events.jsonl", primary_anchor=feature_dir)
+    monkeypatch.setattr(surface_resolver, "resolve_status_surface_with_anchor", lambda _root, _slug: resolved)
+    return coord_dir
+
+
+def test_would_be_coord_path_with_no_worktree_and_no_branch_is_not_live(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The resolver names the coordination path even when nothing exists there; that is not a live surface."""
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=False)
+    coord_dir = _resolve_to_would_be_coord_path(monkeypatch, tmp_path, feature_dir)
+
+    assert not coord_dir.exists()
+    assert planner.coordination_surface_is_live(feature_dir) is False
+    result = b.apply_wp_status_backfill(feature_dir)
+    assert result.skip_reason is None and result.seeded == 2  # seeded, not refused
+
+
+def test_existing_coord_log_is_live_even_without_a_local_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=False)
+    coord_dir = _resolve_to_would_be_coord_path(monkeypatch, tmp_path, feature_dir)
+    coord_dir.mkdir(parents=True)
+    (coord_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    before = _log_bytes(feature_dir)
+
+    assert planner.coordination_surface_is_live(feature_dir) is True
+    assert b.apply_wp_status_backfill(feature_dir).skip_reason == planner.COORD_SURFACE_LIVE
+    assert _log_bytes(feature_dir) == before
+
+
+def test_local_branch_with_unmaterialised_worktree_is_live(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=True)
+    coord_dir = _resolve_to_would_be_coord_path(monkeypatch, tmp_path, feature_dir)
+
+    assert not coord_dir.exists()
+    assert planner.coordination_surface_is_live(feature_dir) is True
+
+
 def test_completed_coordination_mission_is_not_live_because_primary_is_the_record(tmp_path: Path) -> None:
     feature_dir, _git = _coord_mission(tmp_path, branch_exists=True)
     meta_path = feature_dir / "meta.json"
