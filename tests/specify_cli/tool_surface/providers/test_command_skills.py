@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from specify_cli.skills import command_installer
 from specify_cli.skills import manifest_store
@@ -12,11 +14,13 @@ from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
 from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
-from specify_cli.tool_surface.operations import OwnerAssessment
+from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OwnerAssessment
 from specify_cli.tool_surface.status import (
     STATE_DRIFTED,
     STATE_MISSING,
     STATE_PRESENT,
+    SurfaceStatus,
+    _surface_id,
 )
 
 import pytest
@@ -538,7 +542,6 @@ def test_wp04_provider_preserves_status_identity_and_shared_batch(tmp_path: Path
     from specify_cli.tool_surface.providers.protocol import AssessingSurfaceProvider
     from specify_cli.tool_surface.plan import SurfacePlanBuilder
     from specify_cli.tool_surface.registry import ToolSurfaceRegistry
-    from specify_cli.tool_surface.status import SurfaceStatus
     from tests.upgrade.preview_support.snapshot import snapshot
     from tests.specify_cli.skills.test_command_installer import _wp04_equal_effects
 
@@ -573,18 +576,120 @@ def test_wp04_provider_preserves_status_identity_and_shared_batch(tmp_path: Path
     _wp04_equal_effects(assessment, before, snapshot({"project": tmp_path}))
 
 
-def test_wp04_ordinary_repair_keeps_drift_and_repairs_missing(tmp_path: Path) -> None:
-    command_installer.install(tmp_path, "codex")
+def test_explicit_repair_overwrites_drift_and_repairs_missing(tmp_path: Path) -> None:
+    """``repair`` is the explicit path: a drifted status is consent to overwrite (#5575)."""
+    provider, drift, canonical = _installed_codex_project(tmp_path)
     missing = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
-    drift = tmp_path / ".agents/skills/spec-kitty.status/SKILL.md"
     missing.unlink()
     drift.write_bytes(b"custom edited command")
-    provider = CommandSkillsProvider()
-    statuses = tuple(provider.probe(i) for i in provider.expand(command_skill_definition(), "codex", tmp_path))
+    statuses = _probe_all(provider, tmp_path)
+    assert {s.state for s in statuses} >= {STATE_MISSING, STATE_DRIFTED}
+
     result = provider.repair(tmp_path, statuses)
-    assert result.repaired and result.failed
+
+    assert result.failed == ()
     assert missing.is_file()
+    assert drift.read_bytes() == canonical
+    assert _probe_skill(provider, tmp_path, drift).state == STATE_PRESENT
+
+
+def _probe_all(provider: CommandSkillsProvider, project: Path) -> list[SurfaceStatus]:
+    return [provider.probe(i) for i in provider.expand(command_skill_definition(), "codex", project)]
+
+
+def _capture_consents(monkeypatch: pytest.MonkeyPatch) -> list[ApplyConsent]:
+    captured: list[ApplyConsent] = []
+    real_prepare = command_installer.prepare_commands
+
+    def spy(inputs: AssessmentInputs, agents: tuple[str, ...], **kwargs: Any) -> OwnerAssessment:
+        captured.append(inputs.consent)
+        return real_prepare(inputs, agents, **kwargs)
+
+    monkeypatch.setattr(command_installer, "prepare_commands", spy)
+    return captured
+
+
+def test_repair_consent_lists_only_drifted_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    provider, drift, _ = _installed_codex_project(tmp_path)
+    (tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md").unlink()
+    drift.write_bytes(b"custom edited command")
+    statuses = _probe_all(provider, tmp_path)
+    consents = _capture_consents(monkeypatch)
+
+    provider.repair(tmp_path, statuses)
+
+    assert [c.overwrite_paths for c in consents] == [(".agents/skills/spec-kitty.accept/SKILL.md",)]
+    assert consents[0].automatic is True
+
+
+def test_repair_of_missing_only_passes_empty_overwrite_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    provider, _, _ = _installed_codex_project(tmp_path)
+    missing = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    missing.unlink()
+    statuses = _probe_all(provider, tmp_path)
+    assert STATE_DRIFTED not in {s.state for s in statuses}
+    consents = _capture_consents(monkeypatch)
+
+    result = provider.repair(tmp_path, statuses)
+
+    assert [c.overwrite_paths for c in consents] == [()]
+    assert result.failed == ()
+    assert missing.is_file()
+
+
+def test_repair_uses_one_consent_for_assess_and_apply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    provider, drift, _ = _installed_codex_project(tmp_path)
+    drift.write_bytes(b"custom edited command")
+    statuses = _probe_all(provider, tmp_path)
+    assessed = _capture_consents(monkeypatch)
+    applied: list[ApplyConsent] = []
+    real_apply = provider.apply
+    monkeypatch.setattr(provider, "apply", lambda assessment, consent: (applied.append(consent), real_apply(assessment, consent))[1])
+
+    provider.repair(tmp_path, statuses)
+
+    assert len(assessed) == len(applied) == 1
+    assert assessed[0] is applied[0]
+
+
+def test_repair_dry_run_reports_consented_drift_without_writing(tmp_path: Path) -> None:
+    provider, drift, _ = _installed_codex_project(tmp_path)
+    drift.write_bytes(b"custom edited command")
+    statuses = _probe_all(provider, tmp_path)
+    drifted_ids = tuple(_surface_id(s.instance) for s in statuses if s.state == STATE_DRIFTED)
+
+    result = provider.repair(tmp_path, statuses, dry_run=True)
+
+    assert result.dry_run is True
+    assert set(drifted_ids) <= set(result.repaired)
+    assert result.failed == ()
     assert drift.read_bytes() == b"custom edited command"
+
+
+def test_repair_leaves_present_statuses_untouched(tmp_path: Path) -> None:
+    provider, drift, _ = _installed_codex_project(tmp_path)
+    present = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    before = present.read_bytes()
+    drift.write_bytes(b"custom edited command")
+
+    provider.repair(tmp_path, _probe_all(provider, tmp_path))
+
+    assert present.read_bytes() == before
+
+
+def test_unattended_surface_repair_keeps_the_edit_and_reports_it(tmp_path: Path) -> None:
+    """C-003: ``run_surface_repair`` without ``repair_drift`` never overwrites a real edit."""
+    from specify_cli.tool_surface.repair import run_surface_repair
+
+    _, drift, _ = _installed_codex_project(tmp_path)
+    edited = b"custom edited command"
+    drift.write_bytes(edited)
+
+    summary = run_surface_repair(tmp_path, interactive=False, repair_drift=False)
+
+    assert drift in summary.drifted_reported
+    assert drift not in summary.drifted_overwritten
+    assert drift.read_bytes() == edited
 
 
 def _empty_manifest(project: Path) -> None:
@@ -682,6 +787,94 @@ def test_probe_drift(tmp_path: Path) -> None:
     status = provider.probe(drifted)
     assert status.state == STATE_DRIFTED
     assert status.findings[0].code == "managed-file-drift"
+
+
+def _configured_project(project: Path) -> None:
+    (project / ".kittify").mkdir(parents=True, exist_ok=True)
+    (project / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - codex\n", encoding="utf-8")
+
+
+def _installed_codex_project(project: Path) -> tuple[CommandSkillsProvider, Path, bytes]:
+    _configured_project(project)
+    command_installer.install(project, "codex")
+    skill = project / ".agents/skills/spec-kitty.accept/SKILL.md"
+    return CommandSkillsProvider(), skill, skill.read_bytes()
+
+
+def _probe_skill(provider: CommandSkillsProvider, project: Path, skill: Path) -> SurfaceStatus:
+    rel = skill.relative_to(project).as_posix()
+    (instance,) = [i for i in provider.expand(command_skill_definition(), "codex", project) if i.path == project / rel]
+    return provider.probe(instance)
+
+
+def _set_recorded_hash(project: Path, skill: Path, content_hash: str) -> None:
+    rel = skill.relative_to(project).as_posix()
+    manifest = manifest_store.load(project)
+    manifest_store.save(
+        project,
+        manifest_store.SkillsManifest(entries=[replace(e, content_hash=content_hash) if e.path == rel else e for e in manifest.entries]),
+    )
+
+
+def test_probe_drift_finding_names_the_explicit_repair(tmp_path: Path) -> None:
+    provider, skill, canonical = _installed_codex_project(tmp_path)
+    skill.write_bytes(canonical + b"\nlocal edit\n")
+
+    status = _probe_skill(provider, tmp_path, skill)
+
+    assert status.state == STATE_DRIFTED
+    (finding,) = status.findings
+    assert finding.repair_command == "spec-kitty doctor tool-surfaces --fix"
+    assert "spec-kitty doctor tool-surfaces --fix" in finding.message
+
+
+def test_probe_canonical_bytes_with_old_recorded_hash_is_present(tmp_path: Path) -> None:
+    provider, skill, canonical = _installed_codex_project(tmp_path)
+    _set_recorded_hash(tmp_path, skill, "0" * 64)
+
+    status = _probe_skill(provider, tmp_path, skill)
+
+    assert status.state == STATE_PRESENT
+    assert status.findings == ()
+    assert skill.read_bytes() == canonical
+
+
+def test_probe_real_edit_with_old_recorded_hash_stays_drifted(tmp_path: Path) -> None:
+    provider, skill, canonical = _installed_codex_project(tmp_path)
+    _set_recorded_hash(tmp_path, skill, "0" * 64)
+    skill.write_bytes(canonical + b"\nlocal edit\n")
+
+    assert _probe_skill(provider, tmp_path, skill).state == STATE_DRIFTED
+
+
+def test_probe_unknown_canonical_digest_keeps_the_drift_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    provider, skill, _ = _installed_codex_project(tmp_path)
+    _set_recorded_hash(tmp_path, skill, "0" * 64)
+    monkeypatch.setattr(command_installer, "canonical_digest", lambda project_root, command: None)
+
+    assert _probe_skill(provider, tmp_path, skill).state == STATE_DRIFTED
+
+
+@pytest.mark.parametrize(
+    ("rel", "expected"),
+    [
+        (".agents/skills/spec-kitty.accept/SKILL.md", "accept"),
+        (".agents/skills/spec-kitty./SKILL.md", None),
+        (".agents/skills/other/SKILL.md", None),
+        (".agents/skills/spec-kitty.accept/README.md", None),
+    ],
+)
+def test_command_from_rel(rel: str, expected: str | None) -> None:
+    from specify_cli.tool_surface.providers.command_skills import _command_from_rel
+
+    assert _command_from_rel(rel) == expected
+
+
+def test_is_canonical_bytes_without_project_root_is_false() -> None:
+    from specify_cli.tool_surface.providers.command_skills import _is_canonical_bytes
+
+    assert _is_canonical_bytes(None, ".agents/skills/spec-kitty.accept/SKILL.md", "x") is False
+    assert _is_canonical_bytes(Path("."), None, "x") is False
 
 
 def test_repair_no_actionable_returns_clean(tmp_path: Path) -> None:

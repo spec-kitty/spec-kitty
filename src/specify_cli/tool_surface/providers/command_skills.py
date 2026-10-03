@@ -61,6 +61,10 @@ from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 PROVIDER_KEY = "command_skills"
 _PATH_PATTERN = ".agents/skills/spec-kitty.{command}/SKILL.md"
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind command-skill --fix"
+# Drift guidance: an edited command skill is replaced only by the explicit repair.
+_DRIFT_REPAIR_HINT = "spec-kitty doctor tool-surfaces --fix"
+_SKILLS_PREFIX = ".agents/skills/spec-kitty."
+_SKILL_SUFFIX = "/SKILL.md"
 
 
 def command_skill_definition() -> SurfaceDefinition:
@@ -241,22 +245,27 @@ class CommandSkillsProvider:
             return self._missing_status(instance, path)
         if instance.file_hash is not None:
             on_disk = manifest_store.fingerprint_file(path)
-            if on_disk != instance.file_hash:
-                return SurfaceStatus(
-                    instance=instance,
-                    state=STATE_DRIFTED,
-                    findings=(
-                        make_finding(
-                            MANAGED_FILE_DRIFT,
-                            SEVERITY_WARNING,
-                            f"Command skill drifted from manifest hash: {path}",
-                            tool_key=instance.owner,
-                            surface_id=_surface_id(instance),
-                            path=path,
-                        ),
-                    ),
-                )
+            if on_disk != instance.file_hash and not _is_canonical_bytes(project_root, rel, on_disk):
+                return self._drift_status(instance, path)
         return SurfaceStatus(instance=instance, state=STATE_PRESENT)
+
+    @staticmethod
+    def _drift_status(instance: SurfaceInstance, path: Path) -> SurfaceStatus:
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_DRIFTED,
+            findings=(
+                make_finding(
+                    MANAGED_FILE_DRIFT,
+                    SEVERITY_WARNING,
+                    f"Command skill drifted from manifest hash: {path}; run '{_DRIFT_REPAIR_HINT}' to restore it",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=path,
+                    repair_command=_DRIFT_REPAIR_HINT,
+                ),
+            ),
+        )
 
     @staticmethod
     def _missing_status(instance: SurfaceInstance, path: Path) -> SurfaceStatus:
@@ -373,7 +382,13 @@ class CommandSkillsProvider:
         if not affected:
             return RepairResult(dry_run=dry_run)
         selections = tuple(SurfaceSelection(agent, next(s.instance.definition for s in statuses if s.instance.owner == agent)) for agent in affected)
-        inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=ApplyConsent(automatic=True))
+        # An explicit repair is the operator's consent to replace a drifted (edited) skill; only
+        # DRIFTED statuses populate it, so missing/stale paths never widen the overwrite set.
+        consent = ApplyConsent(
+            automatic=True,
+            overwrite_paths=tuple(sorted(s.instance.path.relative_to(project_root).as_posix() for s in statuses if s.state == STATE_DRIFTED)),
+        )
+        inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=consent)
         assessment = self.assess(inputs, statuses, selections=selections)
         if not assessment.complete:
             return RepairResult(failed=tuple(d.message for d in assessment.diagnostics), dry_run=dry_run)
@@ -384,12 +399,31 @@ class CommandSkillsProvider:
         failed = tuple(sorted(path for path in unresolved if path is not None))
         if dry_run:
             return RepairResult(repaired=eligible, failed=failed, dry_run=True)
-        result = self.apply(assessment, inputs.consent)
+        result = self.apply(assessment, consent)
         if result.outcome != "applied":
             successful_paths = {e.destination for e in assessment.effects if e.id in result.succeeded}
             repaired = tuple(_surface_id(s.instance) for s in statuses if s.instance.path in successful_paths)
             return RepairResult(repaired=repaired, failed=failed + tuple(d.message for d in result.diagnostics))
         return RepairResult(repaired=eligible, failed=failed)
+
+
+def _command_from_rel(rel: str) -> str | None:
+    """Return the canonical command name of a command-skill relative path, else ``None``."""
+    if not (rel.startswith(_SKILLS_PREFIX) and rel.endswith(_SKILL_SUFFIX)):
+        return None
+    return rel[len(_SKILLS_PREFIX) : -len(_SKILL_SUFFIX)] or None
+
+
+def _is_canonical_bytes(project_root: Path | None, rel: str | None, on_disk: str) -> bool:
+    """Whether *on_disk* is today's canonical rendering (a fresh file with an old recorded hash).
+
+    ``None`` from the installer (no single canonical rendering) fails toward
+    reporting drift: only a proven match suppresses the finding.
+    """
+    if project_root is None or rel is None:
+        return False
+    command = _command_from_rel(rel)
+    return command is not None and command_installer.canonical_digest(project_root, command) == on_disk
 
 
 def _project_root_and_rel(path: Path) -> tuple[Path | None, str | None]:
