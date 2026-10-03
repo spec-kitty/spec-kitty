@@ -378,6 +378,107 @@ def test_meta_naming_a_deleted_coordination_branch_neither_raises_nor_mints_a_br
     assert git("branch", "--list", "kitty/*").strip() == ""
 
 
+COORD_BRANCH = "kitty/mission-live-01JMISSI"
+
+
+def _git_repo(root: Path) -> Any:
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True).stdout
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.invalid")
+    git("config", "user.name", "tester")
+    git("commit", "--allow-empty", "-q", "-m", "init")
+    return git
+
+
+def _coord_mission(tmp_path: Path, *, branch_exists: bool) -> tuple[Path, Any]:
+    git = _git_repo(tmp_path)
+    feature_dir = _build_mission(
+        tmp_path,
+        wp_ids=THREE,
+        seeded=("WP01",),
+        meta_extra={"topology": "coord", "coordination_branch": COORD_BRANCH},
+    )
+    if branch_exists:
+        git("branch", COORD_BRANCH)
+    return feature_dir, git
+
+
+def test_live_coordination_branch_refuses_the_mission_and_writes_nothing(tmp_path: Path) -> None:
+    """The PRIMARY-partition log is not the authority while the coordination branch resolves."""
+    feature_dir, git = _coord_mission(tmp_path, branch_exists=True)
+    before = _log_bytes(feature_dir)
+    branches = git("branch", "--list")
+
+    result = b.apply_wp_status_backfill(feature_dir)
+
+    assert planner.coordination_surface_is_live(feature_dir) is True
+    assert result.skip_reason == planner.COORD_SURFACE_LIVE == "COORD_SURFACE_LIVE"
+    assert result.error is None and result.seeded == 0 and result.would_seed == 0
+    assert result.files_only == ()  # refused before any plan is built
+    assert _log_bytes(feature_dir) == before
+    assert not (feature_dir / "status.json").exists()
+    assert git("branch", "--list") == branches
+
+
+def test_live_coordination_surface_is_refused_on_dry_run_too(tmp_path: Path) -> None:
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=True)
+
+    result = b.apply_wp_status_backfill(feature_dir, dry_run=True)
+
+    assert result.skip_reason == planner.COORD_SURFACE_LIVE
+    assert result.would_seed == 0 and result.files_only == ()
+
+
+def test_repo_walk_refuses_a_live_coordination_mission_and_still_repairs_the_others(tmp_path: Path) -> None:
+    live, _git = _coord_mission(tmp_path, branch_exists=True)
+    plain = tmp_path / "kitty-specs" / "plain-mission"
+    (plain / "tasks").mkdir(parents=True)
+    _write_wp_file(plain / "tasks", "WP01")
+
+    by_slug = {r.slug: r for r in b.apply_wp_status_backfill_repo(tmp_path)}
+
+    assert by_slug[live.name].skip_reason == planner.COORD_SURFACE_LIVE
+    assert by_slug["plain-mission"].seeded == 1 and by_slug["plain-mission"].skip_reason is None
+
+
+def test_materialised_coordination_worktree_is_live_and_a_run_from_it_is_not_refused(tmp_path: Path) -> None:
+    from specify_cli.missions._read_path_resolver import coord_feature_dir
+
+    feature_dir, git = _coord_mission(tmp_path, branch_exists=True)
+    coord_dir = coord_feature_dir(tmp_path, SLUG, "01JMISSI")
+    git("worktree", "add", "-q", str(coord_dir.parent.parent), COORD_BRANCH)
+    coord_dir.mkdir(parents=True)
+
+    assert planner.coordination_surface_is_live(feature_dir) is True
+    assert b.apply_wp_status_backfill(feature_dir).skip_reason == planner.COORD_SURFACE_LIVE
+    # Addressed at the coordination checkout itself, the log IS the authority.
+    assert planner.coordination_surface_is_live(coord_dir) is False
+
+
+def test_deleted_coordination_branch_is_not_live(tmp_path: Path) -> None:
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=False)
+
+    assert planner.coordination_surface_is_live(feature_dir) is False
+
+
+def test_completed_coordination_mission_is_not_live_because_primary_is_the_record(tmp_path: Path) -> None:
+    feature_dir, _git = _coord_mission(tmp_path, branch_exists=True)
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["merged_at"] = "2026-02-01T00:00:00Z"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    assert planner.coordination_surface_is_live(feature_dir) is False
+
+
+def test_mission_outside_a_repository_is_not_live(tmp_path: Path) -> None:
+    feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",))
+
+    assert planner.coordination_surface_is_live(feature_dir) is False
+
+
 @pytest.mark.parametrize("wp_status_first", [True, False])
 def test_runtime_backfill_interleaving_leaves_seeded_wp_lanes_unchanged(tmp_path: Path, wp_status_first: bool) -> None:
     feature_dir = build_mission(tmp_path, with_transitions=False, with_review=False)
