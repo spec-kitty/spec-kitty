@@ -88,6 +88,9 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
     topology whose coordination worktree is materialised, or whose branch still
     exists. It is *not* live (the PRIMARY-partition log is the authority) when
 
+    * the Mission declares no ``coordination_branch`` in ``meta.json`` (it has no
+      coordination surface; this cheap pre-check skips the resolver, whose
+      mission index is rebuilt on every call and is O(corpus));
     * the topology routes status to the PRIMARY partition, or the Mission is
       completed (merge evidence makes the primary log the record);
     * the coordination worktree root exists but is empty;
@@ -103,6 +106,8 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
     from specify_cli.core.paths import MissionMetaReadError, WorkspaceRootNotFound, resolve_canonical_root
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
+    if not (load_meta(feature_dir, allow_missing=True, on_malformed="none") or {}).get("coordination_branch"):
+        return False
     try:
         repo_root = resolve_canonical_root(feature_dir)
         surface = resolve_status_surface_with_anchor(repo_root, feature_dir.name)
