@@ -293,3 +293,4 @@ examples:
   - $ref: ../examples/WorkPackage.actor-redacted.yaml
   - $ref: ../examples/WorkPackage.canceled.yaml
   - $ref: ../examples/WorkPackage.override.yaml
+  - $ref: ../examples/WorkPackage.override-partial.yaml

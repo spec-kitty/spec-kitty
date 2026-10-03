@@ -27,6 +27,7 @@ files:
   - WorkPackage.actor-structured.yaml
   - WorkPackage.canceled.yaml
   - WorkPackage.no-events.yaml
+  - WorkPackage.override-partial.yaml
   - WorkPackage.override.yaml
   - WorkPackage.populated.yaml
   - WorkPackage.provisional.yaml

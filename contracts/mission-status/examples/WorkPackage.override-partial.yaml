@@ -1,4 +1,4 @@
-wpId: WP09
+wpId: WP10
 title: Ship the release
 phaseLabel: Screens
 authored:
@@ -58,12 +58,12 @@ review:
   latestResult:
     reviewer: reviewer-renata
     verdict: approved
-    reference: review-cycle://example-mission-01JZAB3C/WP09/review-cycle-2.md
+    reference: review-cycle://example-mission-01JZAB3C/WP10/review-cycle-2.md
   override:
-    complete: true
+    complete: false
     at: '2026-09-26T09:30:00Z'
     actor: operator
-    reason: Reviewed out of band by the maintainer.
+    reason: null
 history:
 - eventId: 01JZAB3C4D5E6F7G8H9JKMNQ21
   at: '2026-09-26T09:35:00Z'
@@ -75,6 +75,6 @@ history:
     role: reviewer
     profile: reviewer-renata
   force: true
-  reason: Approved after the override.
+  reason: Approved while the override record is partial.
   reviewVerdict: approved
 staleness: null

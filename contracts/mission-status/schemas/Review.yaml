@@ -1,7 +1,7 @@
 title: Review
 description: >-
   The review evidence of a work package: its latest review result and any review override.
-  Both are null until they exist.
+  Both are null until they exist. A partial override is present with `complete` false.
 type: object
 additionalProperties: false
 required:
@@ -20,7 +20,7 @@ properties:
     oneOf:
       - $ref: ReviewOverride.yaml
       - type: 'null'
-    description: The review override, or null when none was recorded.
+    description: The review override, or null when none was recorded (or only the release marker that clears an override).
     x-source:
       path: src/specify_cli/status/wp_review.py
       symbol: resolve_snapshot_review
