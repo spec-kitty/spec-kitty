@@ -19,5 +19,6 @@ allOf:
       status:
         type: integer
         const: 400
+        description: The HTTP status of the refusal, always 400 for a refused page cursor.
 examples:
   - $ref: ../examples/PageCursorRefusal.invalid.yaml

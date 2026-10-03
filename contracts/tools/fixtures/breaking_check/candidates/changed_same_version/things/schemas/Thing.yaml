@@ -15,6 +15,3 @@ properties:
   count:
     type: integer
     description: How many.
-  note:
-    type: string
-    description: A free note.

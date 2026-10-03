@@ -42,6 +42,18 @@
         "schema": "Thing"
       }
     ],
+    "v_required_deleted": [
+      {
+        "example": "Thing.ok.yaml",
+        "reason": "fixture",
+        "schema": "Thing"
+      },
+      {
+        "example": "Thing.gone.yaml",
+        "reason": "deleted while still referenced",
+        "schema": "Thing"
+      }
+    ],
     "v_required_missing": [
       {
         "example": "Thing.ok.yaml",

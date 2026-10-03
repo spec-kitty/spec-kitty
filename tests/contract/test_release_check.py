@@ -9,6 +9,7 @@ real here (``--bundle-only``: no JVM).
 from __future__ import annotations
 
 import hashlib
+import shlex
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
@@ -40,7 +41,7 @@ def _run(releaser: ModuleType, out: Path, *args: str, root: Path = ROOT) -> tupl
 
 def _release_line(output: str) -> list[str]:
     (line,) = [line for line in output.splitlines() if line.startswith("GH_RELEASE_ARGS ")]
-    return line.removeprefix("GH_RELEASE_ARGS ").split()
+    return shlex.split(line.removeprefix("GH_RELEASE_ARGS "))
 
 
 # -- the clean control --------------------------------------------------------------------------------
@@ -70,7 +71,7 @@ def test_without_a_tag_the_candidate_tag_is_derived_for_every_module(releaser: M
     assert "CHANGELOG_HEADING_MISSING: contract-no-heading-v1.2.0:" in output
     assert "GH_RELEASE_ARGS gh release create contract-clean-v1.0.0 " in output
     assert "contract-mismatch-v2.0.0" in output, "mismatch is only a mismatch against a tag; its derived tag is consistent"
-    assert output.splitlines()[-1] == "counts: modules=3 bundles=2 verified=2"
+    assert output.splitlines()[-1] == "counts: modules=4 bundles=3 verified=3"
 
 
 def test_a_prerelease_version_adds_prerelease_and_still_never_latest(releaser: ModuleType, tmp_path: Path) -> None:
@@ -84,6 +85,49 @@ def test_a_prerelease_version_adds_prerelease_and_still_never_latest(releaser: M
     assert code == 0, output
     arguments = _release_line(output)
     assert "--prerelease" in arguments and "--latest=false" in arguments
+
+
+# -- -SNAPSHOT: work in progress, never released ----------------------------------------------------------
+
+
+def test_a_snapshot_release_tag_is_refused_with_its_own_code(releaser: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(releaser, tmp_path, "--tag", "contract-snapshot-v1.0.0-SNAPSHOT")
+
+    assert code == 1
+    assert "CONTRACT-CHECK release_check: SNAPSHOT_RELEASE_REFUSED: contract-snapshot-v1.0.0-SNAPSHOT:" in output
+    assert "GH_RELEASE_ARGS" not in output, "no release command is printed for a snapshot"
+    assert not (tmp_path / "release").exists(), "nothing is built or checksummed for a refused snapshot tag"
+
+
+def test_the_snapshot_refusal_does_not_depend_on_the_module_or_its_version(releaser: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(releaser, tmp_path, "--tag", "contract-absent-v2.0.0-SNAPSHOT")
+
+    assert code == 1 and "SNAPSHOT_RELEASE_REFUSED: contract-absent-v2.0.0-SNAPSHOT:" in output
+    assert "MODULE_UNKNOWN" not in output
+
+
+@pytest.mark.parametrize("tag", ["contract-clean-v1.0.0-snapshot", "contract-clean-v1.0.0-SNAPSHOT2"])
+def test_only_the_exact_snapshot_suffix_gets_the_snapshot_code(releaser: ModuleType, tmp_path: Path, tag: str) -> None:
+    _, output = _run(releaser, tmp_path, "--tag", tag)
+
+    assert "SNAPSHOT_RELEASE_REFUSED" not in output
+
+
+def test_a_prerelease_ending_in_snapshot_is_still_a_snapshot(releaser: ModuleType, tmp_path: Path) -> None:
+    _, output = _run(releaser, tmp_path, "--tag", "contract-clean-v1.0.0-rc.1-SNAPSHOT")
+
+    assert "SNAPSHOT_RELEASE_REFUSED: contract-clean-v1.0.0-rc.1-SNAPSHOT:" in output
+
+
+def test_a_dry_run_without_a_tag_builds_a_snapshot_module_but_prints_no_release_command(releaser: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(releaser, tmp_path, "--module", "snapshot")
+
+    assert code == 0, output
+    assert "SNAPSHOT_RELEASE_REFUSED" not in output
+    assert "SNAPSHOT_DRY_RUN: contract-snapshot-v1.0.0-SNAPSHOT:" in output
+    assert "GH_RELEASE_ARGS" not in output
+    assert (tmp_path / "release" / "snapshot" / "openapi.yaml.sha256").is_file()
+    assert output.splitlines()[-1] == "counts: modules=1 bundles=1 verified=1"
 
 
 # -- tag rules ---------------------------------------------------------------------------------------
@@ -168,9 +212,64 @@ def test_a_failed_verification_is_reported_with_checksum_mismatch(releaser: Modu
 
 def test_release_arguments_always_carry_latest_false(releaser: ModuleType) -> None:
     for tag, prerelease in (("contract-x-v1.0.0", False), ("contract-x-v1.0.0-rc.1", True), ("contract-x-v0.0.1-alpha", True)):
-        arguments = releaser.release_arguments(tag, ["a", "b"], prerelease=releaser.is_prerelease(tag.rsplit("-v", 1)[1]))
+        arguments = releaser.release_arguments(tag, ["a", "b"], prerelease=releaser.is_prerelease(tag.rsplit("-v", 1)[1]), notes="n")
         assert "--latest=false" in arguments
         assert ("--prerelease" in arguments) is prerelease
+
+
+@pytest.mark.parametrize(
+    ("tag", "module", "version", "prerelease"),
+    [
+        ("contract-clean-v1.0.0", "clean", "1.0.0", False),
+        ("contract-clean-v1.0.0-v2", "clean", "1.0.0-v2", True),
+        ("contract-clean-v1.0.0-rc.1", "clean", "1.0.0-rc.1", True),
+        ("contract-clean-v1.0.0+build-x", "clean", "1.0.0+build-x", False),
+        ("contract-clean-v1.0.0-rc.1+build-x", "clean", "1.0.0-rc.1+build-x", True),
+        ("contract-mission-status-v1.0.0-v2", "mission-status", "1.0.0-v2", True),
+    ],
+)
+def test_the_tag_is_split_into_module_and_version_and_only_a_prerelease_part_makes_a_prerelease(
+    releaser: ModuleType, tag: str, module: str, version: str, prerelease: bool
+) -> None:
+    """Regression: the workflow once split on the last ``-v`` and treated build metadata containing a hyphen as a prerelease."""
+    match = releaser.TAG_PATTERN.match(tag)
+
+    assert match is not None and (match["module"], match["version"]) == (module, version)
+    assert releaser.is_prerelease(match["version"]) is prerelease
+
+
+def test_the_release_arguments_carry_the_notes_and_verify_the_tag(releaser: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(releaser, tmp_path, "--tag", "contract-clean-v1.0.0")
+
+    assert code == 0, output
+    arguments = _release_line(output)
+    assert "--verify-tag" in arguments
+    assert arguments[arguments.index("--notes") + 1] == "Contract clean 1.0.0. Verify the bundle with: sha256sum -c openapi.yaml.sha256"
+
+
+def test_the_arguments_file_holds_exactly_the_arguments_after_gh_release_create_one_per_line(releaser: ModuleType, tmp_path: Path) -> None:
+    args_file = tmp_path / "args.txt"
+
+    code, output = _run(releaser, tmp_path / "out", "--tag", "contract-clean-v1.0.0", "--args-file", str(args_file))
+
+    assert code == 0, output
+    printed = _release_line(output)
+    assert args_file.read_text(encoding="utf-8").splitlines() == printed[3:]
+    assert printed[3] == "contract-clean-v1.0.0"
+
+
+def test_an_arguments_file_is_not_written_when_the_release_check_fails(releaser: ModuleType, tmp_path: Path) -> None:
+    args_file = tmp_path / "args.txt"
+
+    code, _ = _run(releaser, tmp_path / "out", "--tag", "contract-mismatch-v1.0.0", "--args-file", str(args_file))
+
+    assert code == 1 and not args_file.exists()
+
+
+def test_an_arguments_file_without_a_tag_cannot_do_its_job(releaser: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(releaser, tmp_path / "out", "--args-file", str(tmp_path / "args.txt"))
+
+    assert code == 2 and "ARGS_FILE_NEEDS_TAG" in output
 
 
 # -- cannot do its job: exit 2 ---------------------------------------------------------------------------
@@ -206,6 +305,18 @@ def test_an_empty_bundle_cannot_be_released(releaser: ModuleType, tmp_path: Path
     assert code == 2 and "BUNDLE_EMPTY: clean:" in output
     assert output.splitlines()[-1].startswith("counts: ")
     assert not (tmp_path / "release").exists() or not list((tmp_path / "release").rglob("openapi.yaml.sha256"))
+
+
+def test_a_bundle_step_that_cannot_run_blocks_the_release_before_any_checksum_is_written(releaser: ModuleType, tmp_path: Path) -> None:
+    """The bundle step refuses an output directory inside the repository with exit 2; the release stops there."""
+    inside = TOOLS_DIR / "release-output-must-not-be-here"
+
+    code, output = _run(releaser, inside, "--tag", "contract-clean-v1.0.0")
+
+    assert code == 2, output
+    assert "CONTRACT-CHECK release_check: BUNDLE_STEP_BLOCKED: CONTRACT-CHECK bundle: OUT_INSIDE_REPOSITORY" in output
+    assert output.splitlines()[-1].startswith("counts: ")
+    assert not inside.exists(), "nothing was written, so no checksum file exists"
 
 
 def _empty_bundle(module: Path, out_dir: Path) -> Path:

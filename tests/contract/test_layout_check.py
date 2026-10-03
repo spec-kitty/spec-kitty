@@ -248,6 +248,21 @@ def test_malformed_index_is_reported_not_skipped(layout: Any, tmp_path: Path) ->
     assert [f.code for f in layout.check(root).findings] == ["INDEX_MALFORMED"]
 
 
+def test_an_unparseable_path_file_is_reported_as_unreadable(layout: Any, tmp_path: Path) -> None:
+    root = _copy_modules(tmp_path, "clean", "_shared")
+    path_file = next((root / "clean" / "paths").glob("items_*.yaml"))
+    path_file.write_text("get: [unclosed\n  : : :\n", encoding="utf-8")
+
+    report = layout.check(root)
+
+    assert "UNREADABLE_FILE" in [f.code for f in report.findings]
+    unreadable = next(f for f in report.findings if f.code == "UNREADABLE_FILE")
+    assert unreadable.path.endswith(path_file.name)
+    completed = _run_script(root)
+    assert completed.returncode == 1
+    assert f"UNREADABLE_FILE: clean/paths/{path_file.name}" in completed.stdout
+
+
 def test_the_layout_check_keeps_no_second_copy_of_the_name_rule(layout: Any) -> None:
     assert not hasattr(layout, "derived_path_file_name")
 

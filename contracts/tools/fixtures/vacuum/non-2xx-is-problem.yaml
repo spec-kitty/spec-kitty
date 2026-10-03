@@ -1,3 +1,4 @@
+# rule: non-2xx-is-problem
 openapi: 3.1.0
 info:
   title: Lint fixture

@@ -55,6 +55,9 @@ CASE_TIMEOUT_SECONDS = 3600
 TAG_BINARIES: dict[str, tuple[str, ...]] = {"jvm": ("java", "gradle"), "vacuum": ("vacuum",), "oasdiff": ("oasdiff",)}
 LINT_CLEAN_CONTROL = Path("contracts") / "tools" / "fixtures" / "vacuum" / "clean.yaml"
 DETAIL_LIMIT = 240
+MIN_CODE_LENGTH = 4
+STABLE_CODE = re.compile(r"[A-Z][A-Z_]+")
+DEFAULT_RULESET = REPO_ROOT / "contracts" / "lint" / "ruleset.yaml"
 
 Which = Callable[[str], str | None]
 Execute = Callable[[Sequence[str], Path], tuple[int, str]]
@@ -93,6 +96,34 @@ def subprocess_execute(command: Sequence[str], cwd: Path) -> tuple[int, str]:
     return completed.returncode, completed.stdout + completed.stderr
 
 
+def lint_rule_ids(ruleset: Path = DEFAULT_RULESET) -> frozenset[str]:
+    """The rule ids of the lint ruleset: the keys of its ``rules`` mapping."""
+    try:
+        document: Any = yaml.safe_load(ruleset.read_text(encoding="utf-8"))
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        raise CannotRun("RULESET_UNREADABLE", f"{ruleset}: {type(error).__name__}") from error
+    rules = document.get("rules") if isinstance(document, dict) else None
+    if not isinstance(rules, dict) or not rules:
+        raise CannotRun("RULESET_UNREADABLE", f"{ruleset} lists no rule")
+    return frozenset(str(rule) for rule in rules)
+
+
+def code_problem(code: str, rule_ids: frozenset[str] | None = None) -> str | None:
+    """Why ``code`` cannot identify a failure, or ``None``.
+
+    An expected code is an UPPER_SNAKE code of a check, or a lint rule id of the ruleset (optionally written with
+    its ``: `` delimiters, as ``: <rule>: ``). Any other text, a generic word such as ``error`` included, is found
+    in almost any failing output and proves nothing.
+    """
+    if STABLE_CODE.fullmatch(code):
+        return None if len(code) >= MIN_CODE_LENGTH else f"is shorter than {MIN_CODE_LENGTH} characters"
+    if rule_ids is None:
+        rule_ids = lint_rule_ids()
+    if code.strip().strip(":").strip() in rule_ids:
+        return None
+    return "is neither a stable upper-case code nor a rule id of the lint ruleset, so it matches almost any output"
+
+
 def load_manifest(path: Path) -> list[dict[str, Any]]:
     try:
         document: Any = json.loads(path.read_text(encoding="utf-8"))
@@ -110,6 +141,9 @@ def load_manifest(path: Path) -> list[dict[str, Any]]:
         ids.add(case["id"])
         if not isinstance(case.get("plant"), dict) or not isinstance(case["plant"].get("code"), str):
             raise CannotRun("MANIFEST_INVALID", f"{case['id']}: the plant names no expected code")
+        problem = code_problem(case["plant"]["code"])
+        if problem is not None:
+            raise CannotRun("MANIFEST_INVALID", f"{case['id']}: the expected code {case['plant']['code']!r} {problem}")
     return cases
 
 

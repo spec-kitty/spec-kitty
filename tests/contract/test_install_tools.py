@@ -9,10 +9,12 @@ so no test touches the network.
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
 import sys
+import tarfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
@@ -323,3 +325,81 @@ def test_go_binary_pins_come_from_the_vendor_release_over_https_and_are_old_enou
     assert len(tool["sha256"]) == 64 and set(tool["sha256"]) <= set("0123456789abcdef")
     assert tool["published"] <= LATEST_ACCEPTABLE_PUBLICATION, f"{name} {tool['version']} is younger than 14 days at {PIN_DATE}"
     assert tool["advisory_feed_checked"].strip()
+
+
+def _tarball_with(entries: list[tarfile.TarInfo], payloads: dict[str, bytes] | None = None) -> bytes:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for info in entries:
+            content = (payloads or {}).get(info.name, b"")
+            if info.isreg():
+                info.size = len(content)
+                archive.addfile(info, io.BytesIO(content))
+            else:
+                archive.addfile(info)
+    return buffer.getvalue()
+
+
+def _binary_entry() -> tarfile.TarInfo:
+    info = tarfile.TarInfo("gotool")
+    info.mode = 0o755
+    return info
+
+
+def _link_entry(name: str, target: str, kind: bytes) -> tarfile.TarInfo:
+    info = tarfile.TarInfo(name)
+    info.type = kind
+    info.linkname = target
+    return info
+
+
+@pytest.mark.parametrize(
+    "hostile",
+    [
+        pytest.param(("/escape.txt", b"x"), id="absolute-member"),
+        pytest.param(("sub/../../escape.txt", b"x"), id="dotdot-member"),
+    ],
+)
+def test_tar_gz_absolute_and_dotdot_members_are_refused(installer: ModuleType, tmp_path: Path, hostile: tuple[str, bytes]) -> None:
+    name, content = hostile
+    info = tarfile.TarInfo(name)
+    payload = _tarball_with([_binary_entry(), info], {"gotool": b"x", name: content})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1 and "UNSAFE_ARCHIVE" in output
+    assert not (tmp_path / "escape.txt").exists()
+
+
+@pytest.mark.parametrize("kind", [tarfile.SYMTYPE, tarfile.LNKTYPE], ids=["symlink", "hardlink"])
+def test_tar_gz_links_leaving_the_destination_are_refused(installer: ModuleType, tmp_path: Path, kind: bytes) -> None:
+    outside = tmp_path / "outside.txt"
+    outside.write_text("untouched", encoding="utf-8")
+    payload = _tarball_with([_binary_entry(), _link_entry("pivot", str(outside), kind)], {"gotool": b"x"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1 and "UNSAFE_ARCHIVE" in output
+    assert outside.read_text(encoding="utf-8") == "untouched"
+
+
+@pytest.mark.parametrize("kind", [tarfile.SYMTYPE, tarfile.LNKTYPE], ids=["symlink", "hardlink"])
+def test_tar_gz_links_to_a_relative_escape_are_refused(installer: ModuleType, tmp_path: Path, kind: bytes) -> None:
+    payload = _tarball_with([_binary_entry(), _link_entry("pivot", "../../outside.txt", kind)], {"gotool": b"x"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1 and "UNSAFE_ARCHIVE" in output
+
+
+def test_tar_gz_unpacking_is_refused_where_the_data_filter_is_unavailable(installer: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A tarfile without extraction filters must refuse with its own code, never extract unfiltered and never claim a hostile archive."""
+    monkeypatch.delattr(tarfile, "data_filter")
+    payload = _tarball({"gotool": b"x"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1
+    assert "UNSUPPORTED_INTERPRETER" in output and "extraction filters" in output
+    assert "UNSAFE_ARCHIVE" not in output and "3.11.4" not in output
+    assert not (tmp_path / "tools").exists()

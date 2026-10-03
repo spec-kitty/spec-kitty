@@ -2,6 +2,10 @@
 # The tag namespace is disjoint from the CLI release (v*.*.*) and from the preview tags (preview/<module>/p<N>). A manual run
 # is a dry run: it builds, checksums and prints the release command, and never publishes. Node is not used (C-005), pytest never
 # runs here, and the only publisher is the runner's own gh CLI.
+# A tag push publishes only a commit that is already on main and whose Contracts run passed (both checked first, failing
+# closed; the run that counts is the push run on main of the last commit that touched Contracts' own trigger paths), and only
+# after breaking_check compared the module with the previous release. A -SNAPSHOT tag is refused by release_check; the job
+# installs Gradle and bundles every module before that refusal, but no publish step is reachable from it.
 name: Contracts Release
 
 on:
@@ -30,24 +34,68 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      actions: read  # to read the Contracts workflow's runs for the tagged commit
     steps:
       # Prelude: the only Python install form (FR-018, plan D-P12).
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
+          fetch-depth: 0  # every branch and tag: main for the ancestor check, the previous release tag for the comparison
+      # A tag can be pushed on any commit. Publish only one that is on main (so it went through review) and that the Contracts
+      # workflow passed on. Both checks fail closed: no run found, an unreadable answer or a commit off main stops the job.
+      - name: Require the tagged commit to be on main
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eu
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the tagged commit $GITHUB_SHA is not an ancestor of origin/main; tag a commit that is on main"
+            exit 1
+          fi
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
       - name: Install the locked Python environment
         run: uv sync --frozen --no-install-project
+      # Contracts runs on a push to main only when one of its trigger paths changed, so the tagged commit may have no run of its own.
+      # The run that counts is the one of the most recent commit at or before the tag that touched those paths. The path list is read
+      # from contracts.yml (on.push.paths), never copied, so the two cannot drift. Only a push run on main counts: a pull_request run
+      # tested the merge ref, not this commit. No such commit, no run or an unreadable answer fails the job.
+      - name: Require a successful Contracts push run on main for the last commit that changed what Contracts tests
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          paths_file="$RUNNER_TEMP/contracts-trigger-paths.txt"
+          uv run --frozen --no-sync python -c 'import yaml; d = yaml.safe_load(open(".github/workflows/contracts.yml")); on = d.get("on", d.get(True)); print("\n".join(on["push"]["paths"]))' > "$paths_file"
+          test -s "$paths_file"
+          mapfile -t paths < "$paths_file"
+          base=$(git log -1 --format=%H "$GITHUB_SHA" -- "${paths[@]}")
+          if [ -z "$base" ]; then
+            echo "::error::no commit at or before $GITHUB_SHA touched the Contracts trigger paths; there is nothing to release"
+            exit 1
+          fi
+          passed=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/contracts.yml/runs?head_sha=${base}&event=push&branch=main&status=completed&per_page=100" --jq "[.workflow_runs[] | select(.head_sha == \"${base}\" and .event == \"push\" and .head_branch == \"main\" and .conclusion == \"success\")] | length")
+          if [ "${passed:-0}" -lt 1 ]; then
+            echo "::error::no successful Contracts push run on main exists for $base, the last commit at or before $GITHUB_SHA that touched the Contracts trigger paths; wait for it to pass or re-run it"
+            exit 1
+          fi
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '21'
       - name: Install the pinned Gradle (checksum verified before it runs)
         run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins contracts/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+      - name: Install the pinned oasdiff (checksum verified before it runs)
+        run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins contracts/tools/pins.json --dest "$RUNNER_TEMP/tools" --only oasdiff
       - name: Validate and bundle every module
         run: uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts --out "$RUNNER_TEMP/bundle-out"
+      # The breaking-change rules against the previous release: the pushed tag is left out so it is not its own baseline.
+      - name: Compare the module with the previous release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: uv run --frozen --no-sync python contracts/tools/breaking_check.py --root contracts --release-tag "$TAG_NAME"
       - name: Check the tag, build the release assets and verify the checksum (nothing is published here)
         env:
           TAG_NAME: ${{ github.ref_name }}
@@ -55,7 +103,7 @@ jobs:
         run: |
           set -eu
           if [ "$REF_TYPE" = tag ]; then
-            uv run --frozen --no-sync python contracts/tools/release_check.py --root contracts --out "$RUNNER_TEMP/release-out" --tag "$TAG_NAME"
+            uv run --frozen --no-sync python contracts/tools/release_check.py --root contracts --out "$RUNNER_TEMP/release-out" --tag "$TAG_NAME" --args-file "$RUNNER_TEMP/release-out/gh-release-args.txt"
           else
             uv run --frozen --no-sync python contracts/tools/release_check.py --root contracts --out "$RUNNER_TEMP/release-out"
           fi
@@ -70,14 +118,11 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+        # The arguments are the ones release_check approved above (module, version, --latest=false, --prerelease only for a
+        # prerelease semver, --verify-tag, notes). This step derives nothing: a second derivation could disagree with the check.
         run: |
           set -eu
-          version="${TAG_NAME##*-v}"
-          module="${TAG_NAME#contract-}"
-          module="${module%-v"$version"}"
-          assets="$RUNNER_TEMP/release-out/release/$module"
-          flags="--latest=false"
-          case "$version" in *-*) flags="$flags --prerelease" ;; esac
-          # shellcheck disable=SC2086 -- the flags are two fixed words
-          gh release create "$TAG_NAME" "$assets/openapi.yaml" "$assets/openapi.yaml.sha256" $flags --verify-tag --title "$TAG_NAME" --notes "Contract $module $version. Verify the bundle with: sha256sum -c openapi.yaml.sha256"
+          args_file="$RUNNER_TEMP/release-out/gh-release-args.txt"
+          test -s "$args_file"
+          mapfile -t args < "$args_file"
+          gh release create "${args[@]}"

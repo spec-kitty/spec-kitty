@@ -6,7 +6,7 @@
 # parents of are handled by choosing the position itself (properties[*], items, oneOf[*], anyOf[*], the response
 # schema); an allOf branch is a composition part and is judged through its composite.
 #
-# One rule id per convention. Each has a planted fixture under contracts/tools/fixtures/vacuum/ named <rule id>.yaml.
+# One rule id per convention. Each has a planted fixture under contracts/tools/fixtures/vacuum/ that declares its rule id on its first line (`# rule: <id>`); the file name is free.
 extends:
   - - vacuum:oas
     - "off"
@@ -59,10 +59,12 @@ rules:
                                       title:
                                         const: Problem
 
-  # every schema property is described. A refinement (a property redeclared with const or enum, as an allOf branch does to
-  # narrow a property described in the schema it extends) is exempt, as it is for citation_check.py.
+  # every schema property is described. A refinement (a property redeclared with const or enum, as an allOf branch or an
+  # if/then does to narrow a property described in the schema it extends) is exempt, as it is for citation_check.py. The
+  # exemption is as narrow as the refinement: the node holds nothing but the const or the enum (maxProperties 1). A complete
+  # property (a type, an enum and no description) is not a refinement and fails.
   property-described:
-    description: Every schema property has a description (a const or enum refinement is exempt).
+    description: Every schema property has a description (a bare const or enum refinement, holding nothing else, is exempt).
     severity: error
     given: $..properties[*]
     then:
@@ -74,7 +76,9 @@ rules:
           anyOf:
             - required: [description]
             - required: [const]
+              maxProperties: 1
             - required: [enum]
+              maxProperties: 1
 
   # x-source or x-derived on the properties of every titled schema (a resource schema); the shared vocabulary
   # (Problem, PageInfo, PageCursor) is cross-module and exempt. citation_check.py is the exhaustive check on the resolved tree.
@@ -101,7 +105,9 @@ rules:
                     - required: ["x-source"]
                     - required: ["x-derived"]
                     - required: [const]
+                      maxProperties: 1
                     - required: [enum]
+                      maxProperties: 1
 
   # no property carries a name that exposes a local path (any spelling, case, underscore or hyphen ignored).
   forbidden-property-name:

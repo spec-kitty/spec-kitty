@@ -45,6 +45,7 @@ PLANTED = {
     "v_non_schema_reference": ["EXAMPLE_VALIDATES_NOTHING"],
     "v_required_missing": ["REQUIRED_EXAMPLE_MISSING"],
     "v_required_wrong_schema": ["REQUIRED_EXAMPLE_MISSING"],
+    "v_required_deleted": ["REQUIRED_EXAMPLE_MISSING"],
 }
 EXIT2 = {
     "zero_examples": "ZERO_EXAMPLES",
@@ -106,7 +107,11 @@ def test_findings_name_the_example(planted_report: Any) -> None:
     orphan = next(f for f in planted_report.findings if f.code == "ORPHAN_EXAMPLE")
     assert orphan.subject == "v_orphan:examples/Thing.unused.yaml"
     missing = [f.subject for f in planted_report.findings if f.code == "REQUIRED_EXAMPLE_MISSING"]
-    assert sorted(missing) == ["v_required_missing:Thing:Thing.discarded.yaml", "v_required_wrong_schema:Other:Thing.ok.yaml"]
+    assert sorted(missing) == [
+        "v_required_deleted:Thing:Thing.gone.yaml",
+        "v_required_missing:Thing:Thing.discarded.yaml",
+        "v_required_wrong_schema:Other:Thing.ok.yaml",
+    ]
 
 
 @pytest.mark.parametrize(("case", "code"), sorted(EXIT2.items()))

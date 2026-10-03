@@ -105,6 +105,51 @@ def test_fixtures_are_all_tracked() -> None:
     assert on_disk and on_disk == sorted(tracked)
 
 
+# A refinement is a property redeclared with nothing but a const or an enum (an allOf branch or an if/then narrowing a
+# property the schema it extends already describes). The exemption must stop there: a complete property is not one.
+_REFINEMENT_EXEMPT_RULES = ("property-described", "resource-property-cited")
+_DESCRIBED_AND_CITED = {"description": "d", "x-source": {"path": "p", "symbol": "s"}}
+
+
+def _rule_accepts(rule: str, property_node: dict[str, Any]) -> bool:
+    """Whether the rule's own JSON Schema (its functionOptions) accepts ``property_node`` as a property."""
+    from jsonschema import Draft202012Validator
+
+    options = _ruleset()["rules"][rule]["then"]["functionOptions"]["schema"]
+    if rule == "resource-property-cited":
+        document = {"title": "Thing", "properties": {"p": property_node}}
+        return Draft202012Validator(options).is_valid(document)
+    return Draft202012Validator(options).is_valid(property_node)
+
+
+@pytest.mark.parametrize("rule", _REFINEMENT_EXEMPT_RULES)
+@pytest.mark.parametrize("refinement", [{"const": 0}, {"const": "x"}, {"enum": ["a", "b"]}], ids=["const-int", "const-str", "enum"])
+def test_a_bare_const_or_enum_refinement_is_exempt(rule: str, refinement: dict[str, Any]) -> None:
+    assert _rule_accepts(rule, refinement)
+
+
+@pytest.mark.parametrize("rule", _REFINEMENT_EXEMPT_RULES)
+@pytest.mark.parametrize(
+    "complete",
+    [
+        {"type": "string", "enum": ["a", "b"]},
+        {"type": "string", "const": "x"},
+        {"type": "string", "enum": ["a"], "x-provisional": {"open_decision": "an open question here"}},
+        {"enum": ["a"], "type": "string", "items": {}},
+    ],
+    ids=["typed-enum", "typed-const", "enum-with-only-a-provisional-marker", "enum-with-items"],
+)
+def test_a_complete_property_with_an_enum_or_const_is_not_exempt(rule: str, complete: dict[str, Any]) -> None:
+    """Regression: any property carrying a const or an enum used to pass both rules, described or cited or not."""
+    assert not _rule_accepts(rule, complete)
+
+
+def test_a_described_and_cited_enum_property_passes_both_rules() -> None:
+    node = {"type": "string", "enum": ["a"], **_DESCRIBED_AND_CITED}
+
+    assert all(_rule_accepts(rule, node) for rule in _REFINEMENT_EXEMPT_RULES)
+
+
 # -- the runner's refusals, with the process boundary faked --------------------------------------------
 
 
@@ -239,6 +284,21 @@ def test_each_planted_violation_fails_with_exactly_its_own_rule(linter: ModuleTy
     assert code == 1, output
     violated = {line.split(": ")[3] for line in output.splitlines() if "LINT_VIOLATION" in line}
     assert violated == {rule}, output
+
+
+@needs_vacuum
+@pytest.mark.parametrize(
+    ("plant", "rule"),
+    [
+        ("property-described-enum-without-description", "property-described"),
+        ("resource-property-cited-enum-without-citation", "resource-property-cited"),
+    ],
+)
+def test_an_enum_property_is_not_exempt_from_the_description_and_citation_rules(linter: ModuleType, plant: str, rule: str) -> None:
+    code, output = _run_real(linter, FIXTURES / f"{plant}.yaml")
+
+    assert code == 1, output
+    assert {line.split(": ")[3] for line in output.splitlines() if "LINT_VIOLATION" in line} == {rule}, output
 
 
 @needs_vacuum

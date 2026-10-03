@@ -17,6 +17,8 @@ Codes (one stable code per cause), printed as
 * ``CHECKSUM_MISSING``: a tool carries no sha256 (never downloaded).
 * ``NOT_HTTPS``: a tool url is not an ``https`` URL (never downloaded).
 * ``UNSAFE_ARCHIVE``: an archive member would be written outside the destination.
+* ``UNSUPPORTED_INTERPRETER``: this Python's ``tarfile`` has no extraction filters (an environment
+  problem, not a hostile archive); the ``.tar.gz`` is refused rather than extracted unfiltered.
 * ``UNSUPPORTED_FORMAT``: the url is neither ``.zip`` nor ``.tar.gz`` (never downloaded).
 * ``BINARY_MISSING``: a ``.tar.gz`` tool's declared ``binary`` is not in the archive.
 
@@ -114,7 +116,12 @@ def _unpack_tarball(data: bytes, destination: Path, binary: str) -> str | None:
     """Unpack the tar.gz ``data`` into ``destination``. Returns an error code and text, or ``None``.
 
     The ``data`` filter refuses absolute names, ``..`` escapes and links that leave the destination.
+    The filters were added in Python 3.12 and backported to the security releases of earlier versions, so the
+    check is by feature detection, not by version: a ``tarfile`` without ``data_filter`` is refused with
+    ``UNSUPPORTED_INTERPRETER`` rather than extracted unfiltered.
     """
+    if not hasattr(tarfile, "data_filter"):
+        return "UNSUPPORTED_INTERPRETER|tarfile extraction filters are missing in this Python; use a security release that has them"
     root = destination.resolve()
     try:
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:

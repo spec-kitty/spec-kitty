@@ -8,6 +8,14 @@ the tag being released (the release workflow runs on the pushed tag): that tag i
 compared with ``oasdiff breaking`` (pinned in ``pins.json``). A change is *breaking* when oasdiff reports it at
 level WARN or ERR: a removed path or response property, a newly required parameter, a narrowed enum, a changed type.
 
+*Closed response schemas.* Response schemas stay closed, so a response-shape change ships as a new schema version and a new
+published release. oasdiff reports an added response property at level INFO (compatible for a tolerant reader), which is not
+enough here: the check raises exactly the oasdiff change ids in ``RESPONSE_ADDITION_IDS`` to level ERR through oasdiff's own
+``--severity-levels`` file, written into the scratch directory. They cover a property added to a response (optional or
+required, each also in its write-only form), a property added through a new ``allOf`` branch, and a new response status
+code, media type or header, so each of those needs a major version move like a removal does. A request-side optional
+addition (a new optional parameter or request property) stays non-breaking.
+
 Failure codes (exit 1), printed as ``CONTRACT-CHECK breaking_check: <CODE>: <module>: <detail>``:
 
 * ``BREAKING_WITHOUT_MAJOR``: a breaking change while ``info.version`` did not move its major version up.
@@ -18,15 +26,22 @@ Failure codes (exit 1), printed as ``CONTRACT-CHECK breaking_check: <CODE>: <mod
 * ``RESOLVE_FAILED``: the resolver refused the candidate module.
 
 *First release.* With no release tag the one allowed state is ``info.version == 1.0.0`` together with a
-``## 1.0.0`` heading in the module CHANGELOG. It prints ``NO_BASELINE_INITIAL_VERSION`` loudly (and writes the job
-summary), exits 0, and is counted as ``no_baseline_initial`` in the ``counts:`` line; it is never silent.
+``## 1.0.0`` heading in the module CHANGELOG, or ``1.0.0-SNAPSHOT`` together with a ``## 1.0.0-SNAPSHOT`` heading. It prints
+``NO_BASELINE_INITIAL_VERSION`` loudly (and writes the job summary), exits 0, and is counted as ``no_baseline_initial`` in the ``counts:`` line; it is never silent.
+
+*Snapshots.* An unreleased version carries ``-SNAPSHOT`` (``1.0.0-SNAPSHOT``): the work in progress of ``1.0.0``, below it and
+above every earlier release. The version rules read it that way: a snapshot of a later major excuses a breaking change, a
+snapshot of the released version itself is ``VERSION_DECREASED`` once the bundle changed, and a ``-SNAPSHOT`` tag is never
+the baseline (``release_check`` refuses to release one).
 
 *Provisional elements.* Properties, parameters and operations carrying ``x-provisional`` are removed from both
 bundles before the comparison. A difference that exists only because of them never fails and is reported in its own
 section (``PROVISIONAL_CHANGE`` lines, ``provisional_changes`` in ``counts:``).
 
 *Preview report.* While no release tag exists, the check also prints an informational ``PREVIEW_DELTA`` report against
-the latest tag ``preview/<module>/*`` (``PREVIEW_REF_NONE`` when there is none). It never changes the exit status.
+the latest tag ``preview/<module>/*`` (``PREVIEW_REF_NONE`` when there is none, ``preview_ref=unavailable`` when only the
+preview tag listing fails). It never changes the exit status: a failing listing of the RELEASE tags is ``TAG_LIST_ERROR``
+(exit 2) because it decides the baseline, a failing listing of the preview tags is a note.
 
 Cannot do its job (exit 2): ``NO_MODULE``, ``SHALLOW_CHECKOUT``, ``TAG_LIST_ERROR``, ``BASELINE_UNBUILDABLE``,
 ``OASDIFF_MISSING``, ``OASDIFF_FAILED``. The last line is always
@@ -57,11 +72,29 @@ import yaml
 
 import bundle
 import contract_resolver
+from release_check import SNAPSHOT_SUFFIX, is_snapshot  # one definition of a snapshot for the baseline and the release rules
 
 CHECK_NAME = "breaking_check"
 INITIAL_VERSION = "1.0.0"
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 BREAKING_LEVEL = 2  # oasdiff levels: 1 info, 2 warning, 3 error
+# The oasdiff 1.32.1 change ids that report a response growing: a property added to a schema, a property added through a new
+# allOf branch (a oneOf or anyOf branch is already an error in oasdiff), a new status code, a new media type, a new header.
+# oasdiff calls them INFO (compatible for a tolerant reader); closed response schemas make them breaking.
+RESPONSE_ADDITION_IDS = (
+    "response-optional-property-added",
+    "response-required-property-added",
+    "response-optional-write-only-property-added",
+    "response-required-write-only-property-added",
+    "response-body-all-of-added",
+    "response-property-all-of-added",
+    "response-success-status-added",
+    "response-non-success-status-added",
+    "response-media-type-added",
+    "response-header-added",
+)
+SEVERITY_LEVELS_FILE = "severity-levels.txt"
+CLOSED_RESPONSE_NOTE = "closed response schemas: a response-shape change is a major version move and a new release"
 COMMAND_TIMEOUT_SECONDS = 300
 HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 MAX_LINES_PER_KIND = 20
@@ -126,7 +159,10 @@ def latest_release_tag(tags: Sequence[str], module: str, exclude: str | None = N
     for tag in tags:
         if not tag.startswith(prefix) or tag == exclude:
             continue
-        version = parse_semver(tag[len(prefix) :])
+        text = tag[len(prefix) :]
+        version = parse_semver(text)
+        if is_snapshot(text):
+            continue  # a snapshot is work in progress, never a release baseline
         if version is not None and (best is None or version > best[0]):
             best = (version, tag)
     return best[1] if best else None
@@ -176,9 +212,19 @@ def entry_key(entry: dict[str, Any]) -> tuple[str, str, str, str]:
     return (str(entry.get("id")), str(entry.get("operation")), str(entry.get("path")), str(entry.get("text")))
 
 
-def oasdiff_breaking(runner: Runner, oasdiff: str, base: Path, revision: Path) -> list[dict[str, Any]]:
-    """The changes oasdiff reports at level WARN or ERR between two bundle files."""
-    status, stdout, stderr = runner([oasdiff, "breaking", str(base), str(revision), "--format", "json"], None)
+def write_severity_levels(target: Path) -> Path:
+    """Write oasdiff's custom severity file raising every response-property addition to ERR (one ``<id> err`` line each)."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("".join(f"{identifier} err\n" for identifier in RESPONSE_ADDITION_IDS), encoding="utf-8", newline="\n")
+    return target
+
+
+def oasdiff_breaking(runner: Runner, oasdiff: str, base: Path, revision: Path, severity_levels: Path | None = None) -> list[dict[str, Any]]:
+    """The changes oasdiff reports at level WARN or ERR between two bundle files (with ``severity_levels``, as that file raises them)."""
+    command = [oasdiff, "breaking", str(base), str(revision), "--format", "json"]
+    if severity_levels is not None:
+        command += ["--severity-levels", str(severity_levels)]
+    status, stdout, stderr = runner(command, None)
     if status != 0:
         raise CannotRun("OASDIFF_FAILED", f"oasdiff exited {status}: {(stderr or stdout).strip()[:300]}")
     try:
@@ -286,6 +332,7 @@ class Checker:
         if oasdiff is None:
             raise CannotRun("OASDIFF_MISSING", "no oasdiff on PATH (run install_tools.py first)")
         self.oasdiff = oasdiff
+        self.severity_levels = write_severity_levels(work / SEVERITY_LEVELS_FILE)
         self.repo: GitRepo | None = None
         self.relative_root: str = ""
 
@@ -346,17 +393,17 @@ class Checker:
 
     def first_release(self, module: str, module_dir: Path, version: str) -> None:
         report = self.report
-        if version == INITIAL_VERSION and has_changelog_entry(module_dir, version):
+        if version in (INITIAL_VERSION, INITIAL_VERSION + SNAPSHOT_SUFFIX) and has_changelog_entry(module_dir, version):
             report.no_baseline_initial += 1
             line = (
                 f"CONTRACT-CHECK {CHECK_NAME}: NO_BASELINE_INITIAL_VERSION: {module}: no release tag exists and "
-                f"info.version is the initial version {INITIAL_VERSION} with a CHANGELOG entry; "
+                f"info.version is the initial version {version} with a CHANGELOG entry; "
                 "nothing to compare against, this is the first release"
             )
             report.notes.append(line)
             report.summary.append(
                 f"### {module}: NO_BASELINE_INITIAL_VERSION\n\n"
-                f"No `contract-{module}-v*` tag exists. Version `{version}` is the initial version and "
+                f"No `contract-{module}-v*` tag exists. Version `{version}` is the initial version (or its snapshot) and "
                 "the CHANGELOG has its entry: first release, nothing compared.\n"
             )
         else:
@@ -364,7 +411,8 @@ class Checker:
                 finding(
                     "NO_BASELINE_NOT_INITIAL",
                     module,
-                    f"no release tag exists, but info.version is {version!r} (initial version {INITIAL_VERSION}) or the CHANGELOG has no entry for it",
+                    f"no release tag exists, but info.version is {version!r} (initial version {INITIAL_VERSION} "
+                    f"or {INITIAL_VERSION}{SNAPSHOT_SUFFIX}) or the CHANGELOG has no entry for it",
                 )
             )
 
@@ -378,11 +426,11 @@ class Checker:
         if full_changed:
             base_file = write_document(baseline, self.work / "cmp" / module / "full-base.yaml")
             cand_file = write_document(candidate, self.work / "cmp" / module / "full-cand.yaml")
-            breaking_full = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file)
+            breaking_full = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file, self.severity_levels)
         if stable_changed:
             base_file = write_document(base_stripped, self.work / "cmp" / module / "stable-base.yaml")
             cand_file = write_document(cand_stripped, self.work / "cmp" / module / "stable-cand.yaml")
-            breaking_stable = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file)
+            breaking_stable = oasdiff_breaking(self.runner, self.oasdiff, base_file, cand_file, self.severity_levels)
         stable_keys = {entry_key(entry) for entry in breaking_stable}
         provisional = [entry for entry in breaking_full if entry_key(entry) not in stable_keys]
         provisional_lines = [f"{entry.get('operation')} {entry.get('path')}: {entry.get('text')}" for entry in provisional]
@@ -404,6 +452,8 @@ class Checker:
             if parts[0] <= base_parts[0]:
                 for entry in breaking_stable[:MAX_LINES_PER_KIND]:
                     where = f"{entry.get('operation')} {entry.get('path')}: {entry.get('text')}"
+                    if entry.get("id") in RESPONSE_ADDITION_IDS:
+                        where += f" ({CLOSED_RESPONSE_NOTE})"
                     report.findings.append(finding("BREAKING_WITHOUT_MAJOR", module, f"{where} (baseline {label} {base_version}, candidate {version})"))
             return
         if stable_changed and parts <= base_parts:
@@ -415,7 +465,12 @@ class Checker:
         report = self.report
         if self.repo is None:
             return  # explicit baseline root: no tags to look at
-        tags = self.repo.tags(f"preview/{module}/*", version_sort=True)
+        try:
+            tags = self.repo.tags(f"preview/{module}/*", version_sort=True)
+        except CannotRun as error:
+            report.preview_refs.append("unavailable")
+            report.notes.append(f"PREVIEW_DELTA {module}: preview_ref=unavailable ({error.code}: {error.detail}); informational, never fails")
+            return
         if not tags:
             report.preview_refs.append("none")
             report.notes.append(f"PREVIEW_REF_NONE {module}: no tag under preview/{module}/ exists")

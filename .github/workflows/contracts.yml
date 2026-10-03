@@ -1,19 +1,23 @@
 # Contracts: validates, bundles and cross-checks the machine-readable contracts under contracts/.
 # The bundle is written by the Python resolver and consumed by the JVM toolchain (validate, Java view, TypeScript client smoke);
-# every job runs over the real contracts root. Node is not used anywhere (C-005), pytest never runs here, and no tool or Gradle
-# directory is cached.
+# every job runs over the real contracts root. Node is not used anywhere (C-005), and no tool or Gradle directory is cached.
+# Pytest runs in exactly one job, contract-tool-tests: the unit tests of the contract tools, which read
+# no corpus. The router's corpus job runs only the modules that read committed Missions or examples, to keep it within its time
+# budget; the example round trip stays there, so no test runs twice.
 name: Contracts
 
 on:
   pull_request:
     paths:
       - 'contracts/**'
+      - 'tests/contract/**'
       - '.github/CODEOWNERS'
       - '.github/workflows/contracts.yml'
   push:
     branches: [main]
     paths:
       - 'contracts/**'
+      - 'tests/contract/**'
       - '.github/CODEOWNERS'
       - '.github/workflows/contracts.yml'
 
@@ -43,9 +47,11 @@ jobs:
           python-version: '3.12'
       - name: Install the locked Python environment
         run: uv sync --frozen --no-install-project
-      # The manifest, every uses: pin and the install form of both contract workflow files (contracts*.yml).
-      - name: Verify the pins
-        run: uv run --frozen --no-sync python contracts/tools/verify_pins.py
+      # The manifest, every uses: pin and the install form of both contract workflow files (contracts*.yml). This job installs no tools
+      # itself, so --fetch downloads each pinned artefact over https and hashes it: verify_pins refuses a run that hashed nothing
+      # (CHECKSUMS_UNVERIFIED, exit 2), and --pins-only would only dodge that refusal.
+      - name: Verify the pins and every pinned checksum
+        run: uv run --frozen --no-sync python contracts/tools/verify_pins.py --fetch
       # The versions the JVM build declares (the generator plugin in build.gradle and in the verification metadata, any wrapper or
       # gradle-version input) must equal the versions pins.json pins and installs; a mismatch is GRADLE_PIN_MISMATCH.
       - name: Verify the build's versions equal the pinned versions
@@ -83,6 +89,31 @@ jobs:
           uv run --frozen --no-sync python contracts/tools/codeowners_check.py || status=1
           uv run --frozen --no-sync python contracts/tools/no_pytest_scan.py || status=1
           exit $status
+
+  contract-tool-tests:
+    # A root job: it carries the canonical fork guard as the first conjunct. It runs every corpus-marked module of
+    # tests/contract except the one the router's corpus job owns (the directory minus it, so a new tool test module is
+    # picked up without an edit here): the example round trip, which was already a router corpus module. Unmarked modules run
+    # in the module matrix.
+    # tests/ci/test_contracts_workflows.py proves every tests/contract module has exactly one home.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen --no-install-project
+      - name: Run the contract tool unit tests
+        run: |
+          uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \
+            --ignore=tests/contract/test_example_round_trip.py \
+            -n 4 --dist loadfile
 
   validate-bundle:
     needs: verify-pins
@@ -167,7 +198,8 @@ jobs:
         run: uv run --frozen --no-sync python contracts/tools/bundle.py --root "$CONTRACTS_ROOT" --out "$RUNNER_TEMP/lint-out" --bundle-only
       - name: Lint every bundle with the ruleset
         run: uv run --frozen --no-sync python contracts/tools/lint_check.py --ruleset contracts/lint/ruleset.yaml --bundles "$RUNNER_TEMP/lint-out"
-      # Planted proof: each planted fixture fails with exactly its own rule, the clean control passes under the same ruleset.
+      # Planted proof: each planted fixture fails with exactly its own rule (declared by the '# rule: <id>' header on its first line, so a variant plant
+      # may be named anything), the clean control passes under the same ruleset.
       - name: Planted violations must fail and the clean control must pass
         run: |
           set -u
@@ -175,8 +207,9 @@ jobs:
           status=0
           uv run --frozen --no-sync python contracts/tools/lint_check.py --file "$fixtures/clean.yaml" || status=1
           for plant in "$fixtures"/*.yaml; do
-            rule=$(basename "$plant" .yaml)
-            [ "$rule" = clean ] && continue
+            [ "$(basename "$plant")" = clean.yaml ] && continue
+            rule=$(sed -n 's/^# rule: \([A-Za-z0-9-][A-Za-z0-9-]*\)$/\1/p' "$plant" | head -n 1)
+            if [ -z "$rule" ]; then echo "::error::planted $plant declares no '# rule: <id>' header"; status=1; continue; fi
             if output=$(uv run --frozen --no-sync python contracts/tools/lint_check.py --file "$plant"); then
               echo "::error::planted $rule passed the lint"; status=1
             else
@@ -223,7 +256,7 @@ jobs:
           for name in clean_same clean_minor provisional_only; do
             echo "== control $name"; check "$fixtures/candidates/$name" || { echo "::error::control $name failed"; status=1; }
           done
-          for name in removed_property removed_path required_parameter narrowed_enum changed_type; do
+          for name in removed_property removed_path required_parameter narrowed_enum changed_type added_response_property added_response_allof_branch added_response_property_allof added_response_success_status added_response_error_status added_response_media_type added_response_header; do
             echo "== plant $name"
             if output=$(check "$fixtures/candidates/$name"); then
               echo "::error::planted $name passed without a major move"; status=1
@@ -265,7 +298,7 @@ jobs:
           path: ${{ runner.temp }}/release-out/release/mission-status
           if-no-files-found: error
           overwrite: true
-      # Planted proof: a version without a CHANGELOG heading and a tag whose version is not the module's both fail; the clean control passes.
+      # Planted proof: a version without a CHANGELOG heading, a tag whose version is not the module's and a -SNAPSHOT tag all fail; the clean control passes.
       - name: Planted release errors must fail and the clean control must pass
         run: |
           set -u
@@ -273,7 +306,7 @@ jobs:
           status=0
           release() { uv run --frozen --no-sync python contracts/tools/release_check.py --root "$root" --out "$RUNNER_TEMP/planted-out" --min-paths 1 --tag "$1"; }
           release contract-clean-v1.0.0 || { echo "::error::the clean control failed"; status=1; }
-          for plant in "contract-no-heading-v1.2.0 CHANGELOG_HEADING_MISSING" "contract-mismatch-v1.0.0 VERSION_MISMATCH" "contract-clean-1.0.0 TAG_FORM" "contract-absent-v1.0.0 MODULE_UNKNOWN"; do
+          for plant in "contract-no-heading-v1.2.0 CHANGELOG_HEADING_MISSING" "contract-mismatch-v1.0.0 VERSION_MISMATCH" "contract-clean-1.0.0 TAG_FORM" "contract-absent-v1.0.0 MODULE_UNKNOWN" "contract-snapshot-v1.0.0-SNAPSHOT SNAPSHOT_RELEASE_REFUSED"; do
             set -- $plant
             if output=$(release "$1"); then
               echo "::error::planted tag $1 passed"; status=1
@@ -308,9 +341,9 @@ jobs:
       - name: Run every planted case with its clean control
         run: uv run --frozen --no-sync python contracts/tools/run_negative_cases.py --manifest contracts/tools/negative_cases.json --work "$RUNNER_TEMP/negative-work"
 
-  # The terminal gate: it lists the eight other jobs and fails unless every one of them succeeded.
+  # The terminal gate: it lists the nine other jobs and fails unless every one of them succeeded.
   contracts-gate:
-    needs: [verify-pins, python-checks, validate-bundle, lint, breaking-change, resolver-parity, release-dry-run, negative-tests]
+    needs: [verify-pins, python-checks, contract-tool-tests, validate-bundle, lint, breaking-change, resolver-parity, release-dry-run, negative-tests]
     # always() makes the job self-starting, so the canonical fork guard is required here too.
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always()
     runs-on: ubuntu-24.04

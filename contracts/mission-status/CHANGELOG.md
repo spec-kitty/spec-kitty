@@ -3,9 +3,10 @@
 All notable changes to the `mission-status` contract are recorded here, newest first. The
 module version is the `info.version` of `openapi.yaml`.
 
-## 1.0.0
+## 1.0.0-SNAPSHOT
 
-Initial entry. This version is not yet released.
+Initial entry. This version is not yet released: an unreleased contract version carries the `-SNAPSHOT` suffix and
+becomes `1.0.0` in the release commit.
 
 ### Added
 

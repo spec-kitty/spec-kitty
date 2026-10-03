@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: snapshot
+  version: 1.0.0-SNAPSHOT
+paths:
+  /items:
+    $ref: paths/items.yaml

@@ -1,3 +1,4 @@
+# rule: resource-property-cited
 openapi: 3.1.0
 info:
   title: Lint fixture

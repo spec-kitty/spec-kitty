@@ -1,3 +1,4 @@
+# rule: operation-tags
 openapi: 3.1.0
 info:
   title: Lint fixture

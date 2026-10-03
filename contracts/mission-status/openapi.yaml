@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Mission Status API
-  version: 1.0.0
+  version: 1.0.0-SNAPSHOT
   summary: Read-only status of the Missions of one project.
   description: >-
     The contract of the Mission Status read API. This file holds the document header and the

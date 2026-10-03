@@ -1,0 +1,27 @@
+title: Thing
+description: A thing.
+type: object
+additionalProperties: false
+required:
+  - id
+  - name
+properties:
+  id:
+    type: string
+    description: Identifier.
+  name:
+    type: string
+    description: Display name.
+  count:
+    type: integer
+    description: How many.
+    allOf:
+      - type: integer
+        minimum: 0
+  guess:
+    description: A provisional guess.
+    type:
+      - string
+      - 'null'
+    x-provisional:
+      open_decision: the shape of this guess is still being decided

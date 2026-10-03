@@ -35,12 +35,16 @@ CANONICAL_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event
 RELEASE_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')"
 PUBLISH_CONDITION = "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')"
 CONTRACT_TAG_FILTER = "contract-*-v*.*.*"
-EXPECTED_PATHS = ["contracts/**", ".github/CODEOWNERS", ".github/workflows/contracts.yml"]
+EXPECTED_PATHS = ["contracts/**", "tests/contract/**", ".github/CODEOWNERS", ".github/workflows/contracts.yml"]
+# The one job that may run pytest: the contract tool unit tests. The router's corpus job runs only the modules that read
+# committed Missions, to stay within its time budget.
+TOOL_TEST_JOB = "contract-tool-tests"
 
 # The job table of contracts/tools-and-workflows.md: job -> its exact needs.
 EXPECTED_NEEDS: dict[str, frozenset[str]] = {
     "verify-pins": frozenset(),
     "python-checks": frozenset(),
+    TOOL_TEST_JOB: frozenset(),
     "validate-bundle": frozenset({"verify-pins"}),
     "lint": frozenset({"validate-bundle"}),
     "breaking-change": frozenset({"validate-bundle"}),
@@ -48,7 +52,7 @@ EXPECTED_NEEDS: dict[str, frozenset[str]] = {
     "release-dry-run": frozenset({"validate-bundle"}),
     "negative-tests": frozenset({"verify-pins"}),
     "contracts-gate": frozenset(
-        {"verify-pins", "python-checks", "validate-bundle", "lint", "breaking-change", "resolver-parity", "release-dry-run", "negative-tests"}
+        {"verify-pins", "python-checks", TOOL_TEST_JOB, "validate-bundle", "lint", "breaking-change", "resolver-parity", "release-dry-run", "negative-tests"}
     ),
 }
 # Jobs with needs that still carry the guard: validate-bundle was a root job in the skeleton and keeps it; the gate is self-starting.
@@ -133,6 +137,26 @@ def mutate(text: str, old: str, new: str) -> str:
 # -- the rules: each takes a workflow text and returns its violations ---------------------------------------------
 
 
+def verify_pins_violations(text: str) -> list[str]:
+    """Every verify_pins invocation must hash something: ``--artifacts DIR`` or ``--fetch``, never ``--pins-only``.
+
+    verify_pins refuses a run that hashed nothing (CHECKSUMS_UNVERIFIED, exit 2), so a bare call fails in CI and
+    ``--pins-only`` would only dodge the refusal. A text with no invocation at all is itself a violation.
+    """
+    found = 0
+    problems: list[str] = []
+    for name, job in jobs(load(text)).items():
+        for line in run_text(job).splitlines():
+            if "verify_pins.py" not in line:
+                continue
+            found += 1
+            if "--pins-only" in line:
+                problems.append(f"{name}: verify_pins uses --pins-only, which verifies no checksum")
+            if "--fetch" not in line and "--artifacts" not in line:
+                problems.append(f"{name}: verify_pins neither passes --artifacts nor --fetch, so it hashes nothing")
+    return problems or ([] if found else ["no verify_pins invocation found"])
+
+
 def trigger_violations(text: str) -> list[str]:
     found = triggers(load(text))
     problems = []
@@ -160,21 +184,26 @@ def node_violations(text: str) -> list[str]:
 _RUNNER_REFERENCE = re.compile(r"(?m)^\s*(?:import|from)\s+_?pytest\b|-m\s+pytest\b|[\"']pytest[\"']")
 
 
-def pytest_violations(text: str, read: Callable[[str], str] | None = None) -> list[str]:
-    """Pytest reachable from a step: named directly, through ``make``, or inside a script the step runs."""
+def pytest_violations(text: str, read: Callable[[str], str] | None = None, allowed_jobs: frozenset[str] = frozenset()) -> list[str]:
+    """Pytest reachable from a step: named directly, through ``make``, or inside a script the step runs.
+
+    A job in ``allowed_jobs`` may name pytest in its own steps; make and the scripts it runs are still refused.
+    """
     read_script = read or (lambda name: (REPO_ROOT / name).read_text(encoding="utf-8"))
     problems = []
-    steps = all_steps(load(text))
-    assert steps, "no step was scanned"
-    for step in steps:
-        command = f"{step.get('run', '')} {step.get('uses', '')}"
-        if re.search(r"(?<![\w-])pytest(?![\w-])", command, re.IGNORECASE):
-            problems.append(f"pytest named in a step: {command.strip()[:80]}")
-        if re.search(r"(?:^|[\s;&|(])make\b", str(step.get("run", ""))):
-            problems.append("a step runs make, which may reach pytest")
-        for script in re.findall(r"contracts/tools/[\w/]+\.py", str(step.get("run", ""))):
-            if _RUNNER_REFERENCE.search(read_script(script)):
-                problems.append(f"{script} mentions pytest")
+    scanned = 0
+    for job_name, job in jobs(load(text)).items():
+        for step in steps_of(job):
+            scanned += 1
+            command = f"{step.get('run', '')} {step.get('uses', '')}"
+            if job_name not in allowed_jobs and re.search(r"(?<![\w-])pytest(?![\w-])", command, re.IGNORECASE):
+                problems.append(f"pytest named in a step: {command.strip()[:80]}")
+            if re.search(r"(?:^|[\s;&|(])make\b", str(step.get("run", ""))):
+                problems.append("a step runs make, which may reach pytest")
+            for script in re.findall(r"contracts/tools/[\w/]+\.py", str(step.get("run", ""))):
+                if _RUNNER_REFERENCE.search(read_script(script)):
+                    problems.append(f"{script} mentions pytest")
+    assert scanned, "no step was scanned"
     return problems
 
 
@@ -265,6 +294,11 @@ def publish_steps(text: str) -> list[dict[str, Any]]:
     return [step for step in all_steps(load(text)) if "gh release create" in str(step.get("run", ""))]
 
 
+RELEASE_ARGS_FILE = "gh-release-args.txt"
+# Flags and parsing the publish step must not carry: release_check's argument list holds them (the tool tests pin its content).
+REDERIVATION_TOKENS = ("--latest", "--prerelease", "--title", "--notes", "--verify-tag", "##*-v", "%-v")
+
+
 def publish_violations(text: str) -> list[str]:
     steps = publish_steps(text)
     if not steps:
@@ -275,11 +309,117 @@ def publish_violations(text: str) -> list[str]:
         reached = [(event, ref) for event, ref in PUBLISH_EVENTS if evaluate_condition(condition, event, ref)] if condition else list(PUBLISH_EVENTS)
         if reached != [PUBLISH_EVENTS[3]]:
             problems.append(f"{step.get('name')}: publishes for {reached}")
-        if "--latest=false" not in str(step["run"]):
-            problems.append(f"{step.get('name')}: no --latest=false")
         run = str(step["run"])
-        if "--prerelease" in run and not re.search(r'case "\$version" in \*-\*\)[^;]*--prerelease', run):
-            problems.append(f"{step.get('name')}: --prerelease is not conditional on a prerelease semver")
+        # The publish step consumes release_check's approved argument list and derives nothing of its own.
+        if RELEASE_ARGS_FILE not in run or "mapfile" not in run:
+            problems.append(f"{step.get('name')}: it does not run the arguments release_check wrote to {RELEASE_ARGS_FILE}")
+        for own in REDERIVATION_TOKENS:
+            if own in run:
+                problems.append(f"{step.get('name')}: it derives {own!r} itself instead of consuming release_check's arguments")
+    checks = [step for step in all_steps(load(text)) if "release_check.py" in str(step.get("run", "")) and "--tag" in str(step.get("run", ""))]
+    if not any("--args-file" in str(step["run"]) and RELEASE_ARGS_FILE in str(step["run"]) for step in checks):
+        problems.append(f"no release_check tag step writes {RELEASE_ARGS_FILE} with --args-file")
+    return problems
+
+
+# The release workflow's own derivation of the Contracts trigger paths (it prints one path per line).
+DERIVE_PATHS_CALL = (
+    'uv run --frozen --no-sync python -c \'import yaml; d = yaml.safe_load(open(".github/workflows/contracts.yml")); '
+    'on = d.get("on", d.get(True)); print("\\n".join(on["push"]["paths"]))\''
+)
+
+
+def contracts_lookup_violations(gate: str) -> list[str]:
+    """The Contracts-success lookup: a push run on main of the last commit that touched the paths read from contracts.yml."""
+    rules = (
+        ("event=push" in gate, "the Contracts-success check does not restrict the run to event=push"),
+        ("branch=main" in gate, "the Contracts-success check does not restrict the run to branch=main"),
+        (
+            "head_sha=${GITHUB_SHA}" not in gate and "head_sha=$GITHUB_SHA" not in gate,
+            "the Contracts-success check queries the tagged SHA, not the last commit that touched the Contracts trigger paths",
+        ),
+        (
+            "git log -1" in gate and '-- "${paths[@]}"' in gate,
+            "the Contracts-success check does not resolve the last commit that touched the Contracts trigger paths",
+        ),
+        (
+            ".github/workflows/contracts.yml" in gate and '["paths"]' in gate,
+            "the Contracts-success check does not read its path list from contracts.yml on.push.paths",
+        ),
+        (
+            not any(literal in gate for literal in ("contracts/**", "tests/contract", "CODEOWNERS")),
+            "the Contracts-success check hand-copies the Contracts trigger paths instead of reading them from contracts.yml",
+        ),
+    )
+    return [message for holds, message in rules if not holds]
+
+
+def release_gate_violations(text: str) -> list[str]:
+    """A tag push publishes only a commit on main that Contracts passed on, after breaking_check against the previous release."""
+    job = jobs(load(text)).get("release")
+    if job is None:
+        return ["no release job"]
+    steps = steps_of(job)
+    problems: list[str] = []
+
+    def index_of(*tokens: str) -> int | None:
+        return next((i for i, step in enumerate(steps) if all(token in str(step.get("run", "")) for token in tokens)), None)
+
+    ancestor = index_of("merge-base --is-ancestor", "origin/main", "exit 1")
+    contracts = index_of("gh api", "workflows/contracts.yml/runs", "head_sha", "success", "exit 1")
+    breaking = index_of("breaking_check.py", "--release-tag")
+    publish = index_of("gh release create")
+    for name, position in (
+        ("an is-ancestor-of-origin/main check that fails the job", ancestor),
+        ("a Contracts-success check by gh api that fails the job", contracts),
+    ):
+        if position is None:
+            problems.append(f"no step has {name}")
+        elif [bool(steps[position].get("if")) and evaluate_condition(str(steps[position]["if"]), event, ref) for event, ref in PUBLISH_EVENTS] != [
+            False,
+            False,
+            False,
+            True,
+        ]:
+            problems.append(f"{steps[position].get('name')}: it does not run on exactly a contract tag push")
+    if contracts is not None:
+        problems += contracts_lookup_violations(str(steps[contracts].get("run", "")))
+    if breaking is None:
+        problems.append("no step runs breaking_check.py --release-tag against the previous release")
+    elif not any("--only oasdiff" in str(step.get("run", "")) for step in steps[:breaking]):
+        problems.append("oasdiff is not installed before breaking_check runs")
+    if publish is None:
+        problems.append("no publish step")
+    else:
+        for name, position in (("the ancestor check", ancestor), ("the Contracts-success check", contracts), ("breaking_check", breaking)):
+            if position is not None and position > publish:
+                problems.append(f"{name} runs after the publish step")
+    if not any((s.get("with") or {}).get("fetch-depth") == 0 for s in steps if "actions/checkout" in str(s.get("uses", ""))):
+        problems.append("the checkout does not fetch full history (main and the release tags)")
+    if (job.get("permissions") or {}).get("actions") != "read":
+        problems.append("the job cannot read workflow runs (permissions: actions: read)")
+    return problems
+
+
+def gate_script_violations(text: str) -> list[str]:
+    """The terminal gate fails unless EVERY needed job succeeded: no tolerant comparison, no swallowed exit."""
+    gate = jobs(load(text)).get("contracts-gate")
+    if gate is None:
+        return ["no contracts-gate job"]
+    scripts = [str(step.get("run", "")) for step in steps_of(gate) if step.get("run")]
+    if len(scripts) != 1:
+        return [f"the gate has {len(scripts)} script steps, not one"]
+    script = scripts[0]
+    problems = []
+    if not any("join(needs.*.result" in str(value) for step in steps_of(gate) for value in (step.get("env") or {}).values()):
+        problems.append("the gate does not read every needed job result (join(needs.*.result, ' '))")
+    if not re.search(r'\[\s+"\$result"\s+!=\s+"success"\s+\]', script):
+        problems.append('the gate does not compare each result with != "success"')
+    if not re.search(r"\bexit 1\b", script):
+        problems.append("the gate has no exit 1 on a non-success result")
+    for tolerant in ("|| true", "= failure", '= "failure"', "continue-on-error", "set +e", "cancelled", "skipped"):
+        if tolerant in script or tolerant in str(gate):
+            problems.append(f"the gate is tolerant: it contains {tolerant!r}")
     return problems
 
 
@@ -467,7 +607,7 @@ def test_every_script_job_carries_the_one_python_prelude() -> None:
     assert prelude_violations(RELEASE_TEXT) == []
     unfrozen = mutate(CONTRACTS_TEXT, "uv sync --frozen --no-install-project", "uv sync")
     assert any("no frozen sync" in problem for problem in prelude_violations(unfrozen))
-    bare = mutate(CONTRACTS_TEXT, "uv run --frozen --no-sync python contracts/tools/verify_pins.py", "python contracts/tools/verify_pins.py")
+    bare = mutate(CONTRACTS_TEXT, "uv run --frozen --no-sync python contracts/tools/verify_pins.py --fetch", "python contracts/tools/verify_pins.py --fetch")
     assert any("outside the synced environment" in problem for problem in prelude_violations(bare))
 
 
@@ -496,18 +636,25 @@ def test_the_node_scan_ignores_a_comment_that_merely_names_node() -> None:
     assert node_violations(mutate(CONTRACTS_TEXT, "name: Contracts\n", "name: Contracts\n# Node is not used here.\n")) == []
 
 
-@pytest.mark.parametrize("text", [CONTRACTS_TEXT, RELEASE_TEXT], ids=["contracts", "release"])
-def test_pytest_is_unreachable_from_every_step(text: str) -> None:
-    assert pytest_violations(text) == []
+@pytest.mark.parametrize(("text", "allowed"), [(CONTRACTS_TEXT, frozenset({TOOL_TEST_JOB})), (RELEASE_TEXT, frozenset())], ids=["contracts", "release"])
+def test_pytest_is_unreachable_from_every_step_but_the_tool_test_job(text: str, allowed: frozenset[str]) -> None:
+    assert pytest_violations(text, allowed_jobs=allowed) == []
 
 
 def test_planted_pytest_reachability_is_refused() -> None:
+    allowed = frozenset({TOOL_TEST_JOB})
     direct = mutate(CONTRACTS_TEXT, "    steps:\n", "    steps:\n      - run: uv run pytest tests/contract\n")
-    assert any("pytest named" in problem for problem in pytest_violations(direct))
+    assert any("pytest named" in problem for problem in pytest_violations(direct, allowed_jobs=allowed))
     through_make = mutate(CONTRACTS_TEXT, "    steps:\n", "    steps:\n      - run: make test\n")
-    assert any("runs make" in problem for problem in pytest_violations(through_make))
-    through_script = pytest_violations(CONTRACTS_TEXT, read=lambda name: "import pytest\n")
+    assert any("runs make" in problem for problem in pytest_violations(through_make, allowed_jobs=allowed))
+    through_script = pytest_violations(CONTRACTS_TEXT, read=lambda name: "import pytest\n", allowed_jobs=allowed)
     assert any("mentions pytest" in problem for problem in through_script)
+
+
+def test_the_release_workflow_and_every_other_contracts_job_still_refuse_pytest() -> None:
+    workflow = load(CONTRACTS_TEXT)
+    workflow["jobs"]["lint"]["steps"].insert(0, {"run": "uv run --frozen pytest tests/contract"})
+    assert any("pytest named" in problem for problem in pytest_violations(yaml.safe_dump(workflow), allowed_jobs=frozenset({TOOL_TEST_JOB})))
 
 
 # -- the content of the jobs ------------------------------------------------------------------------------------------------
@@ -522,6 +669,25 @@ def test_python_checks_runs_the_ten_scripts_in_order_and_the_enum_pin_check_uses
     assert "--pins" not in enum_line, "the enum pin check must read its default pin file"
     pins = json.loads((TOOLS_DIR / "enum_pins.json").read_text(encoding="utf-8"))
     assert pins and all(values for module in pins.values() for values in module.values()), "the default pin file is empty"
+
+
+def test_every_verify_pins_call_hashes_real_artefacts() -> None:
+    assert verify_pins_violations(CONTRACTS_TEXT) == []
+    assert verify_pins_violations(RELEASE_TEXT) == ["no verify_pins invocation found"], "the release workflow does not call verify_pins"
+
+
+@pytest.mark.parametrize(
+    ("replacement", "reason"),
+    [
+        ("python contracts/tools/verify_pins.py", "hashes nothing"),
+        ("python contracts/tools/verify_pins.py --pins-only", "--pins-only"),
+    ],
+    ids=["bare", "pins-only"],
+)
+def test_a_planted_verify_pins_call_that_hashes_nothing_is_refused(replacement: str, reason: str) -> None:
+    planted = mutate(CONTRACTS_TEXT, "python contracts/tools/verify_pins.py --fetch", replacement)
+
+    assert any(reason in problem for problem in verify_pins_violations(planted))
 
 
 def test_verify_pins_checks_the_manifest_and_both_workflow_files() -> None:
@@ -581,6 +747,90 @@ def test_negative_tests_install_their_tools_and_run_the_driver_with_the_runtime_
     assert not list((TOOLS_DIR / "fixtures" / "vacuum").glob("*forbidden*")), "the leak-shaped plant is never committed"
 
 
+VACUUM_PLANTS = TOOLS_DIR / "fixtures" / "vacuum"
+RULESET_PATH = REPO_ROOT / "contracts" / "lint" / "ruleset.yaml"
+RULE_HEADER = re.compile(r"^# rule: ([A-Za-z0-9-]+)$")
+
+
+def lint_plants(directory: Path) -> list[Path]:
+    return sorted(path for path in directory.glob("*.yaml") if path.name != "clean.yaml")
+
+
+def workflow_rule_derivation() -> str:
+    """The shell line of the lint step that derives the expected rule of one plant (it reads ``$plant``)."""
+    lines = [line.strip() for line in run_text(jobs(load(CONTRACTS_TEXT))["lint"]).splitlines() if line.strip().startswith("rule=$(")]
+    assert len(lines) == 1, f"the lint step derives the expected rule in {len(lines)} places"
+    return lines[0]
+
+
+def rule_the_workflow_derives(plant: Path) -> str:
+    import subprocess
+
+    completed = subprocess.run(  # noqa: S603, S607 -- bash runs only the workflow's own derivation line over a fixture path
+        ["bash", "-c", f'plant="$1"; {workflow_rule_derivation()}; printf "%s" "$rule"', "bash", str(plant)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return completed.stdout
+
+
+def plant_violations(directory: Path, rule_ids: set[str], derive: Callable[[Path], str]) -> list[str]:
+    """Each plant must declare a rule of the ruleset, the workflow must derive exactly that rule, and the name must start with it."""
+    problems = []
+    plants = lint_plants(directory)
+    assert plants, "no lint plant was found"
+    for plant in plants:
+        header = RULE_HEADER.match(plant.read_text(encoding="utf-8").splitlines()[0])
+        declared = header.group(1) if header else ""
+        if declared not in rule_ids:
+            problems.append(f"{plant.name}: declares {declared!r}, which is not a rule of the ruleset")
+        elif derive(plant) != declared:
+            problems.append(f"{plant.name}: the workflow derives {derive(plant)!r}, not {declared!r}")
+        elif plant.stem != declared and not plant.stem.startswith(declared + "-"):
+            problems.append(f"{plant.name}: the file name does not start with its rule {declared}")
+    return problems
+
+
+def test_every_lint_plant_declares_its_rule_and_the_workflow_derives_exactly_that_rule() -> None:
+    rule_ids = set(yaml.safe_load(RULESET_PATH.read_text(encoding="utf-8"))["rules"])
+
+    assert plant_violations(VACUUM_PLANTS, rule_ids, rule_the_workflow_derives) == []
+    variants = [path for path in lint_plants(VACUUM_PLANTS) if path.stem not in rule_ids]
+    assert variants, "the variant plant naming scheme (<rule>-<variant>.yaml) is the case this guard exists for"
+    assert 'basename "$plant" .yaml' not in run_text(jobs(load(CONTRACTS_TEXT))["lint"]), "the rule must not be derived from the file name"
+
+
+def test_a_planted_variant_without_a_header_or_with_a_wrong_header_is_refused(tmp_path: Path) -> None:
+    rule_ids = set(yaml.safe_load(RULESET_PATH.read_text(encoding="utf-8"))["rules"])
+    body = (VACUUM_PLANTS / "property-described.yaml").read_text(encoding="utf-8").split("\n", 1)[1]
+    (tmp_path / "property-described-variant.yaml").write_text("# rule: property-described\n" + body, encoding="utf-8")
+    assert plant_violations(tmp_path, rule_ids, rule_the_workflow_derives) == []
+
+    (tmp_path / "enum-case-bare.yaml").write_text(body, encoding="utf-8")
+    (tmp_path / "operation-tags-wrong.yaml").write_text("# rule: no-such-rule\n" + body, encoding="utf-8")
+    (tmp_path / "enum-case-misnamed.yaml").write_text("# rule: operation-tags\n" + body, encoding="utf-8")
+    problems = plant_violations(tmp_path, rule_ids, rule_the_workflow_derives)
+
+    assert len(problems) == 3
+    assert any("enum-case-bare.yaml" in line and "''" in line for line in problems)
+    assert any("operation-tags-wrong.yaml" in line and "no-such-rule" in line for line in problems)
+    assert any("enum-case-misnamed.yaml" in line and "does not start with its rule" in line for line in problems)
+
+
+def test_the_lint_cases_of_the_negative_manifest_expect_the_rule_their_plant_declares() -> None:
+    cases = {case["id"]: case for case in json.loads((TOOLS_DIR / "negative_cases.json").read_text(encoding="utf-8"))["cases"]}
+    by_plant = {}
+    for case in cases.values():
+        args = case["plant"].get("args", [])
+        if case["tool"] == "lint_check.py" and "--file" in args:
+            by_plant[Path(args[args.index("--file") + 1]).name] = case["plant"]["code"]
+    for plant in lint_plants(VACUUM_PLANTS):
+        declared = RULE_HEADER.match(plant.read_text(encoding="utf-8").splitlines()[0])
+        assert declared is not None, plant.name
+        assert by_plant.get(plant.name) == f": {declared.group(1)}: ", f"{plant.name} has no negative case expecting its own rule"
+
+
 # -- the release workflow ----------------------------------------------------------------------------------------------------------
 
 
@@ -625,16 +875,45 @@ def test_publication_is_reachable_only_from_a_contract_tag_push() -> None:
     assert [evaluate_condition(step["if"], event, ref) for event, ref in PUBLISH_EVENTS] == [False, False, False, True]
 
 
-def test_zero_publish_steps_fail_and_a_missing_latest_false_or_condition_is_refused() -> None:
+def test_zero_publish_steps_fail_and_an_unconditional_or_dispatch_reachable_publish_is_refused() -> None:
     assert publish_violations(mutate(RELEASE_TEXT, "gh release create", "gh release view")) == ["no publish step"]
-    assert any("--latest=false" in problem for problem in publish_violations(mutate(RELEASE_TEXT, "--latest=false", "--latest")))
     unconditional = load(RELEASE_TEXT)
     for step in steps_of(jobs(unconditional)["release"]):
         if "gh release create" in str(step.get("run", "")):
             del step["if"]
     assert any("publishes for" in problem for problem in publish_violations(yaml.safe_dump(unconditional)))
-    on_dispatch = mutate(RELEASE_TEXT, PUBLISH_CONDITION, "github.event_name == 'push' || github.event_name == 'workflow_dispatch'")
-    assert any("publishes for" in problem for problem in publish_violations(on_dispatch))
+    on_dispatch = load(RELEASE_TEXT)
+    for step in steps_of(jobs(on_dispatch)["release"]):
+        if "gh release create" in str(step.get("run", "")):
+            step["if"] = "github.event_name == 'push' || github.event_name == 'workflow_dispatch'"
+    assert any("publishes for" in problem for problem in publish_violations(yaml.safe_dump(on_dispatch)))
+
+
+@pytest.mark.parametrize(
+    ("extra", "reason"),
+    [
+        ("--latest=false", "derives '--latest'"),
+        ("--prerelease", "derives '--prerelease'"),
+        ('--title "$GITHUB_REF_NAME"', "derives '--title'"),
+        ('version="${GITHUB_REF_NAME##*-v}"', "derives '##*-v'"),
+    ],
+)
+def test_a_publish_step_that_derives_its_own_release_arguments_is_refused(extra: str, reason: str) -> None:
+    planted = mutate(RELEASE_TEXT, 'gh release create "${args[@]}"', f'gh release create "${{args[@]}}" {extra}')
+
+    assert any(reason in problem for problem in publish_violations(planted))
+
+
+def test_a_publish_step_that_does_not_consume_the_checked_arguments_is_refused() -> None:
+    planted = mutate(RELEASE_TEXT, 'mapfile -t args < "$args_file"', "args=(contract-x-v1.0.0)")
+
+    assert any("does not run the arguments release_check wrote" in problem for problem in publish_violations(planted))
+
+
+def test_a_release_check_tag_step_that_writes_no_arguments_file_is_refused() -> None:
+    planted = mutate(RELEASE_TEXT, ' --args-file "$RUNNER_TEMP/release-out/gh-release-args.txt"', "")
+
+    assert any("writes gh-release-args.txt with --args-file" in problem for problem in publish_violations(planted))
 
 
 def test_the_release_workflow_publishes_through_the_runner_gh_and_runs_release_check_on_the_tag() -> None:
@@ -643,7 +922,131 @@ def test_the_release_workflow_publishes_through_the_runner_gh_and_runs_release_c
     for script in ("install_tools.py", "bundle.py", "release_check.py"):
         assert script in commands
     assert "release_check.py" in commands and "--tag" in commands
-    assert "--prerelease" in commands
+    assert "gh release create" in commands and "--prerelease" not in commands, "the prerelease flag is release_check's, not the workflow's"
+
+
+def test_a_tag_push_publishes_only_a_commit_on_main_that_contracts_passed_on_after_breaking_check() -> None:
+    assert release_gate_violations(RELEASE_TEXT) == []
+
+
+def _without_steps(text: str, token: str) -> str:
+    planted = load(text)
+    job = jobs(planted)["release"]
+    job["steps"] = [step for step in steps_of(job) if token not in str(step.get("run", ""))]
+    return yaml.safe_dump(planted)
+
+
+@pytest.mark.parametrize(
+    ("token", "reason"),
+    [
+        ("merge-base --is-ancestor", "is-ancestor-of-origin/main"),
+        ("workflows/contracts.yml/runs", "Contracts-success check"),
+        ("--release-tag", "breaking_check.py --release-tag"),
+    ],
+)
+def test_a_release_workflow_without_one_of_the_gates_is_refused(token: str, reason: str) -> None:
+    assert any(reason in problem for problem in release_gate_violations(_without_steps(RELEASE_TEXT, token)))
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        (
+            "            exit 1\n          fi\n      - uses: astral-sh/setup-uv",
+            "            exit 0\n          fi\n      - uses: astral-sh/setup-uv",
+            "is-ancestor-of-origin/main",
+        ),
+        ("          fetch-depth: 0  # every branch", "          fetch-depth: 1  # every branch", "full history"),
+        ("      actions: read  # to read", "      checks: read  # to read", "workflow runs"),
+        (
+            "        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')\n        run: |\n          set -eu\n          if ! git",
+            "        run: |\n          set -eu\n          if ! git",
+            "does not run on exactly a contract tag push",
+        ),
+    ],
+)
+def test_planted_release_gate_weakenings_are_refused(old: str, new: str, reason: str) -> None:
+    assert any(reason in problem for problem in release_gate_violations(mutate(RELEASE_TEXT, old, new)))
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        ("&event=push", "", "event=push"),
+        ("&branch=main", "", "branch=main"),
+        ("head_sha=${base}", "head_sha=${GITHUB_SHA}", "queries the tagged SHA"),
+        ('-- "${paths[@]}"', "", "does not resolve the last commit"),
+        ("git log -1 --format=%H", "git rev-parse", "does not resolve the last commit"),
+        (DERIVE_PATHS_CALL, "printf 'contracts/**\\n'", "hand-copies"),
+    ],
+)
+def test_planted_weakenings_of_the_contracts_success_lookup_are_refused(old: str, new: str, reason: str) -> None:
+    assert any(reason in problem for problem in release_gate_violations(mutate(RELEASE_TEXT, old, new)))
+
+
+def derived_trigger_paths(release_text: str, contracts_text: str, workdir: Path) -> list[str]:
+    """Run the release workflow's own path derivation over a given contracts.yml and return the lines it prints."""
+    import subprocess
+    import sys
+
+    gate = next(step for step in steps_of(jobs(load(release_text))["release"]) if "workflows/contracts.yml/runs" in str(step.get("run", "")))
+    line = next(line.strip() for line in str(gate["run"]).splitlines() if "python -c" in line)
+    command = line.replace("uv run --frozen --no-sync python", f'"{sys.executable}"', 1).split(' > "', 1)[0]
+    (workdir / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (workdir / ".github" / "workflows" / "contracts.yml").write_text(contracts_text, encoding="utf-8")
+    completed = subprocess.run(["bash", "-c", command], cwd=workdir, capture_output=True, text=True, check=True)  # noqa: S603, S607 -- the workflow's own line over a copy
+    return completed.stdout.splitlines()
+
+
+def test_the_release_gate_looks_up_the_commit_by_the_path_list_of_contracts_yml(tmp_path: Path) -> None:
+    pushed = triggers(load(CONTRACTS_TEXT))["push"]["paths"]
+
+    assert pushed == EXPECTED_PATHS
+    assert derived_trigger_paths(RELEASE_TEXT, CONTRACTS_TEXT, tmp_path) == pushed
+
+
+def test_a_derived_gate_follows_a_drifted_path_list_and_a_copied_list_is_refused(tmp_path: Path) -> None:
+    drifted = mutate(CONTRACTS_TEXT, "  push:\n    branches: [main]\n    paths:\n", "  push:\n    branches: [main]\n    paths:\n      - 'extra/**'\n")
+
+    assert derived_trigger_paths(RELEASE_TEXT, drifted, tmp_path)[0] == "extra/**"
+    literal = RELEASE_TEXT.replace(
+        DERIVE_PATHS_CALL,
+        "printf 'contracts/**\\ntests/contract/**\\n'",
+        1,
+    )
+    assert literal != RELEASE_TEXT
+    assert any("hand-copies" in problem for problem in release_gate_violations(literal))
+
+
+def test_the_release_gate_steps_run_before_the_publish_step() -> None:
+    steps = steps_of(jobs(load(RELEASE_TEXT))["release"])
+    publish = next(i for i, step in enumerate(steps) if "gh release create" in str(step.get("run", "")))
+    moved = load(RELEASE_TEXT)
+    job = jobs(moved)["release"]
+    gate = next(step for step in steps_of(job) if "merge-base" in str(step.get("run", "")))
+    job["steps"] = [step for step in steps_of(job) if step is not gate] + [gate]
+    assert publish > 0 and any("runs after the publish step" in problem for problem in release_gate_violations(yaml.safe_dump(moved)))
+
+
+# -- the terminal gate script ---------------------------------------------------------------------------------------------------------
+
+
+def test_the_real_gate_script_fails_on_any_result_that_is_not_success() -> None:
+    assert gate_script_violations(CONTRACTS_TEXT) == []
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        ('[ "$result" != "success" ]', '[ "$result" = "failure" ]', 'does not compare each result with != "success"'),
+        ('[ "$result" != "success" ]', '[ "$result" = "failure" ] || [ "$result" = "cancelled" ]', "is tolerant"),
+        ("              exit 1\n", "              true\n", "no exit 1"),
+        ("join(needs.*.result, ' ')", "needs.verify-pins.result", "does not read every needed job result"),
+        ('echo "needed job results: $RESULTS"', 'echo "needed job results: $RESULTS"; set +e', "is tolerant"),
+    ],
+)
+def test_a_tolerant_gate_script_is_refused(old: str, new: str, reason: str) -> None:
+    assert any(reason in problem for problem in gate_script_violations(mutate(CONTRACTS_TEXT, old, new)))
 
 
 # -- the tag namespace guard ---------------------------------------------------------------------------------------------------------
@@ -669,3 +1072,68 @@ def test_a_planted_overlapping_or_empty_tag_filter_is_refused() -> None:
     assert any("empty tag filter" in problem for problem in namespace_violations(RELEASE_TEXT, mutate(cli, "    tags:\n      - 'v*.*.*'\n", "")))
     slash_filter = mutate(RELEASE_TEXT, "'contract-*-v*.*.*'", "'contract-**-v*.*.*'")
     assert any("matches contract-mission/status" in problem for problem in namespace_violations(slash_filter, cli))
+
+
+def test_the_tool_test_job_is_a_root_job_that_runs_the_corpus_marker_over_tests_contract_with_the_prelude() -> None:
+    job = jobs(load(CONTRACTS_TEXT))[TOOL_TEST_JOB]
+    commands = [line for line in run_text(job).replace("\\\n", " ").splitlines() if re.search(r"(?<![\w-])pytest(?![\w-])", line)]
+
+    assert len(commands) == 1, f"expected exactly one pytest command, found {commands}"
+    assert "uv run --frozen --no-sync pytest" in commands[0]
+    assert '-m "corpus and not windows_ci"' in commands[0]
+    assert re.search(r"\stests/contract/?(?=\s)", commands[0]), "the job must select the whole tests/contract directory"
+    assert needs_of(job) == frozenset(), "the tool-test job is a root job"
+    assert "uv sync --frozen --no-install-project" in run_text(job)
+    assert TOOL_TEST_JOB in needs_of(jobs(load(CONTRACTS_TEXT))["contracts-gate"])
+
+
+# -- the planted breaking changes ---------------------------------------------------------------------------------------------------------
+
+BREAKING_CANDIDATES = TOOLS_DIR / "fixtures" / "breaking_check" / "candidates"
+NOT_PLANTS_IN_THE_LOOP = frozenset({"clean_same", "clean_minor", "provisional_only", "changed_same_version"})  # controls and the same-version plant
+
+
+def breaking_plant_loop_violations(text: str, candidates: set[str]) -> list[str]:
+    """The plant loop of the breaking-change job must name exactly the candidate directories that are not controls."""
+    script = run_text(jobs(load(text))["breaking-change"])
+    loops = re.findall(r"^\s*for name in ([^;]+); do\s*\n\s*echo \"== plant \$name\"", script, flags=re.MULTILINE)
+    if len(loops) != 1:
+        return [f"the breaking-change job has {len(loops)} plant loops, not one"]
+    named = loops[0].split()
+    problems = [f"the plant loop names {name}, which is not a candidate fixture directory" for name in sorted(set(named) - candidates)]
+    problems += [f"the plant loop does not run the candidate fixture {name}" for name in sorted(candidates - NOT_PLANTS_IN_THE_LOOP - set(named))]
+    problems += [f"the plant loop names {name} twice" for name in sorted({n for n in named if named.count(n) > 1})]
+    return problems
+
+
+def breaking_candidates() -> set[str]:
+    return {path.name for path in BREAKING_CANDIDATES.iterdir() if path.is_dir()}
+
+
+def test_the_breaking_plant_loop_covers_exactly_the_candidate_fixture_directories() -> None:
+    assert len(breaking_candidates() - NOT_PLANTS_IN_THE_LOOP) >= 12, "the planted candidates were not found"
+    assert breaking_plant_loop_violations(CONTRACTS_TEXT, breaking_candidates()) == []
+
+
+def test_a_candidate_fixture_missing_from_or_extra_to_the_plant_loop_is_refused() -> None:
+    dropped = mutate(CONTRACTS_TEXT, " added_response_header; do", "; do")
+    assert breaking_plant_loop_violations(dropped, breaking_candidates()) == ["the plant loop does not run the candidate fixture added_response_header"]
+    extra = mutate(CONTRACTS_TEXT, " added_response_header; do", " added_response_header no_such_dir; do")
+    assert breaking_plant_loop_violations(extra, breaking_candidates()) == ["the plant loop names no_such_dir, which is not a candidate fixture directory"]
+    assert breaking_plant_loop_violations(CONTRACTS_TEXT, breaking_candidates() | {"unlisted_plant"}) == [
+        "the plant loop does not run the candidate fixture unlisted_plant"
+    ]
+
+
+def test_every_planted_breaking_candidate_has_a_negative_case() -> None:
+    manifest = json.loads((TOOLS_DIR / "negative_cases.json").read_text(encoding="utf-8"))
+    by_root = {}
+    for case in manifest["cases"]:
+        args = case["plant"].get("args", [])
+        if case["tool"] == "breaking_check.py" and "--root" in args:
+            by_root[Path(args[args.index("--root") + 1]).name] = case
+    for name in sorted(breaking_candidates() - NOT_PLANTS_IN_THE_LOOP):
+        case = by_root.get(name)
+        assert case is not None, f"{name} has no negative case in negative_cases.json"
+        assert case["plant"]["code"] == "BREAKING_WITHOUT_MAJOR", name
+        assert "oasdiff" in case.get("tags", []), name

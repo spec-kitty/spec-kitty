@@ -68,6 +68,9 @@ allOf:
         enum:
           - 400
           - 409
+        description: >-
+          The HTTP status of the refusal, fixed by its code: 400 for negative, misaligned and
+          cursor_without_mission, 409 for out_of_range and content_mismatch.
         x-provisional:
           open_decision: >-
             The tail reader names the refusal reasons but no HTTP status. Which of 400 and 409 each

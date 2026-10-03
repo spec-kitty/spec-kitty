@@ -6,6 +6,11 @@ derived for every module. Tag rules, each with its stable code (exit 1), printed
 ``CONTRACT-CHECK release_check: <CODE>: <tag>: <detail>``:
 
 * ``TAG_FORM``: not ``contract-<module>-v<semver>`` (module in lower-case letters, digits and hyphens).
+* ``SNAPSHOT_RELEASE_REFUSED``: the tag's version ends in ``-SNAPSHOT``. A snapshot is the work in progress of a version
+  (``1.0.0-SNAPSHOT`` precedes ``1.0.0``) and is never released: the refusal comes right after the form check, before the
+  module is looked at, and nothing is built. It applies to a tag that was given (a tag push); a tag-less dry run derives its
+  tag from ``info.version``, so for a snapshot module it still builds, checksums and verifies the bundle, prints
+  ``SNAPSHOT_DRY_RUN`` and no release command.
 * ``MODULE_UNKNOWN``: the tag names a module that is not under the root.
 * ``VERSION_MISMATCH``: the tag's semver is not the module's ``info.version``.
 * ``CHANGELOG_HEADING_MISSING``: the module ``CHANGELOG.md`` has no heading for that version.
@@ -14,10 +19,15 @@ derived for every module. Tag rules, each with its stable code (exit 1), printed
 A module that passes its rules is built through the shared build wrapper (``bundle.py``, its ``--bundle-only``
 path: written twice, digests compared), the bundle is copied to ``<out>/release/<module>/openapi.yaml`` with its
 ``openapi.yaml.sha256`` beside it, the checksum is verified, and the exact argument list of the release command
-is printed as ``GH_RELEASE_ARGS gh release create ...``. It always carries ``--latest=false`` and carries
-``--prerelease`` only for a prerelease semver. This script never runs ``gh`` and never publishes.
+is printed as ``GH_RELEASE_ARGS gh release create ...``. It always carries ``--latest=false``, ``--verify-tag`` and the
+release notes, and carries ``--prerelease`` only for a prerelease semver (a ``-`` before any ``+`` build metadata). With
+``--args-file FILE`` (a tag run only) the arguments after ``gh release create`` are also written there, one per line,
+so the publishing step runs exactly what this check approved instead of deriving a second argument list. This script
+never runs ``gh`` and never publishes.
 
-Cannot do its job (exit 2): ``MODULE_ROOT_EMPTY`` (the root is absent or empty), ``NO_MODULE`` and ``BUNDLE_EMPTY``.
+Cannot do its job (exit 2): ``MODULE_ROOT_EMPTY`` (the root is absent or empty), ``NO_MODULE``, ``BUNDLE_EMPTY``,
+``BUNDLE_STEP_BLOCKED`` (the bundle step itself exited 2, for example an output directory inside the repository;
+nothing is checksummed) and ``ARGS_FILE_NEEDS_TAG`` (``--args-file`` without ``--tag``).
 The last line is always ``counts: modules=N bundles=N verified=N``.
 
 Run as a bare script (``python contracts/tools/release_check.py --root contracts --out DIR [--tag TAG]``).
@@ -41,6 +51,7 @@ import yaml
 import bundle
 
 CHECK_NAME = "release_check"
+SNAPSHOT_SUFFIX = "-SNAPSHOT"
 CHECKSUM_FILE = "openapi.yaml.sha256"
 BUNDLE_FILE = "openapi.yaml"
 SEMVER_PATTERN = r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?"
@@ -69,9 +80,14 @@ def is_prerelease(version: str) -> bool:
     return "-" in version.split("+", 1)[0]
 
 
-def release_arguments(tag: str, assets: Sequence[str], *, prerelease: bool) -> list[str]:
-    """The exact argument list of the release command. ``--latest=false`` is always present."""
-    arguments = ["gh", "release", "create", tag, *assets, "--title", tag, "--latest=false"]
+def is_snapshot(version: str) -> bool:
+    """True for a version that is the work in progress of a release (``1.0.0-SNAPSHOT``); build metadata is ignored."""
+    return version.split("+", 1)[0].endswith(SNAPSHOT_SUFFIX)
+
+
+def release_arguments(tag: str, assets: Sequence[str], *, prerelease: bool, notes: str) -> list[str]:
+    """The exact argument list of the release command. ``--latest=false`` and ``--verify-tag`` are always present."""
+    arguments = ["gh", "release", "create", tag, *assets, "--title", tag, "--latest=false", "--verify-tag", "--notes", notes]
     if prerelease:
         arguments.append("--prerelease")
     return arguments
@@ -129,11 +145,13 @@ def candidate_tags(modules: Sequence[Path], tag: str | None) -> list[tuple[str, 
     return [(f"contract-{module.name}-v{module_version(module)}", module) for module in modules]
 
 
-def rule_violation(tag: str, module_dir: Path | None) -> tuple[str, str] | None:
-    """The first tag rule ``tag`` breaks, as ``(code, detail)``."""
+def rule_violation(tag: str, module_dir: Path | None, *, derived: bool = False) -> tuple[str, str] | None:
+    """The first tag rule ``tag`` breaks, as ``(code, detail)``. A ``derived`` tag (a tag-less dry run) may carry -SNAPSHOT."""
     match = TAG_PATTERN.match(tag)
     if match is None:
         return "TAG_FORM", "the tag is not contract-<module>-v<semver> (module: lower-case letters, digits and hyphens)"
+    if not derived and is_snapshot(match["version"]):
+        return "SNAPSHOT_RELEASE_REFUSED", f"{match['version']} is a snapshot, the work in progress of a version; release the version without {SNAPSHOT_SUFFIX}"
     if module_dir is None:
         return "MODULE_UNKNOWN", f"no module {match['module']!r} with a root {bundle.ROOT_DOCUMENT} under the root"
     version = module_version(module_dir)
@@ -182,8 +200,18 @@ def release_module(tag: str, module_dir: Path, args: argparse.Namespace, report:
     match = TAG_PATTERN.match(tag)
     assert match is not None  # the tag passed its form rule
     assets = [str(directory / BUNDLE_FILE), str(directory / CHECKSUM_FILE)]
-    arguments = release_arguments(tag, assets, prerelease=is_prerelease(match["version"]))
+    notes = f"Contract {match['module']} {match['version']}. Verify the bundle with: sha256sum -c {CHECKSUM_FILE}"
+    arguments = release_arguments(tag, assets, prerelease=is_prerelease(match["version"]), notes=notes)
+    if is_snapshot(match["version"]):
+        report.lines.append(
+            f"CONTRACT-CHECK {CHECK_NAME}: SNAPSHOT_DRY_RUN: {tag}: {match['version']} is a snapshot, so it is built and checksummed "
+            "but no release command is printed; a snapshot tag is refused"
+        )
+        return None
     report.lines.append(f"GH_RELEASE_ARGS {shlex.join(arguments)}")
+    if args.args_file is not None:
+        args.args_file.parent.mkdir(parents=True, exist_ok=True)
+        args.args_file.write_text("".join(f"{argument}\n" for argument in arguments[3:]), encoding="utf-8", newline="\n")
     report.lines.append(f"dry run for {tag}: nothing was published; the line above is the command a release would run")
     return None
 
@@ -195,6 +223,7 @@ def run(argv: Sequence[str] | None = None, *, out: Callable[[str], None] = print
     parser.add_argument("--tag", default=None)
     parser.add_argument("--module", action="append", default=[], help="restrict a tag-less run to this module (repeatable)")
     parser.add_argument("--min-paths", type=int, default=bundle.DEFAULT_MIN_PATHS)
+    parser.add_argument("--args-file", default=None, type=Path, help="write the arguments after 'gh release create', one per line (needs --tag)")
     args = parser.parse_args(argv)
 
     report = Report()
@@ -204,6 +233,8 @@ def run(argv: Sequence[str] | None = None, *, out: Callable[[str], None] = print
         out(report.counts_line())
         return 2
 
+    if args.args_file is not None and args.tag is None:
+        return blocked("ARGS_FILE_NEEDS_TAG", "--args-file names the release of one tag, so it needs --tag")
     if not args.root.is_dir() or not any(args.root.iterdir()):
         return blocked("MODULE_ROOT_EMPTY", f"{args.root} is absent or empty")
     modules, _ = bundle.discover_modules(args.root)
@@ -214,7 +245,7 @@ def run(argv: Sequence[str] | None = None, *, out: Callable[[str], None] = print
 
     report.modules = 1 if args.tag is not None else len(modules)
     for tag, module_dir in candidate_tags(modules, args.tag):
-        violation = rule_violation(tag, module_dir)
+        violation = rule_violation(tag, module_dir, derived=args.tag is None)
         if violation is not None:
             report.findings.append(finding(violation[0], tag, violation[1]))
             continue

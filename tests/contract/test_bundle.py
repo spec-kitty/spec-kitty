@@ -272,6 +272,15 @@ def test_a_rejected_specification_is_a_violation_for_the_split_root_and_for_the_
     assert "VALIDATION_FAILED: full" in output and "attribute paths" in output
 
 
+def test_a_gradle_failure_no_classifier_names_is_a_bundle_failure_with_exit_1(bundler: ModuleType, tmp_path: Path) -> None:
+    unclassified = "FAILURE: Build failed with an exception.\n* What went wrong:\nSomething nobody classified.\n"
+
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(1, unclassified), "--module", "full")
+
+    assert code == 1
+    assert "BUNDLE_FAILED: full" in output and "Something nobody classified" in output
+
+
 def test_output_inside_the_repository_is_refused(bundler: ModuleType) -> None:
     code, output = _run(bundler, SPIKE_ROOT, TOOLS_DIR / "bundle-output-must-not-be-here", _gradle(), "--module", "full")
 

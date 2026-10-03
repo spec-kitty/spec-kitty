@@ -40,7 +40,7 @@ if mode == "echo-wanted":
     print("CONTRACT-CHECK fake: WANTED_CODE: a control that shows the plant")
     sys.exit(0)
 if mode == "ls":
-    print("ENTRIES " + " ".join(sorted(path.name for path in Path(rest[0]).iterdir())))
+    print("CONTRACT-CHECK fake: ENTRIES_" + "_".join(sorted(path.name.upper() for path in Path(rest[0]).iterdir())))
     sys.exit(1 if rest[1:] == ["plant"] else 0)
 print("fine")
 """
@@ -165,6 +165,21 @@ def test_malformed_and_duplicate_cases_are_refused_before_anything_runs(driver: 
     assert "MANIFEST_INVALID" in duplicate[0] and "MANIFEST_INVALID" in no_code[0]
 
 
+@pytest.mark.parametrize(
+    "trivial", ["", " ", ":", "ab", "A", "ABC", "--", ": 12: ", "....", "x y", "error", "Traceback", ": error: ", "failed", "invalid-input", "not-a-rule"]
+)
+def test_a_trivial_expected_code_is_refused_because_it_matches_any_output(driver: ModuleType, tmp_path: Path, trivial: str) -> None:
+    code, lines = _run(driver, tmp_path, [_case(plant={"args": ["fail"], "code": trivial})])
+
+    assert code == 2
+    assert "MANIFEST_INVALID" in lines[0] and "expected code" in lines[0]
+
+
+@pytest.mark.parametrize("meaningful", ["WANTED_CODE", "ABCD", "forbidden-property-name", ": property-described: "])
+def test_a_stable_code_and_a_lint_rule_id_are_accepted(driver: ModuleType, tmp_path: Path, meaningful: str) -> None:
+    assert driver.code_problem(meaningful) is None
+
+
 def test_an_unreadable_manifest_cannot_do_its_job(driver: ModuleType, tmp_path: Path) -> None:
     lines: list[str] = []
 
@@ -190,7 +205,7 @@ def test_a_run_may_keep_only_some_entries_of_a_shared_root(driver: ModuleType, t
     case = _case(
         root=str(root),
         tool="fake.py",
-        plant={"args": ["ls", "{root}", "plant"], "keep": ["clean", "planted"], "code": "ENTRIES clean planted"},
+        plant={"args": ["ls", "{root}", "plant"], "keep": ["clean", "planted"], "code": "ENTRIES_CLEAN_PLANTED"},
         control={"args": ["ls", "{root}"], "keep": ["clean"]},
     )
 
@@ -238,6 +253,13 @@ def test_the_manifest_has_one_case_per_script_and_tool_each_with_a_control_and_a
         assert case["plant"]["code"] and case["control"]["args"], case["id"]
 
 
+def test_the_dangling_reference_client_smoke_case_explains_why_it_expects_resolve_failed() -> None:
+    (case,) = (case for case in _manifest() if case["id"] == "client-smoke-unresolvable-module")
+
+    assert case["plant"]["code"] == "RESOLVE_FAILED"
+    assert "GENERATION_FAILED" in case["rationale"] and "resolver" in case["rationale"]
+
+
 def test_the_manifest_pins_the_stable_code_of_each_contract_plant_with_a_clean_control() -> None:
     by_id = {case["id"]: case for case in _manifest()}
     rows = {
@@ -247,6 +269,8 @@ def test_the_manifest_pins_the_stable_code_of_each_contract_plant_with_a_clean_c
         "bundle-builds-differ": "BUILDS_DIFFER",
         "gradle-verification-metadata-tampered": "PLANT_DETECTED",
         "breaking-removed-property": "BREAKING_WITHOUT_MAJOR",
+        "breaking-added-response-property": "BREAKING_WITHOUT_MAJOR",
+        "release-snapshot-refused": "SNAPSHOT_RELEASE_REFUSED",
         "breaking-bundle-changed-version-same": "BUNDLE_CHANGED_VERSION_SAME",
     }
     for case_id, code in rows.items():
@@ -269,8 +293,8 @@ def test_every_vacuum_rule_and_every_breaking_plant_is_in_the_manifest_tagged_fo
     lint = [case for case in cases if case["tool"] == "lint_check.py"]
     breaking = [case for case in cases if case["tool"] == "breaking_check.py"]
 
-    assert len(lint) == 9 and all(case["tags"] == ["vacuum"] for case in lint)
-    assert len(breaking) == 6 and all(case["tags"] == ["oasdiff"] for case in breaking)
+    assert len(lint) == 11 and all(case["tags"] == ["vacuum"] for case in lint), "nine rules, plus the two enum plants of the narrowed exemption"
+    assert len(breaking) == 13 and all(case["tags"] == ["oasdiff"] for case in breaking), "seven original plants plus the six response additions"
 
 
 def test_the_committed_manifest_runs_green_for_every_case_that_needs_no_binary(driver: ModuleType, tmp_path: Path) -> None:

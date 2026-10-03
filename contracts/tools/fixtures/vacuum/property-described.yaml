@@ -1,3 +1,4 @@
+# rule: property-described
 openapi: 3.1.0
 info:
   title: Lint fixture

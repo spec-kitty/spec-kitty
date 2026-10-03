@@ -15,6 +15,12 @@ get:
           - red
           - green
           - blue
+    - name: limit
+      in: query
+      required: false
+      description: Page size. An optional request-side addition is compatible.
+      schema:
+        type: integer
   responses:
     '200':
       description: The things.

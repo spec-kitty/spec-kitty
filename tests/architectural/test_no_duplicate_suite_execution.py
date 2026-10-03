@@ -245,6 +245,14 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
     ("ci-router.yml", "tests-docs"): "Path-routed lane: tests/docs.",
     ("ci-router.yml", "tests-e2e"): "Path-routed lane: tests/e2e.",
     ("ci-router.yml", "tests-corpus-blocking"): "Path-routed lane: the 40 corpus tests with no other blocking home (D-13/D-22); Packs deselects exactly these.",
+    ("contracts.yml", "contract-tool-tests"): (
+        "Path-routed lane: the contract tool unit tests under tests/contract (moved out of the router's corpus job "
+        "to keep that job within its time budget, #5558). They read no corpus, so the router's corpus job no longer runs them; "
+        "that job keeps the reality check, its payload helper and the example round trip. Packs deselects the tool "
+        "modules and the module matrix deselects the corpus marker, so each runs once. Owner: the contracts "
+        "maintainers; exit: when the tool tests carry no corpus marker and the module matrix owns them. "
+        "tests/ci/test_contracts_workflows.py pins that every tests/contract module has exactly one home."
+    ),
     ("ci-windows.yml", "windows-critical"): ("Platform lane: the windows_ci marker family, which no Linux gate can run."),
     ("packs.yml", "built-in-pack-manifest"): "Packs lane: the pack-manifest guard.",
     ("packs.yml", "built-in-corpus-suite"): "Packs lane: corpus suite, sole owner bar the 40 blocking node-ids; advisory (continue-on-error), FR-009.",

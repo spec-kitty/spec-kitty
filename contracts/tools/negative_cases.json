@@ -654,6 +654,31 @@
       }
     },
     {
+      "id": "example-required-deleted",
+      "tool": "example_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "v_required_deleted",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ],
+        "code": "REQUIRED_EXAMPLE_MISSING"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/example_check",
+          "--module",
+          "clean",
+          "--manifest",
+          "contracts/tools/fixtures/example_check/manifest.json"
+        ]
+      }
+    },
+    {
       "id": "event-mapping-name-without-schema",
       "tool": "event_mapping_check.py",
       "plant": {
@@ -716,6 +741,31 @@
           "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
         ],
         "code": "SCHEMA_MULTI_NAME"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "clean",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events.py"
+        ]
+      }
+    },
+    {
+      "id": "event-mapping-allowed-type-not-in-runtime",
+      "tool": "event_mapping_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/event_mapping_check",
+          "--module",
+          "clean",
+          "--lifecycle-source",
+          "contracts/tools/fixtures/event_mapping_check/code/lifecycle_events_without_plan_started.py"
+        ],
+        "code": "ALLOWED_TYPE_NOT_IN_RUNTIME"
       },
       "control": {
         "args": [
@@ -1017,19 +1067,41 @@
       }
     },
     {
+      "id": "verify-pins-checksums-unverified",
+      "tool": "verify_pins.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean"
+        ],
+        "code": "CHECKSUMS_UNVERIFIED",
+        "exit": 2
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--artifacts",
+          "contracts/tools/fixtures/verify_pins/clean/artifacts"
+        ]
+      }
+    },
+    {
       "id": "verify-pins-checksum-missing",
       "tool": "verify_pins.py",
       "plant": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/v_checksum_missing"
+          "contracts/tools/fixtures/verify_pins/v_checksum_missing",
+          "--pins-only"
         ],
         "code": "CHECKSUM_MISSING"
       },
       "control": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/clean"
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--pins-only"
         ]
       }
     },
@@ -1039,14 +1111,16 @@
       "plant": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/v_not_https"
+          "contracts/tools/fixtures/verify_pins/v_not_https",
+          "--pins-only"
         ],
         "code": "NOT_HTTPS"
       },
       "control": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/clean"
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--pins-only"
         ]
       }
     },
@@ -1056,14 +1130,16 @@
       "plant": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/v_unpinned_uses_tag"
+          "contracts/tools/fixtures/verify_pins/v_unpinned_uses_tag",
+          "--pins-only"
         ],
         "code": "UNPINNED_USES"
       },
       "control": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/clean"
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--pins-only"
         ]
       }
     },
@@ -1073,14 +1149,16 @@
       "plant": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/v_unpinned_install_pip"
+          "contracts/tools/fixtures/verify_pins/v_unpinned_install_pip",
+          "--pins-only"
         ],
         "code": "UNPINNED_INSTALL"
       },
       "control": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/clean"
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--pins-only"
         ]
       }
     },
@@ -1090,14 +1168,16 @@
       "plant": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/v_publication_date_missing"
+          "contracts/tools/fixtures/verify_pins/v_publication_date_missing",
+          "--pins-only"
         ],
         "code": "PUBLICATION_DATE_MISSING"
       },
       "control": {
         "args": [
           "--root",
-          "contracts/tools/fixtures/verify_pins/clean"
+          "contracts/tools/fixtures/verify_pins/clean",
+          "--pins-only"
         ]
       }
     },
@@ -1291,7 +1371,8 @@
           "--out",
           "{out}"
         ]
-      }
+      },
+      "rationale": "A dangling reference once reached the generator and failed there as GENERATION_FAILED. The released bundle is now written by the resolver, which refuses the module first, so the failure is RESOLVE_FAILED and no bundle exists to generate from; GENERATION_FAILED is still asserted by the client_smoke tests against a faked generator."
     },
     {
       "id": "resolver-parity-independent-dereference",
@@ -1514,6 +1595,35 @@
       }
     },
     {
+      "id": "release-snapshot-refused",
+      "tool": "release_check.py",
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-snapshot-v1.0.0-SNAPSHOT"
+        ],
+        "code": "SNAPSHOT_RELEASE_REFUSED"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/release_check/root",
+          "--out",
+          "{out}",
+          "--min-paths",
+          "1",
+          "--tag",
+          "contract-clean-v1.0.0"
+        ]
+      }
+    },
+    {
       "id": "release-module-unknown",
       "tool": "release_check.py",
       "plant": {
@@ -1663,6 +1773,26 @@
       }
     },
     {
+      "id": "lint-property-described-enum-without-description",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/property-described-enum-without-description.yaml"
+        ],
+        "code": ": property-described: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
       "id": "lint-resource-property-cited",
       "tool": "lint_check.py",
       "tags": [
@@ -1672,6 +1802,26 @@
         "args": [
           "--file",
           "contracts/tools/fixtures/vacuum/resource-property-cited.yaml"
+        ],
+        "code": ": resource-property-cited: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
+      "id": "lint-resource-property-cited-enum-without-citation",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/resource-property-cited-enum-without-citation.yaml"
         ],
         "code": ": resource-property-cited: "
       },
@@ -1829,6 +1979,174 @@
         "args": [
           "--root",
           "contracts/tools/fixtures/breaking_check/candidates/changed_type",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-property",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_property",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-allof-branch",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_allof_branch",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-property-allof",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_property_allof",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-success-status",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_success_status",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-error-status",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_error_status",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-media-type",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_media_type",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ],
+        "code": "BREAKING_WITHOUT_MAJOR"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/clean_same",
+          "--baseline-root",
+          "contracts/tools/fixtures/breaking_check/baseline"
+        ]
+      }
+    },
+    {
+      "id": "breaking-added-response-header",
+      "tool": "breaking_check.py",
+      "tags": [
+        "oasdiff"
+      ],
+      "plant": {
+        "args": [
+          "--root",
+          "contracts/tools/fixtures/breaking_check/candidates/added_response_header",
           "--baseline-root",
           "contracts/tools/fixtures/breaking_check/baseline"
         ],
