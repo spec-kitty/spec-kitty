@@ -49,15 +49,16 @@ EXPECTED_PATHS = [
     "tests/conftest.py",
     "src/specify_cli/status/lifecycle_events.py",
 ]
-# The one job that may run pytest: the contract tool unit tests. The router's corpus job runs only the modules that read
-# committed Missions, to stay within its time budget.
-TOOL_TEST_JOB = "contract-tool-tests"
+# The contract tool unit tests run in a router job (a required check through router-gate), not in contracts.yml, which runs no
+# pytest at all. The router's corpus job runs only the modules that read committed Missions, to stay within its time budget.
+ROUTER_PATH = WORKFLOWS_DIR / "ci-router.yml"
+ROUTER_TEXT = ROUTER_PATH.read_text(encoding="utf-8")
+TOOL_TEST_JOB = "tests-contract-tools"
 
 # The job table of contracts/tools-and-workflows.md: job -> its exact needs.
 EXPECTED_NEEDS: dict[str, frozenset[str]] = {
     "verify-pins": frozenset(),
     "python-checks": frozenset(),
-    TOOL_TEST_JOB: frozenset(),
     "validate-bundle": frozenset({"verify-pins"}),
     "lint": frozenset({"validate-bundle"}),
     "breaking-change": frozenset({"validate-bundle"}),
@@ -65,7 +66,7 @@ EXPECTED_NEEDS: dict[str, frozenset[str]] = {
     "release-dry-run": frozenset({"validate-bundle"}),
     "negative-tests": frozenset({"verify-pins"}),
     "contracts-gate": frozenset(
-        {"verify-pins", "python-checks", TOOL_TEST_JOB, "validate-bundle", "lint", "breaking-change", "resolver-parity", "release-dry-run", "negative-tests"}
+        {"verify-pins", "python-checks", "validate-bundle", "lint", "breaking-change", "resolver-parity", "release-dry-run", "negative-tests"}
     ),
 }
 # Jobs with needs that still carry the guard: validate-bundle was a root job in the skeleton and keeps it; the gate is self-starting.
@@ -670,13 +671,13 @@ def test_the_node_scan_ignores_a_comment_that_merely_names_node() -> None:
     assert node_violations(mutate(CONTRACTS_TEXT, "name: Contracts\n", "name: Contracts\n# Node is not used here.\n")) == []
 
 
-@pytest.mark.parametrize(("text", "allowed"), [(CONTRACTS_TEXT, frozenset({TOOL_TEST_JOB})), (RELEASE_TEXT, frozenset())], ids=["contracts", "release"])
-def test_pytest_is_unreachable_from_every_step_but_the_tool_test_job(text: str, allowed: frozenset[str]) -> None:
-    assert pytest_violations(text, allowed_jobs=allowed) == []
+@pytest.mark.parametrize("text", [CONTRACTS_TEXT, RELEASE_TEXT], ids=["contracts", "release"])
+def test_pytest_is_unreachable_from_every_step_of_both_contract_workflows(text: str) -> None:
+    assert pytest_violations(text) == []
 
 
 def test_planted_pytest_reachability_is_refused() -> None:
-    allowed = frozenset({TOOL_TEST_JOB})
+    allowed: frozenset[str] = frozenset()
     direct = mutate(CONTRACTS_TEXT, "    steps:\n", "    steps:\n      - run: uv run pytest tests/contract\n")
     assert any("pytest named" in problem for problem in pytest_violations(direct, allowed_jobs=allowed))
     through_make = mutate(CONTRACTS_TEXT, "    steps:\n", "    steps:\n      - run: make test\n")
@@ -688,7 +689,7 @@ def test_planted_pytest_reachability_is_refused() -> None:
 def test_the_release_workflow_and_every_other_contracts_job_still_refuse_pytest() -> None:
     workflow = load(CONTRACTS_TEXT)
     workflow["jobs"]["lint"]["steps"].insert(0, {"run": "uv run --frozen pytest tests/contract"})
-    assert any("pytest named" in problem for problem in pytest_violations(yaml.safe_dump(workflow), allowed_jobs=frozenset({TOOL_TEST_JOB})))
+    assert any("pytest named" in problem for problem in pytest_violations(yaml.safe_dump(workflow)))
 
 
 # -- the content of the jobs ------------------------------------------------------------------------------------------------
@@ -1192,17 +1193,46 @@ def test_a_planted_overlapping_or_empty_tag_filter_is_refused() -> None:
     assert any("matches contract-mission/status" in problem for problem in namespace_violations(slash_filter, cli))
 
 
-def test_the_tool_test_job_is_a_root_job_that_runs_the_corpus_marker_over_tests_contract_with_the_prelude() -> None:
-    job = jobs(load(CONTRACTS_TEXT))[TOOL_TEST_JOB]
+def test_the_tool_test_job_is_a_router_job_that_runs_the_corpus_marker_over_tests_contract_with_the_prelude() -> None:
+    job = jobs(load(ROUTER_TEXT))[TOOL_TEST_JOB]
     commands = [line for line in run_text(job).replace("\\\n", " ").splitlines() if re.search(r"(?<![\w-])pytest(?![\w-])", line)]
 
+    assert job["name"] == "tests (contract tools)"
     assert len(commands) == 1, f"expected exactly one pytest command, found {commands}"
     assert "uv run --frozen --no-sync pytest" in commands[0]
     assert '-m "corpus and not windows_ci"' in commands[0]
     assert re.search(r"\stests/contract/?(?=\s)", commands[0]), "the job must select the whole tests/contract directory"
-    assert needs_of(job) == frozenset(), "the tool-test job is a root job"
+    assert "--ignore=tests/contract/test_example_round_trip.py" in commands[0], "the example round trip belongs to the corpus-blocking job"
+    assert needs_of(job) == frozenset({"changes"})
     assert "uv sync --frozen --no-install-project" in run_text(job)
-    assert TOOL_TEST_JOB in needs_of(jobs(load(CONTRACTS_TEXT))["contracts-gate"])
+    assert all(re.fullmatch(r"[\w.-]+/[\w.-]+(?:/[\w./-]+)?@[0-9a-f]{40}", str(step["uses"])) for step in steps_of(job) if "uses" in step)
+
+
+def test_the_tool_test_job_is_a_required_router_dependency_gated_on_the_contract_path_groups() -> None:
+    workflow = load(ROUTER_TEXT)
+    assert TOOL_TEST_JOB in needs_of(jobs(workflow)["router-gate"]), "router-gate must wait for the contract tool tests"
+    condition = normalise(jobs(workflow)[TOOL_TEST_JOB]["if"])
+    assert condition == "needs.changes.outputs.corpus == 'true' || needs.changes.outputs.contract_tools == 'true'"
+    outputs = jobs(workflow)["changes"]["outputs"]
+    assert "contract_tools" in outputs and "inputs.mode == 'full'" in str(outputs["contract_tools"]), "mode=full runs it"
+
+
+def test_the_contract_tools_filter_group_names_the_paths_the_contracts_workflow_triggers_on_beyond_contracts() -> None:
+    filters = yaml.safe_load(next(step for step in steps_of(jobs(load(ROUTER_TEXT))["changes"]) if step.get("id") == "filter")["with"]["filters"])
+    group = filters["contract_tools"]
+    beyond_contracts = [path for path in EXPECTED_PATHS if path not in ("contracts/**", ".github/CODEOWNERS")]
+    # The lifecycle source is spelled without its src/ prefix so the group stays non-src (a src glob would make it a code-shard gate).
+    spelled = ["**/status/lifecycle_events.py" if path == "src/specify_cli/status/lifecycle_events.py" else path for path in beyond_contracts]
+    assert sorted(group) == sorted(spelled), "the router group and the Contracts workflow trigger list must not drift"
+    assert not any(glob.startswith("src/") for glob in group), "a src glob would make the group a code-shard gate"
+    assert "contracts/**" in filters["corpus"], "contracts/** stays owned by the corpus group"
+
+
+def test_contracts_yml_no_longer_hosts_the_tool_tests() -> None:
+    workflow = load(CONTRACTS_TEXT)
+    assert TOOL_TEST_JOB not in jobs(workflow) and "contract-tool-tests" not in jobs(workflow)
+    assert "contract-tool-tests" not in needs_of(jobs(workflow)["contracts-gate"])
+    assert "pytest" not in run_text({"steps": all_steps(workflow)}).replace("no_pytest_scan", "")
 
 
 # -- the planted breaking changes ---------------------------------------------------------------------------------------------------------

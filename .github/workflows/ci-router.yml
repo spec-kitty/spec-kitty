@@ -118,6 +118,9 @@ jobs:
       # CI-configuration group (FR-007, amendment A1): non-src, like architectural
       # above; gates only the heavy battery. Never in the unmatched loop.
       ci_config: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci_config }}
+      # Contract-tools group (#5558): non-src, like ci_config above; gates only `tests (contract tools)`
+      # (together with `corpus`, which owns contracts/**). Never in the unmatched loop.
+      contract_tools: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.contract_tools }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
@@ -267,6 +270,23 @@ jobs:
               - 'Makefile'
               - '.github/ci-module-registry.yml'
               - '.github/ci-shard-timings.json'
+            # Contract-tools group (#5558): NON-src (not in the unmatched loop); with `corpus`
+            # (which owns contracts/**, pinned by tests/ci/test_contracts_routing.py) it gates
+            # only `tests (contract tools)`. It names what the contract tool tests read or run on
+            # beyond contracts/**: their own tests, the contract workflows, the locked environment, the
+            # pytest configuration and conftest, and the lifecycle source event_mapping_check parses.
+            contract_tools:
+              - 'tests/contract/**'
+              - '.github/workflows/contracts.yml'
+              - '.github/workflows/contracts-release.yml'
+              - 'uv.lock'
+              - 'pyproject.toml'
+              - 'pytest.ini'
+              - 'tests/conftest.py'
+              # Not spelled src/...: a src/ glob would make this a src-backed group (a code-shard gate that
+              # belongs in the unmatched catch-all, scripts/ci/gate_selection.py), and this one is data-shaped.
+              # The file is the one event_mapping_check parses; the `status` group still routes it to its modules.
+              - '**/status/lifecycle_events.py'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
@@ -817,7 +837,7 @@ jobs:
   # SPEC_KITTY_RUN_PERFORMANCE=1; its executing home is the nightly `performance` job.
   # Keeping it in this selection preserves "selected by exactly one required job".
   # The contract tool unit tests (tests/contract/test_bundle.py .. test_schema_formats.py) read no
-  # corpus: they run in the Contracts workflow's `contract-tool-tests` job (with them this job
+  # corpus: they run in the separate `tests-contract-tools` job below (with them this job
   # took 7m20s of its 10 minute timeout), so this job stays well inside its timeout.
   # Packs' advisory corpus run deselects exactly these selections, so nothing
   # runs twice. Pinned by tests/ci/test_corpus_blocking_home.py; a tests/contract module that
@@ -841,6 +861,36 @@ jobs:
             tests/contract/test_example_round_trip.py \
             tests/integration/test_mission_review_contract_gate.py \
             "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
+
+  # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the example round
+  # trip, which `tests-corpus-blocking` owns (the directory minus it, so a new tool test module is picked up
+  # without an edit here). They read no corpus and used to run only in contracts.yml's path-filtered
+  # `contract-tool-tests` job, which is not a required check, so a PR that broke them could auto-merge. As a router
+  # job under `router-gate` they block the merge. Gated on the `corpus` group (contracts/**) or the `contract_tools`
+  # group (tests/contract/** and what the tools run on); mode=full and the unmatched catch-all run it too. Packs'
+  # advisory run deselects these modules and the module matrix deselects the corpus marker, so each runs once.
+  # Pinned by tests/ci/test_contracts_workflows.py (every tests/contract module has exactly one home).
+  tests-contract-tools:
+    name: tests (contract tools)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.corpus == 'true' || needs.changes.outputs.contract_tools == 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen --no-install-project
+      - name: Run the contract tool unit tests
+        run: |
+          uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \
+            --ignore=tests/contract/test_example_round_trip.py \
+            -n 4 --dist loadfile
 
   # ---------------------------------------------------------------------------
   # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes
@@ -874,6 +924,7 @@ jobs:
       - tests-docs
       - tests-e2e
       - tests-corpus-blocking
+      - tests-contract-tools
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

@@ -190,4 +190,5 @@ BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
     "changes.docs": False,
     "changes.architectural": False,
     "changes.ci_config": False,
+    "changes.contract_tools": False,
 }

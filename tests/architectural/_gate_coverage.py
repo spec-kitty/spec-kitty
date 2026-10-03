@@ -136,9 +136,6 @@ WORKFLOW_FILES: tuple[str, ...] = (
     # ``uv run --frozen pytest tests/architectural/test_module_length_agreement.py``
     # invocation on a schedule (the exact-count invariant's strict-mode home).
     "ci-charter-shard-recapture.yml",
-    # Added by mission mission-status-contract-v1: its ``contract-tool-tests`` job runs the contract tool unit tests, which left
-    # the router's corpus job (that job runs only the modules that read committed Missions, to stay within its time budget).
-    "contracts.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"

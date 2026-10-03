@@ -1,9 +1,9 @@
 # Contracts: validates, bundles and cross-checks the machine-readable contracts under contracts/.
 # The bundle is written by the Python resolver and consumed by the JVM toolchain (validate, Java view, TypeScript client smoke);
 # every job runs over the real contracts root. Node is not used anywhere (C-005), and no tool or Gradle directory is cached.
-# Pytest runs in exactly one job, contract-tool-tests: the unit tests of the contract tools, which read
-# no corpus. The router's corpus job runs only the modules that read committed Missions or examples, to keep it within its time
-# budget; the example round trip stays there, so no test runs twice.
+# No pytest runs here. The unit tests of the contract tools run in the router's `tests (contract tools)` job (ci-router.yml,
+# a required check through router-gate) and the modules that read committed Missions or examples in its corpus job, so a PR
+# that breaks them cannot auto-merge and no test runs twice.
 name: Contracts
 
 on:
@@ -103,31 +103,6 @@ jobs:
           uv run --frozen --no-sync python contracts/tools/codeowners_check.py || status=1
           uv run --frozen --no-sync python contracts/tools/no_pytest_scan.py || status=1
           exit $status
-
-  contract-tool-tests:
-    # A root job: it carries the canonical fork guard as the first conjunct. It runs every corpus-marked module of
-    # tests/contract except the one the router's corpus job owns (the directory minus it, so a new tool test module is
-    # picked up without an edit here): the example round trip, which was already a router corpus module. Unmarked modules run
-    # in the module matrix.
-    # tests/ci/test_contracts_workflows.py proves every tests/contract module has exactly one home.
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      - name: Install the locked Python environment
-        run: uv sync --frozen --no-install-project
-      - name: Run the contract tool unit tests
-        run: |
-          uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \
-            --ignore=tests/contract/test_example_round_trip.py \
-            -n 4 --dist loadfile
 
   validate-bundle:
     needs: verify-pins
@@ -358,9 +333,9 @@ jobs:
       - name: Run every planted case with its clean control
         run: uv run --frozen --no-sync python contracts/tools/run_negative_cases.py --manifest contracts/tools/negative_cases.json --work "$RUNNER_TEMP/negative-work"
 
-  # The terminal gate: it lists the nine other jobs and fails unless every one of them succeeded.
+  # The terminal gate: it lists the eight other jobs and fails unless every one of them succeeded.
   contracts-gate:
-    needs: [verify-pins, python-checks, contract-tool-tests, validate-bundle, lint, breaking-change, resolver-parity, release-dry-run, negative-tests]
+    needs: [verify-pins, python-checks, validate-bundle, lint, breaking-change, resolver-parity, release-dry-run, negative-tests]
     # always() makes the job self-starting, so the canonical fork guard is required here too.
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always()
     runs-on: ubuntu-24.04
