@@ -3407,11 +3407,14 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "staged-ownership", text: "Staged ownership", level: 3}
+    - {slug: "reversibility", text: "Reversibility", level: 3}
     - {slug: "hexagonal-dependency-direction", text: "Hexagonal dependency direction", level: 3}
     - {slug: "cross-language-contract", text: "Cross-language contract", level: 3}
     - {slug: "read-cut-over", text: "Read cut-over", level: 3}
     - {slug: "write-cut-over", text: "Write cut-over", level: 3}
+    - {slug: "where-the-seam-lives", text: "Where the seam lives", level: 3}
     - {slug: "service-boundary", text: "Service boundary", level: 3}
+    - {slug: "service-stack-and-contract", text: "Service stack and contract", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
