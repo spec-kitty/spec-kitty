@@ -40,7 +40,12 @@ PLANTED = {
     "v_unpinned_install_unfrozen": ["UNPINNED_INSTALL"],
     "v_unpinned_install_not_prelude": ["UNPINNED_INSTALL"],
 }
-EXIT2 = {"empty_manifest": "MANIFEST_EMPTY", "zero_tools_verified": "ZERO_TOOLS_VERIFIED", "zero_uses_lines": "ZERO_USES_LINES"}
+EXIT2 = {
+    "empty_manifest": "MANIFEST_EMPTY",
+    "zero_tools_verified": "ZERO_TOOLS_VERIFIED",
+    "zero_uses_lines": "ZERO_USES_LINES",
+    "workflow_unreadable": "WORKFLOW_UNREADABLE",
+}
 
 
 @pytest.fixture(scope="module")
@@ -231,6 +236,21 @@ def test_a_check_that_cannot_do_its_job_exits_two_with_its_code(pins: Any, case:
     assert result.returncode == 2
     assert f"CONTRACT-CHECK verify_pins: {code}" in result.stdout
     assert result.stdout.rstrip().splitlines()[-1].startswith("counts: tools=")
+
+
+def test_an_unreadable_workflow_is_blocked_not_reported_as_an_unpinned_uses(pins: Any, tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    shutil.copytree(FIXTURE_ROOT / "clean", root)
+    broken = root / ".github" / "workflows" / "contracts-broken.yml"
+    broken.write_text("jobs: [unclosed\n", encoding="utf-8")
+    report = pins.check(root, pins_only=True)
+    assert [f.code for f in report.blocked] == ["WORKFLOW_UNREADABLE"]
+    assert "contracts-broken.yml" in report.blocked[0].subject
+    assert report.findings == []
+    assert report.exit_code == 2
+    missing = pins.check(root, workflows=[root / "no-such.yml"], pins_only=True)
+    assert "WORKFLOW_UNREADABLE" in [f.code for f in missing.blocked]
+    assert "UNPINNED_USES" not in [f.code for f in missing.findings]
 
 
 def test_an_unreadable_manifest_exits_two(pins: Any, tmp_path: Path) -> None:

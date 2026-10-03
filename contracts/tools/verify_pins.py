@@ -20,8 +20,9 @@ the manifest. Failures, one stable code per cause:
 Cannot do its job (exit 2): ``CHECKSUMS_UNVERIFIED`` (a tool with a valid pinned sha256 and an https url
 was never hashed: no ``--artifacts`` copy, no ``--fetch``, and no explicit ``--pins-only``; one finding per
 tool), ``MANIFEST_EMPTY`` (unreadable, or lists no tool), ``ZERO_TOOLS_VERIFIED``
-(no entry was a mapping), ``ZERO_USES_LINES`` (no ``uses:`` line in any workflow) and
-``DOWNLOAD_FAILED``. Output ``CONTRACT-CHECK verify_pins: <CODE>: <file>: <detail>`` per violation and a
+(no entry was a mapping), ``ZERO_USES_LINES`` (no ``uses:`` line in any workflow),
+``WORKFLOW_UNREADABLE`` (a workflow file that cannot be read or is not valid YAML, so its pins were never
+judged) and ``DOWNLOAD_FAILED``. Output ``CONTRACT-CHECK verify_pins: <CODE>: <file>: <detail>`` per violation and a
 last ``counts: tools=N uses_lines=N downloads=N`` line; exit 0 pass, 1 violation, 2 cannot do its job.
 
 Run as a bare script (``python contracts/tools/verify_pins.py [--root DIR] [--pins FILE]
@@ -198,7 +199,7 @@ def _check_workflow(report: Report, root: Path, workflow: Path) -> None:
     try:
         document: Any = yaml.safe_load(workflow.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError, UnicodeDecodeError) as error:
-        report.findings.append(Finding("UNPINNED_USES", subject, f"workflow unreadable: {type(error).__name__}"))
+        report.blocked.append(Finding("WORKFLOW_UNREADABLE", subject, f"workflow unreadable: {type(error).__name__}"))
         return
     jobs = document.get("jobs") if isinstance(document, dict) else None
     for job_name, job in (jobs or {}).items():
