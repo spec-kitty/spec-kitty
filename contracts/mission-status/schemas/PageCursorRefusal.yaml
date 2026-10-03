@@ -1,0 +1,23 @@
+title: PageCursorRefusal
+description: >-
+  The problem details body of a refused page cursor: the pageCursor of a list request is
+  malformed, forged or no longer valid. It is a Problem whose code is always invalid_page_cursor
+  and whose status is always 400. A refused request is answered before any page is returned.
+  Consumers branch on code, never on title. It is unrelated to the refusals of the event stream
+  (StreamRefusal) and to the stream cursor.
+type: object
+allOf:
+  - $ref: ../../_shared/schemas/Problem.yaml
+  - type: object
+    required:
+      - code
+    properties:
+      code:
+        type: string
+        const: invalid_page_cursor
+        description: The only refusal reason of a page cursor.
+      status:
+        type: integer
+        const: 400
+examples:
+  - $ref: ../examples/PageCursorRefusal.invalid.yaml

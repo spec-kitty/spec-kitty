@@ -1,0 +1,5 @@
+type: about:blank
+title: The page cursor was refused
+status: 400
+code: invalid_page_cursor
+detail: The pageCursor is malformed, forged or no longer valid.

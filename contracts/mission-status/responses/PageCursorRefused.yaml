@@ -1,0 +1,7 @@
+description: >-
+  The page cursor of the list request was refused. The body is a problem details object whose
+  code is invalid_page_cursor.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/PageCursorRefusal.yaml

@@ -15,6 +15,7 @@ files:
   - MissionOverviewPage.yaml
   - MissionPhase.yaml
   - MissionProgress.yaml
+  - PageCursorRefusal.yaml
   - Project.yaml
   - Readiness.yaml
   - RelativeReference.yaml

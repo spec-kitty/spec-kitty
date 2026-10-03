@@ -716,3 +716,43 @@ def test_the_structured_stream_cursor_is_provisional_like_its_text_form() -> Non
     text = _provisional_text(_read(MODULE / "schemas" / "StreamCursor.yaml"))
     for needle in ("TailCursor", "byte offset", "#5528"):
         assert needle in text, f"the structured cursor's open decision does not mention {needle!r}"
+
+
+PAGE_CURSOR_REFUSAL_SCHEMA = "PageCursorRefusal"
+PAGE_CURSOR_REFUSAL = {"type": "about:blank", "title": "The page cursor was refused", "status": 400, "code": "invalid_page_cursor"}
+
+
+def _list_missions_400() -> dict[str, Any]:
+    response: dict[str, Any] = _read(MODULE / "paths" / "missions.yaml")["get"]["responses"]["400"]
+    return response
+
+
+def test_the_list_missions_400_is_the_page_cursor_refusal() -> None:
+    ref = _list_missions_400()["$ref"]
+    assert ref.endswith("responses/PageCursorRefused.yaml"), ref
+    schema = _read(MODULE / "responses" / "PageCursorRefused.yaml")["content"]["application/problem+json"]["schema"]
+    assert schema == {"$ref": f"../schemas/{PAGE_CURSOR_REFUSAL_SCHEMA}.yaml"}, schema
+
+
+def test_the_page_cursor_refusal_has_a_validating_example() -> None:
+    instances = _instances_of(PAGE_CURSOR_REFUSAL_SCHEMA)
+    assert instances, f"no example is attached to {PAGE_CURSOR_REFUSAL_SCHEMA}"
+    for name, instance in instances.items():
+        assert instance["code"] == "invalid_page_cursor", name
+        assert not any(_both_paths(MODULE, PAGE_CURSOR_REFUSAL_SCHEMA, instance)), name
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"code": "negative"}, {"code": None}, {"status": 409}, {"status": 500}],
+    ids=["stream-code", "null-code", "status-409", "status-500"],
+)
+def test_the_page_cursor_refusal_rejects_any_other_code_or_status_through_both_paths(change: dict[str, Any]) -> None:
+    resolved, library = _both_paths(MODULE, PAGE_CURSOR_REFUSAL_SCHEMA, {**PAGE_CURSOR_REFUSAL, **change})
+    assert resolved and library, (resolved, library)
+
+
+def test_the_page_cursor_refusal_requires_its_code() -> None:
+    instance = {key: value for key, value in PAGE_CURSOR_REFUSAL.items() if key != "code"}
+    resolved, library = _both_paths(MODULE, PAGE_CURSOR_REFUSAL_SCHEMA, instance)
+    assert resolved and library, (resolved, library)

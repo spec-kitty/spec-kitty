@@ -13,6 +13,7 @@ files:
   - MissionOverviewPage.first.yaml
   - MissionOverviewPage.last.yaml
   - MissionOverviewPage.middle.yaml
+  - PageCursorRefusal.invalid.yaml
   - Project.example.yaml
   - StatusTransitionEvent.first.yaml
   - StatusTransitionEvent.forced.yaml

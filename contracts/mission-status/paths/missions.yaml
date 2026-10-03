@@ -20,6 +20,6 @@ get:
           schema:
             $ref: ../schemas/MissionOverviewPage.yaml
     '400':
-      $ref: ../../_shared/responses/Problem.yaml
+      $ref: ../responses/PageCursorRefused.yaml
     default:
       $ref: ../../_shared/responses/Problem.yaml
