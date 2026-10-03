@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc6 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Upgrade Notes
+
+- **Four `spec-kitty consolidate` fixes listed under 4.0.0rc5 Fixed do not fully hold on rc5** (#5569, #5570, #5571, #5572). Release testing reproduced each of them on rc5. Until they are fixed, avoid these paths:
+  - Do not cancel a rejected work package (WP) that another WP depends on and then consolidate. Its code can still land through the dependent lane at exit 0 (#5569; rc5 entry for #4977).
+  - Do not follow the "Commit" advice that `consolidate --resume` prints for a coordination worktree that lags its HEAD. Following it can drop an approved lane at exit 0 (#5571; rc5 entry for #4982).
+  - Do not record status changes while a consolidation is tearing down its coordination branch. A change committed after its safety check can still be lost (#5570; rc5 entry for #4981).
+  - Check `status.events.jsonl` after `doctor coordination --fix` reports "Healed". It can still revert a reviewer's later reopen (#5572; the doctor half of the rc5 entry for #4973; the `consolidate --resume` half holds).
+
 ## [4.0.0rc5] - 2026-10-02
 
 This release candidate removes the bundled dashboard, renames `spec-kitty merge` to `spec-kitty consolidate` and makes hosted interaction opt-in: a fresh install sends nothing to a hosted endpoint until you turn sending on for both the repository and yourself. Most fixes harden `spec-kitty consolidate`, which now checks that everything it lands came from an approved lane, refuses instead of guessing when it cannot tell, and restores the branches it moved when it fails. It also runs `single_branch` missions one work package at a time in your repository root checkout, stops several commands from deleting or overwriting files you wrote, reads requirement IDs with one shared grammar, and starts faster (a warm `doctor` went from about 13.2 s to about 1.4 s in local measurement). Scripts that call `spec-kitty merge` or `spec-kitty dashboard`, and projects that use hosted interaction, need changes. See Breaking and Upgrade Notes.
