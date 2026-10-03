@@ -704,16 +704,14 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
         def read_dir(self, kind: MissionArtifactKind) -> Path:
             return _fake_read_dir(kind)
 
-    with (
-        patch.object(_service_mod, "placement_seam", return_value=_FakeSeam()) as service_seam_ctor,
-        patch.object(_doctor_mod, "placement_seam", return_value=_FakeSeam()) as doctor_seam_ctor,
-    ):
+    assert _doctor_mod._ledger_dir is _service_mod._ledger_dir, "_decisions_doctor.py must reuse service.py::_ledger_dir, not a second resolver"
+
+    with patch.object(_service_mod, "placement_seam", return_value=_FakeSeam()) as service_seam_ctor:
         service_ledger_dir = _service_mod._ledger_dir(tmp_path, MISSION_SLUG)
         doctor_ledger_dir = _doctor_mod._ledger_dir(tmp_path, MISSION_SLUG)
         events_dir = _service_mod._mission_dir(tmp_path, MISSION_SLUG)
 
     service_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
-    doctor_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
 
     assert service_ledger_dir == primary_dir, "service.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"
     assert doctor_ledger_dir == primary_dir, "_decisions_doctor.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"
