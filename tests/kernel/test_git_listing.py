@@ -301,6 +301,16 @@ def test_tree_entry_matches_exact_path_only(tmp_path: Path) -> None:
     assert _argv(run)[-1] == "dir"
 
 
+def test_tree_entries_batches_literal_pathspecs(tmp_path: Path) -> None:
+    raw = b"100644 blob 587be6b4c3f93f93c489c0111bba5596147a26cb\tsrc/a\x00100755 blob 0000000000000000000000000000000000000001\tsrc/b\x00"
+    with _stub(raw) as run:
+        entries = listing.tree_entries(tmp_path, "HEAD", pathspecs=("src/a", "src/b", "src/missing"))
+    assert [(str(e.path), e.mode) for e in entries] == [("src/a", "100644"), ("src/b", "100755")]
+    assert _argv(run) == ("--literal-pathspecs", "ls-tree", "--full-tree", "-z", "HEAD", "--", "src/a", "src/b", "src/missing")
+    with _stub(b"") as run:
+        assert listing.tree_entries(tmp_path, "HEAD", pathspecs=("nope",)) == ()
+
+
 def test_index_entries_with_tags_argv(tmp_path: Path) -> None:
     with _stub(b"H 100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0\tx\x00") as run:
         (entry,) = listing.index_entries(tmp_path, tags=True)

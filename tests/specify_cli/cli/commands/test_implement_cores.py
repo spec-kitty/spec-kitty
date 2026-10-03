@@ -13,7 +13,9 @@ signatures with a default port) already lives in
 
 from __future__ import annotations
 
+import os
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,7 @@ import pytest
 from specify_cli.cli.commands.implement_cores import (
     DEFAULT_GIT_PORT,
     GitPort,
+    _SubprocessGitPort,
     PlanningArtifactStagingPlan,
     _committed_meta_mapping,
     _drop_if,
@@ -64,6 +67,7 @@ class _FakeGitPort:
         self._blobs = blobs or {}
         self.status_calls: list[tuple[Path, Path]] = []
         self.show_calls: list[tuple[Path, str, str]] = []
+        self.changed_calls: list[tuple[str, tuple[str, ...]]] = []
 
     def status_entries(self, repo_root: Path, target: Path) -> tuple[StatusEntry, ...]:
         self.status_calls.append((repo_root, target))
@@ -72,6 +76,11 @@ class _FakeGitPort:
     def show_blob(self, repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
         self.show_calls.append((repo_root, ref, repo_rel_path))
         return self._blobs.get((ref, repo_rel_path))
+
+    def changed_vs_ref(self, repo_root: Path, ref: str, repo_rel_paths: Sequence[str]) -> set[str]:
+        """Raw-bytes stand-in for Git's clean-filtered object-id comparison."""
+        self.changed_calls.append((ref, tuple(repo_rel_paths)))
+        return {p for p in repo_rel_paths if self._blobs.get((ref, p)) != (repo_root / p).read_bytes()}
 
 
 def test_default_git_port_conforms_to_protocol() -> None:
@@ -489,6 +498,139 @@ class TestFilesChangedVsRef:
         (tmp_path / "a.txt").write_bytes(b"new")
         fake = _FakeGitPort(blobs={("HEAD", "a.txt"): b"old"})
         assert _files_changed_vs_ref(tmp_path, ["a.txt"], "HEAD", git=fake) == ["a.txt"]
+
+    def test_port_sees_only_existing_paths_in_one_batch_and_input_order_is_kept(self, tmp_path: Path) -> None:
+        for name in ("b.txt", "a.txt"):
+            (tmp_path / name).write_bytes(b"new")
+        fake = _FakeGitPort(blobs={("HEAD", "a.txt"): b"old", ("HEAD", "b.txt"): b"old"})
+        assert _files_changed_vs_ref(tmp_path, ["b.txt", "gone.txt", "a.txt"], "HEAD", git=fake) == ["b.txt", "a.txt"]
+        assert fake.changed_calls == [("HEAD", ("b.txt", "a.txt"))]
+
+
+def _real_repo(tmp_path: Path, *, attributes: str | None = None) -> Path:
+    """A tiny real repository with one committed file ``d/a.txt`` (LF blob)."""
+    repo = tmp_path / "repo"
+    (repo / "d").mkdir(parents=True)
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "Test")
+    git("config", "commit.gpgsign", "false")
+    git("config", "core.autocrlf", "false")
+    if attributes is not None:
+        (repo / ".gitattributes").write_text(attributes, encoding="utf-8")
+    (repo / "d" / "a.txt").write_bytes(b"one\ntwo\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "seed")
+    return repo
+
+
+class TestSubprocessGitPortChangedVsRef:
+    """Real-git adapter coverage: Git's clean view decides, and failures fail closed."""
+
+    _PORT = _SubprocessGitPort()
+
+    def test_crlf_checkout_of_an_unchanged_file_is_not_changed(self, tmp_path: Path) -> None:
+        repo = _real_repo(tmp_path, attributes="* text=auto eol=crlf\n")
+        (repo / "d" / "a.txt").write_bytes(b"one\r\ntwo\r\n")
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == set()
+
+    def test_real_edit_saved_with_crlf_is_changed(self, tmp_path: Path) -> None:
+        repo = _real_repo(tmp_path, attributes="* text=auto eol=crlf\n")
+        (repo / "d" / "a.txt").write_bytes(b"one\r\nTWO\r\n")
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
+
+    def test_without_conversion_raw_difference_is_changed(self, tmp_path: Path) -> None:
+        repo = _real_repo(tmp_path)
+        (repo / "d" / "a.txt").write_bytes(b"one\r\ntwo\r\n")
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
+
+    def test_batch_reports_only_the_changed_subset_and_absent_paths(self, tmp_path: Path) -> None:
+        repo = _real_repo(tmp_path)
+        (repo / "d" / "new.txt").write_bytes(b"not at the ref\n")
+        (repo / "d" / "b.txt").write_bytes(b"two\n")
+        (repo / "d" / "a.txt").write_bytes(b"one\ntwo\nthree\n")
+        paths = ["d/b.txt", "d/a.txt", "d/new.txt"]
+        assert self._PORT.changed_vs_ref(repo, "HEAD", paths) == {"d/b.txt", "d/a.txt", "d/new.txt"}
+        (repo / "d" / "a.txt").write_bytes(b"one\ntwo\n")
+        assert self._PORT.changed_vs_ref(repo, "HEAD", paths) == {"d/b.txt", "d/new.txt"}
+
+    def test_bogus_ref_marks_every_path_changed(self, tmp_path: Path) -> None:
+        repo = _real_repo(tmp_path)
+        assert self._PORT.changed_vs_ref(repo, "no-such-ref", ["d/a.txt"]) == {"d/a.txt"}
+
+    def test_unprovable_paths_fail_closed_without_aborting_the_batch(self, tmp_path: Path) -> None:
+        repo = _real_repo(tmp_path)
+        (repo / "d" / "target.txt").write_bytes(b"x\n")
+        try:
+            (repo / "d" / "link.txt").symlink_to("target.txt")
+        except OSError:
+            pytest.skip("symlinks unavailable on this platform")
+        paths = ["d/a.txt", "d/missing.txt", "d/line\nbreak.txt", 'd/"quoted.txt', "d/link.txt"]
+        expected = {"d/missing.txt", "d/line\nbreak.txt", 'd/"quoted.txt', "d/link.txt"}
+        assert self._PORT.changed_vs_ref(repo, "HEAD", paths) == expected
+
+    def test_non_utf8_filename_is_hashed_not_raised(self, tmp_path: Path) -> None:
+        if os.name == "nt":
+            pytest.skip("POSIX byte filenames only")
+        repo = _real_repo(tmp_path)
+        name = os.fsdecode(b"d/caf\xe9.txt")
+        try:
+            (repo / name).write_bytes(b"one\ntwo\n")
+        except (OSError, UnicodeEncodeError):
+            pytest.skip("filesystem rejects non-UTF-8 names")
+        assert self._PORT.changed_vs_ref(repo, "HEAD", [name, "d/a.txt"]) == {name}
+
+    def test_long_path_lists_are_chunked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import specify_cli.cli.commands.implement_cores as cores
+
+        monkeypatch.setattr(cores, "_LS_TREE_CHUNK", 2)
+        repo = _real_repo(tmp_path)
+        for i in range(5):
+            (repo / "d" / f"n{i}.txt").write_bytes(b"x\n")
+        paths = ["d/a.txt", *[f"d/n{i}.txt" for i in range(5)]]
+        assert self._PORT.changed_vs_ref(repo, "HEAD", paths) == set(paths[1:])
+
+    def test_git_unavailable_marks_every_path_changed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo = _real_repo(tmp_path)
+
+        def boom(*_args: object, **_kwargs: object) -> None:
+            raise OSError("git not found")
+
+        monkeypatch.setattr(subprocess, "run", boom)
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
+
+    def test_unparseable_ls_tree_output_fails_closed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import specify_cli.cli.commands.implement_cores as cores
+        from kernel.git.listing import parse_tree_z
+
+        repo = _real_repo(tmp_path)
+        monkeypatch.setattr(cores, "tree_entries", lambda *_a, **_k: parse_tree_z(b"garbage\0"))
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
+
+    def test_ls_tree_git_failure_fails_closed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import specify_cli.cli.commands.implement_cores as cores
+        from kernel.git import GitCommandError
+
+        def boom(*_a: object, **_k: object) -> None:
+            raise GitCommandError(argv=["ls-tree"], cwd=tmp_path, returncode=128, stderr="fatal")
+
+        repo = _real_repo(tmp_path)
+        monkeypatch.setattr(cores, "tree_entries", boom)
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
+
+    def test_hash_output_that_does_not_pair_with_input_fails_closed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo = _real_repo(tmp_path)
+        real = _SubprocessGitPort._run_git
+
+        def short(self: _SubprocessGitPort, root: Path, args: Sequence[str], stdin: bytes | None) -> bytes | None:
+            return b"" if args[0] == "hash-object" else real(self, root, args, stdin)
+
+        monkeypatch.setattr(_SubprocessGitPort, "_run_git", short)
+        assert self._PORT.changed_vs_ref(repo, "HEAD", ["d/a.txt"]) == {"d/a.txt"}
 
 
 # ---------------------------------------------------------------------------

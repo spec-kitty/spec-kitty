@@ -32,6 +32,7 @@ from kernel.git.listing import (
     numstat_entries,
     status_entries,
     tracked_paths,
+    tree_entries,
     tree_entry,
     tree_paths,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "run_git",
     "status_entries",
     "tracked_paths",
+    "tree_entries",
     "tree_entry",
     "tree_paths",
 ]

@@ -491,13 +491,17 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
     ),
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
-        qualname="_files_changed_vs_ref",
-        token_substring="source . read_bytes ( )",
+        qualname="_SubprocessGitPort._run_git",
+        token_substring="subprocess . run (",
         occurrence=None,
         rationale=(
-            "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
-            "to test idempotency against the committed ref (via the injected "
-            "GitPort) -- same rationale as _is_self_write_only_diff above."
+            "_SubprocessGitPort._run_git -- the single subprocess site behind "
+            "GitPort.changed_vs_ref (git hash-object --stdin-paths; the ref's "
+            "object ids come from kernel.git.tree_entries, the listing owner). "
+            "_files_changed_vs_ref no longer reads the working file "
+            "itself: it asks the injected port for Git's clean-filtered object "
+            "ids, so the former working-tree read seam (#5576) is now this one "
+            "adapter subprocess call."
         ),
     ),
 )

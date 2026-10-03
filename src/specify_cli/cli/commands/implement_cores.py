@@ -21,13 +21,14 @@ contract (T019 / FR-009).
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol, runtime_checkable
 
-from kernel.git import StatusEntry, status_entries
+from kernel.git import GitCommandError, StatusEntry, status_entries, tree_entries
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
 from mission_runtime import (
@@ -64,6 +65,23 @@ _WP_SELF_WRITE_FILENAME_RE = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNOREC
 # Git port (T015): the sole I/O boundary in this module.
 # ---------------------------------------------------------------------------
 
+#: Paths per ``git ls-tree`` call (paths travel on argv).
+_LS_TREE_CHUNK = 500
+
+#: ``ls-tree`` modes of a regular tracked file; symlinks (120000) and gitlinks
+#: (160000) are never compared by object id -- they stay "changed".
+_PLAIN_BLOB_MODES = frozenset({"100644", "100755"})
+
+
+def _is_hashable_planning_path(repo_root: Path, repo_rel_path: str) -> bool:
+    """True when *repo_rel_path* can be proven clean through ``hash-object --stdin-paths``."""
+    # A leading quote would be C-unquoted by ``--stdin-paths``; treat it as unsendable too.
+    if "\n" in repo_rel_path or "\r" in repo_rel_path or repo_rel_path.startswith('"'):
+        return False
+    candidate = repo_root / repo_rel_path
+    return candidate.is_file() and not candidate.is_symlink()
+
+
 
 @runtime_checkable
 class GitPort(Protocol):
@@ -80,6 +98,18 @@ class GitPort(Protocol):
 
     def show_blob(self, repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
         """Bytes of *repo_rel_path* at *ref*, or ``None`` when absent there."""
+        ...
+
+    def changed_vs_ref(self, repo_root: Path, ref: str, repo_rel_paths: Sequence[str]) -> set[str]:
+        """The subset of *repo_rel_paths* whose content differs from *ref*.
+
+        "Differs" is judged on the object id Git would store for the working
+        file (its clean filters -- ``.gitattributes`` / ``core.autocrlf`` --
+        applied) versus the object id at *ref*, never on raw bytes. A path
+        absent at *ref* is changed. Any git failure returns every path as
+        changed (fail closed): an unreadable comparison must never read as
+        "nothing to commit".
+        """
         ...
 
 
@@ -102,6 +132,70 @@ class _SubprocessGitPort:
             capture_output=True,
             check=False,
         )
+        if result.returncode != 0:
+            return None
+        return result.stdout
+
+    def changed_vs_ref(self, repo_root: Path, ref: str, repo_rel_paths: Sequence[str]) -> set[str]:
+        wanted = list(dict.fromkeys(repo_rel_paths))
+        # ``--stdin-paths`` has no NUL mode, so a path with a line break cannot
+        # be sent; a missing file would abort the whole hash batch and a
+        # symlink would hash its target rather than the stored link text.
+        # Neither can be proven clean, so each is reported changed unsent.
+        sendable = [p for p in wanted if _is_hashable_planning_path(repo_root, p)]
+        if not sendable:
+            return set(wanted)
+        working = self._working_object_ids(repo_root, sendable)
+        committed = self._ref_object_ids(repo_root, ref, sendable)
+        if working is None or committed is None:
+            return set(wanted)
+        unchanged = {p for p in sendable if committed.get(p) == working[p]}
+        return set(wanted) - unchanged
+
+    def _working_object_ids(self, repo_root: Path, paths: Sequence[str]) -> dict[str, str] | None:
+        """``path -> object id`` Git would store for each working file.
+
+        ``git hash-object --stdin-paths`` applies each path's own filters (it
+        is run from *repo_root* so paths resolve against the work tree);
+        ``--no-filters`` and ``--path`` are deliberately not used. ``None`` on
+        any failure or when the output does not pair up with the input.
+        """
+        stdout = self._run_git(repo_root, ["hash-object", "--stdin-paths"], b"".join(os.fsencode(p) + b"\n" for p in paths))
+        if stdout is None:
+            return None
+        oids = stdout.decode("ascii", errors="replace").splitlines()
+        if len(oids) != len(paths):
+            return None
+        return dict(zip(paths, oids, strict=True))
+
+    def _ref_object_ids(self, repo_root: Path, ref: str, paths: Sequence[str]) -> dict[str, str] | None:
+        """``path -> blob id`` at *ref*; paths absent there (or not plain blobs) are omitted.
+
+        Entries come from the ``kernel.git`` listing owner and are matched by
+        path name. Chunked so a long list never overflows the command line.
+        ``None`` on any git failure or unparseable record.
+        """
+        found: dict[str, str] = {}
+        for start in range(0, len(paths), _LS_TREE_CHUNK):
+            try:
+                entries = tree_entries(repo_root, ref, pathspecs=paths[start : start + _LS_TREE_CHUNK])
+            except (GitCommandError, ValueError):
+                return None
+            found.update((str(entry.path), entry.oid) for entry in entries if entry.type == "blob" and entry.mode in _PLAIN_BLOB_MODES)
+        return found
+
+    def _run_git(self, repo_root: Path, args: Sequence[str], stdin: bytes | None) -> bytes | None:
+        """Run ``git *args`` in *repo_root*; stdout on success, ``None`` on any failure."""
+        try:
+            result = subprocess.run(
+                ["git", *args],
+                cwd=repo_root,
+                input=stdin,
+                capture_output=True,
+                check=False,
+            )
+        except OSError:
+            return None
         if result.returncode != 0:
             return None
         return result.stdout
@@ -471,6 +565,12 @@ def _is_self_write_only_diff(
 def _files_changed_vs_ref(repo_root: Path, files: list[str], ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> list[str]:
     """Drop files whose working-tree content already matches *ref*.
 
+    "Matches" is Git's own view (:meth:`GitPort.changed_vs_ref`): the object id
+    Git would store for the working file, clean filters applied, equals the
+    object id at *ref*. A checkout that converts line endings (CRLF) and is
+    ``git status``-clean therefore yields no changed files (#5576), while a
+    real edit stays changed even when saved with CRLF.
+
     The coordination model commits claim-time planning-artifact edits to the
     coordination branch but leaves them uncommitted in the main checkout. The
     next claim re-discovers those edits as "uncommitted" even though their
@@ -481,18 +581,13 @@ def _files_changed_vs_ref(repo_root: Path, files: list[str], ref: str | None, *,
     """
     if not ref:
         return files
-    changed: list[str] = []
-    for repo_rel in files:
-        source = (repo_root / Path(repo_rel)).resolve()
-        if not source.exists():
-            # Defensive: callers pass only writable (non-structural) paths, which
-            # exist on disk. Structural deletions/renames are rejected upstream
-            # (fail-closed) before reaching here, so a missing path here is
-            # unexpected -- skip it rather than crash the claim.
-            continue
-        if git.show_blob(repo_root, ref, repo_rel) != source.read_bytes():
-            changed.append(repo_rel)
-    return changed
+    # Defensive: callers pass only writable (non-structural) paths, which exist
+    # on disk. Structural deletions/renames are rejected upstream (fail-closed)
+    # before reaching here, so a missing path is unexpected -- skip it rather
+    # than crash the claim (or abort the whole hash batch).
+    existing = [repo_rel for repo_rel in files if (repo_root / Path(repo_rel)).resolve().exists()]
+    changed = git.changed_vs_ref(repo_root, ref, existing)
+    return [repo_rel for repo_rel in existing if repo_rel in changed]
 
 
 def _files_changed_vs_precondition_ref(

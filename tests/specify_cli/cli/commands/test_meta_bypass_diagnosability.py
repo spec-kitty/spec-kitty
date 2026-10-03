@@ -27,6 +27,7 @@ silently absorbed and every ``pytest.raises(MetaDecodeError)`` below fails.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -56,6 +57,9 @@ class _FakeGitPort:
 
     def show_blob(self, repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
         return self._blobs.get((ref, repo_rel_path))
+
+    def changed_vs_ref(self, repo_root: Path, ref: str, repo_rel_paths: Sequence[str]) -> set[str]:  # pragma: no cover - unused here
+        return set(repo_rel_paths)
 
 
 def _write_meta(tmp_path: Path, raw: bytes) -> Path:

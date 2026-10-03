@@ -40,6 +40,7 @@ __all__ = [
     "numstat_entries",
     "status_entries",
     "tracked_paths",
+    "tree_entries",
     "tree_entry",
     "tree_paths",
 ]
@@ -318,6 +319,21 @@ def tree_entry(cwd: Path, ref: str, path: str, *, env: Env = None, timeout: floa
     wanted = GitPath.parse(path)
     entries = parse_tree_z(_git(cwd, ["ls-tree", "--full-tree", "-z", ref], (str(wanted),), env=env, timeout=timeout))
     return next((entry for entry in entries if entry.path == wanted), None)
+
+
+def tree_entries(
+    cwd: Path,
+    ref: str,
+    *,
+    pathspecs: Sequence[str],
+    env: Env = None,
+    timeout: float | None = None,
+) -> tuple[TreeEntry, ...]:
+    """The entries of *ref*'s tree matching the literal *pathspecs*, in one ``ls-tree`` call.
+
+    A pathspec *ref* has no entry for is simply absent from the result.
+    """
+    return parse_tree_z(_git(cwd, ["ls-tree", "--full-tree", "-z", ref], pathspecs, env=env, timeout=timeout))
 
 
 def _diff_args(flag: str, revs: Sequence[str], *, cached: bool, renames: bool, diff_filter: str | None) -> list[str]:
