@@ -1197,3 +1197,256 @@ def test_atomic_write_windows_fchmod_fallback(tmp_path: Path, monkeypatch: pytes
 
     assert target.read_bytes() == b"skill content"
     assert stat.S_IMODE(target.stat().st_mode) == 0o640
+
+
+# ---------------------------------------------------------------------------
+# #5574 / #5575 — canonical bytes are fresh; explicit consent is honored
+# ---------------------------------------------------------------------------
+
+_STALE_HASH = "0" * 64
+
+
+def _prepare(repo: Path, *, adopt_only: bool = False, overwrite_paths: tuple[str, ...] = (), prune: bool = False) -> OwnerAssessment:
+    from specify_cli.skills.command_installer import prepare_commands
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    inputs = AssessmentInputs(OperationRoot("project", "project", repo), consent=ApplyConsent(automatic=True, overwrite_paths=overwrite_paths))
+    return prepare_commands(inputs, ("codex", "vibe"), adopt_only=adopt_only, prune=prune)
+
+
+def _record_hash(repo: Path, command: str, content_hash: str) -> str:
+    """Set the recorded hash for *command*'s manifest entry; return its rel path."""
+    rel = _skill_path(repo, command).relative_to(repo).as_posix()
+    manifest = manifest_store.load(repo)
+    entry = manifest.find(rel)
+    assert entry is not None
+    manifest.upsert(
+        ManifestEntry(entry.path, content_hash, entry.agents, entry.installed_at, entry.spec_kitty_version),
+    )
+    manifest_store.save(repo, manifest)
+    return rel
+
+
+def _states_for(assessment: OwnerAssessment, rel: str) -> set[str]:
+    return {d.state for d in assessment.dispositions if d.path == rel}
+
+
+def test_5574_canonical_bytes_with_stale_hash_are_fresh_under_adopt_only(repo: Path) -> None:
+    from specify_cli.skills import command_installer as owner
+    from tests.upgrade.preview_support.snapshot import snapshot, net_delta
+
+    install(repo, "codex")
+    install(repo, "vibe")
+    skill = _skill_path(repo, "plan")
+    canonical = skill.read_bytes()
+    digest = _sha256(canonical)
+    rel = _record_hash(repo, "plan", _STALE_HASH)
+
+    assessment = _prepare(repo, adopt_only=True)
+
+    assert assessment.complete, assessment.diagnostics
+    assert "consent_required" not in _states_for(assessment, rel)
+    assert isinstance(assessment.prepared, PreparedCommands)
+    staged = {c.path: c for c in assessment.prepared.commands}
+    assert rel in staged
+    assert staged[rel].entry is not None and staged[rel].entry.content_hash == digest
+    assert staged[rel].report_kind == "reused_shared"
+
+    before = snapshot({"project": repo})
+    assert owner.apply_commands(assessment, assessment.consent).outcome == "applied"
+    assert skill.read_bytes() == canonical
+    entry = manifest_store.load(repo).find(rel)
+    assert entry is not None and entry.content_hash == digest
+    assert {e.path for e in net_delta(before, snapshot({"project": repo}))} == {".kittify/command-skills-manifest.json"}
+
+
+def test_5574_adopt_only_still_refuses_edited_bytes_with_old_hash(repo: Path) -> None:
+    install(repo, "codex")
+    install(repo, "vibe")
+    skill = _skill_path(repo, "plan")
+    skill.write_bytes(skill.read_bytes() + b"\n<!-- local edit -->\n")
+    rel = _record_hash(repo, "plan", _STALE_HASH)
+
+    assessment = _prepare(repo, adopt_only=True)
+
+    assert assessment.complete, assessment.diagnostics
+    assert "consent_required" in _states_for(assessment, rel)
+    assert isinstance(assessment.prepared, PreparedCommands)
+    assert rel not in {c.path for c in assessment.prepared.commands}
+
+
+def test_5574_repair_stale_manifest_refreshes_hash_and_does_not_report_drift(repo: Path) -> None:
+    install(repo, "codex")
+    install(repo, "vibe")
+    skill = _skill_path(repo, "plan")
+    canonical = skill.read_bytes()
+    rel = _record_hash(repo, "plan", _STALE_HASH)
+
+    result = manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
+
+    assert rel not in result.drifted
+    assert skill.read_bytes() == canonical
+    entry = manifest_store.load(repo).find(rel)
+    assert entry is not None and entry.content_hash == _sha256(canonical)
+
+
+def test_5574_repair_stale_manifest_still_reports_a_real_edit(repo: Path) -> None:
+    install(repo, "codex")
+    install(repo, "vibe")
+    skill = _skill_path(repo, "plan")
+    skill.write_bytes(b"operator edit")
+    rel = skill.relative_to(repo).as_posix()
+    recorded = manifest_store.load(repo).find(rel)
+    assert recorded is not None
+
+    result = manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
+
+    assert rel in result.drifted
+    assert skill.read_bytes() == b"operator edit"
+    entry = manifest_store.load(repo).find(rel)
+    assert entry is not None and entry.content_hash == recorded.content_hash
+
+
+def _edited_plan(repo: Path) -> tuple[Path, str, bytes]:
+    install(repo, "codex")
+    install(repo, "vibe")
+    skill = _skill_path(repo, "plan")
+    canonical = skill.read_bytes()
+    skill.write_bytes(canonical + b"\n<!-- local edit -->\n")
+    return skill, skill.relative_to(repo).as_posix(), canonical
+
+
+def test_5575_consent_naming_the_path_overwrites_an_edited_command_skill(repo: Path) -> None:
+    from specify_cli.skills import command_installer as owner
+
+    skill, rel, canonical = _edited_plan(repo)
+
+    assessment = _prepare(repo, overwrite_paths=(rel,))
+
+    assert assessment.complete, assessment.diagnostics
+    assert "consent_required" not in _states_for(assessment, rel)
+    assert owner.apply_commands(assessment, assessment.consent).outcome == "applied"
+    assert skill.read_bytes() == canonical
+    entry = manifest_store.load(repo).find(rel)
+    assert entry is not None and entry.content_hash == _sha256(canonical)
+
+
+def test_5575_automatic_consent_without_the_path_keeps_the_edit(repo: Path) -> None:
+    from specify_cli.skills import command_installer as owner
+
+    skill, rel, _canonical = _edited_plan(repo)
+    edited = skill.read_bytes()
+
+    assessment = _prepare(repo)
+
+    assert "consent_required" in _states_for(assessment, rel)
+    assert owner.apply_commands(assessment, assessment.consent).outcome in {"applied", "skipped"}
+    assert skill.read_bytes() == edited
+
+
+def test_5575_consent_for_a_different_path_does_not_overwrite(repo: Path) -> None:
+    from specify_cli.skills import command_installer as owner
+
+    skill, rel, _canonical = _edited_plan(repo)
+    edited = skill.read_bytes()
+    other = _skill_path(repo, "status").relative_to(repo).as_posix()
+
+    assessment = _prepare(repo, overwrite_paths=(other,))
+
+    assert "consent_required" in _states_for(assessment, rel)
+    owner.apply_commands(assessment, assessment.consent)
+    assert skill.read_bytes() == edited
+
+
+def _entry(content_hash: str, agents: tuple[str, ...] = ("codex",)) -> ManifestEntry:
+    return ManifestEntry(".agents/skills/spec-kitty.plan/SKILL.md", content_hash, agents, "2026-01-01T00:00:00+00:00", "3.2.0")
+
+
+_DIGEST = "d" * 64
+_OTHER = "e" * 64
+
+
+@pytest.mark.parametrize(
+    ("existing_hash", "state_kind", "disk_hash", "expected"),
+    [
+        (None, "file", _DIGEST, True),  # unowned exact canonical bytes: adopt
+        (None, "file", _OTHER, False),  # unowned unknown bytes: preserve
+        (None, "absent", None, False),  # absent files are never synthesized
+        (None, "symlink", None, False),  # links are not regular-file ownership
+        (_STALE_HASH, "file", _DIGEST, True),  # owned, canonical bytes, stale hash: refresh
+        (_DIGEST, "file", _DIGEST, False),  # owned and already fresh: nothing to adopt
+        (_STALE_HASH, "file", _OTHER, False),  # owned and genuinely edited: never adopt
+        (_STALE_HASH, "directory", None, False),
+    ],
+)
+def test_5574_adoptable_branches(existing_hash: str | None, state_kind: str, disk_hash: str | None, expected: bool) -> None:
+    from specify_cli.skills.command_installer import _adoptable
+    from specify_cli.tool_surface.operations import FileState
+
+    existing = _entry(existing_hash) if existing_hash is not None else None
+    if state_kind == "absent":
+        before = FileState("absent")
+    elif state_kind == "symlink":
+        before = FileState("symlink", target="elsewhere", mode=0o777)
+    else:
+        before = FileState(state_kind, sha256=disk_hash, mode=0o644)
+    assert _adoptable(existing, before, _DIGEST) is expected
+
+
+def test_5574_refreshed_entry_records_digest_and_adds_agents() -> None:
+    from specify_cli.skills.command_installer import _refreshed_entry
+
+    existing = _entry(_STALE_HASH, ("codex",))
+    refreshed = _refreshed_entry(existing, "d" * 64, ("vibe", "codex"))
+
+    assert refreshed.content_hash == "d" * 64
+    assert refreshed.agents == ("codex", "vibe")
+    assert refreshed.installed_at == existing.installed_at
+    assert existing.content_hash == _STALE_HASH
+
+
+def test_canonical_digest_matches_installed_bytes_and_writes_nothing(repo: Path) -> None:
+    from specify_cli.skills.command_installer import canonical_digest
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    install(repo, "codex")
+    install(repo, "vibe")
+    before = snapshot({"project": repo})
+
+    assert canonical_digest(repo, "plan") == _sha256_file(_skill_path(repo, "plan"))
+    assert canonical_digest(repo, "status") == _sha256_file(_skill_path(repo, "status"))
+    assert_unchanged(before, snapshot({"project": repo}))
+
+
+def test_canonical_digest_is_none_for_unknown_command(repo: Path) -> None:
+    from specify_cli.skills.command_installer import canonical_digest
+
+    assert canonical_digest(repo, "not-a-command") is None
+
+
+def test_canonical_digest_is_none_without_command_skill_agents(tmp_path: Path) -> None:
+    from specify_cli.skills.command_installer import canonical_digest
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify/config.yaml").write_text("agents:\n  available: []\n", encoding="utf-8")
+
+    assert canonical_digest(tmp_path, "plan") is None
+
+
+def test_canonical_digest_is_none_when_agents_render_differently(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import command_installer as owner
+
+    monkeypatch.setattr(owner, "_render_command_skill", lambda _root, _command, agent, _version: f"rendered for {agent}".encode())
+
+    assert owner.canonical_digest(repo, "plan") is None
+
+
+def test_canonical_digest_is_none_when_rendering_fails(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import command_installer as owner
+
+    def boom(*_args: object) -> bytes:
+        raise InstallerError("unknown_command", command="plan")
+
+    monkeypatch.setattr(owner, "_render_command_skill", boom)
+
+    assert owner.canonical_digest(repo, "plan") is None

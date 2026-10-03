@@ -283,7 +283,8 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
     if command in PROMPT_BACKED_COMMANDS:
         template = _resolve_template(repo_root, command)
         rendered = command_renderer.render(template, agent_key, version, repo_root=repo_root)
-        return rendered.to_skill_md().encode("utf-8")
+        skill_md: str = rendered.to_skill_md()
+        return skill_md.encode("utf-8")
 
     if command not in CLI_WRAPPER_COMMANDS:
         raise InstallerError("unknown_command", command=command)
@@ -558,6 +559,26 @@ def _manifest_change_bytes(manifest: manifest_store.SkillsManifest) -> bytes:
     return encoded
 
 
+def _adoptable(existing: ManifestEntry | None, before: FileState, digest: str) -> bool:
+    """Return True when an adopt-only pass may stage this command's entry.
+
+    Only exact canonical bytes in a regular file qualify. An unowned file is
+    adopted; an owned one is adopted only to refresh a stale recorded hash
+    (an older release's rendering), which never touches the file bytes.
+    """
+    if before.kind != "file" or before.sha256 != digest:
+        return False
+    return existing is None or existing.content_hash != digest
+
+
+def _refreshed_entry(existing: ManifestEntry, digest: str, agents: tuple[str, ...]) -> ManifestEntry:
+    """Return *existing* recording the canonical *digest* with *agents* added."""
+    entry = replace(existing, content_hash=digest)
+    for agent in agents:
+        entry = entry.with_agent_added(agent)
+    return entry
+
+
 class _CommandBatch:
     """Collect command decisions and their physical supporting effects once."""
 
@@ -673,15 +694,13 @@ class _CommandBatch:
         digest = manifest_store.fingerprint(content)
         if self.preserve(rel, before, existing, digest):
             return
-        if adopt_only and (existing is not None or before.kind != "file" or before.sha256 != digest):
+        if adopt_only and not _adoptable(existing, before, digest):
             return
         owners = tuple(sorted(set(existing.agents if existing else ()) | set(self.agents)))
         entry = ManifestEntry(rel, digest, owners, existing.installed_at if existing else self.time, self.version)
         same = before.kind == "file" and before.sha256 == digest
         if same and existing is not None:
-            entry = existing
-            for agent in self.agents:
-                entry = entry.with_agent_added(agent)
+            entry = _refreshed_entry(existing, digest, self.agents)
         kind = "already_installed" if same and existing == entry else "reused_shared" if same else "added"
         proof = (
             OwnershipProof("manifest", f"{_MANIFEST}#{rel}")
@@ -718,7 +737,9 @@ class _CommandBatch:
             return True
         if before.kind != "file":
             return False
-        if existing is not None and before.sha256 != existing.content_hash:
+        if existing is not None and before.sha256 not in (existing.content_hash, digest):
+            if rel in self.inputs.consent.overwrite_paths:
+                return False  # Explicit exact-path consent: the canonical bytes replace the edit.
             self.disposition(rel, "consent_required", "Managed command content has drifted")
             return True
         if existing is None and before.sha256 != digest:
@@ -860,6 +881,30 @@ def _recheck_command_provisioning(payload: PreparedCommands, phase: Literal["pre
         if item.path != write.target and observe_yaml_input(item.path) != item:
             raise ValueError(f"precondition_changed: provisioning input {item.path}")
     return cast("Path", write.target)
+
+
+def canonical_digest(project_root: Path, command: str) -> str | None:
+    """Return the SHA-256 of today's canonical rendering of *command*, read-only.
+
+    The roster is the configured command-skill agents, exactly as
+    :func:`prepare_commands` receives them from its callers. ``None`` means
+    there is no single canonical rendering to compare against: the command is
+    not canonical, no command-skill agent is configured, rendering failed, or
+    the agents render different bytes. Nothing is written.
+    """
+    from specify_cli.core.agent_config import get_configured_agents
+
+    if command not in CANONICAL_COMMANDS:
+        return None
+    try:
+        agents = tuple(agent for agent in get_configured_agents(project_root) if agent in SUPPORTED_AGENTS)
+        version = _get_version()
+        variants = {_render_command_skill(project_root, command, agent, version) for agent in agents}
+    except (OSError, ValueError, AgentConfigError, InstallerError, command_renderer.SkillRenderError):
+        return None
+    if len(variants) != 1:
+        return None
+    return manifest_store.fingerprint(next(iter(variants)))
 
 
 def prepare_commands(
