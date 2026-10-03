@@ -119,3 +119,14 @@ FR-013 too). Other shapes may still turn up.
 - [#5330](https://github.com/spec-kitty/spec-kitty/issues/5330), [#5329](https://github.com/spec-kitty/spec-kitty/issues/5329) — follow-up issues
 - Mission `mixed-lane-authorship-soundness-01M3M7Y0` — spec.md FR-011..FR-013
 - [`docs/architecture/status-model.md`](../../architecture/status-model.md) — verdict table
+
+## Amendment 2026-10-03 — fully-canceled dependency lanes (#5569)
+
+The residual "a fully-canceled dependency lane's content" is closed. The lane
+allocator fast-forwards a dependency lane into its dependent lane, so the
+canceled lane's commits sit on the dependent lane's first-parent spine. They are
+now subtracted from the dependency-tip exemption (`never_exempt`). A
+fully-canceled dependency lane whose branch is deleted or unreadable REFUSEs at
+claim time, because its commits can no longer be enumerated; a canceled lane
+that no other lane depends on stays tolerated. The remaining strict-`xfail`
+residuals drop from five to four.

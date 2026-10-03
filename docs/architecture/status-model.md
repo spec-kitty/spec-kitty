@@ -446,7 +446,7 @@ as event-log runtime evidence for the birth cutover
 
 **Known, accepted residuals.** Attribution works per commit window and per
 path, not per hunk or per author, and the closed world trusts its anchors, so
-five shapes remain documented limitations. Two of them over-block (the gate FAILs when it ideally would not,
+four shapes remain documented limitations. Two of them over-block (the gate FAILs when it ideally would not,
 or names the wrong WP), which is the safe direction:
 
 - content that a separate approved lane independently authored under the
@@ -456,15 +456,18 @@ or names the wrong WP), which is the safe direction:
   to the canceled WP -- the gate still FAILs, but the finding names the wrong
   WP.
 
-Three of them can let canceled or unowned content reach the target under a PASS:
+Two of them can let canceled or unowned content reach the target under a PASS:
 
 - a survivor's rework that only partially overwrites a canceled WP's change
   marks the whole path superseded, so the kept hunks ship;
 - an out-of-workflow commit made on the lane before the first governed claim
   is exempt via the first-claim anchor;
-- a fully-canceled dependency lane (not mixed, so never checked) whose content
-  fast-forwards into a dependent mixed lane is exempt via the dependency-tip
-  anchor (the content shipped before FR-013 too).
+
+A fully-canceled dependency lane whose content fast-forwards into a dependent
+lane is no longer a residual: its commits are subtracted from the dependency-tip
+exemption (#5569), and a fully-canceled dependency lane whose branch is deleted
+or unreadable REFUSEs at claim time. A canceled lane nobody depends on is still
+tolerated when its branch is gone.
 
 Each is pinned by a strict expected-failure test that asserts the ideal
 outcome, and is tracked as follow-up work under the parent epic. Two former

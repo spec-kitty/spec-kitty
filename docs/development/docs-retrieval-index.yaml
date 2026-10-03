@@ -3292,6 +3292,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-03-fully-canceled-dependency-lanes-5569", text: "Amendment 2026-10-03 — fully-canceled dependency lanes (#5569)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"

@@ -632,7 +632,7 @@ def _recorded_strand_shas(
     reopen is also a commit that touches the log, so a range-derived set would sweep
     it in and erase it.
 
-    * ``persisted is None`` (a legacy marker that predates the record) → refuse.
+    * ``persisted is None`` (the marker recorded no strand commits) → refuse.
     * The heal-time status-log commits in ``captured_sha..HEAD``
       (:func:`status_log_commits_in_range`) must equal the recorded set. Any extra
       commit is ``foreign`` (a later reopen, a third party's status event) → refuse;
@@ -643,6 +643,9 @@ def _recorded_strand_shas(
     """
     if persisted is None:
         return _StrandSelection(legacy=True)
+    # The heal range ``captured_sha..HEAD`` agrees with the range the marker writer
+    # recorded only because the ``branch_mismatch`` gate in ``repair_coord_strand``
+    # runs first: HEAD is then known to be on the coordination branch.
     in_range = status_log_commits_in_range(coord_worktree, captured_sha, "HEAD", feature_dir, env)
     if in_range is None:
         return _StrandSelection(mismatch=True)
