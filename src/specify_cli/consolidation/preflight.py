@@ -837,6 +837,59 @@ def classify_resume_dirty_remedy(
     )
 
 
+def head_is_strictly_ahead_of(repo_root: Path, base_sha: str | None) -> bool:
+    """True iff ``base_sha`` is a STRICT ancestor of ``repo_root``'s ``HEAD`` (the ref advanced past it).
+
+    Fail-closed ``False`` on a missing ``base_sha``, ``base_sha == HEAD`` (no lag) or any
+    git error. The shared first step of :func:`is_pure_behind_head_lag` and
+    :func:`has_unrefreshed_head_advance`.
+    """
+    if not base_sha:
+        return False
+    head_ret, head_sha, _head_err = run_command(
+        ["git", "rev-parse", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if head_ret != 0 or head_sha.strip() == base_sha:
+        return False
+    return bool(sha_reachable_from(repo_root, base_sha, "HEAD"))
+
+
+def _diff_paths(repo_root: Path, *revs: str) -> set[str]:
+    """Paths ``git diff --name-only <revs>`` reports in ``repo_root`` (``set()`` on any git error)."""
+    ret, out, _err = run_command(
+        ["git", "diff", "--name-only", "-z", *revs],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        return set()
+    return {path for path in out.split("\0") if path}
+
+
+def has_unrefreshed_head_advance(repo_root: Path, *, base_sha: str | None) -> bool:
+    """True iff ``repo_root`` still reads the ``base_sha`` -> ``HEAD`` advance in reverse (#5571).
+
+    ``HEAD`` is a strict descendant of ``base_sha`` AND at least one path the advance
+    changed (``base_sha..HEAD``) still differs between the checkout (index or working
+    tree) and ``HEAD`` — i.e. recording the checkout as-is would revert the advance.
+
+    This is the *advisory* sibling of :func:`is_pure_behind_head_lag`: it does NOT prove the
+    dirt is purely that lag (a genuine edit may be mixed in), so it never authorises a
+    reset; it only tells the refusal report to stop advising "commit". A checkout dirty
+    only on paths the advance never touched is genuine local work and stays ``False``
+    (the stock remedy is then safe). ``False`` on a missing ``base_sha`` or any git error
+    (fail-closed toward the stock remedy).
+    """
+    if not head_is_strictly_ahead_of(repo_root, base_sha):
+        return False
+    advanced_paths = _diff_paths(repo_root, str(base_sha), "HEAD")
+    return bool(advanced_paths & _diff_paths(repo_root, "HEAD"))
+
+
 def is_pure_behind_head_lag(
     repo_root: Path,
     *,
@@ -875,17 +928,7 @@ def is_pure_behind_head_lag(
     Returns ``False`` on a missing ``base_sha`` or any git error (fail-closed): a state
     that cannot be proven a pure lag is treated as genuine local work.
     """
-    if not base_sha:
-        return False
-    head_ret, head_sha, _head_err = run_command(
-        ["git", "rev-parse", "HEAD"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if head_ret != 0 or head_sha.strip() == base_sha:
-        return False
-    if not sha_reachable_from(repo_root, base_sha, "HEAD"):
+    if not base_sha or not head_is_strictly_ahead_of(repo_root, base_sha):
         return False
     worktree_ret, _wout, _werr = run_command(
         ["git", "diff", "--quiet", base_sha],

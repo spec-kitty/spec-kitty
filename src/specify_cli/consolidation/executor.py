@@ -73,6 +73,7 @@ from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.git.ref_advance import RefAdvanceError, RefResyncError, RefRestoreError, restore_branch_ref
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
+    MERGE_UNSAFE_WORKTREE_DIRTY,
     DestructiveOpRefused,
     assert_checkout_on_target,
     assert_worktree_clean,
@@ -3742,14 +3743,107 @@ def _synthesize_no_lane_manifest(
     )
 
 
+@dataclass(frozen=True)
+class _LagCheckout:
+    """The checkout a pre-mutation dirty-guard refusal names, as a candidate behind-own-HEAD lag (#4997 / #5571).
+
+    ``coordination`` selects which persisted anchor proves the lag: the repository root
+    checkout is proven against ``pre_mutation_target_sha``, the coordination worktree
+    against ``pre_mutation_coord_sha``. One shape, so the advice and the in-place
+    recovery share a single classifier instead of a coordination-only copy.
+    """
+
+    path: Path
+    coordination: bool
+
+    @property
+    def label(self) -> str:
+        return "coordination worktree" if self.coordination else "primary checkout"
+
+    def base_sha(self, state: ConsolidationState | None) -> str | None:
+        """The persisted pre-mutation tip this checkout's lag is proven against (``None`` on a fresh merge)."""
+        if state is None:
+            return None
+        anchor: str | None = state.pre_mutation_coord_sha if self.coordination else state.pre_mutation_target_sha
+        return anchor
+
+
+def _lag_checkout_for_refusal(
+    exc: DestructiveOpRefused,
+    main_repo: Path,
+    coord_worktree: Path | None,
+) -> _LagCheckout | None:
+    """Map a pre-mutation dirty refusal onto the checkout that may merely lag its HEAD, else ``None``.
+
+    ``MERGE_UNSAFE_PRIMARY_DIRTY`` is the repository root checkout. The generic
+    ``MERGE_UNSAFE_WORKTREE_DIRTY`` also names removal-destined LANE worktrees, which are
+    never a lag candidate: it maps to the coordination worktree only when the refusal's
+    own ``worktree_path`` IS the resolved coordination worktree.
+    """
+    code = getattr(exc, "error_code", None)
+    if code == MERGE_UNSAFE_PRIMARY_DIRTY:
+        return _LagCheckout(main_repo, coordination=False)
+    refused = getattr(exc, "worktree_path", None)
+    if code == MERGE_UNSAFE_WORKTREE_DIRTY and coord_worktree is not None and refused is not None and Path(refused).resolve() == coord_worktree.resolve():
+        return _LagCheckout(coord_worktree, coordination=True)
+    return None
+
+
+def _coord_worktree_for_refusal(
+    exc: DestructiveOpRefused,
+    main_repo: Path,
+    mission_slug: str,
+    primary_meta_dir: Path,
+) -> Path | None:
+    """The mission's coordination worktree when ``exc`` is a generic worktree-dirty refusal, else ``None``.
+
+    Resolved lazily (only for ``MERGE_UNSAFE_WORKTREE_DIRTY``) through the SAME resolver
+    the preflight guard used, so refusal handling never disagrees with the guard about
+    which worktree is the coordination worktree. An unreadable ``meta.json`` yields
+    ``None`` (no lag candidate; the original refusal stands).
+    """
+    if getattr(exc, "error_code", None) != MERGE_UNSAFE_WORKTREE_DIRTY:
+        return None
+    try:
+        candidate = _resolve_coord_worktree_for_preflight(main_repo, mission_slug, primary_meta_dir)
+    except MissionMetaReadError:
+        return None
+    return candidate if candidate is not None and candidate.exists() else None
+
+
+def _unrefreshed_coordination_refusal(exc: DestructiveOpRefused, checkout: _LagCheckout) -> DestructiveOpRefused:
+    """``exc`` with the generic "commit" remedy replaced by lag-aware, never-commit guidance (#5571).
+
+    For a coordination worktree that is behind its own HEAD AND carries changes of its
+    own (so it is NOT provably a pure lag and is never reset here): recording the staged
+    deletions would revert the integrated lanes, so the generic remedy is wrong. Advisory
+    only -- the refusal still aborts before any mutation.
+    """
+    path = checkout.path
+    return DestructiveOpRefused(
+        error_code=exc.error_code,
+        worktree_path=exc.worktree_path,
+        dirty_entries=exc.dirty_entries,
+        remediation=(
+            f"The coordination worktree {path} is behind its own HEAD (a prior consolidation advanced the "
+            "mission branch but never refreshed this worktree) AND carries changes of its own. "
+            "Do NOT stage or record these changes: the staged deletions are the integrated lanes read in "
+            f"reverse and recording them reverts the merge. Save your own edits outside the worktree first, "
+            f"then refresh it with `git -C {path} reset --hard HEAD`, re-apply them, "
+            "and resume the operation (e.g. `spec-kitty consolidate --resume`)."
+        ),
+    )
+
+
 def _report_pre_mutation_refusal(
     exc: DestructiveOpRefused,
     main_repo: Path,
     *,
     mission_branch: str,
     base_sha: str | None = None,
+    coord_worktree: Path | None = None,
 ) -> None:
-    """Print the pre-mutation refusal, upgrading a behind-own-HEAD remedy (WP05 / #4982/#4997).
+    """Print the pre-mutation refusal, upgrading a behind-own-HEAD remedy (WP05 / #4982/#4997/#5571).
 
     WP10 integration: a dirty-PRIMARY refusal may actually be the checkout sitting
     BEHIND ITS OWN HEAD — a prior terminus advanced the target ref but the
@@ -3761,6 +3855,13 @@ def _report_pre_mutation_refusal(
     behind-own-HEAD (or interrupted-``reset``) state gets the safe reset-to-HEAD
     remedy instead. Advisory only — the refusal still aborts fail-closed BEFORE any
     mutation (NFR-001); this only changes the printed guidance.
+
+    #5571: the coordination worktree lags the same way (the mission branch advanced, its
+    worktree refresh never ran), so a ``MERGE_UNSAFE_WORKTREE_DIRTY`` refusal naming
+    ``coord_worktree`` takes the same path, proven against ``base_sha`` =
+    ``pre_mutation_coord_sha``. When the coordination worktree is behind its HEAD but the
+    dirt is NOT a provably pure lag (a genuine edit is mixed in), the generic "commit"
+    remedy is replaced by never-commit guidance (:func:`_unrefreshed_coordination_refusal`).
 
     #4933: on a FRESH consolidation the mission branch is created off the target
     and never advances until the lanes merge, so it is trivially "already an
@@ -3780,21 +3881,26 @@ def _report_pre_mutation_refusal(
     is unaffected -- it never claims a specific working-tree state to reset into, so
     it carries no #4933 hazard and stays gated on classification alone.
     """
-    console.print(f"[red]Error:[/red] {exc}")
-    if getattr(exc, "error_code", None) == MERGE_UNSAFE_PRIMARY_DIRTY:
+    checkout = _lag_checkout_for_refusal(exc, main_repo, coord_worktree)
+    if checkout is not None:
         from specify_cli.consolidation.preflight import (
             ResumeRemedyKind,
             classify_resume_dirty_remedy,
+            has_unrefreshed_head_advance,
             is_pure_behind_head_lag,
         )
 
-        remedy = classify_resume_dirty_remedy(main_repo, lane_branch=mission_branch)
-        proven_behind_head = remedy.kind is ResumeRemedyKind.BEHIND_OWN_HEAD and is_pure_behind_head_lag(main_repo, base_sha=base_sha)
+        remedy = classify_resume_dirty_remedy(checkout.path, lane_branch=mission_branch)
+        proven_behind_head = remedy.kind is ResumeRemedyKind.BEHIND_OWN_HEAD and is_pure_behind_head_lag(checkout.path, base_sha=base_sha)
         if remedy.kind is ResumeRemedyKind.BLOCKED_INDEX_LOCK or proven_behind_head:
+            console.print(f"[red]Error:[/red] {exc}")
             console.print("[yellow]Resume recovery guidance (behind-own-HEAD / interrupted reset detected):[/yellow]")
             for line in remedy.remediation:
                 console.print(f"  • {line}")
             return
+        if checkout.coordination and has_unrefreshed_head_advance(checkout.path, base_sha=base_sha):
+            exc = _unrefreshed_coordination_refusal(exc, checkout)
+    console.print(f"[red]Error:[/red] {exc}")
     console.print("[yellow]Merge aborted before any state change.[/yellow] Resolve the reported condition, then re-run [bold]spec-kitty consolidate[/bold].")
 
 
@@ -3822,8 +3928,9 @@ def _recover_behind_head_primary_on_resume(
     canonical_id: str,
     *,
     mission_branch: str,
+    coord_worktree: Path | None = None,
 ) -> bool:
-    """Recover a provably-pure behind-own-HEAD primary in place, ON A RESUME (#4997).
+    """Recover a provably-pure behind-own-HEAD checkout in place, ON A RESUME (#4997 / #5571).
 
     The pre-mutation primary dirty guard refuses ``MERGE_UNSAFE_PRIMARY_DIRTY`` when the
     checkout carries staged deletions. After an interrupted terminus that advanced the
@@ -3832,45 +3939,52 @@ def _recover_behind_head_primary_on_resume(
     work. Instead of aborting (which strands the merge, or invites the catastrophic
     "Commit" mis-remedy), a ``--resume`` repairs it here: ``git reset --hard HEAD``.
 
+    #5571: the coordination worktree lags identically when the mission branch advanced but
+    its worktree refresh never ran, so a ``MERGE_UNSAFE_WORKTREE_DIRTY`` refusal naming
+    ``coord_worktree`` is recovered by the SAME proof (parametrised by checkout, not
+    copied), against ``pre_mutation_coord_sha`` instead of ``pre_mutation_target_sha``. A
+    lane worktree is never a recovery candidate.
+
     Fail-closed, and NEVER on a fresh merge:
 
     * only on a ``--resume`` (a persisted :class:`ConsolidationState` exists);
     * only when :func:`~specify_cli.consolidation.preflight.classify_resume_dirty_remedy` reports
       ``BEHIND_OWN_HEAD`` (lane-ancestry) AND
       :func:`~specify_cli.consolidation.preflight.is_pure_behind_head_lag` proves the working tree
-      AND index are byte-identical to the persisted ``pre_mutation_target_sha`` with no
+      AND index are byte-identical to the persisted pre-mutation base with no
       untracked file obstructing a restored path (so the reset destroys nothing genuine —
       the data-loss hole a lane-ancestry-only gate would leave).
 
-    Returns ``True`` iff it reset the primary (the caller re-runs the preflight once and
+    Returns ``True`` iff it reset the checkout (the caller re-runs the preflight once and
     continues); ``False`` for every non-recoverable refusal (the caller aborts unchanged).
     """
-    if getattr(exc, "error_code", None) != MERGE_UNSAFE_PRIMARY_DIRTY:
+    checkout = _lag_checkout_for_refusal(exc, main_repo, coord_worktree)
+    if checkout is None:
         return False
     state = _load_state_on_refusal_path(main_repo, canonical_id)
     if state is None:
-        return False  # fresh merge (or unreadable state): a dirty primary is genuine, never auto-reset.
+        return False  # fresh merge (or unreadable state): a dirty checkout is genuine, never auto-reset.
     from specify_cli.consolidation.preflight import (
         ResumeRemedyKind,
         classify_resume_dirty_remedy,
         is_pure_behind_head_lag,
     )
 
-    remedy = classify_resume_dirty_remedy(main_repo, lane_branch=mission_branch)
+    remedy = classify_resume_dirty_remedy(checkout.path, lane_branch=mission_branch)
     if remedy.kind is not ResumeRemedyKind.BEHIND_OWN_HEAD:
         return False
-    if not is_pure_behind_head_lag(main_repo, base_sha=state.pre_mutation_target_sha):
+    if not is_pure_behind_head_lag(checkout.path, base_sha=checkout.base_sha(state)):
         return False
     reset_ret, _out, reset_err = run_command(
         ["git", "reset", "--hard", "HEAD"],
         capture=True,
         check_return=False,
-        cwd=main_repo,
+        cwd=checkout.path,
     )
     if reset_ret != 0:
-        console.print(f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed in {main_repo}: {reset_err.strip()}")
+        console.print(f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed in {checkout.path}: {reset_err.strip()}")
         return False
-    console.print("[yellow]Recovered a behind-own-HEAD primary checkout (git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]")
+    console.print(f"[yellow]Recovered a behind-own-HEAD {checkout.label} (git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]")
     return True
 
 
@@ -3938,33 +4052,40 @@ def _pre_mutation_safety_preflight_with_recovery(
             teardown_coordination=retention.teardown_coordination,
         )
 
+    def _refuse(refusal: DestructiveOpRefused, coord_worktree: Path | None) -> typer.Exit:
+        # #4933: the persisted pre-mutation base (absent on a fresh consolidation) is the
+        # only proof `_report_pre_mutation_refusal` will accept for the reset-to-HEAD
+        # guidance -- see its docstring. The coordination worktree (#5571) is proven
+        # against ``pre_mutation_coord_sha``, the repository root against the target tip.
+        state = _load_state_on_refusal_path(main_repo, canonical_id)
+        checkout = _lag_checkout_for_refusal(refusal, main_repo, coord_worktree)
+        base_sha = checkout.base_sha(state) if checkout is not None else (state.pre_mutation_target_sha if state else None)
+        _report_pre_mutation_refusal(
+            refusal,
+            main_repo,
+            mission_branch=lanes_manifest.mission_branch,
+            base_sha=base_sha,
+            coord_worktree=coord_worktree,
+        )
+        return typer.Exit(1)
+
     try:
         _run()
     except DestructiveOpRefused as exc:
-        recovered = _recover_behind_head_primary_on_resume(exc, main_repo, canonical_id, mission_branch=lanes_manifest.mission_branch)
+        coord_worktree = _coord_worktree_for_refusal(exc, main_repo, mission_slug, primary_meta_dir)
+        recovered = _recover_behind_head_primary_on_resume(
+            exc,
+            main_repo,
+            canonical_id,
+            mission_branch=lanes_manifest.mission_branch,
+            coord_worktree=coord_worktree,
+        )
         if not recovered:
-            # #4933: the persisted ``pre_mutation_target_sha`` (absent on a fresh
-            # consolidation) is the only proof `_report_pre_mutation_refusal` will
-            # accept for the reset-to-HEAD guidance -- see its docstring.
-            state = _load_state_on_refusal_path(main_repo, canonical_id)
-            _report_pre_mutation_refusal(
-                exc,
-                main_repo,
-                mission_branch=lanes_manifest.mission_branch,
-                base_sha=state.pre_mutation_target_sha if state else None,
-            )
-            raise typer.Exit(1) from exc
+            raise _refuse(exc, coord_worktree) from exc
         try:
             _run()
         except DestructiveOpRefused as exc_after:
-            state = _load_state_on_refusal_path(main_repo, canonical_id)
-            _report_pre_mutation_refusal(
-                exc_after,
-                main_repo,
-                mission_branch=lanes_manifest.mission_branch,
-                base_sha=state.pre_mutation_target_sha if state else None,
-            )
-            raise typer.Exit(1) from exc_after
+            raise _refuse(exc_after, _coord_worktree_for_refusal(exc_after, main_repo, mission_slug, primary_meta_dir)) from exc_after
 
 
 def _require_lanes_json_naming_mission_branch(main_repo: Path, lanes_read_dir: Path) -> LanesManifest:
