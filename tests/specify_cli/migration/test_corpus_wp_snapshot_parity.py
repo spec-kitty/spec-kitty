@@ -137,7 +137,7 @@ def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...
     for wp_file in sorted(tasks_dir.glob(_WP_GLOB)) if tasks_dir.is_dir() else ():
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
-        except (FrontmatterError, ValidationError):
+        except (FrontmatterError, ValidationError, UnicodeDecodeError, OSError):
             malformed.append(wp_file.name)
             continue
         if meta.work_package_id:
