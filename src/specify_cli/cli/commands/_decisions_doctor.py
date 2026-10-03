@@ -76,6 +76,7 @@ from specify_cli.decisions import fork as _fork
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import DecisionIndex, IndexEntry
+from specify_cli.decisions.service import _ledger_dir
 
 from ._doctor_shared import console
 
@@ -155,20 +156,6 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     """
     mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
-
-
-def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Resolve the PRIMARY-partition dir holding the decision ledger content.
-
-    #4966 AC-D2 (WP03 residual): must resolve the SAME dir
-    ``decisions/service.py::_ledger_dir`` resolves (the ``DECISION_LEDGER``
-    kind), so this reconciler's repair target AND its sidecar lock path
-    (:func:`_decisions_lock_path`) stay in lockstep with the forward write
-    path — a concurrent open/resolve cannot race a repair only if both sides
-    serialize against the SAME ``index.json.lock``.
-    """
-    ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.DECISION_LEDGER)
-    return ledger_dir
 
 
 def _resolve_events_dir_for_doctor(repo_root: Path, mission_slug: str) -> Path:

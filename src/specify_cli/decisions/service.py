@@ -311,9 +311,9 @@ def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
     root -- so identity read and ledger content read agree on ONE partition
     while the ledger no longer borrows the metadata kind's name.
 
-    ``cli/commands/_decisions_doctor.py`` carries a PARALLEL ``_ledger_dir``
-    copy that MUST resolve to this SAME dir -- both lock against the same
-    sidecar ``index.json.lock`` (see :func:`_decisions_lock_path`) so a
+    ``cli/commands/_decisions_doctor.py`` and ``cli/commands/decision.py``
+    both import this function, so a repair and a forward write lock the same
+    sidecar ``index.json.lock`` (see :func:`_decisions_lock_path`) and a
     concurrent open/resolve cannot race a repair.
     """
     ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.DECISION_LEDGER)
