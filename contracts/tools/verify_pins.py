@@ -14,6 +14,7 @@ the manifest. Failures, one stable code per cause:
   named with ``--workflow``). It is not a repository-wide gate: every other workflow under
   ``.github/workflows/`` is outside it. A future repo-wide action-pin gate would take the rule over, and
   this tool would then keep only the manifest and install-form checks.
+* ``URL_MISSING``: a tool has no url (absent, empty or not a string), so nothing could ever be fetched or hashed for it.
 * ``NOT_HTTPS``: a tool url is not an ``https`` URL (never fetched).
 * ``UNPINNED_INSTALL``: any Python install form but the shared prelude, which is the SHA-pinned
   ``astral-sh/setup-uv`` with ``python-version: '3.12'`` followed by ``uv sync --frozen
@@ -23,7 +24,8 @@ the manifest. Failures, one stable code per cause:
 
 Cannot do its job (exit 2): ``CHECKSUMS_UNVERIFIED`` (a tool with a valid pinned sha256 and an https url
 was never hashed: no ``--artifacts`` copy, no ``--fetch``, and no explicit ``--pins-only``; one finding per
-tool), ``MANIFEST_EMPTY`` (unreadable, or lists no tool), ``ZERO_TOOLS_VERIFIED``
+tool; also one finding for a ``--fetch`` run that hashed nothing at all, unless ``--pins-only``),
+``MANIFEST_EMPTY`` (unreadable, or lists no tool), ``ZERO_TOOLS_VERIFIED``
 (no entry was a mapping), ``ZERO_USES_LINES`` (no ``uses:`` line in any workflow),
 ``WORKFLOW_UNREADABLE`` (a workflow file that cannot be read or is not valid YAML, so its pins were never
 judged) and ``DOWNLOAD_FAILED``. Output ``CONTRACT-CHECK verify_pins: <CODE>: <file>: <detail>`` per violation and a
@@ -132,6 +134,8 @@ def _check_manifest(report: Report, root: Path, pins: Path, artifacts: Path | No
         _check_tool(report, subject, tool, artifacts, fetch, pins_only)
     if report.counts["tools"] == 0:
         report.blocked.append(Finding("ZERO_TOOLS_VERIFIED", subject, "no manifest entry was a mapping"))
+    elif fetch is not None and not pins_only and report.counts["downloads"] == 0 and not report.blocked:
+        report.blocked.append(Finding("CHECKSUMS_UNVERIFIED", subject, "--fetch hashed no artefact (no tool had a usable pinned sha256 and an https url)"))
 
 
 def _check_tool(report: Report, subject: str, tool: dict[str, Any], artifacts: Path | None, fetch: Fetch | None, pins_only: bool) -> None:
@@ -144,8 +148,11 @@ def _check_tool(report: Report, subject: str, tool: dict[str, Any], artifacts: P
     if not isinstance(published, str) or not _DATE.match(published):
         report.findings.append(Finding("PUBLICATION_DATE_MISSING", subject, f"{name} has no publication date (YYYY-MM-DD)"))
     url = tool.get("url")
-    https = isinstance(url, str) and urlparse(url).scheme == "https"
-    if isinstance(url, str) and not https:
+    has_url = isinstance(url, str) and bool(url.strip())
+    https = has_url and urlparse(str(url)).scheme == "https"
+    if not has_url:
+        report.findings.append(Finding("URL_MISSING", subject, f"{name} has no url, so its bytes can never be fetched or hashed"))
+    elif not https:
         report.findings.append(Finding("NOT_HTTPS", subject, f"{name}: {url} is not an https url"))
     if not digest_ok or not isinstance(url, str) or not https:
         return

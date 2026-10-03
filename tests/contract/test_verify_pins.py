@@ -165,6 +165,61 @@ def test_a_non_https_url_is_never_fetched(pins: Any) -> None:
     assert fetched == ["https://example.invalid/plugin-2.0.jar"]
 
 
+def _clean_root_with_urls(tmp_path: Path, urls: list[Any]) -> Path:
+    """A copy of the clean root whose tools carry ``urls`` in order (``...`` removes the ``url`` key)."""
+    root = tmp_path / "root"
+    shutil.copytree(FIXTURE_ROOT / "clean", root)
+    manifest = root / "contracts" / "tools" / "pins.json"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    for tool, url in zip(data["tools"], urls, strict=True):
+        if url is ...:
+            del tool["url"]
+        else:
+            tool["url"] = url
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    return root
+
+
+@pytest.mark.parametrize("missing", [..., "", "   ", None, 7])
+def test_a_tool_without_a_usable_url_is_a_finding(pins: Any, tmp_path: Path, missing: Any) -> None:
+    """A valid sha256 with no url used to pass silently: nothing could ever be fetched or hashed for that tool."""
+    root = _clean_root_with_urls(tmp_path, [missing, "https://example.invalid/plugin-2.0.jar"])
+    report = pins.check(root, pins_only=True)
+    assert [(f.code, "gradle" in f.detail) for f in report.findings] == [("URL_MISSING", True)]
+    assert report.exit_code == 1
+
+
+def test_a_fetch_run_that_hashed_nothing_refuses_with_checksums_unverified(pins: Any, tmp_path: Path) -> None:
+    root = _clean_root_with_urls(tmp_path, [..., ""])
+    fetched: list[str] = []
+    report = pins.check(root, fetch=lambda url: fetched.append(url) or b"")
+    assert fetched == []
+    assert [f.code for f in report.findings] == ["URL_MISSING", "URL_MISSING"]
+    assert [f.code for f in report.blocked] == ["CHECKSUMS_UNVERIFIED"]
+    assert "--fetch" in report.blocked[0].detail and report.counts["downloads"] == 0
+    assert report.exit_code == 2
+
+
+def test_a_fetch_run_that_hashed_nothing_is_allowed_with_pins_only(pins: Any, tmp_path: Path) -> None:
+    root = _clean_root_with_urls(tmp_path, [..., ""])
+    report = pins.check(root, fetch=lambda _url: b"", pins_only=True)
+    assert report.blocked == []
+    assert report.exit_code == 1, "the missing urls are still findings"
+
+
+def test_a_fetch_run_that_hashed_something_adds_no_second_refusal(pins: Any, tmp_path: Path) -> None:
+    root = _clean_root_with_urls(tmp_path, [..., "https://example.invalid/plugin-2.0.jar"])
+    payload = (FIXTURE_ROOT / "clean" / "artifacts" / "tool-1.0.bin").read_bytes()
+    report = pins.check(root, fetch=lambda _url: payload)
+    assert report.blocked == [] and report.counts["downloads"] == 1
+
+
+def test_a_fetch_run_over_a_clean_root_is_not_refused(pins: Any) -> None:
+    clean = FIXTURE_ROOT / "clean"
+    report = pins.check(clean, artifacts=clean / "artifacts", fetch=lambda _url: b"")
+    assert report.counts["downloads"] == 2 and [f.code for f in report.blocked] == []
+
+
 def test_a_malformed_checksum_counts_as_missing(pins: Any, tmp_path: Path) -> None:
     root = tmp_path / "root"
     shutil.copytree(FIXTURE_ROOT / "clean", root)
