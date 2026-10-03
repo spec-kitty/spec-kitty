@@ -756,3 +756,21 @@ def test_the_page_cursor_refusal_requires_its_code() -> None:
     instance = {key: value for key, value in PAGE_CURSOR_REFUSAL.items() if key != "code"}
     resolved, library = _both_paths(MODULE, PAGE_CURSOR_REFUSAL_SCHEMA, instance)
     assert resolved and library, (resolved, library)
+
+
+def test_mid8_is_never_null_and_is_the_first_eight_characters_of_the_mission_id() -> None:
+    head = _read(MODULE / "schemas" / "MissionHead.yaml")
+    assert head["properties"]["mid8"]["type"] == "string", head["properties"]["mid8"]["type"]
+    for schema in ("MissionOverview", "MissionDetail", "MissionOverviewPage"):
+        for name, instance in _instances_of(schema).items():
+            items = instance["items"] if schema == "MissionOverviewPage" else [instance]
+            for item in items:
+                assert item["mid8"] == item["missionId"][:8], (name, item["missionId"], item["mid8"])
+
+
+@pytest.mark.parametrize("schema", ["MissionOverview", "MissionDetail"])
+def test_a_null_mid8_is_rejected_through_both_paths(schema: str) -> None:
+    instance = dict(_first_of(schema))
+    instance["mid8"] = None
+    resolved, library = _both_paths(MODULE, schema, instance)
+    assert resolved and library, (resolved, library)

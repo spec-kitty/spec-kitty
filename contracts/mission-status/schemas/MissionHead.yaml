@@ -36,15 +36,12 @@ properties:
       path: src/specify_cli/mission_metadata.py
       symbol: MissionIdentity
   mid8:
-    type:
-      - string
-      - 'null'
+    type: string
     pattern: '^[0-9A-HJKMNP-TV-Z]{8}$'
     description: >-
-      The first eight characters of the Mission identity, used to disambiguate branch and worktree
-      names. It is derived from missionId, which is always present, so null is a defensive branch of
-      the reader (the identity could not be resolved) and not a state a Mission is expected to reach;
-      it is never an empty string.
+      The first eight characters of missionId, used to disambiguate branch and worktree names.
+      It is derived from missionId, which is always present, so it is always present too; it is
+      never null and never an empty string.
     x-source:
       path: src/mission_runtime/identity.py
       symbol: resolve_mid8
