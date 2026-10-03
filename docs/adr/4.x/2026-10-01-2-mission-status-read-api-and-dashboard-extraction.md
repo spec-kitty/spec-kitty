@@ -9,8 +9,11 @@ date: '2026-10-01'
 are **Accepted**. D-8 was **amended and accepted** later on 2026-10-01: the operator moved
 deletion to the front (see D-8). D-3 to D-7 are architect amendments that wait for operator
 ratification.
+**Amendment 2026-10-03 (Accepted):** D-4 and D-7 are amended for the agreed Java service
+design. D-5 records that the CLI's own read verbs stay native Python behind one read seam
+for now. See "Amendment 2026-10-03" below.
 
-**Date:** 2026-10-01
+**Date:** 2026-10-01 (amended 2026-10-03)
 
 **Deciders:** Stijn Dejongh (operator). Analysis by `architect-alphonso`.
 
@@ -125,6 +128,9 @@ daemon and the poll-and-rescan cost from the CLI.
   the verb. Change detection comes from polling the overview cursor and then
   `events tail --json` (#3858). It does not come from the in-process status fan-out, which
   runs only while a CLI command runs.
+  *Amended 2026-10-03:* the external form is now a separate read-only service. The
+  in-process module remains the CLI's own read path, behind one seam. See
+  "Amendment 2026-10-03".
 - **D-5 (Proposed): fold existing surfaces into the API instead of duplicating them.**
   - The overview verb replaces the deleted `dashboard --json`.
   - `agent tasks status --json` renders from the detail query.
@@ -149,6 +155,9 @@ daemon and the poll-and-rescan cost from the CLI.
   (`tests/architectural/test_layer_rules.py`). The contract types depend only on the
   standard library, so they can be extracted later into a client package without bringing
   the CLI along.
+  *Amended 2026-10-03:* the in-process module and its seam stay here. The external service
+  lives in its own JVM module in this repository, outside the Python wheel. See
+  "Amendment 2026-10-03".
 - **D-8 (Amended and accepted 2026-10-01): order of work. Delete first.** The operator
   reversed the original order, which put deletion last, after the read API, the reader
   re-pointing and the route rehoming. Reason: the dashboard carries open P1 security
@@ -221,6 +230,59 @@ replacement:
 - The bypass gate stays green and its allowlist only shrinks.
 - The overview of a mission reads no `tasks/` files (asserted by a test).
 - `src/specify_cli/dashboard/` is gone and `pyproject.toml` ships no server dependency.
+
+## Amendment 2026-10-03 (Accepted): a separate Java read service; the CLI stays native behind one seam
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-03. The service design was agreed with the
+UI contributors and recorded on
+[#5528](https://github.com/spec-kitty/spec-kitty/issues/5528#issuecomment-5937187090).
+
+**Why.** External consumers (the new dashboard in `spec-kitty-mission-ui` and Kitty Desktop)
+need a browser-friendly transport with a change stream, and the UI team builds both sides.
+Option 4 was rejected because it put a daemon *inside the CLI*. A separately built and
+separately released binary keeps the wheel server-free and keeps that trust model out of the
+CLI core.
+
+- **D-4 (amended).** The external form of the Mission Status Read API is a detached,
+  read-only HTTP service: Java 25, Spring Boot 4 (Spring MVC on virtual threads),
+  distributed as a GraalVM native binary per OS. It serves REST resources for the two D-2
+  granularities (`/api/v1/missions`, `/api/v1/missions/{id}`), an SSE change stream on
+  `/api/v1/events`, and an OpenAPI 3.1 document. It binds to `127.0.0.1` only, checks Host
+  and Origin, and puts no secrets in responses (the #4767–#4769 lessons). It may serve a
+  pinned, checksummed dashboard bundle at `/`. The contract is written first
+  (`contracts/mission-status/openapi.yaml`, #5558); the service and the UI both build
+  against it.
+- **D-5 (amended): the CLI stays native for now, behind one read seam that is ready for the
+  cut-over.**
+  - The status module exposes a single read port for the D-2 granularities (overview and
+    detail). Every CLI command that reads mission status, including
+    `agent tasks status --json` and orchestrator-api `mission-state` / `list-ready`, calls
+    only that port. No command reduces events, resolves read paths or composes read models
+    itself.
+  - Today the port has one adapter: the native, in-process Python implementation (D-3). It
+    never calls the service, so the CLI keeps working offline with no JVM binary present.
+  - The service ports the Lamport reduction (`status.reducer.materialize`). A conformance
+    test runs both implementations over the same missions and fails on any difference, so
+    there is one *answer* while there are two implementations.
+  - **Cut-over (later, separate decision).** Once the Java service has proven itself, a
+    second adapter that calls its API replaces the native one *inside the seam*. The CLI
+    commands do not change and cannot tell the difference. The native implementation is
+    then retired.
+  - The D-5 bypass gate enforces the seam: a CLI command that reads status without going
+    through the port fails it.
+- **D-6 (unchanged).** Both implementations are read-only and independent of drain.
+- **D-7 (amended).** The service is its own build in this repository (for example
+  `services/mission-status-api/`), with a path-filtered CI workflow and its own release
+  artifact. It is not part of the Python wheel, so "the CLI wheel ships no server, daemon,
+  port or PID file" still holds. The read port and its native adapter stay in the
+  `specify_cli` status domain as D-7 originally placed them.
+
+**Consequences.** Until the cut-over there are two reducer implementations. That is
+acceptable only because the conformance test is a gate, not a report. Tightening the status
+module's encapsulation is now prerequisite work for the cut-over, tracked with the reader
+re-pointing (#5532). The JVM toolchain and the native release matrix are new CI cost,
+confined to the path-filtered workflow. Still open on #5528: the lifecycle-status
+vocabulary, the WP status chips, and the artifact reads (#5533).
 
 ## Pros and Cons of the Options
 
