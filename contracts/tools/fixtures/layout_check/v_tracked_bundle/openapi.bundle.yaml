@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info:
+  title: Bundled
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pong:
+      type: object

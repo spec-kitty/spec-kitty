@@ -1,0 +1,40 @@
+{
+  "tree": {
+    "openapi": "3.1.0",
+    "info": {"title": "Golden composition", "version": "1.0.0"},
+    "paths": {
+      "/widgets": {
+        "get": {
+          "operationId": "listWidgets",
+          "responses": {
+            "200": {
+              "description": "The widgets.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "allOf": [
+                      {"type": "object", "properties": {"id": {"type": "string", "description": "Identifier."}}},
+                      {
+                        "oneOf": [
+                          {"type": "object", "properties": {"radius": {"type": "number", "description": "Radius."}}},
+                          {"type": "object", "properties": {"side": {"type": "number", "description": "Side length."}}}
+                        ]
+                      },
+                      {
+                        "anyOf": [
+                          {"type": "object", "properties": {"radius": {"type": "number", "description": "Radius."}}},
+                          {"type": "null"}
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "counts": {"path_items": 1, "schemas": 3, "refs_resolved": 5}
+}

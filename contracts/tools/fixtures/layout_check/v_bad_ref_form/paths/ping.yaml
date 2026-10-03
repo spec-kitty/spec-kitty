@@ -1,0 +1,12 @@
+get:
+  operationId: ping
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: https://schemas.invalid/Pong.yaml
+              - $ref: /schemas/Pong.yaml
+              - $ref: '../schemas/Pong.yaml#/properties/a~1b'

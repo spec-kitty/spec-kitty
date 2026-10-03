@@ -1,0 +1,16 @@
+title: Thing
+type: object
+additionalProperties: false
+required: [id]
+properties:
+  id:
+    type: string
+    pattern: '^[a-z]+$'
+  createdAt:
+    type: string
+    format: date-time
+examples:
+  - id: abc
+  - id: 5
+  - id: abc
+    createdAt: 'not-a-time'

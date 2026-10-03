@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info:
+  title: alpha
+  version: 0.0.1
+paths:
+  /p0:
+    $ref: paths/p0.yaml
+  /p1:
+    $ref: paths/p1.yaml
+  /p2:
+    $ref: paths/p2.yaml
+  /p3:
+    $ref: paths/p3.yaml
+  /p4:
+    $ref: paths/p4.yaml

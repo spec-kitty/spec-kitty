@@ -1,0 +1,16 @@
+get:
+  operationId: listWidgets
+  responses:
+    '200':
+      description: The widgets.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: ../schemas/Base.yaml
+              - oneOf:
+                  - $ref: ../schemas/Round.yaml
+                  - $ref: ../schemas/Square.yaml
+              - anyOf:
+                  - $ref: ../schemas/Round.yaml
+                  - type: 'null'

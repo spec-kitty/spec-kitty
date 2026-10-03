@@ -1,0 +1,5 @@
+type: object
+properties:
+  radius:
+    type: number
+    description: Radius.

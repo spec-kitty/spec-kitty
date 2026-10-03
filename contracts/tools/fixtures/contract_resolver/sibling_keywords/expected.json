@@ -1,0 +1,29 @@
+{
+  "tree": {
+    "openapi": "3.1.0",
+    "info": {"title": "Golden sibling keywords", "version": "1.0.0"},
+    "paths": {
+      "/gadgets": {
+        "get": {
+          "operationId": "listGadgets",
+          "responses": {
+            "200": {
+              "description": "The gadgets.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "description": "A gadget as listed, narrower than the shared text.",
+                    "nullable": true,
+                    "properties": {"id": {"type": "string", "description": "Identifier."}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "counts": {"path_items": 1, "schemas": 1, "refs_resolved": 2}
+}

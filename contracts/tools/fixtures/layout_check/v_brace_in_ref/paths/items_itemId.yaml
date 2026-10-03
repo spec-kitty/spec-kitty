@@ -1,0 +1,9 @@
+get:
+  operationId: getItem
+  responses:
+    '200':
+      description: ok
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Item_%7Bx%7D.yaml

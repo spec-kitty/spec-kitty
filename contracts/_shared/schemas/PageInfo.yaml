@@ -1,0 +1,21 @@
+title: PageInfo
+description: Pagination state returned with every paginated list.
+type: object
+additionalProperties: false
+required:
+  - hasNextPage
+  - nextPageCursor
+  - pageSize
+properties:
+  hasNextPage:
+    type: boolean
+    description: True when another page follows this one.
+  nextPageCursor:
+    description: The token that fetches the next page, or null when this is the last page.
+    oneOf:
+      - $ref: PageCursor.yaml
+      - type: 'null'
+  pageSize:
+    type: integer
+    minimum: 1
+    description: The number of items the service applied as the page size for this response.

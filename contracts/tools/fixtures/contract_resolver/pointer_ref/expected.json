@@ -1,0 +1,24 @@
+{
+  "tree": {
+    "openapi": "3.1.0",
+    "info": {"title": "Golden pointer reference", "version": "1.0.0"},
+    "paths": {
+      "/pairs": {
+        "get": {
+          "operationId": "listPairs",
+          "responses": {
+            "200": {
+              "description": "The pairs.",
+              "content": {
+                "application/json": {
+                  "schema": {"type": "string", "description": "The first value."}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "counts": {"path_items": 1, "schemas": 1, "refs_resolved": 3}
+}

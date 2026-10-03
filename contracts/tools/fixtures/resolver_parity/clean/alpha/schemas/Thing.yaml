@@ -1,0 +1,15 @@
+title: Thing
+type: object
+additionalProperties: false
+required: [id]
+properties:
+  id:
+    type: string
+    pattern: '^[a-z]+$'
+  createdAt:
+    type: string
+    format: date-time
+examples:
+  - id: abc
+    createdAt: '2026-10-02T09:30:00Z'
+  - id: def
