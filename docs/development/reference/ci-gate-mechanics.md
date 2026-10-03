@@ -2,7 +2,7 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-03'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -533,6 +533,107 @@ exactly what they expect.
 - **The post-merge stale-assertion analyzer** flags test string-literals tied to
   removed code even when the test still passes. Confirm the test is green, then
   refresh the docstring or literal.
+
+## Contracts gates
+
+The top-level `contracts/` tree (the machine-readable contracts, today the
+`mission-status` module) is checked by two groups of gates that run in different
+places. The conventions themselves are in [`contracts/README.md`](../../../contracts/README.md).
+
+### What runs where
+
+- **The Contracts workflow** (`contracts.yml`) has ten jobs: `verify-pins`,
+  `python-checks`, `contract-tool-tests`, `validate-bundle`, `resolver-parity`, `lint`,
+  `breaking-change`, `release-dry-run`, `negative-tests` and the terminal
+  `contracts-gate`, which fails unless the other nine succeeded. It is path-filtered on
+  `contracts/**`, `tests/contract/**`, `.github/CODEOWNERS` and
+  `.github/workflows/contracts.yml`, so a change outside those paths never starts it.
+  Pytest runs in exactly one of its jobs, `contract-tool-tests`; every other check is
+  a script under `contracts/tools/`.
+- **The contract tool tests** (the `tests/contract/test_*` modules for each tool, for
+  example `test_lint_ruleset.py` and `test_run_negative_cases.py`) run in the Contracts
+  workflow's `contract-tool-tests` job: `pytest -m "corpus and not windows_ci"
+  tests/contract` minus three `--ignore` modules, so a new corpus-marked tool test is
+  picked up without a workflow edit. They read no corpus, and moving them out of the
+  router kept `tests (corpus-blocking)` well inside its timeout (the job took
+  7m20s of a 10 minute timeout with them). Unmarked `tests/contract`
+  modules run in the module matrix.
+- **The reality check and its payload helper** (`tests/contract/test_mission_status_reality.py`
+  and `tests/contract/test_mission_status_payloads.py`) read the committed corpus and run
+  in the router's `tests-corpus-blocking` job, together with the older example round trip.
+  The `contracts/**` glob is in the router's `corpus` group, so a contracts-only change
+  selects that job and no module shard. The tool-test modules and these are all
+  deselected from the Packs advisory corpus run, so each runs once.
+  `tests/ci/test_contracts_workflows.py` fails when a `tests/contract` module that
+  carries the corpus marker is run by neither job, or by both.
+- **Tiers.** Tier 1 is the Python tooling over the split tree and the written bundle.
+  It needs only the locked Python environment: layout, citation, provisional,
+  example, event-mapping, enum-pin, leak, structure, CODEOWNERS and no-pytest checks,
+  plus the resolver and `resolver-parity`. Tier 2 is the pinned JVM toolchain
+  (the openapi-generator Gradle plugin 7.25.0 under Gradle 8.14.5 with strict
+  dependency verification), which validates the split root and the bundle and
+  generates a TypeScript client as a consumer check. Tier 3 is two prebuilt
+  binaries, `vacuum` 0.30.6 for lint and `oasdiff` 1.32.1 for the breaking-change
+  comparison. Tiers 2 and 3 run in CI only, and every download is checked against a
+  sha256 pinned in `contracts/tools/pins.json`.
+- **Lint plants name their own rule.** The `lint` job's planted-proof step reads the
+  rule a plant must fail with from the `# rule: <id>` header on the plant's first
+  line, so a variant plant (`<rule>-<variant>.yaml`) is proved against its own rule.
+  A plant without the header fails the step, and `tests/ci/test_contracts_workflows.py`
+  runs the workflow's own derivation over every plant.
+- **Release.** `contracts-release.yml` runs on a pushed tag
+  `contract-<module>-v<semver>` (for example `contract-mission-status-v1.0.0`) and
+  publishes `openapi.yaml` and `openapi.yaml.sha256`. Only a tag push publishes. The
+  publish step runs the argument list that `release_check.py --args-file` wrote
+  (module, version, `--latest=false`, `--prerelease` only for a prerelease semver) and
+  derives nothing itself.
+  The `release-dry-run` job of the Contracts workflow runs the same checks on a pull
+  request and cannot publish. Until a release tag exists, `breaking-change` has no
+  baseline and prints `NO_BASELINE_INITIAL_VERSION`. An unreleased version is
+  `1.0.0-SNAPSHOT`: `release_check.py` refuses a `-SNAPSHOT` tag with
+  `SNAPSHOT_RELEASE_REFUSED`, and the dry run of a snapshot module prints
+  `SNAPSHOT_DRY_RUN` instead of a release command.
+- **Closed response schemas.** A response-shape change is a new schema version, so
+  `breaking-change` treats an added response property as breaking (a major move), even
+  though `oasdiff` calls it compatible. A request-side optional addition stays additive.
+- **`verify-pins` hashes real artefacts.** `verify_pins.py` exits 2 with
+  `CHECKSUMS_UNVERIFIED` when it hashed nothing, so the job runs it with `--fetch` (a
+  job that already downloaded the tools would pass `--artifacts DIR`); a bare call or
+  `--pins-only` fails `tests/ci/test_contracts_workflows.py`.
+
+### A reader or test-only change selects no corpus job
+
+- **Trips it:** a pull request that edits a status reader the reality check imports
+  (anything under `src/specify_cli/status/**`) or only `tests/contract/**`. The
+  router's `corpus` group matches `contracts/**` but neither of those, so no job that
+  runs the reality check is selected. (An edit under `tests/contract/**` does start the
+  Contracts workflow, whose `contract-tool-tests` job runs the tool tests only.) The
+  Packs run on a push to `main` does not help:
+  `packs.yml` passes `--deselect` for every `tests/contract` module that runs in the
+  router's corpus job, so the `built-in-corpus-suite` never runs them.
+- **Symptom:** a green pull request. The drift is first seen by the nightly run
+  (`ci-nightly.yml`, job `interpreter-matrix-shard-4`, which runs `tests/contract`,
+  scheduled daily at 03:17 UTC), up to a day later. This is an accepted risk: status-reader drift is caught by the nightly run, not on the
+  pull request. It was seen on a real pull request, which needed a manual router run.
+- **Fix / repro:** run the check before pushing:
+  `PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_mission_status_reality.py`,
+  and dispatch the router in full mode on the branch:
+  `gh workflow run ci-router.yml -f mode=full --ref <branch>`.
+
+### What only a merge can confirm
+
+- The fleet-verdict job is triggered by `workflow_run`, and GitHub runs the copy of
+  such a workflow that is on the default branch. A change to how it treats the
+  Contracts workflow cannot be tested from a pull request; confirm it on the first
+  run after the merge.
+- The Packs `built-in-corpus-suite` does **not** run the reality check or the tool
+  tests on a push to `main`: it deselects them, because the router's
+  `tests-corpus-blocking` job owns the reality check and the Contracts workflow's
+  `contract-tool-tests` job owns the tool tests. The runs after the merge that execute
+  them are the router on `main` (reality check; for a change that selects it), the
+  Contracts workflow on `main` (tool tests; for a change under its paths) and the
+  nightly shard 4.
+- A release tag is a maintainer act and is never pushed from a pull request.
 
 ## See also
 

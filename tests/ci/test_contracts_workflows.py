@@ -1328,3 +1328,31 @@ def test_every_planted_breaking_candidate_has_a_negative_case() -> None:
         assert case is not None, f"{name} has no negative case in negative_cases.json"
         assert case["plant"]["code"] == "BREAKING_WITHOUT_MAJOR", name
         assert "oasdiff" in case.get("tags", []), name
+
+
+# -- the README states the conventions the tools enforce ------------------------------------------------------------------
+
+README_PATH = REPO_ROOT / "contracts" / "README.md"
+README_STATEMENTS = (
+    "Response schemas are closed",
+    "response-optional-property-added",
+    "`-SNAPSHOT`",
+    "SNAPSHOT_RELEASE_REFUSED",
+    "verify_pins.py --fetch",
+    "CHECKSUMS_UNVERIFIED",
+)
+
+
+def readme_gaps(text: str) -> list[str]:
+    return [statement for statement in README_STATEMENTS if statement not in text]
+
+
+def test_the_contracts_readme_documents_closed_responses_snapshots_and_the_verify_pins_call() -> None:
+    assert readme_gaps(README_PATH.read_text(encoding="utf-8")) == []
+
+
+def test_a_readme_without_the_closed_response_rule_or_the_snapshot_convention_is_refused() -> None:
+    text = README_PATH.read_text(encoding="utf-8")
+
+    assert readme_gaps(text.replace("Response schemas are closed", "Response schemas")) == ["Response schemas are closed"]
+    assert readme_gaps(text.replace("SNAPSHOT_RELEASE_REFUSED", "")) == ["SNAPSHOT_RELEASE_REFUSED"]
