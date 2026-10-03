@@ -80,12 +80,15 @@ intended owner of each write operation once that operation's gates pass.
 | Current | Python | Python | Existing Python behavior |
 | Callers move onto the seam | Python, behind the #645 seam | Python, behind the #645 seam | The seam exists; callers outside `charter` no longer import charter internals; a ratchet holds the count at zero |
 | Read shadow | Python; Java compared out of band | Python | Contract and fixture equivalence |
-| Java primary | Java; loud, observable Python fallback | Python | Conformance gate, freshness and failure behavior |
+| Java authoritative | Java; loud, observable Python fallback | Python | Conformance gate, freshness and failure behavior |
 | Java reads complete | Java only | Python | Explicit fallback-retirement criteria met |
 | Write migration | Java reads | Python or Java, per operation | Lossless codec, mapping and confined-mutation gates |
 | Intended end state | Java | Java | Every migrated operation satisfies its write gates |
 
-The Java-primary fallback is transitional. It must be visible in diagnostics and telemetry,
+"Java authoritative" means Java gives the production answer and Python answers only as a
+fallback. This ADR avoids "primary" for that stage: the word already has four senses in this repository.
+
+The Java-authoritative fallback is transitional. It must be visible in diagnostics and telemetry,
 must never silently select a second answer, and must have explicit retirement criteria:
 the supported fixture corpus passes, stale and unavailable service behavior is proven,
 cross-OS packaging is supported, and an agreed observation period finds no unresolved
@@ -174,7 +177,7 @@ The sequence is:
 
 0. Move callers onto the #645 seam. Nothing below starts until this is done.
 1. Run Java in shadow mode against the same fixtures and live configured inputs as Python.
-2. Make Java primary only when conformance is a blocking gate.
+2. Make Java authoritative only when conformance is a blocking gate.
 3. Keep Python fallback loud and temporary while lifecycle and distribution evidence grows.
 4. Retire production Python reads once the fallback-retirement criteria are met.
 
@@ -277,7 +280,7 @@ The decision is confirmed when:
 - `contracts/charter/` passes the `contracts/` layout, lint, and breaking-change checks;
 - shadow reads report no unexplained semantic or diagnostic differences;
 - stale, unavailable, and wrong-worktree service cases are tested;
-- Java-primary fallback is observable and its retirement criteria are met;
+- Java-authoritative fallback is observable and its retirement criteria are met;
 - each stage's rollback switch is tested before the next stage starts;
 - Java-only production reads no longer need the Python read implementation, while Python
   remains the production writer until each write operation migrates;
