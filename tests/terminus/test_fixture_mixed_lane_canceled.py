@@ -103,10 +103,12 @@ def test_post_build_lane_update_ref_still_consolidates(tmp_path: Path) -> None:
 @pytest.mark.integration
 @pytest.mark.git_repo
 @pytest.mark.regression
-def test_missing_coord_worktree_dir_is_the_unmaterialized_trigger(tmp_path: Path) -> None:
-    """FR-008(b): the REAL "unmaterialized" trigger is the coordination
-    worktree DIRECTORY going missing — not a lane-branch or coordination-
-    worktree-content mutation (see the first test in this file).
+def test_missing_coord_worktree_dir_is_materialized_before_reconciliation(tmp_path: Path) -> None:
+    """A real consolidation restores a missing coordination worktree.
+
+    ``coord-artifact-single-home-01M3V4BE`` changed the precondition this
+    fixture used to pin: a missing worktree directory is materialized from
+    the existing coordination branch, then the run reaches reconciliation.
     """
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
@@ -119,9 +121,13 @@ def test_missing_coord_worktree_dir_is_the_unmaterialized_trigger(tmp_path: Path
 
     result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
-    assert result.returncode != 0, f"a missing coordination worktree directory must abort, got exit 0:\n{result.stdout}\n{result.stderr}"
     flat = _collapse(result.stdout + "\n" + result.stderr).lower()
-    assert "unmaterialized" in flat, f"expected the 'is unmaterialized' abort naming the coordination branch, got:\n{result.stdout}\n{result.stderr}"
+    assert coord_worktree.exists(), "consolidation must materialize the missing coordination worktree"
+    assert "unmaterialized" not in flat, f"the missing worktree must not abort before reconciliation:\n{result.stdout}\n{result.stderr}"
+    assert reached_reconciliation_verdict(result), (
+        f"expected the run to reach a reconciliation verdict after materialization, "
+        f"got exit {result.returncode} with no verdict line:\n{result.stdout}\n{result.stderr}"
+    )
 
 
 def test_event_policy_metadata_round_trips_through_read_events(tmp_path: Path) -> None:
