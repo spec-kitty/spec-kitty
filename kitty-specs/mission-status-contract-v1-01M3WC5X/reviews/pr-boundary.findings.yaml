@@ -1,0 +1,44 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR-BOUNDARY-001
+    lens: mission-derived (reflexivity / boundary)
+    severity: 3
+    title: Reality check imports src/specify_cli/status readers but a change to them selects no job that runs it
+    evidence:
+      - code: ".github/workflows/ci-router.yml:221"
+      - code: ".github/workflows/ci-router.yml:829"
+      - code: "tests/contract/_mission_status_payloads.py:43"
+      - code: "tests/contract/test_mission_status_reality.py:38"
+    claim: >
+      The contract is a mirror of what src/specify_cli/status (reducer, aggregate, wp_view, tail_reader, lifecycle_events)
+      produces, and the reality and payload tests import those modules directly. They run only in tests-corpus-blocking,
+      which is gated by the router corpus filter. That filter gains only contracts/**; it has no src/specify_cli/status/**
+      entry (those globs live in the unit and module groups, so the unmatched fallback is false too). contracts.yml is
+      path-gated to contracts/** and runs no pytest. A PR that changes the status readers therefore never runs the one
+      check that proves the contract still matches them; the only net is the push-to-main run. P-9 and P-10 in plan.md
+      accept data-file and tests/contract-only gaps but do not mention producer-code drift.
+    remediation: >
+      Either add the status reader globs the helper imports (src/specify_cli/status/**, coordination/surface_resolver.py,
+      core/dependency_graph.py, mission_metadata.py, kernel/clock.py) to the corpus filter as a ratified widening, or
+      record producer-code drift as an explicit accepted risk (P-11) in plan.md and the PR body with the push-to-main
+      run named as the detection point.
+  - id: PR-BOUNDARY-002
+    lens: boundary (CI surface)
+    severity: 2
+    title: contracts.yml path filter omits contracts-release.yml, which verify_pins.py is meant to guard
+    evidence:
+      - code: ".github/workflows/contracts.yml:10"
+      - code: "contracts/tools/verify_pins.py:48"
+    claim: >
+      verify_pins.py scans contracts*.yml, so it checks contracts-release.yml's action SHA pins and install form. The
+      workflow's pull_request and push path filters list contracts/**, .github/CODEOWNERS and contracts.yml only. A PR that
+      edits just contracts-release.yml (the only workflow with contents: write and a publish step) triggers neither
+      contracts.yml nor verify-pins, so an unpinned uses: or a changed install form there goes unchecked until some
+      later contracts/** change.
+    remediation: >
+      Add '.github/workflows/contracts-release.yml' to both path lists in contracts.yml (and, if wanted, to the
+      contracts.yml cases in tests/ci/test_contracts_routing.py).

@@ -1,0 +1,103 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+  - id: PR-TESTS-001
+    lens: tests
+    severity: 4
+    title: >-
+      Reality check per-Mission case stays green (560 passed) with its contract validation, leak scan and snapshot-equality wiring removed
+    evidence:
+      - code: "tests/contract/test_mission_status_reality.py:149"
+      - code: "tests/contract/test_mission_status_reality.py:153"
+      - code: "tests/contract/test_mission_status_reality.py:165"
+      - code: "tests/contract/test_mission_status_reality.py:182"
+      - "Revert experiment 1: replacing `errors = contract.errors(title, payload)` with `errors = []` in run_case, `pytest tests/contract/test_mission_status_reality.py` -> 560 passed. Experiment 2: dropping the `helper.payload_leaks(payload, tools)` extension -> 560 passed. Experiment 3: deleting the `snapshot_equality_problems(...)` line -> 560 passed. All restored with git checkout."
+    claim: >-
+      The three assertions the 539-case corpus run exists for are never proven to be wired. The positive/negative controls (lines 328-357) call contract.errors, payload_leaks and snapshot_equality_problems directly, never through run_case. The real corpus is clean today, so deleting the checks inside run_case changes nothing; a future edit that drops one passes CI. Spec FR-025 reality-check row and D-19 class B require the controls inside the module to run through the same path.
+    remediation: >-
+      Parameterise run_case by repo_root (and bypass the CASE_RESULTS cache for controls), then add one control test that calls run_case on the control_repo fixture with a planted email in a title, a planted schema defect (unknown lane) and a frontmatter-versus-snapshot mismatch, and asserts result.failures contains each of the three message kinds. Keep the real-corpus parametrised case unchanged.
+  - id: PR-TESTS-002
+    lens: mission-derived
+    severity: 3
+    title: >-
+      Accepted risk P-10 states a push-to-main safety net (built-in-corpus-suite) that deselects exactly these modules; the only real net is the 03:17 nightly
+    evidence:
+      - code: ".github/workflows/packs.yml:285"
+      - code: ".github/workflows/ci-router.yml:829"
+      - code: ".github/workflows/ci-nightly.yml:640"
+      - "Selection simulation (scripts.ci.gate_selection.select_gates, mode pr): tests/contract/test_bundle.py, tests/contract/_mission_status_payloads.py and tests/contract/fixtures/mission_status_expected.json each match no group and no unmatched src, so tests-corpus-blocking (needs corpus == true) does not run. contracts.yml paths are contracts/**, .github/CODEOWNERS and its own file, so it does not run either."
+    claim: >-
+      A change confined to tests/contract/** runs none of the 27 new modules (1405 collected tests, 1393 passing plus 12 vacuum skips locally) per PR and none on push to main. plan.md:162 and :549 say the push-to-main built-in-corpus-suite catches it, but packs.yml:285 passes --deselect for every one of the 27 modules, so that job never runs them. The only net is ci-nightly shard 4 (`-m "fast or unit" ... tests/contract`, scheduled 03:17, py3.13), which does run them because each module is marked fast. The risk text is therefore factually wrong about detection latency (up to a day, not a push). The tests/ci guard modules are unaffected (module row ci runs on any workflow edit).
+    remediation: >-
+      Correct plan.md P-10 and the README note to name ci-nightly shard 4 as the net, not Packs; and, preferably, add `tests/contract/**` to the router corpus filter line (one glob, the question the PR body already plans to ask) so tests-corpus-blocking selects on test edits. If C-003 stays binding, add a tests/ci pin asserting that ci-nightly's shard-4 command still names tests/contract, so the sole net cannot be dropped silently.
+  - id: PR-TESTS-003
+    lens: mission-derived
+    severity: 3
+    title: >-
+      A change to the status readers the reality check validates selects no corpus job, so reader drift is found only by the nightly
+    evidence:
+      - code: "tests/contract/_mission_status_payloads.py:46"
+      - code: "tests/contract/_mission_status_payloads.py:49"
+      - code: ".github/workflows/ci-router.yml:221"
+      - "select_gates(['src/specify_cli/status/reducer.py'], mode pr) -> groups core_misc, execution_context, status, unit; corpus absent, unmatched_src False."
+    claim: >-
+      The reality check imports materialize_snapshot, MissionStatus, compute_weighted_progress, reconstruct_wp_view, poll_once and others from src/specify_cli/status and mission_metadata, and exists to prove the contract matches them. tests-corpus-blocking is gated on the corpus path group only (packs/**, contracts/**, kitty-specs spec/plan/tasks...). A PR that changes a status reader (for example a lane rename in reducer.py) therefore runs module shards but not the reality check or the example/payload tests, so the contract can drift from the code it cites with a green PR. The nightly catches it a day later. P-10 does not cover this case.
+    remediation: >-
+      Add the reader source paths (src/specify_cli/status/**, src/specify_cli/mission_metadata.py, src/mission_runtime/**) to the router corpus filter, or give tests-corpus-blocking an additional `status` group condition; if C-003 forbids it, record the gap as a second accepted risk with the nightly named as the net and pin it with a tests/ci assertion.
+  - id: PR-TESTS-004
+    lens: tests
+    severity: 3
+    title: >-
+      The fingerprint's byte-hash half is untested (control passes with content hashing neutralised) and ignored files are invisible to it
+    evidence:
+      - code: "tests/contract/_mission_status_payloads.py:203"
+      - code: "tests/contract/_mission_status_payloads.py:205"
+      - code: "tests/contract/test_mission_status_reality.py:210"
+      - "Revert experiment: replacing `content = path.read_bytes() if path.is_file() else b\"<missing>\"` with `content = b\"x\"`; test_the_hash_proof_sees_a_changed_file_and_refuses_to_hash_nothing -> 1 passed. By contrast porcelain=() -> red, and removing the empty-listing guard -> red."
+    claim: >-
+      The module docstring promises bytes plus git status. In the control the file is staged (status `A `), then rewritten, so porcelain alone flips (`AM`); the digest is never the deciding signal. A reader that rewrites an already-dirty tracked file (a dirty local tree, an uncommitted status.json) leaves porcelain unchanged and only the digest would catch it, but nothing proves the digest works. Separately `git status --porcelain` omits ignored files, and .gitignore:55 ignores *.lock under kitty-specs, so a reader writing a lock or ignored cache is never seen.
+    remediation: >-
+      Add a control that commits the file, modifies it before the first fingerprint (porcelain ` M`), then rewrites it with different bytes and asserts the fingerprints differ with equal porcelain. Add `--ignored` to the status call (or hash `git ls-files -o` output) and a control that creates an ignored file.
+  - id: PR-TESTS-005
+    lens: tests
+    severity: 3
+    title: >-
+      Three failure codes are never asserted; renaming or misclassifying them leaves their modules green
+    evidence:
+      - code: "contracts/tools/layout_check.py:118"
+      - code: "contracts/tools/bundle.py:270"
+      - code: "contracts/tools/release_check.py:166"
+      - "Revert experiments: UNREADABLE_FILE renamed -> test_layout_check.py 42 passed; `return \"BUNDLE_FAILED\", 1` changed to VALIDATION_FAILED -> test_bundle.py 30 passed; BUNDLE_STEP_BLOCKED renamed -> test_release_check.py 22 passed."
+    claim: >-
+      test_malformed_index_is_reported_not_skipped (test_layout_check.py:235) asserts INDEX_MALFORMED, not UNREADABLE_FILE (an unparseable YAML file); the generic Gradle failure fall-through BUNDLE_FAILED and the release script's bundle-step refusal (exit 2, before any publication) have no test naming the code or exit. FR-025 requires the specific code and exit for Bundle and Release rows. The same literal scan found every other emitted code in the 24 tools present in some test or the negative manifest.
+    remediation: >-
+      Add three cases: a path file with invalid YAML expecting UNREADABLE_FILE (exit 1); a fake Gradle runner whose failure output matches no classifier expecting BUNDLE_FAILED with exit 1; a release_check run whose bundle step returns 2 expecting BUNDLE_STEP_BLOCKED, exit 2 and no checksum file written.
+  - id: PR-TESTS-006
+    lens: tests
+    severity: 2
+    title: >-
+      The 12 vacuum lint tests run unskipped in no pytest job anywhere; equivalence rests on the shell step and manifest
+    evidence:
+      - code: "tests/contract/test_lint_ruleset.py:215"
+      - code: ".github/workflows/ci-router.yml:829"
+      - code: ".github/workflows/contracts.yml:167"
+      - "Local run: 1393 passed, 12 skipped (all test_lint_ruleset.py needs_vacuum). CI full-mode run 37073720061 shows 13 skipped (12 plus the conftest-skipped performance class); tests-corpus-blocking and nightly never install vacuum. Contracts run 37066885132: lint job green and negative-tests `counts: cases=81 ran=81 skipped=0 passed=81 failed=0`."
+    claim: >-
+      No CI job installs vacuum and runs pytest, so these 12 tests are permanently skipped in CI. The same property is proven elsewhere (the `lint` job's planted-violations shell step asserts `LINT_VIOLATION: <plant>: <rule>:` per fixture, and 9 manifest cases run in negative-tests), so no behaviour is uncovered, but the tests are dead code that can rot (their expectation `violated == {rule}` is not what the manifest asserts) and the skip reason is invisible in the verdict.
+    remediation: >-
+      Either delete the five real-binary tests and keep the shell step and manifest as the single owner, or add a guard that asserts the set of skipped test ids equals the set of rules the workflow step covers; at minimum note in the skip reason which job is the executing home.
+  - id: PR-TESTS-007
+    lens: mission-derived
+    severity: 2
+    title: >-
+      Negative-case manifest validation accepts an empty or trivial expected code, which matches any output
+    evidence:
+      - code: "contracts/tools/run_negative_cases.py:111"
+      - code: "contracts/tools/run_negative_cases.py:216"
+    claim: >-
+      The manifest check requires only `isinstance(plant['code'], str)`. code_in treats anything that is not an upper-case stable code as a plain substring, so `""` (or `":"`) is found in every output and the case degrades to a bare non-zero-exit check. All 81 committed cases currently carry specific codes (9 lint cases carry `: <rule>: ` substrings, the rest stable codes) and 79 expect exit 1, one 0, one 2, so this is latent, not live.
+    remediation: >-
+      In load_cases reject a code shorter than 4 characters or one that is neither a stable code nor contains an alphabetic rule token, and add a unit test with an empty code expecting MANIFEST_INVALID.

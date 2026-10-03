@@ -1,0 +1,233 @@
+schema: review-findings/v1
+complete: true
+phase: pr2
+lens_group: merged
+mission: mission-status-contract-v1-01M3WC5X
+findings:
+- id: PR2-TESTS-001
+  lens: tests
+  severity: 4
+  title: History ordering is unguarded (vacuous test, mutation survives)
+  evidence:
+  - code: tests/contract/_mission_status_payloads.py:895
+  - code: tests/contract/test_mission_status_payloads.py:713
+  claim: 'Replacing the sorted(...) by (at, eventId) in history_entries with a plain return of entries leaves test_mission_status_reality.py
+    and test_mission_status_payloads.py fully green (verified by mutation, 17 of 18 mutants were killed). The only ordering
+    assertion (line 713) runs on a fixture whose log is already chronological, so it cannot fail. The contract promises history
+    oldest first by time then event id.
+
+    '
+  remediation: 'Plant out-of-order rows (and two rows with equal at but swapped event ids) in the fixture log and assert the
+    resulting history order. Also make line 713 compare against a deliberately shuffled input.
+
+    '
+- id: PR2-CI-RELEASE-001
+  lens: ci-release
+  severity: 3
+  title: A property added to a response through a new allOf branch is not breaking (closed-response rule bypassed)
+  evidence:
+  - code: contracts/tools/breaking_check.py:80
+  - code: contracts/README.md:296
+  claim: 'The four RESPONSE_ADDITION_IDS cover only a property added directly to a schema. Run against the pinned oasdiff
+    1.32.1 with the severity file: appending a branch with a new property to a response allOf gives only response-property-all-of-added
+    at level INFO, so breaking_check exits 0 with no major move. The contract composes schemas (unevaluatedProperties: false),
+    so this is a real way to add a response property that the new rule was meant to forbid. Top-level, nested array item,
+    allOf-branch property and oneOf-branch property additions are caught (checked); only a new allOf branch slips through.
+    No plant covers it.
+
+    '
+  remediation: 'Add response-property-all-of-added and response-body-all-of-added (oasdiff 1.32.1 ids, INFO today) to the
+    raised set, or write the rule as "every INFO change under a response". Add a plant with an allOf branch and extend the
+    id-set test (tests/contract/test_breaking_check.py:207) to say why each id is listed.
+
+    '
+- id: PR2-CI-RELEASE-003
+  lens: ci-release
+  severity: 3
+  title: spec.md D-2 and the breaking-change definition still say an added response property is non-breaking
+  evidence:
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/spec.md:102
+  - code: kitty-specs/mission-status-contract-v1-01M3WC5X/spec.md:365
+  claim: 'D-2 ends "Adding a response property is still a non-breaking, minor-version change", and line 365 lists the breaking
+    changes without an added response property. The code and the README now do the opposite (maintainer request), so the tracked
+    spec contradicts the shipped behaviour that reviewers will check it against.
+
+    '
+  remediation: 'Amend D-2 and line 365 (and the FR-016 text if it repeats the list) to say an added response property is breaking
+    and needs a major move; record it as a ruling.
+
+    '
+- id: PR2-CI-RELEASE-002
+  lens: ci-release
+  severity: 2
+  title: A new response status code, media type or header stays non-breaking although the README says a response-shape change
+    ships as a new release
+  evidence:
+  - code: contracts/tools/breaking_check.py:80
+  - code: contracts/README.md:290
+  claim: 'Verified with oasdiff 1.32.1 and the severity file: response-success-status-added, response-non-success-status-added,
+    response-media-type-added and response-header-added are all level INFO and pass without a major move. A widened enum in
+    a response and a new oneOf/anyOf branch are already ERR in oasdiff and are caught. README states "a change to the shape
+    of a response therefore ships as a new schema version and a new published release", which these additions contradict.
+    Request-side additions stay non-breaking (checked), as required.
+
+    '
+  remediation: 'Either raise these four ids too, or narrow the README sentence to "an added response property" and record
+    the decision for status, media type and header additions.
+
+    '
+- id: PR2-CI-RELEASE-004
+  lens: ci-release
+  severity: 2
+  title: breaking_check and release_check define "snapshot" differently, and variants of -SNAPSHOT get released as prereleases
+  evidence:
+  - code: contracts/tools/breaking_check.py:154
+  - code: contracts/tools/release_check.py:83
+  claim: 'latest_release_tag skips a tag with text.endswith("-SNAPSHOT"); release_check.is_snapshot strips +build metadata
+    first. Verified: contract-x-v1.0.0-SNAPSHOT+b1 is a snapshot to release_check (refused, but the tag stays in git once
+    pushed) and is returned as the release baseline by latest_release_tag. Also is_snapshot is False for 1.0.0-snapshot, 1.0.0-Snapshot,
+    1.0.0-SNAPSHOT.1 and 1.0.0-SNAPSHOT-1, so a tag like contract-x-v1.0.0-snapshot passes the rules and is published with
+    --prerelease. Only the exact uppercase suffix meets the maintainer''s "-SNAPSHOT tag is refused".
+
+    '
+  remediation: 'One shared is_snapshot (strip +build, case-insensitive, suffix or dot-separated SNAPSHOT identifier) used
+    by both files, and have latest_release_tag use it. Add plants for the +build and lower-case forms.
+
+    '
+- id: PR2-CI-RELEASE-005
+  lens: ci-release
+  severity: 2
+  title: The release workflow does not require the tagged commit to have passed the Contracts gate or be on main
+  evidence:
+  - code: .github/workflows/contracts-release.yml:9
+  - code: .github/workflows/contracts-release.yml:52
+  claim: 'A push of contract-<module>-v<semver> publishes after release_check passes the tag, version and CHANGELOG rules.
+    breaking_check, the lint and the other gates are not run for the tagged commit, and nothing checks the tag is an ancestor
+    of main. A tag pushed on an unreviewed branch commit publishes a release that was never compared with the previous one.
+    Release_check does refuse -SNAPSHOT and a version mismatch (verified).
+
+    '
+  remediation: 'Add to the release job a "git merge-base --is-ancestor $GITHUB_SHA origin/main" check, plus breaking_check
+    against the previous tag; or document that tag-push rights are protected by a tag ruleset.
+
+    '
+- id: PR2-CI-RELEASE-006
+  lens: ci-release
+  severity: 2
+  title: No permanent plant for CHECKSUMS_UNVERIFIED, the refusal the M1 change adds
+  evidence:
+  - code: contracts/tools/negative_cases.json:1072
+  - code: contracts/tools/verify_pins.py:165
+  claim: 'verify_pins now exits 2 on an unhashed run. The six verify-pins cases in negative_cases.json cover the exit-1 codes;
+    the five that were moved to --pins-only are pin-file, uses and install defects where --pins-only is legitimate (checked,
+    no checksum plant was neutered; the mismatch plant keeps --artifacts). But no manifest case runs a bare verify_pins and
+    requires exit 2 with CHECKSUMS_UNVERIFIED; it is covered only by tests/contract/test_verify_pins.py (the driver supports
+    "exit": 2), and the workflow guard test only mutates the call text. The real call with --fetch is exercised nowhere before
+    merge.
+
+    '
+  remediation: 'Add a negative case: plant exit 2, code CHECKSUMS_UNVERIFIED, on the clean fixture with no --pins-only, control
+    with --artifacts.
+
+    '
+- id: PR2-INTEGRATION-001
+  lens: integration
+  severity: 2
+  title: Public docs and code comments cite "DD-32" and "ruled 2026-10-02", which no reader of the PR can resolve
+  evidence:
+  - code: docs/development/reference/ci-gate-mechanics.md:558 (operator ruling DD-32), :588 (operator ruling 2026-10-02)
+  - code: .github/workflows/contracts.yml:4, .github/workflows/ci-router.yml:823, tests/architectural/_gate_coverage.py:139,
+      tests/architectural/test_no_duplicate_suite_execution.py:249, tests/ci/test_contracts_workflows.py:41,906, contracts/README.md
+      (ruled 2026-10-02)
+  - code: origin/main:kitty-specs/mission-status-contract-v1-01M3WC5X/tracer-design-decisions.md has 0 occurrences of DD-32;
+      the PR stack does not add it (only the root checkout has it, line 284)
+  claim: DD-32 exists only in an uncommitted working copy of the Mission's decisions file. In the public PRs the id points
+    at nothing, and "the operator" is an unnamed role. The accepted-risk statements (reader drift caught by the nightly run)
+    carry the same weakness, with a date only.
+  remediation: Commit tracer-design-decisions.md with DD-32 on the PR branch (or drop the id) and rewrite the prose as a self-contained
+    rationale, e.g. "the tool tests moved to the Contracts workflow to keep the router's corpus job inside its 10 minute timeout
+    (7m20s with them)". Replace "operator ruling" with "maintainer decision" or cite the PR comment.
+- id: PR2-TESTS-002
+  lens: tests
+  severity: 2
+  title: Ratchet pinned exactly at the ceiling can fail a PR that adds a Mission mid-flight
+  evidence:
+  - code: tests/contract/test_mission_status_reality.py:407
+  - code: tests/contract/fixtures/mission_status_expected.json (header.ceiling 52, measured 52)
+  claim: 'Measured 542 Missions, 3178 payloads, 23871 events, 52 of 52 disagreements. A new Mission committed with tasks/WP*.md
+    files before its snapshot has the same work package count (or after a WP file is removed) adds a disagreement and fails
+    the blocking job. Equally, fixing one disagreement fails test_the_ceiling_is_not_stale until the fixture is edited in
+    the same PR. This is by design (shrink-only) but the failure message names no remedy for the add case.
+
+    '
+  remediation: 'Keep the design. Have the failure text say that a new Mission must commit its status snapshot together with
+    its work package files, and name the fixture field to lower.
+
+    '
+- id: PR2-CI-RELEASE-007
+  lens: ci-release
+  severity: 1
+  title: Comment and README say the snapshot is refused before anything is built, but the release workflow builds first; verify-pins
+    comment contradicts itself
+  evidence:
+  - code: .github/workflows/contracts-release.yml:49
+  - code: contracts/README.md:308
+  - code: .github/workflows/contracts.yml:49
+  claim: 'On a -SNAPSHOT tag push the job installs Gradle and bundles and validates every module before release_check refuses
+    the tag; no publish is reachable, but the README wording is true only for release_check itself. The verify-pins comment
+    says "Nothing is downloaded by this job, so --fetch downloads each pinned artefact".
+
+    '
+  remediation: 'Move the release_check tag step ahead of the Gradle and bundle steps, or reword both comments.
+
+    '
+- id: PR2-INTEGRATION-002
+  lens: integration
+  severity: 1
+  title: verify-pins comment contradicts itself
+  evidence:
+  - code: .github/workflows/contracts.yml:47-49 'Nothing is downloaded by this job, so --fetch downloads each pinned artefact'
+  claim: The sentence says nothing is downloaded and then that --fetch downloads. The job does download all four pinned artefacts.
+    The README says "A job that has already downloaded the tools passes --artifacts", which does not apply to this job.
+  remediation: Reword to "This job installs no tools itself, so --fetch downloads each pinned artefact over https and hashes
+    it".
+- id: PR2-INTEGRATION-003
+  lens: integration
+  severity: 1
+  title: Commit subjects carry internal work-package and decision-record jargon
+  evidence:
+  - code: 'git log: ci(contracts): list the WP08 corpus test modules ... ; ci(contracts): list the two IC-09 corpus modules
+      ...'
+  claim: WP08 and IC-09 mean nothing to a reader of the public history. All 49 commits are otherwise valid commitlint types
+    (feat, fix, test, ci, docs, chore), the commitlint config has no header-length rule, and no username or path leaks in
+    any message.
+  remediation: Optional. Reword at the next history collapse, e.g. "list the lint, breaking-change and release corpus test
+    modules".
+- id: PR2-TESTS-003
+  lens: tests
+  severity: 1
+  title: Reality module docstring promises --dist loadfile but the only job that runs it uses no xdist
+  evidence:
+  - code: tests/contract/test_mission_status_reality.py:20
+  - code: .github/workflows/ci-router.yml:843
+  claim: 'The counting test relies on file-order execution. The router corpus job runs the module serially, so it holds, and
+    the contracts job ignores the module. The claim in the docstring is only true if someone later adds -n, and the module-scoped
+    _build_index cache and EXECUTED set are also correct only under file-local ordering. The cache itself is sound: roots
+    are resolved, planted repos under basetemp are walked fresh, and the fingerprint fixture proves the tree unchanged. No
+    leakage was found.
+
+    '
+  remediation: Say in the docstring that the module must stay serial or on loadfile, no code change needed.
+- id: PR2-TESTS-004
+  lens: tests
+  severity: 1
+  title: Single-home guard marker is a literal duplicated from the workflows
+  evidence:
+  - code: tests/ci/test_contracts_workflows.py:912
+  - code: .github/workflows/ci-router.yml:843
+  claim: 'The guard now uses real collection (robust to indirect marks, proven by the indirect-mark control), but TOOL_TEST_MARKER
+    is a literal; only the contracts job''s -m is asserted against it (line 899). If the router job''s -m changed, the guard
+    would not follow.
+
+    '
+  remediation: Assert the router corpus job's -m expression equals TOOL_TEST_MARKER too.
