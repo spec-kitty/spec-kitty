@@ -159,6 +159,19 @@ class WpStatusPlan:
     events: tuple[StatusEvent, ...]
 
 
+def wp_task_files(tasks_dir: Path) -> list[Path]:
+    """The ``tasks/WP*.md`` entries of *tasks_dir*, sorted; ``[]`` when it is absent.
+
+    The match is an explicit, case-sensitive ``startswith("WP")`` / ``endswith(".md")``
+    on the entry name, not ``Path.glob``: glob case sensitivity is platform and
+    Python-version dependent, and a ``wp01.md`` must never count as a WP file on any
+    of them. The corpus gate uses this same filter so the two cannot disagree.
+    """
+    if not tasks_dir.is_dir():
+        return []
+    return sorted(entry for entry in tasks_dir.iterdir() if entry.name.startswith("WP") and entry.name.endswith(".md"))
+
+
 def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...]]:
     """Return ``(valid WP ids, malformed file names)`` for ``tasks/WP*.md``.
 
@@ -169,7 +182,7 @@ def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...
     """
     ids: set[str] = set()
     malformed: list[str] = []
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+    for wp_file in wp_task_files(tasks_dir):
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
         except (FrontmatterError, ValidationError, UnicodeDecodeError, OSError):

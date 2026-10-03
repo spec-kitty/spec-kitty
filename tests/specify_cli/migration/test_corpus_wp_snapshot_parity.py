@@ -41,7 +41,7 @@ import pytest
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.migration.wp_status_backfill import coordination_surface_is_live
+from specify_cli.migration.wp_status_backfill import coordination_surface_is_live, wp_task_files
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import StoreError
 from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
@@ -57,7 +57,6 @@ _BACKFILL_COMMAND = "spec-kitty migrate backfill-wp-status"
 _WHY = "test reason"
 _SLUG = "m"
 _WP01 = "WP01"
-_WP_GLOB = "WP*.md"
 _TASKS = "tasks"
 _GITKEEP_ONLY_REASON = "tasks/ holds only a tracked .gitkeep (no WP files were ever committed); tasks.md names the WPs"
 
@@ -134,7 +133,7 @@ def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...
     """
     ids: set[str] = set()
     malformed: list[str] = []
-    for wp_file in sorted(tasks_dir.glob(_WP_GLOB)) if tasks_dir.is_dir() else ():
+    for wp_file in wp_task_files(tasks_dir):
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
         except (FrontmatterError, ValidationError, UnicodeDecodeError, OSError):
@@ -288,7 +287,7 @@ def test_corpus_census_is_non_vacuous(corpus_scan: dict[str, MissionParity]) -> 
     assert len(corpus_scan) >= _MIN_SCANNED_MISSIONS, (
         f"only {len(corpus_scan)} Missions scanned (expected >= {_MIN_SCANNED_MISSIONS}); the gate is mis-rooted or the corpus was emptied"
     )
-    no_wp_files = {slug for slug in SNAPSHOT_ONLY_EXEMPTIONS if not any((_kitty_specs() / slug / _TASKS).glob(_WP_GLOB))}
+    no_wp_files = {slug for slug in SNAPSHOT_ONLY_EXEMPTIONS if not wp_task_files(_kitty_specs() / slug / _TASKS)}
     assert no_wp_files, "control: at least one exempted Mission has no WP files (035/036/037)"
     assert no_wp_files <= corpus_scan.keys(), f"snapshot-only Missions without WP files were skipped: {sorted(no_wp_files - corpus_scan.keys())}"
 
@@ -296,7 +295,7 @@ def test_corpus_census_is_non_vacuous(corpus_scan: dict[str, MissionParity]) -> 
 def _agreeing_mission_with_wp_files(scanned: Mapping[str, MissionParity], corpus: Path) -> Path:
     """First scanned Mission whose files and snapshot agree and that has WP files."""
     for slug, parity in scanned.items():
-        has_files = any((corpus / slug / _TASKS).glob(_WP_GLOB)) if (corpus / slug / _TASKS).is_dir() else False
+        has_files = bool(wp_task_files(corpus / slug / _TASKS))
         if has_files and not (parity.files_only or parity.snapshot_only or parity.malformed or parity.unreadable):
             return corpus / slug
     raise AssertionError("no agreeing Mission with WP files to mutate; the corpus census is broken")
@@ -310,7 +309,7 @@ def test_self_mutation_unseeded_wp_file_is_reported_files_only(corpus_scan: dict
     shutil.copytree(source, victim)
     assert not parity_violations(scan_corpus(corpus), {}), "control: the unmutated copy must agree"
 
-    template = sorted((victim / _TASKS).glob(_WP_GLOB))[0]
+    template = wp_task_files(victim / _TASKS)[0]
     wp_id = "WP98"
     (victim / _TASKS / f"{wp_id}-injected.md").write_text(_retarget_work_package_id(template.read_text(encoding="utf-8"), wp_id), encoding="utf-8")
 
@@ -328,7 +327,7 @@ def test_self_mutation_deleted_wp_file_is_reported_snapshot_only(corpus_scan: di
     victim = corpus / source.name
     shutil.copytree(source, victim)
     before = collect_wp_file_ids(victim / _TASKS)[0]
-    sorted((victim / _TASKS).glob(_WP_GLOB))[0].unlink()
+    wp_task_files(victim / _TASKS)[0].unlink()
     doomed_id = before - collect_wp_file_ids(victim / _TASKS)[0]
     assert len(doomed_id) == 1
 
@@ -472,3 +471,14 @@ def test_inspect_mission_marks_a_live_coordination_mission(tmp_path: Path, monke
     live = inspect_mission(mission)
     assert live is not None and live.coordination_live is True and probed == [mission]
     assert parity_violations({live.slug: live}, {}) == []
+
+
+def test_wp_file_filter_is_case_sensitive_and_prefix_exact(tmp_path: Path) -> None:
+    """``wp01.md`` / ``XWP01.md`` / ``WP01.txt`` are not WP files; a missing dir has none."""
+    tasks = tmp_path / _TASKS
+    tasks.mkdir()
+    for name in ("WP01-a.md", "WP02.md", "wp03.md", "Wp04.md", "XWP05.md", "WP06.txt", "README.md"):
+        (tasks / name).write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
+
+    assert [p.name for p in wp_task_files(tasks)] == ["WP01-a.md", "WP02.md"]
+    assert wp_task_files(tmp_path / "absent") == []
