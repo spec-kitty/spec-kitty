@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-03T16:08:43.868209Z",
+      "decision_id": "01M418CRJWH2FTH5P4X1X6WCJZ",
+      "final_answer": "Confirmed by operator kick-off brief (2026-10-03): four shapes only, one WP per separate predicate, residual 7 flipped by the #5569 fix, escalate only on CAS/closed-world weakening, pinned-xfail-needs-other-mission, or attestation-as-fix.",
+      "input_key": "mission_intent",
+      "mission_id": "01M4189ZT83YJE8N58AWSET8RA",
+      "mission_slug": "rc5-consolidate-regressions-01M4189Z",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm mission intent: fix exactly the four rc5 consolidate regression shapes (#5569 #5571 #5570 #5572), red-first through real entry points, no weakening of fail-closed CAS/closed-world, no attestation as product fix?",
+      "rationale": null,
+      "resolved_at": "2026-10-03T16:08:45.380324Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.intent",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4189ZT83YJE8N58AWSET8RA",
+  "version": 1
+}

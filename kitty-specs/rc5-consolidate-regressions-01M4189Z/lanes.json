@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "mission_slug": "rc5-consolidate-regressions-01M4189Z",
+  "mission_id": "01M4189ZT83YJE8N58AWSET8RA",
+  "mission_branch": "kitty/mission-rc5-consolidate-regressions-01M4189Z",
+  "target_branch": "kitty/rc5-consolidate-regressions",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/wp_attribution.py",
+        "tests/consolidation/test_canceled_content_residuals.py",
+        "tests/consolidation/test_canceled_dependency_lane.py",
+        "tests/terminus/conftest.py",
+        "tests/terminus/lanes_fixture.py",
+        "tests/terminus/test_repro_5569.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/preflight.py",
+        "tests/consolidation/test_resume_coord_lag.py",
+        "tests/terminus/test_repro_5571.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/teardown.py",
+        "src/specify_cli/git/ref_advance.py",
+        "tests/coordination/test_projection_teardown.py",
+        "tests/git/test_delete_branch_ref.py",
+        "tests/terminus/test_repro_5570.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/consolidation/state.py",
+        "src/specify_cli/coordination/coherence.py",
+        "tests/coordination/test_coherence_integrity.py",
+        "tests/terminus/test_repro_4973.py",
+        "tests/terminus/test_repro_5572.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-03T16:22:18.816086+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "76d276952109b8a7466b8aabf679b5b1df04e261"
+}

@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "237c05760f1b34f341bc714a59d91c37a0c81fef",
+  "created_at": "2026-10-03T16:07:16.194688+00:00",
+  "flattened": true,
+  "friendly_name": "rc5 consolidate regressions",
+  "merged_at": "2026-10-03T18:00:11.952051+00:00",
+  "merged_commit": "32358d13609215c716ea0b0818be86bbdfabd197",
+  "mid8": "01M4189Z",
+  "mission_id": "01M4189ZT83YJE8N58AWSET8RA",
+  "mission_number": 213,
+  "mission_slug": "rc5-consolidate-regressions-01M4189Z",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Release testing showed four rc5 consolidate fixes do not fully hold: canceled dependency-lane code still ships, a resume remedy drops a lane, coordination teardown destroys a late status commit, and doctor --fix reverts a reviewer reopen. This mission closes those four shapes so operators can trust consolidate's exit status.",
+  "purpose_tldr": "Make four consolidate/doctor safety fixes that rc5 claimed actually hold.",
+  "slug": "rc5-consolidate-regressions-01M4189Z",
+  "status_phase": "1",
+  "target_branch": "kitty/rc5-consolidate-regressions",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-03T16:27:15.148720+00:00"
+}

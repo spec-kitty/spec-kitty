@@ -1,0 +1,85 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M41ERJFR5TG1B6JVTG4KDB5S",
+  "materialized_at": "2026-10-03T18:00:02.296315+00:00",
+  "mission_number": "",
+  "mission_slug": "rc5-consolidate-regressions-01M4189Z",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M41EQWN24045B9CYXRNB9M12",
+      "last_transition_at": "2026-10-03T17:59:39.938248+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 529375,
+      "shell_pid_created_at": "1791044823.08"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M41ER44NHJ88A3RSSCQBA900",
+      "last_transition_at": "2026-10-03T17:59:47.605407+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 529511,
+      "shell_pid_created_at": "1791044826.66"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M41ERBD4VRCMAS6T5XBTXP4G",
+      "last_transition_at": "2026-10-03T17:59:55.044383+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 781050,
+      "shell_pid_created_at": "1791047425.29"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M41ERJFR5TG1B6JVTG4KDB5S",
+      "last_transition_at": "2026-10-03T18:00:02.296315+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 782329,
+      "shell_pid_created_at": "1791047440.67"
+    }
+  }
+}

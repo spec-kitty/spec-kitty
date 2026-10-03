@@ -1,0 +1,124 @@
+work_packages:
+  - id: WP01
+    title: "Canceled dependency-lane content never counts as approved authorship (#5569)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/consolidation/reconciliation.py"
+      - "src/specify_cli/consolidation/wp_attribution.py"
+      - "tests/consolidation/test_canceled_content_residuals.py"
+      - "tests/consolidation/test_canceled_dependency_lane.py"
+      - "tests/terminus/test_repro_5569.py"
+      - "tests/terminus/conftest.py"
+      - "tests/terminus/lanes_fixture.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-002
+      - C-003
+      - C-004
+      - SC-001
+      - SC-002
+      - SC-003
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+
+    prompt_file: "tasks/WP01-canceled-dependency-lane-content.md"
+
+  - id: WP02
+    title: "Resume refreshes a coordination worktree that only lags its HEAD (#5571)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/consolidation/preflight.py"
+      - "src/specify_cli/consolidation/executor.py"
+      - "tests/terminus/test_repro_5571.py"
+      - "tests/consolidation/test_resume_coord_lag.py"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-004
+      - SC-001
+      - SC-002
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+
+    prompt_file: "tasks/WP02-resume-coord-worktree-lag.md"
+
+  - id: WP03
+    title: "Teardown deletes the coordination branch only at the checked tip (#5570)"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/git/ref_advance.py"
+      - "src/specify_cli/coordination/teardown.py"
+      - "tests/coordination/test_projection_teardown.py"
+      - "tests/git/test_delete_branch_ref.py"
+      - "tests/terminus/test_repro_5570.py"
+    requirement_refs:
+      - FR-005
+      - FR-006
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-004
+      - SC-001
+      - SC-002
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T010
+      - T011
+      - T012
+      - T013
+
+    prompt_file: "tasks/WP03-teardown-compare-and-delete.md"
+
+  - id: WP04
+    title: "Doctor heal reverts only recorded strand commits (#5572)"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/coordination/coherence.py"
+      - "src/specify_cli/consolidation/state.py"
+      - "src/specify_cli/cli/commands/_coordination_doctor.py"
+      - "tests/terminus/test_repro_4973.py"
+      - "tests/terminus/test_repro_5572.py"
+      - "tests/coordination/test_coherence_integrity.py"
+    requirement_refs:
+      - FR-007
+      - FR-008
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-004
+      - SC-001
+      - SC-002
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T014
+      - T015
+      - T016
+      - T017
+      - T018
+    prompt_file: "tasks/WP04-recorded-strand-commits.md"
