@@ -171,6 +171,14 @@ semantic domain representation in the centre. An unchanged document must survive
 round-trip without a byte diff, including comments, ordering, scalar styles, anchors,
 document markers, and explicit null spellings.
 
+#### One writer at a time
+
+During write migration, Python and Java could both change the same authored YAML. One side
+holds the single write lock at any time. The Python seam holds it until the last write
+operation migrates. Java mutates a file only through a handoff that the seam grants for
+that operation. The service rebuilds its active graph from the source fingerprints after
+any write made outside it, and never serves a graph built before that write.
+
 Three gates prevent a fake parity result:
 
 1. **Codec identity:** lossless YAML load and emit is byte-identical.
