@@ -59,6 +59,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
@@ -211,7 +213,7 @@ def _persist_retrospective(
     repo_root: Path,
     mission_slug: str,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
-) -> None:
+) -> str | None:
     """Persist any pending retrospective to its durable PRIMARY home.
 
     Routes through the post-merge terminus, which resolves the durable home via
@@ -227,12 +229,14 @@ def _persist_retrospective(
     block teardown on a genuine generator/IO failure — but an unexpected error in
     the persist machinery surfaces here instead of being masked by the destroy
     handler.
+
+    Returns the SHA of the bookkeeping commit the persist made, or ``None`` when it made none.
     """
     from specify_cli.post_merge.retrospective_terminus import (  # noqa: PLC0415
         run_retrospective_postcondition,
     )
 
-    run_retrospective_postcondition(
+    return run_retrospective_postcondition(
         mission_slug=mission_slug,
         repo_root=repo_root,
         provenance_kind=provenance_kind,
@@ -273,6 +277,7 @@ def teardown_coordination_topology(
     provenance_kind: ProvenanceKind = "runtime_post_completion",
     projection_gate: ProjectionTeardownGate | None = None,
     check_ledger: bool = True,
+    on_persist_commit: Callable[[str], None] | None = None,
 ) -> bool:
     """Persist the retrospective, then destroy the coordination worktree.
 
@@ -319,6 +324,9 @@ def teardown_coordination_topology(
             ``_teardown_coordination_worktree_if_present``), which discard a
             coordination surface this very create owns; ``mission close
             --discard`` and ``consolidate --abort`` keep the default.
+        on_persist_commit: Called with the SHA of the bookkeeping commit the persist leg
+            made, when it made one (#5570). The consolidation executor uses it to carry its
+            verified-landing anchor over exactly its own commit.
 
     Returns:
         ``True`` when the destroy leg succeeded (or no-op'd cleanly), ``False``
@@ -351,7 +359,11 @@ def teardown_coordination_topology(
 
     if persist:
         # OUTSIDE the destroy swallow — persist-before-destroy (FR-005).
-        _persist_retrospective(repo_root, mission_slug, provenance_kind)
+        persisted_sha = _persist_retrospective(repo_root, mission_slug, provenance_kind)
+        if on_persist_commit is not None and isinstance(persisted_sha, str):
+            # Hand the caller the exact commit the persist made (#5570), so it never has to
+            # re-read the destination tip and mistake a concurrent foreign commit for ours.
+            on_persist_commit(persisted_sha)
 
     if not mid8:
         # Legacy / never-coordinated mission: nothing to destroy. Persist (above)

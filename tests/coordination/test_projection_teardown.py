@@ -682,28 +682,87 @@ def test_delete_mission_branch_with_no_branch_is_a_no_op(tmp_path: Path) -> None
     assert ex._delete_mission_branch(run) is True
 
 
-def test_pass_anchor_follows_only_a_target_advance_it_matched(tmp_path: Path) -> None:
-    """#5570: the PASS anchor moves over THIS run's own teardown commit, and only if it matched before."""
+def _commit_on_main(repo: Path, name: str) -> str:
+    (repo / name).write_text(f"{name}\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", name)
+    return _rev(repo, "main")
+
+
+def test_pass_anchor_carries_only_over_the_commit_this_run_returned(tmp_path: Path) -> None:
+    """#5570: the anchor moves to the exact SHA our own commit produced, on top of the current anchor."""
     from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
     before = _rev(repo, "main")
-    (repo / "teardown-persisted.txt").write_text("retrospective\n", encoding="utf-8")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-q", "-m", "persist retrospective")
-    after = _rev(repo, "main")
-
-    run.state.reconciliation_passed_target_sha = "not-the-tip"
-    ex._carry_pass_anchor_to_tip(run, before)
-    assert run.state.reconciliation_passed_target_sha == "not-the-tip", "an anchor that never matched must stay put"
-
     run.state.reconciliation_passed_target_sha = before
-    ex._carry_pass_anchor_to_tip(run, after)
-    assert run.state.reconciliation_passed_target_sha == before, "no advance since tip_before: nothing to carry"
+    own = _commit_on_main(repo, "persisted.txt")
 
-    ex._carry_pass_anchor_to_tip(run, before)
-    assert run.state.reconciliation_passed_target_sha == after
+    ex._carry_pass_anchor_over_own_commit(run, own)
+
+    assert run.state.reconciliation_passed_target_sha == own
+
+
+def test_pass_anchor_does_not_follow_a_foreign_commit_after_ours(tmp_path: Path) -> None:
+    """A foreign commit that landed after ours is never stamped verified: the anchor stays put."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    before = _rev(repo, "main")
+    run.state.reconciliation_passed_target_sha = before
+    own = _commit_on_main(repo, "persisted.txt")
+    _commit_on_main(repo, "foreign.txt")
+
+    ex._carry_pass_anchor_over_own_commit(run, own)
+
+    assert run.state.reconciliation_passed_target_sha == before
+
+
+def test_pass_anchor_does_not_carry_a_commit_that_is_not_on_the_anchor(tmp_path: Path) -> None:
+    """A foreign commit sits between the anchor and our commit (first parent != anchor): no carry."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    before = _rev(repo, "main")
+    run.state.reconciliation_passed_target_sha = before
+    _commit_on_main(repo, "foreign.txt")
+    own = _commit_on_main(repo, "persisted.txt")
+
+    ex._carry_pass_anchor_over_own_commit(run, own)
+
+    assert run.state.reconciliation_passed_target_sha == before
+
+
+@pytest.mark.parametrize("anchor", [None, ""], ids=["no-anchor", "empty-anchor"])
+def test_pass_anchor_is_never_invented_without_a_recorded_pass(tmp_path: Path, anchor: str | None) -> None:
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    run.state.reconciliation_passed_target_sha = anchor
+    own = _commit_on_main(repo, "persisted.txt")
+
+    ex._carry_pass_anchor_over_own_commit(run, own)
+
+    assert run.state.reconciliation_passed_target_sha == anchor
+
+
+def test_teardown_hands_the_persist_commit_to_the_caller(tmp_path: Path) -> None:
+    """``on_persist_commit`` receives the SHA the persist leg returned, and only a real SHA."""
+    from specify_cli.coordination import teardown
+
+    seen: list[str] = []
+    with patch.object(teardown, "_persist_retrospective", return_value="a" * 40), patch.object(teardown, "_destroy_coordination_worktree", return_value=True):
+        teardown.teardown_coordination_topology(tmp_path, SLUG, "", on_persist_commit=seen.append)
+    assert seen == ["a" * 40]
+
+    seen.clear()
+    with patch.object(teardown, "_persist_retrospective", return_value=None), patch.object(teardown, "_destroy_coordination_worktree", return_value=True):
+        teardown.teardown_coordination_topology(tmp_path, SLUG, "", on_persist_commit=seen.append)
+    assert seen == [], "a persist that committed nothing has no commit to hand over"
 
 
 def test_late_commits_are_only_landed_by_a_resume(tmp_path: Path) -> None:

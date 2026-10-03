@@ -35,8 +35,10 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _LATE_SHA_FILE = "late-commit-sha.txt"
 
-# Runs the real CLI after wrapping ONE seam: the destroy leg first lands a real commit on the
-# coordination branch (inside its worktree), then calls the original destroy.
+# Runs the real CLI after wrapping up to two seams, each calling the REAL function:
+# * the destroy leg first lands a real commit on the coordination branch (inside its worktree);
+# * with FOREIGN_ON_RETRO set, the retrospective bookkeeping commit is followed by a FOREIGN
+#   commit on the target (a concurrent operator commit between our commit and the anchor carry).
 _INJECTION_DRIVER = """
 import os
 import subprocess
@@ -50,7 +52,7 @@ real_destroy = teardown._destroy_coordination_worktree
 
 def destroy_after_late_commit(repo_root, mission_slug, mid8):
     worktree = Path(os.environ["COORD_WORKTREE"])
-    note = worktree / "kitty-specs" / mission_slug / "late-status-emit.md"
+    note = worktree / "kitty-specs" / mission_slug / os.environ.get("LATE_NOTE_NAME", "late-status-emit.md")
     note.write_text("late status emit\\n", encoding="utf-8")
     late_event = os.environ.get("LATE_EVENT_JSON")
     if late_event:
@@ -67,9 +69,32 @@ def destroy_after_late_commit(repo_root, mission_slug, mid8):
 
 teardown._destroy_coordination_worktree = destroy_after_late_commit
 
+if os.environ.get("FOREIGN_ON_RETRO"):
+    import specify_cli.git.bookkeeping_commit as bookkeeping
+
+    real_commit = bookkeeping.commit_merge_bookkeeping
+
+    def commit_then_foreign(**kwargs):
+        result = real_commit(**kwargs)
+        if "capture mission retrospective" in kwargs.get("message", ""):
+            repo = str(kwargs["repo_root"])
+            (Path(repo) / "foreign.txt").write_text("foreign\\n", encoding="utf-8")
+            subprocess.run(["git", "-C", repo, "add", "foreign.txt"], check=True, capture_output=True)
+            subprocess.run(
+                ["git", "-C", repo, "-c", "user.name=Foreign", "-c", "user.email=foreign@example.com", "commit", "-q", "-m", "foreign target commit"],
+                check=True,
+                capture_output=True,
+            )
+        return result
+
+    bookkeeping.commit_merge_bookkeeping = commit_then_foreign
+
 from specify_cli import main
 
-sys.argv = ["spec-kitty", "consolidate", "--mission", os.environ["MISSION_SLUG"], "--yes"]
+argv = ["spec-kitty", "consolidate"]
+if os.environ.get("RESUME"):
+    argv.append("--resume")
+sys.argv = [*argv, "--mission", os.environ["MISSION_SLUG"], "--yes"]
 main()
 """
 
@@ -79,25 +104,31 @@ def _flat(result: subprocess.CompletedProcess[str]) -> str:
     return " ".join((result.stdout + result.stderr).split())
 
 
-def _coord_worktree(mission: CoordMission) -> Path:
-    for line in git_out(mission.repo, "worktree", "list").splitlines():
-        path = line.split()[0]
-        if "coord" in path:
-            return Path(path)
-    raise AssertionError("coordination worktree not found")
-
-
 def _branch_exists(mission: CoordMission, branch: str) -> bool:
     ref = f"refs/heads/{branch}"
     return subprocess.run(["git", "-C", str(mission.repo), "rev-parse", "--verify", ref], capture_output=True, check=False).returncode == 0
 
 
-def _consolidate_with_late_commit(mission: CoordMission, *, late_event: str | None = None) -> subprocess.CompletedProcess[str]:
+def _consolidate_with_late_commit(
+    mission: CoordMission,
+    *,
+    late_event: str | None = None,
+    resume: bool = False,
+    note_name: str = "late-status-emit.md",
+    sha_file: str = _LATE_SHA_FILE,
+    foreign_on_retro: bool = False,
+) -> subprocess.CompletedProcess[str]:
     env = cli_env(mission.home)
     if late_event is not None:
         env["LATE_EVENT_JSON"] = late_event
-    env["COORD_WORKTREE"] = str(_coord_worktree(mission))
-    env["LATE_SHA_FILE"] = str(mission.repo / _LATE_SHA_FILE)
+    if resume:
+        env["RESUME"] = "1"
+    if foreign_on_retro:
+        env["FOREIGN_ON_RETRO"] = "1"
+    env["LATE_NOTE_NAME"] = note_name
+    # Deterministic path: after a refusal the worktree is gone until the resume rematerializes it.
+    env["COORD_WORKTREE"] = str(mission.repo / ".worktrees" / f"{mission.slug}-coord")
+    env["LATE_SHA_FILE"] = str(mission.repo / sha_file)
     env["MISSION_SLUG"] = mission.slug
     return subprocess.run(
         [sys.executable, "-c", _INJECTION_DRIVER],
@@ -192,6 +223,65 @@ def test_5570_printed_recovery_advice_reaches_an_honest_end_state(tmp_path: Path
     assert "coordination_branch" not in meta, "the coordination marker must be flattened once the branch is gone"
     assert git_out(mission.repo, "status", "--porcelain", "--", "kitty-specs").strip() == "", "the resume must leave the mission dir clean"
     assert not list((mission.repo / ".kittify" / "runtime" / "merge").glob("*/state.json")), "a finished teardown must clear the consolidation record"
+
+
+def _persisted_anchor(mission: CoordMission) -> str | None:
+    state = json.loads((mission.repo / ".kittify" / "runtime" / "merge" / mission.mission_id / "state.json").read_text(encoding="utf-8"))
+    anchor = state.get("reconciliation_passed_target_sha")
+    return anchor if isinstance(anchor, str) else None
+
+
+def test_5570_a_foreign_target_commit_is_never_stamped_verified(tmp_path: Path) -> None:
+    """The PASS anchor follows only the commit THIS run made, never whatever the target tip is by then.
+
+    A foreign commit lands on the target right after our retrospective bookkeeping commit. The
+    anchor must stay at the verified tip, so the advised ``--resume`` runs the full claim again
+    (refusing, fail-closed) instead of skipping reconciliation over the unverified foreign commit.
+    """
+    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5570D")
+    refused = _consolidate_with_late_commit(mission, foreign_on_retro=True)
+    assert refused.returncode != 0, "fixture invalid: the first consolidate must refuse"
+    foreign_sha = mission.rev(mission.target_branch)
+    assert git_out(mission.repo, "log", "-1", "--format=%s", foreign_sha).strip() == "foreign target commit", (
+        "fixture invalid: the foreign commit must be the target tip"
+    )
+    verified_tip = git_out(mission.repo, "rev-parse", f"{foreign_sha}~2").strip()
+    assert _persisted_anchor(mission) == verified_tip, "the anchor must not follow a foreign target commit"
+
+    resumed = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
+    output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
+
+    assert resumed.returncode != 0, f"#5570: resume skipped full reconciliation over a foreign target commit\n{output}"
+    assert "Reconciliation refused" in _flat(resumed), output
+    assert mission.rev(mission.target_branch) == foreign_sha, "the foreign commit must stay on the target"
+    assert _branch_exists(mission, mission.coord_branch), "the coordination branch must be kept while the claim cannot be verified"
+
+
+def test_5570_coordination_branch_moving_again_after_the_late_projection_refuses_again(tmp_path: Path) -> None:
+    """A commit landing after the resume's own projection hits the compare-and-swap delete: kept, non-zero, then recoverable."""
+    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5570E")
+    first = _consolidate_with_late_commit(mission)
+    assert first.returncode != 0, "fixture invalid: the first consolidate must refuse"
+
+    second = _consolidate_with_late_commit(mission, resume=True, note_name="late-again.md", sha_file="late-again-sha.txt")
+    output = f"stdout:\n{second.stdout}\nstderr:\n{second.stderr}"
+    again_file = mission.repo / "late-again-sha.txt"
+    assert again_file.exists(), f"fixture invalid: the resume never reached the teardown seam\n{output}"
+    again_sha = again_file.read_text(encoding="utf-8").strip()
+
+    assert second.returncode != 0, f"#5570: the resume deleted a branch that moved after its projection\n{output}"
+    assert _branch_exists(mission, mission.coord_branch), f"the branch must be kept\n{output}"
+    assert mission.rev(mission.coord_branch) == again_sha, "the second late commit must still be the branch tip"
+    assert again_sha[:12] in _flat(second), f"the refusal must name the moved tip\n{output}"
+    assert "late-status-emit.md" in git_out(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch), "the first late commit was projected"
+    assert "late-again.md" not in git_out(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch)
+
+    third = run_terminus(mission, ["consolidate", "--resume", "--mission", mission.slug, "--yes"])
+    output = f"stdout:\n{third.stdout}\nstderr:\n{third.stderr}"
+    assert third.returncode == 0, f"the next resume must finish\n{output}"
+    target_files = git_out(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch)
+    assert "late-again.md" in target_files and "late-status-emit.md" in target_files, output
+    assert not _branch_exists(mission, mission.coord_branch)
 
 
 def test_5570_unmoved_coordination_branch_is_still_deleted(tmp_path: Path) -> None:

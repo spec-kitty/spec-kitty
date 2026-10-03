@@ -2976,24 +2976,29 @@ def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None)
     return True
 
 
-def _carry_pass_anchor_to_tip(run: _MergeRunState, tip_before: str) -> None:
-    """Move the reconciliation PASS anchor over a target advance THIS run just made (#5570).
+def _carry_pass_anchor_over_own_commit(run: _MergeRunState, commit_sha: str) -> None:
+    """Carry the reconciliation PASS anchor over a target commit THIS run just made (#5570).
 
-    The anchor (:func:`_resume_reconciliation_already_passed`) is an exact-tip
-    compare-and-swap. Teardown's persist-before-destroy leg (retrospective) and the late
-    coordination landing below each add a bookkeeping commit to the target AFTER the gate
-    passed, so without this a ``--resume`` of a teardown that stopped right after would
-    no longer recognise the verified landing and re-run the claim against lane branches
-    that are already gone. Only an anchor that matched ``tip_before`` moves, and only to
-    the tip this run's own commit produced; an anchor that never matched (no PASS recorded,
-    the target moved by someone else) is left alone so the full gate still runs.
+    The anchor (:func:`_resume_reconciliation_already_passed`) is an exact-tip compare-and-swap.
+    Teardown's persist-before-destroy leg (retrospective) and the late coordination landing each
+    add a bookkeeping commit to the target AFTER the gate passed, so without a carry a ``--resume``
+    would no longer recognise the verified landing and re-run the claim against lane branches that
+    are already gone.
+
+    ``commit_sha`` is the SHA the commit step itself returned, never a fresh read of the target
+    tip: a foreign commit landing next to ours must not be stamped verified. The anchor moves only
+    when that commit is still the target tip AND its first parent is the current anchor (so it
+    sits directly on the verified landing). Anything else leaves the anchor alone, and the next
+    resume runs the full reconciliation (fail-closed).
     """
-    if not reconciliation_passed_for_tip(run.state, tip_before):
+    anchor = run.state.reconciliation_passed_target_sha
+    if not anchor or not commit_sha:
         return
-    tip_after = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
-    if tip_after and tip_after != tip_before:
-        run.state.reconciliation_passed_target_sha = tip_after
-        save_state(run.state, run.main_repo)
+    target = run.lanes_manifest.target_branch
+    if _resolve_ref_sha(run.main_repo, target) != commit_sha or _resolve_ref_sha(run.main_repo, f"{commit_sha}^") != anchor:
+        return
+    run.state.reconciliation_passed_target_sha = commit_sha
+    save_state(run.state, run.main_repo)
 
 
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
@@ -3035,8 +3040,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths]) if path.exists()]
     if not _paths_have_status_changes(run.main_repo, paths):
         return
-    tip_before = _resolve_ref_sha(run.main_repo, target)
-    commit_merge_bookkeeping(
+    landed = commit_merge_bookkeeping(
         repo_root=run.main_repo,
         worktree_root=run.main_repo,
         mission_slug=run.mission_slug,
@@ -3045,7 +3049,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         message=f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)",
         paths=tuple(paths),
     )
-    _carry_pass_anchor_to_tip(run, tip_before)
+    _carry_pass_anchor_over_own_commit(run, landed.sha)
     console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
 
 
@@ -3111,14 +3115,13 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
             expected_coord_sha=expected_coord_sha,
             reachability_ok=run.reconciliation_result.is_pass,
         )
-    target_tip_before_persist = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
     teardown_coordination_topology(
         run.main_repo,
         run.mission_slug,
         _mid8_for_teardown,
         projection_gate=projection_gate,
+        on_persist_commit=functools.partial(_carry_pass_anchor_over_own_commit, run),
     )
-    _carry_pass_anchor_to_tip(run, target_tip_before_persist)
     logger.debug(
         "Coordination topology teardown for %s-%s completed",
         run.mission_slug,

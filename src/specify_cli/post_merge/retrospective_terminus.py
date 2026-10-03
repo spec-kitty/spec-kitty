@@ -57,7 +57,7 @@ def run_retrospective_postcondition(
     mission_slug: str,
     repo_root: Path,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
-) -> None:
+) -> str | None:
     """Run the post-merge retrospective postcondition check.
 
     Checks whether ``kitty-specs/<slug>/retrospective.yaml`` exists after a
@@ -77,6 +77,12 @@ def run_retrospective_postcondition(
             ``"runtime_abandoned"`` so an abandoned mission is not tagged with
             completion provenance; the default keeps the merge/close-completion
             behaviour (``runtime_post_completion``).
+
+    Returns:
+        The SHA of the bookkeeping commit this call made, or ``None`` when it made
+        none (nothing dirty, or the fail-open commit failed). Lets a caller that
+        tracks the destination tip (the consolidation anchor, #5570) recognise the
+        commit as its own instead of re-reading the branch tip.
 
     Note:
         ``run_terminus`` (the old dead-code stub in the lifecycle module) is
@@ -152,7 +158,7 @@ def run_retrospective_postcondition(
     # event-log discipline (FR-016): a merged/closed mission must never be left with
     # an uncommitted append in its durable status.events.jsonl. Fail-open-but-loud —
     # a commit failure is reported, never raised (must not abort merge/close).
-    _commit_captured_retrospective(
+    return _commit_captured_retrospective(
         mission_slug=mission_slug,
         feature_dir=feature_dir,
         repo_root=repo_root,
@@ -261,8 +267,10 @@ def _commit_captured_retrospective(
     mission_slug: str,
     feature_dir: Path,
     repo_root: Path,
-) -> None:
+) -> str | None:
     """Commit the just-captured retrospective + its event-log append.
+
+    Returns the commit SHA, or ``None`` when nothing was committed.
 
     Routes through the ONE sanctioned protected-flow bookkeeping-commit surface
     (``git.bookkeeping_commit.commit_merge_bookkeeping``) that the ``spec-kitty
@@ -277,7 +285,7 @@ def _commit_captured_retrospective(
     candidates = [feature_dir / RETROSPECTIVE_FILENAME, feature_dir / _STATUS_EVENTS_FILENAME]
     paths = _paths_with_uncommitted_changes(repo_root, candidates)
     if not paths:
-        return  # nothing the capture wrote is dirty — already committed or absent
+        return None  # nothing the capture wrote is dirty — already committed or absent
 
     # coord-write-placement-closure-01KYCF83 WP03/FR-003: the destination is
     # resolved through the placement port (mission_slug -> commit_merge_bookkeeping)
@@ -299,7 +307,7 @@ def _commit_captured_retrospective(
     degrade_ref = _primary_target_branch(feature_dir)
 
     try:
-        commit_merge_bookkeeping(
+        result = commit_merge_bookkeeping(
             repo_root=repo_root,
             worktree_root=repo_root,
             mission_slug=mission_slug,
@@ -308,6 +316,7 @@ def _commit_captured_retrospective(
             branch=degrade_ref,
         )
         logger.debug("committed retrospective bookkeeping for mission %s", mission_slug)
+        return result.sha
     except Exception as exc:  # noqa: BLE001 — fail-open: report but never abort merge/close
         joined = " ".join(str(p) for p in paths)
         logger.warning(
@@ -321,6 +330,7 @@ def _commit_captured_retrospective(
             repo_root,
             mission_slug,
         )
+        return None
 
 
 def _emit_capture_failed(
