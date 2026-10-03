@@ -1,0 +1,20 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 3
+verdicts:
+  - id: PR-CONTRACT-002
+    verdict: confirmed
+    reason: events.yaml Framing says every event has an id line while Scope/Resume say the unscoped stream has no usable cursor and a cursor without missionId is refused 400, so a browser Last-Event-ID reconnect on the unscoped stream is refused and the x-provisional note covers only framing and status choices, not this contradiction.
+  - id: PR-CONTRACT-003
+    verdict: confirmed
+    reason: LogTruncatedEvent.streamCursor is const offset 0 with the empty digest and Framing makes it the id line, so an automatic Last-Event-ID resume from offset 0 is a valid cursor (empty digest always matches) and would replay the log, contradicting the resync instruction.
+  - id: PR-CONTRACT-004
+    verdict: confirmed
+    reason: streamEvents lists only 200, 400, 409 and default while sibling getMission and getWorkPackage define 404, and an unknown but well-formed missionId has no stated response.
+  - id: PR-CONTRACT-007
+    verdict: refuted
+    reason: Every real model, provider and agent_profile_version value in kitty-specs WP frontmatter and status.events.jsonl (claude-sonnet-5-5, claude-sonnet-4.6, opus, gpt-5, 1.0, the __resolved_*_absent__ markers) matches the ActorHandle pattern, a grep for non-matching values found none, and the bracketed id is hypothetical while null-on-mismatch is documented.
+  - id: PR-CONTRACT-008
+    verdict: confirmed
+    reason: The fixed token appears in spec.md D-14 as [path] and [email] but no schema description or example in contracts/mission-status names it (grep for [path] finds nothing), and the five free-text field descriptions promise only path replacement, not email.

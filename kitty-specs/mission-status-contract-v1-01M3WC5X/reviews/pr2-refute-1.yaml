@@ -1,0 +1,32 @@
+schema: review-refute/v1
+complete: true
+phase: pr2
+verdicts:
+  - id: PR2-TESTS-001
+    verdict: confirmed
+    severity: 4
+    reason: "Mutation reproduced at HEAD 517a7eaf7: replacing the sorted(...) return at tests/contract/_mission_status_payloads.py:895 by 'return entries' leaves test_mission_status_payloads.py and test_mission_status_reality.py green (724 passed); the only ordering assert (test_mission_status_payloads.py:713) runs on an already chronological log."
+  - id: PR2-CI-RELEASE-001
+    verdict: confirmed
+    severity: 3
+    reason: "Real pinned oasdiff 1.32.1 with a severity file raising the four RESPONSE_ADDITION_IDS: planting a new allOf branch with a property in a response gives 'breaking' = [] (exit 0); changelog shows only response-body-all-of-added at level 1 (INFO), id not in breaking_check.py:80 set."
+  - id: PR2-CI-RELEASE-003
+    verdict: confirmed
+    severity: 2
+    reason: "Root spec.md:102 (D-2) still ends 'Adding a response property is still a non-breaking, minor-version change' and :365 (FR-016) lists breaking changes without it, contradicting breaking_check.py/README; spec.md is tracked on origin/main and not touched by the stack. Validity only; severity 2 because the remedy is a close-out correction/ruling record, not code rework."
+  - id: PR2-CI-RELEASE-002
+    verdict: confirmed
+    severity: 2
+    reason: "oasdiff 1.32.1 on a planted new 201 status and a new response header reports response-success-status-added and response-header-added at level 1 and breaking (with the severity file) returns []; README.md:290 says a change to the shape of a response ships as a new release. The wording is arguably loose (status/header are not property shape), hence a minor severity with narrow-the-README as an acceptable remedy."
+  - id: PR2-CI-RELEASE-004
+    verdict: partial
+    severity: 2
+    reason: "Verified: for 1.0.0-SNAPSHOT+b1 release_check.is_snapshot is True (release_check.py:83 strips +build) while latest_release_tag (breaking_check.py:154) returns contract-x-v1.0.0-SNAPSHOT+b1 as a baseline, a real inconsistency. The lower-case and SNAPSHOT.1 variants are legal semver prereleases (released with --prerelease) and outside the maintainer's exact '-SNAPSHOT' rule, so that part is overreach."
+  - id: PR2-CI-RELEASE-005
+    verdict: confirmed
+    severity: 2
+    reason: "contracts-release.yml:9/:52 runs only bundle + release_check on a tag push, with no ancestor-of-main check and no breaking_check; in scope, not pre-existing on main: the file is added by 6b1ca0050, an ancestor of seam4 and absent from origin/main (18 stack commits below seam4's head). Severity 2 since a tag ruleset can legitimately be the control."
+  - id: PR2-CI-RELEASE-006
+    verdict: partial
+    severity: 1
+    reason: "Confirmed that negative_cases.json has no CHECKSUMS_UNVERIFIED plant (grep: only code and tests; the verify-pins cases at :1049-1090 use --artifacts or --pins-only). But the refusal is covered by tests/contract/test_verify_pins.py:107-122 (including the CLI stdout assertion at :113) and by the workflow guard at tests/ci/test_contracts_workflows.py:144, so the gap is a missing permanent plant, not an unguarded refusal."
