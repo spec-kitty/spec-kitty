@@ -2,7 +2,7 @@
 title: Install Spec Kitty on Windows
 description: Install the Spec Kitty 3.2 CLI on Windows 10 or 11 with PowerShell, pipx, uv, or a virtual environment.
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-10-03'
 type: how-to
 related:
 - docs/guides/how-to/installation/install-linux.md
@@ -22,23 +22,50 @@ Install the `spec-kitty` CLI on Windows 10 or Windows 11. PowerShell is recommen
 ## Prerequisites
 
 - Windows 10 21H2 or newer (Windows 11 preferred).
-- **Python 3.11+** from [python.org](https://www.python.org/downloads/windows/) or the Microsoft Store. During install, tick **"Add Python to PATH"** and **"Install py launcher"**.
-- Verify (in PowerShell or CMD):
-
-  ```powershell
-  py --version
-  # or
-  python --version
-  ```
-
-  On Windows the `py` launcher is the canonical way to invoke a specific Python:
-
-  ```powershell
-  py -3.12 --version
-  py -3.11 -m pip --version
-  ```
-
+- **Python 3.11, 3.12 or 3.13 from [python.org](https://www.python.org/downloads/windows/).** Spec Kitty is tested on these three versions. **Do not install Python from the Microsoft Store**, and do not follow the Store prompt that appears when you type `python` on a fresh Windows install. See [Get Python from python.org, not the Microsoft Store](#get-python-from-pythonorg-not-the-microsoft-store).
 - Optional: install [Windows Terminal](https://aka.ms/terminal) for a nicer shell experience.
+
+## Get Python from python.org, not the Microsoft Store
+
+python.org offers two ways to install Python on Windows. Either works with Spec Kitty.
+
+**Option A: Python install manager (python.org's current recommendation).** Download **Python install manager** from [python.org/downloads/windows](https://www.python.org/downloads/windows/) and run it. Then install a version Spec Kitty is tested on. The manager's default is the newest Python, which may be newer than 3.13:
+
+```powershell
+py install 3.13
+py list
+```
+
+**Option B: the per-version installer.** From the same page, download **Windows installer (64-bit)** for a Python 3.13 release. During install, tick **"Add python.exe to PATH"** and keep **"py launcher"** selected. python.org deprecated this installer in Python 3.14 and will not produce it for Python 3.16 or later.
+
+Verify in a **new** PowerShell window:
+
+```powershell
+py -3.13 -c "import sys; print(sys.version); print(sys.executable)"
+```
+
+On Windows the `py` launcher is the canonical way to invoke a specific Python:
+
+```powershell
+py -3.13 --version
+py -3.13 -m pip --version
+```
+
+### Check that your Python is not from the Microsoft Store
+
+The python.org install manager is an MSIX package, so it also lives under `%LOCALAPPDATA%\Microsoft\WindowsApps`. Checking the install path is therefore not enough to tell python.org from the Store. Check the package publisher ID instead:
+
+```powershell
+Get-AppxPackage *Python* | Select-Object Name, PackageFamilyName
+```
+
+| `PackageFamilyName` ends in | Source | What to do |
+| --- | --- | --- |
+| `_3847v3x7pw1km` | python.org (Python install manager) | Nothing. This is the supported install. |
+| `_qbz5n2kfra8p0` | Microsoft Store (the Store install manager, or a Store `Python.3.x` package) | Uninstall it from **Settings → Apps → Installed apps**, then install from python.org as above. |
+| *(no Python rows)* | python.org per-version installer, or no Python at all | Run `py -0p`. Paths under `%LOCALAPPDATA%\Programs\Python\` or `%ProgramFiles%\Python…` are python.org installs. |
+
+If `where.exe python` lists only `%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe` and `py` is not found, you have the Windows **App execution alias** stub, not a real Python. Running it opens the Microsoft Store. Turn the stub off (see [Troubleshooting](#troubleshooting)) and install from python.org.
 
 ## Method 1: pipx (recommended for global tool install)
 
@@ -72,7 +99,7 @@ spec-kitty --version
 ## Method 3: pip in a venv (contributor path)
 
 ```powershell
-py -3.12 -m venv .venv
+py -3.13 -m venv .venv
 .venv\Scripts\Activate.ps1     # PowerShell
 # or:
 .venv\Scripts\activate.bat     # CMD
@@ -140,19 +167,21 @@ $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
 The Windows `py` launcher picks the right Python version even when several are installed:
 
 ```powershell
-py -3.12 -m pip install --upgrade pip
-py -3.12 -m pipx install spec-kitty-cli
+py -3.13 -m pip install --upgrade pip
+py -3.13 -m pipx install spec-kitty-cli
 ```
 
-Plain `python` may resolve to a Microsoft Store stub on a fresh install; `py` always resolves to a real Python.
+Plain `python` may resolve to the Microsoft Store stub on a fresh install. `py` resolves to a real Python when one is installed from python.org, and is not found otherwise.
 
 ## Troubleshooting
 
 **`spec-kitty` is "not recognized as the name of a cmdlet"** — PATH issue. Run `pipx ensurepath`, open a new PowerShell window, then `where.exe spec-kitty` to confirm where it lives.
 
-**`SSL: CERTIFICATE_VERIFY_FAILED` during `pip install`** — Your Python install is too old. Reinstall Python 3.11+ from python.org.
+**`SSL: CERTIFICATE_VERIFY_FAILED` during `pip install`** — Your Python install is too old. Reinstall Python 3.13 from python.org.
 
-**Microsoft Store Python stub opens instead of running pip** — Settings → Apps → Advanced app settings → App execution aliases → toggle off the App Installer entries for `python.exe` and `python3.exe`, then reopen your shell.
+**The Microsoft Store opens, or "Python was not found; run without arguments to install from the Microsoft Store" appears, when you run `python`** — This is the App execution alias stub, not a Python install. Do not install from the Store. Open **Settings → Apps → Advanced app settings → App execution aliases**, turn off the **App Installer** entries for `python.exe` and `python3.exe`, install Python from python.org (see [above](#get-python-from-pythonorg-not-the-microsoft-store)), then open a new shell.
+
+**Python came from the Microsoft Store** — `Get-AppxPackage *Python*` shows a `PackageFamilyName` ending in `_qbz5n2kfra8p0`. Uninstall it from **Settings → Apps → Installed apps**, install from python.org, then reinstall Spec Kitty (`pipx install spec-kitty-cli`) so it uses the new Python.
 
 **Antivirus blocks installs** — Corporate antivirus sometimes quarantines Python wheels. Whitelist the cache directory pipx prints when it errors.
 
