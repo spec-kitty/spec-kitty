@@ -31,7 +31,8 @@
 
 ## R-07 Existing overlap
 
-- `tests/specify_cli/migration/test_dogfood_corpus_backfilled.py` already walks the corpus for runtime-state cutover; the new parity gate sits beside it. PR #5581's reality check (unmerged) counts disagreements against a ceiling; once both land, its ceiling becomes 0 (follow-up note in the PR body, not a dependency).
+- `tests/specify_cli/migration/test_dogfood_corpus_backfilled.py` already walks the corpus for runtime-state cutover; the new parity gate sits beside it.
+- **Merge-order dependency on PR #5581 (corrected).** This mission imports nothing from #5581 (C-004), but the two are not independent at merge time. #5581's `test_the_ceiling_is_not_stale` pins its ceiling at 52 and requires measured >= ceiling. After this drain the measured residue is about 8, so whichever PR lands second goes red until its ceiling is lowered (or retired). Whoever lands second owns that edit. Recommendation: retire #5581's count ratchet in favour of this mission's set-based parity gate (`test_corpus_wp_snapshot_parity.py`), which is stricter (per-WP set equality, permanent carve-outs listed with reasons, live-coordination Missions skipped and named) and cannot be satisfied by a count that merely stays under a ceiling.
 
 ## Adversarial dispositions (post-spec squad)
 
