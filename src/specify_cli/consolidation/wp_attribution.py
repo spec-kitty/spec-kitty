@@ -539,7 +539,7 @@ def _first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[
     return None
 
 
-def lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable[str]) -> frozenset[str]:
+def _lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable[str]) -> frozenset[str]:
     """Commits after *coord_base_ref* that predate a lane's own work (the lane-base authority).
 
     The union of ``coord_base_ref..anchor`` over every anchor: the lane head at its
@@ -567,7 +567,7 @@ def lane_own_commits(repo_root: Path, coord_base_ref: str, lane_commits: Iterabl
     Commits that precede the lane's base (shared ancestry reachable from an
     anchor) are never "own" — an approved lane that shares them keeps them.
     """
-    return frozenset(lane_commits) - lane_exempt_commits(repo_root, coord_base_ref, anchors)
+    return frozenset(lane_commits) - _lane_exempt_commits(repo_root, coord_base_ref, anchors)
 
 
 def _outside_after_anchors(
@@ -594,7 +594,7 @@ def _outside_after_anchors(
     """
     if not outside:
         return outside
-    exempt = lane_exempt_commits(repo_root, coord_base_ref, anchors) - never_exempt
+    exempt = _lane_exempt_commits(repo_root, coord_base_ref, anchors) - never_exempt
     return tuple(item for item in outside if item[0] not in exempt)
 
 
@@ -718,7 +718,6 @@ __all__ = [
     "Unattributable",
     "UnattributableReason",
     "CanceledPathState",
-    "lane_exempt_commits",
     "lane_own_commits",
     "resolve_canceled_wp",
 ]
