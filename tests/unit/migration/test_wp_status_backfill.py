@@ -457,6 +457,20 @@ def test_materialised_coordination_worktree_is_live_and_a_run_from_it_is_not_ref
     assert planner.coordination_surface_is_live(coord_dir) is False
 
 
+def test_liveness_probe_only_runs_for_a_mission_with_something_to_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The probe can cost a remote lookup, so a Mission with no WP gap never reaches it."""
+    feature_dir = _build_mission(tmp_path, wp_ids=("WP01",), seeded=("WP01",), meta_extra={"topology": "coord", "coordination_branch": COORD_BRANCH})
+
+    def _boom(_dir: Path) -> bool:
+        raise AssertionError("liveness probed for a Mission with nothing to seed")
+
+    monkeypatch.setattr(b, "coordination_surface_is_live", _boom)
+
+    assert b.apply_wp_status_backfill(feature_dir).skip_reason == "nothing new to seed (idempotent)"
+    (feature_dir / "status.events.jsonl").write_text("{not json\n", encoding="utf-8")
+    assert b.apply_wp_status_backfill(feature_dir).error is not None  # unreadable log: reported, probe untouched
+
+
 def test_deleted_coordination_branch_is_not_live(tmp_path: Path) -> None:
     feature_dir, _git = _coord_mission(tmp_path, branch_exists=False)
 
@@ -471,6 +485,14 @@ def test_completed_coordination_mission_is_not_live_because_primary_is_the_recor
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
     assert planner.coordination_surface_is_live(feature_dir) is False
+
+
+def test_mission_declaring_no_coordination_branch_is_never_live(tmp_path: Path) -> None:
+    feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",))
+    (tmp_path / ".git").mkdir()  # a repository, so only the declared-branch pre-check can answer
+
+    assert planner.coordination_surface_is_live(feature_dir) is False
+    assert planner.coordination_surface_is_live(tmp_path / "kitty-specs" / "no-meta-at-all") is False
 
 
 def test_mission_outside_a_repository_is_not_live(tmp_path: Path) -> None:

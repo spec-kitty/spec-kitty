@@ -8,6 +8,12 @@ committed ``kitty-specs/<slug>/`` that has WP files *or* a snapshot WP:
 
 * ``files_only`` (a WP file the snapshot lacks) is **never** exemptable. The fix is
   more seed events (``spec-kitty migrate backfill-wp-status``), never a waiver.
+* A Mission whose status authority is a **live coordination surface** is *skipped*,
+  not exempted: its PRIMARY-partition log is not the authority, so a comparison
+  against it proves nothing, and the repair CLI refuses it (``COORD_SURFACE_LIVE``)
+  for the same reason. It uses the repair CLI's own detector
+  (``wp_status_backfill.coordination_surface_is_live``) and is always listed in the
+  gate's failure and diagnostic output so it cannot hide.
 * ``snapshot_only`` (a snapshot WP with no WP file) is reported by the repair CLI but
   cannot be repaired: files are not invented and events are not deleted. Each such
   Mission is a *priced exemption* in :data:`SNAPSHOT_ONLY_EXEMPTIONS` (Standing
@@ -28,13 +34,14 @@ from __future__ import annotations
 
 import shutil
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.migration.wp_status_backfill import coordination_surface_is_live
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import StoreError
 from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
@@ -99,6 +106,10 @@ class MissionParity:
     malformed: tuple[str, ...] = ()
     #: Set when the event log could not be reduced; the Mission is then unverifiable.
     unreadable: str | None = None
+    #: The status authority is a live coordination surface, so the PRIMARY-partition
+    #: comparison is meaningless: the Mission is skipped (never exempted) and listed.
+    #: Only probed for a Mission that disagrees (see :func:`inspect_mission`).
+    coordination_live: bool = False
 
 
 def _test_checkout_root() -> Path:
@@ -136,6 +147,10 @@ def collect_wp_file_ids(tasks_dir: Path) -> tuple[frozenset[str], tuple[str, ...
     return frozenset(ids), tuple(malformed)
 
 
+def _has_disagreement(parity: MissionParity) -> bool:
+    return bool(parity.files_only or parity.snapshot_only or parity.malformed or parity.unreadable)
+
+
 def inspect_mission(mission_dir: Path) -> MissionParity | None:
     """Compare one Mission's WP files with its reduced snapshot; ``None`` when out of scope.
 
@@ -150,13 +165,18 @@ def inspect_mission(mission_dir: Path) -> MissionParity | None:
         unreadable = f"{type(exc).__name__}: {exc}"
     if not (file_ids or snapshot_ids or malformed or unreadable):
         return None
-    return MissionParity(
+    parity = MissionParity(
         slug=mission_dir.name,
         files_only=file_ids - snapshot_ids,
         snapshot_only=snapshot_ids - file_ids,
         malformed=malformed,
         unreadable=unreadable,
     )
+    # The probe can cost a remote lookup per Mission, so it only runs for a Mission
+    # the comparison would otherwise fail; an agreeing Mission has nothing to skip.
+    if _has_disagreement(parity) and coordination_surface_is_live(mission_dir):
+        return replace(parity, coordination_live=True)
+    return parity
 
 
 def scan_corpus(corpus: Path) -> dict[str, MissionParity]:
@@ -197,9 +217,27 @@ def parity_violations(
     """Every disagreement between WP files and snapshot not waived by an exemption."""
     violations: list[str] = []
     for slug, parity in scanned.items():
+        if parity.coordination_live:
+            continue  # skipped, never exempted; listed by skipped_live_coordination
         exempt_ids = exemptions[slug][0] if slug in exemptions else frozenset()
         violations.extend(_parity_violation(parity, exempt_ids))
     return violations
+
+
+def skipped_live_coordination(scanned: Mapping[str, MissionParity]) -> list[str]:
+    """Slugs the gate could not verify because their status authority is a live coordination surface."""
+    return sorted(slug for slug, parity in scanned.items() if parity.coordination_live)
+
+
+def skipped_note(scanned: Mapping[str, MissionParity]) -> str:
+    """Diagnostic naming every skipped Mission (empty string when none), appended to gate output."""
+    skipped = skipped_live_coordination(scanned)
+    if not skipped:
+        return ""
+    return (
+        f"\n  Skipped {len(skipped)} Mission(s) with a live coordination surface (their PRIMARY-partition log is not "
+        f"the authority; verify them from the coordination checkout, they are NOT exempted): {', '.join(skipped)}"
+    )
 
 
 def stale_exemption_violations(
@@ -233,7 +271,10 @@ def corpus_scan() -> dict[str, MissionParity]:
 def test_corpus_wp_files_and_snapshot_agree(corpus_scan: dict[str, MissionParity]) -> None:
     """THE GATE: no Mission's WP-file id set differs from its snapshot id set, bar priced exemptions."""
     violations = parity_violations(corpus_scan, SNAPSHOT_ONLY_EXEMPTIONS)
-    assert not violations, "WP files and status snapshot disagree (#5579):\n  " + "\n  ".join(violations)
+    note = skipped_note(corpus_scan)
+    if note:
+        print(note.strip())  # diagnostic on a passing run too (shown with -rP / on failure)
+    assert not violations, "WP files and status snapshot disagree (#5579):\n  " + "\n  ".join(violations) + note
 
 
 def test_snapshot_only_exemptions_are_exact_and_not_stale(corpus_scan: dict[str, MissionParity]) -> None:
@@ -315,8 +356,16 @@ def _parity(
     snapshot_only: frozenset[str] = frozenset(),
     malformed: tuple[str, ...] = (),
     unreadable: str | None = None,
+    coordination_live: bool = False,
 ) -> MissionParity:
-    return MissionParity(slug=slug, files_only=files_only, snapshot_only=snapshot_only, malformed=malformed, unreadable=unreadable)
+    return MissionParity(
+        slug=slug,
+        files_only=files_only,
+        snapshot_only=snapshot_only,
+        malformed=malformed,
+        unreadable=unreadable,
+        coordination_live=coordination_live,
+    )
 
 
 def test_parity_violations_helper_branches() -> None:
@@ -376,3 +425,50 @@ def test_collect_wp_file_ids_reports_malformed_files(tmp_path: Path) -> None:
     assert ids == frozenset({_WP01})
     assert set(malformed) == {"WP02-no-id.md", "WP03-no-frontmatter.md"}
     assert collect_wp_file_ids(tmp_path / "absent") == (frozenset(), ())
+
+
+def test_live_coordination_missions_are_skipped_listed_and_never_exempted() -> None:
+    """A live-coordination Mission is not judged against its PRIMARY-partition log, but is always named."""
+    ids = frozenset({_WP01})
+    live = _parity("live", files_only=ids, snapshot_only=frozenset({"WP09"}), malformed=("WP02-x.md",), unreadable="boom", coordination_live=True)
+    plain = _parity("plain", files_only=ids)
+    scanned = {"live": live, "plain": plain}
+
+    violations = parity_violations(scanned, {})
+
+    assert violations and all(line.startswith("plain:") for line in violations), "the live Mission is skipped; the plain one still fails"
+    assert skipped_live_coordination(scanned) == ["live"]
+    note = skipped_note(scanned)
+    assert "live" in note and "NOT exempted" in note and "1 Mission(s)" in note
+    assert skipped_note({"plain": plain}) == ""
+    # A skip is not an exemption: nothing about it can waive the plain Mission's files_only gap.
+    assert parity_violations({"plain": plain}, {"plain": (ids, _WHY)})
+
+
+def test_inspect_mission_marks_a_live_coordination_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``inspect_mission`` takes the verdict from the repair CLI's detector, so the two cannot drift."""
+    mission = tmp_path / "live-mission"
+    (mission / _TASKS).mkdir(parents=True)
+    (mission / _TASKS / "WP01-a.md").write_text("---\nwork_package_id: WP01\ntitle: a\n---\n", encoding="utf-8")
+
+    probed: list[Path] = []
+
+    def _live(directory: Path) -> bool:
+        probed.append(directory)
+        return True
+
+    monkeypatch.setattr(f"{__name__}.coordination_surface_is_live", _live)
+
+    # An agreeing Mission is never probed (the probe can cost a remote lookup).
+    (mission / "status.events.jsonl").write_text(
+        '{"event_id":"01AAAAAAAAAAAAAAAAAAAAAAB1","mission_slug":"live-mission","wp_id":"WP01","from_lane":"genesis",'
+        '"to_lane":"planned","at":"2026-01-02T03:04:05+00:00","actor":"t","force":false,"execution_mode":"worktree"}\n',
+        encoding="utf-8",
+    )
+    agreeing = inspect_mission(mission)
+    assert agreeing is not None and agreeing.coordination_live is False and probed == []
+
+    (mission / "status.events.jsonl").unlink()  # now WP01 is files_only
+    live = inspect_mission(mission)
+    assert live is not None and live.coordination_live is True and probed == [mission]
+    assert parity_violations({live.slug: live}, {}) == []

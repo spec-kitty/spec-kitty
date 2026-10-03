@@ -1629,7 +1629,7 @@ def apply_wp_status_backfill(
     if not (feature_dir / "tasks").is_dir():
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason="no tasks/ directory")
     # Before the lock: the liveness probe may run git, which the locked section must not.
-    if coordination_surface_is_live(feature_dir):
+    if _refused_for_live_coordination(feature_dir):
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason=COORD_SURFACE_LIVE)
     lock_root = resolve_status_lock_root(feature_dir, None)
     try:
@@ -1637,6 +1637,22 @@ def apply_wp_status_backfill(
             return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence)
     except (StoreError, OSError, MissionMetaReadError) as exc:
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, error=f"{type(exc).__name__}: {exc}")
+
+
+def _refused_for_live_coordination(feature_dir: Path) -> bool:
+    """Whether *feature_dir* has WPs to seed AND a live coordination surface (refuse it).
+
+    The liveness probe can cost a remote lookup per Mission (a deleted coordination
+    branch falls through to the remote-ref primitive), so it only runs for a Mission
+    that actually has a WP file the snapshot lacks; a Mission with nothing to seed
+    is reported by the normal path without touching git. An unreadable log is left
+    to the locked path, which reports it as the Mission's error.
+    """
+    try:
+        needs_seeding = bool(plan_wp_status_backfill(feature_dir).gap.files_only)
+    except (StoreError, OSError):
+        return False
+    return needs_seeding and coordination_surface_is_live(feature_dir)
 
 
 def _apply_wp_status_backfill_locked(
