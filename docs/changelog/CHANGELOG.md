@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-02'
+updated: '2026-10-03'
 ---
 # Changelog
 
@@ -27,6 +27,7 @@ this section at publish._
 ### Added
 
 - **A coordination mission keeps its status, decision and trace records in one place from the moment it is created** (#5440). **Before:** those records were written in your repository root checkout until a coordination worktree existed, and later commands could look in a different place. **After:** create puts them on the coordination surface immediately. `spec-kitty accept` commits an uncommitted decision ledger for the current mission onto your target branch. A real `spec-kitty consolidate` creates a missing coordination worktree and continues. `spec-kitty consolidate --dry-run` still stops without creating one.
+- **`spec-kitty migrate backfill-wp-status` repairs Missions whose status snapshot misses work packages** (#5579). **Before:** the snapshot omits any work package (WP) with no lane event, so 51 Missions' snapshot WP counts disagreed with their `tasks/WP*.md` files and every surface that lists WPs from the files under-counted. **After:** one run appends the missing `planned` events (actor `migration:backfill_wp_status`), and a Mission that is finished (`meta.json` `merged_at`/`accepted_at`, or an entry in `--evidence-manifest`) lands in `done`. The command takes `--mission`, `--dry-run`, `--evidence-manifest` and `--json`, is idempotent, and leaves WPs that already have lane events untouched. The evidence manifest must be complete on the first live run; evidence supplied later is a no-op. This repository's corpus is drained (417 events over 44 Missions), and a corpus parity test keeps it that way. See [How to repair a Mission whose status snapshot misses work packages](../migrations/backfill-wp-status.md).
 
 ### Fixed
 

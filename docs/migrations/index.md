@@ -2,13 +2,14 @@
 title: Migrations
 description: 'Migration hub for upgrading Spec Kitty projects to 3.2: current migration paths, historical cutover runbooks, and the migration/shim ruleset with its registry.'
 doc_status: active
-updated: '2026-07-04'
+updated: '2026-10-03'
 related:
 - docs/context/index.md
 - docs/changelog/index.md
 - docs/migrations/migration-and-shim-rules.md
 - docs/migrations/2-1-main-cutover-checklist.md
 - docs/migrations/charter-ownership-consolidation.md
+- docs/migrations/backfill-wp-status.md
 - docs/migrations/cross-repo-e2e-gate.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
 - docs/migrations/feature-flag-deprecation.md
@@ -42,6 +43,7 @@ Use these pages when an existing project, script, or operator habit predates the
 - [Migrating from 2.x / early 3.x](from-charter-2x.md)
 - [Doctrine local overlay to org layer](doctrine-local-overlay-to-org-layer.md)
 - [Mission ID canonical identity](mission-id-canonical-identity.md)
+- [Repair a Mission whose status snapshot misses work packages](backfill-wp-status.md) — `spec-kitty migrate backfill-wp-status`.
 - [Legacy topology to the coordination model](legacy-to-coordination.md)
 - [Mission type flag deprecation](mission-type-flag-deprecation.md)
 - [Feature flag deprecation](feature-flag-deprecation.md)
