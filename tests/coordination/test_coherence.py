@@ -242,13 +242,14 @@ def test_repair_reverts_strand_then_is_a_byte_stable_noop_on_reapply(tmp_path: P
         )
     _git(worktree, "add", ".")
     _git(worktree, "commit", "-m", "bake WP-A done (strands on rollback)")
+    strand_sha = _git(worktree, "rev-parse", "HEAD").stdout.strip()
 
     # Pre-condition: WP-A is stranded done on the committed ref.
     assert coord_incoherent_done_wps(
         "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
     ) == ["WP-A"]
 
-    # First repair: performs the git revert.
+    # First repair: performs the git revert of the recorded strand commit (#5572).
     first = repair_coord_strand(
         coord_ref="coord",
         captured_sha=captured_sha,
@@ -256,6 +257,7 @@ def test_repair_reverts_strand_then_is_a_byte_stable_noop_on_reapply(tmp_path: P
         candidate_wps=["WP-A"],
         repo_root=repo,
         feature_dir=feature_dir,
+        strand_shas=[strand_sha],
     )
     assert isinstance(first, CoordRepairOutcome)
     assert first.healed is True

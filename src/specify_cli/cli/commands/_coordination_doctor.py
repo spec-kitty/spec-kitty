@@ -34,6 +34,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -45,6 +46,9 @@ from specify_cli.mission_metadata import load_meta
 
 from . import _doctor_shared
 from ._doctor_shared import console
+
+if TYPE_CHECKING:
+    from specify_cli.coordination.coherence import CoordRepairOutcome
 
 # ``__all__`` lists this sibling's cross-module contract: the entrypoint +
 # ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports, plus
@@ -155,6 +159,23 @@ _STRANDED_COORD_REVERT_BRANCH_MISMATCH_HINT = (
     "wrong branch instead of the coordination ref). Switch the worktree back "
     f"to the coordination branch (see `{_WORKSPACE_RECOVERY_CMD}`), then "
     "re-run `--fix`."
+)
+
+#: UNRECORDED_STRAND variant (#5572): a live strand whose reconcile marker either
+#: recorded no strand commit SHAs (a legacy marker) or no longer matches the status
+#: log in ``captured_sha..HEAD`` (a reviewer's reopen or another status event landed
+#: after the strand). `repair_coord_strand` reverts ONLY the commits the marker
+#: recorded, so it refuses rather than guess — a revert would erase the later status
+#: event. It is STILL a committed-ref split-brain, so it stays an ``error`` (exit 1)
+#: and carries a manual-reconcile `next_step`, never the "run `--fix`" loop.
+_STRANDED_COORD_REVERT_UNRECORDED_CODE = "COORDINATION_STRANDED_COORD_REVERT_UNRECORDED"
+_STRANDED_COORD_REVERT_UNRECORDED_HINT = (
+    "`--fix` reverts only the strand commits recorded when the failed consolidation "
+    "wrote its marker, and will not guess. Reconcile the coordination status log "
+    "manually: list the status-log commits in the recorded range, revert only the "
+    "stranded `done` commit(s) yourself (keeping any later reopen), then clear the "
+    "stale `pending_coord_reconcile` marker in "
+    "`.kittify/runtime/merge/<mission_id>/state.json`."
 )
 
 #: An enumerated ``pending_coord_reconcile`` marker that cannot be parsed into
@@ -1071,6 +1092,8 @@ def _marker_extra(state: object, coord_ref: str, captured_sha: str,
                   coord_worktree: str, candidate_wps: list[str],
                   remaining: list[str]) -> dict[str, object]:
     """Assemble the stable ``extra`` payload shared by the strand findings."""
+    from specify_cli.consolidation.state import STRAND_SHAS_KEY, marker_strand_shas
+
     return {
         "mission_id": getattr(state, "mission_id", None),
         "mission_slug": getattr(state, "mission_slug", None),
@@ -1079,6 +1102,7 @@ def _marker_extra(state: object, coord_ref: str, captured_sha: str,
         "coord_worktree": coord_worktree,
         "candidate_wps": candidate_wps,
         "stranded_wp_ids": remaining,
+        STRAND_SHAS_KEY: marker_strand_shas(getattr(state, "pending_coord_reconcile", None)),
     }
 
 
@@ -1230,6 +1254,34 @@ def _clear_pending_marker(repo_root: Path, mission_id: str) -> None:
     save_state(state, repo_root)
 
 
+def _unrecorded_strand_finding(
+    outcome: CoordRepairOutcome, mission_id: str, mission_slug: str, coord_ref: str
+) -> DoctorFinding:
+    """#5572: the honest ``error`` for a heal refused over unrecorded status commits.
+
+    Never a success claim: nothing was reverted and the marker is kept. A legacy
+    marker is named as such; otherwise the foreign commits are listed so the operator
+    can see what a revert would have erased.
+    """
+    if outcome.legacy_marker:
+        detail = "its reconcile marker predates recorded strand commits"
+    elif outcome.foreign_status_commits:
+        foreign = ", ".join(sha[:12] for sha in outcome.foreign_status_commits)
+        detail = f"the status log holds commit(s) the marker did not record ({foreign}), e.g. a later reopen"
+    else:
+        detail = "the status log no longer matches the commits the marker recorded"
+    return DoctorFinding(
+        severity="error",
+        message=(
+            f"Refusing to revert the stranded `done` on {coord_ref!r} for mission "
+            f"{mission_slug!r}: {detail}. Nothing was reverted; the marker is kept."
+        ),
+        next_step=_STRANDED_COORD_REVERT_UNRECORDED_HINT,
+        error_code=_STRANDED_COORD_REVERT_UNRECORDED_CODE,
+        extra={"mission_id": mission_id, "mission_slug": mission_slug},
+    )
+
+
 def _heal_one_strand(
     f: DoctorFinding, repo_root: Path
 ) -> tuple[str | None, DoctorFinding | None]:
@@ -1248,6 +1300,7 @@ def _heal_one_strand(
     """
     from mission_runtime import MissionArtifactKind
 
+    from specify_cli.consolidation.state import marker_strand_shas
     from specify_cli.coordination.coherence import repair_coord_strand
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
@@ -1290,10 +1343,13 @@ def _heal_one_strand(
         candidate_wps=candidate_wps,
         repo_root=repo_root,
         feature_dir=feature_dir,
+        strand_shas=marker_strand_shas(f.extra),
     )
     if outcome.healed:
         _clear_pending_marker(repo_root, mission_id)
         return mission_slug, None
+    if outcome.legacy_marker or outcome.strand_mismatch:
+        return None, _unrecorded_strand_finding(outcome, mission_id, mission_slug, coord_ref)
     if outcome.worktree_missing:
         # Still a committed-ref split-brain `--fix` couldn't heal — stays `error`
         # (exit 1) with a manual-recovery hint; a `warning` would exit 0 and hide it.

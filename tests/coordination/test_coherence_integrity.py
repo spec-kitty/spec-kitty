@@ -36,6 +36,7 @@ from specify_cli.coordination.coherence import (
     is_coord_residue_churn,
     is_toolchain_generated_churn,
     repair_coord_strand,
+    status_log_commits_in_range,
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -200,6 +201,7 @@ def test_strand_heal_reverts_only_recorded_sha_and_third_party_event_survives(
         candidate_wps=["WP-A"],
         repo_root=repo,
         feature_dir=feature_dir,
+        strand_shas=[strand_sha],
     )
 
     assert isinstance(outcome, CoordRepairOutcome)
@@ -241,6 +243,7 @@ def test_strand_heal_preserves_append_only_log_via_new_revert_commit(tmp_path: P
         candidate_wps=["WP-A"],
         repo_root=repo,
         feature_dir=feature_dir,
+        strand_shas=[strand_sha],
     )
     assert outcome.healed is True
 
@@ -254,6 +257,139 @@ def test_strand_heal_preserves_append_only_log_via_new_revert_commit(tmp_path: P
         check=False,
     )
     assert ancestry.returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# #5572 — the heal reverts ONLY the SHAs the marker recorded, or refuses
+# ---------------------------------------------------------------------------
+
+
+def _append_reopen_commit(worktree: Path, wp_id: str, *, event_id: str) -> str:
+    """A reviewer's reopen of ``wp_id`` as a real status-log commit; returns its SHA."""
+    wt_events = worktree / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
+    with wt_events.open("a", encoding="utf-8") as fh:
+        fh.write(
+            json.dumps(
+                _event(wp_id, "in_progress", at="2026-09-24T10:10:00+00:00", event_id=event_id, from_lane="approved"),
+                sort_keys=True,
+            )
+            + "\n"
+        )
+    _git(worktree, "add", ".")
+    _git(worktree, "commit", "-m", f"reviewer reopens {wp_id}")
+    return _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+
+def _strand_fixture(tmp_path: Path) -> tuple[Path, Path, Path, str, str]:
+    """A coord ref with WP-A/WP-B approved, then WP-A's stranded ``done`` committed.
+
+    Returns ``(repo, worktree, feature_dir, captured_sha, strand_sha)``.
+    """
+    repo = tmp_path / "repo"
+    feature_dir = _seed_committed_coord_ref(
+        repo,
+        [
+            _event("WP-A", "approved", at="2026-09-24T10:00:00+00:00", event_id="01A00", from_lane="in_review"),
+            _event("WP-B", "approved", at="2026-09-24T10:00:01+00:00", event_id="01B00", from_lane="in_review"),
+        ],
+    )
+    captured_sha = _git(repo, "rev-parse", "coord").stdout.strip()
+    worktree = tmp_path / "coord-wt"
+    _git(repo, "worktree", "add", str(worktree), "coord")
+    _append_done_commit(worktree, "WP-A", event_id="01A01")
+    return repo, worktree, feature_dir, captured_sha, _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+
+def _repair(repo: Path, worktree: Path, feature_dir: Path, captured_sha: str, strand_shas: list[str] | None) -> CoordRepairOutcome:
+    return repair_coord_strand(
+        coord_ref="coord",
+        captured_sha=captured_sha,
+        coord_worktree=worktree,
+        candidate_wps=["WP-A"],
+        repo_root=repo,
+        feature_dir=feature_dir,
+        strand_shas=strand_shas,
+    )
+
+
+def test_strand_heal_refuses_a_later_status_commit_the_marker_did_not_record(tmp_path: Path) -> None:
+    """A reviewer's reopen in ``captured_sha..HEAD`` is foreign: no revert, no mutation (#5572)."""
+    repo, worktree, feature_dir, captured_sha, strand_sha = _strand_fixture(tmp_path)
+    reopen_sha = _append_reopen_commit(worktree, "WP-B", event_id="01B01")
+    tip_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+    outcome = _repair(repo, worktree, feature_dir, captured_sha, [strand_sha])
+
+    assert outcome.healed is False
+    assert outcome.strand_mismatch is True
+    assert outcome.legacy_marker is False
+    assert outcome.foreign_status_commits == [reopen_sha]
+    assert outcome.error is None
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == tip_before, "a refusal must not add a revert commit"
+    assert _git(worktree, "status", "--porcelain").stdout == "", "a refusal must leave the worktree untouched"
+    # The strand is still live and the reopen is still the newest WP-B event.
+    assert coord_incoherent_done_wps("coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir) == ["WP-A"]
+
+
+def test_strand_heal_refuses_a_legacy_marker_without_recorded_shas(tmp_path: Path) -> None:
+    """A marker that predates ``strand_shas`` is never healed by guessing the range (#5572)."""
+    repo, worktree, feature_dir, captured_sha, _ = _strand_fixture(tmp_path)
+    tip_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+    outcome = _repair(repo, worktree, feature_dir, captured_sha, None)
+
+    assert outcome.healed is False
+    assert outcome.legacy_marker is True
+    assert outcome.strand_mismatch is False
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == tip_before
+    assert coord_incoherent_done_wps("coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir) == ["WP-A"]
+
+
+def test_strand_heal_refuses_when_a_recorded_sha_is_not_in_the_range(tmp_path: Path) -> None:
+    """The record and the heal-time range must agree both ways: a missing recorded SHA refuses."""
+    repo, worktree, feature_dir, captured_sha, strand_sha = _strand_fixture(tmp_path)
+    tip_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+    outcome = _repair(repo, worktree, feature_dir, captured_sha, [strand_sha, "0" * 40])
+
+    assert outcome.healed is False
+    assert outcome.strand_mismatch is True
+    assert outcome.foreign_status_commits == []
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == tip_before
+
+
+def test_strand_heal_reverts_every_recorded_sha_when_the_strand_spans_commits(tmp_path: Path) -> None:
+    """Positive control: a strand of two recorded commits is reverted newest-first and heals."""
+    repo, worktree, feature_dir, captured_sha, first_sha = _strand_fixture(tmp_path)
+    _append_done_commit(worktree, "WP-B", event_id="01B02")
+    second_sha = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+
+    outcome = repair_coord_strand(
+        coord_ref="coord",
+        captured_sha=captured_sha,
+        coord_worktree=worktree,
+        candidate_wps=["WP-A", "WP-B"],
+        repo_root=repo,
+        feature_dir=feature_dir,
+        strand_shas=[first_sha, second_sha],
+    )
+
+    assert outcome.healed is True
+    assert outcome.foreign_status_commits == []
+    assert coord_incoherent_done_wps("coord", ["WP-A", "WP-B"], repo_root=repo, feature_dir=feature_dir) == []
+
+
+def test_status_log_commits_in_range_is_newest_first_and_none_when_unreadable(tmp_path: Path) -> None:
+    """The shared enumerator: log-touching commits only, newest-first; ``None`` (not ``[]``) on git failure."""
+    repo, worktree, feature_dir, captured_sha, strand_sha = _strand_fixture(tmp_path)
+    (worktree / _THIRD_PARTY_FILE).write_text(_THIRD_PARTY_BODY, encoding="utf-8")
+    _git(worktree, "add", ".")
+    _git(worktree, "commit", "-m", "third party, does not touch the log")
+    reopen_sha = _append_reopen_commit(worktree, "WP-B", event_id="01B01")
+
+    assert status_log_commits_in_range(worktree, captured_sha, "HEAD", feature_dir) == [reopen_sha, strand_sha]
+    assert status_log_commits_in_range(worktree, "HEAD", "HEAD", feature_dir) == []
+    assert status_log_commits_in_range(worktree, "no-such-ref", "HEAD", feature_dir) is None
 
 
 # ---------------------------------------------------------------------------

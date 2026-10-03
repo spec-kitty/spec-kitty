@@ -637,8 +637,9 @@ def _save_marker_state(
     coord_ref: str = "coord",
     captured_sha: str = "deadbeef",
     coord_worktree: str = "/sentinel/coord-wt",
+    strand_shas: list[str] | None = None,
 ) -> None:
-    marker = {
+    marker: dict[str, object] = {
         "coord_ref": coord_ref,
         "captured_sha": captured_sha,
         "coord_worktree": coord_worktree,
@@ -646,6 +647,9 @@ def _save_marker_state(
         "revert_error": None,
         "detected_at": "2026-07-18T10:05:00+00:00",
     }
+    if strand_shas is not None:
+        # #5572: the heal reverts only the SHAs the marker recorded; an absent key is a legacy marker.
+        marker["strand_shas"] = strand_shas
     save_state(
         ConsolidationState(
             mission_id=_DOCTOR_MISSION_ID,
@@ -839,6 +843,13 @@ def _bake_stranding_done_dirty(repo: Path, tmp_path: Path) -> tuple[str, Path]:
     return captured_sha, worktree
 
 
+def _head_sha(worktree: Path) -> str:
+    """The coord worktree's HEAD — the stranding ``done`` commit just baked (the recorded strand SHA)."""
+    return subprocess.run(
+        ["git", "-C", str(worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
 def _porcelain(worktree: Path) -> str:
     return subprocess.run(
         ["git", "-C", str(worktree), "status", "--porcelain"],
@@ -882,6 +893,7 @@ def test_run_coordination_health_fix_heals_dirty_coord_worktree(
         stranded_wp_ids=["WP-A"],
         captured_sha=captured_sha,
         coord_worktree=str(worktree),
+        strand_shas=[_head_sha(worktree)],
     )
     feature_dir = repo / "kitty-specs" / _DOCTOR_MISSION_SLUG
 
@@ -926,6 +938,7 @@ def test_run_coordination_health_fix_heals_then_is_idempotent(
         stranded_wp_ids=["WP-A"],
         captured_sha=captured_sha,
         coord_worktree=str(worktree),
+        strand_shas=[_head_sha(worktree)],
     )
     feature_dir = repo / "kitty-specs" / _DOCTOR_MISSION_SLUG
 
@@ -976,6 +989,7 @@ def test_fix_stranded_reverts_direct_returns_healed_slug(tmp_path: Path) -> None
         stranded_wp_ids=["WP-A"],
         captured_sha=captured_sha,
         coord_worktree=str(worktree),
+        strand_shas=[_head_sha(worktree)],
     )
 
     findings = cd._check_stranded_coord_revert(repo)

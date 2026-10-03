@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -24,6 +24,8 @@ __all__ = [
     "MergeLockError",
     "ConsolidationStateReadError",
     "ConsolidationState",
+    "STRAND_SHAS_KEY",
+    "marker_strand_shas",
     "reconciliation_passed_for_tip",
     "save_state",
     "load_state",
@@ -104,6 +106,28 @@ def _str_list_or_empty(value: object) -> list[str]:
     return []
 
 
+#: Key under which a ``pending_coord_reconcile`` marker records the SHAs of the
+#: strand's own status-log commits (#5572). Optional: a marker written before the
+#: field existed has no such key and reads as ``None`` (see :func:`marker_strand_shas`).
+STRAND_SHAS_KEY = "strand_shas"
+
+
+def marker_strand_shas(marker: Mapping[str, Any] | None) -> list[str] | None:
+    """The strand commit SHAs a marker recorded, or ``None`` when it recorded none (#5572).
+
+    ``None`` means a legacy marker (it predates the field) or a malformed value;
+    the heal treats both as "nothing was recorded" and refuses rather than guess
+    which commits are the strand. An explicitly recorded empty list is returned
+    as ``[]`` — recorded, but no commit.
+    """
+    if not marker:
+        return None
+    value = marker.get(STRAND_SHAS_KEY)
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    return None
+
+
 def reconciliation_passed_for_tip(state: ConsolidationState, current_target_sha: str) -> bool:
     """True when a reconciliation PASS was recorded for exactly this target tip."""
     return bool(current_target_sha) and state.reconciliation_passed_target_sha == current_target_sha
@@ -135,7 +159,9 @@ class ConsolidationState:
     # dicts and drops unknown keys — so pre-existing state files that predate this
     # field simply rehydrate to ``None`` with no migration. Keys (see data-model):
     # ``coord_ref``, ``captured_sha``, ``coord_worktree``, ``stranded_wp_ids``,
-    # ``revert_error``, ``detected_at``.
+    # ``revert_error``, ``detected_at``, and (#5572, OPTIONAL — absent on a legacy
+    # marker, read via :func:`marker_strand_shas`) ``strand_shas``: the strand's own
+    # status-log commit SHAs, recorded when the marker is written.
     pending_coord_reconcile: dict[str, Any] | None = None
     # terminus-safety-invariant-01M2XFT7 FOLD-F2 (T021, FR-012): mirrors the
     # executor's transient ``_MergeRunState.skip_lanes`` (merge/executor.py)

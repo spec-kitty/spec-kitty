@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -44,6 +45,7 @@ __all__ = [
     "is_status_state_path",
     "is_toolchain_generated_churn",
     "repair_coord_strand",
+    "status_log_commits_in_range",
 ]
 
 # Diagnostic surfaced on ``CoordRepairOutcome.error`` when a per-SHA strand
@@ -400,6 +402,12 @@ class CoordRepairOutcome:
     checked-out branch is not ``coord_ref`` (or HEAD is detached), so a
     ``git revert`` there would mutate whatever foreign branch happens to be
     checked out instead of the coordination branch the strand was derived from.
+    ``legacy_marker`` / ``strand_mismatch`` flag the #5572 refusals: the repair will
+    revert ONLY the strand commit SHAs the marker recorded, so it refuses (no revert)
+    when the marker recorded none (``legacy_marker`` — it predates the record) or when
+    the status log in ``captured_sha..HEAD`` holds a commit other than the recorded
+    ones (``strand_mismatch``; ``foreign_status_commits`` names the unrecorded ones —
+    e.g. a reviewer's later reopen, which a revert would erase).
     """
 
     healed: bool
@@ -408,6 +416,9 @@ class CoordRepairOutcome:
     worktree_missing: bool = False
     head_advanced: bool = False
     branch_mismatch: bool = False
+    legacy_marker: bool = False
+    strand_mismatch: bool = False
+    foreign_status_commits: list[str] = field(default_factory=list)
 
 
 def _rev_parse_head(coord_worktree: Path, env: dict[str, str]) -> str | None:
@@ -543,33 +554,34 @@ def _mission_events_log_rel(feature_dir: Path) -> str:
     return f"kitty-specs/{feature_dir.name}/{EVENTS_FILENAME}"
 
 
-def _recorded_strand_shas(
-    coord_worktree: Path,
-    captured_sha: str,
+def status_log_commits_in_range(
+    git_dir: Path,
+    base_sha: str,
+    tip: str,
     feature_dir: Path,
-    env: dict[str, str],
-) -> list[str]:
-    """The strand's OWN commits in ``captured_sha..HEAD`` — content-scoped (#4973).
+    env: dict[str, str] | None = None,
+) -> list[str] | None:
+    """Commits in ``base_sha..tip`` that touched the mission's status log, newest-first.
 
-    The strand is the ``done`` bookkeeping THIS merge appended to the mission's
-    append-only coordination status log. Enumerate ONLY the commits in the
-    forward range that actually touched that log path
-    (``git rev-list captured_sha..HEAD -- <events-log>``), newest-first — the
-    order a sequential ``git revert`` applies cleanly. A third party's later
-    commit that did NOT touch the log (e.g. an unrelated coord artifact) is
-    excluded BY CONSTRUCTION, so — unlike the retired content-blind
-    ``captured_sha..HEAD`` RANGE revert — the heal can never sweep it in and erase
-    it (#4973 / D4 S-B). Returns ``[]`` when the range cannot be enumerated or no
-    committed range commit touched the log (then there is no strand to revert —
-    never a blind range fallback).
+    The ONE enumeration of "status-log commits in a coordination range" — the marker
+    writer records its result at write time, and the heal re-runs it at heal time to
+    cross-check the record (#5572). Newest-first is the order a sequential
+    ``git revert`` applies cleanly. Returns ``None`` when git cannot enumerate the
+    range (distinct from ``[]``, "no commit touched the log"), so callers never
+    mistake an unreadable range for an empty one.
     """
+    if env is None:
+        # Function-local: see the module docstring (import-cycle rule).
+        from specify_cli.lanes.consolidation import _make_merge_env
+
+        env = _make_merge_env()
     result = subprocess.run(
         [
             "git",
             "-C",
-            str(coord_worktree),
+            str(git_dir),
             "rev-list",
-            f"{captured_sha}..HEAD",
+            f"{base_sha}..{tip}",
             "--",
             _mission_events_log_rel(feature_dir),
         ],
@@ -579,8 +591,66 @@ def _recorded_strand_shas(
         env=env,
     )
     if result.returncode != 0:
-        return []
+        return None
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+@dataclass(frozen=True)
+class _StrandSelection:
+    """What :func:`_recorded_strand_shas` decided about the heal-time strand.
+
+    ``revert`` is the newest-first commit list that is safe to revert; it is empty
+    whenever the selection is a refusal. A refusal is exactly one of: ``legacy``
+    (the marker recorded no SHAs) or ``mismatch`` (the status log in the range does
+    not hold exactly the recorded commits; ``foreign`` names the unrecorded ones).
+    """
+
+    revert: tuple[str, ...] = ()
+    foreign: tuple[str, ...] = ()
+    legacy: bool = False
+    mismatch: bool = False
+
+    @property
+    def refused(self) -> bool:
+        return self.legacy or self.mismatch
+
+
+def _recorded_strand_shas(
+    coord_worktree: Path,
+    captured_sha: str,
+    feature_dir: Path,
+    env: dict[str, str],
+    *,
+    persisted: Sequence[str] | None,
+) -> _StrandSelection:
+    """The strand's OWN commits to revert — exactly the SHAs the marker recorded (#5572).
+
+    The single reader the heal consults. The strand is the ``done`` bookkeeping THIS
+    merge appended to the mission's append-only coordination status log; the marker
+    writer recorded those commit SHAs when it wrote the marker. The heal never
+    *guesses* which commits are the strand from the range alone: a reviewer's later
+    reopen is also a commit that touches the log, so a range-derived set would sweep
+    it in and erase it.
+
+    * ``persisted is None`` (a legacy marker that predates the record) → refuse.
+    * The heal-time status-log commits in ``captured_sha..HEAD``
+      (:func:`status_log_commits_in_range`) must equal the recorded set. Any extra
+      commit is ``foreign`` (a later reopen, a third party's status event) → refuse;
+      a recorded SHA missing from the range, or an unreadable range → refuse.
+    * Otherwise the in-range commits are returned newest-first for a sequential
+      revert. A commit that did NOT touch the log (#4973 / D4 S-B) is never in the
+      range enumeration, so it can never be reverted.
+    """
+    if persisted is None:
+        return _StrandSelection(legacy=True)
+    in_range = status_log_commits_in_range(coord_worktree, captured_sha, "HEAD", feature_dir, env)
+    if in_range is None:
+        return _StrandSelection(mismatch=True)
+    recorded = set(persisted)
+    foreign = tuple(sha for sha in in_range if sha not in recorded)
+    if foreign or recorded != set(in_range):
+        return _StrandSelection(foreign=foreign, mismatch=True)
+    return _StrandSelection(revert=tuple(in_range))
 
 
 def _revert_recorded_sha(coord_worktree: Path, sha: str, env: dict[str, str]) -> str | None:
@@ -618,6 +688,7 @@ def repair_coord_strand(
     candidate_wps: list[str],
     repo_root: Path,
     feature_dir: Path,
+    strand_shas: Sequence[str] | None = None,
 ) -> CoordRepairOutcome:
     """Strand-gated, self-sufficient forward ``git revert`` of a stranded coord ``done``.
 
@@ -653,13 +724,17 @@ def repair_coord_strand(
        to HEAD so the forward revert can apply over the rollback's byte-restored
        (dirty) tree. Idempotent + no-op when clean; scoped to bound the blast radius.
 
-    5. **SHA-scoped revert (#4973 / D4 S-B):** the heal reverts ONLY the strand's
-       own recorded commits — the ones in ``captured_sha..HEAD`` that touched the
-       mission's append-only status log (:func:`_recorded_strand_shas`) — each
+    5. **Recorded-SHA gate (#5572):** the heal reverts ONLY the commit SHAs the marker
+       recorded when it was written (``strand_shas``). :func:`_recorded_strand_shas`
+       cross-checks that record against the status-log commits in
+       ``captured_sha..HEAD``; if the marker recorded none (``legacy_marker=True``) or
+       the range holds any other status-log commit (``strand_mismatch=True`` — e.g. a
+       reviewer's later reopen) the repair refuses BEFORE any mutation: no
+       clean-to-HEAD, no revert.
+    6. **SHA-scoped revert (#4973 / D4 S-B):** each recorded commit is reverted
        individually via :func:`_revert_recorded_sha`, newest-first. It is NEVER a
-       content-blind ``git revert captured_sha..HEAD`` RANGE revert, which would
-       also revert a third party's later commit that landed in the same range and
-       erase it.
+       content-blind ``git revert captured_sha..HEAD`` RANGE revert, which would also
+       revert a third party's later commit that landed in the same range and erase it.
 
     **Transport (AC-B3/AC-F1):** per-SHA forward ``git revert --no-edit <sha>`` of
     each recorded strand commit in the coordination worktree, subprocess env via
@@ -676,6 +751,8 @@ def repair_coord_strand(
         candidate_wps: This merge's pre-target ``done`` write-set (the strand gate).
         repo_root: Repository root for the committed-ref coherence read.
         feature_dir: Mission directory anchoring the coordination events read.
+        strand_shas: The strand commit SHAs the marker recorded (``None`` for a legacy
+            marker, which refuses — see step 5).
 
     Returns:
         A :class:`CoordRepairOutcome` describing whether a revert ran.
@@ -721,21 +798,30 @@ def repair_coord_strand(
         # catch it. Refuse before the revert would mutate that foreign branch.
         return CoordRepairOutcome(healed=False, stranded_wp_ids=stranded, branch_mismatch=True)
 
-    # Scoped clean-to-HEAD (after the gate, before the revert) so the forward
+    # Recorded-SHA gate (#5572): decide WHICH commits are the strand before
+    # touching the worktree — a refusal must leave it exactly as found.
+    selection = _recorded_strand_shas(coord_worktree, captured_sha, feature_dir, env, persisted=strand_shas)
+    if selection.refused:
+        return CoordRepairOutcome(
+            healed=False,
+            stranded_wp_ids=stranded,
+            legacy_marker=selection.legacy,
+            strand_mismatch=selection.mismatch,
+            foreign_status_commits=list(selection.foreign),
+        )
+
+    # Scoped clean-to-HEAD (after the gates, before the revert) so the forward
     # revert applies over the byte-restored (dirty) coord worktree.
     _clean_coord_status_paths_to_head(coord_worktree, feature_dir, env)
 
-    # SHA-scoped heal (#4973 / D4 S-B): revert ONLY the strand's own recorded
-    # commits (the ones that touched the append-only status log in the range),
-    # each individually, newest-first — NEVER a content-blind
-    # ``git revert captured_sha..HEAD`` range that would also revert a third
-    # party's later commit landed in the same range and erase it.
-    strand_shas = _recorded_strand_shas(coord_worktree, captured_sha, feature_dir, env)
-    if not strand_shas:
-        # Nothing in the range actually touched the log — no strand commit to
-        # revert (no blind range fallback). Treat as an already-coherent no-op.
+    # SHA-scoped heal (#4973 / D4 S-B, #5572): revert ONLY the recorded strand
+    # commits, each individually, newest-first — NEVER a content-blind
+    # ``git revert captured_sha..HEAD`` range.
+    if not selection.revert:
+        # The recorded set is empty and nothing in the range touched the log — no
+        # strand commit to revert (no blind range fallback): an already-coherent no-op.
         return CoordRepairOutcome(healed=False, stranded_wp_ids=stranded)
-    for sha in strand_shas:
+    for sha in selection.revert:
         revert_error = _revert_recorded_sha(coord_worktree, sha, env)
         if revert_error is not None:
             return CoordRepairOutcome(

@@ -47,6 +47,7 @@ from specify_cli.coordination.coherence import (
     coord_incoherent_done_wps,
     is_toolchain_generated_churn,
     repair_coord_strand,
+    status_log_commits_in_range,
 )
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
 from specify_cli.coordination.surface_resolver import (
@@ -170,6 +171,7 @@ from specify_cli.consolidation.reconciliation import (
 )
 from specify_cli.consolidation.resolve import _load_or_create_merge_state
 from specify_cli.consolidation.state import (
+    STRAND_SHAS_KEY,
     MergeLockError,
     ConsolidationState,
     ConsolidationStateReadError,
@@ -178,6 +180,7 @@ from specify_cli.consolidation.state import (
     get_state_path,
     lane_tip_cas_ok,
     load_state,
+    marker_strand_shas,
     reconciliation_passed_for_tip,
     release_merge_lock,
     save_state,
@@ -1100,15 +1103,16 @@ def _persist_coord_reconcile_marker(run: _MergeRunState, error: BaseException | 
     coord_worktree = _coord_worktree_root(run)
     if coord_worktree is None:
         return
+    feature_dir = _coord_reconcile_read_feature_dir(run)
     stranded = coord_incoherent_done_wps(
         coord_ref,
         run.pre_target_done_write_set,
         repo_root=run.main_repo,
-        feature_dir=_coord_reconcile_read_feature_dir(run),
+        feature_dir=feature_dir,
     )
     if not stranded:
         return
-    run.state.pending_coord_reconcile = {
+    marker: dict[str, object] = {
         "coord_ref": coord_ref,
         "captured_sha": captured_sha,
         "coord_worktree": str(coord_worktree),
@@ -1116,7 +1120,35 @@ def _persist_coord_reconcile_marker(run: _MergeRunState, error: BaseException | 
         "revert_error": str(error) if error is not None else None,
         "detected_at": now_utc_iso(),
     }
+    # #5572: record the strand's OWN commits now. Every marker write runs after the
+    # done bake and before anything else lands on the coordination branch under this
+    # run's lock, so the status-log commits in ``captured_sha..coord_ref`` are exactly
+    # this run's strand. The heal reverts only these. When git cannot enumerate the
+    # range the key is left out: the marker then reads as legacy and the heal refuses
+    # (fail closed) instead of guessing.
+    strand_shas = status_log_commits_in_range(run.main_repo, captured_sha, coord_ref, feature_dir)
+    if strand_shas is not None:
+        marker[STRAND_SHAS_KEY] = strand_shas
+    run.state.pending_coord_reconcile = marker
     save_state(run.state, run.main_repo)
+
+
+def _report_refused_strand_heal(outcome: CoordRepairOutcome) -> None:
+    """Say plainly that a resume-start heal did NOT revert the stranded ``done`` (#5572).
+
+    The marker is kept (the caller clears it only on a genuine heal), so the strand is
+    still visible to ``doctor coordination``, which carries the manual-reconcile steps.
+    """
+    if outcome.legacy_marker:
+        reason = "the reconcile marker predates recorded strand commits, so the strand cannot be told apart from later work"
+    else:
+        foreign = ", ".join(sha[:10] for sha in outcome.foreign_status_commits) or "none named"
+        reason = f"the status log holds commits the marker did not record (foreign: {foreign}), e.g. a later reopen"
+    console.print(
+        "[yellow]Warning:[/yellow] the stranded coordination `done` was NOT reverted: "
+        f"{escape(reason)}. The reconcile marker is kept. Reconcile the coordination status log "
+        "manually; see `spec-kitty doctor coordination`."
+    )
 
 
 def _heal_pending_coord_reconcile(run: _MergeRunState) -> None:
@@ -1145,7 +1177,10 @@ def _heal_pending_coord_reconcile(run: _MergeRunState) -> None:
         candidate_wps=[str(wp) for wp in marker.get("stranded_wp_ids", [])],
         repo_root=run.main_repo,
         feature_dir=_coord_reconcile_read_feature_dir(run),
+        strand_shas=marker_strand_shas(marker),
     )
+    if outcome.legacy_marker or outcome.strand_mismatch:
+        _report_refused_strand_heal(outcome)
     # Clear the marker only on a genuine heal OR a re-derived-coherent no-op.
     # A ``worktree_missing`` short-circuit returns an EMPTY ``stranded_wp_ids``
     # because the strand was never checked (the worktree is gone) — NOT because
