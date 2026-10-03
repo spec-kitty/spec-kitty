@@ -10,6 +10,7 @@ tests live in).
 from __future__ import annotations
 
 import json
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -444,6 +445,7 @@ def test_json_payload_shape_is_stable(repo: Path) -> None:
         "finished_missions",
         "snapshot_only_missions",
         "malformed_missions",
+        "coord_surface_live_missions",
         "skipped",
         "errors",
     }
@@ -529,3 +531,62 @@ def test_group_level_dry_run_is_forwarded_to_the_subcommand(repo: Path) -> None:
     assert result.exit_code == 0, result.output
     assert _json(result)["dry_run"] is True
     assert _tree_bytes(repo) == before
+
+
+# ---------------------------------------------------------------------------
+# live coordination surface: refused, counted as skipped (never an error)
+# ---------------------------------------------------------------------------
+
+_COORD_BRANCH = "kitty/mission-alpha-01JMISSI"
+
+
+def _live_coord_mission(repo: Path) -> Path:
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.invalid")
+    git("config", "user.name", "tester")
+    git("commit", "--allow-empty", "-q", "-m", "init")
+    feature_dir = _mission(repo, _SLUG_ONE, _ID_ONE, meta_extra={"topology": "coord", "coordination_branch": _COORD_BRANCH})
+    git("branch", _COORD_BRANCH)
+    return feature_dir
+
+
+def test_live_coordination_mission_is_refused_in_json_counted_as_skipped_and_exits_0(repo: Path) -> None:
+    feature_dir = _live_coord_mission(repo)
+    plain = _mission(repo, _SLUG_TWO, _ID_TWO, seeded=())
+    before = (feature_dir / "status.events.jsonl").read_bytes()
+
+    result = _invoke(repo, "--json")
+
+    assert result.exit_code == 0, result.output
+    payload = _json(result)
+    row = next(r for r in payload["missions"] if r["slug"] == _SLUG_ONE)
+    assert row["skip_reason"] == "COORD_SURFACE_LIVE" and row["error"] is None and row["seeded"] == 0
+    assert payload["summary"]["coord_surface_live_missions"] == 1
+    assert payload["summary"]["skipped"] == 1 and payload["summary"]["errors"] == 0
+    assert payload["result"] == "success"
+    assert (feature_dir / "status.events.jsonl").read_bytes() == before
+    assert set(materialize_snapshot(plain).work_packages) == set(_THREE)
+
+
+def test_live_coordination_mission_is_named_in_the_human_summary(repo: Path) -> None:
+    _live_coord_mission(repo)
+
+    result = _invoke(repo)
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert "refused" in flat and _SLUG_ONE in flat and "COORD_SURFACE_LIVE" in flat
+    assert "Consolidate the Mission first" in flat and "coordination checkout" in flat
+
+
+def test_manifest_entry_for_a_refused_mission_is_reported_as_coordination_surface_live(repo: Path, tmp_path: Path) -> None:
+    _live_coord_mission(repo)
+    manifest = _write_manifest(tmp_path / "manifest.yaml", {_SLUG_ONE: {"reason": "PR #1 merged"}})
+
+    result = _invoke(repo, "--evidence-manifest", str(manifest), "--json")
+
+    assert result.exit_code == 0, result.output
+    assert _json(result)["manifest"]["unused"] == [{"mission": _SLUG_ONE, "reason": "coordination surface live"}]

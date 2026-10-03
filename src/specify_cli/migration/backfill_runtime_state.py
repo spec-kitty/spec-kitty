@@ -115,7 +115,7 @@ from specify_cli.workspace import canonicalize_feature_dir
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 from .mission_state import deterministic_ulid
-from .wp_status_backfill import WpStatusPlan, plan_wp_status_backfill
+from .wp_status_backfill import COORD_SURFACE_LIVE, WpStatusPlan, coordination_surface_is_live, plan_wp_status_backfill
 
 logger = logging.getLogger(__name__)
 
@@ -1562,7 +1562,8 @@ class WpStatusBackfillResult:
         malformed: ``tasks/`` file names skipped for unusable frontmatter.
         terminal_reason: Evidence cited for the forced ``done`` events, if any.
         status_json_refreshed: ``status.json`` was regenerated (only if it existed).
-        skip_reason: Why nothing was written, when that is not an error.
+        skip_reason: Why nothing was written, when that is not an error
+            (``COORD_SURFACE_LIVE`` for a refused live-coordination Mission).
         error: Unrecoverable per-mission error text, else ``None``.
     """
 
@@ -1604,8 +1605,12 @@ def apply_wp_status_backfill(
     and appends under the SAME mission status lock, id-dedupe and
     ``append_event_stream_atomic_verified`` call as :func:`backfill_runtime_state`.
     The write target is ``canonicalize_feature_dir(feature_dir)``: a Mission whose
-    coordination branch is gone degrades to the primary directory and no branch is
-    ever minted. The event log is created when absent. ``status.json`` is
+    coordination branch is gone degrades to the PRIMARY-partition directory and no
+    branch is ever minted. A Mission whose status surface is a **live**
+    coordination surface (:func:`~specify_cli.migration.wp_status_backfill.coordination_surface_is_live`)
+    is refused with ``skip_reason`` ``COORD_SURFACE_LIVE``: the PRIMARY-partition
+    log is not its authority, so nothing is planned or written (not even on
+    dry-run). The event log is created when absent. ``status.json`` is
     regenerated only if it already exists.
 
     Args:
@@ -1623,6 +1628,9 @@ def apply_wp_status_backfill(
     slug = feature_dir.name
     if not (feature_dir / "tasks").is_dir():
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason="no tasks/ directory")
+    # Before the lock: the liveness probe may run git, which the locked section must not.
+    if coordination_surface_is_live(feature_dir):
+        return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason=COORD_SURFACE_LIVE)
     lock_root = resolve_status_lock_root(feature_dir, None)
     try:
         with feature_status_lock(lock_root, slug):

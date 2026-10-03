@@ -65,6 +65,56 @@ _PLANNED_REASON = "wp-status backfill (#5579): WP file has no lane event; seeded
 _DONE_REASON_TEMPLATE = "wp-status backfill (#5579): Mission finished ({evidence}); seeded WP driven to done"
 
 
+#: ``WpStatusBackfillResult.skip_reason`` of a Mission refused because its
+#: status authority is a live coordination surface (stable JSON vocabulary).
+COORD_SURFACE_LIVE = "COORD_SURFACE_LIVE"
+
+#: Operator-facing explanation rendered next to a ``COORD_SURFACE_LIVE`` skip.
+COORD_SURFACE_LIVE_MESSAGE = (
+    "its status log lives on a live coordination surface, so the PRIMARY-partition log is not the authority "
+    "and seeding it would split-brain the Mission. Consolidate the Mission first "
+    "(`spec-kitty consolidate --mission <slug>`), or run this command from the coordination checkout."
+)
+
+
+def coordination_surface_is_live(feature_dir: Path) -> bool:
+    """Whether *feature_dir*'s status authority is a live coordination surface.
+
+    Asks the canonical surface authority
+    (:func:`specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor`)
+    where the Mission's ``status.events.jsonl`` currently lives, instead of
+    probing git here. The surface is *live* when it resolves somewhere other than
+    *feature_dir* (the PRIMARY-partition Mission directory): a coord-routing
+    topology whose coordination worktree is materialised, or whose branch still
+    exists. It is *not* live (the PRIMARY-partition log is the authority) when
+
+    * the topology routes status to the PRIMARY partition, or the Mission is
+      completed (merge evidence makes the primary log the record);
+    * the coordination worktree root exists but is empty;
+    * the coordination branch is gone (``CoordinationBranchDeleted``) -- the
+      documented degrade, kept so a post-deletion Mission can still be repaired;
+    * there is no repository, no readable ``meta.json`` or no resolvable root.
+
+    Fail closed: any other ``StatusReadPathNotFound`` (a coord-declared topology
+    whose surface cannot be proven) counts as live. Read-only: the resolver
+    never writes, materialises or mints a branch.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, resolve_status_surface_with_anchor
+    from specify_cli.core.paths import MissionMetaReadError, WorkspaceRootNotFound, resolve_canonical_root
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        repo_root = resolve_canonical_root(feature_dir)
+        surface = resolve_status_surface_with_anchor(repo_root, feature_dir.name)
+    except (WorkspaceRootNotFound, FileNotFoundError, MissionMetaReadError, CoordinationBranchDeleted):
+        # CoordinationBranchDeleted is a StatusReadPathNotFound: keep it ahead of
+        # the fail-closed arm by listing it here, in the degrade set.
+        return False
+    except StatusReadPathNotFound:
+        return True
+    return bool(surface.surface_path.parent.resolve() != feature_dir.resolve())
+
+
 @dataclass(frozen=True)
 class WpGap:
     """Set difference between a Mission's WP files and its reduced snapshot.

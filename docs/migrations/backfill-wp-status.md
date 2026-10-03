@@ -104,6 +104,20 @@ exit 1 with nothing changed:
 | WP that already has any lane event | Left untouched |
 | WP in the snapshot but with no WP file | Reported as snapshot-only; never repaired and no file is invented |
 | WP file with unusable frontmatter | Reported as malformed and skipped |
+| Mission whose status log lives on a live coordination surface | Refused as `COORD_SURFACE_LIVE`; nothing is planned or written, not even on `--dry-run` |
+
+### Missions with a live coordination surface
+
+A Mission with a coordination topology keeps its status log on the coordination
+surface while the coordination branch exists and the Mission is not completed.
+The log in the PRIMARY-partition `kitty-specs/` directory is not its authority,
+so seeding it would split the Mission's status in two. The command therefore
+refuses such a Mission: it reports `COORD_SURFACE_LIVE`, counts it as skipped
+(exit stays `0`) and writes nothing. Consolidate the Mission first
+(`spec-kitty consolidate --mission <handle>`), or run the command from the
+coordination checkout. A Mission whose coordination branch has been deleted is
+not refused; it is repaired in the PRIMARY-partition directory and no branch is
+created.
 
 Events are appended to the Mission's resolved status event log through the
 existing migration writer. `status.json` is regenerated only where it already
@@ -115,7 +129,7 @@ Exit codes:
 
 | Code | Meaning |
 |------|---------|
-| `0` | Every visited Mission was repaired or needed nothing |
+| `0` | Every visited Mission was repaired, needed nothing, or was refused as `COORD_SURFACE_LIVE` |
 | `1` | A per-Mission error, an invalid evidence manifest, or an unknown or ambiguous `--mission` handle |
 
 A per-Mission error does not stop the walk over the other Missions; the run
@@ -128,11 +142,11 @@ With `--json`, the command prints one object:
 | `dry_run` | `true` when nothing was written |
 | `result` | `success` or `errors_present` |
 | `mission` | The `--mission` handle, or `null` for the whole corpus |
-| `summary` | Counters: `scanned`, `missions_seeded`, `missions_would_seed`, `events_seeded`, `events_would_seed`, `finished_missions`, `snapshot_only_missions`, `malformed_missions`, `skipped`, `errors` |
+| `summary` | Counters: `scanned`, `missions_seeded`, `missions_would_seed`, `events_seeded`, `events_would_seed`, `finished_missions`, `snapshot_only_missions`, `malformed_missions`, `coord_surface_live_missions`, `skipped`, `errors` |
 | `manifest.path` | The manifest path, or `null` |
 | `manifest.entries` | Number of manifest entries |
-| `manifest.unused` | Entries that had no effect, each `{mission, reason}` where `reason` is `not in scope` (`--mission` named another Mission) or `nothing to seed` |
-| `missions` | One row per Mission: `slug`, `seeded`, `would_seed`, `files_only`, `snapshot_only`, `malformed`, `terminal_reason`, `status_json_refreshed`, `skip_reason`, `error` |
+| `manifest.unused` | Entries that had no effect, each `{mission, reason}` where `reason` is `not in scope` (`--mission` named another Mission), `nothing to seed`, or `coordination surface live` (the Mission was refused) |
+| `missions` | One row per Mission: `slug`, `seeded`, `would_seed`, `files_only`, `snapshot_only`, `malformed`, `terminal_reason`, `status_json_refreshed`, `skip_reason` (`COORD_SURFACE_LIVE` for a refused Mission), `error` |
 
 A failure before any write (bad manifest, unknown handle) prints
 `{"success": false, "error_code": ..., "error": ...}` instead.

@@ -48,6 +48,7 @@ from specify_cli.migration.backfill_runtime_state import (
     WpStatusBackfillResult,
     apply_wp_status_backfill_repo,
 )
+from specify_cli.migration.wp_status_backfill import COORD_SURFACE_LIVE, COORD_SURFACE_LIVE_MESSAGE
 
 #: Top-level manifest key holding the ``{slug: {reason: ...}}`` mapping.
 MANIFEST_MISSIONS_KEY = "missions"
@@ -57,6 +58,7 @@ MANIFEST_REASON_KEY = "reason"
 #: ``manifest.unused[].reason`` values (stable JSON vocabulary).
 UNUSED_NOT_IN_SCOPE = "not in scope"
 UNUSED_NOTHING_TO_SEED = "nothing to seed"
+UNUSED_COORD_SURFACE_LIVE = "coordination surface live"
 
 #: JSON ``result`` values.
 RESULT_SUCCESS = "success"
@@ -213,6 +215,8 @@ def unused_manifest_entries(manifest: Mapping[str, str], results: Sequence[WpSta
     ``not in scope``: the Mission was not visited (``--mission`` named another).
     ``nothing to seed``: the Mission had no WP gap — typically because an earlier
     run already seeded it ``planned``, so the evidence is a silent no-op.
+    ``coordination surface live``: the Mission was refused (``COORD_SURFACE_LIVE``),
+    so nothing was or could be seeded for it.
     A Mission that errored is reported as an error, not as unused.
     """
     by_slug = {result.slug: result for result in results}
@@ -221,6 +225,8 @@ def unused_manifest_entries(manifest: Mapping[str, str], results: Sequence[WpSta
         result = by_slug.get(slug)
         if result is None:
             unused.append({"mission": slug, "reason": UNUSED_NOT_IN_SCOPE})
+        elif result.skip_reason == COORD_SURFACE_LIVE:
+            unused.append({"mission": slug, "reason": UNUSED_COORD_SURFACE_LIVE})
         elif result.error is None and _new_events(result) == 0:
             unused.append({"mission": slug, "reason": UNUSED_NOTHING_TO_SEED})
     return unused
@@ -237,6 +243,7 @@ def build_summary(results: Sequence[WpStatusBackfillResult]) -> dict[str, int]:
         "finished_missions": sum(1 for r in results if r.terminal_reason is not None and _new_events(r) > 0),
         "snapshot_only_missions": sum(1 for r in results if r.snapshot_only),
         "malformed_missions": sum(1 for r in results if r.malformed),
+        "coord_surface_live_missions": sum(1 for r in results if r.skip_reason == COORD_SURFACE_LIVE),
         "skipped": sum(1 for r in results if r.error is None and _new_events(r) == 0),
         "errors": sum(1 for r in results if r.error is not None),
     }
@@ -296,6 +303,7 @@ def _print_counters(summary: Mapping[str, int], *, dry_run: bool) -> None:
         ("Finished (WPs seeded -> done)", f"{summary['finished_missions']} mission(s)"),
         ("Snapshot-only WPs reported", f"{summary['snapshot_only_missions']} mission(s)"),
         ("Malformed WP files", f"{summary['malformed_missions']} mission(s)"),
+        ("Refused (live coord surface)", f"{summary['coord_surface_live_missions']} mission(s)"),
         ("Skipped (nothing to seed)", str(summary["skipped"])),
         ("Errors", str(summary["errors"])),
     )
@@ -308,6 +316,8 @@ def _print_mission_lines(results: Sequence[WpStatusBackfillResult], *, dry_run: 
     for result in results:
         if result.error is not None:
             console.print(f"  [red]error[/red] {escape(result.slug)}: {escape(result.error)}")
+        elif result.skip_reason == COORD_SURFACE_LIVE:
+            console.print(f"  [yellow]refused[/yellow] {escape(result.slug)}: {COORD_SURFACE_LIVE} -- {escape(COORD_SURFACE_LIVE_MESSAGE)}")
         elif _new_events(result) > 0:
             done = f" -> done ({escape(result.terminal_reason or '')})" if result.terminal_reason else ""
             console.print(f"  [green]{verb}[/green] {escape(result.slug)}: {_new_events(result)} event(s) for {', '.join(result.files_only)}{done}")
