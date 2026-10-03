@@ -836,6 +836,9 @@ jobs:
   # run in the `charter` module row). tests/conftest.py skips that class per-PR unless
   # SPEC_KITTY_RUN_PERFORMANCE=1; its executing home is the nightly `performance` job.
   # Keeping it in this selection preserves "selected by exactly one required job".
+  # Two contract modules read the committed corpus and are listed too:
+  # tests/contract/test_mission_status_reality.py (the reality check over every Mission under
+  # kitty-specs/) and tests/contract/test_mission_status_payloads.py (its payload helper).
   # The contract tool unit tests (tests/contract/test_bundle.py .. test_schema_formats.py) read no
   # corpus: they run in the separate `tests-contract-tools` job below (with them this job
   # took 7m20s of its 10 minute timeout), so this job stays well inside its timeout.
@@ -859,12 +862,15 @@ jobs:
           uv sync --frozen --all-extras
           uv run --frozen pytest -m "corpus and not windows_ci" \
             tests/contract/test_example_round_trip.py \
+            tests/contract/test_mission_status_payloads.py \
+            tests/contract/test_mission_status_reality.py \
             tests/integration/test_mission_review_contract_gate.py \
             "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
-  # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the example round
-  # trip, which `tests-corpus-blocking` owns (the directory minus it, so a new tool test module is picked up
-  # without an edit here). They read no corpus and used to run only in contracts.yml's path-filtered
+  # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the three that
+  # `tests-corpus-blocking` owns (the directory minus those three, so a new tool test module is picked up
+  # without an edit here): the example round trip, and the reality check and its payload helper, which read
+  # the committed corpus. They read no corpus and used to run only in contracts.yml's path-filtered
   # `contract-tool-tests` job, which is not a required check, so a PR that broke them could auto-merge. As a router
   # job under `router-gate` they block the merge. Gated on the `corpus` group (contracts/**) or the `contract_tools`
   # group (tests/contract/** and what the tools run on); mode=full and the unmatched catch-all run it too. Packs'
@@ -890,6 +896,8 @@ jobs:
         run: |
           uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \
             --ignore=tests/contract/test_example_round_trip.py \
+            --ignore=tests/contract/test_mission_status_payloads.py \
+            --ignore=tests/contract/test_mission_status_reality.py \
             -n 4 --dist loadfile
 
   # ---------------------------------------------------------------------------
