@@ -30,13 +30,14 @@ import re
 import subprocess
 import time
 from collections import Counter
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from specify_cli.context import mission_resolver
 from specify_cli.status.reducer import materialize_snapshot
 from tests.contract import _mission_status_payloads as helper
 from tests.contract._mission_status_payloads import (
@@ -93,6 +94,35 @@ def kitty_specs_is_left_untouched() -> Iterator[None]:
     assert after == before, "the reality check changed something under kitty-specs/ (a reader wrote state)"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def identity_index_is_walked_once(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """Walk each real checkout's ``kitty-specs/`` identity index once per module instead of once per reader call.
+
+    Every status and frontmatter reader resolves its Mission handle through ``_build_index``, a fresh walk of
+    every ``meta.json`` (the production resolver is deliberately uncached). Over this checkout's whole corpus
+    that is about 1900 walks of 540 directories and was most of this module's run time. The walk is a pure
+    function of the tree, and the read-only fingerprint fixture above proves the tree is unchanged for the
+    whole module, so one walk per root is reused (in a lane worktree the readers resolve to the primary
+    checkout, a second root). A planted repository lives under pytest's base temp directory and is always walked
+    fresh, and every reader still runs for every Mission: only the directory listing is shared.
+    """
+    original = mission_resolver._build_index
+    planted_under = tmp_path_factory.getbasetemp().resolve()
+    walked: dict[Path, list[mission_resolver.ResolvedMission]] = {}
+
+    def once(repo_root: Path) -> list[mission_resolver.ResolvedMission]:
+        root = Path(repo_root).resolve()
+        if root.is_relative_to(planted_under):
+            return original(repo_root)
+        if root not in walked:
+            walked[root] = original(repo_root)
+        return list(walked[root])
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(mission_resolver, "_build_index", once)
+        yield
+
+
 @pytest.fixture(scope="module")
 def tools() -> Iterator[helper.ContractTools]:
     with pytest.MonkeyPatch.context() as mp:
@@ -122,6 +152,7 @@ def snapshot_equality_problems(payload: Mapping[str, Any], state: Mapping[str, A
     def handle(value: Any) -> str | None:
         return value if isinstance(value, str) and _PLAIN_HANDLE.match(value) and not (value.startswith("__") and value.endswith("__")) else None
 
+    helper.LEDGER.snapshot_comparisons += 1
     if state is None:
         return [] if payload["statusLane"] is None else [f"{payload['wpId']}: a lane without a snapshot entry"]
     lane = str(state.get("lane"))
@@ -138,17 +169,35 @@ def _first(errors: list[str]) -> str:
     return errors[0] + (f" (+{len(errors) - 1} more)" if len(errors) > 1 else "")
 
 
-def run_case(mission: str, tools: helper.ContractTools, contract: helper.Contract) -> CaseResult:
-    """Build and check every payload of one Mission; the result is cached so the corpus-level tests reuse it."""
-    if mission in CASE_RESULTS:
+def run_case(
+    mission: str,
+    tools: helper.ContractTools,
+    contract: helper.Contract,
+    *,
+    repo_root: Path = REPO_ROOT,
+    tamper_work_package: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+) -> CaseResult:
+    """Build and check every payload of one Mission; the result is cached so the corpus-level tests reuse it.
+
+    ``repo_root`` and ``tamper_work_package`` exist for the controls: they run this very function on a planted
+    repository, or with a planted defect in each work package payload, and the three checks must catch it. A run
+    with either is never cached. Every check is also counted, and the case fails when a check ran fewer times than
+    the payloads it should have covered, so removing a check from this function cannot leave the case green.
+    """
+    controlled = repo_root != REPO_ROOT or tamper_work_package is not None
+    if not controlled and mission in CASE_RESULTS:
         return CASE_RESULTS[mission]
     started = time.perf_counter()
-    source = helper.load_source(REPO_ROOT, mission)
+    ran_before = helper.LEDGER.snapshot()
+    source = helper.load_source(repo_root, mission)
     projector = helper.Projector(tools.leak, mission)
     result = CaseResult(overview=helper.build_overview(source, projector), fallback=source.fallback)
     problems = result.failures
+    payloads = 0
 
     def check(title: str, payload: Mapping[str, Any], label: str) -> None:
+        nonlocal payloads
+        payloads += 1
         errors = contract.errors(title, payload)
         if errors:
             problems.append(f"{mission}: {label}: {_first(errors)}")
@@ -162,6 +211,8 @@ def run_case(mission: str, tools: helper.ContractTools, contract: helper.Contrac
     check(helper.SCHEMA_DETAIL, helper.build_detail(source, projector, files), "detail")
     for authored in files:
         payload = helper.build_work_package(source, authored, projector)
+        if tamper_work_package is not None:
+            payload = tamper_work_package(payload)
         wp_id = payload["wpId"]
         check(helper.SCHEMA_WORK_PACKAGE, payload, f"work package {wp_id}")
         problems.extend(f"{mission}: {line}" for line in snapshot_equality_problems(payload, fresh.work_packages.get(wp_id)))
@@ -172,11 +223,20 @@ def run_case(mission: str, tools: helper.ContractTools, contract: helper.Contrac
         check(title, event, f"{kind} event {event['eventId']}")
         result.kinds[kind] += 1
         result.events += 1
+    problems.extend(f"{mission}: {line}" for line in _wiring_problems(helper.LEDGER.snapshot(), ran_before, payloads, result.work_packages))
     result.dropped = projection.dropped
     result.redactions = projector.redactions
     result.seconds = time.perf_counter() - started
-    CASE_RESULTS[mission] = result
+    if not controlled:
+        CASE_RESULTS[mission] = result
     return result
+
+
+def _wiring_problems(after: tuple[int, int, int], before: tuple[int, int, int], payloads: int, work_packages: int) -> list[str]:
+    """One line per check that did not run once for every payload (or work package) the case built."""
+    validations, leak_scans, comparisons = (end - start for end, start in zip(after, before, strict=True))
+    wanted = (("contract validation", validations, payloads), ("leak scan", leak_scans, payloads), ("snapshot comparison", comparisons, work_packages))
+    return [f"the {name} ran {ran} times for {expected} payloads: the check is not wired into the case" for name, ran, expected in wanted if ran != expected]
 
 
 # One case per Mission, id = the Mission directory name. Each case is built lazily (nothing is shared
@@ -226,6 +286,57 @@ def test_the_hash_proof_sees_a_changed_file_and_refuses_to_hash_nothing(tmp_path
     assert tree_fingerprint(tmp_path, KITTY_SPECS) == control
     (target.parent / "created.json").write_text("{}", encoding="utf-8")
     assert tree_fingerprint(tmp_path, KITTY_SPECS) != control, "a new untracked file must change the fingerprint"
+
+
+def _commit_all(repo: Path) -> None:
+    git = ["git", "-C", str(repo), "-c", "user.name=fixture", "-c", "user.email=fixture.invalid"]
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "fixture"], check=True)
+
+
+def test_the_byte_digest_alone_sees_a_rewrite_that_git_status_cannot(tmp_path: Path) -> None:
+    """A committed file that is already modified keeps the porcelain line ` M` however it is rewritten again.
+
+    Only the digest of its bytes can notice a reader rewriting such a file (a dirty local tree, an uncommitted
+    snapshot), so this is the control of the digest half of the fingerprint: equal porcelain, different digest.
+    """
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    target = tmp_path / KITTY_SPECS / "m" / "status.json"
+    target.parent.mkdir(parents=True)
+    target.write_text("aaaa", encoding="utf-8")
+    _commit_all(tmp_path)
+    target.write_text("bbbb", encoding="utf-8")
+    dirty = tree_fingerprint(tmp_path, KITTY_SPECS)
+    assert dirty.porcelain == (f" M {KITTY_SPECS}/m/status.json",), "control: the file is modified before the first fingerprint"
+    assert tree_fingerprint(tmp_path, KITTY_SPECS) == dirty, "control: nothing changed, so the fingerprint is stable"
+
+    target.write_text("cccc", encoding="utf-8")  # same length, still ` M`
+
+    rewritten = tree_fingerprint(tmp_path, KITTY_SPECS)
+    assert rewritten.porcelain == dirty.porcelain, "git status cannot see this rewrite"
+    assert rewritten.digest != dirty.digest, "the byte digest must"
+    assert rewritten != dirty
+
+
+def test_an_ignored_file_is_part_of_the_fingerprint(tmp_path: Path) -> None:
+    """``git status`` omits ignored files (``*.lock`` under ``kitty-specs/`` is ignored in this repository)."""
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    (tmp_path / ".gitignore").write_text("*.lock\n", encoding="utf-8")
+    tracked = tmp_path / KITTY_SPECS / "m" / "status.json"
+    tracked.parent.mkdir(parents=True)
+    tracked.write_text("{}", encoding="utf-8")
+    _commit_all(tmp_path)
+    control = tree_fingerprint(tmp_path, KITTY_SPECS)
+    assert tree_fingerprint(tmp_path, KITTY_SPECS) == control, "control: an untouched tree keeps its fingerprint"
+
+    ignored = tracked.parent / "reader.lock"
+    ignored.write_text("1", encoding="utf-8")
+    created = tree_fingerprint(tmp_path, KITTY_SPECS)
+    assert created != control, "a created ignored file must change the fingerprint"
+    assert created.files == control.files + 1
+
+    ignored.write_text("2", encoding="utf-8")
+    assert tree_fingerprint(tmp_path, KITTY_SPECS) != created, "a rewritten ignored file must change the fingerprint"
 
 
 def test_the_floors_are_pinned_below_the_measured_corpus() -> None:
@@ -340,6 +451,56 @@ def test_snapshot_equality_negative_control_fails_when_the_frontmatter_value_is_
     assert len(problems) == 3 and "statusLane" in problems[0] and "agent" in problems[1] and "assignee" in problems[2]
     assert snapshot_equality_problems({**payload, "statusLane": "planned"}, None), "a lane without a snapshot entry is not representable"
     assert snapshot_equality_problems({**payload, "statusLane": None}, None) == []
+
+
+def test_run_case_is_clean_on_the_control_mission_and_runs_every_check_for_every_payload(
+    control_repo: Path, tools: helper.ContractTools, contract: helper.Contract
+) -> None:
+    """Control: the same function the corpus cases use, on a planted repository, finds nothing and counts its checks."""
+    before = helper.LEDGER.snapshot()
+
+    result = run_case(CONTROL_MISSION, tools, contract, repo_root=control_repo)
+
+    assert result.failures == [] and result.work_packages == 1
+    validations, leak_scans, comparisons = (end - start for end, start in zip(helper.LEDGER.snapshot(), before, strict=True))
+    assert validations == leak_scans >= 2 and comparisons == 1, "overview, detail, the work package and its events were each checked"
+    assert CONTROL_MISSION not in CASE_RESULTS, "a controlled run is never cached"
+
+
+def _plant(**changes: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    return lambda payload: {**payload, **changes}
+
+
+def test_run_case_reports_a_planted_leak(control_repo: Path, tools: helper.ContractTools, contract: helper.Contract) -> None:
+    """The e-mail is planted after the projector's redaction, as a defect in a field the redaction does not reach."""
+    planted = _plant(lastEventId="someone" + AT + "example.invalid")
+
+    result = run_case(CONTROL_MISSION, tools, contract, repo_root=control_repo, tamper_work_package=planted)
+
+    assert any("leak" in failure and "EMAIL" in failure for failure in result.failures), result.failures
+    assert not any("is 'done'" in failure for failure in result.failures)
+
+
+def test_run_case_reports_a_planted_schema_defect(control_repo: Path, tools: helper.ContractTools, contract: helper.Contract) -> None:
+    result = run_case(CONTROL_MISSION, tools, contract, repo_root=control_repo, tamper_work_package=_plant(statusLane="doing"))
+
+    assert any("work package WP01" in failure and "statusLane" in failure and "leak" not in failure for failure in result.failures), result.failures
+
+
+def test_run_case_reports_a_frontmatter_value_that_disagrees_with_the_snapshot(control_repo: Path, tools: helper.ContractTools, contract: helper.Contract) -> None:
+    """``done`` is a valid lane (the frontmatter says so) but the snapshot says in_progress: only the equality check can see it."""
+    result = run_case(CONTROL_MISSION, tools, contract, repo_root=control_repo, tamper_work_package=_plant(statusLane="done"))
+
+    assert [failure for failure in result.failures if "statusLane is 'done', the snapshot has 'in_progress'" in failure], result.failures
+    assert not any("leak" in failure for failure in result.failures)
+
+
+def test_a_check_that_did_not_run_for_every_payload_is_a_failure() -> None:
+    """The wiring guard itself: fewer runs than payloads is named, with the check, for each of the three checks."""
+    assert _wiring_problems((4, 4, 2), (0, 0, 0), 4, 2) == []
+    problems = _wiring_problems((0, 0, 0), (0, 0, 0), 4, 2)
+    assert [line.split(" ran ")[0] for line in problems] == ["the contract validation", "the leak scan", "the snapshot comparison"]
+    assert len(_wiring_problems((4, 4, 0), (0, 0, 0), 4, 2)) == 1
 
 
 @pytest.mark.timeout(120)
