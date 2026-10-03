@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: clean
+  version: 1.0.0
+paths:
+  /items:
+    $ref: paths/items.yaml

@@ -1,0 +1,10 @@
+title: Item
+description: An item.
+type: object
+additionalProperties: false
+required:
+  - id
+properties:
+  id:
+    type: string
+    description: Identifier.

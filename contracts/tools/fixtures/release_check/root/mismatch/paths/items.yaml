@@ -1,0 +1,13 @@
+get:
+  operationId: listItems
+  summary: List items.
+  description: Returns the items.
+  tags:
+    - Items
+  responses:
+    '200':
+      description: The items.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Item.yaml
