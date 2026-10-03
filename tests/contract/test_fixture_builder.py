@@ -47,8 +47,10 @@ def _documents(root: Path) -> dict[str, Any]:
     return {path.name: yaml.safe_load(path.read_text(encoding="utf-8")) for path in sorted(root.rglob("*.yaml"))}
 
 
-def test_the_four_leak_kinds_are_offered(builder: ModuleType) -> None:
-    assert set(builder.KINDS) == {"host-path-strict", "host-path-human", "email", "forbidden-property"}
+def test_the_leak_kinds_are_offered(builder: ModuleType) -> None:
+    expected = {"host-path-strict", "host-path-human", "email", "email-dotless", "github-token", "aws-key", "private-key", "forbidden-property"}
+    assert set(builder.KINDS) == expected
+    assert len(builder.KINDS) == len(expected)
 
 
 def test_an_unknown_kind_is_refused(builder: ModuleType, tmp_path: Path) -> None:
@@ -84,6 +86,24 @@ def test_the_email_plant_is_seen_in_both_classes(builder: ModuleType, leaks: Mod
     assert built.expected_codes == ("EMAIL",)
     assert leaks.leak_codes(value, leaks.HUMAN) == ("EMAIL",)
     assert leaks.leak_codes(value, leaks.STRICT) == ("EMAIL",)
+
+
+def test_the_dotless_email_plant_is_a_dotless_host_address(builder: ModuleType, leaks: ModuleType, tmp_path: Path) -> None:
+    built = builder.build("email-dotless", tmp_path)
+    value = _documents(built.root)[builder.PLANTED_FILE][built.field]
+    assert built.expected_codes == ("EMAIL",)
+    assert "." not in value.split("@")[1].split()[0]
+    assert leaks.leak_codes(value, leaks.HUMAN) == ("EMAIL",)
+    assert leaks.leak_codes(value, leaks.STRICT) == ("EMAIL",)
+
+
+@pytest.mark.parametrize("kind", ["github-token", "aws-key", "private-key"])
+def test_each_secret_plant_is_seen_as_a_secret_in_both_classes(builder: ModuleType, leaks: ModuleType, tmp_path: Path, kind: str) -> None:
+    built = builder.build(kind, tmp_path)
+    value = _documents(built.root)[builder.PLANTED_FILE][built.field]
+    assert built.expected_codes == ("SECRET",)
+    assert leaks.leak_codes(value, leaks.HUMAN) == ("SECRET",)
+    assert leaks.leak_codes(value, leaks.STRICT) == ("SECRET",)
 
 
 def test_the_forbidden_property_plant_is_a_key_the_name_list_rejects(builder: ModuleType, leaks: ModuleType, tmp_path: Path) -> None:

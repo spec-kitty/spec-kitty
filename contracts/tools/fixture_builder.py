@@ -1,6 +1,6 @@
 """Assemble leak-class planted fixtures at run time (plan D-P11, spec FR-012, FR-021).
 
-A planted leak (a host path, an e-mail address, a forbidden property name) must never be
+A planted leak (a host path, an e-mail address, a secret or token, a forbidden property name) must never be
 committed: the text-level scan has no exempt directory. This module therefore writes each
 plant into a temporary root from string fragments, next to a clean control on the same root,
 and no literal leak-shaped string appears in this source (a unit test scans it).
@@ -26,7 +26,16 @@ from pathlib import Path
 
 import yaml
 
-KINDS: tuple[str, ...] = ("host-path-strict", "host-path-human", "email", "forbidden-property")
+KINDS: tuple[str, ...] = (
+    "host-path-strict",
+    "host-path-human",
+    "email",
+    "email-dotless",
+    "github-token",
+    "aws-key",
+    "private-key",
+    "forbidden-property",
+)
 CONTROL_FILE = "Control.clean.yaml"
 PLANTED_FILE = "Planted.planted.yaml"
 EXAMPLES_PATH = ("planted", "examples")
@@ -73,6 +82,22 @@ def _email_address() -> str:
     return "someone" + _AT + "example.invalid"
 
 
+def _dotless_email_address() -> str:
+    return "someone" + _AT + "localhost"
+
+
+def _github_token() -> str:
+    return "gh" + "p_" + "a1B2c3D4e5F6g7H8i9J0" * 2
+
+
+def _aws_access_key() -> str:
+    return "AK" + "IA" + "ABCDEFGH" + "IJKLMNOP"
+
+
+def _private_key_header() -> str:
+    return "-" * 5 + "BEGIN " + "RSA " + "PRIVATE" + " KEY" + "-" * 5
+
+
 def _forbidden_name() -> str:
     return "feedback" + "Path"
 
@@ -96,6 +121,14 @@ def _plant(kind: str) -> tuple[str, str, tuple[str, ...]]:
         return "title", "Fix the notes under " + _home_path("project"), ("HOST_PATH",)
     if kind == "email":
         return "friendlyName", "Contact " + _email_address() + " about this", ("EMAIL",)
+    if kind == "email-dotless":
+        return "friendlyName", "Contact " + _dotless_email_address() + " about this", ("EMAIL",)
+    if kind == "github-token":
+        return "reason", "Use the token " + _github_token() + " here", ("SECRET",)
+    if kind == "aws-key":
+        return "reason", "The access key is " + _aws_access_key() + " today", ("SECRET",)
+    if kind == "private-key":
+        return "reason", "Paste " + _private_key_header() + " into the file", ("SECRET",)
     if kind == "forbidden-property":
         return _forbidden_name(), "an ordinary relative value", ("FORBIDDEN_PROPERTY_NAME",)
     raise ValueError(f"unknown fixture kind {kind!r}; expected one of {KINDS}")

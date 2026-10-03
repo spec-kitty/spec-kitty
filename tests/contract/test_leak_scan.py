@@ -18,6 +18,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+import yaml
 
 from tests.contract._loader import load_tool
 
@@ -28,6 +29,8 @@ CONTRACTS = REPO_ROOT / "contracts"
 TOOLS_DIR = CONTRACTS / "tools"
 FIXTURE_ROOT = TOOLS_DIR / "fixtures" / "leak_scan"
 SCRIPT = TOOLS_DIR / "leak_scan.py"
+
+ALL_KINDS = ["host-path-strict", "host-path-human", "email", "email-dotless", "github-token", "aws-key", "private-key", "forbidden-property"]
 
 SLASH = chr(47)
 AT = chr(64)
@@ -59,7 +62,7 @@ def _email() -> str:
 # -- every planted kind is found, the control on the same root is not ---------------------------
 
 
-@pytest.mark.parametrize("kind", ["host-path-strict", "host-path-human", "email", "forbidden-property"])
+@pytest.mark.parametrize("kind", ALL_KINDS)
 def test_each_leak_kind_is_found_and_the_control_on_the_same_root_is_not(scan: Any, builder: ModuleType, kind: str, tmp_path: Path) -> None:
     built = builder.build(kind, tmp_path)
     report = scan.check(tmp_path)
@@ -67,15 +70,25 @@ def test_each_leak_kind_is_found_and_the_control_on_the_same_root_is_not(scan: A
     control = [f for f in report.findings if builder.CONTROL_FILE in f.subject]
     assert control == [], control
     assert set(built.expected_codes) <= {f.code for f in planted}, (kind, [f.render() for f in report.findings])
-    assert {f.code for f in planted} <= set(built.expected_codes) | {"HOST_PATH", "EMAIL"}
+    assert {f.code for f in planted} <= set(built.expected_codes) | {"HOST_PATH", "EMAIL", "SECRET"}
     assert report.exit_code == 1
 
 
 def test_a_finding_never_prints_the_leaked_value(scan: Any, builder: ModuleType, tmp_path: Path) -> None:
     builder.build("host-path-human", tmp_path)
     builder.build("email", tmp_path / "second")
+    builder.build("email-dotless", tmp_path / "third")
     for finding in scan.check(tmp_path).findings:
         assert "someone" not in finding.render()
+
+
+@pytest.mark.parametrize("kind", ["github-token", "aws-key", "private-key"])
+def test_a_planted_secret_is_reported_as_secret_without_echoing_it(scan: Any, builder: ModuleType, tmp_path: Path, kind: str) -> None:
+    built = builder.build(kind, tmp_path)
+    planted = [f for f in scan.check(tmp_path).findings if builder.PLANTED_FILE in f.subject]
+    assert {f.code for f in planted} == {"SECRET"}
+    value = yaml.safe_load((tmp_path / "planted" / "examples" / builder.PLANTED_FILE).read_text(encoding="utf-8"))[built.field]
+    assert all(value[:12] not in f.render() for f in planted)
 
 
 def test_the_strict_class_catches_a_tilde_path_that_the_human_text_pass_alone_would_not(scan: Any, builder: ModuleType, tmp_path: Path) -> None:
@@ -185,8 +198,8 @@ def test_a_scan_that_misses_every_plant_reports_planted_not_detected(scan: Any) 
         return []
 
     findings = scan.run_self_test(blind)
-    assert sorted(f.code for f in findings) == ["PLANTED_NOT_DETECTED"] * 4
-    assert {f.subject for f in findings} == {"host-path-strict", "host-path-human", "email", "forbidden-property"}
+    assert sorted(f.code for f in findings) == ["PLANTED_NOT_DETECTED"] * 8
+    assert {f.subject for f in findings} == set(ALL_KINDS)
 
 
 def test_the_self_test_of_the_real_scan_passes(scan: Any) -> None:

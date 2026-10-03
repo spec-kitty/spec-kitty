@@ -47,6 +47,18 @@ def _email() -> str:
     return "someone" + AT + "example.invalid"
 
 
+def _github_token(prefix: str = "ghp") -> str:
+    return prefix + "_" + "a1B2c3D4e5F6g7H8i9J0" * 2
+
+
+def _aws_key(prefix: str = "AKIA") -> str:
+    return prefix + "ABCDEFGH" + "IJKLMNOP"
+
+
+def _private_key_header(kind: str = "RSA ") -> str:
+    return "-" * 5 + "BEGIN " + kind + "PRIVATE" + " KEY" + "-" * 5
+
+
 @pytest.fixture(scope="module")
 def leaks() -> Iterator[ModuleType]:
     with pytest.MonkeyPatch.context() as mp:
@@ -125,6 +137,79 @@ def test_email_is_flagged_in_every_class(leaks: ModuleType, field_class: str) ->
     assert "EMAIL" in leaks.leak_codes("contact " + _email(), field_class)
 
 
+@pytest.mark.parametrize(
+    "address",
+    [
+        pytest.param("dev" + AT + "localhost", id="localhost"),
+        pytest.param("root" + AT + "buildhost", id="bare-host"),
+        pytest.param("first.last+tag" + AT + "internal", id="dotted-local-part"),
+        pytest.param("dev" + AT + "localhost.", id="sentence-final-dot"),
+    ],
+)
+@pytest.mark.parametrize("field_class", ["strict", "human"])
+def test_email_without_a_dot_in_the_domain_is_flagged(leaks: ModuleType, address: str, field_class: str) -> None:
+    assert "EMAIL" in leaks.leak_codes("mail " + address + " now", field_class)
+    assert "EMAIL" in leaks.leak_codes(address, field_class)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("actions" + SLASH + "checkout" + AT + "v4", id="action-ref"),
+        pytest.param(AT + "scope" + SLASH + "package", id="npm-scope"),
+        pytest.param("uses: owner" + SLASH + "repo" + AT + "a" * 40, id="pinned-action"),
+        pytest.param("a mention of " + AT + " alone, or " + AT + "{upstream}", id="bare-at-sign"),
+        pytest.param("HEAD" + AT + "{1}", id="reflog"),
+        pytest.param("spec-kitty-cli" + AT + "a1b2c3d4e5f6", id="build-id"),
+        pytest.param("image" + AT + "sha256:" + "0" * 64, id="digest"),
+    ],
+)
+@pytest.mark.parametrize("field_class", ["strict", "human"])
+def test_non_email_at_signs_are_not_flagged(leaks: ModuleType, value: str, field_class: str) -> None:
+    assert "EMAIL" not in leaks.leak_codes(value, field_class)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param(_github_token("ghp"), id="github-personal"),
+        pytest.param(_github_token("gho"), id="github-oauth"),
+        pytest.param(_github_token("ghu"), id="github-user-to-server"),
+        pytest.param(_github_token("ghs"), id="github-server-to-server"),
+        pytest.param(_github_token("ghr"), id="github-refresh"),
+        pytest.param("github" + "_pat_" + "A1b2C3d4E5f6G7h8I9j0K1_" + "x" * 40, id="github-fine-grained"),
+        pytest.param(_aws_key("AKIA"), id="aws-access-key"),
+        pytest.param(_aws_key("ASIA"), id="aws-session-key"),
+        pytest.param(_private_key_header("RSA "), id="rsa-private-key"),
+        pytest.param(_private_key_header(""), id="plain-private-key"),
+        pytest.param(_private_key_header("OPENSSH "), id="openssh-private-key"),
+        pytest.param(_private_key_header("EC "), id="ec-private-key"),
+    ],
+)
+@pytest.mark.parametrize("field_class", ["strict", "human"])
+def test_secrets_and_tokens_are_flagged_in_every_class(leaks: ModuleType, value: str, field_class: str) -> None:
+    assert leaks.leak_codes("token " + value + " end", field_class) == ("SECRET",)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("ghp_short", id="too-short-token"),
+        pytest.param("the ghp prefix and gh" + "x_" + "a" * 40, id="unknown-gh-prefix"),
+        pytest.param("AKIA" + "SHORT", id="short-aws-key"),
+        pytest.param("a note about a private key, BEGIN is not enough", id="prose"),
+        pytest.param("-" * 5 + "BEGIN CERTIFICATE" + "-" * 5, id="public-certificate"),
+    ],
+)
+def test_text_that_only_resembles_a_secret_is_not_flagged(leaks: ModuleType, value: str) -> None:
+    assert "SECRET" not in leaks.leak_codes(value, "human")
+
+
+def test_secret_is_reported_after_host_path_and_email(leaks: ModuleType) -> None:
+    value = _home_path() + " " + _email() + " " + _aws_key()
+    assert leaks.leak_codes(value, "human") == ("HOST_PATH", "EMAIL", "SECRET")
+
+
 def test_codes_report_each_kind_once(leaks: ModuleType) -> None:
     assert leaks.leak_codes(_home_path() + " " + _email(), "human") == ("HOST_PATH", "EMAIL")
 
@@ -187,7 +272,8 @@ def test_the_library_source_is_clean_under_its_own_patterns(leaks: ModuleType) -
 
 
 def test_every_pattern_is_a_compiled_regular_expression(leaks: ModuleType) -> None:
-    patterns = [*leaks.STRICT_HOST_PATH_PATTERNS, *leaks.HUMAN_HOST_PATH_PATTERNS, leaks.EMAIL_PATTERN]
+    patterns = [*leaks.STRICT_HOST_PATH_PATTERNS, *leaks.HUMAN_HOST_PATH_PATTERNS, leaks.EMAIL_PATTERN, *leaks.SECRET_PATTERNS]
 
-    assert len(patterns) == 7
+    assert len(patterns) == 7 + len(leaks.SECRET_PATTERNS)
+    assert len(leaks.SECRET_PATTERNS) >= 3
     assert all(isinstance(p, re.Pattern) for p in patterns)

@@ -1,12 +1,12 @@
 """Leak scan over every file of the contracts tree (spec FR-012, D-14, NFR-004, FR-025).
 
-No host path, e-mail address or identity-bearing property name may appear anywhere under the contracts
+No host path, e-mail address, secret or token or identity-bearing property name may appear anywhere under the contracts
 root: descriptions, citations, the README and CHANGELOG, examples (``promptMarkdown`` included, which is
 authored here). Nothing is exempt: not ``fixtures/``, not ``tools/``, not a marker line. Two passes read the
 same files:
 
-* the text pass: every non-blank line of every text file against the human-text host-path patterns and the
-  e-mail pattern of ``leak_patterns`` (so ``leak_patterns.py`` and ``fixture_builder.py``, which write their
+* the text pass: every non-blank line of every text file against the human-text host-path patterns, the
+  e-mail pattern and the secret patterns of ``leak_patterns`` (so ``leak_patterns.py`` and ``fixture_builder.py``, which write their
   patterns from fragments, are not flagged by it);
 * the structured pass over parsed YAML and JSON: every mapping *key* against the forbidden property names
   (``FORBIDDEN_PROPERTY_NAME``), and every string *value* by field class (spec D-14): a value under one of
@@ -16,11 +16,12 @@ same files:
 
 Findings (exit 1), printed ``CONTRACT-CHECK leak_scan: <CODE>: <file>:<line or key path>: <detail>`` (the
 leaked value is never echoed): ``FORBIDDEN_PROPERTY_NAME``, ``HOST_PATH``, ``EMAIL``,
-``PLANTED_NOT_DETECTED`` (the built-in self test: each ``fixture_builder`` plant is built into a temporary
+``SECRET`` (a GitHub token, an AWS access key id or a private-key header, in text or in any parsed string
+value), ``PLANTED_NOT_DETECTED`` (the built-in self test: each ``fixture_builder`` plant is built into a temporary
 root, scanned, and must be found, so a scan that went blind fails loudly), ``CONTROL_FLAGGED`` (the same
 self test found a leak in the clean control next to a plant), ``PARSE_FAILED`` (a ``.yaml``, ``.yml`` or
-``.json`` file that does not parse, so the structured pass could not read it; the text pass still ran). Cannot do its job (exit 2): ``ZERO_FILES``,
-``ZERO_VALUES_IN_CLASS`` (no string value of the ``strict`` or ``human`` class was scanned). A file that is
+``.json`` file that does not parse, so the structured pass could not read it; the text pass still ran).
+Cannot do its job (exit 2): ``ZERO_FILES``, ``ZERO_VALUES_IN_CLASS`` (no string value of the ``strict`` or ``human`` class was scanned). A file that is
 binary (a NUL byte or invalid UTF-8) is skipped and not counted. The last line is always
 ``counts: files=N values_strict=N values_human=N values_all=N`` (text files read; string values per class;
 non-blank text lines).
@@ -161,7 +162,9 @@ class _Scanner:
 
 
 def _kind(code: str) -> str:
-    return "host path" if code == leak_patterns.CODE_HOST_PATH else "e-mail address"
+    if code == leak_patterns.CODE_HOST_PATH:
+        return "host path"
+    return "secret or token" if code == leak_patterns.CODE_CREDENTIAL else "e-mail address"
 
 
 def scan_tree(root: str | Path) -> list[Finding]:
