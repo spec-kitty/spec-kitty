@@ -119,7 +119,8 @@ inbound adapters, or charter-facing Python seam.
 Python and Java align by contract, not by importing each other's implementation. The
 contract consists of:
 
-- versioned YAML and API schemas;
+- the versioned OpenAPI 3.1 contract and YAML document schemas, kept under
+  `contracts/charter/` (see "Service stack and contract");
 - semantic merge, activation, traversal, and resolution rules;
 - canonical identifiers and diagnostics;
 - positive, negative, provenance, and conflict fixtures;
@@ -135,7 +136,8 @@ active graph, and answer through versioned REST and MCP adapters. The Python cha
 remains the single entry point for existing CLI callers and delegates read operations to the
 service behind an internal adapter.
 
-Agent harnesses may call the governed MCP adapter directly. This is an additional transport
+Agent harnesses may call the governed MCP adapter directly, because MCP lets them read
+charter guidance without starting a CLI process for each question. This is an additional transport
 into the same read application and domain policies, not a second semantic read path. CLI
 callers do not bypass the Python seam, and neither REST nor MCP may implement charter
 resolution independently.
@@ -173,17 +175,33 @@ equivalent diagnostics.
 
 ### Service boundary
 
-The service is local-only and scoped per worktree. Its endpoint, process identity,
+The service is local-only. It is scoped per worktree because each worktree can carry
+different charter and pack inputs, and a shared process would answer from the wrong ones. Its endpoint, process identity,
 capability credential, source fingerprints, and compiled state cannot be shared implicitly
 between worktrees. Ordinary reads do not perform network freshness checks. Stale local
 inputs cause a refusal or loud fallback; explicit refresh and mutation operations rebuild
 the active graph atomically.
 
 The [Mission Status Read API decision](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md)
-is a sibling precedent for loopback binding, credential scope, and cross-OS release
-practice. This decision does not adopt that service's JDK, framework, or native-image
-choices. The services do not share a process, persistence model, or domain, and this
+is the sibling model for loopback binding, credential scope, and cross-OS release
+practice. The services do not share a process, persistence model, or domain, and this
 charter-read facet of #645 is not the Mission Status Read facet.
+
+### Service stack and contract
+
+The charter service follows the Mission Status service. It adopts:
+
+- **Runtime:** Java 25 and Spring Boot 4, with Spring MVC on virtual threads.
+- **Build:** the same Gradle multi-project build as the Mission Status service.
+- **Contract:** one contract-first OpenAPI 3.1 document under `contracts/charter/`, beside
+  `contracts/mission-status/`. The server and its clients build against the contract.
+  The same `contracts/` tooling governs it: layout, lint, breaking-change, and release checks.
+- **Versioning:** paths live under `/api/v1`. Response schemas are closed. Any change to a
+  response shape ships as a new schema version and a new published OpenAPI release.
+  A version that is not yet released carries a `-SNAPSHOT` suffix.
+
+The domain stays plain Java (see "Hexagonal dependency direction"). Spring Boot and the
+OpenAPI types live in the inbound adapters only.
 
 ### Consequences
 
@@ -209,9 +227,9 @@ charter-read facet of #645 is not the Mission Status Read facet.
 
 #### Neutral
 
-- Runtime speed, inference savings, installation friction, build tool, framework, exact
-  YAML library, MCP integration library, native-image posture, and SQL technology remain
-  hypotheses or implementation choices.
+- Runtime speed, inference savings, installation friction, exact YAML library, MCP
+  integration library, native-image posture, and SQL technology remain hypotheses or
+  implementation choices.
 - This work belongs to 4.x evolution and does not gate the 4.0.0 GA milestone.
 
 ### Confirmation
@@ -219,6 +237,7 @@ charter-read facet of #645 is not the Mission Status Read facet.
 The decision is confirmed when:
 
 - the same contract corpus runs against both implementations;
+- `contracts/charter/` passes the `contracts/` layout, lint, and breaking-change checks;
 - shadow reads report no unexplained semantic or diagnostic differences;
 - stale, unavailable, and wrong-worktree service cases are tested;
 - Java-primary fallback is observable and its retirement criteria are met;
@@ -254,10 +273,9 @@ fallback.
 
 ## Deferred Decisions
 
-A later implementation decision selects the Java framework, build tool, YAML codec,
-OpenAPI and MCP libraries, projection format, SQL product if any, daemon launcher,
-native-image posture, and release packaging. Those choices must preserve the dependency
-direction and contract gates above.
+A later implementation decision selects the YAML codec, the MCP library, the projection
+format, the SQL product if any, the daemon launcher, the native-image posture, and release
+packaging. Those choices must preserve the dependency direction and contract gates above.
 
 Performance, inference-cost reduction, and adoption improvement require measurements.
 A warm service is expected to avoid repeated startup and graph construction, while token
