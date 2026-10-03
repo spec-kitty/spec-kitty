@@ -1253,6 +1253,21 @@
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
     },
     {
+      "rule": "tests/coordination/test_coord_mission_factory.py::<module-docstring>",
+      "file": "tests/coordination/test_coord_mission_factory.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        9
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
       "rule": "tests/docs/test_check_cli_reference_freshness.py::test_visible_count_smoke_does_not_clobber_ambient_env_overrides",
       "file": "tests/docs/test_check_cli_reference_freshness.py",
       "scope": "test_visible_count_smoke_does_not_clobber_ambient_env_overrides",
