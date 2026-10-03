@@ -11793,6 +11793,8 @@ pages:
     abstract: "Install the Spec Kitty 3.2 CLI on Windows 10 or 11 with PowerShell, pipx, uv, or a virtual environment."
     anchors:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
+    - {slug: "get-python-from-python-org-not-the-microsoft-store", text: "Get Python from python.org, not the Microsoft Store", level: 2}
+    - {slug: "check-that-your-python-is-not-from-the-microsoft-store", text: "Check that your Python is not from the Microsoft Store", level: 3}
     - {slug: "method-1-pipx-recommended-for-global-tool-install", text: "Method 1: pipx (recommended for global tool install)", level: 2}
     - {slug: "method-2-uv-tool", text: "Method 2: uv tool", level: 2}
     - {slug: "method-3-pip-in-a-venv-contributor-path", text: "Method 3: pip in a venv (contributor path)", level: 2}
