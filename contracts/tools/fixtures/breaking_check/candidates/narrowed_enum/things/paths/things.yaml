@@ -1,0 +1,23 @@
+get:
+  operationId: listThings
+  summary: List things.
+  description: Returns the things.
+  tags:
+    - Things
+  parameters:
+    - name: color
+      in: query
+      required: false
+      description: Filter by color.
+      schema:
+        type: string
+        enum:
+          - red
+          - green
+  responses:
+    '200':
+      description: The things.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Thing.yaml

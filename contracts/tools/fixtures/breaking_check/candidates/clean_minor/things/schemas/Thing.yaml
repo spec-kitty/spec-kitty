@@ -1,0 +1,20 @@
+title: Thing
+description: A thing.
+type: object
+additionalProperties: false
+required:
+  - id
+  - name
+properties:
+  id:
+    type: string
+    description: Identifier.
+  name:
+    type: string
+    description: Display name.
+  count:
+    type: integer
+    description: How many.
+  note:
+    type: string
+    description: A free note.

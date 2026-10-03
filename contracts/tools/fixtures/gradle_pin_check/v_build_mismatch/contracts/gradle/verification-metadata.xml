@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<verification-metadata xmlns="https://schema.gradle.org/dependency-verification">
+   <components>
+      <component group="org.openapi.generator" name="org.openapi.generator.gradle.plugin" version="7.1.0">
+         <artifact name="org.openapi.generator.gradle.plugin-7.1.0.pom">
+            <sha256 value="0000000000000000000000000000000000000000000000000000000000000000"/>
+         </artifact>
+      </component>
+      <component group="org.openapitools" name="openapi-generator-gradle-plugin" version="7.1.0">
+         <artifact name="openapi-generator-gradle-plugin-7.1.0.jar">
+            <sha256 value="0000000000000000000000000000000000000000000000000000000000000000"/>
+         </artifact>
+      </component>
+   </components>
+</verification-metadata>

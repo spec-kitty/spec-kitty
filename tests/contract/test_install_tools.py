@@ -175,3 +175,151 @@ def test_the_committed_manifest_pins_https_checksummed_tools_with_every_field() 
         assert set(tool) >= {"name", "kind", "version", "url", "sha256", "published", "advisory_feed_checked"}
         assert tool["url"].startswith("https://")
         assert len(tool["sha256"]) == 64
+
+
+# -- prebuilt Go binaries (vacuum, oasdiff): tar.gz archives with the binary at the archive root -------------
+
+GO_URL = "https://downloads.example.invalid/gotool_2.0_linux_x86_64.tar.gz"
+
+
+def _tarball(members: dict[str, bytes], modes: dict[str, int] | None = None) -> bytes:
+    import io
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for name, content in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(content)
+            info.mode = (modes or {}).get(name, 0o755 if name == "gotool" else 0o644)
+            archive.addfile(info, io.BytesIO(content))
+    return buffer.getvalue()
+
+
+def _go_manifest(payload: bytes, **overrides: Any) -> dict[str, Any]:
+    import hashlib
+
+    tool = {
+        "name": "gotool",
+        "kind": "archive",
+        "version": "2.0",
+        "url": GO_URL,
+        "sha256": hashlib.sha256(payload).hexdigest(),  # noqa: TID251 -- file-integrity checksum of a test payload
+        "binary": "gotool",
+        "published": "2026-01-01",
+        "advisory_feed_checked": "fixture only",
+    }
+    tool.update(overrides)
+    return {"tools": [tool]}
+
+
+def test_tar_gz_binary_installs_into_its_own_directory_with_the_executable_bit(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"LICENSE": b"licence", "gotool": b"#!/bin/sh\necho gotool\n"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 0, output
+    binary = tmp_path / "tools" / "gotool-2.0" / "gotool"
+    assert binary.is_file() and os.access(binary, os.X_OK)
+    assert f"bin directory: {(tmp_path / 'tools' / 'gotool-2.0').resolve()}" in output
+    assert output.splitlines()[-1] == "counts: tools_installed=1"
+
+
+def test_tar_gz_install_appends_its_directory_to_github_path(installer: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = _tarball({"gotool": b"x"})
+    github_path = tmp_path / "github_path"
+    monkeypatch.setenv("GITHUB_PATH", str(github_path))
+
+    _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert github_path.read_text(encoding="utf-8").strip() == str((tmp_path / "tools" / "gotool-2.0").resolve())
+
+
+def test_tar_gz_with_an_altered_checksum_is_never_unpacked(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"gotool": b"x"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload, sha256="0" * 64)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1 and "CHECKSUM_MISMATCH" in output
+    assert not (tmp_path / "tools").exists()
+
+
+def test_tar_gz_without_the_declared_binary_fails(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"README.md": b"no binary here"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1
+    assert "CONTRACT-CHECK install_tools: BINARY_MISSING: gotool:" in output
+    assert output.splitlines()[-1] == "counts: tools_installed=0"
+
+
+def test_tar_gz_member_escaping_the_destination_is_refused(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"gotool": b"x", "../escape.txt": b"x"})
+
+    code, output = _run(installer, _write(tmp_path, _go_manifest(payload)), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1 and "UNSAFE_ARCHIVE" in output
+    assert not (tmp_path / "escape.txt").exists()
+
+
+def test_an_archive_url_of_an_unknown_format_cannot_be_installed(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"gotool": b"x"})
+    manifest = _go_manifest(payload, url="https://downloads.example.invalid/gotool_2.0.rpm")
+
+    code, output = _run(installer, _write(tmp_path, manifest), tmp_path / "tools", lambda _url: payload)
+
+    assert code == 1 and "UNSUPPORTED_FORMAT" in output
+
+
+def test_only_installs_the_named_tool_and_downloads_nothing_else(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"gotool": b"x"})
+    manifest = _go_manifest(payload)
+    manifest["tools"].append(_manifest()["tools"][0])
+    calls: list[str] = []
+
+    def fetch(url: str) -> bytes:
+        calls.append(url)
+        return payload
+
+    lines: list[str] = []
+    code = installer.run(["--pins", str(_write(tmp_path, manifest)), "--dest", str(tmp_path / "tools"), "--only", "gotool"], fetch=fetch, out=lines.append)
+
+    assert code == 0, lines
+    assert calls == [GO_URL]
+    assert lines[-1] == "counts: tools_installed=1"
+
+
+def test_only_with_an_unknown_name_cannot_do_its_job(installer: ModuleType, tmp_path: Path) -> None:
+    payload = _tarball({"gotool": b"x"})
+    lines: list[str] = []
+
+    code = installer.run(
+        ["--pins", str(_write(tmp_path, _go_manifest(payload))), "--dest", str(tmp_path / "tools"), "--only", "absent"], fetch=lambda _u: payload, out=lines.append
+    )
+
+    assert code == 2 and any("TOOL_UNKNOWN" in line for line in lines)
+    assert lines[-1] == "counts: tools_installed=0"
+
+
+# -- the committed pins for the two CI-only Go binaries ----------------------------------------------------
+
+# A version published less than 14 days before the pin date is adverse (R-9). ISO dates compare as text.
+PIN_DATE = "2026-10-02"
+LATEST_ACCEPTABLE_PUBLICATION = "2026-09-18"
+VENDOR_PREFIXES = {
+    "vacuum": "https://github.com/daveshanley/vacuum/releases/download/v{version}/vacuum_{version}_linux_x86_64.tar.gz",
+    "oasdiff": "https://github.com/oasdiff/oasdiff/releases/download/v{version}/oasdiff_{version}_linux_amd64.tar.gz",
+}
+
+
+@pytest.mark.parametrize("name", sorted(VENDOR_PREFIXES))
+def test_go_binary_pins_come_from_the_vendor_release_over_https_and_are_old_enough(name: str) -> None:
+    manifest = json.loads((TOOLS_DIR / "pins.json").read_text(encoding="utf-8"))
+    (tool,) = [entry for entry in manifest["tools"] if entry["name"] == name]
+
+    assert tool["kind"] == "archive" and tool["binary"] == name
+    assert tool["url"] == VENDOR_PREFIXES[name].format(version=tool["version"]), "the official release location, version in the url"
+    assert len(tool["sha256"]) == 64 and set(tool["sha256"]) <= set("0123456789abcdef")
+    assert tool["published"] <= LATEST_ACCEPTABLE_PUBLICATION, f"{name} {tool['version']} is younger than 14 days at {PIN_DATE}"
+    assert tool["advisory_feed_checked"].strip()

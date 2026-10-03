@@ -25,6 +25,7 @@ Failure codes (exit 1), printed as ``CONTRACT-CHECK bundle: <CODE>: <module>: <d
 * ``VALIDATION_FAILED``: the generator's OpenAPI validator rejected the split root or the bundle.
 * ``BUNDLE_FAILED``: a Gradle task failed for a reason other than validation.
 * ``BUNDLE_EMPTY``: the written bundle is missing or empty.
+* ``BUILDS_DIFFER``: two builds of the same module produced different bytes.
 * ``FEWER_THAN_FIVE_PATHS``: the bundle has fewer path items than ``--min-paths`` (default five).
 * ``UNRESOLVED_REFERENCE_LEFT``: the bundle still holds a ``$ref``.
 
@@ -32,8 +33,12 @@ Cannot do its job (exit 2): ``NO_MODULE``, ``MODULE_WITHOUT_ROOT``, ``JVM_MISSIN
 ``GRADLE_MISSING``, ``PLUGIN_RESOLUTION_FAILED``, ``DEPENDENCY_VERIFICATION_FAILED``,
 ``BUILD_SCRIPT_FAILED`` (the Gradle build itself failed to configure) and
 ``OUT_INSIDE_REPOSITORY``. The last line is always
-``counts: modules=N bundles=N path_items=N``. Comparing two builds' digests is added by the
-hardening work package.
+``counts: modules=N bundles=N path_items=N``.
+
+*Determinism (NFR-002).* Each module is written twice, into two different directories (the second is a scratch
+copy, removed afterwards); the sha256 of the two files is compared and ``BUILDS_DIFFER`` (exit 1) names both when
+they differ. The agreed digest is printed as ``bundle sha256 <module> <digest>``. ``--bundle-only`` stops after the
+bundle step (no JVM, no Gradle), for the jobs that only need the written bundle.
 
 ``--write-verification-metadata`` makes Gradle record the sha256 of every dependency it resolves
 into ``contracts/gradle/verification-metadata.xml`` (the only way that file is produced; it is
@@ -46,6 +51,7 @@ Standard library, PyYAML and the sibling ``contract_resolver``.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -71,6 +77,8 @@ DETAIL_LINES = 12
 
 Runner = Callable[[list[str]], tuple[int, str]]
 Which = Callable[[str], str | None]
+Writer = Callable[[Path, Path], Path]
+SECOND_BUILD_DIRECTORY = "bundle-second"
 
 
 def subprocess_runner(command: list[str]) -> tuple[int, str]:
@@ -123,7 +131,7 @@ def inside_repository(path: Path) -> bool:
     return root is not None and (resolved == root or root in resolved.parents)
 
 
-def preflight(root: Path, only: Sequence[str], out_dir: Path, which: Which) -> tuple[list[Path], str | None, tuple[str, str] | None]:
+def preflight(root: Path, only: Sequence[str], out_dir: Path, which: Which, *, need_jvm: bool = True) -> tuple[list[Path], str | None, tuple[str, str] | None]:
     """Find the modules and the tools. Returns ``(modules, gradle, None)`` or ``([], None, (code, detail))`` when the job cannot be done."""
     modules, without_root = discover_modules(root)
     if without_root:
@@ -134,6 +142,8 @@ def preflight(root: Path, only: Sequence[str], out_dir: Path, which: Which) -> t
         return [], None, ("NO_MODULE", f"no module with a root {ROOT_DOCUMENT} under {root}")
     if inside_repository(out_dir):
         return [], None, ("OUT_INSIDE_REPOSITORY", f"{out_dir} is inside the repository working tree; stage output outside the repository")
+    if not need_jvm:
+        return modules, None, None
     if which("java") is None:
         return [], None, ("JVM_MISSING", "no java on PATH (the workflow installs the pinned JDK before this step)")
     gradle = which("gradle")
@@ -164,6 +174,26 @@ def write_bundle(module: Path, out_dir: Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render_bundle(tree), encoding="utf-8", newline="\n")
     return target
+
+
+def file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 -- file-integrity digest of a bundle, not the charter hash
+
+
+def build_twice(module: Path, out_dir: Path, writer: Writer, report: Report, out: Callable[[str], None]) -> bool:
+    """Write the bundle, build it a second time elsewhere and compare the digests. Returns True when they agree."""
+    first = writer(module, out_dir)
+    second_dir = out_dir / SECOND_BUILD_DIRECTORY
+    try:
+        second = writer(module, second_dir)
+        digest_one, digest_two = file_digest(first), file_digest(second)
+    finally:
+        shutil.rmtree(second_dir, ignore_errors=True)
+    if digest_one != digest_two:
+        report.findings.append(finding("BUILDS_DIFFER", module.name, f"two builds of the same module differ: {digest_one} then {digest_two}"))
+        return False
+    out(f"bundle sha256 {module.name} {digest_one}")
+    return True
 
 
 def staged_files(directory: Path) -> str:
@@ -247,13 +277,21 @@ def gradle_command(gradle: str, root: Path, out: Path, tasks: Sequence[str], *, 
     return [*command, *tasks]
 
 
-def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner, which: Which = shutil.which, out: Callable[[str], None] = print) -> int:
+def run(
+    argv: Sequence[str] | None = None,
+    *,
+    runner: Runner = subprocess_runner,
+    which: Which = shutil.which,
+    out: Callable[[str], None] = print,
+    writer: Writer = write_bundle,
+) -> int:
     parser = argparse.ArgumentParser(description="Validate and bundle every contract module.")
     parser.add_argument("--root", default="contracts", type=Path)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--module", action="append", default=[], help="restrict to this module (repeatable)")
     parser.add_argument("--min-paths", type=int, default=DEFAULT_MIN_PATHS)
     parser.add_argument("--write-verification-metadata", action="store_true")
+    parser.add_argument("--bundle-only", action="store_true", help="write and check the bundle only: no JVM, no Gradle")
     parser.add_argument("--verbose", action="store_true", help="print the full Gradle output of every module")
     args = parser.parse_args(argv)
 
@@ -264,18 +302,21 @@ def run(argv: Sequence[str] | None = None, *, runner: Runner = subprocess_runner
         out(report.counts_line())
         return 2
 
-    modules, gradle, refusal = preflight(args.root, args.module, args.out, which)
-    if refusal is not None or gradle is None:
+    modules, gradle, refusal = preflight(args.root, args.module, args.out, which, need_jvm=not args.bundle_only)
+    if refusal is not None or (gradle is None and not args.bundle_only):
         return blocked(*(refusal or ("NO_MODULE", "no module")))
 
     report.modules = len(modules)
     for module in modules:
         try:
-            write_bundle(module, args.out)
+            agreed = build_twice(module, args.out, writer, report, out)
         except contract_resolver.ResolveError as error:
             report.findings.append(finding("RESOLVE_FAILED", module.name, str(error)))
             continue
         check_bundle(module.name, args.out, args.min_paths, report)
+        if args.bundle_only or not agreed:
+            continue
+        assert gradle is not None  # preflight guarantees it unless --bundle-only, handled above
         tasks = (f"validate_{module.name}", f"validateBundle_{module.name}", f"javaView_{module.name}")
         status, output = runner(gradle_command(gradle, args.root, args.out, tasks, write_metadata=args.write_verification_metadata))
         if args.verbose:

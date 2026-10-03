@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: Things
+  version: 1.1.0
+servers:
+  - url: /api/v1
+tags:
+  - name: Things
+    description: Things and gadgets.
+paths:
+  /things:
+    $ref: paths/things.yaml
+  /gadgets:
+    $ref: paths/gadgets.yaml

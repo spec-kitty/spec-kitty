@@ -11,6 +11,8 @@ fixture with a clean control.
 
 from __future__ import annotations
 
+import hashlib
+import re
 import shutil
 import subprocess
 import sys
@@ -310,3 +312,78 @@ def test_script_exits_2_with_a_counts_line_when_the_root_has_no_module(tmp_path:
 
     assert result.returncode == 2
     assert result.stdout.splitlines()[-1] == "counts: modules=0 bundles=0 path_items=0"
+
+
+# -- determinism: the bundle is built twice and the digests are compared --------------------
+
+
+def _digest_lines(output: str) -> list[str]:
+    return [line for line in output.splitlines() if line.startswith("bundle sha256 ")]
+
+
+def test_two_builds_of_one_commit_agree_and_the_digest_is_printed(bundler: ModuleType, tmp_path: Path) -> None:
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", _gradle(), "--module", "full")
+
+    assert code == 0, output
+    (line,) = _digest_lines(output)
+    digest = line.split()[-1]
+    assert line.startswith("bundle sha256 full ") and len(digest) == 64
+    assert digest == hashlib.sha256((tmp_path / "out" / "bundle" / "full" / "openapi.yaml").read_bytes()).hexdigest()  # noqa: TID251 -- file-integrity digest of a bundle
+    assert "BUILDS_DIFFER" not in output
+    assert not (tmp_path / "out" / "bundle-second").exists(), "the second build is a scratch copy and is removed"
+
+
+def test_builds_that_differ_fail_with_both_digests(bundler: ModuleType, tmp_path: Path) -> None:
+    real = bundler.write_bundle
+    calls: list[int] = []
+
+    def flaky(module: Path, out_dir: Path) -> Path:
+        target = real(module, out_dir)
+        calls.append(1)
+        if len(calls) == 2:
+            target.write_text(target.read_text(encoding="utf-8") + "# drift\n", encoding="utf-8")
+        return target
+
+    lines: list[str] = []
+    code = bundler.run(
+        ["--root", str(SPIKE_ROOT), "--out", str(tmp_path / "out"), "--module", "full"], runner=_gradle(), which=_tool, out=lines.append, writer=flaky
+    )
+    output = "\n".join(lines)
+
+    assert code == 1, output
+    differ = [line for line in lines if "BUILDS_DIFFER" in line]
+    assert len(differ) == 1 and differ[0].startswith("CONTRACT-CHECK bundle: BUILDS_DIFFER: full: ")
+    first, second = re.findall(r"\b[0-9a-f]{64}\b", differ[0])
+    assert first != second
+    assert lines[-1].startswith("counts: modules=1")
+
+
+def test_the_second_build_is_independent_of_the_first(bundler: ModuleType, tmp_path: Path) -> None:
+    targets: list[Path] = []
+    real = bundler.write_bundle
+
+    def spying(module: Path, out_dir: Path) -> Path:
+        targets.append(out_dir)
+        return real(module, out_dir)
+
+    bundler.run(["--root", str(SPIKE_ROOT), "--out", str(tmp_path / "out"), "--module", "full"], runner=_gradle(), which=_tool, out=lambda _l: None, writer=spying)
+
+    assert len(targets) == 2 and targets[0] != targets[1], "two builds, two different output directories"
+
+
+def test_bundle_only_needs_no_jvm_and_never_runs_gradle(bundler: ModuleType, tmp_path: Path) -> None:
+    def forbidden(_command: list[str]) -> tuple[int, str]:
+        raise AssertionError("gradle must not run with --bundle-only")
+
+    code, output = _run(bundler, SPIKE_ROOT, tmp_path / "out", forbidden, "--module", "full", "--bundle-only", which=lambda _n: None)
+
+    assert code == 0, output
+    assert output.splitlines()[-1] == "counts: modules=1 bundles=1 path_items=5"
+    assert len(_digest_lines(output)) == 1
+    assert (tmp_path / "out" / "bundle" / "full" / "openapi.yaml").is_file()
+
+
+def test_bundle_only_still_refuses_an_output_inside_the_repository(bundler: ModuleType) -> None:
+    code, output = _run(bundler, SPIKE_ROOT, TOOLS_DIR / "inside", _gradle(), "--bundle-only", which=lambda _n: None)
+
+    assert code == 2 and "OUT_INSIDE_REPOSITORY" in output

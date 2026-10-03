@@ -1,0 +1,13 @@
+get:
+  operationId: listGadgets
+  summary: List gadgets.
+  description: Returns the gadgets.
+  tags:
+    - Things
+  responses:
+    '200':
+      description: The gadgets.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Gadget.yaml

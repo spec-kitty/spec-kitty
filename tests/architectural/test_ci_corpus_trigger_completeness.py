@@ -123,6 +123,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/contract/test_example_check.py",
         "tests/contract/test_example_round_trip.py",
         "tests/contract/test_fixture_builder.py",
+        "tests/contract/test_gradle_pin_check.py",
         "tests/contract/test_install_tools.py",
         "tests/contract/test_layout_check.py",
         "tests/contract/test_leak_patterns.py",

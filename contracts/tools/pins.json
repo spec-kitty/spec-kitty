@@ -17,6 +17,26 @@
       "sha256": "34bf234e8b4ec44fca491769bd1acbf81eb956ca31e8e375215829914497fa73",
       "published": "2026-08-24",
       "advisory_feed_checked": "GitHub security advisories of OpenAPITools/openapi-generator (every listed advisory is fixed before 7.25.0), checked 2026-10-02"
+    },
+    {
+      "name": "vacuum",
+      "kind": "archive",
+      "version": "0.30.6",
+      "url": "https://github.com/daveshanley/vacuum/releases/download/v0.30.6/vacuum_0.30.6_linux_x86_64.tar.gz",
+      "sha256": "179f038a71cd88721738d6c739dd07fbeebc905b48301935f2416e66aead95c6",
+      "binary": "vacuum",
+      "published": "2026-09-15",
+      "advisory_feed_checked": "GitHub security advisories of daveshanley/vacuum (none published), checked 2026-10-02; the sha256 equals the vendor's checksums.txt entry for this archive"
+    },
+    {
+      "name": "oasdiff",
+      "kind": "archive",
+      "version": "1.32.1",
+      "url": "https://github.com/oasdiff/oasdiff/releases/download/v1.32.1/oasdiff_1.32.1_linux_amd64.tar.gz",
+      "sha256": "7c8939fc49b75ee11fec66a5b83b37a2fca6aee109fed85013b1ba2ac2a1ee7f",
+      "binary": "oasdiff",
+      "published": "2026-09-15",
+      "advisory_feed_checked": "GitHub security advisories of oasdiff/oasdiff (GHSA-m3wq-w7x2-4q6m fixed in 1.26.1, GHSA-2jcc-mxv7-p3f9 fixed in 1.18.1; both before 1.32.1), checked 2026-10-02; the sha256 equals the vendor's checksums.txt entry for this archive"
     }
   ]
 }

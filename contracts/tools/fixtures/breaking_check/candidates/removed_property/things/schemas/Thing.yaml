@@ -1,0 +1,20 @@
+title: Thing
+description: A thing.
+type: object
+additionalProperties: false
+required:
+  - id
+properties:
+  id:
+    type: string
+    description: Identifier.
+  count:
+    type: integer
+    description: How many.
+  guess:
+    description: A provisional guess.
+    type:
+      - string
+      - 'null'
+    x-provisional:
+      open_decision: the shape of this guess is still being decided

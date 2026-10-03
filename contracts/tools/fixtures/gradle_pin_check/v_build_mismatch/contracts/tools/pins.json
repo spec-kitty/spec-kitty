@@ -1,0 +1,22 @@
+{
+  "tools": [
+    {
+      "name": "gradle",
+      "kind": "archive",
+      "version": "8.0.1",
+      "url": "https://example.invalid/distributions/gradle-8.0.1-bin.zip",
+      "sha256": "56041e4ee0a24a42dac2f5d1774519dd4548a2fbba2c9b72d75a21b47fb1d9bc",
+      "published": "2026-05-07",
+      "advisory_feed_checked": "fixture advisory feed read, nothing listed"
+    },
+    {
+      "name": "openapi-generator-gradle-plugin",
+      "kind": "gradle-plugin",
+      "version": "7.1.0",
+      "url": "https://example.invalid/m2/openapi-generator-gradle-plugin/7.1.0/openapi-generator-gradle-plugin-7.1.0.jar",
+      "sha256": "86b15f59756ab16259bf48e8de17752d8cbf8233f59e3c218f9a464a3cd82585",
+      "published": "2026-08-24",
+      "advisory_feed_checked": "fixture advisory feed read, nothing listed"
+    }
+  ]
+}
