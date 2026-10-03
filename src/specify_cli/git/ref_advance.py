@@ -120,6 +120,43 @@ class RefRestoreError(RuntimeError):
     error_code = "REF_RESTORE_FAILED"
 
 
+class RefDeleteError(RuntimeError):
+    """A compare-and-swap branch delete was refused or failed at the git level.
+
+    Nothing was deleted: the branch ref is exactly as it was before the call.
+    """
+
+    error_code = "REF_DELETE_FAILED"
+
+
+class RefDeleteMismatchError(RefDeleteError):
+    """The branch is no longer at the tip the caller approved for deletion.
+
+    ``actual_sha`` is the tip the branch holds now, or ``None`` when the
+    branch no longer exists. The commits past ``expected_sha`` are intact.
+    """
+
+    error_code = "REF_DELETE_TIP_MOVED"
+
+    def __init__(self, *, branch: str, expected_sha: str, actual_sha: str | None) -> None:
+        self.branch = branch
+        self.expected_sha = expected_sha
+        self.actual_sha = actual_sha
+        found = "the branch no longer exists" if actual_sha is None else f"the branch is now at {actual_sha[:12]}"
+        super().__init__(f"Refusing to delete branch {branch!r}: it was approved for deletion at {expected_sha[:12]} but {found}. The branch was not deleted.")
+
+
+class RefDeleteCheckedOutError(RefDeleteError):
+    """The branch is checked out in a worktree; deleting its ref would orphan that checkout."""
+
+    error_code = "REF_DELETE_CHECKED_OUT"
+
+    def __init__(self, *, branch: str, worktree_path: Path) -> None:
+        self.branch = branch
+        self.worktree_path = worktree_path
+        super().__init__(f"Refusing to delete branch {branch!r}: it is checked out in the worktree at {worktree_path}.")
+
+
 class RefAdvanceNonFastForwardError(RefAdvanceError):
     """The requested ref advance would move a branch backwards or sideways."""
 
@@ -697,6 +734,45 @@ def restore_branch_ref(
         env,
         context=f"Restored {branch} ({expected_current_sha[:12]} -> {restored_sha[:12]})",
     )
+
+
+def delete_branch_ref(
+    repo_root: Path,
+    branch: str,
+    expected_sha: str,
+    *,
+    env: dict[str, str] | None = None,
+) -> None:
+    """Delete ``refs/heads/<branch>`` only while it still points at ``expected_sha``.
+
+    The delete-side counterpart of :func:`advance_branch_ref`: one
+    compare-and-swap ``git update-ref -d <ref> <expected_sha>`` (3-arg), so a
+    commit that landed after the caller approved ``expected_sha`` is never made
+    unreachable (#5570). It never falls back to an unconditional delete, never
+    retries, and never restores the ref -- a refusal leaves the branch exactly as
+    found and the caller decides what to tell the operator.
+
+    ``update-ref -d`` bypasses git's checked-out-branch protection, so the
+    protection ``git branch -D`` gave (#3926) is kept explicitly: a branch that
+    any worktree has checked out is refused before the delete is attempted.
+
+    Raises:
+        RefDeleteCheckedOutError: a worktree has ``branch`` checked out.
+        RefDeleteMismatchError: ``branch`` is missing or at a different tip.
+        RefDeleteError: git refused the delete for another reason.
+    """
+    ref = f"refs/heads/{branch}"
+    for entry in _list_worktrees(repo_root, env):
+        if entry.branch == ref:
+            raise RefDeleteCheckedOutError(branch=branch, worktree_path=entry.path)
+    result = _run_git(repo_root, ["update-ref", "-d", ref, expected_sha], env=env)
+    if result.returncode == 0:
+        return
+    probe = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)
+    actual_sha = probe.stdout.strip() if probe.returncode == 0 and probe.stdout.strip() else None
+    if actual_sha != expected_sha:
+        raise RefDeleteMismatchError(branch=branch, expected_sha=expected_sha, actual_sha=actual_sha)
+    raise RefDeleteError(f"Failed to delete branch {branch!r} at {expected_sha[:12]}: {result.stderr.strip() or result.stdout.strip()}")
 
 
 def advance_branch_ref_for_commit(

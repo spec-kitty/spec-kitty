@@ -30,9 +30,13 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from specify_cli.consolidation.executor import _MergeRunState
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.integration]
 
@@ -493,3 +497,186 @@ def test_teardown_of_a_missing_coordination_branch_is_not_refused(tmp_path: Path
     assert ok is True
     assert persist.called
     assert destroy.called
+
+
+# ---------------------------------------------------------------------------
+# #5570 -- the coordination branch is deleted only at the tip the gate approved.
+# ---------------------------------------------------------------------------
+
+
+def _coord_run_state(repo: Path, coord_branch: str, projected_tip: str) -> _MergeRunState:
+    """A gated coord-topology merge run, as ``_teardown_coordination_triple`` finds it.
+
+    The gate inputs (checkpoint, passing reconciliation, post-projection tip)
+    are the ones the real merge records; only the git repository is a fixture.
+    """
+    from types import SimpleNamespace
+
+    from specify_cli.consolidation import executor as ex
+    from specify_cli.consolidation.reconciliation import VerifyResult, VerifyStatus
+    from specify_cli.consolidation.state import ConsolidationState
+
+    meta_path = _mission_dir(repo) / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update({"coordination_branch": coord_branch, "topology": "coord", "flattened": False})
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+
+    feature_dir = _mission_dir(repo)
+    lanes_manifest = SimpleNamespace(target_branch="main", mission_branch=coord_branch, lanes=[])
+    run = ex._MergeRunState(
+        main_repo=repo,
+        mission_slug=SLUG,
+        canonical_id=MISSION_ID,
+        canonical_mission_id=MISSION_ID,
+        feature_dir=feature_dir,
+        target_feature_dir=feature_dir,
+        lanes_manifest=lanes_manifest,
+        all_wp_ids=["WP01"],
+        push=False,
+        delete_branch=True,
+        remove_worktree=True,
+        teardown_coordination=True,
+        strategy=ex.MergeStrategy.SQUASH,
+        assume_yes=True,
+        planning_artifact_only=False,
+        state=ConsolidationState(mission_id=MISSION_ID, mission_slug=SLUG, target_branch="main", wp_order=["WP01"]),
+        is_resume=False,
+        baseline_mission_id=MISSION_ID,
+    )
+    run.coord_checkpoint = ex._CoordCheckpoint(ref=coord_branch, sha=projected_tip)
+    run.coord_tip_after_projection = projected_tip
+    run.reconciliation_result = VerifyResult(status=VerifyStatus.PASS)
+    return run
+
+
+def _gated_coord_fixture(tmp_path: Path) -> tuple[Path, str, str]:
+    """Repo + a coord branch whose projected tip is distinct from ``main`` (CAS leg active)."""
+    repo = _init_repo(tmp_path)
+    coord = _make_coord_branch(repo)
+    projected_tip = _append_coord_commit(repo, coord, f"kitty-specs/{SLUG}/notes/projected.md", "projected\n", "projected emit")
+    assert projected_tip != _rev(repo, "main"), "fixture invalid: the coord tip must differ from the target"
+    return repo, coord, projected_tip
+
+
+def _branch_exists(repo: Path, branch: str) -> bool:
+    return subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", f"refs/heads/{branch}"], capture_output=True, check=False).returncode == 0
+
+
+def test_status_commit_landing_between_gate_and_delete_is_never_destroyed(tmp_path: Path) -> None:
+    """#5570: a commit that lands AFTER the teardown gate passed but BEFORE the branch delete survives.
+
+    The gate compare-and-swaps the coord tip once, then persist and the worktree
+    destroy run, then the branch is deleted. Only ``_destroy_coordination_worktree``
+    is wrapped (a concurrency-injection seam: it appends a REAL commit to the coord
+    branch, then runs the REAL destroy). Ideal: the delete is a compare-and-swap at
+    the gated tip, so it refuses, the branch keeps the late commit, the marker is
+    not flattened, and the error reaches the CLI as a non-zero teardown failure.
+    Before the fix ``git branch -D`` deleted the branch unconditionally and the late
+    commit became unreachable while the call returned normally.
+    """
+    from specify_cli.consolidation import executor as ex
+    from specify_cli.coordination import teardown
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    real_destroy = teardown._destroy_coordination_worktree
+    late: list[str] = []
+
+    def destroy_after_late_commit(repo_root: Path, mission_slug: str, mid8: str) -> bool:
+        late.append(_append_coord_commit(repo, coord, f"kitty-specs/{SLUG}/notes/late.md", "late status emit\n", "late status emit"))
+        return real_destroy(repo_root, mission_slug, mid8)
+
+    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_late_commit), pytest.raises(ex.CoordinationTeardownError) as caught:
+        ex._teardown_coordination_triple(run)
+
+    assert late, "fixture invalid: the injection seam never ran"
+    assert _branch_exists(repo, coord), "#5570: the coordination branch was deleted over a commit it did not approve"
+    assert _rev(repo, coord) == late[0], "the late commit must still be the branch tip"
+    message = str(caught.value)
+    assert coord in message
+    assert late[0][:12] in message, "the refusal must name the moved tip"
+    meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
+    assert meta.get("coordination_branch") == coord, "the marker must not be flattened while the branch survives"
+
+
+def test_unmoved_coord_branch_is_still_deleted_and_flattened(tmp_path: Path) -> None:
+    """Positive control: when nothing moved in the window the delete proceeds as before."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+
+    ex._teardown_coordination_triple(run)
+
+    assert not _branch_exists(repo, coord)
+    meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
+    assert "coordination_branch" not in meta
+
+
+def test_ungated_teardown_deletes_only_at_the_tip_read_before_the_window(tmp_path: Path) -> None:
+    """No gate ran (no checkpoint): the delete still compare-and-swaps, at the tip read before teardown began."""
+    from specify_cli.consolidation import executor as ex
+    from specify_cli.coordination import teardown
+
+    repo = _init_repo(tmp_path)
+    coord = _make_coord_branch(repo)
+    run = _coord_run_state(repo, coord, _rev(repo, coord))
+    run.coord_checkpoint = None
+    run.reconciliation_result = None
+    real_destroy = teardown._destroy_coordination_worktree
+    late: list[str] = []
+
+    def destroy_after_late_commit(repo_root: Path, mission_slug: str, mid8: str) -> bool:
+        late.append(_append_coord_commit(repo, coord, f"kitty-specs/{SLUG}/notes/late.md", "late\n", "late emit"))
+        return real_destroy(repo_root, mission_slug, mid8)
+
+    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_late_commit), pytest.raises(ex.CoordinationTeardownError):
+        ex._teardown_coordination_triple(run)
+
+    assert _rev(repo, coord) == late[0], "the late commit must survive an ungated teardown too"
+
+
+def test_branch_that_vanishes_inside_the_window_is_treated_as_already_gone(tmp_path: Path) -> None:
+    """Something else already removed the branch: nothing of ours was destroyed, teardown completes."""
+    from specify_cli.consolidation import executor as ex
+    from specify_cli.coordination import teardown
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    real_destroy = teardown._destroy_coordination_worktree
+
+    def destroy_after_branch_removed(repo_root: Path, mission_slug: str, mid8: str) -> bool:
+        _git(repo, "branch", "-D", coord)
+        return real_destroy(repo_root, mission_slug, mid8)
+
+    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_branch_removed):
+        ex._teardown_coordination_triple(run)
+
+    assert not _branch_exists(repo, coord)
+    meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
+    assert "coordination_branch" not in meta
+
+
+def test_a_held_ref_lock_keeps_the_branch_and_the_marker(tmp_path: Path) -> None:
+    """A git refusal that is not a moved tip (a held ref lock) reports 'still exists' and flattens nothing."""
+    from specify_cli.consolidation import executor as ex
+
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    (repo / ".git" / "refs" / "heads" / f"{coord}.lock").write_text("", encoding="utf-8")
+
+    with pytest.raises(ex.CoordinationTeardownError, match="still exists after teardown"):
+        ex._teardown_coordination_triple(run)
+
+    assert _rev(repo, coord) == projected_tip
+    meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
+    assert meta.get("coordination_branch") == coord
+
+
+def test_delete_mission_branch_with_no_branch_is_a_no_op(tmp_path: Path) -> None:
+    from specify_cli.consolidation import executor as ex
+
+    repo = _init_repo(tmp_path)
+    run = _coord_run_state(repo, f"kitty/mission-{SLUG}", _rev(repo, "main"))
+
+    assert ex._delete_mission_branch(run) is True

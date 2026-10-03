@@ -70,7 +70,15 @@ from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
 )
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
-from specify_cli.git.ref_advance import RefAdvanceError, RefResyncError, RefRestoreError, restore_branch_ref
+from specify_cli.git.ref_advance import (
+    RefAdvanceError,
+    RefDeleteError,
+    RefDeleteMismatchError,
+    RefResyncError,
+    RefRestoreError,
+    delete_branch_ref,
+    restore_branch_ref,
+)
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
     MERGE_UNSAFE_WORKTREE_DIRTY,
@@ -2851,54 +2859,72 @@ def _is_coord_topology_mission(run: _MergeRunState) -> bool:
     return "coordination_branch" in meta
 
 
-def _mission_branch_exists(run: _MergeRunState) -> bool:
-    ret, _, _ = run_command(
-        ["git", "rev-parse", "--verify", f"refs/heads/{run.lanes_manifest.mission_branch}"],
-        capture=True,
-        check_return=False,
-        cwd=run.main_repo,
+def _mission_branch_tip(run: _MergeRunState) -> str | None:
+    """The mission/coordination branch's current tip SHA, or ``None`` when it does not resolve."""
+    return _resolve_ref_sha(run.main_repo, f"refs/heads/{run.lanes_manifest.mission_branch}") or None
+
+
+def _tip_moved_teardown_error(branch: str, exc: RefDeleteMismatchError) -> CoordinationTeardownError:
+    """Operator-facing refusal for a mission branch that moved past the tip teardown approved (#5570)."""
+    return CoordinationTeardownError(
+        f"coordination branch {branch!r} moved to {(exc.actual_sha or '')[:12]} after teardown approved "
+        f"{exc.expected_sha[:12]} (a commit landed during teardown); it was NOT deleted and the mission's "
+        f"coordination marker was left intact. Review the commit(s) with "
+        f"`git log {exc.expected_sha[:12]}..{branch}`; if they belong on the target, land them, then re-run "
+        "`spec-kitty consolidate --resume` to finish teardown."
     )
-    return ret == 0
 
 
-def _delete_mission_branch(run: _MergeRunState) -> bool:
+def _delete_mission_branch(run: _MergeRunState, expected_tip: str | None = None) -> bool:
     """Delete the mission/coordination branch from git, if it exists.
 
     Returns whether the branch is gone afterwards — deleted now, or already
-    absent. ``git branch -D`` refuses while the branch is checked out in a
-    worktree and ``check_return=False`` swallows that (#3926), so the caller
-    that couples this to the rest of the coord triple needs the answer rather
-    than an assumed success.
+    absent. The delete is a compare-and-swap at ``expected_tip`` (#5570): the
+    tip the teardown gate approved, or — when no gate ran — the tip read at the
+    start of the teardown phase; ``None`` reads it now. A commit that landed
+    after that tip survives (the branch is kept) and the refusal is raised as
+    :class:`CoordinationTeardownError`, never restored or force-deleted here.
+
+    Git refuses to drop a branch that is checked out in a worktree (#3926); the
+    typed refusal is reported as ``False`` rather than assumed to be success,
+    so the caller that couples this to the rest of the coord triple gets the
+    answer.
 
     #5100 T020 safety fix: an UNPROTECTED single_branch mission's manifest
     carries ``mission_branch == target_branch`` (contracts/single-branch-
     execution.md's consolidate table -- bookkeeping only, no branch merge or
-    deletion). Without this guard, ``git branch -D <mission_branch>`` would
-    delete the mission's TARGET branch itself (e.g. ``main``) the moment
-    ``run.delete_branch`` is True -- the single most dangerous consequence
-    of ``lanes_manifest.mission_branch`` being unconditionally derived
+    deletion). Without this guard, the delete would remove the mission's
+    TARGET branch itself (e.g. ``main``) the moment ``run.delete_branch`` is
+    True -- the single most dangerous consequence of
+    ``lanes_manifest.mission_branch`` being unconditionally derived
     ``kitty/mission-...`` for every other topology previously made
     unreachable. Returns ``True`` (nothing to delete, target is untouched)
     rather than attempting it.
+
+    Raises:
+        CoordinationTeardownError: the branch moved past ``expected_tip``.
     """
     lanes_manifest = run.lanes_manifest
-    if lanes_manifest.mission_branch == lanes_manifest.target_branch:
+    branch = lanes_manifest.mission_branch
+    if branch == lanes_manifest.target_branch:
         return True
-    if _mission_branch_exists(run):
-        run_command(
-            ["git", "branch", "-D", lanes_manifest.mission_branch],
-            cwd=run.main_repo,
-            check_return=False,
-        )
-        return not _mission_branch_exists(run)
-    logger.debug(
-        "Mission branch %s does not exist, skipping deletion",
-        lanes_manifest.mission_branch,
-    )
+    tip = expected_tip or _mission_branch_tip(run)
+    if tip is None:
+        logger.debug("Mission branch %s does not exist, skipping deletion", branch)
+        return True
+    try:
+        delete_branch_ref(run.main_repo, branch, tip)
+    except RefDeleteMismatchError as exc:
+        if exc.actual_sha is None:
+            return True  # already gone: nothing was destroyed by us
+        raise _tip_moved_teardown_error(branch, exc) from exc
+    except RefDeleteError as exc:
+        logger.warning("Mission branch %s was not deleted: %s", branch, exc)
+        return False
     return True
 
 
-def _teardown_coord_worktree(run: _MergeRunState) -> None:
+def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
     """Coordination worktree teardown (WP07/FR-016/SC-10).
 
     The shared ``teardown_coordination_topology`` seam (FR-004) persists the
@@ -2906,6 +2932,11 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
     (persist-before-destroy, FR-005), then performs the idempotent worktree
     removal that safely no-ops for legacy missions that never created a
     coordination worktree (FR-017, empty ``mid8``).
+
+    Returns the mission-branch tip the projection teardown gate approved
+    (#5570), so the later branch delete can compare-and-swap at it; ``None``
+    when no CAS-protected gate ran (ungated, or the coordination ref is the
+    target / not the mission branch).
     """
     from specify_cli.coordination.teardown import (
         ProjectionTeardownGate,
@@ -2937,11 +2968,14 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
     # the ref's current tip makes the CAS a satisfied no-op) rather than skipping
     # the gate entirely.
     projection_gate: ProjectionTeardownGate | None = None
+    approved_branch_tip: str | None = None
     checkpoint = run.coord_checkpoint
     if checkpoint is not None and run.reconciliation_result is not None:
         coord_is_distinct = _resolve_ref_sha(run.main_repo, checkpoint.ref) != _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
         if coord_is_distinct:
             expected_coord_sha = run.coord_tip_after_projection or checkpoint.sha
+            if checkpoint.ref in (run.lanes_manifest.mission_branch, f"refs/heads/{run.lanes_manifest.mission_branch}"):
+                approved_branch_tip = expected_coord_sha
         else:
             # No separate coordination branch to CAS-protect; anchor on the ref's
             # current tip so the compare-and-swap is a satisfied no-op and only the
@@ -2963,6 +2997,7 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
         run.mission_slug,
         _mid8_for_teardown,
     )
+    return approved_branch_tip
 
 
 def _teardown_coordination_triple(run: _MergeRunState) -> None:
@@ -2986,8 +3021,12 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     delete can succeed; the flatten then runs only once the branch is
     actually gone, and a leg that fails raises instead of reporting success.
     """
-    _teardown_coord_worktree(run)
-    if not _delete_mission_branch(run):
+    # #5570: the delete is a compare-and-swap at the tip approved BEFORE the
+    # window opens -- the gate's tip when one ran, else the tip read now, ahead of
+    # the persist/worktree-destroy legs. A commit landing in between survives.
+    pre_teardown_tip = _mission_branch_tip(run)
+    approved_tip = _teardown_coord_worktree(run) or pre_teardown_tip
+    if not _delete_mission_branch(run, approved_tip):
         raise CoordinationTeardownError(
             f"coordination branch {run.lanes_manifest.mission_branch!r} still exists after teardown; "
             "the mission's coordination marker was left intact so the branch, its worktree and the "
