@@ -343,6 +343,11 @@ A later implementation decision selects the YAML codec, the MCP library, the pro
 format, the SQL product if any, the daemon launcher, the native-image posture, and release
 packaging. Those choices must preserve the dependency direction and contract gates above.
 
+**MCP adapter authorization is deferred.** A later decision defines who may call the MCP
+adapter and how. It should reuse the Mission Status service model: loopback-only binding,
+Host checks, and a capability token scoped to one worktree. Until then, the MCP adapter is
+planned only and must not ship without that decision.
+
 Performance, inference-cost reduction, and adoption improvement require measurements.
 A warm service is expected to avoid repeated startup and graph construction, while token
 savings require bounded responses that replace broad source inspection; neither benefit is
