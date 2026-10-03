@@ -76,6 +76,7 @@ Honesty bound (no-data-loss)
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from kernel.clock import UTC, datetime, timedelta, parse_iso, from_epoch
 from pathlib import Path
@@ -89,7 +90,7 @@ from specify_cli.core.checkout_identity import (
     Intent,
     resolve_checkout_identity,
 )
-from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.paths import MissionMetaReadError, assert_safe_path_segment
 from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta
@@ -104,6 +105,7 @@ from specify_cli.status import (
     WPInnerStateDelta,
     annotate,
     feature_status_lock,
+    materialize,
     materialize_snapshot,
     read_event_stream,
     reduce,
@@ -113,6 +115,7 @@ from specify_cli.workspace import canonicalize_feature_dir
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 from .mission_state import deterministic_ulid
+from .wp_status_backfill import WpStatusPlan, plan_wp_status_backfill
 
 logger = logging.getLogger(__name__)
 
@@ -1471,6 +1474,45 @@ def _backfill_runtime_state_locked(
     return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, warnings=warnings)
 
 
+def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
+    """Return the contained mission directories a corpus walk should visit.
+
+    Shared by :func:`backfill_runtime_state_repo` and
+    :func:`apply_wp_status_backfill_repo` so both walkers apply one containment
+    rule (``ensure_within_any`` under ``kitty-specs/``, a safe-segment selector,
+    symlink escapes skipped or refused). An absent ``kitty-specs/`` or an unknown
+    slug yields an empty list (with a warning), never an error.
+    """
+    kitty_specs = repo_root / "kitty-specs"
+    if not kitty_specs.is_dir():
+        logger.warning("kitty-specs/ not found at %s", repo_root)
+        return []
+
+    if mission_slug is not None:
+        assert_safe_path_segment(mission_slug)
+        if not (kitty_specs / mission_slug).is_dir():
+            logger.warning("No mission directory found for slug %r", mission_slug)
+            return []
+        selected = kitty_specs / mission_slug
+        try:
+            return [ensure_within_any(selected, roots=[kitty_specs])]
+        except ValueError as exc:
+            raise ValueError(f"Mission directory resolves outside kitty-specs: {selected}") from exc
+
+    candidates: list[Path] = []
+    for entry in sorted(kitty_specs.iterdir()):
+        if not entry.is_dir():
+            continue
+        try:
+            candidates.append(ensure_within_any(entry, roots=[kitty_specs]))
+        except ValueError:
+            logger.warning(
+                "Skipping mission directory that resolves outside kitty-specs: %s",
+                entry,
+            )
+    return candidates
+
+
 def backfill_runtime_state_repo(
     repo_root: Path,
     *,
@@ -1491,38 +1533,168 @@ def backfill_runtime_state_repo(
     Returns:
         One :class:`BackfillResult` per mission directory visited.
     """
-    kitty_specs = repo_root / "kitty-specs"
-    results: list[BackfillResult] = []
-    if not kitty_specs.is_dir():
-        logger.warning("kitty-specs/ not found at %s", repo_root)
-        return results
+    return [backfill_runtime_state(feature_dir, dry_run=dry_run) for feature_dir in _mission_dirs(repo_root, mission_slug)]
 
-    if mission_slug is not None:
-        assert_safe_path_segment(mission_slug)
-        candidates = [kitty_specs / mission_slug] if (kitty_specs / mission_slug).is_dir() else []
-        if not candidates:
-            logger.warning("No mission directory found for slug %r", mission_slug)
-            return results
-        try:
-            candidates = [ensure_within_any(candidates[0], roots=[kitty_specs])]
-        except ValueError as exc:
-            raise ValueError(f"Mission directory resolves outside kitty-specs: {candidates[0]}") from exc
-    else:
-        candidates = []
-        for entry in sorted(kitty_specs.iterdir()):
-            if not entry.is_dir():
-                continue
-            try:
-                candidates.append(ensure_within_any(entry, roots=[kitty_specs]))
-            except ValueError:
-                logger.warning(
-                    "Skipping mission directory that resolves outside kitty-specs: %s",
-                    entry,
-                )
 
-    for feature_dir in candidates:
-        results.append(backfill_runtime_state(feature_dir, dry_run=dry_run))
-    return results
+# ---------------------------------------------------------------------------
+# WP-status snapshot backfill (#5579)
+# ---------------------------------------------------------------------------
+#
+# The planner (``wp_status_backfill``) is pure; this section is its ONLY writer.
+# It lives here so it reuses this module's lock + id-dedupe + atomic append and
+# adds no ``status._unsafe.ALLOWED_CALLERS`` / writes-gate entry (C-002).
+
+
+@dataclass(frozen=True)
+class WpStatusBackfillResult:
+    """Per-mission result from :func:`apply_wp_status_backfill`.
+
+    Counts are **events** (a finished Mission's WP contributes a ``planned`` seed
+    and a forced ``done``).
+
+    Attributes:
+        feature_dir: Canonicalized mission directory the run targeted.
+        slug: Directory name used as the mission slug.
+        seeded: Events appended this run (0 on dry-run, on a no-op, on error).
+        would_seed: New events the plan holds after id-dedupe (also set when written).
+        files_only: WP ids with a file but no lane events, sorted.
+        snapshot_only: WP ids in the snapshot without a file, sorted (reported only).
+        malformed: ``tasks/`` file names skipped for unusable frontmatter.
+        terminal_reason: Evidence cited for the forced ``done`` events, if any.
+        status_json_refreshed: ``status.json`` was regenerated (only if it existed).
+        skip_reason: Why nothing was written, when that is not an error.
+        error: Unrecoverable per-mission error text, else ``None``.
+    """
+
+    feature_dir: Path
+    slug: str
+    seeded: int = 0
+    would_seed: int = 0
+    files_only: tuple[str, ...] = ()
+    snapshot_only: tuple[str, ...] = ()
+    malformed: tuple[str, ...] = ()
+    terminal_reason: str | None = None
+    status_json_refreshed: bool = False
+    skip_reason: str | None = None
+    error: str | None = None
+
+
+def _wp_status_result(plan: WpStatusPlan, feature_dir: Path, **fields: Any) -> WpStatusBackfillResult:
+    """Build a result carrying the plan's gap and evidence plus per-outcome *fields*."""
+    return WpStatusBackfillResult(
+        feature_dir=feature_dir,
+        slug=plan.slug,
+        files_only=tuple(sorted(plan.gap.files_only)),
+        snapshot_only=tuple(sorted(plan.gap.snapshot_only)),
+        malformed=plan.gap.malformed,
+        terminal_reason=plan.evidence.description if plan.evidence is not None else None,
+        **fields,
+    )
+
+
+def apply_wp_status_backfill(
+    feature_dir: Path,
+    *,
+    dry_run: bool = False,
+    evidence: Mapping[str, str] | None = None,
+) -> WpStatusBackfillResult:
+    """Seed the lane events a Mission's WP files lack, so the snapshot counts them.
+
+    Plans with :func:`~specify_cli.migration.wp_status_backfill.plan_wp_status_backfill`
+    and appends under the SAME mission status lock, id-dedupe and
+    ``append_event_stream_atomic_verified`` call as :func:`backfill_runtime_state`.
+    The write target is ``canonicalize_feature_dir(feature_dir)``: a Mission whose
+    coordination branch is gone degrades to the primary directory and no branch is
+    ever minted. The event log is created when absent. ``status.json`` is
+    regenerated only if it already exists.
+
+    Args:
+        feature_dir: kitty-specs mission directory (canonicalized here).
+        dry_run: Report the plan; write nothing.
+        evidence: Optional evidence manifest ``{mission slug: reason}`` marking a
+            Mission finished when ``meta.json`` carries no ``merged_at`` /
+            ``accepted_at``.
+
+    Returns:
+        A :class:`WpStatusBackfillResult`; never raises for a per-mission store
+        or IO failure (reported in ``error``).
+    """
+    feature_dir = canonicalize_feature_dir(feature_dir)
+    slug = feature_dir.name
+    if not (feature_dir / "tasks").is_dir():
+        return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason="no tasks/ directory")
+    lock_root = resolve_status_lock_root(feature_dir, None)
+    try:
+        with feature_status_lock(lock_root, slug):
+            return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence)
+    except (StoreError, OSError, MissionMetaReadError) as exc:
+        return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, error=f"{type(exc).__name__}: {exc}")
+
+
+def _apply_wp_status_backfill_locked(
+    feature_dir: Path,
+    *,
+    dry_run: bool,
+    evidence: Mapping[str, str] | None,
+) -> WpStatusBackfillResult:
+    """Plan, dedupe against the log, and append; caller holds the status lock."""
+    plan = plan_wp_status_backfill(feature_dir, manifest=evidence)
+    stream = read_event_stream(feature_dir)
+    existing_ids = {event.event_id for event in _combined_events(stream.transitions, stream.annotations)}
+    new_events = [event for event in plan.events if event.event_id not in existing_ids]
+
+    if not new_events:
+        return _wp_status_result(plan, feature_dir, skip_reason="nothing new to seed (idempotent)")
+    if dry_run:
+        return _wp_status_result(plan, feature_dir, would_seed=len(new_events), skip_reason="dry-run (no write)")
+
+    append_event_stream_atomic_verified(feature_dir, list(_combined_events(new_events, [])))
+    logger.info("Seeded %d WP-status event(s) for %s", len(new_events), plan.slug)
+    refreshed, refresh_error = _refresh_snapshot_if_present(feature_dir)
+    return _wp_status_result(
+        plan,
+        feature_dir,
+        seeded=len(new_events),
+        would_seed=len(new_events),
+        status_json_refreshed=refreshed,
+        error=refresh_error,
+    )
+
+
+def _refresh_snapshot_if_present(feature_dir: Path) -> tuple[bool, str | None]:
+    """Regenerate ``status.json`` iff it already exists; return ``(refreshed, error)``."""
+    if not (feature_dir / "status.json").is_file():
+        return False, None
+    try:
+        materialize(feature_dir)
+    except (StoreError, OSError) as exc:
+        return False, f"status.json refresh failed after seeding: {type(exc).__name__}: {exc}"
+    return True, None
+
+
+def apply_wp_status_backfill_repo(
+    repo_root: Path,
+    *,
+    mission: str | None = None,
+    dry_run: bool = False,
+    evidence: Mapping[str, str] | None = None,
+) -> list[WpStatusBackfillResult]:
+    """Walk ``kitty-specs/`` and apply :func:`apply_wp_status_backfill` per mission.
+
+    Same containment rule as :func:`backfill_runtime_state_repo` (shared
+    ``_mission_dirs``): a safe-segment selector, ``ensure_within_any`` under
+    ``kitty-specs/``, escapes skipped (walk) or refused (selector).
+
+    Args:
+        repo_root: Absolute path to the repository root.
+        mission: Scope the walk to this mission directory name.
+        dry_run: Report plans; write nothing.
+        evidence: Evidence manifest ``{mission slug: reason}``.
+
+    Returns:
+        One :class:`WpStatusBackfillResult` per mission directory visited.
+    """
+    return [apply_wp_status_backfill(feature_dir, dry_run=dry_run, evidence=evidence) for feature_dir in _mission_dirs(repo_root, mission)]
 
 
 # ---------------------------------------------------------------------------
@@ -2243,6 +2415,12 @@ __all__ = [
     "BackfillResult",
     "MigrationOrderingError",
     "VerifyResult",
+    "WpStatusBackfillResult",
+    # ``apply_wp_status_backfill`` (the per-mission engine) is deliberately NOT exported: the
+    # only public entry is the containment-checked repo walk below, which is what the CLI
+    # calls. The dead-symbol gate requires an ``__all__`` name to have a caller outside this
+    # module; the engine's single caller is that walk (an intra-module reference).
+    "apply_wp_status_backfill_repo",
     "backfill_runtime_state",
     "read_legacy_runtime",
     "verify_backfill",

@@ -28,9 +28,9 @@ runner = CliRunner()
 _LOCATE = "specify_cli.cli.commands.migrate_cmd.locate_project_root"
 _CMD = "backfill-wp-status"
 _ID_ONE = "01JMISSIONULID0000000000C1"
-_ID_TWO = "01JMISSIONULID0000000000C2"
+_ID_TWO = "01KOTHERMISSIONULID00000C2"
 _SLUG_ONE = "alpha-mission-01JMISSI"
-_SLUG_TWO = "beta-mission-01JMISSI"
+_SLUG_TWO = "beta-mission-01KOTHER"
 _THREE = ("WP01", "WP02", "WP03")
 _SEED_AT = "2026-01-02T03:04:05+00:00"
 _REAL_REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -115,7 +115,15 @@ def _json(result: Any) -> dict[str, Any]:
 
 
 def _tree_bytes(root: Path) -> dict[str, bytes]:
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    """Bytes of every file under *root*, so a stray dry-run write ANYWHERE is caught.
+
+    Only the per-Mission status lock is excluded: the writer takes it even on a
+    dry-run, before planning. It is an empty runtime file, not Mission state (in a
+    real checkout it lives under the git common dir, outside the working tree and
+    version control; in this non-git fixture it degrades to
+    ``<root>/.kittify/spec-kitty-locks/``).
+    """
+    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file() and not p.name.endswith(".status.lock")}
 
 
 def _write_manifest(path: Path, missions: dict[str, Any] | None = None, *, raw: str | None = None) -> Path:
@@ -235,12 +243,79 @@ def test_unknown_mission_handle_exits_1_and_writes_nothing(repo: Path, json_mode
         assert _json(result)["success"] is False
 
 
-def test_outside_a_project_exits_1(tmp_path: Path) -> None:
+# ---------------------------------------------------------------------------
+# selector branches (review R2-R4)
+# ---------------------------------------------------------------------------
+
+
+def test_ambiguous_mid8_handle_is_a_structured_error_with_no_silent_fallback(repo: Path) -> None:
+    _mission(repo, "gamma-mission", "01JSAMEMXXXXXXXXXXXXXXXXA1")
+    _mission(repo, "delta-mission", "01JSAMEMXXXXXXXXXXXXXXXXB2", seeded=())
+    before = _tree_bytes(repo)
+
+    human = _invoke(repo, "--mission", "01JSAMEM")
+    machine = _invoke(repo, "--mission", "01JSAMEM", "--json")
+
+    assert human.exit_code == 1 and machine.exit_code == 1
+    payload = _json(machine)
+    assert payload["success"] is False and payload["error_code"] == "MISSION_AMBIGUOUS"
+    assert "gamma-mission" in payload["error"] and "delta-mission" in payload["error"]
+    assert _tree_bytes(repo) == before
+
+
+def test_legacy_mission_without_mission_id_resolves_by_exact_directory_name(repo: Path) -> None:
+    """The identity resolver cannot index a Mission with no ``mission_id``; its exact dir name still works."""
+    legacy = _mission(repo, "legacy-mission", _ID_ONE, meta_extra={"mission_id": None})
+    other = _mission(repo, _SLUG_TWO, _ID_TWO, seeded=())
+
+    result = _invoke(repo, "--mission", "legacy-mission", "--json")
+
+    assert result.exit_code == 0, result.output
+    payload = _json(result)
+    assert [row["slug"] for row in payload["missions"]] == ["legacy-mission"]
+    assert set(materialize_snapshot(legacy).work_packages) == set(_THREE)
+    assert not (other / "status.events.jsonl").exists()
+
+
+@pytest.mark.parametrize("near_miss", ["legacy-missio", "Legacy-Mission", "legacy-mission/"])
+def test_near_miss_of_a_legacy_directory_name_is_not_found(repo: Path, near_miss: str) -> None:
+    _mission(repo, "legacy-mission", _ID_ONE, meta_extra={"mission_id": None})
+    before = _tree_bytes(repo)
+
+    result = _invoke(repo, "--mission", near_miss, "--json")
+
+    assert result.exit_code == 1, result.output
+    assert _json(result)["error_code"] == "MISSION_NOT_FOUND"
+    assert _tree_bytes(repo) == before
+
+
+def test_selector_escaping_kitty_specs_is_rejected_with_a_structured_error(repo: Path, tmp_path: Path) -> None:
+    """A Mission dir symlinked outside ``kitty-specs/`` resolves, but the writer's containment check refuses it."""
+    outside = tmp_path / "outside" / "kitty-specs" / "evil"
+    _mission(tmp_path / "outside", "evil", _ID_ONE)
+    (repo / "kitty-specs").mkdir()
+    (repo / "kitty-specs" / "evil").symlink_to(outside, target_is_directory=True)
+    before = _tree_bytes(tmp_path / "outside")
+
+    human = _invoke(repo, "--mission", "evil")
+    machine = _invoke(repo, "--mission", "evil", "--json")
+
+    assert human.exit_code == 1 and machine.exit_code == 1
+    payload = _json(machine)
+    assert payload["success"] is False and payload["error_code"] == "MISSION_SELECTOR_REJECTED"
+    assert "outside kitty-specs" in payload["error"]
+    assert _tree_bytes(tmp_path / "outside") == before
+
+
+@pytest.mark.parametrize("json_mode", [False, True])
+def test_outside_a_project_exits_1(json_mode: bool) -> None:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(_LOCATE, lambda *_a, **_k: None)
-        result = runner.invoke(migrate_app, [_CMD])
+        result = runner.invoke(migrate_app, [_CMD, *(["--json"] if json_mode else [])])
 
     assert result.exit_code == 1
+    if json_mode:
+        assert _json(result)["error_code"] == "NO_PROJECT_ROOT"
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +350,7 @@ def test_manifest_marks_a_mission_finished_and_records_the_reason(repo: Path, tm
         pytest.param("missions:\n  {slug}:\n    reason: ok\n    extra: nope\n", id="unknown-entry-key"),
         pytest.param("missions:\n  {slug}: just a string\n", id="entry-not-a-mapping"),
         pytest.param("missions:\n  no-such-mission-01ZZZZZZ:\n    reason: because\n", id="slug-does-not-resolve"),
+        pytest.param("missions:\n  42:\n    reason: because\n", id="slug-key-not-a-string"),
         pytest.param("missions: []\n", id="missions-not-a-mapping"),
         pytest.param("- not\n- a\n- mapping\n", id="top-level-not-a-mapping"),
         pytest.param("other: {}\n", id="unknown-top-level-key"),
@@ -406,6 +482,18 @@ def test_snapshot_only_wps_are_reported_but_never_fail_the_run(repo: Path) -> No
     assert payload["summary"]["snapshot_only_missions"] == 1
     assert payload["missions"][0]["snapshot_only"] == ["WP09"]
     assert set(materialize_snapshot(feature_dir).work_packages) == {"WP01", "WP09"}
+
+
+def test_human_summary_lists_snapshot_only_and_malformed_files(repo: Path) -> None:
+    feature_dir = _mission(repo, _SLUG_ONE, _ID_ONE, wp_ids=("WP01",), seeded=("WP01", "WP09"))
+    (feature_dir / "tasks" / "WP02-broken.md").write_text("no frontmatter here\n", encoding="utf-8")
+
+    result = _invoke(repo)
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert "snapshot-only" in flat and "WP09" in flat
+    assert "malformed" in flat and "WP02-broken.md" in flat
 
 
 def test_per_mission_error_exits_1_but_other_missions_are_still_repaired(repo: Path) -> None:
