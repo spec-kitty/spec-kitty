@@ -246,6 +246,18 @@ def test_non_utf8_wp_file_is_reported_malformed_and_the_run_goes_on(tmp_path: Pa
     assert result.error is None and result.malformed == ("WP02-latin1.md",)
 
 
+def test_lowercase_wp_file_names_are_ignored_not_read(tmp_path: Path) -> None:
+    feature_dir = _build_mission(tmp_path, wp_ids=("WP01",), seeded=("WP01",))
+    (feature_dir / "tasks" / "wp02-lower.md").write_text("---\nwork_package_id: WP02\n---\n", encoding="utf-8")
+    (feature_dir / "tasks" / "wp03-broken.md").write_text("no frontmatter", encoding="utf-8")
+
+    ids, malformed = planner.collect_wp_file_ids(feature_dir / "tasks")
+    result = b.apply_wp_status_backfill(feature_dir)
+
+    assert ids == frozenset({"WP01"}) and malformed == ()
+    assert result.files_only == () and result.malformed == () and result.seeded == 0
+
+
 def test_unreadable_wp_file_is_reported_malformed(tmp_path: Path) -> None:
     feature_dir = _build_mission(tmp_path, wp_ids=("WP01",), seeded=("WP01",))
     (feature_dir / "tasks" / "WP02-dir.md").mkdir()  # reading a directory raises OSError
