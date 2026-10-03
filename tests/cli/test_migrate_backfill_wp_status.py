@@ -446,6 +446,7 @@ def test_json_payload_shape_is_stable(repo: Path) -> None:
         "snapshot_only_missions",
         "malformed_missions",
         "coord_surface_live_missions",
+        "refresh_warnings",
         "skipped",
         "errors",
     }
@@ -459,6 +460,7 @@ def test_json_payload_shape_is_stable(repo: Path) -> None:
         "malformed",
         "terminal_reason",
         "status_json_refreshed",
+        "refresh_error",
         "skip_reason",
         "error",
     }
@@ -624,3 +626,27 @@ def test_a_planner_value_error_is_not_reported_as_a_rejected_selector(repo: Path
 
     assert isinstance(result.exception, ValueError)
     assert "MISSION_SELECTOR_REJECTED" not in result.output
+
+
+def test_status_json_refresh_failure_is_a_counted_warning_and_exit_stays_0(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    feature_dir = _mission(repo, _SLUG_ONE, _ID_ONE)
+    (feature_dir / "status.json").write_text("{}", encoding="utf-8")
+
+    def _broken(_dir: Path) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("specify_cli.migration.backfill_runtime_state.materialize", _broken)
+
+    machine = _invoke(repo, "--json")
+
+    assert machine.exit_code == 0, machine.output
+    payload = _json(machine)
+    row = payload["missions"][0]
+    assert row["error"] is None and "disk full" in row["refresh_error"] and row["seeded"] == 2
+    assert payload["result"] == "success"
+    assert payload["summary"]["refresh_warnings"] == 1 and payload["summary"]["errors"] == 0
+    assert set(materialize_snapshot(feature_dir).work_packages) == set(_THREE)
+
+    (feature_dir / "status.events.jsonl").write_text((feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()[0] + "\n", encoding="utf-8")
+    human = " ".join(_invoke(repo).output.split())
+    assert "warning" in human and "disk full" in human and "Refresh warnings" in human

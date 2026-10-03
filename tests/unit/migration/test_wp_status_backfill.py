@@ -284,6 +284,25 @@ def test_status_json_is_regenerated_only_when_it_already_exists(tmp_path: Path) 
     assert set(on_disk["work_packages"]) == set(THREE)
 
 
+def test_status_json_refresh_failure_is_a_warning_not_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The append already succeeded, so a failed regeneration must not read as a failed repair."""
+    feature_dir = _build_mission(tmp_path, wp_ids=THREE, seeded=("WP01",))
+    (feature_dir / "status.json").write_text("{}", encoding="utf-8")
+
+    def _broken(_dir: Path) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(b, "materialize", _broken)
+
+    result = b.apply_wp_status_backfill(feature_dir)
+
+    assert result.error is None
+    assert result.seeded == 2 and result.status_json_refreshed is False
+    assert result.refresh_error is not None and "OSError: disk full" in result.refresh_error
+    assert set(materialize_snapshot(feature_dir).work_packages) == set(THREE), "the events are durable"
+    assert b.apply_wp_status_backfill(feature_dir).refresh_error is None
+
+
 # ---------------------------------------------------------------------------
 # US2: terminal seeding
 # ---------------------------------------------------------------------------

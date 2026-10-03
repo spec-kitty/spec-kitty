@@ -121,7 +121,10 @@ created.
 
 Events are appended to the Mission's resolved status event log through the
 existing migration writer. `status.json` is regenerated only where it already
-existed. The command is idempotent.
+existed. If that regeneration fails after the events were written, the Mission
+is reported with a warning (`refresh_error`, counted in `refresh_warnings`), not
+as an error, and the exit code stays `0`: run `spec-kitty materialize` to
+regenerate the file. The command is idempotent.
 
 ## Read the result
 
@@ -142,11 +145,11 @@ With `--json`, the command prints one object:
 | `dry_run` | `true` when nothing was written |
 | `result` | `success` or `errors_present` |
 | `mission` | The `--mission` handle, or `null` for the whole corpus |
-| `summary` | Counters: `scanned`, `missions_seeded`, `missions_would_seed`, `events_seeded`, `events_would_seed`, `finished_missions`, `snapshot_only_missions`, `malformed_missions`, `coord_surface_live_missions`, `skipped`, `errors` |
+| `summary` | Counters: `scanned`, `missions_seeded`, `missions_would_seed`, `events_seeded`, `events_would_seed`, `finished_missions`, `snapshot_only_missions`, `malformed_missions`, `coord_surface_live_missions`, `refresh_warnings`, `skipped`, `errors` |
 | `manifest.path` | The manifest path, or `null` |
 | `manifest.entries` | Number of manifest entries |
 | `manifest.unused` | Entries that had no effect, each `{mission, reason}` where `reason` is `not in scope` (`--mission` named another Mission), `nothing to seed`, or `coordination surface live` (the Mission was refused) |
-| `missions` | One row per Mission: `slug`, `seeded`, `would_seed`, `files_only`, `snapshot_only`, `malformed`, `terminal_reason`, `status_json_refreshed`, `skip_reason` (`COORD_SURFACE_LIVE` for a refused Mission), `error` |
+| `missions` | One row per Mission: `slug`, `seeded`, `would_seed`, `files_only`, `snapshot_only`, `malformed`, `terminal_reason`, `status_json_refreshed`, `refresh_error`, `skip_reason` (`COORD_SURFACE_LIVE` for a refused Mission), `error` |
 
 A failure before any write (bad manifest, unknown handle) prints
 `{"success": false, "error_code": ..., "error": ...}` instead.
