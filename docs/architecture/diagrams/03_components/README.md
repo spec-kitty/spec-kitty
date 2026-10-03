@@ -118,7 +118,7 @@ The Python charter API seam, planned under #645, stays outside this hexagon. See
 
 ```mermaid
 flowchart TB
-    python["Python charter API seam — planned (#645), external caller"]
+    python["Python charter API seam (src/charter) — planned (#645), transport client only"]
     agent["Agent harness — planned MCP client"]
 
     subgraph Inbound["Inbound infrastructure"]
@@ -171,7 +171,9 @@ flowchart TB
 Read and write applications do not depend on each other. Domain components
 import no YAML, JSON, HTTP, MCP, database, or application-framework library.
 The SQL adapter is a replaceable storage edge, not a domain or API change.
-Direct MCP and Python-seam reads converge on the same read application.
+Direct MCP and Python-seam reads converge on the same read application. The seam sits in
+the charter layer and holds only a transport client. Service launch and lifecycle stay in
+`specify_cli`, so `charter` has no outbound edge to `specify_cli`.
 
 ## Component Responsibility Map
 

@@ -213,6 +213,14 @@ witness that the semantic mapping participated. A production write operation mov
 only after all three gates pass for that operation and the shared negative fixtures produce
 equivalent diagnostics.
 
+### Where the seam lives
+
+The seam is code under `src/charter/`, in the charter layer. Its only service-facing code is a
+transport client. It fronts the existing Python read and write paths. It does not start, stop,
+or locate the service. Service launch and lifecycle live in `specify_cli`, which hands the
+seam an endpoint and a credential. So `charter` gains no outbound edge to `specify_cli`, and the
+enforced import chain stays `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`.
+
 ### Service boundary
 
 The service is local-only. It is scoped per worktree because each worktree can carry

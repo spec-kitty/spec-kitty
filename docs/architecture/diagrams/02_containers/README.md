@@ -109,13 +109,14 @@ that a Java service directory or release artifact exists. See
 flowchart LR
     agent["Agent harness"]
 
-    subgraph Python["Spec Kitty CLI — current"]
+    subgraph Python["Spec Kitty CLI (specify_cli) — current"]
       callers["CLI, runtime, and glossary callers — import charter internals directly"]
       writer["Python YAML write adapter — current"]
+      lifecycle["Service launch and lifecycle — planned"]
     end
 
-    subgraph Planned["Python charter layer — planned"]
-      seam["Charter API seam — planned (#645)"]
+    subgraph Planned["Charter layer (src/charter) — planned"]
+      seam["Charter API seam — planned (#645): transport client only"]
     end
 
     subgraph Java["Charter Service — planned, per worktree (Java 25, Spring Boot 4)"]
@@ -135,6 +136,8 @@ flowchart LR
     callers -->|current write operations| writer
     seam -.->|planned: writes stay in Python| writer
     writer --> yaml
+    lifecycle -.->|planned: starts service, gives seam endpoint| seam
+    lifecycle -.->|planned: launches and stops| Java
     seam -.->|planned production reads| readApi
     seam -.->|future migrated writes| javaWriter
     readApi --> reader
@@ -147,6 +150,8 @@ flowchart LR
     status ~~~ Java
 ```
 
+The seam is code under `src/charter/` and holds only a transport client. Service launch and
+lifecycle live in `specify_cli`, so `charter` gains no outbound edge to `specify_cli`.
 The document projection is an implementation detail and not the rejected design where
 Java only serves a permanent Python-compiled projection. The Mission Status Read
 service shares neither charter domain nor process. Direct MCP and Python-seam
