@@ -110,8 +110,12 @@ flowchart LR
     agent["Agent harness"]
 
     subgraph Python["Spec Kitty CLI — current"]
-      seam["Stable charter API seam"]
+      callers["CLI, runtime, and glossary callers — import charter internals directly"]
       writer["Python YAML write adapter — current"]
+    end
+
+    subgraph Planned["Python charter layer — planned"]
+      seam["Charter API seam — planned (#645)"]
     end
 
     subgraph Java["Charter Service — planned, per worktree (Java 25, Spring Boot 4)"]
@@ -125,9 +129,11 @@ flowchart LR
     yaml[("Authored charter and pack YAML")]
     status["Mission Status Read service — separate sibling"]
 
-    agent -->|CLI| seam
+    agent -->|CLI| callers
+    callers -.->|planned: move onto the seam| seam
     agent -.->|planned governed MCP read| readApi
-    seam -->|current write operations| writer
+    callers -->|current write operations| writer
+    seam -.->|planned: writes stay in Python| writer
     writer --> yaml
     seam -.->|planned production reads| readApi
     seam -.->|future migrated writes| javaWriter

@@ -30,10 +30,20 @@ hypothesized to make high-frequency reads expensive, but that has not been estab
 an end-to-end benchmark. Independently of performance, the current shape makes the
 capability harder to offer consistently through CLI, REST, and MCP.
 
-The 4.x direction is a local, per-worktree Java charter service reached through the existing
-Python charter API seam. Java will implement production reads after cross-language
+The 4.x direction is a local, per-worktree Java charter service reached through a Python
+charter API seam. That seam does not exist yet. It is planned under
+[#645](https://github.com/spec-kitty/spec-kitty/issues/645), the stable application API,
+which the [4.0.0 roadmap](../../plans/4-0-0-milestone-roadmap.md) lists as the precondition
+for moving charter code. Java will implement production reads after cross-language
 conformance. Python remains the production write path initially; Java writes migrate later,
 one operation at a time.
+
+Today callers reach into charter internals directly. `specify_cli`, `runtime`, and `glossary`
+import `charter.drg` (about 55 imports), `charter.activation.pack_context` (about 34),
+`charter.bundle` (about 22), `charter.activation.charter_yaml_io` (about 18),
+`charter.activation.compiler` (about 13), `charter.activation.resolver` (about 12),
+`charter.missions`, and `charter.profiles`. A Java service cannot sit behind these imports.
+The seam has to come first.
 
 This supersedes the investigated projection-server design in which Python would permanently
 compile charter meaning and Java would only serve that projection. Python is a temporary
@@ -42,7 +52,7 @@ conformance oracle and write implementation, not the permanent production reader
 ## Decision Drivers
 
 - Preserve one answer while implementations overlap.
-- Keep existing callers behind one charter API seam.
+- Move existing callers behind one charter API seam, planned under #645, before any read moves.
 - Separate read and write infrastructure while sharing a pure domain representation.
 - Keep YAML, HTTP, MCP, JSON, and future SQL concerns outside the domain.
 - Preserve authored YAML during an eventual write migration.
@@ -68,6 +78,7 @@ intended owner of each write operation once that operation's gates pass.
 | Stage | Production reads | Production writes | Required evidence |
 |---|---|---|---|
 | Current | Python | Python | Existing Python behavior |
+| Callers move onto the seam | Python, behind the #645 seam | Python, behind the #645 seam | The seam exists; callers outside `charter` no longer import charter internals; a ratchet holds the count at zero |
 | Read shadow | Python; Java compared out of band | Python | Contract and fixture equivalence |
 | Java primary | Java; loud, observable Python fallback | Python | Conformance gate, freshness and failure behavior |
 | Java reads complete | Java only | Python | Explicit fallback-retirement criteria met |
@@ -132,9 +143,9 @@ must not infer the internal pack from directory presence.
 ### Read cut-over
 
 Java reads parse YAML into source models, map to domain objects, validate and merge the
-active graph, and answer through versioned REST and MCP adapters. The Python charter module
-remains the single entry point for existing CLI callers and delegates read operations to the
-service behind an internal adapter.
+active graph, and answer through versioned REST and MCP adapters. The planned Python
+charter API seam (#645) is the single entry point for existing CLI callers. It delegates
+read operations to the service behind an internal adapter.
 
 Agent harnesses may call the governed MCP adapter directly, because MCP lets them read
 charter guidance without starting a CLI process for each question. This is an additional transport
@@ -144,6 +155,7 @@ resolution independently.
 
 The sequence is:
 
+0. Move callers onto the #645 seam. Nothing below starts until this is done.
 1. Run Java in shadow mode against the same fixtures and live configured inputs as Python.
 2. Make Java primary only when conformance is a blocking gate.
 3. Keep Python fallback loud and temporary while lifecycle and distribution evidence grows.
@@ -153,7 +165,7 @@ Read cut-over does not wait for YAML write parity.
 
 ### Write cut-over
 
-Python remains the production write path and structural CLI seam initially. Java write
+Python remains the production write path initially, behind the same seam. Java write
 support uses a lossless YAML document representation at the infrastructure edge and a
 semantic domain representation in the centre. An unchanged document must survive a
 round-trip without a byte diff, including comments, ordering, scalar styles, anchors,
