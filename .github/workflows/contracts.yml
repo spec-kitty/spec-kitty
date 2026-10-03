@@ -2,8 +2,9 @@
 # The bundle is written by the Python resolver and consumed by the JVM toolchain (validate, Java view, TypeScript client smoke);
 # every job runs over the real contracts root. Node is not used anywhere (C-005), and no tool or Gradle directory is cached.
 # Pytest runs in exactly one job, contract-tool-tests: the unit tests of the contract tools, which read
-# no corpus. The router's corpus job runs only the modules that read committed Missions or examples, to keep it within its time
-# budget; the example round trip stays there, so no test runs twice.
+# no corpus. The router's corpus job runs only the modules that read committed Missions, to keep it within its time
+# budget: the two modules that read the committed corpus (the reality check and its payload helper) stay there, so no
+# test runs twice.
 name: Contracts
 
 on:
@@ -92,9 +93,9 @@ jobs:
 
   contract-tool-tests:
     # A root job: it carries the canonical fork guard as the first conjunct. It runs every corpus-marked module of
-    # tests/contract except the one the router's corpus job owns (the directory minus it, so a new tool test module is
-    # picked up without an edit here): the example round trip, which was already a router corpus module. Unmarked modules run
-    # in the module matrix.
+    # tests/contract except the three the router's corpus job owns (the directory minus those three, so a new tool test
+    # module is picked up without an edit here): the reality check and its payload helper, which read the committed corpus,
+    # and the example round trip, which was already a router corpus module. Unmarked modules run in the module matrix.
     # tests/ci/test_contracts_workflows.py proves every tests/contract module has exactly one home.
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
@@ -113,6 +114,8 @@ jobs:
         run: |
           uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \
             --ignore=tests/contract/test_example_round_trip.py \
+            --ignore=tests/contract/test_mission_status_payloads.py \
+            --ignore=tests/contract/test_mission_status_reality.py \
             -n 4 --dist loadfile
 
   validate-bundle:
