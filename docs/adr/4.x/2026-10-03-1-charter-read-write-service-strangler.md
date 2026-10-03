@@ -91,6 +91,23 @@ the supported fixture corpus passes, stale and unavailable service behavior is p
 cross-OS packaging is supported, and an agreed observation period finds no unresolved
 semantic divergence.
 
+### Reversibility
+
+Each stage can step back one stage, until the point of no return.
+
+- **Callers move onto the seam:** move a caller back to its direct import. Python behavior
+  does not change.
+- **Read shadow:** turn the out-of-band comparison off. Python already answers.
+- **Java authoritative:** switch the seam adapter back to Python reads. This works while the
+  Python read implementation exists.
+- **Write migration:** send a migrated write operation back to Python, one operation at a
+  time. This works while that operation's Python writer exists.
+
+**The point of no return is retiring the Python reads** (the Java reads complete stage).
+After that, going back means restoring deleted code from a release, not switching an
+adapter. Retire the Python reads only after the fallback-retirement criteria are met and the
+observation period ends. Retiring each Python writer repeats this choice for its operation.
+
 ### Hexagonal dependency direction
 
 The service has a pure Java domain and separate read and write application modules.
@@ -261,6 +278,7 @@ The decision is confirmed when:
 - shadow reads report no unexplained semantic or diagnostic differences;
 - stale, unavailable, and wrong-worktree service cases are tested;
 - Java-primary fallback is observable and its retirement criteria are met;
+- each stage's rollback switch is tested before the next stage starts;
 - Java-only production reads no longer need the Python read implementation, while Python
   remains the production writer until each write operation migrates;
 - every migrated write operation passes codec identity, mapping identity, confined
