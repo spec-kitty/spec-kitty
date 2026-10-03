@@ -2543,13 +2543,7 @@ def test_mixed_lane_wiring_events_unreadable_refuses(tmp_path: Path) -> None:
 
     work_packages = {"WP01": {"lane": "approved"}, "WP02": {"lane": "canceled"}}
     canceled_content, attested, refusal = _resolve_mixed_lane_canceled_content(
-        repo,
-        feature_dir,
-        manifest,
-        work_packages,
-        frozenset({"WP02"}),
-        coord_base,
-        None,
+        repo, feature_dir, manifest, work_packages, frozenset({"WP02"}), coord_base, None, canceled_lane_commits=frozenset()
     )
     assert canceled_content == frozenset()
     assert attested == frozenset()
@@ -2693,7 +2687,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_
     work_packages = snapshot.work_packages or {}
     expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
     expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths = _collect_authored(
-        repo, manifest, work_packages, coord_base
+        repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
     )
     expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
         repo, manifest, coord_base, frozenset(), authored_shas=expected_authored_shas, authored_patch_ids=expected_authored_patch_ids
@@ -2735,7 +2729,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp
     work_packages = snapshot.work_packages or {}
     expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
     expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths = _collect_authored(
-        repo, manifest, work_packages, coord_base
+        repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
     )
     expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
         repo, manifest, coord_base, frozenset({"WP02"}), authored_shas=expected_authored_shas, authored_patch_ids=expected_authored_patch_ids
@@ -2909,11 +2903,11 @@ def test_closed_world_anchors_are_transitive_dependency_tips_plus_target_base() 
         computed_at=_now_iso(),
         computed_from="anchor-test",
     )
-    anchors = _closed_world_anchors(manifest, manifest.lanes[2], "target-tip-sha")
+    anchors = _closed_world_anchors(manifest, manifest.lanes[2], "target-tip-sha", excluded_canceled_wp_ids=frozenset())
     assert anchors[-1] == "target-tip-sha"
     assert len(anchors) == 3  # lane-a, lane-b; the unknown lane-zz is ignored
     assert all("lane-" in a for a in anchors[:2])
-    assert _closed_world_anchors(manifest, manifest.lanes[0], None) == []
+    assert _closed_world_anchors(manifest, manifest.lanes[0], None, excluded_canceled_wp_ids=frozenset()) == []
 
 
 def _commit_on_lane(repo: Path, lane_branch: str, path: str) -> str:

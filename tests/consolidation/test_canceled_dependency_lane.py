@@ -11,7 +11,9 @@ the closed-world anchors. The CLI-level reproduction is
 
 from __future__ import annotations
 
+import inspect
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,7 +26,7 @@ from specify_cli.consolidation.reconciliation import (
     _unreadable_canceled_dependency_lanes,
     _unreadable_canceled_dependency_refusal_text,
 )
-from specify_cli.consolidation.wp_attribution import _outside_after_anchors, _lane_exempt_commits, lane_own_commits
+from specify_cli.consolidation.wp_attribution import _outside_after_anchors, _lane_exempt_commits, lane_own_commits, resolve_canceled_wp
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
@@ -175,10 +177,12 @@ def test_target_base_keeps_target_history_out_of_the_canceled_set(dep: Dep) -> N
 
 def test_authored_claim_drops_the_canceled_commit_from_the_dependent_lane(dep: Dep) -> None:
     lanes_approved = {"WP02": {"lane": "approved"}}
-    before = _collect_authored(dep.repo, dep.manifest, lanes_approved, dep.base)
+    before = _collect_authored(dep.repo, dep.manifest, lanes_approved, dep.base, canceled_lane_commits=frozenset())
     assert dep.canceled_sha in before[0]  # the pre-fix claim: canceled work counted as approved authorship
 
-    shas, _patch_ids, blobs, _deletions, _multi = _collect_authored(dep.repo, dep.manifest, lanes_approved, dep.base, None, frozenset({dep.canceled_sha}))
+    shas, _patch_ids, blobs, _deletions, _multi = _collect_authored(
+        dep.repo, dep.manifest, lanes_approved, dep.base, None, canceled_lane_commits=frozenset({dep.canceled_sha})
+    )
 
     assert dep.canceled_sha not in shas
     assert dep.approved_sha in shas
@@ -191,18 +195,18 @@ def test_authored_claim_drops_the_canceled_commit_from_the_dependent_lane(dep: D
 
 
 def test_fully_canceled_dependency_lane_tip_is_not_an_anchor(dep: Dep) -> None:
-    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", frozenset({"WP01"}))
+    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", excluded_canceled_wp_ids=frozenset({"WP01"}))
     assert anchors == ["target-tip"]
 
 
 def test_approved_dependency_lane_tip_stays_an_anchor(dep: Dep) -> None:
-    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", frozenset())
+    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", excluded_canceled_wp_ids=frozenset())
     assert anchors == [_branch("lane-a"), "target-tip"]
 
 
 def test_only_the_canceled_dependency_is_dropped_from_a_chain(dep: Dep) -> None:
     chain = _manifest(_lane("lane-a", "WP01"), _lane("lane-b", "WP02", ("lane-a",)), _lane("lane-c", "WP03", ("lane-b",)))
-    anchors = _closed_world_anchors(chain, chain.lanes[2], None, frozenset({"WP01"}))
+    anchors = _closed_world_anchors(chain, chain.lanes[2], None, excluded_canceled_wp_ids=frozenset({"WP01"}))
     assert anchors == [_branch("lane-b")]
 
 
@@ -210,15 +214,15 @@ def test_never_exempt_commits_stay_outside_even_when_an_anchor_reaches_them(dep:
     outside = ((dep.canceled_sha, _ALPHA), (dep.approved_sha, _BETA))
     anchors = [_branch("lane-b")]  # e.g. the first-claim stamp taken after the fast-forward
 
-    exempted = _outside_after_anchors(dep.repo, dep.base, outside, anchors)
-    kept = _outside_after_anchors(dep.repo, dep.base, outside, anchors, frozenset({dep.canceled_sha}))
+    exempted = _outside_after_anchors(dep.repo, dep.base, outside, anchors, never_exempt=frozenset())
+    kept = _outside_after_anchors(dep.repo, dep.base, outside, anchors, never_exempt=frozenset({dep.canceled_sha}))
 
     assert exempted == ()
     assert kept == ((dep.canceled_sha, _ALPHA),)
 
 
 def test_never_exempt_is_a_no_op_without_outside_commits(dep: Dep) -> None:
-    assert _outside_after_anchors(dep.repo, dep.base, (), [], frozenset({dep.canceled_sha})) == ()
+    assert _outside_after_anchors(dep.repo, dep.base, (), [], never_exempt=frozenset({dep.canceled_sha})) == ()
 
 
 # --------------------------------------------------------------------------- #
@@ -275,8 +279,24 @@ def test_multi_lane_contribution_is_recorded_at_an_authored_commit_not_a_cancele
     manifest = _manifest(_lane("lane-b", "WP02"), _lane("lane-c", "WP03"))
     approved = {"WP02": {"lane": "approved"}, "WP03": {"lane": "approved"}}
     # lane-b's tip is dep.approved_sha; mark it canceled so lane-b authors only dep.canceled_sha (ALPHA).
-    *_, multi_lane_paths = _collect_authored(dep.repo, manifest, approved, dep.base, None, frozenset({dep.approved_sha}))
+    *_, multi_lane_paths = _collect_authored(dep.repo, manifest, approved, dep.base, None, canceled_lane_commits=frozenset({dep.approved_sha}))
 
     first, second = multi_lane_paths[_ALPHA]
     by_lane = {contribution.lane_id: contribution for contribution in (first, second)}
     assert by_lane["lane-b"].lane_commit == dep.canceled_sha
+
+
+@pytest.mark.parametrize(
+    ("function", "parameter"),
+    [
+        (_outside_after_anchors, "never_exempt"),
+        (_collect_authored, "canceled_lane_commits"),
+        (_closed_world_anchors, "excluded_canceled_wp_ids"),
+        (resolve_canceled_wp, "never_exempt_commits"),
+    ],
+)
+def test_safety_parameters_are_required_keyword_only(function: Callable[..., object], parameter: str) -> None:
+    """A caller that forgets the canceled-lane set must fail loudly, not quietly exempt/claim everything."""
+    declared = inspect.signature(function).parameters[parameter]
+    assert declared.kind is inspect.Parameter.KEYWORD_ONLY
+    assert declared.default is inspect.Parameter.empty

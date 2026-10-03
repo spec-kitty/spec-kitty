@@ -580,7 +580,8 @@ def _outside_after_anchors(
     coord_base_ref: str,
     outside: tuple[tuple[str, str], ...],
     anchors: Iterable[str],
-    never_exempt: frozenset[str] = frozenset(),
+    *,
+    never_exempt: frozenset[str],
 ) -> tuple[tuple[str, str], ...]:
     """Drop outside-window commits reachable from any anchor (FR-013 closed world).
 
@@ -603,7 +604,7 @@ def _outside_after_anchors(
     return tuple(item for item in outside if item[0] not in exempt)
 
 
-def _closed_world_refusal(walk: _SpineWalk, lane_id: str, wp_id: str, never_exempt: frozenset[str] = frozenset()) -> Unattributable:
+def _closed_world_refusal(walk: _SpineWalk, lane_id: str, wp_id: str, *, never_exempt: frozenset[str]) -> Unattributable:
     """FR-013: name the lane, up to three short shas and one offending path.
 
     When any outside commit is a fully-canceled lane's own (*never_exempt*, #5569)
@@ -627,7 +628,7 @@ def resolve_canceled_wp(
     coord_base_ref: str,
     is_bookkeeping: Callable[[str], bool],
     closed_world_anchors: Sequence[str] = (),
-    never_exempt_commits: frozenset[str] = frozenset(),
+    never_exempt_commits: frozenset[str],
 ) -> AttributionOutcome:
     """Resolve one canceled WP's attributed commits + unsuperseded canceled content.
 
@@ -709,9 +710,9 @@ def resolve_canceled_wp(
     if walk.outside_windows:
         base_anchor = _first_governed_open_stamp(events, wp_ids)
         anchors = [*([base_anchor] if base_anchor else []), *closed_world_anchors]
-        outside = _outside_after_anchors(repo_root, coord_base_ref, walk.outside_windows, anchors, never_exempt_commits)
+        outside = _outside_after_anchors(repo_root, coord_base_ref, walk.outside_windows, anchors, never_exempt=never_exempt_commits)
         if outside:
-            return _closed_world_refusal(replace(walk, outside_windows=outside), lane_id, canceled_wp_id, never_exempt_commits)
+            return _closed_world_refusal(replace(walk, outside_windows=outside), lane_id, canceled_wp_id, never_exempt=never_exempt_commits)
 
     return Attributed(commits=canceled_commits, canceled_content=walk.canceled_content)
 

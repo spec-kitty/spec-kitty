@@ -224,6 +224,7 @@ def test_fork_point_open_stamp_of_first_wp_is_valid(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert outcome.commits == frozenset({c1})
@@ -255,6 +256,7 @@ def test_rewritten_history_stamp_is_invalid(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert outcome == wpa.Unattributable(
         wpa.UnattributableReason.STAMP_NOT_ANCESTOR_OF_LANE_TIP,
@@ -299,6 +301,7 @@ def test_merge_commit_inside_window_is_not_attributed_and_does_not_supersede(tmp
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert outcome.commits == frozenset({m1})
@@ -344,6 +347,7 @@ def test_conflict_resolved_merge_listing_the_path_does_not_supersede(tmp_path: P
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert outcome.commits == frozenset({m1})
@@ -389,6 +393,7 @@ def test_sibling_missing_open_stamp_refuses_whole_resolution(tmp_path: Path) -> 
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert outcome == wpa.Unattributable(
         wpa.UnattributableReason.NO_STAMP,
@@ -427,6 +432,7 @@ def test_sibling_rewritten_history_stamp_refuses_whole_resolution(tmp_path: Path
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert outcome == wpa.Unattributable(
         wpa.UnattributableReason.STAMP_NOT_ANCESTOR_OF_LANE_TIP,
@@ -485,6 +491,7 @@ def test_sibling_only_reached_blocked_stamped_does_not_refuse(tmp_path: Path) ->
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed), outcome
     assert canceled_sha in outcome.commits
@@ -502,6 +509,7 @@ def test_sibling_only_reached_blocked_unstamped_does_not_refuse(tmp_path: Path) 
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed), outcome
     assert canceled_sha in outcome.commits
@@ -536,6 +544,7 @@ def test_overlapping_implementation_windows_are_contested(tmp_path: Path) -> Non
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Unattributable)
     assert outcome.reason is wpa.UnattributableReason.CONTESTED_COMMIT
@@ -573,6 +582,7 @@ def test_review_window_commit_contested_by_sibling_review_window(tmp_path: Path)
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert outcome == wpa.Unattributable(
         wpa.UnattributableReason.CONTESTED_COMMIT,
@@ -602,6 +612,7 @@ def test_uncontested_review_fixup_is_attributed(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert c2 in outcome.commits
@@ -646,6 +657,7 @@ def test_add_modify_delete_unsuperseded(tmp_path: Path) -> None:
         # the whole lane is anchored (exempt from the FR-013 closed world, which
         # is pinned in its own tests below).
         closed_world_anchors=["lane-a"],
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     by_path = {c.path: c for c in outcome.canceled_content}
@@ -685,6 +697,7 @@ def test_superseded_by_later_survivor_commit_produces_no_entry(tmp_path: Path) -
         # the whole lane is anchored (exempt from the FR-013 closed world, which
         # is pinned in its own tests below).
         closed_world_anchors=["lane-a"],
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert not any(c.path == "src/pkg/shared.py" for c in outcome.canceled_content)
@@ -708,6 +721,7 @@ def test_self_revert_dropped(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert not any(c.path == "src/pkg/x.py" for c in outcome.canceled_content)
@@ -737,6 +751,7 @@ def test_survivor_v1_canceled_v0_is_survivor_undone(tmp_path: Path) -> None:
         # the whole lane is anchored (exempt from the FR-013 closed world, which
         # is pinned in its own tests below).
         closed_world_anchors=["lane-a"],
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     by_path = {c.path: c for c in outcome.canceled_content}
@@ -768,6 +783,7 @@ def test_bookkeeping_path_is_ignored(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=lambda p: p.startswith("kitty-specs/"),
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     paths = {c.path for c in outcome.canceled_content}
@@ -795,6 +811,7 @@ def test_never_entered_implementation_returns_empty_attributed(tmp_path: Path) -
         lane_branch="no-such-branch",
         coord_base_ref="no-such-ref-xyz",
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert outcome == wpa.Attributed(commits=frozenset(), canceled_content=frozenset())
 
@@ -821,6 +838,7 @@ def test_only_reaching_blocked_is_not_entered_implementation(tmp_path: Path) -> 
         lane_branch="no-such-branch",
         coord_base_ref="no-such-ref-xyz",
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert outcome == wpa.Attributed(commits=frozenset(), canceled_content=frozenset())
 
@@ -840,6 +858,7 @@ def test_unreadable_spine_maps_to_spine_unreadable(tmp_path: Path) -> None:
         lane_branch="main",
         coord_base_ref="no-such-ref-xyz",
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Unattributable)
     assert outcome.reason is wpa.UnattributableReason.SPINE_UNREADABLE
@@ -864,6 +883,7 @@ def test_missing_stamp_reason(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Unattributable)
     assert outcome.reason is wpa.UnattributableReason.NO_STAMP
@@ -888,6 +908,7 @@ def test_open_window_reason(tmp_path: Path) -> None:
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Unattributable)
     assert outcome.reason is wpa.UnattributableReason.OPEN_WINDOW
@@ -955,6 +976,7 @@ def test_seed_events_after_fail_keep_resolution_attributed(tmp_path: Path) -> No
         lane_branch="lane-a",
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(outcome, wpa.Attributed)
     assert {c.path for c in outcome.canceled_content} == {"src/pkg/leak.py"}
@@ -1017,6 +1039,7 @@ def _resolve(
         coord_base_ref=coord_base,
         is_bookkeeping=bookkeeping,
         closed_world_anchors=anchors,
+        never_exempt_commits=frozenset(),
     )
 
 
@@ -1189,6 +1212,7 @@ def test_dependency_tip_anchor_exempts_a_later_fast_forward(tmp_path: Path) -> N
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
         closed_world_anchors=["dep", "no-such-anchor-ref"],  # an unreadable anchor is skipped
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(anchored, wpa.Attributed), anchored
 
@@ -1219,6 +1243,7 @@ def test_target_tip_anchor_exempts_fast_forwarded_target_commits(tmp_path: Path)
         coord_base_ref=coord_base,
         is_bookkeeping=_NO_BOOKKEEPING,
         closed_world_anchors=["main"],
+        never_exempt_commits=frozenset(),
     )
     assert isinstance(anchored, wpa.Attributed), anchored
 

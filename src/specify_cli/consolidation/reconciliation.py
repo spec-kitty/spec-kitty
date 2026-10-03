@@ -1201,7 +1201,7 @@ def build_approved_wp_set(
         planning_prefix,
         excluded_window_base,
         sb_window,
-        canceled_lane_commits,
+        canceled_lane_commits=canceled_lane_commits,
     )
     if mixed_lane_refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
@@ -1211,7 +1211,7 @@ def build_approved_wp_set(
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
     authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths = _collect_authored(
-        repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, canceled_lane_commits
+        repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, canceled_lane_commits=canceled_lane_commits
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
@@ -1314,7 +1314,8 @@ def _resolve_mixed_lane_canceled_content(
     planning_prefix: str | None,
     target_base: str | None = None,
     sb_window: tuple[str, str] | None = None,
-    canceled_lane_commits: frozenset[str] = frozenset(),
+    *,
+    canceled_lane_commits: frozenset[str],
 ) -> tuple[frozenset[CanceledPathState], frozenset[str], str | None]:
     """Resolve every mixed lane's canceled-with-provenance WPs (T022/T023).
 
@@ -1374,7 +1375,10 @@ def _resolve_mixed_lane_canceled_content(
                 lane_branch=branch,
                 coord_base_ref=lane_base,
                 is_bookkeeping=is_bookkeeping,
-                closed_world_anchors=[*_closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids), *attestation_anchors],
+                closed_world_anchors=[
+                    *_closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids),
+                    *attestation_anchors,
+                ],
                 never_exempt_commits=canceled_lane_commits,
             )
             if isinstance(outcome, Attributed):
@@ -1404,7 +1408,8 @@ def _closed_world_anchors(
     lanes_manifest: LanesManifest,
     lane: ExecutionLane,
     target_base: str | None,
-    excluded_canceled_wp_ids: frozenset[str] = frozenset(),
+    *,
+    excluded_canceled_wp_ids: frozenset[str],
 ) -> list[str]:
     """FR-013 anchors for *lane*: dependency-lane tips (the allocator merges them in
     without ``--no-ff``, also on its reuse path after work began) and the target's
@@ -1453,7 +1458,7 @@ def _fully_canceled_lane_commits(
         if is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue
         tip_commits = _lane_tip_commits(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
-        anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids)
+        anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids)
         own |= lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
     return frozenset(own)
 
@@ -1866,7 +1871,8 @@ def _collect_authored(
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
     sb_window: tuple[str, str] | None = None,
-    canceled_lane_commits: frozenset[str] = frozenset(),
+    *,
+    canceled_lane_commits: frozenset[str],
 ) -> tuple[
     frozenset[str],
     frozenset[str],

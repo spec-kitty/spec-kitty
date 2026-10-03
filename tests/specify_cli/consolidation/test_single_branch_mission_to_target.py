@@ -226,8 +226,8 @@ def test_collect_authored_uses_mission_branch_window(protected_repo: Path) -> No
     manifest = _protected_lanes_manifest()
     window = authorship_window(protected_repo, _SLUG, _MISSION_BRANCH, "main")
     wps = {"WP01": {"lane": "approved"}}
-    with_window = _collect_authored(protected_repo, manifest, wps, "main", window)
-    without = _collect_authored(protected_repo, manifest, wps, "main", None)
+    with_window = _collect_authored(protected_repo, manifest, wps, "main", window, canceled_lane_commits=frozenset())
+    without = _collect_authored(protected_repo, manifest, wps, "main", None, canceled_lane_commits=frozenset())
     assert ("src/impl.py", _git(protected_repo, "rev-parse", f"{_MISSION_BRANCH}:src/impl.py").stdout.strip()) in with_window[2]
     assert not without[2], "control: without the window the repo-root lane resolves to the target and has no authored blobs"
 
