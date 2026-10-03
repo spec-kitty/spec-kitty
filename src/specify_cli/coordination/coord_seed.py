@@ -1117,7 +1117,17 @@ def establish_coord_write_location(
     write gate (research D22): the old refusal for an ``UNMATERIALIZED``
     local-head coordination branch that already carries committed content is
     replaced by materializing and letting the state machine below decide.
+
+    A non-owned caller may pass a lane worktree as ``repo_root``.
+    :meth:`PlacementSeam.read_dir` re-anchors that checkout to the main
+    repository. This function does the same before it composes the
+    coordination worktree, so a lane caller cannot grow a second
+    coordination home under the lane checkout.
     """
+    if owned is None:
+        from specify_cli.core.paths import get_main_repo_root
+
+        repo_root = get_main_repo_root(repo_root)
     if is_primary_artifact_kind(kind):
         return _primary_write_location(repo_root, mission_slug, kind, owned)
 

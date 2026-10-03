@@ -378,6 +378,26 @@ def test_write_dir_checkout_root_reanchors_from_a_lane_worktree(tmp_path: Path) 
     assert location.path == coord.root_mission_dir
 
 
+def test_write_dir_coord_kind_from_a_lane_worktree_uses_the_main_repo(tmp_path: Path) -> None:
+    """A COORD write started inside a lane worktree lands on the main
+    repository's coordination worktree.
+
+    The PRIMARY arm already re-anchors (the test above). The COORD arm used
+    to compose ``.worktrees/<slug>-coord`` under the lane checkout, then
+    crash when that stray worktree met the re-anchored mission directory.
+    """
+    coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="absent")
+    lane_worktree = tmp_path / "a-lane-worktree"
+    _git(coord.repo_root, "worktree", "add", "-b", "a-lane-branch", str(lane_worktree), "HEAD")
+
+    location = placement_seam(lane_worktree, coord.mission_dir_name).write_dir(MissionArtifactKind.STATUS_STATE)
+
+    assert not (lane_worktree / ".worktrees").exists()
+    assert location.surface is TopologySurface.COORD
+    assert location.surface_root == coord.coord_worktree_path
+    assert location.path == coord.coord_mission_dir
+
+
 # ---------------------------------------------------------------------------
 # D4 naming fix (binding correction round 3) -- ``coord_branch_has_committed_artifact``'s
 # explicit git-error arm, consulted by D22's self-materialization informational
