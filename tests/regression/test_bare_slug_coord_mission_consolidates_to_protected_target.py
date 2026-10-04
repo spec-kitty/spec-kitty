@@ -1,17 +1,19 @@
 """A bare-slug coordination Mission must consolidate onto a protected target.
 
 OPEN, red-first reproduction pinned to
-https://github.com/spec-kitty/spec-kitty/issues/5651 (release-blocking per the
-regression-suite entry rule; ADR 2026-07-17-1).
+https://github.com/spec-kitty/spec-kitty/issues/5651. It is an open regression
+tracked by #5651; its priority is set on the issue. No CI job selects
+``-m regression`` or ``tests/regression`` today, so this test runs only in
+``make test-full`` (tracked by #5652).
 
 Contract
 --------
 ``spec-kitty consolidate`` of a coordination-topology Mission whose primary
 directory is the BARE slug (``kitty-specs/<slug>``, no ``-<mid8>`` suffix) while
 its coordination branch is the composed ``kitty/mission-<slug>-<mid8>`` must
-land on the protected target (``main``) and honor an explicit
-``--delete-branch`` / ``--remove-worktree`` override over the Mission's
-retention policy.
+land on the protected target (``main``) with exit 0. (The explicit
+``--delete-branch`` / ``--remove-worktree`` override over a retaining Mission is
+covered green by ``tests/integration/test_merge_lane_planning_data_loss.py``.)
 
 Root cause (traced in the nightly-reds-b research memo)
 -------------------------------------------------------
@@ -28,10 +30,9 @@ it consolidates at ``5b5699e50^``.
 
 Desired outcome
 ---------------
-The merge exits 0: the seed lands on the coordination partition (not PRIMARY),
-the reconciliation gate attributes it as bookkeeping rather than as content, and
-the explicit delete override removes the mission branch, lane branch and lane
-worktree. A partition-only fix is not enough, because the reconciliation gate's
+The merge exits 0: the seed lands on the coordination partition (not PRIMARY)
+and the reconciliation gate attributes it as bookkeeping rather than as content.
+A partition-only fix is not enough, because the reconciliation gate's
 ``_is_bookkeeping`` is anchored on the same bare segment; where a bare-slug
 Mission's coordination records land is a design decision, hence the issue.
 
@@ -40,9 +41,9 @@ Fixture shape
 This is the realistic bare-slug shape that ``coordination/transaction.py::
 _canonical_coord_mission_slug`` documents as genuine: primary directory
 ``retention-override``, coordination branch
-``kitty/mission-retention-override-<mid8>``. (The test it was extracted from,
-``tests/integration/test_merge_lane_planning_data_loss.py``, embedded the mid8
-mid-slug with an uncomposed branch, which is off-grammar.)
+``kitty/mission-retention-override-<mid8>``. The Mission does not retain its
+worktrees, so the default cleanup removes the coordination worktree, which is
+the step the dirty-worktree preflight refuses.
 
 Exit rule: once #5651 is fixed this test goes green and leaves this directory
 (``tests/regression/README.md``), moving back next to its retention siblings in
@@ -59,7 +60,6 @@ import pytest
 
 from tests.integration.test_merge_lane_planning_data_loss import (
     _RETENTION_MID8,
-    _branch_exists,
     _commit_file,
     _git,
     _init_git_repo,
@@ -78,8 +78,8 @@ _COMPOSED_BRANCH = f"kitty/mission-{_BARE_SLUG}-{_RETENTION_MID8}"
 
 
 @pytest.mark.regression
-def test_bare_slug_coord_mission_explicit_delete_override_consolidates(tmp_path: Path) -> None:
-    """#5651: a bare-slug coordination Mission consolidates and honors ``--delete-branch``."""
+def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: Path) -> None:
+    """#5651: a bare-slug coordination Mission consolidates onto the protected target with exit 0."""
     slug = _BARE_SLUG
     mission_branch = _COMPOSED_BRANCH
     _init_git_repo(tmp_path)
@@ -91,6 +91,10 @@ def test_bare_slug_coord_mission_explicit_delete_override_consolidates(tmp_path:
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["coordination_branch"] = mission_branch
     meta["mission_branch"] = mission_branch
+    # Default cleanup (no retention) removes the coordination worktree; that
+    # removal is what the dirty-worktree preflight refuses on.
+    meta.pop("retain_branches")
+    meta.pop("retain_worktrees")
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _write_lanes_manifest(
         feature_dir,
@@ -138,14 +142,8 @@ def test_bare_slug_coord_mission_explicit_delete_override_consolidates(tmp_path:
     ):
         result = _invoke_merge_cli(
             tmp_path,
-            ["--mission", slug, "--yes", "--allow-sparse-checkout", "--delete-branch", "--remove-worktree"],
+            ["--mission", slug, "--yes", "--allow-sparse-checkout"],
         )
 
     exit_code = getattr(result, "exit_code", None)
     assert exit_code == 0, f"#5651: consolidate must succeed (output: {getattr(result, 'output', None)!r}, exception: {getattr(result, 'exception', None)!r})"
-    assert not _branch_exists(tmp_path, mission_branch), "explicit --delete-branch must still delete the mission/coordination branch"
-    assert not _branch_exists(tmp_path, lane_a_branch), "explicit --delete-branch must still delete the lane branch"
-    assert not lane_worktree.exists(), "explicit --remove-worktree must still remove the lane worktree"
-    output = getattr(result, "output", "") or ""
-    assert "explicit delete overrode retention policy for branches" in output
-    assert "explicit delete overrode retention policy for worktrees" in output
