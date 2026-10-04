@@ -1876,3 +1876,106 @@ class TestRetentionConstraintSurvivesCleanup:
         assert payload["remove_worktree"] is False
         assert payload["retention"]["branch_source"] == "meta"
         assert payload["retention"]["worktree_source"] == "meta"
+
+
+_BARE_SLUG = "retention-override"
+_COMPOSED_BRANCH = f"kitty/mission-{_BARE_SLUG}-{_RETENTION_MID8}"
+
+
+@pytest.mark.regression
+def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: Path) -> None:
+    """A bare-slug coordination Mission must consolidate onto a protected target (open regression, #5651).
+
+    OPEN, red on purpose: a reproduction pinned to
+    https://github.com/spec-kitty/spec-kitty/issues/5651. It stays in this
+    integration module so the nightly integration lane keeps showing it; it is
+    ``regression``-marked so the fast tier leaves it out.
+
+    Contract: consolidating a coordination Mission whose primary directory is
+    the BARE slug (``kitty-specs/<slug>``, no ``-<mid8>`` suffix) while its
+    coordination branch is the composed ``kitty/mission-<slug>-<mid8>`` lands on
+    the protected target with exit 0. ``coordination/transaction.py::
+    _canonical_coord_mission_slug`` documents that shape as genuine.
+
+    Root cause: the executor seeds the composed ``<slug>-<mid8>`` coordination
+    directory, but ``partition_for_mission_path`` classifies by the
+    ``kitty-specs/<segment>`` name and does not recognise it. The seed regroups
+    to PRIMARY, is refused on a protected ``main`` and stays untracked in the
+    coordination worktree, and the preflight stops with
+    ``MERGE_UNSAFE_WORKTREE_DIRTY``. Regression from ``5b5699e50``.
+
+    Desired outcome: exit 0, with the seed on the coordination partition and
+    attributed as bookkeeping. A partition-only fix is not enough, because the
+    reconciliation gate's ``_is_bookkeeping`` is anchored on the same bare
+    segment. The Mission here does not retain its worktrees, so the default
+    cleanup removes the coordination worktree, which is the step the preflight
+    refuses. Exit rule: this test goes green when #5651 is fixed; drop the
+    marker then.
+    """
+    slug = _BARE_SLUG
+    mission_branch = _COMPOSED_BRANCH
+    _init_git_repo(tmp_path)
+
+    feature_dir = tmp_path / "kitty-specs" / slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    _write_coord_retaining_meta(feature_dir, slug)
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["coordination_branch"] = mission_branch
+    meta["mission_branch"] = mission_branch
+    # Default cleanup (no retention) removes the coordination worktree; that
+    # removal is what the dirty-worktree preflight refuses on.
+    meta.pop("retain_branches")
+    meta.pop("retain_worktrees")
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_lanes_manifest(
+        feature_dir,
+        slug,
+        code_wp_ids=["WP01"],
+        planning_wp_ids=[],
+        mission_branch=mission_branch,
+    )
+    _write_wp_file(feature_dir, "WP01")
+    _seed_wp_approved(feature_dir, slug, "WP01")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap bare-slug coord mission")
+
+    _git(tmp_path, "branch", mission_branch, "main")
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    _git(
+        tmp_path,
+        "worktree",
+        "add",
+        "-q",
+        str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)),
+        mission_branch,
+    )
+    lane_a_branch = f"kitty/mission-{slug}-lane-a"
+    _git(tmp_path, "branch", lane_a_branch, "main")
+    _commit_file(
+        tmp_path,
+        branch=lane_a_branch,
+        relpath="src/retention_repro_override.py",
+        content="def bar():\n    return 2\n",
+        message=f"feat({slug}): add bar function (WP01)",
+    )
+    _git(tmp_path, "checkout", "main")
+
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+
+    lane_worktree, _lane_branch = predict_lane_worktree(tmp_path, slug, "lane-a")
+    _git(tmp_path, "worktree", "add", str(lane_worktree), lane_a_branch)
+
+    with (
+        _real_merge_external_mocks(tmp_path),
+        patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
+        patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+    ):
+        result = _invoke_merge_cli(
+            tmp_path,
+            ["--mission", slug, "--yes", "--allow-sparse-checkout"],
+        )
+
+    exit_code = getattr(result, "exit_code", None)
+    assert exit_code == 0, f"#5651: consolidate must succeed (output: {getattr(result, 'output', None)!r}, exception: {getattr(result, 'exception', None)!r})"
