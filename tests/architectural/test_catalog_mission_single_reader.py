@@ -17,13 +17,13 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 
-def test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor() -> None:
+def test_catalog_mission_is_read_only_through_the_shared_accessor() -> None:
     """AC-B3 / NFR-003 / SC-002 grep proof: no second ``catalog.mission``
     parser survives outside ``charter_yaml_io.read_catalog_field`` /
     ``read_catalog_mission``. Issue #4993 claimed three readers; the true
     count was two (the claimed third read ``catalog.languages``) -- both
     now delegate, so a direct ``catalog["mission"]`` / ``catalog.get(
-    "mission")`` read anywhere in ``src/`` other than the accessor itself is
+    "mission")`` read anywhere in ``src/``, the accessor module included, is
     a regression."""
     repo_root = Path(__file__).resolve().parents[2]
     accessor_path = repo_root / "src" / "charter" / "activation" / "charter_yaml_io.py"
