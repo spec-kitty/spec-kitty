@@ -551,16 +551,27 @@ def _two_wp_mission(tmp_path: Path, topology_name: str) -> tuple[Path, str]:
     return root, result.mission_slug
 
 
-def _run_finalize_failing_the_final_commit(root: Path, mission_slug: str, *, before_failing: Callable[[], None] = lambda: None) -> tuple[int, str]:
+def _run_finalize_failing_the_final_commit(
+    root: Path,
+    mission_slug: str,
+    *,
+    before_failing: Callable[[], None] = lambda: None,
+    during_status_writes: Callable[[], None] = lambda: None,
+) -> tuple[int, str]:
     """Run the real ``finalize-tasks``, failing ONLY its final ``TASKS_INDEX`` commit.
 
     The per-WP status commits go through the transactional status emitter, not
     ``commit_for_mission``, so every earlier write and commit runs for real.
+    ``during_status_writes`` runs after the seeds and before the status-write
+    window closes (at the lane computation); ``before_failing`` runs after it,
+    just before the final commit fails.
     """
     from mission_runtime import MissionArtifactKind
+    from specify_cli.cli.commands.agent import mission_finalize
     from specify_cli.coordination import commit_router
 
     real_commit_for_mission = commit_router.commit_for_mission
+    real_compute_and_write_lanes = mission_finalize._compute_and_write_lanes
 
     def _fail_only_the_final_commit(*args: object, **kwargs: object) -> object:
         if kwargs.get("kind") is MissionArtifactKind.TASKS_INDEX:
@@ -568,7 +579,14 @@ def _run_finalize_failing_the_final_commit(root: Path, mission_slug: str, *, bef
             raise RuntimeError("simulated final commit failure")
         return real_commit_for_mission(*args, **kwargs)
 
-    with patch("specify_cli.coordination.commit_router.commit_for_mission", side_effect=_fail_only_the_final_commit):
+    def _lanes_after_a_foreign_hook(*args: object, **kwargs: object) -> object:
+        during_status_writes()
+        return real_compute_and_write_lanes(*args, **kwargs)
+
+    with (
+        patch("specify_cli.coordination.commit_router.commit_for_mission", side_effect=_fail_only_the_final_commit),
+        patch("specify_cli.cli.commands.agent.mission_finalize._compute_and_write_lanes", side_effect=_lanes_after_a_foreign_hook),
+    ):
         exit_code, output = _run_finalize(root, mission_slug)
     assert "simulated final commit failure" in output, f"the run did not fail at the final commit:\n{output}"
     return exit_code, output
@@ -596,26 +614,54 @@ def test_final_commit_failure_leaves_every_branch_and_checkout_as_found(tmp_path
     assert _branches_and_checkouts(root) == before, "the failed finalize-tasks run left commits or a dirty checkout behind"
 
 
-def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left(tmp_path: Path) -> None:
-    """A status-surface branch that moved after the seeds is never forced back (#5641, FR-002/FR-003).
+def _status_surface_checkout(root: Path) -> Path:
+    """The checkout the status commits land in: the repository root, or the coordination worktree when there is one."""
+    checkouts = [Path(line.removeprefix("worktree ")) for line in _git(root, "worktree", "list", "--porcelain").stdout.splitlines() if line.startswith("worktree ")]
+    return next((checkout for checkout in checkouts if checkout != root), root)
 
-    A foreign commit lands on the current branch of a ``lanes`` Mission after
-    the per-WP seed commits and before the final commit fails. The restore must
-    leave the branch at the foreign commit and report the two seed commits it
-    could not undo, as a ``status_commits_not_undone`` warning.
+
+@pytest.mark.parametrize(
+    ("topology_name", "foreign_commit_lands"),
+    [("LANES", "after_status_writes"), ("LANES", "during_status_writes"), ("COORD", "during_status_writes")],
+)
+def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left(tmp_path: Path, topology_name: str, foreign_commit_lands: str) -> None:
+    """A status-surface branch that gained a commit this run did not make is never forced back (#5641, FR-002/FR-003).
+
+    A foreign commit lands on the status surface's branch -- the current branch
+    of a ``lanes`` Mission, the coordination branch of a ``coord`` one -- either
+    after the per-WP seed commits (the branch moved after the run's last status
+    write) or between them and the failing final commit (inside the status-write
+    window, where the run's own commits and the foreign one share the range the
+    restore would rewrite). The restore must leave the branch where it is,
+    keep the foreign commit and its file, and report every commit it could not
+    undo as a ``status_commits_not_undone`` warning.
     """
-    root, mission_slug = _two_wp_mission(tmp_path, "LANES")
-    seeded_from = _git(root, "rev-parse", "HEAD").stdout.strip()
+    root, mission_slug = _two_wp_mission(tmp_path, topology_name)
+    surface = _status_surface_checkout(root)
+    seeded_from = _git(surface, "rev-parse", "HEAD").stdout.strip()
+    foreign_file = surface / "foreign-note.txt"
+    foreign_sha: list[str] = []
 
     def _foreign_commit() -> None:
-        _git(root, "commit", "-q", "--allow-empty", "-m", "foreign: someone else's commit")
+        foreign_file.write_text("someone else's work\n", encoding="utf-8")
+        _git(surface, "add", foreign_file.name)
+        _git(surface, "commit", "-q", "-m", "foreign: someone else's commit")
+        foreign_sha.append(_git(surface, "rev-parse", "HEAD").stdout.strip())
 
-    exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug, before_failing=_foreign_commit)
+    hooks = {"after_status_writes": "before_failing", "during_status_writes": "during_status_writes"}
+    exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug, **{hooks[foreign_commit_lands]: _foreign_commit})
 
     assert exit_code != 0, output
-    assert _git(root, "log", "-1", "--format=%s").stdout.strip() == "foreign: someone else's commit", "the foreign commit was rewritten"
+    assert foreign_sha, "fixture: the foreign commit never landed"
+    _git(surface, "merge-base", "--is-ancestor", foreign_sha[0], "HEAD")  # raises when the foreign commit became unreachable
+    assert _git(surface, "rev-parse", "HEAD").stdout.strip() != seeded_from, "the branch was moved back over the foreign commit"
+    assert foreign_file.read_text(encoding="utf-8") == "someone else's work\n", "the foreign commit's file was removed from disk"
     warnings = [json.loads(line) for line in output.splitlines() if line.startswith("{") and '"warning"' in line]
     leftover = next(w for w in warnings if w["warning"] == "status_commits_not_undone")
-    seeds = _git(root, "rev-list", f"{seeded_from}..HEAD~1").stdout.split()
-    assert len(seeds) == 2, "fixture: expected one seed commit per WP under the foreign commit"
-    assert [entry.split()[0] for entry in leftover["commits"]] == [_git(root, "rev-parse", "--short", sha).stdout.strip() for sha in seeds]
+    undone_range = f"{seeded_from}..HEAD~1" if foreign_commit_lands == "after_status_writes" else f"{seeded_from}..HEAD"
+    named = _git(surface, "rev-list", undone_range).stdout.split()
+    assert [entry.split()[0] for entry in leftover["commits"]] == [_git(surface, "rev-parse", "--short", sha).stdout.strip() for sha in named]
+    assert len(named) >= 2, "fixture: expected at least one seed commit per WP"
+    if foreign_commit_lands == "during_status_writes":
+        assert _git(surface, "rev-parse", "--short", foreign_sha[0]).stdout.strip() in [entry.split()[0] for entry in leftover["commits"]]
+        assert "did not make" in leftover["detail"]

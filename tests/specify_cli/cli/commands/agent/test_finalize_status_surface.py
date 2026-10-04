@@ -40,7 +40,10 @@ def checkout(tmp_path: Path) -> Path:
 
 
 def _seed(repo: Path, message: str) -> None:
-    _git(repo, "commit", "-q", "--allow-empty", "-m", message)
+    """One status commit, shaped like the writer's: an appended event in the Mission's event log."""
+    events = repo / "kitty-specs" / "m" / "status.events.jsonl"
+    events.write_text(events.read_text(encoding="utf-8") + f'{{"event":"{message}"}}\n', encoding="utf-8")
+    _git(repo, "commit", "-q", "-am", message)
 
 
 def _captured(repo: Path) -> StatusSurfaceGuard:
