@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import subprocess
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -621,6 +622,25 @@ def _status_surface_checkout(root: Path) -> Path:
     return next((checkout for checkout in checkouts if checkout != root), root)
 
 
+def _status_writer_would_wait(root: Path, mission_slug: str) -> bool:
+    """Whether another thread's status write for the Mission must wait for the lock (it times out within 0.2s)."""
+    from specify_cli.status.locking import FeatureStatusLockTimeoutError, feature_status_lock
+
+    waited: list[bool] = []
+
+    def _write_status() -> None:
+        try:
+            with feature_status_lock(root, mission_slug, timeout=0.2):
+                waited.append(False)
+        except FeatureStatusLockTimeoutError:
+            waited.append(True)
+
+    writer = threading.Thread(target=_write_status)
+    writer.start()
+    writer.join()
+    return waited == [True]
+
+
 @pytest.mark.parametrize(
     ("topology_name", "foreign_commit_lands"),
     [("LANES", "after_status_writes"), ("LANES", "during_status_writes"), ("COORD", "during_status_writes")],
@@ -646,6 +666,11 @@ def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seed
     foreign_sha: list[str] = []
 
     def _foreign_commit() -> None:
+        if foreign_commit_lands == "during_status_writes":
+            # Another process's status write for this Mission (a `move-task`, say) must wait out the
+            # window: a commit touching only the Mission's own status files is otherwise
+            # indistinguishable from the run's seeds, and the restore would move the branch over it.
+            assert _status_writer_would_wait(root, mission_slug), "the Mission status lock is not held across the status-write window"
         foreign_file.write_text("someone else's work\n", encoding="utf-8")
         _git(surface, "add", str(foreign_file.relative_to(surface)))
         _git(surface, "commit", "-q", "-m", "foreign: someone else's commit")

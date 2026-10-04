@@ -5429,8 +5429,10 @@ def finalize_tasks(
     #     touching only this Mission's status files and the acceptance-matrix
     #     scaffold, else the range is not provably the run's own). The branch
     #     is never forced, the files those commits changed are left as they
-    #     left them, and the run names the commits it left. Residual: a
-    #     commit by another process for the SAME Mission inside the window is
+    #     left them, and the run names the commits it left. The window holds
+    #     the Mission's status lock, so another process's status write waits
+    #     for it; residual: a committer that takes no status lock, or one that
+    #     lands between the capture and the window opening, is
     #     indistinguishable from the run's own. On a ``lanes`` /
     #     ``single_branch`` surface the finalize commit itself shares that
     #     branch, so a failure after it lands but before ``commit_landed`` is

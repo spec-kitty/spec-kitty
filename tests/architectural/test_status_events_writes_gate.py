@@ -210,6 +210,13 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # family (one-time administrative replay), not a third transition
         # emitter.
         "specify_cli.coordination.coord_seed",
+        # #5641 landing fold: ``finalize-tasks``' status-surface guard holds L1
+        # across its status-write window (``StatusSurfaceGuard.recording``) so
+        # no other process's status write for the Mission lands inside the
+        # range the failure restore would move the branch back over. It
+        # appends nothing itself: the writers inside the window re-enter the
+        # lock; this is a holder, not a fourth emit shell.
+        "specify_cli.cli.commands.agent.finalize_status_surface",
     }
 )
 

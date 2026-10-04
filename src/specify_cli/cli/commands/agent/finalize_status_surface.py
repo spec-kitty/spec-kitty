@@ -34,11 +34,15 @@ files (the event log and its snapshot) and the acceptance-matrix scaffold, the
 only paths the run writes on the status surface, resolved from the directory
 the guard was captured against. :meth:`StatusSurfaceGuard.restore` then returns
 a :class:`StatusSurfaceLeftover` naming the branch and the commits it could not
-undo. Residual: a commit that touches only those same files for the same
-Mission -- another process finalizing or transitioning the same Mission while
-this run is inside its status-write window -- is indistinguishable from the
-run's own and is undone with them. The run holds no lock that excludes it, so
-the compare-and-swap against ``tip_after`` is what protects every later commit.
+undo. A commit that touches only those same files for the same Mission would be
+indistinguishable from the run's own, so :meth:`StatusSurfaceGuard.recording`
+holds the Mission's status lock (the one every status writer takes) for the
+whole window: another process's status write waits until the window has closed,
+and the compare-and-swap against ``tip_after`` protects every later commit.
+Residual: a committer that takes no status lock (a plain ``git commit`` of the
+Mission's status files), or one landing between :meth:`StatusSurfaceGuard.capture`
+and the opening of the window, is still indistinguishable from the run's own
+and is undone with them.
 """
 
 from __future__ import annotations
@@ -46,13 +50,18 @@ from __future__ import annotations
 import logging
 import subprocess
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.acceptance.matrix import MATRIX_FILENAME
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
-from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
+from specify_cli.status import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    EVENTS_FILENAME,
+    SNAPSHOT_FILENAME,
+    feature_status_lock,
+)
 
 __all__ = ["StatusSurfaceGuard", "StatusSurfaceLeftover"]
 
@@ -166,14 +175,28 @@ class StatusSurfaceGuard:
     def recording(self) -> Iterator[None]:
         """Wrap the run's status writes; the tip is recorded when the window closes, even on an error.
 
-        The commits in ``tip_before..tip_after`` are not assumed to be the run's
-        own: :meth:`restore` proves it before it moves the branch back.
+        The Mission's status lock is held for the whole window, and the tip is
+        read before it is released, so no other process's status write lands
+        inside the window or between its last commit and the recorded tip. A
+        lock that cannot be had within the bounded wait fails the run before
+        its first status commit. The commits in ``tip_before..tip_after`` are
+        still not assumed to be the run's own: :meth:`restore` proves it before
+        it moves the branch back.
         """
-        try:
-            yield
-        finally:
-            if self.surface_root is not None and self.branch is not None:
-                self.tip_after = _git(self.surface_root, "rev-parse", "--verify", f"refs/heads/{self.branch}")
+        root, status_dir = self.surface_root, self.status_dir
+        # Keyed on the status directory's name: the key every writer of this surface locks on,
+        # under the git common dir all of the Mission's checkouts share.
+        lock = (
+            feature_status_lock(root, status_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS)
+            if root is not None and status_dir is not None
+            else nullcontext()
+        )
+        with lock:
+            try:
+                yield
+            finally:
+                if root is not None and self.branch is not None:
+                    self.tip_after = _git(root, "rev-parse", "--verify", f"refs/heads/{self.branch}")
 
     def restore(self) -> StatusSurfaceLeftover | None:
         """Undo this run's status commits; ``None`` when nothing of this run is left behind."""
