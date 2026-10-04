@@ -22,7 +22,7 @@ Design references: plan.md D-2/D-3 (steps 2-4); data-model.md (``WorkWindow``,
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
@@ -309,6 +309,18 @@ def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str,
     return result
 
 
+def _window_stamps(window: WorkWindow) -> tuple[str, str] | None:
+    """``(open_head, close_head)`` of *window*, or ``None`` when either stamp is missing.
+
+    The one statement of the ``no_stamp`` rule, shared by :func:`_window_commits`
+    (which resolves the commits between the two) and :func:`lacks_lane_head_stamps`
+    (which only asks whether they exist).
+    """
+    if window.open_head is None or window.close_head is None:
+        return None
+    return window.open_head, window.close_head
+
+
 def _window_commits(
     repo_root: Path,
     window: WorkWindow,
@@ -327,14 +339,16 @@ def _window_commits(
     """
     if window.still_open:
         return frozenset(), UnattributableReason.OPEN_WINDOW
-    if window.open_head is None or window.close_head is None:
+    stamps = _window_stamps(window)
+    if stamps is None:
         return frozenset(), UnattributableReason.NO_STAMP
-    if not sha_reachable_from(repo_root, window.open_head, lane_branch):
+    open_head, close_head = stamps
+    if not sha_reachable_from(repo_root, open_head, lane_branch):
         return frozenset(), UnattributableReason.STAMP_NOT_ANCESTOR_OF_LANE_TIP
-    if not sha_reachable_from(repo_root, window.close_head, lane_branch):
+    if not sha_reachable_from(repo_root, close_head, lane_branch):
         return frozenset(), UnattributableReason.STAMP_NOT_ANCESTOR_OF_LANE_TIP
     try:
-        raw = first_parent_commits_in_range(repo_root, window.open_head, window.close_head)
+        raw = first_parent_commits_in_range(repo_root, open_head, close_head)
     except GitProbeError:
         return frozenset(), UnattributableReason.SPINE_UNREADABLE
     commits: set[str] = set()
@@ -408,6 +422,27 @@ class _SpineWalk:
     outside_windows: tuple[tuple[str, str], ...]
 
 
+def _content_commits(
+    repo_root: Path,
+    spine: Sequence[str],
+    is_bookkeeping: Callable[[str], bool],
+    merge_cache: dict[str, bool],
+) -> Iterator[tuple[int, str, list[str]]]:
+    """The per-commit step every spine walk shares: ``(index, sha, content paths)``, in *spine* order.
+
+    A merge commit is skipped (R3/B4 -- merges never attribute, supersede or get
+    superseded) and bookkeeping paths are dropped, so a commit is yielded with the
+    non-bookkeeping paths it changed (possibly none). ``index`` is the commit's
+    position on *spine*. Lazy: a walk that stops early reads no further commit.
+    """
+    for idx, sha in enumerate(spine):
+        if sha not in merge_cache:
+            merge_cache[sha] = is_merge_commit(repo_root, sha)
+        if merge_cache[sha]:
+            continue
+        yield idx, sha, [path for path in changed_paths_of(repo_root, sha) if not is_bookkeeping(path)]
+
+
 def _canceled_content_walk(
     repo_root: Path,
     spine: list[str],
@@ -444,13 +479,8 @@ def _canceled_content_walk(
     oldest_canceled_sha: dict[str, str] = {}
     oldest_survivor_idx: dict[str, int] = {}
     outside: list[tuple[str, str]] = []
-    for idx, sha in enumerate(spine):
-        if sha not in merge_cache:
-            merge_cache[sha] = is_merge_commit(repo_root, sha)
-        if merge_cache[sha]:
-            continue  # R3/B4 — merges never attribute or supersede
+    for idx, sha, content_paths in _content_commits(repo_root, spine, is_bookkeeping, merge_cache):
         is_canceled = sha in canceled_commits
-        content_paths = [path for path in changed_paths_of(repo_root, sha) if not is_bookkeeping(path)]
         if content_paths and sha not in covered:
             outside.append((sha, content_paths[0]))
         for path in content_paths:
@@ -717,6 +747,69 @@ def resolve_canceled_wp(
     return Attributed(commits=canceled_commits, canceled_content=walk.canceled_content)
 
 
+def lacks_lane_head_stamps(events: Sequence[StatusEvent], wp_id: str) -> bool:
+    """True when *wp_id* did governed work but a closed work window carries no ``lane_head`` stamp (#5613).
+
+    The event-only half of the ``no_stamp`` rule of :func:`_window_commits`
+    (:func:`_window_stamps`): a legacy mission (created before lane-head stamps), a
+    transition made outside the governed workflow, or a modern mission whose
+    best-effort stamp capture failed. No git is read. A WP that never entered implementation
+    has no work to attribute and is not "unstamped"; a window that never closed is
+    a different reason (``open_window``) and is not reported here.
+    """
+    if not _entered_implementation(events, wp_id):
+        return False
+    windows = _windows(events, frozenset({wp_id}))[wp_id]
+    return any(not window.still_open and _window_stamps(window) is None for window in windows)
+
+
+def canceled_spine_content(
+    repo_root: Path,
+    spine: Sequence[str],
+    canceled_commits: frozenset[str],
+    is_bookkeeping: Callable[[str], bool],
+) -> tuple[frozenset[str], dict[str, tuple[str, str | None]]]:
+    """What a fully-canceled lane's commits leave on ONE carrier lane's first-parent spine (#5613).
+
+    *spine* is newest-first. Returns ``(superseded, live)``:
+
+    * ``superseded`` -- canceled commits on the spine EVERY content path of which a
+      newer, non-canceled, non-merge spine commit touched again. Nothing of such a
+      commit is the lane's final state, so nothing of it ships.
+    * ``live`` -- content path -> ``(newest canceled toucher, its state there)`` for
+      every path whose newest non-merge toucher on the spine is a canceled commit.
+      The state is a blob id, or ``None`` when that commit deleted the path.
+
+    A merge commit neither supersedes nor is superseded (its first-parent diff can
+    carry the canceled content itself). A canceled commit that touches no content
+    path is not superseded: it stays out of the approved claim, as before. Raises
+    :class:`GitProbeError` when a commit cannot be read; the caller decides.
+
+    Unlike :func:`_canceled_content_walk`, a path the canceled commits changed and
+    then restored is still reported in ``live`` (with the restored state): the
+    verifier only counts an entry whose state the pre-consolidation target did not
+    already hold, which is where a net-zero change drops out.
+    """
+    # Nothing older than the oldest canceled commit can supersede or be canceled
+    # content, so the walk (the same per-commit step as :func:`_canceled_content_walk`)
+    # ends there; a spine without a canceled commit reads nothing.
+    oldest_canceled = max((idx for idx, sha in enumerate(spine) if sha in canceled_commits), default=-1)
+    survivor_paths: set[str] = set()
+    superseded: set[str] = set()
+    newest_canceled: dict[str, str] = {}
+    for _idx, sha, paths in _content_commits(repo_root, spine[: oldest_canceled + 1], is_bookkeeping, {}):
+        if sha not in canceled_commits:
+            survivor_paths.update(paths)
+            continue
+        unsuperseded = [path for path in paths if path not in survivor_paths]
+        if paths and not unsuperseded:
+            superseded.add(sha)
+        for path in unsuperseded:
+            newest_canceled.setdefault(path, sha)
+    live = {path: (sha, path_state_at(repo_root, sha, path)) for path, sha in newest_canceled.items()}
+    return frozenset(superseded), live
+
+
 __all__ = [
     "MIGRATION_ACTOR_PREFIX",
     "AttributionOutcome",
@@ -724,6 +817,8 @@ __all__ = [
     "Unattributable",
     "UnattributableReason",
     "CanceledPathState",
+    "canceled_spine_content",
+    "lacks_lane_head_stamps",
     "lane_own_commits",
     "resolve_canceled_wp",
 ]

@@ -82,6 +82,8 @@ from specify_cli.consolidation.wp_attribution import (
     CanceledPathState,
     Unattributable,
     UnattributableReason,
+    canceled_spine_content,
+    lacks_lane_head_stamps,
     lane_own_commits,
     resolve_canceled_wp,
 )
@@ -125,6 +127,12 @@ _GAP_UNCHANGED: PresenceGap = "unchanged"
 #: superseded the path -- e.g. the operator committed the staged deletions an
 #: interrupted run left behind. A content verdict: it FAILs and rolls back.
 APPROVED_CONTENT_MISSING = "APPROVED_CONTENT_MISSING"
+#: Error code of the #5569 verdict (#5613): a fully-canceled dependency lane's
+#: content reached an approved lane through the allocator's fast-forwarded
+#: dependency step and is on the target. Rendered alongside the strategy axis's
+#: own clause. A content verdict: it FAILs and no attestation lifts it, for a
+#: stamped and for a legacy (unstamped) canceled WP alike.
+CANCELED_REACHABLE_VIA_DEPENDENCY = "CANCELED_REACHABLE_VIA_DEPENDENCY"
 # Squash-only (#5013 F1 corollary, widened by #5022): a production claim whose
 # authorship set came back empty — BOTH blobs and deletions — while it lists
 # approved WPs cannot attribute any target blob or deletion — the empty loop
@@ -190,6 +198,24 @@ class MissingApprovedContent:
     path: str
     expected: str | None
     found: PresenceGap
+
+
+@dataclass(frozen=True)
+class CanceledDependencyContent:
+    """One path a fully-canceled dependency lane left on an approved lane (``CANCELED_REACHABLE_VIA_DEPENDENCY``).
+
+    ``wp_ids`` are the canceled lane's WPs (the lane is the unit the allocator
+    merges, so the content is named by all of them), ``canceled_lane_id`` is that
+    lane and ``carrier_lane_id`` the approved lane whose first-parent spine carries
+    its commit. ``state`` is the blob the newest canceled commit left at ``path``,
+    or ``None`` when it deleted the path.
+    """
+
+    wp_ids: tuple[str, ...]
+    canceled_lane_id: str
+    carrier_lane_id: str
+    path: str
+    state: str | None
 
 
 @dataclass(frozen=True)
@@ -268,6 +294,10 @@ class Divergence:
     #: not superseded by a later approved lane.
     approved_content_missing: tuple[MissingApprovedContent, ...] = ()
 
+    #: #5569/#5613: a fully-canceled dependency lane's content that an approved
+    #: lane carries and that is on the target. Never attest-liftable.
+    canceled_reachable_via_dependency: tuple[CanceledDependencyContent, ...] = ()
+
     def describe(self) -> str:
         """Operator-facing, one-line-per-divergence explanation."""
         parts: list[str] = []
@@ -297,6 +327,8 @@ class Divergence:
             parts.append(_describe_canceled_content(entry))
         for missing in self.approved_content_missing:
             parts.append(_describe_approved_content_missing(missing))
+        for carried in self.canceled_reachable_via_dependency:
+            parts.append(_describe_canceled_reachable(carried))
         return "; ".join(parts) if parts else "no divergence"
 
 
@@ -343,6 +375,26 @@ def _describe_approved_content_missing(entry: MissingApprovedContent) -> str:
         f"restore {who}'s change to '{entry.path}' on the mission branch — the target branch did not change this path, so revert nothing there "
         f"(if you committed the staged changes of a lagging coordination or mission worktree, revert that commit on the mission branch, "
         f"and never commit such changes — discard them with `git reset --hard HEAD`), {_RECOVERY_TAIL}"
+    )
+    return f"{situation}; {recovery}"
+
+
+def _describe_canceled_reachable(entry: CanceledDependencyContent) -> str:
+    """Render one ``CANCELED_REACHABLE_VIA_DEPENDENCY`` clause: the canceled WP(s), both lanes and the path.
+
+    One ``;`` between the situation and the recovery, like
+    :func:`_describe_canceled_content`. No attestation is offered: the content is
+    on the target, and an attestation only ever covers attribution evidence.
+    """
+    who = f"canceled {', '.join(entry.wp_ids)}"
+    effect = "its deletion" if entry.state is None else "its change"
+    situation = (
+        f"{CANCELED_REACHABLE_VIA_DEPENDENCY}: file '{entry.path}' carries {who}'s work (lane {entry.canceled_lane_id}), which reached "
+        f"approved lane {entry.carrier_lane_id} through a dependency lane, and {effect} IS on the target — canceled work would ship"
+    )
+    recovery = (
+        f"undo {effect} to '{entry.path}' on lane {entry.carrier_lane_id} through a surviving WP's governed work "
+        f"(do not rebuild the lane, and no attestation lifts this while the content ships), {_RECOVERY_TAIL}"
     )
     return f"{situation}; {recovery}"
 
@@ -580,6 +632,13 @@ class ApprovedWpCommitSet:
     # ``authored_blobs``; a hand-built claim leaves it empty, which turns the axis off.
     approved_lane_content: tuple[ApprovedLaneContent, ...] = ()
 
+    # #5569/#5613: per-path content a fully-canceled dependency lane left on an
+    # approved ("carrier") lane's first-parent spine. The commits behind it are
+    # already out of ``authored_*``, so the strategy axes fail on their own; this
+    # field lets the verifier name the canceled WP, both lanes and the stable code.
+    # Empty on a hand-built claim and on every mission without such a lane.
+    canceled_dependency_content: frozenset[CanceledDependencyContent] = frozenset()
+
     @property
     def is_vacuous_against_manifest(self) -> bool:
         """True when the derived claim is empty while the manifest lists WPs."""
@@ -621,25 +680,23 @@ def _merge_canceled_content_into_result(result: VerifyResult, canceled_fail: lis
     short-circuits or empties the canceled-content axis MUST NOT assume the blob
     axis backstops it. Keep the canceled axis running for every mixed lane.
     """
-    if result.status is VerifyStatus.REFUSE or not canceled_fail:
-        return result
-    if result.status is VerifyStatus.PASS:
-        return VerifyResult.failed(Divergence(canceled_content=tuple(canceled_fail)))
-    existing = result.divergence or Divergence()
-    return VerifyResult.failed(replace(existing, canceled_content=existing.canceled_content + tuple(canceled_fail)))
+    return _fold_divergence(result, "canceled_content", canceled_fail)
 
 
-def _merge_missing_content_into_result(result: VerifyResult, missing: list[MissingApprovedContent]) -> VerifyResult:
-    """Fold the #5571 approved-content-missing entries into a strategy axis result.
+def _fold_divergence(result: VerifyResult, field_name: str, entries: Sequence[object]) -> VerifyResult:
+    """Fold one strategy-independent axis's FAIL *entries* into a strategy axis result.
 
-    Same composition as :func:`_merge_canceled_content_into_result`.
+    *field_name* is the tuple field of :class:`Divergence` the entries belong to.
+    The composition every such axis shares (see
+    :func:`_merge_canceled_content_into_result` for the canceled-content one): a
+    REFUSE wins unchanged, no entries is a no-op, a PASS becomes a FAIL carrying
+    only these entries, and a FAIL gets them appended to that field while keeping
+    its other axes.
     """
-    if result.status is VerifyStatus.REFUSE or not missing:
+    if result.status is VerifyStatus.REFUSE or not entries:
         return result
-    if result.status is VerifyStatus.PASS:
-        return VerifyResult.failed(Divergence(approved_content_missing=tuple(missing)))
     existing = result.divergence or Divergence()
-    return VerifyResult.failed(replace(existing, approved_content_missing=existing.approved_content_missing + tuple(missing)))
+    return VerifyResult.failed(replace(existing, **{field_name: (*getattr(existing, field_name), *entries)}))
 
 
 class MergeOutcomeVerifier:
@@ -711,6 +768,12 @@ class MergeOutcomeVerifier:
         if missing_refuse is not None:
             return VerifyResult.refused(missing_refuse)
 
+        # #5569/#5613: a fully-canceled dependency lane's content carried by an
+        # approved lane. Strategy-independent; never lifted by an attestation.
+        carried, carried_refuse = self._canceled_dependency_divergence(target_ref, approved_wp_set)
+        if carried_refuse is not None:
+            return VerifyResult.refused(carried_refuse)
+
         # Squash (and any strategy that does not preserve content identity):
         # claim integrity held, but SHA/patch-id reachability is unsound (a squash
         # destroys lane-tip SHAs AND per-commit patch-ids). The squash-sound
@@ -729,7 +792,9 @@ class MergeOutcomeVerifier:
             strategy_result = VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
         else:
             strategy_result = self._verify_merge_reachability(target_ref, approved_wp_set)
-        return _merge_missing_content_into_result(_merge_canceled_content_into_result(strategy_result, canceled_fail), missing_content)
+        with_canceled = _merge_canceled_content_into_result(strategy_result, canceled_fail)
+        with_missing = _fold_divergence(with_canceled, "approved_content_missing", missing_content)
+        return _fold_divergence(with_missing, "canceled_reachable_via_dependency", carried)
 
     def _verify_merge_reachability(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
         """The Tier-0 merge/rebase axis: per-SHA reachability + excluded/closed-world.
@@ -826,6 +891,29 @@ class MergeOutcomeVerifier:
         except GitProbeError as exc:
             return [], f"a git probe failed while verifying approved content presence: {exc}"
         return missing, None
+
+    def _canceled_dependency_divergence(self, target_ref: str, claim: ApprovedWpCommitSet) -> tuple[list[CanceledDependencyContent], str | None]:
+        """#5569/#5613: carried canceled-dependency content on the target, as ``(hits, refuse_reason)``.
+
+        An entry is a hit when the target holds the state the canceled commit left
+        at its path and the window base did not already hold it (then this
+        consolidation did not ship it). A no-op when the claim carries none.
+        """
+        if not claim.canceled_dependency_content:
+            return [], None
+        window_base = claim.excluded_window_base
+        if window_base is None:
+            return [], _REFUSE_WINDOW_BASE_UNRESOLVED
+        hits: list[CanceledDependencyContent] = []
+        try:
+            for entry in sorted(claim.canceled_dependency_content, key=lambda e: (e.carrier_lane_id, e.canceled_lane_id, e.path)):
+                if path_state_at(self._repo, target_ref, entry.path) != entry.state:
+                    continue
+                if path_state_at(self._repo, window_base, entry.path) != entry.state:
+                    hits.append(entry)
+        except GitProbeError as exc:
+            return [], f"a git probe failed while verifying canceled dependency content: {exc}"
+        return hits, None
 
     @staticmethod
     def _refusal_reason(claim: ApprovedWpCommitSet) -> str | None:
@@ -1347,7 +1435,14 @@ def build_approved_wp_set(
     # snapshot and the branch-resolvability check, before any of the existing
     # collectors, per plan.md D-3. Any Unattributable outcome refuses the WHOLE
     # claim immediately (refusals take precedence over FAIL by construction).
-    canceled_lane_commits = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, coord_base_ref, excluded_window_base)
+    event_log = _ClaimEventLog(feature_dir)
+    dependency = _resolve_canceled_dependency_lanes(
+        _CanceledLaneQuery(repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base, sb_window),
+        event_log,
+    )
+    if dependency.refusal is not None:
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, dependency.refusal)
+    canceled_lane_commits = dependency.unapproved_commits
     canceled_content, attested_wp_ids, mixed_lane_refusal = _resolve_mixed_lane_canceled_content(
         repo_root,
         feature_dir,
@@ -1359,6 +1454,7 @@ def build_approved_wp_set(
         excluded_window_base,
         sb_window,
         canceled_lane_commits=canceled_lane_commits,
+        event_log=event_log,
     )
     if mixed_lane_refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, mixed_lane_refusal)
@@ -1396,7 +1492,41 @@ def build_approved_wp_set(
         canceled_content=canceled_content,
         attested_canceled_wp_ids=attested_wp_ids,
         approved_lane_content=approved_lane_content,
+        canceled_dependency_content=dependency.content,
     )
+
+
+class _ClaimEventLog:
+    """The mission's status events for ONE claim build: read lazily, and at most once.
+
+    The canceled-dependency resolution and the mixed-lane resolution both need
+    the log, each only for some missions; whichever asks first pays the read and
+    the other reuses it. A ``StoreError`` is remembered the same way, so both
+    report the same unreadable log (NFR-002; never overridable — the attestation
+    lives in that same log).
+    """
+
+    def __init__(self, feature_dir: Path) -> None:
+        self._feature_dir = feature_dir
+        self._events: Sequence[Any] | None = None
+        self._error: Exception | None = None
+
+    def read(self) -> Sequence[Any] | None:
+        """The events in append order, or ``None`` when the log cannot be read (then use :meth:`unreadable`)."""
+        if self._events is None and self._error is None:
+            # Lazy import: keeps this module import-light, as in ``build_approved_wp_set``.
+            from specify_cli.status import StoreError, read_events
+
+            try:
+                self._events = read_events(self._feature_dir)
+            except StoreError as exc:
+                self._error = exc
+        return self._events
+
+    def unreadable(self, lane_id: str, wp_id: str) -> Unattributable:
+        """The ``events_unreadable`` outcome naming *lane_id* / *wp_id* and the store error."""
+        outcome = Unattributable.for_reason(UnattributableReason.EVENTS_UNREADABLE, lane_id, wp_id)
+        return Unattributable(outcome.reason, f"{outcome.detail} ({self._error})")
 
 
 def _mixed_lanes(
@@ -1475,11 +1605,14 @@ def _resolve_mixed_lane_canceled_content(
     sb_window: tuple[str, str] | None = None,
     *,
     canceled_lane_commits: frozenset[str],
+    event_log: _ClaimEventLog | None = None,
 ) -> tuple[frozenset[CanceledPathState], frozenset[str], str | None]:
     """Resolve every mixed lane's canceled-with-provenance WPs (T022/T023).
 
     Returns ``(canceled_content, attested_wp_ids, refusal)``. Events are read
-    through :func:`specify_cli.status.read_events` exactly ONCE, and ONLY when
+    through :func:`specify_cli.status.read_events` exactly ONCE per claim
+    (*event_log*, shared with :func:`_resolve_canceled_dependency_lanes`; a
+    caller that passes none gets its own), and ONLY when
     at least one mixed lane exists (decided from ``lanes.json`` + the Lamport
     snapshot + *excluded_canceled_wp_ids* alone) — a non-mixed mission never
     pays the read and stays byte-identical to pre-#5046 behaviour. A
@@ -1496,23 +1629,22 @@ def _resolve_mixed_lane_canceled_content(
     to the pre-change whole-lane behaviour (no per-WP canceled content).
     Visible canceled content still FAILs.
 
-    *canceled_lane_commits* (#5569, :func:`_fully_canceled_lane_commits`) are never
-    exempt from the closed world, whichever anchor reaches them.
+    *canceled_lane_commits* (#5569/#5613,
+    :attr:`_CanceledDependencyResolution.unapproved_commits`: the fully-canceled
+    lanes' own commits, less only those a later approved commit fully superseded
+    on every lane that carries them) are never exempt from the closed world,
+    whichever anchor reaches them. No attestation takes a commit out of that set.
     """
     mixed_lanes = _mixed_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
     if not mixed_lanes:
         return frozenset(), frozenset(), None
 
-    from specify_cli.status import StoreError, read_events
-
-    try:
-        events = read_events(feature_dir)
-    except StoreError as exc:
+    event_log = event_log or _ClaimEventLog(feature_dir)
+    events = event_log.read()
+    if events is None:
         lane = mixed_lanes[0]
         wp_id = next(wp for wp in sorted(lane.wp_ids) if wp in excluded_canceled_wp_ids)
-        unreadable = Unattributable.for_reason(UnattributableReason.EVENTS_UNREADABLE, lane.lane_id, wp_id)
-        detailed = Unattributable(unreadable.reason, f"{unreadable.detail} ({exc})")
-        return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, detailed)
+        return frozenset(), frozenset(), _mixed_lane_unattributable_refusal(lane.lane_id, wp_id, event_log.unreadable(lane.lane_id, wp_id))
 
     stamps = attestation_stamps(events)
     attested = frozenset(stamps)
@@ -1612,14 +1744,182 @@ def _fully_canceled_lane_commits(
     :func:`_unreadable_canceled_dependency_lanes` has already refused the claim
     when a live lane depends on that lane; call this only after that check.
     """
-    own: set[str] = set()
+    by_lane = _fully_canceled_lane_own_commits(repo_root, lanes_manifest, excluded_canceled_wp_ids, coord_base_ref, target_base)
+    return frozenset().union(*by_lane.values())
+
+
+def _fully_canceled_lane_own_commits(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    excluded_canceled_wp_ids: frozenset[str],
+    coord_base_ref: str,
+    target_base: str | None,
+) -> dict[str, frozenset[str]]:
+    """:func:`_fully_canceled_lane_commits`, kept per fully-canceled lane id (#5613)."""
+    by_lane: dict[str, frozenset[str]] = {}
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue
         tip_commits = _lane_tip_commits(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
         anchors = _closed_world_anchors(lanes_manifest, lane, target_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids)
-        own |= lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
-    return frozenset(own)
+        by_lane[lane.lane_id] = lane_own_commits(repo_root, coord_base_ref, tip_commits, anchors)
+    return by_lane
+
+
+@dataclass(frozen=True)
+class _CanceledLaneQuery:
+    """What the fully-canceled dependency lane resolution reads (#5613)."""
+
+    repo_root: Path
+    feature_dir: Path
+    lanes_manifest: LanesManifest
+    work_packages: Mapping[str, Any]
+    excluded_ids: frozenset[str]
+    coord_base_ref: str
+    planning_prefix: str | None
+    target_base: str | None
+    sb_window: tuple[str, str] | None
+
+
+@dataclass(frozen=True)
+class _CanceledDependencyResolution:
+    """Outcome of :func:`_resolve_canceled_dependency_lanes` (#5613).
+
+    ``unapproved_commits`` is what :func:`_collect_authored` and the mixed-lane
+    closed world subtract: the fully-canceled lanes' own commits, less the ones a
+    later approved commit fully superseded on every lane that carries them.
+    Nothing else leaves that set: an attestation lifts a refusal, never a commit.
+    """
+
+    unapproved_commits: frozenset[str] = frozenset()
+    content: frozenset[CanceledDependencyContent] = frozenset()
+    refusal: str | None = None
+
+
+def _carrier_spines(query: _CanceledLaneQuery, canceled_commits: frozenset[str]) -> dict[str, list[str]]:
+    """Approved, not fully-canceled lane id -> its first-parent spine, for lanes that carry a canceled-lane commit."""
+    carriers: dict[str, list[str]] = {}
+    for lane in query.lanes_manifest.lanes:
+        if not _lane_is_approved(lane, query.work_packages) or lane_fully_canceled(lane, query.excluded_ids):
+            continue
+        lane_branch = _lane_branch_for(query.lanes_manifest, lane.lane_id)
+        base, branch = query.sb_window if query.sb_window and is_planning_lane(lane) else (query.coord_base_ref, lane_branch)
+        spine = _lane_first_parent_spine(query.repo_root, base, branch)
+        if canceled_commits.intersection(spine):
+            carriers[lane.lane_id] = spine
+    return carriers
+
+
+def _carried_unattributable_refusal(lane_id: str, wp_id: str, carrier_ids: Sequence[str], outcome: Unattributable) -> str:
+    """The refusal for a canceled dependency WP whose carried work has no attribution evidence."""
+    return (
+        f"canceled {wp_id} (lane {lane_id}) is carried by approved lane(s) {', '.join(carrier_ids)} but cannot be attributed — "
+        f"{outcome.detail}. {_mixed_lane_recovery(outcome.reason, wp_id)}."
+    )
+
+
+def _unstamped_carried_refusal(
+    query: _CanceledLaneQuery,
+    own_by_lane: Mapping[str, frozenset[str]],
+    carriers: Mapping[str, list[str]],
+    event_log: _ClaimEventLog,
+) -> str | None:
+    """The up-front REFUSE for a carried fully-canceled lane with an unstamped WP, or ``None`` (#5613).
+
+    A canceled WP whose closed work window carries no ``lane_head`` stamp has no
+    attribution evidence: the claim REFUSEs and names the override, exactly as a
+    mixed lane does for ``no_stamp``. That covers a legacy mission (created before
+    the stamps) and, identically, a modern mission whose best-effort stamp capture
+    failed for that transition: the two cannot be told apart from the log, and the
+    evidence cannot appear later in either.
+
+    An operator attestation of that WP lifts THIS refusal and nothing else, and
+    only while :data:`~specify_cli.consolidation.canceled_attestation.OVERRIDABLE_REASONS`
+    (the one authority) lists ``no_stamp``. It is per WP: every unstamped WP of the
+    lane must be attested itself. No commit is lifted with it -- neither the
+    attested WP's nor a stamped sibling's -- so the lane's content is still
+    resolved over all of its own commits (:func:`_carried_dependency_content`) and
+    live content still FAILs with ``CANCELED_REACHABLE_VIA_DEPENDENCY``. An
+    unreadable event log refuses and cannot be overridden.
+    """
+    carried = {lane_id: sorted(c for c, spine in carriers.items() if own.intersection(spine)) for lane_id, own in sorted(own_by_lane.items())}
+    carried = {lane_id: carrier_ids for lane_id, carrier_ids in carried.items() if carrier_ids}
+    wps_by_lane = {lane.lane_id: sorted(lane.wp_ids) for lane in query.lanes_manifest.lanes}
+    events = event_log.read()
+    if events is None:
+        lane_id, carrier_ids = next(iter(carried.items()))
+        wp_id = wps_by_lane[lane_id][0]
+        return _carried_unattributable_refusal(lane_id, wp_id, carrier_ids, event_log.unreadable(lane_id, wp_id))
+    liftable = frozenset(attestation_stamps(events)) if UnattributableReason.NO_STAMP in OVERRIDABLE_REASONS else frozenset()
+    for lane_id, carrier_ids in carried.items():
+        for wp_id in wps_by_lane[lane_id]:
+            if wp_id not in liftable and lacks_lane_head_stamps(events, wp_id):
+                outcome = Unattributable.for_reason(UnattributableReason.NO_STAMP, lane_id, wp_id)
+                return _carried_unattributable_refusal(lane_id, wp_id, carrier_ids, outcome)
+    return None
+
+
+def _carried_dependency_content(
+    query: _CanceledLaneQuery,
+    own_by_lane: Mapping[str, frozenset[str]],
+    carriers: Mapping[str, list[str]],
+    canceled: frozenset[str],
+) -> tuple[frozenset[str], frozenset[CanceledDependencyContent]]:
+    """``(superseded commits, carried content)`` over every carrier lane's spine (#5613).
+
+    A canceled commit counts as superseded only when it is superseded on EVERY
+    carrier that holds it; then it stays in that lane's authorship (its content is
+    not the lane's final state) and consolidation is not refused for it. A carrier
+    whose spine cannot be read supersedes nothing and names nothing: every canceled
+    commit on it stays subtracted, the stricter verdict.
+    """
+    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=query.lanes_manifest.mission_slug, planning_prefix=query.planning_prefix)
+    lane_of = {sha: lane_id for lane_id, own in own_by_lane.items() for sha in own}
+    wps_of = {lane.lane_id: tuple(sorted(lane.wp_ids)) for lane in query.lanes_manifest.lanes}
+    superseded: set[str] = set()
+    live_commits: set[str] = set()
+    content: set[CanceledDependencyContent] = set()
+    for carrier_id, spine in carriers.items():
+        on_spine = canceled.intersection(spine)
+        try:
+            lane_superseded, live = canceled_spine_content(query.repo_root, spine, canceled, is_bookkeeping)
+        except GitProbeError:
+            live_commits |= on_spine
+            continue
+        superseded |= lane_superseded
+        live_commits |= on_spine - lane_superseded
+        for path, (sha, state) in live.items():
+            content.add(CanceledDependencyContent(wps_of[lane_of[sha]], lane_of[sha], carrier_id, path, state))
+    return frozenset(superseded - live_commits), frozenset(content)
+
+
+def _resolve_canceled_dependency_lanes(query: _CanceledLaneQuery, event_log: _ClaimEventLog | None = None) -> _CanceledDependencyResolution:
+    """Resolve the fully-canceled lanes whose commits an approved lane carries (#5569, #5613).
+
+    The base is :func:`_fully_canceled_lane_commits`: every such lane's own commits
+    leave the approved claim. Three refinements, none of which runs (and no event
+    log is read) for a mission where no approved lane carries such a commit:
+
+    * a canceled WP without ``lane_head`` stamps REFUSEs with the override named,
+      until the operator attests it (:func:`_unstamped_carried_refusal`). The
+      attestation lifts that refusal only;
+    * a canceled commit a later approved commit fully superseded on every carrier
+      stays in the claim, so a superseded canceled dependency consolidates --
+      whether its WP is stamped, or unstamped and attested;
+    * the remaining live content is recorded so the verifier can name it with
+      ``CANCELED_REACHABLE_VIA_DEPENDENCY``. It is computed over ALL of the lanes'
+      own commits, attested or not: content that would ship always FAILs.
+    """
+    own_by_lane = _fully_canceled_lane_own_commits(query.repo_root, query.lanes_manifest, query.excluded_ids, query.coord_base_ref, query.target_base)
+    own = frozenset().union(*own_by_lane.values())
+    carriers = _carrier_spines(query, own) if own else {}
+    if not carriers:
+        return _CanceledDependencyResolution(unapproved_commits=own)
+    refusal = _unstamped_carried_refusal(query, own_by_lane, carriers, event_log or _ClaimEventLog(query.feature_dir))
+    if refusal is not None:
+        return _CanceledDependencyResolution(refusal=refusal)
+    superseded, content = _carried_dependency_content(query, own_by_lane, carriers, own)
+    return _CanceledDependencyResolution(unapproved_commits=own - superseded, content=content)
 
 
 def _unreadable_canceled_dependency_lanes(
@@ -2326,8 +2626,10 @@ def _collect_authored(
 
 __all__ = [
     "APPROVED_CONTENT_MISSING",
+    "CANCELED_REACHABLE_VIA_DEPENDENCY",
     "ApprovedLaneContent",
     "ApprovedWpCommitSet",
+    "CanceledDependencyContent",
     "Divergence",
     "MergeOutcomeVerifier",
     "MissingApprovedContent",

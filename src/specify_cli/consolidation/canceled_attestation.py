@@ -62,6 +62,13 @@ ATTEST_REASON_FLAG = "--attest-reason"
 #: anchor, so only commits made up to the attestation are exempt. The
 #: verify-time "merged with an independent change" REFUSE is lifted in
 #: ``reconciliation`` by WP id; a canceled-content FAIL never is.
+#:
+#: This set is also the authority for a fully-canceled DEPENDENCY lane (#5613):
+#: ``NO_STAMP`` being listed is what lets an attestation lift the up-front
+#: refusal of an unstamped canceled WP whose commits an approved lane carries.
+#: It lifts that refusal only, per attested WP. No commit of the lane becomes
+#: approved authorship through it, so content still live on the carrying lane
+#: FAILs with ``CANCELED_REACHABLE_VIA_DEPENDENCY`` exactly as for a stamped WP.
 OVERRIDABLE_REASONS: frozenset[UnattributableReason] = frozenset(
     {
         UnattributableReason.NO_STAMP,

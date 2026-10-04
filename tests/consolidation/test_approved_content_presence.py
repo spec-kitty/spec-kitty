@@ -35,7 +35,7 @@ from specify_cli.consolidation.reconciliation import (
     VerifyResult,
     VerifyStatus,
     _describe_approved_content_missing,
-    _merge_missing_content_into_result,
+    _fold_divergence,
     _order_lane_content,
     build_approved_wp_set,
     unmet_approved_content,
@@ -324,15 +324,16 @@ def test_description_names_code_wp_lane_path_and_the_recovery() -> None:
 
 @pytest.mark.fast
 def test_fold_composes_like_the_other_divergence_folds() -> None:
+    field_name = "approved_content_missing"
     entry = MissingApprovedContent(wp_ids=("WP01",), lane_ids=("lane-a",), path="a.py", expected=V1, found="absent")
     refused = VerifyResult.refused("x")
 
-    assert _merge_missing_content_into_result(refused, [entry]) is refused
-    assert _merge_missing_content_into_result(VerifyResult.passed(), []).is_pass
-    failed = _merge_missing_content_into_result(VerifyResult.passed(), [entry])
+    assert _fold_divergence(refused, field_name, [entry]) is refused
+    assert _fold_divergence(VerifyResult.passed(), field_name, []).is_pass
+    failed = _fold_divergence(VerifyResult.passed(), field_name, [entry])
     assert failed.divergence is not None and failed.divergence.approved_content_missing == (entry,)
     existing = VerifyResult.failed(Divergence(unattributable_deletions=("z.py",)))
-    combined = _merge_missing_content_into_result(existing, [entry])
+    combined = _fold_divergence(existing, field_name, [entry])
     assert combined.divergence is not None
     assert combined.divergence.unattributable_deletions == ("z.py",)
     assert combined.divergence.approved_content_missing == (entry,)
