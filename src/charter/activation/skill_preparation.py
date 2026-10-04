@@ -42,8 +42,10 @@ __all__ = [
     # charter rather than importing charter.offering directly.
     "BUILTIN_TARGET_PREFIX",
     "CLI_TARGET_PREFIX",
+    "InForceSkills",
     "PreparedSkill",
     "SkillPreparationError",
+    "establish_in_force_skill_ids",
     "pack_skills_matter",
     "prepare_project_skill_activations",
     "require_valid_skill_namespace",
@@ -256,40 +258,64 @@ def pack_skills_matter(repo_root: Path, *, installed_pack_skills: bool = False) 
         return True
 
 
-def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills: bool = False) -> list[PreparedSkill]:
-    """Prepare the skills in force for *repo_root*.
+@dataclass(frozen=True)
+class InForceSkills:
+    """The ids of the skills in force for a project (``ids is None``: every available skill)."""
 
-    The in-force set is the project's explicit ``activated_skills`` list
-    (exactly that list, ``[]`` meaning none) or, when the key is absent, the org
-    packs' ``required_skills`` plus the built-in defaults (none at MVP) -- the
-    ``PackContext`` rule. It is decided first, from config alone: a project with
-    no skill in force returns ``[]`` without touching any DRG, so a broken org
-    graph never blocks a project that uses no pack skill.
+    ids: frozenset[str] | None
 
-    When pack skills matter (:func:`pack_skills_matter`) the in-force set must also
-    be *establishable*: a configured pack that is not on disk, or (when the org
-    packs decide) an unreadable ``org-charter.yaml`` or a ``required_skills`` that is
-    not a list, raises :class:`SkillPreparationError` instead of reading as "nothing
-    required" -- which would retire installed skills. A project where nothing
-    matters keeps the lenient reading.
+    @property
+    def is_empty(self) -> bool:
+        return self.ids is not None and not self.ids
 
-    Otherwise resolves the doctrine service, the merged built-in + org-chain DRG
-    and both namespaces, and delegates to :func:`_prepare_skill_activations`.
+
+def establish_in_force_skill_ids(repo_root: Path, *, installed_pack_skills: bool = False) -> InForceSkills:
+    """Stage 1: establish WHICH skills are in force for *repo_root*, from configuration alone.
+
+    The in-force set is the project's explicit ``activated_skills`` list (exactly that list,
+    ``[]`` meaning none: an established empty set) or, when the key is absent, the org packs'
+    ``required_skills`` plus the built-in defaults (none at MVP) -- the ``PackContext`` rule.
+    No DRG is loaded and no skill is read here.
+
+    When pack skills matter (:func:`pack_skills_matter`: an installed copy or a non-empty
+    explicit list) the set must be *established*: a configured pack registry that is invalid,
+    a pack path that is not an existing directory, or (when the org packs decide) an
+    unreadable or empty ``org-charter.yaml`` or a ``required_skills`` that is not a list,
+    raises instead of reading as "nothing required" -- which would retire installed skills.
+    Any other project keeps the lenient reading (what it cannot read requires nothing).
+    A caller classifies every failure here by :func:`pack_skills_matter`.
+    """
+    from charter.activation.org_pack_discovery import require_org_skill_policy_readable
+    from charter.activation.pack_context import PackContext, explicit_activated_skills
+
+    explicit = explicit_activated_skills(repo_root)
+    if explicit is not None and not explicit:
+        return InForceSkills(frozenset())
+    if installed_pack_skills or explicit:
+        require_org_skill_policy_readable(repo_root, org_decides=explicit is None)
+    return InForceSkills(PackContext.from_config(repo_root).activated_skills)
+
+
+def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills: bool = False, in_force: InForceSkills | None = None) -> list[PreparedSkill]:
+    """Stage 2: prepare the skills in force for *repo_root*, establishing the set first when not given.
+
+    An empty in-force set returns ``[]`` without touching any DRG, so a broken org graph never
+    blocks a project that uses no pack skill. For a non-empty set, everything here is a
+    refusal (:class:`SkillPreparationError` or the loaders' own errors) whatever the manifest
+    holds: a skill that is in force and cannot be rendered (no namespace, a DRG that does not
+    load, a record that does not load, a sibling id conflict) is never silently skipped.
+
+    Otherwise resolves the doctrine service, the merged built-in + org-chain DRG and both
+    namespaces, and delegates to :func:`_prepare_skill_activations`.
     """
     from charter.activation._drg_helpers import load_validated_graph
     from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
     from charter.activation.drg_activation import load_org_drg
-    from charter.activation.org_pack_discovery import read_org_skill_namespace, require_org_skill_policy_readable
-    from charter.activation.pack_context import PackContext, explicit_activated_skills
+    from charter.activation.org_pack_discovery import read_org_skill_namespace
     from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 
-    explicit = explicit_activated_skills(repo_root)
-    if explicit is not None and not explicit:
-        return []
-    if installed_pack_skills or explicit:
-        require_org_skill_policy_readable(repo_root, org_decides=explicit is None)
-    in_force = PackContext.from_config(repo_root).activated_skills
-    if in_force is not None and not in_force:
+    established = in_force if in_force is not None else establish_in_force_skill_ids(repo_root, installed_pack_skills=installed_pack_skills)
+    if established.is_empty:
         return []
     service = build_activation_aware_doctrine_service(repo_root)
     source, load_problems = _load_skill_source(service)
@@ -300,7 +326,7 @@ def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills:
     )
     return _prepare_skill_activations(
         source,
-        service.skills if in_force is None else in_force,
+        service.skills if established.ids is None else established.ids,
         graph=graph,
         org_namespace=read_org_skill_namespace(repo_root),
         project_namespace=_read_project_skill_namespace(repo_root),

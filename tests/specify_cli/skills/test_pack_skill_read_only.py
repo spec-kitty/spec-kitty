@@ -292,6 +292,25 @@ def _org_charter_whitespace_only(root: Path, pack: Path) -> None:
     _org_required(root, pack, " \n\n  \n")
 
 
+def _org_required_without_namespace(root: Path, pack: Path) -> None:
+    _org_required(root, pack, "org_name: acme-org\nrequired_skills: [deploy-helper]\n")
+
+
+def _while_nothing_is_installed(damage: Callable[[Path, Path], None]) -> Callable[[Path, Path], None]:
+    """A fresh project whose readable org charter REQUIRES the skill (no explicit list, no copy, no manifest entry):
+    the skill is in force, so a failure to render it is a refusal -- never an empty, silent install."""
+
+    def damaged(root: Path, pack: Path) -> None:
+        _org_required(root, pack)
+        for copy in _installed_copies(root):
+            shutil.rmtree(copy.parent)
+        (root / ".kittify" / "skills-manifest.json").unlink()
+        damage(root, pack)
+
+    damaged.__name__ = f"{damage.__name__}_while_nothing_is_installed"
+    return damaged
+
+
 def _installed_copies(project: Path) -> list[Path]:
     return [project / ".claude" / "skills" / "acme-deploy-helper" / "SKILL.md", project / ".agents" / "skills" / "acme-deploy-helper" / "SKILL.md"]
 
@@ -311,6 +330,7 @@ def _installed_copies(project: Path) -> list[Path]:
         _org_charter_empty,
         _org_charter_whitespace_only,
         *[_while_org_decides(damage) for damage in REGISTRY_DAMAGES],
+        *[_while_nothing_is_installed(damage) for damage in (_org_required_without_namespace, _broken_graph, _sibling_duplicate_id)],
     ],
 )
 @pytest.mark.parametrize("migration", DETECTING)
@@ -320,13 +340,14 @@ def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Pa
     assert all(copy.is_file() for copy in _installed_copies(project))
     cause(project, tmp_path / "pack")
     before = _tree(project)
+    present = [copy.is_file() for copy in _installed_copies(project)]
 
     assert migration().detect(project) is True
     for dry_run in (True, False):
         result = migration().apply(project, dry_run=dry_run)
         assert not result.success and "Pack skills could not be resolved" in result.errors[0]
     assert _tree(project) == before
-    assert all(copy.is_file() for copy in _installed_copies(project))  # a refusal never retires an installed copy
+    assert [copy.is_file() for copy in _installed_copies(project)] == present  # a refusal never retires an installed copy
 
 
 def _charter_without_required_skills(root: Path, pack: Path) -> None:

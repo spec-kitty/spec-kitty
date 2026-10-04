@@ -271,5 +271,12 @@ def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path,
     assert blocked.kind == KIND_UNRESOLVABLE and "skill namespace" in blocked.message
     code, payload = _doctor(project, monkeypatch)
     assert code == 1 and [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
+    # The same when the org charter, not an explicit list, puts the skill in force (nothing installed, no list).
+    support.write_config(project, pack, extra=CONFIG.replace("activated_skills: []\n", ""))
+    support.write_org_charter(pack, required_skills=["deploy-helper"], namespace=None)
+    (required,) = find_pack_skill_findings(project)
+    assert required.kind == KIND_UNRESOLVABLE and "skill namespace" in required.message
+    code, payload = _doctor(project, monkeypatch)
+    assert code == 1 and [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
     support.write_config(project, pack, extra=CONFIG)  # activated_skills: [] -> nothing in force
     assert find_pack_skill_findings(project) == ()

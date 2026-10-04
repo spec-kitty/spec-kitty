@@ -31,7 +31,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from charter.activation.skill_preparation import (
+    InForceSkills,
     PreparedSkill,
+    establish_in_force_skill_ids,
     pack_skills_matter,
     prepare_project_skill_activations,
 )
@@ -160,34 +162,52 @@ def _manifest_holds_pack_skills(project_root: Path) -> bool:
     return manifest is not None and any(entry.origin == ORIGIN_PACK for entry in manifest.entries)
 
 
-def _establish_pack_skills(project_root: Path, installed: bool) -> list[_Rendered]:
-    """Establish the pack skills in force: read the org configuration, prepare and render (no writes)."""
+def _establish_in_force(project_root: Path, installed: bool) -> InForceSkills:
+    """Stage 1: which skills are in force (reads the org configuration; no skill is loaded or rendered)."""
     if not _project_may_have_pack_skills(project_root, installed_pack_skills=installed):
-        return []
-    prepared = prepare_project_skill_activations(project_root, installed_pack_skills=installed)
+        return InForceSkills(frozenset())
+    return establish_in_force_skill_ids(project_root, installed_pack_skills=installed)
+
+
+def _prepare_and_render(project_root: Path, in_force: InForceSkills) -> list[_Rendered]:
+    """Stage 2: prepare and render the established skills (no writes)."""
+    prepared = prepare_project_skill_activations(project_root, in_force=in_force)
     return [_Rendered(item, render_pack_skill(item)) for item in prepared]
 
 
 def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> list[_Rendered]:
     """Prepare, render and collision-check the pack skills in force (no writes).
 
-    Establishing the in-force set is ONE guarded step, and every way it can fail is
-    classified by the one condition :func:`~charter.activation.skill_preparation.pack_skills_matter`:
-    when pack skills matter to the project the failure is a refusal (:class:`PackSkillCatalogError`,
-    nothing written or deleted); when they do not, the project behaves exactly as one with no
-    org pack. A new way of failing to read the org configuration therefore needs no entry here.
+    Two stages. Stage 1 establishes WHICH skills are in force, and every way that can fail
+    is classified by the one condition :func:`~charter.activation.skill_preparation.pack_skills_matter`:
+    a refusal (:class:`PackSkillCatalogError`, nothing written or deleted) when pack skills matter to
+    the project, otherwise the project behaves exactly as one with no org pack. A new way of failing
+    to read the org configuration therefore needs no entry here. Stage 2 runs only for a non-empty
+    set and always refuses on failure.
     """
     installed = False
     try:
         installed = _manifest_holds_pack_skills(project_root)
-        rendered = _establish_pack_skills(project_root, installed)
+        in_force = _establish_in_force(project_root, installed)
     except Exception as exc:
-        # The ONE classification point, deliberately broad: whatever stops the in-force set from being
-        # established (an unreadable or invalid org configuration, an unset ${VAR}, a pack that does not load,
-        # a failure nobody has met yet) is classified by pack_skills_matter alone -- a refusal that keeps the
-        # original as __cause__, or, when no pack skill matters, "no org pack".
+        # The ONE classification point of stage 1, deliberately broad: whatever stops the in-force set from
+        # being established (an unreadable or invalid org configuration, an unset ${VAR}, a failure nobody has
+        # met yet) is classified by pack_skills_matter alone -- a refusal that keeps the original as __cause__,
+        # or, when no pack skill matters, "no org pack".
         if not pack_skills_matter(project_root, installed_pack_skills=installed):
             return []
+        raise PackSkillCatalogError(str(exc)) from exc
+    if in_force.is_empty:
+        return []
+    try:
+        rendered = _prepare_and_render(project_root, in_force)
+    except Exception as exc:
+        # Stage-2 boundary: the set is established and non-empty, so these skills ARE in force and every failure
+        # to project them (no namespace, a DRG or a skill record that does not load, a sibling id conflict, a
+        # render error) is a refusal whatever the manifest holds -- never a silent skip. This includes a project
+        # that never installed the skill whose org pack newly REQUIRES it and cannot be projected: `upgrade`
+        # refuses there where skupstream/main (no pack skills at all) succeeds, which is correct, because the
+        # org now asks for a skill the project cannot be given and nothing else would say why.
         raise PackSkillCatalogError(str(exc)) from exc
     _refuse_unsafe_names(rendered)
     _refuse_builtin_collisions(rendered, shipped)
