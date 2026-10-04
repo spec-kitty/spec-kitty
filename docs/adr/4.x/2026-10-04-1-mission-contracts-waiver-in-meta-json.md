@@ -44,7 +44,7 @@ A Mission declares that it defines no interface contracts in its `meta.json`:
 - **Auditable.** An honoured waiver's rationale is surfaced in the accept warnings ("contracts/ requirement waived by meta.json (contracts: none): …"). A malformed waiver's warning is attached to the blocking violation text.
 - The field is consulted only when `contracts` is both a declared path convention and a declared mission artifact (the case the validator can waive), so accept never claims a waiver it did not apply.
 
-The fields are recorded in `MissionMetaOptional` (`src/specify_cli/mission_metadata.py`). They are written by hand or by the Mission author's agent; no CLI flag mints them yet.
+The fields are recorded in `MissionMetaOptional` (`src/specify_cli/mission_metadata.py`). The software-dev plan prompt (`packs/built-in/missions/mission-steps/software-dev/plan/prompt.md`) tells the planning agent to write the two fields when the Mission defines no interfaces. No CLI flag mints them yet.
 
 ## Considered Options
 
@@ -57,4 +57,4 @@ The fields are recorded in `MissionMetaOptional` (`src/specify_cli/mission_metad
 - A no-interface Mission passes strict `accept` without `--lenient` and without a placeholder directory.
 - `contracts/` stays required by default; an unwaived or malformed Mission still blocks.
 - A waived `contracts/` is also dropped from the "Optional artifacts missing" warning: the Mission declared it absent on purpose, and the waiver note already says so.
-- **Follow-up candidates, not in scope:** a `mission create` / `setup-plan` flag to mint the waiver, and template guidance in the plan prompt.
+- **Follow-up candidate, not in scope:** a `mission create` / `setup-plan` flag to mint the waiver.
