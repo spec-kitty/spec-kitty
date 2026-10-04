@@ -8,7 +8,10 @@ guard that keeps only what no cheaper test pins:
   succeed without ``--force``; the first-claim ``meta.json`` lock commit is not
   qualifying work; stray repo-root files are never auto-committed), and
 - the ``topology=lanes`` control (non-vacuity: the identical fixture creates a
-  lane worktree stamped ``worktree``).
+  lane worktree stamped ``worktree``), and
+- the ``agent action implement`` loop on a real finalized mission: claim base,
+  refusals and resume (#5459), and write-checkout occupancy across missions,
+  including the refusal's ``move-task`` remedy (#5680).
 
 The finalize lane shape, the implement refusals (wrong branch, occupancy,
 dirty checkout, resume exemption), the ``direct_repo`` stamp, the protected
@@ -385,9 +388,14 @@ def test_action_implement_resume_in_dirty_checkout_is_allowed(agent_loop_mission
     assert read_claim_base(repo, slug, "WP01") == base
 
 
-@pytest.mark.regression
-def test_issue_5680_finished_mission_on_another_write_branch_does_not_occupy(agent_loop_mission: tuple[Path, str, Path], tmp_path: Path) -> None:
-    """#5680 reproduction through ``spec-kitty agent action implement``.
+def test_mission_writing_to_another_branch_does_not_occupy_the_checkout(agent_loop_mission: tuple[Path, str, Path], tmp_path: Path) -> None:
+    """A finished mission on another write branch does not occupy the checkout (#5680).
+
+    Driven through ``spec-kitty agent action implement``; the paired controls
+    are :func:`test_action_implement_refuses_occupied_checkout`,
+    :func:`test_occupied_refusal_remedy_clears_a_live_occupant` (a live
+    occupant on the same branch still refuses) and
+    :func:`test_action_implement_resume_in_dirty_checkout_is_allowed`.
 
     The fixture mission writes to the work branch and leaves WP01
     ``in_progress`` there. The operator cuts ``next-topic`` from that tip and
