@@ -1541,7 +1541,6 @@ exclude = [
     "tests/consolidation/test_coord_deleted_degrade_paths.py",
     "tests/consolidation/test_coordination_flatten_on_branch_delete.py",
     "tests/consolidation/test_executor_coord_reconcile.py",
-    "tests/consolidation/test_executor_option_a_revert_helpers_2711.py",
     "tests/consolidation/test_forecast_seam.py",
     "tests/consolidation/test_hollow_review_warnings.py",
     "tests/consolidation/test_issue_2367_bake_strand.py",
