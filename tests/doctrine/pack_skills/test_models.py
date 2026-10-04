@@ -22,6 +22,8 @@ def test_prompt_form_round_trips_with_defaults() -> None:
     assert skill.tools == ["*"]
     assert skill.invocation.user_invocable is True
     assert skill.is_augmentation is False
+    assert skill.id.isascii()
+    assert PackSkill.model_validate(prompt_skill("x" * 64)).id == "x" * 64  # the longest accepted id
 
 
 def test_wrapper_form_accepts_builtin_and_cli_targets() -> None:
@@ -37,6 +39,9 @@ def test_wrapper_form_accepts_builtin_and_cli_targets() -> None:
         ({"body_path": None}, "requires 'body_path'"),
         ({"expands_to": {"target": "builtin:x"}}, "must not declare 'expands_to'"),
         ({"id": "Bad_Id"}, "kebab-case"),
+        ({"id": "foo\n"}, "kebab-case"),  # `$` would have accepted a trailing newline
+        ({"id": "x" * 65}, "at most 64"),
+        ({"id": "café"}, "kebab-case"),
         ({"schema_version": "2.0"}, "schema_version"),
         ({"overrides": "a", "enhances": "b"}, "not both"),
         ({"enhances": "land-pr"}, "different skill"),
@@ -80,7 +85,10 @@ def test_augmentation_flag() -> None:
     assert PackSkill.model_validate(prompt_skill("repl", overrides="land-pr")).is_augmentation is True
 
 
-@pytest.mark.parametrize("record", [prompt_skill(), wrapper_skill(), prompt_skill(parameters=[{"name": "pr", "required": True, "default": "1"}])])
+@pytest.mark.parametrize(
+    "record",
+    [prompt_skill(), wrapper_skill(), prompt_skill(parameters=[{"name": "pr", "required": True, "default": "1"}]), prompt_skill("x" * 64)],
+)
 def test_schema_accepts_what_the_model_accepts(record: dict[str, object]) -> None:
     jsonschema.validate(record, SchemaUtilities.load_schema("skill"))
 
@@ -92,6 +100,9 @@ def test_schema_accepts_what_the_model_accepts(record: dict[str, object]) -> Non
         wrapper_skill(body_path="x.md"),
         wrapper_skill(expands_to={"target": "cli:git push"}),
         prompt_skill(id="Bad_Id"),
+        prompt_skill(id="foo\n"),
+        prompt_skill(id="x" * 65),
+        prompt_skill(id="café"),
         prompt_skill(surprise=1),
     ],
 )

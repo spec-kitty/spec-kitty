@@ -22,7 +22,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SKILL_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+#: Grammar of a skill id; match with ``fullmatch`` (``$`` would accept a trailing newline).
+SKILL_ID_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+
+#: Longest accepted skill id; mirrored as ``maxLength`` in ``skill.schema.yaml``.
+SKILL_ID_MAX_LENGTH = 64
 
 #: Grammar of a skill namespace (the ``<namespace>-`` prefix a non-built-in skill
 #: renders under): lowercase ASCII, starting with a letter, ``[a-z0-9]`` segments
@@ -137,8 +141,8 @@ class PackSkill(BaseModel):
     @model_validator(mode="after")
     def _validate_shape(self) -> PackSkill:
         """Enforce id shape, the form discriminator and augmentation exclusivity."""
-        if not SKILL_ID_PATTERN.match(self.id):
-            raise ValueError(f"skill id {self.id!r} must be lowercase kebab-case")
+        if len(self.id) > SKILL_ID_MAX_LENGTH or not SKILL_ID_PATTERN.fullmatch(self.id):
+            raise ValueError(f"skill id {self.id!r} must be lowercase ASCII kebab-case of at most {SKILL_ID_MAX_LENGTH} characters")
         self._validate_form()
         if self.overrides and self.enhances:
             raise ValueError("a skill may declare 'overrides' or 'enhances', not both")
