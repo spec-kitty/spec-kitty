@@ -112,3 +112,19 @@ def test_an_index_that_cannot_be_restored_names_the_repair(checkout: Path) -> No
     assert f"read-tree {'0' * 40}" in leftover.reason
     assert _git(checkout, "rev-parse", "HEAD") == before
     assert guard.is_at_tip_before()
+
+
+def test_an_unreadable_last_tip_is_reported_not_silently_dropped(checkout: Path) -> None:
+    guard = _captured(checkout)
+    with guard.recording():
+        _seed(checkout, "seed WP01")
+    tip = _git(checkout, "rev-parse", "HEAD")
+    guard.tip_after = None  # the rev-parse that closes the window failed
+
+    leftover = guard.restore()
+
+    assert leftover is not None
+    assert leftover.commits == ()
+    assert "could not be read" in leftover.reason
+    assert leftover.as_payload()["warning"] == "status_commits_not_undone"
+    assert _git(checkout, "rev-parse", "HEAD") == tip

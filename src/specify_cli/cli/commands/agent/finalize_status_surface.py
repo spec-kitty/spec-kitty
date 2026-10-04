@@ -179,10 +179,16 @@ class StatusSurfaceGuard:
         if root is None or branch is None or before is None:
             return None  # never captured: the run failed before its first status write
         current = _git(root, "rev-parse", "--verify", f"refs/heads/{branch}")
-        if ours is None and current != before:
-            logger.warning("finalize atomicity: tip of %s after the status writes is unknown; %s..%s left as is", branch, before[:12], (current or "?")[:12])
-        if current == before or ours is None or ours == before:
+        if current == before or ours == before:
             return None  # this run made no status commit (any move is someone else's)
+        if ours is None:
+            # The branch moved, but the tip this run left it at was never read, so
+            # no commit can be told apart as ours: report instead of dropping it.
+            logger.warning("finalize atomicity: tip of %s after the status writes is unknown; %s..%s left as is", branch, before[:12], (current or "?")[:12])
+            return StatusSurfaceLeftover(
+                branch=branch,
+                reason=f"the tip of the branch after this run's status writes could not be read, so every commit since {before[:12]} was left as is",
+            )
         if current != ours:
             return _leftover(root, branch, before, ours, "the branch moved after this run's last status commit, so it was left as is")
         unproven = self._unproven_ownership(root, before, ours)
