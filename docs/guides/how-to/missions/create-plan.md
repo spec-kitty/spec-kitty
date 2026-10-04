@@ -2,7 +2,7 @@
 title: How to Create a Technical Plan
 description: 'How to create a technical plan with Spec Kitty 3.2: Use this guide to turn a finished spec into a technical plan with /spec-kitty.plan.'
 doc_status: active
-updated: '2026-06-06'
+updated: '2026-10-04'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -39,7 +39,7 @@ The planner asks architecture and non-functional questions. It pauses with `WAIT
 - `kitty-specs/<feature>/plan.md`
 - `kitty-specs/<feature>/research.md` (if research is required)
 - `kitty-specs/<feature>/data-model.md` (when data is involved)
-- `kitty-specs/<feature>/contracts/` (API contracts when applicable)
+- `kitty-specs/<feature>/contracts/` (API contracts when applicable; a Mission that defines no interfaces can waive it, see [When a Mission defines no contracts](accept-and-merge.md#when-a-mission-defines-no-contracts))
 - Updated agent context files (based on the plan)
 
 ## implementation concern map

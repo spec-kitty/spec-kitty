@@ -3428,6 +3428,15 @@ pages:
     - {slug: "option-4-one-step-replacement", text: "Option 4: one-step replacement", level: 3}
     - {slug: "deferred-decisions", text: "Deferred Decisions", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
+    title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
+    divio_type: "none"
+    abstract: "Strict accept keeps contracts/ required unless meta.json declares \"contracts\": \"none\" with a non-empty contracts_rationale, read by one fail-closed helper."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -11981,6 +11990,7 @@ pages:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
     - {slug: "accept-the-mission", text: "Accept the Mission", level: 2}
     - {slug: "what-accept-checks", text: "What Accept Checks", level: 3}
+    - {slug: "when-a-mission-defines-no-contracts", text: "When a Mission Defines No Contracts", level: 3}
     - {slug: "negative-invariants-that-assert-the-consolidated-post-state", text: "Negative Invariants That Assert the Consolidated Post-State", level: 3}
     - {slug: "deferred-invariants-and-the-post-consolidation-gate", text: "Deferred Invariants and the Post-Consolidation Gate", level: 3}
     - {slug: "consolidate-into-the-target-branch", text: "Consolidate into the target branch", level: 2}

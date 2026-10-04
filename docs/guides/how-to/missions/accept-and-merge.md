@@ -2,7 +2,7 @@
 title: How to Accept and Consolidate a Mission
 description: "How to accept and consolidate a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and consolidate into the mission's target branch."
 doc_status: active
-updated: '2026-07-04'
+updated: '2026-10-04'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -52,6 +52,34 @@ To run a read-only checklist (in your terminal):
 ```bash
 spec-kitty accept --mode checklist
 ```
+
+### When a Mission Defines No Contracts
+
+The software-dev Mission type requires a `contracts/` directory, and strict
+`spec-kitty accept` blocks without it. A Mission that defines no interfaces, such as a
+test remediation or a refactor, can say so in its `meta.json` instead of creating an
+empty directory or running `accept --lenient`:
+
+```json
+{
+  "contracts": "none",
+  "contracts_rationale": "Test-drift remediation; this Mission defines no interfaces."
+}
+```
+
+- **Exact value.** `contracts` must be the string `"none"`. Any other value, including
+  `null`, `false` or `"None"`, is not a waiver.
+- **Rationale required.** `contracts_rationale` must be a non-empty string.
+- **Malformed declarations keep the requirement.** Accept still blocks and prints a
+  warning that says what is wrong with the declaration.
+- **Only `contracts/` is waived.** Other path conventions, such as `src/`, `tests/` and
+  `docs/`, stay in force.
+- **Accept shows the waiver.** A valid waiver prints its rationale in the accept warnings,
+  so reviewers can see why the requirement was skipped.
+
+Nothing writes these fields for you yet: add them by hand to the Mission's `meta.json`, or let
+the plan step do it. For the reasoning, see the
+[ADR](../../../adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md).
 
 ### Negative Invariants That Assert the Consolidated Post-State
 
