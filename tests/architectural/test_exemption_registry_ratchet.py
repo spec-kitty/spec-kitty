@@ -100,6 +100,8 @@ CHURN_SURFACE_MODULES: tuple[str, ...] = (
     "src/specify_cli/bulk_edit/diff_check.py",
     "src/specify_cli/git/ref_advance.py",
     "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+    # #5629: the move-task gate family moved here; scan the twin as well.
+    "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
     "src/specify_cli/consolidation/ordering.py",
     "src/specify_cli/consolidation/mission_number/bake.py",
     "src/specify_cli/lanes/consolidation.py",
