@@ -15,9 +15,9 @@ wraps the guard at each watched charter command module, records every call
 whose probed path is inside the **invoking checkout** (the checkout that
 contains this ``tests/`` tree), always calls through to the real guard, and
 fails the offending test at fixture teardown with one message that names the
-test and ``charter_cwd_isolation``. A test passes by requesting that fixture,
-which moves the process working directory to a test tmp project, or by passing
-its test tmp project as ``--repo-root``.
+test and ``charter_cwd_isolation``. A test passes by moving the process working
+directory into its test tmp project (the fixture does this), or by passing its
+test tmp project as ``--repo-root``.
 
 Relation to ``_neutralize_worktree_detection`` in ``tests/conftest.py``: that
 autouse fixture makes a test location-independent by stubbing
@@ -29,12 +29,20 @@ Blind spots, stated so nobody mistakes silence for proof: the tripwire is a
 function-scoped fixture, so it does not see a guard call made from a module- or
 session-scoped fixture (those run before it is installed, or outside any test),
 and it does not see a command started as a separate process (``subprocess``, a
-``spec-kitty`` child), because the wrapper lives only in this process.
+``spec-kitty`` child), because the wrapper lives only in this process. Two more:
 
-There is no way to switch it off: no marker, no environment variable, no
-allowlist (FR-006). A test that legitimately runs a guarded command from a real
-linked worktree builds that worktree under its tmp path, outside the invoking
-checkout, so it never trips.
+* A test that replaces the guard symbol on a watched command module (a stub
+  set after the wrapper is installed) bypasses the check: the tripwire wraps
+  what is bound there at the start of the test, and a later ``setattr`` swaps
+  the wrapper out.
+* With ``--basetemp`` inside the checkout, a tmp project that is not its own git
+  repository is not flagged, because the temp root is carved out of the
+  inside-the-checkout test (see ``_is_inside_invoking_checkout``).
+
+The tripwire offers no marker, environment variable or allowlist to switch it
+off (FR-006). A test that legitimately runs a guarded command from a real linked
+worktree builds that worktree under its tmp path, outside the invoking checkout,
+so it never trips.
 
 Why the wrapper always calls through, and why failure is at teardown
 ---------------------------------------------------------------------
@@ -76,8 +84,8 @@ module imports nothing from ``specify_cli`` and wraps only what is already in
   ``monkeypatch.undo()`` cannot take the tripwire off.
 
 The per-test cost is an ``insert`` and a ``remove`` on ``sys.meta_path`` plus
-one ``setattr`` per watched module when the package is already imported; it is measured in
-the work package record.
+one ``setattr`` per watched module when the package is already imported: about
+4 microseconds per test, measured.
 """
 
 from __future__ import annotations
@@ -143,10 +151,10 @@ def build_violation_message(nodeid: str, probed: Sequence[Path]) -> str:
     """The one failure message: names the test, the probed path and the fixture to request."""
     where = ", ".join(sorted({str(path) for path in probed}))
     return (
-        f"{nodeid} reached the charter write guard with the process working directory inside "
-        f"the invoking checkout ({where}). The test passes from a repository root checkout and "
-        f"fails from a linked worktree. Request the `{FIXTURE_NAME}` fixture and call it with the "
-        f"test tmp project before invoking a charter write command."
+        f"{nodeid}: the charter write guard was probed at a path inside the invoking checkout "
+        f"({where}). Such a test passes from a repository root checkout and fails from a linked "
+        f"worktree. Move the working directory into the test's temporary project (the "
+        f"`{FIXTURE_NAME}` fixture does this)."
     )
 
 

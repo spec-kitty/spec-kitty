@@ -420,17 +420,18 @@ This matters in a `git worktree`: the shared `.venv`'s
 silently imports the main checkout's live tree instead of the worktree's own
 source. The script's `PYTHONPATH` line exists specifically to defeat that.
 
-The same start-directory trap applies to tests that drive a charter write
-command. `generate`, `synthesize`, `resynthesize`, `activate` and `deactivate`
-ask the charter write guard whether the working directory is a linked worktree,
-and a test that aims one of them at a temporary project without moving the
-process working directory there passes from a repository root checkout and fails
-from a linked worktree. Such a test must request the `charter_cwd_isolation`
-fixture and call it with that project root. A suite-wide check enforces this: a
-test that reaches the write guard with its working directory inside the checkout
-fails at teardown in every checkout, not only in a worktree.
-
 The whole reproducer (one victim file, one process) completes in well under 2
 minutes (measured around 46-59s per file on this codebase's base commit,
 `bb2020fea9`) — cheap enough that nothing downstream needs to take the defect
 on faith.
+
+## Charter write commands and the working directory
+
+`generate`, `synthesize`, `resynthesize`, `activate` and `deactivate` ask the
+charter write guard whether the working directory is a linked worktree. A test
+that aims one of them at a temporary project without moving the process working
+directory there passes from a repository root checkout and fails from a linked
+worktree. Move the working directory into the temporary project; the
+`charter_cwd_isolation` fixture does this. A suite-wide check reports a test
+that reaches the write guard at a path inside the invoking checkout as an error
+at teardown, in every checkout, not only in a worktree.

@@ -11154,6 +11154,7 @@ pages:
     - {slug: "ci-worker-policy-and-the-nightly-architectural-backstop", text: "CI worker policy and the nightly architectural backstop", level: 2}
     - {slug: "ci-shard-topology-mission-status", text: "CI shard-topology mission status", level: 2}
     - {slug: "reproducing-3115-the-folded-uuid-render-width-defect", text: "Reproducing #3115 (the folded-uuid render-width defect)", level: 2}
+    - {slug: "charter-write-commands-and-the-working-directory", text: "Charter write commands and the working directory", level: 2}
   - path: "docs/development/testing/ui-e2e.md"
     title: "UI End-to-End Tests (Playwright)"
     divio_type: "how-to"
