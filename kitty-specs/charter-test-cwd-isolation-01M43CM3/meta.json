@@ -1,0 +1,36 @@
+{
+  "accept_commit": "58c7db8050dbf9407f5686fa95be9a20a382fb50",
+  "acceptance_history": [
+    {
+      "accept_commit": "58c7db8050dbf9407f5686fa95be9a20a382fb50",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T13:44:20.919360+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "c0245a1f2f46e211364daf15c1c395225390a0d6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T13:44:20.919360+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "c0245a1f2f46e211364daf15c1c395225390a0d6",
+  "baseline_merge_commit": "e69eed26bef063e5bba4a1898eb3beea405e2bd6",
+  "created_at": "2026-10-04T12:01:07.302685+00:00",
+  "flattened": false,
+  "friendly_name": "Charter CLI tests independent of invoking checkout",
+  "merged_at": "2026-10-04T13:45:13.483758+00:00",
+  "merged_commit": "6904c5c3a311697ab02c470ecce0159256c89d49",
+  "mid8": "01M43CM3",
+  "mission_id": "01M43CM345P6K7T8F3K0ERAPKX",
+  "mission_number": 215,
+  "mission_slug": "charter-test-cwd-isolation-01M43CM3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission implementers and reviewers run tests inside lane worktrees. A group of charter command tests leak the invoking checkout into the code under test, so they fail there and pass at the repository root checkout, and every mission has to classify the same false reds by hand. This is the third time the problem has surfaced; this mission gives the test isolation a single shared owner and a guard against recurrence, without changing the product's charter write guard.",
+  "purpose_tldr": "Charter command tests pass no matter which checkout the test run starts from, so lane-worktree runs stop reporting false failures.",
+  "slug": "charter-test-cwd-isolation-01M43CM3",
+  "status_phase": "1",
+  "target_branch": "issue-5317-charter-test-cwd-isolation",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T12:21:55.151969+00:00"
+}

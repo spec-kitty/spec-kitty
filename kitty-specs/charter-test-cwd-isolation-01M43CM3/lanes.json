@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "mission_slug": "charter-test-cwd-isolation-01M43CM3",
+  "mission_id": "01M43CM345P6K7T8F3K0ERAPKX",
+  "mission_branch": "kitty/mission-charter-test-cwd-isolation-01M43CM3",
+  "target_branch": "issue-5317-charter-test-cwd-isolation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/ci/derive_pinning_inventory.py",
+        "tests/_support/charter_cwd.py",
+        "tests/agent/cli/commands/test_charter_resynthesize_cli.py",
+        "tests/cli/commands/test_charter_json_error_contract.py",
+        "tests/conftest.py",
+        "tests/release/pinning_rule_inventory.json",
+        "tests/specify_cli/cli/commands/charter/test_charter_cwd_isolation.py",
+        "tests/specify_cli/cli/commands/test_charter_resynthesize.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/agent/cli/commands/test_charter_cli.py",
+        "tests/agent/cli/commands/test_charter_status_cli.py",
+        "tests/agent/cli/commands/test_charter_synthesize_cli.py",
+        "tests/charter/test_phase3_integration.py",
+        "tests/charter/test_presence_gate_bundle_authority.py",
+        "tests/charter/test_references_missing_failclosed.py",
+        "tests/charter/test_reject_not_drop_cli.py",
+        "tests/consolidation/test_profile_charter_e2e.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/_support/charter_cwd_tripwire.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_cwd_tripwire.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-04T12:19:52.102002+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3ae75d1cb41c9b2b5aa48931efaf21d74eefcc60"
+}

@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T12:01:25.520427Z",
+      "decision_id": "01M43CMN0GADTHK0Q378QYK2WE",
+      "final_answer": "Test-side remedy, guard unchanged. Resolved by the orchestrator on the operator's standing end-to-end delegation, as the conservative default: it keeps the mission test-only and leaves the product question (should a dry run be refused from a linked worktree) untouched. Flagged to the operator for reversal at PR review.",
+      "input_key": "phase3_dry_run_variant",
+      "mission_id": "01M43CM345P6K7T8F3K0ERAPKX",
+      "mission_slug": "charter-test-cwd-isolation-01M43CM3",
+      "opened_by": "cli",
+      "options": [
+        "Test-side remedy, guard unchanged",
+        "Product change: dry run not refused",
+        "Out of scope, file follow-up",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "test_phase3_dry_run_evidence_smoke runs 'charter synthesize --dry-run-evidence' as a subprocess in the invoking checkout and is refused from a linked worktree. Remedy test-side (keep the product guard unchanged), change the product so a dry run is not refused, or leave it out of scope?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T12:02:27.322352Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.phase3-dry-run-variant",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M43CM345P6K7T8F3K0ERAPKX",
+  "version": 1
+}

@@ -1,0 +1,9 @@
+# Approach — charter-test-cwd-isolation
+
+- 2026-10-04 — Initial approach: test-side only. One shared opt-in fixture puts the process working directory and the patched project root in the same test tmp project; the three per-file copies are retired; affected files adopt it; a recurrence check with no exemptions guards the pattern. No product change.
+- 2026-10-04 — Grounding corrected the count: 20 tests in 7 files plus one unlisted file (`test_presence_gate_bundle_authority.py`); one test (`test_phase3_dry_run_evidence_smoke`) is a subprocess variant the fixture cannot fix. The spec states the affected set by pattern, not by count.
+- 2026-10-04 — Implementation ran as three stacked lanes. WP02's reviewer wrapped the real guard with an out-of-tree plugin to prove no adopted test still reaches it from the invoking checkout — the same idea as the WP03 tripwire, arrived at independently.
+- 2026-10-04 — WP03 absorbed three non-blocking notes from the WP01 and WP02 reviews as separate commits, instead of leaving them for the pre-PR pass.
+- 2026-10-04 — The straggler run with the tripwire on (114 files referencing the charter commands) found none.
+- 2026-10-04 — Pre-PR squad (correctness and boundary lenses) found no blockers; twelve remediations were folded as one commit each. A second worktree-only skip (`tests/charter/evidence/test_orchestrator.py`) got the same tmp-project remedy as the dry-run smoke test.
+- 2026-10-04 — Assessment at close: the per-file fix of #4873 recurred because nothing failed in a repository root checkout; the lasting change is the tripwire, not the fixture. Sibling guards with the same shape (worktree-context refusals in mission creation, workflow executor and move-task; checkout-identity resolution in intake, finalize and setup-plan) remain and are listed in the pull request as follow-up material.

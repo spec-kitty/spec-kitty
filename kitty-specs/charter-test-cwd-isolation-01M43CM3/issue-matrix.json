@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#4250": {
+      "evidence_ref": "Cited for context only; this mission owes it no work (see spec.md Out of Scope / Context).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4785": {
+      "evidence_ref": "Cited for context only; this mission owes it no work (see spec.md Out of Scope / Context).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4873": {
+      "evidence_ref": "Cited for context only; this mission owes it no work (see spec.md Out of Scope / Context).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5105": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5140": {
+      "evidence_ref": "Cited for context only; this mission owes it no work (see spec.md Out of Scope / Context).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5173": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5317": {
+      "evidence_ref": "lane-c tip 71cc2fe958: 20 leaking tests isolated (WP02 905cb3745c, 808b42281f, 6c6029aead), shared fixture (WP01 583ccdc7a2), tripwire (WP03 c537b89c87). Acceptance-test half verified not reproducible on main 7c2dbd4eb0 and at base 99352f08.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5411": {
+      "evidence_ref": "Cited for context only; this mission owes it no work (see spec.md Out of Scope / Context).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5601": {
+      "evidence_ref": "lane-b commit 5f704f7643: test_local_support_declarations_end_to_end passes from a linked worktree.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5660": {
+      "evidence_ref": "lane-a commit d134ba3f72 re-derives tests/release/pinning_rule_inventory.json; test_pinning_inventory_fresh.py 5 passed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5689": {
+      "evidence_ref": "Pre-existing order-dependent reds found during the fold pass; reported, no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

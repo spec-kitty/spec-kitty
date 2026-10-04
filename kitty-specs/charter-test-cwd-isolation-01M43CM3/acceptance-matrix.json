@@ -1,0 +1,109 @@
+{
+  "mission_slug": "charter-test-cwd-isolation-01M43CM3",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/_support/charter_cwd.py (lane commit 583ccdc7a2); tests/specify_cli/cli/commands/charter/test_charter_cwd_isolation.py isolated arm passes; WP01 review: 50 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:41.323143+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Red-first commit 72cf301645: isolated arm fails with the product refusal message (1 failed, 1 passed), verified by the WP01 reviewer in a detached worktree; unisolated arm kept as a permanent assertion",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:44.012581+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Commit 0a6a282617: no _isolate_cwd_from_worktree_guard left in tests/; one def charter_cwd_isolation; three former copy files 31 passed before and after",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:46.745001+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 commits 905cb3745c 808b42281f 5f704f7643: eight files 65 passed from a linked worktree (21 failed before); reviewer guard probe: 24 tests reach the guard, none from the invoking checkout",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:50.138206+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/_support/charter_cwd_tripwire.py (c537b89c87); test_charter_cwd_tripwire.py planted offenders caught; reviewer mutations: predicate off 14 failed, watched module removed 2 failed, finder removed 2 failed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:52.914863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "No-exemption test in test_charter_cwd_tripwire.py; no marker, env var or allowlist in the plugin (WP03 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:55.727833+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Commits 6c6029aead and c01554e96d: test_phase3_dry_run_evidence_smoke runs in a seeded tmp project, keeps both assertions and adds lang=python; tests/charter/test_phase3_integration.py 10 passed from a linked worktree",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:43:57.906686+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_guard_still_refuses_after_helper_when_cwd_returns_to_linked_worktree passes; zero diff on test_charter_write_root_4785.py and test_synthesize_freshgate_4785.py; nothing patches resolve_charter_write_root",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:44:00.755664+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "issue-matrix.json: #5317, #5601 and #5660 fixed; five context citations not-applicable",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:44:03.508373+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Commit d134ba3f72: inventory re-derived; derive_pinning_inventory.py --check rc 0; tests/release/test_pinning_inventory_fresh.py 5 passed (was 1 failed on base, #5660)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T13:44:06.253737+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

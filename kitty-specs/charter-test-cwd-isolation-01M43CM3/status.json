@@ -1,0 +1,118 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M43JJTWKVADG0JRTW913N2Z0",
+  "materialized_at": "2026-10-04T13:45:17.459543+00:00",
+  "mission_number": "215",
+  "mission_slug": "charter-test-cwd-isolation-01M43CM3",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43JJQRGFXX8NSXXFQJTXR94",
+      "last_transition_at": "2026-10-04T13:45:14.256390+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first repro (refusal text witnessed), shared charter_cwd_isolation fixture registered once via pytest_plugins, three per-file copies retired (31 tests unchanged), pinning inventory re-derived (removed old copy rule, added pre-existing p0_repro rule #5660). 50 passed across the 6 named files; ruff/format/mypy --strict clean; src/ and guard tests zero diff.",
+        "Review passed: red-first verified at 72cf301645, 50 targeted tests pass, inventory diff exact, src/ untouched (reviewer-renata, opus)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1043065,
+      "shell_pid_created_at": "1791117050.11",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43JJSAM863KZ8BH618RK3TN",
+      "last_transition_at": "2026-10-04T13:45:15.860655+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Adopted charter_cwd_isolation in 8 files (21 red -> 65/65 green from a linked worktree); smoke test now runs in a seeded tmp project; exit-code-only synthesize tests assert refusal absent; src/ untouched.",
+        "Review passed: 65 passed from linked lane worktree (8 files), no test removed/skipped; guard probe shows all 24 guard-reaching tests start in tmp projects; smoke test detects python signals in seeded tmp project; src/ diff empty; ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1206175,
+      "shell_pid_created_at": "1791118047.15",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43JJTWKVADG0JRTW913N2Z0",
+      "last_transition_at": "2026-10-04T13:45:17.459543+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Tripwire plugin charter_cwd_tripwire (meta_path finder for late imports), self-mutation + coverage + no-exemption tests; straggler run 1379 passed/4 skipped/0 failed from the lane (no stragglers left); folded review notes a/b/c. Out-of-map: tests/conftest.py (one pytest_plugins entry), tests/_support/charter_cwd.py + test_charter_cwd_isolation.py (private helper, fixture teardown test, resolved cwd), tests/charter/test_phase3_integration.py (lang=python assertion).",
+        "Review passed: 4/4 mutations red (predicate False 14 failed; module dropped 2; finder not installed 2; wrapper raising 8); red-first at 1b62f10aff = 9 errors; no specify_cli import at plugin load; finder/wrappers gone after teardown incl. failing test, fixture error, KeyboardInterrupt, xdist -n 2; gates clean. Non-blocking: tripwire is silently defeated by a same-named fixture override, monkeypatch.undo() in the test body, or importlib.reload of a watched submodule; find_spec (tripwire.py:181) does not tolerate meta_path finders lacking find_spec; proxy loader stays on the package __spec__ after a late import; the ~36s self-test figure is the pre-existing wall_clock_assertions collection cache miss, the file itself runs in 1.7s."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1625943,
+      "shell_pid_created_at": "1791120458.41",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    }
+  }
+}
