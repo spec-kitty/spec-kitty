@@ -17,7 +17,7 @@ import pytest
 import typer
 
 from specify_cli.lanes.persistence import write_lanes_json, read_lanes_json
-from specify_cli.orchestrator_api import commands as oc
+from specify_cli.orchestrator_api import wp_lifecycle
 from tests.specify_cli.cli.commands.test_single_branch_implement_refusals import (
     _build_mission,
     _git,
@@ -60,7 +60,7 @@ def test_protected_target_start_reports_minted_branch(repo: Path) -> None:
     _build_mission(repo, slug, "01ORCHPR000000000000000001")
     _mint(repo, slug)
 
-    ws = oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+    ws = wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert ws.lane_branch == _MINTED
 
@@ -70,7 +70,7 @@ def test_protected_target_read_only_resolver_reports_minted_branch(repo: Path) -
     _build_mission(repo, slug, "01ORCHPR000000000000000001")
     _mint(repo, slug)
 
-    ws = oc._resolve_existing_workspace(repo, slug, "WP01")
+    ws = wp_lifecycle._resolve_existing_workspace(repo, slug, "WP01")
 
     assert ws.lane_branch == _MINTED
 
@@ -89,8 +89,8 @@ def test_landed_mission_start_ignores_stale_lanes_json_mission_branch(repo: Path
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "landed")
 
-    started = oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
-    existing = oc._resolve_existing_workspace(repo, slug, "WP01")
+    started = wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+    existing = wp_lifecycle._resolve_existing_workspace(repo, slug, "WP01")
 
     assert started.lane_branch == "trunk"
     assert existing.lane_branch == "trunk"
@@ -100,7 +100,7 @@ def test_unprotected_start_reports_target_branch(repo: Path) -> None:
     slug = "orch-unprotected"
     _build_mission(repo, slug, "01ORCHUN000000000000000001")
 
-    ws = oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+    ws = wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert ws.lane_branch == "trunk"
 
@@ -113,7 +113,7 @@ def test_occupied_single_branch_checkout_is_refused_on_orchestrator_path(repo: P
     _build_mission(repo, slug, "01ORCHCL000000000000000001")
 
     with pytest.raises(typer.Exit):
-        oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+        wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert "WRITE_CHECKOUT_OCCUPIED" in capsys.readouterr().out
 
@@ -125,7 +125,7 @@ def test_wrong_branch_single_branch_checkout_is_refused_on_orchestrator_path(rep
     _git(repo, "checkout", "-q", "trunk")
 
     with pytest.raises(typer.Exit):
-        oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+        wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert "WRITE_CHECKOUT_WRONG_BRANCH" in capsys.readouterr().out
 
@@ -142,7 +142,7 @@ def test_lanes_topology_planning_wp_start_reports_target_branch(repo: Path) -> N
     slug = "orch-lanes-plan"
     _build_lanes_planning_mission(repo, slug, "01ORCHLP000000000000000001")
 
-    ws = oc._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
+    ws = wp_lifecycle._resolve_start_workspace("start-implementation", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert ws.lane_branch == "trunk"
 
@@ -151,7 +151,7 @@ def test_lanes_topology_planning_wp_read_only_resolver_reports_target_branch(rep
     slug = "orch-lanes-plan"
     _build_lanes_planning_mission(repo, slug, "01ORCHLP000000000000000001")
 
-    ws = oc._resolve_existing_workspace(repo, slug, "WP01")
+    ws = wp_lifecycle._resolve_existing_workspace(repo, slug, "WP01")
 
     assert ws.lane_branch == "trunk"
 
@@ -175,7 +175,7 @@ def test_repo_root_refusal_path_maps_invalid_wp_metadata_to_the_error_envelope(r
     wp_file.write_text(wp_file.read_text(encoding="utf-8").replace("execution_mode: code_change", "execution_mode: bogus"), encoding="utf-8")
 
     with pytest.raises(typer.Exit):
-        oc._ensure_repo_root_checkout_or_fail("start-implementation", repo, slug, feature_dir, "WP01")
+        wp_lifecycle._ensure_repo_root_checkout_or_fail("start-implementation", repo, slug, feature_dir, "WP01")
 
     out = capsys.readouterr().out
     assert '"success": false' in out
@@ -191,17 +191,17 @@ def test_transition_workspace_is_not_resolved_outside_single_branch(repo: Path) 
     _corrupt_lanes_json(repo, slug)
 
     for to_lane in ("done", "approved", "for_review", "in_progress"):
-        assert oc._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01") is None, to_lane
+        assert wp_lifecycle._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01") is None, to_lane
 
 
 def test_transition_workspace_stamp_is_direct_repo_for_single_branch(repo: Path) -> None:
     slug = "orch-sb-stamp"
     _build_mission(repo, slug, "01ORCHSS000000000000000001")
 
-    ws = oc._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01")
+    ws = wp_lifecycle._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     assert ws is not None
-    assert oc._status_execution_mode_for_start_workspace(ws) == "direct_repo"
+    assert wp_lifecycle._status_execution_mode_for_start_workspace(ws) == "direct_repo"
 
 
 def test_transition_workspace_stamp_maps_corrupt_lanes_to_the_error_envelope(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -210,7 +210,7 @@ def test_transition_workspace_stamp_maps_corrupt_lanes_to_the_error_envelope(rep
     _corrupt_lanes_json(repo, slug)
 
     with pytest.raises(typer.Exit):
-        oc._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01")
+        wp_lifecycle._existing_workspace_for_stamp("transition", repo, slug, repo / "kitty-specs" / slug, "WP01")
 
     out = capsys.readouterr().out
     assert '"success": false' in out
@@ -219,4 +219,4 @@ def test_transition_workspace_stamp_maps_corrupt_lanes_to_the_error_envelope(rep
 
 
 def test_no_workspace_stamp_defaults_to_worktree() -> None:
-    assert oc._status_execution_mode_for_start_workspace(None) == "worktree"
+    assert wp_lifecycle._status_execution_mode_for_start_workspace(None) == "worktree"

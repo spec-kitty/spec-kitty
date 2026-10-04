@@ -39,11 +39,8 @@ from typer.testing import CliRunner
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.worktree_allocator import DirtyWorktreeError
-from specify_cli.orchestrator_api.commands import (
-    _enforce_for_review_commit_gate,
-    _lane_base_ref,
-    app,
-)
+from specify_cli.orchestrator_api.wp_lifecycle import _enforce_for_review_commit_gate, _lane_base_ref
+from specify_cli.orchestrator_api.commands import app
 from specify_cli.status.models import Lane, StatusEvent
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -189,7 +186,7 @@ def coord_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def _start_implementation(repo: Path) -> Any:
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         return runner.invoke(
@@ -239,7 +236,7 @@ def test_for_review_transition_requires_a_commit(coord_repo: Path) -> None:
 
     def _transition_for_review() -> Any:
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=coord_repo,
         ):
             return runner.invoke(
@@ -283,7 +280,7 @@ def test_lane_allocation_failure_fails_closed(coord_repo: Path) -> None:
 
     with (
         patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=coord_repo,
         ),
         patch(

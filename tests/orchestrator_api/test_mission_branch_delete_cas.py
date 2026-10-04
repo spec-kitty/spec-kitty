@@ -26,7 +26,7 @@ from specify_cli.git import destructive_guard
 from specify_cli.git.destructive_guard import RemoveResult
 from specify_cli.lanes.branch_naming import worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.orchestrator_api.commands import _apply_lane_merge_cleanup
+from specify_cli.orchestrator_api.consolidation import _apply_lane_merge_cleanup
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 

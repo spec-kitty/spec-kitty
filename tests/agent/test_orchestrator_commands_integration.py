@@ -389,7 +389,7 @@ class TestMissionState:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="test-actor"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["mission-state", "--mission", mission_slug])
@@ -407,7 +407,7 @@ class TestMissionState:
         repo_root.mkdir()
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["mission-state", "--mission", "nonexistent-mission"])
@@ -424,7 +424,7 @@ class TestMissionState:
         assert not status_path.exists()
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["mission-state", "--mission", mission_slug])
@@ -442,7 +442,7 @@ class TestListReady:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
@@ -466,7 +466,7 @@ class TestListReady:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="test"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
@@ -484,7 +484,7 @@ class TestListReady:
         assert not status_path.exists()
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
@@ -507,7 +507,7 @@ class TestListReady:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="test"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
@@ -528,7 +528,7 @@ class TestListReady:
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
@@ -548,7 +548,7 @@ class TestStartImplementation:
     def test_no_policy_returns_error(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -592,7 +592,7 @@ class TestStartImplementation:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -645,7 +645,7 @@ class TestStartImplementation:
         before_events = read_events(mission_dir)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -687,7 +687,7 @@ class TestStartImplementation:
         _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -728,7 +728,7 @@ class TestStartImplementation:
         _emit_planned_to_canceled(mission_dir, mission_slug, "WP01", reason_source="operator")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -771,7 +771,7 @@ class TestStartImplementation:
         before_events = read_events(mission_dir)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -843,7 +843,7 @@ class TestStartImplementation:
         )
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -876,7 +876,7 @@ class TestStartImplementation:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="claude"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -912,7 +912,7 @@ class TestStartImplementation:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="claude"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -945,7 +945,7 @@ class TestStartImplementation:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="other-agent"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1004,7 +1004,7 @@ class TestStartImplementation:
         )
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1028,7 +1028,7 @@ class TestStartReview:
     def test_no_review_ref_rejected(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1062,7 +1062,7 @@ class TestStartReview:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="for_review", actor="claude"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1098,7 +1098,7 @@ class TestTransition:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             # planned -> done is not a valid transition
@@ -1126,7 +1126,7 @@ class TestTransition:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             # planned -> canceled should succeed without --policy
@@ -1156,7 +1156,7 @@ class TestTransition:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1186,7 +1186,7 @@ class TestTransition:
         emit_mock = MagicMock()
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
@@ -1225,7 +1225,7 @@ class TestTransition:
         emit_mock = MagicMock()
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
@@ -1273,7 +1273,7 @@ class TestTransition:
         mission_slug = "099-test-feature"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1310,7 +1310,7 @@ class TestTransition:
         repo_root, _ = _make_mission(tmp_path, "099-test-feature")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1353,7 +1353,7 @@ class TestAppendHistory:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1386,7 +1386,7 @@ class TestAppendHistory:
         original = wp_path.read_text(encoding="utf-8")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1425,7 +1425,7 @@ class TestAppendHistory:
 
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
@@ -1474,7 +1474,7 @@ class TestAppendHistory:
         original = wp_path.read_text(encoding="utf-8")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1500,7 +1500,7 @@ class TestAppendHistory:
     def test_wp_not_found_error(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1537,7 +1537,7 @@ class TestAcceptMission:
         _commit_all(repo_root, "WP01/WP02 -> done")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1576,7 +1576,7 @@ class TestAcceptMission:
         _commit_all(repo_root, "WP01/WP02 -> approved")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1613,7 +1613,7 @@ class TestAcceptMission:
         _emit_planned_to_done(mission_dir, mission_slug, "WP01")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1653,7 +1653,7 @@ class TestAcceptMission:
         _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1688,11 +1688,11 @@ class TestMergeMission:
 
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                "specify_cli.orchestrator_api.consolidation._build_merge_preflight",
                 return_value=mock_preflight,
             ),
         ):
@@ -1722,15 +1722,15 @@ class TestMergeMission:
 
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                "specify_cli.orchestrator_api.consolidation._build_merge_preflight",
                 return_value=mock_preflight,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands._execute_lane_merge",
+                "specify_cli.orchestrator_api.consolidation._execute_lane_merge",
             ) as execute_merge,
         ):
             result = runner.invoke(
@@ -1766,15 +1766,15 @@ class TestMergeMission:
 
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                "specify_cli.orchestrator_api.consolidation._build_merge_preflight",
                 return_value=mock_preflight,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands._execute_lane_merge",
+                "specify_cli.orchestrator_api.consolidation._execute_lane_merge",
             ) as execute_merge,
         ):
             result = runner.invoke(
@@ -1828,11 +1828,11 @@ class TestMergeMission:
 
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                "specify_cli.orchestrator_api.consolidation._build_merge_preflight",
                 return_value=mock_preflight,
             ),
             patch(
@@ -1873,7 +1873,7 @@ class TestMergeMission:
         mission_slug = "099-test-mission"
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1940,7 +1940,7 @@ class TestWPNotFound:
     def test_start_implementation_ghost_wp_rejected(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1965,7 +1965,7 @@ class TestWPNotFound:
     def test_start_review_ghost_wp_rejected(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -1992,7 +1992,7 @@ class TestWPNotFound:
     def test_transition_ghost_wp_rejected(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -2026,7 +2026,7 @@ class TestMissionStateNoEvents:
 
         # No events emitted at all
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["mission-state", "--mission", mission_slug])
@@ -2080,7 +2080,7 @@ class TestSuffixedWPFilenames:
     def test_start_implementation_accepts_suffixed_file(self, tmp_path):
         repo_root, mission_dir = _make_mission_with_suffixed_wps(tmp_path)
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -2114,7 +2114,7 @@ class TestSuffixedWPFilenames:
         emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug="040-test-mission", wp_id="WP07", to_lane="in_progress", actor="claude"))
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -2142,7 +2142,7 @@ class TestSuffixedWPFilenames:
         """mission-state must not include raw filename stems like 'WP07-adapter-implementations'."""
         repo_root, _ = _make_mission_with_suffixed_wps(tmp_path)
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["mission-state", "--mission", "040-test-mission"])
@@ -2185,7 +2185,7 @@ class TestJsonOnlyStdoutContract:
         repo_root, mission_dir = _make_mission(tmp_path)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -2215,7 +2215,7 @@ class TestJsonOnlyStdoutContract:
         repo_root, mission_dir = _make_mission(tmp_path)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
@@ -2298,7 +2298,7 @@ class TestResolveWorkspace:
     def test_resolve_workspace_returns_workspace_and_prompt(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path)
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"])
@@ -2313,7 +2313,7 @@ class TestResolveWorkspace:
         """No lane transition, no worktree creation — unlike start-implementation."""
         repo_root, mission_dir = _make_mission(tmp_path)
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             runner.invoke(app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"])
@@ -2327,7 +2327,7 @@ class TestResolveWorkspace:
     def test_resolve_workspace_wp_not_found(self, tmp_path):
         repo_root, _ = _make_mission(tmp_path)
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP99"])
@@ -2341,10 +2341,7 @@ class TestLaneAssignmentOrLegacy:
 
     def test_legacy_arm_without_lanes_json(self, tmp_path):
         """No lanes.json ⇒ the legacy bare-path workspace ({mission}-{wp}, no mid8)."""
-        from specify_cli.orchestrator_api.commands import (
-            _lane_assignment_or_legacy,
-            _StartWorkspace,
-        )
+        from specify_cli.orchestrator_api.wp_lifecycle import _lane_assignment_or_legacy, _StartWorkspace
 
         repo_root, _ = _make_mission(tmp_path)
         result = _lane_assignment_or_legacy(repo_root, "099-test-mission", "WP01")
@@ -2355,10 +2352,7 @@ class TestLaneAssignmentOrLegacy:
     def test_lane_arm_returns_manifest_and_lane(self, tmp_path):
         """A lane-assigned WP ⇒ the (manifest, lane) pair, no fallback."""
         from specify_cli.lanes.models import ExecutionLane, LanesManifest
-        from specify_cli.orchestrator_api.commands import (
-            _lane_assignment_or_legacy,
-            _StartWorkspace,
-        )
+        from specify_cli.orchestrator_api.wp_lifecycle import _lane_assignment_or_legacy, _StartWorkspace
 
         repo_root, _ = _make_mission(tmp_path)
         lane = ExecutionLane(
@@ -2388,10 +2382,7 @@ class TestLaneAssignmentOrLegacy:
 
     def test_both_resolvers_share_the_legacy_grammar(self, tmp_path):
         """SSOT pin: start + existing resolvers emit the SAME legacy path."""
-        from specify_cli.orchestrator_api.commands import (
-            _resolve_existing_workspace,
-            _resolve_start_workspace,
-        )
+        from specify_cli.orchestrator_api.wp_lifecycle import _resolve_existing_workspace, _resolve_start_workspace
 
         repo_root, mission_dir = _make_mission(tmp_path)
         started = _resolve_start_workspace("start-implementation", repo_root, "099-test-mission", mission_dir, "WP01")

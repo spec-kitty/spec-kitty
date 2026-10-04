@@ -411,7 +411,7 @@ def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None
     against the function itself rather than round-tripping through a real
     delegate failure a second time.
     """
-    from specify_cli.orchestrator_api.commands import _sanitize_forbidden_error_code
+    from specify_cli.orchestrator_api.design_phase import _sanitize_forbidden_error_code
 
     forbidden = "FEATURE_CONTEXT_UNRESOLVED"
     replacement = "MISSION_NOT_FOUND"
@@ -609,11 +609,11 @@ def test_record_analysis_sc005b_hang_reports_write_not_confirmed(tmp_path: Path,
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, "wp04-scenario-sc005b")
 
-    import specify_cli.orchestrator_api.commands as orch_commands
+    from specify_cli.orchestrator_api import design_phase
 
     # Small bound so the test proves the mechanism quickly (the mocked write
     # NEVER returns/sets the event -- a real, unbounded hang).
-    monkeypatch.setattr(orch_commands, "_RECORD_ANALYSIS_TIMEOUT_SECONDS", 0.3)
+    monkeypatch.setattr(design_phase, "_RECORD_ANALYSIS_TIMEOUT_SECONDS", 0.3)
 
     never_set = threading.Event()
 
@@ -634,14 +634,14 @@ def test_record_analysis_sc005b_hang_reports_write_not_confirmed(tmp_path: Path,
 
 @pytest.mark.performance
 def test_record_analysis_sc005b_hang_returns_within_enforced_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.orchestrator_api import design_phase
+
     repo = _init_repo(tmp_path)
     mission_slug, _feature_dir = _build_mission(repo, "wp04-scenario-sc005b")
 
-    import specify_cli.orchestrator_api.commands as orch_commands
-
     # Small bound so the test proves the mechanism quickly (the mocked write
     # NEVER returns/sets the event -- a real, unbounded hang).
-    monkeypatch.setattr(orch_commands, "_RECORD_ANALYSIS_TIMEOUT_SECONDS", 0.3)
+    monkeypatch.setattr(design_phase, "_RECORD_ANALYSIS_TIMEOUT_SECONDS", 0.3)
 
     never_set = threading.Event()
 

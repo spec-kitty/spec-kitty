@@ -184,11 +184,11 @@ def test_emit_help_documents_review_result_json_not_evidence_verdict() -> None:
 def test_both_verdict_surfaces_share_one_parser() -> None:
     """Parity: emit and orchestrator transition reference the SAME validator."""
     from specify_cli.cli.commands.agent import status as emit_module
-    from specify_cli.orchestrator_api import commands as transition_module
+    from specify_cli.orchestrator_api import wp_lifecycle
     from specify_cli.status.review_result_parse import parse_review_result_json
 
     assert emit_module.parse_review_result_json is parse_review_result_json
-    assert transition_module.parse_review_result_json is parse_review_result_json
+    assert wp_lifecycle.parse_review_result_json is parse_review_result_json
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +326,7 @@ def _gate_build_mission(repo: Path) -> Path:
 def _gate_start_implementation(repo: Path) -> Path:
     """Allocate the lane worktree (planned->in_progress) via orchestrator-api."""
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         result = runner.invoke(

@@ -20,7 +20,7 @@ import pytest
 
 from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
 from specify_cli.coordination.commit_router import CommitRouterResult
-from specify_cli.orchestrator_api import commands as orchestrator_commands
+from specify_cli.orchestrator_api import design_phase
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -55,13 +55,13 @@ def _mixed_surfaces_result() -> CommitRouterResult:
 
 def test_commit_surfaces_payload_is_empty_for_none() -> None:
     """``None`` (the best-effort commit itself raised) adds nothing -- additive-only."""
-    assert orchestrator_commands._record_analysis_commit_surfaces_payload(None) == {}
+    assert design_phase._record_analysis_commit_surfaces_payload(None) == {}
 
 
 def test_commit_surfaces_payload_is_empty_for_empty_surfaces() -> None:
     """The legacy empty-``surfaces`` shape adds nothing either (C-008 control)."""
     result = CommitRouterResult(status="committed", placement_ref=_TARGET_BRANCH, commit_hash="abc")
-    assert orchestrator_commands._record_analysis_commit_surfaces_payload(result) == {}
+    assert design_phase._record_analysis_commit_surfaces_payload(result) == {}
 
 
 def test_commit_surfaces_payload_names_the_refused_surface_and_reason() -> None:
@@ -70,7 +70,7 @@ def test_commit_surfaces_payload_names_the_refused_surface_and_reason() -> None:
     is ``"committed"`` -- the exact masking this WP cures (#5513, #5501)."""
     mixed = _mixed_surfaces_result()
 
-    payload = orchestrator_commands._record_analysis_commit_surfaces_payload(mixed)
+    payload = design_phase._record_analysis_commit_surfaces_payload(mixed)
 
     assert "commit_surfaces" in payload
     surface_names = {entry["surface"] for entry in payload["commit_surfaces"]}
@@ -84,7 +84,7 @@ def test_commit_surfaces_payload_adds_warnings_for_an_incomplete_batch() -> None
     ``unchanged`` (research D8); the rendered text names the surface and reason."""
     mixed = _mixed_surfaces_result()
 
-    payload = orchestrator_commands._record_analysis_commit_surfaces_payload(mixed)
+    payload = design_phase._record_analysis_commit_surfaces_payload(mixed)
 
     assert "warnings" in payload
     warnings_text = " ".join(payload["warnings"])
@@ -101,7 +101,7 @@ def test_commit_surfaces_payload_omits_warnings_for_an_all_success_batch() -> No
         surfaces=(SurfaceOutcome(surface="primary", branch=_TARGET_BRANCH, status="committed", commit_hash="abc", committed=("a",)),),
     )
 
-    payload = orchestrator_commands._record_analysis_commit_surfaces_payload(all_ok)
+    payload = design_phase._record_analysis_commit_surfaces_payload(all_ok)
 
     assert "commit_surfaces" in payload
     assert "warnings" not in payload

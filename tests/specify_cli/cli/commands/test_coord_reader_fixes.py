@@ -160,14 +160,14 @@ class TestResolveMissionDirOrchestratorApi:
 
     def test_returns_none_when_neither_coord_nor_primary_exists(self, tmp_path: Path) -> None:
         """_resolve_mission_dir returns None when mission not found (T018)."""
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         result = _resolve_mission_dir(tmp_path, "nonexistent-mission-01KT3YBD")
         assert result is None
 
     def test_returns_coord_path_when_coord_exists(self, tmp_path: Path) -> None:
         """_resolve_mission_dir returns coord path when coord worktree present."""
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         slug = "my-feature"
         mid8 = "01KT3YBD"
@@ -181,7 +181,7 @@ class TestResolveMissionDirOrchestratorApi:
 
     def test_returns_primary_path_when_only_primary_exists(self, tmp_path: Path) -> None:
         """_resolve_mission_dir returns primary path when only primary exists."""
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         slug = "my-feature"
         mid8 = "01KT3YBD"
@@ -193,7 +193,7 @@ class TestResolveMissionDirOrchestratorApi:
 
     def test_legacy_slug_without_mid8_uses_primary(self, tmp_path: Path) -> None:
         """Legacy slug without mid8 suffix resolves to primary checkout path."""
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         slug = "legacy-mission"
         primary_mission_dir = tmp_path / "kitty-specs" / slug

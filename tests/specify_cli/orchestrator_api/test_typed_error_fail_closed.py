@@ -32,7 +32,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.orchestrator_api import commands as orch
+from specify_cli.orchestrator_api import _common
 from specify_cli.orchestrator_api.commands import app
 
 pytestmark = [pytest.mark.fast]
@@ -111,7 +111,7 @@ def test_resolve_seam_resolves_primary_on_empty_coord_topology(tmp_path: Path) -
     """
     repo_root, primary = _seed_coord_topology(tmp_path)
 
-    resolved = orch._resolve_mission_dir(repo_root, _MISSION_SLUG)
+    resolved = _common._resolve_mission_dir(repo_root, _MISSION_SLUG)
 
     # Single-authority: the PRIMARY checkout is the authoritative surface for the
     # EMPTY coord state — no fail-closed raise, no stale-coord husk.
@@ -147,7 +147,7 @@ def test_mission_state_endpoint_reads_primary_on_empty_coord_topology(
     """
     repo_root, _ = _seed_coord_topology(tmp_path)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             ["mission-state", "--mission", _MISSION_SLUG],
@@ -176,7 +176,7 @@ def test_genuine_not_found_still_emits_mission_not_found(tmp_path: Path) -> None
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             ["mission-state", "--mission", "999-does-not-exist"],
@@ -323,7 +323,7 @@ def test_plan_against_nonexistent_mission_emits_mission_not_found(tmp_path: Path
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -355,7 +355,7 @@ def test_tasks_against_nonexistent_mission_emits_mission_not_found(tmp_path: Pat
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -424,7 +424,7 @@ def test_check_prerequisites_against_nonexistent_mission_emits_mission_not_found
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             ["check-prerequisites", "--mission", "999-does-not-exist"],
@@ -442,7 +442,7 @@ def test_record_analysis_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -477,7 +477,7 @@ def test_record_analysis_empty_body_is_structured_not_bare(tmp_path: Path) -> No
     empty_file = tmp_path / "empty-report.md"
     empty_file.write_text("   \n", encoding="utf-8")
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -511,7 +511,7 @@ def test_record_analysis_missing_input_file_is_structured_not_bare(tmp_path: Pat
     """A nonexistent --input-file fails closed with a structured error_code."""
     repo_root, _mission_dir = _seed_wp04_mission(tmp_path)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -570,7 +570,7 @@ def test_open_decision_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -604,7 +604,7 @@ def test_resolve_decision_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -634,7 +634,7 @@ def test_defer_decision_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -664,7 +664,7 @@ def test_cancel_decision_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -705,7 +705,7 @@ def test_design_status_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [
@@ -736,7 +736,7 @@ def test_answer_decision_against_nonexistent_mission_emits_mission_not_found(
     repo_root = tmp_path / "repo"
     (repo_root / "kitty-specs").mkdir(parents=True)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [

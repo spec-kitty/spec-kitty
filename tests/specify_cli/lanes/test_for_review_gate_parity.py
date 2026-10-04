@@ -166,7 +166,7 @@ def _build_mission(repo: Path) -> Path:
 def _start_implementation(repo: Path) -> Path:
     """Allocate the lane worktree (planned->in_progress) and return its path."""
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         result = runner.invoke(
@@ -189,7 +189,7 @@ def _start_implementation(repo: Path) -> Path:
 
 def _transition_for_review(repo: Path) -> Any:
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         return runner.invoke(

@@ -837,7 +837,7 @@ def test_nfr004_orchestrator_envelope_carries_unhonorable_base_error_code(tmp_pa
     """Defensive/synthetic (per plan.md): the orchestrator passes base=None
     (inert), so the raise is mock-injected to prove the envelope wiring."""
     from specify_cli.lanes.worktree_allocator import UnhonorableBaseError
-    from specify_cli.orchestrator_api import commands as orch_commands
+    from specify_cli.orchestrator_api import _common, wp_lifecycle
 
     captured_envelopes: list[dict[str, object]] = []
 
@@ -846,9 +846,9 @@ def test_nfr004_orchestrator_envelope_carries_unhonorable_base_error_code(tmp_pa
 
     with (
         patch("specify_cli.lanes.worktree_allocator.allocate_lane_worktree", side_effect=_fake_allocate),
-        patch.object(orch_commands, "_emit", side_effect=lambda env: captured_envelopes.append(env)),
+        patch.object(_common, "_emit", side_effect=lambda env: captured_envelopes.append(env)),
         patch.object(
-            orch_commands, "_lane_assignment_or_legacy",
+            wp_lifecycle, "_lane_assignment_or_legacy",
             return_value=(
                 _make_manifest(mission_branch=f"kitty/mission-{MISSION_SLUG}"),
                 _make_manifest(mission_branch=f"kitty/mission-{MISSION_SLUG}").lanes[0],
@@ -856,7 +856,7 @@ def test_nfr004_orchestrator_envelope_carries_unhonorable_base_error_code(tmp_pa
         ),
         pytest.raises(typer.Exit),
     ):
-        orch_commands._resolve_start_workspace(
+        wp_lifecycle._resolve_start_workspace(
             "implement-start", tmp_path, MISSION_SLUG, tmp_path / "kitty-specs" / MISSION_SLUG, WP_ID,
         )
 

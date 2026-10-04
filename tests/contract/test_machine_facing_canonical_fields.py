@@ -108,7 +108,7 @@ def _valid_policy_json() -> str:
 
 def _invoke_orchestrator(args: list[str], repo_root: Path) -> dict[str, object]:
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo_root,
     ):
         result = runner.invoke(orchestrator_app, args, catch_exceptions=False)
@@ -435,7 +435,7 @@ def test_orchestrator_error_payloads_emit_canonical_mission_fields(tmp_path: Pat
 
     mock_preflight = MagicMock(target_branch="main", errors=["lanes.json is missing for this mission"])
     with patch(
-        "specify_cli.orchestrator_api.commands._build_merge_preflight",
+        "specify_cli.orchestrator_api.consolidation._build_merge_preflight",
         return_value=mock_preflight,
     ):
         preflight = _invoke_orchestrator(

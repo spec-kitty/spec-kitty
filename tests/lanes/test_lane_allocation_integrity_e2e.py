@@ -367,7 +367,7 @@ def _run_move_task(mission_dirname: str, wp_id: str, to_lane: str) -> Result:
 def _run_start_implementation(repo_root: Path, mission_dirname: str, wp_id: str) -> Result:
     """Drive the real orchestrator-api ``start-implementation`` command."""
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo_root,
     ):
         return runner.invoke(

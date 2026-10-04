@@ -63,7 +63,7 @@ from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
-from specify_cli.orchestrator_api import commands as orchestrator_commands
+from specify_cli.orchestrator_api import decision_verbs
 from specify_cli.orchestrator_api.commands import app as orchestrator_app
 from tests._factories import provision_test_charter
 
@@ -547,7 +547,7 @@ def test_answer_decision_never_applies_origin_flow_guard() -> None:
     "grep for INVALID_ORIGIN_FLOW in the WP08 diff; any hit is a violation")
     -- codified as an automated assertion rather than left to manual review.
     """
-    source = inspect.getsource(orchestrator_commands.answer_decision)
+    source = inspect.getsource(decision_verbs.answer_decision)
     assert "INVALID_ORIGIN_FLOW" not in source
     assert "OriginFlow" not in source
     assert "--origin" not in source

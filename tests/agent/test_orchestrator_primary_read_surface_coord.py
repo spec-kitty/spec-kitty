@@ -28,11 +28,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.orchestrator_api.commands import (
-    _planning_read_dir,
-    _resolve_mission_dir,
-    app,
-)
+from specify_cli.orchestrator_api._common import _planning_read_dir, _resolve_mission_dir
+from specify_cli.orchestrator_api.commands import app
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -159,7 +156,7 @@ def test_planning_read_dir_resolves_primary_not_coord(split_repo: Path) -> None:
 
 def _invoke(repo: Path, *args: str) -> object:
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         return runner.invoke(app, list(args))

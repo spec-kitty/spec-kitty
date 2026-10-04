@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 import typer
 
-from specify_cli.orchestrator_api import commands as orch
+from specify_cli.orchestrator_api import _common
 
 pytestmark = [pytest.mark.fast]
 
@@ -43,10 +43,10 @@ def _capture_fail_envelope(
     def _fake_emit(envelope: dict[str, Any]) -> None:
         captured["envelope"] = envelope
 
-    monkeypatch.setattr(orch, "_emit", _fake_emit)
+    monkeypatch.setattr(_common, "_emit", _fake_emit)
 
     with pytest.raises(typer.Exit) as exc_info:
-        orch._fail(command, error_code, message, data)
+        _common._fail(command, error_code, message, data)
 
     assert exc_info.value.exit_code == 1
     return captured["envelope"]

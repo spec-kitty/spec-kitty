@@ -207,11 +207,11 @@ def _run_transition(repo_root: Path, extra_args: list[str] | None = None):
     """
     with (
         patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ),
         patch(
-            "specify_cli.orchestrator_api.commands._enforce_for_review_commit_gate",
+            "specify_cli.orchestrator_api.wp_lifecycle._enforce_for_review_commit_gate",
             return_value=None,
         ),
     ):

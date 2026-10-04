@@ -530,7 +530,7 @@ def test_orchestrator_transition_for_review_records_tip_despite_foreign_hook(
         }
     )
 
-    with patch("specify_cli.orchestrator_api.commands._get_main_repo_root", return_value=repo_root):
+    with patch("specify_cli.orchestrator_api._common._get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             orchestrator_app,
             [
@@ -645,7 +645,7 @@ def test_orchestrator_transition_for_review_of_a_planning_wp_lands_with_no_tip_r
         }
     )
 
-    with patch("specify_cli.orchestrator_api.commands._get_main_repo_root", return_value=repo):
+    with patch("specify_cli.orchestrator_api._common._get_main_repo_root", return_value=repo):
         result = runner.invoke(
             orchestrator_app,
             [

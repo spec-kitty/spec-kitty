@@ -1348,7 +1348,7 @@ def test_orchestrator_execute_lane_merge_resolves_retention_for_coord_mission(
     mission/coordination branch deletable for a retaining coord mission —
     the exact NFR-003 gap the hardcoded ``delete_branch=True,
     remove_worktree=True`` caller used to reach."""
-    from specify_cli.orchestrator_api.commands import _resolve_lane_merge_retention
+    from specify_cli.orchestrator_api.consolidation import _resolve_lane_merge_retention
 
     slug = "orch-retain-coord-repro"
     repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=True, is_coord=True)
@@ -1369,7 +1369,7 @@ def test_orchestrator_execute_lane_merge_non_coord_stays_on_delete_branch_gate(
     mission's mission-branch deletability tracks ``delete_branch`` alone, not
     the coupled ``teardown_coordination`` -- so an explicit delete with
     worktrees kept still deletes the (non-coordination) mission branch."""
-    from specify_cli.orchestrator_api.commands import _resolve_lane_merge_retention
+    from specify_cli.orchestrator_api.consolidation import _resolve_lane_merge_retention
 
     slug = "orch-non-coord-repro"
     repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=False, is_coord=False)

@@ -22,8 +22,8 @@ import pytest
 import typer
 
 from specify_cli.lanes.models import LanesManifest
-from specify_cli.orchestrator_api import commands
-from specify_cli.orchestrator_api.commands import _MergePreflightResult, consolidate_mission
+from specify_cli.orchestrator_api import _common, consolidation
+from specify_cli.orchestrator_api.consolidation import _MergePreflightResult, consolidate_mission
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
@@ -69,11 +69,11 @@ def _run_consolidate_mission(repo: Path, merge_body: Any, capsys: pytest.Capture
     mission_dir = repo / "kitty-specs" / "some-mission"
     mission_dir.mkdir(parents=True)
     with (
-        patch.object(commands, "_get_main_repo_root", return_value=repo),
-        patch.object(commands, "_resolve_mission_dir_or_fail", return_value=mission_dir),
-        patch.object(commands, "_build_merge_preflight", return_value=_MergePreflightResult(target_branch="main", errors=[])),
-        patch.object(commands, "_execute_lane_merge", side_effect=merge_body),
-        patch.object(commands, "_mission_identity_payload", return_value=dict(_IDENTITY)),
+        patch.object(_common, "_get_main_repo_root", return_value=repo),
+        patch.object(_common, "_resolve_mission_dir_or_fail", return_value=mission_dir),
+        patch.object(consolidation, "_build_merge_preflight", return_value=_MergePreflightResult(target_branch="main", errors=[])),
+        patch.object(consolidation, "_execute_lane_merge", side_effect=merge_body),
+        patch.object(_common, "_mission_identity_payload", return_value=dict(_IDENTITY)),
         pytest.raises(typer.Exit) as excinfo,
     ):
         consolidate_mission(mission="some-mission", target=None, strategy="merge", push=False)
@@ -88,7 +88,7 @@ def test_a_moved_mission_branch_carries_its_code_in_the_envelope_data(moved: tup
     repo, approved, late = moved
 
     def _cleanup(*_args: object, **_kwargs: object) -> None:
-        commands._delete_mission_branch_at(repo, _manifest(), approved)
+        consolidation._delete_mission_branch_at(repo, _manifest(), approved)
 
     envelope = _run_consolidate_mission(repo, _cleanup, capsys)
 

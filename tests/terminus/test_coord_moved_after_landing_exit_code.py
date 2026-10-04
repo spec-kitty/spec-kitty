@@ -21,7 +21,7 @@ import pytest
 from specify_cli.consolidation import phase_teardown, run_state
 from specify_cli.git.ref_advance import RefDeleteMismatchError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.orchestrator_api import commands as orchestrator_commands
+from specify_cli.orchestrator_api import consolidation
 from tests.terminus.conftest import _cli_env as cli_env
 from tests.terminus.conftest import build_coord_mission
 from tests.terminus.test_coord_teardown_cas_branch_delete import _COORD_MOVED_CODE, _COORD_MOVED_EXIT, _flat
@@ -116,7 +116,7 @@ def test_orchestrator_api_moved_mission_branch_names_the_code(tmp_path: Path) ->
     )
 
     with pytest.raises(RuntimeError) as raised:
-        orchestrator_commands._delete_mission_branch_at(repo, manifest, approved)
+        consolidation._delete_mission_branch_at(repo, manifest, approved)
 
     message = str(raised.value)
     assert message.endswith(f" Error code: {_COORD_MOVED_CODE}.")

@@ -380,7 +380,7 @@ class TestTwoSidedProof:
         monkeypatch.chdir(worktree_path)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=worktree_path,
         ):
             result = _invoke_append_history("bad-root note (healed)")
@@ -410,7 +410,7 @@ class TestTwoSidedProof:
 
         with (
             patch(
-                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                "specify_cli.orchestrator_api._common._get_main_repo_root",
                 return_value=worktree_path,
             ),
             patch(

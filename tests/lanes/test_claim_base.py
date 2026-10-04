@@ -259,7 +259,7 @@ def test_orchestrator_resolve_start_workspace_records_claim_base_for_planning_la
         _WP_SELF,
         _feature_dir,
     )
-    from specify_cli.orchestrator_api.commands import _resolve_start_workspace
+    from specify_cli.orchestrator_api.wp_lifecycle import _resolve_start_workspace
 
     repo = _planning_lane_legacy_repo(tmp_path)
     head = _git(repo, "rev-parse", "HEAD")
@@ -276,7 +276,7 @@ def test_orchestrator_resolve_existing_workspace_does_not_record_claim_base(tmp_
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
         _WP_SELF,
     )
-    from specify_cli.orchestrator_api.commands import _resolve_existing_workspace
+    from specify_cli.orchestrator_api.wp_lifecycle import _resolve_existing_workspace
 
     repo = _planning_lane_legacy_repo(tmp_path)
 

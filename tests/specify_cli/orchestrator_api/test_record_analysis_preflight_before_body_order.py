@@ -30,7 +30,7 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-_COMMANDS_PY = pathlib.Path(__file__).resolve().parents[3] / "src" / "specify_cli" / "orchestrator_api" / "commands.py"
+_DESIGN_PHASE_PY = pathlib.Path(__file__).resolve().parents[3] / "src" / "specify_cli" / "orchestrator_api" / "design_phase.py"
 
 _PREFLIGHT_CALL = "_enforce_analysis_report_write_preflight"
 _BODY_READ_CALL = "_read_record_analysis_body"
@@ -40,7 +40,7 @@ def _find_function(tree: ast.Module, name: str) -> ast.FunctionDef:
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == name:
             return node
-    raise AssertionError(f"function {name!r} not found in {_COMMANDS_PY}")
+    raise AssertionError(f"function {name!r} not found in {_DESIGN_PHASE_PY}")
 
 
 def _statement_contains_call(stmt: ast.stmt, func_name: str) -> bool:
@@ -64,7 +64,7 @@ def test_record_analysis_preflight_runs_before_body_read() -> None:
     as TOP-LEVEL statements in ``record_analysis``'s own body -- re-derived
     from the live AST, not a hardcoded line-number pair that can drift.
     """
-    tree = ast.parse(_COMMANDS_PY.read_text())
+    tree = ast.parse(_DESIGN_PHASE_PY.read_text())
     record_analysis = _find_function(tree, "record_analysis")
 
     preflight_index = _first_top_level_statement_index_calling(record_analysis.body, _PREFLIGHT_CALL)

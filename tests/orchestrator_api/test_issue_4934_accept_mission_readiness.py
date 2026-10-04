@@ -186,7 +186,7 @@ def _seed_mission_with_never_claimed_done_wp(tmp_path: Path, mission_slug: str) 
 
 def _invoke_accept_mission(repo_root: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         lambda: repo_root,
     )
     return runner.invoke(

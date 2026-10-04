@@ -26,7 +26,7 @@ import pytest
 import typer
 
 from specify_cli.git.destructive_guard import DestructiveOpRefused
-from specify_cli.orchestrator_api.commands import _MergePreflightResult, consolidate_mission
+from specify_cli.orchestrator_api.consolidation import _MergePreflightResult, consolidate_mission
 
 pytestmark = pytest.mark.git_repo
 
@@ -46,15 +46,15 @@ def test_merge_mission_envelopes_destructive_op_refused(tmp_path: Path, capsys: 
     worktree_path = tmp_path / "example-lane-worktree"
 
     with (
-        patch("specify_cli.orchestrator_api.commands._get_main_repo_root", return_value=tmp_path),
-        patch("specify_cli.orchestrator_api.commands._resolve_mission_dir_or_fail", return_value=mission_dir),
+        patch("specify_cli.orchestrator_api._common._get_main_repo_root", return_value=tmp_path),
+        patch("specify_cli.orchestrator_api._common._resolve_mission_dir_or_fail", return_value=mission_dir),
         patch(
-            "specify_cli.orchestrator_api.commands._build_merge_preflight",
+            "specify_cli.orchestrator_api.consolidation._build_merge_preflight",
             return_value=_MergePreflightResult(target_branch="main", errors=[]),
         ),
-        patch("specify_cli.orchestrator_api.commands._execute_lane_merge", side_effect=_refusal(worktree_path)),
+        patch("specify_cli.orchestrator_api.consolidation._execute_lane_merge", side_effect=_refusal(worktree_path)),
         patch(
-            "specify_cli.orchestrator_api.commands._mission_identity_payload",
+            "specify_cli.orchestrator_api._common._mission_identity_payload",
             return_value={
                 "mission_slug": "some-mission",
                 "mission_number": None,

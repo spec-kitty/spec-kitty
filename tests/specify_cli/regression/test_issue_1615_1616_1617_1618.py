@@ -34,6 +34,16 @@ def _read(rel_path: str) -> str:
     return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
 
 
+_ORCHESTRATOR_API_DIR = "src/specify_cli/orchestrator_api"
+
+
+def _orchestrator_api_sources() -> list[str]:
+    """Every module of the orchestrator-api package (split by #5628)."""
+    paths = sorted((REPO_ROOT / _ORCHESTRATOR_API_DIR).glob("*.py"))
+    assert len(paths) >= 3, f"orchestrator_api package not found under {_ORCHESTRATOR_API_DIR}"
+    return [path.read_text(encoding="utf-8") for path in paths]
+
+
 # --- #1616: stale prompt strings must not reappear ---
 
 def test_no_stale_status_in_main_repo_string() -> None:
@@ -81,10 +91,9 @@ def test_resolve_mission_read_path_used_in_implement() -> None:
 
 
 def test_resolve_mission_read_path_used_in_orchestrator_api() -> None:
-    """orchestrator_api/commands.py must use resolve_mission_read_path."""
-    src = _read("src/specify_cli/orchestrator_api/commands.py")
-    assert "resolve_mission_read_path" in src, (
-        "coord-aware resolver not present in orchestrator_api/commands.py (#1615 regression)"
+    """The orchestrator_api package must use resolve_mission_read_path."""
+    assert any("resolve_mission_read_path" in src for src in _orchestrator_api_sources()), (
+        "coord-aware resolver not present in orchestrator_api (#1615 regression)"
     )
 
 
@@ -171,7 +180,7 @@ class TestIssue1616OrchestratorApiCoordRead:
         shared 3-tier cascade whose tier-3 ``mid8_from_slug`` reads the real mid8
         from the canonical tail, so the coord path composes and returns.
         """
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         slug = "governed-coord-only-mission"
         handle = f"{slug}-{self.MID8}"
@@ -215,7 +224,7 @@ class TestIssue1616OrchestratorApiCoordRead:
 
     def test_none_returned_when_mission_not_found(self, tmp_path: Path) -> None:
         """_resolve_mission_dir returns None (not raises) when mission absent."""
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         result = _resolve_mission_dir(tmp_path, "nonexistent-01KT3YBD")
         assert result is None, (
@@ -234,7 +243,7 @@ class TestIssue1616OrchestratorApiCoordRead:
         """
         import json
 
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         slug = "099-test-mission"  # no Crockford tail, legacy NNN- form
         # Primary meta with NO mission_id and NO coordination_branch (legacy).
@@ -253,7 +262,7 @@ class TestIssue1616OrchestratorApiCoordRead:
 
     def test_legacy_no_tail_no_id_absent_returns_none(self, tmp_path: Path) -> None:
         """T012b sibling: legacy no-tail/no-id, primary absent → None (not raise)."""
-        from specify_cli.orchestrator_api.commands import _resolve_mission_dir
+        from specify_cli.orchestrator_api._common import _resolve_mission_dir
 
         # No meta, no dir at all — pure absence on a legacy-style handle.
         result = _resolve_mission_dir(tmp_path, "099-absent-mission")
@@ -271,11 +280,10 @@ class TestIssue1616OrchestratorApiCoordRead:
         cascade lives in the seam, not in ``commands.py``; re-introducing either
         derivation here is a regression.
         """
-        src = _read("src/specify_cli/orchestrator_api/commands.py")
-        tree = ast.parse(src)
         called = {
             node.func.id
-            for node in ast.walk(tree)
+            for src in _orchestrator_api_sources()
+            for node in ast.walk(ast.parse(src))
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
         }
@@ -290,7 +298,7 @@ class TestIssue1616OrchestratorApiCoordRead:
         )
         assert "resolve_mid8" not in called, (
             "NFR-005: a second mid8-derivation path (direct resolve_mid8 keyed "
-            "on primary meta) must not remain in orchestrator_api/commands.py — "
+            "on primary meta) must not remain in orchestrator_api — "
             "consolidate onto the single seam cascade."
         )
 

@@ -105,7 +105,7 @@ def coord_repo(tmp_path: Path) -> Path:
 
 def _invoke_append_history(repo: Path) -> object:
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         return runner.invoke(

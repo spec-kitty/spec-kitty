@@ -26,7 +26,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.orchestrator_api import commands as orch
+from specify_cli.orchestrator_api import _common
 from specify_cli.orchestrator_api.commands import app
 
 pytestmark = [pytest.mark.fast]
@@ -67,7 +67,7 @@ def test_unsafe_mission_returns_json_envelope_not_traceback(tmp_path: Path, miss
     repo_root = _seed_repo(tmp_path)
     argv = [a.format(mission=mission) for a in argv_template]
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(app, argv)
 
     # Non-zero exit, and — the contract — stdout is a single parseable JSON
@@ -92,7 +92,7 @@ def test_mission_state_envelope_shape_matches_contract(tmp_path: Path) -> None:
     from specify_cli.core.contract_gate import is_allowed_error_code
 
     repo_root = _seed_repo(tmp_path)
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(app, ["mission-state", "--mission", "../traversal"])
 
     payload = json.loads(result.output)
@@ -109,7 +109,7 @@ def test_safe_mission_still_resolves_mission_not_found(tmp_path: Path) -> None:
     """A SAFE but absent handle keeps the historical MISSION_NOT_FOUND
     envelope — the new ValueError arm must not swallow the absence path."""
     repo_root = _seed_repo(tmp_path)
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(app, ["mission-state", "--mission", "999-does-not-exist"])
 
     assert result.exit_code != 0

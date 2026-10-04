@@ -36,7 +36,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.missions._read_path_resolver import coord_feature_dir
-from specify_cli.orchestrator_api.commands import _resolve_start_workspace
+from specify_cli.orchestrator_api.wp_lifecycle import _resolve_start_workspace
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp, save_context

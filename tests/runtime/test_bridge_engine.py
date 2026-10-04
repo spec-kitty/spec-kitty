@@ -144,9 +144,12 @@ _ADAPTER_WRAPPER_NAME = {"_resolve_workflow_for_mission": "resolve_workflow_for_
 # resolve_pending_decision_id`` / ``runtime_bridge_engine._read_snapshot``
 # as part of this same fix, so the guard below closes the class by
 # construction: a future direct import in either file fails this test.
+# The orchestrator-api side is the whole package: #5628 split ``commands.py``
+# into per-concern modules (``answer_decision`` now lives in
+# ``decision_verbs.py``), so every module of it stays in scope.
 _CLI_ADJACENT_MODULES = (
     Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "cli" / "commands" / "next_cmd.py",
-    Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "orchestrator_api" / "commands.py",
+    *sorted((Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "orchestrator_api").glob("*.py")),
 )
 
 

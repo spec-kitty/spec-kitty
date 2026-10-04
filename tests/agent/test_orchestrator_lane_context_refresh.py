@@ -214,7 +214,7 @@ def coord_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def _start_implementation(repo: Path, wp: str) -> Any:
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo,
     ):
         return runner.invoke(

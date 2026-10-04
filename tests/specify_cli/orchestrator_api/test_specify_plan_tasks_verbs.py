@@ -840,11 +840,11 @@ def test_orchestrator_plan_envelope_carries_requirement_id_reason(tmp_path: Path
 
 
 def test_plan_contract_error_remaps_an_unregistered_delegate_code() -> None:
-    from specify_cli.orchestrator_api import commands
+    from specify_cli.orchestrator_api import design_phase
 
-    code, data = commands._plan_contract_error("SPEC_REQUIREMENT_IDS_INVALID", {"error": "bad ids"})
+    code, data = design_phase._plan_contract_error("SPEC_REQUIREMENT_IDS_INVALID", {"error": "bad ids"})
 
-    assert code == commands._PLAN_SETUP_FAILED_FALLBACK
+    assert code == design_phase._PLAN_SETUP_FAILED_FALLBACK
     assert code == "PLAN_SETUP_FAILED"
     assert data["reason"] == "SPEC_REQUIREMENT_IDS_INVALID"
     assert data["error"] == "bad ids"
@@ -853,9 +853,10 @@ def test_plan_contract_error_remaps_an_unregistered_delegate_code() -> None:
 def test_plan_contract_error_passes_through_a_registered_code_unchanged() -> None:
     """Positive control: a registered code (including its own fallback) is
     returned verbatim, with no ``reason`` key added."""
-    from specify_cli.orchestrator_api import commands
 
-    code, data = commands._plan_contract_error("PLAN_SETUP_FAILED", {"message": "m"})
+    from specify_cli.orchestrator_api import design_phase
+
+    code, data = design_phase._plan_contract_error("PLAN_SETUP_FAILED", {"message": "m"})
 
     assert code == "PLAN_SETUP_FAILED"
     assert data == {"message": "m"}
@@ -865,28 +866,31 @@ def test_plan_contract_error_passes_through_a_registered_code_unchanged() -> Non
 def test_plan_contract_error_remaps_the_pre_existing_spec_file_missing_leak() -> None:
     """Documents the latent-leak fix: SPEC_FILE_MISSING is unregistered for
     orchestrator_api too, so it is remapped exactly like WP05's own code."""
-    from specify_cli.orchestrator_api import commands
 
-    code, data = commands._plan_contract_error("SPEC_FILE_MISSING", {"error": "no spec"})
+    from specify_cli.orchestrator_api import design_phase
+
+    code, data = design_phase._plan_contract_error("SPEC_FILE_MISSING", {"error": "no spec"})
 
     assert code == "PLAN_SETUP_FAILED"
     assert data["reason"] == "SPEC_FILE_MISSING"
 
 
 def test_plan_setup_failed_fallback_is_itself_a_registered_code() -> None:
-    from specify_cli.core.contract_gate import is_allowed_error_code
-    from specify_cli.orchestrator_api import commands
+    from specify_cli.orchestrator_api import design_phase
 
-    assert is_allowed_error_code("orchestrator_api", commands._PLAN_SETUP_FAILED_FALLBACK)
+    from specify_cli.core.contract_gate import is_allowed_error_code
+
+    assert is_allowed_error_code("orchestrator_api", design_phase._PLAN_SETUP_FAILED_FALLBACK)
 
 
 def test_classify_delegate_error_shared_helper_is_unchanged_for_other_verbs() -> None:
     """``tasks``/``specify`` still share ``_classify_delegate_error``
     unmodified -- T026 only wraps ``plan``'s own call site with
     ``_plan_contract_error``, never the shared classifier itself."""
-    from specify_cli.orchestrator_api import commands
 
-    code, message, data = commands._classify_delegate_error(
+    from specify_cli.orchestrator_api import design_phase
+
+    code, message, data = design_phase._classify_delegate_error(
         {"error_code": "SPEC_FILE_MISSING", "error": "x"},
         "",
         fallback_code="TASKS_FINALIZE_FAILED",

@@ -16,7 +16,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.orchestrator_api import commands as orch
+from specify_cli.orchestrator_api import _common
 from specify_cli.orchestrator_api.commands import app
 
 pytestmark = [pytest.mark.fast]
@@ -66,7 +66,7 @@ def test_append_history_surfaces_structured_error_code_on_emit_failure(
     repo_root, _primary = _seed_mission(tmp_path)
 
     with (
-        patch.object(orch, "_get_main_repo_root", return_value=repo_root),
+        patch.object(_common, "_get_main_repo_root", return_value=repo_root),
         patch(
             # WP02 (verdict-seam-boundary-hardening-01KZG179, T006): the
             # command now resolves this via ``from specify_cli.status import
@@ -400,7 +400,7 @@ def test_resolve_decision_nonexistent_decision_id_is_structured_not_bare(
     """
     repo_root, _mission_dir = _seed_wp05_mission(tmp_path)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         result = runner.invoke(
             app,
             [

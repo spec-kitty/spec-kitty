@@ -66,7 +66,7 @@ def _invoke(args: list[str], repo_root: Path) -> tuple[dict, int]:
     Returns (parsed_json, exit_code).
     """
     with patch(
-        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        "specify_cli.orchestrator_api._common._get_main_repo_root",
         return_value=repo_root,
     ):
         result = runner.invoke(app, args, catch_exceptions=False)
@@ -158,7 +158,7 @@ class TestForbiddenCommands:
         repo_root, _ = _make_mission(tmp_path)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["feature-state", "--mission", "099-test-mission"])
@@ -183,7 +183,7 @@ class TestForbiddenFlags:
         repo_root, _ = _make_mission(tmp_path)
 
         with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            "specify_cli.orchestrator_api._common._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(app, ["mission-state", "--feature", "099-test-mission"])

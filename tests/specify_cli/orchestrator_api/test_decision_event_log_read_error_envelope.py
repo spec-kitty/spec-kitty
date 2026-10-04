@@ -33,7 +33,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.orchestrator_api import commands as orch
+from specify_cli.orchestrator_api import _common
 from specify_cli.orchestrator_api.commands import app
 
 pytestmark = [pytest.mark.fast, pytest.mark.regression]
@@ -110,7 +110,7 @@ def test_open_decision_idempotent_reopen_with_corrupt_event_log_emits_json_envel
     """
     repo_root = _seed_mission(tmp_path)
 
-    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+    with patch.object(_common, "_get_main_repo_root", return_value=repo_root):
         # First call: mints the decision and writes a well-formed opened event.
         first = runner.invoke(app, _open_decision_args(), catch_exceptions=False)
         first_envelope = json.loads(first.output.strip().split("\n")[0])

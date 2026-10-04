@@ -23,7 +23,7 @@ import pytest
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.paths import MissionMetaReadError
-from specify_cli.orchestrator_api.commands import _resolve_merge_target_branch
+from specify_cli.orchestrator_api.consolidation import _resolve_merge_target_branch
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 

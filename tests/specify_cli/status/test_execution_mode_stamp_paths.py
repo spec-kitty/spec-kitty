@@ -160,7 +160,7 @@ def _valid_policy_json() -> str:
 def _start_implementation(repo: Path, mission_slug: str) -> object:
     from specify_cli.orchestrator_api.commands import app
 
-    with patch("specify_cli.orchestrator_api.commands._get_main_repo_root", return_value=repo):
+    with patch("specify_cli.orchestrator_api._common._get_main_repo_root", return_value=repo):
         return runner.invoke(
             app,
             ["start-implementation", "--mission", mission_slug, "--wp", "WP01", "--actor", "claude", "--policy", _valid_policy_json()],
@@ -193,7 +193,7 @@ def test_orchestrator_start_implementation_stamps_execution_mode(tmp_path: Path,
 def _transition(repo: Path, mission_slug: str, *, to: str) -> object:
     from specify_cli.orchestrator_api.commands import app
 
-    with patch("specify_cli.orchestrator_api.commands._get_main_repo_root", return_value=repo):
+    with patch("specify_cli.orchestrator_api._common._get_main_repo_root", return_value=repo):
         return runner.invoke(
             app,
             ["transition", "--mission", mission_slug, "--wp", "WP01", "--to", to, "--actor", "claude", "--policy", _valid_policy_json()],

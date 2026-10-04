@@ -430,7 +430,7 @@ def test_allowlisted_files_exist() -> None:
 _ROUTED_WORKTREE_REMOVE_SITES: tuple[str, ...] = (
     "specify_cli/consolidation/phase_teardown.py",
     "specify_cli/coordination/workspace.py",
-    "specify_cli/orchestrator_api/commands.py",
+    "specify_cli/orchestrator_api/consolidation.py",
 )
 
 
