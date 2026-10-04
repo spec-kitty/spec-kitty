@@ -18,9 +18,10 @@ error in every run, including per-PR runs, so a bad pin is caught before it
 reaches the nightly. When such a test fails, its report carries an
 ``[OPEN P0 #N]`` banner naming the issue; when it passes, the terminal summary
 says the marker should be removed (the fix PR removes it, which puts the test
-in the per-PR lanes as an ordinary guard). A reproduction that skips in its
-call phase never reached a verdict, so the summary lists it too: a skipped
-reproduction must not leave the nightly job green while the P0 is open.
+in the per-PR lanes as an ordinary guard). A reproduction that skips, in its
+call phase or already in setup (``skipif``, a fixture skip), never reached a
+verdict, so the summary lists it too. Both notices are informational: a
+reproduction that passes or skips does not fail the nightly job.
 
 The pass/skip notices are derived on the *controller* from the reports it
 receives (the pinned issue travels on ``report.user_properties``), so they
@@ -106,14 +107,20 @@ def skipped_notice(issue: int, nodeid: str) -> str:
     )
 
 
+def _reaches_no_verdict_in_setup(report: pytest.TestReport) -> bool:
+    """Whether the test was skipped before its call phase could run."""
+    return report.when == "setup" and report.skipped
+
+
 def reproduction_notice(report: pytest.TestReport) -> str | None:
-    """The summary line a call-phase report earns, or ``None`` if it earns none.
+    """The summary line a report earns, or ``None`` if it earns none.
 
     Derived purely from the report (the pinned issue rides on
     ``report.user_properties``), so it works on an xdist controller. A failure
-    needs no notice: it is already bannered and fails the lane.
+    needs no notice: it is already bannered and fails the lane. A skip counts
+    in the call phase and in setup, where ``skipif`` and fixture skips land.
     """
-    if report.when != "call" or not (report.passed or report.skipped):
+    if not (_reaches_no_verdict_in_setup(report) or (report.when == "call" and (report.passed or report.skipped))):
         return None
     issue = next((value for name, value in report.user_properties if name == ISSUE_PROPERTY and isinstance(value, int)), None)
     if issue is None:
@@ -142,7 +149,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Generator[None, pytest.TestReport, pytest.TestReport]:
-    """Pin the issue to a reproduction's call report and banner a failure.
+    """Pin the issue to a reproduction's verdict report and banner a failure.
 
     ``item.user_properties`` feeds the JUnit ``<property>`` (read from the
     teardown report); the call report gets its own copy because that is the
@@ -152,7 +159,7 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
     report = yield
     marker = item.get_closest_marker(P0_REPRO_MARKER)
     issue = pinned_issue(marker) if marker is not None else None
-    if issue is not None and report.when == "call":
+    if issue is not None and (report.when == "call" or _reaches_no_verdict_in_setup(report)):
         item.user_properties.append((ISSUE_PROPERTY, issue))
         report.user_properties.append((ISSUE_PROPERTY, issue))
         if report.failed:

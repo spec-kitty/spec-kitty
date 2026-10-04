@@ -45,6 +45,11 @@ def test_fixed_bug():
 @pytest.mark.p0_repro(issue=4244)
 def test_skipped_bug():
     pytest.skip("cannot reproduce here")
+
+@pytest.mark.p0_repro(issue=4245)
+@pytest.mark.skipif(True, reason="precondition missing")
+def test_bug_skipped_in_setup():
+    assert False
 """
 
 
@@ -79,9 +84,9 @@ def _run(tmp_path: Path, source: str, *args: str, opt_in: bool) -> subprocess.Co
 @pytest.mark.parametrize(
     ("args", "returncode", "summary"),
     [
-        ((), 0, "1 passed, 3 deselected"),
+        ((), 0, "1 passed, 4 deselected"),
         # The per-PR hazard: a marker expression must not select them either.
-        (("-m", "p0_repro"), 5, "4 deselected"),
+        (("-m", "p0_repro"), 5, "5 deselected"),
     ],
     ids=["plain", "marker-expression"],
 )
@@ -100,7 +105,7 @@ def test_nightly_lane_names_the_open_issue_and_reports_the_fixed_and_skipped_one
     proc = _run(tmp_path, _SYNTHETIC, "-m", "p0_repro", f"--junitxml={junit}", *xdist_args, opt_in=True)
 
     assert proc.returncode == 1, proc.stdout + proc.stderr
-    assert "1 failed, 1 passed, 1 skipped" in proc.stdout
+    assert "1 failed, 1 passed, 2 skipped" in proc.stdout
     assert "[OPEN P0 #4242]" in proc.stdout
     assert "https://github.com/spec-kitty/spec-kitty/issues/4242" in proc.stdout
     # The passing / skipped notices come from the controller's terminal summary,
@@ -108,6 +113,7 @@ def test_nightly_lane_names_the_open_issue_and_reports_the_fixed_and_skipped_one
     assert "[P0 #4243 REPRO PASSES]" in proc.stdout
     assert "test_fixed_bug" in proc.stdout
     assert "[P0 #4244 REPRO SKIPPED]" in proc.stdout
+    assert "[P0 #4245 REPRO SKIPPED]" in proc.stdout
     assert "test_skipped_bug" in proc.stdout
 
     cases = {case.get("name"): case for case in ET.parse(junit).getroot().iter("testcase")}
@@ -146,6 +152,6 @@ def test_pinned_issue_accepts_only_a_positive_int(args: tuple[object, ...], kwar
     assert pinned_issue(pytest.mark.p0_repro(*args, **kwargs).mark) == expected
 
 
-@pytest.mark.parametrize(("value", "expected"), [("1", True), ("true", False)])
+@pytest.mark.parametrize(("value", "expected"), [("1", True), ("true", False), ("", False)])
 def test_opt_in_is_strictly_the_literal_one(value: str, expected: bool) -> None:
     assert p0_repro_opted_in({RUN_P0_REPRO_ENV_VAR: value}) is expected
