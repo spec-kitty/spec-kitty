@@ -15,11 +15,19 @@ from pathlib import Path
 
 import pytest
 
+from charter.activation.pack_context import PackContext
+from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.org_charter import (
     REQUIRED_KIND_FIELDS,
     apply_org_charter_to_interview,
     load_org_charter_policies,
 )
+from tests.charter import skill_pack_support as support
+
+#: Kinds whose absent activation key already puts the org-required ids in force
+#: (``effective_when_absent == "required"``); the interview never seeds those.
+_DEFAULT_IN_FORCE_FIELDS = tuple(f for f in REQUIRED_KIND_FIELDS if ArtifactKind.from_plural(f).effective_when_absent == "required")
+_SEEDED_FIELDS = tuple(f for f in REQUIRED_KIND_FIELDS if f not in _DEFAULT_IN_FORCE_FIELDS)
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -50,7 +58,7 @@ class _Interview:
             setattr(self, f"selected_{kind}", [])
 
 
-@pytest.mark.parametrize("kind", list(REQUIRED_KIND_FIELDS))
+@pytest.mark.parametrize("kind", _SEEDED_FIELDS)
 def test_apply_org_charter_unions_required_kind_into_selection(
     kind: str, tmp_path: Path
 ) -> None:
@@ -80,7 +88,7 @@ def test_apply_org_charter_unions_required_kind_into_selection(
     )
 
 
-@pytest.mark.parametrize("kind", list(REQUIRED_KIND_FIELDS))
+@pytest.mark.parametrize("kind", _SEEDED_FIELDS)
 def test_apply_org_charter_is_non_destructive_per_kind(
     kind: str, tmp_path: Path
 ) -> None:
@@ -109,6 +117,29 @@ def test_apply_org_charter_is_non_destructive_per_kind(
     assert "new-from-org" in final, "org-required new ids MUST append"
     # First-seen order preserved: project ids first, then org additions.
     assert final.index("project-pinned") < final.index("new-from-org")
+
+
+def test_the_interview_never_seeds_a_kind_that_is_in_force_by_default(tmp_path: Path) -> None:
+    """Writing ``activated_skills`` would freeze the org list: later ``required_skills`` additions stop applying."""
+    assert _DEFAULT_IN_FORCE_FIELDS == ("skills",)
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    support.write_skill(pack, "y")
+    support.write_org_charter(pack, required_skills=["y"])
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    support.write_config(consumer, pack)
+
+    interview = _Interview()
+    messages = apply_org_charter_to_interview(interview, consumer)
+
+    assert "activated_skills" not in (consumer / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+    assert not [m for m in messages if "skills" in m]
+    assert interview.selected_skills == []
+    assert PackContext.from_config(consumer).activated_skills == frozenset({"y"})
+    # A later addition to the org list is still in force: nothing was frozen.
+    support.write_org_charter(pack, required_skills=["y", "z"])
+    assert PackContext.from_config(consumer).activated_skills == frozenset({"y", "z"})
 
 
 def test_load_org_charter_policies_unions_required_kinds_across_packs(

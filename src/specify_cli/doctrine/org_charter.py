@@ -86,6 +86,13 @@ __all__ = [
 #: :func:`load_org_charter_policies`.
 REQUIRED_KIND_FIELDS: tuple[str, ...] = ORG_REQUIRABLE_KIND_FIELDS
 
+#: The subset of :data:`REQUIRED_KIND_FIELDS` the interview seeds (config promotion
+#: and the ``selected_<kind>`` overlay). A kind whose absent activation key already
+#: puts the org-required ids in force (``ArtifactKind.effective_when_absent ==
+#: "required"``) is left out: writing its key would freeze today's list, so a later
+#: addition to the org's ``required_<kind>`` would stop applying.
+_INTERVIEW_SEEDED_KIND_FIELDS: tuple[str, ...] = tuple(kind for kind in REQUIRED_KIND_FIELDS if ArtifactKind.from_plural(kind).effective_when_absent != "required")
+
 
 # ---------------------------------------------------------------------------
 # Schema models
@@ -355,7 +362,9 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     than failing the whole (non-destructive, advisory) pre-fill flow.
 
     Only kinds with a non-empty ``required_<kind>`` are included in the
-    promotion set, so kinds the org pack does not mandate are left in their
+    promotion set (and never a kind that is in force by default while its key is
+    absent -- see :data:`_INTERVIEW_SEEDED_KIND_FIELDS`), so kinds the org pack
+    does not mandate are left in their
     existing three-state ``config.yaml`` shape — an absent key still means
     "all built-ins active" (:meth:`charter.activation.pack_context.PackContext.from_config`)
     for those kinds.
@@ -368,7 +377,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     supplies that real set — never an empty/omitted default.
     """
     required_by_kind: dict[str, list[str]] = {
-        kind: list(getattr(policy, f"required_{kind}")) for kind in REQUIRED_KIND_FIELDS if getattr(policy, f"required_{kind}")
+        kind: list(getattr(policy, f"required_{kind}")) for kind in _INTERVIEW_SEEDED_KIND_FIELDS if getattr(policy, f"required_{kind}")
     }
     if not required_by_kind:
         return []
@@ -829,7 +838,7 @@ def apply_org_charter_to_interview(
     and promote org-required artefacts to config-authority (T014).
 
     Mutates ``interview_data.answers`` and ``interview_data.selected_<kind>``
-    in place for every kind in :data:`REQUIRED_KIND_FIELDS`, AND unions every
+    in place for every kind in :data:`_INTERVIEW_SEEDED_KIND_FIELDS`, AND unions every
     ``required_<kind>`` into ``.kittify/config.yaml`` ``activated_<kind>`` via
     :func:`_promote_org_required_to_config`. Behaviour is non-destructive:
 
@@ -874,7 +883,7 @@ def apply_org_charter_to_interview(
 
     messages.extend(_promote_org_required_to_config(merged_policy, repo_root))
 
-    for kind in REQUIRED_KIND_FIELDS:
+    for kind in _INTERVIEW_SEEDED_KIND_FIELDS:
         required_list: list[str] = list(getattr(merged_policy, f"required_{kind}"))
         if not required_list:
             continue
