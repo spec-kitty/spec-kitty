@@ -899,6 +899,7 @@ def test_without_the_blocking_lock_both_processes_collect(repo: Path, tmp_path: 
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.timing
 def test_key_computation_is_fast_on_the_real_repository() -> None:
     started = time.perf_counter()
     state = us.checkout_state(gc.REPO_ROOT)
