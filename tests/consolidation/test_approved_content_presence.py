@@ -368,8 +368,6 @@ def test_fold_composes_like_the_other_divergence_folds(field_name: str, make: Ca
 # The verifier step on a tiny real repository
 # --------------------------------------------------------------------------- #
 
-pytestmark_git = [pytest.mark.integration, pytest.mark.git_repo]
-
 
 def _commit(repo: Path, files: dict[str, str | None], message: str) -> str:
     for rel, text in files.items():
