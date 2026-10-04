@@ -48,8 +48,8 @@ pytestmark = [pytest.mark.stress, pytest.mark.slow, pytest.mark.git_repo]
 # ---------------------------------------------------------------------------
 
 MISSION_SLUG = "stress-feature"
-MID8 = "01J6STRSS"
-MISSION_ID = "01J6STRSS00000000000000000"  # 26-char placeholder ULID
+MID8 = "01J6STRS"
+MISSION_ID = f"{MID8}000000000000000000"  # 26-char placeholder ULID; mid8 is mission_id[:8]
 COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MID8}"
 FEATURE_DIRNAME = f"{MISSION_SLUG}-{MID8}"
 
@@ -75,6 +75,26 @@ def _init_coord_repo(repo: Path) -> None:
     _git(repo, "add", "seed.txt")
     _git(repo, "commit", "-q", "-m", "initial")
     _git(repo, "branch", COORD_BRANCH)
+    _write_coord_meta(repo)
+
+
+def _write_coord_meta(repo: Path) -> None:
+    """Declare the coordination topology in ``meta.json``, as ``mission create`` does.
+
+    The placement seam reads the Mission's routing from ``meta.json``: a
+    Mission dir with no ``meta.json`` degrades to the PRIMARY checkout, where a
+    coordination-transaction append is refused. A real coordination Mission
+    always has its ``meta.json`` written before the first ``acquire()``.
+    """
+    feature_dir = repo / "kitty-specs" / FEATURE_DIRNAME
+    feature_dir.mkdir(parents=True)
+    meta = {
+        "mission_id": MISSION_ID,
+        "mission_slug": FEATURE_DIRNAME,
+        "target_branch": "main",
+        "coordination_branch": COORD_BRANCH,
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
