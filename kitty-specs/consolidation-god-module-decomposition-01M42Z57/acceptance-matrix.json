@@ -1,0 +1,79 @@
+{
+  "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "executor.py 4,603 -> 645 LOC; 10 phase modules (119-736 LOC); AST byte-identity 123/123 (commit 7f38b4ca); tests/consolidation/test_single_rollback_authority.py::test_executor_builds_no_revert_argv red->green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:12.645083+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "driver + inline door + _report_rollback stay in executor.py: test_single_rollback_authority.py door/heal/allowed-caller pins and test_executor_phase_boundary.py::test_locked_driver_calls_phases_in_frozen_order green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:17.269751+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_mission_number_package.py (red 2266ffbe -> green); ordering.py 109 LOC; mission_number/__init__.py byte-identical blob; byte identity 16/16",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:21.262901+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_consolidate_options.py (red 955cdba4 -> green); consolidate --help byte-identical (independent review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:25.828030+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "8 direct-call sites use run_consolidate(ConsolidateOptions(...)): test_merge_preflight_mission_branch.py x7, test_executor_coverage.py x1; both green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:30.221841+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "AST patch audit: 0 test patches left on executor for a name it no longer looks up (284 re-pointed, 129 via executor_family shared mock, 195 reads/imports); independent review re-audited; targeted suites 3694 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:34.428036+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Gates re-pointed/widened (code-grounding \u00a73) and green: destructive_op_routing, no_write_side_rederivation, status_events_writes_gate, coord_read_residuals_closeout, exemption_registry_ratchet, layer_rules, tool_artifact_enrolment, single_blob_reader (rglob), meta census; reviewer confirmed none loosened",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:33:38.672442+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,50 @@
+# Occurrence map for consolidation-god-module-decomposition-01M42Z57 (DIRECTIVE_035).
+# The "term" is the module path whose contents move; the moves: block lists the
+# structural relocations. Code bodies move verbatim (C-001); only import paths,
+# monkeypatch target strings and gate/ledger locators are rewritten.
+
+target:
+  term: specify_cli.consolidation.executor
+  replacement: specify_cli.consolidation.<phase module> (run_state, coord_strand, phase_claim, phase_advance, phase_bookkeeping, phase_gate, phase_teardown, phase_finalize, entry_preflight, resume_recovery)
+  operation: rename
+
+categories:
+  code_symbols:         { action: do_not_change }          # function/class names are kept verbatim; only their module changes
+  import_paths:         { action: rename }                 # `from specify_cli.consolidation.executor import X` -> new module
+  filesystem_paths:     { action: manual_review }          # gate ledgers keyed on "src/specify_cli/consolidation/executor.py" / "ordering.py"
+  serialized_keys:      { action: do_not_change }          # state.json, lanes.json, meta.json, status events: untouched (C-001)
+  cli_commands:         { action: do_not_change }          # `spec-kitty consolidate` options unchanged (C-006)
+  user_facing_strings:  { action: do_not_change }          # refusal text, console output unchanged (C-001)
+  tests_fixtures:       { action: rename }                 # monkeypatch target strings and test imports follow the move
+  logs_telemetry:       { action: do_not_change }          # logger names/messages unchanged
+
+exceptions:
+  - path: "tests/architectural/**"
+    action: manual_review
+    reason: "Gate ledgers keyed on module path/qualname are re-pointed, and fixed-scope gates widened, by hand; never loosened (FR-007)."
+  - path: "tests/specify_cli/test_meta_fail_closed_full_census_contract.py"
+    action: manual_review
+    reason: "Census owned-file list widened to the receiving modules (FR-007)."
+  - path: "pyproject.toml"
+    action: manual_review
+    reason: "mypy quarantine entry for specify_cli.consolidation.ordering follows the moved bake cluster."
+  - path: "kitty-specs/consolidation-god-module-decomposition-01M42Z57/**"
+    action: manual_review
+    reason: "This mission's own planning artifacts."
+  - path: "src/specify_cli/cli/commands/consolidate.py"
+    action: manual_review
+    reason: "#3457 parameter object; Typer options unchanged (C-006); module-map comment updated."
+
+moves:
+  - from:
+      - src/specify_cli/consolidation/executor.py
+    to: src/specify_cli/consolidation
+    reason: "Epic #2026: split executor.py verbatim along its phase boundaries into run_state, coord_strand, phase_claim, phase_advance, phase_bookkeeping, phase_gate, phase_teardown, phase_finalize, entry_preflight, resume_recovery; executor.py keeps the driver, rollback door and locked entry."
+  - from:
+      - src/specify_cli/consolidation/ordering.py
+    to: src/specify_cli/consolidation/mission_number/bake.py
+    reason: "#2600: the mission_number bake cluster leaves ordering.py (merge ordering stays)."
+  - from:
+      - src/specify_cli/consolidation/mission_number.py
+    to: src/specify_cli/consolidation/mission_number/__init__.py
+    reason: "#2600: the stdlib-only leaf predicate becomes the package __init__, unchanged."

@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2026": {
+      "evidence_ref": "All three remaining slices of the 2026-10-04 re-scope delivered: executor split (WP03), #2600 (WP01), #3457 (WP02)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#2037": {
+      "evidence_ref": "Historical guard cited in the untrusted-path inventory; guards moved verbatim with their functions",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2600": {
+      "evidence_ref": "WP01: bake cluster moved verbatim to consolidation/mission_number/bake.py (commits 2c184e8d, 2352ea4e, review fix)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3456": {
+      "evidence_ref": "PR reference cited as #3457's origin; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3457": {
+      "evidence_ref": "WP02: ConsolidateOptions + run_consolidate (1aa89b82), 8 direct-call sites converted; independent review APPROVE",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5459": {
+      "evidence_ref": "Existing tooling gap (single_branch claim base not recorded by agent action implement) worked around with move-task --force; cited for context, no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5613": {
+      "evidence_ref": "Open P0 explicitly out of scope (C-002); cited for split planning only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5633": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5645": {
+      "evidence_ref": "Pre-existing red on main found during validation; filed, not in scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

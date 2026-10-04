@@ -1,0 +1,34 @@
+{
+  "accept_commit": "deff00bf0b21b251463c379cdb8485fc1a7bd75e",
+  "acceptance_history": [
+    {
+      "accept_commit": "deff00bf0b21b251463c379cdb8485fc1a7bd75e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T09:34:08.428277+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "4630a70f173ca64db3506a790488de011f8c215d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T09:34:08.428277+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "4630a70f173ca64db3506a790488de011f8c215d",
+  "baseline_merge_commit": "83c9caaf39d43d85d556ea21e0d9647dc7de5f37",
+  "change_mode": "bulk_edit",
+  "created_at": "2026-10-04T08:05:55.197021+00:00",
+  "flattened": false,
+  "friendly_name": "Consolidation god-module decomposition",
+  "merged_at": "2026-10-04T09:34:32.443262+00:00",
+  "merged_commit": "83c9caaf39d43d85d556ea21e0d9647dc7de5f37",
+  "mid8": "01M42Z57",
+  "mission_id": "01M42Z57J0ZBMKSHH828W9VQT5",
+  "mission_number": 214,
+  "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+  "mission_type": "software-dev",
+  "purpose_context": "Epic #2026 re-scope (2026-10-04): executor.py is 4,603 LOC, ordering.py mixes merge ordering with the mission_number bake cluster (#2600), and consolidate() takes 19 parameters enumerated at direct-call test sites (#3457). This tidy-first mission relocates code along phase boundaries, preserves every consolidation invariant (single rollback authority, CAS ref advance, pre-mutation snapshot, teardown gate, squash content axis, closed world), and prepares small seams for the #5613 P0 fix.",
+  "purpose_tldr": "Split consolidation/executor.py, ordering.py and the consolidate() signature into cohesive modules with no behaviour change.",
+  "slug": "consolidation-god-module-decomposition-01M42Z57",
+  "status_phase": "1",
+  "target_branch": "issue-2026-consolidation-decomposition",
+  "topology": "single_branch"
+}

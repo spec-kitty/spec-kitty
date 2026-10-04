@@ -1,0 +1,103 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T08:13:00.744853Z",
+      "decision_id": "01M42ZJDE8TMRAM1HBY5NGY51E",
+      "final_answer": "Executor split + #2600 + #3457, no behaviour change (operator brief 2026-10-04 \u00a72-\u00a73: no refusal text, exit code or state-file change; #5613 not fixed here; no new size/ratchet gate).",
+      "input_key": "scope_slices",
+      "mission_id": "01M42Z57J0ZBMKSHH828W9VQT5",
+      "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+      "opened_by": "claude",
+      "options": [
+        "Executor split + #2600 + #3457, no behaviour change",
+        "Executor split only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Which slices does this mission deliver, and is any behaviour change allowed?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T08:13:21.232642Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.slices",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T08:13:03.472924Z",
+      "decision_id": "01M42ZJG3GFPYZQN15JX7E6MCB",
+      "final_answer": "Package: consolidation/mission_number/__init__.py keeps the stdlib-only predicate verbatim; the bake cluster moves to consolidation/mission_number/bake.py. Honours #2600's 'into mission_number' target and the leaf contract drivers.py relies on (code-grounding \u00a71.3). Decided under the brief's delegation ('confirm or adjust after grounding; record the reasoning in plan.md').",
+      "input_key": "mission_number_home",
+      "mission_id": "01M42Z57J0ZBMKSHH828W9VQT5",
+      "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+      "opened_by": "claude",
+      "options": [
+        "Turn mission_number.py into a package: leaf predicate stays in __init__, cluster in mission_number/bake.py",
+        "Move the cluster into mission_number.py itself (breaks the leaf contract)",
+        "New sibling module number_assignment.py",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Where does the mission_number bake cluster from ordering.py go, given mission_number.py is a stdlib-only leaf imported by the merge-driver body module?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T08:13:23.804071Z",
+      "resolved_by": null,
+      "slot_key": "specify.structure.mission_number_home",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T08:13:06.212946Z",
+      "decision_id": "01M42ZJJS4XWJ39317N932BP8N",
+      "final_answer": "Phase modules: run_state, coord_strand, phase_claim, phase_advance, phase_bookkeeping, phase_gate, phase_teardown, phase_finalize, entry_preflight, resume_recovery. executor.py keeps the locked driver with the inline rollback door, _report_rollback, attestations and the locked entry (brief \u00a73.1: thin orchestrating executor, single rollback authority).",
+      "input_key": "executor_boundaries",
+      "mission_id": "01M42Z57J0ZBMKSHH828W9VQT5",
+      "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+      "opened_by": "claude",
+      "options": [
+        "Phase modules (claim, advance, bookkeeping, gate, teardown, finalize) + run state + coord strand + entry preflight + resume recovery; driver, rollback door and lock stay in executor.py",
+        "Fewer, larger modules",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Along which boundaries is executor.py split, and what stays in it?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T08:13:26.589125Z",
+      "resolved_by": null,
+      "slot_key": "specify.structure.executor_boundaries",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-04T08:13:08.952940Z",
+      "decision_id": "01M42ZJNERKY2TB1RPKF2GJ0GT",
+      "final_answer": "Re-point each patch to every module that now looks the name up, computed from the AST so the interception set is unchanged; no back-compat aliases kept only for patch strings (brief \u00a73: re-pointing imports and monkeypatch targets is fine).",
+      "input_key": "monkeypatch_policy",
+      "mission_id": "01M42Z57J0ZBMKSHH828W9VQT5",
+      "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+      "opened_by": "claude",
+      "options": [
+        "Re-point each patch to every module that now looks the name up (same interception set); no back-compat re-export aliases",
+        "Keep re-export aliases in executor so old patch strings resolve",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "How are test monkeypatches on executor attributes handled after the move?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T08:13:29.263451Z",
+      "resolved_by": null,
+      "slot_key": "specify.tests.monkeypatch_policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M42Z57J0ZBMKSHH828W9VQT5",
+  "version": 1
+}

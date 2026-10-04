@@ -1,0 +1,123 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M4347WANFHG5R4MKFEY4P6V4",
+  "materialized_at": "2026-10-04T09:34:38.421084+00:00",
+  "mission_number": "214",
+  "mission_slug": "consolidation-god-module-decomposition-01M42Z57",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4347QKZYDP19TBCS1R5YSS3",
+      "last_transition_at": "2026-10-04T09:34:33.599818+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Forced only past the for_review claim-base gate: agent action implement did not record refs/spec-kitty/wp-base for this single_branch WP (tooling gap, traces/tooling-friction.md). Real claim commit e1813e51; implementation commits 2266ffbe (red test), 2c184e8d (move), 2352ea4e (tests/gates). Pure move, byte identity 16/16, 1864 targeted tests passed.",
+        "Independent review (reviewer-renata subagent): APPROVE conditional on finding 1 (single-blob-reader gate glob non-recursive) -- fixed in commit fix(WP01) (rglob + planted-break proof); minor/nits folded. Byte identity 16/16 confirmed independently; red test was red at base."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30237,
+      "shell_pid_created_at": "1791102065.44",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4347T4QZX15XFKXP90X6S40",
+      "last_transition_at": "2026-10-04T09:34:36.183901+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Forced only past the claim-base gate (same single_branch tooling gap as WP01; real claim commit fc2ad59). Commits: red test, refactor. 1725 targeted tests passed; dead-symbol gate green.",
+        "Independent review (reviewer-renata subagent): APPROVE. Body verbatim (8,898 chars), Typer signature/decorator and --help byte-identical, mypy 3->2 pre-existing. Minor finding (isort re-sort of the import block) already reverted in 7655da55; nit: names kept out of __all__ per dead-symbol gate option 2; follow-up: ~20 other partial direct consolidate() callers in tests."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4766,
+      "shell_pid_created_at": "1791103028.77",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4347WANFHG5R4MKFEY4P6V4",
+      "last_transition_at": "2026-10-04T09:34:38.421084+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Forced only past the claim-base gate (same single_branch tooling gap; real claim commit 4f29a7b). Validation: targeted 3694 passed (1 pre-existing red, #5645), tests/terminus 137 passed, make test-fast 2251 passed; byte identity 123/123; mypy clean on all 11 modules.",
+        "Independent review (reviewer-renata subagent): APPROVE, no blocker/major. Byte identity 124/124 independently re-proved, invariants and rollback-door pins intact, patch interception audited, gates re-pointed/widened. Findings 1-2 (stale docstring references, 'verbatim' wording) folded in docs(WP03); finding 3 (three cohesion nits) deferred to a follow-up."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18864,
+      "shell_pid_created_at": "1791104372.73",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    }
+  }
+}
