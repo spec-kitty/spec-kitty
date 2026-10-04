@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -23,31 +22,6 @@ pytestmark = pytest.mark.non_sandbox
 
 # ANSI SGR escape sequence, e.g. "\x1b[33m" / "\x1b[1;36m" / "\x1b[0m".
 _ANSI_SGR_RE = re.compile(r"\x1b\[[0-9;]*m")
-
-
-@pytest.fixture
-def _synthesis_manifest_guard() -> Iterator[Path]:
-    """Snapshot + restore the repo's REAL synthesis manifest around a CLI subprocess test.
-
-    ``charter synthesize`` writes ``.kittify/charter/synthesis-manifest.yaml`` at a
-    path fixed relative to the resolved repo root — no CLI flag exposes a target
-    override (see ``src/charter/activation/synthesizer/manifest.py::MANIFEST_PATH``), so this
-    test cannot simply redirect the write to a ``tmp_path`` sandbox. It guards the
-    on-disk bytes instead: snapshot before, restore in a ``finally`` block after —
-    so a future regression that reintroduces a real-manifest write (or any
-    exception mid-test) never leaves the working tree dirty (#2672).
-    """
-    repo_root = Path(__file__).parent.parent.parent.parent
-    manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
-    original = manifest_path.read_bytes() if manifest_path.exists() else None
-    try:
-        yield manifest_path
-    finally:
-        if original is None:
-            if manifest_path.exists():
-                manifest_path.unlink()
-        elif not manifest_path.exists() or manifest_path.read_bytes() != original:
-            manifest_path.write_bytes(original)
 
 
 def test_full_collection_returns_bundle(tmp_path: Path) -> None:
@@ -158,18 +132,15 @@ def test_bundle_is_empty_when_all_skipped(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_dry_run_evidence_on_spec_kitty_repo(
-    _synthesis_manifest_guard: Path,
+def test_dry_run_evidence_on_seeded_python_project(
     tmp_path: Path,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    """charter synthesize --adapter fixture --dry-run-evidence exits 0 and detects a language.
+    """charter synthesize --adapter fixture --dry-run-evidence exits 0 on a seeded Python project.
 
-    spec-kitty has both Python indicators (pyproject.toml, src/specify_cli/) and JavaScript
-    indicators (package.json for Playwright/test tooling), so the heuristic detector may
-    legitimately select either 'python' or 'javascript' as the primary language.  The test
-    verifies that the detector commits to a specific, non-unknown language rather than
-    checking for a particular one — either is acceptable (acceptance criterion #9).
+    The child runs in a seeded test tmp project (pyproject.toml, src/main.py, conftest.py),
+    so the detector must report ``lang=python`` (acceptance criterion #9), and the dry run
+    must leave that project without a synthesis manifest.
 
     Determinism (#2672): this test drives the CLI as a *subprocess*, so an in-process
     ``CliConsole.set_plain()``/``set_all_plain()`` call would never reach the child. The
@@ -197,14 +168,11 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     # Run from a seeded test tmp project, not from the checkout pytest was started in:
     # ``charter synthesize`` probes its working directory and refuses a linked git
     # worktree by design (#4785), so a subprocess started in the invoking checkout fails
-    # from a Spec Kitty lane worktree (#5317). The project mirrors the indicators this
-    # test relies on in the spec-kitty checkout: Python (pyproject.toml) and JavaScript
-    # tooling (package.json). ``PYTHONPATH`` still points at the checkout's ``src/``, so
-    # the subprocess runs the sources under test. This directory's autouse
+    # from a Spec Kitty lane worktree (#5317). ``PYTHONPATH`` still points at the
+    # checkout's ``src/``, so the subprocess runs the sources under test. This directory's autouse
     # ``_git_init_tmp_path`` makes ``tmp_path`` a normal git repository.
     project = tmp_path
     (project / "pyproject.toml").write_text("[project]\nname = 'test-project'\nversion = '0.1.0'\n", encoding="utf-8")
-    (project / "package.json").write_text('{"name": "test-project", "devDependencies": {"@playwright/test": "^1.0.0"}}\n', encoding="utf-8")
     (project / "src").mkdir()
     (project / "src" / "main.py").write_text("# main module\n", encoding="utf-8")
     (project / "conftest.py").write_text("# pytest conftest\n", encoding="utf-8")
@@ -221,9 +189,6 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     env["SPEC_KITTY_HOME"] = str(isolated_home / ".spec-kitty")
     for xdg in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"):
         env[xdg] = str(isolated_home / xdg.lower())
-
-    manifest_path = _synthesis_manifest_guard
-    manifest_before = manifest_path.read_bytes() if manifest_path.exists() else None
 
     result = subprocess.run(
         [
@@ -242,16 +207,6 @@ def test_dry_run_evidence_on_spec_kitty_repo(
         env=env,
     )
 
-    # Structural guard (#2672 mode b): the real repo manifest must never be mutated by
-    # this --dry-run-evidence invocation. Checked eagerly here (in addition to the
-    # fixture's unconditional restore) so a regression fails LOUDLY with a clear message
-    # rather than silently self-healing via teardown.
-    manifest_after = manifest_path.read_bytes() if manifest_path.exists() else None
-    assert manifest_after == manifest_before, (
-        "charter synthesize --dry-run-evidence must never mutate the real repo manifest "
-        f"at {manifest_path}"
-    )
-
     # The dry run is also read-only for the test tmp project the child ran in.
     project_manifest = project / ".kittify" / "charter" / "synthesis-manifest.yaml"
     assert not project_manifest.exists(), f"--dry-run-evidence must never write {project_manifest}"
@@ -262,8 +217,4 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     stdout_plain = _ANSI_SGR_RE.sub("", result.stdout)
     assert "Evidence dry-run summary" in stdout_plain
     assert "Code signals:" in stdout_plain
-    # spec-kitty has both pyproject.toml (Python) and package.json (JavaScript tooling),
-    # so either language is a valid detection outcome — but "unknown" is not acceptable.
-    assert "lang=python" in stdout_plain or "lang=javascript" in stdout_plain, (
-        f"Expected lang=python or lang=javascript in output, got:\n{result.stdout}"
-    )
+    assert "lang=python" in stdout_plain, f"Expected lang=python in output, got:\n{result.stdout}"
