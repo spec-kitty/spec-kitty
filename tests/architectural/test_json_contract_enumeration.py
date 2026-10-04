@@ -198,6 +198,7 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "issue-matrix migrate": ((), 1, "outside"),
     "lint": (("missing.py",), 1, "outside"),
     "migrate backfill-provenance": (("--dry-run",), 1, "badmatrix"),
+    "migrate backfill-wp-status": ((), 1, "outside"),
     "migrate charter-encoding": (("--dry-run",), 1, "badencoding"),
     "moments drain status": ((), 0, "total"),
     "moments status": ((), 0, "total"),

@@ -20,6 +20,11 @@ Subcommands:
   ``mission_type`` into any legacy ``meta.json`` whose only type signal is
   the deprecated ``mission`` field. Idempotent; never overwrites an existing
   ``mission_type``. Implements FR-006, FR-007, FR-008.
+- ``spec-kitty migrate backfill-wp-status`` — Seed the ``planned`` (or, for a
+  finished Mission, forced ``done``) lane events a Mission's ``tasks/WP*.md``
+  files lack, so the reduced status snapshot counts every WP (#5579).
+  Idempotent; supports ``--mission``, ``--dry-run``, ``--evidence-manifest``
+  and ``--json``.
 - ``spec-kitty migrate repin-hooks`` — Re-pin this repo's pre-commit hook to
   the CURRENT interpreter. One-time repair for issue #254: an install-method
   migration (e.g. pipx -> uv) moves the interpreter the hook pinned at its
@@ -70,6 +75,16 @@ app = typer.Typer(
 # option strings, help text, and summary labels would otherwise repeat across the
 # command signature, the JSON payload, and the rich summary printer.
 _RUNTIME_STATE_CMD = "backfill-runtime-state"
+
+# Hoisted literals for the backfill-wp-status command (#5579).
+_WP_STATUS_CMD = "backfill-wp-status"
+_EVIDENCE_MANIFEST_FLAG = "--evidence-manifest"
+_WP_STATUS_DRY_RUN_HELP = "Report per-Mission would-seed plans; write nothing."
+_WP_STATUS_MANIFEST_HELP = (
+    "YAML file marking Missions finished: missions: {<slug>: {reason: <text>}}. "
+    "Applies only to WPs seeded in the same run, so it must be complete on the first live run."
+)
+_WP_STATUS_JSON_HELP = "Emit the per-Mission repair result and summary as structured JSON."
 _DRY_RUN_FLAG = "--dry-run"
 _MISSION_FLAG = "--mission"
 _MISSION_METAVAR = "HANDLE"
@@ -1384,6 +1399,89 @@ def backfill_runtime_state_cmd(
     # command — the counts + any mismatch are reported for the operator.
     if not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results):
         raise typer.Exit(1)
+
+
+@app.command(name=_WP_STATUS_CMD)
+def backfill_wp_status_cmd(
+    dry_run: Annotated[bool, typer.Option(_DRY_RUN_FLAG, help=_WP_STATUS_DRY_RUN_HELP)] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(_MISSION_FLAG, help=_MISSION_HELP, metavar=_MISSION_METAVAR),
+    ] = None,
+    evidence_manifest: Annotated[
+        Path | None,
+        typer.Option(_EVIDENCE_MANIFEST_FLAG, help=_WP_STATUS_MANIFEST_HELP, metavar="FILE"),
+    ] = None,
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_WP_STATUS_JSON_HELP)] = False,
+) -> None:
+    """Seed the lane events a Mission's WP files lack, so the status snapshot counts every WP (#5579).
+
+    The reduced status snapshot omits any WP with no lane event, so a Mission
+    whose event log never seeded some ``tasks/WP*.md`` file under-counts on
+    every read surface that lists WPs from the files. This command appends one
+    deterministic ``planned`` seed per missing WP (actor ``migration:backfill_wp_status``)
+    through the existing migration writer, on the Mission's resolved
+    PRIMARY-partition status surface. It is idempotent: a re-run appends
+    nothing. WPs the snapshot carries without a WP file are reported, never
+    repaired. A Mission whose status log lives on a live coordination surface
+    is refused (``COORD_SURFACE_LIVE``, counted as skipped, nothing written):
+    consolidate it first, or run from the coordination checkout.
+
+    A Mission with terminal evidence (``meta.json`` ``merged_at`` /
+    ``accepted_at``, or an entry in ``--evidence-manifest``) has its freshly
+    seeded WPs driven on to ``done`` with a forced, evidence-citing event, so
+    its progress reads 100%. Nothing else counts as evidence.
+
+    The evidence manifest must be complete on the first live run. Terminal
+    evidence applies only to WPs seeded in that same run: a WP an earlier run
+    already seeded ``planned`` is no longer a gap, so evidence supplied later
+    is a silent no-op (the summary warns for every manifest entry that had
+    nothing to seed). Run ``--dry-run`` with the full manifest first.
+
+    The manifest is YAML, keyed by exact ``kitty-specs/`` directory name:
+
+        missions:
+          my-mission-01ABCDEF:
+            reason: "PR #1234 merged 2026-09-01; dossier landed on main"
+
+    A missing/empty reason or a slug that does not resolve is refused up front
+    (exit 1, nothing written).
+
+    Exit codes:
+
+    - ``0`` — every visited Mission was repaired, needed nothing, or was refused
+      as ``COORD_SURFACE_LIVE``
+    - ``1`` — a per-Mission error, an invalid evidence manifest, or an unknown
+      ``--mission`` handle
+
+    Examples:
+
+        spec-kitty migrate backfill-wp-status --dry-run
+
+        spec-kitty migrate backfill-wp-status --mission my-mission-01ABCDEF --json
+
+        spec-kitty migrate backfill-wp-status --evidence-manifest evidence.yaml
+    """
+    from specify_cli.cli.commands.migrate.backfill_wp_status import run_backfill_wp_status
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        if json_output:
+            # Keep the --json stream parseable on failure (JSON-contract inventory).
+            console.emit_json({"success": False, "error_code": "NO_PROJECT_ROOT", "error": _NO_PROJECT_ROOT})
+        else:
+            _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    exit_code = run_backfill_wp_status(
+        repo_root,
+        mission=mission,
+        dry_run=dry_run,
+        evidence_manifest=evidence_manifest,
+        json_output=json_output,
+    )
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
 
 
 @app.command(name="rebaseline-dossier-hashes")

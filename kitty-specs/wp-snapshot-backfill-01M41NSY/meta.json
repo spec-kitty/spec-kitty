@@ -1,0 +1,35 @@
+{
+  "accept_commit": "0c92a1cd7692172f589ce16f0a64d7017ca54184",
+  "acceptance_history": [
+    {
+      "accept_commit": "0c92a1cd7692172f589ce16f0a64d7017ca54184",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-03T22:35:26.135159+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "d4f2dc7917800a79a0771058922963782c581180"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-03T22:35:26.135159+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "d4f2dc7917800a79a0771058922963782c581180",
+  "baseline_merge_commit": "779f84a2ae6c857e83c4f23c7740d5a65f9ed7bf",
+  "created_at": "2026-10-03T20:03:07.848159+00:00",
+  "flattened": false,
+  "friendly_name": "Drain the snapshot-versus-files work-package disagreement",
+  "merged_at": "2026-10-03T22:36:33.704636+00:00",
+  "merged_commit": "2ed3670679a0a196584cf5d6fa04078508aeff7c",
+  "mid8": "01M41NSY",
+  "mission_id": "01M41NSYWN5Y93G51HSPFAZ7QV",
+  "mission_number": 213,
+  "mission_slug": "wp-snapshot-backfill-01M41NSY",
+  "mission_type": "software-dev",
+  "purpose_context": "The reduced status snapshot omits work packages with no lane events; 51 Missions disagree with their tasks/WP*.md files. Add a canonical repair seeding missing events (planned for live, planned+done for finished Missions) and exemptions for orphan snapshot WPs.",
+  "purpose_tldr": "Backfill missing work-package status events so every Mission's snapshot matches its WP files (#5579)",
+  "slug": "wp-snapshot-backfill-01M41NSY",
+  "status_phase": "1",
+  "target_branch": "issue-5579-wp-snapshot-backfill",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-03T20:16:19.266946+00:00"
+}

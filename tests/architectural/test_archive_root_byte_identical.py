@@ -187,6 +187,27 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   Follow-up: once this correction is in main's baseline, this entry is dead
 #   weight and should be removed to restore the byte-freeze on the corrected
 #   files (#5288).
+#
+# - the 42 pre-existing files of 24 Missions listed in the entries below (24
+#   `status.events.jsonl` + 18 `status.json`; every file git reports as `M` for
+#   the #5579 drain -- the 20 new `status.events.jsonl` files and the mission's
+#   own `evidence-manifest.yaml` are additions, which this gate does not police)
+#   (2026-10-03, operator decision by stijn-dejongh, Decision Moment
+#   01M41NVK4T6Y912R0JBYS0A5DH, mission wp-snapshot-backfill-01M41NSY, #5579):
+#   the reduced snapshot omitted every WP that never received a lane event, so
+#   committed Missions disagreed with their own `tasks/WP*.md` set (set-based
+#   parity, FR-009). The correction ran the canonical
+#   `spec-kitty migrate backfill-wp-status` over the corpus: it APPENDS
+#   deterministic `migration:`-actor seed events (a `genesis -> planned` seed per
+#   unseeded WP file, plus a forced `planned -> done` citing recorded terminal
+#   evidence for finished Missions) -- no existing event line is rewritten -- and
+#   regenerates `status.json` only where one is already committed. The reducer is
+#   untouched; `tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py`
+#   gates the result.
+#   Follow-up: once these corrections are in main's baseline, these entries are
+#   dead weight and should be removed to restore the byte-freeze on the corrected
+#   files (#5608). Owner: stijn-dejongh; drain by 2026-12-31. This set is not
+#   governed by tests/architectural/_baselines.yaml, so the pricing lives here.
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
@@ -198,6 +219,48 @@ _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
         "kitty-specs/org-init-template-security-remediation-01KY4S90/meta.json",
         "kitty-specs/org-init-template-security-remediation-01KY4S90/status.events.jsonl",
         "kitty-specs/org-init-template-security-remediation-01KY4S90/status.json",
+        "kitty-specs/005-refactor-mission-system/status.events.jsonl",
+        "kitty-specs/005-refactor-mission-system/status.json",
+        "kitty-specs/055-agent-skills-pack/status.events.jsonl",
+        "kitty-specs/055-agent-skills-pack/status.json",
+        "kitty-specs/057-doctrine-stack-init-and-profile-integration/status.events.jsonl",
+        "kitty-specs/057-doctrine-stack-init-and-profile-integration/status.json",
+        "kitty-specs/062-fix-doctrine-migration-test-failures/status.events.jsonl",
+        "kitty-specs/062-fix-doctrine-migration-test-failures/status.json",
+        "kitty-specs/asset-preservation-migrate-fetch-01M3E857/status.events.jsonl",
+        "kitty-specs/asset-preservation-migrate-fetch-01M3E857/status.json",
+        "kitty-specs/ci-main-concurrency-fanout-cap-01M2K46V/status.events.jsonl",
+        "kitty-specs/ci-scoping-gate-reliability-01KZP80D/status.events.jsonl",
+        "kitty-specs/ci-scoping-gate-reliability-01KZP80D/status.json",
+        "kitty-specs/cli-error-surface-seam-01M2WJD2/status.events.jsonl",
+        "kitty-specs/cli-error-surface-seam-01M2WJD2/status.json",
+        "kitty-specs/decide-out-of-matrix-test-dirs-01M2TKC7/status.events.jsonl",
+        "kitty-specs/decide-out-of-matrix-test-dirs-01M2TKC7/status.json",
+        "kitty-specs/drg-reachability-metric-wiring-01KZS5VR/status.events.jsonl",
+        "kitty-specs/drg-reachability-metric-wiring-01KZS5VR/status.json",
+        "kitty-specs/expected-artifacts-loader-unification-01M1C9VQ/status.events.jsonl",
+        "kitty-specs/expected-artifacts-loader-unification-01M1C9VQ/status.json",
+        "kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/status.events.jsonl",
+        "kitty-specs/git-tip-helper-consolidation-01M3D4RT/status.events.jsonl",
+        "kitty-specs/glossary-modeling-delta-01M1GXV9/status.events.jsonl",
+        "kitty-specs/next-committed-state-authority-01M1CA8W/status.events.jsonl",
+        "kitty-specs/next-committed-state-authority-01M1CA8W/status.json",
+        "kitty-specs/post-convergence-governance-01M1TMPH/status.events.jsonl",
+        "kitty-specs/resume-primary-staged-deletion-integrity-01M3CCH9/status.events.jsonl",
+        "kitty-specs/sync-sleep-count-3136-01KZ9B5A/status.events.jsonl",
+        "kitty-specs/sync-sleep-count-3136-01KZ9B5A/status.json",
+        "kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/status.events.jsonl",
+        "kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/status.json",
+        "kitty-specs/terminus-integrity-followups-01M393QR/status.events.jsonl",
+        "kitty-specs/terminus-integrity-followups-01M393QR/status.json",
+        "kitty-specs/terminus-merge-integrity-01M380R6/status.events.jsonl",
+        "kitty-specs/terminus-merge-integrity-01M380R6/status.json",
+        "kitty-specs/terminus-safety-invariant-01M2XFT7/status.events.jsonl",
+        "kitty-specs/terminus-safety-invariant-01M2XFT7/status.json",
+        "kitty-specs/up-mission-type-seam-01KZY1JB/status.events.jsonl",
+        "kitty-specs/up-mission-type-seam-01KZY1JB/status.json",
+        "kitty-specs/up-org-doctrine-consumers-01M05YAB/status.events.jsonl",
+        "kitty-specs/up-org-doctrine-consumers-01M05YAB/status.json",
     }
 )
 

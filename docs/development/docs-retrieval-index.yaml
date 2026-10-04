@@ -3942,6 +3942,7 @@ pages:
     - {slug: "spec-kitty-migrate-backfill-provenance", text: "spec-kitty migrate backfill-provenance", level: 2}
     - {slug: "spec-kitty-migrate-backfill-runtime-state", text: "spec-kitty migrate backfill-runtime-state", level: 2}
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
+    - {slug: "spec-kitty-migrate-backfill-wp-status", text: "spec-kitty migrate backfill-wp-status", level: 2}
     - {slug: "spec-kitty-migrate-charter-encoding", text: "spec-kitty migrate charter-encoding", level: 2}
     - {slug: "spec-kitty-migrate-normalize-lifecycle", text: "spec-kitty migrate normalize-lifecycle", level: 2}
     - {slug: "spec-kitty-migrate-rebaseline-dossier-hashes", text: "spec-kitty migrate rebaseline-dossier-hashes", level: 2}
@@ -12684,6 +12685,19 @@ pages:
     - {slug: "phase-7-follow-through", text: "Phase 7: Follow-Through", level: 2}
     - {slug: "current-prs-to-check-during-cutover", text: "Current PRs to Check During Cutover", level: 2}
     - {slug: "rollback-plan", text: "Rollback Plan", level: 2}
+  - path: "docs/migrations/backfill-wp-status.md"
+    title: "How to repair a Mission whose status snapshot misses work packages"
+    divio_type: "how-to"
+    abstract: "Run spec-kitty migrate backfill-wp-status to seed the lane events that a Mission’s work package files lack, so progress and counts match the files; covers the evidence manifest, dry-run, exit codes and JSON output."
+    anchors:
+    - {slug: "why-a-mission-can-be-short-of-wps", text: "Why a Mission can be short of WPs", level: 2}
+    - {slug: "before-you-start", text: "Before you start", level: 2}
+    - {slug: "steps", text: "Steps", level: 2}
+    - {slug: "mark-finished-missions-with-an-evidence-manifest", text: "Mark finished Missions with an evidence manifest", level: 2}
+    - {slug: "what-the-command-changes", text: "What the command changes", level: 2}
+    - {slug: "missions-with-a-live-coordination-surface", text: "Missions with a live coordination surface", level: 3}
+    - {slug: "read-the-result", text: "Read the result", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/migrations/charter-ownership-consolidation.md"
     title: "Migration — Charter ownership consolidation"
     divio_type: "none"

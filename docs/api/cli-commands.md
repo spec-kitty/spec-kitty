@@ -3357,6 +3357,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            into DRG edges.                                   │
 │ backfill-runtime-state     Seed legacy runtime state as events, verify       │
 │                            fail-closed, and flip status_phase.               │
+│ backfill-wp-status         Seed the lane events a Mission's WP files lack,   │
+│                            so the status snapshot counts every WP (#5579).   │
 │ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
 │                            hashes (FR-009, WP05).                            │
 │ repin-hooks                Re-pin this repository's pre-commit hook to the   │
@@ -3737,6 +3739,78 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                                        command otherwise runs; combine with  │
 │                                        --dry-run to preview.                 │
 │ --help                   -h            Show this message and exit.           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-wp-status
+
+```
+ Usage: spec-kitty migrate backfill-wp-status [OPTIONS]
+
+ Seed the lane events a Mission's WP files lack, so the status snapshot counts
+ every WP (#5579).
+
+ The reduced status snapshot omits any WP with no lane event, so a Mission
+ whose event log never seeded some ``tasks/WP*.md`` file under-counts on
+ every read surface that lists WPs from the files. This command appends one
+ deterministic ``planned`` seed per missing WP (actor
+ ``migration:backfill_wp_status``)
+ through the existing migration writer, on the Mission's resolved
+ PRIMARY-partition status surface. It is idempotent: a re-run appends
+ nothing. WPs the snapshot carries without a WP file are reported, never
+ repaired. A Mission whose status log lives on a live coordination surface
+ is refused (``COORD_SURFACE_LIVE``, counted as skipped, nothing written):
+ consolidate it first, or run from the coordination checkout.
+
+ A Mission with terminal evidence (``meta.json`` ``merged_at`` /
+ ``accepted_at``, or an entry in ``--evidence-manifest``) has its freshly
+ seeded WPs driven on to ``done`` with a forced, evidence-citing event, so
+ its progress reads 100%. Nothing else counts as evidence.
+
+ The evidence manifest must be complete on the first live run. Terminal
+ evidence applies only to WPs seeded in that same run: a WP an earlier run
+ already seeded ``planned`` is no longer a gap, so evidence supplied later
+ is a silent no-op (the summary warns for every manifest entry that had
+ nothing to seed). Run ``--dry-run`` with the full manifest first.
+
+ The manifest is YAML, keyed by exact ``kitty-specs/`` directory name:
+
+     missions:
+       my-mission-01ABCDEF:
+         reason: "PR #1234 merged 2026-09-01; dossier landed on main"
+
+ A missing/empty reason or a slug that does not resolve is refused up front
+ (exit 1, nothing written).
+
+ Exit codes:
+
+ - ``0`` — every visited Mission was repaired, needed nothing, or was refused
+   as ``COORD_SURFACE_LIVE``
+ - ``1`` — a per-Mission error, an invalid evidence manifest, or an unknown
+   ``--mission`` handle
+
+ Examples:
+
+     spec-kitty migrate backfill-wp-status --dry-run
+
+     spec-kitty migrate backfill-wp-status --mission my-mission-01ABCDEF --json
+
+     spec-kitty migrate backfill-wp-status --evidence-manifest evidence.yaml
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run                            Report per-Mission would-seed plans;    │
+│                                      write nothing.                          │
+│ --mission                    HANDLE  Scope to a single mission (mission_id / │
+│                                      mid8 / slug). Omit to process the whole │
+│                                      corpus.                                 │
+│ --evidence-manifest          FILE    YAML file marking Missions finished:    │
+│                                      missions: {<slug>: {reason: <text>}}.   │
+│                                      Applies only to WPs seeded in the same  │
+│                                      run, so it must be complete on the      │
+│                                      first live run.                         │
+│ --json                               Emit the per-Mission repair result and  │
+│                                      summary as structured JSON.             │
+│ --help               -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

@@ -1,0 +1,56 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-03T20:03:57.289650Z",
+      "decision_id": "01M41NVF793GND7NK09HH74Z63",
+      "final_answer": "main_only: fix the disagreement itself; #5581 sets its ceiling to 0 when it lands",
+      "input_key": "mission_base",
+      "mission_id": "01M41NSYWN5Y93G51HSPFAZ7QV",
+      "mission_slug": "wp-snapshot-backfill-01M41NSY",
+      "opened_by": "cli",
+      "options": [
+        "wait",
+        "stack",
+        "main_only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Base the mission on main or stack on #5581 (ratchet PR)?",
+      "rationale": null,
+      "resolved_at": "2026-10-03T20:03:59.280051Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.base",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-03T20:04:01.306510Z",
+      "decision_id": "01M41NVK4T6Y912R0JBYS0A5DH",
+      "final_answer": "backfill_terminal: seed planned plus forced done for finished Missions so progress counts stay true; reducer unchanged (ADR 2026-06-07-3)",
+      "input_key": "finished_mission_policy",
+      "mission_id": "01M41NSYWN5Y93G51HSPFAZ7QV",
+      "mission_slug": "wp-snapshot-backfill-01M41NSY",
+      "opened_by": "cli",
+      "options": [
+        "exempt_done",
+        "backfill_planned",
+        "backfill_terminal",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How to treat finished Missions with missing/partial event logs?",
+      "rationale": null,
+      "resolved_at": "2026-10-03T20:04:03.178730Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.finished-mission-policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M41NSYWN5Y93G51HSPFAZ7QV",
+  "version": 1
+}

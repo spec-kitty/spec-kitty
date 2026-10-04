@@ -1,0 +1,70 @@
+# Terminal-evidence manifest for the WP-status backfill (#5579, WP03).
+#
+# Rule: a Mission is listed ONLY when git evidence shows it is finished:
+#   (1) its dossier reached skupstream/main (c11d043e54) through a merged PR, found with
+#       GET /repos/spec-kitty/spec-kitty/commits/<dossier-sha>/pulls (or an issue/PR search for
+#       Missions landed by direct commit), AND
+#   (2) the PR title/body shows the Mission's work was delivered (not only planned), AND
+#   (3) no existing WP of the Mission sits in an active lane (claimed/in_progress/for_review).
+# Missions with meta.json merged_at/accepted_at need no entry (the repair reads those itself).
+# Left OUT (stay planned, never guessed): 062-fix-doctrine-migration-test-failures (WPs still in
+# active lanes), blocked-wp-unblock-path-01M29093 (WP02 descoped before merge, PR #4245),
+# sync-sleep-count-3136-01KZ9B5A (PR #3252 rescoped; WP02/WP04 not delivered as planned).
+# Terminal evidence supplied on a later run is a no-op, so this manifest must stay complete.
+missions:
+  055-agent-skills-pack:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/330 merged 2026-03-21; the Agent Skills Pack shipped (feat(055)); the WPs already in the log are done and no WP is in an active lane"
+  057-doctrine-stack-init-and-profile-integration:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/348 merged 2026-04-04; the PR rebased and extended specs 057+058 (doctrine stack, profile integration); the WPs already in the log are done and no WP is in an active lane"
+  asset-preservation-migrate-fetch-01M3E857:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/5050 merged 2026-09-26; the PR delivers the migrate and charter-fetch preservation fixes; the Mission dossier is cited in the PR body"
+  ci-main-concurrency-fanout-cap-01M2K46V:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4541 merged 2026-09-16; Stage 1 (WP01) landed: per-SHA main concurrency plus the fleet-verdict fan-out cap; closes #4347 and #4371"
+  ci-scoping-gate-reliability-01KZP80D:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3312 merged 2026-08-10; the PR scopes the blocking gates to the PR changes, closing #3008 and #3147; the Mission dossier is cited"
+  cli-error-surface-seam-01M2WJD2:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4774 merged 2026-09-19; the PR lands the guarded-read and CLI error-presentation seam and closes umbrella #2899"
+  coord-commit-surface-authority-01M1M553:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3868 merged 2026-09-04; the PR lands the authoritative commit-surface rule for coord-topology Missions (#2533, #2300); the Mission dossier is cited"
+  decide-out-of-matrix-test-dirs-01M2TKC7:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4734 merged 2026-09-19; the PR decides the out-of-matrix test directories (#4374); the Mission dossier is cited"
+  dispatch-dry-run-route-only-01M1HKV2:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3845 merged 2026-09-03; the PR adds dispatch --dry-run, RouterDecision.alternatives and the SK-08 rerank fix (the three WPs) and closes #3840"
+  drg-reachability-metric-wiring-01KZS5VR:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3342 merged 2026-08-12; the PR adds the action-only reachability guard and wires the residual orphans, closing #3009 point 3"
+  expected-artifacts-loader-unification-01M1C9VQ:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3828 merged 2026-09-03; the PR unifies expected-artifacts.yaml loading and closes the org-tier fail-loud gap (#3770, #3412)"
+  finalize-repin-orphaned-planning-commit-01M31TAT:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4853 merged 2026-09-21; the PR re-pins an orphaned planning_commit_sha after a mid-mission rebase and closes #4827"
+  git-tip-helper-consolidation-01M3D4RT:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/5039 merged 2026-09-26; the PR consolidates target-branch tip capture behind one helper and closes #4857, #4593 and #4152"
+  glossary-modeling-delta-01M1GXV9:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4173 merged 2026-09-10; the PR lands the glossary domain-model pressure test and carries the Mission dogfooding artefacts"
+  merge-honor-retention-policy-01M1CA0E:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3826 merged 2026-09-02; the PR makes merge honour the Mission branch/worktree retention policy (fail-closed) and closes #3131"
+  mission-completion-terminal-state-01M129MV:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3774 merged 2026-08-28; the PR lands honest terminal state for canceled WPs (WP01-WP06) and closes #2945 and #3590"
+  modular-per-package-ci-01M025GV:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3459 merged 2026-08-15; the PR lands modular per-package CI; the Mission dossier is cited and #3447 is closed"
+  move-task-approval-ergonomics-01M302R0:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4820 merged 2026-09-21; the PR lands the issue-matrix classification seam, the not-applicable verdict and the move-task flag ergonomics, closing #3469"
+  next-latency-durable-fix-01M14RM3:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3792 merged 2026-08-29; the PR lands the charter-freshness cache and retires the blocking latency gate; the Mission dossier is cited"
+  post-convergence-governance-01M1TMPH:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3888 merged 2026-09-06; the PR lands the three governance WPs (ADR hygiene, SSOT, runtime-boundary ledger) and names this Mission as the governing Mission"
+  resume-primary-staged-deletion-integrity-01M3CCH9:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/5031 merged 2026-09-26; the PR recovers a behind-own-HEAD primary on --resume and closes #4997; the Mission dossier is cited"
+  sonar-bug-blocker-remediation-01KZP2P2:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3308 merged 2026-08-10; the PR remediates the open Sonar BUG and BLOCKER findings; the Mission dossier is cited"
+  team-kitty-launch-defaults-01M1XJ4Y:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4019 merged 2026-09-09; the PR implements the Team Kitty launch defaults (#3980) specified by the earlier planning PR #3984"
+  terminus-integrity-followups-01M393QR:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/5020 merged 2026-09-24; the PR lands the terminus integrity follow-ups (default-squash content axis, resume); the Mission dossier is cited"
+  terminus-merge-integrity-01M380R6:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/5012 merged 2026-09-24; the PR lands the terminus/merge-coord integrity work (reconciliation gate, CAS, fail-closed); the Mission dossier is cited"
+  terminus-safety-invariant-01M2XFT7:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/4789 merged 2026-09-20; the PR lands gate-then-mutate-with-rollback across merge/accept/close and closes #4764, #4765, #4474 and #2745"
+  up-mission-type-seam-01KZY1JB:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3424 merged 2026-08-14; the PR resolves org and project mission types through the layered roster seam and closes #3397"
+  up-org-doctrine-consumers-01M05YAB:
+    reason: "https://github.com/spec-kitty/spec-kitty/pull/3520 merged 2026-08-17; the PR threads org-tier resolution into the five doctrine consumers and closes #3516"

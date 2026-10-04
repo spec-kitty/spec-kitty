@@ -1,0 +1,181 @@
+{
+  "event_count": 43,
+  "last_event_id": "01M41YK44F8VQDWGNQRCJPA4R7",
+  "materialized_at": "2026-10-03T22:36:40.975445+00:00",
+  "mission_number": "213",
+  "mission_slug": "wp-snapshot-backfill-01M41NSY",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M41YJXSSGYVM2ZSTKK0VAAN3",
+      "last_transition_at": "2026-10-03T22:36:34.489933+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Planner (wp_status_backfill.py) + writer apply_wp_status_backfill[_repo] in backfill_runtime_state.py; red-first ac2ef3f5cf; 46 focused tests, migration dirs 618 passed, 231 named arch gates passed. test_no_dead_symbols transiently flags 3 new public names until WP02 wires CLI (not allowlisted).",
+        "APPROVED (reviewer-renata). Red-first verified independently: at ac2ef3f5cf the pinned test fails on its own (AttributeError: backfill_runtime_state has no attribute apply_wp_status_backfill; 1 failed) while asserting the pre-repair bug state green. Correctness probed, not trusted: gap is set-based both directions; WPCreated-only WPs seeded; WPs with real lane events untouched; ids byte-identical across two fresh runs; second run appends 0; dry-run writes nothing (545-mission corpus dry-run left the tree clean). Timestamps clean: seeded WPs have no other events, so a seed at meta created_at (probed 2030) or the 1970 fallback cannot reorder any existing WP (WP01 stayed claimed); planned->done +1s keeps (at,event_id) order; test_no_absolute_event_timestamp_mixture is a TEST-code gate and the new file never mixes a hardcoded at= with now(). Forced done passes validate_transition (force, actor, reason, evidence=None); actor pinned against MIGRATION_ACTOR_PREFIX. C-002 holds: the writer reuses resolve_status_lock_root + feature_status_lock + id-dedupe + append_event_stream_atomic_verified; diff is 3 files + traces; no _unsafe / writes-gate / legacy-emit / authority ledger entry. status.json regenerated only when already present; deleted-coordination-branch meta neither raises nor mints a branch; runtime-backfill interleaving stable in both orders. Tests: migration suites 618 passed / 2 skipped; 6 arch gates 135 passed; ruff + ruff format --check --force-exclude + C901<=15 clean; mypy --strict Success; coverage planner 97%, writer module 93%; corpus dry-run 545 missions in 12.7s, 0 errors, 44 gapped / 284 would-seed / 6 snapshot-only. NON-BLOCKING FOLLOW-UPS: (1) evidence supplied on a LATER run is a silent no-op -- once a WP is seeded planned it is in the snapshot, so files_only drops it and a manifest entry (or a meta.json that later gains merged_at) never drives it to done (probed: run1 no-evidence -> planned; run2 with manifest -> seeded 0, skip_reason 'nothing new to seed (idempotent)'). WP03's manifest must be complete on the FIRST pass; WP02 should document it in the CLI help. (2) wp_status_backfill.py:126-128 (the 'not meta.work_package_id' guard) is unreachable -- read_authored_wp_frontmatter raises ValidationError first; 3 uncovered lines. (3) nit: tests/unit/migration/test_wp_status_backfill.py:32 PLANNED_SEED_ID is defined and never used. (4) test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported is red for exactly the three new public names and nothing else (1 failed / 36 passed) -- expected per the WP, correctly left unallowlisted; WP02 must green it."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1823060,
+      "shell_pid_created_at": "1791058574.35",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 4,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M41YJZD60TF15CD1M57TTGMN",
+      "last_transition_at": "2026-10-03T22:36:36.134464+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 done: migrate backfill-wp-status CLI (41177a9cd7, red tests 06f431c2c1). 51 acceptance cases; ruff/format/mypy --strict clean; test_no_dead_symbols green (apply_wp_status_backfill removed from __all__ in WP01-owned backfill_runtime_state.py — scope-guard flagged); json-contract inventory PARSEABLE. Dry-run corpus smoke: 545 scanned, 44 would-seed (284 events), 13 finished, 6 snapshot-only, 0 errors. Reviewer: strict manifest, unused-entry WARNING, help states manifest must be complete on first live run.",
+        "Re-claim by implementer after review rejection (ownership still reviewer-renata)",
+        "Review fixes (0c3c0fa54d): whole-root _tree_bytes, ambiguous/legacy/selector-rejected branch tests, lock wording; backfill_wp_status.py 100%.",
+        "R1-R5 all addressed in 0c3c0fa54d (tests-only). _tree_bytes walks the whole tmp root again, excluding only *.status.lock (R1) with corrected lock-location wording (R5); ambiguous shared-mid8 handle pinned to MISSION_AMBIGUOUS with both candidates named and byte-identity (R2); legacy mission_id-less mission pinned to resolve by exact directory name plus three near-miss negatives -> MISSION_NOT_FOUND (R3); symlink escaping kitty-specs pinned to MISSION_SELECTOR_REJECTED with the outside tree byte-identical (R4); non-string manifest key and the human snapshot-only/malformed lines also covered. Counts: tests/cli/test_migrate_backfill_wp_status.py 54 passed, coverage of backfill_wp_status.py 152/152 = 100%; tests/architectural/test_no_dead_symbols.py 37 passed; ruff check, ruff format --check --force-exclude, mypy --strict on the touched test file all clean. Prior-cycle evidence stands (293 + 170 passed, C901 clean, real-corpus --dry-run --json exit 0 with git status clean). Residual (non-blocking): the symlink containment test has no Windows-privilege guard, matching existing unguarded precedent in tests/cli/commands/test_retrospect.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "implementer-ivan",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M41YK11ZSSB7HDFR4N14G76M",
+      "last_transition_at": "2026-10-03T22:36:37.823578+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Corpus drained: 417 events / 44 Missions, 28-entry evidence manifest, commit 1270000bdc; handoff in design-decisions.md",
+        "REVIEWER VERDICT (reviewer-renata): WP03 corpus drain APPROVED. Verified read-only: (1) all 24 modified status.events.jsonl strictly append-only vs 10b243d73d (byte-identical prefixes); all 18 regenerated status.json byte-identical to materialize_snapshot output (477/513 corpus-wide identical; the 36 mismatches are untouched pre-existing drift, zero overlap with the 44 touched logs). (2) Second dry-run with the manifest: scanned=545, missions_would_seed=0, events_would_seed=0, malformed=0, errors=0. (3) Independent parity: 0 files_only missions; exactly the 7 bucket-C missions carry snapshot-only extras, matching the handoff. (4) 417 seeded rows (214 genesis->planned, 203 forced planned->done), all actor migration:backfill_wp_status, every done force=true with an evidence-citing reason and evidence=null, 417/417 event_ids recompute exactly via seed_event_id (deterministic), and no WP with a pre-existing lane event was seeded. (5) Spot-audited 9 manifest entries (PRs 330, 348, 4541, 4173, 4019, 3774, 3845, 3888, 5050): all MERGED and delivering the cited mission's work; the 055/057 thin-evidence flags resolve (PR 330 is titled feat(055); PR 348 body explicitly extends specs 057+058 and ships src/doctrine/, and both missions already had later WPs done). 28 manifest entries, none stale, none overlapping the 13 meta.json-evidence missions; the 3 left planned (062 - WP02 in_progress/WP11 claimed; blocked-wp-unblock-path - PR 4245 deliberately does not close #3937; sync-sleep-count - PR 3252 rescoped) carry no meta terminal field and are correctly conservative. (6) Diff is 21 A + 42 M, all under kitty-specs/, nothing outside. T013 ledger exact: the 42 M paths in the commit body and in traces/design-decisions.md are set-identical to git diff --diff-filter=M. Working tree clean throughout."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1934310,
+      "shell_pid_created_at": "1791063435.88",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-rachel",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "implementer-ivan",
+      "force_count": 4,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M41YK44F8VQDWGNQRCJPA4R7",
+      "last_transition_at": "2026-10-03T22:36:40.975445+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 done: parity gate (9 tests, scan 0.7s) + 42 sanctioned corrections; red evidence in bcaa82460d",
+        "Reviewer claiming WP04 for review (#5579)",
+        "REJECT: F1 blocking (missing pytest.mark.corpus -> gate never runs on the corpus-only change class it polices); F2 two of seven exemption reasons factually wrong (035/037 do have a committed tasks/.gitkeep); F3 the ~9ms/file perf claim justifying the parallel regex reader is refuted (measured 1.87ms/file, 5.97s corpus-wide; canonical fits NFR-001). Regex vs canonical agree on 3189/3189 WP files, 0 disagreements.",
+        "Rework F1-F3 in 6336e7b20f",
+        "Reviewer claiming WP04 rework 6336e7b20f for re-review (#5579)",
+        "APPROVE. Rework 6336e7b20f closes all three findings. F1: pytestmark now [integration, corpus] and the module is registered in _CORPUS_MARKED_MODULES (test_ci_corpus_trigger_completeness.py:211); verified functionally -- 'pytest tests/specify_cli/migration/ -m corpus --collect-only' now selects all 9 gate tests (9/291 collected, 282 deselected), so a corpus-only kitty-specs/**/tasks/** change does route to this gate. F2: _GITKEEP_ONLY_REASON accurately describes 035/037 (tracked tasks/.gitkeep, no WP files) and 036 now carries its own accurate 'no tasks/ dir at all' reason; the census control was re-keyed from 'no tasks/ dir' to 'no WP files' and gained a non-emptiness assertion, so it now covers all three rather than only 036. F3: the regex reader is deleted (no residual read_work_package_id / _WORK_PACKAGE_ID_LINE / import re) and collect_wp_file_ids now calls the canonical read_authored_wp_frontmatter with malformed semantics identical to the repair CLI's planner (wp_status_backfill.collect_wp_file_ids) -- one authority, and the two readers can no longer drift. Everything previously verified still holds: set-based both-directions comparison, files_only unwaivable, exactly 7 priced exemptions, stale-exemption and self-mutation controls non-vacuous, census 532 >= 400, the 42-entry ledger byte-identical to the M files of 1270000bdc, materialize_snapshot only. Runtime 8.78 s (7.80 s corpus scan) -- up from 1.51 s with the canonical reader, still inside NFR-001's 15 s though with less headroom; worth a note if the corpus keeps growing. Tests: gate 9 passed in 8.78 s; gate + test_archive_root_byte_identical.py + test_ci_corpus_trigger_completeness.py 56 passed in 16.67 s; ruff check and ruff format --check --force-exclude clean on both touched files; mypy Success: no issues found in 2 source files. Working tree clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M41YK2JRN3PZD80WP96S53QY",
+      "last_transition_at": "2026-10-03T22:36:39.384827+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs + CHANGELOG committed a53d7f8b86",
+        "WP05 docs+CHANGELOG under review (commit a53d7f8b86); verifying every claim against lane-b source. --force only for the scribe-sally assignee gate.",
+        "REVIEWER VERDICT (reviewer-renata): WP05 docs + CHANGELOG APPROVED (commit a53d7f8b86). Read-only review. (1) Every factual claim checked against lane-b source: docs/api/cli-commands.md:3745-3812 is byte-identical to the live `migrate backfill-wp-status --help`; the how-to's terminal-evidence order (meta.json merged_at > accepted_at > manifest) matches wp_status_backfill.py _META_EVIDENCE_KEYS + resolve_terminal_evidence; actor migration:backfill_wp_status matches WP_STATUS_BACKFILL_ACTOR; planned seed is genesis->planned, the finished-Mission follow-up is force=True planned->done with an evidence-citing reason; the four manifest-validation refusals and the 'checked even when --mission scopes elsewhere' claim match parse_evidence_manifest/check_manifest_slugs/_prepare; exit codes 0/1 (incl. ambiguous handle via AmbiguousHandleError) match run_backfill_wp_status; the first-live-run rule matches unused_manifest_entries + _COMPLETE_FIRST_RUN_NOTE; idempotence, 'status.json regenerated only where it already existed' and 'snapshot-only reported, never repaired' match _apply_wp_status_backfill_locked/_refresh_snapshot_if_present/WpGap. All 20 documented JSON keys (summary counters, manifest.path/entries/unused, mission rows) are set-identical to build_payload/build_summary/_mission_row, and the failure envelope {success,error_code,error} matches _emit_failure. (2) CHANGELOG entry matches neighbour format (bold impact-first lead, (#5579), Before:/After:); numbers confirmed: 51 disagreeing Missions (spec.md:11, plan.md:20), 417 events / 44 Missions (WP03 drain, approved). (3) Docs doctrine: one Divio quadrant (type: how-to, inventory+retrieval index entries present), updated: '2026-10-03', audience named in frontmatter and body, no images so no alt text due, 'Mission' used throughout (zero 'feature' hits). Tests: check_docs_freshness.py --ci errors=0 warnings=7 (all pre-existing: materialize/moments help drift, 3 link probes); test_no_legacy_terminology.py 96 passed; test_docs_cli_reference_parity.py 9 passed with lane-b src (red on root src only because pytest.ini pythonpath=src prepends the root checkout, which does not carry the command yet). Non-blocking notes: (a) CHANGELOG 'a corpus parity test keeps it that way' describes WP04's tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py, which is still in_progress and absent from the tree - true only once WP04 lands in the same release (wording mandated by T018); (b) 'This repository's corpus is drained (417 events over 44 Missions)' is a dogfood-repo detail in a consumer-facing changelog. --force only for the scribe-sally assignee gate."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261003",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2070827,
+      "shell_pid_created_at": "1791064591.33",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    }
+  }
+}
