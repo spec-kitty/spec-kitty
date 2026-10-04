@@ -335,6 +335,8 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.DATA_MODEL,
         MissionArtifactKind.RESEARCH,
         MissionArtifactKind.CHECKLIST,
+        # friction-remediation-01M43DRV WP01 (#5552): plan-output contracts.
+        MissionArtifactKind.CONTRACT,
         MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
         MissionArtifactKind.TASKS_INDEX,
         MissionArtifactKind.WORK_PACKAGE_TASK,

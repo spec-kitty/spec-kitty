@@ -1184,8 +1184,9 @@ def _status_read_feature_dir(
 # ``MissionArtifactKind`` (FR-002 / data-model.md site map rows 2-9). Every entry
 # is a PRIMARY-partition kind (``is_primary_artifact_kind`` True), so each resolves
 # the SAME primary feature dir through the WP01 read seam. ``quickstart.md`` carries
-# no dedicated kind; it is a planning checklist doc and is classified ``CHECKLIST``
-# (a PRIMARY-partition kind) explicitly here — no silent default (DECISION 1 spirit).
+# no dedicated kind; it is a planning checklist doc classified ``CHECKLIST`` (a
+# PRIMARY-partition kind) — the same answer the shared classifier
+# ``kind_for_mission_file`` gives since #5552, so the two never disagree.
 def _accept_planning_artifact_kinds() -> dict[str, Any]:
     from mission_runtime import MissionArtifactKind
 

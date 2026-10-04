@@ -123,6 +123,15 @@ class MissionArtifactKind(enum.Enum):
     # **events** (``status.events.jsonl`` / ``decisions.events.jsonl`` --
     # :data:`DECISION_LOG`) are UNCHANGED by this move and stay COORD-partition.
     DECISION_LEDGER = "decision_ledger"
+    # friction-remediation-01M43DRV WP01 (#5552): ``contracts/**`` -- the
+    # interface contracts ``/spec-kitty.plan`` writes next to research.md and
+    # data-model.md -- is a PRIMARY-partition planning SOURCE kind. It used to
+    # classify to ``None``, so the squash projection treated it as coordination
+    # bookkeeping and REFUSEd on byte-identical planning content. No existing
+    # kind describes interface contracts; borrowing one would make
+    # ``mission_file_basenames_for_kind`` and the partition reasoning lie (the
+    # REVIEW_CYCLE / WORK_PACKAGE_TASK lesson above).
+    CONTRACT = "contract"
 
 
 @dataclass(frozen=True)
@@ -168,6 +177,8 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         MissionArtifactKind.DATA_MODEL,
         MissionArtifactKind.RESEARCH,
         MissionArtifactKind.CHECKLIST,
+        # friction-remediation-01M43DRV WP01 (#5552): plan-output contracts.
+        MissionArtifactKind.CONTRACT,
         MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
         MissionArtifactKind.TASKS_INDEX,
         MissionArtifactKind.WORK_PACKAGE_TASK,
@@ -273,6 +284,13 @@ _MISSION_FILE_KIND_BY_BASENAME: dict[str, MissionArtifactKind] = {
     "spec.md": MissionArtifactKind.SPEC,
     "data-model.md": MissionArtifactKind.DATA_MODEL,
     "research.md": MissionArtifactKind.RESEARCH,
+    # friction-remediation-01M43DRV WP01 (#5552): ``quickstart.md`` is a
+    # ``/spec-kitty.plan`` output (validation scenarios). It classifies to the
+    # PRIMARY-partition ``CHECKLIST`` kind -- the SAME classification the accept
+    # gate already applies (``acceptance._accept_planning_artifact_kinds``), so
+    # the classifier and accept give one answer. Unclassified (``None``), the
+    # squash projection carried it as coordination bookkeeping and REFUSEd.
+    "quickstart.md": MissionArtifactKind.CHECKLIST,
     "retrospective.yaml": MissionArtifactKind.RETROSPECTIVE,
     # ``baseline-tests.json`` is the move-task post-merge stale-assertion baseline
     # (``review/baseline.py``); it lives with its WP ``tasks/`` siblings on the
@@ -301,6 +319,11 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     # like traces/ -- unlike tasks/, nothing under decisions/ is deliberately
     # COORD, so there is no review-cycle-style filename leg to draw.
     "decisions": MissionArtifactKind.DECISION_LEDGER,
+    # friction-remediation-01M43DRV WP01 (#5552): contracts/ (plan-output
+    # interface contracts, any depth) is the PRIMARY-partition ``CONTRACT``
+    # kind. Directory-anchored like decisions/: nothing under contracts/ is
+    # coordination-owned.
+    "contracts": MissionArtifactKind.CONTRACT,
 }
 
 # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR 2026-08-03-1):
@@ -458,7 +481,9 @@ def mission_file_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]
     artifact home -- so a caller that needs "which files belong to this kind"
     never restates a ``issue-matrix.{json,md}`` style literal that can drift out
     of sync with the classifier. Directory-anchored kinds (``tasks/``,
-    ``traces/``, ...) have no basename entry and yield an empty set.
+    ``traces/``, ...) have no basename entry and yield an empty set; a kind with
+    BOTH legs (``CHECKLIST``: ``quickstart.md`` plus ``checklists/``) yields only
+    its basename entries, never the directory's files.
     """
     return frozenset(name for name, mapped in _MISSION_FILE_KIND_BY_BASENAME.items() if mapped is kind)
 

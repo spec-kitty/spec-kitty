@@ -219,6 +219,9 @@ _NON_DIVERGENT_CANONICAL_ARTIFACTS: frozenset[str] = frozenset(
         "spec.md",
         "data-model.md",
         "research.md",
+        # friction-remediation-01M43DRV WP01 (#5552): plan-output validation
+        # scenarios, single-writer human planning SOURCE like research.md.
+        "quickstart.md",
         "plan.md",
         "tasks.md",
         # planning SOURCE (single-writer). #2937 WP06 classified ``wps.yaml`` to
@@ -335,6 +338,11 @@ _NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset(
         # (``_COORD_RESIDUE_DIRS["decisions"]``) still maps this dir to the
         # ``DECISION_LEDGER`` kind -- only the kind's PARTITION moved.
         "decisions",
+        # friction-remediation-01M43DRV WP01 (#5552): contracts/ (plan-output
+        # interface contracts, ``CONTRACT`` kind) is human-authored PRIMARY
+        # planning SOURCE, single-writer like research.md -- no both-sides
+        # divergence, so no union driver.
+        "contracts",
     }
 )
 

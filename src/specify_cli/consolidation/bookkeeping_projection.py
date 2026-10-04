@@ -446,7 +446,8 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     #     projecting it forward clobbers the target's freshly committed value (the
     #     clean-merge baseline-validation regression);
     #   * every OTHER recognised PRIMARY-partition kind (spec / plan / tasks / lanes /
-    #     research / analysis-report / retrospective — :func:`is_primary_artifact_kind`);
+    #     research / quickstart / contracts / analysis-report / retrospective —
+    #     :func:`is_primary_artifact_kind`; quickstart + contracts since #5552);
     #   * the accept-time gate matrices ``issue-matrix.json`` / ``acceptance-matrix.json``
     #     (``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``): although coord-partition, these are
     #     authored on the PRIMARY checkout by ``accept`` (#2404) and have their OWN

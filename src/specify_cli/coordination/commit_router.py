@@ -176,6 +176,8 @@ _PRE_TASKS_ARTIFACT_KINDS: Final[frozenset[MissionArtifactKind]] = frozenset(
         MissionArtifactKind.DATA_MODEL,
         MissionArtifactKind.RESEARCH,
         MissionArtifactKind.CHECKLIST,
+        # friction-remediation-01M43DRV WP01 (#5552): contracts/ is plan output.
+        MissionArtifactKind.CONTRACT,
     }
 )
 

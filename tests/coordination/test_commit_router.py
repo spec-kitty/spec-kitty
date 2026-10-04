@@ -177,7 +177,17 @@ def test_unprotected_direct_commit(tmp_path: Path) -> None:
     assert result.surfaces[0].committed == ("spec.md",)
 
 
-def test_protected_primary_refusal_names_mission_create_for_pre_tasks_kind(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "kind",
+    [
+        MissionArtifactKind.SPEC,
+        # friction-remediation-01M43DRV (#5552): contracts/ is plan output, a
+        # pre-tasks kind -- the finalize-tasks hatch would silently revert.
+        MissionArtifactKind.CONTRACT,
+    ],
+    ids=lambda kind: kind.value,
+)
+def test_protected_primary_refusal_names_mission_create_for_pre_tasks_kind(tmp_path: Path, kind: MissionArtifactKind) -> None:
     """Protected primary placement, PRE-TASKS kind → ``agent mission create`` remedy.
 
     ``SPEC`` is a pre-tasks kind (write-surface-coherence): no ``tasks/``
@@ -214,7 +224,7 @@ def test_protected_primary_refusal_names_mission_create_for_pre_tasks_kind(tmp_p
             files=(artifact,),
             message="Add spec",
             policy=policy,
-            kind=MissionArtifactKind.SPEC,
+            kind=kind,
         )
 
     assert result.status == "no_op_wrong_surface"
