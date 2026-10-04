@@ -372,15 +372,14 @@ def test_config_roundtrip_helpers_still_exposed(tmp_path: Path) -> None:
     assert (tmp_path / ".kittify" / "config.yaml").exists()
 
 
-def test_sync_create_missing_restores_vibe_pointer_without_touching_manifest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sync_create_missing_restores_lost_vibe_pointer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An installed vibe agent with a lost ``.vibe/config.toml`` pointer is recovered.
 
     ``sync --create-missing`` skips re-installing an already-installed skill
-    agent so it never rewrites the pinned command-skills manifest (#2691), but
-    the gitignored vibe ``skill_paths`` pointer is not part of that manifest and
-    must still be restored. A repeat run reports no change.
+    agent, but the gitignored vibe ``skill_paths`` pointer is not part of the
+    command-skills manifest and must still be restored. A repeat run reports no
+    change. (That the pinned manifest itself is never rewritten is owned by
+    ``tests/regressions/test_issue_2691_agent_config_sync_preservation.py``.)
     """
     import json
     import subprocess
@@ -392,8 +391,6 @@ def test_sync_create_missing_restores_vibe_pointer_without_touching_manifest(
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     _write_project(tmp_path, ["vibe"])
     command_installer.install(tmp_path, "vibe")
-    manifest = tmp_path / ".kittify" / "command-skills-manifest.json"
-    manifest_before = manifest.read_bytes()
     assert not skill_path_configured(tmp_path)
     monkeypatch.chdir(tmp_path)
 
@@ -401,25 +398,31 @@ def test_sync_create_missing_restores_vibe_pointer_without_touching_manifest(
     first = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned", "--json"])
     second = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned", "--json"])
 
-    # Assert: pointer restored once, manifest bytes untouched, repeat is a no-op.
+    # Assert: pointer restored once, repeat is a no-op.
     assert first.exit_code == 0, first.output
     assert skill_path_configured(tmp_path)
-    assert manifest.read_bytes() == manifest_before
     first_summary = json.loads(first.output[first.output.index("{") :])
     assert first_summary == {"changes_made": True, "tracked_mutations": []}
 
     assert second.exit_code == 0, second.output
     second_summary = json.loads(second.output[second.output.index("{") :])
     assert second_summary == {"changes_made": False, "tracked_mutations": []}
-    assert manifest.read_bytes() == manifest_before
 
 
-@pytest.mark.parametrize("agent_key", ["codex", "pi", "letta"])
-def test_restore_installed_skill_agent_pointer_ignores_non_vibe_agents(tmp_path: Path, agent_key: str) -> None:
-    """Only vibe has a ``.vibe/config.toml`` pointer; other skill agents are left alone."""
-    from specify_cli.cli.commands.agent.config import _restore_installed_skill_agent_pointer
+def test_sync_create_missing_leaves_installed_non_vibe_skill_agent_without_vibe_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only vibe has a ``.vibe/config.toml`` pointer; an installed codex project gets none."""
+    import subprocess
 
-    assert _restore_installed_skill_agent_pointer(tmp_path, agent_key) == (False, None)
+    from specify_cli.skills import command_installer
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    _write_project(tmp_path, ["codex"])
+    command_installer.install(tmp_path, "codex")
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned"])
+
+    assert result.exit_code == 0, result.output
     assert not (tmp_path / ".vibe").exists()
 
 
@@ -427,7 +430,7 @@ def test_sync_create_missing_reports_unrestorable_vibe_pointer(tmp_path: Path, m
     """A corrupt ``.vibe/config.toml`` is reported as an error and left untouched.
 
     The pointer restore never overwrites an operator file it cannot parse; the
-    sync surfaces the failure (exit 1) and the pinned manifest is unchanged.
+    sync surfaces the failure (exit 1).
     """
     import subprocess
 
@@ -437,8 +440,6 @@ def test_sync_create_missing_reports_unrestorable_vibe_pointer(tmp_path: Path, m
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     _write_project(tmp_path, ["vibe"])
     command_installer.install(tmp_path, "vibe")
-    manifest = tmp_path / ".kittify" / "command-skills-manifest.json"
-    manifest_before = manifest.read_bytes()
     pointer = tmp_path / ".vibe" / "config.toml"
     pointer.parent.mkdir()
     corrupt = b"skill_paths = [unterminated\n"
@@ -448,9 +449,8 @@ def test_sync_create_missing_reports_unrestorable_vibe_pointer(tmp_path: Path, m
     # Act
     result = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned"])
 
-    # Assert: error surfaced, operator file preserved byte-for-byte, manifest pinned.
+    # Assert: error surfaced, operator file preserved byte-for-byte.
     assert result.exit_code == 1, result.output
     output = " ".join(result.output.split())
     assert "Failed to restore .vibe/config.toml skill_paths pointer" in output
     assert pointer.read_bytes() == corrupt
-    assert manifest.read_bytes() == manifest_before
