@@ -1,0 +1,218 @@
+# Shard-timings recapture -- scheduled automatic remediation, plus the
+# strict-mode home for the exact-count invariant.
+#
+# Mission per-pr-shard-timings-recapture-friction-01M3H7V8, WP03 (spec-kitty#5189);
+# generalised from the charter module to every registry module (and renamed to match),
+# by mission shared-collection-and-shard-recapture-01M42V58.
+#
+# WP01 demotes `test_charter_agrees_with_live_collection` (and its sibling,
+# per #5240) from a per-PR hard failure to a visible `ShardTimingsDriftWarning`,
+# so an individual PR is no longer blocked on `charter`'s recorded shard-timing
+# count drifting away from live collection -- but that demotion, on its own,
+# only stops blocking; it does nothing to CLOSE the drift. This workflow is
+# the automatic remediation plus the invariant's real, scheduled, hard-failing
+# home (Standing Order #5):
+#
+#   * `recapture-shard-timings`: re-captures every registry module
+#     whose recorded shard timings drifted
+#     (`scripts/ci/recapture_shard_timings.py`, mission
+#     shared-collection-and-shard-recapture-01M42V58 WP04). A count-only pass
+#     (`pytest --collect-only`, seconds per module) finds the modules whose
+#     collected count differs from the committed one or whose provenance record
+#     is missing or invalid; only those are captured, each in its own
+#     subprocess through the canonical producer, oldest first, until the time
+#     budget is spent (the rest are reported as deferred and picked up by the
+#     next run). A failed capture of one module leaves that module's committed
+#     data unchanged and does not stop the others; the run is then marked
+#     failed.
+#     The result is proposed on a fixed branch: a new pull request when none is
+#     open, otherwise an ordinary follow-up commit on the open proposal (never a
+#     forced push). Pushes and opens the PR with a dedicated PAT/App-token
+#     secret (`CHARTER_SHARD_RECAPTURE_TOKEN`) -- NEVER `GITHUB_TOKEN` -- so the
+#     recapture PR triggers normal per-PR CI the same way a human-authored PR
+#     would (the same anti-recursion rationale `release.yml`'s `nightly-gate`
+#     job documents). The PAT is scoped to the `detect` and `publish` steps
+#     only; `uv sync` and the long in-process pytest captures run without it
+#     (see the job's comments). A push the token cannot make (HTTP 403) fails
+#     the publish step with a message naming the secret to fix.
+#   * `strict-shard-timings-check`: runs the architectural length-agreement
+#     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
+#     failure for every registry module (`charter`, `agent` and `consolidation`
+#     among them; no module is exempt any more) on a real, scheduled cadence -- `ci-nightly.yml`'s
+#     `architectural-backstop` runs the battery but without
+#     `SPEC_KITTY_STRICT_SHARD_TIMINGS`, so without this job WP01's per-PR
+#     demotion would be a silent removal of the exact-count gate, not a relocation.
+#
+# These two jobs are DELIBERATELY INDEPENDENT -- no `needs:` edge between
+# them, mirroring `ci-nightly.yml`'s own independent `performance`/`e2e`/
+# `stress`/`interpreter-matrix` jobs (none of which `needs:` each other). If a
+# module drifts, `strict-shard-timings-check` goes red (the visible alarm)
+# AND, independently in the same run, `recapture-shard-timings`
+# detects the same drift and opens/refreshes its fix PR (the fix); the next
+# scheduled run after that PR merges goes green again. Triage a red
+# `strict-shard-timings-check` run BY TEST NAME FIRST: its unfiltered
+# `pytest ... -q` invocation collects every test in the agreement file, so a
+# red run names the module that drifted (`test_every_registry_module_agrees_with_live_collection`).
+#
+# `schedule` + `workflow_dispatch` ONLY -- no `pull_request`/`push` trigger,
+# so a PR event can never start either job and neither can enter a
+# merge-blocking `needs:` chain. All `uses:` action references are SHA-pinned
+# (`@<40-hex> # v<tag>`), matching this repo's DIR-051 convention and the
+# closest structural precedent, `ci-stale-running-sweep.yml`.
+#
+# The recapture job is additionally gated `if: github.ref == 'refs/heads/main'`
+# (F4, #5271 landing pass): a `workflow_dispatch` from a topic branch would
+# otherwise capture THAT branch's suite and commit/push it onto the fixed
+# recapture branch and open a PR from it into `main`. A topic-branch dispatch
+# still runs `strict-shard-timings-check` (read-only) but skips the recapture.
+#
+# Note (see the script's module docstring for detail): the capture and the
+# length gate share one marker expression
+# (`scripts/ci/shard_select.MODULE_SELECTION_MARKER_EXPR`, #5510), so the
+# recorded length is the length the gate collects.
+#
+# The `schedule` trigger firing on its own, and the recapture job actually
+# opening a PR against the real `main` and running normal per-PR CI, are only
+# confirmable post-merge (GitHub only evaluates `schedule` triggers on the
+# workflow's copy on the default branch) -- pre-merge testing covers the
+# decision-logic unit tests and structural workflow-shape inspection only.
+
+name: CI Shard-Timings Recapture
+
+on:
+  schedule:
+    # 04:41 UTC daily -- off a round hour/minute, distinct from
+    # ci-nightly.yml's 17 3 * * * and ci-stale-running-sweep.yml's 23 */4 * * *,
+    # so the three scheduled workflows do not contend for the same
+    # runner-availability window.
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+# Static (NOT `${{ github.ref }}`-suffixed), deliberately. Every run that
+# can reach the recapture job (the schedule, or a manual `workflow_dispatch`
+# on `main` -- topic-branch dispatches are skipped by its `main` gate) pushes
+# to the SAME fixed recapture head branch (`ci/recapture-shard-
+# timings`) and open-PR-checks against it, because that head branch is a
+# constant, never derived from the triggering ref. A per-ref group (like
+# ci-nightly.yml's) would give a topic-branch dispatch its own slot; the
+# static group keys every run on one slot regardless of triggering ref, so
+# overlapping runs queue behind each other instead of racing on that shared
+# branch (C-006) -- defense-in-depth behind the `main` gate.
+concurrency:
+  group: ci-shard-recapture
+  cancel-in-progress: false
+
+# Least privilege: `git push`/`gh pr list`/`gh pr create` authenticate
+# through the dedicated CHARTER_SHARD_RECAPTURE_TOKEN PAT (wired into the
+# recapture job's `detect` and `publish` step env only), never through GITHUB_TOKEN, so no
+# job-level escalation is needed at the workflow level.
+permissions:
+  contents: read
+
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
+jobs:
+  recapture-shard-timings:
+    # F4: never publish a topic branch's capture -- see the header comment.
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    # Time arithmetic (NFR-007). The capture step stops STARTING captures after
+    # `--budget-seconds 4200` (70 min, counted from the script's start, so the
+    # count-only pass is inside it) and reports the rest as deferred. A capture
+    # that starts just under the budget can still run for its own timeout, 35 min
+    # (`DEFAULT_CAPTURE_TIMEOUT_SECONDS`; `charter`, the longest module, took about
+    # 25 min on a runner in the runs that hit the previous 30-minute cap, so 35 min
+    # leaves 40% headroom while still bounding a hung capture). So the script
+    # finishes within 70 + 35 = 105 min, and 120 min leaves 15 min for checkout,
+    # `uv sync`, `detect` and `publish`: at most one capture can start late and
+    # the job cannot time out in the middle of the next one.
+    timeout-minutes: 120
+    steps:
+      # Credential wiring (F1, #5271 landing pass). The write PAT must never
+      # be reachable by the long in-process pytest captures (they run whole
+      # module suites) or by `uv sync`, so:
+      #   * checkout uses the default read-only GITHUB_TOKEN and
+      #     `persist-credentials: false` -- no credential lands in
+      #     .git/config at all;
+      #   * the `capture` step's env has NO secret (the script refuses to run
+      #     the capture if CHARTER_SHARD_RECAPTURE_TOKEN is present);
+      #   * only the `detect` step (one `gh pr list`, no test code) and the
+      #     `publish` step receive the PAT, and the script hands it
+      #     per-subprocess: `git fetch`/`git push` via a one-shot
+      #     GIT_CONFIG_COUNT/GIT_CONFIG_KEY_n/GIT_CONFIG_VALUE_n
+      #     `http.https://github.com/.extraheader` entry in that subprocess's env
+      #     only, `gh` via GH_TOKEN in its env only; `git add`/`git commit` get
+      #     neither.
+      # There is no GITHUB_TOKEN fallback anywhere: a missing/empty PAT fails
+      # the detect step before any gh/git call -- early, before the long capture.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Set up environment
+        run: uv sync --frozen --all-extras
+      # Is a recapture proposal already open? When it is, the capture starts from
+      # that branch's data for the modules it already refreshed, so the nightly
+      # runs make progress instead of repeating the same first modules.
+      - name: Detect an open recapture proposal
+        id: proposal
+        env:
+          CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+        run: |
+          uv run --frozen python -m scripts.ci.recapture_shard_timings detect
+      # Token-free: finds the drifted modules, captures them within the time
+      # budget (each in its own subprocess), and records `drift` (something was
+      # captured) and `result` (drifted/captured/failed/deferred as JSON) as step
+      # outputs. The step fails when any module failed; the modules that did
+      # capture are still published below.
+      - name: Capture drifted shard timings (no credentials)
+        id: capture
+        env:
+          RECAPTURE_PROPOSAL_OPEN: ${{ steps.proposal.outputs.proposal_open }}
+        run: |
+          uv run --frozen python -m scripts.ci.recapture_shard_timings capture --write --budget-seconds 4200
+      # Runs when something was captured, even if another module failed (the
+      # failure keeps the job red). Re-checks for an open recapture PR
+      # immediately before publishing: none open -> push the branch (force is
+      # acceptable only here, the branch has no open PR) and open a PR; one open
+      # -> add a follow-up commit with a plain push, never a force.
+      - name: Publish the recapture proposal
+        if: ${{ !cancelled() && steps.capture.outputs.drift == 'true' }}
+        env:
+          CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+          RECAPTURE_RESULT: ${{ steps.capture.outputs.result }}
+          # GITHUB_SERVER_URL/GITHUB_REPOSITORY/GITHUB_RUN_ID/GITHUB_STEP_SUMMARY
+          # are runner defaults and deliberately NOT re-declared here: there is
+          # no `github.step_summary` context property, so re-declaring it would
+          # blank the summary path and silently drop the summary.
+        run: |
+          uv run --frozen python -m scripts.ci.recapture_shard_timings publish
+
+  # Independent of the job above (no `needs:` in either direction -- see the
+  # header comment). Needs no PAT and no secret: it only reads the repo and
+  # runs pytest, so actions/checkout's default credential (this workflow's
+  # own permissions: {contents: read}) is sufficient.
+  strict-shard-timings-check:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    # A local strict run of this exact command (`SPEC_KITTY_STRICT_SHARD_
+    # TIMINGS=1 pytest tests/architectural/test_module_length_agreement.py
+    # -q`, 4 cores, 2026-09-28) took ~230 s wall -- far above the ~36 s the
+    # test file's docstring records for an earlier collection-only
+    # measurement. 10 minutes would leave under 2x headroom once checkout
+    # and `uv sync --all-extras` are added, so 15 minutes: >=2x over
+    # (capture + ~2 min setup) on a comparably sized runner, still short
+    # enough to surface a genuinely hung job the same morning.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Set up environment
+        run: uv sync --frozen --all-extras
+      - name: Run architectural length-agreement gates under strict mode
+        env:
+          SPEC_KITTY_STRICT_SHARD_TIMINGS: "1"
+        run: uv run --frozen pytest tests/architectural/test_module_length_agreement.py -q

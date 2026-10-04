@@ -135,7 +135,7 @@ WORKFLOW_FILES: tuple[str, ...] = (
     # its ``strict-shard-timings-check`` job runs a real, directly-anchored
     # ``uv run --frozen pytest tests/architectural/test_module_length_agreement.py``
     # invocation on a schedule (the exact-count invariant's strict-mode home).
-    "ci-charter-shard-recapture.yml",
+    "ci-shard-recapture.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
