@@ -207,7 +207,9 @@ invents its own (an inline schema becomes `InlineObject3`, and a name can move w
 the contract grows). A consumer that wants stable type names generates from the split
 `contracts/mission-status/openapi.yaml` instead, which keeps its `$ref`s, so each
 named schema file stays one named type. Pin a commit or a release tag, and read the
-split tree from there.
+split tree from there. This is advice, not something CI checks: the Contracts workflow
+generates its TypeScript client from the bundle only, so generating from the split root
+is a path CI does not exercise.
 
 ## Validate and bundle locally
 
@@ -307,8 +309,16 @@ through a new `allOf` branch (`response-body-all-of-added`,
 `response-property-all-of-added`; a new `oneOf` or `anyOf` branch is already an error
 in `oasdiff`), a new response status code (`response-success-status-added`,
 `response-non-success-status-added`), a new response media type
-(`response-media-type-added`) and a new response header (`response-header-added`). A request-side optional addition, such as a new optional query
-parameter, stays additive.
+(`response-media-type-added`) and a new response header (`response-header-added`).
+Three more rules close the remaining ways a response grows. A new `default` or range
+(`4XX`/`5XX`) response is breaking (`response-key-added`); `oasdiff` does not report it,
+so `breaking_check.py` finds it by comparing each operation's response keys itself. A
+write-only property that becomes readable is breaking
+(`response-optional-property-became-not-write-only`,
+`response-required-property-became-not-write-only`), because the response now carries
+it. Added `patternProperties` on a response schema are breaking, because they admit
+properties the schema did not name. A request-side optional addition, such as a new
+optional query parameter, stays additive.
 
 **Unreleased versions carry `-SNAPSHOT`.** A version that has no release tag yet is
 written `1.0.0-SNAPSHOT`, as in Maven and Gradle: the work in progress of `1.0.0`, which
@@ -322,8 +332,10 @@ module (the release workflow has already installed Gradle and bundled the module
 then, and no publish step is reachable after the refusal), so a snapshot is never
 published.
 
-The breaking-change job writes the bundle of the last release tag and of the
-candidate and compares them with `oasdiff`. It fails with `BREAKING_WITHOUT_MAJOR`
+The breaking-change job writes the bundle of the baseline and of the candidate and
+compares them with `oasdiff`. The baseline is the latest release tag reachable from the
+commit under test, ordered by semver 2.0 precedence, so a higher tag on a side branch
+is never the baseline and `1.0.0-rc.2` sorts below `1.0.0-rc.10` and below `1.0.0`. It fails with `BREAKING_WITHOUT_MAJOR`
 when a breaking change leaves the major where it was, and with
 `BUNDLE_CHANGED_VERSION_SAME` when the bundle changed and `info.version` did not
 move at all. Elements marked `x-provisional` are removed from both sides first;
@@ -332,24 +344,35 @@ section.
 
 Until a release tag exists there is no baseline. The one allowed state is
 `info.version: 1.0.0-SNAPSHOT` (or `1.0.0` in the release commit) together with a
-heading of the same version in the module's `CHANGELOG.md`; the job prints `NO_BASELINE_INITIAL_VERSION` and counts it, so the
-state is never silent. A release is a tag `contract-<module>-v<semver>` (no leading
-`v` on the module part; for example `contract-mission-status-v1.0.0`), pushed to
-trigger the Contracts Release workflow. It publishes `openapi.yaml` and
-`openapi.yaml.sha256` as release assets, and only a tag push publishes: the
-Contracts workflow runs the same steps as a dry run on a pull request and cannot
-publish. Before it publishes, the release workflow refuses a tagged commit that is not
-an ancestor of `origin/main`, and runs `breaking_check.py --release-tag <tag>` against the
-previous release, so a release never skips the comparison. It also refuses a tag
-for which the Contracts workflow has not passed. Contracts runs on a push to `main`
-only when one of its trigger paths changed, so the workflow finds the most recent commit
-at or before the tagged one that touched those paths (the list is read from
-`on.push.paths` of `contracts.yml`, never copied) and requires a Contracts run with
-conclusion `success`, event `push`, branch `main` and that commit as its head. A
-run for a pull request does not count, and no commit, no run or an unreadable answer
-(queried through the workflow's own token) means refused. A tag on a later `main`
-commit that changed none of those paths is therefore accepted once the earlier commit's
-run passed.
+heading of the same version in the module's `CHANGELOG.md`; the job prints
+`NO_BASELINE_INITIAL_VERSION` and counts it, so the state is never silent.
+
+**What a release is.** A release is a tag `contract-<module>-v<semver>` (no leading
+`v` on the module part; for example `contract-mission-status-v1.0.0`), pushed by a
+maintainer to trigger the Contracts Release workflow. It publishes two assets:
+`openapi.yaml` and `openapi.yaml.sha256`. Only a tag push publishes; a pull request
+cannot, because the Contracts workflow runs the same steps there as a dry run.
+
+**What the gate checks before it publishes.** The Contracts Release workflow has two
+jobs. The `build` job has a read-only token. It runs every check and builds the
+assets:
+
+- It refuses a tagged commit that is not an ancestor of `origin/main`.
+- It runs `breaking_check.py --release-tag <tag>` against the previous release, so a
+  release never skips the comparison.
+- It refuses a tag for which the Contracts workflow has not passed. Contracts runs on
+  a push to `main` only when one of its trigger paths changed, so the workflow finds
+  the most recent commit at or before the tagged one that touched those paths (the
+  list is read from `on.push.paths` of `contracts.yml`, never copied) and requires a
+  Contracts run with conclusion `success`, event `push`, branch `main` and that commit
+  as its head. A run for a pull request does not count, and no commit, no run or an
+  unreadable answer (queried through the workflow's own token) means refused. A tag on
+  a later `main` commit that changed none of those paths is therefore accepted once
+  the earlier commit's run passed.
+
+The `publish` job runs only after `build` succeeds. It is the only job with a write
+token. Before it publishes, it confirms that the tag still resolves to the commit that
+`build` checked, because a tag is a mutable ref until it is published.
 
 ## Residual risk: handle-shaped strings
 
@@ -372,13 +395,14 @@ define. In ECMA 262 a non-multiline `$` matches only at the very end of the inpu
 Java `Matcher.find` treat `$` as also matching before a final line feed, so a validator
 built on them accepts that value. A consumer that validates inbound values must use ECMA
 262 semantics, or full-string matching (`re.fullmatch`, `Matcher.matches`), or reject a
-value with a trailing line feed first. The producer matches with `fullmatch`, so it never
-emits such a value; the patterns are not changed.
+value with a trailing line feed first. No producer of this contract ships yet. The
+projection that the reality check validates matches with `fullmatch`, so it never emits
+such a value, and a future producer must do the same. The patterns are not changed.
 
 ## Reader-author warning
 
-The reality check projects every Mission in the repository (at delivery 541
-Missions, 3156 work package payloads and 23594 events) through the status readers and
+The reality check projects every Mission in the repository (546 Missions, 3,193 work
+package payloads and 24,419 events when slice 5 landed) through the status readers and
 validates each projection against the contract. If you edit a status reader, run it
 locally first:
 
@@ -386,15 +410,16 @@ locally first:
 PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_mission_status_reality.py
 ```
 
-CI will not run it for you on the pull request. Two kinds of change select no job
-that runs the reality check: an edit under `src/specify_cli/status/**` (the readers
-the check imports), and an edit confined to `tests/contract/**`. The router's corpus
-filter matches `contracts/**` only. (An edit under `tests/contract/**` does start the
-Contracts workflow, but its `contract-tool-tests` job runs the unit tests of the contract
-tools and leaves the reality check and its payload helper to the router.) The Packs run
-on a push to `main` does not cover the gap either: it deselects these modules, which
-run once, in the router job. This is
-an accepted risk. The safety net is the nightly run
+CI will not run it for you on the pull request. These changes select no job that runs
+the reality check: an edit under `src/specify_cli/status/**` (the readers the check
+imports), an edit to the reality check's own test files or its fixture, and an edit to a
+Mission's `meta.json` or `status.events.jsonl`. The reality check runs in the router job
+`tests (corpus-blocking)`, and the router's `corpus` filter matches `contracts/**`
+rather than any of those paths. An edit under `tests/contract/**` selects the router job
+`tests (contract tools)`, which runs the unit tests of the contract tools and not the
+reality check. The Packs run on a push to `main` does not cover the gap either: it
+deselects these modules, which run once, in the router jobs. This is an accepted risk,
+tracked in issue #5623. The safety net is the nightly run
 (`ci-nightly.yml`, shard 4, scheduled daily at 03:17 UTC), which runs `tests/contract`
 on its full-mode cadence, so a reader that drifts from the contract is caught the
 next night, not on the pull request. To catch it sooner, dispatch the router in full
@@ -405,8 +430,11 @@ gh workflow run ci-router.yml -f mode=full --ref <branch>
 ```
 
 The check is read-only and never writes Mission state. It lets the status snapshot
-and the work package files disagree for a counted number of Missions (a ratchet,
-ceiling 52, tracked in #5579, to drain by 2026-12-31); a new disagreement fails it.
+and the work package files disagree for the Missions named in a shrink-only list (a
+ratchet, `header.disagreeing_missions` in
+`tests/contract/fixtures/mission_status_expected.json`, tracked in #5579, to drain by
+2026-12-31); a Mission that is not on the list and disagrees fails it, and the stored
+ceiling must equal the length of the list.
 
 ## Preview tags
 
