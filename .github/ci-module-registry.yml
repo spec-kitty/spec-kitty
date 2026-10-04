@@ -730,10 +730,15 @@ out_of_matrix_test_dirs:
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
     grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.corpus VERIFIED present.
     Real marker homes (mission ci-runtime-stabilisation, D-13/D-22): the Packs advisory
-    corpus run (packs.yml built-in-corpus-suite, -m "corpus and not windows_ci") plus the
-    small required router job 'tests (corpus-blocking)' in ci-router.yml, which carries the
-    corpus-marked tests with no other blocking per-PR home and is gated on the corpus path
-    group -- not the per-module matrix; claiming it in a module row too would double-run it.
+    corpus run (packs.yml built-in-corpus-suite, -m "corpus and not windows_ci") plus two
+    required router jobs in ci-router.yml (a required check through router-gate), not the
+    per-module matrix; claiming the directory in a module row too would double-run it. The
+    corpus-marked contract tool unit tests run in 'tests (contract tools)', gated on the
+    corpus path group (contracts/**) or the contract_tools group (tests/contract/** and what
+    the tools run on). The corpus modules that read the committed corpus (the reality check
+    and its payload helper, the example round trip) run in 'tests (corpus-blocking)', which
+    carries the corpus-marked tests with no other blocking per-PR home and is gated on the
+    corpus path group.
     Not a disguised snapshot (#2979 class).
   dirs:
   - tests/contract
