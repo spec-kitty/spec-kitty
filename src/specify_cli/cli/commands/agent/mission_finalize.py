@@ -484,7 +484,8 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
         return True
 
     changed_keys = {key for key in {*committed_meta.keys(), *current_meta.keys()} if committed_meta.get(key) != current_meta.get(key)}
-    return changed_keys <= FINALIZE_ATTRIBUTABLE_META_FIELDS
+    attributable: bool = changed_keys <= FINALIZE_ATTRIBUTABLE_META_FIELDS
+    return attributable
 
 
 def _resolve_repo_root(json_output: bool) -> Path:

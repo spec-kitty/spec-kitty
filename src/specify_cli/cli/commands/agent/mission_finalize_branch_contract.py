@@ -45,7 +45,7 @@ def _resolve_target_branch(
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
     try:
-        declared_target = _mf._resolve_planning_branch_via_mission(repo_root, primary_dir, target_branch_override=target_branch_override)
+        declared_target: str = _mf._resolve_planning_branch_via_mission(repo_root, primary_dir, target_branch_override=target_branch_override)
     except PlanningBranchResolutionFailed as exc:
         if json_output:
             _mf._emit_json({"error": str(exc), "error_code": exc.error_code})
