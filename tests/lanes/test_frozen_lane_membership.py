@@ -142,6 +142,26 @@ def test_started_wp_ids_table(history: list[str], expected: set[str]) -> None:
     assert started_wp_ids(events) == frozenset(expected)
 
 
+_WORK_LANES = {Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE}
+
+
+@pytest.mark.parametrize("lane", list(Lane), ids=lambda lane: str(lane))
+def test_started_set_is_exactly_the_work_lanes(lane: Lane) -> None:
+    """Every Lane member is classified; a new lane is not-started until named."""
+    event = StatusEvent(
+        event_id="01EVENTSINGLE",
+        mission_slug=_SLUG,
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=lane,
+        at="2026-10-04T00:00:00+00:00",
+        actor="tester",
+        force=True,
+        execution_mode="worktree",
+    )
+    assert started_wp_ids([event]) == (frozenset({"WP01"}) if lane in _WORK_LANES else frozenset())
+
+
 def test_started_wp_ids_cancel_after_work_stays_started() -> None:
     events = _events("WP01", "planned", "claimed", "in_progress", "canceled")
     events += _events("WP02", "planned", "canceled")

@@ -13,7 +13,7 @@ fan-in WPs become the synchronization point.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from itertools import combinations
 from typing import ClassVar
@@ -28,6 +28,12 @@ from specify_cli.lanes.branch_naming import (
     PLANNING_LANE_ID as PLANNING_LANE_ID,
     lane_branch_name,
     mission_branch_name,
+)
+from specify_cli.lanes.frozen_membership import (
+    REASON_PRECEDENCE,
+    FrozenLaneMembership,
+    MembershipConflict,
+    conflict_for,
 )
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
@@ -50,7 +56,7 @@ def is_planning_lane(lane: object) -> bool:
     # predicate's BACKING (and possibly its signature → context-aware) changes
     # here; callers must keep asking the semantic question via this seam.
     """
-    return getattr(lane, "lane_id", None) == PLANNING_LANE_ID
+    return bool(getattr(lane, "lane_id", None) == PLANNING_LANE_ID)
 
 
 def is_planning_artifact_only(lanes_manifest: object) -> bool:
@@ -230,6 +236,41 @@ class LaneDependencyCycleError(LaneComputationError):
         super().__init__("Execution-lane dependency cycle detected: " + " -> ".join(cycle_path))
 
 
+class LaneMembershipFrozenError(LaneComputationError):
+    """Raised when a re-finalize cannot keep every started WP on its recorded lane (#5573).
+
+    Lives here, beside :class:`LaneDependencyCycleError`, because
+    :mod:`specify_cli.lanes.frozen_membership` builds the conflicts and this
+    module raises them; ``frozen_membership`` imports this class lazily, which
+    keeps the two modules free of an import cycle.
+
+    Attributes:
+        conflicts: Every conflict found (non-empty), in discovery order.
+        reason: The first conflict reason by precedence
+            ``started_lanes_collapsed`` > ``started_wp_removed`` >
+            ``started_wp_kind_changed`` > ``status_unreadable``.
+        next_step: The distinct remedies, one per line, in precedence order.
+    """
+
+    error_code: ClassVar[str] = "LANE_MEMBERSHIP_FROZEN"
+
+    def __init__(self, conflicts: Sequence[MembershipConflict]) -> None:
+        if not conflicts:
+            raise ValueError("LaneMembershipFrozenError needs at least one conflict")
+        self.conflicts: tuple[MembershipConflict, ...] = tuple(conflicts)
+        ordered = sorted(self.conflicts, key=lambda conflict: REASON_PRECEDENCE.index(conflict.reason))
+        self.reason: str = ordered[0].reason
+        self.next_step: str = "\n".join(dict.fromkeys(conflict.remedy for conflict in ordered))
+        clauses = "; ".join(conflict.describe() for conflict in ordered)
+        super().__init__(f"{_FROZEN_MESSAGE_PREFIX}{clauses}.")
+
+
+_FROZEN_MESSAGE_PREFIX = "Cannot re-finalize: started work packages would change lane. "
+
+#: ``CollapseEvent.rule`` for a union that keeps started lane-mates together.
+FROZEN_LANE_MEMBERSHIP_RULE = "frozen_lane_membership"
+
+
 # Keywords that map to surface tags (case-insensitive substring match).
 # If two WPs predict the same surface, they are presumed to overlap.
 _SURFACE_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -379,6 +420,9 @@ def _transitive_deps(
     return cache
 
 
+_NON_INDEPENDENT_RULES = frozenset({"dependency", FROZEN_LANE_MEMBERSHIP_RULE})
+
+
 def _count_independent_collapses(
     events: list[CollapseEvent],
     dependency_graph: dict[str, list[str]],
@@ -389,8 +433,11 @@ def _count_independent_collapses(
     transitive = _transitive_deps(dependency_graph)
     count = 0
     for event in events:
-        if event.rule == "dependency":
-            continue  # By definition not independent
+        if event.rule in _NON_INDEPENDENT_RULES:
+            # "dependency": by definition not independent. A frozen-membership
+            # union (#5573) restates history -- the WPs already shared a lane
+            # when work started -- so it is not a new independent collapse.
+            continue
         a, b = event.wp_a, event.wp_b
         if b not in transitive.get(a, set()) and a not in transitive.get(b, set()):
             count += 1
@@ -502,21 +549,8 @@ def _next_free_lane_id(used: set[str]) -> str:
         letter += 1
 
 
-def _assign_stable_lane_ids(
-    sorted_groups: list[list[str]],
-    previous_lanes: LanesManifest | None,
-) -> list[str]:
-    """Assign a ``lane_id`` per computed group, reading back bound ids (PP-F5).
-
-    Identity is bound to a lane's git branch at creation. On a re-finalize the
-    id is **read back** from ``previous_lanes`` — never re-minted positionally —
-    so removing a WP and re-finalizing cannot re-letter a surviving lane onto a
-    different WP's branch (#4945). A group inherits the previously persisted lane
-    whose WP membership it overlaps most (deterministic; ties broken by lane id);
-    each prior id is claimed at most once, so read-back never overwrites or
-    duplicates a bound id. Genuinely new lanes — and every lane on a first
-    finalize (``previous_lanes is None``) — mint the next free positional id.
-    """
+def _prior_code_lane_members(previous_lanes: LanesManifest | None) -> dict[str, set[str]]:
+    """Return ``lane_id -> members`` for the prior manifest's code lanes."""
     existing: dict[str, set[str]] = {}
     if previous_lanes is not None:
         for lane in previous_lanes.lanes:
@@ -525,12 +559,49 @@ def _assign_stable_lane_ids(
             if is_planning_lane(lane):
                 continue
             existing[lane.lane_id] = set(lane.wp_ids)
+    return existing
 
+
+def _pin_frozen_groups(
+    sorted_groups: list[list[str]],
+    frozen: FrozenLaneMembership,
+) -> tuple[dict[int, str], set[str], list[MembershipConflict]]:
+    """Pass 0 (#5573): a group holding started WPs takes their recorded lane id.
+
+    One distinct bound code-lane id pins the group to it. Two or more mean the
+    amendment collapses started work from different lanes into one group: a
+    ``started_lanes_collapsed`` conflict naming every bound member.
+    """
     assigned: dict[int, str] = {}
     used: set[str] = set()
-
-    # Pass 1: read back a bound id for each group by best membership overlap.
+    conflicts: list[MembershipConflict] = []
     for index, group in enumerate(sorted_groups):
+        bound = {wp: frozen.bindings[wp] for wp in group if frozen.bindings.get(wp, PLANNING_LANE_ID) != PLANNING_LANE_ID}
+        pins = set(bound.values())
+        if len(pins) > 1:
+            conflicts.append(conflict_for("started_lanes_collapsed", bound))
+        elif pins:
+            pinned = pins.pop()
+            assigned[index] = pinned
+            used.add(pinned)
+    return assigned, used, conflicts
+
+
+def _read_back_by_overlap(
+    sorted_groups: list[list[str]],
+    existing: dict[str, set[str]],
+    assigned: dict[int, str],
+    used: set[str],
+) -> None:
+    """Pass 1: each unpinned group reads back the unused prior id it overlaps most.
+
+    Deterministic tie-break: most shared members, then the lowest prior lane id
+    (prior lanes are scanned in sorted order and only a strictly larger overlap
+    replaces the best so far).
+    """
+    for index, group in enumerate(sorted_groups):
+        if index in assigned:
+            continue
         group_set = set(group)
         best_lane_id: str | None = None
         best_overlap = 0
@@ -545,14 +616,124 @@ def _assign_stable_lane_ids(
             assigned[index] = best_lane_id
             used.add(best_lane_id)
 
-    # Pass 2: mint the next free positional id for every unbound group.
-    for index in range(len(sorted_groups)):
+
+def _mint_fresh_ids(group_count: int, assigned: dict[int, str], used: set[str], reserved: frozenset[str]) -> None:
+    """Pass 2: mint the next free positional id, skipping claimed and reserved ids (FR-004)."""
+    for index in range(group_count):
         if index not in assigned:
-            fresh = _next_free_lane_id(used)
+            fresh = _next_free_lane_id(used | reserved)
             assigned[index] = fresh
             used.add(fresh)
 
+
+def _raise_on_frozen_conflicts(conflicts: Sequence[MembershipConflict]) -> None:
+    """Raise one :class:`LaneMembershipFrozenError` carrying every conflict, if any."""
+    if conflicts:
+        raise LaneMembershipFrozenError(conflicts)
+
+
+def _assign_stable_lane_ids(
+    sorted_groups: list[list[str]],
+    previous_lanes: LanesManifest | None,
+    frozen: FrozenLaneMembership | None = None,
+    prior_conflicts: Sequence[MembershipConflict] = (),
+) -> list[str]:
+    """Assign a ``lane_id`` per computed group, reading back bound ids (PP-F5).
+
+    Identity is bound to a lane's git branch at creation. On a re-finalize the
+    id is **read back** from ``previous_lanes`` — never re-minted positionally —
+    so removing a WP and re-finalizing cannot re-letter a surviving lane onto a
+    different WP's branch (#4945). Genuinely new lanes — and every lane on a
+    first finalize (``previous_lanes is None``) — mint the next free positional
+    id.
+
+    Started work packages (#5573) constrain this by construction:
+
+    * **Pass 0** — a group holding started WPs takes their recorded lane id
+      before any read-back, so neither a tie nor greedy group order can move
+      started work; two distinct recorded ids in one group is a conflict.
+    * **Pass 1** — overlap read-back over the ids not yet claimed (most shared
+      members, then the lowest prior lane id); each prior id is claimed at most
+      once, so read-back never overwrites or duplicates a bound id.
+    * **Pass 2** — mint fresh ids, skipping claimed ids **and**
+      ``frozen.reserved_lane_ids``, so an id that held started work is never
+      re-minted for a new group.
+
+    Every conflict (``prior_conflicts`` from the removal/kind checks plus pass
+    0) is raised together as one :class:`LaneMembershipFrozenError` before any
+    lane is built. ``frozen`` ``None`` or empty reproduces the historical
+    assignment byte for byte.
+    """
+    effective = frozen if frozen is not None else FrozenLaneMembership.empty()
+    assigned, used, pin_conflicts = _pin_frozen_groups(sorted_groups, effective)
+    _raise_on_frozen_conflicts([*prior_conflicts, *pin_conflicts])
+    _read_back_by_overlap(sorted_groups, _prior_code_lane_members(previous_lanes), assigned, used)
+    _mint_fresh_ids(len(sorted_groups), assigned, used, effective.reserved_lane_ids)
     return [assigned[index] for index in range(len(sorted_groups))]
+
+
+def _effective_frozen(frozen: FrozenLaneMembership | None, topology: MissionTopology) -> FrozenLaneMembership:
+    """Normalize the frozen input: ``SINGLE_BRANCH`` ignores it, ``None`` is empty."""
+    if frozen is None or topology is MissionTopology.SINGLE_BRANCH:
+        return FrozenLaneMembership.empty()
+    return frozen
+
+
+def _frozen_membership_conflicts(
+    frozen: FrozenLaneMembership,
+    code_wp_ids: Sequence[str],
+    planning_wp_ids: Sequence[str],
+) -> list[MembershipConflict]:
+    """Removal and kind-change conflicts for the frozen bindings (#5573).
+
+    * A bound WP absent from both id lists, and not retired by the
+      cancellation projection, is ``started_wp_removed``.
+    * A bound WP whose kind now puts it on the other side of
+      ``lane-planning`` is ``started_wp_kind_changed``.
+
+    Runs right after the planning/code split, before the empty-graph and
+    planning-only early returns, so those paths refuse too.
+    """
+    code, planning = set(code_wp_ids), set(planning_wp_ids)
+    removed: dict[str, str] = {}
+    kind_changed: dict[str, str] = {}
+    for wp, lane_id in frozen.bindings.items():
+        if wp not in code and wp not in planning:
+            if wp not in frozen.retired_wp_ids:
+                removed[wp] = lane_id
+        elif (wp in planning) != (lane_id == PLANNING_LANE_ID):
+            kind_changed[wp] = lane_id
+    conflicts: list[MembershipConflict] = []
+    if removed:
+        conflicts.append(conflict_for("started_wp_removed", removed))
+    if kind_changed:
+        conflicts.append(conflict_for("started_wp_kind_changed", kind_changed))
+    return conflicts
+
+
+def _union_frozen_lane_mates(
+    uf: _UnionFind,
+    frozen: FrozenLaneMembership,
+    code_wp_ids: Sequence[str],
+    collapse_events: list[CollapseEvent],
+) -> None:
+    """Keep started code WPs that share a recorded lane in one group (#5573).
+
+    Runs after the overlap rules (so their evidence is logged first; the
+    resulting groups are identical). Each new union is recorded as a
+    ``frozen_lane_membership`` collapse event.
+    """
+    code = set(code_wp_ids)
+    by_lane: dict[str, list[str]] = {}
+    for wp, lane_id in sorted(frozen.bindings.items()):
+        if wp in code and lane_id != PLANNING_LANE_ID:
+            by_lane.setdefault(lane_id, []).append(wp)
+    for lane_id, members in sorted(by_lane.items()):
+        anchor = members[0]
+        for other in members[1:]:
+            if uf.find(anchor) != uf.find(other):
+                collapse_events.append(CollapseEvent(wp_a=anchor, wp_b=other, rule=FROZEN_LANE_MEMBERSHIP_RULE, evidence=f"both started on {lane_id}"))
+            uf.union(anchor, other)
 
 
 # ---------------------------------------------------------------------------
@@ -654,6 +835,7 @@ def compute_lanes(
     *,
     topology: MissionTopology = MissionTopology.LANES,
     mission_branch: str | None = None,
+    frozen: FrozenLaneMembership | None = None,
 ) -> LanesManifest:
     """Compute execution lanes from dependency graph and ownership manifests.
 
@@ -706,18 +888,29 @@ def compute_lanes(
             this module stays meta-free (Complexity Tracking / layer purity).
             Ignored for every other topology (those keep minting
             ``mission_branch`` from ``mission_branch_name`` as before).
+        frozen: The membership started work packages impose (#5573), built by
+            :func:`specify_cli.lanes.frozen_membership.build_frozen_membership`.
+            A started WP keeps its recorded lane id, started lane-mates stay in
+            one lane, and an id that held started work is never minted for a
+            new group. ``None`` or empty keeps the historical output byte for
+            byte. Ignored for ``SINGLE_BRANCH``.
 
     Returns:
         An acyclic LanesManifest ready for persistence.
 
     Raises:
         LaneDependencyCycleError: If the complete post-collapse lane graph is cyclic.
+        LaneMembershipFrozenError: ``frozen`` cannot be honoured (started work
+            from two lanes would share one, a started WP was removed without
+            being retired, or a started WP changed kind).
     """
     resolved_mission_id = mission_id  # WP04/FR-004: None for legacy; never substitute slug
+    effective_frozen = _effective_frozen(frozen, topology)
 
     # Collect all WP IDs from the graph.
     all_wp_ids = sorted(dependency_graph.keys())
     if not all_wp_ids:
+        _raise_on_frozen_conflicts(_frozen_membership_conflicts(effective_frozen, (), ()))
         return _empty_manifest(mission_slug, target_branch, resolved_mission_id, planning_artifact_wps=[])
 
     if topology is MissionTopology.SINGLE_BRANCH:
@@ -749,11 +942,17 @@ def compute_lanes(
             )
         code_wp_ids.append(wp_id)
 
+    # #5573: removal / kind-change conflicts are collected here, before the
+    # early returns below, so an amendment that leaves no code WP still refuses.
+    frozen_conflicts = _frozen_membership_conflicts(effective_frozen, code_wp_ids, planning_artifact_wp_ids)
+
     if not code_wp_ids and not planning_artifact_wp_ids:
+        _raise_on_frozen_conflicts(frozen_conflicts)
         return _empty_manifest(mission_slug, target_branch, resolved_mission_id, planning_artifact_wps=[])
 
     if not code_wp_ids:
         # Only planning-artifact WPs — build the lane-planning lane and return.
+        _raise_on_frozen_conflicts(frozen_conflicts)
         planning_lane = _build_planning_lane(planning_artifact_wp_ids, ownership_manifests)
         return LanesManifest(
             version=1,
@@ -820,6 +1019,9 @@ def compute_lanes(
                     )
                 uf.union(wp_a, wp_b)
 
+    # Rule 3 (#5573): started lane-mates stay together.
+    _union_frozen_lane_mates(uf, effective_frozen, code_wp_ids, collapse_events)
+
     # Build lane groups from union-find.
     raw_groups = uf.groups()
 
@@ -844,7 +1046,8 @@ def compute_lanes(
 
     # C-4 / FR-010 (PP-F5): bind each lane's id to its branch by reading back a
     # previously minted id; only genuinely new lanes mint a fresh positional id.
-    lane_ids = _assign_stable_lane_ids(sorted_groups, previous_lanes)
+    # #5573: started WPs pin their recorded ids first; all conflicts raise here.
+    lane_ids = _assign_stable_lane_ids(sorted_groups, previous_lanes, effective_frozen, frozen_conflicts)
 
     # Build a sub-graph for each group to topologically sort within it.
     for group_index, group_wps in enumerate(sorted_groups):

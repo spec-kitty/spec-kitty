@@ -94,7 +94,7 @@ def _split(plan: _Plan, blocks: list[list[str]]) -> _Plan:
     for index, block in enumerate(blocks):
         if len(block) > 1:
             for wp in block:
-                amended.owned[wp].discard(f"block{index}.py")
+                amended.owned.get(wp, set()).discard(f"block{index}.py")
             break
     return amended
 
@@ -119,6 +119,15 @@ def _retire_last(plan: _Plan, _blocks: list[list[str]]) -> _Plan:
     return amended
 
 
+def _retire_and_add(plan: _Plan, blocks: list[list[str]]) -> _Plan:
+    """WP04 is canceled and a new WP05 needs a fresh id: WP04's lane id must not be re-minted."""
+    return _add_wp05(_retire_last(plan, blocks), blocks)
+
+
+def _retire_and_split(plan: _Plan, blocks: list[list[str]]) -> _Plan:
+    return _split(_retire_last(plan, blocks), blocks)
+
+
 def _kind_change(plan: _Plan, _blocks: list[list[str]]) -> _Plan:
     amended = plan.copy()
     amended.planning.add("WP01")
@@ -133,6 +142,8 @@ _AMENDMENTS: dict[str, Callable[[_Plan, list[list[str]]], _Plan]] = {
     "add": _add_wp05,
     "remove": _remove_last,
     "retire": _retire_last,
+    "retire-add": _retire_and_add,
+    "retire-split": _retire_and_split,
     "kind-change": _kind_change,
 }
 
@@ -205,10 +216,7 @@ def _comparable(manifest: LanesManifest) -> dict[str, object]:
 # The sweep
 # ---------------------------------------------------------------------------
 
-_CASES = [
-    pytest.param(blocks, name, id=f"{'|'.join('+'.join(b) for b in blocks)}-{name}")
-    for blocks, name in itertools.product(_prior_blocks(), _AMENDMENTS)
-]
+_CASES = [pytest.param(blocks, name, id=f"{'|'.join('+'.join(b) for b in blocks)}-{name}") for blocks, name in itertools.product(_prior_blocks(), _AMENDMENTS)]
 
 
 @pytest.mark.parametrize(("blocks", "amendment"), _CASES)
@@ -246,12 +254,19 @@ def test_started_work_packages_keep_their_lane_or_refinalize_refuses(blocks: lis
                 continue
 
             lane_of = {wp: lane.lane_id for lane in result.lanes for wp in lane.wp_ids}
+            lane_ids = [lane.lane_id for lane in result.lanes]
+            assert len(lane_ids) == len(set(lane_ids)), f"duplicate lane ids {lane_ids}: started={started}"
+            code_groups = sorted(sorted(lane.wp_ids) for lane in result.lanes if lane.lane_id != "lane-planning")
+            assert code_groups == sorted(sorted(group) for group in _oracle_groups(amended, bindings))
             for wp, lane_id in bindings.items():
                 if wp in amended.owned:
                     assert lane_of[wp] == lane_id, f"started {wp} moved: started={started}"
-            prior_ids = {lane.lane_id for lane in prior.lanes}
-            minted = {lane.lane_id for lane in result.lanes} - prior_ids
-            assert not (minted & frozen.reserved_lane_ids), f"re-minted a reserved id: started={started}"
+            # A reserved id (it held started work) is only ever kept or read back
+            # by a group holding one of its prior members -- never minted afresh.
+            prior_members = {lane.lane_id: set(lane.wp_ids) for lane in prior.lanes}
+            for lane in result.lanes:
+                if lane.lane_id in frozen.reserved_lane_ids:
+                    assert set(lane.wp_ids) & prior_members[lane.lane_id], f"re-minted reserved {lane.lane_id}: started={started}"
             # Determinism (NFR-002): shuffled dict insertion order, same manifest.
             assert _comparable(_compute(amended, prior, frozen, reverse=True)) == _comparable(result)
             if not started:

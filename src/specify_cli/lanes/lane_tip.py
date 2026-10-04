@@ -32,6 +32,7 @@ __all__ = [
     "read_tip",
     "record_tip",
     "record_tip_for_wp",
+    "recorded_tip_branches",
     "tip_ref",
 ]
 
@@ -131,6 +132,30 @@ def read_tip(repo_root: Path, branch: str) -> str | None:
         return None
     sha = result.stdout.strip()
     return sha or None
+
+
+def recorded_tip_branches(repo_root: Path) -> frozenset[str]:
+    """Return every branch name with a recorded lane work tip, in one git call.
+
+    Runs ``git for-each-ref --format=%(refname) refs/spec-kitty/lane-tip/`` and
+    strips :data:`LANE_TIP_REF_PREFIX` (#5573: the frozen-lane preflight's
+    fallback evidence, NFR-001). Read-only. A git failure -- a non-zero exit,
+    not a repository, or no ``git`` binary at all -- yields an empty set: no
+    fallback evidence, while the status log remains the primary authority.
+    """
+    try:
+        listing = subprocess.run(
+            ["git", "for-each-ref", "--format=%(refname)", LANE_TIP_REF_PREFIX],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return frozenset()
+    if listing.returncode != 0:
+        return frozenset()
+    return frozenset(line.removeprefix(LANE_TIP_REF_PREFIX) for line in listing.stdout.splitlines() if line.startswith(LANE_TIP_REF_PREFIX))
 
 
 def clear_tip(repo_root: Path, branch: str) -> None:

@@ -86,21 +86,46 @@ class TestStableLaneIdentity:
         assert lane_of["WP03"] == "lane-b"
         assert lane_of["WP05"] == "lane-c"
 
-    def test_read_back_never_overwrites_a_bound_id(self) -> None:
-        """A bound id survives a finalize that would otherwise re-letter it.
+    def test_merge_tie_takes_the_lowest_prior_lane_id(self) -> None:
+        """Unstarted merge: a group overlapping two prior lanes equally takes the lowest id.
 
-        No two lanes may ever collide on one id after read-back.
+        Read-back tie-break (#5573 documents it): most shared members first, then
+        the lowest prior lane id. Lane ids never collide after read-back.
         """
-        graph = {"WP01": [], "WP03": [], "WP05": []}
+        graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/a/**"]),
-            "WP03": _manifest(["src/b/**"]),
-            "WP05": _manifest(["src/c/**"]),
+            "WP02": _manifest(["src/b/**"]),
+            "WP03": _manifest(["src/c/**"]),
         }
         first = compute_lanes(graph, manifests, "test-feat")
-        graph.pop("WP03")
-        manifests.pop("WP03")
+        manifests["WP02"] = _manifest(["src/b/**", "src/a/**"])
         second = compute_lanes(graph, manifests, "test-feat", previous_lanes=first)
+        lane_of = {wp: lane.lane_id for lane in second.lanes for wp in lane.wp_ids}
+
+        assert lane_of == {"WP01": "lane-a", "WP02": "lane-a", "WP03": "lane-c"}
+        ids = [lane.lane_id for lane in second.lanes]
+        assert len(ids) == len(set(ids)), f"lane ids collided after read-back: {ids}"
+
+    def test_split_keeps_the_id_for_the_first_group_and_mints_for_the_other(self) -> None:
+        """Unstarted split: removing an overlap separates lane-mates.
+
+        The first group (lowest WP id) reads back the shared lane; the other
+        group overlaps no free prior lane and mints the next free id.
+        """
+        graph = {"WP01": [], "WP02": [], "WP03": []}
+        manifests = {
+            "WP01": _manifest(["src/a/**", "src/shared/**"]),
+            "WP02": _manifest(["src/b/**", "src/shared/**"]),
+            "WP03": _manifest(["src/c/**"]),
+        }
+        first = compute_lanes(graph, manifests, "test-feat")
+        assert {wp: lane.lane_id for lane in first.lanes for wp in lane.wp_ids} == {"WP01": "lane-a", "WP02": "lane-a", "WP03": "lane-b"}
+        manifests["WP02"] = _manifest(["src/b/**"])
+        second = compute_lanes(graph, manifests, "test-feat", previous_lanes=first)
+        lane_of = {wp: lane.lane_id for lane in second.lanes for wp in lane.wp_ids}
+
+        assert lane_of == {"WP01": "lane-a", "WP02": "lane-c", "WP03": "lane-b"}
         ids = [lane.lane_id for lane in second.lanes]
         assert len(ids) == len(set(ids)), f"lane ids collided after read-back: {ids}"
 

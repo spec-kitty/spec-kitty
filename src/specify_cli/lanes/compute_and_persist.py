@@ -38,12 +38,14 @@ from mission_runtime import MissionTopology, assert_topology_matches_manifest
 
 from specify_cli.lanes.branch_naming import InvalidMissionIdentity
 from specify_cli.lanes.compute import LaneComputationError, compute_lanes, has_code_lanes
+from specify_cli.lanes.frozen_membership import assert_frozen_membership_honoured
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.ownership.validation import validate_glob_matches
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from specify_cli.lanes.frozen_membership import FrozenLaneMembership
     from specify_cli.lanes.models import LanesManifest
     from specify_cli.ownership.models import OwnershipManifest
     from specify_cli.ownership.validation import GlobValidationResult
@@ -113,6 +115,7 @@ def compute_and_write_lanes(
     mission_id: str | None,
     topology: MissionTopology,
     mission_branch: str | None = None,
+    frozen: FrozenLaneMembership | None = None,
 ) -> tuple[Path, LanesManifest]:
     """Compute execution lanes and persist ``lanes.json`` -- the pure core.
 
@@ -158,6 +161,11 @@ def compute_and_write_lanes(
             :func:`~specify_cli.lanes.compute.compute_lanes` for
             ``SINGLE_BRANCH`` only (#5100 WP05 T022). Ignored for every
             other topology.
+        frozen: The membership started work packages impose (#5573), passed
+            to :func:`~specify_cli.lanes.compute.compute_lanes` and re-checked
+            by :func:`~specify_cli.lanes.frozen_membership.assert_frozen_membership_honoured`
+            just before ``lanes.json`` is written (defence in depth). ``None``
+            keeps the historical behaviour.
 
     Returns:
         A ``(lanes_path, lanes_manifest)`` tuple.
@@ -173,6 +181,9 @@ def compute_and_write_lanes(
             (data-model.md), never re-stamped after #5100. No ``lanes.json``
             write happens; the pre-existing manifest on disk is left
             untouched (contracts/single-branch-execution.md, "Finalize").
+        LaneMembershipFrozenError: *frozen* cannot be honoured (a started work
+            package would change lane). No ``lanes.json`` is written; the
+            pre-existing manifest on disk is left byte-identical.
     """
     if not isinstance(topology, MissionTopology):
         raise TypeError(f"compute_and_write_lanes: topology must be a MissionTopology, got {type(topology)!r}")
@@ -199,6 +210,7 @@ def compute_and_write_lanes(
             previous_lanes=previous_lanes,
             topology=topology,
             mission_branch=mission_branch,
+            frozen=frozen,
         )
     except InvalidMissionIdentity as exc:
         # U1: ``compute_lanes`` (untouched) composes the Mission branch via
@@ -228,6 +240,10 @@ def compute_and_write_lanes(
             has_code_lanes=has_code_lanes(previous_lanes),
             mission_slug=mission_slug,
         )
+
+    # #5573 writer chokepoint (defence in depth): ``compute_lanes`` already
+    # honours ``frozen``; re-check before anything is written.
+    assert_frozen_membership_honoured(lanes_manifest, frozen, topology=topology)
 
     # FR-011 / PD-6 / PD-13: a re-finalize must not recompose the Mission
     # branch from a since-backfilled identity -- the first finalize's recorded

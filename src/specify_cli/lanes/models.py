@@ -22,7 +22,9 @@ class CollapseEvent:
         wp_a: First work package ID involved in the merge.
         wp_b: Second work package ID involved in the merge.
         rule: Rule that triggered the merge. One of:
-            "write_scope_overlap", "surface_heuristic".
+            "write_scope_overlap", "surface_heuristic", or
+            "frozen_lane_membership" (#5573: two started WPs recorded on the
+            same lane are kept together on a re-finalize).
         evidence: Human-readable explanation of why the merge occurred.
     """
 
