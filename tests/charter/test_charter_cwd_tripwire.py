@@ -472,7 +472,6 @@ def test_collector_sees_a_call_and_flags_an_aliased_import(source: str, expected
 
 
 @pytest.mark.fast
-@pytest.mark.unit
 def test_every_module_that_calls_the_guard_is_watched() -> None:
     calling, aliased = _scan_src_for_the_guard()
 
@@ -483,7 +482,6 @@ def test_every_module_that_calls_the_guard_is_watched() -> None:
 
 
 @pytest.mark.fast
-@pytest.mark.unit
 def test_watched_modules_carry_the_wrapper_inside_a_test(tmp_path: Path) -> None:
     """Imported inside the test body, so this also exercises the late-import path in-process."""
     import importlib
@@ -538,14 +536,12 @@ def _files_overriding_the_tripwire_fixture() -> list[str]:
 
 
 @pytest.mark.fast
-@pytest.mark.unit
 def test_the_plugin_itself_defines_the_autouse_fixture_name() -> None:
     """Non-vacuity: the name the scan guards is really the plugin's fixture."""
     assert _defines_name(_PLUGIN_FILE.read_text(encoding="utf-8"), AUTOUSE_FIXTURE_NAME)
 
 
 @pytest.mark.fast
-@pytest.mark.unit
 def test_no_other_test_file_overrides_the_tripwire_fixture() -> None:
     """A same-named fixture anywhere else overrides the autouse one and silently disables the tripwire."""
     assert _files_overriding_the_tripwire_fixture() == []
