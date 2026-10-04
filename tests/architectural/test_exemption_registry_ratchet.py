@@ -102,6 +102,9 @@ CHURN_SURFACE_MODULES: tuple[str, ...] = (
     "src/specify_cli/cli/commands/agent/tasks_move_task.py",
     # #5629: the move-task gate family moved here; scan the twin as well.
     "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+    # #5629/#5695: the hop builders and the executor moved out of tasks_move_task.py too.
+    "src/specify_cli/cli/commands/agent/tasks_move_task_hops.py",
+    "src/specify_cli/cli/commands/agent/tasks_move_task_executor.py",
     "src/specify_cli/consolidation/ordering.py",
     "src/specify_cli/consolidation/mission_number/bake.py",
     "src/specify_cli/lanes/consolidation.py",

@@ -159,6 +159,9 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     # #5629: the move-task gate family moved out of tasks_move_task.py into this
     # seam; the scan keeps following the code, so the successor module joins.
     _SRC / "cli" / "commands" / "agent" / "tasks_move_task_gates.py",
+    # #5695: so do the hop builders and the executor (about 950 lines).
+    _SRC / "cli" / "commands" / "agent" / "tasks_move_task_hops.py",
+    _SRC / "cli" / "commands" / "agent" / "tasks_move_task_executor.py",
     _SRC / "agent_tasks_ports.py",
     _SRC / "cli" / "commands" / "retrospect.py",
     _SRC / "cli" / "commands" / "agent_retrospect.py",
