@@ -221,6 +221,15 @@ def test_net_change_the_target_lost_is_still_missing_when_the_lane_base_is_known
     assert (absent.found, absent.wp_ids) == ("absent", ("WP01",))
     assert (unchanged.found, unchanged.expected) == ("unchanged", V2)
 
+    # A dependent lane's change is dropped while its dependency's landed: the target holds what lane-b started from.
+    lane_a = _tracked("lane-a", ("WP01",), {"a.py": V1})
+    lane_b = _tracked("lane-b", ("WP02",), {"a.py": V2}, ancestors=("lane-a",), forks={"lane-a": "lane-a-tip"})
+    refs: Refs = {"lane-a-tip": {"a.py": V1}, "lane-a-base": {"a.py": V0}, "lane-b-tip": {"a.py": V2}, "lane-b-base": {"a.py": V0}}
+
+    [dropped] = _unmet_at([lane_a, lane_b], target={"a.py": V1}, base={"a.py": V0}, refs=refs)
+
+    assert (dropped.found, dropped.wp_ids, dropped.expected) == ("unchanged", ("WP02",), V2)
+
 
 @pytest.mark.fast
 def test_path_the_lane_left_net_unchanged_is_not_judged() -> None:

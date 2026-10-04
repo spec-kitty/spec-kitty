@@ -2192,22 +2192,35 @@ def _unsuperseded_holders(holders: Sequence[ApprovedLaneContent]) -> list[Approv
     return [holder for holder in holders if not any(holder.lane_id in other.ancestors for other in holders if other is not holder)]
 
 
-def _presence_gap(states: set[str | None], target: str | None, base: Callable[[], str | None]) -> PresenceGap | None:
+def _presence_gap(states: set[str | None], target: str | None, started_from: Callable[[], set[str | None]]) -> PresenceGap | None:
     """``"absent"`` / ``"unchanged"`` when the *target* state is none of *states*, else ``None``.
 
     A target holding another, third content is NOT a gap here: that is a merge
     resolution or a later legitimate edit, which the blob-attribution and
     closed-world axes already judge. What this axis adds is the case they cannot
     see because the content is simply not there: the path is absent although
-    every unsuperseded lane ends with it present, or the target still holds the
-    pre-consolidation state (the approved change, or deletion, never landed).
-    *base* is read only when it can decide.
+    every unsuperseded lane ends with it present, or the target still holds a
+    state the lane started from (the approved change, or deletion, never landed).
+    *started_from* is read only when it can decide.
     """
     if target in states:
         return None
     if target is None:
         return _GAP_ABSENT
-    return _GAP_UNCHANGED if target == base() else None
+    return _GAP_UNCHANGED if target in started_from() else None
+
+
+def _started_from(path: str, holders: Sequence[ApprovedLaneContent], base: Callable[[], str | None], state_at: StateAt | None) -> set[str | None]:
+    """The states *holders* started *path* from: the pre-consolidation state, and what each dependency held when it was built on.
+
+    A dependent lane starts from its dependency's tip, so a target that landed
+    the dependency's change but not the lane's own still holds what the lane
+    started from, not the pre-consolidation state.
+    """
+    started = {base()}
+    if state_at is not None:
+        started.update(state_at(fork, path) for holder in holders for fork in holder.dependency_forks.values())
+    return started
 
 
 StateAt = Callable[[str, str], str | None]
@@ -2278,11 +2291,15 @@ def _path_gap(
     state an unsuperseded holder ended on. Only a candidate gap pays for the
     lane-base reads that decide whether it is a dropped change.
     """
-    if _presence_gap({holder.final_state[path] for holder in _unsuperseded_holders(holders)}, target, base_state) is None:
+    unsuperseded = _unsuperseded_holders(holders)
+    if (
+        _presence_gap({holder.final_state[path] for holder in unsuperseded}, target, functools.partial(_started_from, path, unsuperseded, base_state, state_at))
+        is None
+    ):
         return []
     authors = [holder for holder in holders if _owns_change(holder, path, holders, state_at)]
     live = _unsuperseded_holders(authors)
-    found = _presence_gap({holder.final_state[path] for holder in live}, target, base_state)
+    found = _presence_gap({holder.final_state[path] for holder in live}, target, functools.partial(_started_from, path, live, base_state, state_at))
     if found is None:
         return []
     base = base_state()

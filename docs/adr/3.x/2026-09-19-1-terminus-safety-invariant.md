@@ -310,7 +310,9 @@ names one teardown refusal.
   approved lane built atop it superseded the path
   (`MergeOutcomeVerifier._approved_content_divergence`). It is strategy-independent. The
   typical cause is an operator who committed the staged deletions of a lagging checkout and
-  then resumed. It does not judge a path the target also changed.
+  then resumed. A lane built atop another is judged against what it started from, so a target
+  that holds only the dependency's state still reports the dependent lane's change as dropped.
+  It does not judge a path the target also changed.
 - **Status-write guard.** A coordination status write refuses before it writes
   (`coordination/status_surface_guard.py`, called by `BookkeepingTransaction`):
   `COORD_STATUS_SURFACE_DIVERGED` when the worktree's `status.events.jsonl` lost events its
@@ -339,7 +341,15 @@ names one teardown refusal.
   - A corrupt `state.json` falls back to the generic dirty-checkout advice.
   - The repository root checkout with a lag plus an operator edit keeps the stock "Commit,
     stash, or revert" remedy.
-  - The presence axis does not judge a path the target also changed since the lane was cut.
+  - The presence axis does not judge (i) a path the target also changed since the lane was cut
+    (by design: that is a merge resolution, which the blob axes judge); (ii) two independent
+    lanes that changed the same path when the target holds one lane's state; or (iii) a path an
+    independent sibling lane changed and then reverted, when the target holds that reverted
+    state. A whole lane that was dropped is still caught when at least one of its paths is
+    exclusive to it.
+  - Resume lag recovery does not recognise a pure lag when the interruption happens on the
+    second or later lane of a multi-lane merge. It refuses safely, but its patch advice is
+    wrong (#5643).
   - Out of scope: legacy and foreign strand-marker refusal codes; unwrapped remediation
     printing.
 
