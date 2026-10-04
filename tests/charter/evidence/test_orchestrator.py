@@ -16,10 +16,6 @@ from charter.activation.evidence.orchestrator import (
     EvidenceResult,
     load_url_list_from_config,
 )
-from specify_cli.cli.commands.charter._charter_write_root import (
-    CharterWriteRootError,
-    resolve_charter_write_root,
-)
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: python -m specify_cli subprocess
@@ -165,6 +161,7 @@ def test_bundle_is_empty_when_all_skipped(tmp_path: Path) -> None:
 def test_dry_run_evidence_on_spec_kitty_repo(
     _synthesis_manifest_guard: Path,
     tmp_path: Path,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
     """charter synthesize --adapter fixture --dry-run-evidence exits 0 and detects a language.
 
@@ -197,13 +194,20 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     import os
 
     repo_root = Path(__file__).resolve().parents[3]  # the spec-kitty checkout under test
-    # Topology precondition: ``charter synthesize`` fails closed from a linked git
-    # worktree by design (#4785), so this real-repo run needs a checkout that the
-    # command's own write-root check accepts.
-    try:
-        resolve_charter_write_root(repo_root)
-    except CharterWriteRootError:
-        pytest.skip("charter synthesize refuses this checkout topology by design (#4785)")
+    # Run from a seeded test tmp project, not from the checkout pytest was started in:
+    # ``charter synthesize`` probes its working directory and refuses a linked git
+    # worktree by design (#4785), so a subprocess started in the invoking checkout fails
+    # from a Spec Kitty lane worktree (#5317). The project mirrors the indicators this
+    # test relies on in the spec-kitty checkout: Python (pyproject.toml) and JavaScript
+    # tooling (package.json). ``PYTHONPATH`` still points at the checkout's ``src/``, so
+    # the subprocess runs the sources under test. This directory's autouse
+    # ``_git_init_tmp_path`` makes ``tmp_path`` a normal git repository.
+    project = tmp_path
+    (project / "pyproject.toml").write_text("[project]\nname = 'test-project'\nversion = '0.1.0'\n", encoding="utf-8")
+    (project / "package.json").write_text('{"name": "test-project", "devDependencies": {"@playwright/test": "^1.0.0"}}\n', encoding="utf-8")
+    (project / "src").mkdir()
+    (project / "src" / "main.py").write_text("# main module\n", encoding="utf-8")
+    (project / "conftest.py").write_text("# pytest conftest\n", encoding="utf-8")
 
     src_path = str(repo_root / "src")
     env = os.environ.copy()
@@ -212,8 +216,7 @@ def test_dry_run_evidence_on_spec_kitty_repo(
     # Test-local env for the CHILD process only — never mutates the real os.environ.
     env["FORCE_COLOR"] = "3"  # pin the worst case: harnesses that force color on.
     env["NO_COLOR"] = "1"  # NO_COLOR must win; Rich's Console honors it at construction.
-    isolated_home = tmp_path / "home"
-    isolated_home.mkdir()
+    isolated_home = tmp_path_factory.mktemp("isolated_home")  # outside the project the child reads
     env["HOME"] = str(isolated_home)
     env["SPEC_KITTY_HOME"] = str(isolated_home / ".spec-kitty")
     for xdg in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"):
@@ -235,7 +238,7 @@ def test_dry_run_evidence_on_spec_kitty_repo(
         ],
         capture_output=True,
         text=True,
-        cwd=str(repo_root),
+        cwd=str(project),
         env=env,
     )
 
@@ -248,6 +251,10 @@ def test_dry_run_evidence_on_spec_kitty_repo(
         "charter synthesize --dry-run-evidence must never mutate the real repo manifest "
         f"at {manifest_path}"
     )
+
+    # The dry run is also read-only for the test tmp project the child ran in.
+    project_manifest = project / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    assert not project_manifest.exists(), f"--dry-run-evidence must never write {project_manifest}"
 
     assert result.returncode == 0, f"stderr: {result.stderr}\nstdout: {result.stdout}"
     # ANSI-insensitive (#2672 mode a): strip SGR escapes before every substring match so

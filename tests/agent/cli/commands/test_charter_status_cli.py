@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import patch
 
@@ -164,12 +165,13 @@ class TestCharterStatus:
         assert data["synthesis"]["evidence"]["configured_url_count"] == 1
 
     def test_generated_host_roundtrip_status_reports_promoted_provenance(
-        self, tmp_path: Path
+        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
     ) -> None:
         _write_interview_answers(tmp_path)
         _write_url_config(tmp_path)
         _seed_complete_bundle(tmp_path)
         _write_generated_directive(tmp_path, VALID_DIRECTIVE_BODY)
+        charter_cwd_isolation()
 
         with patch(
             "specify_cli.cli.commands.charter.find_repo_root",

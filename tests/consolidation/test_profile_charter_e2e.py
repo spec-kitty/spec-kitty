@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import patch
 
@@ -298,7 +299,7 @@ def _make_interview_yaml(path: Path, local_files: list[dict[str, str]]) -> None:
         yaml.dump(data, fh)
 
 
-def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
+def test_local_support_declarations_end_to_end(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """Full scenario: interview with local support → generate → context (2x) → additive warning."""
     import subprocess
 
@@ -318,6 +319,7 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
         local_files=[{"path": "docs/team-guide.md"}],
     )
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_root:
         mock_root.return_value = repo_root
 

@@ -22,6 +22,7 @@ that now matters: ``charter.yaml`` replaces ``references.yaml`` as the
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -151,12 +152,13 @@ def test_raise_if_bundle_incomplete_is_noop_when_bundle_complete(tmp_path: Path)
 # ---------------------------------------------------------------------------
 
 
-def test_synthesize_json_fails_closed_when_charter_yaml_missing(tmp_path: Path) -> None:
+def test_synthesize_json_fails_closed_when_charter_yaml_missing(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     charter_dir = _seed_charter_md_only(tmp_path)
     _seed_generated_artifact_marker(charter_dir)
 
     evidence_result = SimpleNamespace(warnings=[], bundle=SimpleNamespace())
 
+    charter_cwd_isolation()
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.charter._collect_evidence_result", return_value=evidence_result),
@@ -175,7 +177,7 @@ def test_synthesize_json_fails_closed_when_charter_yaml_missing(tmp_path: Path) 
     assert any("charter generate" in warning for warning in payload["warnings"])
 
 
-def test_synthesize_json_succeeds_past_preflight_when_bundle_complete(tmp_path: Path) -> None:
+def test_synthesize_json_succeeds_past_preflight_when_bundle_complete(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """Sanity check the guard is not overbroad: a complete bundle does not
     trip the preflight (the real synthesize() call is mocked out here since
     this test is only proving the preflight did not fire, not exercising the
@@ -192,6 +194,7 @@ def test_synthesize_json_succeeds_past_preflight_when_bundle_complete(tmp_path: 
         inputs_hash="deadbeef",
     )
 
+    charter_cwd_isolation()
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.charter._collect_evidence_result", return_value=evidence_result),

@@ -1,6 +1,7 @@
 """Tests for charter CLI commands."""
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 import subprocess
 from unittest.mock import patch
@@ -222,7 +223,7 @@ def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
         assert answers_path.exists()
 
 
-def test_generate_command_success(tmp_path: Path) -> None:
+def test_generate_command_success(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """consolidate-charter-bundle WP03: ``generate`` writes ``charter.yaml`` as
     the authoritative source; ``references.yaml`` is never written (Landmine 3).
 
@@ -237,6 +238,7 @@ def test_generate_command_success(tmp_path: Path) -> None:
     _git_init(repo_root)
     (repo_root / ".kittify" / "charter").mkdir(parents=True)
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
@@ -253,7 +255,7 @@ def test_generate_command_success(tmp_path: Path) -> None:
         assert (repo_root / ".kittify" / "charter" / "library").exists()
 
 
-def test_generate_does_not_require_force_when_charter_yaml_already_exists(tmp_path: Path) -> None:
+def test_generate_does_not_require_force_when_charter_yaml_already_exists(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """Landmine 3 inversion of the old force-gate test: a charter.yaml
     partial-merge refresh never needs ``--force`` -- there is nothing
     destructive left for it to gate (the whole point of the WP03 fix)."""
@@ -279,6 +281,7 @@ def test_generate_does_not_require_force_when_charter_yaml_already_exists(tmp_pa
         encoding="utf-8",
     )
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
@@ -287,7 +290,7 @@ def test_generate_does_not_require_force_when_charter_yaml_already_exists(tmp_pa
         assert result.exit_code == 0, result.stdout
 
 
-def test_generate_command_force_overwrites(tmp_path: Path) -> None:
+def test_generate_command_force_overwrites(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _git_init(repo_root)
@@ -296,6 +299,7 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
     charter_file = charter_dir / "charter.md"
     charter_file.write_text("# Existing", encoding="utf-8")
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
@@ -309,7 +313,7 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
         assert data["references_count"] >= 1
 
 
-def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path) -> None:
+def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """#2772 fixed by consolidate-charter-bundle WP03 -- was RED-FIRST P0.
 
     ``spec-kitty charter generate --force`` used to regenerate the
@@ -337,6 +341,7 @@ def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path) -> 
         f"# Curated Charter (v1.3.0)\n\n{curated_sentinel}\n", encoding="utf-8"
     )
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
@@ -351,7 +356,7 @@ def test_generate_force_preserves_curated_charter_prose_2772(tmp_path: Path) -> 
     )
 
 
-def test_generate_force_preserves_authored_charter_yaml_sections(tmp_path: Path) -> None:
+def test_generate_force_preserves_authored_charter_yaml_sections(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """Landmine 3, one level down: ``charter generate --force`` refreshes
     ONLY charter.yaml's derived ``catalog``/``metadata`` -- authored
     ``governance``/``directives``/activation survive, exercised through the
@@ -390,6 +395,7 @@ def test_generate_force_preserves_authored_charter_yaml_sections(tmp_path: Path)
         encoding="utf-8",
     )
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
@@ -402,7 +408,7 @@ def test_generate_force_preserves_authored_charter_yaml_sections(tmp_path: Path)
     assert "stale-mission" not in surviving, "catalog is the DERIVED section and must refresh"
 
 
-def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
+def test_context_bootstrap_then_compact(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _git_init(repo_root)
@@ -414,6 +420,7 @@ def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
     # seed a curated one so the sync step this test exercises still runs.
     (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
@@ -433,7 +440,7 @@ def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
         assert second_payload["first_load"] is False
 
 
-def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: Path) -> None:
+def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     """IC-04 (#2773): the derived triad this test used to exercise
     (``governance.yaml`` / ``directives.yaml`` / ``metadata.yaml``, deleted
     then expected to auto-resync via ``ensure_charter_bundle_fresh``) is
@@ -458,6 +465,7 @@ def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: P
     # curated one so that sync step still runs.
     (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
 
+    charter_cwd_isolation(repo_root)
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 

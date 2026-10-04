@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -27,6 +28,9 @@ from specify_cli.cli.commands.charter import app
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+#: Message the charter write guard emits when the process working directory is a linked worktree.
+LINKED_WORKTREE_REFUSAL = "Refusing charter write from linked git worktree"
 
 
 def _plain_output(output: str) -> str:
@@ -120,7 +124,7 @@ class TestSynthesizeHappyPath:
     #     envelope test below; a mock asserting nothing but exit 0 proves
     #     nothing new.
 
-    def test_synthesize_fixture_dry_run(self, tmp_path: Path) -> None:
+    def test_synthesize_fixture_dry_run(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """--dry-run stages and validates but does not promote.
 
         WP02: dry-run now uses
@@ -131,6 +135,7 @@ class TestSynthesizeHappyPath:
         """
         _write_interview_answers(tmp_path)
 
+        charter_cwd_isolation()
         with patch(
             "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
         ), patch(
@@ -153,7 +158,7 @@ class TestSynthesizeHappyPath:
         assert "Dry-run" in result.output or "dry" in result.output.lower()
         assert "validated" in result.output.lower()
 
-    def test_synthesize_json_output(self, tmp_path: Path) -> None:
+    def test_synthesize_json_output(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """Real-run --json success envelope: result / adapter / written_artifacts / warnings.
 
         MIGRATED (#2773 test-remediation): post-#2773 the command fails closed
@@ -179,6 +184,7 @@ class TestSynthesizeHappyPath:
         mock_result.effective_adapter_id = "fixture"
         mock_result.effective_adapter_version = "1.0.0"
 
+        charter_cwd_isolation()
         with patch(
             "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
         ), patch(
@@ -218,7 +224,7 @@ class TestSynthesizeHappyPath:
         ]
         assert data["warnings"] == []
 
-    def test_synthesize_non_json_reminds_to_commit_artifacts(self, tmp_path: Path) -> None:
+    def test_synthesize_non_json_reminds_to_commit_artifacts(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """Successful human output names the KD-2 artifact commit step.
 
         MIGRATED (#2773 test-remediation): the commit-reminder text on the
@@ -238,6 +244,7 @@ class TestSynthesizeHappyPath:
         mock_result.effective_adapter_id = "fixture"
         mock_result.effective_adapter_version = "1.0.0"
 
+        charter_cwd_isolation()
         with patch(
             "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
         ), patch(
@@ -272,7 +279,7 @@ class TestSynthesizeHappyPath:
         # rely on safe-commit's deprecated HEAD fallback.
         assert "--to-branch kitty/mission-charter-synth-demo" in result.output
 
-    def test_synthesize_dry_run_json(self, tmp_path: Path) -> None:
+    def test_synthesize_dry_run_json(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """--dry-run --json returns staged artifacts and validated=true.
 
         WP02 hardening: also asserts the four contracted envelope fields
@@ -282,6 +289,7 @@ class TestSynthesizeHappyPath:
         """
         _write_interview_answers(tmp_path)
 
+        charter_cwd_isolation()
         with patch(
             "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
         ), patch(
@@ -339,7 +347,7 @@ class TestSynthesizeEnvelopeContract:
     """
 
     def test_synthesize_fixture_envelope_has_contracted_fields(
-        self, tmp_path: Path
+        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
     ) -> None:
         """Real-run --json envelope carries result / adapter / written_artifacts / warnings.
 
@@ -350,6 +358,7 @@ class TestSynthesizeEnvelopeContract:
         """
         _write_interview_answers(tmp_path)
 
+        charter_cwd_isolation()
         with patch(
             "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
         ), patch(
@@ -420,26 +429,30 @@ class TestSynthesizeEnvelopeContract:
 
 
 class TestSynthesizeErrorPaths:
-    def test_missing_interview_answers_exits_1(self, tmp_path: Path) -> None:
+    def test_missing_interview_answers_exits_1(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """No interview answers → exit 1 with error message."""
         # tmp_path has no interview answers
+        charter_cwd_isolation()
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
             result = runner.invoke(app, ["synthesize"])
 
         assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}: {result.output}"
+        assert LINKED_WORKTREE_REFUSAL not in " ".join(result.output.split())
 
-    def test_unknown_adapter_exits_1(self, tmp_path: Path) -> None:
+    def test_unknown_adapter_exits_1(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """--adapter production (removed) → exit 1; spec-kitty never calls LLMs itself."""
         _write_interview_answers(tmp_path)
 
+        charter_cwd_isolation()
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
             result = runner.invoke(app, ["synthesize", "--adapter", "production"])
 
         assert result.exit_code == 1, (
             f"Expected exit 1, got {result.exit_code}: {result.output}"
         )
+        assert LINKED_WORKTREE_REFUSAL not in " ".join(result.output.split())
 
-    def test_pack_config_error_surfaces_diagnostic_body(self, tmp_path: Path) -> None:
+    def test_pack_config_error_surfaces_diagnostic_body(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """CHARTER_PACK_CONFIG_INVALID body reaches the operator, not just the code (#2850).
 
         Regression for the diagnostic-quality gap the issue flagged: a
@@ -455,6 +468,7 @@ class TestSynthesizeErrorPaths:
         # fail-loud CharterPackConfigError whose body names the bad pointer.
         config.write_text("charter: does-not-exist/charter.yaml\n", encoding="utf-8")
 
+        charter_cwd_isolation()
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
             result = runner.invoke(app, ["synthesize"])
 

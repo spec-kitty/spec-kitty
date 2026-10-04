@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import subprocess
 import textwrap
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -197,7 +198,7 @@ class TestFR006JsonPresentSignalFlip:
     @pytest.mark.integration
     @pytest.mark.git_repo
     def test_cli_context_json_present_survives_charter_md_deletion(
-        self, tmp_path: Path
+        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
     ) -> None:
         """End-to-end pin through the real ``charter context --json`` CLI surface.
 
@@ -224,6 +225,7 @@ class TestFR006JsonPresentSignalFlip:
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
 
+        charter_cwd_isolation(repo_root)
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=repo_root):
             generate_result = runner.invoke(app, ["generate", "--json", "--no-from-interview"])
             assert generate_result.exit_code == 0, generate_result.output

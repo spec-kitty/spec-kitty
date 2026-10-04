@@ -21,6 +21,7 @@ traceback on stdout -- for both the plain-console and ``--json`` output modes:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -125,7 +126,7 @@ def test_generate_console_rejects_stale_config_stem_cleanly(tmp_path: Path, monk
 # --------------------------------------------------------------------------- #
 
 
-def test_synthesize_json_surfaces_unknown_artifact_id_without_traceback(tmp_path: Path) -> None:
+def test_synthesize_json_surfaces_unknown_artifact_id_without_traceback(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     stale_stem_error = UnknownArtifactIdError(
         "No directive artifact with config ID 'does-not-exist-directive-stem' found under "
         "doctrine root /fake/doctrine. Check `.kittify/config.yaml` activated_directives for "
@@ -133,6 +134,7 @@ def test_synthesize_json_surfaces_unknown_artifact_id_without_traceback(tmp_path
         "doctrine corpus (including any org packs) is intact."
     )
 
+    charter_cwd_isolation()
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch(
@@ -160,7 +162,7 @@ def test_synthesize_json_surfaces_unknown_artifact_id_without_traceback(tmp_path
     assert any("activated_directives" in w for w in warnings)
 
 
-def test_synthesize_console_surfaces_unknown_artifact_id_without_traceback(tmp_path: Path) -> None:
+def test_synthesize_console_surfaces_unknown_artifact_id_without_traceback(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     stale_stem_error = UnknownArtifactIdError(
         "No directive artifact with config ID 'does-not-exist-directive-stem' found under "
         "doctrine root /fake/doctrine. Check `.kittify/config.yaml` activated_directives for "
@@ -168,6 +170,7 @@ def test_synthesize_console_surfaces_unknown_artifact_id_without_traceback(tmp_p
         "doctrine corpus (including any org packs) is intact."
     )
 
+    charter_cwd_isolation()
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch(
