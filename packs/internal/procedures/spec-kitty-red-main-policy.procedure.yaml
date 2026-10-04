@@ -20,7 +20,10 @@ steps:
     description: >
       A red main must trace to an issue labelled `priority:P0` on
       spec-kitty/spec-kitty, ideally with a failing reproduction test. Cite the
-      issue in the PR that lands the reproduction.
+      issue in the PR that lands the reproduction. Mark the reproduction
+      `@pytest.mark.p0_repro(issue=N)`: it runs only in the nightly `p0-repro`
+      job, so pull requests land green while the nightly, and therefore the
+      release, stays red until the fix PR removes the marker.
   - title: Classify reds with the landing-pass rules
     actor: agent
     description: >

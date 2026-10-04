@@ -294,9 +294,10 @@ When a test goes red on CI unrelated to your diff, follow the flakiness policy �
 **⚠️ Test-run baseline-red gotcha (attribute before you fix — applies to every agent, incl.
 dispatched subagents).** A local or backgrounded `pytest` run over anything broad will show
 red that is **NOT your change**. Before treating a failure as yours, classify it:
-1. **Pre-existing known-P0 reds** honestly red main (ADR `2026-07-17-1`); e.g. #2736, #2772,
-   #1834. Do **not** "fix" them — leave them red. Confirm by running the same test on the
-   merge-base / `upstream/main` (via `PYTHONPATH=<worktree>/src`), or check the tracker.
+1. **Pre-existing known-P0 reds** honestly red the nightly (ADR `2026-07-17-1`); e.g. #2736,
+   #2772, #1834. Their reproductions carry `p0_repro(issue=N)` and run only in the nightly
+   `p0-repro` lane, so a normal local or per-PR run does not show them. Do **not** "fix" them;
+   check the tracker, or run with `SPEC_KITTY_RUN_P0_REPRO=1` on the merge-base to confirm.
 2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the
    gate opt-out (`SPEC_KITTY_SKIP_PRE_REVIEW_GATE`; the pre-review gate no longer
    reads the sync-disable vocabulary, #3980). These pass locally; they are config,

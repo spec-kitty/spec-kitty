@@ -19,35 +19,38 @@ registered marker — can never be silently CI-invisible (#2034 root cause):
 (renata MEDIUM-3 — otherwise the ledger could hide the exact hole the mission
 closes).
 
-Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
-37 registered markers; `_gate_coverage.load_gates()` + `collect_universe()`):
+Live state (re-derived 2026-10-04 from ``_gate_coverage.registered_markers()``
+and ``routed_marker_names(load_gates())``; 41 registered markers). The three-state
+split that earlier revisions of this docstring tabulated (37 markers, 12 routed)
+described the retired multi-marker routing ledger and no longer matches the
+interim topology the live checks below see:
 
-  ROUTED-BY-MARKER (12): architectural, contract, fast, git_repo, integration,
-      quarantine, regression, slow, stress, timing, unit, windows_ci
+  ROUTED-BY-MARKER (9): corpus, e2e, fast, integration, p0_repro, performance,
+      stress, unit, windows_ci
       (`stress` is routed by the ci-nightly `-m "stress and not windows_ci"`
-      lane — the concurrency/load suite is deselected from the per-PR AND full
+      lane -- the concurrency/load suite is deselected from the per-PR AND full
       module-tests slices, so the nightly is its sole home, mirroring how
-      `performance`/`e2e` are nightly-only.)
-      (`quarantine` is routed by the NON-BLOCKING `quarantine-visibility` gate —
-      the spec's documented edge case: a job selects it, so it is ROUTED;
-      blocking-ness is a separate axis. Its held-out population is governed by
-      #2295/#2309 (17) + #2342 (`test_200_missions_under_5s`) and is never
-      hard-pinned here. `regression` (issue-pinned guards of FIXED bugs) has no
-      `-m regression` job today: its carriers run in the per-PR module shards
-      by path. The former blocking `regression-tests` gate no longer exists, and
-      open-P0 red-first reproductions moved to their own marker, `p0_repro`,
-      routed by the ci-nightly `-m p0_repro` lane -- the only run where
-      tests/_support/p0_repro.py lets them execute.)
-  ROUTED-BY-PATH (12): adversarial, agent, asyncio, distribution, doctrine,
-      e2e, no_git_tmp_path, no_readiness_stub, non_sandbox,
-      requires_symlinks, timeout, upgrade
-      (each has >=1 collected carrier and ZERO orphan carriers — verified via
-      the orphan model; NOT hand-asserted. The spec's illustrative
-      `non_sandbox`/`timeout`/`asyncio` invisible-guesses were
-      SUPERSEDED by this live derivation: their carriers all reach a path gate,
-      so they are routed-by-path, not invisible — shrink-preferred, C-003.)
-  CI_INVISIBLE (13): the ``CI_INVISIBLE`` ledger below — markers with ZERO
-      collected carriers today (reserved/opt-out markers no gate selects).
+      `performance`/`e2e` are nightly-only. `p0_repro` is routed by the
+      ci-nightly `p0-repro` job's `-m p0_repro`, the only run where
+      tests/_support/p0_repro.py lets those open-P0 reproductions execute; it
+      replaced the former blocking `regression-tests` job.
+      `regression` (issue-pinned guards of FIXED bugs) has no `-m regression`
+      job: its carriers run in the per-PR module shards by path, so it is NOT
+      routed by marker.)
+  CI_INVISIBLE (13): the ``CI_INVISIBLE`` ledger below -- markers with ZERO
+      collected carriers (reserved/opt-out markers no gate selects).
+  NEITHER (19): adversarial, agent, architectural, asyncio, contract,
+      distribution, docs_scoped, doctrine, git_repo, no_git_tmp_path,
+      no_readiness_stub, non_sandbox, quarantine, regression,
+      requires_symlinks, slow, timeout, timing, upgrade. No gate's `-m`
+      names them and no ledger entry covers them. Their carriers are held to the
+      set-level orphan oracle (``test_ci_collection_completeness.py``) instead;
+      this file does not assert a per-marker home for them (the live
+      ``routed-by-path`` verification was retired with the multi-marker ledger).
+
+The pure classifier ``structural_marker_violations`` still HARD-ASSERTS that
+``unit`` and ``contract`` are ROUTED-BY-MARKER, but only against fixture data in
+the fault-injection tests; no live check feeds it the real gate set.
 
 The name-level completeness here is complementary to the set-level orphan
 route oracle (``test_ci_collection_completeness.py``): that pins every test's marker SET reaches a
