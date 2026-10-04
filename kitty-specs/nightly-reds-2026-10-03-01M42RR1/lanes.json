@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-reds-2026-10-03-01M42RR1",
+  "mission_id": "01M42RR1KZ65720KD3JQQPHH5T",
+  "mission_branch": "kitty/mission-nightly-reds-2026-10-03-01M42RR1",
+  "target_branch": "kitty/nightly-reds-2026-10-03",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_skills.py",
+        "tests/specify_cli/cli/commands/test_init_hybrid.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/specify_cli/missions/test_handle_equivalence_matrix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/specify_cli/upgrade/migrations/test_hosted_endpoint_session_backfill.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/_support/shared_build_artifacts.py",
+        "tests/_support/test_shared_build_artifacts.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T06:18:57.525460+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c7d7f35f23b78134d07c1db3ed43be3d0c9e29c6"
+}

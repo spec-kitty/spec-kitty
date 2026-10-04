@@ -1,0 +1,144 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M42T950G7Y3JKDZ4JYG7ZMTP",
+  "materialized_at": "2026-10-04T06:40:34.320134+00:00",
+  "mission_number": "214",
+  "mission_slug": "nightly-reds-2026-10-03-01M42RR1",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M42T8EJNMPYJS3743BYA1Z1Y",
+      "last_transition_at": "2026-10-04T06:40:11.349069+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation committed on lane; ready for review",
+        "APPROVE (reviewer-renata, opus): no green-washing; name-set assertions stronger than the old counts; run-index golden verified against _run_index_doctor.py; nits folded in 9437b8918b"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1317800,
+      "shell_pid_created_at": "1791094786.69",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M42T8P1N56N6ME4491E611AB",
+      "last_transition_at": "2026-10-04T06:40:18.997253+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation committed on lane; ready for review",
+        "APPROVE (reviewer-renata, opus): fixture honest, shared repo fixture and all run-identity assertions untouched; 81 passed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1317800,
+      "shell_pid_created_at": "1791094786.69",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M42T8XEBSHBK71RBSWWRDH6T",
+      "last_transition_at": "2026-10-04T06:40:26.571232+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation committed on lane; ready for review",
+        "APPROVE (reviewer-renata, opus): order still taken from the registry, missing id fails, verified under default and fully-populated registry; base version red under full registry"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1317800,
+      "shell_pid_created_at": "1791094786.69",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M42T950G7Y3JKDZ4JYG7ZMTP",
+      "last_transition_at": "2026-10-04T06:40:34.320134+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation committed on lane; ready for review",
+        "APPROVE (reviewer-renata, opus): runtime mutation (flag stripped) reds the shallow test for the stated reason; positive control meaningful; flag harmless on full history"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1317800,
+      "shell_pid_created_at": "1791094786.69",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    }
+  }
+}

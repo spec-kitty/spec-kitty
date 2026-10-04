@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#4965": {
+      "evidence_ref": "Context: intended product change (PR #5421) that staled the handle-matrix fixture; no work owed to it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5258": {
+      "evidence_ref": "Lane commits 7a8744a488 (WP01), 4e1584ffb0 (WP02), 29096e1596 (WP03): the same 9 failures in the out-of-matrix suite pass on the branch",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5353": {
+      "evidence_ref": "Context: suite-wide harness rework is explicitly out of scope (C-004)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5390": {
+      "evidence_ref": "Context: intended product change (PR #5487, doctor run-index) that staled the frozen doctor surface; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5418": {
+      "evidence_ref": "Lane commits 7a8744a488 (WP01), 4e1584ffb0 (WP02), 29096e1596 (WP03): the 9 shard-3 failures of nightly 37177460494 pass on the branch",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5419": {
+      "evidence_ref": "WP04 (2c8dda3bb9, 0d144d9959) fixes the 20 e2e cases. The 3 budget tests are aligned to 2.5 s by operator ruling but stay runner-dependent. Follow-up: #5614",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP04"
+    },
+    "#5530": {
+      "evidence_ref": "Context: intended dashboard removal (PR #5545) that staled two censuses; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5562": {
+      "evidence_ref": "Context: shard-4 tracker already closed by the bot after PR #5586; newest nightly shard 4 is green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5610": {
+      "evidence_ref": "Context: separate nightly trackers (stress/integration), out of scope (C-004)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5611": {
+      "evidence_ref": "Context: separate nightly trackers (stress/integration), out of scope (C-004)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5612": {
+      "evidence_ref": "Context: separate nightly trackers (stress/integration), out of scope (C-004)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

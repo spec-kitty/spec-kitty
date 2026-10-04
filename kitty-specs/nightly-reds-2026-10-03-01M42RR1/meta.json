@@ -1,0 +1,37 @@
+{
+  "accept_commit": "19b3dea14c51f3d74df89580aeb88882876223a2",
+  "acceptance_history": [
+    {
+      "accept_commit": "19b3dea14c51f3d74df89580aeb88882876223a2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T06:37:52.625376+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "00b3ba81c68490984e4c556484b81aadc311f0a1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T06:37:52.625376+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "00b3ba81c68490984e4c556484b81aadc311f0a1",
+  "baseline_merge_commit": "5db44243da651d0719b89a7f50bd80f39d0edb52",
+  "coordination_branch": "kitty/mission-nightly-reds-2026-10-03-01M42RR1",
+  "created_at": "2026-10-04T06:13:48.274437+00:00",
+  "flattened": false,
+  "friendly_name": "Nightly reds 2026-10-03",
+  "merged_at": "2026-10-04T06:40:43.834333+00:00",
+  "merged_commit": "e1405ba341faf3bc6a1abd3d38f02deed049ab4f",
+  "mid8": "01M42RR1",
+  "mission_id": "01M42RR1KZ65720KD3JQQPHH5T",
+  "mission_number": 214,
+  "mission_slug": "nightly-reds-2026-10-03-01M42RR1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Four nightly suites were filed red as release blockers for 4.0.0. One is already green again. This mission repairs the stale test expectations and test-support defects behind the remaining failures, without raising budgets, retrying or deselecting tests, so the nightly signal is trustworthy before the release.",
+  "purpose_tldr": "Make the shard-3, specify_cli out-of-matrix and performance nightly suites pass for reasons we can name.",
+  "slug": "nightly-reds-2026-10-03-01M42RR1",
+  "status_phase": "1",
+  "target_branch": "kitty/nightly-reds-2026-10-03",
+  "topology": "lanes_with_coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T06:19:49.824237+00:00"
+}
