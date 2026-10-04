@@ -20,7 +20,7 @@ from specify_cli.skills import catalog
 from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.installer import install_all_skills
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest, save_manifest
-from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_ORPHANED, KIND_STALE, find_pack_skill_findings
+from specify_cli.skills.pack_skill_drift import KIND_DRIFT, KIND_ORPHANED, KIND_STALE, KIND_UNRESOLVABLE, find_pack_skill_findings
 from specify_cli.tool_surface.operations import ApplyConsent
 from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 from tests.charter import skill_pack_support as support
@@ -245,3 +245,14 @@ def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path,
     messages = _diagnostic_codes(project)
     assert set(messages) == {"pack_skill_orphaned"}
     assert source_ref in messages["pack_skill_orphaned"]
+
+    # A namespace removed altogether makes the catalog unresolvable: say so once, with the reason,
+    # instead of reporting nothing for installed pack skills that could not be checked.
+    support.write_org_charter(pack, namespace=None)
+    (unresolvable,) = find_pack_skill_findings(project)
+    assert unresolvable.kind == KIND_UNRESOLVABLE
+    assert "skill namespace" in unresolvable.message and "not checked" in unresolvable.message
+    code, payload = _doctor(project, monkeypatch)
+    assert code == 1 and payload["ok"] is False
+    assert [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
+    assert set(payload["pack_skills"][0]) == {"kind", "skill_name", "installed_path", "source_ref", "message"}

@@ -9,6 +9,10 @@ Distinct, independently reported conditions per installed pack-skill file:
   manifest ``source_hash`` (the pack changed since install); re-project to
   refresh the copy.
 
+* **unresolvable** -- the pack catalog could not be resolved at all (e.g. the skill
+  namespace was removed), so the installed pack skills could not be checked for
+  staleness or orphaning; one finding carries the refusal message.
+
 * **orphaned** -- the manifest names a pack skill the current catalog no longer
   provides (e.g. the skill namespace changed, so it renders under a new name, or
   the skill was deactivated/removed); `spec-kitty upgrade` retires the leftover
@@ -36,6 +40,7 @@ __all__ = ["find_pack_skill_findings"]
 KIND_DRIFT = "drift"
 KIND_STALE = "stale"
 KIND_ORPHANED = "orphaned"
+KIND_UNRESOLVABLE = "unresolvable"
 
 
 @dataclass(frozen=True)
@@ -46,9 +51,13 @@ class PackSkillFinding:
     skill_name: str
     installed_path: str
     source_ref: str
+    detail: str = ""
+    """Why the catalog could not be resolved (``unresolvable`` findings only)."""
 
     @property
     def message(self) -> str:
+        if self.kind == KIND_UNRESOLVABLE:
+            return f"installed pack skills were not checked for staleness or orphaning: the pack catalog could not be resolved: {self.detail}"
         if self.kind == KIND_DRIFT:
             return f"{self.installed_path}: rendered pack skill {self.skill_name!r} was edited locally; edit its source {self.source_ref!r} and re-project instead"
         if self.kind == KIND_ORPHANED:
@@ -74,8 +83,10 @@ class PackSkillFinding:
 def find_pack_skill_findings(project_path: Path) -> tuple[PackSkillFinding, ...]:
     """Return drift/staleness findings for the project's installed pack skills.
 
-    Unreadable manifests, absent files and an unresolvable pack catalog yield no
-    finding here: those conditions are reported by the verifier and assessment.
+    Unreadable manifests and absent files yield no finding here: those conditions
+    are reported by the verifier and assessment. An unresolvable pack catalog yields
+    one ``unresolvable`` finding carrying the refusal, because ``doctor skills``
+    does not run the verifier and would otherwise report nothing.
     """
     try:
         manifest = load_manifest(project_path, strict=True)
@@ -84,10 +95,12 @@ def find_pack_skill_findings(project_path: Path) -> tuple[PackSkillFinding, ...]
     entries = [entry for entry in (manifest.entries if manifest else []) if entry.origin == ORIGIN_PACK]
     if not entries:
         return ()
-    current = _current_source_hashes(project_path)  # None: catalog unresolvable, nothing assessed
+    current, refusal = _current_source_hashes(project_path)  # current is None: catalog unresolvable
     findings: list[PackSkillFinding] = []
     for entry in entries:
         findings.extend(_entry_findings(project_path, entry, current))
+    if current is None:
+        findings.append(PackSkillFinding(KIND_UNRESOLVABLE, "", "", "", refusal))
     return tuple(findings)
 
 
@@ -117,12 +130,15 @@ def _installed_hash(project_path: Path, entry: ManagedFileEntry) -> str | None:
         return None
 
 
-def _current_source_hashes(project_path: Path) -> dict[str, str] | None:
-    """Rendered skill name -> freshly prepared ``source_hash`` (read-only resolution); ``None`` when unresolvable."""
+def _current_source_hashes(project_path: Path) -> tuple[dict[str, str] | None, str]:
+    """Rendered skill name -> freshly prepared ``source_hash`` (read-only resolution), plus the refusal.
+
+    The mapping is ``None`` (with the refusal message) when the catalog is unresolvable.
+    """
     try:
         registry = resolve_project_skill_catalog(project_path, stage=False)
         skills = registry.discover_skills()
-    except PackSkillCatalogError:
+    except PackSkillCatalogError as exc:
         logger.debug("pack skill catalog unresolvable; staleness not assessed", exc_info=True)
-        return None
-    return {skill.name: skill.source_hash for skill in skills if skill.origin == ORIGIN_PACK}
+        return None, str(exc)
+    return {skill.name: skill.source_hash for skill in skills if skill.origin == ORIGIN_PACK}, ""
