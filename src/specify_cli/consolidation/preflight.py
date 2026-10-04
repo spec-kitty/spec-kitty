@@ -422,8 +422,10 @@ def _record_review_artifact_skip_evidence(
         # (emit_inner_state_changed_transactional, the same #2939 seam a lane hop
         # uses): on coord it rides a BookkeepingTransaction committed on the
         # coordination ref, so the evidence survives even if the merge aborts
-        # downstream; on a coord-less topology it delegates to the untouched
-        # partition-agnostic emit (no-op parity).
+        # downstream; on a stored LANES or SINGLE_BRANCH mission (no distinct
+        # coordination ref) it commits on the write branch instead (#5655);
+        # only a flat/legacy mission with no stored topology delegates to the
+        # untouched partition-agnostic emit (no-op parity).
         emit_inner_state_changed_transactional(
             feature_dir,
             wp_id,
