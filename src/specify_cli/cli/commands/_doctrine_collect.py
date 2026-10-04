@@ -35,7 +35,9 @@ if TYPE_CHECKING:
     from ._doctrine_health import (
         DoctrineHealthReport,
         GlossaryPackHealth,
+        PackSkillHealth,
         SkippedGlossaryPack,
+        SkippedPackSkill,
     )
 
 #: Parses the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
@@ -274,7 +276,10 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
             org_drg = {"errors": [load_error]}
     glossary_pack_health = _collect_glossary_pack_health(repo_root)
     return DoctrineHealthReport(
-        packs=packs, org_drg=org_drg, glossary_packs=glossary_pack_health
+        packs=packs,
+        org_drg=org_drg,
+        glossary_packs=glossary_pack_health,
+        skills=_collect_pack_skill_health(repo_root),
     )
 
 
@@ -372,6 +377,54 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     return GlossaryPackHealth(
         pack_count=len(packs), term_count=term_count, invalid_packs=invalid
     )
+
+
+def _parse_skipped_pack_skill_warning(message: object) -> SkippedPackSkill:
+    """Turn one captured ``UserWarning`` into a structured skip record.
+
+    Shares the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
+    shape (and defensive ``unknown`` fallback) with the glossary-pack parser.
+    """
+    from ._doctrine_health import SkippedPackSkill
+
+    text = str(message)
+    match = _SKIPPED_GLOSSARY_PACK_PATTERN.match(text)
+    if match is None:
+        return SkippedPackSkill(layer="unknown", path="unknown", error_summary=text)
+    return SkippedPackSkill(
+        layer=match.group("layer"),
+        path=match.group("filename"),
+        error_summary=match.group("reason"),
+    )
+
+
+def _collect_pack_skill_health(repo_root: Path) -> PackSkillHealth:
+    """Build the pack-skill health dimension (FR-015), mirroring glossary packs.
+
+    Reads the raw (unfiltered) skill repository through the sole sanctioned
+    builder (``build_activation_aware_doctrine_service``) and
+    :meth:`~charter.activation.resolver.DoctrineService.raw_repository`, so
+    every installed skill is audited regardless of activation. Load warnings
+    become :class:`~._doctrine_health.SkippedPackSkill` records; a hard load
+    failure (for example two sibling org packs declaring the same skill id)
+    degrades to zero skills plus one synthetic invalid record instead of
+    crashing ``doctor doctrine``.
+    """
+    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+
+    from ._doctrine_health import PackSkillHealth, SkippedPackSkill
+
+    loaded = 0
+    invalid: list[SkippedPackSkill] = []
+    try:
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            service = build_activation_aware_doctrine_service(repo_root)
+            loaded = len(service.raw_repository("skills").list_all())
+        invalid = [_parse_skipped_pack_skill_warning(w.message) for w in captured if issubclass(w.category, UserWarning)]
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never crash
+        invalid = [SkippedPackSkill(layer="unknown", path="unknown", error_summary=f"pack-skill health load error: {exc}")]
+    return PackSkillHealth(skill_count=loaded, invalid_skills=invalid)
 
 
 def _run_cross_grain_check(report: DoctrineHealthReport) -> None:

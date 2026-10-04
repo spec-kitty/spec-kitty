@@ -34,6 +34,8 @@ __all__ = [
     "build_pack_health_by_layer",
     "GlossaryPackHealth",
     "SkippedGlossaryPack",
+    "PackSkillHealth",
+    "SkippedPackSkill",
 ]
 
 #: Operator-facing reading order for doctrine layers.
@@ -168,6 +170,52 @@ class GlossaryPackHealth:
         }
 
 
+@dataclass(frozen=True)
+class SkippedPackSkill:
+    """A single pack-skill YAML file skipped during repository load.
+
+    Same surfaced-not-swallowed shape as :class:`SkippedGlossaryPack`: an
+    unloadable skill (bad YAML, schema violation, reserved prefix, ``scripts/``
+    directory, ``allowed-tools`` frontmatter, an illegal ``enhances``) is never
+    silently absent from the report.
+    """
+
+    layer: str
+    path: str
+    error_summary: str
+
+
+@dataclass(frozen=True)
+class PackSkillHealth:
+    """Health of the pack-skill surface (FR-015).
+
+    ``skill_count`` is what loaded; ``invalid_skills`` is every skipped file.
+    Unhealthy when anything was skipped, so a malformed skill cannot hide
+    behind its healthy siblings.
+    """
+
+    skill_count: int
+    invalid_skills: list[SkippedPackSkill] = field(default_factory=list)
+
+    @property
+    def healthy(self) -> bool:
+        """Healthy iff no skill file was skipped during load."""
+        return not self.invalid_skills
+
+    def to_dict(self) -> dict[str, object]:
+        """JSON-able view; ``healthy`` is emitted explicitly for callers."""
+        return {
+            "skill_count": self.skill_count,
+            "loaded": self.skill_count,
+            "skipped": len(self.invalid_skills),
+            "healthy": self.healthy,
+            "invalid_skills": [
+                {"layer": skill.layer, "path": skill.path, "error_summary": skill.error_summary}
+                for skill in self.invalid_skills
+            ],
+        }
+
+
 def _default_glossary_pack_health() -> GlossaryPackHealth:
     """Default glossary-pack health for a report built with no such data.
 
@@ -199,6 +247,9 @@ class DoctrineHealthReport:
     glossary_packs: GlossaryPackHealth = field(
         default_factory=_default_glossary_pack_health
     )
+    skills: PackSkillHealth = field(
+        default_factory=lambda: PackSkillHealth(skill_count=0)
+    )
 
     @property
     def healthy(self) -> bool:
@@ -224,6 +275,7 @@ class DoctrineHealthReport:
             and all(pack.healthy for pack in self.packs)
             and not org_errors
             and self.glossary_packs.healthy
+            and self.skills.healthy
         )
 
     @property
@@ -241,6 +293,7 @@ class DoctrineHealthReport:
             "packs": [pack.to_dict() for pack in self.packs],
             "org_drg": self.org_drg,
             "glossary_packs": self.glossary_packs.to_dict(),
+            "skills": self.skills.to_dict(),
         }
 
 
