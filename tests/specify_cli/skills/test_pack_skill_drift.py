@@ -263,3 +263,13 @@ def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path,
     assert code == 1 and payload["ok"] is False
     assert [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
     assert set(payload["pack_skills"][0]) == {"kind", "skill_name", "installed_path", "source_ref", "message"}
+
+    # Before any copy is installed (no pack entry in the manifest) a skill in force that cannot be resolved is
+    # still reported; a project with no skill in force stays silent.
+    (project / ".kittify" / "skills-manifest.json").unlink()
+    (blocked,) = find_pack_skill_findings(project)
+    assert blocked.kind == KIND_UNRESOLVABLE and "skill namespace" in blocked.message
+    code, payload = _doctor(project, monkeypatch)
+    assert code == 1 and [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
+    support.write_config(project, pack, extra=CONFIG)  # activated_skills: [] -> nothing in force
+    assert find_pack_skill_findings(project) == ()

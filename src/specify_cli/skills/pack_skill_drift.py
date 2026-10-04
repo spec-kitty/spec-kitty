@@ -86,16 +86,19 @@ def find_pack_skill_findings(project_path: Path) -> tuple[PackSkillFinding, ...]
     Unreadable manifests and absent files yield no finding here: those conditions
     are reported by the verifier and assessment. An unresolvable pack catalog yields
     one ``unresolvable`` finding carrying the refusal, because ``doctor skills``
-    does not run the verifier and would otherwise report nothing.
+    does not run the verifier and would otherwise report nothing -- also when no pack
+    copy is installed yet.
     """
     try:
         manifest = load_manifest(project_path, strict=True)
     except ValueError:
         return ()
     entries = [entry for entry in (manifest.entries if manifest else []) if entry.origin == ORIGIN_PACK]
-    if not entries:
-        return ()
     current, refusal = _current_source_hashes(project_path)  # current is None: catalog unresolvable
+    if not entries:
+        # Nothing is installed yet, so there is nothing to check. A skill in force that cannot be resolved is
+        # still one finding: resolution only refuses when a skill is in force, so a project with none stays silent.
+        return () if current is not None else (PackSkillFinding(KIND_UNRESOLVABLE, "", "", "", refusal),)
     findings: list[PackSkillFinding] = []
     for entry in entries:
         findings.extend(_entry_findings(project_path, entry, current))
