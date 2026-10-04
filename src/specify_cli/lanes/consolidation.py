@@ -682,6 +682,12 @@ def _blob_at(repo_root: Path, ref: str, rel: str, env: dict[str, str]) -> bytes 
     return result.stdout if result.returncode == 0 else None
 
 
+#: Highest exit status ``git merge-file`` uses for a merge it performed (the
+#: conflict count, truncated). Anything outside ``0..127`` is an error: it could
+#: not merge the content at all (binary content exits 255), or it died.
+_MERGE_FILE_MAX_CONFLICTS = 127
+
+
 def _three_way_merge_favouring_target(
     repo_root: Path,
     merge_base: str,
@@ -693,7 +699,8 @@ def _three_way_merge_favouring_target(
     """3-way merge base/target/lane for ``rel``, resolving conflicts toward TARGET.
 
     Returns the merged bytes, or None when the target has no blob for ``rel`` (a
-    delete — leave the squash result untouched). Uses ``git merge-file --ours`` so
+    delete) or ``git merge-file`` cannot merge the content (binary) — leave the
+    squash result untouched. Uses ``git merge-file --ours`` so
     the lane's *disjoint* edits are unioned in losslessly and only genuinely
     *overlapping* hunks resolve to the target copy. This is the #3942 fix done
     without the data loss a wholesale target-blob overwrite would cause in the
@@ -724,16 +731,21 @@ def _three_way_merge_favouring_target(
         lp.write_bytes(lane_blob)
         # --ours resolves every conflicting hunk toward `tp` (target) and still
         # applies lane's non-conflicting hunks; the merge is written into `tp`.
-        # Return code is intentionally ignored: for a text merge it is the
-        # (auto-resolved) conflict count, and for a binary blob it is 255 with the
-        # target copy left in place — a fail-safe toward target, never corruption.
-        # All eligible kinds are text (markdown) planning artifacts.
-        subprocess.run(
+        # With --ours a text merge exits 0 (conflicting hunks resolve to target);
+        # without a favour flag it would be the conflict count, capped at 127.
+        # Any other status means git could not merge the content at all (a
+        # binary blob under ``contracts/**``): neither side's edit can be kept, so
+        # return None and let the callers leave the squash result alone -- an
+        # explicit conflict stays a blocker instead of recency silently picking a
+        # winner and dropping the other side's change.
+        merged = subprocess.run(
             ["git", "merge-file", "-q", "--ours", str(tp), str(bp), str(lp)],
             cwd=str(repo_root),
             capture_output=True,
             env=env,
         )
+        if not 0 <= merged.returncode <= _MERGE_FILE_MAX_CONFLICTS:
+            return None
         return tp.read_bytes()
 
 

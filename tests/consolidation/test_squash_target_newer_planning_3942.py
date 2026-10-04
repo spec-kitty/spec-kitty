@@ -45,6 +45,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_san
 MISSION_SLUG = "099-target-newer-planning"
 SPEC_REL = f"kitty-specs/{MISSION_SLUG}/spec.md"
 WP_REL = f"kitty-specs/{MISSION_SLUG}/tasks/WP01.md"
+# #5552: plan-output contracts are PRIMARY planning artifacts now, so a text one follows the same rule.
+CONTRACT_REL = f"kitty-specs/{MISSION_SLUG}/contracts/api.yaml"
+BINARY_CONTRACT_REL = f"kitty-specs/{MISSION_SLUG}/contracts/schema.bin"
 MISSION_BRANCH = "kitty/mission-target-newer-planning-01ABCDEF-lane-a"
 TARGET_BRANCH = "main"
 
@@ -110,7 +113,7 @@ def test_squash_merge_preserves_target_newer_planning_files(tmp_path: Path) -> N
     clobber driver-uncovered PRIMARY-partition planning files (#3942)."""
     # Document the exact protected class: both specimens are primary-artifact
     # kinds, and neither is covered by a custom merge driver.
-    for rel in (SPEC_REL, WP_REL):
+    for rel in (SPEC_REL, WP_REL, CONTRACT_REL):
         kind = kind_for_mission_file(rel)
         assert kind is not None and is_primary_artifact_kind(kind), f"{rel} must be a primary-artifact-kind specimen"
 
@@ -124,6 +127,7 @@ def test_squash_merge_preserves_target_newer_planning_files(tmp_path: Path) -> N
     # Base commit shared by both branches.
     _write(repo, SPEC_REL, "# Spec\n\nOriginal shared paragraph.\n")
     _write(repo, WP_REL, "# WP01\n\nOriginal shared detail.\n")
+    _write(repo, CONTRACT_REL, "version: 1\n")
     _run(["git", "add", "-A"], repo)
     _run(["git", "commit", "-m", "base planning artifacts"], repo)
 
@@ -132,12 +136,14 @@ def test_squash_merge_preserves_target_newer_planning_files(tmp_path: Path) -> N
     _run(["git", "checkout", MISSION_BRANCH], repo)
     _write(repo, SPEC_REL, SPEC_OLDER_MISSION)
     _write(repo, WP_REL, WP_OLDER_MISSION)
+    _write(repo, CONTRACT_REL, "version: 2-stale\n")
     _run(["git", "commit", "-am", "mission work (older planning edit)"], repo)
 
     # Target branch (main): NEWER conflicting edit — target is strictly newer.
     _run(["git", "checkout", TARGET_BRANCH], repo)
     _write(repo, SPEC_REL, SPEC_TARGET_NEWER)
     _write(repo, WP_REL, WP_TARGET_NEWER)
+    _write(repo, CONTRACT_REL, "version: 2-target\n")
     _run(["git", "commit", "-am", "refine planning on target (newer)"], repo)
 
     # Drive the real, supported squash-merge entry point (no mocks).
@@ -154,6 +160,7 @@ def test_squash_merge_preserves_target_newer_planning_files(tmp_path: Path) -> N
     merged_wp = _read_on_target(repo, WP_REL)
     assert merged_spec == SPEC_TARGET_NEWER, "target-newer spec.md was clobbered by the older mission-branch copy"
     assert merged_wp == WP_TARGET_NEWER, "target-newer tasks/WP01.md was clobbered by the older mission-branch copy"
+    assert _read_on_target(repo, CONTRACT_REL) == "version: 2-target\n", "target-newer contracts/api.yaml was clobbered"
 
 
 def test_squash_merge_preserves_source_newer_planning_policy(tmp_path: Path) -> None:
@@ -301,3 +308,39 @@ def test_squash_preserves_disjoint_lane_and_target_edits(tmp_path: Path) -> None
     assert "B EDITED BY LANE" in merged, (
         "lane's disjoint section-B edit was clobbered by a wholesale target overwrite — the recency reconciliation must 3-way-merge, not overwrite the whole blob"
     )
+
+
+def test_squash_refuses_a_binary_contract_both_sides_changed(tmp_path: Path) -> None:
+    """A binary ``contracts/`` file changed on both sides is refused, never settled by recency (#5552).
+
+    ``git merge-file`` cannot merge binary content, so the recency policy has no
+    way to keep either side's edit: picking a winner would drop the other side's
+    change in silence. Before ``contracts/**`` joined the planning partition this
+    conflict was refused as an unclassified path; it must stay refused.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run(["git", "init", "-b", TARGET_BRANCH], repo)
+    _run(["git", "config", "user.email", "test@example.com"], repo)
+    _run(["git", "config", "user.name", "Spec Kitty"], repo)
+    _run(["git", "config", "commit.gpgsign", "false"], repo)
+
+    path = repo / BINARY_CONTRACT_REL
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"\x00\x01base\x00")
+    _commit_all_at(repo, "base binary contract", "2026-09-22T08:00:00+00:00")
+
+    _run(["git", "branch", MISSION_BRANCH], repo)
+    _run(["git", "checkout", MISSION_BRANCH], repo)
+    path.write_bytes(b"\x00\x01LANE\x00")
+    _commit_all_at(repo, "lane edits the binary contract", "2026-09-22T10:00:00+00:00")
+
+    _run(["git", "checkout", TARGET_BRANCH], repo)
+    path.write_bytes(b"\x00\x01TARGET\x00")
+    _commit_all_at(repo, "target edits the binary contract", "2026-09-22T12:00:00+00:00")
+
+    result = integrate_mission_into_target(repo, MISSION_SLUG, _manifest(), strategy=MergeStrategy.SQUASH)
+
+    assert not result.success, "a both-sides binary contract edit was settled by recency instead of refused"
+    assert BINARY_CONTRACT_REL in " ".join(result.errors)
+    assert subprocess.run(["git", "show", f"{TARGET_BRANCH}:{BINARY_CONTRACT_REL}"], cwd=str(repo), capture_output=True, check=True).stdout == b"\x00\x01TARGET\x00"
