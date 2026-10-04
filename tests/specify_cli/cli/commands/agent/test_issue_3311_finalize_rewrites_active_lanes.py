@@ -14,10 +14,14 @@ non-``--validate-only`` run, regardless of whether execution had begun. An
 ownership-only amendment (adding one path to a WP's ``owned_files``) would
 therefore silently clobber the recorded ``planning_commit_sha``.
 
-Scope correction: the original report's "topology collapse / lane renumber"
-narrative does NOT reproduce as a standalone bug — pre-execution re-finalize
-recomputing topology from scratch is the documented, intentional, idempotent
-behavior (``mission_finalize.py`` docstring). The FIX therefore gates the
+Scope correction: pre-execution re-finalize recomputing topology from
+scratch is the documented, intentional, idempotent behavior
+(``mission_finalize.py`` docstring). The earlier claim here that the
+original report's "topology collapse / lane renumber" narrative does NOT
+reproduce was wrong once execution has begun: #5573 shows an amendment can
+move a STARTED work package to another lane id, stranding its branch and
+worktree. This test therefore also pins lane identity for the started WP
+(it turns green with the #5573 fix). The #3311 FIX itself gates the
 clobber on an "execution has begun" signal (``_execution_has_begun`` /
 T014): once any WP has moved past ``planned``, re-finalize now PRESERVES the
 recorded ``planning_commit_sha`` (read from the on-disk ``lanes.json``)
@@ -47,7 +51,7 @@ from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
-from tests.specify_cli.cli.commands.agent.finalize_runner import run_finalize
+from tests.specify_cli.cli.commands.agent.finalize_runner import add_owned_file, run_finalize
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -97,13 +101,15 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
     # Execution-begun signal (T014/C-005): a WP has moved past `planned`. This
     # is what distinguishes the FIXED clobber scenario from the benign
     # pre-execution re-finalize, which is expected to keep regenerating.
+    # The started WP is WP02, the one on the higher-sorting lane that LOSES
+    # the overlap tie, so the lane-identity assertion below cannot pass by luck.
     read_dir = resolve_status_surface_with_anchor(tmp_path, mission_slug).read_dir
     append_event(
         read_dir,
         StatusEvent(
             event_id="01HXYZ3311EXECUTIONBEGUNEVT",
             mission_slug=mission_slug,
-            wp_id="WP01",
+            wp_id="WP02",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
             at="2026-08-13T00:00:00Z",
@@ -115,19 +121,18 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
 
     # Ownership-only amendment: add a path WP02 already owns to WP01's owned_files.
     # Nothing about dependencies, requirements, or lifecycle changes.
-    wp01 = feature_dir / "tasks" / "WP01-test.md"
-    wp01.write_text(
-        wp01.read_text(encoding="utf-8").replace(
-            "owned_files:\n  - src/alpha.py\n",
-            "owned_files:\n  - src/alpha.py\n  - src/beta.py\n",
-        ),
-        encoding="utf-8",
-    )
+    # Edited through the frontmatter API: run 1 re-serialised the block list,
+    # so the former textual replace silently did nothing (#5573).
+    add_owned_file(feature_dir / "tasks" / "WP01-test.md", "src/beta.py")
+
+    wp02_lane_before = established.lane_for_wp("WP02")
+    assert wp02_lane_before is not None
 
     # Run 2: the ownership-only amendment, now with execution already begun.
-    run_finalize(mission_slug, patches)
+    exit_code = run_finalize(mission_slug, patches)
     after = read_lanes_json(feature_dir)
     assert after is not None
+    assert exit_code == 0, f"the execution-begun re-finalize must succeed; exit code {exit_code!r}"
 
     # Sanity: the established lanes.json is what got rewritten (same mission).
     assert after.mission_slug == established.mission_slug
@@ -138,4 +143,15 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
         "an ownership-only amendment after execution has begun must not "
         f"clear/overwrite established planning provenance; planning_commit_sha "
         f"went {_SEEDED_PLANNING_SHA!r} -> {after.planning_commit_sha!r}"
+    )
+
+    # #5573: the started WP02 keeps its established lane id. Lane ids key the
+    # branch and worktree that hold its work, so a move strands that work.
+    wp02_lane_after = after.lane_for_wp("WP02")
+    assert wp02_lane_after is not None
+    assert wp02_lane_after.lane_id == wp02_lane_before.lane_id, (
+        "an ownership-only amendment after execution has begun must not move "
+        f"the started WP02 to another lane (#5573): {wp02_lane_before.lane_id!r} -> "
+        f"{wp02_lane_after.lane_id!r}; lanes after: "
+        f"{sorted((lane.lane_id, tuple(lane.wp_ids)) for lane in after.lanes)!r}"
     )

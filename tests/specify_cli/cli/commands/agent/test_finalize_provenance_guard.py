@@ -48,7 +48,7 @@ from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
-from tests.specify_cli.cli.commands.agent.finalize_runner import run_finalize
+from tests.specify_cli.cli.commands.agent.finalize_runner import add_owned_file, run_finalize
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -120,15 +120,12 @@ def _seed_execution_begun_event(repo_root: Path, mission_slug: str, wp_id: str) 
 
 
 def _amend_wp01_owned_files(feature_dir: Path) -> None:
-    """Ownership-only amendment: WP01 additionally owns a path WP02 owns."""
-    wp01 = feature_dir / "tasks" / "WP01-test.md"
-    wp01.write_text(
-        wp01.read_text(encoding="utf-8").replace(
-            "owned_files:\n  - src/alpha.py\n",
-            "owned_files:\n  - src/alpha.py\n  - src/beta.py\n",
-        ),
-        encoding="utf-8",
-    )
+    """Ownership-only amendment: WP01 additionally owns a path WP02 owns.
+
+    Edits through the frontmatter API: the first finalize re-serialises the
+    block list, so the former textual replace silently did nothing (#5573).
+    """
+    add_owned_file(feature_dir / "tasks" / "WP01-test.md", "src/beta.py")
 
 
 def _base_patches(tmp_path: Path, mission_slug: str, feature_dir: Path) -> dict[str, object]:
@@ -318,6 +315,10 @@ def test_execution_begun_path_does_not_write_status_json(tmp_path: Path) -> None
     )
     before_files = _hash_status_surface_files(read_dir)
     assert before_files, "sanity: the status surface must already contain the seeded event log"
+    lanes_before = read_lanes_json(feature_dir)
+    assert lanes_before is not None
+    wp02_lane_before = lanes_before.lane_for_wp("WP02")
+    assert wp02_lane_before is not None
 
     with patch(
         "specify_cli.status.reducer.materialize",
@@ -327,9 +328,21 @@ def test_execution_begun_path_does_not_write_status_json(tmp_path: Path) -> None
             "signal helper must never do (C-005)."
         ),
     ) as materialize_spy:
-        run_finalize(mission_slug, patches)
+        exit_code = run_finalize(mission_slug, patches)
 
     materialize_spy.assert_not_called()
+    assert exit_code == 0, f"the execution-begun re-finalize must succeed; exit code {exit_code!r}"
+    # #5573: WP02 is started, so the overlap amendment must not move it off
+    # its recorded lane (lane ids key the branch and worktree holding its work).
+    lanes_after = read_lanes_json(feature_dir)
+    assert lanes_after is not None
+    wp02_lane_after = lanes_after.lane_for_wp("WP02")
+    assert wp02_lane_after is not None
+    assert wp02_lane_after.lane_id == wp02_lane_before.lane_id, (
+        "a re-finalize must never move a started work package to another lane "
+        f"(#5573): WP02 went {wp02_lane_before.lane_id!r} -> {wp02_lane_after.lane_id!r}; "
+        f"lanes after: {sorted((lane.lane_id, tuple(lane.wp_ids)) for lane in lanes_after.lanes)!r}"
+    )
     assert not (read_dir / "status.json").exists(), (
         "the execution-begun finalize path must not create status.json — that "
         "is exclusively reducer.materialize()'s side effect"

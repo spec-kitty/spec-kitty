@@ -3,17 +3,19 @@
 One helper replaces the verbatim ``_run_finalize`` copies that swallowed the
 exit code, so a refusal and a success were indistinguishable (#5573). It
 records the exit code instead, mirroring the ``_run_real_finalize`` idiom in
-``test_finalize_tasks_commit_surface.py``.
+``test_finalize_tasks_commit_surface.py``. ``add_owned_file`` is the
+amendment edit the lane-identity guards share.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from unittest.mock import patch
 
 import typer
 
-__all__ = ["run_finalize"]
+__all__ = ["add_owned_file", "run_finalize"]
 
 
 def run_finalize(
@@ -43,3 +45,21 @@ def run_finalize(
         for active in ctx_patches.values():
             active.stop()
     return 0
+
+
+def add_owned_file(wp_file: Path, path: str) -> None:
+    """Append ``path`` to a WP file's ``owned_files`` through the frontmatter API.
+
+    A textual ``str.replace`` on the frontmatter silently no-ops once a first
+    finalize has re-serialised the block list (``- x`` instead of ``  - x``),
+    which made earlier overlap amendments vacuous (#5573). This edit fails
+    loudly instead.
+    """
+    from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+
+    meta, body = read_frontmatter(wp_file)
+    owned = [str(item) for item in meta.get("owned_files") or []]
+    if path in owned:
+        raise AssertionError(f"{wp_file.name} already owns {path!r}; the amendment would be a no-op")
+    meta["owned_files"] = [*owned, path]
+    write_frontmatter(wp_file, meta, body)
