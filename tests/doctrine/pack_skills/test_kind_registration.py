@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
 from charter.activation.context_renderers.delivery_table import _ACTION_BUNDLE_DELIVERY_BY_KIND, _DELIVERY_REASON_BY_KIND
 from charter.activation.pack_context import PackContext
@@ -22,7 +21,12 @@ from charter.offering.drg.migration.extractor import _emit_skill_nodes
 from charter.offering.drg.models import DRGNode, NodeKind
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.service import DoctrineService
-from specify_cli.doctrine.org_charter import REQUIRED_KIND_FIELDS, OrgCharterPolicy, _fold_policies
+from specify_cli.doctrine.org_charter import (
+    REQUIRED_KIND_FIELDS,
+    OrgCharterPolicy,
+    _fold_policies,
+    load_org_charter_policies,
+)
 
 from .conftest import prompt_skill, write_skill
 
@@ -58,7 +62,7 @@ def test_built_in_skills_dir_exists_and_is_empty_of_skills() -> None:
     assert list(directory.rglob("*.skill.yaml")) == []
 
 
-def test_org_charter_policy_gains_required_skills_and_namespace() -> None:
+def test_org_charter_policy_gains_required_skills_and_namespace(tmp_path: Path) -> None:
     assert "skills" in REQUIRED_KIND_FIELDS
     policy = OrgCharterPolicy(required_skills=["land-pr"], skill_namespace="acme")
     assert policy.required_skills == ["land-pr"]
@@ -66,9 +70,21 @@ def test_org_charter_policy_gains_required_skills_and_namespace() -> None:
     assert OrgCharterPolicy().skill_namespace is None
     assert OrgCharterPolicy(skill_namespace="x" * 32).skill_namespace == "x" * 32
     assert OrgCharterPolicy(skill_namespace="   ").skill_namespace == "   "  # blank means "not set"; the fold ignores it
+    # A bad namespace is refused where a skill is rendered, never by the policy model: it must not
+    # take the pack's other policy (here a required directive) down with it.
     for hostile in ("../x", "/abs", "a/b", ".x", "SPK", "café", "acme-", "a\nb", "x" * 33):
-        with pytest.raises(ValidationError, match="not valid"):
-            OrgCharterPolicy(skill_namespace=hostile)
+        assert OrgCharterPolicy(skill_namespace=hostile, required_directives=["d"]).required_directives == ["d"]
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    (pack / "org-charter.yaml").write_text(
+        "schema_version: '1'\norg_name: acme-org\nskill_namespace: Acme\nrequired_directives: [010-fidelity]\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text(f"charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: {pack}\n", encoding="utf-8")
+    loaded = load_org_charter_policies(tmp_path)
+    assert loaded.required_directives == ["010-fidelity"]
+    assert loaded.org_name == "acme-org"
 
 
 def test_fold_unions_required_skills_and_last_namespace_wins() -> None:

@@ -48,7 +48,6 @@ from charter.activation.kind_vocabulary import (
     resolve_selected_id_to_stem,
 )
 from charter.offering.artifact_kinds import ORG_REQUIRABLE_KIND_FIELDS, ArtifactKind
-from charter.offering.pack_skills.models import skill_namespace_violation
 
 if TYPE_CHECKING:
     from charter.activation.pack_context import PackContext
@@ -168,9 +167,9 @@ class OrgCharterPolicy(BaseModel):
     """Namespace prefix pack skills render under (``<namespace>-<id>``).
 
     Reserved built-in prefixes (``spk-``, ``spec-kitty-``, ``spec-kitty.``) are
-    refused by the pack-skill validator; WP03 owns the activation semantics. A
-    non-blank value must match the skill-namespace grammar
-    (:func:`charter.offering.pack_skills.models.skill_namespace_violation`).
+    refused by the pack-skill validator; WP03 owns the activation semantics. The
+    grammar is checked where a skill is rendered, not here, so a bad namespace never
+    discards the pack's other policy.
     """
     governance_policies: list[GovernancePolicy] = Field(default_factory=list)
     activations: list[ActivationEntry] = Field(default_factory=list)
@@ -179,16 +178,6 @@ class OrgCharterPolicy(BaseModel):
     them and deduplicates on the 4-tuple identity
     ``(activation_context, doctrine_pack_id, artifact_id, artifact_kind)``
     keeping the *last* occurrence (declaration-order precedence)."""
-
-    @field_validator("skill_namespace")
-    @classmethod
-    def _validate_skill_namespace(cls, v: str | None) -> str | None:
-        """Refuse a namespace that is not a safe directory-name prefix (never normalise it)."""
-        if v is not None and v.strip():
-            violation = skill_namespace_violation(v.strip())
-            if violation is not None:
-                raise ValueError(violation)
-        return v
 
     @field_validator("schema_version", mode="before")
     @classmethod
