@@ -37,7 +37,7 @@ from tests.next.test_next_command_integration import (
     _scaffold_project,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

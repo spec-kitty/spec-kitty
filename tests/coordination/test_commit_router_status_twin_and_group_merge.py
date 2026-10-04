@@ -12,7 +12,8 @@ Two seams change:
   partition result stays authoritative.
 
 The end-to-end invariant is pinned by
-``test_commit_router_coord_only_dirty_status_log.py``.
+``tests/coordination/test_commit_router.py::test_router_never_reports_a_coord_only_dirty_status_log_as_unchanged``
+(the former standalone e2e file was retired in #5513).
 """
 
 from __future__ import annotations

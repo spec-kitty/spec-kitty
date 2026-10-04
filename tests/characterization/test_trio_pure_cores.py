@@ -1165,7 +1165,6 @@ class TestNormalizedUncheckedTasksHelper:
 # ===========================================================================
 
 
-@pytest.mark.regression
 class TestIsReviewRejectionEdge:
     """Direct truth-table pin for the pure predicate (issue #4899)."""
 

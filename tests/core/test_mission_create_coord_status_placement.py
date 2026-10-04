@@ -1,11 +1,11 @@
 """Coord-topology create must not commit status byte-sets to the target branch.
 
-Intentional red-first P0 reproduction for #5440 (ADR 2026-07-17-1). Do NOT
-skip, xfail or quarantine it: it stays red on ``main`` until the remediation
-lands, and the fix PR turns it green.
+Permanent guard for #5440: the defect is fixed (the create scaffold commit no
+longer carries ``status.events.jsonl`` for a coordination-routed mission) and this
+test keeps it fixed. Forcing the status log back into ``scaffold_paths`` turns it red.
 
-DEFECT (#5440)
---------------
+DEFECT (#5440, fixed)
+---------------------
 ``create_mission_core`` (``src/specify_cli/core/mission_creation.py``) builds
 ONE scaffold commit over ``meta.json`` + ``status.events.jsonl`` +
 ``tasks/README.md`` + ``tasks/.gitkeep`` (``_scaffold_mission_dir``'s
@@ -32,10 +32,6 @@ branch, as in the issue's evidence, so the scaffold commit really lands
 (``main``/``master`` are protected by default and turn it into a disclosed
 bootstrap skip).
 
-Note for the remediation: ``tests/core/test_mission_creation_decomposition.py::
-test_scaffold_commit_is_single_commit_excluding_spec_md`` characterises the
-defective tree (default ``coord`` topology, asserts ``status.events.jsonl`` IS
-in the target-branch scaffold commit). The fix has to re-pin that test.
 """
 
 from __future__ import annotations
@@ -97,13 +93,11 @@ def _not_a_worktree(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(f"{_CORE_MODULE}.is_worktree_context", lambda cwd: False)
 
 
-@pytest.mark.regression
 def test_coord_create_scaffold_commit_keeps_status_off_target_branch(tmp_path: Path) -> None:
     """#5440: creating a ``coord`` mission must not commit ``status.events.jsonl``
     (or ``status.json``) onto the mission's target branch.
 
-    Intentional red-first P0 reproduction for #5440 (ADR 2026-07-17-1). Do not
-    skip, xfail or quarantine it; the fix PR turns it green.
+    #5440 is fixed; this is the permanent guard against its return.
     """
     _init_repo(tmp_path)
     base = _git(tmp_path, "rev-parse", _TARGET_BRANCH).strip()

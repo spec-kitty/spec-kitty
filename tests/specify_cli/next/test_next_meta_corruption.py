@@ -1,21 +1,19 @@
-"""Regression: `spec-kitty next` must fail closed, not crash, on a corrupt
-mission ``meta.json`` (#4642, WP03).
+"""CLI smoke: `spec-kitty next` fails closed, not crashes, on a corrupt
+mission ``meta.json`` (#4642 -- fixed; this is a permanent guard).
 
-Root cause (grounded, file:line): ``next_cmd.py``'s ``:195-217`` try/except
-wraps ONLY ``_resolve_mission_slug`` (mission *directory* resolution via
-``PRIMARY_METADATA.read_dir`` -- it never parses ``meta.json`` content).  The
-corrupt-meta decode escapes DOWNSTREAM of that guard, via
-``query_current_state -> runtime_bridge -> load_meta_fail_closed``, from two
-UNWRAPPED call sites: ``_run_query_mode(...)`` (query mode, no ``--result``)
-and ``decide_next(...)`` (advancing mode, ``--result <value>``).
-``MissionMetaReadError`` subclasses ``RuntimeError`` (not ``ValueError``), so
-it also slips past the existing ``except ValueError`` arm at ``:215``.
+The per-mode guard lives in ``test_next_cmd_meta_dispatch.py``: stub-level units
+for ``_dispatch_query_mode`` and ``_dispatch_advancing_mode`` (plain and
+``--json``).  This file keeps ONE end-to-end smoke through the real entry point.
 
-This test drives the REAL ``spec-kitty next --mission <slug>`` CLI path via
-``typer.testing.CliRunner`` against a mission whose ``meta.json`` is corrupt
-(malformed JSON and a non-UTF-8 byte), asserting the command exits 1 with a
-clean diagnostic -- never an uncaught traceback -- in both plain and
-``--json`` output modes.
+Root cause (history): the corrupt-meta decode escaped DOWNSTREAM of the
+slug-resolution guard in ``next_cmd.py`` via
+``query_current_state -> runtime_bridge -> load_meta_fail_closed``.
+``MissionMetaReadError`` subclasses ``RuntimeError`` (not ``ValueError``), so it
+also slipped past the existing ``except ValueError`` arm.
+
+The smoke drives the REAL ``spec-kitty next --mission <slug> --json`` path via
+``typer.testing.CliRunner`` against a mission whose ``meta.json`` is malformed,
+asserting exit 1 with a clean JSON diagnostic -- never an uncaught traceback.
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ from specify_cli import app as cli_app
 
 from tests._factories import provision_test_charter
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
@@ -109,42 +107,9 @@ _TRACEBACK_MARKER = "Traceback (most recent call last)"
 _DOCTOR_HINT = "spec-kitty doctor"
 
 
-def _assert_clean_fail_closed(result, meta_path: Path) -> None:
-    """Shared assertions: exit 1, no raw traceback, corrupt file named, doctor hint."""
-    assert result.exit_code == 1, f"expected exit 1, got {result.exit_code}; output={result.output!r}"
-    assert result.exception is None or isinstance(result.exception, SystemExit), (
-        f"expected a clean typer.Exit (SystemExit) or no exception, got {result.exception!r} "
-        f"({type(result.exception).__name__ if result.exception else 'None'}); output={result.output!r}"
-    )
-    assert _TRACEBACK_MARKER not in result.output, f"raw traceback leaked into output: {result.output!r}"
-    assert meta_path.name in result.output, f"expected the corrupt file to be named in output; output={result.output!r}"
-    assert _DOCTOR_HINT in result.output, f"expected a '{_DOCTOR_HINT}' remediation hint; output={result.output!r}"
-
-
 class TestNextMetaCorruptionFailsClosed:
     """`spec-kitty next` on a corrupt ``meta.json`` must exit 1 with a clean
     diagnostic -- never an uncaught traceback (#4642)."""
-
-    def test_malformed_json_query_mode_plain(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        repo_root = _scaffold_project(tmp_path)
-        monkeypatch.chdir(repo_root)
-        meta_path = _meta_path(repo_root)
-        meta_path.write_text("{not valid json", encoding="utf-8")
-
-        result = runner.invoke(cli_app, ["next", "--mission", _MISSION_SLUG])
-
-        _assert_clean_fail_closed(result, meta_path)
-
-    def test_non_utf8_byte_query_mode_plain(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        repo_root = _scaffold_project(tmp_path)
-        monkeypatch.chdir(repo_root)
-        meta_path = _meta_path(repo_root)
-        # A lone 0xFF byte is invalid UTF-8 and cannot be decoded as text.
-        meta_path.write_bytes(b'{"mission_type": "software-dev", "bad": "\xff"}')
-
-        result = runner.invoke(cli_app, ["next", "--mission", _MISSION_SLUG])
-
-        _assert_clean_fail_closed(result, meta_path)
 
     def test_malformed_json_query_mode_json_output(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo_root = _scaffold_project(tmp_path)
@@ -164,17 +129,3 @@ class TestNextMetaCorruptionFailsClosed:
         rendered = json.dumps(payload)
         assert meta_path.name in rendered, f"expected the corrupt file named in the JSON payload; payload={payload!r}"
         assert _DOCTOR_HINT in rendered, f"expected a '{_DOCTOR_HINT}' remediation hint in the JSON payload; payload={payload!r}"
-
-    def test_malformed_json_advancing_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The escape site also reaches ``decide_next`` on an advancing (``--result``) call."""
-        repo_root = _scaffold_project(tmp_path)
-        monkeypatch.chdir(repo_root)
-        meta_path = _meta_path(repo_root)
-        meta_path.write_text("{not valid json", encoding="utf-8")
-
-        result = runner.invoke(
-            cli_app,
-            ["next", "--agent", "test-agent", "--mission", _MISSION_SLUG, "--result", "success"],
-        )
-
-        _assert_clean_fail_closed(result, meta_path)

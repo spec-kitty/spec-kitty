@@ -16,6 +16,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from click.testing import Result
+
 import pytest
 import typer
 from typer.testing import CliRunner
@@ -221,7 +223,7 @@ def _resolved_workspace(repo: Path, mission_slug: str, wp_id: str, branch_name: 
     )
 
 
-def _run_implement(repo: Path, mission_slug: str, wp_id: str = "WP01", *, actor: str = "system") -> object:
+def _run_implement(repo: Path, mission_slug: str, wp_id: str = "WP01", *, actor: str = "system") -> Result:
     return runner.invoke(_implement_app(), [wp_id, "--mission", mission_slug, "--json", "--actor", actor], catch_exceptions=False)
 
 
@@ -414,7 +416,8 @@ def test_occupancy_scan_runs_once_per_implement_call(repo: Path, monkeypatch: py
 
     def _counting_scan(*args: Any, **kwargs: Any) -> list[tuple[str, str]]:
         calls.append(kwargs.get("exclude"))
-        return real_scan(*args, **kwargs)
+        scanned: list[tuple[str, str]] = real_scan(*args, **kwargs)
+        return scanned
 
     monkeypatch.setattr(checkout_occupancy, "in_progress_wps_in_write_checkout", _counting_scan)
     mission_slug = "impl-scan-once"
@@ -458,6 +461,25 @@ def test_dirty_checkout_refuses(repo: Path) -> None:
     assert result.exit_code != 0
     assert "uncommitted.py" in result.output
     assert "Commit or stash them" in result.output
+
+
+def test_refused_implement_leaves_no_tracked_changes_and_no_vcs_lock(repo: Path) -> None:
+    """#5100 A3: a refused implement writes nothing behind (no VCS lock in meta.json).
+
+    The mission's ``meta.json`` carries no ``vcs`` key, so ``_ensure_vcs_in_meta``
+    WOULD write the lock if it ran before the dirty-checkout refusal.
+    """
+    mission_slug = "impl-dirty-a3"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDIRTYA3000000001")
+    assert "vcs" not in json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    (repo / "uncommitted-a3.py").write_text("X = 1\n", encoding="utf-8")
+
+    result = _run_implement(repo, mission_slug)
+
+    assert result.exit_code != 0
+    assert "uncommitted-a3.py" in result.output
+    assert _git(repo, "status", "--porcelain", "--untracked-files=no") == ""
+    assert "vcs" not in json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
 
 
 def test_dirty_refusal_is_isolated_and_carries_error_code_and_remedy(repo: Path) -> None:
