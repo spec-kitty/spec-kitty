@@ -3,7 +3,7 @@ title: 'ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across
 description: 'Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority.'
 status: Accepted
 date: '2026-09-19'
-updated: '2026-09-30'
+updated: '2026-10-04'
 ---
 
 ## Context and Problem Statement
@@ -298,6 +298,53 @@ above is superseded by this follow-up.
     after a rollback.
   - Out of scope: #3536, #5371, #5372.
 
+### Follow-up 2026-10-04 — presence axis, status-write guard, wider lag recovery (#5613)
+
+Issue #5613, a hardening follow-up to #5569, #5570, #5571 and #5572. The rollback authority
+is unchanged; this follow-up adds two refusals in front of it, widens the resume recovery and
+names one teardown refusal.
+
+- **Presence axis.** The reconciliation gate FAILs with `APPROVED_CONTENT_MISSING` and rolls
+  back through `rollback_to_snapshot` when an approved code lane's own net change to a path is
+  not on the target, the target left that path alone since the lane was cut, and no later
+  approved lane built atop it superseded the path
+  (`MergeOutcomeVerifier._approved_content_divergence`). It is strategy-independent. The
+  typical cause is an operator who committed the staged deletions of a lagging checkout and
+  then resumed. It does not judge a path the target also changed.
+- **Status-write guard.** A coordination status write refuses before it writes
+  (`coordination/status_surface_guard.py`, called by `BookkeepingTransaction`):
+  `COORD_STATUS_SURFACE_DIVERGED` when the worktree's `status.events.jsonl` lost events its
+  HEAD has committed, `COORD_STATUS_SURFACE_UNREADABLE` when the committed log is malformed,
+  repeats an event id or cannot be read. Extra uncommitted lines are tolerated.
+- **Lag recovery.** `consolidate --resume` recovers in place a coordination worktree, a mission
+  worktree and a lane worktree that provably only lags its own HEAD, as it already did for the
+  repository root checkout. Each is proven against its own entry in `pre_mutation_refs`
+  (`pre_mutation_coord_sha` for the coordination worktree, `pre_mutation_target_sha` for the
+  root). A resume-only preflight leg refuses a dirty worktree on the mission branch only when a
+  lane remains to be consolidated or the worktree actually lags. A lag plus an operator edit in
+  a non-root worktree is never reset; it gets patch-based advice.
+- **`COORD_MOVED_AFTER_LANDING`, exit 75.** When the coordination branch (or the mission branch
+  of a mission without coordination topology) moved after the landing was verified and the
+  compare-and-swap delete kept it, `consolidate` renders the code as a message suffix and exits
+  75. The landing is not rolled back. `orchestrator-api consolidate-mission` reports the code in
+  `data["teardown_error_code"]` under its unchanged `PREFLIGHT_FAILED` envelope.
+- **Remaining second restore paths.** The list of the 2026-09-30 follow-up gains one entry:
+  resume recovery still performs a raw `git reset --hard HEAD`
+  (`_recover_behind_head_primary_on_resume`), now on four checkout roles: repository root
+  checkout, coordination worktree, mission worktree and lane worktree.
+- **Residuals (named, not closed).**
+  - The rollback's byte-restore leaves the coordination worktree's status files dirty; the
+    status-write guard refuses on them, the rollback does not clean them.
+  - Lane-branch deletes still use `git branch -D`.
+  - A corrupt `state.json` falls back to the generic dirty-checkout advice.
+  - The repository root checkout with a lag plus an operator edit keeps the stock "Commit,
+    stash, or revert" remedy.
+  - The earlier projection-window race (`ProjectionTeardownAbort`,
+    `PROJECTION_TEARDOWN_ABORTED`) has no rendered refusal on `consolidate` and keeps exit 1.
+  - The presence axis does not judge a path the target also changed since the lane was cut.
+  - Out of scope: legacy and foreign strand-marker refusal codes; unwrapped remediation
+    printing.
+
 ## Consequences
 
 - **Positive.** A default-config command can no longer wedge an in-flight mission or push
@@ -329,6 +376,7 @@ above is superseded by this follow-up.
 - Issues: #4764, #4765, #4474, #2745; epic #3897 (parent), #1795 (#2745's lane-mechanics epic).
 - Amendment 2026-09-29: #5338, #5318, #5332, #5296 (epic #5001); mission `kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/`; residuals #5385, #5371, #5372.
 - Follow-up 2026-09-30: #5385; mission `kitty-specs/single-rollback-authority-01M3RCP4/`; out-of-scope follow-ups #3536, #5371, #5372.
+- Follow-up 2026-10-04: #5613 (hardening of #5569, #5570, #5571, #5572).
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),

@@ -2,7 +2,7 @@
 title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-10-04'
 related:
 - docs/api/event-envelope.md
 - docs/migrations/feature-flag-deprecation.md
@@ -154,7 +154,7 @@ Removed at the CLI boundary:
 | `transition` | yes | Emit one explicit lane transition. |
 | `append-history` | yes | Append a WP activity-log note. |
 | `accept-mission` | yes | Record mission acceptance. |
-| `merge-mission` | yes | Merge the mission into its target branch. |
+| `consolidate-mission` | yes | Consolidate the mission into its target branch. |
 | `specify` | yes | Create a mission scaffold (contract >= 1.4.0). |
 | `plan` | yes | Scaffold `plan.md` for a mission (contract >= 1.4.0). |
 | `tasks` | yes | Finalize WP task metadata (contract >= 1.4.0). |
@@ -184,7 +184,7 @@ spec-kitty orchestrator-api mission-state --mission 077-mission-terminology-clea
 Run-affecting implementation and review mutations require `--policy`. Today
 that means `start-implementation`, `start-review`, and `transition` when the
 target lane is run-affecting. `append-history`, `accept-mission`, and
-`merge-mission` do not accept `--policy`.
+`consolidate-mission` do not accept `--policy`.
 
 The policy JSON object must include:
 
@@ -820,7 +820,7 @@ Current machine-readable error codes (the authoritative list is
 - `WP_ALREADY_CLAIMED` (for `start-implementation` on an `in_progress` WP after a reviewer's rework verdict, the WP's implementer of record is admitted as a `no_op` resume rather than refused; an unrelated actor is still refused)
 - `MISSION_NOT_READY`
 - `WORKFLOW_EVIDENCE_REQUIRED`
-- `PREFLIGHT_FAILED`
+- `PREFLIGHT_FAILED` (on `consolidate-mission`, `data.teardown_error_code` can refine it; see below)
 - `CONTRACT_VERSION_MISMATCH`
 - `UNSUPPORTED_STRATEGY`
 - `HISTORY_COMMIT_FAILED`
@@ -865,6 +865,21 @@ Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
 - `AMBIGUOUS_PENDING_DECISION` — `answer-decision`
 - `DECISION_NOT_PENDING` — `answer-decision`
 - `DECISION_OPERATION_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision` (fallback when a decision-ledger operation fails for a reason without a more specific registered code)
+
+### `consolidate-mission`: `data.teardown_error_code`
+
+A `consolidate-mission` failure keeps the `PREFLIGHT_FAILED` envelope code and
+puts the message in `data.errors`. When the landing succeeded and only the
+cleanup after it refused, `data` also carries `teardown_error_code`, a stable
+code to key on instead of the prose.
+
+| `data.teardown_error_code` | Meaning | What to do |
+|---|---|---|
+| `COORD_MOVED_AFTER_LANDING` | The mission branch moved after the landing was verified. The branch was kept, the late commit is intact and the landed target stands. | Review the commit(s) with the `git log` command in the message, land any that belong on the target, then delete the branch. |
+
+The key is absent on every other failure. The message in `data.errors` ends
+with `Error code: COORD_MOVED_AFTER_LANDING.` The host command
+`spec-kitty consolidate` reports the same condition with exit code 75.
 
 ## Provider Rules
 

@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-04'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -404,6 +404,8 @@ commit belongs to some WP's window:
 |---|---|---|
 | PASS | No mixed lane, or every canceled WP's content was superseded by a later, non-canceled commit on the same lane (a rework, a revert, or content the target already carried), and every lane content commit lies in some WP's window | Consolidation proceeds |
 | FAIL | A canceled WP's content (an addition, a modification, or a deletion) is still present on the target, unsuperseded | Target restored (compare-and-swap); names the lane, WP and every offending path. Recovery: revert the change on the lane through a surviving WP's governed work, re-run. **Not overridable.** |
+| FAIL (`CANCELED_REACHABLE_VIA_DEPENDENCY`) | A fully-canceled dependency lane's content reached an approved lane through the dependency step, is still live there and is on the target (#5569, #5613). Commits that every carrying lane fully superseded are not counted | Target restored; names the canceled WPs, both lanes and the path, alongside the strategy check's own message. Recovery: undo the change on the carrying lane through a surviving WP's governed work, re-run. **Not overridable.** |
+| FAIL (`APPROVED_CONTENT_MISSING`) | An approved code lane's own net change to a path is not on the target, the target left that path alone since the lane was cut, and no later approved lane built atop it superseded the path (#5571, #5613). Applies to every lane, mixed or not, under both strategies. A path the target also changed is not judged | Target restored; names the approved WP, its lane and the path. Recovery: restore the change on the mission branch (for example revert a commit that recorded the staged deletions of a lagging worktree), re-run. **Not overridable.** |
 | REFUSE (attribution evidence) | The canceled WP's commits cannot be bounded: no stamp, a window that never closed, a stamp that is not an ancestor of the lane tip, or a commit contested between two WPs' windows | Target restored. The evidence cannot appear later (the log is append-only), so the message names the override: verify by hand that the canceled content is absent or superseded, then re-run with `--attest-canceled-superseded <WP> --attest-reason "<what you checked>"` |
 | REFUSE (closed world) | Every window resolved, yet a non-merge, non-bookkeeping lane commit lies in no WP's window and after the lane's own base (a straggler after the cancel, a commit by a WP that never entered implementation). Commits reachable from the lane head at its first claim, a dependency-lane tip, or the target's pre-consolidation tip are not outside | Target restored; names the lane, up to three short commit shas and a path. Recovery: verify by hand that those commits carry no canceled work, then attest as above; re-attesting after a later straggler records a fresh attestation whose stamp covers it |
 | REFUSE (merged with an independent change) | The target is neither the canceled state, its pre-state, nor the window base's state | Target restored. Recovery: supersede through a surviving WP and re-run, or attest after verifying by hand |
@@ -467,7 +469,12 @@ A fully-canceled dependency lane whose content fast-forwards into a dependent
 lane is no longer a residual: its commits are subtracted from the dependency-tip
 exemption (#5569), and a fully-canceled dependency lane whose branch is deleted
 or unreadable REFUSEs at claim time. A canceled lane nobody depends on is still
-tolerated when its branch is gone.
+tolerated when its branch is gone. Since #5613 a canceled commit that every
+carrying lane fully superseded stays in the claim, live content FAILs with
+`CANCELED_REACHABLE_VIA_DEPENDENCY`, and a canceled dependency WP without a
+`lane_head` stamp REFUSEs at claim time; the attestation lifts that refusal
+only, per attested WP, and never the FAIL. Supersession is per path here too: an
+approved WP that touches a canceled WP's file supersedes the whole path.
 
 Each is pinned by a strict expected-failure test that asserts the ideal
 outcome, and is tracked as follow-up work under the parent epic. Two former

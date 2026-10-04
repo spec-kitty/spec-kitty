@@ -130,3 +130,40 @@ fully-canceled dependency lane whose branch is deleted or unreadable REFUSEs at
 claim time, because its commits can no longer be enumerated; a canceled lane
 that no other lane depends on stays tolerated. The remaining strict-`xfail`
 residuals drop from five to four.
+
+## Follow-up 2026-10-04 — superseded exemption, unstamped REFUSE and a stable code (#5613)
+
+The 2026-10-03 amendment subtracted every commit of a fully-canceled dependency
+lane from the approved claim. Three refinements, none of which runs for a
+mission where no approved lane carries such a commit
+(`reconciliation._resolve_canceled_dependency_lanes`):
+
+- **Superseded exemption.** A canceled commit stays in the claim when, on every
+  approved lane that carries it (a *carrier* lane), a newer, non-canceled,
+  non-merge commit touched each of its content paths again
+  (`wp_attribution.canceled_spine_content`). Nothing of such a commit is the
+  lane's final state, so nothing of it ships. This removes an over-refusal under
+  `--strategy merge`. A carrier whose spine cannot be read supersedes nothing.
+  Supersession is per path, as on a mixed lane: an approved WP that touches a
+  canceled WP's file supersedes the whole path.
+- **Unstamped REFUSE and its attestation lift.** A canceled dependency WP with a
+  closed work window that carries no `lane_head` stamp has no attribution
+  evidence. The claim REFUSEs before any mutation and names the override. This
+  covers a mission created before the stamps and a modern mission whose
+  best-effort stamp capture failed. `--attest-canceled-superseded <WP>` lifts
+  this refusal only, per attested WP, and only while
+  `canceled_attestation.OVERRIDABLE_REASONS` lists `no_stamp`. The attestation
+  takes no commit out of the subtracted set. An unreadable event log still
+  REFUSEs and is not overridable.
+- **Stable code.** Content of the canceled lane that is still live on a carrier
+  lane and present on the target (and that the pre-consolidation target did not
+  already hold) FAILs with `CANCELED_REACHABLE_VIA_DEPENDENCY`
+  (`Divergence.canceled_reachable_via_dependency`). The clause names the canceled
+  WPs, the canceled lane, the carrier lane and the path, and is rendered
+  alongside the strategy axis's own clause.
+- **The FAIL is never attest-liftable.** It is computed over all of the canceled
+  lane's own commits, attested or not, for a stamped and for an unstamped WP
+  alike. The decision above stands: an attestation covers attribution evidence,
+  never content that would ship.
+
+The count of strict-`xfail` residuals stays at four.
