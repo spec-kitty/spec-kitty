@@ -9,7 +9,7 @@
 
 ## WP03 corpus drain (commit 1270000bdc)
 
-- Evidence rule (28 manifest entries): dossier reached `skupstream/main` through a merged PR (found via `GET /commits/<sha>/pulls`, or issue/PR search for direct-commit dossiers), the PR shows the work was delivered, and no existing WP is in an active lane. 13 more finished Missions came from `meta.json` `merged_at`/`accepted_at`.
+- Evidence rule (28 manifest entries): dossier reached `main` of the upstream repository through a merged PR (found via `GET /commits/<sha>/pulls`, or issue/PR search for direct-commit dossiers), the PR shows the work was delivered, and no existing WP is in an active lane. 13 more finished Missions came from `meta.json` `merged_at`/`accepted_at`.
 - Left planned (3): `062-fix-doctrine-migration-test-failures` (WPs still claimed/in_progress), `blocked-wp-unblock-path-01M29093` (WP02 descoped before merge, PR #4245), `sync-sleep-count-3136-01KZ9B5A` (PR #3252 rescoped; WP02/WP04 not delivered as planned). Per-WP descope cannot be expressed in a Mission-level manifest, so a forced `done` would have recorded a falsehood.
 - Run: 417 events seeded across 44 Missions; second dry-run seeds 0. Event logs only grew (append-only); `status.json` regenerated only where it already existed.
 - Modified pre-existing frozen files (WP04 sanctioned-corrections ledger) and the bucket-C list with reasons: see the handoff table below (copied verbatim from the WP03 hand-off).

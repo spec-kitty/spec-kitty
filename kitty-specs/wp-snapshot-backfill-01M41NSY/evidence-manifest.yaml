@@ -1,7 +1,7 @@
 # Terminal-evidence manifest for the WP-status backfill (#5579, WP03).
 #
 # Rule: a Mission is listed ONLY when git evidence shows it is finished:
-#   (1) its dossier reached skupstream/main (c11d043e54) through a merged PR, found with
+#   (1) its dossier reached upstream main (c11d043e54) through a merged PR, found with
 #       GET /repos/spec-kitty/spec-kitty/commits/<dossier-sha>/pulls (or an issue/PR search for
 #       Missions landed by direct commit), AND
 #   (2) the PR title/body shows the Mission's work was delivered (not only planned), AND
