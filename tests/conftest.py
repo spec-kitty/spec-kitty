@@ -50,7 +50,7 @@ from tests.utils import REPO_ROOT, run, write_wp
 
 # Red-first reproductions of open P0 bugs (``p0_repro``) are deselected from
 # every run except the nightly p0-repro lane; see tests/_support/p0_repro.py.
-pytest_plugins = ["tests._support.p0_repro", "tests._support.charter_cwd"]
+pytest_plugins = ["tests._support.p0_repro", "tests._support.charter_cwd", "tests._support.charter_cwd_tripwire"]
 
 # ---------------------------------------------------------------------------
 # WP04 — Per-worker HOME and state isolation (master enabler, FR-002)
@@ -726,6 +726,11 @@ def _neutralize_worktree_detection(request, monkeypatch: pytest.MonkeyPatch) -> 
 
     Tests that explicitly test worktree detection should use the
     ``@pytest.mark.real_worktree_detection`` marker to opt out.
+
+    This stubs the detector. For the charter write guard, do not copy that
+    approach: ``tests/_support/charter_cwd.py`` (``charter_cwd_isolation``) and
+    the tripwire ``tests/_support/charter_cwd_tripwire.py`` keep the real guard
+    running and fix the test's working directory instead.
     """
     if "real_worktree_detection" in {m.name for m in request.node.iter_markers()}:
         return
