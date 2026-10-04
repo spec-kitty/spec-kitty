@@ -207,11 +207,14 @@ def test_dry_run_does_not_rewrite_files(tmp_path: Path) -> None:
 
 
 def test_yes_flag_normalizes_without_prompt(tmp_path: Path) -> None:
-    """--yes applies normalizations without prompting; file becomes valid UTF-8."""
+    """--yes applies normalizations without prompting; the file becomes byte-exact UTF-8 and the original is backed up."""
     charter_dir = tmp_path / "kitty-specs" / "042-foo" / "charter"
     cp1252_file = charter_dir / "charter.yaml"
-    # Use multi-word text with high-byte cp1252 chars for confident detection.
-    _make_cp1252_file(cp1252_file)
+    # Use multi-word text with high-byte cp1252 chars for confident detection. "\xef" (i-diaeresis)
+    # decodes to a different character under cp1250, so a wrong-code-page transcode cannot match.
+    text = "R\xe9sum\xe9 na\xefve caf\xe9 H\xf4tel"
+    _make_cp1252_file(cp1252_file, text)
+    original_bytes = cp1252_file.read_bytes()
     (tmp_path / ".kittify").mkdir()
 
     runner = CliRunner()
@@ -223,9 +226,9 @@ def test_yes_flag_normalizes_without_prompt(tmp_path: Path) -> None:
     payload = _extract_json(result.output)
     assert payload["result"] == "success"
     assert [Path(r["path"]).name for r in payload["normalized"]] == ["charter.yaml"]
-    # File must now be valid UTF-8 (no UnicodeDecodeError).
-    normalized_text = cp1252_file.read_text(encoding="utf-8")
-    assert len(normalized_text) > 0
+    assert cp1252_file.read_bytes() == text.encode("utf-8")
+    backup_file = cp1252_file.with_name(cp1252_file.name + ".bak")
+    assert backup_file.read_bytes() == original_bytes
 
 
 def test_yes_exits_nonzero_on_ambiguous_file(tmp_path: Path) -> None:
