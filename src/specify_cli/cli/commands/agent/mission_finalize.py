@@ -5423,7 +5423,10 @@ def finalize_tasks(
     #     runs only, P's ``.kittify/derived/<slug>``.
     #   * NOT UNDONE, REPORTED: status commits on a branch that moved after
     #     this run's last status write (a foreign commit landed on top). The
-    #     branch is never forced; the run names the commits it left.
+    #     branch is never forced; the run names the commits it left. On a
+    #     ``lanes`` / ``single_branch`` surface the finalize commit itself
+    #     shares that branch, so a failure after it lands but before
+    #     ``commit_landed`` is set reads as "moved" too (same safe outcome).
     #   * NOT COVERED (tracked in #5343): a status surface the guard cannot
     #     capture at the run's first status write -- a coordination worktree
     #     the run itself materializes, a detached HEAD -- whose status commits
