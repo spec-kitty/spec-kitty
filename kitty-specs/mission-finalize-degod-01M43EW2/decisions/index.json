@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T12:40:39.876525Z",
+      "decision_id": "01M43EWG64HEBHVZ9T2HE4RJ45",
+      "final_answer": "Pure extraction (issue #5627 as written): operator-authored issue states no size limit or ratchet gate, behaviour identical, thin CLI layer, focused seam tests; #5343 stays separate.",
+      "input_key": "scope_boundary",
+      "mission_id": "01M43EW2TPGW02G2EWEW0ZTDC2",
+      "mission_slug": "mission-finalize-degod-01M43EW2",
+      "opened_by": "cli",
+      "options": [
+        "Pure extraction (issue #5627 as written)",
+        "Include #5343 plan/apply split",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Scope: pure behaviour-preserving phase extraction of mission_finalize.py (no size gate, no #5343 plan/apply split)?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T12:40:42.888070Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M43EW2TPGW02G2EWEW0ZTDC2",
+  "version": 1
+}

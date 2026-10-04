@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mission_slug": "mission-finalize-degod-01M43EW2",
+  "mission_id": "01M43EW2TPGW02G2EWEW0ZTDC2",
+  "mission_branch": "claude/modest-keller-6mvhd4",
+  "target_branch": "claude/modest-keller-6mvhd4",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/finalize-tasks-internals.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_branch_contract.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_commit.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_lanes.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_seams.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_validation.py",
+        "tests/_support/finalize_source.py",
+        "tests/_support/test_finalize_source.py",
+        "tests/architectural/test_finalize_refresh_pin_authority.py",
+        "tests/architectural/test_issue_matrix_json_migration_completeness.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/coordination/test_commit_outcome_consumer_pin.py",
+        "tests/git/test_guard_capability_regression.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_finalize_phase_modules.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T12:44:53.462100+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "809419bafead837412dba3ff676af81ee40e8702"
+}

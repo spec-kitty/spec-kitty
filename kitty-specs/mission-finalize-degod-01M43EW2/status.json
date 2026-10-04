@@ -1,0 +1,87 @@
+{
+  "event_count": 16,
+  "last_event_id": "01M43J0TWWFSCZB7E6R2C2FJ6K",
+  "materialized_at": "2026-10-04T13:35:27.644420+00:00",
+  "mission_number": "215",
+  "mission_slug": "mission-finalize-degod-01M43EW2",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43J0R8NKJMM1ZNX88MXBSPA",
+      "last_transition_at": "2026-10-04T13:35:24.949062+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation commit 3a91cc67. --force only because single_branch agent-action-implement never records the claim base (#5663). ruff/format/mypy 0; seam tests green; finalize corpus 5197 passed.",
+        "Review cycle 1 (reviewer-renata): _bootstrap_canonical_state_via_mission not routed via _mf at bootstrap.py:716 / commit.py:675; globals() alias no longer on mission_finalize.",
+        "Review cycle 1 folded in 1192ef48 (seam routing + alias + tests, red-first proven). Corpus 5210 passed; only red is base-red merge test. --force only for #5663.",
+        "Approved by reviewer-renata (opus) after cycle 1: AST parity 132/132 (4 accepted diffs), seam routing complete, 111 tests passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28127,
+      "shell_pid_created_at": "1791117922.39",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M43J0TWWFSCZB7E6R2C2FJ6K",
+      "last_transition_at": "2026-10-04T13:35:27.644420+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs module map committed; index no drift; freshness errors=0; terminology green.",
+        "Approved by reviewer-renata (opus): module map matches modules on disk; cited paths exist; pointer correct."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18246,
+      "shell_pid_created_at": "1791120562.58",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done"
+      }
+    }
+  }
+}

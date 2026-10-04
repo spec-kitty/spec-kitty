@@ -1,0 +1,34 @@
+{
+  "accept_commit": "c8fd9e9674b520eaa37b70da9c7ed6b40347024a",
+  "acceptance_history": [
+    {
+      "accept_commit": "c8fd9e9674b520eaa37b70da9c7ed6b40347024a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T13:34:57.071376+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "dab27485422e0aa79b817a7c4741f211bdfa8312"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T13:34:57.071376+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "dab27485422e0aa79b817a7c4741f211bdfa8312",
+  "baseline_merge_commit": "e0e6cdb2917075fdf835c9915290f1a6e8b44845",
+  "created_at": "2026-10-04T12:40:27.331773+00:00",
+  "flattened": false,
+  "friendly_name": "Decompose mission_finalize god-module",
+  "merged_at": "2026-10-04T13:35:23.621222+00:00",
+  "merged_commit": "e0e6cdb2917075fdf835c9915290f1a6e8b44845",
+  "mid8": "01M43EW2",
+  "mission_id": "01M43EW2TPGW02G2EWEW0ZTDC2",
+  "mission_number": 215,
+  "mission_slug": "mission-finalize-degod-01M43EW2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "mission_finalize.py is the largest module in specify_cli and mixes CLI wiring with every finalize-tasks phase. This mission extracts each phase into its own leaf module, keeps the historical import and patch surface stable, and adds seam tests, so later work such as the plan/apply split (#5343) has clean boundaries to build on.",
+  "purpose_tldr": "Split the 5,678-line finalize-tasks module into cohesive phase modules without changing behaviour.",
+  "slug": "mission-finalize-degod-01M43EW2",
+  "status_phase": "1",
+  "target_branch": "claude/modest-keller-6mvhd4",
+  "topology": "single_branch"
+}
