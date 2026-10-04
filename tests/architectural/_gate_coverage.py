@@ -67,6 +67,8 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 import yaml
 
+from tests.architectural import _universe_store
+
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
@@ -1949,14 +1951,30 @@ def main_push_uncollected(
 # ---------------------------------------------------------------------------
 
 
-def collect_universe(repo_root: Path | None = None) -> list[TestRecord]:
+def collect_universe(repo_root: Path | None = None, *, caller: str | None = None) -> list[TestRecord]:
     """Collect every test with its marker set via a one-pass ``--collect-only``.
 
     Runs pytest in a subprocess with an isolated ``HOME`` (WP04 home isolation)
     and the :data:`_COLLECT_PLUGIN` plugin, which dumps
     ``{nodeid, relpath, markers}`` for each item and suppresses execution.
+
+    The result is reused from a keyed on-disk store when it was produced from the
+    same committed tree and collecting environment (see :mod:`_universe_store`);
+    a dirty checkout or an explicit ``repo_root`` always collects afresh. ``caller`` labels the
+    reuse report line (the CI pre-step passes ``"prestep"``); by default it is derived from the
+    running test.
     """
     repo = repo_root or REPO_ROOT
+    return _universe_store.collect_through_store(
+        repo,
+        lambda: _collect_universe_fresh(repo),
+        root_override=repo_root is not None,
+        caller=caller,
+    )
+
+
+def _collect_universe_fresh(repo: Path) -> list[TestRecord]:
+    """Run the real ``--collect-only`` subprocess for ``repo`` (no caching)."""
     with tempfile.TemporaryDirectory() as tmp:
         dump = Path(tmp) / "universe.json"
         env = dict(os.environ)
