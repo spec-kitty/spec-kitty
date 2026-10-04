@@ -10,13 +10,12 @@ It pins, independently of the implementation source:
 * the exact set of registered subcommand names (set-equality, order-free);
   24 as of PR #5487 (``ac4e8b84a8``), which added ``run-index`` (absolute
   ``run_dir`` leak check on the run index) via the same auto-discovery seam.
-  Earlier additions, oldest last (the counts quoted for them are historical and
-  were not all accurate): #4757 (``ed6d34e75``) added ``decisions`` (diagnose/repair
+  Earlier additions, oldest last: #4757 (``ed6d34e75``) added ``decisions`` (diagnose/repair
   ``decisions/index.json`` vs. the authoritative event log, FR-004/FR-005) as
   a hand-written ``@app.command`` shell; #4130
   added ``bytecode`` (installed-package .pyc corruption check, #4124's
-  detection half) via the same auto-discovery seam, on top of the 23 as of
-  operator-config-ergonomics-01M04YK8, which added the
+  detection half) via the same auto-discovery seam; before those,
+  operator-config-ergonomics-01M04YK8 added the
   ``provenance`` (WP03, C-PRV-5 leak-check), ``channel`` (WP05, C-CHN-3 rc
   release-channel report), and ``env-file`` (WP06, T019 ``.kitty.env`` health
   report) subcommands -- each registered via the ``doctor.py`` auto-discovery

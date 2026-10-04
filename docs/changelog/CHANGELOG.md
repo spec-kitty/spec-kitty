@@ -42,7 +42,7 @@ this section at publish._
 
 ### Internal
 
-- Nightly test repairs for the Python 3.13 shard 3, `specify_cli` out-of-matrix and performance suites (#5418, #5258, #5419). No product behavior changes. The frozen `doctor` surface test lists the new `doctor run-index` subcommand, and two count tests follow the command registry after the dashboard removal; the handle-equivalence test runs its custom mission on a mission of that type; the hosted-endpoint sequencing tests apply only the two migrations they order; and the shared test source snapshot is readable when CI checks out a single commit. The owned-checkout wall-clock tests now use the same 2.5 s budget as the CLI start-up test. They still depend on runner speed and can fail on a slow runner; #5614 tracks their rewrite.
+- Nightly test repairs for the Python 3.13 shard 3, `specify_cli` out-of-matrix and performance suites (#5418, #5258, #5419). No product behavior changes. The frozen `doctor` surface test lists the new `doctor run-index` subcommand, and three count tests follow the command registry after the dashboard removal; the handle-equivalence test runs its custom mission on a mission of that type; the hosted-endpoint sequencing tests apply only the two migrations they order; and the shared test source snapshot is readable when CI checks out a single commit. The owned-checkout wall-clock tests now use the same 2.5 s budget as the CLI start-up test. They still depend on runner speed and can fail on a slow runner; #5614 tracks their rewrite.
 
 ## [4.0.0rc5] - 2026-10-02
 
