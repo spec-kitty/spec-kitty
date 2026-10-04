@@ -36,7 +36,7 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK
 from specify_cli.skills.pack_skill_renderer import PackSkillRenderError, render_pack_skill
-from specify_cli.skills.paths import SkillPathObservation
+from specify_cli.skills.paths import SkillPathObservation, skill_path_observations
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 logger = logging.getLogger(__name__)
@@ -174,6 +174,7 @@ def _refuse_builtin_collisions(rendered: list[_Rendered], shipped: SkillRegistry
 def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | None:
     """Materialize *rendered* under the staging root; remove what is no longer in force."""
     root = project_root / _PACK_SKILL_STAGING
+    _require_unlinked_staging_ancestry(project_root)
     if root.is_symlink() or (root.exists() and not root.is_dir()):
         raise PackSkillCatalogError(f"pack-skill staging root is not a regular directory: {root}")
     if not rendered:
@@ -188,6 +189,20 @@ def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | Non
     for item in rendered:
         _write_staged(root / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
     return SkillRegistry(root)
+
+
+def _require_unlinked_staging_ancestry(project_root: Path) -> None:
+    """Refuse a staging root reached through a symlinked or non-directory ancestor.
+
+    ``.kittify`` or ``.kittify/runtime`` pointing outside the project would make
+    both the staging writes and the stale-staging sweep act on the link target.
+    The installer's own pre-write observation helper does the lexical walk.
+    """
+    resolved = project_root.resolve()
+    try:
+        skill_path_observations(resolved, resolved / _PACK_SKILL_STAGING)
+    except ValueError as exc:
+        raise PackSkillCatalogError(f"pack-skill staging root is not inside the project: {exc}") from exc
 
 
 def _read_only_parent() -> Path:

@@ -195,6 +195,18 @@ def test_a_symlinked_or_non_directory_staging_root_is_refused(project: Path, tmp
     with pytest.raises(PackSkillCatalogError, match="staging root"):
         resolve_project_skill_catalog(project, builtin=shipped)
 
+    # A symlinked ancestor (.kittify/runtime) must not redirect the writes or the stale-staging sweep.
+    staging.unlink()
+    staging.parent.rmdir()
+    outside = tmp_path / "outside-runtime"
+    (outside / "pack-skills" / "stale").mkdir(parents=True)
+    (outside / "pack-skills" / "stale" / "SKILL.md").write_text("keep", encoding="utf-8")
+    staging.parent.symlink_to(outside)
+    before = _tree(outside)
+    with pytest.raises(PackSkillCatalogError, match="staging root"):
+        resolve_project_skill_catalog(project, builtin=shipped)
+    assert _tree(outside) == before
+
 
 def test_symlinked_skill_directory_and_directory_in_place_of_file_are_refused(project: Path, tmp_path: Path) -> None:
     shipped = _fake_builtin(tmp_path, "spk-one")
