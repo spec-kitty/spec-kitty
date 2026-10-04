@@ -4187,6 +4187,7 @@ pages:
     - {slug: "2-lane-depth-cycle-safety", text: "2. Lane-depth cycle safety", level: 2}
     - {slug: "3-refreshing-the-recorded-planning-commit-after-an-amendment-4141", text: "3. Refreshing the recorded planning commit after an amendment (#4141)", level: 2}
     - {slug: "4-automatic-planning-pin-refresh-and-planning-commit-refresh", text: "4. Automatic planning-pin refresh and `planning_commit_refresh`", level: 2}
+    - {slug: "module-map", text: "Module map", level: 2}
   - path: "docs/api/index.md"
     title: "Reference"
     divio_type: "reference"

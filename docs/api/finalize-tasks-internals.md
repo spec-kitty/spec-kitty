@@ -137,4 +137,30 @@ The `--json` success payload carries the automatic decision in an additive field
 `--refresh-planning-commit` run, which keeps reporting through `planning_commit` (section 3).
 The explicit flag and its refusals are unchanged. Code: `PlanningCommitResolution` and
 `_planning_commit_refresh_payload` in
-`src/specify_cli/cli/commands/agent/mission_finalize.py`.
+`src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py`.
+
+## Module map
+
+`finalize-tasks` is split across sibling modules in
+`src/specify_cli/cli/commands/agent/` (#5627). `mission_finalize.py` keeps the
+command, its context and phase orchestration, and the artifact-collection
+helpers. Each phase lives in its own module:
+
+| Module | Owns |
+|---|---|
+| `mission_finalize_seams.py` | Constants, the owned-envelope `ContextVar`, `_emit_json` and the `mission`-routed patch seams |
+| `mission_finalize_branch_contract.py` | Target-branch resolution, branch-contract persistence, the `--target-branch` override |
+| `mission_finalize_validation.py` | Requirement-ID, dependency, requirement-mapping and issue-matrix gates |
+| `mission_finalize_bootstrap.py` | The per-WP frontmatter bootstrap loop, ownership gates, lane-input projection, the `--validate-only` report, local canonical status events |
+| `mission_finalize_planning_pin.py` | The planning-commit pin: preserve-or-capture, `--refresh-planning-commit` and the automatic refresh |
+| `mission_finalize_lanes.py` | Lane computation and the acceptance-matrix scaffold |
+| `mission_finalize_commit.py` | The commit pipeline, the success report and the refusal-time rollback guards |
+
+`mission_finalize` re-exports every name these modules define, so
+`mission_finalize.<name>` is still the import and patch surface. A phase module
+calls a patched name through `mission_finalize` at call time, using a lazy
+in-function import, so a test that patches `mission_finalize.<name>` still
+intercepts it. `tests/specify_cli/cli/commands/agent/test_mission_finalize_phase_modules.py`
+pins the re-exports, the lazy import and the interception. Structural pins that
+read the source use `tests/_support/finalize_source.py`, which reads the whole
+module family.
