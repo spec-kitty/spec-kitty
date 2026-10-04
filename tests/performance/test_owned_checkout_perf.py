@@ -1,4 +1,4 @@
-"""NFR-003: owned-checkout commands stay inside a 2 s median-of-5 wall-clock budget.
+"""NFR-003: owned-checkout commands stay inside the CLI cold-start median-of-5 budget.
 
 Mission ``owned-checkout-lifecycle-authority-01M3M2ZB``, closing WP18 (T099).
 
@@ -7,6 +7,13 @@ run against a finalized owned checkout ``P`` through the REAL entry point
 (``python -m specify_cli``, a fresh interpreter per run, so import cost is part of
 the budget and is absorbed by the median of five rather than by an excluded
 warm-up). A non-zero exit counts as ``inf`` with the stderr tail in the name.
+
+The budget is the shared ``CLI_COLD_START_BUDGET_SECONDS`` (2.5 s), the same one
+``test_cli_startup_budget_4409.py`` allows a bare ``--help``. NFR-003 asked for
+2 s, but interpreter cold start alone is about 1.8 s, so a 2 s absolute budget
+measured the runner and not the owned-checkout work: it failed on slow nightly
+runners with no regression (#5419). Operator ruling 2026-10-04: align to the
+sibling. The tests stay runner-dependent until they are rewritten (#5614).
 
 Wall-clock budgets are environment-sensitive, so this lives in the ``performance``
 lane (nightly): the tests are collected but skipped unless
@@ -30,12 +37,12 @@ from pathlib import Path
 
 import pytest
 
-from tests._perf_helpers import assert_timing_budget
+from tests._perf_helpers import CLI_COLD_START_BUDGET_SECONDS, assert_timing_budget
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _RUNS = 5
-_BUDGET_SECONDS = 2.0
+_BUDGET_SECONDS = CLI_COLD_START_BUDGET_SECONDS
 _SLUG = "owned-perf-01M2D903"
 _MISSION_ID = "01M2D903000000000000000001"
 _TARGET = "codex/owned-perf"

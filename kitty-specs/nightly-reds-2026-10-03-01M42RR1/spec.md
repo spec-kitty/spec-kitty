@@ -138,7 +138,7 @@ snapshot and in a clone of it.
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | Test-side only | Changes are limited to `tests/` and the changelog; no file under `src/` changes. | Technical | High | Open |
-| C-002 | Budget tests untouched | `tests/performance/test_owned_checkout_perf.py` is not modified; its three failures await an operator ruling. | Business | High | Open |
+| C-002 | Budget tests changed only by ruling | `tests/performance/test_owned_checkout_perf.py` is not modified by any work package. Operator ruling 2026-10-04: align its budget to the 2.5 s the CLI start-up test already allows, as a closeout fold. The tests stay runner-dependent; follow-up: #5614. | Business | High | Open |
 | C-003 | No heavy suites locally | Only named tests, their files and `make test-fast` run locally; the nightly suites are not run as a whole. | Technical | High | Open |
 | C-004 | Out of scope | Suite-wide harness rework (see #5353), the stress and integration nightly trackers (see #5610, see #5611, see #5612), and the already closed shard-4 tracker (see #5562) are not addressed. | Business | Medium | Open |
 
@@ -154,5 +154,5 @@ snapshot and in a clone of it.
 
 - **SC-001**: The 9 test cases shared by the shard-3 and out-of-matrix suites pass on the branch — [ratchet] · no-op passable: no
 - **SC-002**: The 20 installed-CLI owned-worktree cases pass when the source checkout is shallow — [build] · no-op passable: no
-- **SC-003**: The 3 budget cases are reported to the operator with measurements and options, not changed — [folded] · no-op passable: yes — reporting only; paired with C-002
+- **SC-003**: The 3 budget cases are reported to the operator with measurements and options and changed only as the operator rules — [folded] · no-op passable: yes — reporting only; paired with C-002
 - **SC-004**: The pull request names, per tracker issue, which failures it fixes and which it leaves — [build] · no-op passable: no

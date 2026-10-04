@@ -29,13 +29,11 @@ from pathlib import Path
 
 import pytest
 
-from tests._perf_helpers import assert_timing_budget
+from tests._perf_helpers import CLI_COLD_START_BUDGET_SECONDS, assert_timing_budget
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-#: Generous enough to absorb a loaded laptop or CI runner, tight enough to
-#: catch the ~1.8 s regression this issue removed (pre-fix was ~3.2 s).
-_HELP_BUDGET_SECONDS = 2.5
+_HELP_BUDGET_SECONDS = CLI_COLD_START_BUDGET_SECONDS
 
 
 def _is_type_checking_guard(node: ast.AST) -> bool:
