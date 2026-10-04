@@ -78,6 +78,7 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
 )
 from specify_cli.cli.commands.agent import tasks_move_task
+from specify_cli.cli.commands.agent import tasks_move_task_gates
 from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import pre_review_gate
@@ -513,7 +514,7 @@ def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, 
         selected.extend(binding.handler for binding in bindings)
         return dispatch(bindings, context)
 
-    monkeypatch.setattr(tasks_move_task, "_mt_dispatch_transition_gates", record_dispatch)
+    monkeypatch.setattr(tasks_move_task_gates, "_mt_dispatch_transition_gates", record_dispatch)
     ports, router = _fake_ports(coord)
 
     _run_move(repo, ports=ports, workspace_resolution=_fixture_workspace(repo))
@@ -684,8 +685,8 @@ def test_undeclared_repo_with_block_on_skips_without_blocking(
     exactly as it was on the no-coverage path — there is still no verified
     new-failure verdict to block on.
     """
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
-    monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
+    monkeypatch.setattr(tasks_move_task_gates, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
+    monkeypatch.setattr(tasks_move_task_gates, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
 
     repo = _build_base_repo(tmp_path)
     _write_file(repo, "src/specify_cli/validators/schema.py", "SCHEMA = 1\n")
@@ -1174,7 +1175,7 @@ def test_pre_review_gate_declared_reads_the_resolved_source(tmp_path: Path) -> N
             return ["pytest", "tests/example"]
 
     with pytest.MonkeyPatch.context() as declared:
-        declared.setattr(tasks_move_task, "_mt_resolve_scope_source", lambda root: _DeclaredSource())
+        declared.setattr(tasks_move_task_gates, "_mt_resolve_scope_source", lambda root: _DeclaredSource())
         assert tasks_move_task._mt_pre_review_gate_declared(tmp_path) is True
 
     # Declared via config fallback: a truthy template the source itself cannot

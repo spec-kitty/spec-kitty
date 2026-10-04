@@ -29,6 +29,7 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
 )
 from specify_cli.cli.commands.agent import tasks as tasks_command
+from specify_cli.cli.commands.agent import tasks_move_task_gates
 from specify_cli.cli.commands.agent import tasks_move_task
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.commit_guard import GuardCapability
@@ -331,10 +332,10 @@ def test_move_task_human_mode_emits_continuing_gate_liveness(tmp_path: Path) -> 
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=controlled_gate),
     ):
         result = CliRunner().invoke(
@@ -446,9 +447,9 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
     if scope_route == "registered_binding":
         route_patches.extend(
             [
-                patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=None),
+                patch.object(tasks_move_task_gates, "_mt_pre_review_scope_override", return_value=None),
                 patch.object(
-                    tasks_move_task,
+                    tasks_move_task_gates,
                     "_mt_resolve_active_gate_bindings",
                     return_value=SimpleNamespace(
                         active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
@@ -470,10 +471,10 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
             )
         )
         stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
         evaluate_scope_spy = stack.enter_context(
             patch.object(
                 pre_review_gate,
@@ -499,14 +500,14 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
         stack.enter_context(patch.object(pre_review_gate, "_launch_scoped_process", side_effect=controlled_launch))
         stack.enter_context(
             patch.object(
-                tasks_move_task,
+                tasks_move_task_gates,
                 "_mt_human_gate_status_observer",
                 side_effect=recording_observer_factory,
             )
         )
         stack.enter_context(
             patch.object(
-                tasks_move_task,
+                tasks_move_task_gates,
                 "_mt_pre_review_gate_console_warning",
                 side_effect=recording_terminal_renderer,
             )
@@ -644,9 +645,9 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress_timing(
     if scope_route == "registered_binding":
         route_patches.extend(
             [
-                patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=None),
+                patch.object(tasks_move_task_gates, "_mt_pre_review_scope_override", return_value=None),
                 patch.object(
-                    tasks_move_task,
+                    tasks_move_task_gates,
                     "_mt_resolve_active_gate_bindings",
                     return_value=SimpleNamespace(
                         active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
@@ -668,10 +669,10 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress_timing(
             )
         )
         stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
         stack.enter_context(
             patch.object(
                 pre_review_gate,
@@ -697,14 +698,14 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress_timing(
         stack.enter_context(patch.object(pre_review_gate, "_launch_scoped_process", side_effect=controlled_launch))
         stack.enter_context(
             patch.object(
-                tasks_move_task,
+                tasks_move_task_gates,
                 "_mt_human_gate_status_observer",
                 side_effect=recording_observer_factory,
             )
         )
         stack.enter_context(
             patch.object(
-                tasks_move_task,
+                tasks_move_task_gates,
                 "_mt_pre_review_gate_console_warning",
                 side_effect=recording_terminal_renderer,
             )
@@ -757,9 +758,9 @@ def test_exact_entry_json_suppresses_observer_and_emits_one_authoritative_docume
     if scope_route == "registered_binding":
         route_patches.extend(
             [
-                patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=None),
+                patch.object(tasks_move_task_gates, "_mt_pre_review_scope_override", return_value=None),
                 patch.object(
-                    tasks_move_task,
+                    tasks_move_task_gates,
                     "_mt_resolve_active_gate_bindings",
                     return_value=SimpleNamespace(
                         active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
@@ -781,10 +782,10 @@ def test_exact_entry_json_suppresses_observer_and_emits_one_authoritative_docume
             )
         )
         stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
         stack.enter_context(patch.object(pre_review_gate, "evaluate_with_scope", side_effect=controlled_gate))
         for route_patch in route_patches:
             stack.enter_context(route_patch)
@@ -841,10 +842,10 @@ def test_exact_entry_refuses_oversized_scope_before_launch(
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
-        patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=("tests/architectural",)),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_scope_override", return_value=("tests/architectural",)),
         patch.object(
             pre_review_gate,
             "run_scoped_tests_at_head",
@@ -926,13 +927,13 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
-        patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=None),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_scope_override", return_value=None),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(
-            tasks_move_task,
+            tasks_move_task_gates,
             "_mt_resolve_active_gate_bindings",
             return_value=SimpleNamespace(
                 active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
@@ -1044,7 +1045,7 @@ def test_exact_entry_skip_disable_collision_precedence(
         patch.dict(os.environ, env, clear=False),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
         patch.object(
-            tasks_move_task,
+            tasks_move_task_gates,
             "_mt_resolve_pre_review_workspace",
             side_effect=AssertionError("skip/disable must precede validation"),
         ) as workspace_spy,
@@ -1098,10 +1099,10 @@ def test_json_interruption_is_singular_and_precedes_every_mutation(
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", return_value=terminal),
         patch.object(
             tasks_move_task,
@@ -1207,13 +1208,13 @@ def test_exact_entry_interruption_has_zero_owned_residue_across_checkouts(
         # through the ScopeSource, so the terminal run is injected at
         # ``evaluate_with_scope`` (the ScopeSource path routes past
         # ``run_scoped_tests_at_head`` via ``_evaluate_via_scope_source``).
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_terminal_eval),
         patch.object(
-            tasks_move_task,
+            tasks_move_task_gates,
             "enroll_subprocess_byproducts",
-            wraps=tasks_move_task.enroll_subprocess_byproducts,
+            wraps=tasks_move_task_gates.enroll_subprocess_byproducts,
         ) as enrol_spy,
     ):
         result = CliRunner().invoke(
@@ -1276,10 +1277,10 @@ def test_keyboard_interrupt_at_gate_seam_is_a_local_cancellation(tmp_path: Path)
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=KeyboardInterrupt),
     ):
         result = CliRunner().invoke(
@@ -1313,7 +1314,7 @@ def test_dirty_deliverables_extend_prospective_scope(
         stderr=b"",
     )
     with (
-        patch.object(tasks_move_task, "merge_base_changed_files", return_value=("src/committed.py",)),
+        patch.object(tasks_move_task_gates, "merge_base_changed_files", return_value=("src/committed.py",)),
         patch("specify_cli.cli.commands.agent.tasks.subprocess.run", return_value=status),
         patch(
             "specify_cli.cli.commands.agent.tasks._filter_runtime_state_paths",
@@ -1424,15 +1425,15 @@ def test_gate_created_path_is_reverted_on_terminal_block(
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_controlled_timeout),
         patch.object(
-            tasks_move_task,
+            tasks_move_task_gates,
             "enroll_subprocess_byproducts",
-            wraps=tasks_move_task.enroll_subprocess_byproducts,
+            wraps=tasks_move_task_gates.enroll_subprocess_byproducts,
         ) as enrol_spy,
     ):
         result = CliRunner().invoke(app, args)
@@ -1491,15 +1492,15 @@ def test_gate_created_path_is_committed_on_pass(tmp_path: Path) -> None:
             },
         ),
         patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports),
-        patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
-        patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
-        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", side_effect=_dirty_paths),
+        patch.object(tasks_move_task_gates, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
         patch.object(pre_review_gate, "evaluate_with_scope", side_effect=_controlled_pass),
         patch.object(
-            tasks_move_task,
+            tasks_move_task_gates,
             "enroll_subprocess_byproducts",
-            wraps=tasks_move_task.enroll_subprocess_byproducts,
+            wraps=tasks_move_task_gates.enroll_subprocess_byproducts,
         ) as enrol_spy,
     ):
         result = CliRunner().invoke(
@@ -1572,7 +1573,7 @@ def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path
         reason="gate binding present for edge in_progress->for_review but owning contract is not activated",
     )
     tasks_stub = SimpleNamespace(console=SimpleNamespace(print=lambda *_a, **_k: None))
-    with patch.object(tmt, "_mt_resolve_active_gate_bindings", return_value=not_activated):
+    with patch.object(tasks_move_task_gates, "_mt_resolve_active_gate_bindings", return_value=not_activated):
         verdicts = tmt._mt_collect_transition_gate_verdicts(_for_review_state(tmp_path), inputs, tasks_stub)
 
     assert len(verdicts) == 1
@@ -1719,9 +1720,9 @@ def _invoke_for_review(tmp_path: Path, ports: TasksPorts, *seams: Any) -> Any:
             )
         )
         stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
-        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
+        stack.enter_context(patch.object(tasks_move_task_gates, "_mt_pre_review_dirty_paths", return_value=()))
         for seam in seams:
             stack.enter_context(seam)
         return CliRunner().invoke(
@@ -1825,7 +1826,7 @@ def test_deprecation_warn_under_filterwarnings_error_folds_into_envelope(tmp_pat
         target_lane=Lane.FOR_REVIEW,
     )
     tasks_stub = SimpleNamespace(console=SimpleNamespace(print=lambda *_a, **_k: None))
-    tasks_move_task._pre_review_test_command_deprecation_emitted = False
+    tasks_move_task_gates._pre_review_test_command_deprecation_emitted = False
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         inputs, dirty_before, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(st, tasks_stub)

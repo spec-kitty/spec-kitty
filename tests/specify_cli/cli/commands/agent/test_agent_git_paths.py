@@ -21,6 +21,7 @@ from specify_cli.cli.commands.agent import (
     mission_setup_plan,
     tasks_mark_status,
     tasks_move_task,
+    tasks_move_task_gates,
     workflow,
     workflow_executor,
 )
@@ -485,7 +486,7 @@ def _fail_status_once(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
             raise GitCommandError(argv=("status",), cwd=root, returncode=128, stderr="fatal: transient")
         return real(*args, **kwargs)
 
-    monkeypatch.setattr(tasks_move_task, "status_entries", _flaky)
+    monkeypatch.setattr(tasks_move_task_gates, "status_entries", _flaky)
 
 
 def test_failed_before_probe_is_unknown_not_clean(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:

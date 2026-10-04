@@ -34,6 +34,7 @@ from typing import Any
 import pytest
 
 from specify_cli.cli.commands.agent import tasks_move_task as tmt
+from specify_cli.cli.commands.agent import tasks_move_task_gates
 from specify_cli.review.baseline import BaselineTestResult, capture_baseline
 from specify_cli.review.pre_review_gate import GateOutcome, evaluate_pre_review_gate
 from specify_cli.review.scope_source import DeclaredCommandScopeSource, ScopeSource, resolve_scope_source
@@ -244,7 +245,7 @@ def test_scope_source_resolves_from_planning_root_not_lane_worktree(
     st.main_repo_root = main_repo_root
     st.target_branch = "main"
     st.mission_slug = _MISSION_SLUG
-    monkeypatch.setattr(tmt, "_mt_resolve_pre_review_workspace", lambda _st: lane_worktree)
+    monkeypatch.setattr(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", lambda _st: lane_worktree)
 
     inputs, _dirty_before = tmt._mt_resolve_transition_gate_inputs(st)
     assert inputs.gate_repo_root == lane_worktree

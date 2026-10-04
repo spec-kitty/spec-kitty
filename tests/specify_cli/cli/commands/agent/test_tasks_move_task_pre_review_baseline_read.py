@@ -120,7 +120,7 @@ def test_pre_review_gate_reads_baseline_from_primary_not_coord_husk(
         return real_load(path)
 
     with (
-        patch(f"{_MODULE}._resolve_wp_slug", return_value=_WP_SLUG),
+        patch("specify_cli.cli.commands.agent.tasks_move_task_gates._resolve_wp_slug", return_value=_WP_SLUG),
         patch(
             f"{_WORKFLOW}._resolve_workflow_read_dir", return_value=primary_dir
         ) as seam_mock,

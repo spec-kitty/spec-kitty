@@ -44,6 +44,7 @@ pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
 _MODULE = "specify_cli.cli.commands.agent.tasks_move_task"
+_GATES_MODULE = "specify_cli.cli.commands.agent.tasks_move_task_gates"
 
 runner = CliRunner()
 
@@ -102,7 +103,7 @@ def test_skip_flag_skips_gate_without_touching_workspace() -> None:
     """``--skip-pre-review-gate`` never resolves a workspace or runs pytest."""
     st = _make_state(skip_pre_review_gate=True)
     with patch(
-        f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
+        f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
     ) as workspace_mock:
         tasks_move_task._mt_run_pre_review_gate(st)
     workspace_mock.assert_not_called()
@@ -121,7 +122,7 @@ def test_disable_env_var_skips_gate_without_touching_workspace(
     monkeypatch.setenv(env_var, "1")
     st = _make_state()
     with patch(
-        f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
+        f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
     ) as workspace_mock:
         tasks_move_task._mt_run_pre_review_gate(st)
     workspace_mock.assert_not_called()
@@ -148,7 +149,7 @@ def test_sync_disable_vocabulary_no_longer_skips_gate(
     monkeypatch.setenv(env_var, "1")
     st = _make_state()
     with patch(
-        f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None
+        f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", return_value=None
     ) as workspace_mock:
         tasks_move_task._mt_run_pre_review_gate(st)
     workspace_mock.assert_called_once()
@@ -158,7 +159,7 @@ def test_skip_prints_explicit_skip_notice(monkeypatch: pytest.MonkeyPatch) -> No
     """FR-003 legibility: a skip is announced, not silent."""
     st = _make_state(skip_pre_review_gate=True, json_output=False)
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched),
+        patch(f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_move_task._mt_run_pre_review_gate(st)
@@ -171,7 +172,7 @@ def test_skip_prints_nothing_under_json_output() -> None:
     """``--json`` output stays machine-readable — no console noise on skip."""
     st = _make_state(skip_pre_review_gate=True, json_output=True)
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched),
+        patch(f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_move_task._mt_run_pre_review_gate(st)
@@ -188,7 +189,7 @@ def test_default_still_attempts_to_resolve_workspace_and_run_gate() -> None:
     resolves the workspace exactly as before this fix."""
     st = _make_state()
     with patch(
-        f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None
+        f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", return_value=None
     ) as workspace_mock:
         tasks_move_task._mt_run_pre_review_gate(st)
     workspace_mock.assert_called_once()
@@ -203,7 +204,7 @@ def test_default_does_not_print_skip_notice() -> None:
     """The ordinary (non-skip) console line must not claim SKIPPED."""
     st = _make_state()
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
+        patch(f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_move_task._mt_run_pre_review_gate(st)
@@ -246,16 +247,16 @@ def test_progress_notice_printed_before_running_nonempty_scope() -> None:
         return [fake_verdict]
 
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=Path("/lane")),
-        patch(f"{_MODULE}._mt_pre_review_changed_files", return_value=("src/example.py",)),
-        patch(f"{_MODULE}._mt_pre_review_dirty_paths", return_value=()),
-        patch(f"{_MODULE}._mt_resolve_active_gate_bindings", return_value=active),
+        patch(f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", return_value=Path("/lane")),
+        patch(f"{_GATES_MODULE}._mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch(f"{_GATES_MODULE}._mt_pre_review_dirty_paths", return_value=()),
+        patch(f"{_GATES_MODULE}._mt_resolve_active_gate_bindings", return_value=active),
         # #3821: this arm is about a RUNNING gate, so the fixture repo counts as
         # declared (the undeclared-repo quiet skip is covered in
         # ``test_pre_review_gate_integration.py``).
-        patch(f"{_MODULE}._mt_pre_review_gate_declared", return_value=True),
-        patch(f"{_MODULE}._mt_build_transition_gate_context", return_value=object()),
-        patch(f"{_MODULE}._mt_dispatch_transition_gates", side_effect=_fake_dispatch),
+        patch(f"{_GATES_MODULE}._mt_pre_review_gate_declared", return_value=True),
+        patch(f"{_GATES_MODULE}._mt_build_transition_gate_context", return_value=object()),
+        patch(f"{_GATES_MODULE}._mt_dispatch_transition_gates", side_effect=_fake_dispatch),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         console_mock.print.side_effect = lambda *a, **k: call_order.append("print")
@@ -274,7 +275,7 @@ def test_no_progress_notice_when_scope_is_empty() -> None:
     binding resolution and never claims it's "running" anything (it isn't)."""
     st = _make_state()
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
+        patch(f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_move_task._mt_run_pre_review_gate(st)
@@ -291,7 +292,7 @@ def test_non_for_review_lane_returns_before_any_skip_logic() -> None:
     st = _make_state(skip_pre_review_gate=True)
     st.target_lane = Lane.IN_PROGRESS
     with patch(
-        f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
+        f"{_GATES_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
     ) as workspace_mock:
         tasks_move_task._mt_run_pre_review_gate(st)
     workspace_mock.assert_not_called()

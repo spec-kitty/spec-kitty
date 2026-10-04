@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import tasks_move_task as move_task_module
+from specify_cli.cli.commands.agent import tasks_move_task_gates
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from tests.integration.test_explicit_checkout_commands import (
     SLUG,
@@ -33,7 +34,7 @@ def test_owned_gate_baseline_reads_selected_mission_directory(tmp_path: Path, mo
     wp = mission / "tasks" / "WP01-test.md"
     captured: list[Path] = []
     monkeypatch.setattr(
-        move_task_module.BaselineTestResult,
+        tasks_move_task_gates.BaselineTestResult,
         "load",
         lambda path: captured.append(path),
     )

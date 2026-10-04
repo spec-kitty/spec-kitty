@@ -49,6 +49,7 @@ from specify_cli.cli.commands.agent import (
     tasks_map_requirements,
     tasks_mark_status,
     tasks_move_task,
+    tasks_move_task_gates,
     tasks_shared,
     tasks_status_cmd,
 )
@@ -277,12 +278,39 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_detect_reviewer_name",
     "_detect_arbiter_override",
     "_run_arbiter_override",
-    "_mt_run_pre_review_gate",
     # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
     # doctrine-resolved transition gate + its thin-orchestrator helpers. Barrel
     # lines + tuple entries move together (P-F1); the forwarder
     # ``_mt_run_pre_review_gate`` above stays a real symbol delegating to
     # ``_mt_run_transition_gates``.
+    # #3821: the undeclared-repo quiet skip — the declaration probe and the
+    # ``SKIPPED`` verdict builder are native move-task seam defs.
+    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
+    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
+    # created paths into the tool-artifact owner compensator.
+    # #2573 fast-follow: the --skip-pre-review-gate flag + disable-env seam.
+    # fix(review) (2026-08-05): the --reviewer resolution shared by the
+    # rejected review-cycle artifact's frontmatter and the structured
+    # ReviewResult derivation is a native move-task seam def and therefore
+    # joins the compat surface like every other one (77 -> 78).
+    "_mt_resolve_reviewer_identity",
+    # #4670 (WP02, verdict-attribution): the event-log resolver that fills the
+    # active claimed reviewer identity for an agent-driven completion that
+    # omits --agent is a native move-task seam def and therefore joins the
+    # compat surface like every other one (78 -> 79).
+    "_mt_resolve_active_reviewer_identity",
+    # #4758 (WP02, FR-002/FR-006): the planned-boundary lanes.json guard is a
+    # native move-task seam def and therefore joins the compat surface like
+    # every other one (79 -> 80).
+    "_mt_guard_planned_boundary_lanes",
+)
+
+#: #5629: the transition-gate family extracted VERBATIM out of
+#: ``tasks_move_task`` into its own seam. ``tasks_move_task`` and ``tasks``
+#: both keep identity re-exports, so every row stays a ``tasks.<name>``
+#: compat symbol; only the native home moved.
+_TASKS_MOVE_TASK_GATES: tuple[str, ...] = (
+    "_mt_run_pre_review_gate",
     "_mt_run_transition_gates",
     "_TransitionGateInputs",
     "_TransitionGateEffect",
@@ -308,39 +336,19 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
-    # #3821: the undeclared-repo quiet skip — the declaration probe and the
-    # ``SKIPPED`` verdict builder are native move-task seam defs.
     "_mt_pre_review_gate_declared",
     "_mt_not_declared_skip_verdict",
-    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
-    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
-    # created paths into the tool-artifact owner compensator.
     "_mt_enrol_gate_byproducts",
     "_mt_pre_review_gate_metadata",
     "_mt_pre_review_gate_console_warning",
     "_mt_pre_review_gate_block_message",
     "_mt_review_config_section",
     "_mt_pre_review_block_enabled",
-    # #2573 fast-follow: the --skip-pre-review-gate flag + disable-env seam.
     "_mt_pre_review_gate_env_disable_reason",
     "_mt_pre_review_gate_skip_reason",
     "_mt_pre_review_scope_override",
     "_pre_review_gate_filter_groups",
     "_pre_review_gate_composite_routing",
-    # fix(review) (2026-08-05): the --reviewer resolution shared by the
-    # rejected review-cycle artifact's frontmatter and the structured
-    # ReviewResult derivation is a native move-task seam def and therefore
-    # joins the compat surface like every other one (77 -> 78).
-    "_mt_resolve_reviewer_identity",
-    # #4670 (WP02, verdict-attribution): the event-log resolver that fills the
-    # active claimed reviewer identity for an agent-driven completion that
-    # omits --agent is a native move-task seam def and therefore joins the
-    # compat surface like every other one (78 -> 79).
-    "_mt_resolve_active_reviewer_identity",
-    # #4758 (WP02, FR-002/FR-006): the planned-boundary lanes.json guard is a
-    # native move-task seam def and therefore joins the compat surface like
-    # every other one (79 -> 80).
-    "_mt_guard_planned_boundary_lanes",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
@@ -382,6 +390,7 @@ _SEAM_MODULES = {
     "tasks_shared": tasks_shared,
     "tasks_status_cmd": tasks_status_cmd,
     "tasks_move_task": tasks_move_task,
+    "tasks_move_task_gates": tasks_move_task_gates,
     "tasks_mark_status": tasks_mark_status,
 }
 
@@ -391,6 +400,7 @@ _SEAM_GROUPS: dict[str, tuple[str, ...]] = {
     "tasks_shared": _TASKS_SHARED,
     "tasks_status_cmd": _TASKS_STATUS_CMD,
     "tasks_move_task": _TASKS_MOVE_TASK,
+    "tasks_move_task_gates": _TASKS_MOVE_TASK_GATES,
     "tasks_mark_status": _TASKS_MARK_STATUS,
 }
 
@@ -471,7 +481,7 @@ def test_guard_symbol_is_genuinely_native_to_its_seam(symbol: str, module_name: 
     )
 
 
-def test_guard_keyset_is_superset_of_all_six_seams_native_defs() -> None:
+def test_guard_keyset_is_superset_of_all_seven_seams_native_defs() -> None:
     """The guard's key-set must be a superset of the union of all 6 residual
     modules' natively-defined symbols, re-derived straight from production
     source — so a symbol dropped from this guard (while still defined in its
@@ -491,21 +501,22 @@ def test_guard_keyset_is_superset_of_all_six_seams_native_defs() -> None:
 
 
 def test_seam_maps_agree() -> None:
-    """``_SEAM_GROUPS`` and ``_SEAM_MODULES`` must key the exact same six
+    """``_SEAM_GROUPS`` and ``_SEAM_MODULES`` must key the exact same seven
     seams — a contract cardinality, not an incidental count. A whole-seam
     drop from both maps together (the shape the old exact-count pin here
     missed) now fails HERE, instead of silently losing coverage across
     every parametrized guard above that iterates ``_SEAM_MODULES`` /
     ``SYMBOL_TO_MODULE``."""
-    six_seams = {
+    seven_seams = {
         "tasks_finalize",
         "tasks_map_requirements",
         "tasks_shared",
         "tasks_status_cmd",
         "tasks_move_task",
+        "tasks_move_task_gates",
         "tasks_mark_status",
     }
-    assert set(_SEAM_GROUPS) == set(_SEAM_MODULES) == six_seams
+    assert set(_SEAM_GROUPS) == set(_SEAM_MODULES) == seven_seams
 
 
 def test_every_seam_group_declares_at_least_one_symbol() -> None:
