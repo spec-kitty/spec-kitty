@@ -13,10 +13,9 @@ directories — must, after ``spec-kitty upgrade --yes``, satisfy ALL of:
   * the upgrade exits 0
 
 The fixture deliberately drives the **real** CLI (``spec-kitty init`` then
-``spec-kitty upgrade``) rather than calling ``run_surface_repair`` or
-``repair_stale_manifest`` directly: calling those functions would bypass the
-init/upgrade wiring and pass even if the commands were never connected to the
-repair service (FR-001/FR-002).
+``spec-kitty upgrade``) rather than calling ``run_surface_repair`` directly:
+calling it would bypass the init/upgrade wiring and pass even if the commands
+were never connected to the repair service (FR-001/FR-002).
 """
 
 from __future__ import annotations

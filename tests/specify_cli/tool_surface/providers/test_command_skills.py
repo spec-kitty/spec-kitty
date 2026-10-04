@@ -14,7 +14,7 @@ from specify_cli.tool_surface.providers.command_skills import (
     command_skill_definition,
 )
 from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
-from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OwnerAssessment
+from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot, OwnerAssessment
 from specify_cli.tool_surface.status import (
     STATE_DRIFTED,
     STATE_MISSING,
@@ -876,8 +876,9 @@ def test_5574_divergent_agent_renders_make_upgrade_and_probe_agree(tmp_path: Pat
 
     monkeypatch.setattr(command_installer, "_render_command_skill", divergent)
 
-    with pytest.raises(command_installer.InstallerError, match="manifest_preparation_failed"):
-        manifest_store.repair_stale_manifest(tmp_path, canonical_commands=list(command_installer.CANONICAL_COMMANDS))
+    inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path.absolute()), consent=ApplyConsent(automatic=True))
+    assessment = command_installer.prepare_commands(inputs, ("codex", "vibe"), adopt_only=True)
+    assert not assessment.complete
     assert manifest_store.load(tmp_path) == stale_manifest
     assert _probe_skill(CommandSkillsProvider(), tmp_path, skill).state == STATE_DRIFTED
 

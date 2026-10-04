@@ -52,8 +52,6 @@ __all__ = [
     "fingerprint",
     "fingerprint_file",
     "load",
-    "remove_unsafe_symlinks",
-    "repair_stale_manifest",
     "save",
 ]
 
@@ -141,39 +139,6 @@ class SkillsManifest:
     def remove_path(self, path: str) -> None:
         """Remove the entry for *path* (no-op if absent)."""
         self.entries = [e for e in self.entries if e.path != path]
-
-
-@dataclass
-class ManifestRepairResult:
-    """Result of a ``repair_stale_manifest()`` or ``remove_unsafe_symlinks()`` call."""
-
-    added: list[str] = field(default_factory=list)
-    """Relative paths added to the manifest (were missing from canonical set)."""
-
-    removed: list[str] = field(default_factory=list)
-    """Relative paths removed from the manifest (were orphaned / not canonical)."""
-
-    symlinks_removed: list[str] = field(default_factory=list)
-    """Absolute paths of unsafe symlink artifacts that were deleted."""
-
-    refreshed: list[str] = field(default_factory=list)
-    """Relative paths whose recorded hash was stale but whose bytes were already canonical.
-
-    Only the recorded ``content_hash`` is refreshed (an older release's
-    rendering left the old one); the file bytes are never rewritten.
-    """
-
-    drifted: list[str] = field(default_factory=list)
-    """Relative paths whose on-disk content no longer matches the manifest hash.
-
-    Drifted files are *not* auto-repaired here — they are reported so callers
-    can route them through ``run_surface_repair()`` (Rule 3 / prompt policy).
-    """
-
-    @property
-    def changed(self) -> bool:
-        """Return True when any manifest mutations or symlink removals occurred."""
-        return bool(self.added or self.removed or self.refreshed or self.symlinks_removed)
 
 
 # ---------------------------------------------------------------------------
@@ -421,84 +386,3 @@ def fingerprint_file(path: Path) -> str:
     resolve the path themselves before calling this function.
     """
     return fingerprint(path.read_bytes())
-
-
-# ---------------------------------------------------------------------------
-# Manifest repair helpers (T028, T029, T030)
-# ---------------------------------------------------------------------------
-
-
-def _drifted_paths(project_root: Path, manifest: SkillsManifest) -> list[str]:
-    """Return manifest paths whose regular-file bytes differ from the recorded hash."""
-    drifted: list[str] = []
-    for entry in manifest.entries:
-        path = project_root / entry.path
-        if any(parent.is_symlink() for parent in path.parents if parent.is_relative_to(project_root)):
-            continue
-        if path.is_file() and not path.is_symlink() and fingerprint_file(path) != entry.content_hash:
-            drifted.append(entry.path)
-    return drifted
-
-
-def repair_stale_manifest(
-    project_root: Path,
-    *,
-    canonical_commands: list[str],
-    spec_kitty_version: str = "unknown",
-) -> ManifestRepairResult:
-    """Adopt only canonical retained bytes through the checked command owner.
-
-    Normalization cannot guess an agent, synthesize missing-file ownership or
-    discard retired ownership before pruning. It never rewrites command bytes.
-    """
-    from specify_cli.core.agent_config import get_configured_agents
-    from specify_cli.skills import command_installer
-    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
-
-    del spec_kitty_version
-    manifest = load(project_root)
-    result = ManifestRepairResult()
-    agents = tuple(agent for agent in get_configured_agents(project_root) if agent in command_installer.SUPPORTED_AGENTS)
-    if agents and set(canonical_commands) == set(command_installer.CANONICAL_COMMANDS):
-        inputs = AssessmentInputs(OperationRoot("project", "project", project_root.absolute()), consent=ApplyConsent(automatic=True))
-        assessment = command_installer.prepare_commands(inputs, agents, adopt_only=True)
-        if not assessment.complete:
-            raise command_installer.InstallerError("manifest_preparation_failed", diagnostics=assessment.diagnostics)
-        if agents != tuple(agent for agent in get_configured_agents(project_root) if agent in command_installer.SUPPORTED_AGENTS):
-            raise command_installer.InstallerError("precondition_changed", detail="Configured command owners changed")
-        applied = command_installer.apply_commands(assessment, inputs.consent)
-        if applied.outcome != "applied":
-            raise command_installer.InstallerError(applied.outcome, diagnostics=applied.diagnostics)
-        payload = assessment.prepared
-        assert isinstance(payload, command_installer.PreparedCommands)
-        for command in payload.commands:
-            previous = manifest.find(command.path)
-            if previous is None:
-                result.added.append(command.path)
-            elif command.entry is not None and command.entry.content_hash != previous.content_hash:
-                result.refreshed.append(command.path)
-        # Report drift against the post-adoption manifest: canonical bytes whose
-        # recorded hash was merely stale are fresh, not drifted.
-        manifest = load(project_root)
-    result.drifted.extend(_drifted_paths(project_root, manifest))
-    return result
-
-
-def remove_unsafe_symlinks(project_root: Path) -> ManifestRepairResult:
-    """Unlink only exact manifest-owned package links; preserve unknown links.
-
-    No target is read or mutated. Command installation subsequently prepares
-    copy delivery. Prefix matching is never an ownership proof.
-    """
-    result = ManifestRepairResult()
-    skills_dir = project_root / ".agents/skills"
-    if (project_root / ".agents").is_symlink() or skills_dir.is_symlink() or not skills_dir.is_dir():
-        return result
-    manifest = load(project_root)
-    owned = {project_root / Path(entry.path).parent for entry in manifest.entries}
-    for path in sorted(owned):
-        if path.parent != skills_dir or not path.is_symlink():
-            continue
-        path.unlink()
-        result.symlinks_removed.append(str(path))
-    return result

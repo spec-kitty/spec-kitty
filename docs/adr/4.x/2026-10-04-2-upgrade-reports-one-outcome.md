@@ -103,4 +103,4 @@ It has no allowlist. Floor assertions name the real renderers, builders and exit
 ### Follow-ups, not in scope
 
 - The planner and compatibility paths use a different exit-code vocabulary (2, 4, 5, 6). Folding them under one outcome is a separate decision.
-- `repair_stale_manifest` and `remove_unsafe_symlinks` in `src/specify_cli/skills/manifest_store.py` have had no production caller since the unreachable legacy branch of the surface-repair helper was removed. They are candidates for removal or for wiring in on purpose.
+- `repair_stale_manifest` and `remove_unsafe_symlinks` in `src/specify_cli/skills/manifest_store.py` had no production caller since the unreachable legacy branch of the surface-repair helper was removed. They were deleted as dead code; the repairs they performed are tracked in issue 5710.

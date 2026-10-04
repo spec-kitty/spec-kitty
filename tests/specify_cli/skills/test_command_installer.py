@@ -49,7 +49,7 @@ from tests.upgrade.preview_support.snapshot import Snapshot
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def test_wp04_normalization_does_not_adopt_unknown_content(repo: Path) -> None:
+def test_wp04_install_does_not_adopt_unknown_content(repo: Path) -> None:
     install(repo, "codex")
     victim = _skill_path(repo, "plan")
     missing = _skill_path(repo, "accept")
@@ -58,60 +58,10 @@ def test_wp04_normalization_does_not_adopt_unknown_content(repo: Path) -> None:
     manifest = manifest_store.load(repo)
     manifest.remove_path(victim.relative_to(repo).as_posix())
     manifest_store.save(repo, manifest)
-    manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
     with contextlib.suppress(InstallerError):
         install(repo, "codex")
     assert victim.read_bytes() == b"operator custom canonical-path content\n"
     assert manifest_store.load(repo).find(victim.relative_to(repo).as_posix()) is None
-
-
-@pytest.mark.parametrize("missing_manifest", [False, True])
-def test_wp04_normalization_adopts_only_retained_canonical_bytes(repo: Path, missing_manifest: bool) -> None:
-    from tests.upgrade.preview_support.snapshot import snapshot, net_delta
-
-    install(repo, "codex")
-    path = repo / ".kittify/command-skills-manifest.json"
-    if missing_manifest:
-        path.unlink()
-    else:
-        manifest_store.save(repo, SkillsManifest())
-        path.chmod(0o400)
-    unknown = _skill_path(repo, "plan")
-    unknown.write_bytes(b"unknown custom bytes")
-    missing = _skill_path(repo, "accept")
-    missing.unlink()
-    before = snapshot({"project": repo})
-    result = manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
-    after = snapshot({"project": repo})
-    assert result.changed
-    assert len(result.added) == len(CANONICAL_COMMANDS) - 2
-    assert {effect.path for effect in net_delta(before, after)} == {".kittify/command-skills-manifest.json"}
-    assert unknown.read_bytes() == b"unknown custom bytes"
-    assert not missing.exists()
-    assert all(entry.agents == ("codex", "vibe") for entry in manifest_store.load(repo).entries)
-    if not missing_manifest:
-        assert path.stat().st_mode & 0o777 == 0o400
-
-
-@pytest.mark.parametrize("name", ["spec-kitty.custom", "spec-kitty.plan", "spec-kitty"])
-def test_wp04_prefix_is_not_link_ownership(repo: Path, name: str) -> None:
-    install(repo, "codex")
-    target = repo / "sentinel"
-    target.mkdir()
-    (target / "keep").write_bytes(b"keep")
-    link = repo / ".agents/skills" / name
-    if link.exists():
-        (link / "SKILL.md").unlink()
-        link.rmdir()
-        manifest = manifest_store.load(repo)
-        manifest.remove_path(f".agents/skills/{name}/SKILL.md")
-        manifest_store.save(repo, manifest)
-    link.symlink_to(target, target_is_directory=True)
-    before = link.lstat()
-    manifest_store.remove_unsafe_symlinks(repo)
-    assert link.is_symlink(), "An unowned prefixed link was removed"
-    assert link.lstat().st_mtime_ns == before.st_mtime_ns
-    assert (target / "keep").read_bytes() == b"keep"
 
 
 def test_wp04_late_collision_rechecked_before_any_write(repo: Path) -> None:
@@ -1273,38 +1223,6 @@ def test_5574_adopt_only_still_refuses_edited_bytes_with_old_hash(repo: Path) ->
     assert "consent_required" in _states_for(assessment, rel)
     assert isinstance(assessment.prepared, PreparedCommands)
     assert rel not in {c.path for c in assessment.prepared.commands}
-
-
-def test_5574_repair_stale_manifest_refreshes_hash_and_does_not_report_drift(repo: Path) -> None:
-    install(repo, "codex")
-    install(repo, "vibe")
-    skill = _skill_path(repo, "plan")
-    canonical = skill.read_bytes()
-    rel = _record_hash(repo, "plan", _STALE_HASH)
-
-    result = manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
-
-    assert rel not in result.drifted
-    assert skill.read_bytes() == canonical
-    entry = manifest_store.load(repo).find(rel)
-    assert entry is not None and entry.content_hash == _sha256(canonical)
-
-
-def test_5574_repair_stale_manifest_still_reports_a_real_edit(repo: Path) -> None:
-    install(repo, "codex")
-    install(repo, "vibe")
-    skill = _skill_path(repo, "plan")
-    skill.write_bytes(b"operator edit")
-    rel = skill.relative_to(repo).as_posix()
-    recorded = manifest_store.load(repo).find(rel)
-    assert recorded is not None
-
-    result = manifest_store.repair_stale_manifest(repo, canonical_commands=list(CANONICAL_COMMANDS))
-
-    assert rel in result.drifted
-    assert skill.read_bytes() == b"operator edit"
-    entry = manifest_store.load(repo).find(rel)
-    assert entry is not None and entry.content_hash == recorded.content_hash
 
 
 def _edited_plan(repo: Path) -> tuple[Path, str, bytes]:
