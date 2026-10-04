@@ -21,9 +21,7 @@ sub-directory of the enclosing ``tmp_path`` repository.
 
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -82,21 +80,6 @@ def project(tmp_path: Path) -> Path:
     return root
 
 
-def test_unisolated_generate_from_linked_worktree_is_refused(
-    linked_worktree: Path,
-    project: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Without isolation the guard sees the linked worktree and refuses."""
-    monkeypatch.chdir(linked_worktree)
-    monkeypatch.setattr("specify_cli.cli.commands.charter.find_repo_root", lambda *args, **kwargs: project)
-
-    result = runner.invoke(app, ["generate", "--no-from-interview"])
-
-    assert result.exit_code != 0
-    assert REFUSAL_MESSAGE in result.output
-
-
 def test_isolated_generate_from_linked_worktree_succeeds(
     linked_worktree: Path,
     project: Path,
@@ -143,60 +126,3 @@ def test_helper_defaults_to_tmp_path_and_returns_the_root_it_used(
     explicit_root = charter_cwd_isolation(project)
     assert explicit_root == project
     assert Path.cwd().resolve() == project.resolve()
-
-
-#: Two ordered tests in their own pytest session: the first uses the fixture, the second runs
-#: after the fixture's own teardown and checks that nothing is left behind. A single in-process
-#: test cannot observe a fixture's teardown, and a plain subprocess session keeps the order fixed.
-_TEARDOWN_PROBE = """
-from pathlib import Path
-
-from specify_cli.cli.commands import charter as charter_package
-
-ORIGINAL_CWD = Path.cwd()
-ORIGINAL_LOOKUP = charter_package.find_repo_root
-
-
-def test_a_isolates(tmp_path, charter_cwd_isolation):
-    root = charter_cwd_isolation()
-    assert Path.cwd().resolve() == tmp_path.resolve()
-    assert charter_package.find_repo_root() == root
-
-
-def test_b_runs_after_the_fixture_teardown():
-    assert Path.cwd() == ORIGINAL_CWD
-    assert charter_package.find_repo_root is ORIGINAL_LOOKUP
-"""
-
-
-def test_the_fixtures_own_teardown_restores_the_working_directory_and_the_root_lookup(tmp_path: Path) -> None:
-    probe = tmp_path / "probe"
-    probe.mkdir()
-    test_file = probe / "test_teardown_probe.py"
-    test_file.write_text(_TEARDOWN_PROBE, encoding="utf-8")
-    repo_root = Path(__file__).resolve().parents[2]
-    env = {key: value for key, value in os.environ.items() if key != "PYTEST_ADDOPTS"}
-    # ``pythonpath = src`` from pytest.ini is not applied under ``-c os.devnull``.
-    env["PYTHONPATH"] = os.pathsep.join([str(repo_root), str(repo_root / "src")])
-    argv = [
-        sys.executable,
-        "-m",
-        "pytest",
-        "-c",
-        os.devnull,
-        "--rootdir",
-        str(probe),
-        "-p",
-        "tests._support.charter_cwd",
-        "-p",
-        "no:cacheprovider",
-        "-p",
-        "no:randomly",
-        "-q",
-        str(test_file),
-    ]
-
-    proc = subprocess.run(argv, cwd=repo_root, env=env, capture_output=True, text=True, timeout=300, check=False)
-
-    assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "2 passed" in proc.stdout

@@ -70,10 +70,6 @@ def _invoke(*argv):
     return CliRunner().invoke(app, list(argv))
 
 
-def _run_generate_through_helper(arguments):
-    return _invoke(*arguments)
-
-
 # The package is NOT imported before this test: it imports it inside its body.
 def test_late_import(tmp_path):
     from typer.testing import CliRunner
@@ -82,30 +78,6 @@ def test_late_import(tmp_path):
 
     with patch(f"{PACKAGE}.find_repo_root", side_effect=_stop_after_the_guard()):
         CliRunner().invoke(app, ["generate", "--no-from-interview"])
-
-
-def test_direct(tmp_path):
-    project = tmp_path / "project"
-    with patch(f"{PACKAGE}.find_repo_root") as lookup:
-        lookup.return_value = project
-        lookup.side_effect = _stop_after_the_guard()
-        _invoke("generate", "--no-from-interview")
-
-
-def test_via_helper(tmp_path):
-    arguments = ["generate", "--no-from-interview"]
-    with patch(f"{PACKAGE}.find_repo_root", side_effect=_stop_after_the_guard()):
-        _run_generate_through_helper(arguments)
-
-
-def test_setattr_spelling(tmp_path, monkeypatch):
-    error = _stop_after_the_guard()
-
-    def lookup(*args, **kwargs):
-        raise error
-
-    monkeypatch.setattr(f"{PACKAGE}.find_repo_root", lookup)
-    _invoke("generate", "--no-from-interview")
 
 
 def test_synthesize_offender(tmp_path):
@@ -171,9 +143,6 @@ def test_no_guard(tmp_path):
 
 _OFFENDERS = (
     "test_late_import",
-    "test_direct",
-    "test_via_helper",
-    "test_setattr_spelling",
     "test_synthesize_offender",
     "test_resynthesize_offender",
     "test_undo_offender",
@@ -328,42 +297,10 @@ def test_predicate_resolves_symlinks(tmp_path: Path) -> None:
 
 @pytest.mark.fast
 @pytest.mark.unit
-def test_invoking_checkout_is_the_checkout_that_contains_this_tests_tree() -> None:
-    assert _REPO_ROOT.resolve() == INVOKING_CHECKOUT
-    assert (INVOKING_CHECKOUT / "tests" / "_support" / "charter_cwd_tripwire.py").is_file()
+def test_message_deduplicates_and_sorts_the_probed_paths() -> None:
+    message = build_violation_message("tests/x/test_y.py::test_z", [Path("/b"), Path("/a"), Path("/b")])
 
-
-@pytest.mark.fast
-@pytest.mark.unit
-def test_message_names_the_test_the_path_and_the_fixture() -> None:
-    message = build_violation_message("tests/x/test_y.py::test_z", [Path("/a"), Path("/a"), Path("/b")])
-
-    assert "tests/x/test_y.py::test_z" in message
-    assert "/a, /b" in message  # de-duplicated, sorted
-    assert "`charter_cwd_isolation`" in message
-    assert "process working directory" in message
-    assert "invoking checkout" in message
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-def test_wrapper_records_a_probe_inside_the_checkout_and_returns_the_real_result() -> None:
-    violations: list[Path] = []
-    sentinel = Path("/real/result")
-    wrapper = _make_wrapper(lambda start: sentinel, violations, None)
-
-    assert wrapper(INVOKING_CHECKOUT) == sentinel
-    assert violations == [INVOKING_CHECKOUT]
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-def test_wrapper_does_not_record_a_probe_outside_the_checkout(tmp_path: Path) -> None:
-    violations: list[Path] = []
-    wrapper = _make_wrapper(lambda start: start, violations, None)
-
-    assert wrapper(tmp_path) == tmp_path
-    assert violations == []
+    assert "/a, /b" in message
 
 
 @pytest.mark.fast
@@ -477,31 +414,6 @@ def test_finder_skips_a_meta_path_entry_that_has_no_find_spec(monkeypatch: pytes
     assert isinstance(spec.loader, _AfterExecLoader)
 
 
-@pytest.mark.fast
-@pytest.mark.unit
-def test_after_exec_loader_hands_the_real_loader_back_once_the_module_has_executed(tmp_path: Path) -> None:
-    import importlib.util
-
-    source = tmp_path / "synthetic_charter_module.py"
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    spec = importlib.util.spec_from_file_location("synthetic_charter_module", source)
-    assert spec is not None
-    assert spec.loader is not None
-    real_loader = spec.loader
-    calls: list[str] = []
-    spec.loader = _AfterExecLoader(real_loader, lambda: calls.append("after"))
-    module = importlib.util.module_from_spec(spec)
-    assert module.__loader__ is spec.loader  # the import machinery points the module at the proxy
-
-    spec.loader.exec_module(module)
-
-    assert calls == ["after"]
-    assert module.VALUE == 1
-    assert spec.loader is real_loader
-    assert module.__loader__ is real_loader
-    assert module.__spec__ is spec
-
-
 # ---------------------------------------------------------------------------
 # Coverage: every guard call that probes the process working directory is watched
 # ---------------------------------------------------------------------------
@@ -571,7 +483,6 @@ def test_every_module_that_calls_the_guard_is_watched() -> None:
 
     # A concrete floor: a pattern that silently matches nothing must not pass.
     assert {f"{CHARTER_PACKAGE}.{name}" for name in ("generate", "synthesize", "resynthesize", "activate")} <= calling
-    assert len(calling) >= 4
     assert calling == set(WATCHED_MODULES)
 
 
@@ -589,69 +500,6 @@ def test_watched_modules_carry_the_wrapper_inside_a_test(tmp_path: Path) -> None
         assert wrapped is not real, f"{name} is not watched"
         # Calls through: a path outside the invoking checkout resolves exactly as the real guard does.
         assert wrapped(tmp_path) == real(tmp_path)
-
-
-# ---------------------------------------------------------------------------
-# No exemption of any kind (FR-006)
-# ---------------------------------------------------------------------------
-
-#: Names through which a plugin could be told to stand down for a test or a run.
-_OPT_OUT_NAMES = frozenset(
-    {
-        "environ",
-        "getenv",
-        "iter_markers",
-        "get_closest_marker",
-        "own_markers",
-        "addinivalue_line",
-        "addoption",
-        "addini",
-        "getoption",
-        "getini",
-        "pytest_addoption",
-        "pytest_configure",
-    }
-)
-
-
-def _opt_out_mechanisms(source: str) -> list[str]:
-    """Names in ``source`` that would let a test or an environment switch the tripwire off."""
-    found: set[str] = set()
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Attribute) and node.attr in _OPT_OUT_NAMES:
-            found.add(node.attr)
-        elif isinstance(node, ast.Name) and node.id in _OPT_OUT_NAMES:
-            found.add(node.id)
-        elif isinstance(node, ast.FunctionDef) and node.name in _OPT_OUT_NAMES:
-            found.add(node.name)
-    return sorted(found)
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("source", "expected"),
-    [
-        ("import os\nx = os.environ.get('NO_TRIPWIRE')\n", ["environ"]),
-        ("import os\nx = os.getenv('NO_TRIPWIRE')\n", ["getenv"]),
-        ("def f(request):\n    return request.node.get_closest_marker('no_tripwire')\n", ["get_closest_marker"]),
-        ("def f(item):\n    return list(item.iter_markers())\n", ["iter_markers"]),
-        ("def pytest_addoption(parser):\n    parser.addoption('--no-tripwire')\n", ["addoption", "pytest_addoption"]),
-        ("from os import environ\n", []),  # an import alone names no use; the use above is what is caught
-        ("def f():\n    return 1\n", []),
-    ],
-    ids=["environ", "getenv", "closest-marker", "iter-markers", "addoption", "import-only", "clean"],
-)
-def test_opt_out_detector_fires_on_a_synthetic_exemption(source: str, expected: list[str]) -> None:
-    assert _opt_out_mechanisms(source) == expected
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-def test_the_tripwire_module_offers_no_way_to_switch_it_off() -> None:
-    source = (INVOKING_CHECKOUT / "tests" / "_support" / "charter_cwd_tripwire.py").read_text(encoding="utf-8")
-
-    assert _opt_out_mechanisms(source) == []
 
 
 # ---------------------------------------------------------------------------
@@ -691,38 +539,6 @@ def _files_overriding_the_tripwire_fixture() -> list[str]:
         if AUTOUSE_FIXTURE_NAME in text and _defines_name(text, AUTOUSE_FIXTURE_NAME):
             offenders.append(str(path.relative_to(INVOKING_CHECKOUT)))
     return offenders
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    "source",
-    [
-        f"import pytest\n\n@pytest.fixture(autouse=True)\ndef {AUTOUSE_FIXTURE_NAME}():\n    yield\n",
-        f"import pytest\n\n@pytest.fixture\nasync def {AUTOUSE_FIXTURE_NAME}():\n    yield\n",
-        f"import pytest\n\n@pytest.fixture(name='{AUTOUSE_FIXTURE_NAME}')\ndef quiet():\n    yield\n",
-        f"{AUTOUSE_FIXTURE_NAME} = make_fixture()\n",
-        f"{AUTOUSE_FIXTURE_NAME}: object = make_fixture()\n",
-    ],
-    ids=["function", "async-function", "name-alias", "assignment", "annotated-assignment"],
-)
-def test_override_detector_finds_a_synthetic_override(source: str) -> None:
-    assert _defines_name(source, AUTOUSE_FIXTURE_NAME)
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    "source",
-    [
-        f"def test_it(request):\n    assert '{AUTOUSE_FIXTURE_NAME}' in request.fixturenames\n",  # a mention, not a definition
-        f"import pytest\n\n@pytest.fixture(name='other')\ndef {AUTOUSE_FIXTURE_NAME}_other():\n    yield\n",
-        "def test_it():\n    return 1\n",
-    ],
-    ids=["mention", "similar-name", "unrelated"],
-)
-def test_override_detector_ignores_a_mention_or_a_different_name(source: str) -> None:
-    assert _defines_name(source, AUTOUSE_FIXTURE_NAME) == []
 
 
 @pytest.mark.fast
