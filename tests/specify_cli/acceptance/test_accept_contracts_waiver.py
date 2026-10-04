@@ -82,14 +82,23 @@ def _contracts_violations(path_violations: list[str]) -> list[str]:
     return [entry for entry in path_violations if "contracts" in entry]
 
 
-def test_well_formed_waiver_clears_the_contracts_violation(tmp_path: Path) -> None:
+@pytest.mark.parametrize("contracts_dir_exists", [False, True], ids=["no-contracts-dir", "contracts-dir-exists"])
+def test_well_formed_waiver_clears_the_contracts_violation(tmp_path: Path, contracts_dir_exists: bool) -> None:
     repo_root = _no_contracts_repo(tmp_path, waiver={"contracts": "none", "contracts_rationale": _RATIONALE})
+    if contracts_dir_exists:
+        contracts = repo_root / "kitty-specs" / _SLUG / "contracts"
+        contracts.mkdir()
+        (contracts / "api.yaml").write_text("openapi: 3.0.0\n")
 
     summary = collect_feature_summary(repo_root, _SLUG, strict_metadata=True, mutate_matrix=False)
 
     assert summary.path_violations == []
     # Auditable: the waiver and its rationale are visible in the accept output.
     assert any(_RATIONALE in warning for warning in summary.warnings), summary.warnings
+    # A waiver that contradicts a present contracts/ is flagged, never reported as "waived".
+    waiver_warnings = [warning for warning in summary.warnings if "contracts" in warning and "meta.json" in warning]
+    assert any("requirement waived" in warning for warning in waiver_warnings) is not contracts_dir_exists, waiver_warnings
+    assert any("directory exists" in warning for warning in waiver_warnings) is contracts_dir_exists, waiver_warnings
     # Coherent: a declared-absent artifact is not also nagged as "optional missing".
     assert "contracts" not in [entry.strip("/") for entry in summary.optional_missing]
 

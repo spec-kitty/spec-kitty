@@ -192,7 +192,8 @@ def _contracts_waiver_effect(mission: Any, feature_dir: Path, planning_read_dir:
     ``path_prefix`` mode) -- exactly the case ``validate_mission_paths`` can
     waive -- so the notice never claims a waiver the validator did not apply.
     The notice is the operator-facing trail: the rationale of an honoured
-    waiver, or the warning of a malformed one (which waives nothing --
+    waiver, a warning when the waiver contradicts an existing ``contracts/``
+    directory, or the warning of a malformed one (which waives nothing --
     fail-closed).
     """
     paths = mission.config.paths or {}
@@ -203,7 +204,12 @@ def _contracts_waiver_effect(mission: Any, feature_dir: Path, planning_read_dir:
     waiver: ContractsWaiver = read_contracts_waiver_from_meta(planning_read_dir)
     if not waiver.waived:
         return frozenset(), waiver.warning
-    notice = f"contracts/ requirement waived by meta.json (contracts: none): {waiver.rationale}"
+    if (planning_read_dir / _CONTRACTS_ARTIFACT).is_dir():
+        # The Mission declares no contracts yet ships a contracts/ directory: the
+        # directory satisfies the requirement, so nothing was waived. Say so.
+        notice = f"Warning: meta.json declares contracts: none ({waiver.rationale}) but a contracts/ directory exists; remove the declaration or the directory."
+    else:
+        notice = f"contracts/ requirement waived by meta.json (contracts: none): {waiver.rationale}"
     return frozenset({_CONTRACTS_ARTIFACT}), notice
 
 
