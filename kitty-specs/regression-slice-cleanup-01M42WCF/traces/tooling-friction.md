@@ -1,0 +1,19 @@
+# Tooling friction — regression-slice-cleanup
+
+Tooling in play: spec-kitty 4.0.0rc6 (editable, repository `.venv`), uv, pytest + xdist, git worktrees, cloud container running as root.
+
+- 2026-10-04 — `agent mission create` commits its scaffold as "Add scaffold for feature …": the commit subject uses the retired term "feature" (Terminology Canon). Also, CLI-authored commits cannot carry the operator's required `Co-Authored-By` trailer; fixed up at history compaction.
+- 2026-10-04 — `mission create` on a non-primary topic branch with no `origin/HEAD` resolved topology `coord`, matching the documented caveat in CLAUDE.md.
+- 2026-10-04 — `pytest tests -m regression --collect-only` over the whole tree takes > 2 min (collection of ~17k tests); budget for it in background.
+- 2026-10-04 — `spec-commit` routes `traces/*` to the coordination branch and refuses them from the repository root checkout (`COORD_RECORD_IN_ROOT_CHECKOUT`); the prompt and the tracer procedure do not say tracer files are coord records. It also committed `decisions/index.json.lock` (an empty lock file) to the primary branch.
+- 2026-10-04 — `spec-kitty safe-commit` keeps only the last `-m` value, so a multi-paragraph message (subject + trailer) collapses to the trailer line; implementers amended with `git commit --amend -F`. Also: pytest collection in this container costs 1–4 min per invocation.
+- 2026-10-04 — Reviewer `move-task --to planned --review-feedback-file` ran with --no-auto-commit, leaving the feedback file uncommitted in the coord worktree; committing it there by hand put it on the coordination branch, the next `implement` claim merged that branch into the lane, and the lane guard then refused `for_review` ("kitty-specs/ changes are not allowed on lane branches"). Fix: commit review feedback to the planning branch via `spec-commit` from the repository root checkout. Re-finalizing to add WP09 also invalidated the analysis report (re-recorded).
+- 2026-10-04 — docs/development/reference/ci-gate-mechanics.md says acceptance-matrix.json has no CLI; `spec-kitty agent acceptance-verdict` exists and works (stale doc). `accept` demands a contracts/ dir even for a test-only mission with no API surface (used --lenient).
+- 2026-10-04 — My earlier coord-branch delete of WP03 review-feedback-1.md (to unblock the lane guard) later made SQUASH consolidation refuse ('projected coordination bookkeeping content did not land on the target'): the projection carried the deletion, the target still had the planning copy. Restored identical bytes on coord. Root friction: review-feedback placement differs between the lane guard (planning branch) and the reviewer move-task (coord worktree, uncommitted).
+
+## Close-out assessment (2026-10-04)
+
+- **Correction to the last entry.** Restoring WP03's review feedback was not enough. The real squash-refusal cause was `quickstart.md`: it is an unclassified mission artifact, so the projection treated it as coordination bookkeeping that never landed (#5552, an existing issue; occurrence and workaround commented there). The workaround was to mirror `quickstart.md` byte-identically on the coordination branch, then `consolidate --resume`.
+- **Filed from this log:** #5647 (`safe-commit`/`spec-commit` keep only the last `-m`) and #5648 (ci-gate-mechanics.md says acceptance-matrix has no CLI).
+- **Already tracked, not re-filed:** #5088 (scaffold commit subject / commitlint), #5151 (lane `kitty-specs/` guard drift; the review-feedback placement friction here is the same class), #5298 (`accept` requires `contracts/`), #5552 (`quickstart.md` projection), #5186 (`TestOrdering` order dependence, a pre-existing red seen during WP09).
+- **Not filed (low value):** `spec-commit` routing `traces/` to coord is undocumented in the tracer procedure; the full-tree `--collect-only -m regression` costs over 2 minutes in this container.

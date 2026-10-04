@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "mission_slug": "regression-slice-cleanup-01M42WCF",
+  "mission_id": "01M42WCF1QPR1Y2702BMF8SA0N",
+  "mission_branch": "kitty/mission-regression-slice-cleanup-01M42WCF",
+  "target_branch": "issue-5618-regression-slice-cleanup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/charter/test_charter_scope_config_reader.py",
+        "tests/coordination/test_commit_router_coord_only_dirty_status_log.py",
+        "tests/core/test_mission_create_coord_status_placement.py",
+        "tests/next/test_cli_boundary_scope_config_4600.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/characterization/test_trio_pure_cores.py",
+        "tests/integration/test_single_branch_write_checkout_e2e.py",
+        "tests/specify_cli/next/test_next_cmd_meta_dispatch.py",
+        "tests/specify_cli/next/test_next_meta_corruption.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/migrate/test_charter_encoding_migration.py",
+        "tests/policy/test_issue_matrix_cross_site_consistency.py",
+        "tests/regressions/test_issue_4962_charter_encoding.py",
+        "tests/specify_cli/audit/test_status_event_row_shape.py",
+        "tests/specify_cli/migration/test_backfill_cutover_guard.py",
+        "tests/specify_cli/migration/test_mission_state_identity.py",
+        "tests/specify_cli/test_audit_tail_readers.py",
+        "tests/specify_cli/upgrade/migrations/test_single_branch_code_lanes_restamp.py",
+        "tests/unit/migration/test_mission_state_lanes_rebuild.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_recompile_never_regenerates_mission_src.py",
+        "tests/cli/test_auth_login_mismatch_exit.py",
+        "tests/cli/test_auth_logout_mismatch.py",
+        "tests/cli/test_auth_saas_target_cleanup.py",
+        "tests/cli/test_move_task_planned_guard.py",
+        "tests/cli/test_tasks_finalize_lanes_minting.py",
+        "tests/specify_cli/cli/commands/agent/test_emit_review_result.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py",
+        "tests/specify_cli/cli/commands/agent/test_implement_compact_identity_4665.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_4593_behind_count_full_history.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_5328_refresh_fail_closed.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_agent_persistence_3029.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_cli_4899.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_write_root_4785.py",
+        "tests/specify_cli/cli/commands/charter/test_recompile_preserves_mission_4908.py",
+        "tests/specify_cli/cli/commands/test_accept_guard.py",
+        "tests/specify_cli/cli/commands/test_cli_boundary_mission_types.py",
+        "tests/specify_cli/cli/commands/test_cli_boundary_remaining_callers.py",
+        "tests/specify_cli/cli/commands/test_decision.py",
+        "tests/specify_cli/cli/commands/test_doctor_flatten_remote_reverify_4979.py",
+        "tests/specify_cli/cli/commands/test_issue_matrix_not_applicable.py",
+        "tests/specify_cli/cli/commands/test_move_task_flag_aliases.py",
+        "tests/specify_cli/cli/commands/test_workflow_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_issue_4905_coord_staging.py",
+        "tests/specify_cli/cli/commands/agent/test_partition_paths_by_primary_kind.py",
+        "tests/specify_cli/cli/commands/test_issue_2745_merge_skip_lanes.py",
+        "tests/specify_cli/cli/commands/test_slugify_mission_input.py",
+        "tests/specify_cli/cli/commands/test_specify_json_nonascii.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/consolidation/test_canceled_attestation.py",
+        "tests/consolidation/test_canceled_dependency_lane.py",
+        "tests/consolidation/test_done_bookkeeping_rollback_coherence.py",
+        "tests/consolidation/test_hollow_review_warnings.py",
+        "tests/consolidation/test_terminus_absent_snapshot_precondition_fold.py",
+        "tests/consolidation/test_traces_driver_section_union_4894.py",
+        "tests/lanes/test_lane_tip_record_points.py",
+        "tests/orchestrator_api/test_mission_branch_delete_cas.py",
+        "tests/specify_cli/lanes/test_for_review_gate_parity.py",
+        "tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py",
+        "tests/terminus/test_fixture_mixed_lane_canceled.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/charter/test_pack_manager.py",
+        "tests/cli/commands/test_charter_io.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/dossier/test_hasher.py",
+        "tests/dossier/test_indexer.py",
+        "tests/kernel/test_guarded_read.py",
+        "tests/specify_cli/dossier/test_integration.py",
+        "tests/specify_cli/test_meta_read_permission_denied_regression.py",
+        "tests/specify_cli/test_mission_brief_missing_vs_corrupt.py",
+        "tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py",
+        "tests/upgrade/test_migration_robustness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/lanes/test_destroyed_lane_guard_lanes_topology.py",
+        "tests/lanes/test_lane_allocation_integrity_e2e.py",
+        "tests/terminus/test_abort_restores_snapshot.py",
+        "tests/terminus/test_canceled_dependency_content_refused.py",
+        "tests/terminus/test_claim_refusal_before_mutation.py",
+        "tests/terminus/test_mixed_lane_canceled_content_controls.py",
+        "tests/terminus/test_mixed_lane_canceled_content_verdicts.py",
+        "tests/terminus/test_mixed_lane_closed_world.py",
+        "tests/terminus/test_mixed_lane_fail_recovery_and_attestation.py",
+        "tests/terminus/test_rollback_restores_refs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-04T08:10:09.061814+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7049361cb3b4378e9fa495a87b9c9e8920825945"
+}

@@ -1,0 +1,89 @@
+{
+  "mission_slug": "regression-slice-cleanup-01M42WCF",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP01: tests/charter/test_charter_scope_config_reader.py RED (2/5) when _load_charter_scope_config returns None instead of raising; reproduced by implementer and reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:14.342496+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP01: tests/next/test_cli_boundary_scope_config_4600.py stays green under the same break; unmarked (regression->integration) and kept as the next CLI-boundary contract test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:21.010056+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP01+WP02: #5513 file retired (covering tests RED on _act_on_stage_plan break); #5440 unmarked (RED on scaffold_paths break); #4642 dispatch units RED on MissionMetaReadError break; single-branch e2e 10->4 with guards RED (P-5620-5..11, A3 guard added in cycle 2); trio unmarked",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:27.235996+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP03: 4 SPLIT + 2 MARKER-ONLY files (-m regression 66->22); #4962 ported (P-5621-1/2a/2b and .bak payload guard R-1 RED) then retired; T030 retired (T032 RED)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:33.505629+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP04+WP05: 17 MARKER-ONLY CLI files; AST pins retired (test_auth_status RED on break B); 4899/4908 split; partition + slug seam units RED (D1, S); 4905 + non-ASCII trimmed; 2745 oracle RED on message swap where the old oracle stayed green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:39.993026+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP06+WP07: 8 MARKER-ONLY files; #5569 + attestation units (B8, B8b, B7a RED); terminus/lanes trimmed to one smoke per family with 42 planted breaks (B1-B9, O1-O5, R1n-R7n) all RED; summed call time 1441s->551s",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:46.037860+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "WP08+WP09: 19 chmod-based unreadable-path tests in 10 files now inject PermissionError at the I/O seam; as uid 0 all pass (base: failures); seam breaks A-F, B1-B3 RED",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:52.490222+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "planted_break",
+      "evidence": "Every removal maps to a recorded RED planted break (WP reports + review-cycle records under tasks/); two reviewer rejections (WP02 A3, WP03 .bak) restored guards before approval; no src/ change committed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T09:21:58.653170+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

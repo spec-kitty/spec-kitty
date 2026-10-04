@@ -1,0 +1,162 @@
+schema_version: 1
+mission_id: 01M42WCF1QPR1Y2702BMF8SA0N
+mission_slug: regression-slice-cleanup-01M42WCF
+mission_number: 214
+friendly_name: Regression-slice test cleanup
+mission_type: software-dev
+target_branch: issue-5618-regression-slice-cleanup
+created_at: '2026-10-04T09:47:35.329650+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-04T09:47:35.329650+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-004
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-005
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-006
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-007
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-014
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-017
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP01-charter-scope-guard-and-status-pins.md
+- id: e-006
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP02-next-meta-shift-left-and-single-branch-split.md
+- id: e-007
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP03-migration-upgrade-charter-markers.md
+- id: e-008
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP04-cli-marker-only-and-splits.md
+- id: e-009
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP05-cli-seam-units-4905-nonascii-2745.md
+- id: e-010
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP06-consolidation-markers-and-5569-units.md
+- id: e-011
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP07-terminus-lanes-shift-left-trims.md
+- id: e-012
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP08-root-independent-permission-tests.md
+- id: e-013
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/tasks/WP09-root-independent-chmod-sweep.md
+- id: e-014
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/status.events.jsonl
+- id: e-015
+  kind: event_range
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/status.events.jsonl
+  range: 01M43027G8H70T8HA9D27DTFB0
+- id: e-016
+  kind: event_range
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/status.events.jsonl
+  range: 01M42Z3HA1M7RMWWWTQQVS0W4F
+- id: e-017
+  kind: file
+  path: kitty-specs/regression-slice-cleanup-01M42WCF/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

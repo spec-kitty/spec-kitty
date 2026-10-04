@@ -1,0 +1,35 @@
+{
+  "accept_commit": "8e5dc6507a0424e1d32bf4eb8621d64a8383c2f4",
+  "acceptance_history": [
+    {
+      "accept_commit": "8e5dc6507a0424e1d32bf4eb8621d64a8383c2f4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T09:22:33.426740+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "2e10f6b46bd27be5ced216e51ba59c3ef9c7b72c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T09:22:33.426740+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "2e10f6b46bd27be5ced216e51ba59c3ef9c7b72c",
+  "baseline_merge_commit": "a346f7823c98322d7e23736e420b7da850cfe323",
+  "created_at": "2026-10-04T07:17:21.168423+00:00",
+  "flattened": true,
+  "friendly_name": "Regression-slice test cleanup",
+  "merged_at": "2026-10-04T09:46:34.399560+00:00",
+  "merged_commit": "c97d07374db34032f09451a6d42b4dd16e719bc6",
+  "mid8": "01M42WCF",
+  "mission_id": "01M42WCF1QPR1Y2702BMF8SA0N",
+  "mission_number": 214,
+  "mission_slug": "regression-slice-cleanup-01M42WCF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A test-suite quality review of the regression-marked slice (issues #5618-#5622) found that most regression markers are mislabels on unit or contract tests, several slow end-to-end files pin contracts that cheaper seam tests can hold, one fix (charter scope config loading) has no working guard, and two permission tests fail when the suite runs as root. This mission applies those per-file verdicts so the per-PR suite is faster and every remaining guard provably goes red when its behaviour breaks.",
+  "purpose_tldr": "Stop mislabelled and slow regression-marked tests from inflating every PR's CI time, and close two real test gaps.",
+  "slug": "regression-slice-cleanup-01M42WCF",
+  "status_phase": "1",
+  "target_branch": "issue-5618-regression-slice-cleanup",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T07:28:50.992473+00:00"
+}

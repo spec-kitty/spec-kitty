@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-04T07:17:38.338246Z",
+      "decision_id": "01M42WD0X2R1EWYZSB0ZEYET84",
+      "final_answer": "Apply the per-file ledger verdicts from issues #5618-#5622 (operator brief, non-interactive host): MARKER-ONLY, SPLIT-BY-KIND, SHIFT-LEFT with seam units first, RETIRE only after a planted break re-proves the covering guard, FIX weak oracles; #5620 item 1 is priority; #5622 root-independence. Test-only; product defects found become issues; p0_repro marker work out of scope.",
+      "input_key": "verdict_source",
+      "mission_id": "01M42WCF1QPR1Y2702BMF8SA0N",
+      "mission_slug": "regression-slice-cleanup-01M42WCF",
+      "opened_by": "cli",
+      "options": [
+        "Apply issue ledgers #5618-#5622 verbatim, test-only",
+        "Re-derive verdicts",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which verdicts govern the change set, and what is out of scope?",
+      "rationale": null,
+      "resolved_at": "2026-10-04T07:17:41.094591Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.verdict-source",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M42WCF1QPR1Y2702BMF8SA0N",
+  "version": 1
+}
