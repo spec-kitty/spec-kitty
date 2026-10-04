@@ -18,7 +18,14 @@ error in every run, including per-PR runs, so a bad pin is caught before it
 reaches the nightly. When such a test fails, its report carries an
 ``[OPEN P0 #N]`` banner naming the issue; when it passes, the terminal summary
 says the marker should be removed (the fix PR removes it, which puts the test
-in the per-PR lanes as an ordinary guard).
+in the per-PR lanes as an ordinary guard). A reproduction that skips in its
+call phase never reached a verdict, so the summary lists it too: a skipped
+reproduction must not leave the nightly job green while the P0 is open.
+
+The pass/skip notices are derived on the *controller* from the reports it
+receives (the pinned issue travels on ``report.user_properties``), so they
+appear under ``pytest-xdist`` too, where ``pytest_runtest_makereport`` runs on
+the workers and a stash written there never reaches the terminal summary.
 
 This module is a pytest plugin, registered by the root ``tests/conftest.py``
 through ``pytest_plugins``; the decisions are pure helpers so they can be tested
@@ -91,7 +98,27 @@ def passing_notice(issue: int, nodeid: str) -> str:
     )
 
 
-_PASSED_KEY = pytest.StashKey[list[str]]()
+def skipped_notice(issue: int, nodeid: str) -> str:
+    """The summary line for a reproduction that skipped without a verdict."""
+    return (
+        f"[P0 #{issue} REPRO SKIPPED] {nodeid} skipped in its call phase and did not run to a "
+        f"verdict, so open P0 issue #{issue} is neither confirmed nor cleared: fix the skip or the reproduction."
+    )
+
+
+def reproduction_notice(report: pytest.TestReport) -> str | None:
+    """The summary line a call-phase report earns, or ``None`` if it earns none.
+
+    Derived purely from the report (the pinned issue rides on
+    ``report.user_properties``), so it works on an xdist controller. A failure
+    needs no notice: it is already bannered and fails the lane.
+    """
+    if report.when != "call" or not (report.passed or report.skipped):
+        return None
+    issue = next((value for name, value in report.user_properties if name == ISSUE_PROPERTY and isinstance(value, int)), None)
+    if issue is None:
+        return None
+    return passing_notice(issue, report.nodeid) if report.passed else skipped_notice(issue, report.nodeid)
 
 
 # ---------------------------------------------------------------------------
@@ -115,26 +142,35 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Generator[None, pytest.TestReport, pytest.TestReport]:
-    """Banner a failing reproduction; remember a passing one for the summary."""
+    """Pin the issue to a reproduction's call report and banner a failure.
+
+    ``item.user_properties`` feeds the JUnit ``<property>`` (read from the
+    teardown report); the call report gets its own copy because that is the
+    report the controller classifies in :func:`pytest_terminal_summary`.
+    """
     del call
     report = yield
     marker = item.get_closest_marker(P0_REPRO_MARKER)
     issue = pinned_issue(marker) if marker is not None else None
     if issue is not None and report.when == "call":
         item.user_properties.append((ISSUE_PROPERTY, issue))
+        report.user_properties.append((ISSUE_PROPERTY, issue))
         if report.failed:
             # A section, not a rewrite of longrepr: the JUnit failure message and
             # the nightly summary's first line must stay the real assertion.
             report.sections.append((f"OPEN P0 #{issue}", failure_banner(issue)))
-        elif report.passed:
-            item.config.stash.setdefault(_PASSED_KEY, []).append(passing_notice(issue, item.nodeid))
     return report
 
 
 def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
-    """List reproductions that no longer reproduce their bug."""
-    notices = terminalreporter.config.stash.get(_PASSED_KEY, [])
+    """List reproductions that no longer reproduce their bug, or never ran to a verdict.
+
+    Reads the reports the (controller's) terminal reporter collected, so the
+    result is the same with and without ``pytest-xdist``.
+    """
+    reports = [r for outcome in ("passed", "skipped") for r in terminalreporter.stats.get(outcome, []) if isinstance(r, pytest.TestReport)]
+    notices = [notice for report in reports if (notice := reproduction_notice(report)) is not None]
     if notices:
-        terminalreporter.section("p0_repro reproductions that now pass")
+        terminalreporter.section("p0_repro reproductions without a failing verdict")
         for line in notices:
             terminalreporter.write_line(line)

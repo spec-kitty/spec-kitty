@@ -42,6 +42,10 @@ def test_open_bug():
 @pytest.mark.p0_repro(issue=4243)
 def test_fixed_bug():
     assert True
+
+@pytest.mark.p0_repro(issue=4244)
+def test_skipped_bug():
+    pytest.skip("cannot reproduce here")
 """
 
 
@@ -77,25 +81,32 @@ def test_reproductions_are_deselected_without_the_opt_in(tmp_path: Path) -> None
     proc = _run(tmp_path, _SYNTHETIC, opt_in=False)
 
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "1 passed, 2 deselected" in proc.stdout
+    assert "1 passed, 3 deselected" in proc.stdout
 
 
 def test_a_per_pr_marker_expression_cannot_select_them_without_the_opt_in(tmp_path: Path) -> None:
     proc = _run(tmp_path, _SYNTHETIC, "-m", "p0_repro", opt_in=False)
 
     assert proc.returncode == 5, proc.stdout + proc.stderr  # nothing collected to run
-    assert "3 deselected" in proc.stdout
+    assert "4 deselected" in proc.stdout
 
 
-def test_nightly_lane_names_the_open_issue_and_reports_the_fixed_one(tmp_path: Path) -> None:
+@pytest.mark.parametrize("xdist_args", [(), ("-n", "2")], ids=["serial", "xdist"])
+def test_nightly_lane_names_the_open_issue_and_reports_the_fixed_and_skipped_ones(tmp_path: Path, xdist_args: tuple[str, ...]) -> None:
+    if xdist_args:
+        pytest.importorskip("xdist")
     junit = tmp_path / "junit.xml"
-    proc = _run(tmp_path, _SYNTHETIC, "-m", "p0_repro", f"--junitxml={junit}", opt_in=True)
+    proc = _run(tmp_path, _SYNTHETIC, "-m", "p0_repro", f"--junitxml={junit}", *xdist_args, opt_in=True)
 
     assert proc.returncode == 1, proc.stdout + proc.stderr
-    assert "1 failed, 1 passed, 1 deselected" in proc.stdout
+    assert "1 failed, 1 passed, 1 skipped" in proc.stdout
     assert "[OPEN P0 #4242]" in proc.stdout
+    # The passing / skipped notices come from the controller's terminal summary,
+    # which under xdist only sees what the workers' reports carry.
     assert "[P0 #4243 REPRO PASSES]" in proc.stdout
     assert "test_fixed_bug" in proc.stdout
+    assert "[P0 #4244 REPRO SKIPPED]" in proc.stdout
+    assert "test_skipped_bug" in proc.stdout
 
     cases = {case.get("name"): case for case in ET.parse(junit).getroot().iter("testcase")}
     failure = cases["test_open_bug"].find("failure")
