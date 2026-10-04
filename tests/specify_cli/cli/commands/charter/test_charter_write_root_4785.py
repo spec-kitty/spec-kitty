@@ -40,7 +40,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
 # Real subprocess git repos + worktrees, like the primitive's own suite
 # (tests/git/test_git_topology.py) -- structurally incompatible with mutmut's
 # forked sandbox.
-pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.non_sandbox, pytest.mark.git_repo]
 
 
 @pytest.fixture(autouse=True)

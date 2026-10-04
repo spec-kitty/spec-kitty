@@ -35,7 +35,7 @@ from specify_cli.cli.commands.agent.tasks_dependency_graph import (
 )
 from specify_cli.core.vcs.git import git_rev_list_count
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _run(cmd, cwd):
