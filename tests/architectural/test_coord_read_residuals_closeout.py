@@ -231,10 +231,19 @@ _SANCTIONED_EXCLUSION_QUALNAMES: frozenset[str] = frozenset(
 # would let that executor residual escape.
 _STATUS_BEARING_MODULES: tuple[str, ...] = (
     "src/specify_cli/lanes/recovery.py",
+    # #2026: this is the SCAN list. The executor was split by phase, so the whole
+    # family is scanned, as the whole of executor.py was before the split.
     "src/specify_cli/consolidation/executor.py",
-    # #2026: the executor's read_events STATUS reads moved with the phase split.
-    "src/specify_cli/consolidation/phase_claim.py",
+    "src/specify_cli/consolidation/run_state.py",
     "src/specify_cli/consolidation/entry_preflight.py",
+    "src/specify_cli/consolidation/resume_recovery.py",
+    "src/specify_cli/consolidation/phase_claim.py",
+    "src/specify_cli/consolidation/phase_advance.py",
+    "src/specify_cli/consolidation/coord_strand.py",
+    "src/specify_cli/consolidation/phase_bookkeeping.py",
+    "src/specify_cli/consolidation/phase_gate.py",
+    "src/specify_cli/consolidation/phase_teardown.py",
+    "src/specify_cli/consolidation/phase_finalize.py",
 )
 _STATUS_READ_FUNCS: frozenset[str] = frozenset({"read_events"})
 
@@ -573,10 +582,6 @@ def test_fr003_sanctioned_exclusions_are_read_func_scoped_for_status() -> None:
         "merge/executor.py must be inside an identity scan dir (FR-002 unify) so its "
         "identity reads are in-scope despite being a STATUS-bearing module."
     )
-    assert "src/specify_cli/consolidation/executor.py" in _STATUS_BEARING_MODULES, (
-        "executor.py must remain a STATUS-bearing module for the read-func-scoped "
-        "read_events exclusion."
-    )
     # POSITIVE proof: identity read off a coord-aware dir IS flagged in the
     # status-bearing module shape.
     identity_src = (
@@ -724,6 +729,7 @@ def test_no_status_leg_rerouted_to_primary() -> None:
     seam. The STATUS legs must stay coord-aware (read the ``-coord`` husk).
     """
     offenders: dict[str, list[str]] = {}
+    status_reads = 0
     for rel_path in _STATUS_BEARING_MODULES:
         tree = ast.parse((_REPO_ROOT / rel_path).read_text(encoding="utf-8"))
         for node in ast.walk(tree):
@@ -745,6 +751,7 @@ def test_no_status_leg_rerouted_to_primary() -> None:
                     or not call.args
                 ):
                     continue
+                status_reads += 1
                 first = call.args[0]
                 if isinstance(first, ast.Name) and first.id in primary_bound:
                     hits.append(f"read_events({first.id})  # PRIMARY-fold bound")
@@ -755,6 +762,7 @@ def test_no_status_leg_rerouted_to_primary() -> None:
             if hits:
                 offenders[f"{rel_path}::{node.name}"] = hits
 
+    assert status_reads >= 1, "the scan found no read_events call in _STATUS_BEARING_MODULES, so it checks nothing"
     assert not offenders, (
         "NFR-001 REGRESSION: a STATUS read_events leg was re-routed to PRIMARY: "
         f"{dict(sorted(offenders.items()))}. The STATUS event log must stay "
