@@ -33,6 +33,7 @@ from specify_cli.core.checkout_identity import (
     resolve_checkout_identity,
 )
 from specify_cli.core.paths import locate_project_root
+from specify_cli.skills.pack_skill_drift import find_pack_skill_findings
 
 from . import _doctor_shared
 from ._doctor_shared import (
@@ -625,8 +626,18 @@ def run_skills_audit(
         else slash_payload_raw
     )
     _print_slash_command_payload(slash_payload_for_print, fix)
+    _print_pack_skill_findings(cast(list[dict[str, str]], payload["pack_skills"]))
 
     raise typer.Exit(0 if payload["ok"] else 1)
+
+
+def _print_pack_skill_findings(findings: list[dict[str, str]]) -> None:
+    """Render pack-skill drift/staleness findings (each names its ``source_ref``)."""
+    if not findings:
+        return
+    console.print("\n[bold yellow]Pack skills[/bold yellow]")
+    for finding in findings:
+        console.print(f"  ! [{finding['kind']}] {finding['message']}", markup=False)
 
 
 def _assemble_skills_payload(
@@ -682,7 +693,9 @@ def _assemble_skills_payload(
 
     slash_payload = _load_and_optionally_repair_slash_commands(project_path, fix)
     payload["slash_commands"] = slash_payload
-    payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"])
+    pack_findings = [finding.to_dict() for finding in find_pack_skill_findings(project_path)]
+    payload["pack_skills"] = pack_findings
+    payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"]) and not pack_findings
     return payload
 
 

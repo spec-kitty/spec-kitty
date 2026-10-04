@@ -44,6 +44,7 @@ Frozen success-path fields:
 | `pruned` | list[str] | Entries pruned by `--fix` |
 | `repaired_vibe_config` | bool | Vibe config repaired by `--fix` |
 | `repair_errors` | list[str] | Errors during `--fix` |
+| `pack_skills` | list[object] | Pack-skill drift / stale / orphaned findings, each naming its pack `source_ref` (additive, #5193) |
 | `slash_commands` | object | Nested report: `configured_agents`, `gaps`, `repaired`, `errors`, `ok` |
 
 Frozen **error envelope** (asserted by `test_doctor_skills_json_error_schema_stable`):

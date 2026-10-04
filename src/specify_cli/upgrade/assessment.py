@@ -19,6 +19,7 @@ from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.skills.command_installer import PreparedCommands, SUPPORTED_AGENTS
 from specify_cli.skills.installer import SkillInstallationAssessment, assess_skill_installation
 from specify_cli.skills.catalog import resolve_project_skill_catalog
+from specify_cli.skills.pack_skill_drift import find_pack_skill_findings
 from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
@@ -112,6 +113,11 @@ class PreparedUpgradeRepairs:
         )
 
 
+def _pack_skill_diagnostics(project_path: Path) -> tuple[Diagnostic, ...]:
+    """Warnings (never blocking) for drifted or stale installed pack skills; each names ``source_ref``."""
+    return tuple(Diagnostic(f"pack_skill_{finding.kind}", finding.installed_path, "warning", finding.message) for finding in find_pack_skill_findings(project_path))
+
+
 def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> PreparedUpgradeRepairs:
     """Read actual configured inventory and retain each owner's prepared bytes."""
     root = OperationRoot("project", "project", project_path.resolve())
@@ -154,7 +160,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
         configured_tools=agents,
     ).assessments
     owners = (installation.global_assets, installation.project_skills, *managed.assessments, *commands, *remaining)
-    diagnostics = tuple(d for owner in owners for d in owner.diagnostics)
+    diagnostics = tuple(d for owner in owners for d in owner.diagnostics) + _pack_skill_diagnostics(root.path)
     concrete = tuple(owner for owner in commands if isinstance(owner.prepared, PreparedCommands))
     composition = None
     if len(concrete) == 1 and not any(d.severity == "error" for d in diagnostics):

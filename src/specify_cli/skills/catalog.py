@@ -23,6 +23,7 @@ skill roots only and never to a user-global root.
 from __future__ import annotations
 
 import atexit
+import hashlib
 import logging
 import shutil
 import tempfile
@@ -52,6 +53,9 @@ _PACK_SKILL_STAGING = Path(".kittify") / "runtime" / "pack-skills"
 _PROJECT_SKILLS_DIR = Path(".kittify") / "doctrine" / "skills"
 
 _SKILL_FILENAME = "SKILL.md"
+
+#: Lazily created process-wide root for read-only (``stage=False``) resolutions.
+_READ_ONLY_ROOT: Path | None = None
 _STAGED_FILE_MODE = 0o644
 
 
@@ -175,14 +179,41 @@ def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | Non
     return SkillRegistry(root)
 
 
+def _read_only_parent() -> Path:
+    """The one per-process parent temp root (created, and its cleanup registered, once)."""
+    global _READ_ONLY_ROOT
+    if _READ_ONLY_ROOT is None or not _READ_ONLY_ROOT.is_dir():
+        _READ_ONLY_ROOT = Path(tempfile.mkdtemp(prefix="spec-kitty-pack-skills-"))
+        atexit.register(shutil.rmtree, _READ_ONLY_ROOT, ignore_errors=True)
+    return _READ_ONLY_ROOT
+
+
+def _rendered_set_key(rendered: list[_Rendered]) -> str:
+    digest = hashlib.blake2b(digest_size=16)
+    for item in sorted(rendered, key=lambda r: r.prepared.rendered_name):
+        for part in (item.prepared.rendered_name, item.text):
+            data = part.encode("utf-8")
+            digest.update(len(data).to_bytes(8, "big") + data)
+    return digest.hexdigest()
+
+
 def _stage_read_only(rendered: list[_Rendered]) -> SkillRegistry | None:
-    """Render into a temporary root outside the project (removed at interpreter exit)."""
+    """Render into a content-addressed subdirectory of the process-wide temp root.
+
+    The subdirectory is keyed by a hash of the rendered set and is reused
+    untouched when it already exists, and never deleted during the process, so a
+    registry (and the file identities recorded against it) from an earlier
+    read-only resolution stays valid after later resolutions.
+    """
     if not rendered:
         return None
-    root = Path(tempfile.mkdtemp(prefix="spec-kitty-pack-skills-"))
-    atexit.register(shutil.rmtree, root, ignore_errors=True)
-    for item in rendered:
-        _write_staged(root / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
+    root = _read_only_parent() / _rendered_set_key(rendered)
+    if not root.is_dir():
+        building = root.with_name(f"{root.name}.building")
+        shutil.rmtree(building, ignore_errors=True)
+        for item in rendered:
+            _write_staged(building / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
+        building.rename(root)
     return SkillRegistry(root)
 
 

@@ -103,6 +103,26 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
 
 
 @pytest.mark.slow
+def test_wheel_ships_no_internal_pack_skills(build_artifacts: dict[str, Path]) -> None:
+    """No ``packs/internal/skills/`` path ships: in-house pack skills never reach consumers (#5193)."""
+    with zipfile.ZipFile(build_artifacts["wheel"]) as zf:
+        leaked = [f for f in zf.namelist() if f.startswith("packs/internal/skills/") or "/internal/skills/" in f]
+    assert not leaked, f"Maintainer-only packs/internal/skills/ leaked into the consumer wheel: {leaked}"
+
+
+def test_wheel_config_only_includes_built_in_pack_skills() -> None:
+    """Config-level twin (no build): the wheel include/force-include is scoped to ``packs/built-in``."""
+    import tomllib
+
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[3] / "pyproject.toml").read_text(encoding="utf-8"))
+    wheel = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]
+    packs_entries = [entry for entry in (*wheel.get("force-include", {}), *wheel.get("include", [])) if "packs/" in entry]
+    assert packs_entries, "expected the packs/built-in include to be declared"
+    assert all(entry.startswith("packs/built-in") for entry in packs_entries), packs_entries
+    assert not any("internal" in entry for entry in packs_entries)
+
+
+@pytest.mark.slow
 def test_wheel_excludes_build_only_files(build_artifacts: dict[str, Path]) -> None:
     """Build-tooling files must never ship inside the runtime wheel (#3163).
 

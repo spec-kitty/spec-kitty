@@ -9,6 +9,7 @@
   "manifest_agents": [],
   "ok": "bool",
   "orphans": [],
+  "pack_skills": [],
   "pruned": [],
   "repair_errors": [],
   "repaired_agents": [],
