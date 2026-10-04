@@ -513,3 +513,79 @@ def test_coord_topology_lane_cycle_refusal_restores_the_mission_directory_only(t
     assert "LANE_DEPENDENCY_CYCLE" in output, output
     assert _mission_dir_hashes(mission_dir) == before, "the mission directory was not restored"
     assert _git(root, "status", "--porcelain", "--", "kitty-specs").stdout == porcelain_before
+
+
+def _branches_and_checkouts(root: Path) -> dict[str, str]:
+    """Every local branch tip, plus every checkout's tracked-file status against its own HEAD."""
+    state = {"refs/heads": _git(root, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads").stdout}
+    for line in _git(root, "worktree", "list", "--porcelain").stdout.splitlines():
+        if line.startswith("worktree "):
+            checkout = Path(line.removeprefix("worktree "))
+            state[f"status {checkout.relative_to(root).as_posix()}"] = _git(checkout, "status", "--porcelain=v1", "--untracked-files=no").stdout
+    return state
+
+
+@pytest.mark.p0_repro(issue=5641)
+@pytest.mark.parametrize("topology_name", ["COORD", "LANES_WITH_COORD", "LANES", "SINGLE_BRANCH"])
+def test_final_commit_failure_leaves_every_branch_and_checkout_as_found(tmp_path: Path, topology_name: str) -> None:
+    """A failed final commit must not leave the per-WP status commits behind (#5641, open P0).
+
+    Root cause: ``_run_commit_pipeline`` seeds every WP as ``planned`` through
+    ``bootstrap_canonical_state`` BEFORE the final commit, and each seed is a
+    commit of its own on the status surface -- the coordination branch for
+    ``coord`` / ``lanes_with_coord``, the current branch for a non-owned
+    ``lanes`` / ``single_branch`` Mission. When the final commit then fails,
+    the ``except`` arms restore the Mission directory's bytes but only an
+    OWNED checkout gets its HEAD back (``_restore_owned_head``). So the status
+    surface keeps commits the failed run made, and for ``lanes`` /
+    ``single_branch`` the checkout is left dirty against its own HEAD (the
+    restored ``status.events.jsonl`` drops events HEAD has committed).
+
+    Desired outcome: after the failed run every branch tip and every
+    checkout's tracked state is what it was before the run.
+
+    Exit rule: the fix PR for #5641 removes ``@pytest.mark.p0_repro``; this
+    test then stays here as a standing guard of the finalize atomicity
+    contract (FR-015/NFR-001).
+    """
+    from mission_runtime import MissionArtifactKind, MissionTopology
+    from specify_cli.coordination import commit_router
+    from tests.integration.test_placement_partition_golden_path import _create_mission, _init_git_repo
+
+    root = tmp_path / "repo"
+    root.mkdir()
+    _init_git_repo(root)
+    _git(root, "checkout", "-q", "-b", WORK_BRANCH)
+    result = _create_mission(root, f"final-commit-fail-{topology_name.lower().replace('_', '-')}", MissionTopology[topology_name])
+    mission_dir = result.feature_dir
+    (mission_dir / "spec.md").write_text(
+        "# Spec\n\n## Functional Requirements\n| ID | Requirement | Acceptance Criteria | Status |\n| --- | --- | --- | --- |\n"
+        "| FR-001 | Test requirement | Test passes. | proposed |\n",
+        encoding="utf-8",
+    )
+    (mission_dir / "tasks").mkdir(exist_ok=True)
+    (mission_dir / "tasks.md").write_text("# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n", encoding="utf-8")
+    for wp_id, owned_file in (("WP01", "src/one.py"), ("WP02", "src/two.py")):
+        (mission_dir / "tasks" / f"{wp_id}-work.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: Work {wp_id}\ndependencies: []\nrequirement_refs: [FR-001]\nsubtasks: []\n"
+            f"owned_files: [{owned_file}]\nauthoritative_surface: {owned_file}\nexecution_mode: code_change\n"
+            f"create_intent:\n  - {owned_file}\n---\n\n# {wp_id}\n",
+            encoding="utf-8",
+        )
+    _git(root, "add", "kitty-specs")
+    _git(root, "commit", "-q", "-m", "fixture: two-WP mission ready to finalize")
+    before = _branches_and_checkouts(root)
+
+    real_commit_for_mission = commit_router.commit_for_mission
+
+    def _fail_only_the_final_commit(*args: object, **kwargs: object) -> object:
+        if kwargs.get("kind") is MissionArtifactKind.TASKS_INDEX:
+            raise RuntimeError("simulated final commit failure")
+        return real_commit_for_mission(*args, **kwargs)
+
+    with patch("specify_cli.coordination.commit_router.commit_for_mission", side_effect=_fail_only_the_final_commit):
+        exit_code, output = _run_finalize(root, result.mission_slug)
+
+    assert exit_code != 0, output
+    assert "simulated final commit failure" in output, f"the run did not fail at the final commit:\n{output}"
+    assert _branches_and_checkouts(root) == before, "the failed finalize-tasks run left commits or a dirty checkout behind"
