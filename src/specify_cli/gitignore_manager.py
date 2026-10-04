@@ -6,7 +6,6 @@ to protect AI agent directories from being accidentally committed to git.
 It replaces the fragmented approach where only .codex/ was protected.
 """
 
-import contextlib
 import os
 import subprocess
 import stat
@@ -20,7 +19,6 @@ from specify_cli.core.no_follow import (
     NoFollowPathError,
     open_no_follow,
     read_text_no_follow,
-    write_text_no_follow,
 )
 from specify_cli.state.contract import get_runtime_gitignore_entries
 
@@ -444,46 +442,6 @@ class GitignoreManager:
         if self.gitignore_path.is_symlink():
             target = os.readlink(self.gitignore_path)
             raise GitignorePathError(f".gitignore is a symlink to {target!r}; refusing to read or write through it: {self.gitignore_path}")
-
-    def _atomic_write(self, content: str) -> None:
-        """Write `.gitignore` atomically without following a symlink.
-
-        Writes to a same-directory tempfile, then `os.replace()`s it into
-        place. `os.replace()` (POSIX `rename()`) replaces the destination
-        directory entry itself rather than following it, so even a
-        `.gitignore` swapped for a symlink between the guard above and this
-        call cannot redirect the write to an arbitrary target.
-        """
-        self._reject_symlink()
-        existing_mode = self.gitignore_path.stat().st_mode & 0o777 if self.gitignore_path.exists() else None
-        if existing_mode is not None:
-            # os.replace() (rename) only requires write access to the parent
-            # directory, not to the file it replaces, so it would otherwise
-            # silently clobber a read-only .gitignore. Probe with a real
-            # open() to preserve the PermissionError a direct write raises.
-            try:
-                os.close(open_no_follow(self.gitignore_path, os.O_WRONLY))
-            except NoFollowPathError as exc:
-                raise GitignorePathError(f".gitignore is a symlink; refusing to read or write through it: {self.gitignore_path}") from exc
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self.gitignore_path.parent,
-            prefix=".gitignore.",
-            suffix=".tmp",
-        )
-        try:
-            # mkstemp() always creates the tempfile at mode 0600, regardless
-            # of umask. For an existing .gitignore, replicate its own mode.
-            # For a brand-new one, replicate what open()/write_text() would
-            # have produced: 0666 narrowed by the process umask.
-            target_mode = existing_mode if existing_mode is not None else (0o666 & ~_get_umask())
-            os.chmod(tmp_path, target_mode)
-            os.close(fd)
-            write_text_no_follow(Path(tmp_path), content)
-            os.replace(tmp_path, self.gitignore_path)
-        except BaseException:
-            with contextlib.suppress(OSError):
-                os.unlink(tmp_path)
-            raise
 
     def _detect_line_ending(self, content: str) -> str:
         """

@@ -24,6 +24,7 @@ from specify_cli.compat._detect.runtime import InstalledCliRuntime, PackageSourc
 from specify_cli.compat.history import UpgradeAttemptStore
 from specify_cli.compat.install_events import UvToolInstallationVerified, VerificationConfidence
 from specify_cli.compat.remediation import RemediationCommand, RemediationIntent
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.fast]
 
@@ -272,28 +273,44 @@ class TestPipxSuccess:
 
 
 class TestStoreUnreachable:
-    """T027-4: Store path is read-only → runner returns normally (best-effort)."""
+    """T027-4: History store cannot be opened → runner returns normally (best-effort)."""
 
     def test_runner_returns_normally_when_store_unreachable(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Point SPEC_KITTY_HISTORY_DB_PATH at a file inside a non-writable dir.
-        readonly_dir = tmp_path / "readonly"
-        readonly_dir.mkdir()
-        readonly_dir.chmod(0o555)
+        # Deny the history-db open at its first filesystem call (the parent
+        # mkdir in UpgradeAttemptStore._connect) instead of chmod: root
+        # bypasses directory mode bits, so a chmod-based setup let the write
+        # succeed as uid 0 and never reached the swallowed-error branch (#5654).
+        db_dir = tmp_path / "history"
+        db_path = db_dir / "history.db"
+        monkeypatch.setenv("SPEC_KITTY_HISTORY_DB_PATH", str(db_path))
+        deny_path_method(monkeypatch, "mkdir", db_dir)
 
-        monkeypatch.setenv("SPEC_KITTY_HISTORY_DB_PATH", str(readonly_dir / "history.db"))
+        connect_errors: list[BaseException] = []
+        real_connect = UpgradeAttemptStore._connect
 
-        try:
-            with patch("specify_cli.readiness.upgrade_ux.subprocess.run", return_value=_completed(0)):
-                cmd = _pipx_upgrade_cmd()
-                runtime = _make_runtime(InstallMethod.PIPX)
-                result = _ux_mod._default_upgrade_runner(cmd, runtime)
+        def recording_connect(store: UpgradeAttemptStore) -> Any:
+            try:
+                return real_connect(store)
+            except BaseException as exc:
+                connect_errors.append(exc)
+                raise
 
-            # Must return normally despite write failure.
-            assert result.returncode == 0
-        finally:
-            readonly_dir.chmod(0o755)
+        monkeypatch.setattr(UpgradeAttemptStore, "_connect", recording_connect)
+
+        with patch("specify_cli.readiness.upgrade_ux.subprocess.run", return_value=_completed(0)):
+            cmd = _pipx_upgrade_cmd()
+            runtime = _make_runtime(InstallMethod.PIPX)
+            result = _ux_mod._default_upgrade_runner(cmd, runtime)
+
+        # Must return normally despite the write failure...
+        assert result.returncode == 0
+        # ...because the store was reached and its open was denied, not
+        # because the runner skipped recording.
+        assert len(connect_errors) == 1
+        assert isinstance(connect_errors[0], PermissionError)
+        assert not db_path.exists()
 
 
 # ---------------------------------------------------------------------------
