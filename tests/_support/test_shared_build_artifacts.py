@@ -16,7 +16,7 @@ import pytest
 
 from tests._support.shared_build_artifacts import default_source_snapshot_builder
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.git_repo]
 
 _COMMIT_COUNT = 3
 
