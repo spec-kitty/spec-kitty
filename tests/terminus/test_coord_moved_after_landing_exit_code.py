@@ -12,6 +12,7 @@ existing message. It reuses that suite's real-CLI concurrency injection.
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ from specify_cli.consolidation import executor as ex
 from specify_cli.git.ref_advance import RefDeleteMismatchError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.orchestrator_api import commands as orchestrator_commands
+from tests.terminus.conftest import _cli_env as cli_env
 from tests.terminus.conftest import build_coord_mission
 from tests.terminus.test_coord_teardown_cas_branch_delete import (
     _LATE_SHA_FILE,
@@ -75,6 +77,54 @@ def test_other_teardown_refusals_keep_the_generic_exit_code(tmp_path: Path) -> N
 
     assert raised.value.exit_code == 1
     assert _COORD_MOVED_CODE not in str(raised.value)
+
+
+# Lands a real commit on the coordination branch just before the REAL teardown gate runs its
+# compare-and-swap, so the tip has moved since the projection captured its window.
+_MOVED_BEFORE_GATE_DRIVER = """
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import specify_cli.coordination.teardown as teardown
+
+real_gate = teardown._enforce_projection_teardown_gate
+
+
+def gate_after_late_commit(repo_root, gate):
+    worktree = Path(os.environ["COORD_WORKTREE"])
+    (worktree / "kitty-specs" / os.environ["MISSION_SLUG"] / "late-status-emit.md").write_text("late\\n", encoding="utf-8")
+    for args in (["add", "-A"], ["-c", "user.name=Late", "-c", "user.email=late@example.com", "commit", "-q", "-m", "late"]):
+        subprocess.run(["git", "-C", str(worktree), *args], check=True, capture_output=True)
+    return real_gate(repo_root, gate)
+
+
+teardown._enforce_projection_teardown_gate = gate_after_late_commit
+
+from specify_cli import main
+
+sys.argv = ["spec-kitty", "consolidate", "--mission", os.environ["MISSION_SLUG"], "--yes"]
+main()
+"""
+
+
+def test_5637_a_tip_that_moves_before_the_teardown_gate_is_a_rendered_refusal_with_exit_1(tmp_path: Path) -> None:
+    """The earlier window (``PROJECTION_TEARDOWN_ABORTED``): rendered like its siblings, exit 1, no traceback."""
+    mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5637A")
+    env = cli_env(mission.home)
+    env["COORD_WORKTREE"] = str(mission.repo / ".worktrees" / f"{mission.slug}-coord")
+    env["MISSION_SLUG"] = mission.slug
+
+    result = subprocess.run(
+        [sys.executable, "-c", _MOVED_BEFORE_GATE_DRIVER], cwd=str(mission.repo), env=env, capture_output=True, text=True, check=False, timeout=180
+    )
+
+    combined = _flat(result)
+    assert "PROJECTION_TEARDOWN_ABORTED" in combined, combined
+    assert result.returncode == 1 and "Traceback" not in combined, combined
+    assert _COORD_MOVED_CODE not in combined
+    assert mission.rev(mission.coord_branch), "nothing may be torn down: the coordination branch must survive"
 
 
 def test_orchestrator_api_moved_mission_branch_names_the_code(tmp_path: Path) -> None:

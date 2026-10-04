@@ -237,6 +237,7 @@ from specify_cli.consolidation.state import (
     release_merge_lock_if_owned,
 )
 from specify_cli.consolidation.workspace import get_merge_workspace_path
+from specify_cli.coordination.teardown import ProjectionTeardownAbort
 from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -721,6 +722,13 @@ def _run_real_merge(
         # (``exc.exit_code``, 75); every other teardown refusal stays 1.
         console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
         raise typer.Exit(exc.exit_code) from exc
+    except ProjectionTeardownAbort as exc:
+        # #5637: the coordination tip moved between the projection capture and the
+        # teardown gate. Nothing was torn down; render the
+        # refusal like its siblings (code + message, which names the remedy) rather
+        # than let a raw traceback escape. Generic refusal exit code, not 75.
+        console.print(f"[red]Error:[/red] coordination teardown refused: {exc.error_code}: {exc}")
+        raise typer.Exit(1) from exc
 
     # -- Post-merge: WP07/FR-007 retrospective postcondition (fail-open) --
     run_retrospective_postcondition(mission_slug=resolved_mission, repo_root=repo_root)

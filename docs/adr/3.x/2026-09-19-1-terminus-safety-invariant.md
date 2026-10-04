@@ -339,8 +339,6 @@ names one teardown refusal.
   - A corrupt `state.json` falls back to the generic dirty-checkout advice.
   - The repository root checkout with a lag plus an operator edit keeps the stock "Commit,
     stash, or revert" remedy.
-  - The earlier projection-window race (`ProjectionTeardownAbort`,
-    `PROJECTION_TEARDOWN_ABORTED`) has no rendered refusal on `consolidate` and keeps exit 1.
   - The presence axis does not judge a path the target also changed since the lane was cut.
   - Out of scope: legacy and foreign strand-marker refusal codes; unwrapped remediation
     printing.
