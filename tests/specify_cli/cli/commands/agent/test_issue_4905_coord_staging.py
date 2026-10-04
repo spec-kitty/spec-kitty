@@ -661,6 +661,7 @@ def test_deleting_primary_mission_event_log_keeps_structural_refusal(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.regression
 def test_wp02_starts_without_planning_merge_conflict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """RED on pre-fix code: WP02's lane allocation hits PlanningCommitMergeConflictError.
 
