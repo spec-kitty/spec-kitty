@@ -520,11 +520,15 @@ exactly what they expect.
   not allowed on lane branches"). Before moving a task to `for_review` or
   `approved`, restore the planning artifacts from the planning branch and commit.
   The review-claim step can re-dirty them, so re-clean between claim and approve.
-- **`acceptance-matrix.json` has no CLI** — edit it directly in the coordination
-  worktree: set each criterion's `pass_fail` to `"pass"` with `evidence`,
-  `verified_by`, and `verified_at`, and set `overall_verdict` to `"pass"`.
-  `accept` also fails on a dirty tree, so commit or clean the dossier state
-  first.
+- **Record `acceptance-matrix.json` verdicts with `spec-kitty agent
+  acceptance-verdict`; do not hand-edit the file.** `spec-kitty agent
+  acceptance-verdict --mission <m> --criterion FR-001 --result pass --evidence
+  <ref>` writes the criterion through the matrix seam, commits it, and
+  recomputes `overall_verdict`. Its negative-invariant mode (`--negative-invariant
+  <id> --description ... --verification-method grep_absence|route_check|custom_command
+  --verification-command ...`) registers an invariant through the same seam and
+  runs it at once (`--no-execute` registers only). `accept` also fails on a
+  dirty tree, so commit or clean the dossier state first.
 - **`spec-kitty consolidate` refuses a dirty coordination worktree** — commit the
   status files and clear ignored `.kittify/` state in the coordination worktree,
   then `--resume`.
