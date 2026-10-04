@@ -35,7 +35,9 @@ from specify_cli.consolidation import (
     phase_bookkeeping,
     phase_claim,
     phase_finalize,
+    phase_gate,
     phase_teardown,
+    run_state,
 )
 from tests.consolidation.executor_family import patch_executor_family
 
@@ -578,6 +580,21 @@ def test_phase_record_done_refuses_when_projection_window_unreadable(tmp_path: P
     out = capsys.readouterr().out
     assert "could not be read" in out
     assert "Nothing was torn down" in out
+
+
+def test_squash_projection_proof_refuses_when_projected_bookkeeping_did_not_land(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The SQUASH content proof must refuse (exit 1) when a projected path's content did not land on the target."""
+    run = _make_run(tmp_path)
+    run.coord_checkpoint = run_state._CoordCheckpoint(ref="refs/heads/coord", sha="c" * 40)
+    run.target_expected_old_sha = "d" * 40
+    with (
+        patch.object(phase_gate, "_post_checkpoint_mission_paths", return_value=["kitty-specs/m/status.events.jsonl"]),
+        patch.object(phase_gate, "projected_content_matches_target", return_value=False),
+        pytest.raises(typer.Exit) as excinfo,
+    ):
+        phase_gate._assert_squash_projected_content_landed(run)
+    assert excinfo.value.exit_code == 1
+    assert "projected coordination bookkeeping content did not land" in " ".join(capsys.readouterr().out.split())
 
 
 # Landing reconciliation (#5444): ``_phase_record_done_and_project_or_roll_back``
