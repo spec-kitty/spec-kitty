@@ -15,6 +15,11 @@ driven *solely* by the ``version != target`` bookkeeping bump -- not by a
 migration that applied real content, nor by freshly synthesized metadata --
 its ``last_upgraded_at`` must align to the main checkout's already-stored
 value instead of minting a new one.
+
+Re-pinned for #5457: upgrade no longer writes in an *integrating* worktree (a
+``kitty/mission-...`` mission, lane or coordination branch) at all, so the
+alignment arm is exercised on NON-integrating worktrees, where it still
+applies; the lane / coordination case is pinned as "untouched" below.
 """
 
 from __future__ import annotations
@@ -27,6 +32,9 @@ import yaml
 
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.runner import MigrationRunner
+
+#: A non-integrating worktree branch prefix: upgrade still aligns and commits there.
+NON_INTEGRATING_PREFIX = "wip/"
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -150,7 +158,7 @@ def test_bookkeeping_only_worktree_bump_aligns_to_main_stamp_not_fresh_now(
     """
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_lagging_worktree(root, "m-lane-a", "kitty/mission-m-lane-a")
+    wt = _add_lagging_worktree(root, "m-lane-a", f"{NON_INTEGRATING_PREFIX}m-lane-a")
 
     result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
 
@@ -172,7 +180,7 @@ def test_bookkeeping_only_worktree_bump_aligns_to_main_stamp_not_fresh_now(
     # The version bump is still real churn: it is still committed on the
     # worktree's own branch (no regression to #2385's per-worktree commit).
     assert _dirty(wt) == [], "worktree must be clean (churn committed) after upgrade"
-    assert _git_out(wt, "branch", "--show-current") == "kitty/mission-m-lane-a"
+    assert _git_out(wt, "branch", "--show-current") == f"{NON_INTEGRATING_PREFIX}m-lane-a"
     assert "spec-kitty upgrade" in _git_out(wt, "log", "-1", "--pretty=%s")
     # And main's branch did NOT receive the worktree commit.
     assert "spec-kitty upgrade" not in _git_out(root, "log", "-1", "--pretty=%s")
@@ -185,7 +193,7 @@ def test_repeat_upgrade_is_a_true_no_op_once_worktree_has_caught_up(
     must not touch its metadata again (or produce a second commit)."""
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_lagging_worktree(root, "m-lane-b", "kitty/mission-m-lane-b")
+    wt = _add_lagging_worktree(root, "m-lane-b", f"{NON_INTEGRATING_PREFIX}m-lane-b")
 
     runner = MigrationRunner(root)
     first = runner._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
@@ -220,8 +228,8 @@ def test_sibling_worktrees_share_one_fallback_timestamp_when_main_is_unstamped(
     """
     root = tmp_path / "repo"
     _init_repo(root, metadata_yaml=_MAIN_METADATA_YAML_UNSTAMPED)
-    wt_a = _add_lagging_worktree(root, "m-lane-c", "kitty/mission-m-lane-c")
-    wt_b = _add_lagging_worktree(root, "m-lane-d", "kitty/mission-m-lane-d")
+    wt_a = _add_lagging_worktree(root, "m-lane-c", f"{NON_INTEGRATING_PREFIX}m-lane-c")
+    wt_b = _add_lagging_worktree(root, "m-lane-d", f"{NON_INTEGRATING_PREFIX}m-lane-d")
 
     result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
     assert result["errors"] == []
@@ -249,8 +257,8 @@ def test_two_worktrees_aligned_to_stamped_main_are_byte_identical(
     """
     root = tmp_path / "repo"
     _init_repo(root)
-    wt_a = _add_lagging_worktree(root, "m-lane-e", "kitty/mission-m-lane-e")
-    wt_b = _add_lagging_worktree(root, "m-lane-f", "kitty/mission-m-lane-f")
+    wt_a = _add_lagging_worktree(root, "m-lane-e", f"{NON_INTEGRATING_PREFIX}m-lane-e")
+    wt_b = _add_lagging_worktree(root, "m-lane-f", f"{NON_INTEGRATING_PREFIX}m-lane-f")
 
     result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
     assert result["errors"] == []
@@ -266,3 +274,27 @@ def test_two_worktrees_aligned_to_stamped_main_are_byte_identical(
     text_b = (wt_b / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig")
 
     assert text_a == text_b, "two sibling worktrees aligned to the same stamped main must be byte-identical (raw file content), not just parsed-dict equal"
+
+
+def test_lane_and_coordination_worktrees_are_untouched_while_sibling_aligns(
+    tmp_path: Path,
+) -> None:
+    """#5457: the lane and coordination branches the #4972 wedge was about no
+    longer receive any version bump or commit; they get the root checkout's
+    metadata through integration. A non-integrating sibling in the same run
+    still aligns to main's stamp (#4972 kept)."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    lane = _add_lagging_worktree(root, "m-01M5457B-lane-a", "kitty/mission-m-01M5457B-lane-a")
+    coord = _add_lagging_worktree(root, "m-01M5457B-coord", "kitty/mission-m-01M5457B")
+    sibling = _add_lagging_worktree(root, "m-sibling", f"{NON_INTEGRATING_PREFIX}m-sibling")
+    before = {wt: (_git_out(wt, "rev-parse", "HEAD"), (wt / ".kittify" / "metadata.yaml").read_bytes()) for wt in (lane, coord)}
+
+    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+
+    assert result["errors"] == []
+    for wt, (head, metadata) in before.items():
+        assert _git_out(wt, "rev-parse", "HEAD") == head, wt
+        assert (wt / ".kittify" / "metadata.yaml").read_bytes() == metadata, wt
+        assert _dirty(wt) == [], wt
+    assert _load_metadata_yaml(sibling / ".kittify")["spec_kitty"]["last_upgraded_at"] == _MAIN_STAMP

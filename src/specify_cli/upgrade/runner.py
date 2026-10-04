@@ -15,7 +15,9 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
+from specify_cli.core.git_ops import get_current_branch
 from specify_cli.gitignore_manager import GitignorePathError
+from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
 from specify_cli.migration.schema_version import (
     REQUIRED_SCHEMA_VERSION,
     get_project_schema_version,
@@ -77,6 +79,40 @@ def validate_upgrade_target(from_version: str, target_version: str) -> str | Non
     if requested < current:
         return f"Refusing to downgrade project metadata from {_display_version(from_version)} to {_display_version(target_version)}"
     return None
+
+
+def _is_integrating_worktree(worktree: Path) -> bool:
+    """Return True when ``worktree`` integrates back into its mission's target branch (#5457).
+
+    ``spec-kitty upgrade`` writes project-global state (``.kittify/metadata.yaml``,
+    ``.gitattributes``, ...) once, in the repository root checkout. An
+    *integrating worktree* receives that state through integration and must
+    never carry its own upgrade writes or upgrade commit, or every lane and
+    coordination branch diverges on bookkeeping that ``consolidate`` and the
+    lane auto-rebase then refuse.
+
+    The rule:
+
+    * no ``.git`` entry (a plain directory, not a git worktree): not
+      integrating, so today's behaviour is kept;
+    * a branch that cannot be read (detached HEAD): integrating (fail safe);
+    * otherwise integrating iff the branch is a mission, lane or coordination
+      branch, as recognised by the branch-naming authority.
+    """
+    if not (worktree / ".git").exists():
+        return False
+    branch = get_current_branch(worktree)
+    if branch is None:
+        return True
+    return parse_mission_slug_from_branch(branch) is not None
+
+
+def _worktrees_to_upgrade(worktrees_dir: Path) -> list[Path]:
+    """Directories under ``.worktrees/`` that upgrade may write, in name order.
+
+    Integrating worktrees are left out (see :func:`_is_integrating_worktree`).
+    """
+    return [worktree for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name) if worktree.is_dir() and not _is_integrating_worktree(worktree)]
 
 
 class MigrationRunner:
@@ -378,7 +414,13 @@ class MigrationRunner:
         dry_run: bool,
         auto_commit: bool = False,
     ) -> dict[str, Any]:
-        """Upgrade all worktrees in .worktrees/ directory.
+        """Upgrade the non-integrating worktrees in the .worktrees/ directory.
+
+        Integrating worktrees (a ``kitty/mission-…`` mission, lane or
+        coordination branch, or a branch that cannot be read) are skipped by
+        :func:`_worktrees_to_upgrade` (#5457): nothing is written, stamped or
+        committed in them, and their branches receive project-global state by
+        integration instead.
 
         Args:
             target_version: Target version
@@ -423,11 +465,8 @@ class MigrationRunner:
         # this reconciliation path exists to prevent.
         fallback_timestamp = now_utc()
 
-        # Use deterministic ordering so migrations and logs are reproducible.
-        for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
-            if not worktree.is_dir():
-                continue
-
+        # Deterministic ordering; integrating worktrees are skipped (#5457).
+        for worktree in _worktrees_to_upgrade(worktrees_dir):
             wt_kittify = worktree / KITTIFY_DIR
             has_upgradeable_state = wt_kittify.exists() or (
                 bool(worktree_migrations) and ((worktree / KITTY_SPECS_DIR).exists() or (worktree / ".specify").exists())

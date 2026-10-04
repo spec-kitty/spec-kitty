@@ -118,6 +118,12 @@ def _add_worktree(root: Path, name: str, branch: str) -> Path:
     return wt
 
 
+#: Branch prefix of a NON-integrating worktree (#5457). A ``kitty/mission-...``
+#: worktree integrates back into the target branch and upgrade skips it, so the
+#: #3376 / FR-012 guards are exercised on worktrees upgrade still writes.
+NON_INTEGRATING_PREFIX = "wip/"
+
+
 def _wt_schema_version(kittify_dir: Path) -> int | None:
     data = yaml.safe_load((kittify_dir / "metadata.yaml").read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
@@ -166,7 +172,7 @@ def test_failed_worktree_migration_does_not_advance_schema_version(tmp_path: Pat
     exactly as it was on disk (a guard, not a restore)."""
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "lane-a", "kitty/mission-lane-a")
+    wt = _add_worktree(root, "lane-a", f"{NON_INTEGRATING_PREFIX}lane-a")
 
     try:
         _register_stub_migration("test_t024_stub_failing", succeeds=False)
@@ -191,7 +197,7 @@ def test_successful_worktree_migration_still_advances_schema_version(tmp_path: P
     a worktree whose migration succeeds still gets stamped to REQUIRED."""
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "lane-b", "kitty/mission-lane-b")
+    wt = _add_worktree(root, "lane-b", f"{NON_INTEGRATING_PREFIX}lane-b")
 
     try:
         _register_stub_migration("test_t024_stub_succeeding", succeeds=True)
@@ -204,6 +210,30 @@ def test_successful_worktree_migration_still_advances_schema_version(tmp_path: P
         MigrationRegistry.clear()
 
 
+def test_integrating_worktree_is_skipped_not_stamped(tmp_path: Path) -> None:
+    """#5457: a lane worktree (``kitty/mission-...``) is skipped outright: no
+    migration runs there, no schema stamp, no failure; the non-integrating
+    sibling in the same run is still stamped."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    lane = _add_worktree(root, "lane-z", "kitty/mission-lane-z")
+    sibling = _add_worktree(root, "lane-y", f"{NON_INTEGRATING_PREFIX}lane-y")
+    lane_metadata = (lane / ".kittify" / "metadata.yaml").read_bytes()
+
+    try:
+        _register_stub_migration("test_5457_stub_succeeding", succeeds=True)
+
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
+
+        assert result.worktree_failures == []
+        assert not any("lane-z" in message for message in [*result.errors, *result.warnings])
+        assert (lane / ".kittify" / "metadata.yaml").read_bytes() == lane_metadata
+        assert _wt_schema_version(lane / ".kittify") == _STALE_SCHEMA_VERSION
+        assert _wt_schema_version(sibling / ".kittify") == REQUIRED_SCHEMA_VERSION
+    finally:
+        MigrationRegistry.clear()
+
+
 def test_failed_worktree_migration_is_surfaced_in_worktree_failures(tmp_path: Path) -> None:
     """T025 (FR-012): a fatal worktree failure must appear in the structured
     ``UpgradeResult.worktree_failures`` channel -- not just be folded silently
@@ -211,7 +241,7 @@ def test_failed_worktree_migration_is_surfaced_in_worktree_failures(tmp_path: Pa
     """
     root = tmp_path / "repo"
     _init_repo(root)
-    _add_worktree(root, "lane-c", "kitty/mission-lane-c")
+    _add_worktree(root, "lane-c", f"{NON_INTEGRATING_PREFIX}lane-c")
 
     try:
         _register_stub_migration("test_t025_stub_failing", succeeds=False)
@@ -248,7 +278,7 @@ def test_non_fatal_cannot_apply_note_does_not_populate_worktree_failures(tmp_pat
 
     root = tmp_path / "repo"
     _init_repo(root)
-    _add_worktree(root, "lane-d", "kitty/mission-lane-d")
+    _add_worktree(root, "lane-d", f"{NON_INTEGRATING_PREFIX}lane-d")
 
     try:
         MigrationRegistry.register(_CannotApplyMigration)
@@ -366,7 +396,7 @@ def test_migrations_pending_worktree_failure_not_duplicated_in_json_errors(
     """
     root = tmp_path / "repo"
     _init_repo(root)
-    _add_worktree(root, "lane-e", "kitty/mission-lane-e")
+    _add_worktree(root, "lane-e", f"{NON_INTEGRATING_PREFIX}lane-e")
 
     try:
         _register_stub_migration("test_no_dup_stub_failing", succeeds=False)

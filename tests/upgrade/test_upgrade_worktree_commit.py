@@ -32,6 +32,11 @@ from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+#: Branch prefix of a NON-integrating worktree (#5457). Upgrade still writes and
+#: commits there (#2385); a ``kitty/mission-...`` worktree integrates back into
+#: the target branch and is skipped (see ``test_upgrade_integrating_worktrees``).
+NON_INTEGRATING_PREFIX = "wip/"
+
 _METADATA_YAML = (
     "spec_kitty:\n"
     "  version: '{version}'\n"
@@ -92,7 +97,7 @@ def test_worktree_upgrade_churn_is_committed_on_its_own_branch(tmp_path: Path) -
     """#2385: the runner commits worktree upgrade churn; the tree ends clean."""
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "m-lane-a", "kitty/mission-m-lane-a")
+    wt = _add_worktree(root, "m-lane-a", f"{NON_INTEGRATING_PREFIX}m-lane-a")
 
     result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True)
 
@@ -100,7 +105,7 @@ def test_worktree_upgrade_churn_is_committed_on_its_own_branch(tmp_path: Path) -
     assert not any("auto-commit" in w.lower() for w in result["warnings"]), result["warnings"]
     assert _dirty(wt) == [], "worktree must be clean (churn committed) after upgrade"
     # The commit landed on the worktree's own branch.
-    assert _git_out(wt, "branch", "--show-current") == "kitty/mission-m-lane-a"
+    assert _git_out(wt, "branch", "--show-current") == f"{NON_INTEGRATING_PREFIX}m-lane-a"
     assert "spec-kitty upgrade" in _git_out(wt, "log", "-1", "--pretty=%s")
     # And main's branch did NOT receive the worktree commit.
     assert "spec-kitty upgrade" not in _git_out(root, "log", "-1", "--pretty=%s")
@@ -110,7 +115,7 @@ def test_preexisting_uncommitted_work_in_worktree_is_not_committed(tmp_path: Pat
     """#2385 baseline: in-flight WP edits are never swept into the upgrade commit."""
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "m-lane-b", "kitty/mission-m-lane-b")
+    wt = _add_worktree(root, "m-lane-b", f"{NON_INTEGRATING_PREFIX}m-lane-b")
 
     # Pre-existing uncommitted work exists BEFORE the upgrade runs.
     (wt / "kitty-specs").mkdir()
@@ -131,7 +136,7 @@ def test_synthesized_worktree_metadata_is_saved_when_version_matches_target(tmp_
     even when the detected version already equals the target."""
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "m-lane-c", "kitty/mission-m-lane-c")
+    wt = _add_worktree(root, "m-lane-c", f"{NON_INTEGRATING_PREFIX}m-lane-c")
 
     # The worktree has a .kittify dir but no metadata.yaml (the self-healing
     # scenario from #1857), and its detected version already equals the target.
@@ -155,16 +160,21 @@ def test_synthesized_worktree_metadata_is_saved_when_version_matches_target(tmp_
 
 
 def test_genuine_worktree_migration_still_mints_fresh_stamp_not_main_aligned(tmp_path: Path) -> None:
-    """#4972 scope guard (no #2385 regression): a worktree whose migration
-    applied REAL content must still mint its own fresh ``now_utc()`` stamp
-    and commit -- the #4972 main-aligned bookkeeping-only path must never
-    swallow a genuine change, even when main's own stamp is stale/distinct.
+    """#4972 scope guard (no #2385 regression): a NON-integrating worktree
+    whose migration applied REAL content must still mint its own fresh
+    ``now_utc()`` stamp and commit -- the #4972 main-aligned bookkeeping-only
+    path must never swallow a genuine change, even when main's own stamp is
+    stale/distinct.
+
+    Re-pinned for #5457: the fixture used to sit on a ``kitty/mission-...``
+    branch, where a divergent per-worktree stamp IS the defect. An
+    integrating worktree is now untouched (see the sibling test below).
     """
     root = tmp_path / "repo"
     _init_repo(root, version="3.2.1")
     # The worktree forks BEFORE main's later bump, so it starts stale (no
     # `last_upgraded_at` yet, old version) -- mirroring the real trigger.
-    wt = _add_worktree(root, "m-lane-genuine", "kitty/mission-m-lane-genuine")
+    wt = _add_worktree(root, "m-lane-genuine", f"{NON_INTEGRATING_PREFIX}m-lane-genuine")
 
     old_main_stamp = "2020-01-01T00:00:00+00:00"
     (root / ".kittify" / "metadata.yaml").write_text(
@@ -219,6 +229,80 @@ def test_genuine_worktree_migration_still_mints_fresh_stamp_not_main_aligned(tmp
         MigrationRegistry.clear()
 
 
+def _snapshot(wt: Path) -> tuple[str, bytes, list[str]]:
+    return (
+        _git_out(wt, "rev-parse", "HEAD"),
+        (wt / ".kittify" / "metadata.yaml").read_bytes(),
+        _dirty(wt),
+    )
+
+
+def test_genuine_worktree_migration_never_runs_in_an_integrating_worktree(tmp_path: Path) -> None:
+    """#5457 / NFR-001: a ``runs_on_worktrees`` migration is not even detected in
+    an integrating worktree (lane branch), while the non-integrating control on
+    the same fixture is detected, migrated and committed as before (#2385)."""
+    root = tmp_path / "repo"
+    _init_repo(root, version="3.2.1")
+    lane = _add_worktree(root, "m-lane-x", "kitty/mission-m-lane-x")
+    control = _add_worktree(root, "m-control", f"{NON_INTEGRATING_PREFIX}m-control")
+    lane_before = _snapshot(lane)
+    detected: list[Path] = []
+
+    MigrationRegistry.clear()
+
+    @MigrationRegistry.register
+    class _SpyMigration(BaseMigration):
+        migration_id = "test_5457_spy_worktree_migration"
+        description = "#5457 spy -- counts detect() calls per checkout"
+        target_version = "3.2.9"
+        runs_on_worktrees = True
+
+        def detect(self, project_path: Path) -> bool:
+            detected.append(project_path)
+            return True
+
+        def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
+            return True, ""
+
+        def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+            if not dry_run:
+                (project_path / "genuine-change.txt").write_text("real content\n", encoding="utf-8")
+            return MigrationResult(success=True, changes_made=["wrote genuine-change.txt"])
+
+    try:
+        result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [_SpyMigration()], dry_run=False, auto_commit=True)
+    finally:
+        MigrationRegistry.clear()
+
+    assert result == {"warnings": [], "errors": [], "worktree_failures": []}
+    assert detected.count(lane) == 0, "integrating worktree must not be probed"
+    assert detected.count(control) > 0, "non-integrating control must still be probed"
+    assert _snapshot(lane) == lane_before
+    assert not (lane / "genuine-change.txt").exists()
+    assert (control / "genuine-change.txt").exists()
+    assert "spec-kitty upgrade" in _git_out(control, "log", "-1", "--pretty=%s")
+    assert _dirty(control) == []
+
+
+def test_no_migrations_stamp_pass_leaves_integrating_worktree_untouched(tmp_path: Path) -> None:
+    """#5457: the no-migrations path (``upgrade_worktrees_only``) shares the seam:
+    a lagging lane worktree is not re-stamped or committed; the control is."""
+    root = tmp_path / "repo"
+    _init_repo(root, version="3.2.1")
+    lane = _add_worktree(root, "m-lane-y", "kitty/mission-m-lane-y")
+    control = _add_worktree(root, "m-control", f"{NON_INTEGRATING_PREFIX}m-control")
+    lane_before = _snapshot(lane)
+    control_head = _git_out(control, "rev-parse", "HEAD")
+
+    result = MigrationRunner(root).upgrade_worktrees_only("3.2.9", auto_commit=True)
+
+    assert result == {"warnings": [], "errors": [], "worktree_failures": []}
+    assert _snapshot(lane) == lane_before
+    assert _git_out(control, "rev-parse", "HEAD") != control_head
+    control_data = yaml.safe_load((control / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
+    assert control_data["spec_kitty"]["version"] == "3.2.9"
+
+
 def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_path: Path) -> None:
     """#4972 T004: the teammate-first-run path -- main is already at
     ``target_version`` (unchanged by this call) and a live worktree is
@@ -250,7 +334,7 @@ def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_
     _git(root, "commit", "-q", "-am", "main already at target")
 
     # The worktree lags: it still shows the pre-upgrade version.
-    wt = _add_worktree(root, "m-lane-teammate", "kitty/mission-m-lane-teammate")
+    wt = _add_worktree(root, "m-lane-teammate", f"{NON_INTEGRATING_PREFIX}m-lane-teammate")
     wt_metadata_text = (
         "spec_kitty:\n"
         "  version: '3.2.1'\n"
@@ -282,7 +366,7 @@ def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_
 def test_dry_run_writes_and_commits_nothing_in_worktrees(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "m-lane-d", "kitty/mission-m-lane-d")
+    wt = _add_worktree(root, "m-lane-d", f"{NON_INTEGRATING_PREFIX}m-lane-d")
     head_before = _git_out(wt, "rev-parse", "HEAD")
 
     MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=True, auto_commit=True)
@@ -306,7 +390,7 @@ def test_upgrade_invariant_every_touched_checkout_ends_clean(tmp_path: Path) -> 
     """
     root = tmp_path / "repo"
     _init_repo(root)
-    wt = _add_worktree(root, "m-lane-e", "kitty/mission-m-lane-e")
+    wt = _add_worktree(root, "m-lane-e", f"{NON_INTEGRATING_PREFIX}m-lane-e")
 
     # Pre-existing dirt in the lane worktree (must survive uncommitted).
     (wt / "kitty-specs").mkdir()

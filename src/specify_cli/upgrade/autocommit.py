@@ -1,17 +1,20 @@
 """Canonical per-checkout auto-commit for ``spec-kitty upgrade`` (#2392).
 
 One routine, applied uniformly to every checkout an upgrade run touches —
-the main checkout and each live ``.worktrees/*`` (coordination + lane) —
+the main checkout and each ``.worktrees/*`` checkout the run still visits —
 so upgrade/migration churn always lands as a commit instead of dirtying the
 tree and tripping the ``spec-kitty merge`` worktree-dirty guard
-(#1826/NFR-002) later.
+(#1826/NFR-002) later. Integrating worktrees (a ``kitty/mission-…`` mission,
+lane or coordination branch, or an unreadable branch) are skipped entirely
+since #5457: upgrade writes and commits project-global state once, in the
+repository root checkout, and those branches receive it by integration.
 
 The invariant (epic #2392): every path an upgrade run writes or migrates,
 in every checkout it touches, must end in exactly one auto-commit — with
 the commit-set derived from that checkout's real ``git status --porcelain``
 diff against a pre-write baseline, never a hardcoded file list (#2105).
 The baseline diff also guarantees pre-existing uncommitted work in a
-checkout (e.g. in-flight WP edits in a lane worktree) is never swept into
+checkout (e.g. in-flight edits in a visited worktree) is never swept into
 an upgrade commit.
 
 Callers:
@@ -19,8 +22,8 @@ Callers:
 * ``specify_cli.cli.commands.upgrade`` — the main checkout (both the
   no-migrations and the migrations paths).
 * ``specify_cli.upgrade.runner.MigrationRunner._upgrade_worktrees`` — each
-  sibling worktree, right after that worktree's migration/metadata writes
-  (#2385).
+  sibling worktree it visits (never an integrating one, #5457), right after
+  that worktree's migration/metadata writes (#2385).
 """
 
 from __future__ import annotations
