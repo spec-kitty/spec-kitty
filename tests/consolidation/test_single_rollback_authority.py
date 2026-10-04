@@ -33,6 +33,7 @@ from pathlib import Path
 import pytest
 
 import specify_cli
+from tests.consolidation.executor_family import EXECUTOR_FAMILY
 
 pytestmark = pytest.mark.fast
 
@@ -250,23 +251,9 @@ def test_every_span_phase_call_sits_inside_the_one_rollback_door() -> None:
 
 
 # #2026: executor.py was split along its phase boundaries; every module of the
-# split family is held to the no-per-phase-revert rule, not executor.py alone.
-_EXECUTOR_FAMILY: tuple[str, ...] = tuple(
-    f"specify_cli/consolidation/{name}.py"
-    for name in (
-        "executor",
-        "run_state",
-        "coord_strand",
-        "phase_claim",
-        "phase_advance",
-        "phase_bookkeeping",
-        "phase_gate",
-        "phase_teardown",
-        "phase_finalize",
-        "entry_preflight",
-        "resume_recovery",
-    )
-)
+# split family is held to the no-per-phase-revert rule, not executor.py alone. The
+# list comes from the shared family so a phase module added later cannot escape.
+_EXECUTOR_FAMILY: tuple[str, ...] = tuple(Path(str(module.__file__)).resolve().relative_to(_SRC_ROOT).as_posix() for module in EXECUTOR_FAMILY)
 
 
 def test_executor_builds_no_revert_argv() -> None:
