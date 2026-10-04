@@ -32,7 +32,7 @@ Two guarantees:
    equal.
 2. **Genuine origin + superset coverage.** Every mapped symbol is confirmed
    to be natively defined in its claimed residual module (catches a
-   mis-mapped row), and the union of all 6 residual modules' natively
+   mis-mapped row), and the union of all 7 residual modules' natively
    defined symbols is re-derived from source and asserted to be a SUBSET of
    this guard's key-set — so a symbol dropped from the map here, while still
    defined in the seam module, fails loudly right next to the guard instead
@@ -278,17 +278,6 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_detect_reviewer_name",
     "_detect_arbiter_override",
     "_run_arbiter_override",
-    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
-    # doctrine-resolved transition gate + its thin-orchestrator helpers. Barrel
-    # lines + tuple entries move together (P-F1); the forwarder
-    # ``_mt_run_pre_review_gate`` above stays a real symbol delegating to
-    # ``_mt_run_transition_gates``.
-    # #3821: the undeclared-repo quiet skip — the declaration probe and the
-    # ``SKIPPED`` verdict builder are native move-task seam defs.
-    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
-    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
-    # created paths into the tool-artifact owner compensator.
-    # #2573 fast-follow: the --skip-pre-review-gate flag + disable-env seam.
     # fix(review) (2026-08-05): the --reviewer resolution shared by the
     # rejected review-cycle artifact's frontmatter and the structured
     # ReviewResult derivation is a native move-task seam def and therefore
@@ -311,6 +300,11 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
 #: compat symbol; only the native home moved.
 _TASKS_MOVE_TASK_GATES: tuple[str, ...] = (
     "_mt_run_pre_review_gate",
+    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
+    # doctrine-resolved transition gate + its thin-orchestrator helpers. Barrel
+    # lines + tuple entries move together (P-F1); the forwarder
+    # ``_mt_run_pre_review_gate`` above stays a real symbol delegating to
+    # ``_mt_run_transition_gates``.
     "_mt_run_transition_gates",
     "_TransitionGateInputs",
     "_TransitionGateEffect",
@@ -336,14 +330,20 @@ _TASKS_MOVE_TASK_GATES: tuple[str, ...] = (
     "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
+    # #3821: the undeclared-repo quiet skip — the declaration probe and the
+    # ``SKIPPED`` verdict builder are native move-task seam defs.
     "_mt_pre_review_gate_declared",
     "_mt_not_declared_skip_verdict",
+    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
+    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
+    # created paths into the tool-artifact owner compensator.
     "_mt_enrol_gate_byproducts",
     "_mt_pre_review_gate_metadata",
     "_mt_pre_review_gate_console_warning",
     "_mt_pre_review_gate_block_message",
     "_mt_review_config_section",
     "_mt_pre_review_block_enabled",
+    # #2573 fast-follow: the --skip-pre-review-gate flag + disable-env seam.
     "_mt_pre_review_gate_env_disable_reason",
     "_mt_pre_review_gate_skip_reason",
     "_mt_pre_review_scope_override",
@@ -429,7 +429,7 @@ def _native_module_defs(module_name: str) -> set[str]:
 
     Same technique each retired seam file used for its own completeness pin
     (``getattr(obj, "__module__", None) == module.__name__ and callable(obj)``),
-    generalized across all 6 modules plus the one known non-callable
+    generalized across all 7 modules plus the one known non-callable
     constant exception, so this guard's coverage claim is checked against
     production source rather than trusted on faith.
     """
@@ -482,7 +482,7 @@ def test_guard_symbol_is_genuinely_native_to_its_seam(symbol: str, module_name: 
 
 
 def test_guard_keyset_is_superset_of_all_seven_seams_native_defs() -> None:
-    """The guard's key-set must be a superset of the union of all 6 residual
+    """The guard's key-set must be a superset of the union of all 7 residual
     modules' natively-defined symbols, re-derived straight from production
     source — so a symbol dropped from this guard (while still defined in its
     seam module) fails HERE, loudly, instead of silently losing coverage.
