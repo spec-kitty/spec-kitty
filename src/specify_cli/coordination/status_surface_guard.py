@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kernel.git import GitCommandError, run_git
+from kernel.git import GitCommandError, run_git, tree_entry
 from specify_cli.coordination.event_prefix import DuplicateEventIdError, MalformedEventLogLineError, event_ids_of
 from specify_cli.coordination.transaction_errors import BookkeepingStatusSurfaceUnreadable
 
@@ -46,10 +46,11 @@ def _committed_log(worktree_root: Path, relative: str) -> bytes | None:
     Raises:
         GitCommandError: HEAD or the blob could not be read (also a timeout or a git that did not start).
     """
-    listing = run_git(worktree_root, "ls-tree", "--full-tree", "HEAD", "--", relative)
-    if not listing.stdout.strip():
+    entry = tree_entry(worktree_root, "HEAD", relative)
+    if entry is None:
         return None
-    return run_git(worktree_root, "show", f"HEAD:{relative}").stdout
+    # Read the blob the listing named, so both reads answer for the same commit.
+    return run_git(worktree_root, "cat-file", "blob", entry.oid).stdout
 
 
 def committed_events_missing_from_worktree(worktree_root: Path, events_path: Path) -> list[str]:
