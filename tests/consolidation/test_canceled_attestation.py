@@ -276,3 +276,30 @@ def test_dry_run_without_attestation_flags_prints_no_attestation_notice(monkeypa
     assert result.exit_code == 0, result.output
     assert "not applied with --dry-run" not in result.output
     assert len(forecasts) == 1
+
+
+# #5653: the ``consolidate --dry-run`` "attestation not applied" notice is a pure
+# decision, unit-tested here instead of through the CLI's call graph. One CLI
+# smoke (tests/terminus/test_mixed_lane_fail_recovery_and_attestation.py) keeps
+# the wiring honest.
+_DRY_RUN_NOTICE = "--attest-canceled-superseded is not applied with --dry-run: nothing is recorded, and the forecast does not evaluate mixed-lane attribution."
+
+
+def test_dry_run_notice_names_the_flag_for_a_human_dry_run() -> None:
+    notice = ca.dry_run_attestation_notice(("WP02",), dry_run=True, json_output=False)
+
+    # Byte-identical to the pre-extraction inline text, built from ATTEST_FLAG.
+    assert notice == _DRY_RUN_NOTICE
+    assert notice.startswith(ca.ATTEST_FLAG)
+
+
+@pytest.mark.parametrize(
+    ("attested_wps", "dry_run", "json_output"),
+    [
+        pytest.param((), True, False, id="no-attestation"),
+        pytest.param(("WP02",), False, False, id="real-run-records-it"),
+        pytest.param(("WP02",), True, True, id="json-output-stays-clean"),
+    ],
+)
+def test_dry_run_notice_is_silent_otherwise(attested_wps: tuple[str, ...], dry_run: bool, json_output: bool) -> None:
+    assert ca.dry_run_attestation_notice(attested_wps, dry_run=dry_run, json_output=json_output) is None
