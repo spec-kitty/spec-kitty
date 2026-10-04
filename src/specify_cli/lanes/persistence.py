@@ -188,7 +188,7 @@ def is_execution_wedged(*, execution_has_begun: bool, lanes_present: bool) -> bo
 
     Single named authority (DIRECTIVE_044 / C-001) shared by:
 
-    - ``mission_finalize._preserve_or_capture_planning_commit_sha``'s
+    - ``mission_finalize_planning_pin._preserve_or_capture_planning_commit_sha``'s
       re-finalize refusal (the historical ad hoc ``existing is None`` check
       once execution has begun).
     - WP03's ``doctor mission-state --fix`` recovery detector.

@@ -163,7 +163,7 @@ def _ft_resolve_context(st: _FinalizeState, ports: TasksPorts) -> None:
 
 
 def _ft_validate_occurrence_map_ready(st: _FinalizeState) -> None:
-    """Bulk-edit occurrence-map gate (mirrors ``mission_finalize._validate_occurrence_map_ready``).
+    """Bulk-edit occurrence-map gate (mirrors ``mission_finalize_validation._validate_occurrence_map_ready``).
 
     ``spec-kitty agent tasks finalize-tasks`` (this legacy command family) and
     ``spec-kitty agent mission finalize-tasks`` are two independently-dispatched
@@ -214,7 +214,7 @@ def _ft_validate(st: _FinalizeState) -> None:
     about to write) — not just the raw tasks.md-parsed map. A cycle/self-ref/
     unknown-WP hiding only in preserved frontmatter must be rejected before any
     write, using the SAME validator ``agent mission finalize-tasks`` already
-    uses (single authority — ``mission_finalize._validate_dependency_graph``,
+    uses (single authority — ``mission_finalize_validation._validate_dependency_graph``,
     which runs both ``detect_cycles`` and ``validate_dependencies``). The
     computed plan is stashed on ``st.update_plan`` so phase C does not
     recompute it (it is side-effect-free/pure, but reads disk).

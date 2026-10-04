@@ -1,10 +1,10 @@
 """Pure lane-compute-and-persist core (#4758, WP01).
 
-Extracted from ``mission_finalize._compute_and_write_lanes`` so the
+Extracted from ``mission_finalize_lanes._compute_and_write_lanes`` so the
 compute-lanes-then-write-lanes.json step has exactly one implementation,
 reusable by:
 
-- ``mission_finalize._compute_and_write_lanes`` -- becomes a thin CLI
+- ``mission_finalize_lanes._compute_and_write_lanes`` -- becomes a thin CLI
   wrapper: it resolves ``planning_commit_sha`` (via the still-local
   ``_preserve_or_capture_planning_commit_sha``, which owns the #3311
   preserve-vs-capture-vs-refresh decision) and ``mission_id`` (from

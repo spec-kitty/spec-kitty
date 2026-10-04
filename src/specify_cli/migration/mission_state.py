@@ -1498,7 +1498,7 @@ LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION = "lanes_rebuild_skipped_topolo
 def _execution_has_begun_in_snapshot(snapshot: StatusSnapshot) -> bool:
     """True iff any WP's materialized lane is something other than ``planned``.
 
-    Mirrors ``mission_finalize._execution_has_begun``'s definition (any WP
+    Mirrors ``mission_finalize_planning_pin._execution_has_begun``'s definition (any WP
     past ``planned``), but reads the :class:`~specify_cli.status.models.StatusSnapshot`
     this repair already materialized from the canonical event log instead of
     re-resolving a coord-aware status surface: ``repair_repo`` always

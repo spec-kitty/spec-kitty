@@ -437,3 +437,7 @@ unrelated hits, none of which document this discard rule), so no other ADR needs
   and `grep -rn 'IC-' src/specify_cli/requirement_mapping/` both return no matches).
 - [`2026-07-17-1-red-main-is-honest-ci-is-release-authority.md`](2026-07-17-1-red-main-is-honest-ci-is-release-authority.md)
   — the red-first repro discipline (NFR-005) this Mission's WP02-WP06 each followed.
+
+## Erratum (2026-10-04, #5627)
+
+The `mission_finalize.py:<line>` citations above point to that file as it was when this ADR was written. Mission `mission-finalize-degod-01M43EW2` later split it into phase modules, with bodies moved verbatim. The requirement-mapping functions cited here (`_classify_one_wp`, `_classify_wp_requirement_refs`, `_build_requirement_diagnostics`, `_validate_requirement_mapping`, and others) now live in `src/specify_cli/cli/commands/agent/mission_finalize_validation.py`. `mission_finalize` still re-exports them. The decision is unchanged.

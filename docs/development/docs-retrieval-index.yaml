@@ -3323,6 +3323,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "links", text: "Links", level: 2}
+    - {slug: "erratum-2026-10-04-5627", text: "Erratum (2026-10-04, #5627)", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"

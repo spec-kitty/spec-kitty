@@ -133,7 +133,7 @@ class LanesManifest:
             the canonical ``"lane-planning"`` lane.
         planning_commit_sha: FR-009 / ADR ``2026-07-29-1``: the recorded
             finalize-tasks planning-artifact commit on ``target_branch``, captured
-            ONCE by ``mission_finalize._compute_and_write_lanes`` and frozen —
+            ONCE by ``mission_finalize_lanes._compute_and_write_lanes`` and frozen —
             never re-derived live at lane-allocation time (the moving-tip trap the
             ADR closes). ``None`` for a ``lanes.json`` written before this field
             existed; the allocator's merge step is a no-op in that case,
