@@ -1,0 +1,142 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M431SPV6894WJ62T431N6NRC",
+  "materialized_at": "2026-10-04T08:51:56.902285+00:00",
+  "mission_number": "214",
+  "mission_slug": "nightly-reds-b-01M42YYF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M431SAAV6P0DJKSVRP3HEGKV",
+      "last_transition_at": "2026-10-04T08:51:44.092021+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stress fixture repaired: meta.json + mid8==mission_id[:8]. Red on bc8d53d09 (20/20 emitters refused); lane: tests/stress/test_concurrent_emits.py + tests/architectural/test_timing_coverage_invariant.py 71 passed.",
+        "Independent review (reviewer-renata): APPROVE. No assertion/count/timeout change; fixture matches _write_modern_meta; base red, lane 71 passed; nightly stress invocation 2 passed; authorship correct."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27185,
+      "shell_pid_created_at": "1791101255.75",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M431SETQYB5950T4T9J1SGT0",
+      "last_transition_at": "2026-10-04T08:51:48.695537+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "3 node ids red before (3 failed) -> 3 passed; whole files 11/10/21 passed; ledger re-pin confirmed by frame dump.",
+        "Independent review (reviewer-renata): APPROVE. Each re-pin tracks an intended 5b5699e50 change; mutations per test go red; 42 passed incl. -n 2 --dist loadfile. Non-blocking: write_dir spy proves the call, not that feature_dir keeps the value (pre-existing weakness)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27185,
+      "shell_pid_created_at": "1791101255.75",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M431SJTME1D2SPP27Y70P93G",
+      "last_transition_at": "2026-10-04T08:51:52.789038+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first: test 2f06b021f (2 failed on unfixed code), fix 6f1b690d2; green 60 passed (init + agent-config) and 86 passed across agent-config suites; mypy clean.",
+        "Independent review (reviewer-renata): APPROVE; red-first order proven (2f06b021f red, 6f1b690d2 fix); review nit folded: failure-path test fb280915e (2 vibe tests pass)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27185,
+      "shell_pid_created_at": "1791101255.75",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M431SPV6894WJ62T431N6NRC",
+      "last_transition_at": "2026-10-04T08:51:56.902285+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T010 fetch-depth 0 (shallow clone: 9 failed; full: 9 passed; tests/ci 339 passed); T011 CI=true 1 failed -> 9 passed; T012 1 failed -> 8 passed.",
+        "Independent review (reviewer-renata): APPROVE. Regex matches pytest CI-mode format; guard mutant caught with and without CI; fixture mirrors mission create; fetch-depth 0 consistent with sibling jobs; 339 tests/ci passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261004",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27185,
+      "shell_pid_created_at": "1791101255.75",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

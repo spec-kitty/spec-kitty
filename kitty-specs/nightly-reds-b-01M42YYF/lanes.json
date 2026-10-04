@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-reds-b-01M42YYF",
+  "mission_id": "01M42YYFRCHZ9Q6Q7JRDMG5B6B",
+  "mission_branch": "kitty/mission-nightly-reds-b-01M42YYF",
+  "target_branch": "kitty/nightly-reds-b-2026-10-04",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/stress/test_concurrent_emits.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/integration/test_coord_read_residuals_proof.py",
+        "tests/integration/test_owned_lifecycle_acceptance_finalize.py",
+        "tests/integration/test_placement_partition_golden_path.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/config.py",
+        "tests/specify_cli/cli/commands/test_agent_config.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "tests/characterization/test_trio_json_envelope.py",
+        "tests/test_repo_root_status_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-04T08:06:36.753505+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9d556015b58a558fbcd60bb87c7d948c7123221a"
+}

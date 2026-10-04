@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5610": {
+      "evidence_ref": "WP01 8a5e7308e: stress fixture meta.json + mid8==mission_id[:8]; tests/stress/test_concurrent_emits.py red on bc8d53d09, 2 passed on lane",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5611": {
+      "evidence_ref": "WP02 repairs 3 of 4 integration+next reds. Follow-up: #5611 stays open for test_explicit_delete_override_still_reachable (bare-slug coordination consolidate regression from 5b5699e50; fix spans commit_router partition + reconciliation bookkeeping anchor; operator decision, see research/nightly-red-memo.md)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#5612": {
+      "evidence_ref": "WP03 (vibe pointer, 2f06b021f/6f1b690d2/fb280915e) + WP04 (6f912b959 fetch-depth 0, 998964f49 CI-mode parser, 90c921458 materialized recover fixture): all 12 integration-slice node ids green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#5617": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

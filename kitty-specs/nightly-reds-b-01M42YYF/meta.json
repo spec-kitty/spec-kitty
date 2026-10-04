@@ -1,0 +1,37 @@
+{
+  "accept_commit": "92760c7ce83b54428c331f371e05d53be379760d",
+  "acceptance_history": [
+    {
+      "accept_commit": "92760c7ce83b54428c331f371e05d53be379760d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-04T08:49:24.057654+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7000b9f58295da929ffa8f73d3ef16f5dda36e15"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-04T08:49:24.057654+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7000b9f58295da929ffa8f73d3ef16f5dda36e15",
+  "baseline_merge_commit": "039e848ce266f9ca8ac1d597f7d4ca8903767c3b",
+  "coordination_branch": "kitty/mission-nightly-reds-b-01M42YYF",
+  "created_at": "2026-10-04T08:02:08.974646+00:00",
+  "flattened": false,
+  "friendly_name": "Nightly reds B (2026-10-04)",
+  "merged_at": "2026-10-04T08:52:21.315766+00:00",
+  "merged_commit": "fd7aff8320cb08c36fd31e00c3c343ad2090edb4",
+  "mid8": "01M42YYF",
+  "mission_id": "01M42YYFRCHZ9Q6Q7JRDMG5B6B",
+  "mission_number": 214,
+  "mission_slug": "nightly-reds-b-01M42YYF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Nightly run 37177460494 went red in three suites (trackers 5610, 5611, 5612). Most reds are fixtures and oracles that lag the coordination single-home change or the new nightly integration slice; one is a product regression in agent config sync. Repairs keep every assertion and never add retries, skips or budget changes.",
+  "purpose_tldr": "Green the stress, integration+next and integration-slice nightly suites for named root causes",
+  "slug": "nightly-reds-b-01M42YYF",
+  "status_phase": "1",
+  "target_branch": "kitty/nightly-reds-b-2026-10-04",
+  "topology": "lanes_with_coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-04T08:07:40.505490+00:00"
+}

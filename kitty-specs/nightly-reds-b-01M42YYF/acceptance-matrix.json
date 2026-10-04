@@ -1,0 +1,89 @@
+{
+  "mission_slug": "nightly-reds-b-01M42YYF",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP01 8a5e7308e: tests/stress/test_concurrent_emits.py red on bc8d53d09 (20/20 emitters refused), lane 2 passed; reviewer APPROVE",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:48:32.662898+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02 54b731a0c: golden-path COORD node id red (CalledProcessError) -> passed; mutation (skip create seed) goes red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:48:38.689228+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02 61dc5db3f: coord-read residuals node id red (got None) -> passed; mutations (STATUS via read_dir / primary) go red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:48:44.658268+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02 fb1ee3677: ledger 16->18 confirmed by frame dump (one added chain x2); restoring old canonicalizer goes red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:48:50.729144+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP03 2f06b021f (red-first) 6f1b690d2 (fix) fb280915e (failure path): init vibe node id red -> passed; 86 agent-config tests pass; manifest untouched",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:48:56.446212+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 90c921458: trio recover node id red (unmaterialized envelope) -> passed; whole file 8 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:49:02.088000+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 998964f49: CI=true status-guard file 1 failed -> 9 passed; guard mutant caught with and without CI",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:49:07.615235+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 6f912b959: depth-1 clone corpus 9 failed (git archive 128), full history 9 passed; tests/ci 339 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-04T08:49:13.305664+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
