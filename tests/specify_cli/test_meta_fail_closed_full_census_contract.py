@@ -63,7 +63,11 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
     {
         "src/specify_cli/consolidation/baseline.py",
         "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "src/specify_cli/consolidation/entry_preflight.py",
         "src/specify_cli/consolidation/ordering.py",
+        "src/specify_cli/consolidation/mission_number/bake.py",
         "src/specify_cli/diagnostics/project.py",
         "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
         "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",

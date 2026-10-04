@@ -249,9 +249,30 @@ def test_every_span_phase_call_sits_inside_the_one_rollback_door() -> None:
     assert set(wrapped) == _SPAN_PHASES, f"every span phase must be called inside the door: missing {sorted(_SPAN_PHASES - set(wrapped))}"
 
 
+# #2026: executor.py was split along its phase boundaries; every module of the
+# split family is held to the no-per-phase-revert rule, not executor.py alone.
+_EXECUTOR_FAMILY: tuple[str, ...] = tuple(
+    f"specify_cli/consolidation/{name}.py"
+    for name in (
+        "executor",
+        "run_state",
+        "coord_strand",
+        "phase_claim",
+        "phase_advance",
+        "phase_bookkeeping",
+        "phase_gate",
+        "phase_teardown",
+        "phase_finalize",
+        "entry_preflight",
+        "resume_recovery",
+    )
+)
+
+
 def test_executor_builds_no_revert_argv() -> None:
-    source = (_SRC_ROOT / _EXECUTOR).read_text(encoding="utf-8")
-    assert scan_revert_argvs(source, _EXECUTOR) == [], "a per-phase git revert is back in the executor; roll back through the door"
+    for module in _EXECUTOR_FAMILY:
+        source = (_SRC_ROOT / module).read_text(encoding="utf-8")
+        assert scan_revert_argvs(source, module) == [], f"a per-phase git revert is back in {module}; roll back through the door"
     coherence = "specify_cli/coordination/coherence.py"
     assert scan_revert_argvs((_SRC_ROOT / coherence).read_text(encoding="utf-8"), coherence), (
         "non-vacuity: the scanner must see repair_coord_strand's own revert argv"

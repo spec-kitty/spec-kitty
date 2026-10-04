@@ -34,6 +34,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from specify_cli.consolidation import (
+    phase_teardown,
+    run_state,
+)
 
 if TYPE_CHECKING:
     from specify_cli.consolidation.executor import _MergeRunState
@@ -543,7 +547,7 @@ def _coord_run_state(repo: Path, coord_branch: str, projected_tip: str) -> _Merg
         is_resume=False,
         baseline_mission_id=MISSION_ID,
     )
-    run.coord_checkpoint = ex._CoordCheckpoint(ref=coord_branch, sha=projected_tip)
+    run.coord_checkpoint = run_state._CoordCheckpoint(ref=coord_branch, sha=projected_tip)
     run.coord_tip_after_projection = projected_tip
     run.reconciliation_result = VerifyResult(status=VerifyStatus.PASS)
     return run
@@ -574,7 +578,6 @@ def test_status_commit_landing_between_gate_and_delete_is_never_destroyed(tmp_pa
     Before the fix ``git branch -D`` deleted the branch unconditionally and the late
     commit became unreachable while the call returned normally.
     """
-    from specify_cli.consolidation import executor as ex
     from specify_cli.coordination import teardown
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
@@ -586,8 +589,8 @@ def test_status_commit_landing_between_gate_and_delete_is_never_destroyed(tmp_pa
         late.append(_append_coord_commit(repo, coord, f"kitty-specs/{SLUG}/notes/late.md", "late status emit\n", "late status emit"))
         return real_destroy(repo_root, mission_slug, mid8)
 
-    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_late_commit), pytest.raises(ex.CoordinationTeardownError) as caught:
-        ex._teardown_coordination_triple(run)
+    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_late_commit), pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
 
     assert late, "fixture invalid: the injection seam never ran"
     assert _branch_exists(repo, coord), "#5570: the coordination branch was deleted over a commit it did not approve"
@@ -601,12 +604,11 @@ def test_status_commit_landing_between_gate_and_delete_is_never_destroyed(tmp_pa
 
 def test_unmoved_coord_branch_is_still_deleted_and_flattened(tmp_path: Path) -> None:
     """Positive control: when nothing moved in the window the delete proceeds as before."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
 
-    ex._teardown_coordination_triple(run)
+    phase_teardown._teardown_coordination_triple(run)
 
     assert not _branch_exists(repo, coord)
     meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
@@ -615,7 +617,6 @@ def test_unmoved_coord_branch_is_still_deleted_and_flattened(tmp_path: Path) -> 
 
 def test_ungated_teardown_deletes_only_at_the_tip_read_before_the_window(tmp_path: Path) -> None:
     """No gate ran (no checkpoint): the delete still compare-and-swaps, at the tip read before teardown began."""
-    from specify_cli.consolidation import executor as ex
     from specify_cli.coordination import teardown
 
     repo = _init_repo(tmp_path)
@@ -630,15 +631,14 @@ def test_ungated_teardown_deletes_only_at_the_tip_read_before_the_window(tmp_pat
         late.append(_append_coord_commit(repo, coord, f"kitty-specs/{SLUG}/notes/late.md", "late\n", "late emit"))
         return real_destroy(repo_root, mission_slug, mid8)
 
-    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_late_commit), pytest.raises(ex.CoordinationTeardownError):
-        ex._teardown_coordination_triple(run)
+    with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_late_commit), pytest.raises(run_state.CoordinationTeardownError):
+        phase_teardown._teardown_coordination_triple(run)
 
     assert _rev(repo, coord) == late[0], "the late commit must survive an ungated teardown too"
 
 
 def test_branch_that_vanishes_inside_the_window_is_treated_as_already_gone(tmp_path: Path) -> None:
     """Something else already removed the branch: nothing of ours was destroyed, teardown completes."""
-    from specify_cli.consolidation import executor as ex
     from specify_cli.coordination import teardown
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
@@ -650,7 +650,7 @@ def test_branch_that_vanishes_inside_the_window_is_treated_as_already_gone(tmp_p
         return real_destroy(repo_root, mission_slug, mid8)
 
     with patch.object(teardown, "_destroy_coordination_worktree", destroy_after_branch_removed):
-        ex._teardown_coordination_triple(run)
+        phase_teardown._teardown_coordination_triple(run)
 
     assert not _branch_exists(repo, coord)
     meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
@@ -659,14 +659,13 @@ def test_branch_that_vanishes_inside_the_window_is_treated_as_already_gone(tmp_p
 
 def test_a_held_ref_lock_keeps_the_branch_and_the_marker(tmp_path: Path) -> None:
     """A git refusal that is not a moved tip (a held ref lock) reports 'still exists' and flattens nothing."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
     (repo / ".git" / "refs" / "heads" / f"{coord}.lock").write_text("", encoding="utf-8")
 
-    with pytest.raises(ex.CoordinationTeardownError, match="still exists after teardown"):
-        ex._teardown_coordination_triple(run)
+    with pytest.raises(run_state.CoordinationTeardownError, match="still exists after teardown"):
+        phase_teardown._teardown_coordination_triple(run)
 
     assert _rev(repo, coord) == projected_tip
     meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
@@ -674,12 +673,11 @@ def test_a_held_ref_lock_keeps_the_branch_and_the_marker(tmp_path: Path) -> None
 
 
 def test_delete_mission_branch_with_no_branch_is_a_no_op(tmp_path: Path) -> None:
-    from specify_cli.consolidation import executor as ex
 
     repo = _init_repo(tmp_path)
     run = _coord_run_state(repo, f"kitty/mission-{SLUG}", _rev(repo, "main"))
 
-    assert ex._delete_mission_branch(run) is True
+    assert phase_teardown._delete_mission_branch(run) is True
 
 
 def _commit_on_main(repo: Path, name: str) -> str:
@@ -691,7 +689,6 @@ def _commit_on_main(repo: Path, name: str) -> str:
 
 def test_pass_anchor_carries_only_over_the_commit_this_run_returned(tmp_path: Path) -> None:
     """#5570: the anchor moves to the exact SHA our own commit produced, on top of the current anchor."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
@@ -699,14 +696,13 @@ def test_pass_anchor_carries_only_over_the_commit_this_run_returned(tmp_path: Pa
     run.state.reconciliation_passed_target_sha = before
     own = _commit_on_main(repo, "persisted.txt")
 
-    ex._carry_pass_anchor_over_own_commit(run, own)
+    phase_teardown._carry_pass_anchor_over_own_commit(run, own)
 
     assert run.state.reconciliation_passed_target_sha == own
 
 
 def test_pass_anchor_does_not_follow_a_foreign_commit_after_ours(tmp_path: Path) -> None:
     """A foreign commit that landed after ours is never stamped verified: the anchor stays put."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
@@ -715,14 +711,13 @@ def test_pass_anchor_does_not_follow_a_foreign_commit_after_ours(tmp_path: Path)
     own = _commit_on_main(repo, "persisted.txt")
     _commit_on_main(repo, "foreign.txt")
 
-    ex._carry_pass_anchor_over_own_commit(run, own)
+    phase_teardown._carry_pass_anchor_over_own_commit(run, own)
 
     assert run.state.reconciliation_passed_target_sha == before
 
 
 def test_pass_anchor_does_not_carry_a_commit_that_is_not_on_the_anchor(tmp_path: Path) -> None:
     """A foreign commit sits between the anchor and our commit (first parent != anchor): no carry."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
@@ -731,21 +726,20 @@ def test_pass_anchor_does_not_carry_a_commit_that_is_not_on_the_anchor(tmp_path:
     _commit_on_main(repo, "foreign.txt")
     own = _commit_on_main(repo, "persisted.txt")
 
-    ex._carry_pass_anchor_over_own_commit(run, own)
+    phase_teardown._carry_pass_anchor_over_own_commit(run, own)
 
     assert run.state.reconciliation_passed_target_sha == before
 
 
 @pytest.mark.parametrize("anchor", [None, ""], ids=["no-anchor", "empty-anchor"])
 def test_pass_anchor_is_never_invented_without_a_recorded_pass(tmp_path: Path, anchor: str | None) -> None:
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
     run.state.reconciliation_passed_target_sha = anchor
     own = _commit_on_main(repo, "persisted.txt")
 
-    ex._carry_pass_anchor_over_own_commit(run, own)
+    phase_teardown._carry_pass_anchor_over_own_commit(run, own)
 
     assert run.state.reconciliation_passed_target_sha == anchor
 
@@ -767,20 +761,18 @@ def test_teardown_hands_the_persist_commit_to_the_caller(tmp_path: Path) -> None
 
 def test_late_commits_are_only_landed_by_a_resume(tmp_path: Path) -> None:
     """A fresh run is covered by the teardown gate; nothing is projected or committed by the landing step."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
     run.is_resume = False
     target_before = _rev(repo, "main")
 
-    ex._land_late_coordination_commits(run)
+    phase_teardown._land_late_coordination_commits(run)
 
     assert _rev(repo, "main") == target_before
 
 
 def test_resume_with_nothing_landed_late_commits_nothing(tmp_path: Path) -> None:
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
@@ -788,21 +780,20 @@ def test_resume_with_nothing_landed_late_commits_nothing(tmp_path: Path) -> None
     run.state.pre_mutation_coord_sha = projected_tip
     target_before = _rev(repo, "main")
 
-    ex._land_late_coordination_commits(run)
+    phase_teardown._land_late_coordination_commits(run)
 
     assert _rev(repo, "main") == target_before
 
 
 def test_resume_with_an_unreadable_window_refuses_and_keeps_the_branch(tmp_path: Path) -> None:
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
     run.is_resume = True
     run.state.pre_mutation_coord_sha = "0" * 40
 
-    with pytest.raises(ex.CoordinationTeardownError, match="could not be read"):
-        ex._teardown_coordination_triple(run)
+    with pytest.raises(run_state.CoordinationTeardownError, match="could not be read"):
+        phase_teardown._teardown_coordination_triple(run)
 
     assert _branch_exists(repo, coord)
 
@@ -815,14 +806,13 @@ def _move_branch_past(repo: Path, branch: str) -> tuple[str, str]:
 
 
 def test_moved_tip_refusal_names_the_coordination_branch_for_a_coordination_mission(tmp_path: Path) -> None:
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
     approved, moved = _move_branch_past(repo, coord)
 
-    with pytest.raises(ex.CoordinationTeardownError) as caught:
-        ex._delete_mission_branch(run, approved)
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._delete_mission_branch(run, approved)
 
     message = str(caught.value)
     assert message.startswith(f"coordination branch {coord!r} moved to {moved[:12]}")
@@ -832,7 +822,6 @@ def test_moved_tip_refusal_names_the_coordination_branch_for_a_coordination_miss
 
 def test_moved_tip_refusal_names_the_mission_branch_without_coordination_topology(tmp_path: Path) -> None:
     """#5570: a mission with no coordination topology has no coordination branch, marker or projection to resume."""
-    from specify_cli.consolidation import executor as ex
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
@@ -842,8 +831,8 @@ def test_moved_tip_refusal_names_the_mission_branch_without_coordination_topolog
     meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
     approved, moved = _move_branch_past(repo, coord)
 
-    with pytest.raises(ex.CoordinationTeardownError) as caught:
-        ex._delete_mission_branch(run, approved)
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._delete_mission_branch(run, approved)
 
     message = str(caught.value)
     assert message.startswith(f"mission branch {coord!r} moved to {moved[:12]}")

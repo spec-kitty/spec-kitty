@@ -18,7 +18,7 @@ Two scenarios:
    ``tests/integration/test_merge_lane_planning_data_loss.py``.
 2. **Coordination worktree** (FR-004/US2 AC4, the coupled-triple variant) --
    exercised directly against the new
-   ``specify_cli.consolidation.executor._pre_mutation_safety_preflight`` helper
+   ``specify_cli.consolidation.entry_preflight._pre_mutation_safety_preflight`` helper
    against a real coord-topology fixture (real git worktree + branch +
    ``meta.json``), because standing up a full coordination-topology CLI merge
    (placement-seam routing, coord status surface, etc.) is a separate,
@@ -50,7 +50,8 @@ from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
-from specify_cli.consolidation.executor import _pre_mutation_safety_preflight
+from specify_cli.consolidation.entry_preflight import _pre_mutation_safety_preflight
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
@@ -176,18 +177,18 @@ def _real_merge_external_mocks(repo_root: Path):
     patches = [
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch_executor_family("commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
         patch(
-            "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+            "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
             return_value=None,
         ),
-        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
     ]
     with contextlib.ExitStack() as stack:
         ms = [stack.enter_context(p) for p in patches]

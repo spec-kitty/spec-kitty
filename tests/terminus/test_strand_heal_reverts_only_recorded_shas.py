@@ -35,6 +35,7 @@ from tests.terminus.conftest import CoordMission, build_coord_mission
 from tests.terminus.conftest import _git as git
 from tests.terminus.conftest import _git_out as git_out
 from tests.terminus.mixed_lane_support import transition
+from specify_cli.consolidation import coord_strand
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -162,8 +163,6 @@ def test_5572_marker_writer_records_the_strands_own_commit_shas(tmp_path: Path) 
     """T015: the production marker writer persists ``strand_shas`` — exactly this run's strand."""
     from types import SimpleNamespace
 
-    from specify_cli.consolidation import executor as ex
-
     mission = build_coord_mission(tmp_path, wps=_WPS, mid8="01M5572C")
     captured_sha, strand_sha = _strand_commit(mission)
     coord_worktree = _coord_worktree(mission)
@@ -183,7 +182,7 @@ def test_5572_marker_writer_records_the_strands_own_commit_shas(tmp_path: Path) 
         canonical_events_path=coord_worktree / "kitty-specs" / mission.slug / "status.events.jsonl",
     )
 
-    ex._persist_coord_reconcile_marker(run, None)
+    coord_strand._persist_coord_reconcile_marker(run, None)
 
     persisted = load_state(mission.repo, mission.mission_id)
     assert persisted is not None and persisted.pending_coord_reconcile is not None
@@ -262,7 +261,7 @@ def test_5572_resume_heal_refusal_text_for_a_strand_mismatch(capsys: pytest.Capt
     from specify_cli.coordination.coherence import CoordRepairOutcome
 
     ex.console.width = 400
-    ex._report_refused_strand_heal(CoordRepairOutcome(healed=False, strand_mismatch=True, foreign_status_commits=foreign))
+    coord_strand._report_refused_strand_heal(CoordRepairOutcome(healed=False, strand_mismatch=True, foreign_status_commits=foreign))
 
     out = _flat(capsys.readouterr().out)
     assert expected in out, out

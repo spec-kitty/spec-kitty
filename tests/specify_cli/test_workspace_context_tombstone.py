@@ -35,6 +35,8 @@ from specify_cli.coordination.status_transition import emit_status_transition_tr
 from specify_cli.consolidation import executor as _executor
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
+from specify_cli.consolidation import phase_teardown
+from tests.consolidation.executor_family import patch_executor_family
 
 # The cancel-hook tests drive real git via subprocess (``_git`` helper), so the
 # file carries the ``git_repo`` marker at module level (Rule 1 of
@@ -282,8 +284,8 @@ def _run_cleanup_phase(run: _executor._MergeRunState) -> None:
     # under a fresh ``tmp_path``, so no patch is needed to keep the
     # worktree-removal branch a no-op here.
     with (
-        patch.object(_executor, "_worktree_removal_delay", return_value=0),
-        patch.object(_executor, "run_command", return_value=(0, "", "")),
+        patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
+        patch_executor_family("run_command", return_value=(0, "", "")),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
         patch("specify_cli.coordination.workspace.CoordinationWorkspace"),

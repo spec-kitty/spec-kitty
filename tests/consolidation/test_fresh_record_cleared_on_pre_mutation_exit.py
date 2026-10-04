@@ -47,6 +47,7 @@ from tests.consolidation.test_issue_4764_terminus_safety import (
     _init_git_repo,
     _merge_external_mocks,
 )
+from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -329,7 +330,7 @@ def test_failed_record_clear_never_masks_the_original_exit(monkeypatch: pytest.M
     def _unlink_refused(*_args: object, **_kwargs: object) -> bool:
         raise PermissionError("state.json is busy")
 
-    monkeypatch.setattr(executor, "clear_state", _unlink_refused)
+    setattr_executor_family(monkeypatch, "clear_state", _unlink_refused)
     run = MagicMock(is_resume=False, main_repo=tmp_path, canonical_id=MISSION_ID)
 
     with pytest.raises(typer.Exit) as exit_info, executor._clear_fresh_record_on_pre_mutation_exit(run):

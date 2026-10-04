@@ -18,6 +18,7 @@ from specify_cli.cli.commands.consolidate import (
 )
 from specify_cli.consolidation.state import ConsolidationState, get_state_path, load_state, save_state
 from specify_cli.consolidation.workspace import get_merge_workspace_path
+from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = pytest.mark.fast
 
@@ -94,24 +95,14 @@ def _prepare_dry_run(
 
 
 def _invoke_merge_dry_run(*, json_output: bool) -> None:
-    command = merge_mod.consolidate.__wrapped__
-    command(
-        strategy=None,
-        delete_branch=True,
-        remove_worktree=True,
-        push=False,
-        target_branch=None,
-        dry_run=True,
-        json_output=json_output,
-        mission=MISSION_SLUG,
-        resume=False,
-        abort=False,
-        context_token=None,
-        keep_workspace=False,
-        allow_sparse_checkout=False,
-        yes=False,
-        skip_review_artifact_check=False,
-        note=None,
+    merge_mod.run_consolidate(
+        merge_mod.ConsolidateOptions(
+            delete_branch=True,
+            remove_worktree=True,
+            dry_run=True,
+            json_output=json_output,
+            mission=MISSION_SLUG,
+        )
     )
 
 
@@ -237,25 +228,14 @@ class TestMergeDryRunMissingBranch:
             lambda *_args, **_kwargs: (_ for _ in ()).throw(StopAfterResume()),
         )
 
-        command = merge_mod.consolidate.__wrapped__
         with pytest.raises(StopAfterResume):
-            command(
-                strategy=None,
-                delete_branch=True,
-                remove_worktree=True,
-                push=False,
-                target_branch=None,
-                dry_run=False,
-                json_output=False,
-                mission=mission_slug,
-                        resume=True,
-                abort=False,
-                context_token=None,
-                keep_workspace=False,
-                allow_sparse_checkout=False,
-                yes=False,
-                skip_review_artifact_check=False,
-                note=None,
+            merge_mod.run_consolidate(
+                merge_mod.ConsolidateOptions(
+                    delete_branch=True,
+                    remove_worktree=True,
+                    mission=mission_slug,
+                    resume=True,
+                )
             )
 
         output = _compact_output(capsys.readouterr().out)
@@ -306,25 +286,14 @@ class TestMergeDryRunMissingBranch:
             lambda *_args, **_kwargs: (_ for _ in ()).throw(StopAfterResume()),
         )
 
-        command = merge_mod.consolidate.__wrapped__
         with pytest.raises(StopAfterResume):
-            command(
-                strategy=None,
-                delete_branch=True,
-                remove_worktree=True,
-                push=False,
-                target_branch=None,
-                dry_run=False,
-                json_output=False,
-                mission=mission_slug,
-                        resume=True,
-                abort=False,
-                context_token=None,
-                keep_workspace=False,
-                allow_sparse_checkout=False,
-                yes=False,
-                skip_review_artifact_check=False,
-                note=None,
+            merge_mod.run_consolidate(
+                merge_mod.ConsolidateOptions(
+                    delete_branch=True,
+                    remove_worktree=True,
+                    mission=mission_slug,
+                    resume=True,
+                )
             )
 
         output = _compact_output(capsys.readouterr().out)
@@ -359,24 +328,12 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr(merge_mod, "_run_lane_based_consolidation", run_merge)
         monkeypatch.setattr(merge_mod, "run_retrospective_postcondition", lambda *_args, **_kwargs: None)
 
-        command = merge_mod.consolidate.__wrapped__
-        command(
-            strategy=None,
-            delete_branch=True,
-            remove_worktree=True,
-            push=False,
-            target_branch=None,
-            dry_run=False,
-            json_output=False,
-            mission=None,
+        merge_mod.run_consolidate(
+            merge_mod.ConsolidateOptions(
+                delete_branch=True,
+                remove_worktree=True,
                 resume=True,
-            abort=False,
-            context_token=None,
-            keep_workspace=False,
-            allow_sparse_checkout=False,
-            yes=False,
-            skip_review_artifact_check=False,
-            note=None,
+            )
         )
 
         run_merge.assert_called_once()
@@ -424,24 +381,13 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr("specify_cli.consolidation.resolve.cleanup_merge_workspace", Mock())
         monkeypatch.setattr(merge_mod, "abort_git_merge", lambda _repo_root: False)
 
-        command = merge_mod.consolidate.__wrapped__
-        command(
-            strategy=None,
-            delete_branch=True,
-            remove_worktree=True,
-            push=False,
-            target_branch=None,
-            dry_run=False,
-            json_output=False,
-            mission=mission_slug,
-                resume=False,
-            abort=True,
-            context_token=None,
-            keep_workspace=False,
-            allow_sparse_checkout=False,
-            yes=False,
-            skip_review_artifact_check=False,
-            note=None,
+        merge_mod.run_consolidate(
+            merge_mod.ConsolidateOptions(
+                delete_branch=True,
+                remove_worktree=True,
+                mission=mission_slug,
+                abort=True,
+            )
         )
 
         assert load_state(tmp_path, mission_slug) is None
@@ -476,24 +422,12 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr(merge_mod, "_resolve_mission_slug", lambda *_args, **_kwargs: None)
         monkeypatch.setattr(merge_mod, "abort_git_merge", lambda _repo_root: False)
 
-        command = merge_mod.consolidate.__wrapped__
-        command(
-            strategy=None,
-            delete_branch=True,
-            remove_worktree=True,
-            push=False,
-            target_branch=None,
-            dry_run=False,
-            json_output=False,
-            mission=None,
-                resume=False,
-            abort=True,
-            context_token=None,
-            keep_workspace=False,
-            allow_sparse_checkout=False,
-            yes=False,
-            skip_review_artifact_check=False,
-            note=None,
+        merge_mod.run_consolidate(
+            merge_mod.ConsolidateOptions(
+                delete_branch=True,
+                remove_worktree=True,
+                abort=True,
+            )
         )
 
         assert load_state(tmp_path, mission_id) is None
@@ -539,24 +473,13 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
         monkeypatch.setattr(merge_mod, "abort_git_merge", lambda _repo_root: False)
 
-        command = merge_mod.consolidate.__wrapped__
-        command(
-            strategy=None,
-            delete_branch=True,
-            remove_worktree=True,
-            push=False,
-            target_branch=None,
-            dry_run=False,
-            json_output=False,
-            mission=mission_slug,
-                resume=False,
-            abort=True,
-            context_token=None,
-            keep_workspace=False,
-            allow_sparse_checkout=False,
-            yes=False,
-            skip_review_artifact_check=False,
-            note=None,
+        merge_mod.run_consolidate(
+            merge_mod.ConsolidateOptions(
+                delete_branch=True,
+                remove_worktree=True,
+                mission=mission_slug,
+                abort=True,
+            )
         )
 
         assert load_state(tmp_path, mission_id) is None
@@ -676,9 +599,9 @@ class TestMergeDryRunMissingBranch:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Real merge is blocked before irreversible git operations."""
-        monkeypatch.setattr("specify_cli.consolidation.executor.get_main_repo_root", lambda repo_root: repo_root)
+        setattr_executor_family(monkeypatch, "get_main_repo_root", lambda repo_root: repo_root)
         monkeypatch.setattr("specify_cli.consolidation.executor.require_no_sparse_checkout", lambda *_args, **_kwargs: None)
-        monkeypatch.setattr("specify_cli.consolidation.executor.require_lanes_json", lambda _feature_dir: _manifest())
+        monkeypatch.setattr("specify_cli.consolidation.entry_preflight.require_lanes_json", lambda _feature_dir: _manifest())
         # WP10 (#2057): the wrapper reads these collaborators from the executor seam.
         monkeypatch.setattr(
             "specify_cli.consolidation.executor._enforce_target_branch_sync_preflight",
@@ -715,14 +638,11 @@ class TestMergeDryRunMissingBranch:
         state = SimpleNamespace(push_requested=True)
         preflight_calls: list[dict[str, object]] = []
 
-        monkeypatch.setattr("specify_cli.consolidation.executor.get_main_repo_root", lambda repo_root: repo_root)
+        setattr_executor_family(monkeypatch, "get_main_repo_root", lambda repo_root: repo_root)
         monkeypatch.setattr("specify_cli.consolidation.executor._resolve_merge_actor", lambda _repo_root: "tester")
         monkeypatch.setattr("specify_cli.consolidation.executor.require_no_sparse_checkout", lambda *_args, **_kwargs: None)
-        monkeypatch.setattr("specify_cli.consolidation.executor.require_lanes_json", lambda _feature_dir: _manifest())
-        monkeypatch.setattr(
-            "specify_cli.consolidation.executor.resolve_mission_identity",
-            lambda _feature_dir: SimpleNamespace(mission_id="01TESTPUSHREQUESTED"),
-        )
+        monkeypatch.setattr("specify_cli.consolidation.entry_preflight.require_lanes_json", lambda _feature_dir: _manifest())
+        setattr_executor_family(monkeypatch, "resolve_mission_identity", lambda _feature_dir: SimpleNamespace(mission_id="01TESTPUSHREQUESTED"))
         monkeypatch.setattr(merge_mod, "load_state", lambda _repo_root, _mission_id=None: state)
         # WP05 (#2057): _effective_push_requested now reads load_state from
         # the preflight seam, so patch it there too.
@@ -770,14 +690,11 @@ class TestMergeDryRunMissingBranch:
         state = SimpleNamespace(push_requested=False)
         preflight = Mock()
 
-        monkeypatch.setattr("specify_cli.consolidation.executor.get_main_repo_root", lambda repo_root: repo_root)
+        setattr_executor_family(monkeypatch, "get_main_repo_root", lambda repo_root: repo_root)
         monkeypatch.setattr("specify_cli.consolidation.executor._resolve_merge_actor", lambda _repo_root: "tester")
         monkeypatch.setattr("specify_cli.consolidation.executor.require_no_sparse_checkout", lambda *_args, **_kwargs: None)
-        monkeypatch.setattr("specify_cli.consolidation.executor.require_lanes_json", lambda _feature_dir: _manifest())
-        monkeypatch.setattr(
-            "specify_cli.consolidation.executor.resolve_mission_identity",
-            lambda _feature_dir: SimpleNamespace(mission_id="01TESTNOPUSHREQUEST"),
-        )
+        monkeypatch.setattr("specify_cli.consolidation.entry_preflight.require_lanes_json", lambda _feature_dir: _manifest())
+        setattr_executor_family(monkeypatch, "resolve_mission_identity", lambda _feature_dir: SimpleNamespace(mission_id="01TESTNOPUSHREQUEST"))
         monkeypatch.setattr(merge_mod, "load_state", lambda _repo_root, _mission_id=None: state)
         # WP05 (#2057): _effective_push_requested now reads load_state from
         # the preflight seam, so patch it there too.

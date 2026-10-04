@@ -40,6 +40,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import create_lane_branches, write_mission_meta
+from tests.consolidation.executor_family import patch_executor_family
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -178,28 +179,28 @@ def _patches(
         initial_state.pre_mutation_coord_sha = _base
         initial_state.pre_interrupt_lane_tips = {lane_created_branch(manifest, lane.lane_id): _base for lane in manifest.lanes}
     return [
-        patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
+        patch("specify_cli.consolidation.entry_preflight.require_lanes_json", return_value=manifest),
         patch("specify_cli.consolidation.resolve.load_state", return_value=initial_state),
         patch("specify_cli.consolidation.done_bookkeeping.save_state"),
-        patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
+        patch_executor_family("get_main_repo_root", return_value=tmp_path),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", side_effect=fake_lane_merge),
         patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_done),
-        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch_executor_family("commit_merge_bookkeeping"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
+        patch_executor_family("run_command", side_effect=fake_run_command),
         # WP10 (#2057): the lane-integration check (_lane_already_integrated)
         # runs in the git_probes seam; spy it with the same fake git.
         patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
-        patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-        patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-        patch("specify_cli.consolidation.executor.clear_state"),
+        patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
+        patch("specify_cli.consolidation.phase_finalize.cleanup_merge_workspace"),
+        patch_executor_family("clear_state"),
         patch(
-            "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+            "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
             return_value=None,
         ),
         # WP10 (#2057): mission-branch preflight moved to the preflight seam;
@@ -207,8 +208,8 @@ def _patches(
         patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
         # WP10 (#2057): target-history asserts moved to the done_bookkeeping /
         # baseline seams; the executor binds them — patch there.
-        patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-        patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+        patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
         patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
     ]
 

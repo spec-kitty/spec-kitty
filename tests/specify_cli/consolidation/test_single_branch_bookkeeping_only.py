@@ -21,6 +21,10 @@ import pytest
 
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation import (
+    phase_bookkeeping,
+    phase_teardown,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -137,7 +141,7 @@ def _build_run(repo: Path, lanes_manifest: SimpleNamespace, *, planning_artifact
 def test_delete_mission_branch_never_deletes_the_target_branch(repo_root_repo: Path) -> None:
     run = _build_run(repo_root_repo, _repo_root_lanes_manifest())
 
-    result = ex._delete_mission_branch(run)
+    result = phase_teardown._delete_mission_branch(run)
 
     assert result is True
     assert _branch_exists(repo_root_repo, "trunk"), "the target branch must survive a bookkeeping-only consolidate"
@@ -154,7 +158,7 @@ def test_delete_mission_branch_control_still_deletes_a_real_mission_branch(repo_
     )
     run = _build_run(repo_root_repo, manifest, planning_artifact_only=False)
 
-    result = ex._delete_mission_branch(run)
+    result = phase_teardown._delete_mission_branch(run)
 
     assert result is True
     assert not _branch_exists(repo_root_repo, "kitty/mission-distinct")
@@ -264,7 +268,7 @@ def test_phase_merge_lanes_skips_the_repo_root_lane_even_when_not_lane_based_pla
 def test_run_has_code_wps_true_for_a_single_branch_manifest_with_a_code_wp(repo_root_repo: Path) -> None:
     run = _build_run(repo_root_repo, _repo_root_lanes_manifest())
 
-    assert ex._run_has_code_wps(run) is True
+    assert phase_bookkeeping._run_has_code_wps(run) is True
 
 
 def test_run_has_code_wps_false_for_a_genuinely_planning_only_manifest(repo_root_repo: Path) -> None:
@@ -277,7 +281,7 @@ def test_run_has_code_wps_false_for_a_genuinely_planning_only_manifest(repo_root
     _git(repo_root_repo, "commit", "-q", "-m", "convert WP01 to planning_artifact")
     run = _build_run(repo_root_repo, _repo_root_lanes_manifest())
 
-    assert ex._run_has_code_wps(run) is False
+    assert phase_bookkeeping._run_has_code_wps(run) is False
 
 
 def test_run_has_code_wps_false_for_a_legacy_wp_with_no_execution_mode(repo_root_repo: Path) -> None:
@@ -298,7 +302,7 @@ def test_run_has_code_wps_false_for_a_legacy_wp_with_no_execution_mode(repo_root
     _git(repo_root_repo, "commit", "-q", "-m", "convert WP01 to an untyped legacy WP")
     run = _build_run(repo_root_repo, _repo_root_lanes_manifest())
 
-    assert ex._run_has_code_wps(run) is False
+    assert phase_bookkeeping._run_has_code_wps(run) is False
 
 
 def test_run_has_code_wps_true_for_a_legacy_lanes_mission_with_a_body_inferred_code_wp(repo_root_repo: Path) -> None:
@@ -326,7 +330,7 @@ def test_run_has_code_wps_true_for_a_legacy_lanes_mission_with_a_body_inferred_c
     )
     run = _build_run(repo_root_repo, manifest, planning_artifact_only=False)
 
-    assert ex._run_has_code_wps(run) is True
+    assert phase_bookkeeping._run_has_code_wps(run) is True
 
 
 # ---------------------------------------------------------------------------
@@ -383,8 +387,8 @@ def test_skip_lanes_synthesized_manifest_is_unaffected_by_the_wp04_guards(repo_r
         ex._phase_mission_to_target(run)
     mock_integrate.assert_not_called()
 
-    result = ex._delete_mission_branch(run)
+    result = phase_teardown._delete_mission_branch(run)
     assert result is True
     assert _branch_exists(repo_root_repo, "trunk")
 
-    assert ex._run_has_code_wps(run) is True
+    assert phase_bookkeeping._run_has_code_wps(run) is True

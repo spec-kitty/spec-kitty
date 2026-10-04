@@ -30,6 +30,7 @@ from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from tests.lane_test_utils import create_lane_branches
+from tests.consolidation.executor_family import patch_executor_family
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -160,36 +161,36 @@ class TestPostMergeRefreshAndInvariant:
         policy.merge_gates = []
 
         patches = [
-            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
+            patch("specify_cli.consolidation.entry_preflight.require_lanes_json", return_value=manifest),
             patch("specify_cli.consolidation.resolve.load_state", return_value=None),
             patch("specify_cli.consolidation.done_bookkeeping.save_state"),
-            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
+            patch_executor_family("get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
             patch("specify_cli.status.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
             patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
-            patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", side_effect=fake_safe_commit),
+            patch_executor_family("commit_merge_bookkeeping", side_effect=fake_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check", return_value=stale_report),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates", return_value=gate_eval),
             patch("specify_cli.policy.config.load_policy_config", return_value=policy),
-            patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
+            patch_executor_family("run_command", side_effect=fake_run_command),
             # WP10 (#2057): the post-merge hard refresh runs in the git_probes
             # seam; spy it into the same call log so the ordering assertion sees it.
             patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
-            patch("specify_cli.consolidation.executor._raw_porcelain_status", side_effect=fake_raw_porcelain),
-            patch("specify_cli.consolidation.executor._paths_have_status_changes", return_value=True),
-            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-            patch("specify_cli.consolidation.executor.clear_state"),
+            patch("specify_cli.consolidation.phase_bookkeeping._raw_porcelain_status", side_effect=fake_raw_porcelain),
+            patch_executor_family("_paths_have_status_changes", return_value=True),
+            patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
+            patch("specify_cli.consolidation.phase_finalize.cleanup_merge_workspace"),
+            patch_executor_family("clear_state"),
             patch("specify_cli.consolidation.state.ConsolidationState"),
             patch(
-                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
                 return_value=None,
             ),
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
             patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
         ]
         with contextlib.ExitStack() as stack:
@@ -275,35 +276,35 @@ class TestPostMergeRefreshAndInvariant:
         policy.merge_gates = []
 
         patches = [
-            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
+            patch("specify_cli.consolidation.entry_preflight.require_lanes_json", return_value=manifest),
             patch("specify_cli.consolidation.resolve.load_state", return_value=None),
             patch("specify_cli.consolidation.done_bookkeeping.save_state"),
-            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
+            patch_executor_family("get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
             patch("specify_cli.status.get_wp_lane", return_value="done"),
             patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
             patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.consolidation.executor.commit_merge_bookkeeping", side_effect=fake_safe_commit),
+            patch_executor_family("commit_merge_bookkeeping", side_effect=fake_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check", return_value=stale_report),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates", return_value=gate_eval),
             patch("specify_cli.policy.config.load_policy_config", return_value=policy),
-            patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
+            patch_executor_family("run_command", side_effect=fake_run_command),
             # WP10 (#2057): the post-merge hard refresh runs in the git_probes
             # seam; spy it into the same call log so the ordering assertion sees it.
             patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
-            patch("specify_cli.consolidation.executor._raw_porcelain_status", side_effect=fake_raw_porcelain),
-            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-            patch("specify_cli.consolidation.executor.clear_state"),
+            patch("specify_cli.consolidation.phase_bookkeeping._raw_porcelain_status", side_effect=fake_raw_porcelain),
+            patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
+            patch("specify_cli.consolidation.phase_finalize.cleanup_merge_workspace"),
+            patch_executor_family("clear_state"),
             patch("specify_cli.consolidation.state.ConsolidationState"),
             patch(
-                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
                 return_value=None,
             ),
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
             patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
         ]
         with contextlib.ExitStack() as stack:

@@ -45,6 +45,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState, save_state
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
@@ -165,18 +166,18 @@ def _real_merge_external_mocks(repo_root: Path):
     patches = [
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch_executor_family("commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
         patch(
-            "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+            "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
             return_value=None,
         ),
-        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
     ]
     with contextlib.ExitStack() as stack:
         ms = [stack.enter_context(p) for p in patches]

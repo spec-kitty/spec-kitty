@@ -3,8 +3,8 @@ lane's branch/worktree name from Mission identity instead of the CREATED name.
 
 FR-001/FR-004/FR-005/FR-006/FR-012: every executor stage that names a lane's
 branch or worktree must go through the lane's CREATED name
-(:func:`~specify_cli.consolidation.executor._created_lane_branch` /
-:func:`~specify_cli.consolidation.executor._created_lane_worktree`) — a Mission
+(:func:`~specify_cli.lanes.compute.lane_created_branch` /
+:func:`~specify_cli.consolidation.run_state._created_lane_worktree`) — a Mission
 identity (``mission_id`` / ``canonical_mission_id``) is never a naming input.
 These tests build every mission through the real-allocator divergent-shape
 fixtures (:mod:`tests.consolidation._divergent_shapes`) so a lane branch/worktree is
@@ -35,6 +35,12 @@ from tests.consolidation._divergent_shapes import (
     shape_invalid_identity_long,
     shape_invalid_identity_short,
     shape_mismatched_mid8,
+)
+from specify_cli.consolidation import (
+    entry_preflight,
+    phase_claim,
+    phase_teardown,
+    run_state,
 )
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -123,7 +129,7 @@ def test_created_lane_branch_never_the_identity_form(tmp_path: Path) -> None:
     equal ``code_lane_branch_name`` called WITHOUT a ``mission_id``, and must NOT
     equal the identity-form branch."""
     mission = shape_mismatched_mid8(tmp_path)
-    created = ex._created_lane_branch(mission.manifest, "lane-a")
+    created = phase_claim._created_lane_branch(mission.manifest, "lane-a")
     expected = code_lane_branch_name(mission.manifest.mission_slug, "lane-a")
     assert created == expected
     identity_form = _identity_injected_lane_branch(mission.manifest.mission_slug, "lane-a", mission.manifest.mission_id)
@@ -135,13 +141,13 @@ def test_created_lane_branch_never_the_identity_form(tmp_path: Path) -> None:
 
 def test_created_lane_branch_lane_planning_returns_target_branch(tmp_path: Path) -> None:
     mission = shape_backfilled_legacy(tmp_path, with_planning_lane=True)
-    assert ex._created_lane_branch(mission.manifest, "lane-planning") == mission.manifest.target_branch
+    assert phase_claim._created_lane_branch(mission.manifest, "lane-planning") == mission.manifest.target_branch
 
 
 def test_created_lane_worktree_matches_real_allocator_output(tmp_path: Path) -> None:
     mission = shape_mismatched_mid8(tmp_path)
     allocator_path, _branch = mission.lanes["lane-a"]
-    actual = ex._created_lane_worktree(mission.repo_root, mission.manifest.mission_slug, "lane-a")
+    actual = run_state._created_lane_worktree(mission.repo_root, mission.manifest.mission_slug, "lane-a")
     assert actual == allocator_path
 
 
@@ -163,14 +169,14 @@ def _lane(wp_ids: list[str]) -> ExecutionLane:
 
 def test_lane_fully_canceled_true_when_every_wp_excluded() -> None:
     lane = _lane(["WP01", "WP02"])
-    assert ex._lane_fully_canceled(lane, frozenset({"WP01", "WP02"})) is True
+    assert phase_claim._lane_fully_canceled(lane, frozenset({"WP01", "WP02"})) is True
 
 
 def test_lane_fully_canceled_false_when_a_wp_survives() -> None:
     """A mixed lane (a survivor + a canceled WP) still integrates its
     survivor — never fully canceled."""
     lane = _lane(["WP01", "WP02"])
-    assert ex._lane_fully_canceled(lane, frozenset({"WP01"})) is False
+    assert phase_claim._lane_fully_canceled(lane, frozenset({"WP01"})) is False
 
 
 def test_lane_fully_canceled_false_for_empty_wp_ids() -> None:
@@ -180,7 +186,7 @@ def test_lane_fully_canceled_false_for_empty_wp_ids() -> None:
     canceled, so this must stay ``False`` even against a non-empty excluded
     set."""
     lane = _lane([])
-    assert ex._lane_fully_canceled(lane, frozenset({"WP01"})) is False
+    assert phase_claim._lane_fully_canceled(lane, frozenset({"WP01"})) is False
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +206,7 @@ def test_capture_pre_interrupt_lane_tips_keys_by_created_branch(tmp_path: Path, 
     mission = shape_builder(tmp_path)
     run = _run(mission, _state(mission))
 
-    tips = ex._capture_pre_interrupt_lane_tips(run)
+    tips = phase_claim._capture_pre_interrupt_lane_tips(run)
 
     _wt_path, created_branch = mission.lanes["lane-a"]
     assert set(tips) == {created_branch}
@@ -216,7 +222,7 @@ def test_capture_pre_interrupt_lane_tips_short_identity_keys_by_created_branch(t
     mission = shape_invalid_identity_short(tmp_path)
     run = _run(mission, _state(mission))
 
-    tips = ex._capture_pre_interrupt_lane_tips(run)
+    tips = phase_claim._capture_pre_interrupt_lane_tips(run)
 
     _wt_path, created_branch = mission.lanes["lane-a"]
     assert set(tips) == {created_branch}
@@ -229,7 +235,7 @@ def test_capture_pre_interrupt_lane_tips_skips_fully_canceled_lane(tmp_path: Pat
     # lane-b is the second lane the fixture builds -> WP02 (see `_build_shape`).
     run = _run(mission, _state(mission), excluded_canceled_wp_ids=frozenset({"WP02"}))
 
-    tips = ex._capture_pre_interrupt_lane_tips(run)
+    tips = phase_claim._capture_pre_interrupt_lane_tips(run)
 
     _wt_a, branch_a = mission.lanes["lane-a"]
     _wt_b, branch_b = mission.lanes["lane-b"]
@@ -242,7 +248,7 @@ def test_capture_pre_interrupt_lane_tips_skips_planning_lane(tmp_path: Path) -> 
     mission = shape_backfilled_legacy(tmp_path, with_planning_lane=True)
     run = _run(mission, _state(mission))
 
-    tips = ex._capture_pre_interrupt_lane_tips(run)
+    tips = phase_claim._capture_pre_interrupt_lane_tips(run)
 
     assert mission.manifest.target_branch not in tips
 
@@ -267,7 +273,7 @@ def _assert_h5_refusal_names_abort(capsys: pytest.CaptureFixture[str], *branches
     Mutation-proof: dropping ``_CONSOLIDATE_ABORT_AND_RESTART_HINT`` from the H5
     message, or the missing-branch listing, fails this assertion."""
     output = capsys.readouterr().out
-    assert ex._CONSOLIDATE_ABORT_COMMAND in output
+    assert run_state._CONSOLIDATE_ABORT_COMMAND in output
     for branch in branches:
         assert branch in output
 
@@ -277,7 +283,7 @@ def test_h5_refuses_on_empty_record(tmp_path: Path, capsys: pytest.CaptureFixtur
     _wt_a, branch_a = mission.lanes["lane-a"]
     run = _h5_run(mission, pre_interrupt_lane_tips={})
     with pytest.raises(typer.Exit) as exc:
-        ex._enforce_resume_anchor_integrity(run, coord_topology=True)
+        phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)
     assert exc.value.exit_code == 1
     _assert_h5_refusal_names_abort(capsys, branch_a)
 
@@ -290,7 +296,7 @@ def test_h5_refuses_on_partial_record(tmp_path: Path, capsys: pytest.CaptureFixt
     # as canceled here) is missing.
     run = _h5_run(mission, pre_interrupt_lane_tips={branch_a: _rev_parse(mission.repo_root, branch_a)})
     with pytest.raises(typer.Exit) as exc:
-        ex._enforce_resume_anchor_integrity(run, coord_topology=True)
+        phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)
     assert exc.value.exit_code == 1
     _assert_h5_refusal_names_abort(capsys, branch_b)
 
@@ -318,7 +324,7 @@ def test_h5_refuses_on_old_form_identity_keyed_record(tmp_path: Path, capsys: py
     assert identity_form != created_branch, "fixture invalid: identity and created forms must differ"
     run = _h5_run(mission, pre_interrupt_lane_tips={identity_form: real_sha})
     with pytest.raises(typer.Exit) as exc:
-        ex._enforce_resume_anchor_integrity(run, coord_topology=True)
+        phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)
     assert exc.value.exit_code == 1
     _assert_h5_refusal_names_abort(capsys, created_branch)
 
@@ -336,12 +342,12 @@ def test_h5_refuses_when_survivor_lane_branch_gone_before_capture(tmp_path: Path
     assert not _branch_exists(mission.repo_root, branch_a)
 
     capture_run = _run(mission, _state(mission))
-    tips = ex._capture_pre_interrupt_lane_tips(capture_run)
+    tips = phase_claim._capture_pre_interrupt_lane_tips(capture_run)
     assert branch_a not in tips, "a gone, non-canceled lane branch must be skipped, not anchored"
 
     run = _h5_run(mission, pre_interrupt_lane_tips=tips)
     with pytest.raises(typer.Exit) as exc:
-        ex._enforce_resume_anchor_integrity(run, coord_topology=True)
+        phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)
     assert exc.value.exit_code == 1
     _assert_h5_refusal_names_abort(capsys, branch_a)
 
@@ -352,7 +358,7 @@ def test_h5_noop_on_canceled_only_manifest(tmp_path: Path) -> None:
     mission = shape_backfilled_legacy(tmp_path)
     run = _h5_run(mission, pre_interrupt_lane_tips={})
     run.excluded_canceled_wp_ids = frozenset({"WP01"})
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 def test_h5_noop_on_planning_only_manifest(tmp_path: Path) -> None:
@@ -360,20 +366,20 @@ def test_h5_noop_on_planning_only_manifest(tmp_path: Path) -> None:
     mission = shape_backfilled_legacy(tmp_path, with_planning_lane=True)
     mission.manifest.lanes = [lane for lane in mission.manifest.lanes if lane.lane_id == "lane-planning"]
     run = _h5_run(mission, pre_interrupt_lane_tips={})
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 def test_h5_noop_when_coord_topology_false(tmp_path: Path) -> None:
     mission = shape_mismatched_mid8(tmp_path)
     run = _h5_run(mission, pre_interrupt_lane_tips={})
-    ex._enforce_resume_anchor_integrity(run, coord_topology=False)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=False)  # no raise
 
 
 def test_h5_not_evaluated_when_pre_mutation_coord_sha_none(tmp_path: Path) -> None:
     mission = shape_mismatched_mid8(tmp_path)
     state = _state(mission, pre_mutation_coord_sha=None, pre_interrupt_lane_tips={})
     run = _run(mission, state, is_resume=True)
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise (H4 path, unchanged)
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise (H4 path, unchanged)
 
 
 def test_h5_noop_on_complete_record_keyed_by_created_names(tmp_path: Path) -> None:
@@ -381,10 +387,10 @@ def test_h5_noop_on_complete_record_keyed_by_created_names(tmp_path: Path) -> No
     must never trip its own H5 guard (the capture/H5 predicates agree)."""
     mission = shape_mismatched_mid8(tmp_path)
     capture_run = _run(mission, _state(mission))
-    tips = ex._capture_pre_interrupt_lane_tips(capture_run)
+    tips = phase_claim._capture_pre_interrupt_lane_tips(capture_run)
 
     run = _h5_run(mission, pre_interrupt_lane_tips=tips)
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 # ---------------------------------------------------------------------------
@@ -399,7 +405,7 @@ def test_preflight_refuses_dirty_created_lane_worktree(tmp_path: Path) -> None:
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
 
     with pytest.raises(DestructiveOpRefused):
-        ex._pre_mutation_safety_preflight(
+        entry_preflight._pre_mutation_safety_preflight(
             mission.repo_root,
             mission.manifest.mission_slug,
             mission.manifest.target_branch,
@@ -414,7 +420,7 @@ def test_preflight_clean_created_lane_worktree_passes(tmp_path: Path) -> None:
     mission = shape_mismatched_mid8(tmp_path)
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
 
-    ex._pre_mutation_safety_preflight(
+    entry_preflight._pre_mutation_safety_preflight(
         mission.repo_root,
         mission.manifest.mission_slug,
         mission.manifest.target_branch,
@@ -442,13 +448,13 @@ def test_remove_lane_worktrees_removes_created_worktree_and_tombstones_context(t
     # (the ``{slug}-{lane}`` form ``save_context`` writes) — seed it directly so
     # the assertion below proves the SAME name the removal loop computed, never
     # a name this test guessed independently.
-    workspace_name = ex._created_lane_worktree(mission.repo_root, mission.manifest.mission_slug, "lane-a").name
+    workspace_name = run_state._created_lane_worktree(mission.repo_root, mission.manifest.mission_slug, "lane-a").name
     context_path = get_context_path(mission.repo_root, workspace_name)
     context_path.parent.mkdir(parents=True, exist_ok=True)
     context_path.write_text("{}", encoding="utf-8")
 
     run = _run(mission, _state(mission))
-    ex._remove_lane_worktrees(run)
+    phase_teardown._remove_lane_worktrees(run)
 
     assert not wt_path.exists(), "the allocator-CREATED worktree must be removed"
     assert not context_path.exists(), "the lane's workspace-context JSON must be tombstoned"
@@ -461,7 +467,7 @@ def test_delete_lane_branches_deletes_created_branch(tmp_path: Path) -> None:
     assert _branch_exists(mission.repo_root, branch)
 
     run = _run(mission, _state(mission))
-    ex._delete_lane_branches(run)
+    phase_teardown._delete_lane_branches(run)
 
     assert not _branch_exists(mission.repo_root, branch), "the allocator-CREATED branch must be deleted"
 
@@ -469,7 +475,7 @@ def test_delete_lane_branches_deletes_created_branch(tmp_path: Path) -> None:
 def test_delete_lane_branches_skips_planning_lane(tmp_path: Path) -> None:
     mission = shape_backfilled_legacy(tmp_path, with_planning_lane=True)
     run = _run(mission, _state(mission))
-    ex._delete_lane_branches(run)  # no raise; target branch ("main") is untouched
+    phase_teardown._delete_lane_branches(run)  # no raise; target branch ("main") is untouched
     assert _branch_exists(mission.repo_root, mission.manifest.target_branch)
 
 
@@ -485,8 +491,8 @@ def test_cleanup_full_run_removes_no_orphans(tmp_path: Path) -> None:
 
     run = _run(mission, _state(mission))
     run.baseline_mission_id = mission.mission_id  # the pre-fix orphaning input
-    ex._remove_lane_worktrees(run)
-    ex._delete_lane_branches(run)
+    phase_teardown._remove_lane_worktrees(run)
+    phase_teardown._delete_lane_branches(run)
 
     assert not wt_path.exists()
     assert not _branch_exists(mission.repo_root, branch)
@@ -502,7 +508,7 @@ def test_phase_cleanup_retention_keeps_created_worktree_and_branch(tmp_path: Pat
     mission = shape_mismatched_mid8(tmp_path)
     wt_path, branch = mission.lanes["lane-a"]
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
-    monkeypatch.setattr(ex, "_cleanup_mission_branch_and_coordination", lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_cleanup_mission_branch_and_coordination", lambda _run: None)
 
     run = _run(mission, _state(mission))
     run.remove_worktree = False
@@ -521,7 +527,7 @@ def test_phase_cleanup_removes_created_worktree_and_branch_when_requested(tmp_pa
     mission = shape_mismatched_mid8(tmp_path)
     wt_path, branch = mission.lanes["lane-a"]
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
-    monkeypatch.setattr(ex, "_cleanup_mission_branch_and_coordination", lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_cleanup_mission_branch_and_coordination", lambda _run: None)
 
     run = _run(mission, _state(mission))
     run.remove_worktree = True
@@ -545,7 +551,7 @@ def test_phase_cleanup_keep_branch_only_retains_branch_removes_worktree(tmp_path
     mission = shape_mismatched_mid8(tmp_path)
     wt_path, branch = mission.lanes["lane-a"]
     subprocess.run(["git", "-C", str(mission.repo_root), "checkout", "-q", mission.manifest.target_branch], check=True)
-    monkeypatch.setattr(ex, "_cleanup_mission_branch_and_coordination", lambda _run: None)
+    monkeypatch.setattr(phase_teardown, "_cleanup_mission_branch_and_coordination", lambda _run: None)
 
     run = _run(mission, _state(mission))
     run.remove_worktree = True

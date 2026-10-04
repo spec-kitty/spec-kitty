@@ -37,6 +37,7 @@ import pytest
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.mission_metadata import load_meta
+from specify_cli.consolidation import phase_teardown
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -346,7 +347,7 @@ def test_issue_3086_flatten_is_noop_for_non_coord_mission(tmp_path: Path) -> Non
         baseline_mission_id=_MISSION_ID,
     )
 
-    ex._flatten_coordination_metadata_after_branch_delete(run)
+    phase_teardown._flatten_coordination_metadata_after_branch_delete(run)
 
     meta = load_meta(feature_dir)
     assert meta is not None

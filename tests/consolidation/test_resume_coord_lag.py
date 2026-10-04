@@ -36,6 +36,8 @@ from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_WORKTREE_DIRTY,
     DestructiveOpRefused,
 )
+from specify_cli.consolidation import resume_recovery
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -155,18 +157,18 @@ def test_has_unrefreshed_head_advance_false_on_a_git_error(tmp_path: Path) -> No
 def test_lag_checkout_for_primary_dirty_is_the_repository_root(tmp_path: Path) -> None:
     exc = _worktree_refusal(tmp_path, code=MERGE_UNSAFE_PRIMARY_DIRTY)
 
-    checkout = ex._lag_checkout_for_refusal(exc, tmp_path, None)
+    checkout = resume_recovery._lag_checkout_for_refusal(exc, tmp_path, None)
 
-    assert checkout == ex._LagCheckout(tmp_path, coordination=False)
+    assert checkout == resume_recovery._LagCheckout(tmp_path, coordination=False)
     assert checkout is not None and checkout.label == "primary checkout"
 
 
 def test_lag_checkout_for_the_coordination_worktree_refusal(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
 
-    checkout = ex._lag_checkout_for_refusal(_worktree_refusal(lag.coord), lag.repo, lag.coord)
+    checkout = resume_recovery._lag_checkout_for_refusal(_worktree_refusal(lag.coord), lag.repo, lag.coord)
 
-    assert checkout == ex._LagCheckout(lag.coord, coordination=True)
+    assert checkout == resume_recovery._LagCheckout(lag.coord, coordination=True)
     assert checkout is not None and checkout.label == "coordination worktree"
 
 
@@ -175,7 +177,7 @@ def test_lag_checkout_none_for_a_refused_path_that_is_not_a_checkout(tmp_path: P
     lane_worktree = tmp_path / "lane-a"
     lane_worktree.mkdir()
 
-    assert ex._lag_checkout_for_refusal(_worktree_refusal(lane_worktree), lag.repo, lag.coord) is None
+    assert resume_recovery._lag_checkout_for_refusal(_worktree_refusal(lane_worktree), lag.repo, lag.coord) is None
 
 
 @pytest.mark.parametrize(
@@ -188,7 +190,7 @@ def test_lag_checkout_none_for_a_refused_path_that_is_not_a_checkout(tmp_path: P
 def test_lag_checkout_none_without_a_matching_coordination_refusal(tmp_path: Path, code: str, has_coord: bool) -> None:
     lag = _build_lag(tmp_path)
 
-    checkout = ex._lag_checkout_for_refusal(_worktree_refusal(lag.coord, code=code), lag.repo, lag.coord if has_coord else None)
+    checkout = resume_recovery._lag_checkout_for_refusal(_worktree_refusal(lag.coord, code=code), lag.repo, lag.coord if has_coord else None)
 
     assert checkout is None
 
@@ -197,7 +199,7 @@ def test_lag_checkout_none_when_the_refusal_names_no_worktree(tmp_path: Path) ->
     lag = _build_lag(tmp_path)
     exc = DestructiveOpRefused(error_code=MERGE_UNSAFE_WORKTREE_DIRTY, remediation="x")
 
-    assert ex._lag_checkout_for_refusal(exc, lag.repo, lag.coord) is None
+    assert resume_recovery._lag_checkout_for_refusal(exc, lag.repo, lag.coord) is None
 
 
 def test_lag_checkout_base_sha_selects_the_anchor_per_checkout(tmp_path: Path) -> None:
@@ -205,18 +207,18 @@ def test_lag_checkout_base_sha_selects_the_anchor_per_checkout(tmp_path: Path) -
     state.pre_mutation_target_sha = "T" * 40
     state.pre_mutation_coord_sha = "C" * 40
 
-    assert ex._LagCheckout(tmp_path, coordination=False).base_sha(state) == "T" * 40
-    assert ex._LagCheckout(tmp_path, coordination=True).base_sha(state) == "C" * 40
-    assert ex._LagCheckout(tmp_path, coordination=True).base_sha(None) is None
+    assert resume_recovery._LagCheckout(tmp_path, coordination=False).base_sha(state) == "T" * 40
+    assert resume_recovery._LagCheckout(tmp_path, coordination=True).base_sha(state) == "C" * 40
+    assert resume_recovery._LagCheckout(tmp_path, coordination=True).base_sha(None) is None
 
 
 def test_coord_worktree_for_refusal_resolves_only_for_a_generic_worktree_refusal(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
     meta = tmp_path / "meta"
 
-    with patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=lag.coord) as mock_resolve:
-        assert ex._coord_worktree_for_refusal(_worktree_refusal(lag.coord), lag.repo, "m", meta) == lag.coord
-        assert ex._coord_worktree_for_refusal(_worktree_refusal(lag.repo, MERGE_UNSAFE_PRIMARY_DIRTY), lag.repo, "m", meta) is None
+    with patch_executor_family("_resolve_coord_worktree_for_preflight", return_value=lag.coord) as mock_resolve:
+        assert resume_recovery._coord_worktree_for_refusal(_worktree_refusal(lag.coord), lag.repo, "m", meta) == lag.coord
+        assert resume_recovery._coord_worktree_for_refusal(_worktree_refusal(lag.repo, MERGE_UNSAFE_PRIMARY_DIRTY), lag.repo, "m", meta) is None
 
     mock_resolve.assert_called_once_with(lag.repo, "m", meta)
 
@@ -225,19 +227,19 @@ def test_coord_worktree_for_refusal_none_when_unresolvable_or_unreadable(tmp_pat
     lag = _build_lag(tmp_path)
     exc = _worktree_refusal(lag.coord)
 
-    with patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=None):
-        assert ex._coord_worktree_for_refusal(exc, lag.repo, "m", tmp_path) is None
-    with patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=tmp_path / "gone"):
-        assert ex._coord_worktree_for_refusal(exc, lag.repo, "m", tmp_path) is None
-    with patch.object(ex, "_resolve_coord_worktree_for_preflight", side_effect=MissionMetaReadError(tmp_path / "meta.json", ValueError("corrupt"))):
-        assert ex._coord_worktree_for_refusal(exc, lag.repo, "m", tmp_path) is None
+    with patch_executor_family("_resolve_coord_worktree_for_preflight", return_value=None):
+        assert resume_recovery._coord_worktree_for_refusal(exc, lag.repo, "m", tmp_path) is None
+    with patch_executor_family("_resolve_coord_worktree_for_preflight", return_value=tmp_path / "gone"):
+        assert resume_recovery._coord_worktree_for_refusal(exc, lag.repo, "m", tmp_path) is None
+    with patch_executor_family("_resolve_coord_worktree_for_preflight", side_effect=MissionMetaReadError(tmp_path / "meta.json", ValueError("corrupt"))):
+        assert resume_recovery._coord_worktree_for_refusal(exc, lag.repo, "m", tmp_path) is None
 
 
 # --- in-place recovery on --resume ---------------------------------------------------------
 
 
 def _recover(lag: _Lag, exc: DestructiveOpRefused, coord_worktree: Path | None) -> bool:
-    return ex._recover_behind_head_primary_on_resume(exc, lag.repo, _MISSION_ID, mission_branch=_MISSION_BRANCH, coord_worktree=coord_worktree)
+    return resume_recovery._recover_behind_head_primary_on_resume(exc, lag.repo, _MISSION_ID, mission_branch=_MISSION_BRANCH, coord_worktree=coord_worktree)
 
 
 def test_resume_refreshes_a_pure_coordination_lag_in_place(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -305,7 +307,7 @@ def test_a_failed_reset_is_reported_and_does_not_recover(tmp_path: Path, capsys:
     lag = _build_lag(tmp_path)
     _persist_state(lag, coord_sha=lag.base)
 
-    with patch.object(ex, "run_command", return_value=(1, "", "fatal: unable to write index\n")) as mock_run:
+    with patch_executor_family("run_command", return_value=(1, "", "fatal: unable to write index\n")) as mock_run:
         assert _recover(lag, _worktree_refusal(lag.coord), lag.coord) is False
 
     assert mock_run.call_args.kwargs["cwd"] == lag.coord
@@ -326,7 +328,7 @@ def test_a_blocking_index_lock_is_not_recovered(tmp_path: Path) -> None:
 
 
 def _report(lag: _Lag, exc: DestructiveOpRefused, *, base_sha: str | None, coord_worktree: Path | None, capsys: pytest.CaptureFixture[str]) -> str:
-    ex._report_pre_mutation_refusal(exc, lag.repo, mission_branch=_MISSION_BRANCH, base_sha=base_sha, coord_worktree=coord_worktree)
+    resume_recovery._report_pre_mutation_refusal(exc, lag.repo, mission_branch=_MISSION_BRANCH, base_sha=base_sha, coord_worktree=coord_worktree)
     return " ".join(capsys.readouterr().out.split())
 
 
@@ -417,8 +419,8 @@ def test_wrapper_recovers_a_pure_coordination_lag_then_retries_the_preflight(tmp
         raise refusal
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=_preflight) as mock_preflight,
-        patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=lag.coord),
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=_preflight) as mock_preflight,
+        patch_executor_family("_resolve_coord_worktree_for_preflight", return_value=lag.coord),
     ):
         ex._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", _manifest(), _MISSION_ID, tmp_path / "meta", _retention())
 
@@ -432,10 +434,10 @@ def test_wrapper_threads_the_coordination_anchor_into_the_refusal_report(tmp_pat
     refusal = _worktree_refusal(lag.coord)
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=refusal),
-        patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=lag.coord),
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False),
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=refusal),
+        patch_executor_family("_resolve_coord_worktree_for_preflight", return_value=lag.coord),
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=False),
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exit_info,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", _manifest(), _MISSION_ID, tmp_path / "meta", _retention())
@@ -453,9 +455,9 @@ def test_wrapper_reports_a_refusal_that_persists_after_recovery(tmp_path: Path) 
     still_refused = _worktree_refusal(lag.coord)
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=[refusal, still_refused]),
-        patch.object(ex, "_resolve_coord_worktree_for_preflight", return_value=lag.coord),
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=[refusal, still_refused]),
+        patch_executor_family("_resolve_coord_worktree_for_preflight", return_value=lag.coord),
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit),
     ):
         ex._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", _manifest(), _MISSION_ID, tmp_path / "meta", _retention())

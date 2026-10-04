@@ -25,6 +25,7 @@ from specify_cli.consolidation._constants import HollowReviewWarnings
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.status import REVIEWER_SELF_APPROVAL
 from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
+from specify_cli.consolidation import entry_preflight
 
 pytestmark = pytest.mark.fast
 
@@ -711,7 +712,7 @@ def test_refuse_protected_status_target_probes_the_done_write(monkeypatch: pytes
 def test_executor_preflight_helper_refuses_with_the_policy_verdict(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     from specify_cli.consolidation import executor
 
-    monkeypatch.setattr(executor, "refuse_protected_status_target", lambda *_a, **_k: _REFUSED_5385)
+    monkeypatch.setattr(entry_preflight, "refuse_protected_status_target", lambda *_a, **_k: _REFUSED_5385)
     with pytest.raises(typer.Exit) as excinfo:
         executor._refuse_protected_status_target_or_continue(tmp_path, "m", _manifest(("WP01",)), "01M0000000000000000000000M")
     assert excinfo.value.exit_code == 1
@@ -720,7 +721,7 @@ def test_executor_preflight_helper_refuses_with_the_policy_verdict(monkeypatch: 
     assert "Consolidation refused before any branch moved." in out
     assert "--abort" not in out
 
-    monkeypatch.setattr(executor, "refuse_protected_status_target", lambda *_a, **_k: None)
+    monkeypatch.setattr(entry_preflight, "refuse_protected_status_target", lambda *_a, **_k: None)
     assert executor._refuse_protected_status_target_or_continue(tmp_path, "m", _manifest(("WP01",)), "01M0000000000000000000000M") is None
 
 
@@ -735,7 +736,7 @@ def test_executor_preflight_helper_points_at_abort_when_a_merge_record_exists(
     record = get_state_path(tmp_path, mission_id)
     record.parent.mkdir(parents=True)
     record.write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(executor, "refuse_protected_status_target", lambda *_a, **_k: _REFUSED_5385)
+    monkeypatch.setattr(entry_preflight, "refuse_protected_status_target", lambda *_a, **_k: _REFUSED_5385)
 
     with pytest.raises(typer.Exit) as excinfo:
         executor._refuse_protected_status_target_or_continue(tmp_path, "m", _manifest(("WP01",)), mission_id)
@@ -771,7 +772,7 @@ def test_executor_preflight_helper_renders_an_unprobeable_mission_as_an_error(
     def _raise(*_a: object, **_k: object) -> None:
         raise error
 
-    monkeypatch.setattr(executor, "refuse_protected_status_target", _raise)
+    monkeypatch.setattr(entry_preflight, "refuse_protected_status_target", _raise)
     with pytest.raises(typer.Exit) as excinfo:
         executor._refuse_protected_status_target_or_continue(tmp_path, "m", _manifest(("WP01",)), "01M0000000000000000000000E")
     assert excinfo.value.exit_code == 1

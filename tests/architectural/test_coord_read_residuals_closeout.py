@@ -232,6 +232,9 @@ _SANCTIONED_EXCLUSION_QUALNAMES: frozenset[str] = frozenset(
 _STATUS_BEARING_MODULES: tuple[str, ...] = (
     "src/specify_cli/lanes/recovery.py",
     "src/specify_cli/consolidation/executor.py",
+    # #2026: the executor's read_events STATUS reads moved with the phase split.
+    "src/specify_cli/consolidation/phase_claim.py",
+    "src/specify_cli/consolidation/entry_preflight.py",
 )
 _STATUS_READ_FUNCS: frozenset[str] = frozenset({"read_events"})
 

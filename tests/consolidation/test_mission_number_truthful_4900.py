@@ -49,6 +49,7 @@ from tests.integration.test_merge_lane_planning_data_loss import (
     _write_meta,
     _write_wp_file,
 )
+from specify_cli.consolidation import phase_bookkeeping
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -190,12 +191,12 @@ def _mission_number_merge_mocks(repo_root: Path):
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
     ]
     with contextlib.ExitStack() as stack:
         ms = [stack.enter_context(p) for p in patches]
@@ -635,7 +636,7 @@ def test_unassignable_mission_number_exits_nonzero(tmp_path: Path, capsys: pytes
 
     refusal = MissionNumberVerificationError(f"cannot determine a mission_number for {slug!r}")
     with (
-        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", side_effect=refusal),
+        patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", side_effect=refusal),
         pytest.raises(typer.Exit) as exc_info,
     ):
         _consolidate(tmp_path, slug)
@@ -672,7 +673,6 @@ def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsy
     The refusal is a post-mutation exit, so the single rollback door (#5385)
     restores the target to its pre-run tip: meta.json is back to its pre-run
     bytes (not the pre-phase bytes, which already carry the baked number)."""
-    from specify_cli.consolidation import executor as ex
 
     slug = "mission-4900-absent-target-meta"
     _init_git_repo(tmp_path)
@@ -683,7 +683,7 @@ def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsy
 
     meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
     pre_run_meta, pre_run_main = meta_path.read_bytes(), _main_sha(tmp_path)
-    real_read = ex._read_target_tree_mission_number
+    real_read = phase_bookkeeping._read_target_tree_mission_number
 
     def _delete_then_read(target_feature_dir: Path) -> int | None:
         original_bytes.append(meta_path.read_bytes())
@@ -693,7 +693,7 @@ def test_absent_target_meta_refuses_instead_of_fabricating(tmp_path: Path, capsy
     original_bytes: list[bytes] = []
     with (
         _mission_number_merge_mocks(tmp_path),
-        patch.object(ex, "_read_target_tree_mission_number", side_effect=_delete_then_read),
+        patch.object(phase_bookkeeping, "_read_target_tree_mission_number", side_effect=_delete_then_read),
         pytest.raises(typer.Exit) as exc_info,
     ):
         _run_lane_based_consolidation(
@@ -719,7 +719,6 @@ def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: 
     target-tree mission_number read exits 1 with ``Error:``, not a raw traceback,
     and the single rollback door (#5385) restores the target to its pre-run tip:
     meta.json is back to its pre-run bytes."""
-    from specify_cli.consolidation import executor as ex
 
     slug = "mission-4900-corrupt-target-meta"
     _init_git_repo(tmp_path)
@@ -730,7 +729,7 @@ def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: 
 
     meta_path = tmp_path / "kitty-specs" / slug / "meta.json"
     pre_run_meta, pre_run_main = meta_path.read_bytes(), _main_sha(tmp_path)
-    real_read = ex._read_target_tree_mission_number
+    real_read = phase_bookkeeping._read_target_tree_mission_number
     original_bytes: list[bytes] = []
 
     def _corrupt_then_read(target_feature_dir: Path) -> int | None:
@@ -740,7 +739,7 @@ def test_corrupt_target_meta_restores_and_exits_nonzero(tmp_path: Path, capsys: 
 
     with (
         _mission_number_merge_mocks(tmp_path),
-        patch.object(ex, "_read_target_tree_mission_number", side_effect=_corrupt_then_read),
+        patch.object(phase_bookkeeping, "_read_target_tree_mission_number", side_effect=_corrupt_then_read),
         pytest.raises(typer.Exit) as exc_info,
     ):
         _run_lane_based_consolidation(

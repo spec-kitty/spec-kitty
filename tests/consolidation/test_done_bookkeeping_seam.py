@@ -28,6 +28,7 @@ from specify_cli.status import (
     ReviewOverride,
     WPInnerStateDelta,
 )
+from specify_cli.consolidation import phase_claim
 
 if TYPE_CHECKING:
     from tests._factories.coord_mission import CoordMission
@@ -779,14 +780,14 @@ def test_pre_fix_empty_coord_mission_records_done_on_coordination_surface(tmp_pa
     monkeypatch.setenv("HOME", str(mission.home))
 
     captured: list[str | None] = []
-    real_resolve = ex._resolve_pre_mutation_coord_sha
+    real_resolve = phase_claim._resolve_pre_mutation_coord_sha
 
     def _recording_resolve(state: ConsolidationState, run: ex._MergeRunState) -> str | None:
         sha = real_resolve(state, run)
         captured.append(sha)
         return sha
 
-    monkeypatch.setattr(ex, "_resolve_pre_mutation_coord_sha", _recording_resolve)
+    monkeypatch.setattr(phase_claim, "_resolve_pre_mutation_coord_sha", _recording_resolve)
 
     ex._run_lane_based_consolidation(
         repo_root=coord.repo_root,

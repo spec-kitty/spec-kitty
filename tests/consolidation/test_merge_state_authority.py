@@ -414,7 +414,7 @@ class TestReconciliationPassMessageHonesty:
 
     def test_squash_message_defers_and_does_not_claim_excluded_checked(self) -> None:
         from specify_cli.consolidation.config import MergeStrategy
-        from specify_cli.consolidation.executor import _reconciliation_pass_message
+        from specify_cli.consolidation.phase_gate import _reconciliation_pass_message
 
         msg = _reconciliation_pass_message(MergeStrategy.SQUASH)
         assert "deferred under squash" in msg
@@ -422,7 +422,7 @@ class TestReconciliationPassMessageHonesty:
 
     def test_merge_message_reports_full_verification(self) -> None:
         from specify_cli.consolidation.config import MergeStrategy
-        from specify_cli.consolidation.executor import _reconciliation_pass_message
+        from specify_cli.consolidation.phase_gate import _reconciliation_pass_message
 
         for strategy in (MergeStrategy.MERGE, MergeStrategy.REBASE):
             msg = _reconciliation_pass_message(strategy)
@@ -453,7 +453,7 @@ class TestPreMutationTargetShaPersistence:
         assert rehydrated.pre_mutation_target_sha == "abc123"
 
     def test_fresh_capture_persists_live_tip(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _resolve_pre_mutation_target_sha
+        from specify_cli.consolidation.phase_claim import _resolve_pre_mutation_target_sha
         from specify_cli.consolidation.state import load_state
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
@@ -470,7 +470,7 @@ class TestPreMutationTargetShaPersistence:
         assert reloaded.pre_mutation_target_sha == live
 
     def test_resume_reads_persisted_original_not_advanced_tip(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _resolve_pre_mutation_target_sha
+        from specify_cli.consolidation.phase_claim import _resolve_pre_mutation_target_sha
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         mission_id = "01M5001R" + "0" * 18
@@ -488,7 +488,7 @@ class TestPreMutationTargetShaPersistence:
         assert resumed != advanced
 
     def test_unresolvable_target_yields_none_and_persists_nothing(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _resolve_pre_mutation_target_sha
+        from specify_cli.consolidation.phase_claim import _resolve_pre_mutation_target_sha
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         state = self._state(repo, "01M5001N" + "0" * 18, "no-such-branch")
@@ -548,7 +548,7 @@ class TestRollbackTargetAfterFailedReconciliation:
         return run
 
     def test_reverts_target_to_pre_mutation_tip(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _rollback_target_after_failed_reconciliation
+        from specify_cli.consolidation.phase_gate import _rollback_target_after_failed_reconciliation
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         pre_sha = _rev(repo, "main")
@@ -561,7 +561,7 @@ class TestRollbackTargetAfterFailedReconciliation:
         assert _rev(repo, "main") == pre_sha  # CAS-restored to the pre-mutation tip
 
     def test_noop_when_pre_sha_unknown(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _rollback_target_after_failed_reconciliation
+        from specify_cli.consolidation.phase_gate import _rollback_target_after_failed_reconciliation
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         before = _rev(repo, "main")
@@ -570,7 +570,7 @@ class TestRollbackTargetAfterFailedReconciliation:
         assert _rev(repo, "main") == before
 
     def test_noop_when_already_at_pre_sha(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _rollback_target_after_failed_reconciliation
+        from specify_cli.consolidation.phase_gate import _rollback_target_after_failed_reconciliation
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         pre_sha = _rev(repo, "main")
@@ -582,7 +582,7 @@ class TestRollbackTargetAfterFailedReconciliation:
         assert reflog_after == reflog_before  # no ref move at all
 
     def test_guard_skips_when_target_ref_unresolvable(self, tmp_path: Path) -> None:
-        from specify_cli.consolidation.executor import _rollback_target_after_failed_reconciliation
+        from specify_cli.consolidation.phase_gate import _rollback_target_after_failed_reconciliation
 
         repo = _init_repo(tmp_path / "repo", default_branch="main")
         # target branch does not exist -> _resolve_ref_sha returns "" -> the fixed

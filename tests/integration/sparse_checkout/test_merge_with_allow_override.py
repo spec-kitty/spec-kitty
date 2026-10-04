@@ -24,6 +24,7 @@ from specify_cli.git.sparse_checkout import (
     _reset_session_warning_state,
     require_no_sparse_checkout,
 )
+from specify_cli.consolidation import entry_preflight
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -140,7 +141,7 @@ class TestMergeWithAllowOverride:
         def stop_after_preflight(*_args: object, **_kwargs: object) -> object:
             raise _StopEarly()
 
-        monkeypatch.setattr(executor_mod, "require_lanes_json", stop_after_preflight)
+        monkeypatch.setattr(entry_preflight, "require_lanes_json", stop_after_preflight)
 
         repo = tmp_path / "r"
         _init_git_repo(repo)
@@ -216,7 +217,7 @@ class TestMergeWithAllowOverride:
         def stop_after_preflight(*_args: object, **_kwargs: object) -> object:
             raise _StopEarly()
 
-        monkeypatch.setattr(executor_mod, "require_lanes_json", stop_after_preflight)
+        monkeypatch.setattr(entry_preflight, "require_lanes_json", stop_after_preflight)
 
         caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
 

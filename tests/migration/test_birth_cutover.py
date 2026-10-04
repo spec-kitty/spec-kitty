@@ -52,6 +52,8 @@ from tests.specify_cli.test_specify_topology_flag import (
     _read_meta,
     _real_merge_external_mocks,
 )
+from specify_cli.consolidation import phase_bookkeeping
+from tests.consolidation.executor_family import setattr_executor_family
 
 
 # ---------------------------------------------------------------------------
@@ -1014,7 +1016,7 @@ def _coord_seed_run(tmp_path: Path):
 def test_coord_seed_commit_targets_coord_branch_no_head_mismatch(tmp_path: Path) -> None:
     """F1: the seed events commit lands on the COORD branch via real safe_commit
     (no SafeCommitHeadMismatch), not the PRIMARY target branch."""
-    from specify_cli.consolidation.executor import _commit_coord_seed_events
+    from specify_cli.consolidation.phase_bookkeeping import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, coord_branch = _coord_seed_run(tmp_path)
 
@@ -1129,7 +1131,7 @@ def test_coord_seed_commit_targets_coord_branch_via_real_placement_port(tmp_path
     explicit permission, with this coordination note).
     """
     from mission_runtime import MissionArtifactKind, resolve_placement_only, write_target_degrade
-    from specify_cli.consolidation.executor import _commit_coord_seed_events
+    from specify_cli.consolidation.phase_bookkeeping import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, coord_branch, main_repo, slug = _coord_seed_run_real_meta(tmp_path, monkeypatch)
 
@@ -1191,7 +1193,7 @@ def test_coord_seed_commit_is_resume_safe_noop_when_clean(tmp_path: Path) -> Non
     """F2: a second invocation (events already committed, tree clean) is a no-op
     — gated on dirty-state, not the per-run seeded_count, so resume heals without
     duplicating."""
-    from specify_cli.consolidation.executor import _commit_coord_seed_events
+    from specify_cli.consolidation.phase_bookkeeping import _commit_coord_seed_events
 
     run, coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
     _commit_coord_seed_events(run, status_feature_dir)
@@ -1208,7 +1210,8 @@ def test_coord_seed_commit_best_effort_never_raises(tmp_path: Path) -> None:
     import types
     from typing import cast
 
-    from specify_cli.consolidation.executor import _MergeRunState, _commit_coord_seed_events
+    from specify_cli.consolidation.executor import _MergeRunState
+    from specify_cli.consolidation.phase_bookkeeping import _commit_coord_seed_events
 
     run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
     # Drop the coord ref -> the helper must no-op, not raise.
@@ -1228,7 +1231,7 @@ def test_birth_cutover_seed_projects_onto_primary_target(tmp_path: Path) -> None
     """#4787: a seed appended to the COORD leg after the bookkeeping projection is
     re-projected onto the PRIMARY copy — the post-merge status authority — so the
     torn-down coord triple never takes the deterministic seed rows with it."""
-    from specify_cli.consolidation.executor import _project_birth_cutover_seed_to_target
+    from specify_cli.consolidation.phase_bookkeeping import _project_birth_cutover_seed_to_target
 
     run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
     primary_events = run.main_repo / "kitty-specs" / run.mission_slug / "status.events.jsonl"
@@ -1245,11 +1248,10 @@ def test_birth_cutover_seed_projects_onto_primary_target(tmp_path: Path) -> None
 def test_birth_cutover_seed_projection_best_effort_never_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#4787: a projection failure is logged, never raised — the birth-cutover
     must not abort an otherwise successful merge."""
-    from specify_cli.consolidation import executor
 
     def _boom(**_kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(executor, "_project_status_bookkeeping_to_target", _boom)
+    setattr_executor_family(monkeypatch, "_project_status_bookkeeping_to_target", _boom)
     run, _coord_worktree, status_feature_dir, _ = _coord_seed_run(tmp_path)
-    executor._project_birth_cutover_seed_to_target(run, status_feature_dir)  # must not raise
+    phase_bookkeeping._project_birth_cutover_seed_to_target(run, status_feature_dir)  # must not raise

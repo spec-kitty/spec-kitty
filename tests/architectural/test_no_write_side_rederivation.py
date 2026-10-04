@@ -133,6 +133,18 @@ _WRITE_DIR_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC / "cli" / "commands" / "accept.py",
     _SRC / "cli" / "commands" / "_decisions_doctor.py",
     _SRC / "consolidation" / "executor.py",
+    # #2026: executor.py was split along its phases; the whole family stays in
+    # scan scope (the run status-dir write accessor lives in entry_preflight).
+    _SRC / "consolidation" / "entry_preflight.py",
+    _SRC / "consolidation" / "run_state.py",
+    _SRC / "consolidation" / "coord_strand.py",
+    _SRC / "consolidation" / "phase_claim.py",
+    _SRC / "consolidation" / "phase_advance.py",
+    _SRC / "consolidation" / "phase_bookkeeping.py",
+    _SRC / "consolidation" / "phase_gate.py",
+    _SRC / "consolidation" / "phase_teardown.py",
+    _SRC / "consolidation" / "phase_finalize.py",
+    _SRC / "consolidation" / "resume_recovery.py",
     _SRC / "cli" / "commands" / "materialize.py",
     _SRC / "coordination" / "commit_router.py",
     _SRC / "coordination" / "coord_seed.py",
@@ -1360,7 +1372,7 @@ _COORD_WRITER_CENSUS: tuple[tuple[str, str], ...] = (
     ("src/specify_cli/core/mission_creation.py", "_emit_create_events"),
     # Operator ruling Q4 / research D21: the consolidation and ``materialize``
     # sites were MIGRATED (WP18), not allow-listed.
-    ("src/specify_cli/consolidation/executor.py", "_phase_baseline_and_surface"),
+    ("src/specify_cli/consolidation/phase_advance.py", "_phase_baseline_and_surface"),
     ("src/specify_cli/consolidation/executor.py", "_run_lane_based_consolidation"),
     ("src/specify_cli/cli/commands/materialize.py", "_resolve_selected_dir"),
     ("src/specify_cli/cli/commands/materialize.py", "materialize"),

@@ -85,6 +85,10 @@ from tests.consolidation.test_issue_2711_merge_rollback_resume_coherence import 
     _bootstrap_coord_mission as _bootstrap_revert_mission,
     _init_git_repo as _init_revert_repo,
 )
+from specify_cli.consolidation import (
+    coord_strand,
+    phase_advance,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -203,7 +207,7 @@ def test_write_set_excludes_pre_existing_done_wp(tmp_path: Path) -> None:
     run = _make_min_run(repo, all_wp_ids=[STRANDED_WP, "WPZZ"], state=state)
     run.pre_target_coord_ref = COORD_BRANCH
 
-    ex._capture_pre_target_done_write_set(run)
+    coord_strand._capture_pre_target_done_write_set(run)
 
     assert STRANDED_WP not in run.pre_target_done_write_set, (
         "a genuinely-pre-existing-done WP must be excluded from the write-set — "
@@ -518,15 +522,15 @@ def test_resolve_run_status_dir_returns_the_write_location_path(tmp_path: Path) 
 def test_primary_mission_is_merged_reads_the_merge_marker_and_never_raises(tmp_path: Path) -> None:
     import json
 
-    assert ex._primary_mission_is_merged(tmp_path) is False  # no meta.json
+    assert phase_advance._primary_mission_is_merged(tmp_path) is False  # no meta.json
     (tmp_path / "meta.json").write_text("{not json", encoding="utf-8")
-    assert ex._primary_mission_is_merged(tmp_path) is False  # corrupt meta reads as not merged
+    assert phase_advance._primary_mission_is_merged(tmp_path) is False  # corrupt meta reads as not merged
     (tmp_path / "meta.json").write_text(json.dumps({"mission_slug": "m"}), encoding="utf-8")
-    assert ex._primary_mission_is_merged(tmp_path) is False
+    assert phase_advance._primary_mission_is_merged(tmp_path) is False
     (tmp_path / "meta.json").write_text(
         json.dumps({"mission_slug": "m", "merged_at": "2026-10-02T12:00:00+00:00"}), encoding="utf-8"
     )
-    assert ex._primary_mission_is_merged(tmp_path) is True
+    assert phase_advance._primary_mission_is_merged(tmp_path) is True
 
 
 def test_resolve_run_status_surface_uses_run_feature_dir_unless_completed(tmp_path: Path) -> None:
@@ -541,5 +545,5 @@ def test_resolve_run_status_surface_uses_run_feature_dir_unless_completed(tmp_pa
         target_feature_dir=tmp_path / "kitty-specs" / "m",  # no meta.json -> not completed
     )
 
-    assert ex._completed_mission_projected_events_path(run) is None
-    assert ex._resolve_run_status_surface(run) == feature_dir / "status.events.jsonl"
+    assert phase_advance._completed_mission_projected_events_path(run) is None
+    assert phase_advance._resolve_run_status_surface(run) == feature_dir / "status.events.jsonl"

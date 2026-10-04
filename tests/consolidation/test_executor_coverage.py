@@ -29,6 +29,15 @@ from specify_cli.post_merge.stale_assertions import (
     StaleAssertionFinding,
     StaleAssertionReport,
 )
+from specify_cli.consolidation import (
+    coord_strand,
+    phase_advance,
+    phase_bookkeeping,
+    phase_claim,
+    phase_finalize,
+    phase_teardown,
+)
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = pytest.mark.fast
 
@@ -141,8 +150,8 @@ def test_phase_gates_passes_and_prints_resume_banner(tmp_path: Path) -> None:
     with (
         patch("specify_cli.policy.config.load_policy_config", return_value=SimpleNamespace(merge_gates=[])),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates", return_value=gate_eval),
-        patch.object(ex, "_enforce_canonical_status_history") as hist_mock,
-        patch.object(ex, "_warn_or_confirm_hollow_reviews") as hollow_mock,
+        patch.object(phase_claim, "_enforce_canonical_status_history") as hist_mock,
+        patch.object(phase_claim, "_warn_or_confirm_hollow_reviews") as hollow_mock,
     ):
         ex._phase_gates_and_state(run)
     hist_mock.assert_called_once()
@@ -157,7 +166,7 @@ def test_phase_merge_lanes_skips_already_integrated(tmp_path: Path) -> None:
     with (
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_lane_already_integrated", return_value=True),
+        patch.object(phase_advance, "_lane_already_integrated", return_value=True),
         patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission") as merge_mock,
     ):
         ex._phase_merge_lanes(run)
@@ -171,7 +180,7 @@ def test_phase_merge_lanes_success_marks_unintegrated(tmp_path: Path) -> None:
     with (
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_lane_already_integrated", return_value=False),
+        patch.object(phase_advance, "_lane_already_integrated", return_value=False),
         patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=result),
     ):
         ex._phase_merge_lanes(run)
@@ -187,7 +196,7 @@ def _merge_lanes_hitting_already_merged() -> Iterator[None]:
     with (
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_lane_already_integrated", return_value=False),
+        patch.object(phase_advance, "_lane_already_integrated", return_value=False),
         patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=_ALREADY_MERGED_LANE_RESULT),
     ):
         yield
@@ -218,7 +227,7 @@ def test_phase_merge_lanes_hard_failure_exits(tmp_path: Path) -> None:
     with (
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_lane_already_integrated", return_value=False),
+        patch.object(phase_advance, "_lane_already_integrated", return_value=False),
         patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=result),
         pytest.raises(typer.Exit) as exc,
     ):
@@ -245,10 +254,10 @@ def test_phase_baseline_and_surface_resolves_paths(tmp_path: Path) -> None:
     # The run's status dir is resolved ONCE through the write accessor in the unlocked pre-phase.
     run.feature_dir = surface.parent
     with (
-        patch.object(ex, "run_command", return_value=(0, "deadbeef\n", "")),
-        patch.object(ex, "resolve_mission_identity", return_value=SimpleNamespace(mission_id="01XID")),
-        patch.object(ex, "is_under_worktrees_segment", return_value=True),
-        patch.object(ex, "get_state_path", return_value=tmp_path / "state.json"),
+        patch_executor_family("run_command", return_value=(0, "deadbeef\n", "")),
+        patch_executor_family("resolve_mission_identity", return_value=SimpleNamespace(mission_id="01XID")),
+        patch_executor_family("is_under_worktrees_segment", return_value=True),
+        patch_executor_family("get_state_path", return_value=tmp_path / "state.json"),
     ):
         ex._phase_baseline_and_surface(run)
     assert run.target_baseline_sha == "deadbeef"
@@ -261,11 +270,11 @@ def test_phase_baseline_and_surface_handles_missing_identity(tmp_path: Path) -> 
     run = _make_run(tmp_path)
     surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
     with (
-        patch.object(ex, "run_command", return_value=(1, "", "fatal")),
-        patch.object(ex, "resolve_mission_identity", side_effect=ValueError("no meta")),
-        patch.object(ex, "resolve_status_surface", return_value=surface),
-        patch.object(ex, "is_under_worktrees_segment", return_value=False),
-        patch.object(ex, "get_state_path", return_value=tmp_path / "state.json"),
+        patch_executor_family("run_command", return_value=(1, "", "fatal")),
+        patch_executor_family("resolve_mission_identity", side_effect=ValueError("no meta")),
+        patch.object(phase_advance, "resolve_status_surface", return_value=surface),
+        patch_executor_family("is_under_worktrees_segment", return_value=False),
+        patch_executor_family("get_state_path", return_value=tmp_path / "state.json"),
     ):
         ex._phase_baseline_and_surface(run)
     # git rev-parse failed -> baseline falls back to HEAD~1.
@@ -279,7 +288,7 @@ def test_phase_baseline_and_surface_handles_missing_identity(tmp_path: Path) -> 
 
 def test_phase_bake_planning_only_short_circuits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, planning_artifact_only=True)
-    with patch.object(ex, "_bake_mission_number_into_mission_branch") as bake_mock:
+    with patch.object(phase_advance, "_bake_mission_number_into_mission_branch") as bake_mock:
         ex._phase_bake_and_pre_target_done(run)
     bake_mock.assert_not_called()
     assert run.mission_already_applied is True
@@ -289,10 +298,10 @@ def test_phase_bake_pre_target_done_restores_on_record_failure(tmp_path: Path) -
     run = _make_run(tmp_path, done_marked_before_target=True)
     restored: list[dict[Path, bytes | None]] = []
     with (
-        patch.object(ex, "_bake_mission_number_into_mission_branch", return_value=None),
-        patch.object(ex, "_capture_merge_snapshots", return_value={tmp_path / "x": b"o"}),
-        patch.object(ex, "_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
-        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(phase_advance, "_bake_mission_number_into_mission_branch", return_value=None),
+        patch_executor_family("_capture_merge_snapshots", return_value={tmp_path / "x": b"o"}),
+        patch_executor_family("_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="boom"),
     ):
         ex._phase_bake_and_pre_target_done(run)
@@ -302,9 +311,9 @@ def test_phase_bake_pre_target_done_restores_on_record_failure(tmp_path: Path) -
 def test_phase_bake_pre_target_done_success_records(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     with (
-        patch.object(ex, "_bake_mission_number_into_mission_branch", return_value=None),
-        patch.object(ex, "_capture_merge_snapshots", return_value={}),
-        patch.object(ex, "_record_merged_wps_done_for_merge") as record_mock,
+        patch.object(phase_advance, "_bake_mission_number_into_mission_branch", return_value=None),
+        patch_executor_family("_capture_merge_snapshots", return_value={}),
+        patch_executor_family("_record_merged_wps_done_for_merge") as record_mock,
     ):
         ex._phase_bake_and_pre_target_done(run)
     record_mock.assert_called_once()
@@ -324,9 +333,9 @@ def test_phase_mission_to_target_restores_on_exception(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     restored: list[object] = []
     with (
-        patch.object(ex, "_branch_trees_equal", return_value=False),
+        patch.object(phase_advance, "_branch_trees_equal", return_value=False),
         patch("specify_cli.lanes.consolidation.integrate_mission_into_target", side_effect=RuntimeError("merge died")),
-        patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=lambda r: restored.append(r)),
+        patch.object(phase_advance, "_restore_pre_target_if_at_baseline", side_effect=lambda r: restored.append(r)),
         pytest.raises(RuntimeError, match="merge died"),
     ):
         ex._phase_mission_to_target(run)
@@ -337,7 +346,7 @@ def test_phase_mission_to_target_success(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     result = SimpleNamespace(success=True, errors=[], commit="abcdef1234", already_applied=False)
     with (
-        patch.object(ex, "_branch_trees_equal", return_value=False),
+        patch.object(phase_advance, "_branch_trees_equal", return_value=False),
         patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=result),
     ):
         ex._phase_mission_to_target(run)
@@ -349,10 +358,10 @@ def test_handle_result_rejects_zero_diff_noop_squash(tmp_path: Path) -> None:
     run.any_lane_had_unintegrated_code = True
     result = SimpleNamespace(success=True, errors=[], commit=None, already_applied=True)
     with (
-        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        patch.object(phase_advance, "_restore_pre_target_if_at_baseline") as restore_mock,
         pytest.raises(typer.Exit) as exc,
     ):
-        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+        phase_advance._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
     assert exc.value.exit_code == 1
     restore_mock.assert_called_once_with(run)
 
@@ -365,8 +374,8 @@ def test_handle_result_resume_tolerates_already_merged(tmp_path: Path) -> None:
     """On resume, equal trees + an "already" error continue without restoring the target."""
     run = _make_run(tmp_path, is_resume=True)
     restored: list[object] = []
-    with patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=restored.append):
-        ex._handle_mission_merge_result(run, _already_merged_mission_result(), mission_integrated_into_target=True)
+    with patch.object(phase_advance, "_restore_pre_target_if_at_baseline", side_effect=restored.append):
+        phase_advance._handle_mission_merge_result(run, _already_merged_mission_result(), mission_integrated_into_target=True)
 
     assert restored == []
 
@@ -376,10 +385,10 @@ def test_handle_result_fresh_run_fails_on_already_merged(tmp_path: Path) -> None
     run = _make_run(tmp_path, is_resume=False)
     restored: list[object] = []
     with (
-        patch.object(ex, "_restore_pre_target_if_at_baseline", side_effect=restored.append),
+        patch.object(phase_advance, "_restore_pre_target_if_at_baseline", side_effect=restored.append),
         pytest.raises(typer.Exit) as exc,
     ):
-        ex._handle_mission_merge_result(run, _already_merged_mission_result(), mission_integrated_into_target=True)
+        phase_advance._handle_mission_merge_result(run, _already_merged_mission_result(), mission_integrated_into_target=True)
 
     assert exc.value.exit_code == 1
     assert restored == [run]
@@ -404,10 +413,10 @@ def test_handle_result_resume_never_tolerates_content_conflict(tmp_path: Path) -
         diagnostic_code="TARGET_BRANCH_CONTENT_CONFLICT",
     )
     with (
-        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        patch.object(phase_advance, "_restore_pre_target_if_at_baseline") as restore_mock,
         pytest.raises(typer.Exit) as exc,
     ):
-        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+        phase_advance._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
     assert exc.value.exit_code == 1
     restore_mock.assert_called_once_with(run)
 
@@ -423,7 +432,7 @@ def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path
         conflicting_paths=("src/shared.py",),
         diagnostic_code="TARGET_BRANCH_CONTENT_CONFLICT",
     )
-    ex._emit_mission_target_content_conflict(run, result)
+    phase_advance._emit_mission_target_content_conflict(run, result)
     out = capsys.readouterr().out
     assert "TARGET_BRANCH_CONTENT_CONFLICT" in out
     assert "src/shared.py" in out
@@ -439,7 +448,7 @@ def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path
         conflicting_paths=("a.py",),
         diagnostic_code="SOME_OTHER_CODE",
     )
-    ex._emit_mission_target_content_conflict(run, result_sentinel)
+    phase_advance._emit_mission_target_content_conflict(run, result_sentinel)
     assert "diagnostic_code: SOME_OTHER_CODE" in capsys.readouterr().out
 
     # None falls back to the shared constant.
@@ -451,7 +460,7 @@ def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path
         conflicting_paths=("a.py",),
         diagnostic_code=None,
     )
-    ex._emit_mission_target_content_conflict(run, result_none)
+    phase_advance._emit_mission_target_content_conflict(run, result_none)
     assert "diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT" in capsys.readouterr().out
 
 
@@ -473,11 +482,11 @@ def test_handle_result_resume_tolerance_requires_equal_trees(tmp_path: Path) -> 
         diagnostic_code=None,
     )
     with (
-        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        patch.object(phase_advance, "_restore_pre_target_if_at_baseline") as restore_mock,
         pytest.raises(typer.Exit) as exc,
     ):
         # trees NOT equal → tolerance must not fire despite "already" in the text
-        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+        phase_advance._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
     assert exc.value.exit_code == 1
     restore_mock.assert_called_once_with(run)
 
@@ -486,10 +495,10 @@ def test_handle_result_hard_failure_restores_and_exits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, is_resume=False)
     result = SimpleNamespace(success=False, errors=["real conflict"], commit=None, already_applied=False)
     with (
-        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        patch.object(phase_advance, "_restore_pre_target_if_at_baseline") as restore_mock,
         pytest.raises(typer.Exit) as exc,
     ):
-        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+        phase_advance._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
     assert exc.value.exit_code == 1
     restore_mock.assert_called_once_with(run)
 
@@ -502,20 +511,20 @@ def test_restore_pre_target_restores_only_when_at_baseline(tmp_path: Path) -> No
     run.pre_target_bookkeeping_snapshots = {tmp_path / "x": b"o"}
     restored: list[object] = []
     with (
-        patch.object(ex, "_target_branch_still_at_baseline", return_value=True),
-        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(coord_strand, "_target_branch_still_at_baseline", return_value=True),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
     ):
-        ex._restore_pre_target_if_at_baseline(run)
+        coord_strand._restore_pre_target_if_at_baseline(run)
     assert restored == [{tmp_path / "x": b"o"}]
 
 
 def test_restore_pre_target_noop_when_target_advanced(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     with (
-        patch.object(ex, "_target_branch_still_at_baseline", return_value=False),
-        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
+        patch.object(coord_strand, "_target_branch_still_at_baseline", return_value=False),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots") as restore_mock,
     ):
-        ex._restore_pre_target_if_at_baseline(run)
+        coord_strand._restore_pre_target_if_at_baseline(run)
     restore_mock.assert_not_called()
 
 
@@ -527,8 +536,8 @@ def test_phase_record_done_restores_on_record_failure(tmp_path: Path) -> None:
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"o"}
     restored: list[object] = []
     with (
-        patch.object(ex, "_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
-        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
+        patch_executor_family("_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="boom"),
     ):
         ex._phase_record_done_and_project(run)
@@ -540,8 +549,8 @@ def test_phase_record_done_restores_on_project_failure(tmp_path: Path) -> None:
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"o"}
     restored: list[object] = []
     with (
-        patch.object(ex, "_project_status_bookkeeping_to_target", side_effect=RuntimeError("proj")),
-        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
+        patch_executor_family("_project_status_bookkeeping_to_target", side_effect=RuntimeError("proj")),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="proj"),
     ):
         ex._phase_record_done_and_project(run)
@@ -558,8 +567,8 @@ def test_phase_record_done_refuses_when_projection_window_unreadable(tmp_path: P
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"o"}
     restored: list[object] = []
     with (
-        patch.object(ex, "_project_status_bookkeeping_to_target", side_effect=_unreadable_window()),
-        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
+        patch_executor_family("_project_status_bookkeeping_to_target", side_effect=_unreadable_window()),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(typer.Exit) as excinfo,
     ):
         ex._phase_record_done_and_project(run)
@@ -602,7 +611,7 @@ def test_phase_record_done_success_sets_target_paths(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     events_p = tmp_path / "e.jsonl"
     status_p = tmp_path / "s.json"
-    with patch.object(ex, "_project_status_bookkeeping_to_target", return_value=(events_p, status_p)):
+    with patch_executor_family("_project_status_bookkeeping_to_target", return_value=(events_p, status_p)):
         ex._phase_record_done_and_project(run)
     assert run.target_events_path == events_p
     assert run.target_status_path == status_p
@@ -617,8 +626,8 @@ def test_phase_porcelain_refuses_when_git_status_fails(tmp_path: Path) -> None:
     former fail-open "check skipped" warning)."""
     run = _make_run(tmp_path)
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(1, ())),
-        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
+        patch.object(phase_bookkeeping, "_raw_porcelain_status", return_value=(1, ())),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots") as restore_mock,
         pytest.raises(typer.Exit) as exc,
     ):
         ex._phase_porcelain_invariant(run)
@@ -629,9 +638,9 @@ def test_phase_porcelain_refuses_when_git_status_fails(tmp_path: Path) -> None:
 def test_phase_porcelain_clean_tree_passes(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(0, ())),
-        patch.object(ex, "_classify_porcelain_lines", return_value=([], 0)),
-        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
+        patch.object(phase_bookkeeping, "_raw_porcelain_status", return_value=(0, ())),
+        patch.object(phase_bookkeeping, "_classify_porcelain_lines", return_value=([], 0)),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._phase_porcelain_invariant(run)
     restore_mock.assert_not_called()
@@ -667,7 +676,7 @@ def test_restore_regressed_gate_artifacts_restores_divergent_target_copy(
         untouched_path: None,
     }
 
-    ex._restore_regressed_gate_artifacts(run)
+    phase_advance._restore_regressed_gate_artifacts(run)
 
     assert clobbered_path.read_bytes() == b'{"accepted": true}'
     assert run.gate_artifact_restored_paths == [clobbered_path]
@@ -685,7 +694,7 @@ def test_restore_regressed_gate_artifacts_noop_when_current_matches_original(
     matching_path.write_bytes(b'{"accepted": true}')
     run.pre_target_gate_artifact_snapshots = {matching_path: b'{"accepted": true}'}
 
-    ex._restore_regressed_gate_artifacts(run)
+    phase_advance._restore_regressed_gate_artifacts(run)
 
     assert matching_path.read_bytes() == b'{"accepted": true}'
     assert run.gate_artifact_restored_paths == []
@@ -704,7 +713,7 @@ def test_phase_porcelain_folds_restored_gate_artifact_into_expected_paths(
     run = _make_run(tmp_path)
     restored_path = tmp_path / "some" / "random" / "file.json"
     run.gate_artifact_restored_paths = [restored_path]
-    with patch.object(ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))):
+    with patch.object(phase_bookkeeping, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))):
         ex._phase_porcelain_invariant(run)  # must not raise typer.Exit
 
 
@@ -714,7 +723,7 @@ def test_phase_porcelain_flags_unrestored_unexpected_path(tmp_path: Path) -> Non
     the fold (not some other leg) is what suppressed it there."""
     run = _make_run(tmp_path)
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))),
+        patch.object(phase_bookkeeping, "_raw_porcelain_status", return_value=(0, (_modified("some/random/file.json"),))),
         pytest.raises(typer.Exit) as exc,
     ):
         ex._phase_porcelain_invariant(run)
@@ -729,10 +738,10 @@ def test_phase_commit_skips_when_no_bookkeeping_changes(tmp_path: Path) -> None:
     run.target_events_path = tmp_path / "e.jsonl"
     run.target_status_path = tmp_path / "s.json"
     with (
-        patch.object(ex, "_paths_have_status_changes", return_value=False),
-        patch.object(ex, "commit_merge_bookkeeping") as commit_mock,
-        patch.object(ex, "_assert_merged_wps_done_on_target"),
-        patch.object(ex, "_assert_baseline_merge_commit_on_target"),
+        patch_executor_family("_paths_have_status_changes", return_value=False),
+        patch_executor_family("commit_merge_bookkeeping") as commit_mock,
+        patch.object(phase_bookkeeping, "_assert_merged_wps_done_on_target"),
+        patch.object(phase_bookkeeping, "_assert_baseline_merge_commit_on_target"),
     ):
         ex._phase_commit_and_assert(run)
     commit_mock.assert_not_called()
@@ -743,12 +752,12 @@ def test_phase_commit_baseline_assert_failure_exits(tmp_path: Path) -> None:
     run.target_events_path = tmp_path / "e.jsonl"
     run.target_status_path = tmp_path / "s.json"
     with (
-        patch.object(ex, "_paths_have_status_changes", return_value=False),
-        patch.object(ex, "_assert_merged_wps_done_on_target"),
+        patch_executor_family("_paths_have_status_changes", return_value=False),
+        patch.object(phase_bookkeeping, "_assert_merged_wps_done_on_target"),
         patch.object(
-            ex,
+            phase_bookkeeping,
             "_assert_baseline_merge_commit_on_target",
-            side_effect=ex.BaselineMergeCommitError("baseline missing"),
+            side_effect=phase_advance.BaselineMergeCommitError("baseline missing"),
         ),
         pytest.raises(typer.Exit) as exc,
     ):
@@ -761,13 +770,13 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
     run.target_events_path = tmp_path / "e.jsonl"
     run.target_status_path = tmp_path / "s.json"
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"o"}
-    recovered = ex.SafeCommitRecoveryFailed("recovered")
+    recovered = phase_bookkeeping.SafeCommitRecoveryFailed("recovered")
     recovered.commit_sha = "abc123"
     with (
-        patch.object(ex, "_paths_have_status_changes", return_value=True),
-        patch.object(ex, "commit_merge_bookkeeping", side_effect=recovered),
-        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
-        pytest.raises(ex.SafeCommitRecoveryFailed),
+        patch_executor_family("_paths_have_status_changes", return_value=True),
+        patch_executor_family("commit_merge_bookkeeping", side_effect=recovered),
+        patch.object(coord_strand, "restore_generated_artifact_snapshots") as restore_mock,
+        pytest.raises(phase_bookkeeping.SafeCommitRecoveryFailed),
     ):
         ex._phase_commit_and_assert(run)
     # A recovered commit (commit_sha set) must NOT restore — the commit landed.
@@ -779,7 +788,7 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
 
 def test_phase_dossier_and_stale_swallows_stale_failure(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
-    with patch.object(ex, "run_check", side_effect=RuntimeError("scan crashed")):
+    with patch.object(phase_finalize, "run_check", side_effect=RuntimeError("scan crashed")):
         ex._phase_dossier_and_stale(run)
     assert run.stale_report is None
 
@@ -795,7 +804,7 @@ def test_phase_dossier_and_stale_records_report(tmp_path: Path) -> None:
         files_scanned=1,
         findings_per_100_loc=0.0,
     )
-    with patch.object(ex, "run_check", return_value=report):
+    with patch.object(phase_finalize, "run_check", return_value=report):
         ex._phase_dossier_and_stale(run)
     assert run.stale_report is report
 
@@ -805,7 +814,7 @@ def test_phase_dossier_and_stale_records_report(tmp_path: Path) -> None:
 
 def test_phase_push_noop_without_push_flag(tmp_path: Path) -> None:
     run = _make_run(tmp_path, push=False)
-    with patch.object(ex, "run_command") as cmd_mock:
+    with patch_executor_family("run_command") as cmd_mock:
         ex._phase_push(run)
     cmd_mock.assert_not_called()
 
@@ -842,10 +851,10 @@ def test_phase_push_publishes_the_target_branch_to_origin(tmp_path: Path) -> Non
 def test_phase_push_failure_with_linear_history_hint_exits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, push=True)
     with (
-        patch.object(ex, "has_remote", return_value=True),
-        patch.object(ex, "run_command", return_value=(1, "", "non-fast-forward")),
-        patch.object(ex, "_is_linear_history_rejection", return_value=True),
-        patch.object(ex, "_emit_remediation_hint") as hint_mock,
+        patch.object(phase_finalize, "has_remote", return_value=True),
+        patch_executor_family("run_command", return_value=(1, "", "non-fast-forward")),
+        patch.object(phase_finalize, "_is_linear_history_rejection", return_value=True),
+        patch.object(phase_finalize, "_emit_remediation_hint") as hint_mock,
         pytest.raises(typer.Exit) as exc,
     ):
         ex._phase_push(run)
@@ -879,9 +888,9 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.branch_naming.worktree_path", return_value=wt),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_worktree_removal_delay", return_value=0),
-        patch.object(ex, "run_command", side_effect=_fake_cmd),
-        patch.object(ex, "guarded_worktree_remove") as guarded_remove_mock,
+        patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
+        patch_executor_family("run_command", side_effect=_fake_cmd),
+        patch.object(phase_teardown, "guarded_worktree_remove") as guarded_remove_mock,
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         # WP04 (#2119): coordination teardown now routes through the shared
         # ``teardown_coordination_topology`` seam. Patch the seam's real destroy
@@ -918,8 +927,8 @@ def test_phase_cleanup_skips_missing_worktree_and_branch(tmp_path: Path) -> None
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.branch_naming.worktree_path", return_value=missing_wt),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_worktree_removal_delay", return_value=0),
-        patch.object(ex, "run_command", side_effect=_fake_cmd),
+        patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
+        patch_executor_family("run_command", side_effect=_fake_cmd),
         patch("specify_cli.mission_metadata.load_meta", return_value={}),
         # WP04 (#2119): the seam runs the persist leg before the (no-op) destroy;
         # stub it so an empty-meta mission does not hit the real generator.
@@ -941,8 +950,8 @@ def test_phase_cleanup_coord_teardown_failure_is_non_fatal(tmp_path: Path) -> No
     # persist leg (which runs OUTSIDE the swallow) so it does not interfere.
     run = _make_run(tmp_path, remove_worktree=True, delete_branch=False)
     with (
-        patch.object(ex, "_worktree_removal_delay", return_value=0),
-        patch.object(ex, "run_command", return_value=(0, "", "")),
+        patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
+        patch_executor_family("run_command", return_value=(0, "", "")),
         patch("specify_cli.lanes.branch_naming.worktree_path", return_value=tmp_path / "absent"),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
@@ -961,8 +970,8 @@ def test_phase_cleanup_coord_teardown_failure_is_non_fatal(tmp_path: Path) -> No
 def test_phase_finalize_and_summary_runs_all_steps(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     with (
-        patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
-        patch.object(ex, "clear_state") as clear_mock,
+        patch.object(phase_finalize, "cleanup_merge_workspace") as cleanup_mock,
+        patch_executor_family("clear_state") as clear_mock,
     ):
         ex._phase_finalize_and_summary(run)
     cleanup_mock.assert_called_once()
@@ -1010,7 +1019,7 @@ def test_render_stale_findings_short_circuit_states_are_named(tmp_path: Path, ha
     )
 
     with ex.console.capture() as captured:
-        ex._render_stale_findings(report)
+        phase_finalize._render_stale_findings(report)
 
     assert expected_line in captured.get()
 
@@ -1039,7 +1048,7 @@ def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
     )
 
     with ex.console.capture() as captured:
-        ex._render_stale_findings(report)
+        phase_finalize._render_stale_findings(report)
     output = captured.get()
 
     for line in ("[high] test_x.py:10", "[medium] test_x.py:11", "[info] test_x.py:13", "[low] test_x.py:12"):
@@ -1083,7 +1092,7 @@ def test_render_stale_findings_info_block_is_prominent(tmp_path: Path) -> None:
     )
 
     with ex.console.capture() as captured:
-        ex._render_stale_findings(report)
+        phase_finalize._render_stale_findings(report)
     output = captured.get()
 
     # A named block header (not a bare count note) ...
@@ -1120,15 +1129,15 @@ def _assert_partial_retention_retains_coord_triple(tmp_path: Path, *, delete_bra
         patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
         patch("specify_cli.lanes.branch_naming.worktree_path", return_value=tmp_path / "absent"),
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
-        patch.object(ex, "_worktree_removal_delay", return_value=0),
-        patch.object(ex, "run_command", side_effect=_fake_cmd),
+        patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
+        patch_executor_family("run_command", side_effect=_fake_cmd),
         patch(
             "specify_cli.mission_metadata.load_meta_or_empty",
             return_value={"coordination_branch": "kitty/mission-m", "mid8": "deadbeef"},
         ),
         patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
         patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
-        patch.object(ex, "commit_merge_bookkeeping") as commit_mock,
+        patch_executor_family("commit_merge_bookkeeping") as commit_mock,
     ):
         ex._phase_cleanup_worktrees_and_branches(run)
 
@@ -1162,9 +1171,9 @@ def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
     workspace."""
     run = _make_run(tmp_path, remove_worktree=False, delete_branch=False, teardown_coordination=False)
     with (
-        patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
-        patch.object(ex, "clear_state"),
-        patch.object(ex, "_render_stale_findings"),
+        patch.object(phase_finalize, "cleanup_merge_workspace") as cleanup_mock,
+        patch_executor_family("clear_state"),
+        patch.object(phase_finalize, "_render_stale_findings"),
     ):
         ex._phase_finalize_and_summary(run)
     cleanup_mock.assert_called_once()
@@ -1271,23 +1280,12 @@ def test_merge_resume_threads_raw_retention_flags_unchanged(tmp_path: Path) -> N
         patch.object(merge_mod, "_validate_target_branch"),
         patch.object(merge_mod, "_run_real_merge", side_effect=_fake_run_real_merge),
     ):
-        merge_mod.consolidate(
-            strategy=None,
-            delete_branch=None,
-            remove_worktree=None,
-            push=False,
-            target_branch=None,
-            dry_run=False,
-            json_output=False,
-            mission="m",
-            resume=True,
-            abort=False,
-            context_token=None,
-            keep_workspace=False,
-            allow_sparse_checkout=False,
-            yes=True,
-            skip_review_artifact_check=False,
-            note=None,
+        merge_mod.run_consolidate(
+            merge_mod.ConsolidateOptions(
+                mission="m",
+                resume=True,
+                yes=True,
+            )
         )
 
     assert captured.get("delete_branch") is None, (

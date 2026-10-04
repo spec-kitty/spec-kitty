@@ -34,6 +34,12 @@ from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet
 from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
+from specify_cli.consolidation import (
+    phase_claim,
+    phase_gate,
+    run_state,
+)
+from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -221,10 +227,10 @@ def test_resolve_pre_mutation_coord_sha_read_persisted_first(tmp_path: Path, mon
     def _boom(_run: ex._MergeRunState) -> None:
         raise AssertionError("live coord checkpoint captured on a persisted resume (re-poison!)")
 
-    monkeypatch.setattr(ex, "_capture_coord_checkpoint", _boom)
-    assert ex._resolve_pre_mutation_coord_sha(state, run) == "PERSISTEDCOORDSHA"
+    setattr_executor_family(monkeypatch, "_capture_coord_checkpoint", _boom)
+    assert phase_claim._resolve_pre_mutation_coord_sha(state, run) == "PERSISTEDCOORDSHA"
     # resume-of-a-resume: still stable, still never captures live.
-    assert ex._resolve_pre_mutation_coord_sha(state, run) == "PERSISTEDCOORDSHA"
+    assert phase_claim._resolve_pre_mutation_coord_sha(state, run) == "PERSISTEDCOORDSHA"
     assert state.pre_mutation_coord_sha == "PERSISTEDCOORDSHA"
     assert state.pre_interrupt_lane_tips == {"br": "TIP"}
 
@@ -236,10 +242,10 @@ def test_resolve_pre_mutation_coord_sha_captures_and_persists_on_fresh(tmp_path:
     repo, _base, tips = _make_repo(tmp_path, lane_ids=lane_ids)
     state = _state(repo)  # no persisted coord base
     run = _run(repo, state, _manifest(lane_ids), is_resume=False)
-    checkpoint = ex._CoordCheckpoint(ref="refs/heads/coord", sha="FRESHCOORDSHA")
-    monkeypatch.setattr(ex, "_capture_coord_checkpoint", lambda _run: checkpoint)
+    checkpoint = run_state._CoordCheckpoint(ref="refs/heads/coord", sha="FRESHCOORDSHA")
+    setattr_executor_family(monkeypatch, "_capture_coord_checkpoint", lambda _run: checkpoint)
 
-    assert ex._resolve_pre_mutation_coord_sha(state, run) == "FRESHCOORDSHA"
+    assert phase_claim._resolve_pre_mutation_coord_sha(state, run) == "FRESHCOORDSHA"
     assert state.pre_mutation_coord_sha == "FRESHCOORDSHA"
     assert state.pre_mutation_coord_ref == "refs/heads/coord"
     assert state.pre_interrupt_lane_tips == tips  # both lane branches captured by name
@@ -256,8 +262,8 @@ def test_resolve_pre_mutation_coord_sha_none_when_not_coord_topology(tmp_path: P
     repo, _base, _tips = _make_repo(tmp_path)
     state = _state(repo)
     run = _run(repo, state, _manifest(), is_resume=False)
-    monkeypatch.setattr(ex, "_capture_coord_checkpoint", lambda _run: None)
-    assert ex._resolve_pre_mutation_coord_sha(state, run) is None
+    setattr_executor_family(monkeypatch, "_capture_coord_checkpoint", lambda _run: None)
+    assert phase_claim._resolve_pre_mutation_coord_sha(state, run) is None
     assert state.pre_mutation_coord_sha is None
     assert state.pre_interrupt_lane_tips == {}
 
@@ -276,7 +282,7 @@ def test_enforce_resume_anchor_absent_base_when_consolidated_refuses(tmp_path: P
     state = _state(repo, pre_mutation_coord_sha=None, completed_wps=["WP01"])
     run = _run(repo, state, _manifest(), is_resume=True)
     with pytest.raises(typer.Exit) as exc:
-        ex._enforce_resume_anchor_integrity(run, coord_topology=True)
+        phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)
     assert exc.value.exit_code == 1
 
 
@@ -288,7 +294,7 @@ def test_enforce_resume_anchor_absent_base_without_consolidation_is_noop(tmp_pat
     repo, _base, _tips = _make_repo(tmp_path)
     state = _state(repo, pre_mutation_coord_sha=None, completed_wps=[])
     run = _run(repo, state, _manifest(), is_resume=True)
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 def test_enforce_resume_anchor_fresh_is_noop(tmp_path: Path) -> None:
@@ -302,7 +308,7 @@ def test_enforce_resume_anchor_fresh_is_noop(tmp_path: Path) -> None:
     repo, _base, _tips = _make_repo(tmp_path)
     state = _state(repo, pre_mutation_coord_sha=None, completed_wps=["WP01"])
     run = _run(repo, state, _manifest(), is_resume=False)
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 def test_enforce_resume_anchor_non_coord_is_noop(tmp_path: Path) -> None:
@@ -314,7 +320,7 @@ def test_enforce_resume_anchor_non_coord_is_noop(tmp_path: Path) -> None:
     repo, _base, _tips = _make_repo(tmp_path)
     state = _state(repo, pre_mutation_coord_sha=None, completed_wps=["WP01"])
     run = _run(repo, state, _manifest(), is_resume=True)
-    ex._enforce_resume_anchor_integrity(run, coord_topology=False)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=False)  # no raise
 
 
 def test_enforce_resume_anchor_lane_tip_divergence_refuses(tmp_path: Path) -> None:
@@ -337,7 +343,7 @@ def test_enforce_resume_anchor_lane_tip_divergence_refuses(tmp_path: Path) -> No
     )
     run = _run(repo, state, _manifest(), is_resume=True)
     with pytest.raises(typer.Exit) as exc:
-        ex._enforce_resume_anchor_integrity(run, coord_topology=True)
+        phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)
     assert exc.value.exit_code == 1
 
 
@@ -352,7 +358,7 @@ def test_enforce_resume_anchor_behind_head_does_not_refuse(tmp_path: Path) -> No
         pre_interrupt_lane_tips={branch: base},  # ancestor of the lane tip
     )
     run = _run(repo, state, _manifest(), is_resume=True)
-    ex._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
+    phase_claim._enforce_resume_anchor_integrity(run, coord_topology=True)  # no raise
 
 
 # ---------------------------------------------------------------------------
@@ -363,14 +369,14 @@ def test_enforce_resume_anchor_behind_head_does_not_refuse(tmp_path: Path) -> No
 def test_reconciliation_pass_message_squash_is_honest() -> None:
     """Under squash the gate defers content reachability; the message must NOT claim
     "no excluded commit reachable" (which was never checked under squash)."""
-    msg = ex._reconciliation_pass_message(MergeStrategy.SQUASH)
+    msg = phase_gate._reconciliation_pass_message(MergeStrategy.SQUASH)
     assert "no excluded commit reachable" not in msg
     assert "deferred" in msg
 
 
 def test_reconciliation_pass_message_merge_asserts_full_verification() -> None:
     """Merge/rebase ran the full per-SHA reachability + excluded checks."""
-    msg = ex._reconciliation_pass_message(MergeStrategy.MERGE)
+    msg = phase_gate._reconciliation_pass_message(MergeStrategy.MERGE)
     assert "no excluded commit reachable" in msg
 
 
@@ -391,7 +397,7 @@ def test_squash_claim_preserves_enforce_closed_world(tmp_path: Path) -> None:
     run = _run(repo, state, _manifest(), strategy=MergeStrategy.SQUASH)
     run.approved_wp_set = captured
 
-    claim = ex._reconciliation_claim_for_gate(run)
+    claim = phase_gate._reconciliation_claim_for_gate(run)
     assert claim.verify_reachability is False  # squash defers SHA/patch-id reachability
     assert claim.enforce_closed_world is True  # the P0 content axis stays armed
     assert claim.authored_blobs == captured.authored_blobs
@@ -410,7 +416,7 @@ def test_merge_claim_keeps_verify_reachability(tmp_path: Path) -> None:
     state = _state(repo)
     run = _run(repo, state, _manifest(), strategy=MergeStrategy.MERGE)
     run.approved_wp_set = captured
-    claim = ex._reconciliation_claim_for_gate(run)
+    claim = phase_gate._reconciliation_claim_for_gate(run)
     assert claim.verify_reachability is True
     assert claim.enforce_closed_world is True
 

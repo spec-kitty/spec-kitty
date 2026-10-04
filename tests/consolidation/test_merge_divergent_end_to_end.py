@@ -78,8 +78,8 @@ def _real_merge_mocks_for_divergent_shapes(repo_root: Path) -> Iterator[dict[str
     """
     with (
         _real_merge_external_mocks(repo_root) as mocks,
-        patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-        patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+        patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
     ):
         yield mocks
 
@@ -494,7 +494,7 @@ def _persist_old_form_state(mission: DivergentMission, *, lane_tips: dict[str, s
     """Persist a ``ConsolidationState`` shaped like a POST-FIX interrupted attempt whose
     per-lane tip record is still keyed by the IDENTITY-form branch name — a
     literal a post-fix capture never produces
-    (:func:`specify_cli.consolidation.executor._created_lane_branch` always keys by the
+    (:func:`specify_cli.lanes.compute.lane_created_branch` always keys by the
     lane's CREATED branch). The post-fix marker (FR-012) is stamped so the
     resume reaches the H5 unanchored-record guard under test, rather than
     refusing earlier on the unrelated pre-fix-in-flight-state check

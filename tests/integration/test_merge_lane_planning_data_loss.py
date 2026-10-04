@@ -44,6 +44,8 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from tests.lane_test_utils import create_lane_branches
+from specify_cli.consolidation import phase_bookkeeping
+from tests.consolidation.executor_family import patch_executor_family
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -175,23 +177,23 @@ class TestMergeIncludesPlanningLane:
             return (0, "", "")
 
         patches = [
-            patch("specify_cli.consolidation.executor.require_lanes_json", return_value=manifest),
+            patch("specify_cli.consolidation.entry_preflight.require_lanes_json", return_value=manifest),
             patch("specify_cli.consolidation.resolve.load_state", return_value=None),
             patch("specify_cli.consolidation.done_bookkeeping.save_state", side_effect=fake_save_state),
-            patch("specify_cli.consolidation.executor.get_main_repo_root", return_value=tmp_path),
+            patch_executor_family("get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
             patch("specify_cli.lanes.consolidation.consolidate_lane_into_mission", return_value=lane_result),
             patch("specify_cli.lanes.consolidation.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
-            patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+            patch_executor_family("commit_merge_bookkeeping"),
             patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
             patch("specify_cli.post_merge.stale_assertions.run_check"),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
             patch("specify_cli.policy.config.load_policy_config"),
-            patch("specify_cli.consolidation.executor.run_command", side_effect=fake_run_command),
-            patch("specify_cli.consolidation.executor.has_remote", return_value=False),
-            patch("specify_cli.consolidation.executor.cleanup_merge_workspace"),
-            patch("specify_cli.consolidation.executor.clear_state"),
+            patch_executor_family("run_command", side_effect=fake_run_command),
+            patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
+            patch("specify_cli.consolidation.phase_finalize.cleanup_merge_workspace"),
+            patch_executor_family("clear_state"),
             # #4900: bare patch (no return_value) used to return a MagicMock,
             # which the new target-tree bake/verify (_record_mission_number_
             # on_target_tree / _verify_and_announce_mission_number) tried to
@@ -200,14 +202,14 @@ class TestMergeIncludesPlanningLane:
             # that seam early-returns, matching this test's pre-existing
             # intent (mission_number correctness is out of scope here).
             patch(
-                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
                 return_value=None,
             ),
             # WP10 (#2057): branch preflight + target asserts moved to seams;
             # appended last to keep positional mock indices stable.
             patch("specify_cli.consolidation.executor._check_mission_branch", return_value=(True, None)),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
             patch("specify_cli.consolidation.executor._phase_reconcile_before_teardown"),
         ]
         with contextlib.ExitStack() as stack:
@@ -405,9 +407,9 @@ def _real_merge_external_mocks(repo_root: Path):
         # External side effects (status emit, dossier, SaaS, stale-assertion check)
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch_executor_family("commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         # Preflight / gates / policy / sparse-checkout — out of scope for
         # this data-loss regression
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
@@ -417,12 +419,12 @@ def _real_merge_external_mocks(repo_root: Path):
         # mission_number assignment scans kitty-specs/ and rewrites meta.json on
         # the mission branch via a temp worktree — not the focus of the
         # data-loss regression.  Keep it out of the way.
-        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", return_value=None),
         # Post-merge invariant fires on `git status --porcelain` output that
         # includes the test-only files — short-circuit it for this test.
         # The merge has already run through real git by the time this would
         # raise.
-        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
     ]
     with contextlib.ExitStack() as stack:
         ms = [stack.enter_context(p) for p in patches]
@@ -473,15 +475,15 @@ def _real_invariant_external_mocks(repo_root: Path):
     patches = [
         patch("specify_cli.consolidation.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.consolidation.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch_executor_family("commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.consolidation.executor._refresh_primary_checkout_after_merge"),
+        patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", return_value=None),
+        patch_executor_family("_refresh_primary_checkout_after_merge"),
         # #4900: this fixture exercises the PLANNING-ONLY assignment path
         # (executor._assign_planning_only_mission_number_if_needed), which is
         # a sibling of the lane-path bake mocked above but is NOT mocked here
@@ -496,7 +498,7 @@ def _real_invariant_external_mocks(repo_root: Path):
         # tests/consolidation/test_mission_number_truthful_4900.py and by
         # TestPlanningOnlyDoneMarkingPersists's real-commit sibling fixture
         # below (_real_bookkeeping_commit_external_mocks).
-        patch("specify_cli.consolidation.executor._verify_and_announce_mission_number"),
+        patch("specify_cli.consolidation.phase_bookkeeping._verify_and_announce_mission_number"),
         # NOTE: _classify_porcelain_lines is intentionally NOT mocked here —
         # the real post-merge working-tree invariant must run so the F2 fix
         # (meta.json in expected_paths) is exercised.
@@ -665,14 +667,13 @@ class TestLegacyPlanningOnlyMetaInvariant:
         # WP10 (#2057): the post-merge porcelain invariant runs in the executor
         # seam, reading _classify_porcelain_lines from its own module binding.
         import specify_cli.coordination.coherence as coherence_mod
-        import specify_cli.consolidation.executor as merge_mod
 
         slug = "legacy-planning-only-meta-loadbearing"
         _init_git_repo(tmp_path)
         feature_dir = _bootstrap_legacy_planning_only_mission(tmp_path, slug)
         meta_rel = f"kitty-specs/{slug}/meta.json"
 
-        real_classify = merge_mod._classify_porcelain_lines
+        real_classify = phase_bookkeeping._classify_porcelain_lines
         real_is_self_bookkeeping_churn = coherence_mod.is_self_bookkeeping_churn
         classified_lines: list[str] = []
 
@@ -698,7 +699,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
         with (
             _real_invariant_external_mocks(tmp_path),
             patch.object(
-                merge_mod,
+                phase_bookkeeping,
                 "_classify_porcelain_lines",
                 side_effect=classify_without_meta_membership,
             ),
@@ -871,22 +872,22 @@ def _real_persistence_external_mocks(repo_root: Path):
     ``TestLegacyPlanningOnlyMetaInvariant`` (F2).
     """
     patches = [
-        patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
+        patch_executor_family("commit_merge_bookkeeping"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
         # #4900: same planning-only-path rationale as
         # _real_invariant_external_mocks above — the real (unmocked)
         # _assign_planning_only_mission_number_if_needed genuinely assigns a
         # number here, but commit_merge_bookkeeping is mocked (no real
         # commit lands), so the new target-tree read-back verification would
         # otherwise fail. Neutralize only the verify/announce step.
-        patch("specify_cli.consolidation.executor._verify_and_announce_mission_number"),
+        patch("specify_cli.consolidation.phase_bookkeeping._verify_and_announce_mission_number"),
         # NOTE: _mark_wp_merged_done and _assert_merged_wps_reached_done are
         # intentionally NOT mocked — the real done-marking persistence runs.
     ]
@@ -923,13 +924,13 @@ def _real_bookkeeping_commit_external_mocks(repo_root: Path):
     """
     patches = [
         patch("specify_cli.post_merge.stale_assertions.run_check"),
-        patch("specify_cli.consolidation.executor.run_check"),
+        patch("specify_cli.consolidation.phase_finalize.run_check"),
         patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         patch("specify_cli.policy.config.load_policy_config"),
-        patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
-        patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", return_value=None),
+        patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
         # NOTE: commit_merge_bookkeeping, _mark_wp_merged_done, and
         # _assert_merged_wps_done_on_target are intentionally NOT mocked — the
         # real bookkeeping commit lands on the target branch and the executor's
@@ -1581,8 +1582,8 @@ class TestRetentionConstraintSurvivesCleanup:
             # committed status.events.jsonl this test's mocked done-marking
             # never produces. That WP-bookkeeping durability is out of scope
             # for this branch/worktree-retention regression.
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
         ):
             # NO --delete-branch/--keep-branch/--remove-worktree/--keep-worktree:
             # the CLI's own default resolves the cleanup decision.
@@ -1682,8 +1683,8 @@ class TestRetentionConstraintSurvivesCleanup:
 
         with (
             _real_merge_external_mocks(tmp_path),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
         ):
             result = _invoke_merge_cli(
                 tmp_path,
@@ -1787,8 +1788,8 @@ class TestRetentionConstraintSurvivesCleanup:
 
         with (
             _real_merge_external_mocks(tmp_path),
-            patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-            patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+            patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
         ):
             result = _invoke_merge_cli(
                 tmp_path,
@@ -1969,8 +1970,8 @@ def test_bare_slug_coord_mission_consolidates_onto_a_protected_target(tmp_path: 
 
     with (
         _real_merge_external_mocks(tmp_path),
-        patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-        patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
+        patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+        patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
     ):
         result = _invoke_merge_cli(
             tmp_path,

@@ -43,6 +43,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import Result
+from specify_cli.consolidation import phase_bookkeeping
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -512,30 +513,32 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
     and the real ``_mark_wp_merged_done`` (event log reaches done) run."""
     with ExitStack() as stack:
         for target in (
-            "specify_cli.consolidation.executor.commit_merge_bookkeeping",
+            "specify_cli.consolidation.phase_bookkeeping.commit_merge_bookkeeping",
+            "specify_cli.consolidation.phase_teardown.commit_merge_bookkeeping",
             "specify_cli.post_merge.stale_assertions.run_check",
-            "specify_cli.consolidation.executor.run_check",
+            "specify_cli.consolidation.phase_finalize.run_check",
             "specify_cli.consolidation.executor.require_no_sparse_checkout",
             "specify_cli.cli.commands.consolidate._enforce_git_preflight",
-            "specify_cli.consolidation.executor._classify_porcelain_lines",
+            "specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines",
             # Post-merge invariants that validate meta-baking we deliberately
             # mock away (safe_commit + mission-number bake). Orthogonal to the
             # topology-survival contract; the merge itself already ran for real.
-            "specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target",
-            "specify_cli.consolidation.executor._assert_merged_wps_done_on_target",
-            "specify_cli.consolidation.executor._refresh_primary_checkout_after_merge",
+            "specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target",
+            "specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target",
+            "specify_cli.consolidation.phase_bookkeeping._refresh_primary_checkout_after_merge",
+            "specify_cli.consolidation.phase_gate._refresh_primary_checkout_after_merge",
             # #4900: an unprotected single_branch mission closes out on the
             # PLANNING-ONLY path, whose (unmocked) planning-only assignment
             # writes a real mission_number to meta.json; commit_merge_bookkeeping
             # is mocked above, so the number never lands on the target and the
             # read-back would fail. Neutralize only the verify/announce step
             # (same as main's 4f74543d planning-only fixtures).
-            "specify_cli.consolidation.executor._verify_and_announce_mission_number",
+            "specify_cli.consolidation.phase_bookkeeping._verify_and_announce_mission_number",
         ):
             stack.enter_context(patch(target))
         stack.enter_context(
             patch(
-                "specify_cli.consolidation.executor._bake_mission_number_into_mission_branch",
+                "specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch",
                 return_value=None,
             )
         )
@@ -550,9 +553,8 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
         stack.enter_context(patch("specify_cli.policy.config.load_policy_config", return_value=policy))
         # _classify_porcelain_lines patched above returns a MagicMock; pin a
         # clean ([],0) so the post-merge porcelain invariant short-circuits.
-        from specify_cli.consolidation import executor as _executor
 
-        _executor._classify_porcelain_lines.return_value = ([], 0)
+        phase_bookkeeping._classify_porcelain_lines.return_value = ([], 0)
         yield
 
 

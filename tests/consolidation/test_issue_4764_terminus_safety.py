@@ -71,6 +71,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import get_state_path
 from specify_cli.status import Lane, StatusEvent
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -276,22 +277,22 @@ def _merge_external_mocks() -> Iterator[dict[str, MagicMock]]:
     behavior (unit-tested separately in ``tests/policy/test_merge_gates.py``).
     """
     patches = {
-        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "run_check": patch("specify_cli.consolidation.phase_finalize.run_check"),
         "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch("specify_cli.consolidation.executor._enforce_review_artifact_consistency"),
-        "status_history": patch("specify_cli.consolidation.executor._enforce_canonical_status_history"),
-        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
-        "bake": patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None),
-        "baseline_record": patch("specify_cli.consolidation.executor._record_baseline_merge_commit", return_value=None),
-        "baseline_assert": patch("specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"),
-        "done_on_target": patch("specify_cli.consolidation.executor._assert_merged_wps_done_on_target"),
-        "safe_commit": patch("specify_cli.consolidation.executor.commit_merge_bookkeeping"),
-        "refresh_primary": patch("specify_cli.consolidation.executor._refresh_primary_checkout_after_merge"),
-        "porcelain": patch("specify_cli.consolidation.executor._classify_porcelain_lines", return_value=([], 0)),
+        "status_history": patch("specify_cli.consolidation.phase_claim._enforce_canonical_status_history"),
+        "hollow": patch("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews"),
+        "bake": patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", return_value=None),
+        "baseline_record": patch("specify_cli.consolidation.phase_bookkeeping._record_baseline_merge_commit", return_value=None),
+        "baseline_assert": patch("specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"),
+        "done_on_target": patch("specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"),
+        "safe_commit": patch_executor_family("commit_merge_bookkeeping"),
+        "refresh_primary": patch_executor_family("_refresh_primary_checkout_after_merge"),
+        "porcelain": patch("specify_cli.consolidation.phase_bookkeeping._classify_porcelain_lines", return_value=([], 0)),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}

@@ -27,14 +27,25 @@ from specify_cli.cli.commands import consolidate as shim
 from specify_cli.consolidation import (
     _constants,
     bookkeeping_projection as bp,
+    coord_strand,
     done_bookkeeping as db,
+    entry_preflight,
     forecast,
     git_probes,
     ordering,
+    phase_advance,
+    phase_bookkeeping,
+    phase_claim,
+    phase_finalize,
+    phase_gate,
+    phase_teardown,
     preflight,
     push_preflight,
     resolve,
+    resume_recovery,
+    run_state,
 )
+from specify_cli.consolidation.mission_number import bake as mission_number_bake
 
 pytestmark = pytest.mark.fast
 
@@ -98,7 +109,8 @@ _PUSH_PREFLIGHT_SYMBOLS: tuple[str, ...] = (
     "_target_branch_sync_payload",
 )
 
-_ORDERING_SYMBOLS: tuple[str, ...] = ("_bake_mission_number_into_mission_branch",)
+# #2600: the bake cluster left ``ordering`` for ``mission_number.bake``.
+_MISSION_NUMBER_BAKE_SYMBOLS: tuple[str, ...] = ("_bake_mission_number_into_mission_branch",)
 
 _DONE_BOOKKEEPING_SYMBOLS: tuple[str, ...] = (
     "_mark_wp_merged_done",
@@ -133,7 +145,7 @@ SYMBOL_RESIDUAL_MAP: dict[str, ModuleType] = {
     **dict.fromkeys(_RESOLVE_SYMBOLS, resolve),
     **dict.fromkeys(_PREFLIGHT_SYMBOLS, preflight),
     **dict.fromkeys(_PUSH_PREFLIGHT_SYMBOLS, push_preflight),
-    **dict.fromkeys(_ORDERING_SYMBOLS, ordering),
+    **dict.fromkeys(_MISSION_NUMBER_BAKE_SYMBOLS, mission_number_bake),
     **dict.fromkeys(_DONE_BOOKKEEPING_SYMBOLS, db),
     **dict.fromkeys(_BOOKKEEPING_PROJECTION_SYMBOLS, bp),
 }
@@ -148,7 +160,7 @@ def test_map_has_no_duplicate_source_symbol() -> None:
         + _RESOLVE_SYMBOLS
         + _PREFLIGHT_SYMBOLS
         + _PUSH_PREFLIGHT_SYMBOLS
-        + _ORDERING_SYMBOLS
+        + _MISSION_NUMBER_BAKE_SYMBOLS
         + _DONE_BOOKKEEPING_SYMBOLS
         + _BOOKKEEPING_PROJECTION_SYMBOLS
     )
@@ -304,8 +316,20 @@ _SEAM_IMPORT_TARGETS: tuple[tuple[str, ModuleType], ...] = (
     ("preflight", preflight),
     ("forecast", forecast),
     ("ordering", ordering),
+    ("mission_number.bake", mission_number_bake),
     ("done_bookkeeping", db),
     ("bookkeeping_projection", bp),
+    # #2026: the executor phase split modules.
+    ("run_state", run_state),
+    ("coord_strand", coord_strand),
+    ("phase_claim", phase_claim),
+    ("phase_advance", phase_advance),
+    ("phase_bookkeeping", phase_bookkeeping),
+    ("phase_gate", phase_gate),
+    ("phase_teardown", phase_teardown),
+    ("phase_finalize", phase_finalize),
+    ("entry_preflight", entry_preflight),
+    ("resume_recovery", resume_recovery),
 )
 
 

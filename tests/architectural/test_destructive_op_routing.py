@@ -233,7 +233,11 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "arbitrary destroy of operator state."
     ),
     CensusKey(
-        rel="src/specify_cli/consolidation/executor.py", qualname="_recover_behind_head_primary_on_resume", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
+        rel="src/specify_cli/consolidation/resume_recovery.py",
+        qualname="_recover_behind_head_primary_on_resume",
+        token_line="[ , , , ] ,",
+        op="reset_hard",
+        op_ordinal=0,
     ): (
         "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
         "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
@@ -256,19 +260,19 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "chokepoint (guarded_worktree_remove is)."
     ),
     CensusKey(
-        rel="src/specify_cli/consolidation/ordering.py",
+        rel="src/specify_cli/consolidation/mission_number/bake.py",
         qualname="_compute_next_mission_number_or_none",
         token_line="[ , , , str ( tmp_path ) , ] ,",
         op="worktree_remove_force",
         op_ordinal=0,
     ): ("ephemeral detached scan worktree, torn down in the same function's own finally block; never operator-visible state."),
     CensusKey(
-        rel="src/specify_cli/consolidation/ordering.py",
+        rel="src/specify_cli/consolidation/mission_number/bake.py",
         qualname="_write_mission_number_to_branch",
         token_line="[ , , , str ( mission_tmp_path ) , ] ,",
         op="worktree_remove_force",
         op_ordinal=0,
-    ): ("ephemeral detached scan worktree (mission-number bake), same class as the sibling ordering.py:329 site."),
+    ): ("ephemeral detached scan worktree (mission-number bake), same class as the sibling _compute_next_mission_number_or_none site (#2600)."),
     CensusKey(
         rel="src/specify_cli/consolidation/workspace.py",
         qualname="cleanup_merge_workspace",
@@ -424,7 +428,7 @@ def test_allowlisted_files_exist() -> None:
 # known routed sites are not merely "absent because the file doesn't exist".
 # ---------------------------------------------------------------------------
 _ROUTED_WORKTREE_REMOVE_SITES: tuple[str, ...] = (
-    "specify_cli/consolidation/executor.py",
+    "specify_cli/consolidation/phase_teardown.py",
     "specify_cli/coordination/workspace.py",
     "specify_cli/orchestrator_api/commands.py",
 )

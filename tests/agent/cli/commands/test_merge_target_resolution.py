@@ -97,10 +97,16 @@ def _patch_merge_environment(
 
     # WP10 (#2057): the merge flow's git probes are now split across seams —
     # target validation reads ``run_command`` from ``merge.preflight`` /
-    # ``merge.resolve`` and the lane executor from ``merge.executor``. Patch all
+    # ``merge.resolve`` and the lane executor from every split executor
+    # module that calls it (#2026). Patch all
     # the surfaces this flow traverses so the fake git stays in effect.
     for _target in (
-        "specify_cli.consolidation.executor.run_command",
+        "specify_cli.consolidation.run_state.run_command",
+        "specify_cli.consolidation.phase_claim.run_command",
+        "specify_cli.consolidation.phase_advance.run_command",
+        "specify_cli.consolidation.phase_teardown.run_command",
+        "specify_cli.consolidation.phase_finalize.run_command",
+        "specify_cli.consolidation.resume_recovery.run_command",
         "specify_cli.consolidation.preflight.run_command",
         "specify_cli.consolidation.resolve.run_command",
     ):

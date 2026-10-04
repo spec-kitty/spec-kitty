@@ -590,12 +590,21 @@ _MERGE_ROOT = _SRC / "specify_cli" / "consolidation"
 _MERGE_CLI_CONSOLE_IMPORTERS: frozenset[str] = frozenset(
     {
         "specify_cli/consolidation/done_bookkeeping.py",
-        "specify_cli/consolidation/ordering.py",
+        "specify_cli/consolidation/mission_number/bake.py",
         "specify_cli/consolidation/forecast.py",
         "specify_cli/consolidation/push_preflight.py",
         "specify_cli/consolidation/git_probes.py",
         "specify_cli/consolidation/preflight.py",
         "specify_cli/consolidation/executor.py",
+        "specify_cli/consolidation/coord_strand.py",
+        "specify_cli/consolidation/phase_claim.py",
+        "specify_cli/consolidation/phase_advance.py",
+        "specify_cli/consolidation/phase_bookkeeping.py",
+        "specify_cli/consolidation/phase_gate.py",
+        "specify_cli/consolidation/phase_teardown.py",
+        "specify_cli/consolidation/phase_finalize.py",
+        "specify_cli/consolidation/entry_preflight.py",
+        "specify_cli/consolidation/resume_recovery.py",
     }
 )
 

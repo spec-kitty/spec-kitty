@@ -92,6 +92,7 @@ from tests.consolidation.test_issue_2367_bake_strand import (
 from tests.consolidation.test_issue_2711_merge_rollback_resume_coherence import (
     _init_git_repo,
 )
+from specify_cli.consolidation import coord_strand
 
 pytestmark = [
     pytest.mark.architectural,
@@ -242,7 +243,7 @@ def test_guard_reds_when_persist_marker_is_stubbed_to_noop(
     _bootstrap_two_wp_coord_mission(repo)
 
     monkeypatch.setattr(
-        ex, "_persist_coord_reconcile_marker", lambda run, error: None
+        coord_strand, "_persist_coord_reconcile_marker", lambda run, error: None
     )
     observed = _bake_failure_observed_at_phase_exit(repo)
 
@@ -276,7 +277,7 @@ def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
     _bootstrap_two_wp_coord_mission(repo)
 
     monkeypatch.setattr(
-        ex, "coord_incoherent_done_wps", lambda *args, **kwargs: []
+        coord_strand, "coord_incoherent_done_wps", lambda *args, **kwargs: []
     )
     observed = _bake_failure_observed_at_phase_exit(repo)
 

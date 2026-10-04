@@ -29,11 +29,13 @@ import pytest
 import typer
 
 from kernel.git_topology import GitTopologyUnavailableError
-from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation import entry_preflight
 from specify_cli.consolidation import preflight as pf
+from specify_cli.consolidation import resume_recovery
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from specify_cli.git import ref_advance
 from specify_cli.git.destructive_guard import MERGE_UNSAFE_PRIMARY_DIRTY, MERGE_UNSAFE_WORKTREE_DIRTY, DestructiveOpRefused
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -106,11 +108,11 @@ def _refusal(path: Path, code: str = MERGE_UNSAFE_WORKTREE_DIRTY) -> Destructive
 
 
 def _recover(lag: _Lag) -> bool:
-    return ex._recover_behind_head_primary_on_resume(_refusal(lag.worktree), lag.repo, _MISSION_ID, mission_branch=_MISSION_BRANCH)
+    return resume_recovery._recover_behind_head_primary_on_resume(_refusal(lag.worktree), lag.repo, _MISSION_ID, mission_branch=_MISSION_BRANCH)
 
 
 def _report(lag: _Lag, capsys: pytest.CaptureFixture[str], *, base_sha: str | None) -> str:
-    ex._report_pre_mutation_refusal(_refusal(lag.worktree), lag.repo, mission_branch=_MISSION_BRANCH, base_sha=base_sha)
+    resume_recovery._report_pre_mutation_refusal(_refusal(lag.worktree), lag.repo, mission_branch=_MISSION_BRANCH, base_sha=base_sha)
     return capsys.readouterr().out
 
 
@@ -130,16 +132,16 @@ def _advised_commands(lines: list[str]) -> list[str]:
 def test_a_refused_worktree_maps_to_the_branch_it_has_checked_out(tmp_path: Path, branch: str, label: str) -> None:
     lag = _build_lag(tmp_path, branch)
 
-    checkout = ex._lag_checkout_for_refusal(_refusal(lag.worktree), lag.repo, None, mission_branch=_MISSION_BRANCH)
+    checkout = resume_recovery._lag_checkout_for_refusal(_refusal(lag.worktree), lag.repo, None, mission_branch=_MISSION_BRANCH)
 
-    assert checkout == ex._LagCheckout(lag.worktree, coordination=False, branch=branch, lane=branch != _MISSION_BRANCH)
+    assert checkout == resume_recovery._LagCheckout(lag.worktree, coordination=False, branch=branch, lane=branch != _MISSION_BRANCH)
     assert checkout is not None and checkout.label == label and not checkout.is_root
     assert checkout.lane_branch(_MISSION_BRANCH) == branch
 
 
 def test_the_root_and_the_coordination_worktree_classify_on_the_mission_branch(tmp_path: Path) -> None:
-    root = ex._LagCheckout(tmp_path, coordination=False)
-    coordination = ex._LagCheckout(tmp_path, coordination=True)
+    root = resume_recovery._LagCheckout(tmp_path, coordination=False)
+    coordination = resume_recovery._LagCheckout(tmp_path, coordination=True)
 
     assert root.is_root and not coordination.is_root
     assert root.lane_branch(_MISSION_BRANCH) == coordination.lane_branch(_MISSION_BRANCH) == _MISSION_BRANCH
@@ -155,7 +157,7 @@ def test_the_root_and_the_coordination_worktree_classify_on_the_mission_branch(t
 )
 def test_a_checkout_cannot_claim_two_roles(tmp_path: Path, kwargs: dict[str, Any]) -> None:
     with pytest.raises(ValueError, match="anchored on"):
-        ex._LagCheckout(tmp_path, **kwargs)
+        resume_recovery._LagCheckout(tmp_path, **kwargs)
 
 
 def test_a_worktree_with_no_branch_checked_out_is_no_candidate(tmp_path: Path) -> None:
@@ -164,8 +166,8 @@ def test_a_worktree_with_no_branch_checked_out_is_no_candidate(tmp_path: Path) -
 
     assert pf.checked_out_branch(lag.worktree) is None
     assert pf.checked_out_branch(tmp_path / "gone") is None
-    assert ex._lag_checkout_for_refusal(_refusal(lag.worktree), lag.repo, None, mission_branch=_MISSION_BRANCH) is None
-    assert ex._lag_checkout_for_refusal(_refusal(tmp_path / "gone"), lag.repo, None, mission_branch=_MISSION_BRANCH) is None
+    assert resume_recovery._lag_checkout_for_refusal(_refusal(lag.worktree), lag.repo, None, mission_branch=_MISSION_BRANCH) is None
+    assert resume_recovery._lag_checkout_for_refusal(_refusal(tmp_path / "gone"), lag.repo, None, mission_branch=_MISSION_BRANCH) is None
 
 
 def test_checked_out_branch_names_the_branch(tmp_path: Path) -> None:
@@ -181,9 +183,9 @@ def test_each_checkout_is_anchored_on_its_own_persisted_tip(tmp_path: Path) -> N
     state.pre_mutation_coord_sha = "C" * 40
     state.pre_mutation_refs = {_MISSION_BRANCH: "M" * 40}
 
-    assert ex._LagCheckout(tmp_path, coordination=False, branch=_MISSION_BRANCH).base_sha(state) == "M" * 40
-    assert ex._LagCheckout(tmp_path, coordination=False, branch=_LANE_BRANCH, lane=True).base_sha(state) is None, "not in the snapshot"
-    assert ex._LagCheckout(tmp_path, coordination=False, branch=_MISSION_BRANCH).base_sha(None) is None
+    assert resume_recovery._LagCheckout(tmp_path, coordination=False, branch=_MISSION_BRANCH).base_sha(state) == "M" * 40
+    assert resume_recovery._LagCheckout(tmp_path, coordination=False, branch=_LANE_BRANCH, lane=True).base_sha(state) is None, "not in the snapshot"
+    assert resume_recovery._LagCheckout(tmp_path, coordination=False, branch=_MISSION_BRANCH).base_sha(None) is None
 
 
 # --- in-place recovery on --resume ---------------------------------------------------------
@@ -268,7 +270,7 @@ def test_a_leftover_index_lock_names_the_lock_and_never_advises_commit(
     lock = Path(_git(checkout, "rev-parse", "--path-format=absolute", "--git-path", "index.lock"))
     lock.write_text("", encoding="utf-8")
 
-    ex._report_pre_mutation_refusal(_refusal(checkout, code), lag.repo, mission_branch=_MISSION_BRANCH, base_sha=None)
+    resume_recovery._report_pre_mutation_refusal(_refusal(checkout, code), lag.repo, mission_branch=_MISSION_BRANCH, base_sha=None)
     out = _flat(capsys.readouterr().out)
 
     assert str(lock) in out and "index.lock" in out
@@ -326,7 +328,7 @@ def test_the_deferring_refusal_keeps_everything_but_the_remedy() -> None:
         dirty_entries=["D x"],
     )
 
-    deferred = ex._refusal_deferring_to_guidance(original)
+    deferred = resume_recovery._refusal_deferring_to_guidance(original)
 
     assert (deferred.error_code, deferred.worktree_path, deferred.current_branch, deferred.expected_branch, deferred.dirty_entries) == (
         original.error_code,
@@ -438,21 +440,21 @@ def test_the_resume_leg_refuses_a_dirty_mission_worktree_and_skips_the_root(tmp_
     state = _state({lag.branch: lag.base})
 
     with pytest.raises(DestructiveOpRefused) as refused:
-        ex._assert_mission_checkouts_clean(lag.repo, _no_lanes(), state, is_residue=lambda _path: False)
+        entry_preflight._assert_mission_checkouts_clean(lag.repo, _no_lanes(), state, is_residue=lambda _path: False)
 
     assert refused.value.error_code == MERGE_UNSAFE_WORKTREE_DIRTY
     assert refused.value.worktree_path is not None and refused.value.worktree_path.resolve() == lag.worktree.resolve()
     # The root has ``main`` checked out: asking about ``main`` finds only the root, which this leg skips.
     (lag.repo / "alpha.txt").write_text("dirty root\n", encoding="utf-8")
     on_main: Any = SimpleNamespace(target_branch="main", mission_branch="main", lanes=[])
-    ex._assert_mission_checkouts_clean(lag.repo, on_main, state, is_residue=lambda _path: False)
+    entry_preflight._assert_mission_checkouts_clean(lag.repo, on_main, state, is_residue=lambda _path: False)
 
 
 def test_the_resume_leg_passes_a_clean_mission_worktree(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
     _git(lag.worktree, "reset", "-q", "--hard", "HEAD")
 
-    ex._assert_mission_checkouts_clean(lag.repo, _no_lanes(), _state({}), is_residue=lambda _path: False)
+    entry_preflight._assert_mission_checkouts_clean(lag.repo, _no_lanes(), _state({}), is_residue=lambda _path: False)
 
 
 # --- wrapper wiring ------------------------------------------------------------------------
@@ -467,7 +469,7 @@ def _retention() -> Any:
 
 
 def _run_wrapper(lag: _Lag) -> None:
-    ex._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", _manifest(), _MISSION_ID, lag.repo / "meta", _retention())
+    resume_recovery._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", _manifest(), _MISSION_ID, lag.repo / "meta", _retention())
 
 
 def test_the_wrapper_recovers_several_checkouts_but_each_only_once(tmp_path: Path) -> None:
@@ -476,10 +478,10 @@ def test_the_wrapper_recovers_several_checkouts_but_each_only_once(tmp_path: Pat
     again = _refusal(tmp_path / "one")
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=[first, second, again]) as mock_preflight,
-        patch.object(ex, "_coord_worktree_for_refusal", return_value=None),
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=[first, second, again]) as mock_preflight,
+        patch.object(resume_recovery, "_coord_worktree_for_refusal", return_value=None),
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exit_info,
     ):
         _run_wrapper(lag)
@@ -500,10 +502,10 @@ def _retained() -> Any:
 def _run_real_preflight(lag: _Lag, manifest: Any) -> None:
     """The wrapper over the REAL preflight, worktree retention in effect (only the topology/target lookups are stubbed)."""
     with (
-        patch.object(ex, "_stored_topology_for", return_value=None),
+        patch_executor_family("_stored_topology_for", return_value=None),
         patch("specify_cli.lanes.single_branch_landing.expected_consolidate_checkout", return_value="main"),
     ):
-        ex._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", manifest, _MISSION_ID, lag.repo / "meta", _retained())
+        resume_recovery._pre_mutation_safety_preflight_with_recovery(lag.repo, "m", manifest, _MISSION_ID, lag.repo / "meta", _retained())
 
 
 def _refreshed_then_edited(tmp_path: Path) -> _Lag:
@@ -544,7 +546,7 @@ def test_a_resume_still_refuses_a_retained_dirty_worktree_while_a_lane_remains(t
     _git(lag.repo, "update-ref", f"refs/heads/{_LANE_BRANCH}", unmerged)
     manifest: Any = SimpleNamespace(target_branch="main", mission_branch=_MISSION_BRANCH, lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])])
 
-    with patch.object(ex, "_created_lane_branch", return_value=_LANE_BRANCH), pytest.raises(typer.Exit) as exit_info:
+    with patch_executor_family("_created_lane_branch", return_value=_LANE_BRANCH), pytest.raises(typer.Exit) as exit_info:
         _run_real_preflight(lag, manifest)
 
     assert exit_info.value.exit_code == 1
@@ -575,7 +577,7 @@ def test_a_worktree_listing_failure_is_rendered_as_a_refusal(tmp_path: Path, cap
     _persist_state(lag, {lag.branch: lag.base})
 
     with (
-        patch.object(ex, "worktrees_with_branch_checked_out", side_effect=ref_advance.RefAdvanceError("git worktree list failed: boom")),
+        patch.object(entry_preflight, "worktrees_with_branch_checked_out", side_effect=ref_advance.RefAdvanceError("git worktree list failed: boom")),
         pytest.raises(typer.Exit) as exit_info,
     ):
         _run_real_preflight(lag, _no_lanes())

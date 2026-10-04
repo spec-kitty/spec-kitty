@@ -2,8 +2,8 @@
 
 The diff-cover gate on PR #5031's merge head scored these lines at 26% because
 :func:`specify_cli.consolidation.preflight.is_pure_behind_head_lag`,
-:func:`specify_cli.consolidation.executor._recover_behind_head_primary_on_resume`, and
-:func:`specify_cli.consolidation.executor._pre_mutation_safety_preflight_with_recovery`
+:func:`specify_cli.consolidation.resume_recovery._recover_behind_head_primary_on_resume`, and
+:func:`specify_cli.consolidation.resume_recovery._pre_mutation_safety_preflight_with_recovery`
 are exercised only by real-CLI **subprocess** tests in ``tests/terminus/`` (they
 run ``python -m specify_cli`` in a fresh interpreter, so ``coverage.py`` never
 sees the parent process execute these lines). These tests call the functions
@@ -31,6 +31,8 @@ from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation import preflight as pf
 from specify_cli.consolidation.preflight import ResumeRemedyKind, is_pure_behind_head_lag
 from specify_cli.consolidation.state import ConsolidationState, save_state
+from specify_cli.consolidation import resume_recovery
+from tests.consolidation.executor_family import patch_executor_family
 
 # Two profiles in one file: the preflight-layer tests build real git repos
 # (subprocess-backed, mirroring test_behind_head_remedy.py) while the
@@ -160,7 +162,7 @@ def _refusal(error_code: str = "MERGE_UNSAFE_PRIMARY_DIRTY") -> DestructiveOpRef
 def test_recover_false_on_wrong_error_code(tmp_path: Path) -> None:
     exc = _refusal(error_code="MERGE_UNSAFE_PRIMARY_OFF_TARGET")
 
-    result = ex._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+    result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
 
@@ -168,8 +170,8 @@ def test_recover_false_on_wrong_error_code(tmp_path: Path) -> None:
 def test_recover_false_on_fresh_merge_no_state(tmp_path: Path) -> None:
     exc = _refusal()
 
-    with patch.object(ex, "load_state", return_value=None) as mock_load_state:
-        result = ex._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+    with patch.object(resume_recovery, "load_state", return_value=None) as mock_load_state:
+        result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
     mock_load_state.assert_called_once_with(tmp_path, "01ID")
@@ -192,7 +194,7 @@ def test_recover_false_when_remedy_is_not_behind_own_head(tmp_path: Path) -> Non
     state = _fake_state()
 
     with (
-        patch.object(ex, "load_state", return_value=state),
+        patch.object(resume_recovery, "load_state", return_value=state),
         patch.object(
             pf,
             "classify_resume_dirty_remedy",
@@ -200,7 +202,7 @@ def test_recover_false_when_remedy_is_not_behind_own_head(tmp_path: Path) -> Non
         ) as mock_classify,
         patch.object(pf, "is_pure_behind_head_lag") as mock_pure_lag,
     ):
-        result = ex._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+        result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
     mock_classify.assert_called_once()
@@ -212,16 +214,16 @@ def test_recover_false_when_lag_not_provably_pure(tmp_path: Path) -> None:
     state = _fake_state()
 
     with (
-        patch.object(ex, "load_state", return_value=state),
+        patch.object(resume_recovery, "load_state", return_value=state),
         patch.object(
             pf,
             "classify_resume_dirty_remedy",
             return_value=pf.ResumeDirtyRemedy(kind=ResumeRemedyKind.BEHIND_OWN_HEAD, remediation=["reset"]),
         ),
         patch.object(pf, "is_pure_behind_head_lag", return_value=False) as mock_pure_lag,
-        patch.object(ex, "run_command") as mock_run_command,
+        patch_executor_family("run_command") as mock_run_command,
     ):
-        result = ex._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+        result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
     mock_pure_lag.assert_called_once_with(tmp_path, base_sha="deadbeef")
@@ -233,17 +235,17 @@ def test_recover_false_and_prints_error_when_reset_fails(tmp_path: Path) -> None
     state = _fake_state()
 
     with (
-        patch.object(ex, "load_state", return_value=state),
+        patch.object(resume_recovery, "load_state", return_value=state),
         patch.object(
             pf,
             "classify_resume_dirty_remedy",
             return_value=pf.ResumeDirtyRemedy(kind=ResumeRemedyKind.BEHIND_OWN_HEAD, remediation=["reset"]),
         ),
         patch.object(pf, "is_pure_behind_head_lag", return_value=True),
-        patch.object(ex, "run_command", return_value=(1, "", "fatal: something")) as mock_run_command,
-        patch.object(ex, "console") as mock_console,
+        patch_executor_family("run_command", return_value=(1, "", "fatal: something")) as mock_run_command,
+        patch_executor_family("console") as mock_console,
     ):
-        result = ex._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+        result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
     mock_run_command.assert_called_once_with(
@@ -260,17 +262,17 @@ def test_recover_true_on_success(tmp_path: Path) -> None:
     state = _fake_state()
 
     with (
-        patch.object(ex, "load_state", return_value=state),
+        patch.object(resume_recovery, "load_state", return_value=state),
         patch.object(
             pf,
             "classify_resume_dirty_remedy",
             return_value=pf.ResumeDirtyRemedy(kind=ResumeRemedyKind.BEHIND_OWN_HEAD, remediation=["reset"]),
         ),
         patch.object(pf, "is_pure_behind_head_lag", return_value=True),
-        patch.object(ex, "run_command", return_value=(0, "", "")),
-        patch.object(ex, "console") as mock_console,
+        patch_executor_family("run_command", return_value=(0, "", "")),
+        patch_executor_family("console") as mock_console,
     ):
-        result = ex._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
+        result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is True
     assert any("Recovered a behind-own-HEAD primary" in call.args[0] for call in mock_console.print.call_args_list)
@@ -288,7 +290,7 @@ def _manifest_and_retention() -> tuple[SimpleNamespace, SimpleNamespace]:
 def test_preflight_with_recovery_passes_through_on_success(tmp_path: Path) -> None:
     manifest, retention = _manifest_and_retention()
 
-    with patch.object(ex, "_pre_mutation_safety_preflight") as mock_preflight:
+    with patch.object(resume_recovery, "_pre_mutation_safety_preflight") as mock_preflight:
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
     mock_preflight.assert_called_once()
@@ -299,9 +301,9 @@ def test_preflight_with_recovery_recovers_and_retries_successfully(tmp_path: Pat
     exc = _refusal()
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=[exc, None]) as mock_preflight,
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=[exc, None]) as mock_preflight,
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
 
@@ -323,9 +325,9 @@ def test_preflight_with_recovery_reports_and_exits_when_not_recovered(tmp_path: 
     exc = _refusal()
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=exc) as mock_preflight,
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False) as mock_recover,
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=exc) as mock_preflight,
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=False) as mock_recover,
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
@@ -362,9 +364,9 @@ def test_preflight_with_recovery_threads_persisted_pre_mutation_target_sha_as_ba
     save_state(_fake_state(pre_mutation_target_sha=persisted_sha), tmp_path)
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=exc) as mock_preflight,
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False) as mock_recover,
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=exc) as mock_preflight,
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=False) as mock_recover,
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
@@ -386,9 +388,9 @@ def test_preflight_with_recovery_reports_and_exits_when_still_refused_after_reco
     exc_after = _refusal()
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=[exc, exc_after]) as mock_preflight,
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=[exc, exc_after]) as mock_preflight,
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=True) as mock_recover,
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
@@ -424,9 +426,9 @@ def test_preflight_with_recovery_corrupt_state_still_reports_original_refusal(tm
     _write_corrupt_state(tmp_path)
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=exc),
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=False),
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=exc),
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=False),
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
@@ -444,9 +446,9 @@ def test_preflight_with_recovery_corrupt_state_after_retry_still_reports(tmp_pat
     _write_corrupt_state(tmp_path)
 
     with (
-        patch.object(ex, "_pre_mutation_safety_preflight", side_effect=[exc, exc_after]),
-        patch.object(ex, "_recover_behind_head_primary_on_resume", return_value=True),
-        patch.object(ex, "_report_pre_mutation_refusal") as mock_report,
+        patch.object(resume_recovery, "_pre_mutation_safety_preflight", side_effect=[exc, exc_after]),
+        patch.object(resume_recovery, "_recover_behind_head_primary_on_resume", return_value=True),
+        patch.object(resume_recovery, "_report_pre_mutation_refusal") as mock_report,
         pytest.raises(typer.Exit) as exc_info,
     ):
         ex._pre_mutation_safety_preflight_with_recovery(tmp_path, "m", manifest, "01ID", tmp_path / "meta", retention)
@@ -462,8 +464,8 @@ def test_recover_false_on_corrupt_state(tmp_path: Path) -> None:
     raising over the refusal it is trying to adjudicate."""
     _write_corrupt_state(tmp_path)
 
-    with patch.object(ex, "run_command") as mock_run_command:
-        result = ex._recover_behind_head_primary_on_resume(_refusal(), tmp_path, "01ID", mission_branch="kitty/mission-m")
+    with patch_executor_family("run_command") as mock_run_command:
+        result = resume_recovery._recover_behind_head_primary_on_resume(_refusal(), tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
     mock_run_command.assert_not_called()

@@ -56,7 +56,7 @@ from specify_cli.cli.commands.consolidate import (
 # is the executor's thin adapter that supplies the identical merge trusted-set
 # (3 dirs + merge-state.json) to the owner's containment, so the T017 containment
 # regressions below re-point onto it (same accept/reject semantics).
-from specify_cli.consolidation.executor import _capture_merge_snapshots
+from specify_cli.consolidation.run_state import _capture_merge_snapshots
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 

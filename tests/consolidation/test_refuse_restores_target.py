@@ -39,6 +39,7 @@ from specify_cli.consolidation.reconciliation import (
 )
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.consolidation import phase_gate
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -149,7 +150,7 @@ def _build_run(repo: Path, *, target: str, pre_sha: str | None) -> ex._MergeRunS
 def _force_verdict(monkeypatch: pytest.MonkeyPatch, result: VerifyResult) -> None:
     """Patch ``MergeOutcomeVerifier.verify`` to always return *result*."""
     monkeypatch.setattr(
-        ex.MergeOutcomeVerifier,
+        phase_gate.MergeOutcomeVerifier,
         "verify",
         lambda self, target_ref, claim: result,
     )
@@ -208,7 +209,7 @@ class TestRefuseRestoresTarget:
         advanced = _commit_on(repo, "main", "mutated.py", "legitimately landed\n")
         run = _build_run(repo, target="main", pre_sha=pre_sha)
         _force_verdict(monkeypatch, VerifyResult.passed())
-        monkeypatch.setattr(ex, "_assert_squash_projected_content_landed", lambda _run: None)
+        monkeypatch.setattr(phase_gate, "_assert_squash_projected_content_landed", lambda _run: None)
 
         ex._phase_reconcile_before_teardown(run)
 
@@ -229,7 +230,7 @@ class TestRefuseRestoresTarget:
         # further commit onto the target right before the real restore call —
         # the real restore's own CAS then observes a stale expected-current
         # value and fails safe rather than overwriting the newer tip.
-        real_restore = ex.restore_branch_ref
+        real_restore = phase_gate.restore_branch_ref
         raced_sha: str | None = None
 
         def _racing_restore(repo_arg, branch, new_sha, *, expected_current_sha):
@@ -237,7 +238,7 @@ class TestRefuseRestoresTarget:
             raced_sha = _commit_on(repo_arg, branch, "raced.py", "moved again after the read\n")
             return real_restore(repo_arg, branch, new_sha, expected_current_sha=expected_current_sha)
 
-        monkeypatch.setattr(ex, "restore_branch_ref", _racing_restore)
+        monkeypatch.setattr(phase_gate, "restore_branch_ref", _racing_restore)
 
         with pytest.raises(typer.Exit) as exc_info:
             ex._phase_reconcile_before_teardown(run)

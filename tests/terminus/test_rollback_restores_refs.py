@@ -43,6 +43,8 @@ from tests.terminus.rollback_harness import (
     state_bookkeeping,
 )
 from tests.terminus.test_repro_5021 import _complete_squash_then_recreate_mid_teardown_state
+from specify_cli.consolidation import phase_gate
+from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -226,7 +228,7 @@ def test_earlier_verified_landing_is_kept_on_resume_projection_refusal(tmp_path:
     def _refuse(_run: object) -> None:
         raise executor.typer.Exit(1)
 
-    monkeypatch.setattr(executor, "_assert_squash_projected_content_landed", _refuse)
+    monkeypatch.setattr(phase_gate, "_assert_squash_projected_content_landed", _refuse)
     monkeypatch.setenv("HOME", str(mission.home))
     monkeypatch.chdir(mission.repo)
 
@@ -256,7 +258,7 @@ def test_unreadable_projection_window_refuses_and_rolls_back_like_a_refuse(
     def _unreadable(main_repo: Path, *_args: object) -> list[str]:
         raise GitCommandError(argv=("diff",), cwd=main_repo, returncode=128, stderr="fatal: bad object")
 
-    monkeypatch.setattr(executor, "_post_checkpoint_mission_paths", _unreadable)
+    setattr_executor_family(monkeypatch, "_post_checkpoint_mission_paths", _unreadable)
     monkeypatch.setenv("HOME", str(mission.home))
     monkeypatch.chdir(mission.repo)
 

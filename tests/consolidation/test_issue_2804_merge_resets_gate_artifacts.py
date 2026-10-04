@@ -96,6 +96,7 @@ from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -388,31 +389,29 @@ def _merge_external_mocks() -> ExitStack:
     merge with ``-X theirs`` -- is left completely real.
     """
     patches = {
-        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "run_check": patch("specify_cli.consolidation.phase_finalize.run_check"),
         "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch(
             "specify_cli.consolidation.executor._enforce_review_artifact_consistency"
         ),
         "status_history": patch(
-            "specify_cli.consolidation.executor._enforce_canonical_status_history"
+            "specify_cli.consolidation.phase_claim._enforce_canonical_status_history"
         ),
-        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
+        "hollow": patch("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews"),
         "baseline_record": patch(
-            "specify_cli.consolidation.executor._record_baseline_merge_commit", return_value=None
+            "specify_cli.consolidation.phase_bookkeeping._record_baseline_merge_commit", return_value=None
         ),
         "baseline_assert": patch(
-            "specify_cli.consolidation.executor._assert_baseline_merge_commit_on_target"
+            "specify_cli.consolidation.phase_bookkeeping._assert_baseline_merge_commit_on_target"
         ),
         "done_on_target": patch(
-            "specify_cli.consolidation.executor._assert_merged_wps_done_on_target"
+            "specify_cli.consolidation.phase_bookkeeping._assert_merged_wps_done_on_target"
         ),
-        "record_done": patch(
-            "specify_cli.consolidation.executor._record_merged_wps_done_for_merge"
-        ),
+        "record_done": patch_executor_family("_record_merged_wps_done_for_merge"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
     }
     stack = ExitStack()
     mocks = {name: stack.enter_context(p) for name, p in patches.items()}

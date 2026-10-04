@@ -26,11 +26,9 @@ import pytest
 
 import specify_cli.status  # noqa: F401  # import-order guard (see #2711 harness)
 
-from specify_cli.consolidation import executor
-from specify_cli.consolidation.executor import (
-    _capture_pre_target_coord_ref_sha,
-    _coord_worktree_root,
-)
+from specify_cli.consolidation.coord_strand import _capture_pre_target_coord_ref_sha, _coord_worktree_root
+from specify_cli.consolidation import run_state
+from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = pytest.mark.fast
 
@@ -70,7 +68,7 @@ def test_capture_skips_on_unresolvable_placement(monkeypatch: pytest.MonkeyPatch
     def _raise(*_a: object, **_k: object) -> object:
         raise RuntimeError("no placement")
 
-    monkeypatch.setattr(executor, "resolve_placement_only", _raise)
+    monkeypatch.setattr(run_state, "resolve_placement_only", _raise)
     run = SimpleNamespace(
         main_repo=Path("/repo"),
         mission_slug="slug-01ab",
@@ -85,13 +83,11 @@ def test_capture_skips_on_unresolvable_placement(monkeypatch: pytest.MonkeyPatch
 def test_capture_records_ref_and_sha(monkeypatch: pytest.MonkeyPatch) -> None:
     """A resolvable coord ref whose tip resolves records both fields."""
     monkeypatch.setattr(
-        executor,
+        run_state,
         "resolve_placement_only",
         lambda *_a, **_k: SimpleNamespace(ref="kitty/mission-x"),
     )
-    monkeypatch.setattr(
-        executor, "run_command", lambda *_a, **_k: (0, _CAPTURED_SHA + "\n", "")
-    )
+    setattr_executor_family(monkeypatch, "run_command", lambda *_a, **_k: (0, _CAPTURED_SHA + "\n", ""))
     run = SimpleNamespace(
         main_repo=Path("/repo"),
         mission_slug="slug-01ab",

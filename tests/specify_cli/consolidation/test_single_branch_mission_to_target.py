@@ -20,6 +20,10 @@ import pytest
 
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation import (
+    phase_claim,
+    phase_teardown,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -137,7 +141,7 @@ def test_protected_mission_lands_switches_back_and_deletes_branch(protected_repo
 
     ex._phase_mission_to_target(run)
     ex._switch_write_checkout_after_single_branch_landing(run)
-    deleted = ex._delete_mission_branch(run)
+    deleted = phase_teardown._delete_mission_branch(run)
 
     # Target contains the work.
     main_tree = _git(protected_repo, "show", "main:src/impl.py").stdout
@@ -246,7 +250,7 @@ def test_protected_landing_clears_mission_branch_and_keeps_tree_clean(protected_
 
     ex._phase_mission_to_target(run)
     ex._switch_write_checkout_after_single_branch_landing(run)
-    ex._cleanup_mission_branch_and_coordination(run)
+    phase_teardown._cleanup_mission_branch_and_coordination(run)
 
     meta = load_meta_or_empty(feature_dir)
     assert "mission_branch" not in meta, "the deleted mission branch must not stay recorded (mission reopen / write routing)"
@@ -270,7 +274,7 @@ def test_retained_mission_branch_still_clears_meta_mission_branch(protected_repo
 
     ex._phase_mission_to_target(run)
     ex._switch_write_checkout_after_single_branch_landing(run)
-    ex._cleanup_mission_branch_and_coordination(run)
+    phase_teardown._cleanup_mission_branch_and_coordination(run)
 
     assert _branch_exists(protected_repo, _MISSION_BRANCH)
     assert "mission_branch" not in load_meta_or_empty(protected_repo / "kitty-specs" / _SLUG)
@@ -297,7 +301,7 @@ def _unprotected_run(repo: Path) -> ex._MergeRunState:
 def test_single_branch_code_mission_is_not_called_planning_artifact_only(protected_repo: Path) -> None:
     run = _unprotected_run(protected_repo)
 
-    notice = ex._planning_only_notice(run)
+    notice = phase_claim._planning_only_notice(run)
 
     assert notice is not None
     assert "Planning-artifact-only" not in notice
@@ -309,7 +313,7 @@ def test_genuine_planning_artifact_only_notice_is_unchanged(protected_repo: Path
     meta = protected_repo / "kitty-specs" / _SLUG / "meta.json"
     meta.write_text(meta.read_text().replace("single_branch", "lanes"), encoding="utf-8")
 
-    notice = ex._planning_only_notice(run)
+    notice = phase_claim._planning_only_notice(run)
 
     assert notice is not None
     assert "Planning-artifact-only mission" in notice
@@ -319,7 +323,7 @@ def test_no_lane_branch_cleanup_line_when_none_were_deleted(protected_repo: Path
     run = _unprotected_run(protected_repo)
 
     with ex.console.capture() as captured:
-        ex._delete_lane_branches(run)
+        phase_teardown._delete_lane_branches(run)
 
     assert "Cleaned up" not in captured.get()
 

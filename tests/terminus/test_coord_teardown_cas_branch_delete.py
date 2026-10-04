@@ -34,6 +34,10 @@ from specify_cli.consolidation.state import ConsolidationState
 from tests.terminus.conftest import CoordMission, build_coord_mission, run_terminus
 from tests.terminus.conftest import _cli_env as cli_env
 from tests.terminus.conftest import _git_out as git_out
+from specify_cli.consolidation import (
+    phase_teardown,
+    run_state,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -367,8 +371,8 @@ def _windowless_resume_run(tmp_path: Path, *, is_resume: bool, with_branch: bool
 def test_resume_without_a_projection_window_keeps_the_coordination_branch(tmp_path: Path) -> None:
     run = _windowless_resume_run(tmp_path, is_resume=True)
 
-    with pytest.raises(ex.CoordinationTeardownError) as raised:
-        ex._land_late_coordination_commits(run)
+    with pytest.raises(run_state.CoordinationTeardownError) as raised:
+        phase_teardown._land_late_coordination_commits(run)
 
     message = " ".join(str(raised.value).split())
     assert _WINDOW_BRANCH in message
@@ -384,10 +388,10 @@ def test_resume_without_a_projection_window_keeps_the_coordination_branch(tmp_pa
 def test_resume_without_a_window_and_without_a_branch_has_nothing_to_protect(tmp_path: Path) -> None:
     run = _windowless_resume_run(tmp_path, is_resume=True, with_branch=False)
 
-    ex._land_late_coordination_commits(run)  # no branch: nothing is destroyed, so nothing to refuse
+    phase_teardown._land_late_coordination_commits(run)  # no branch: nothing is destroyed, so nothing to refuse
 
 
 def test_fresh_run_without_a_window_is_covered_by_the_teardown_gate(tmp_path: Path) -> None:
     run = _windowless_resume_run(tmp_path, is_resume=False)
 
-    ex._land_late_coordination_commits(run)  # the fresh run's CAS gate owns this window
+    phase_teardown._land_late_coordination_commits(run)  # the fresh run's CAS gate owns this window

@@ -27,19 +27,30 @@ from unittest.mock import MagicMock
 import pytest
 import typer
 
-from specify_cli.consolidation import executor
-from specify_cli.consolidation import rollback
+from specify_cli.consolidation import (
+    executor,
+    rollback,
+)
 from specify_cli.consolidation.rollback import record_post_mutation_tips
 from specify_cli.git.ref_advance import RefAdvanceError, RefRestoreError
 from specify_cli.consolidation.state import get_state_path, load_state, save_state
 from tests.consolidation.test_rollback_authority import _MISSION_BRANCH, _TARGET, Env, _advance_run, _commit_on, _git, _rev, make_env
+from specify_cli.consolidation import (
+    coord_strand,
+    phase_claim,
+    run_state,
+)
+from tests.consolidation.executor_family import (
+    family_modules_binding,
+    setattr_executor_family,
+)
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.fast]
 
 
 def _run_for(env: Env, *, coord_ref: str | None = None, is_resume: bool = False) -> Any:
     ref = coord_ref or _TARGET  # LANES: the coordination checkpoint resolves to the target itself
-    checkpoint = executor._CoordCheckpoint(ref=ref, sha=_rev(env.repo, ref))
+    checkpoint = run_state._CoordCheckpoint(ref=ref, sha=_rev(env.repo, ref))
     return SimpleNamespace(main_repo=env.repo, state=env.state, lanes_manifest=env.manifest, coord_checkpoint=checkpoint, is_resume=is_resume)
 
 
@@ -50,7 +61,7 @@ def test_lanes_snapshot_keys_are_target_mission_and_lanes_without_duplicates(tmp
     env = make_env(tmp_path)
     run = _run_for(env)  # LANES: the coordination checkpoint resolves to the target itself
 
-    executor._capture_snapshot_and_begin_attempt(run)
+    phase_claim._capture_snapshot_and_begin_attempt(run)
 
     assert sorted(env.state.pre_mutation_refs) == sorted({_TARGET, _MISSION_BRANCH, *env.lane_branches})
     assert env.state.restore_targets == env.state.pre_mutation_refs, "begin_attempt must fix this attempt's restore targets"
@@ -59,11 +70,11 @@ def test_lanes_snapshot_keys_are_target_mission_and_lanes_without_duplicates(tmp
 
 def test_snapshot_is_captured_once_and_reused_by_a_resume(tmp_path: Path) -> None:
     env = make_env(tmp_path)
-    executor._capture_snapshot_and_begin_attempt(_run_for(env))
+    phase_claim._capture_snapshot_and_begin_attempt(_run_for(env))
     first = dict(env.state.pre_mutation_refs)
     posts = _advance_run(env)
 
-    executor._capture_snapshot_and_begin_attempt(_run_for(env, is_resume=True))
+    phase_claim._capture_snapshot_and_begin_attempt(_run_for(env, is_resume=True))
 
     assert env.state.pre_mutation_refs == first, "a resume must reuse the persisted snapshot"
     assert env.state.restore_targets[_TARGET] == first[_TARGET], "consolidation's own advance is undone to the snapshot"
@@ -77,9 +88,9 @@ def test_missing_lane_branch_is_warned_about(tmp_path: Path, monkeypatch: pytest
     env = make_env(tmp_path)
     _git(env.repo, "branch", "-D", env.lane_branches[0])
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
 
-    executor._capture_snapshot_and_begin_attempt(_run_for(env))
+    phase_claim._capture_snapshot_and_begin_attempt(_run_for(env))
 
     printed = " ".join(str(call.args[0]) for call in console.print.call_args_list)
     assert env.lane_branches[0] in printed and "not snapshotted" in printed
@@ -95,7 +106,7 @@ def _live(env: Env) -> dict[str, str]:
 
 def _begin(env: Env) -> Any:
     run = _run_for(env)
-    executor._capture_snapshot_and_begin_attempt(run)
+    phase_claim._capture_snapshot_and_begin_attempt(run)
     return run
 
 
@@ -103,7 +114,7 @@ def test_phase_decorator_records_after_a_normal_return(tmp_path: Path) -> None:
     env = make_env(tmp_path)
     run = _begin(env)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         _advance_run_target_only(env)
 
@@ -118,7 +129,7 @@ def test_phase_decorator_records_before_an_early_return(tmp_path: Path) -> None:
     env = make_env(tmp_path)
     run = _begin(env)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         _advance_run_target_only(env)
         return
@@ -131,7 +142,7 @@ def test_phase_decorator_records_when_the_phase_raises(tmp_path: Path) -> None:
     env = make_env(tmp_path)
     run = _begin(env)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         _advance_run_target_only(env)
         raise RuntimeError("phase failed after moving a ref")
@@ -148,7 +159,7 @@ def test_cas_refused_advance_is_not_recorded_as_this_runs_post_tip(tmp_path: Pat
     run = _begin(env)
     snapshot = _rev(env.repo, _TARGET)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         _advance_run_target_only(env)  # ANOTHER actor moved the branch; our CAS advance is refused
         raise error
@@ -178,7 +189,7 @@ def test_resync_failure_after_our_own_ref_move_is_recorded_as_this_runs_post_tip
     env = make_env(tmp_path)
     run = _begin(env)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         _advance_run_target_only(env)  # this run's own advance
         raise RefResyncError("Advanced develop but failed to resync the checked-out worktree")
@@ -196,7 +207,7 @@ def test_foreign_lane_commit_during_a_phase_is_never_reverted(tmp_path: Path) ->
     lane = env.lane_branches[0]
     mission_snapshot = _rev(env.repo, _MISSION_BRANCH)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         _commit_on(env.repo, _MISSION_BRANCH, "run-merge")  # this run's own advance
         _commit_on(env.repo, lane, "agent-late-commit")  # ANOTHER actor, concurrently
@@ -222,11 +233,11 @@ def test_foreign_commit_on_the_target_between_phases_is_not_recorded(tmp_path: P
     env = make_env(tmp_path)
     run = _begin(env)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase_a(r: Any) -> None:
         _advance_run_target_only(env)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase_b(r: Any) -> None:
         _commit_on(env.repo, _MISSION_BRANCH, "phase-b")
 
@@ -253,7 +264,7 @@ def test_recorder_failure_never_masks_the_phase_error(tmp_path: Path, monkeypatc
 
     monkeypatch.setattr(rollback, "record_post_mutation_tips", _boom)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         raise ValueError("the real phase error")
 
@@ -270,7 +281,7 @@ def test_recorder_failure_on_normal_exit_propagates(tmp_path: Path, monkeypatch:
 
     monkeypatch.setattr(rollback, "record_post_mutation_tips", _boom)
 
-    @executor._records_post_mutation_tips
+    @run_state._records_post_mutation_tips
     def phase(r: Any) -> None:
         return
 
@@ -296,7 +307,8 @@ def _advance_run_target_only(env: Env) -> None:
     ],
 )
 def test_mutating_phases_and_in_phase_rollbacks_are_recorders(name: str) -> None:
-    fn = getattr(executor, name)
+    # #2026: the phases live in the split executor modules; every binding is the same object.
+    fn = getattr(family_modules_binding(name)[0], name)
     assert getattr(fn, "__wrapped__", None) is not None, f"{name} must be wrapped by _records_post_mutation_tips"
 
 
@@ -313,9 +325,9 @@ def test_restore_pre_target_if_at_baseline_moves_no_ref(tmp_path: Path) -> None:
     run.pre_target_coord_sha = None
     tips = _live(env)
 
-    executor._restore_pre_target_if_at_baseline(run)
+    coord_strand._restore_pre_target_if_at_baseline(run)
 
-    assert getattr(executor._restore_pre_target_if_at_baseline, "__wrapped__", None) is None, "it moves no ref, so it records none"
+    assert getattr(coord_strand._restore_pre_target_if_at_baseline, "__wrapped__", None) is None, "it moves no ref, so it records none"
     assert _live(env) == tips, "no branch may move"
     assert bookkeeping.read_bytes() == b"original\n", "the working-tree bytes are restored"
     assert env.state.post_mutation_refs == {}
@@ -333,7 +345,7 @@ def test_byte_restore_of_state_json_keeps_the_recorded_post_tips_on_disk(tmp_pat
     recorded = load_state(env.repo, env.state.mission_id)
     assert posts and recorded is not None and recorded.post_mutation_refs == posts
 
-    executor._restore_and_guard_coord_coherence(run, {state_path: stale_bytes})
+    coord_strand._restore_and_guard_coord_coherence(run, {state_path: stale_bytes})
 
     persisted = load_state(env.repo, env.state.mission_id)
     assert persisted is not None and persisted.post_mutation_refs == posts, "the recorder re-saves the in-memory record after the byte restore"
@@ -357,7 +369,7 @@ def test_report_rollback_resets_this_runs_own_pass_anchor_then_restores(tmp_path
     anchor_before = run.state.reconciliation_passed_target_sha
     run.state.reconciliation_passed_target_sha = _rev(env.repo, _TARGET)  # written by this run's PASS
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
 
     executor._report_rollback(run, anchor_before=anchor_before)
 
@@ -374,7 +386,7 @@ def test_report_rollback_keeps_a_landing_verified_by_an_earlier_attempt(tmp_path
     landed = _rev(env.repo, _TARGET)
     run.state.reconciliation_passed_target_sha = landed  # persisted by an EARLIER attempt
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
 
     executor._report_rollback(run, anchor_before=landed)
 
@@ -387,7 +399,7 @@ def test_report_rollback_reports_a_failing_authority_and_lets_the_exit_propagate
     env = make_env(tmp_path)
     run = _report_run(env)
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
 
     def _boom(*_a: Any, **_k: Any) -> None:
         raise OSError("disk full")
@@ -556,14 +568,14 @@ def test_report_rollback_survives_a_failing_anchor_reset(tmp_path: Path, monkeyp
     run = _report_run(env)
     run.state.reconciliation_passed_target_sha = "b" * 40  # differs from anchor_before -> save_state runs
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
     authority = MagicMock()
     monkeypatch.setattr(rollback, "rollback_to_snapshot", authority)
 
     def _unwritable(*_a: Any, **_k: Any) -> None:
         raise OSError("read-only state dir")
 
-    monkeypatch.setattr(executor, "save_state", _unwritable)
+    setattr_executor_family(monkeypatch, "save_state", _unwritable)
 
     executor._report_rollback(run, anchor_before=None)  # must not raise
 
@@ -577,7 +589,7 @@ def test_report_rollback_survives_a_second_interrupt_during_the_rollback(tmp_pat
     env = make_env(tmp_path)
     run = _report_run(env)
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
 
     def _interrupted(*_a: Any, **_k: Any) -> None:
         raise KeyboardInterrupt

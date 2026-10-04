@@ -18,6 +18,8 @@ from specify_cli.consolidation.reconciliation import (
     VerifyStatus,
     claim_integrity_refusal,
 )
+from specify_cli.consolidation import phase_claim
+from tests.consolidation.executor_family import setattr_executor_family
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -104,12 +106,10 @@ def _claim_refusal_output(monkeypatch: pytest.MonkeyPatch, attested: tuple[str, 
 
     import typer
 
-    from specify_cli.consolidation import executor
-
     console = MagicMock()
-    monkeypatch.setattr(executor, "console", console)
+    setattr_executor_family(monkeypatch, "console", console)
     with pytest.raises(typer.Exit) as exited:
-        executor._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested)
+        phase_claim._exit_on_claim_integrity_refusal("approved lane branch is gone.", attested=attested)
     assert exited.value.exit_code == 1
     return " ".join(str(call.args[0]) for call in console.print.call_args_list)
 

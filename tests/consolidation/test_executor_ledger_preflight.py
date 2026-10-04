@@ -29,6 +29,11 @@ from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from tests._factories.coord_mission import make_fork_fixture
+from specify_cli.consolidation import (
+    entry_preflight,
+    phase_bookkeeping,
+)
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = pytest.mark.fast
 
@@ -82,7 +87,7 @@ def test_consolidation_preflight_refuses_coord_only_ledger(tmp_path: Path) -> No
     fixture = make_fork_fixture(tmp_path, "ledger_only_on_coordination", MissionTopology.COORD)
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        ex._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
+        entry_preflight._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
 
     assert excinfo.value.error_code == "COORDINATION_LEDGER_UNREPAIRED"
     assert "doctor decisions" in str(excinfo.value)
@@ -103,7 +108,7 @@ def test_consolidation_preflight_refuses_when_the_ledger_probe_fails(tmp_path: P
     monkeypatch.setattr(fork, "tree_entry", _failing_tree_entry)
 
     with pytest.raises(LedgerProbeError):
-        ex._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
+        entry_preflight._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
 
 
 def test_consolidation_preflight_is_silent_for_a_missing_coordination_branch(tmp_path: Path) -> None:
@@ -116,7 +121,7 @@ def test_consolidation_preflight_is_silent_for_a_missing_coordination_branch(tmp
     meta["coordination_branch"] = "kitty/mission-does-not-exist"
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
-    ex._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
+    entry_preflight._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
 
 
 def test_consolidation_preflight_control_unforked_mission_is_silent(tmp_path: Path) -> None:
@@ -124,7 +129,7 @@ def test_consolidation_preflight_control_unforked_mission_is_silent(tmp_path: Pa
     fixture = make_fork_fixture(tmp_path, "both_committed", MissionTopology.COORD)
 
     # No raise == pass.
-    ex._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
+    entry_preflight._refuse_if_coordination_ledger_unrepaired(fixture.repo_root, fixture.mission_dir_name)
 
 
 def test_pre_mutation_safety_preflight_refuses_before_coord_worktree_check(tmp_path: Path) -> None:
@@ -137,13 +142,13 @@ def test_pre_mutation_safety_preflight_refuses_before_coord_worktree_check(tmp_p
     lanes_manifest = SimpleNamespace(lanes=[])
 
     with (
-        patch.object(ex, "assert_checkout_on_target"),
-        patch.object(ex, "assert_worktree_clean"),
-        patch.object(ex, "worktree_lanes", return_value=[]),
+        patch.object(entry_preflight, "assert_checkout_on_target"),
+        patch.object(entry_preflight, "assert_worktree_clean"),
+        patch_executor_family("worktree_lanes", return_value=[]),
         patch("specify_cli.lanes.single_branch_landing.expected_consolidate_checkout", return_value="main"),
         pytest.raises(DestructiveOpRefused) as excinfo,
     ):
-        ex._pre_mutation_safety_preflight(
+        entry_preflight._pre_mutation_safety_preflight(
             fixture.repo_root,
             fixture.mission_dir_name,
             fixture.target_branch,
@@ -169,8 +174,8 @@ def test_porcelain_invariant_names_accept_for_ledger_dirt(tmp_path: Path, capsys
     porcelain_entry = StatusEntry(xy=" M", path=GitPath.parse("kitty-specs/ledger-mission/decisions/index.json"))
 
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(0, (porcelain_entry,))),
-        patch.object(ex, "_restore_and_guard_coord_coherence"),
+        patch.object(phase_bookkeeping, "_raw_porcelain_status", return_value=(0, (porcelain_entry,))),
+        patch_executor_family("_restore_and_guard_coord_coherence"),
         pytest.raises(typer.Exit) as excinfo,
     ):
         ex._phase_porcelain_invariant(run)
@@ -189,8 +194,8 @@ def test_porcelain_invariant_control_no_decisions_dirt_omits_remedy(tmp_path: Pa
     run = _make_run(tmp_path, mission_slug="ledger-mission")
 
     with (
-        patch.object(ex, "_raw_porcelain_status", return_value=(0, (StatusEntry(xy=" M", path=GitPath.parse("some/random/file.json")),))),
-        patch.object(ex, "_restore_and_guard_coord_coherence"),
+        patch.object(phase_bookkeeping, "_raw_porcelain_status", return_value=(0, (StatusEntry(xy=" M", path=GitPath.parse("some/random/file.json")),))),
+        patch_executor_family("_restore_and_guard_coord_coherence"),
         pytest.raises(typer.Exit) as excinfo,
     ):
         ex._phase_porcelain_invariant(run)

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation import phase_teardown, run_state
 from specify_cli.git.ref_advance import RefDeleteMismatchError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.orchestrator_api import commands as orchestrator_commands
@@ -33,9 +33,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 def test_tip_moved_error_carries_the_code_and_exit_code(coordination: bool) -> None:
     mismatch = RefDeleteMismatchError(branch="kitty/mission-x", expected_sha="a" * 40, actual_sha="b" * 40)
 
-    error = ex._tip_moved_teardown_error("kitty/mission-x", mismatch, coordination=coordination)
+    error = phase_teardown._tip_moved_teardown_error("kitty/mission-x", mismatch, coordination=coordination)
 
-    assert isinstance(error, ex.CoordinationTeardownError), "existing handlers must still catch it"
+    assert isinstance(error, run_state.CoordinationTeardownError), "existing handlers must still catch it"
     assert error.exit_code == _COORD_MOVED_EXIT
     assert error.error_code == _COORD_MOVED_CODE
     assert str(error).endswith(f" Error code: {_COORD_MOVED_CODE}."), "the code is appended; the message before it is unchanged"

@@ -32,6 +32,10 @@ from specify_cli.lanes.branch_naming import coord_dir_name
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.mission_metadata import load_meta
+from specify_cli.consolidation import (
+    phase_teardown,
+    run_state,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -146,7 +150,7 @@ def test_coord_branch_checked_out_in_its_worktree_is_still_fully_torn_down(
     assert coord_path.is_dir(), "fixture invalid: coord worktree must exist"
     assert _branch_exists(repo, _MISSION_BRANCH), "fixture invalid: coord branch must exist"
 
-    ex._teardown_coordination_triple(_run_state(repo))
+    phase_teardown._teardown_coordination_triple(_run_state(repo))
 
     assert not _branch_exists(repo, _MISSION_BRANCH), (
         "#3926: the coordination branch survived teardown — `git branch -D` was refused because the branch was still checked out in the coord worktree"
@@ -165,10 +169,10 @@ def test_a_leg_that_does_not_come_down_raises_instead_of_flattening(coord_repo_w
     still be pinned when the delete runs.
     """
     repo = coord_repo_with_live_worktree
-    monkeypatch.setattr(ex, "_teardown_coord_worktree", lambda run: None)
+    monkeypatch.setattr(phase_teardown, "_teardown_coord_worktree", lambda run: None)
 
-    with pytest.raises(ex.CoordinationTeardownError) as caught:
-        ex._teardown_coordination_triple(_run_state(repo))
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(_run_state(repo))
 
     assert _MISSION_BRANCH in str(caught.value)
     meta = load_meta(repo / "kitty-specs" / _SLUG)

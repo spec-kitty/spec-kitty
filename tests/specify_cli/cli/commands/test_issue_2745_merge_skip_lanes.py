@@ -50,6 +50,7 @@ from kernel.clock import now_utc_iso
 import specify_cli.status  # noqa: F401  # import-order guard
 
 from specify_cli.cli.commands.consolidate import consolidate as merge
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -183,15 +184,15 @@ def _external_mocks() -> Iterator[dict[str, MagicMock]]:
     """Mock only side effects outside git/status bookkeeping — same seam set
     WP02 uses in ``tests/merge/test_merge_rollback_resume_coherence.py``."""
     patches = {
-        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "run_check": patch("specify_cli.consolidation.phase_finalize.run_check"),
         "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch("specify_cli.consolidation.executor._enforce_review_artifact_consistency"),
-        "status_history": patch("specify_cli.consolidation.executor._enforce_canonical_status_history"),
-        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
+        "status_history": patch("specify_cli.consolidation.phase_claim._enforce_canonical_status_history"),
+        "hollow": patch("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
@@ -317,10 +318,7 @@ def test_skip_lanes_completion_rolls_back_on_post_mutation_failure(tmp_path: Pat
     _bootstrap_direct_on_target_mission(repo, rollback_slug, merge_ready=True, code_filename="direct_on_target_rollback.py")
     pre_run_tip = _branch_tip(repo, TARGET_BRANCH)
 
-    with patch(
-        "specify_cli.consolidation.executor._project_status_bookkeeping_to_target",
-        side_effect=RuntimeError("injected post-mutation failure (WP05 rollback regression)"),
-    ):
+    with patch_executor_family("_project_status_bookkeeping_to_target", side_effect=RuntimeError("injected post-mutation failure (WP05 rollback regression)")):
         failing_result = _invoke_merge(repo, ["--mission", rollback_slug, "--skip-lanes", "--yes"], monkeypatch)
 
     assert failing_result.exit_code != 0, failing_result.output
@@ -363,10 +361,7 @@ def test_resume_without_reflagging_skip_lanes_auto_honors_persisted_choice(tmp_p
     _bootstrap_direct_on_target_mission(repo, resume_slug, merge_ready=True, code_filename="direct_on_target_resume.py")
     pre_run_tip = _branch_tip(repo, TARGET_BRANCH)
 
-    with patch(
-        "specify_cli.consolidation.executor._project_status_bookkeeping_to_target",
-        side_effect=RuntimeError("injected post-mutation failure (FOLD-F2 resume regression)"),
-    ):
+    with patch_executor_family("_project_status_bookkeeping_to_target", side_effect=RuntimeError("injected post-mutation failure (FOLD-F2 resume regression)")):
         failing_result = _invoke_merge(repo, ["--mission", resume_slug, "--skip-lanes", "--yes"], monkeypatch)
     assert failing_result.exit_code != 0, failing_result.output
     assert _branch_tip(repo, TARGET_BRANCH) == pre_run_tip

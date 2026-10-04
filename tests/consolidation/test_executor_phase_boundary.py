@@ -27,6 +27,12 @@ from specify_cli.cli.commands import consolidate as shim
 from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.baseline import BaselineMergeCommitError
 from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation import (
+    coord_strand,
+    phase_bookkeeping,
+    phase_claim,
+)
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = pytest.mark.fast
 
@@ -131,19 +137,19 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
         return tmp_path / "meta.json"
 
     with (
-        patch.object(ex, "_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
-        patch.object(ex, "_capture_merge_snapshots", lambda *_a, **_k: {}),
+        patch_executor_family("_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
+        patch_executor_family("_capture_merge_snapshots", lambda *_a, **_k: {}),
         patch.object(
-            ex,
+            phase_bookkeeping,
             "_target_bookkeeping_status_paths",
             lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
         ),
-        patch.object(ex, "_record_baseline_merge_commit", side_effect=_record_baseline),
-        patch.object(ex, "_paths_have_status_changes", lambda *_a, **_k: True),
-        patch.object(ex, "commit_merge_bookkeeping", side_effect=lambda **_k: events.append("commit")),
-        patch.object(ex, "_assert_merged_wps_done_on_target", lambda *_a, **_k: None),
+        patch.object(phase_bookkeeping, "_record_baseline_merge_commit", side_effect=_record_baseline),
+        patch_executor_family("_paths_have_status_changes", lambda *_a, **_k: True),
+        patch_executor_family("commit_merge_bookkeeping", side_effect=lambda **_k: events.append("commit")),
+        patch.object(phase_bookkeeping, "_assert_merged_wps_done_on_target", lambda *_a, **_k: None),
         patch.object(
-            ex,
+            phase_bookkeeping,
             "_assert_baseline_merge_commit_on_target",
             side_effect=lambda *_a, **_k: events.append("assert"),
         ),
@@ -166,20 +172,20 @@ def test_baseline_record_error_restores_then_exits(tmp_path: Path) -> None:
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"orig"}
 
     with (
-        patch.object(ex, "_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
-        patch.object(ex, "_capture_merge_snapshots", lambda *_a, **_k: {}),
+        patch_executor_family("_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
+        patch_executor_family("_capture_merge_snapshots", lambda *_a, **_k: {}),
         patch.object(
-            ex,
+            phase_bookkeeping,
             "_target_bookkeeping_status_paths",
             lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
         ),
         patch.object(
-            ex,
+            phase_bookkeeping,
             "_record_baseline_merge_commit",
             side_effect=BaselineMergeCommitError("boom"),
         ),
         patch.object(
-            ex,
+            coord_strand,
             "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
@@ -201,10 +207,10 @@ def test_commit_failure_restores_then_reraises(tmp_path: Path) -> None:
 
     boom = RuntimeError("commit failed")
     with (
-        patch.object(ex, "_paths_have_status_changes", lambda *_a, **_k: True),
-        patch.object(ex, "commit_merge_bookkeeping", side_effect=boom),
+        patch_executor_family("_paths_have_status_changes", lambda *_a, **_k: True),
+        patch_executor_family("commit_merge_bookkeeping", side_effect=boom),
         patch.object(
-            ex,
+            coord_strand,
             "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
@@ -222,10 +228,10 @@ def test_porcelain_invariant_violation_restores_then_exits(tmp_path: Path) -> No
     run.final_bookkeeping_snapshots = {tmp_path / "x": b"orig"}
 
     with (
-        patch.object(ex, "_raw_porcelain_status", lambda *_a, **_k: (0, (_UNEXPECTED,))),
-        patch.object(ex, "_classify_porcelain_lines", lambda *_a, **_k: ([_UNEXPECTED], 0)),
+        patch.object(phase_bookkeeping, "_raw_porcelain_status", lambda *_a, **_k: (0, (_UNEXPECTED,))),
+        patch.object(phase_bookkeeping, "_classify_porcelain_lines", lambda *_a, **_k: ([_UNEXPECTED], 0)),
         patch.object(
-            ex,
+            coord_strand,
             "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
@@ -254,11 +260,11 @@ def test_capture_reconciliation_claim_aborts_clean_on_git_probe_error(tmp_path: 
     boom = GitProbeError("git show deadbeef failed (exit 128): fatal: bad object deadbeef")
 
     with (
-        patch.object(ex, "detect_legacy_in_flight_state", lambda *_a, **_k: None),
-        patch.object(ex, "write_post_fix_marker", lambda *_a, **_k: None),
-        patch.object(ex, "_capture_coord_checkpoint", lambda *_a, **_k: None),
-        patch.object(ex, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
-        patch.object(ex, "build_approved_wp_set", side_effect=boom),
+        patch.object(phase_claim, "detect_legacy_in_flight_state", lambda *_a, **_k: None),
+        patch.object(phase_claim, "write_post_fix_marker", lambda *_a, **_k: None),
+        patch_executor_family("_capture_coord_checkpoint", lambda *_a, **_k: None),
+        patch.object(phase_claim, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
+        patch_executor_family("build_approved_wp_set", side_effect=boom),
         pytest.raises(typer.Exit) as exc,
     ):
         ex._capture_reconciliation_claim(run)
@@ -271,15 +277,15 @@ def test_capture_reconciliation_claim_aborts_clean_on_git_probe_error(tmp_path: 
 def _capture_claim_with(run: ex._MergeRunState, claim: object) -> None:
     """Drive ``_capture_reconciliation_claim`` with every collaborator stubbed except the refusal handling."""
     with (
-        patch.object(ex, "detect_legacy_in_flight_state", lambda *_a, **_k: None),
-        patch.object(ex, "write_post_fix_marker", lambda *_a, **_k: None),
-        patch.object(ex, "_capture_coord_checkpoint", lambda *_a, **_k: None),
-        patch.object(ex, "_enforce_resume_anchor_integrity", lambda *_a, **_k: None),
-        patch.object(ex, "_resolve_pre_mutation_coord_sha", lambda *_a, **_k: None),
-        patch.object(ex, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
-        patch.object(ex, "build_approved_wp_set", return_value=claim),
+        patch.object(phase_claim, "detect_legacy_in_flight_state", lambda *_a, **_k: None),
+        patch.object(phase_claim, "write_post_fix_marker", lambda *_a, **_k: None),
+        patch_executor_family("_capture_coord_checkpoint", lambda *_a, **_k: None),
+        patch.object(phase_claim, "_enforce_resume_anchor_integrity", lambda *_a, **_k: None),
+        patch.object(phase_claim, "_resolve_pre_mutation_coord_sha", lambda *_a, **_k: None),
+        patch.object(phase_claim, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
+        patch_executor_family("build_approved_wp_set", return_value=claim),
         # The pre-mutation snapshot/attempt (WP03, #5318) is covered by test_executor_rollback_wiring.
-        patch.object(ex, "_capture_snapshot_and_begin_attempt", lambda *_a, **_k: None),
+        patch.object(phase_claim, "_capture_snapshot_and_begin_attempt", lambda *_a, **_k: None),
     ):
         ex._capture_reconciliation_claim(run)
 
@@ -312,7 +318,7 @@ def test_capture_reconciliation_claim_exempts_already_passed_resume(tmp_path: Pa
     run = _make_run(tmp_path)
     run.is_resume = True
     run.state.reconciliation_passed_target_sha = "tip"
-    with patch.object(ex, "_resolve_ref_sha", lambda *_a, **_k: "tip"):
+    with patch_executor_family("_resolve_ref_sha", lambda *_a, **_k: "tip"):
         _capture_claim_with(run, _refusing_claim())
     assert run.approved_wp_set is not None
 
@@ -322,5 +328,5 @@ def test_capture_reconciliation_claim_refuses_resume_when_target_moved_since_pas
     run = _make_run(tmp_path)
     run.is_resume = True
     run.state.reconciliation_passed_target_sha = "tip"
-    with patch.object(ex, "_resolve_ref_sha", lambda *_a, **_k: "moved"), pytest.raises(typer.Exit):
+    with patch_executor_family("_resolve_ref_sha", lambda *_a, **_k: "moved"), pytest.raises(typer.Exit):
         _capture_claim_with(run, _refusing_claim())

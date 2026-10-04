@@ -161,15 +161,15 @@ def _bootstrap_direct_on_target_mission(repo: Path) -> Path:
 @contextlib.contextmanager
 def _dot_external_mocks() -> Iterator[dict[str, MagicMock]]:
     patches = {
-        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "run_check": patch("specify_cli.consolidation.phase_finalize.run_check"),
         "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch("specify_cli.consolidation.executor._enforce_review_artifact_consistency"),
-        "status_history": patch("specify_cli.consolidation.executor._enforce_canonical_status_history"),
-        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
+        "status_history": patch("specify_cli.consolidation.phase_claim._enforce_canonical_status_history"),
+        "hollow": patch("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
@@ -376,18 +376,18 @@ def _rb_external_mocks(*, include_bake_mock: bool = True) -> Iterator[dict[str, 
     unchanged.
     """
     patches = {
-        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "run_check": patch("specify_cli.consolidation.phase_finalize.run_check"),
         "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch("specify_cli.consolidation.executor._enforce_review_artifact_consistency"),
-        "status_history": patch("specify_cli.consolidation.executor._enforce_canonical_status_history"),
-        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
+        "status_history": patch("specify_cli.consolidation.phase_claim._enforce_canonical_status_history"),
+        "hollow": patch("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
     }
     if include_bake_mock:
-        patches["bake"] = patch("specify_cli.consolidation.executor._bake_mission_number_into_mission_branch", return_value=None)
+        patches["bake"] = patch("specify_cli.consolidation.phase_advance._bake_mission_number_into_mission_branch", return_value=None)
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
         gate_eval = MagicMock()

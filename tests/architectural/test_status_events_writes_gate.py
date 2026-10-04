@@ -137,7 +137,7 @@ KNOWN_DYNAMIC_EVENT_LOG_WRITE_SITES: frozenset[tuple[str, str, str]] = frozenset
         ("specify_cli.status.event_log_merge", "Path.open", "target"),
         # #2804 gate-artifact restore after a squash merge (the log is one of
         # the preserved gate artifacts).
-        ("specify_cli.consolidation.executor", "write_bytes", "path"),
+        ("specify_cli.consolidation.phase_advance", "write_bytes", "path"),
     }
 )
 

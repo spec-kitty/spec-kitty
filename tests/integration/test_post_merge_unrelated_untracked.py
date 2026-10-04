@@ -133,7 +133,7 @@ class TestMergeToleratesUntrackedFiles:
         # The ONLY injected seam: what ``git status --porcelain`` reports after
         # the merge. Untracked noise is tolerated; the tracked modification is not.
         monkeypatch.setattr(
-            "specify_cli.consolidation.executor._raw_porcelain_status",
+            "specify_cli.consolidation.phase_bookkeeping._raw_porcelain_status",
             lambda _repo_root: (0, _porcelain_entries(["?? .worktrees/", " M src/operator_change.py"])),
         )
 

@@ -67,6 +67,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import load_state
 from specify_cli.status import Lane, StatusEvent
+from tests.consolidation.executor_family import patch_executor_family
 
 pytestmark = [
     pytest.mark.integration,
@@ -265,15 +266,15 @@ def _external_mocks() -> Iterator[dict[str, MagicMock]]:
     per-test with a ``side_effect``, never here).
     """
     patches = {
-        "run_check": patch("specify_cli.consolidation.executor.run_check"),
+        "run_check": patch("specify_cli.consolidation.phase_finalize.run_check"),
         "sparse": patch("specify_cli.consolidation.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.consolidate._enforce_git_preflight"),
         "review_consistency": patch("specify_cli.consolidation.executor._enforce_review_artifact_consistency"),
-        "status_history": patch("specify_cli.consolidation.executor._enforce_canonical_status_history"),
-        "hollow": patch("specify_cli.consolidation.executor._warn_or_confirm_hollow_reviews"),
+        "status_history": patch("specify_cli.consolidation.phase_claim._enforce_canonical_status_history"),
+        "hollow": patch("specify_cli.consolidation.phase_claim._warn_or_confirm_hollow_reviews"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.consolidation.executor.has_remote", return_value=False),
+        "remote": patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}
@@ -321,10 +322,7 @@ def test_done_bookkeeping_failure_after_primary_tree_bake_reverts_orphan_commit(
 
     with (
         _external_mocks(),
-        patch(
-            "specify_cli.consolidation.executor._record_merged_wps_done_for_merge",
-            side_effect=RuntimeError(_INJECTED_DONE_FAILURE),
-        ),
+        patch_executor_family("_record_merged_wps_done_for_merge", side_effect=RuntimeError(_INJECTED_DONE_FAILURE)),
         pytest.raises(RuntimeError, match=_INJECTED_DONE_FAILURE),
     ):
         _run_lane_based_consolidation(
