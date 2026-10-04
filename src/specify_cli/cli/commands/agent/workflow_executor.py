@@ -392,6 +392,35 @@ def commit_workflow_change(
         )
 
 
+def guard_repo_root_claim(main_repo_root: Path, mission_slug: str, wp_id: str, workspace: ResolvedWorkspace) -> None:
+    """Run the shared repo-root claim seam for ``agent action implement`` (#5459).
+
+    A no-op for an ordinary lane worktree, whose guard and claim base run
+    inside workspace creation, and for a non-single_branch mission (a
+    lanes/coord planning WP keeps its historical agent-path claim). For a
+    single_branch repo-root lane it delegates to
+    :func:`specify_cli.lanes.implement_support.guard_repo_root_claim` and
+    renders a write-checkout refusal as an ``Error:`` line with exit 1, before
+    any status event is written.
+    """
+    from mission_runtime import is_single_branch, resolve_topology
+    from specify_cli.lanes.compute import is_repo_root_lane
+    from specify_cli.lanes.implement_support import (
+        WriteCheckoutDirtyError,
+        WriteCheckoutOccupiedError,
+        WriteCheckoutWrongBranchError,
+        guard_repo_root_claim as _guard,
+    )
+
+    if not is_repo_root_lane(workspace) or not is_single_branch(resolve_topology(main_repo_root, mission_slug)):
+        return
+    try:
+        _guard(main_repo_root, mission_slug, wp_id, workspace)
+    except (WriteCheckoutWrongBranchError, WriteCheckoutOccupiedError, WriteCheckoutDirtyError) as e:
+        print(f"Error: {e} ({e.error_code})")
+        raise typer.Exit(1) from e
+
+
 def ensure_workspace_materialized(
     workspace: ResolvedWorkspace,
     wp_id: str,

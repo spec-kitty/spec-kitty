@@ -188,6 +188,35 @@ def _ensure_repo_root_checkout_available(
     return True
 
 
+def guard_repo_root_claim(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    resolved_workspace: ResolvedWorkspace,
+    *,
+    occupancy_verified: bool = False,
+) -> None:
+    """Guard and record a claim on a repo-root lane: the ONE claim seam both claim verbs share.
+
+    Runs the write-checkout refusal order (wrong branch / occupied / dirty;
+    single_branch only) BEFORE recording the claim base, so a refusal never
+    leaves a stray claim-base ref behind. The claim base is recorded once
+    (idempotent-by-absence) so the for_review gate has a starting point to
+    diff against (WP02/T007, contracts/single-branch-execution.md "Claim base
+    and for_review").
+
+    ``implement`` reaches this through :func:`create_lane_workspace`;
+    ``agent action implement`` calls it directly, because the repository root
+    checkout always exists and so never goes through workspace creation
+    (#5459).
+    """
+    _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace, occupancy_verified=occupancy_verified)
+
+    from specify_cli.lanes.claim_base import record_claim_base
+
+    record_claim_base(repo_root, repo_root, mission_slug, wp_id)
+
+
 @dataclass
 class LaneWorkspaceResult:
     """Result of implement workspace creation."""
@@ -303,14 +332,7 @@ def create_lane_workspace(
         # this same arm. #5100 T018: enforce the write-checkout refusal
         # order (wrong branch / occupied / dirty) BEFORE recording the claim
         # base, so a refusal never leaves a stray claim-base ref behind.
-        _ensure_repo_root_checkout_available(repo_root, mission_slug, wp_id, resolved_workspace, occupancy_verified=occupancy_verified)
-
-        # Record the claim base ONCE (idempotent-by-absence) so the
-        # for_review gate has a starting point to diff against (WP02/T007,
-        # contracts/single-branch-execution.md "Claim base and for_review").
-        from specify_cli.lanes.claim_base import record_claim_base
-
-        record_claim_base(repo_root, repo_root, mission_slug, wp_id)
+        guard_repo_root_claim(repo_root, mission_slug, wp_id, resolved_workspace, occupancy_verified=occupancy_verified)
         return LaneWorkspaceResult(
             workspace_path=resolved_workspace.worktree_path,
             branch_name=resolved_workspace.branch_name,

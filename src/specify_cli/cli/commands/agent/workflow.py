@@ -128,6 +128,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.cli.commands.agent.workflow_executor import (
     commit_workflow_change as _commit_workflow_change,  # noqa: F401 -- late-bound via workflow_executor._wf() / patched by tests
     ensure_workspace_materialized as _ensure_workspace_materialized,
+    guard_repo_root_claim as _guard_repo_root_claim,
 )
 
 # Phase functions the implement()/review()/_resolve_review_context() shells
@@ -1632,6 +1633,12 @@ def implement(
 
         def _reenter_self_heal() -> None:
             reenter_lane_self_heal(main_repo_root, mission_slug, normalized_wp_id)
+
+        # #5459: a repo-root lane (every single_branch WP) executes in the
+        # repository root checkout, which always exists, so it never reaches
+        # ``_create_workspace``. Run the shared claim seam here instead, before
+        # any status event: the write-checkout refusals, then the claim base.
+        _guard_repo_root_claim(main_repo_root, mission_slug, normalized_wp_id, workspace)
 
         _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace, _reenter_self_heal)
         workspace_path = workspace.worktree_path
