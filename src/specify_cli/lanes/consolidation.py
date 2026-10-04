@@ -33,6 +33,7 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
 from specify_cli.consolidation._constants import TARGET_BRANCH_CONTENT_CONFLICT
 from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.state.contract import is_primary_owned_path
 
 
 @dataclass(frozen=True)
@@ -905,6 +906,73 @@ def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, s
     return not _unmerged_paths(worktree, env)
 
 
+def _git_in(worktree: Path, args: list[str], env: dict[str, str]) -> bool:
+    """Run ``git <args>`` in ``worktree``; return whether it succeeded."""
+    result = subprocess.run(
+        ["git", *args],
+        cwd=str(worktree),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return result.returncode == 0
+
+
+def resolve_primary_owned_conflicts(worktree: Path, env: dict[str, str]) -> list[str]:
+    """Resolve every unmerged primary-owned path to stage 2 ("ours") (#5457).
+
+    At each git-merge site that calls this, the worktree is checked out on the
+    receiving side, so "ours" is the side whose project-global bookkeeping must
+    survive: the mission branch (lane -> mission), the target (mission ->
+    target) or the dependent lane (dependency-lane merge). A pre-fix upgrade
+    committed a divergent ``.kittify/metadata.yaml`` on every branch; that copy
+    is not lane work.
+
+    * stage 2 present: ``git checkout --ours`` then ``git add``;
+    * stage 2 absent (ours deleted the path): ``git rm``.
+
+    Only paths for which :func:`is_primary_owned_path` holds are touched (#4892:
+    no ``-X ours`` / ``-X theirs``); every other unmerged path stays unmerged
+    for the caller's existing fail-closed handling. A git failure leaves that
+    path unmerged too. Returns the resolved paths, in sorted order.
+    """
+    resolved: list[str] = []
+    for rel in _unmerged_paths(worktree, env):
+        if not is_primary_owned_path(rel):
+            continue
+        if _git_in(worktree, ["cat-file", "-e", f":2:{rel}"], env):
+            done = _git_in(worktree, ["checkout", "--ours", "--", rel], env) and _git_in(worktree, ["add", "--", rel], env)
+        else:
+            done = _git_in(worktree, ["rm", "-q", "--", rel], env)
+        if done:
+            resolved.append(rel)
+    return resolved
+
+
+def _complete_merge_after_primary_owned_resolution(worktree: Path, env: dict[str, str]) -> bool:
+    """Resolve primary-owned conflicts and commit the in-progress merge when nothing else is unmerged.
+
+    FR-007: once the primary-owned paths are resolved, a remainder made only of
+    derived ``status.json`` snapshots is regenerated through
+    :func:`reconcile_derived_status_snapshot_conflicts` (the same order as the
+    squash and dependency-lane sites); any other remainder stays unmerged.
+
+    Returns ``True`` only when at least one primary-owned path was resolved, no
+    unmerged path remains, and ``git commit --no-edit`` succeeded. Otherwise the
+    merge is left in progress for the caller's existing abort path, and that
+    includes a conflict set that cannot be read at all (``_unmerged_paths``
+    raising ``RuntimeError``): an unknown conflict state fails closed.
+    """
+    try:
+        if not resolve_primary_owned_conflicts(worktree, env):
+            return False
+        if _unmerged_paths(worktree, env) and not reconcile_derived_status_snapshot_conflicts(worktree, env):
+            return False
+    except RuntimeError:
+        return False
+    return _git_in(worktree, ["-c", "commit.gpgsign=false", "commit", "--no-edit"], env)
+
+
 def _resolve_planning_conflicts(
     repo_root: Path,
     worktree: Path,
@@ -977,7 +1045,19 @@ def _run_squash_merge(
     target_branch: str,
     env: dict[str, str],
 ) -> bool:
-    """Stage a squash merge; return whether planning reconciliation was needed."""
+    """Stage a squash merge of ``source_branch`` into the ``worktree`` index.
+
+    Returns ``False`` when ``git merge --squash`` staged cleanly. Returns
+    ``True`` when the squash conflicted and a reconciliation was needed to
+    clear every unmerged path: the PRIMARY planning policy, the primary-owned
+    bookkeeping resolver (#5457) or the derived ``status.json`` regeneration
+    (#4955). ``True`` does NOT promise staged content: when the reconciled index
+    equals the target tree (for example a conflict set of only primary-owned
+    paths), nothing is staged and the caller reports an honest no-op.
+
+    Raises :class:`_SquashMergeConflict` when a genuine conflict remains, and
+    ``RuntimeError`` for a non-conflict failure or an unreadable conflict set.
+    """
     result = subprocess.run(
         ["git", "merge", "--squash", source_branch],
         cwd=str(worktree),
@@ -999,6 +1079,10 @@ def _run_squash_merge(
             env,
         )
         conflicts = _unmerged_paths(worktree, env)
+        # #5457: primary-owned bookkeeping keeps the target's copy (stage 2).
+        # It runs BEFORE the status reconcile, which declines any mixed set.
+        if conflicts and resolve_primary_owned_conflicts(worktree, env):
+            conflicts = _unmerged_paths(worktree, env)
         # #4955: a both-sides-divergent DERIVED status.json is not a real conflict
         # — regenerate it from the union-merged event log and stage it, so a
         # routine snapshot divergence never blocks integration. Genuine
@@ -1176,8 +1260,9 @@ def _merge_branch_into(
                 env=_env,
             )
             if staged.returncode == 0:
-                # Nothing staged. #4892 review: when a planning conflict resolves
-                # entirely to the target copy, the target already contains the
+                # Nothing staged. #4892 review: when a planning (or, #5457,
+                # primary-owned / derived status) conflict resolves entirely to
+                # the target copy, the target already contains the
                 # mission's tree — a genuine no-op. NEVER force it through with an
                 # ``--allow-empty`` commit (that fabricated an empty squash commit
                 # and bypassed the FR-037 no-op check). Report the no-op so the
@@ -1278,7 +1363,10 @@ def _merge_branch_into(
                 text=True,
                 env=_env,
             )
-            if result.returncode != 0:
+            # #5457: a conflict confined to primary-owned bookkeeping resolves to
+            # the receiving side (stage 2) and the merge completes; anything else
+            # aborts and raises exactly as before.
+            if result.returncode != 0 and not _complete_merge_after_primary_owned_resolution(tmp_path, _env):
                 subprocess.run(
                     ["git", "merge", "--abort"],
                     cwd=str(tmp_path),

@@ -32,6 +32,7 @@ from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.compute import PLANNING_LANE_ID, has_code_lanes
 from specify_cli.lanes.consolidation import (
+    _complete_merge_after_primary_owned_resolution,
     _ephemeral_merge_driver_activation,
     _make_merge_env,
     reconcile_derived_status_snapshot_conflicts,
@@ -1526,6 +1527,41 @@ def _current_head(worktree_path: Path) -> str | None:
     return head or None
 
 
+def _auto_resolve_dependency_merge(worktree_path: Path, env: dict[str, str]) -> bool:
+    """Try to complete an in-progress dependency merge whose conflicts are not lane work.
+
+    * #5457: a conflict confined to primary-owned bookkeeping (plus, FR-007,
+      any derived ``status.json`` left beside it) keeps the dependent lane's
+      own copy (stage 2) and completes the merge. Any other mixed set falls
+      through to the status reconcile, which then sees only what the
+      primary-owned resolver left.
+    * #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is not a
+      real conflict — it is regenerated from the union-merged event log and the
+      merge is committed.
+
+    Returns ``True`` only when the merge was committed. ``False`` leaves the
+    merge in progress for the caller's atomic abort + reset path (#1915) — and
+    that includes a resolver that cannot read the conflict set at all (its
+    ``RuntimeError`` from ``_unmerged_paths``): an unknown conflict state must
+    fail closed atomically, never escape past the rollback.
+    """
+    try:
+        if _complete_merge_after_primary_owned_resolution(worktree_path, env):
+            return True
+        if not reconcile_derived_status_snapshot_conflicts(worktree_path, env):
+            return False
+    except RuntimeError:
+        return False
+    completed = subprocess.run(
+        ["git", "commit", "--no-edit"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return completed.returncode == 0
+
+
 def _merge_dependency_lane_tips(
     repo_root: Path,
     worktree_path: Path,
@@ -1626,20 +1662,8 @@ def _merge_dependency_lane_tips(
                 env=env,
             )
             if merge.returncode != 0:
-                # #5160 friction 1: a both-sides-divergent DERIVED ``status.json`` is
-                # not a real conflict — regenerate it from the union-merged event log
-                # and complete THIS dep merge, then carry on. Genuine conflicts still
-                # fail closed atomically below.
-                if reconcile_derived_status_snapshot_conflicts(worktree_path, env):
-                    completed = subprocess.run(
-                        ["git", "commit", "--no-edit"],
-                        cwd=str(worktree_path),
-                        capture_output=True,
-                        text=True,
-                        env=env,
-                    )
-                    if completed.returncode == 0:
-                        continue
+                if _auto_resolve_dependency_merge(worktree_path, env):
+                    continue
                 # Fail closed AND atomic (#1915): abort the half-merge, then reset
                 # hard to the pre-loop ref so no EARLIER clean dep merge survives
                 # this LATER conflict. The worktree is left exactly as it was before
