@@ -303,3 +303,65 @@ def test_a_success_that_carries_an_error_diagnostic_still_lists_it() -> None:
 
     assert outcome.errors() == ["an error diagnostic"]
     assert outcome.derive_exit_code() == 0
+
+
+def _only_migration_failed() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=False, from_version=_FROM, to_version=_TO))
+
+
+def _only_activation_error() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), activation_errors=[_ACTIVATION_ERROR])
+
+
+def _only_worktree_failure() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), worktree_failures=[_WORKTREE_FAILURE])
+
+
+def _only_commit_recovery_failed() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), commit_recovery_failed=True)
+
+
+def _only_surface_repair_failed() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), surface_repair_failed=True)
+
+
+def _only_preview_incomplete() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO, dry_run=True), preview_incomplete=True)
+
+
+def _only_surface_drift() -> UpgradeOutcome:
+    return UpgradeOutcome(result=UpgradeResult(success=True, from_version=_FROM, to_version=_TO), drifted_paths=[_DRIFT_PATHS[0]])
+
+
+# One factory per failure reason: each builds an outcome in which ONLY that reason holds.
+_OUTCOME_BY_REASON = {
+    UpgradeFailureReason.MIGRATION_FAILED: _only_migration_failed,
+    UpgradeFailureReason.ACTIVATION_ERROR: _only_activation_error,
+    UpgradeFailureReason.WORKTREE_FAILURE: _only_worktree_failure,
+    UpgradeFailureReason.COMMIT_RECOVERY_FAILED: _only_commit_recovery_failed,
+    UpgradeFailureReason.SURFACE_REPAIR_FAILED: _only_surface_repair_failed,
+    UpgradeFailureReason.PREVIEW_INCOMPLETE: _only_preview_incomplete,
+    UpgradeFailureReason.SURFACE_DRIFT: _only_surface_drift,
+}
+
+
+def test_the_truth_table_exercises_every_failure_reason() -> None:
+    """A new ``UpgradeFailureReason`` member must get a row in the matrix, not be silently untested."""
+    exercised = {_REASON_BY_INPUT[name] for held, _, _ in _ALL_CASES for name in held}
+
+    assert exercised == set(UpgradeFailureReason)
+    assert set(_REASON_BY_INPUT.values()) == set(UpgradeFailureReason)
+
+
+def test_every_failure_reason_has_a_single_reason_factory() -> None:
+    assert set(_OUTCOME_BY_REASON) == set(UpgradeFailureReason)
+
+
+@pytest.mark.parametrize("reason", list(UpgradeFailureReason), ids=lambda reason: reason.value)
+def test_a_lone_failure_reason_exits_non_zero_and_explains_itself(reason: UpgradeFailureReason) -> None:
+    """Invariant 3 for every reason on its own: it is reported, it fails the run, and it says why."""
+    outcome = _OUTCOME_BY_REASON[reason]()
+
+    assert outcome.reasons == (reason,)
+    assert outcome.derive_exit_code() != 0
+    assert outcome.errors()
