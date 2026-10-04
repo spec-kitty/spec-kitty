@@ -6,9 +6,10 @@ against the configured tool surfaces and records the surface counts so that
 ``spec-kitty doctor tool-surfaces`` has a baseline to compare against.
 
 Mutation is intentionally absent from this migration.  The repair itself runs
-inside ``run_surface_repair()`` which is called directly by ``init`` and
-``upgrade`` after agent configuration is flushed to disk.  The migration
-records only a "was probed" marker to make the wiring observable via
+inside ``run_surface_repair()`` which is called directly by ``init`` after
+agent configuration is flushed to disk; ``upgrade`` repairs through the
+prepared path (``prepare_upgrade_repairs`` / ``apply_upgrade_repairs``).  The
+migration records only a "was probed" marker to make the wiring observable via
 ``spec-kitty upgrade --verbose``.
 
 This migration:

@@ -5,9 +5,11 @@ objects (never reconstructs :class:`SurfaceInstance` from a finding) and
 delegates the actual mutation to the provider that owns each surface kind. This
 preserves the manifest/source/hash/refcount context the providers carry.
 
-:func:`run_surface_repair` is the single entry point for ``init`` and
-``upgrade``. It applies the 6-rule drift policy (contract: drift-policy-01)
-and returns a structured :class:`DriftPolicySummary`.
+:func:`run_surface_repair` is the entry point ``init`` uses. It applies the
+6-rule drift policy (contract: drift-policy-01) and returns a structured
+:class:`DriftPolicySummary`. ``upgrade`` repairs through the prepared path
+(``prepare_upgrade_repairs`` / ``apply_upgrade_repairs``), not through this
+function.
 """
 
 from __future__ import annotations
