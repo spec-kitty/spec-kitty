@@ -180,7 +180,7 @@ def test_authored_claim_drops_the_canceled_commit_from_the_dependent_lane(dep: D
     before = _collect_authored(dep.repo, dep.manifest, lanes_approved, dep.base, canceled_lane_commits=frozenset())
     assert dep.canceled_sha in before[0]  # the pre-fix claim: canceled work counted as approved authorship
 
-    shas, _patch_ids, blobs, _deletions, _multi = _collect_authored(
+    shas, _patch_ids, blobs, _deletions, _multi, _content = _collect_authored(
         dep.repo, dep.manifest, lanes_approved, dep.base, None, canceled_lane_commits=frozenset({dep.canceled_sha})
     )
 
@@ -279,7 +279,7 @@ def test_multi_lane_contribution_is_recorded_at_an_authored_commit_not_a_cancele
     manifest = _manifest(_lane("lane-b", "WP02"), _lane("lane-c", "WP03"))
     approved = {"WP02": {"lane": "approved"}, "WP03": {"lane": "approved"}}
     # lane-b's tip is dep.approved_sha; mark it canceled so lane-b authors only dep.canceled_sha (ALPHA).
-    *_, multi_lane_paths = _collect_authored(dep.repo, manifest, approved, dep.base, None, canceled_lane_commits=frozenset({dep.approved_sha}))
+    *_, multi_lane_paths, _content = _collect_authored(dep.repo, manifest, approved, dep.base, None, canceled_lane_commits=frozenset({dep.approved_sha}))
 
     first, second = multi_lane_paths[_ALPHA]
     by_lane = {contribution.lane_id: contribution for contribution in (first, second)}

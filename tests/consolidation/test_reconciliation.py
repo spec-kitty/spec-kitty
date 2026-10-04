@@ -2686,7 +2686,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_non_mixed(tmp_
     snapshot = materialize_snapshot(feature_dir)
     work_packages = snapshot.work_packages or {}
     expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
-    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths = _collect_authored(
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths, *_ = _collect_authored(
         repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
     )
     expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(
@@ -2728,7 +2728,7 @@ def test_claim_fields_are_byte_identical_to_unmodified_collectors_mixed_lane(tmp
     snapshot = materialize_snapshot(feature_dir)
     work_packages = snapshot.work_packages or {}
     expected_approved = _collect_approved_shas(repo, manifest, work_packages, coord_base)
-    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths = _collect_authored(
+    expected_authored_shas, expected_authored_patch_ids, expected_authored_blobs, expected_authored_deletions, expected_multi_lane_paths, *_ = _collect_authored(
         repo, manifest, work_packages, coord_base, canceled_lane_commits=frozenset()
     )
     expected_excluded_shas, expected_excluded_patch_ids = _collect_excluded(

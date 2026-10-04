@@ -45,11 +45,11 @@ from __future__ import annotations
 
 import functools
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, NamedTuple
 
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
@@ -115,6 +115,16 @@ _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be 
 # shared by the FAIL rendering (:func:`_describe_canceled_content`) and both
 # REFUSE reasons the axis can raise (hoisted per Sonar S1192 — used 4+ times).
 _RECOVERY_TAIL = "then re-run spec-kitty consolidate"
+#: How the target fails to hold an approved lane's content (:class:`MissingApprovedContent`):
+#: the path is not there at all, or it still holds the pre-consolidation state.
+PresenceGap = Literal["absent", "unchanged"]
+_GAP_ABSENT: PresenceGap = "absent"
+_GAP_UNCHANGED: PresenceGap = "unchanged"
+#: Error code of the #5571 verdict: an approved lane's final authored content is
+#: absent from (or not applied to) the target and no later approved lane
+#: superseded the path -- e.g. the operator committed the staged deletions an
+#: interrupted run left behind. A content verdict: it FAILs and rolls back.
+APPROVED_CONTENT_MISSING = "APPROVED_CONTENT_MISSING"
 # Squash-only (#5013 F1 corollary, widened by #5022): a production claim whose
 # authorship set came back empty — BOTH blobs and deletions — while it lists
 # approved WPs cannot attribute any target blob or deletion — the empty loop
@@ -163,6 +173,56 @@ class UnroutedTerminusPathError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class MissingApprovedContent:
+    """One path whose approved final content is not on the target (#5571, ``APPROVED_CONTENT_MISSING``).
+
+    ``wp_ids`` / ``lane_ids`` name every approved WP (and its lane) whose final
+    authored state for ``path`` equals the unmet ``expected`` state, so a
+    dependency chain names the WP that authored the content as well as the lane
+    that carried it. ``expected`` is the blob the lane ended on, or ``None`` for a
+    deletion that did not land. ``found`` is the :data:`PresenceGap`: ``"absent"``
+    (the path is not on the target) or ``"unchanged"`` (the target still holds the
+    pre-consolidation state).
+    """
+
+    wp_ids: tuple[str, ...]
+    lane_ids: tuple[str, ...]
+    path: str
+    expected: str | None
+    found: PresenceGap
+
+
+@dataclass(frozen=True)
+class ApprovedLaneContent:
+    """An approved code lane's FINAL authored state, per path (#5571 presence axis).
+
+    The lane is the unit git integrates, so the final state is per lane and named
+    by the lane's approved WPs. ``final_state`` maps a repo-relative path to the
+    blob the lane's own first-parent spine ends on, or ``None`` when its final
+    state for the path is a deletion (a rename contributes its source as ``None``).
+    ``ancestors`` are the lane ids this lane transitively depends on: such a lane
+    was built atop them, so its final state supersedes theirs for any path both
+    hold. Built from the SAME spine walk as ``authored_blobs`` -- never a second one.
+
+    The last three fields let the presence axis judge only the lane's OWN NET
+    change (:func:`unmet_approved_content`); no path is read for them at claim
+    build. ``tip`` is the lane tip. ``fork_point`` is the commit the lane was cut
+    from (the first parent of its oldest own first-parent commit), the lane's own
+    base. ``dependency_forks`` maps a dependency lane id to the commit of that
+    lane this lane was built on. A hand-built content leaves them unset, which
+    reads as "cut from the pre-consolidation target, and every held path is its own".
+    """
+
+    lane_id: str
+    wp_ids: tuple[str, ...]
+    ancestors: frozenset[str]
+    final_state: Mapping[str, str | None]
+    tip: str | None = None
+    fork_point: str | None = None
+    dependency_forks: Mapping[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class Divergence:
     """The specific way the target tree diverged from the approved-WP claim.
 
@@ -204,6 +264,10 @@ class Divergence:
     unattributable_deletions: tuple[str, ...] = ()
     canceled_content: tuple[CanceledPathState, ...] = ()
 
+    #: #5571: approved lane content absent from / not applied to the target and
+    #: not superseded by a later approved lane.
+    approved_content_missing: tuple[MissingApprovedContent, ...] = ()
+
     def describe(self) -> str:
         """Operator-facing, one-line-per-divergence explanation."""
         parts: list[str] = []
@@ -231,6 +295,8 @@ class Divergence:
             )
         for entry in self.canceled_content:
             parts.append(_describe_canceled_content(entry))
+        for missing in self.approved_content_missing:
+            parts.append(_describe_approved_content_missing(missing))
         return "; ".join(parts) if parts else "no divergence"
 
 
@@ -251,6 +317,33 @@ def _describe_canceled_content(entry: CanceledPathState) -> str:
         situation = f"file '{entry.path}' was deleted by {who} (lane {entry.lane_id}) and that deletion is on the target — approved content would be lost"
     else:
         situation = f"file '{entry.path}' carries {who}'s change (lane {entry.lane_id}) on the target — canceled work would ship"
+    return f"{situation}; {recovery}"
+
+
+def _describe_approved_content_missing(entry: MissingApprovedContent) -> str:
+    """Render one #5571 clause: names the approved WP(s), their lane(s) and the path.
+
+    One ``;`` between the situation and the recovery, like
+    :func:`_describe_canceled_content`. The recovery names the cause an operator
+    can act on: a worktree that was committed while it lagged its own HEAD. The
+    axis only reports a path the target itself left alone since the lane was cut
+    (:func:`_dropped_own_change`), so the loss is on the mission side and the
+    recovery says so: it must never read as advice to revert a target commit.
+    """
+    who = ", ".join(entry.wp_ids)
+    lanes = ", ".join(entry.lane_ids)
+    if entry.expected is None:
+        what = f"its deletion of '{entry.path}' is not applied to the target"
+    elif entry.found == _GAP_ABSENT:
+        what = f"file '{entry.path}' is absent from the target"
+    else:
+        what = f"file '{entry.path}' on the target still holds its pre-consolidation content"
+    situation = f"{APPROVED_CONTENT_MISSING}: approved {who} (lane {lanes}) {what} and no later approved WP superseded it — approved work would be dropped"
+    recovery = (
+        f"restore {who}'s change to '{entry.path}' on the mission branch — the target branch did not change this path, so revert nothing there "
+        f"(if you committed the staged changes of a lagging coordination or mission worktree, revert that commit on the mission branch, "
+        f"and never commit such changes — discard them with `git reset --hard HEAD`), {_RECOVERY_TAIL}"
+    )
     return f"{situation}; {recovery}"
 
 
@@ -478,6 +571,15 @@ class ApprovedWpCommitSet:
     # their visible canceled content still stands. Empty on a hand-built claim.
     attested_canceled_wp_ids: frozenset[str] = frozenset()
 
+    # #5571: each approved CODE lane's FINAL authored state per path, in dependency
+    # order (a lane after every lane it depends on; ties by lane id). The approved-
+    # content presence axis (:meth:`MergeOutcomeVerifier._approved_content_divergence`)
+    # requires the target to hold it unless a later approved lane built atop this
+    # one superseded the path. A NEW field: the ``authored_*`` claim fields are
+    # untouched. Populated by ``_collect_authored`` in the same spine walk as
+    # ``authored_blobs``; a hand-built claim leaves it empty, which turns the axis off.
+    approved_lane_content: tuple[ApprovedLaneContent, ...] = ()
+
     @property
     def is_vacuous_against_manifest(self) -> bool:
         """True when the derived claim is empty while the manifest lists WPs."""
@@ -527,6 +629,19 @@ def _merge_canceled_content_into_result(result: VerifyResult, canceled_fail: lis
     return VerifyResult.failed(replace(existing, canceled_content=existing.canceled_content + tuple(canceled_fail)))
 
 
+def _merge_missing_content_into_result(result: VerifyResult, missing: list[MissingApprovedContent]) -> VerifyResult:
+    """Fold the #5571 approved-content-missing entries into a strategy axis result.
+
+    Same composition as :func:`_merge_canceled_content_into_result`.
+    """
+    if result.status is VerifyStatus.REFUSE or not missing:
+        return result
+    if result.status is VerifyStatus.PASS:
+        return VerifyResult.failed(Divergence(approved_content_missing=tuple(missing)))
+    existing = result.divergence or Divergence()
+    return VerifyResult.failed(replace(existing, approved_content_missing=existing.approved_content_missing + tuple(missing)))
+
+
 class MergeOutcomeVerifier:
     """Verifies the merge outcome against the approved-WP claim by reachability.
 
@@ -557,6 +672,10 @@ class MergeOutcomeVerifier:
            exist → REFUSE; unsuperseded canceled-content entries are collected
            as FAIL candidates and merged into whichever axis below runs next
            (a REFUSE from either axis wins; a FAIL from both axes combines);
+        4b. (approved-content presence axis, #5571) an approved lane's final content
+           absent from / unchanged on the target with no later approved lane built
+           atop it superseding the path → FAIL candidate ``APPROVED_CONTENT_MISSING``
+           (merged like step 4's; a git probe error → REFUSE);
         5. (squash / ``verify_reachability=False``) the squash-sound closed-world
            BLOB-attribution axis (#5013 WS1): a production claim with empty
            authorship or a ``None`` window base → REFUSE, a git probe error →
@@ -585,6 +704,13 @@ class MergeOutcomeVerifier:
         if canceled_refuse is not None:
             return VerifyResult.refused(canceled_refuse)
 
+        # #5571: an approved lane's final content absent from / not applied to the
+        # target. Strategy-independent: the ancestry skip (`_lane_already_integrated`)
+        # hides it under both squash and merge.
+        missing_content, missing_refuse = self._approved_content_divergence(target_ref, approved_wp_set)
+        if missing_refuse is not None:
+            return VerifyResult.refused(missing_refuse)
+
         # Squash (and any strategy that does not preserve content identity):
         # claim integrity held, but SHA/patch-id reachability is unsound (a squash
         # destroys lane-tip SHAs AND per-commit patch-ids). The squash-sound
@@ -603,7 +729,7 @@ class MergeOutcomeVerifier:
             strategy_result = VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
         else:
             strategy_result = self._verify_merge_reachability(target_ref, approved_wp_set)
-        return _merge_canceled_content_into_result(strategy_result, canceled_fail)
+        return _merge_missing_content_into_result(_merge_canceled_content_into_result(strategy_result, canceled_fail), missing_content)
 
     def _verify_merge_reachability(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
         """The Tier-0 merge/rebase axis: per-SHA reachability + excluded/closed-world.
@@ -669,6 +795,37 @@ class MergeOutcomeVerifier:
         except GitProbeError as exc:
             return [], f"a git probe failed while verifying the canceled-content window: {exc}"
         return fail_entries, None
+
+    def _approved_content_divergence(self, target_ref: str, claim: ApprovedWpCommitSet) -> tuple[list[MissingApprovedContent], str | None]:
+        """#5571: approved lane content absent from the target, as ``(missing, refuse_reason)``.
+
+        For every approved code lane's final authored path state the target must
+        hold it, unless a later approved lane built atop that lane superseded the
+        path, the lane left the path net unchanged, or the target moved the path
+        itself since the lane was cut (:func:`unmet_approved_content`). Paths a
+        canceled WP touches (``canceled_content`` -- judged by its own axis)
+        and mission bookkeeping are not judged here. A no-op for a claim without
+        ``approved_lane_content`` (every hand-built claim). The probe is read-only;
+        a failing FAIL rolls back through the single rollback authority in the
+        executor, exactly like every other divergence.
+        """
+        if not claim.enforce_closed_world or not claim.approved_lane_content:
+            return [], None
+        window_base = claim.excluded_window_base
+        if window_base is None:
+            return [], _REFUSE_WINDOW_BASE_UNRESOLVED
+        canceled_paths = frozenset(entry.path for entry in claim.canceled_content)
+        try:
+            missing = unmet_approved_content(
+                claim.approved_lane_content,
+                target_state=lambda path: path_state_at(self._repo, target_ref, path),
+                base_state=lambda path: path_state_at(self._repo, window_base, path),
+                skip=lambda path: path in canceled_paths or self._is_bookkeeping_path(path, claim),
+                state_at=lambda ref, path: path_state_at(self._repo, ref, path),
+            )
+        except GitProbeError as exc:
+            return [], f"a git probe failed while verifying approved content presence: {exc}"
+        return missing, None
 
     @staticmethod
     def _refusal_reason(claim: ApprovedWpCommitSet) -> str | None:
@@ -1210,7 +1367,7 @@ def build_approved_wp_set(
     # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
     # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
     # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
-    authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths = _collect_authored(
+    authored_shas, authored_patch_ids, authored_blobs, authored_deletions, multi_lane_paths, approved_lane_content = _collect_authored(
         repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window, canceled_lane_commits=canceled_lane_commits
     )
     excluded_shas, excluded_patch_ids = _collect_excluded(
@@ -1238,6 +1395,7 @@ def build_approved_wp_set(
         planning_prefix=planning_prefix,
         canceled_content=canceled_content,
         attested_canceled_wp_ids=attested_wp_ids,
+        approved_lane_content=approved_lane_content,
     )
 
 
@@ -1729,6 +1887,213 @@ def _collect_excluded(
     return frozenset(shas), frozenset(patch_ids)
 
 
+def _unsuperseded_holders(holders: Sequence[ApprovedLaneContent]) -> list[ApprovedLaneContent]:
+    """The holders of a path no OTHER holder built atop (a dependent lane supersedes its dependency)."""
+    return [holder for holder in holders if not any(holder.lane_id in other.ancestors for other in holders if other is not holder)]
+
+
+def _presence_gap(states: set[str | None], target: str | None, base: Callable[[], str | None]) -> PresenceGap | None:
+    """``"absent"`` / ``"unchanged"`` when the *target* state is none of *states*, else ``None``.
+
+    A target holding another, third content is NOT a gap here: that is a merge
+    resolution or a later legitimate edit, which the blob-attribution and
+    closed-world axes already judge. What this axis adds is the case they cannot
+    see because the content is simply not there: the path is absent although
+    every unsuperseded lane ends with it present, or the target still holds the
+    pre-consolidation state (the approved change, or deletion, never landed).
+    *base* is read only when it can decide.
+    """
+    if target in states:
+        return None
+    if target is None:
+        return _GAP_ABSENT
+    return _GAP_UNCHANGED if target == base() else None
+
+
+StateAt = Callable[[str, str], str | None]
+
+
+def _owns_change(holder: ApprovedLaneContent, path: str, holders: Sequence[ApprovedLaneContent], state_at: StateAt | None) -> bool:
+    """False when *holder* only carries what a dependency lane held when *holder* was built on it.
+
+    A dependent lane's first-parent spine includes the dependency lane's commits
+    (the allocator fast-forwards them in), so its final state for a path it never
+    touched is the dependency's state at that moment. Such a lane neither
+    supersedes the dependency (which may have moved on since, e.g. reverted the
+    path) nor is the author to name. Unknown (no probe, or no recorded fork)
+    counts as its own change, the stricter reading.
+    """
+    if state_at is None:
+        return True
+    carried = holder.final_state[path]
+    forks = (holder.dependency_forks.get(other.lane_id) for other in holders if other is not holder)
+    return not any(fork is not None and state_at(fork, path) == carried for fork in forks)
+
+
+def _dropped_own_change(holder: ApprovedLaneContent, path: str, base: str | None, state_at: StateAt | None) -> bool:
+    """True when *holder*'s final state for *path* is a net change only a LOSS explains on the target.
+
+    Three facts, all read at the lane's own base (``fork_point``), never against
+    the target alone:
+
+    * the target still holds *path* as the lane found it (*base* equals the state
+      at the fork point). A target that edited, deleted or renamed the path itself
+      since the lane was cut produces a merge resolution, not a dropped change;
+    * the lane's final state differs from the state at its fork point. A lane that
+      left the path as it found it (changed and reverted, by itself or through the
+      lanes it was built on) has nothing to land;
+    * the lane tip really holds that final state. When a merge on the lane's own
+      spine took another version, the lane does not end on what its commits say.
+
+    A content without ``tip`` / ``fork_point`` (hand-built) is read as cut from the
+    pre-consolidation target: only the net-change fact applies, against *base*.
+    """
+    final = holder.final_state[path]
+    if state_at is None or holder.tip is None or holder.fork_point is None:
+        return final != base
+    found_at_fork = state_at(holder.fork_point, path)
+    return found_at_fork == base and final != found_at_fork and state_at(holder.tip, path) == final
+
+
+def _missing_entries(path: str, holders: Sequence[ApprovedLaneContent], unmet: set[str | None], found: PresenceGap) -> list[MissingApprovedContent]:
+    """One :class:`MissingApprovedContent` per unmet state, naming every holder that ended on it."""
+    entries: list[MissingApprovedContent] = []
+    for state in sorted(unmet, key=lambda value: (value is not None, value or "")):
+        owners = [holder for holder in holders if holder.final_state[path] == state]
+        wp_ids = tuple(dict.fromkeys(wp for owner in owners for wp in owner.wp_ids))
+        entries.append(MissingApprovedContent(wp_ids=wp_ids, lane_ids=tuple(owner.lane_id for owner in owners), path=path, expected=state, found=found))
+    return entries
+
+
+def _path_gap(
+    path: str,
+    holders: Sequence[ApprovedLaneContent],
+    target: str | None,
+    base_state: Callable[[], str | None],
+    state_at: StateAt | None,
+) -> list[MissingApprovedContent]:
+    """The unmet approved states of ONE path (the body of :func:`unmet_approved_content`).
+
+    The common case costs nothing beyond the target read: the target holds a
+    state an unsuperseded holder ended on. Only a candidate gap pays for the
+    lane-base reads that decide whether it is a dropped change.
+    """
+    if _presence_gap({holder.final_state[path] for holder in _unsuperseded_holders(holders)}, target, base_state) is None:
+        return []
+    authors = [holder for holder in holders if _owns_change(holder, path, holders, state_at)]
+    live = _unsuperseded_holders(authors)
+    found = _presence_gap({holder.final_state[path] for holder in live}, target, base_state)
+    if found is None:
+        return []
+    base = base_state()
+    unmet = {holder.final_state[path] for holder in live if _dropped_own_change(holder, path, base, state_at)}
+    return _missing_entries(path, authors, unmet, found)
+
+
+def unmet_approved_content(
+    contents: Sequence[ApprovedLaneContent],
+    *,
+    target_state: Callable[[str], str | None],
+    base_state: Callable[[str], str | None],
+    skip: Callable[[str], bool] | None = None,
+    state_at: StateAt | None = None,
+) -> list[MissingApprovedContent]:
+    """Pure presence verdict (#5571): approved lane content the target does not hold.
+
+    Per path, the lanes holding a final state for it are reduced to those no other
+    holder was built atop (a dependent lane supersedes the lanes it depends on: it
+    deleted, renamed away or reverted the path). Those unsuperseded states are the
+    only ones the target must hold. Lanes that are not in *contents* -- canceled or
+    unapproved -- never supersede anything, because the claim builder only records
+    approved lanes. Independent lanes that ended on different states for one path
+    are a merge-resolution case: the target must hold one of them, or something
+    else entirely, but not nothing. *skip* names the paths judged elsewhere
+    (bookkeeping, canceled WP content).
+
+    A gap is reported only for a lane's OWN NET change on a path the target left
+    alone since the lane was cut (:func:`_owns_change`, :func:`_dropped_own_change`),
+    judged against the lane's own base through *state_at* ``(ref, path)``. Comparing
+    a lane's final state with the target alone would read every path the lanes left
+    net unchanged, and every path the target moved meanwhile, as approved work
+    dropped. Without *state_at* each lane is taken as cut from the pre-consolidation
+    target (*base_state*).
+    """
+    holders_by_path: dict[str, list[ApprovedLaneContent]] = {}
+    for content in contents:
+        for path in content.final_state:
+            holders_by_path.setdefault(path, []).append(content)
+    missing: list[MissingApprovedContent] = []
+    for path in sorted(holders_by_path):
+        if skip is not None and skip(path):
+            continue
+        base = functools.cache(functools.partial(base_state, path))
+        missing.extend(_path_gap(path, holders_by_path[path], target_state(path), base, state_at))
+    return missing
+
+
+def _order_lane_content(contents: list[ApprovedLaneContent]) -> tuple[ApprovedLaneContent, ...]:
+    """Dependency order: every lane after the lanes it depends on, ties by lane id (deterministic)."""
+    remaining = {content.lane_id: content for content in contents}
+    ordered: list[ApprovedLaneContent] = []
+    while remaining:
+        ready = sorted(lane_id for lane_id, content in remaining.items() if not (content.ancestors & remaining.keys()))
+        if not ready:  # a dependency cycle is invalid input elsewhere; stay deterministic rather than loop
+            ready = sorted(remaining)
+        for lane_id in ready:
+            ordered.append(remaining.pop(lane_id))
+    return tuple(ordered)
+
+
+def _dependency_forks(repo_root: Path, lanes_manifest: LanesManifest, branch: str, spine: Sequence[str], ancestors: Iterable[str]) -> dict[str, str]:
+    """Dependency lane id -> the commit of that lane *branch* was built on (newest spine commit the dependency also holds).
+
+    One range read per dependency lane, no path read. A dependency whose branch
+    cannot be read, or none of whose commits sit on the spine (it came in through
+    a true merge commit), records nothing: the lane's held paths then count as its
+    own, the stricter reading.
+    """
+    forks: dict[str, str] = {}
+    for dependency in ancestors:
+        try:
+            ahead = frozenset(commits_in_range(repo_root, _lane_branch_for(lanes_manifest, dependency), branch))
+        except GitProbeError:
+            continue
+        fork = next((sha for sha in spine if sha not in ahead), None)
+        if fork is not None:
+            forks[dependency] = fork
+    return forks
+
+
+def _lane_content(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    work_packages: Mapping[str, Mapping[str, object]],
+    spine: Sequence[str],
+    lane_blobs: set[tuple[str, str]],
+    lane_deletions: set[str],
+) -> ApprovedLaneContent:
+    """An approved lane's final path state, from the SAME walk that produced ``authored_blobs`` (#5571).
+
+    *spine* is the lane's whole first-parent spine, newest first: its head is the
+    lane tip and the first parent of its oldest commit is the commit the lane was
+    cut from. Both are recorded as refs for the verifier, never read here.
+    """
+    state: dict[str, str | None] = dict.fromkeys(lane_deletions)
+    state.update(dict(lane_blobs))
+    approved_wps = tuple(wp for wp in lane.wp_ids if str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES)
+    ancestors = _dependency_lane_ids(lanes_manifest, lane)
+    return ApprovedLaneContent(
+        lane_id=lane.lane_id,
+        wp_ids=approved_wps,
+        ancestors=frozenset(ancestors),
+        final_state=state,
+        tip=spine[0] if spine else None,
+        fork_point=f"{spine[-1]}^" if spine else None,
+        dependency_forks=_dependency_forks(repo_root, lanes_manifest, _lane_branch_for(lanes_manifest, lane.lane_id), spine, ancestors),
+    )
+
+
 def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> bool:
     """True when at least one of *lane*'s WPs is in an approved membership lane."""
     wp_ids = getattr(lane, "wp_ids", ())
@@ -1866,6 +2231,17 @@ def _record_lane_path_contribution(
         path_contributions.setdefault(path, []).append(LaneContribution(lane_id=lane.lane_id, lane_commit=lane_commit, authored_blob=blob))
 
 
+class _AuthoredClaim(NamedTuple):
+    """What :func:`_collect_authored` derives from the approved lanes' spines, in its historical positional order."""
+
+    shas: frozenset[str]
+    patch_ids: frozenset[str]
+    blobs: frozenset[tuple[str, str]]
+    deletions: frozenset[str]
+    multi_lane_paths: Mapping[str, tuple[LaneContribution, LaneContribution]]
+    lane_content: tuple[ApprovedLaneContent, ...]
+
+
 def _collect_authored(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -1874,13 +2250,7 @@ def _collect_authored(
     sb_window: tuple[str, str] | None = None,
     *,
     canceled_lane_commits: frozenset[str],
-) -> tuple[
-    frozenset[str],
-    frozenset[str],
-    frozenset[tuple[str, str]],
-    frozenset[str],
-    Mapping[str, tuple[LaneContribution, LaneContribution]],
-]:
+) -> _AuthoredClaim:
     """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions + multi-lane paths.
 
     The authorship claim the closed-world content checks attribute against. A lane
@@ -1921,12 +2291,18 @@ def _collect_authored(
     disjoint-write-scope invariant) or from three-or-more lanes is absent — the
     merge-resolution recognizer only ever runs for the exactly-two case
     (Decision 2, ``research.md``).
+
+    The sixth element (#5571) is each approved CODE lane's final path state in
+    dependency order (:class:`ApprovedLaneContent`), taken from that same walk.
+    A planning (repo-root) lane is left out: its commits already sit on the
+    target, so there is nothing to integrate and nothing to be missing.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
     blobs: set[tuple[str, str]] = set()
     deletions: set[str] = set()
     path_contributions: dict[str, list[LaneContribution]] = {}
+    lane_contents: list[ApprovedLaneContent] = []
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
@@ -1942,14 +2318,19 @@ def _collect_authored(
         blobs |= lane_blobs
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
+        if not is_planning_lane(lane):
+            lane_contents.append(_lane_content(repo_root, lanes_manifest, lane, work_packages, first_parent, lane_blobs, lane_deletions))
     multi_lane_paths = {path: (contributions[0], contributions[1]) for path, contributions in path_contributions.items() if len(contributions) == 2}
-    return frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths
+    return _AuthoredClaim(frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths, _order_lane_content(lane_contents))
 
 
 __all__ = [
+    "APPROVED_CONTENT_MISSING",
+    "ApprovedLaneContent",
     "ApprovedWpCommitSet",
     "Divergence",
     "MergeOutcomeVerifier",
+    "MissingApprovedContent",
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
     "VerifyResult",
@@ -1958,5 +2339,6 @@ __all__ = [
     "claim_integrity_refusal",
     "detect_legacy_in_flight_state",
     "route_terminus",
+    "unmet_approved_content",
     "write_post_fix_marker",
 ]
