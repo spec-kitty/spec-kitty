@@ -219,6 +219,7 @@ def test_validate_refuses_a_wp_that_is_not_acceptably_canceled_and_says_nothing_
     assert "Nothing was recorded." in message
 
 
+@pytest.mark.git_repo
 def test_dry_run_cli_prints_the_attestation_notice_and_still_forecasts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The ONE CLI smoke for the FR-012 dry-run notice (#5653).
 
@@ -277,8 +278,8 @@ def test_dry_run_cli_prints_the_attestation_notice_and_still_forecasts(tmp_path:
 
 # #5653: the ``consolidate --dry-run`` "attestation not applied" notice is a pure
 # decision, unit-tested here instead of through the CLI's call graph. One CLI
-# smoke (tests/terminus/test_mixed_lane_fail_recovery_and_attestation.py) keeps
-# the wiring honest.
+# smoke (``test_dry_run_cli_prints_the_attestation_notice_and_still_forecasts``,
+# directly above) keeps the wiring honest.
 _DRY_RUN_NOTICE = "--attest-canceled-superseded is not applied with --dry-run: nothing is recorded, and the forecast does not evaluate mixed-lane attribution."
 
 
@@ -287,7 +288,6 @@ def test_dry_run_notice_names_the_flag_for_a_human_dry_run() -> None:
 
     # Byte-identical to the pre-extraction inline text, built from ATTEST_FLAG.
     assert notice == _DRY_RUN_NOTICE
-    assert notice.startswith(ca.ATTEST_FLAG)
 
 
 @pytest.mark.parametrize(

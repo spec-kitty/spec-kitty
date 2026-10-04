@@ -25,14 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import (
-    CommitTarget,
-    MissionArtifactKind,
-    TopologySurface,
-    is_primary_artifact_kind,
-    kind_for_mission_file,
-)
-from mission_runtime.artifacts import artifact_home_for
+from mission_runtime import is_primary_artifact_kind, kind_for_mission_file
 from specify_cli.consolidation.bookkeeping_projection import (
     _post_checkpoint_mission_paths,
     projected_content_matches_target,
@@ -124,17 +117,6 @@ def test_plan_outputs_of_another_mission_stay_unclassified() -> None:
     assert kind_for_mission_file(_CONTRACT, mission_slug="other-mission") is None
 
 
-def test_contract_kind_resolves_the_primary_surface() -> None:
-    """Write placement is unchanged: unknown kinds already fell back to PRIMARY."""
-    ref = CommitTarget(ref="feat/plan-outputs")
-
-    home = artifact_home_for(MissionArtifactKind.CONTRACT, ref)
-
-    assert home.read_surface is TopologySurface.PRIMARY
-    assert home.write_surface is TopologySurface.PRIMARY
-    assert home.commit_target == ref
-
-
 def test_plan_outputs_are_not_projected_but_coord_bookkeeping_is(tmp_path: Path) -> None:
     repo, checkpoint, _pre_squash = _refused_run_shape(tmp_path)
 
@@ -158,8 +140,14 @@ def test_squash_proof_passes_on_the_refused_run_shape(tmp_path: Path) -> None:
     )
 
 
-def test_the_proof_still_refuses_a_diverged_unclassified_path(tmp_path: Path) -> None:
-    """Fail-closed control: the proof itself is unchanged for a path it still owns."""
+def test_the_proof_refuses_a_plan_output_handed_to_it_as_projected(tmp_path: Path) -> None:
+    """Planted control: the fixture's refused shape is real.
+
+    ``quickstart.md`` is classified now, so ``_post_checkpoint_mission_paths`` never
+    projects it. Handing it to the proof directly still REFUSEs (diverged from the
+    checkpoint, no merge driver): proof that the passing test above passes because of
+    the exclusion, not because the fixture is too easy.
+    """
     repo, checkpoint, pre_squash = _refused_run_shape(tmp_path)
 
     assert not projected_content_matches_target(

@@ -273,7 +273,7 @@ def test_all_planning_kinds_are_primary_partition() -> None:
     precondition directly (NFR-004) so a future cross-partition reclassification in
     ``mission_runtime.artifacts`` is caught by THIS test, not by a silent stale read.
     """
-    from mission_runtime import is_primary_artifact_kind
+    from mission_runtime import is_primary_artifact_kind, kind_for_mission_file
 
     kinds = _accept_planning_artifact_kinds()
     assert set(kinds) == {
@@ -285,6 +285,9 @@ def test_all_planning_kinds_are_primary_partition() -> None:
         "quickstart.md",
     }
     assert all(is_primary_artifact_kind(kind) for kind in kinds.values())
+    # The accept map and the shared file classifier are two hand-kept tables; they must agree.
+    for name, kind in kinds.items():
+        assert kind_for_mission_file(f"kitty-specs/{_SLUG}/{name}") is kind, name
 
 
 @_PLANNING_READ_DIR_QUARANTINE

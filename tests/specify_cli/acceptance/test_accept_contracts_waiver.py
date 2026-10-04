@@ -112,23 +112,17 @@ def test_no_waiver_still_blocks_on_missing_contracts(tmp_path: Path) -> None:
     assert summary.ok is False
 
 
-@pytest.mark.parametrize(
-    "waiver",
-    [
-        pytest.param({"contracts": "none"}, id="rationale-missing"),
-        pytest.param({"contracts": "none", "contracts_rationale": ""}, id="rationale-blank"),
-        pytest.param({"contracts": "skip", "contracts_rationale": _RATIONALE}, id="value-unknown"),
-    ],
-)
-def test_malformed_waiver_still_blocks_and_warns(tmp_path: Path, waiver: dict[str, object]) -> None:
-    repo_root = _no_contracts_repo(tmp_path, waiver=waiver)
+def test_malformed_waiver_still_blocks_and_warns(tmp_path: Path) -> None:
+    """One representative malformed declaration; the reader's full decision table lives in
+    ``tests/core/test_contracts_waiver_reader.py``."""
+    repo_root = _no_contracts_repo(tmp_path, waiver={"contracts": "none"})
 
     summary = collect_feature_summary(repo_root, _SLUG, strict_metadata=True, mutate_matrix=False)
 
     violations = _contracts_violations(summary.path_violations)
     assert violations
     assert summary.ok is False
-    assert "meta.json" in "\n".join(violations), violations
+    assert "contracts_rationale" in "\n".join(violations), violations
 
 
 def test_waiver_never_relaxes_a_build_path_convention(tmp_path: Path) -> None:
@@ -143,6 +137,8 @@ def test_waiver_never_relaxes_a_build_path_convention(tmp_path: Path) -> None:
     rendered = "\n".join(summary.path_violations)
     assert "expects tests path" in rendered
     assert "expects deliverables path" not in rendered
+    # The honoured waiver stays auditable next to the violation it did not touch.
+    assert _RATIONALE in rendered
 
 
 def test_lenient_mode_with_a_waiver_has_no_missing_contracts_warning(tmp_path: Path) -> None:
@@ -183,12 +179,12 @@ def test_a_contracts_path_that_is_not_a_mission_artifact_is_never_waived(tmp_pat
     assert "waived" not in "\n".join(violations) + (warning or "")
 
 
-def test_research_prefix_mode_reads_no_waiver(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_research_prefix_mode_reads_no_waiver(tmp_path: Path) -> None:
     """Research's ``path_prefix`` mode never resolves mission artifacts, so the
     waiver is not consulted there (the validator could not apply it)."""
     from types import SimpleNamespace
 
-    from specify_cli.acceptance import summary_core
+    from specify_cli.acceptance.summary_core import evaluate_path_conventions
 
     repo_root = _no_contracts_repo(tmp_path, waiver={"contracts": "none", "contracts_rationale": _RATIONALE})
     feature_dir = repo_root / "kitty-specs" / _SLUG
@@ -200,6 +196,8 @@ def test_research_prefix_mode_reads_no_waiver(tmp_path: Path, monkeypatch: pytes
             artifacts=SimpleNamespace(required=["spec.md"], optional=["contracts/"]),
         ),
     )
-    monkeypatch.setattr(summary_core, "_path_prefix_for_mission", lambda *_a: "research-out")
 
-    assert summary_core._contracts_waiver_effect(research, feature_dir, feature_dir) == (frozenset(), None)
+    violations, warning, tokens = evaluate_path_conventions(research, repo_root, feature_dir, feature_dir, strict_metadata=True)
+
+    assert tokens == frozenset()
+    assert "waived" not in "\n".join(violations) + (warning or "")
