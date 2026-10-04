@@ -15,8 +15,8 @@ orchestrator surface (the ``transition`` CLI). There is no separate CLI verdict
 door for the gate today (WP09 adds ``agent status emit``), so "both surfaces"
 here means the leaf and the orchestrator-api transition path.
 
-Red-first: on base the hoisted leaf ``specify_cli.lanes.for_review_gate`` does not
-exist, so the import fails -- the whole matrix is RED until the hoist lands.
+Permanent guard (#3547, fixed): the hoisted leaf ``specify_cli.lanes.for_review_gate``
+now exists and this matrix keeps both surfaces in verdict parity.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.status.models import Lane, StatusEvent
 
-pytestmark = [pytest.mark.unit, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 runner = CliRunner()
 

@@ -260,3 +260,24 @@ def test_abort_success_line_does_not_call_a_resume_seeded_snapshot_pre_consolida
     assert "pre-consolidation" in consolidate._abort_success_line("m", restored=True)
     seeded = consolidate._abort_success_line("m", restored=True, resume_seeded=True)
     assert "pre-consolidation" not in seeded and "snapshot taken when this record was resumed" in seeded
+
+
+def test_abort_with_a_snapshot_refuses_while_a_live_foreign_merge_holds_the_lock(repo: Path) -> None:
+    """Wiring guard: ``_abort_lock_restore_clear`` must take the global lock BEFORE it restores anything.
+
+    A record WITH a snapshot plus a live foreign mission's merge lock refuses (exit 1), performs
+    no rollback, keeps the record and leaves the foreign lock untouched.
+    """
+    state = _state(repo)
+    _advance_both(repo)
+    record_post_mutation_tips(repo, state)
+    advanced = {b: _git(repo, "rev-parse", b) for b in state.pre_mutation_refs}
+    _plant_live_other_mission(repo)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        consolidate._abort_lock_restore_clear(repo, "abort-unit", (None, state))
+
+    assert excinfo.value.exit_code == 1
+    assert {b: _git(repo, "rev-parse", b) for b in advanced} == advanced, "nothing may be restored while another merge is live"
+    assert (repo / ".kittify" / "runtime" / "merge" / _MISSION_ID / "state.json").exists(), "the record must be kept"
+    assert read_merge_lock_owner(_LOCK, repo) == _OTHER_ID

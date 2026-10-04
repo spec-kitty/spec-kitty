@@ -1,14 +1,18 @@
-"""The operator recovery paths out of a mixed-lane FAIL or REFUSE work end to end: re-run, supersede-and-re-run, and the canceled-superseded attestation.
+"""The operator recovery paths out of a mixed-lane FAIL work end to end: re-run and supersede-and-re-run.
 
 * A re-run after a FAIL repeats the FAIL: the ``migration:backfill_runtime_state``
   seed events the first run's birth-cutover backfill appends (``planned ->
   claimed``, no ``lane_head`` stamp) never re-open a work window (spec FR-011).
 * The FAIL's printed recovery -- supersede the canceled content through a
   surviving WP's governed rework, re-run -- consolidates at exit 0.
-* A legacy (unstamped) mixed lane REFUSEs naming ``--attest-canceled-superseded``;
-  with the attestation it consolidates and the status event log carries the
-  operator-provenance record. The flag is refused for a WP that is not canceled
-  and is reported as not applied under ``--dry-run`` (spec FR-012).
+
+The canceled-superseded attestation replays (an unstamped lane REFUSEs naming the flag,
+then consolidates with it and records the operator-provenance event; the flag refused for
+a WP that is not canceled; the ``--dry-run`` not-applied notice) are pinned at the seam
+(#5618 part 2): ``tests/consolidation/test_canceled_attestation.py`` and
+``tests/consolidation/test_reconciliation.py`` go red when the not-canceled check is
+removed, the dry-run notice is dropped, an attested WP no longer lifts the overridable
+REFUSE, or the recorded event loses ``force`` / ``reason_source``.
 
 Every test drives the REAL ``spec-kitty consolidate`` CLI
 (:func:`tests.terminus.conftest.run_terminus`) against a real on-disk
@@ -21,7 +25,6 @@ mixed-lane-authorship-soundness-01M3M7Y0).
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -36,10 +39,7 @@ from tests.terminus.conftest import (
 )
 from tests.terminus.conftest import _git as git
 from tests.terminus.mixed_lane_support import (
-    ATTEST_FLAG,
     FAIL_HEADER,
-    REFUSE_HEADER,
-    REFUSE_NO_ATTRIBUTION,
     collapse,
     ensure_wp01_subtasks_roster,
     transition,
@@ -51,7 +51,6 @@ _LEAKED_PATH = "src/pkg/wp02_new.py"
 _WP01_PATH = "src/pkg/wp01.py"
 _OPEN_WINDOW = "never closed"
 _ACTOR = "landing-recovery-test"
-_ATTEST_REASON = "checked by hand: WP01 rework deleted WP02's file"
 
 
 def _consolidate(mission: CoordMission, *extra: str) -> tuple[int, str]:
@@ -90,19 +89,6 @@ def _supersede_through_wp01_rework(mission: CoordMission) -> None:
     )
 
 
-def _attestation_records(mission: CoordMission) -> list[dict[str, object]]:
-    """Every attestation record in any copy of the mission's status event log."""
-    records: list[dict[str, object]] = []
-    for log in mission.repo.rglob("status.events.jsonl"):
-        if ".git" in log.parts:
-            continue
-        for line in log.read_text(encoding="utf-8").splitlines():
-            event = json.loads(line)
-            if (event.get("policy_metadata") or {}).get("attestation") == "canceled_superseded":
-                records.append(event)
-    return records
-
-
 def test_rerun_after_fail_fails_again_not_open_window_refuse(tmp_path: Path) -> None:
     """A re-run with no change reports the SAME FAIL -- the backfill seed events
     the first run appended must not turn it into an ``open_window`` REFUSE."""
@@ -136,63 +122,3 @@ def test_supersede_after_fail_then_rerun_passes(tmp_path: Path) -> None:
     assert rc == 0, f"after a superseding WP01 rework the re-run must consolidate cleanly:\n{out}"
     assert blob_present_at(mission.repo, mission.target_branch, _LEAKED_PATH) is False
     assert blob_present_at(mission.repo, mission.target_branch, _WP01_PATH) is True
-
-
-def test_unstamped_mixed_lane_refuses_naming_the_override_then_attestation_passes(tmp_path: Path) -> None:
-    """A legacy (unstamped) mixed lane REFUSEs ``no_stamp`` forever -- the REFUSE
-    names the override; with the attestation consolidation exits 0 and the
-    event log carries the operator-provenance record (actor, reason)."""
-    mission = build_coord_mission_mixed_lane_canceled(
-        tmp_path,
-        canceled_changes=[PlantedChange(_LEAKED_PATH, "def wp02_new() -> str:\n    return 'wp02'\n")],
-        survivor_after=[PlantedChange(_LEAKED_PATH, None)],
-        stamp_attribution=False,
-        mid8="01M5046W",
-    )
-    pre_sha = mission.rev(mission.target_branch)
-
-    rc, out = _consolidate(mission)
-    assert rc != 0, f"an unstamped mixed lane must refuse:\n{out}"
-    assert REFUSE_HEADER in out and REFUSE_NO_ATTRIBUTION in out, out
-    assert f"{ATTEST_FLAG} WP02" in out, f"the REFUSE must name the override flag for WP02:\n{out}"
-    assert mission.rev(mission.target_branch) == pre_sha
-    assert _attestation_records(mission) == []
-
-    rc, out = _consolidate(mission, ATTEST_FLAG, "WP02", "--attest-reason", _ATTEST_REASON)
-    assert rc == 0, f"an attested legacy mixed lane must consolidate:\n{out}"
-    assert blob_present_at(mission.repo, mission.target_branch, _LEAKED_PATH) is False
-
-    records = _attestation_records(mission)
-    assert records, "the attestation must be recorded in the status event log"
-    record = records[0]
-    assert record["wp_id"] == "WP02"
-    assert record["from_lane"] == record["to_lane"] == "canceled"
-    assert record["reason_source"] == "operator"
-    assert record["force"] is True
-    assert str(record["actor"]).strip()
-    assert _ATTEST_REASON in str(record["reason"])
-    assert record["at"]
-
-
-def test_attestation_for_a_wp_that_is_not_canceled_is_rejected(tmp_path: Path) -> None:
-    """The flag applies only to a canceled WP -- nothing is recorded otherwise."""
-    mission = build_coord_mission_mixed_lane_canceled(
-        tmp_path,
-        canceled_changes=[PlantedChange(_LEAKED_PATH, "X = 1\n")],
-        survivor_after=[PlantedChange(_LEAKED_PATH, None)],
-        stamp_attribution=False,
-        mid8="01M5046X",
-    )
-    rc, out = _consolidate(mission, ATTEST_FLAG, "WP01", "--attest-reason", "not canceled")
-    assert rc != 0
-    assert "not canceled: WP01" in out, out
-    assert _attestation_records(mission) == []
-
-
-def test_dry_run_says_the_attestation_flags_are_not_applied(tmp_path: Path) -> None:
-    """``--dry-run`` must not silently drop the attestation flags."""
-    mission = _build_failing_mixed_lane(tmp_path, "01M5046Z")
-    rc, out = _consolidate(mission, "--dry-run", ATTEST_FLAG, "WP02", "--attest-reason", "checked")
-    assert rc == 0, out
-    assert f"{ATTEST_FLAG} is not applied with --dry-run" in out, out
-    assert _attestation_records(mission) == []

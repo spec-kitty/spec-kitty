@@ -28,7 +28,7 @@ from specify_cli.lanes.branch_naming import worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.orchestrator_api.commands import _apply_lane_merge_cleanup
 
-pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 SLUG = "orch-cas-fixture-01M5570O"
 MISSION_BRANCH = f"kitty/mission-{SLUG}"

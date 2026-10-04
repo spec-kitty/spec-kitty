@@ -18,8 +18,8 @@ stale rather than resurrected. See the module docstring in ``consolidation/drive
 for the full contract (INV-3: every non-empty line present in either input is
 present in the output).
 
-``test_traces_merge_preserves_both_sections_and_fences_4894`` is the RED-FIRST
-regression pinned to #4894, following the issue's own QA repro script almost
+``test_traces_merge_preserves_both_sections_and_fences_4894`` is the permanent guard
+(the defect is fixed) pinned to #4894, following the issue's own QA repro script almost
 verbatim (2 pre-existing fenced sections + 1 independently-appended fenced
 section per lane => 4 sections / 8 fence lines / 4 ``Example:`` lines). It runs
 a REAL ``git merge`` with the custom driver registered, but points the driver
@@ -87,7 +87,7 @@ def _run_git(repo: Path, env: dict[str, str], *args: str) -> subprocess.Complete
 
 
 # ---------------------------------------------------------------------------
-# T012 -- RED-FIRST regression, pinned to #4894
+# T012 -- permanent regression guard (defect fixed), pinned to #4894
 # ---------------------------------------------------------------------------
 
 
@@ -278,7 +278,7 @@ def test_union_acceptance_history_still_record_granularity_dedup() -> None:
 
 
 # ---------------------------------------------------------------------------
-# WP03/T011 -- RED-FIRST: tilde fences (AC-C1) + non-colliding block key (AC-C2)
+# WP03/T011 -- permanent guard (defect fixed): tilde fences (AC-C1) + non-colliding block key (AC-C2)
 # (#4993)
 # ---------------------------------------------------------------------------
 

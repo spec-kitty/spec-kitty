@@ -43,7 +43,7 @@ from typer.testing import CliRunner
 from specify_cli.lanes.lane_tip import read_tip
 from specify_cli.policy.lane_tip_recorder import install_lane_tip_recorder
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _FOREIGN_HOOK_BODY = "#!/bin/sh\necho custom-hook\nexit 0\n"
 

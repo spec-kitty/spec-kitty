@@ -46,6 +46,14 @@ in this shared lane worktree:
   coordination branch tree, and WP02's claim would raise
   ``PlanningCommitMergeConflictError`` instead of exiting 0.
 
+Trim note (#5618 part 2): one smoke per fix is kept -- ``test_destroyed_lane_fail_closed_e2e``
+(#4889, through the CLI and the orchestrator-api caller) and ``test_coord_second_wp_starts_e2e``
+(#4905). The control-arms and fixes-are-independent replays were retired after planted
+breaks turned their seam guards red: removing the ``_refuse_if_lane_destroyed`` call and an
+always-refuse over-trigger break both fail ``test_issue_4889_destroyed_lane_guard.py``
+(including ``TestControlArmsPreserved``), and skipping ``_partition_paths_by_primary_kind``
+fails ``test_workflow.py`` and ``test_issue_4905_coord_staging.py``.
+
 Demotion note: WP01's ``tests/lanes/test_issue_4889_destroyed_lane_guard.py``
 already has a focused unit home for the allocator decision table (it calls
 ``allocate_lane_worktree`` directly), and WP02's
@@ -460,47 +468,6 @@ def test_destroyed_lane_fail_closed_e2e(tmp_path: Path, monkeypatch: pytest.Monk
     assert context_path.read_text(encoding="utf-8") == context_before, "orchestrator refusal must not touch the persisted workspace context"
 
 
-def test_destroyed_lane_control_arms_still_succeed_e2e(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """NFR-001 zero false positives, driven through the real CLI: REUSE,
-    CRASH_RECOVERY, and a genuinely-fresh claim must all still succeed.
-    """
-    # --- REUSE: intact worktree + branch -> second claim is a no-op resume. ---
-    repo_root, mission_dirname, _coord = _build_coord_mission(tmp_path, monkeypatch, mission_slug="wp03-4889-ctrl-reuse")
-    first = _run_cli_implement(mission_dirname, "WP01")
-    assert first.exit_code == 0, first.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = repo_root / context.worktree_path
-    branch_name = context.branch_name
-
-    second = _run_cli_implement(mission_dirname, "WP01")
-    assert second.exit_code == 0, second.output
-    assert worktree_path.exists()
-    assert branch_exists(repo_root, branch_name)
-
-    # --- CRASH_RECOVERY: branch intact, worktree gone -> re-attach, not refusal. ---
-    repo_root, mission_dirname, _coord = _build_coord_mission(tmp_path, monkeypatch, mission_slug="wp03-4889-ctrl-crash")
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = repo_root / context.worktree_path
-    branch_name = context.branch_name
-
-    _git(repo_root, "worktree", "remove", "--force", str(worktree_path))
-    assert branch_exists(repo_root, branch_name)
-
-    recovered = _run_cli_implement(mission_dirname, "WP01")
-    assert recovered.exit_code == 0, recovered.output
-    assert "Lane worktree ready" in recovered.output or "✓" in recovered.output, recovered.output
-    assert worktree_path.exists()
-
-    # --- Genuinely fresh: WP02 has never been claimed -> ordinary fresh allocation. ---
-    repo_root, mission_dirname, _coord = _build_coord_mission(tmp_path, monkeypatch, mission_slug="wp03-4889-ctrl-fresh")
-    fresh = _run_cli_implement(mission_dirname, "WP02")
-    assert fresh.exit_code == 0, fresh.output
-    context = _wp_context(repo_root, mission_dirname, "WP02")
-    assert (repo_root / context.worktree_path).exists()
-
-
 # ---------------------------------------------------------------------------
 # T021 -- #4905 e2e WP01 -> WP02, plus multi-site coverage (claim + review-claim)
 # ---------------------------------------------------------------------------
@@ -529,50 +496,3 @@ def test_coord_second_wp_starts_e2e(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert "PlanningCommitMergeConflictError" not in claim_wp02.output, claim_wp02.output
     assert "PLANNING_COMMIT_MERGE_CONFLICT" not in claim_wp02.output, claim_wp02.output
     assert _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname) == []
-
-
-# ---------------------------------------------------------------------------
-# T022 -- interaction proof: the two fixes do not re-open each other
-# ---------------------------------------------------------------------------
-
-
-def test_fixes_are_independent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Neither fix perturbs the other's invariant:
-
-    * a legitimate first claim (genuinely fresh, no prior context) never
-      trips the #4889 guard, with the #4905 partition active;
-    * a genuinely fresh SECOND lane (WP02) still allocates normally even
-      while a DIFFERENT WP's (WP01's) lane is in the exact destroyed state
-      #4889 must refuse, and the coord tree stays clean for it too;
-    * the guard still correctly refuses WP01's own destroyed lane
-      afterwards -- it is scoped to the destroyed WP, not a global freeze.
-    """
-    repo_root, mission_dirname, coord_branch = _build_coord_mission(tmp_path, monkeypatch, mission_slug="wp03-interaction")
-
-    # Legitimate first claim: partition active, guard must not false-trip.
-    claim_wp01 = _run_agent_action_implement(mission_dirname, "WP01")
-    assert claim_wp01.exit_code == 0, claim_wp01.output
-    assert _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname) == []
-
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = repo_root / context.worktree_path
-    branch_name = context.branch_name
-    _commit_real_work(worktree_path)
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    # A DIFFERENT, genuinely fresh lane (WP02) must still allocate normally --
-    # the #4889 guard is scoped to WP01, and the #4905 partition must still
-    # hold for WP02's claim even while WP01's destroyed-lane record exists.
-    claim_wp02 = _run_agent_action_implement(mission_dirname, "WP02")
-    assert claim_wp02.exit_code == 0, claim_wp02.output
-    wp02_context = _wp_context(repo_root, mission_dirname, "WP02")
-    assert (repo_root / wp02_context.worktree_path).exists()
-    assert _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname) == [], (
-        "the #4905 sink partition must not be suppressed by a concurrent #4889 destroyed-lane state"
-    )
-
-    # WP01's own destroyed lane must still refuse -- the guard is unaffected
-    # by WP02's successful concurrent allocation.
-    refusal = _run_agent_action_implement(mission_dirname, "WP01")
-    assert refusal.exit_code != 0, refusal.output
-    assert branch_name in refusal.output, refusal.output

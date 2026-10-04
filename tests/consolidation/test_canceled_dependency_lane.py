@@ -26,9 +26,18 @@ from specify_cli.consolidation.reconciliation import (
     _unreadable_canceled_dependency_lanes,
     _unreadable_canceled_dependency_refusal_text,
 )
-from specify_cli.consolidation.wp_attribution import _outside_after_anchors, _lane_exempt_commits, lane_own_commits, resolve_canceled_wp
+from specify_cli.consolidation.wp_attribution import (
+    Attributed,
+    Unattributable,
+    UnattributableReason,
+    _lane_exempt_commits,
+    _outside_after_anchors,
+    lane_own_commits,
+    resolve_canceled_wp,
+)
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -75,7 +84,8 @@ def _manifest(*lanes: ExecutionLane) -> LanesManifest:
 
 
 def _branch(lane_id: str) -> str:
-    return lane_branch_name(_SLUG, lane_id, target_branch=_TARGET)
+    branch: str = lane_branch_name(_SLUG, lane_id, target_branch=_TARGET)
+    return branch
 
 
 @dataclass(frozen=True)
@@ -305,10 +315,72 @@ def test_safety_parameters_are_required_keyword_only(function: Callable[..., obj
 def test_canceled_lane_content_recovery_offers_only_the_revert_that_survives_resume() -> None:
     """A rebuilt lane trips the resume lane-tip CAS, so the advice must not suggest rebuilding it."""
     from specify_cli.consolidation.reconciliation import _mixed_lane_recovery
-    from specify_cli.consolidation.wp_attribution import UnattributableReason
 
     advice = _mixed_lane_recovery(UnattributableReason.CANCELED_LANE_CONTENT, "WP02")
 
     assert "reverting them on it" in advice
     assert "rebuild the lane without them" not in advice
     assert "do not rebuild the lane" in advice
+
+
+# --------------------------------------------------------------------------- #
+# #5569 end to end through the attribution resolver (seam for the CLI repro)
+# --------------------------------------------------------------------------- #
+
+
+def _stamped(event_id: str, wp_id: str, from_lane: Lane, to_lane: Lane, stamp: str) -> StatusEvent:
+    return StatusEvent(
+        event_id=event_id,
+        mission_slug=_SLUG,
+        wp_id=wp_id,
+        from_lane=from_lane,
+        to_lane=to_lane,
+        at=f"2026-10-03T00:00:{event_id[-2:]}+00:00",
+        actor="claude",
+        force=False,
+        execution_mode="worktree",
+        policy_metadata={LANE_HEAD_KEY: stamp},
+    )
+
+
+def _resolve_in_lane_b(dep: Dep, *, never_exempt: frozenset[str]) -> Attributed | Unattributable:
+    """Resolve canceled WP03 on mixed lane-b (approved WP02) whose spine inherited lane-a's commit.
+
+    WP02's first governed claim was stamped AFTER the allocator's fast-forward, so the
+    first-claim anchor reaches ``dep.canceled_sha`` -- exactly the path an exemption
+    would take if nothing named that commit as a fully-canceled lane's own.
+    """
+    events = [
+        _stamped("e01", "WP02", Lane.PLANNED, Lane.CLAIMED, dep.canceled_sha),
+        _stamped("e02", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW, dep.approved_sha),
+        _stamped("e05", "WP02", Lane.IN_REVIEW, Lane.APPROVED, dep.approved_sha),
+        _stamped("e03", "WP03", Lane.PLANNED, Lane.CLAIMED, dep.approved_sha),
+        _stamped("e04", "WP03", Lane.IN_PROGRESS, Lane.CANCELED, dep.approved_sha),
+    ]
+    return resolve_canceled_wp(
+        dep.repo,
+        events=events,
+        lane_id="lane-b",
+        lane_wp_ids=["WP02", "WP03"],
+        canceled_wp_id="WP03",
+        lane_branch=_branch("lane-b"),
+        coord_base_ref=dep.base,
+        is_bookkeeping=lambda _path: False,
+        closed_world_anchors=[_branch("lane-a")],
+        never_exempt_commits=never_exempt,
+    )
+
+
+def test_fully_canceled_dependency_commit_is_refused_as_canceled_lane_content_even_when_anchors_reach_it(dep: Dep) -> None:
+    outcome = _resolve_in_lane_b(dep, never_exempt=frozenset({dep.canceled_sha}))
+
+    assert isinstance(outcome, Unattributable)
+    assert outcome.reason is UnattributableReason.CANCELED_LANE_CONTENT
+    assert dep.canceled_sha[:7] in outcome.detail
+
+
+def test_approved_dependency_commit_stays_exempt_and_passes_the_closed_world(dep: Dep) -> None:
+    """Positive control on the same fixture: nothing is fully canceled, so the inherited commit is plain history."""
+    outcome = _resolve_in_lane_b(dep, never_exempt=frozenset())
+
+    assert isinstance(outcome, Attributed)

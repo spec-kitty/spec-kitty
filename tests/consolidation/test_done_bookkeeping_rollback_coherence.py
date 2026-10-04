@@ -273,7 +273,6 @@ def _run_merge(repo: Path) -> None:
     )
 
 
-@pytest.mark.regression
 def test_durable_done_reader_matches_worktree_bytes_after_wp02_rollback(
     tmp_path: Path,
 ) -> None:

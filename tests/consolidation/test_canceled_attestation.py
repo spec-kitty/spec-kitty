@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from click.testing import Result
 
 from specify_cli.consolidation import canceled_attestation as ca
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
@@ -94,16 +95,6 @@ def test_migration_seed_after_attestation_does_not_void_it() -> None:
 def test_other_wp_transitions_do_not_void_it() -> None:
     events = [_attestation(1), _event(2, "WP01", Lane.APPROVED, Lane.DONE)]
     assert set(ca.attestation_stamps(events)) == {"WP02"}
-
-
-def test_validate_requires_a_reason() -> None:
-    with pytest.raises(ca.AttestationError, match="--attest-reason"):
-        ca.validate_attestation_request(["WP02"], "  ", acceptably_canceled=frozenset({"WP02"}))
-
-
-def test_validate_rejects_a_wp_that_is_not_canceled() -> None:
-    with pytest.raises(ca.AttestationError, match="not canceled: WP01"):
-        ca.validate_attestation_request(["WP02", "WP01"], "checked", acceptably_canceled=frozenset({"WP02"}))
 
 
 def test_validate_dedupes_and_allows_empty() -> None:
@@ -202,3 +193,91 @@ def test_latest_attestation_stamp_wins() -> None:
         )
 
     assert ca.attestation_stamps([stamped(1, "old"), stamped(2, "new")]) == {"WP02": "new"}
+
+
+# --------------------------------------------------------------------------- #
+# Unit-level homes of the attestation rejection / dry-run notice contracts
+# (formerly only reachable through the mixed-lane fail/attestation e2e)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("reason", [None, "", "   "])
+def test_validate_refuses_a_missing_or_blank_reason_and_names_both_flags(reason: str | None) -> None:
+    with pytest.raises(ca.AttestationError) as excinfo:
+        ca.validate_attestation_request(["WP02"], reason, acceptably_canceled=frozenset({"WP02"}))
+    assert ca.ATTEST_FLAG in str(excinfo.value)
+    assert ca.ATTEST_REASON_FLAG in str(excinfo.value)
+
+
+@pytest.mark.parametrize("wp_id", ["WP01", "WP99"], ids=["not-canceled", "unknown-wp"])
+def test_validate_refuses_a_wp_that_is_not_acceptably_canceled_and_says_nothing_was_recorded(wp_id: str) -> None:
+    with pytest.raises(ca.AttestationError) as excinfo:
+        ca.validate_attestation_request([wp_id], "checked", acceptably_canceled=frozenset({"WP02"}))
+    message = str(excinfo.value)
+    assert f"not canceled: {wp_id}" in message
+    assert "Nothing was recorded." in message
+
+
+def test_validate_refuses_the_whole_request_when_any_one_wp_is_not_canceled() -> None:
+    """A mixed request is all-or-nothing: the error names only the offender."""
+    with pytest.raises(ca.AttestationError) as excinfo:
+        ca.validate_attestation_request(["WP02", "WP03", "WP01"], "checked", acceptably_canceled=frozenset({"WP02", "WP03"}))
+    assert str(excinfo.value) == (f"{ca.ATTEST_FLAG} applies only to a WP canceled with operator provenance; not canceled: WP01. Nothing was recorded.")
+
+
+def _invoke_consolidate_dry_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, args: list[str]) -> tuple[Result, list[dict[str, object]]]:
+    """Drive the real ``consolidate`` Typer command up to the dry-run forecast seam.
+
+    Everything between argument parsing and the forecast (repo/branch/mission
+    resolution, retention cleanup) is stubbed; the forecast itself is captured so
+    the test sees the notice the command prints before delegating to it.
+    """
+    import typer
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands import consolidate as consolidate_module
+    from specify_cli.core.context_validation import ExecutionContext
+
+    forecasts: list[dict[str, object]] = []
+    stubs: dict[str, object] = {
+        "find_repo_root": lambda: tmp_path,
+        "_enforce_git_preflight": lambda *_a, **_k: None,
+        "load_merge_config": lambda _root: type("Cfg", (), {"strategy": None})(),
+        "_resolve_slug_or_exit": lambda _root, _mission: "m-01TESTMISSION",
+        "_resolved_mission_dir_exists": lambda *_a, **_k: True,
+        "load_state": lambda *_a, **_k: None,
+        "_resolve_target_branch": lambda *_a, **_k: ("main", "explicit"),
+        "_validate_target_branch": lambda *_a, **_k: None,
+        "_enforce_retention_cleanup": lambda *_a, **_k: None,
+        "show_banner": lambda: None,
+        "run_dry_run_forecast": lambda **kwargs: forecasts.append(kwargs),
+    }
+    for name, stub in stubs.items():
+        monkeypatch.setattr(consolidate_module, name, stub)
+    monkeypatch.setattr(
+        "specify_cli.core.context_validation.get_current_context",
+        lambda: type("Ctx", (), {"location": ExecutionContext.MAIN_REPO})(),
+    )
+    app = typer.Typer()
+    app.command()(consolidate_module.consolidate)
+    return CliRunner().invoke(app, args), forecasts
+
+
+def test_dry_run_says_the_attestation_flags_are_not_applied(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``--dry-run`` must not silently drop the attestation flags (FR-012)."""
+    result, forecasts = _invoke_consolidate_dry_run(
+        monkeypatch, tmp_path, ["--dry-run", "--mission", "m-01TESTMISSION", ca.ATTEST_FLAG, "WP02", ca.ATTEST_REASON_FLAG, "checked"]
+    )
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert f"{ca.ATTEST_FLAG} is not applied with --dry-run" in flat
+    assert len(forecasts) == 1  # the notice does not replace the forecast
+
+
+def test_dry_run_without_attestation_flags_prints_no_attestation_notice(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    result, forecasts = _invoke_consolidate_dry_run(monkeypatch, tmp_path, ["--dry-run", "--mission", "m-01TESTMISSION"])
+
+    assert result.exit_code == 0, result.output
+    assert "not applied with --dry-run" not in result.output
+    assert len(forecasts) == 1

@@ -14,6 +14,9 @@ Driven through the REAL ``spec-kitty consolidate`` CLI
 
 Originally the #5046 closed-world reproductions (mission
 mixed-lane-authorship-soundness-01M3M7Y0).
+
+KEPT whole (#5618 part 2): this is the only end-to-end proof of the FR-013 closed world,
+so it is not trimmed; it carries the ``slow`` tier marker (each replay exceeds 30 s).
 """
 
 from __future__ import annotations
@@ -32,7 +35,7 @@ from tests.terminus.conftest import (
 from tests.terminus.conftest import _git as git
 from tests.terminus.mixed_lane_support import ATTEST_FLAG, REFUSE_HEADER, collapse, verdict_block
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression, pytest.mark.slow]
 
 
 def _plant_straggler(mission: CoordMission, path: str) -> str:

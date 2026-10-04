@@ -21,9 +21,9 @@ The fix folds every WP absent from the snapshot into ``missing`` (refuse),
 never dropping it silently — a WP the reducer has no record of at all is
 strictly less evidence of readiness than an ``in_progress`` one.
 
-RED before the fix: the merge proceeds (lane consolidation + bake) despite
-WP01 never having recorded so much as a ``claimed``/``in_progress`` event.
-GREEN after: refuses, naming WP01, before any mutation — mirrors
+Permanent guard (defect fixed; originally red-first): before the fix the merge
+proceeded (lane consolidation + bake) despite WP01 never having recorded so
+much as a ``claimed``/``in_progress`` event. Now it refuses, naming WP01, before any mutation — mirrors
 ``test_issue_4764_terminus_safety.py``'s harness and assertion shape.
 """
 
@@ -52,7 +52,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 MID8 = "01M2ABS3"
 MISSION_ID = "01M2ABS300000000000000ABS3"

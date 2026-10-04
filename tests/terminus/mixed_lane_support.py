@@ -17,7 +17,6 @@ from tests.terminus.conftest import _git as git
 
 FAIL_HEADER = "Reconciliation FAILED"
 REFUSE_HEADER = "Reconciliation refused (fail-closed)"
-REFUSE_NO_ATTRIBUTION = "no commit attribution"
 FAIL_WHO = "canceled WP02"
 LANE_NAME = "lane-a"
 ATTEST_FLAG = "--attest-canceled-superseded"

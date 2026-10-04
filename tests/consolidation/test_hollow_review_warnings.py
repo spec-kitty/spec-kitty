@@ -115,7 +115,6 @@ def _write_force_history(feature_dir: Path, wp_id: str, review_refs: list[str | 
     (feature_dir / "status.events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
 
 
-@pytest.mark.regression
 def test_documented_rejections_do_not_count_as_hollow_review(tmp_path: Path) -> None:
     """#2267: the --force a documented rejection requires is not hollow-review evidence."""
     feature_dir = tmp_path / "kitty-specs" / "034-test"

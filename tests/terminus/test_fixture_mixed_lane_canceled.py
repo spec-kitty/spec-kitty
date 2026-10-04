@@ -72,13 +72,12 @@ def _plant_extra_lane_commit_via_cas_update_ref(mission: CoordMission, lane_bran
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pytest.mark.regression
 def test_post_build_lane_update_ref_still_consolidates(tmp_path: Path) -> None:
     """FR-008(a): a post-build lane ``update-ref`` still reaches the
     reconciliation verdict under the default strategy — it does NOT abort
     with "unmaterialized".
 
-    Today (the #5046 bug, still open at WP01) this exits 0 with
+    History (#5046, since closed): this used to exit 0 with
     "squash content attribution verified" even though the lane's own
     survivor commit is the only approved content and the extra post-build
     commit is unattributed. This test intentionally asserts only that the
@@ -102,7 +101,6 @@ def test_post_build_lane_update_ref_still_consolidates(tmp_path: Path) -> None:
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pytest.mark.regression
 def test_missing_coord_worktree_dir_is_materialized_before_reconciliation(tmp_path: Path) -> None:
     """A real consolidation restores a missing coordination worktree.
 

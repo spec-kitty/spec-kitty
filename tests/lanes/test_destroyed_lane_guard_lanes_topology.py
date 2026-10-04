@@ -14,6 +14,14 @@ therefore NEVER fires for this topology, and a destroyed lane holding real,
 unmerged, committed work is silently re-cut empty by the FRESH route --
 exactly the #5115 P0.
 
+Trim note (#5618 part 2): one smoke per behaviour is kept here -- the refusal naming the
+tip, a squash-merged lane re-opening, and the live-branch tip backfill (no seam guard turns
+red when the REUSE-arm ``record_tip`` is removed, so it stays). The tip-equals-base,
+inactive-recorder, ancestor-merged, deleted-context, unknown-tip and unevaluable-absorption
+replays are pinned at the seam by ``test_destroyed_lane_guard_tip_rows.py``,
+``test_issue_4889_destroyed_lane_guard.py`` and ``test_lane_tip.py``; each row was proven by a
+planted break in ``worktree_allocator.py`` / ``lane_tip.py``.
+
 This module's fixture (``_build_lanes_mission``) is the NO-COORD sibling of
 ``test_lane_allocation_integrity_e2e.py``'s ``_build_coord_mission``: same
 anchor/charter/bundle scaffolding, but a single target branch carries
@@ -21,14 +29,9 @@ EVERYTHING (spec/plan/tasks, ``lanes.json``, AND the canonical status event
 log) -- there is no coordination branch, and ``meta.json`` carries
 ``"topology": "lanes"`` with no ``coordination_branch`` field at all.
 
-Red-first (ADR 2026-07-17-1, charter C-011): ``test_destroyed_lane_refuses_
-and_names_tip`` is committed ALONE, on the mission's planning base, where it
-fails at the ``exit_code != 0`` assertion -- today's CLI prints "Lane
-worktree ready" and exits 0. Every other test in this module is a control arm
-(green on the planning base) or depends on machinery this WP adds (the
-lane-tip ref, the recorder hook, ``LaneWorkTipUnknownError``) and is
-therefore also red on the planning base for import/collection reasons until
-this WP's production code lands.
+Status: the #5115 defect is FIXED; these tests are permanent guards against it recurring
+(history: they began as red-first reproductions, with ``test_destroyed_lane_refuses_and_names_tip``
+committed alone and failing at the ``exit_code != 0`` assertion).
 """
 
 from __future__ import annotations
@@ -248,7 +251,7 @@ def _isolated_git_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 # ---------------------------------------------------------------------------
-# T028.1 -- red-first: destroyed lane refuses and names the tip
+# T028.1 -- permanent guard (defect fixed): destroyed lane refuses and names the tip
 # ---------------------------------------------------------------------------
 
 
@@ -296,8 +299,7 @@ def test_destroyed_lane_refuses_and_names_tip(tmp_path: Path, monkeypatch: pytes
 
 
 # ---------------------------------------------------------------------------
-# Controls -- must be green on the planning base too (they pin the ABSENCE
-# of a false positive, not the new fix)
+# Control -- pins the ABSENCE of a false positive, not the fix itself
 # ---------------------------------------------------------------------------
 
 
@@ -325,172 +327,9 @@ def test_squash_merged_lane_reopens(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert reopened.exit_code == 0, reopened.output
 
 
-def test_tip_equals_base_reopens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
-    """Control: no commits ever made on the lane -- destroy it, still re-opens."""
-    ids = _ids(request.node.name)
-    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
-
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = Path(repo_root) / context.worktree_path
-    branch_name = context.branch_name
-
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    reopened = _run_cli_implement(mission_dirname, "WP01")
-
-    assert reopened.exit_code == 0, reopened.output
-
-
-def test_destroyed_lane_refuses_when_the_recorder_hook_is_not_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
-    """The recorder never installed (husky-style in-tree ``core.hooksPath``): fail CLOSED.
-
-    Commits then never move the lane-tip ref, so ``tip == base`` after the lane is
-    destroyed says nothing about whether real work was committed. Trusting it
-    re-cut an empty lane and left the committed work unreachable (#5115 P0).
-    """
-    ids = _ids(request.node.name)
-    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
-    husky = repo_root / ".husky" / "_"
-    husky.mkdir(parents=True)
-    (husky / ".gitignore").write_text("*\n", encoding="utf-8")
-    _git(repo_root, "config", "core.hooksPath", ".husky/_")
-
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = Path(repo_root) / context.worktree_path
-    branch_name = context.branch_name
-    assert not (husky / "post-commit").exists()
-
-    _commit_real_work(worktree_path)
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    refusal = _run_cli_implement(mission_dirname, "WP01")
-
-    assert refusal.exit_code != 0, refusal.output
-    assert "Lane worktree ready" not in refusal.output
-    assert not branch_exists(repo_root, branch_name)
-    # The unmoved tip is the lane's base, not lost work, so the refusal must not
-    # name it as a stranded commit: it is LANE_WORK_TIP_UNKNOWN, naming why the
-    # tip cannot be trusted and how to recover or confirm the lane was empty.
-    from specify_cli.lanes.worktree_allocator import LaneWorkTipUnknownError
-
-    exc = _underlying_exception(refusal)
-    assert isinstance(exc, LaneWorkTipUnknownError)
-    assert exc.error_code == "LANE_WORK_TIP_UNKNOWN"
-    assert "recorder hook is not active" in exc.next_step
-    assert "git fsck --lost-found" in exc.next_step
-    assert "spec-kitty context cleanup" in exc.next_step
-
-
-def test_ancestor_merged_lane_reopens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
-    """US6.3: a real (non-squash) merge already carried the lane's work; destroy it, still re-opens."""
-    ids = _ids(request.node.name)
-    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
-
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = Path(repo_root) / context.worktree_path
-    branch_name = context.branch_name
-
-    _commit_real_work(worktree_path)
-
-    _git(repo_root, "checkout", "-q", _TARGET_BRANCH)
-    _git(repo_root, "merge", "--no-ff", "-q", "-m", "merge lane-a into target", branch_name)
-
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    reopened = _run_cli_implement(mission_dirname, "WP01")
-
-    assert reopened.exit_code == 0, reopened.output
-
-
 # ---------------------------------------------------------------------------
-# T028.4-6 -- context-cleanup fail-open close, unknown-tip fail-closed
+# FR-021 -- live-branch tip backfill on touch
 # ---------------------------------------------------------------------------
-
-
-def test_context_deleted_still_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
-    """FR-020: a deleted WorkspaceContext must never fail the guard open."""
-    ids = _ids(request.node.name)
-    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
-
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = Path(repo_root) / context.worktree_path
-    branch_name = context.branch_name
-
-    work_sha = _commit_real_work(worktree_path)
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    from specify_cli.workspace.context import get_context_path
-
-    context_path = get_context_path(repo_root, f"{mission_dirname}-lane-a")
-    assert context_path.exists()
-    context_path.unlink()
-
-    refusal = _run_cli_implement(mission_dirname, "WP01")
-
-    assert refusal.exit_code != 0, refusal.output
-    assert "Lane worktree ready" not in refusal.output
-    assert not worktree_path.exists()
-
-    from specify_cli.lanes.worktree_allocator import DestroyedLaneError
-
-    exc = _underlying_exception(refusal)
-    assert isinstance(exc, DestroyedLaneError)
-    assert exc.error_code == "DESTROYED_LANE"
-    assert exc.tip_sha == work_sha
-
-    recorded_tip = _git(repo_root, "rev-parse", f"refs/spec-kitty/lane-tip/{branch_name}").stdout.strip()
-    assert recorded_tip == work_sha
-
-
-def test_unknown_tip_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
-    """FR-021/US6.6: context present, tip ref gone, lane destroyed -> LANE_WORK_TIP_UNKNOWN."""
-    ids = _ids(request.node.name)
-    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
-
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = Path(repo_root) / context.worktree_path
-    branch_name = context.branch_name
-
-    _commit_real_work(worktree_path)
-
-    # Delete the recorded tip ref -- simulates a lane created before tip
-    # recording existed, and never re-touched by spec-kitty since.
-    _git(repo_root, "update-ref", "-d", f"refs/spec-kitty/lane-tip/{branch_name}")
-
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    refusal = _run_cli_implement(mission_dirname, "WP01")
-
-    assert refusal.exit_code != 0, refusal.output
-    # The CLI's plain-text refusal carries the human-readable message, not
-    # the machine ``error_code`` literal -- that is asserted on the raised
-    # exception object itself, unwrapped from the ``typer.Exit`` chain (see
-    # ``_underlying_exception``'s docstring).
-    from specify_cli.lanes.worktree_allocator import LaneWorkTipUnknownError
-
-    exc = _underlying_exception(refusal)
-    assert isinstance(exc, LaneWorkTipUnknownError)
-    assert exc.error_code == "LANE_WORK_TIP_UNKNOWN"
-    assert not worktree_path.exists()
-    assert not branch_exists(repo_root, branch_name)
-    # Nothing was created despite the refusal (US6.6).
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/spec-kitty/lane-tip/{branch_name}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode != 0
 
 
 def test_live_branch_backfills_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
@@ -518,60 +357,5 @@ def test_live_branch_backfills_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 
     touch = _run_cli_implement(mission_dirname, "WP01")
     assert touch.exit_code == 0, touch.output
-
-    assert read_tip(repo_root, branch_name) == work_sha
-
-
-# ---------------------------------------------------------------------------
-# Review cycle 1, Issue 1 (M5): the data-model row "tip present, cannot
-# evaluate (git < 2.38) -> refuse" is a guard-level assertion, not merely a
-# unit fact about ``is_absorbed`` (that lives in ``test_lane_tip.py``).
-# ---------------------------------------------------------------------------
-
-
-def test_absorption_unsupported_refuses_at_the_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
-    """A destroyed lane whose absorption cannot be evaluated (old git) fails closed.
-
-    Simulates "git < 2.38" by monkeypatching the guard's own ``is_absorbed``
-    import to raise :class:`AbsorptionUnsupported` -- the guard must refuse,
-    naming the recorded tip and the restore/abandon commands, never silently
-    proceed.
-    """
-    from specify_cli.lanes.lane_tip import AbsorptionUnsupported
-    from specify_cli.lanes.worktree_allocator import DestroyedLaneError
-
-    ids = _ids(request.node.name)
-    repo_root, mission_dirname = _build_lanes_mission(tmp_path, monkeypatch, mission_slug=ids.mission_slug)
-
-    claim = _run_cli_implement(mission_dirname, "WP01")
-    assert claim.exit_code == 0, claim.output
-    context = _wp_context(repo_root, mission_dirname, "WP01")
-    worktree_path = Path(repo_root) / context.worktree_path
-    branch_name = context.branch_name
-
-    work_sha = _commit_real_work(worktree_path)
-    _destroy_lane(repo_root, worktree_path, branch_name)
-
-    def _raise_unsupported(*_args: object, **_kwargs: object) -> bool:
-        raise AbsorptionUnsupported("simulated git < 2.38")
-
-    monkeypatch.setattr("specify_cli.lanes.worktree_allocator.is_absorbed", _raise_unsupported)
-
-    refusal = _run_cli_implement(mission_dirname, "WP01")
-
-    assert refusal.exit_code != 0, refusal.output
-    assert "Lane worktree ready" not in refusal.output
-    assert not worktree_path.exists()
-    assert not branch_exists(repo_root, branch_name)
-
-    exc = _underlying_exception(refusal)
-    assert isinstance(exc, DestroyedLaneError)
-    assert exc.error_code == "DESTROYED_LANE"
-    assert exc.tip_sha == work_sha
-    assert f"refs/spec-kitty/lane-tip/{branch_name}" in exc.next_step
-    assert "git branch" in exc.next_step
-    assert "git update-ref -d" in exc.next_step
-
-    from specify_cli.lanes.lane_tip import read_tip
 
     assert read_tip(repo_root, branch_name) == work_sha
