@@ -174,12 +174,26 @@ def record_canceled_superseded_attestation(
     return emit_status_transition_transactional(request)
 
 
+def dry_run_attestation_notice(attested_wps: Sequence[str], *, dry_run: bool, json_output: bool) -> str | None:
+    """The ``consolidate --dry-run`` notice that attestation flags were not applied (FR-012, #5653).
+
+    A dry run records nothing and its forecast does not evaluate mixed-lane
+    attribution, so the operator is told instead of the flags being dropped
+    silently. ``None`` when there is nothing to say: no attestation, a real run
+    (which records it), or ``--json`` output (kept machine-clean).
+    """
+    if not (dry_run and attested_wps) or json_output:
+        return None
+    return f"{ATTEST_FLAG} is not applied with --dry-run: nothing is recorded, and the forecast does not evaluate mixed-lane attribution."
+
+
 __all__ = [
     "ATTEST_FLAG",
     "ATTEST_REASON_FLAG",
     "OVERRIDABLE_REASONS",
     "AttestationError",
     "attestation_stamps",
+    "dry_run_attestation_notice",
     "record_canceled_superseded_attestation",
     "validate_attestation_request",
 ]

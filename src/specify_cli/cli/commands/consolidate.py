@@ -129,6 +129,9 @@ from specify_cli.consolidation.git_probes import (
     path_is_under_worktrees,
 )
 
+# #5653: the --dry-run "attestation not applied" notice is a pure decision.
+from specify_cli.consolidation.canceled_attestation import dry_run_attestation_notice
+
 # WP06 (#2057): the merge --dry-run forecast (preview + payload build) lives in
 # the merge seam's ``forecast`` module; the command body delegates to it.
 from specify_cli.consolidation.forecast import run_dry_run_forecast
@@ -1130,13 +1133,11 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         )
 
     if dry_run:
-        if attested_wps and not json_output:
-            # FR-012: a dry run records nothing and its forecast does not evaluate
-            # mixed-lane attribution — say so instead of dropping the flags silently.
-            console.print(
-                "[yellow]Note:[/yellow] --attest-canceled-superseded is not applied with --dry-run: "
-                "nothing is recorded, and the forecast does not evaluate mixed-lane attribution."
-            )
+        # FR-012 / #5653: the notice decision is the pure
+        # ``canceled_attestation.dry_run_attestation_notice``.
+        notice = dry_run_attestation_notice(attested_wps, dry_run=dry_run, json_output=json_output)
+        if notice is not None:
+            console.print(f"[yellow]Note:[/yellow] {notice}")
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
         # (FR-001, FR-004); ``run_dry_run_forecast`` terminates the dry-run path.
