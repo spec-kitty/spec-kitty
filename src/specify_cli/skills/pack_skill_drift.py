@@ -57,7 +57,7 @@ class PackSkillFinding:
     @property
     def message(self) -> str:
         if self.kind == KIND_UNRESOLVABLE:
-            return f"installed pack skills were not checked for staleness or orphaning: the pack catalog could not be resolved: {self.detail}"
+            return f"the pack skills in force could not be resolved, so no pack skill was projected or checked for staleness or orphaning: {self.detail}"
         if self.kind == KIND_DRIFT:
             return f"{self.installed_path}: rendered pack skill {self.skill_name!r} was edited locally; edit its source {self.source_ref!r} and re-project instead"
         if self.kind == KIND_ORPHANED:

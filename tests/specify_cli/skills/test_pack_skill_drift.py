@@ -258,7 +258,7 @@ def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path,
     support.write_org_charter(pack, namespace=None)
     (unresolvable,) = find_pack_skill_findings(project)
     assert unresolvable.kind == KIND_UNRESOLVABLE
-    assert "skill namespace" in unresolvable.message and "not checked" in unresolvable.message
+    assert "skill namespace" in unresolvable.message and "no pack skill was projected or checked" in unresolvable.message
     code, payload = _doctor(project, monkeypatch)
     assert code == 1 and payload["ok"] is False
     assert [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]

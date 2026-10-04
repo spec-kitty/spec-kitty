@@ -227,7 +227,7 @@ list. That key is additive: existing keys are unchanged.
 | `drift` | Someone edited the rendered `SKILL.md`. Spec Kitty keeps the edited copy. | Make the change in the pack source file instead. To drop the local edit, delete the copied file and run `spec-kitty upgrade`. |
 | `stale` | The pack source changed after the copy was written. | Run `spec-kitty upgrade`. It refreshes the copy. |
 | `orphaned` | The manifest lists a copy that the current pack no longer provides: the skill was removed or deactivated, or the namespace changed so the skill renders under a new name. | Run `spec-kitty upgrade` to retire the old copy, or activate the skill again. |
-| `unresolvable` | Spec Kitty could not work out which pack skills are in force, so it could not check the installed copies. The message gives the reason: a missing or invalid `skill_namespace`, a pack that does not load, two packs with the same skill id. | Fix the cause the message names, then run `spec-kitty doctor skills` again. |
+| `unresolvable` | Spec Kitty could not resolve the pack skills in force, so it projected no pack skill and checked no installed copy for staleness or orphaning. The message gives the reason: a missing or invalid `skill_namespace`, a pack that does not load, two packs with the same skill id. | Fix the cause the message names, then run `spec-kitty doctor skills` again. |
 
 The rendered file is read-only by default. Edit the pack source, not the copy.
 
