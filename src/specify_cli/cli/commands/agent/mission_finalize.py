@@ -37,8 +37,7 @@ import contextlib
 import contextvars
 import json
 import logging
-import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dataclass_replace
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Final, NoReturn, cast
 
@@ -111,6 +110,7 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _build_setup_plan_detection_error,
     _resolve_mission_dir_name_primary_anchored,
 )
+from specify_cli.cli.commands.agent.finalize_status_surface import StatusSurfaceGuard, StatusSurfaceLeftover
 from specify_cli.cli.commands.agent.finalization_eligibility import (
     FinalizationEligibility,
     filter_by_wp_ids,
@@ -4325,6 +4325,8 @@ def _emit_tasks_started(
     validate_only: bool,
     repo_root: Path,
     owned: OwnedCheckout | None = None,
+    status_surface: StatusSurfaceGuard | None = None,
+    planning_dir: Path | None = None,
 ) -> None:
     """Phase: local canonical TasksStarted (idempotent; skipped in validate-only).
 
@@ -4343,12 +4345,17 @@ def _emit_tasks_started(
     identical cycle-2 fix for the full rationale) -- a named write-location
     refusal must fail finalize closed, never degrade to a silent
     ``logger.debug`` line while the event is written nowhere.
+
+    ``status_surface`` (#5641): this is the run's first status write, so the
+    guard is captured here, against the directory just resolved.
     """
     if validate_only:
         return
     from mission_runtime import placement_seam
 
     status_write_dir = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
+    if status_surface is not None and planning_dir is not None:
+        _capture_status_surface(status_surface, status_write_dir, planning_dir)
     try:
         from specify_cli.status import TASKS_STARTED, emit_artifact_phase
 
@@ -4391,6 +4398,7 @@ def _run_commit_pipeline(
     refresh_planning_commit: bool = False,
     allow_orphaned: bool = False,
     planning_sha: PlanningCommitResolution | None = None,
+    status_surface: StatusSurfaceGuard | None = None,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -4433,47 +4441,56 @@ def _run_commit_pipeline(
     ``_commit_finalize_artifacts`` returns with a real commit, regardless of
     whether meta.json rode it. The FR-015/NFR-001 atomicity guards in
     ``finalize_tasks`` key off this marker, NOT ``meta_commit_progress``.
+
+    ``status_surface`` (#5641): captured by ``_emit_tasks_started`` before the
+    run's first status write; its tip is recorded when the status-write window below
+    closes (also on an error, so a bootstrap that raises part-way is covered);
+    ``finalize_tasks`` restores it when the finalize commit never lands.
     """
-    _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output, owned=owned)
+    # #5641: every status-surface commit before the final commit -- the per-WP
+    # seeds, and on a coordination surface the acceptance-matrix scaffold -- lands
+    # inside this window, so the guard records the tip once it closes.
+    with status_surface.recording() if status_surface is not None else contextlib.nullcontext():
+        _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output, owned=owned)
 
-    bootstrap_result = _bootstrap_canonical_state_via_mission(
-        planning_dir,
-        mission_slug,
-        dry_run=False,
-        capability=GuardCapability.STANDARD,
-        **({"owned": owned} if owned else {}),
-    )
-    if not json_output and bootstrap_result.newly_seeded:
-        console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
+        bootstrap_result = _bootstrap_canonical_state_via_mission(
+            planning_dir,
+            mission_slug,
+            dry_run=False,
+            capability=GuardCapability.STANDARD,
+            **({"owned": owned} if owned else {}),
+        )
+        if not json_output and bootstrap_result.newly_seeded:
+            console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
 
-    lanes_path, lanes_manifest, planning_sha = _compute_and_write_lanes(
-        planning_dir,
-        repo_root,
-        mission_slug,
-        wp_manifests,
-        lane_wp_dependencies if lane_wp_dependencies is not None else dep_resolution.wp_dependencies,
-        wp_frontmatters,
-        wp_bodies,
-        meta,
-        target_branch,
-        all_canceled=all_canceled,
-        json_output=json_output,
-        owned=owned,
-        refresh_planning_commit=refresh_planning_commit,
-        allow_orphaned=allow_orphaned,
-        planning_sha=planning_sha,
-    )
+        lanes_path, lanes_manifest, planning_sha = _compute_and_write_lanes(
+            planning_dir,
+            repo_root,
+            mission_slug,
+            wp_manifests,
+            lane_wp_dependencies if lane_wp_dependencies is not None else dep_resolution.wp_dependencies,
+            wp_frontmatters,
+            wp_bodies,
+            meta,
+            target_branch,
+            all_canceled=all_canceled,
+            json_output=json_output,
+            owned=owned,
+            refresh_planning_commit=refresh_planning_commit,
+            allow_orphaned=allow_orphaned,
+            planning_sha=planning_sha,
+        )
 
-    _scaffold_acceptance_matrix_if_lane_based(
-        planning_dir,
-        repo_root,
-        mission_slug,
-        lanes_manifest,
-        functional_spec_requirement_ids,
-        validate_only=validate_only,
-        json_output=json_output,
-        **({"owned": owned} if owned else {}),
-    )
+        _scaffold_acceptance_matrix_if_lane_based(
+            planning_dir,
+            repo_root,
+            mission_slug,
+            lanes_manifest,
+            functional_spec_requirement_ids,
+            validate_only=validate_only,
+            json_output=json_output,
+            **({"owned": owned} if owned else {}),
+        )
 
     commit_outcome = _commit_finalize_artifacts(
         planning_dir,
@@ -4755,83 +4772,52 @@ def _restore_mission_write_scope(before: dict[Path, bytes], mission_dir: Path) -
             logger.warning("finalize atomicity: failed to remove %s: %s", path, exc)
 
 
-def _capture_owned_head(owned: OwnedCheckout | None) -> str | None:
-    """Snapshot P's current HEAD sha, for owned runs only (FR-015/NFR-001).
+def _capture_status_surface(guard: StatusSurfaceGuard, status_dir: Path, planning_dir: Path) -> None:
+    """Capture the status surface just before the run's first status write (#5641).
 
-    Closes a gap the byte-level write-scope guard alone cannot: an owned
-    checkout's real (non-dry-run) ``bootstrap_canonical_state`` call --
-    inside ``_run_commit_pipeline``, BEFORE the lane computation that can
-    still refuse with ``LANE_DEPENDENCY_CYCLE`` -- commits one canonical
-    status transition PER newly-seeded WP directly to P's own branch
-    (verified empirically: 4 separate ``chore(spec-kitty): status
-    transition WP0n`` commits land before a lane-cycle refusal fires). Those
-    commits move P's HEAD, not just its working tree, so reverting file
-    bytes alone leaves P's branch permanently ahead of where this
-    invocation found it. The equivalent NON-owned (repository-root) path
-    was verified NOT to exhibit this (its per-WP status write is the
-    "primary-uncommitted" path, never committed separately) -- this capture
-    is owned-only by design, not a general git-commit guard.
-
-    Returns ``None`` for a non-owned run (nothing to capture) or if HEAD
-    cannot be read (a fresh/unborn branch -- fails open, matching
-    ``_snapshot_mission_write_scope``'s "empty snapshot" default; the
-    restore side below is then also inert for the same reason).
+    ``status_dir`` is the directory the writer itself just resolved through
+    ``PlacementSeam.write_dir(STATUS_STATE)``, so capturing costs no second
+    resolution. Its bytes are snapshotted here only when it lies outside
+    ``planning_dir`` (the coordination worktree); otherwise the Mission
+    directory snapshot already holds them.
     """
-    if owned is None:
-        return None
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=owned.owned_root,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        logger.warning("finalize atomicity: failed to capture P's HEAD for %s: %s", owned.owned_root, exc)
-        return None
-    return result.stdout.strip() or None
+    inside_mission_dir = status_dir.resolve().is_relative_to(planning_dir.resolve())
+    guard.capture(status_dir, None if inside_mission_dir else _snapshot_mission_write_scope(status_dir))
 
 
-def _restore_owned_head(owned: OwnedCheckout | None, before_sha: str | None) -> None:
-    """Undo any commit(s) P's HEAD gained since :func:`_capture_owned_head` (FR-015/NFR-001).
+def _restore_status_surface(guard: StatusSurfaceGuard) -> StatusSurfaceLeftover | None:
+    """Undo the status commits of a run whose finalize commit never landed (FR-015/NFR-001, #5641).
 
-    ``git reset <sha>`` (mixed -- the default, never ``--hard``): moves the
-    branch ref and the index back to ``before_sha`` WITHOUT touching the
-    working tree. The working tree is deliberately left to
-    :func:`_restore_mission_write_scope`, which already restores every
-    file this invocation could have written; a plain ``reset`` cannot
-    discard an unrelated pre-existing unstaged edit outside that scope the
-    way ``reset --hard`` could (``require_unstaged_index`` only guarantees
-    P's INDEX was clean at invocation start, never its full working tree).
-    Best-effort: logs and returns on failure, never raises, matching this
-    module's other atomicity-guard restore functions.
+    Runs AFTER :func:`_restore_mission_write_scope`, so on a repository-root
+    status surface (``lanes`` / ``single_branch``, an owned checkout) the
+    status files already hold their pre-run bytes and only the branch and index
+    move back. A status directory outside the Mission directory (the
+    coordination worktree) gets its bytes back only once its branch did, so a
+    refused restore never leaves that worktree diverged from its own HEAD.
+    Best-effort like the other restore helpers: returns what it could not undo,
+    never raises.
     """
-    if owned is None or before_sha is None:
-        return
-    try:
-        current = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=owned.owned_root,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError) as exc:
-        logger.warning("finalize atomicity: failed to read P's HEAD before reset: %s", exc)
-        return
-    if current == before_sha:
-        return
-    try:
-        subprocess.run(
-            ["git", "reset", before_sha],
-            cwd=owned.owned_root,
-            capture_output=True,
-            text=True,
-            check=True,
+    leftover = guard.restore()
+    if guard.status_bytes is not None and guard.status_dir is not None and guard.is_at_tip_before():
+        _restore_mission_write_scope(guard.status_bytes, guard.status_dir)
+    if leftover is not None and leftover.commits and guard.status_bytes is None:
+        # Repository-root surface: the Mission directory restore already put the
+        # status files back, so the checkout now differs from its HEAD by these commits.
+        leftover = dataclass_replace(
+            leftover, reason=f"{leftover.reason}; the status files were restored to their pre-run bytes, so the checkout differs from HEAD by these commits"
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
-        logger.warning("finalize atomicity: failed to reset P's HEAD %s -> %s: %s", current, before_sha, exc)
+    return leftover
+
+
+def _report_status_surface_leftover(leftover: StatusSurfaceLeftover | None, *, json_output: bool) -> None:
+    """Name the status commits a failed run could not undo (#5641); an additional note, never the error itself."""
+    if leftover is None:
+        return
+    if json_output:
+        _emit_json(leftover.as_payload())
+        return
+    for line in leftover.lines():
+        console.print(f"[yellow]Warning:[/yellow] {line}" if not line.startswith(" ") else line)
 
 
 def _finalize_refusal_envelope(code: str, message: str) -> dict[str, object]:
@@ -4999,7 +4985,6 @@ class _FinalizeBranchSetup:
     meta_original_text: str | None
     target_branch_persist: TargetBranchPersistOutcome
     meta_json_persisted: bool
-    owned_head_before: str | None
     owned_derived_dir: Path | None
     owned_derived_snapshot: dict[Path, bytes]
 
@@ -5059,7 +5044,6 @@ def _run_finalize_branch_setup(
     meta_path_for_revert: Path | None = None
     meta_original_text: str | None = None
     target_branch_persist = TargetBranchPersistOutcome(persisted=False)
-    owned_head_before: str | None = None
     owned_derived_dir: Path | None = None
     owned_derived_snapshot: dict[Path, bytes] = {}
     # A --refresh-planning-commit run writes only lanes.json, through its own
@@ -5070,7 +5054,6 @@ def _run_finalize_branch_setup(
         # ``--validate-only`` performs none, so this is skipped there).
         mission_write_scope_dir = ctx.planning_dir
         mission_write_scope_snapshot = _snapshot_mission_write_scope(ctx.planning_dir)
-        owned_head_before = _capture_owned_head(ctx.owned)
         if ctx.owned is not None:
             # FR-015/NFR-001 (T070): the ignored, non-authoritative status
             # derived-cache view (``.kittify/derived/<slug>/``,
@@ -5096,7 +5079,6 @@ def _run_finalize_branch_setup(
         merge_target_branch=merge_target_branch,
         mission_write_scope_snapshot=mission_write_scope_snapshot,
         mission_write_scope_dir=mission_write_scope_dir,
-        owned_head_before=owned_head_before,
         owned_derived_dir=owned_derived_dir,
         owned_derived_snapshot=owned_derived_snapshot,
         meta_path_for_revert=meta_path_for_revert,
@@ -5421,15 +5403,22 @@ def finalize_tasks(
     # split is NOT implemented). What a refused run is guaranteed to leave
     # behind, exactly:
     #   * COVERED: the mission directory (bytes restored, new files removed;
-    #     meta.json via the SK3466 single-writer revert), and -- owned runs
-    #     only -- P's HEAD (a mixed ``git reset`` undoing the per-WP status
-    #     commits the bootstrap makes) and P's ``.kittify/derived/<slug>``.
-    #   * NOT COVERED (pre-existing, tracked in #5343): under a NON-owned
-    #     ``coord`` / ``lanes_with_coord`` topology, commits on the
-    #     coordination branch made by the transactional status emitter, the
-    #     materialized coordination worktree, and the non-owned
-    #     ``R/.kittify/derived/<slug>`` view. A refusal there restores the
-    #     mission directory but is not a whole-checkout no-op.
+    #     meta.json via the SK3466 single-writer revert); for EVERY topology,
+    #     the status surface the transactional status emitter commits to
+    #     (#5641: the coordination branch and worktree for ``coord`` /
+    #     ``lanes_with_coord``, the current branch for ``lanes`` /
+    #     ``single_branch``, P's branch for an owned run) -- branch tip
+    #     restored by compare-and-swap, index by ``read-tree``, status files by
+    #     bytes, see ``finalize_status_surface.StatusSurfaceGuard``; and, owned
+    #     runs only, P's ``.kittify/derived/<slug>``.
+    #   * NOT UNDONE, REPORTED: status commits on a branch that moved after
+    #     this run's last status write (a foreign commit landed on top). The
+    #     branch is never forced; the run names the commits it left.
+    #   * NOT COVERED (tracked in #5343): a status surface the guard cannot
+    #     capture at the run's first status write -- a coordination worktree
+    #     the run itself materializes, a detached HEAD -- whose status commits
+    #     are then neither undone nor reported (logged only); and the
+    #     non-owned ``R/.kittify/derived/<slug>`` view (untracked).
     #   * Like any restore-on-failure guard it does not survive a hard process
     #     kill mid-run (nor would a literal plan/apply without git-object
     #     staging); it also never runs once ``commit_landed`` is set.
@@ -5438,11 +5427,10 @@ def finalize_tasks(
     # pre-existing meta.json-only SK3466 guard above.
     mission_write_scope_snapshot: dict[Path, bytes] = {}
     mission_write_scope_dir: Path | None = None
-    # FR-015/NFR-001 (owned-only, T072/T073): P's HEAD sha before any write,
-    # so the except handlers can undo any commit(s) an owned run's real
-    # bootstrap made on P's own branch before a later gate (the lane-cycle
-    # check chief among them) refuses -- see _capture_owned_head's docstring.
-    owned_head_before: str | None = None
+    # FR-015/NFR-001 (#5641): captured by ``_emit_tasks_started`` just before
+    # the run's first status write; restored from the except handlers below.
+    status_surface = StatusSurfaceGuard()
+    status_leftover: StatusSurfaceLeftover | None = None
     owned_derived_dir: Path | None = None
     owned_derived_snapshot: dict[Path, bytes] = {}
     # FR-007 (WP13 T074): bound before ``try`` so the except handlers below
@@ -5478,7 +5466,6 @@ def finalize_tasks(
         merge_target_branch = branch_setup.merge_target_branch
         mission_write_scope_snapshot = branch_setup.mission_write_scope_snapshot
         mission_write_scope_dir = branch_setup.mission_write_scope_dir
-        owned_head_before = branch_setup.owned_head_before
         owned_derived_dir = branch_setup.owned_derived_dir
         owned_derived_snapshot = branch_setup.owned_derived_snapshot
         meta_path_for_revert = branch_setup.meta_path_for_revert
@@ -5562,7 +5549,15 @@ def finalize_tasks(
         meta = _read_meta_for_emission(planning_dir)
         _warn_missing_meta(planning_dir, meta, json_output=json_output)
         if not refresh_planning_commit:
-            _emit_tasks_started(mission_slug, state, validate_only=validate_only, repo_root=repo_root, owned=owned)
+            _emit_tasks_started(
+                mission_slug,
+                state,
+                validate_only=validate_only,
+                repo_root=repo_root,
+                owned=owned,
+                status_surface=status_surface,
+                planning_dir=planning_dir,
+            )
 
         if validate_only:
             _emit_validate_only_report(
@@ -5633,6 +5628,7 @@ def finalize_tasks(
             refresh_planning_commit=refresh_planning_commit,
             allow_orphaned=allow_orphaned,
             planning_sha=planning_sha,
+            status_surface=status_surface,
             **({"owned": owned} if owned else {}),
         )
 
@@ -5654,11 +5650,12 @@ def finalize_tasks(
             _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir)
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
-            _restore_owned_head(owned, owned_head_before)
+            status_leftover = _restore_status_surface(status_surface)
         # SK3466-RR-003: the ORIGINAL error already emitted its own
         # diagnostic before raising typer.Exit above; this is a best-effort,
         # ADDITIONAL note if the meta.json revert itself also failed.
         _report_target_branch_revert_failure(revert_error, json_output=json_output)
+        _report_status_surface_leftover(status_leftover, json_output=json_output)
         raise
     except Exception as e:
         revert_error = _revert_unpersisted_target_branch_override(
@@ -5671,8 +5668,9 @@ def finalize_tasks(
             _restore_mission_write_scope(mission_write_scope_snapshot, mission_write_scope_dir)
             if owned_derived_dir is not None:
                 _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
-            _restore_owned_head(owned, owned_head_before)
+            status_leftover = _restore_status_surface(status_surface)
         _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output)
+        _report_status_surface_leftover(status_leftover, json_output=json_output)
         raise typer.Exit(1) from None
     finally:
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)

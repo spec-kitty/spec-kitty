@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
@@ -474,18 +475,13 @@ def _mission_dir_hashes(mission_dir: Path) -> dict[str, str]:
     }
 
 
-def test_coord_topology_lane_cycle_refusal_restores_the_mission_directory_only(tmp_path: Path) -> None:
-    """Documents the CURRENT boundary of the atomicity guard under a coordination topology.
+def test_coord_topology_lane_cycle_refusal_leaves_every_branch_and_checkout_as_found(tmp_path: Path) -> None:
+    """A non-owned ``coord`` Mission's real lane-cycle refusal is a whole-checkout no-op (#5641).
 
-    Follow-up: #5343. A non-owned ``coord`` mission's real lane-cycle refusal
-    restores the MISSION DIRECTORY (asserted below), but the guard does not
-    cover writes OUTSIDE it: the transactional status emitter's bootstrap
-    commits to the coordination branch, materializes the coordination
-    worktree, and the derived-cache view lands in ``R/.kittify/derived``.
-    That residual is deliberately NOT asserted here (and not xfailed): it is
-    the operator-deferred class tracked in #5343, so this test pins only
-    what the guard does promise today and will keep passing when #5343 widens
-    the boundary.
+    The refusal fires after the bootstrap committed the per-WP seeds to the
+    coordination branch (``typer.Exit`` path, unlike the commit-failure guard
+    below, which takes the ``Exception`` path). The Mission directory, the
+    coordination branch and every checkout's tracked state must be as found.
     """
     from mission_runtime import MissionTopology
     from tests.integration.test_placement_partition_golden_path import _create_mission, _init_git_repo
@@ -502,17 +498,17 @@ def test_coord_topology_lane_cycle_refusal_restores_the_mission_directory_only(t
     )
     (mission_dir / "tasks").mkdir(exist_ok=True)
     _install_lane_cycle_wps(mission_dir)
-    _git(root, "add", ".")
+    _git(root, "add", "kitty-specs")
     _git(root, "commit", "-q", "-m", "fixture: coord mission with cyclic collapsed lanes")
     before = _mission_dir_hashes(mission_dir)
-    porcelain_before = _git(root, "status", "--porcelain", "--", "kitty-specs").stdout
+    surface_before = _branches_and_checkouts(root)
 
     exit_code, output = _run_finalize(root, result.mission_slug)
 
     assert exit_code != 0, output
     assert "LANE_DEPENDENCY_CYCLE" in output, output
     assert _mission_dir_hashes(mission_dir) == before, "the mission directory was not restored"
-    assert _git(root, "status", "--porcelain", "--", "kitty-specs").stdout == porcelain_before
+    assert _branches_and_checkouts(root) == surface_before, "the refusal left coordination commits or a dirty checkout behind"
 
 
 def _branches_and_checkouts(root: Path) -> dict[str, str]:
@@ -525,31 +521,9 @@ def _branches_and_checkouts(root: Path) -> dict[str, str]:
     return state
 
 
-@pytest.mark.p0_repro(issue=5641)
-@pytest.mark.parametrize("topology_name", ["COORD", "LANES_WITH_COORD", "LANES", "SINGLE_BRANCH"])
-def test_final_commit_failure_leaves_every_branch_and_checkout_as_found(tmp_path: Path, topology_name: str) -> None:
-    """A failed final commit must not leave the per-WP status commits behind (#5641, open P0).
-
-    Root cause: ``_run_commit_pipeline`` seeds every WP as ``planned`` through
-    ``bootstrap_canonical_state`` BEFORE the final commit, and each seed is a
-    commit of its own on the status surface -- the coordination branch for
-    ``coord`` / ``lanes_with_coord``, the current branch for a non-owned
-    ``lanes`` / ``single_branch`` Mission. When the final commit then fails,
-    the ``except`` arms restore the Mission directory's bytes but only an
-    OWNED checkout gets its HEAD back (``_restore_owned_head``). So the status
-    surface keeps commits the failed run made, and for ``lanes`` /
-    ``single_branch`` the checkout is left dirty against its own HEAD (the
-    restored ``status.events.jsonl`` drops events HEAD has committed).
-
-    Desired outcome: after the failed run every branch tip and every
-    checkout's tracked state is what it was before the run.
-
-    Exit rule: the fix PR for #5641 removes ``@pytest.mark.p0_repro``; this
-    test then stays here as a standing guard of the finalize atomicity
-    contract (FR-015/NFR-001).
-    """
-    from mission_runtime import MissionArtifactKind, MissionTopology
-    from specify_cli.coordination import commit_router
+def _two_wp_mission(tmp_path: Path, topology_name: str) -> tuple[Path, str]:
+    """A real two-WP Mission of ``topology_name``, created on a non-protected topic branch and ready to finalize."""
+    from mission_runtime import MissionTopology
     from tests.integration.test_placement_partition_golden_path import _create_mission, _init_git_repo
 
     root = tmp_path / "repo"
@@ -574,18 +548,74 @@ def test_final_commit_failure_leaves_every_branch_and_checkout_as_found(tmp_path
         )
     _git(root, "add", "kitty-specs")
     _git(root, "commit", "-q", "-m", "fixture: two-WP mission ready to finalize")
-    before = _branches_and_checkouts(root)
+    return root, result.mission_slug
+
+
+def _run_finalize_failing_the_final_commit(root: Path, mission_slug: str, *, before_failing: Callable[[], None] = lambda: None) -> tuple[int, str]:
+    """Run the real ``finalize-tasks``, failing ONLY its final ``TASKS_INDEX`` commit.
+
+    The per-WP status commits go through the transactional status emitter, not
+    ``commit_for_mission``, so every earlier write and commit runs for real.
+    """
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination import commit_router
 
     real_commit_for_mission = commit_router.commit_for_mission
 
     def _fail_only_the_final_commit(*args: object, **kwargs: object) -> object:
         if kwargs.get("kind") is MissionArtifactKind.TASKS_INDEX:
+            before_failing()
             raise RuntimeError("simulated final commit failure")
         return real_commit_for_mission(*args, **kwargs)
 
     with patch("specify_cli.coordination.commit_router.commit_for_mission", side_effect=_fail_only_the_final_commit):
-        exit_code, output = _run_finalize(root, result.mission_slug)
+        exit_code, output = _run_finalize(root, mission_slug)
+    assert "simulated final commit failure" in output, f"the run did not fail at the final commit:\n{output}"
+    return exit_code, output
+
+
+@pytest.mark.parametrize("topology_name", ["COORD", "LANES_WITH_COORD", "LANES", "SINGLE_BRANCH"])
+def test_final_commit_failure_leaves_every_branch_and_checkout_as_found(tmp_path: Path, topology_name: str) -> None:
+    """A failed final commit leaves no per-WP status commits behind (guard for #5641, fixed).
+
+    ``_run_commit_pipeline`` seeds every WP as ``planned`` BEFORE the final
+    commit, and each seed is a commit of its own on the status surface -- the
+    coordination branch for ``coord`` / ``lanes_with_coord``, the current
+    branch for a non-owned ``lanes`` / ``single_branch`` Mission. Before the
+    fix only an OWNED checkout got its HEAD back, so the status surface kept
+    the seed commits and a ``lanes`` / ``single_branch`` checkout was left
+    dirty against its own HEAD. Every branch tip and every checkout's tracked
+    state must be what it was before the run.
+    """
+    root, mission_slug = _two_wp_mission(tmp_path, topology_name)
+    before = _branches_and_checkouts(root)
+
+    exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug)
 
     assert exit_code != 0, output
-    assert "simulated final commit failure" in output, f"the run did not fail at the final commit:\n{output}"
     assert _branches_and_checkouts(root) == before, "the failed finalize-tasks run left commits or a dirty checkout behind"
+
+
+def test_final_commit_failure_never_rewrites_a_foreign_commit_and_names_the_seeds_it_left(tmp_path: Path) -> None:
+    """A status-surface branch that moved after the seeds is never forced back (#5641, FR-002/FR-003).
+
+    A foreign commit lands on the current branch of a ``lanes`` Mission after
+    the per-WP seed commits and before the final commit fails. The restore must
+    leave the branch at the foreign commit and report the two seed commits it
+    could not undo, as a ``status_commits_not_undone`` warning.
+    """
+    root, mission_slug = _two_wp_mission(tmp_path, "LANES")
+    seeded_from = _git(root, "rev-parse", "HEAD").stdout.strip()
+
+    def _foreign_commit() -> None:
+        _git(root, "commit", "-q", "--allow-empty", "-m", "foreign: someone else's commit")
+
+    exit_code, output = _run_finalize_failing_the_final_commit(root, mission_slug, before_failing=_foreign_commit)
+
+    assert exit_code != 0, output
+    assert _git(root, "log", "-1", "--format=%s").stdout.strip() == "foreign: someone else's commit", "the foreign commit was rewritten"
+    warnings = [json.loads(line) for line in output.splitlines() if line.startswith("{") and '"warning"' in line]
+    leftover = next(w for w in warnings if w["warning"] == "status_commits_not_undone")
+    seeds = _git(root, "rev-list", f"{seeded_from}..HEAD~1").stdout.split()
+    assert len(seeds) == 2, "fixture: expected one seed commit per WP under the foreign commit"
+    assert [entry.split()[0] for entry in leftover["commits"]] == [_git(root, "rev-parse", "--short", sha).stdout.strip() for sha in seeds]
