@@ -283,6 +283,9 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
 
     assert result.exit_code == 0
     # FROZEN ENVELOPE — exact byte-identical match (do not loosen).
+    # ``canonical_commands`` is the one derived value: the literal census of
+    # that set lives in tests/specify_cli/skills/test_command_installer.py, and
+    # a second literal here went stale when a command was removed.
     assert _payload(result.output) == {
         "configured_agents": [],
         "manifest_agents": [],

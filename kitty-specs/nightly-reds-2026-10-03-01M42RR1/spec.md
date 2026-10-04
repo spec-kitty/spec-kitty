@@ -129,7 +129,7 @@ snapshot and in a clone of it.
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | No green-washing | 0 budgets or timeouts raised, 0 retries added, 0 tests skipped, deselected or deleted in the diff. | Reliability | High | Open |
+| NFR-001 | No green-washing | 0 budgets or timeouts raised except the one budget alignment ruled by the operator under C-002, 0 retries added, 0 tests skipped, deselected or deleted in the diff. | Reliability | High | Open |
 | NFR-002 | Assertion strength kept | Each repaired test keeps every assertion it had other than the stale literal; 0 assertions removed without an equal or stronger replacement. | Reliability | High | Open |
 | NFR-003 | Red-first evidence | Each of the 29 repaired test cases is recorded failing on base `b2c466d7d1` and passing on the branch, with command and counts. | Reliability | High | Open |
 

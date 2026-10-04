@@ -13,7 +13,7 @@ It pins, independently of the implementation source:
   Earlier additions, oldest last (the counts quoted for them are historical and
   were not all accurate): #4757 (``ed6d34e75``) added ``decisions`` (diagnose/repair
   ``decisions/index.json`` vs. the authoritative event log, FR-004/FR-005) as
-  a hand-written ``@app.command`` shell, on top of the 24 as of #4130, which
+  a hand-written ``@app.command`` shell; #4130
   added ``bytecode`` (installed-package .pyc corruption check, #4124's
   detection half) via the same auto-discovery seam, on top of the 23 as of
   operator-config-ergonomics-01M04YK8, which added the

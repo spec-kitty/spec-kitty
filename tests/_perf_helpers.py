@@ -26,9 +26,10 @@ inspecting call expressions instead of only ``assert`` statements.
 from __future__ import annotations
 
 #: The one wall-clock budget for a CLI invocation that pays interpreter cold
-#: start (a fresh ``python -m specify_cli`` per run). Generous enough to absorb
-#: a loaded laptop or CI runner, tight enough to catch the ~1.8 s import-time
-#: regression #4409 removed (pre-fix was ~3.2 s). Cold start alone is about
+#: start (a fresh ``python -m specify_cli`` per run). Tight enough to catch the
+#: ~1.8 s import-time regression #4409 removed (pre-fix was ~3.2 s). It does not
+#: absorb a slow nightly runner: commands that do real work measured 2.6-2.7 s
+#: there (#5419). Cold start alone is about
 #: 1.8 s on a fast workstation, so this is a regression ratchet on start-up
 #: cost, not a measurement of the work a command does; see #5614 for the
 #: rewrite that would take runner speed out of the result.
