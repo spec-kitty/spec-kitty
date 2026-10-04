@@ -588,3 +588,16 @@ def test_step_keeps_an_error_diagnostic_in_the_result_errors_instead_of_synthesi
     assert report.failed is True
     assert report.failure_messages == ()
     assert outcome.result.errors == ["disk full"]
+
+
+# ---------------------------------------------------------------------------
+# Help text (FR-014)
+# ---------------------------------------------------------------------------
+
+
+def test_help_says_only_a_completed_dry_run_preview_exits_zero() -> None:
+    doc = upgrade_module.upgrade.__doc__ or ""
+
+    assert "a completed ``--dry-run`` preview" in doc
+    assert "any ``--dry-run``" not in doc
+    assert "``--dry-run``\n         preview that could not be completed" in doc

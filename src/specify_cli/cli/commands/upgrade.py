@@ -29,7 +29,7 @@ JSON contract (--json with --cli or --project):
   ``contracts/compat-planner.json`` (schema_version: 1).  See R-09.
 
 Exit codes (R-08):
-  0  ALLOW / ALLOW_WITH_NAG / dry-run always 0
+  0  ALLOW / ALLOW_WITH_NAG / a completed ``--dry-run`` preview
   2  BLOCK_INCOMPATIBLE_FLAGS (--cli + --project)
   4  BLOCK_PROJECT_MIGRATION
   5  BLOCK_CLI_UPGRADE (project too new — not overridable by --yes)
@@ -1627,7 +1627,7 @@ def upgrade(
     """Upgrade a Spec Kitty project to the current version.
 
     Detects the project's current version and applies all necessary migrations
-    to bring it up to date with the installed CLI version.
+    to bring it to the installed CLI version.
 
     **New flags (WP09)**:
       ``--cli``     Emit CLI upgrade guidance only.  No project detection;
@@ -1644,12 +1644,13 @@ def upgrade(
     Mutual exclusion: ``--cli`` and ``--project`` together exit 2.
 
     **Exit codes** (R-08):
-      0  Success / ALLOW / ALLOW_WITH_NAG / any ``--dry-run``
+      0  Success / ALLOW / ALLOW_WITH_NAG / a completed ``--dry-run`` preview
       2  ``--cli --project`` flag conflict
       4  Project migration required (BLOCK_PROJECT_MIGRATION)
       5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable
       6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)
-      1  General error
+      1  General error, a managed file left for your review, or a ``--dry-run``
+         preview that could not be completed
 
     See also: ``docs/guides/how-to/installation/install-and-upgrade.md``
 
