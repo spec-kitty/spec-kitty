@@ -350,6 +350,25 @@ def test_a_broken_pack_makes_detect_true_and_apply_a_reported_error(tmp_path: Pa
     assert [copy.is_file() for copy in _installed_copies(project)] == present  # a refusal never retires an installed copy
 
 
+@pytest.mark.parametrize("target", ["specify_cli.skills.catalog.load_manifest", "specify_cli.skills.catalog.pack_skills_matter"])
+def test_an_unanswerable_installed_or_matters_question_refuses_instead_of_retiring(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str) -> None:
+    """A failure nobody listed, in the manifest probe or in the classifier itself: unknown counts as "matters"."""
+    project = _project(tmp_path)
+    save_manifest(install_all_skills(project, ["claude", "codex"], resolve_project_skill_catalog(project)), project)
+    _org_required(project, tmp_path / "pack")
+    _unparsable_charter(project, tmp_path / "pack")
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(target, boom)
+
+    result = RepairSkillPackMigration().apply(project)
+
+    assert not result.success and "Pack skills could not be resolved" in result.errors[0]
+    assert all(copy.is_file() for copy in _installed_copies(project))
+
+
 def _charter_without_required_skills(root: Path, pack: Path) -> None:
     _org_required(root, pack, "org_name: acme-org\nskill_namespace: acme\n")
 

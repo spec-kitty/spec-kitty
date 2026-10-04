@@ -162,6 +162,14 @@ def _manifest_holds_pack_skills(project_root: Path) -> bool:
     return manifest is not None and any(entry.origin == ORIGIN_PACK for entry in manifest.entries)
 
 
+def _matters(project_root: Path, installed: bool) -> bool:
+    """:func:`pack_skills_matter`, total: if the question itself cannot be answered, pack skills matter."""
+    try:
+        return pack_skills_matter(project_root, installed_pack_skills=installed)
+    except Exception:
+        return True
+
+
 def _establish_in_force(project_root: Path, installed: bool) -> InForceSkills:
     """Stage 1: which skills are in force (reads the org configuration; no skill is loaded or rendered)."""
     if not _project_may_have_pack_skills(project_root, installed_pack_skills=installed):
@@ -185,7 +193,7 @@ def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> li
     to read the org configuration therefore needs no entry here. Stage 2 runs only for a non-empty
     set and always refuses on failure.
     """
-    installed = False
+    installed: bool | None = None
     try:
         installed = _manifest_holds_pack_skills(project_root)
         in_force = _establish_in_force(project_root, installed)
@@ -193,8 +201,16 @@ def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> li
         # The ONE classification point of stage 1, deliberately broad: whatever stops the in-force set from
         # being established (an unreadable or invalid org configuration, an unset ${VAR}, a failure nobody has
         # met yet) is classified by pack_skills_matter alone -- a refusal that keeps the original as __cause__,
-        # or, when no pack skill matters, "no org pack".
-        if not pack_skills_matter(project_root, installed_pack_skills=installed):
+        # or, when no pack skill matters, "no org pack". When the manifest probe itself failed, whether a pack
+        # skill is installed is unknown, so that counts as "matters": refuse, never retire.
+        if installed is not None and not _matters(project_root, installed):
+            # Not silent: a programming error must not pass for "this project has no org pack".
+            logger.warning(
+                "pack skills in force could not be established for %s (%s: %s); continuing as a project with no org pack",
+                project_root,
+                type(exc).__name__,
+                exc,
+            )
             return []
         raise PackSkillCatalogError(str(exc)) from exc
     if in_force.is_empty:
