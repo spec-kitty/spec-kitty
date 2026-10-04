@@ -375,7 +375,7 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     ``Path.cwd()`` (C-003/#2647).
     """
     from mission_runtime import is_single_branch, resolve_topology
-    from specify_cli.status import Lane, Status, WPInnerStateDelta, emit_inner_state_changed
+    from specify_cli.status import Lane, Status, WPInnerStateDelta
 
     if not st.updated_tasks:
         return
@@ -398,34 +398,26 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     # branch, like its lane transitions, so mark-status leaves the checkout clean
     # -- unless the operator opted out with --no-auto-commit / ``auto_commit: false``.
     commit_annotation = st.resolved_auto_commit and is_single_branch(resolve_topology(st.main_repo_root, st.mission_slug))
+    from specify_cli.coordination.status_transition import emit_runtime_annotation
+
     for wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
         delta = WPInnerStateDelta(subtasks=dict.fromkeys(task_ids_for_wp, target_status))
+        # #3866: ``owned`` threads the validated fact so the per-WP annotation
+        # identity does not re-run the ownership validation.
+        event = emit_runtime_annotation(
+            owned=st.owned,
+            auto_commit=commit_annotation,
+            operation=f"mark-status {wp_id}",
+            feature_dir=st.status_dir,
+            wp_id=wp_id,
+            delta=delta,
+            actor="user",
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+        )
         if st.owned is not None or commit_annotation:
-            from specify_cli.coordination import status_transition
-
-            event = status_transition.emit_inner_state_changed_transactional(
-                st.status_dir,
-                wp_id,
-                delta,
-                actor="user",
-                mission_slug=st.mission_slug,
-                repo_root=st.main_repo_root,
-                operation=f"mark-status {wp_id}",
-                # #3866: thread the validated fact so the per-WP annotation
-                # identity does not re-run the ownership validation.
-                owned=st.owned,
-            )
             st.applied_event_ids.append(event.event_id)
             st.applied_wps.append(wp_id)
-        else:
-            emit_inner_state_changed(
-                st.status_dir,
-                wp_id,
-                delta,
-                actor="user",
-                mission_slug=st.mission_slug,
-                repo_root=st.main_repo_root,
-            )
 
 
 def _ms_output(st: _MarkStatusState) -> None:

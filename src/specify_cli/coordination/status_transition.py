@@ -2042,3 +2042,48 @@ def _prepare_batch_in_transaction(
         if prepared.event is not None:
             built.append((prepared, prepared.event, request))
     return built
+
+
+def emit_runtime_annotation(
+    *,
+    owned: OwnedCheckout | None,
+    auto_commit: bool,
+    operation: str | None = None,
+    feature_dir: Path,
+    wp_id: str,
+    delta: WPInnerStateDelta,
+    actor: str,
+    mission_slug: str,
+    repo_root: Path | None = None,
+) -> InnerStateChanged:
+    """Choose and call the inner-state emitter for a runtime annotation.
+
+    Precedence (preserved from the move-task / mark-status call sites):
+
+    1. ``owned is not None`` -> :func:`emit_inner_state_changed_transactional`
+       with ``owned`` forwarded (#3866).
+    2. ``auto_commit`` truthy -> the transactional emitter without ``owned``.
+    3. Otherwise -> the plain ``emit_inner_state_changed``, which does no
+       worktree or transaction resolution (#3460) and accepts neither
+       ``operation`` nor ``owned``.
+
+    ``feature_dir``, ``wp_id``, ``delta``, ``actor``, ``mission_slug`` and
+    ``repo_root`` are forwarded unchanged to whichever emitter is chosen; every
+    branch returns the persisted :class:`InnerStateChanged`. The plain emitter is imported lazily from
+    ``specify_cli.status`` so existing patches of that name keep intercepting.
+    """
+    emit_args: dict[str, Any] = {
+        "feature_dir": feature_dir,
+        "wp_id": wp_id,
+        "delta": delta,
+        "actor": actor,
+        "mission_slug": mission_slug,
+        "repo_root": repo_root,
+    }
+    if owned is not None:
+        return emit_inner_state_changed_transactional(operation=operation, owned=owned, **emit_args)
+    if auto_commit:
+        return emit_inner_state_changed_transactional(operation=operation, **emit_args)
+    from specify_cli.status import emit_inner_state_changed
+
+    return emit_inner_state_changed(**emit_args)
