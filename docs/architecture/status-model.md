@@ -519,12 +519,13 @@ kitty-specs/<feature>/
 
 ### Coordination status-write guard
 
-On a Mission with a coordination topology, every status write (`agent status
+On a Mission with a coordination topology, a status write (`agent status
 emit`, `agent tasks move-task`, and any other command that records a lane
-transition) is committed from the coordination worktree. Before such a write
-opens, the status log in that worktree is compared with the log its branch HEAD
-has committed (#5572, #5613). The write is refused, and nothing is written, in
-two cases:
+transition) is committed from the coordination worktree. Before a write that
+goes through the status transaction (`BookkeepingTransaction.acquire`) opens,
+the status log in that worktree is compared with the log its branch HEAD has
+committed (#5572, #5613). The write is refused, and nothing is written, in two
+cases:
 
 | Code | Condition | Recovery |
 |---|---|---|
@@ -535,6 +536,12 @@ Extra, uncommitted lines in the worktree log are not a divergence: an
 interrupted append is repaired by the write's own rollback. A Mission without a
 coordination topology is not checked. The caller-visible shape of the refusal is
 in the [agent subcommand reference](../api/agent-subcommands.md#coordination-status-writes-refusal-on-a-diverged-status-log).
+
+The guard does not cover every writer. The fallback coordination arm
+(`_emit_on_coord_then_commit` in `coordination/status_transition.py`) and the
+writers that append raw decision and retrospective rows (`append_raw_rows_atomic`)
+do not pass through the status transaction, so they do not run this check
+(#5644).
 
 ### Pre-3.0 layout rejection
 
