@@ -438,6 +438,14 @@ def test_an_unowned_same_name_directory_without_skill_md_is_left_alone(project: 
     assert (f".claude/skills/{RENDERED}/SKILL.md", "Existing skill directory is not owned by the skill manager") in projection.preserved
     assert (project / ".agents" / "skills" / RENDERED / "SKILL.md").is_file()  # the other agent root is unaffected
 
+    # Once it is empty (e.g. the leftover of a projection that failed part-way) there is nothing to preserve.
+    (foreign / "notes.txt").unlink()
+
+    projection = project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))
+
+    assert projection.preserved == ()
+    assert (foreign / "SKILL.md").is_file()
+
 
 def test_without_agents_the_projection_neither_stages_nor_refuses(project: Path, tmp_path: Path) -> None:
     """No project skill root to write into: even an unusable (namespaceless) pack skill is not an error yet."""

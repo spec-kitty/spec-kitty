@@ -716,6 +716,14 @@ def _expected_project_entries(
     return expected
 
 
+def _is_empty_directory(path: Path) -> bool:
+    """Whether *path* is a directory with no entries; an unreadable one counts as non-empty."""
+    try:
+        return not any(path.iterdir())
+    except OSError:
+        return False
+
+
 def _drop_unowned_pack_directories(
     plan: _ProjectSkillPreparation,
     expected: dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]],
@@ -725,15 +733,22 @@ def _drop_unowned_pack_directories(
 
     A pack skill renders under a namespaced name; a user directory that already
     carries that name without a managed record is theirs, even when it has no
-    ``SKILL.md`` yet. A file at the target path is handled by the normal
-    unmanaged-content rule.
+    ``SKILL.md`` yet. An *empty* directory holds nothing to preserve (it is the
+    leftover of a projection that failed part-way), so it is projected into. A
+    file at the target path is handled by the normal unmanaged-content rule.
     """
     owned_directories = {Path(entry.installed_path).parent.as_posix() for entry in manifest.entries}
     kept: dict[str, tuple[bytes, FileState, list[ManagedFileEntry]]] = {}
     for path, wanted in expected.items():
         directory = Path(path).parent.as_posix()
         pack_only = all(entry.origin == ORIGIN_PACK for entry in wanted[2])
-        if pack_only and directory not in owned_directories and plan.observe(directory).kind == "directory" and plan.observe(path).kind == "absent":
+        if (
+            pack_only
+            and directory not in owned_directories
+            and plan.observe(directory).kind == "directory"
+            and plan.observe(path).kind == "absent"
+            and not _is_empty_directory(plan.inputs.root.path / directory)
+        ):
             plan.disposition(path, "preserve", "Existing skill directory is not owned by the skill manager")
             continue
         kept[path] = wanted
