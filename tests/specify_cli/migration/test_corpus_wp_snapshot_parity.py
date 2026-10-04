@@ -23,7 +23,12 @@ committed ``kitty-specs/<slug>/`` that has WP files *or* a snapshot WP:
   against it proves nothing, and the repair CLI refuses it (``COORD_SURFACE_LIVE``)
   for the same reason. It uses the repair CLI's own detector
   (``wp_status_backfill.coordination_surface_is_live``) and is always listed in the
-  gate's failure and diagnostic output so it cannot hide.
+  gate's failure and diagnostic output so it cannot hide. The skip is BOUNDED: every
+  skipped Mission must appear in :data:`LIVE_COORDINATION_SKIPS` with a reason (empty
+  today -- no committed Mission has a live coordination surface), and a listed Mission
+  that is no longer skipped fails as stale. The detector fails closed (an unprovable
+  surface reads as live), so without the bound a detector fault would silently turn the
+  gate into a pass for exactly the Missions it cannot verify.
 
 Read-only: the snapshot comes from ``materialize_snapshot`` (never ``materialize``,
 which rewrites ``status.json``). The corpus is this test file's own checkout, not the
@@ -114,6 +119,15 @@ class MissionParity:
     #: comparison is meaningless: the Mission is skipped (never exempted) and listed.
     #: Only probed for a Mission that disagrees (see :func:`inspect_mission`).
     coordination_live: bool = False
+
+
+#: The exact set of Missions the gate may skip because their status authority is a live
+#: coordination surface: ``{slug: reason}``. EMPTY today (verified over the whole
+#: committed corpus when the gate landed): the corpus is committed on the primary branch
+#: and none of its Missions keeps a live coordination branch. A Mission added here needs
+#: a reason a reviewer can check and leaves the list when it is consolidated; an
+#: unlisted skip fails the gate rather than passing it.
+LIVE_COORDINATION_SKIPS: dict[str, str] = {}
 
 
 def _test_checkout_root() -> Path:
@@ -240,8 +254,21 @@ def skipped_note(scanned: Mapping[str, MissionParity]) -> str:
         return ""
     return (
         f"\n  Skipped {len(skipped)} Mission(s) with a live coordination surface (their PRIMARY-partition log is not "
-        f"the authority; verify them from the coordination checkout, they are NOT exempted): {', '.join(skipped)}"
+        f"the authority; consolidate them, then rerun the repair or this gate; they are NOT exempted): {', '.join(skipped)}"
     )
+
+
+def live_skip_violations(scanned: Mapping[str, MissionParity], allowed: Mapping[str, str]) -> list[str]:
+    """A live-coordination skip must be in the exact, reasoned *allowed* set; the set must not go stale."""
+    skipped = set(skipped_live_coordination(scanned))
+    violations = [
+        f"{slug}: skipped as a live coordination surface but not in LIVE_COORDINATION_SKIPS "
+        "(the detector fails closed, so an unprovable surface also lands here): verify it, then list it with a reason"
+        for slug in sorted(skipped - allowed.keys())
+    ]
+    violations.extend(f"stale live-coordination skip: {slug} is no longer skipped; remove the entry" for slug in sorted(allowed.keys() - skipped))
+    violations.extend(f"malformed live-coordination skip for {slug}: needs a reason" for slug, reason in sorted(allowed.items()) if not reason.strip())
+    return violations
 
 
 def stale_exemption_violations(
@@ -274,7 +301,7 @@ def corpus_scan() -> dict[str, MissionParity]:
 
 def test_corpus_wp_files_and_snapshot_agree(corpus_scan: dict[str, MissionParity]) -> None:
     """THE GATE: no Mission's WP-file id set differs from its snapshot id set, bar the permanent carve-outs."""
-    violations = parity_violations(corpus_scan, SNAPSHOT_ONLY_EXEMPTIONS)
+    violations = parity_violations(corpus_scan, SNAPSHOT_ONLY_EXEMPTIONS) + live_skip_violations(corpus_scan, LIVE_COORDINATION_SKIPS)
     note = skipped_note(corpus_scan)
     if note:
         print(note.strip())  # diagnostic on a passing run too (shown with -rP / on failure)
@@ -487,3 +514,19 @@ def test_wp_file_filter_is_case_sensitive_and_prefix_exact(tmp_path: Path) -> No
 
     assert [p.name for p in wp_task_files(tasks)] == ["WP01-a.md", "WP02.md"]
     assert wp_task_files(tmp_path / "absent") == []
+
+
+def test_live_coordination_skips_are_bounded_by_an_exact_reasoned_allowlist() -> None:
+    """An unlisted skip fails (a fail-closed detector fault cannot become a pass); a stale or reasonless entry fails (#5579 L5)."""
+    ids = frozenset({_WP01})
+    live = MissionParity(slug="live", files_only=ids, snapshot_only=frozenset(), coordination_live=True)
+    plain = MissionParity(slug="plain", files_only=ids, snapshot_only=frozenset())
+
+    assert live_skip_violations({"plain": plain}, {}) == []
+    assert live_skip_violations({"live": live}, {"live": _WHY}) == []
+    unlisted = live_skip_violations({"live": live}, {})
+    assert len(unlisted) == 1 and unlisted[0].startswith("live:") and "LIVE_COORDINATION_SKIPS" in unlisted[0]
+    stale = live_skip_violations({"plain": plain}, {"plain": _WHY})
+    assert len(stale) == 1 and stale[0].startswith("stale live-coordination skip: plain")
+    reasonless = live_skip_violations({"live": live}, {"live": "  "})
+    assert len(reasonless) == 1 and "needs a reason" in reasonless[0]
