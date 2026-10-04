@@ -44,6 +44,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.cli.commands.agent import tasks, tasks_move_task, tasks_verdict_persistence
+from specify_cli.cli.commands.agent import tasks_move_task_executor as _tmt_executor
 from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskState,
     _binding_role_for_lane,
@@ -740,7 +741,7 @@ def test_mt_persist_rejection_cycle_threads_reviewer_identity_and_restores_agent
 
     ports = MagicMock()
     with patch(
-        f"{tasks_move_task.__name__}.persist_rejected_review_cycle_for_rollback",
+        f"{_tmt_executor.__name__}.persist_rejected_review_cycle_for_rollback",
         side_effect=_fake_persist,
     ) as rollback_mock:
         tasks_move_task._mt_persist_rejection_cycle(st, ports)
@@ -759,7 +760,7 @@ def test_mt_persist_rejection_cycle_restores_agent_even_on_failure() -> None:
     ports = MagicMock()
     with (
         patch(
-            f"{tasks_move_task.__name__}.persist_rejected_review_cycle_for_rollback",
+            f"{_tmt_executor.__name__}.persist_rejected_review_cycle_for_rollback",
             side_effect=RuntimeError("boom"),
         ),
         pytest.raises(RuntimeError, match="boom"),
@@ -789,9 +790,9 @@ def test_finalize_plan_delegates_approved_persist() -> None:
     ports = MagicMock()
     with (
         patch(
-            f"{tasks_move_task.__name__}.persist_rejected_review_cycle_for_rollback"
+            f"{_tmt_executor.__name__}.persist_rejected_review_cycle_for_rollback"
         ) as rollback_mock,
-        patch(f"{tasks_move_task.__name__}._persist_approved_review_cycle") as approved_mock,
+        patch(f"{_tmt_executor.__name__}._persist_approved_review_cycle") as approved_mock,
     ):
         tasks_move_task._mt_finalize_plan(st, ports)
     rollback_mock.assert_not_called()
@@ -835,8 +836,8 @@ def test_finalize_plan_never_rebuilds_plan_for_forward_approve() -> None:
     )
     ports = MagicMock()
     with (
-        patch(f"{tasks_move_task.__name__}.build_transition_plan") as build_mock,
-        patch(f"{tasks_move_task.__name__}._persist_approved_review_cycle"),
+        patch(f"{_tmt_executor.__name__}.build_transition_plan") as build_mock,
+        patch(f"{_tmt_executor.__name__}._persist_approved_review_cycle"),
     ):
         tasks_move_task._mt_finalize_plan(st, ports)
     build_mock.assert_not_called()
@@ -973,11 +974,11 @@ def test_finalize_plan_delegates_rollback_persist(tmp_path: Path) -> None:
     )
     ports = MagicMock()
     with (
-        patch(f"{tasks_move_task.__name__}.build_transition_plan") as build_mock,
+        patch(f"{_tmt_executor.__name__}.build_transition_plan") as build_mock,
         patch(
-            f"{tasks_move_task.__name__}.persist_rejected_review_cycle_for_rollback"
+            f"{_tmt_executor.__name__}.persist_rejected_review_cycle_for_rollback"
         ) as rollback_mock,
-        patch(f"{tasks_move_task.__name__}._persist_approved_review_cycle") as approved_mock,
+        patch(f"{_tmt_executor.__name__}._persist_approved_review_cycle") as approved_mock,
     ):
         tasks_move_task._mt_finalize_plan(st, ports)
     rollback_mock.assert_called_once_with(st, ports)

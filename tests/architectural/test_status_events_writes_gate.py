@@ -179,7 +179,7 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         "specify_cli.cli.commands.agent.status",
         "specify_cli.cli.commands.agent.workflow_executor",
         "specify_cli.cli.commands.agent.tasks_mark_status",
-        "specify_cli.cli.commands.agent.tasks_move_task",
+        "specify_cli.cli.commands.agent.tasks_move_task_executor",
         # accept-fails-closed-01M3HS4V (#4887): the #4858 locked re-read +
         # single-row splice + write-and-commit critical section moved OUT of
         # ``acceptance_verdict`` into the ONE shared seam, ``acceptance.

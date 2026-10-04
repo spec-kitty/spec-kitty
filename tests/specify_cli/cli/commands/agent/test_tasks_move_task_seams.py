@@ -15,12 +15,17 @@ from types import ModuleType
 
 import pytest
 
-from specify_cli.cli.commands.agent import tasks_move_task, tasks_move_task_gates
+from specify_cli.cli.commands.agent import (
+    tasks_move_task,
+    tasks_move_task_executor,
+    tasks_move_task_gates,
+    tasks_move_task_hops,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 #: Every extracted ``tasks_move_task`` seam module; add new seams here.
-MOVE_TASK_SEAMS: list[ModuleType] = [tasks_move_task_gates]
+MOVE_TASK_SEAMS: list[ModuleType] = [tasks_move_task_gates, tasks_move_task_hops, tasks_move_task_executor]
 
 _MOVE_TASK_MODULE = tasks_move_task.__name__
 

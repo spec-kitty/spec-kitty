@@ -52,6 +52,7 @@ from specify_cli.agent_tasks_ports import (
 )
 from specify_cli.coordination import status_transition as _status_transition
 from specify_cli.cli.commands.agent import tasks_move_task as _tmt
+from specify_cli.cli.commands.agent import tasks_move_task_executor as _tmt_executor
 from specify_cli.cli.commands.agent import tasks_verdict_persistence as _tvp
 from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
@@ -804,7 +805,7 @@ def test_two_queued_rejections_preserve_each_exact_cycle_and_event(
                 return None
             return result
 
-        monkeypatch.setattr(_tmt, "_mt_hop_review_result", _drop_second_hop_result)
+        monkeypatch.setattr(_tmt_executor, "_mt_hop_review_result", _drop_second_hop_result)
 
     failures: list[BaseException] = []
 
@@ -938,7 +939,7 @@ def test_two_queued_rejections_completes_within_budget(
                 return None
             return result
 
-        monkeypatch.setattr(_tmt, "_mt_hop_review_result", _drop_second_hop_result)
+        monkeypatch.setattr(_tmt_executor, "_mt_hop_review_result", _drop_second_hop_result)
 
     def _worker(args: _MoveTaskArgs, ports: TasksPorts) -> None:
         # timing-only: correctness lives on the sibling per-PR test
