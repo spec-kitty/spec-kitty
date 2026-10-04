@@ -18,7 +18,7 @@ from charter.offering.artifact_kinds import (
     ArtifactKind,
 )
 from charter.offering.drg.migration.extractor import _emit_skill_nodes
-from charter.offering.drg.models import NodeKind
+from charter.offering.drg.models import DRGNode, NodeKind
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.service import DoctrineService
 from specify_cli.doctrine.org_charter import REQUIRED_KIND_FIELDS, OrgCharterPolicy, _fold_policies
@@ -103,17 +103,17 @@ def test_delivery_table_excludes_skill_with_a_reason() -> None:
 
 
 def test_extractor_emits_nodes_for_built_in_skills_and_nothing_when_absent(tmp_path: Path) -> None:
-    nodes: dict[str, object] = {}
-    _emit_skill_nodes(tmp_path, nodes)  # type: ignore[arg-type]
+    nodes: dict[str, DRGNode] = {}
+    _emit_skill_nodes(tmp_path, nodes)
     assert nodes == {}
 
     skills = tmp_path / "skills"
     write_skill(skills, prompt_skill("core-skill"))
     (skills / "no-id.skill.yaml").write_text("title: x\n", encoding="utf-8")
     (skills / "empty.skill.yaml").write_text("", encoding="utf-8")
-    _emit_skill_nodes(tmp_path, nodes)  # type: ignore[arg-type]
+    _emit_skill_nodes(tmp_path, nodes)
     assert list(nodes) == ["skill:core-skill"]
-    assert nodes["skill:core-skill"].kind is NodeKind.SKILL  # type: ignore[attr-defined]
+    assert nodes["skill:core-skill"].kind is NodeKind.SKILL
 
 
 def _service(tmp_path: Path) -> DoctrineService:

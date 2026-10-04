@@ -15,14 +15,14 @@ from .conftest import prompt_skill, wrapper_skill, write_skill
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def _load(skill_dirs: dict[str, Path], **kwargs: object) -> tuple[PackSkillRepository, list[str]]:
+def _load(skill_dirs: dict[str, Path], *, skill_namespace: str | None = None) -> tuple[PackSkillRepository, list[str]]:
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always")
         repo = PackSkillRepository(
             built_in_dir=skill_dirs["builtin"],
             org_dirs=[skill_dirs["org_a"], skill_dirs["org_b"]],
             project_dir=skill_dirs["project"],
-            **kwargs,  # type: ignore[arg-type]
+            skill_namespace=skill_namespace,
         )
     return repo, [str(w.message) for w in captured if issubclass(w.category, UserWarning)]
 

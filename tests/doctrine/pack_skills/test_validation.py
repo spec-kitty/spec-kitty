@@ -8,6 +8,7 @@ import pytest
 
 from charter.offering.pack_skills import PackSkill, PackSkillViolation
 from charter.offering.pack_skills.validation import (
+    Tier,
     _frontmatter_keys as frontmatter_keys,
     rendered_name,
     apply_enhancement,
@@ -39,9 +40,10 @@ def test_reserved_prefix_refused_for_org_and_project(tmp_path: Path, skill_id: s
     if "." in skill_id:
         pytest.skip("dot prefix is only reachable through a namespace")
     skill, path = _load(prompt_skill(skill_id), tmp_path)
-    for tier in ("org", "project"):
+    tiers: tuple[Tier, ...] = ("org", "project")
+    for tier in tiers:
         with pytest.raises(PackSkillViolation, match="reserved for built-in"):
-            validate_pack_skill(skill, path, tier=tier)  # type: ignore[arg-type]
+            validate_pack_skill(skill, path, tier=tier)
 
 
 def test_reserved_prefix_refused_through_namespace(tmp_path: Path) -> None:
@@ -86,9 +88,10 @@ def test_harmless_frontmatter_is_allowed(tmp_path: Path) -> None:
 
 def test_missing_body_refused_for_every_tier(tmp_path: Path) -> None:
     skill, path = _load(prompt_skill(), tmp_path, body=None)
-    for tier in ("builtin", "org"):
+    tiers: tuple[Tier, ...] = ("builtin", "org")
+    for tier in tiers:
         with pytest.raises(PackSkillViolation, match="not found"):
-            validate_pack_skill(skill, path, tier=tier)  # type: ignore[arg-type]
+            validate_pack_skill(skill, path, tier=tier)
 
 
 def test_body_path_escaping_directory_refused(tmp_path: Path) -> None:

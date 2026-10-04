@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import jsonschema
 import pytest
 from pydantic import ValidationError
@@ -43,7 +45,7 @@ def test_wrapper_form_accepts_builtin_and_cli_targets() -> None:
         ({"surprise": 1}, "surprise"),
     ],
 )
-def test_prompt_form_rejections(mutation: dict[str, object], message: str) -> None:
+def test_prompt_form_rejections(mutation: dict[str, Any], message: str) -> None:
     with pytest.raises(ValidationError, match=message):
         PackSkill.model_validate(prompt_skill(**mutation))
 
@@ -61,7 +63,7 @@ def test_prompt_form_rejections(mutation: dict[str, object], message: str) -> No
         ({"expands_to": {"target": "cli:spec-kitty 'unterminated"}}, "not a valid argv"),
     ],
 )
-def test_wrapper_form_rejections(mutation: dict[str, object], message: str) -> None:
+def test_wrapper_form_rejections(mutation: dict[str, Any], message: str) -> None:
     with pytest.raises(ValidationError, match=message):
         PackSkill.model_validate(wrapper_skill(**mutation))
 

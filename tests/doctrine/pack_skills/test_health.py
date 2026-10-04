@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -90,7 +91,7 @@ def test_collect_degrades_on_hard_load_failure(repo_root: Path) -> None:
     assert health.invalid_skills[0].error_summary == "pack-skill health load error: boom"
 
 
-def _doctor_json(root: Path) -> tuple[int, dict[str, object]]:
+def _doctor_json(root: Path) -> tuple[int, dict[str, Any]]:
     with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=root):
         result = runner.invoke(doctor_app, ["doctrine", "--json"])
     return result.exit_code, json.loads(result.output)
@@ -98,7 +99,7 @@ def _doctor_json(root: Path) -> tuple[int, dict[str, object]]:
 
 def test_doctor_json_has_skill_health_key(repo_root: Path) -> None:
     exit_code, payload = _doctor_json(repo_root)
-    skills = payload["profile_health"]["skills"]  # type: ignore[index]
+    skills = payload["profile_health"]["skills"]
     assert skills["healthy"] is True
     assert skills["skill_count"] == 0
     assert exit_code == 0
@@ -107,7 +108,7 @@ def test_doctor_json_has_skill_health_key(repo_root: Path) -> None:
 def test_doctor_json_unhealthy_when_malformed_skill_skipped(repo_root: Path) -> None:
     write_skill(_project_skills(repo_root), prompt_skill("land-pr", body_path="missing.md"), body=None)
     exit_code, payload = _doctor_json(repo_root)
-    health = payload["profile_health"]  # type: ignore[index]
+    health = payload["profile_health"]
     assert health["skills"]["healthy"] is False
     assert health["skills"]["invalid_skills"][0]["path"] == "land-pr.skill.yaml"
     assert health["healthy"] is False
