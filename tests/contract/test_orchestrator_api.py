@@ -8,8 +8,10 @@ Run: python -m pytest tests/contract/test_orchestrator_api.py -v
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import json
+import pkgutil
 import re
 from pathlib import Path
 from unittest.mock import patch
@@ -18,7 +20,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.git.commit_helpers import SafeCommitBackstopError, SafeCommitError
-from specify_cli.orchestrator_api import commands
+from specify_cli import orchestrator_api
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 
@@ -243,7 +245,12 @@ class TestAllowedErrorCodes:
     """Cross-check emitted orchestrator-api failure codes against the contract."""
 
     def test_literal_failure_codes_are_contract_allowed(self, orchestrator_api_contract):
-        source = inspect.getsource(commands)
+        # The verbs live in per-concern modules behind the ``commands`` facade, so the
+        # scan must cover every module of the package, not the facade alone.
+        source = "\n".join(
+            inspect.getsource(importlib.import_module(f"{orchestrator_api.__name__}.{module.name}"))
+            for module in pkgutil.iter_modules(orchestrator_api.__path__)
+        )
         emitted = set(
             re.findall(
                 r"_fail\(\s*[^,]+,\s*[\"']([A-Z0-9_]+)[\"']",
@@ -251,6 +258,10 @@ class TestAllowedErrorCodes:
                 flags=re.DOTALL,
             )
         )
+        # Floor: a contract code that only a concern module emits. Naming one real
+        # code (rather than a count) keeps the scan from going vacuous again without
+        # breaking each time a code is legitimately added or retired.
+        assert "MISSION_NOT_FOUND" in emitted
         allowed = set(orchestrator_api_contract["allowed_error_codes"])
         assert emitted <= allowed
 
