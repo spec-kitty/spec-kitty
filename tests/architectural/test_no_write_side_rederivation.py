@@ -1353,13 +1353,16 @@ def test_same_qualname_sibling_offender_reds_the_twin_guard() -> None:
 #: * ``status_transition.py::_coord_feature_dir`` (retired by WP07) -> the two
 #:   functions that now hold the COORD status write: ``_resolve_fallback_coord_worktree``
 #:   and ``_emit_on_coord_then_commit``.
+#: * ``mission_finalize.py::_emit_local_canonical_events`` ->
+#:   ``mission_finalize_bootstrap.py`` (#5627 moved the function verbatim into
+#:   the bootstrap phase module).
 _COORD_WRITER_CENSUS: tuple[tuple[str, str], ...] = (
     ("src/specify_cli/decisions/emit.py", "_mission_dir"),
     ("src/specify_cli/decisions/service.py", "_write_mission_dir"),
     ("src/specify_cli/agent_tasks_ports.py", "RealCoordCommitRouter.feature_write_dir"),
     ("src/specify_cli/cli/commands/agent/tasks_mark_status.py", "_ms_resolve_read_dir"),
     ("src/specify_cli/cli/commands/agent/tasks_finalize.py", "_ft_apply_writes"),
-    ("src/specify_cli/cli/commands/agent/mission_finalize.py", "_emit_local_canonical_events"),
+    ("src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py", "_emit_local_canonical_events"),
     ("src/specify_cli/review/cycle.py", "_review_cycle_write_location"),
     ("src/specify_cli/retrospective/tracer_writer.py", "_local_staging_path"),
     ("src/specify_cli/tasks/issue_matrix.py", "write_issue_matrix"),

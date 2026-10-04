@@ -8,9 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.finalize_source import finalize_family_source
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-_SOURCE_PATH = Path(__file__).resolve().parents[2] / "src/specify_cli/cli/commands/agent/mission_finalize.py"
 _ROUTER_PATH = Path(__file__).resolve().parents[2] / "src/specify_cli/coordination/commit_router.py"
 
 
@@ -55,12 +56,12 @@ def _pin_wiring_violations(source: str) -> list[str]:
 
 
 def test_finalize_pin_decision_has_one_authority_and_two_consumers() -> None:
-    source = _SOURCE_PATH.read_text(encoding="utf-8")
+    source = finalize_family_source()
     assert _pin_wiring_violations(source) == []
 
 
 def test_structural_guard_detects_removed_validate_only_pin_flow() -> None:
-    tree = ast.parse(_SOURCE_PATH.read_text(encoding="utf-8"))
+    tree = ast.parse(finalize_family_source())
 
     class RemoveDryRunPin(ast.NodeTransformer):
         def visit_Call(self, node: ast.Call) -> ast.Call:
@@ -191,14 +192,14 @@ def _refresh_safety_violations(finalize_source: str, router_source: str) -> list
 
 def test_refresh_is_guarded_early_and_commits_only_primary_pin() -> None:
     violations = _refresh_safety_violations(
-        _SOURCE_PATH.read_text(encoding="utf-8"),
+        finalize_family_source(),
         _ROUTER_PATH.read_text(encoding="utf-8"),
     )
     assert violations == []
 
 
 def test_structural_guard_detects_coord_path_added_to_pin_commit() -> None:
-    source = _SOURCE_PATH.read_text(encoding="utf-8")
+    source = finalize_family_source()
     tree = ast.parse(source)
 
     class AddCoordPathToRefreshCommit(ast.NodeTransformer):
@@ -214,7 +215,7 @@ def test_structural_guard_detects_coord_path_added_to_pin_commit() -> None:
 
 
 def test_structural_guard_detects_unconditional_dirty_worktree_refusal() -> None:
-    tree = ast.parse(_SOURCE_PATH.read_text(encoding="utf-8"))
+    tree = ast.parse(finalize_family_source())
 
     class RemoveValidateOnlyGate(ast.NodeTransformer):
         def visit_If(self, node: ast.If) -> ast.If | list[ast.stmt]:

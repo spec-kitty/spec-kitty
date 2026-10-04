@@ -53,7 +53,9 @@ _CONSUMER_FLOOR = 14
 _MSP = "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
 _MRA = "src/specify_cli/cli/commands/agent/mission_record_analysis.py"
 _VERDICT = "src/specify_cli/cli/commands/agent/acceptance_verdict.py"
-_FINALIZE = "src/specify_cli/cli/commands/agent/mission_finalize.py"
+# #5627: finalize was split into phase modules; each consumer lives in its own.
+_FINALIZE_COMMIT = "src/specify_cli/cli/commands/agent/mission_finalize_commit.py"
+_FINALIZE_PIN = "src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py"
 _ACCEPT = "src/specify_cli/cli/commands/accept.py"
 _RETROSPECT = "src/specify_cli/cli/commands/retrospect.py"
 _SPEC_COMMIT = "src/specify_cli/cli/commands/spec_commit_cmd.py"
@@ -94,9 +96,10 @@ _CONSUMERS: tuple[tuple[str, str], ...] = (
     # router-result helpers.
     (_ACCEPT, "_render_accept_result"),
     (_ACCEPT, "_format_residual_failure_detail"),
-    # finalize and its pin refresh (D8: mission_finalize.py L3659 / L2874).
-    (_FINALIZE, "_apply_finalize_commit_router_result"),
-    (_FINALIZE, "_finalize_pin_refresh_commit_outcome"),
+    # finalize and its pin refresh (D8: mission_finalize.py L3659 / L2874, now
+    # mission_finalize_commit.py / mission_finalize_planning_pin.py, #5627).
+    (_FINALIZE_COMMIT, "_apply_finalize_commit_router_result"),
+    (_FINALIZE_PIN, "_finalize_pin_refresh_commit_outcome"),
     # retrospect (D8: retrospect.py L315); ``_maybe_auto_commit`` calls this helper.
     (_RETROSPECT, "_render_unexplained_surfaces"),
     # spec-commit (D8: spec_commit_cmd.py L214): WP13's render helpers.
@@ -148,7 +151,8 @@ _D8_RENDERING_MODULES: frozenset[str] = frozenset(
         _ISSUE_MATRIX,
         _TRACER_WRITER,
         _ACCEPT,
-        _FINALIZE,
+        _FINALIZE_COMMIT,
+        _FINALIZE_PIN,
         _RETROSPECT,
         _SPEC_COMMIT,
         _CYCLE,

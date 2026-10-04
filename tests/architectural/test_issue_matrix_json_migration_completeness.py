@@ -70,7 +70,8 @@ _LIVE_CONSUMER_MODULES: tuple[Path, ...] = (
     _SRC_ROOT / "status" / "doctor.py",
     _SRC_ROOT / "cli" / "commands" / "review" / "__init__.py",
     _SRC_ROOT / "tasks" / "issue_matrix_approval.py",
-    _SRC_ROOT / "cli" / "commands" / "agent" / "mission_finalize.py",
+    # #5627: the issue-matrix lint moved with the validation phase.
+    _SRC_ROOT / "cli" / "commands" / "agent" / "mission_finalize_validation.py",
 )
 
 
@@ -79,7 +80,7 @@ def _imported_names(module_path: Path) -> set[str]:
 
     ``ast.walk`` descends into function bodies, so a deferred/local import
     (the prevailing style in this codebase for dodging import cycles -- e.g.
-    ``mission_finalize.py``'s ``validate_issue_matrix`` import inside
+    ``mission_finalize_validation.py``'s ``validate_issue_matrix`` import inside
     ``_advisory_issue_matrix_lint``) is found exactly like a module-level one.
     """
     tree = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))

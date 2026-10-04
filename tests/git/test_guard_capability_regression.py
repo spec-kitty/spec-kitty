@@ -138,6 +138,10 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # every site (each is STANDARD), so the exact call-site count no
         # longer needs its own pin.
         ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission"),
+        # #5627 split finalize into phase modules; the other two wrapper call
+        # sites moved with their phases and are scanned where they now live.
+        ("cli/commands/agent/mission_finalize_bootstrap.py", "_bootstrap_canonical_state_via_mission"),
+        ("cli/commands/agent/mission_finalize_commit.py", "_bootstrap_canonical_state_via_mission"),
         # Wave 2 degod (#2305) relocated the finalize-tasks family out of the
         # tasks.py shim; its canonical-seeding call site now lives in
         # tasks_finalize.py (routed ``_tasks.bootstrap_canonical_state(...)`` —
