@@ -219,7 +219,7 @@ def test_unstamped_canceled_dependency_refuses_naming_the_override(tmp_path: Pat
 
 
 def test_attestation_lifts_only_the_unstamped_refusal_and_live_content_stays_out_of_the_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The end-to-end attestation is in tests/terminus/test_repro_5569.py; here only its effect on the claim."""
+    """The end-to-end attestation is in tests/terminus/test_canceled_dependency_fast_forward_verdicts.py; here only its effect on the claim."""
     built = build_canceled_dependency_mission(tmp_path, mid8="01M5569T")
     strip_lane_head_stamps(built.mission, "WP01")
     monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
