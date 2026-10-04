@@ -34,6 +34,7 @@ from specify_cli.upgrade.migrations.m_4_0_0rc5_hosted_endpoint_session_backfill 
     TARGET_VERSION,
     HostedEndpointSessionBackfillMigration,
 )
+from specify_cli.upgrade.migrations.base import BaseMigration
 from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = [pytest.mark.unit]
@@ -634,11 +635,17 @@ class TestMigrationSequencing:
     ``target_version`` values would fail this test instead of silently
     reversing the two migrations' effect."""
 
-    def test_delete_then_backfill_ends_backfilled_not_stuck_deleted(self, home: Path) -> None:
-        _write_home_config(home, f'[sync]\nserver_url = "{RETIRED_URL}"\npoll_interval = 30\n\n[hosted]\ndrain = false\n')
-        _write_session(home, issuer_url=LIVE_ISSUER_URL)
+    @staticmethod
+    def _applicable_pair(project: Path) -> list[BaseMigration]:
+        """The two migrations under test, in ``get_applicable`` registry order.
 
-        applicable = MigrationRegistry.get_applicable("3.2.6", "4.0.0rc5", project_path=Path("/any/project"))
+        Asserts both are present and the delete migration sorts first, then
+        returns only those two (registry order preserved). Every other
+        applicable migration writes to the project (``.gitattributes``,
+        run-index lock, git hooks) and is unrelated to this contract, so it is
+        not applied here.
+        """
+        applicable = MigrationRegistry.get_applicable("3.2.6", "4.0.0rc5", project_path=project)
         applicable_ids = [m.migration_id for m in applicable]
         assert SIBLING_MIGRATION_ID in applicable_ids
         assert MIGRATION_ID in applicable_ids
@@ -647,9 +654,16 @@ class TestMigrationSequencing:
         # backfill would see the retired value as "still configured" and
         # never fire.
         assert applicable_ids.index(SIBLING_MIGRATION_ID) < applicable_ids.index(MIGRATION_ID)
+        return [m for m in applicable if m.migration_id in {SIBLING_MIGRATION_ID, MIGRATION_ID}]
 
-        for migration in applicable:
-            result = migration.apply(Path("/any/project"))
+    def test_delete_then_backfill_ends_backfilled_not_stuck_deleted(self, home: Path, tmp_path: Path) -> None:
+        _write_home_config(home, f'[sync]\nserver_url = "{RETIRED_URL}"\npoll_interval = 30\n\n[hosted]\ndrain = false\n')
+        _write_session(home, issuer_url=LIVE_ISSUER_URL)
+
+        project = tmp_path / "project"
+        project.mkdir()
+        for migration in self._applicable_pair(project):
+            result = migration.apply(project)
             assert result.success is True
 
         data = toml.load(home / "config.toml")
@@ -657,7 +671,7 @@ class TestMigrationSequencing:
         assert data["sync"]["poll_interval"] == 30
         assert data["hosted"] == {"drain": False}
 
-    def test_retired_config_and_retired_issuer_ends_unconfigured_not_resurrected(self, home: Path) -> None:
+    def test_retired_config_and_retired_issuer_ends_unconfigured_not_resurrected(self, home: Path, tmp_path: Path) -> None:
         """D5 interacting with FR-013: a retired config value AND a retired
         session issuer must never resurrect the retired target — the delete
         migration removes it, and D5 refuses to let the backfill bring it
@@ -665,9 +679,11 @@ class TestMigrationSequencing:
         _write_home_config(home, f'[sync]\nserver_url = "{RETIRED_URL}"\n')
         _write_session(home, issuer_url=RETIRED_URL)
 
-        applicable = MigrationRegistry.get_applicable("3.2.6", "4.0.0rc5", project_path=Path("/any/project"))
-        for migration in applicable:
-            migration.apply(Path("/any/project"))
+        project = tmp_path / "project"
+        project.mkdir()
+        for migration in self._applicable_pair(project):
+            result = migration.apply(project)
+            assert result.success is True
 
         data = toml.load(home / "config.toml")
         assert "server_url" not in data.get("sync", {})
