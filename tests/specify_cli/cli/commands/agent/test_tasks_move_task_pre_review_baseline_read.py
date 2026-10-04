@@ -32,7 +32,6 @@ from specify_cli.status import Lane
 
 pytestmark = pytest.mark.fast
 
-_MODULE = "specify_cli.cli.commands.agent.tasks_move_task"
 _WORKFLOW = "specify_cli.cli.commands.agent.workflow"
 _WP_SLUG = "WP01-coord-baseline"
 _MISSION = "coord-commit-integrity-baseline"

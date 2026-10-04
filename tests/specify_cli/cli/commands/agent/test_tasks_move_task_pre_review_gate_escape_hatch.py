@@ -43,7 +43,6 @@ from specify_cli.status import Lane
 pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
-_MODULE = "specify_cli.cli.commands.agent.tasks_move_task"
 _GATES_MODULE = "specify_cli.cli.commands.agent.tasks_move_task_gates"
 
 runner = CliRunner()
