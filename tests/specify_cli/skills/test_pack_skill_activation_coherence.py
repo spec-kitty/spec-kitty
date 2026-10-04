@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 
 from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 from specify_cli.cli.commands.charter import charter_app
+from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.manifest import load_manifest
 from tests.charter import skill_pack_support as support
 
@@ -128,3 +129,26 @@ def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_mess
     code, output = _activate(project, "skill", "c")
     assert code == 0, output
     assert _skill_dirs(project) == {"a-b-c", "mine-c"}
+
+    # Refusals that are not name collisions are refusals too, not tracebacks: a second org pack
+    # declaring the same skill id, then a malformed DRG fragment in an org pack.
+    disk_before = _skill_dirs(project)
+    twin = tmp_path / "twin"
+    twin.mkdir()
+    support.write_skill(twin, "b-c")
+    support.write_org_charter(twin, namespace="t")
+    config.write_text(config.read_text(encoding="utf-8").replace("    packs:\n", f"    packs:\n      - name: twin\n        local_path: {twin}\n"), encoding="utf-8")
+
+    code, output = _activate(project, "skill", "c")
+    assert code == 1
+    flat = " ".join(output.split())  # the console wraps long lines
+    assert "declared by two org packs" in flat and "activation change is recorded" in flat
+
+    (twin / "skills" / "b-c.skill.yaml").unlink()
+    (twin / "skills" / "b-c.skill.md").unlink()
+    (twin / "bad.graph.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
+    # `charter activate` reports a malformed DRG fragment itself; the catalog seam (doctor, upgrade,
+    # install callers) must still raise its own refusal type for it.
+    with pytest.raises(PackSkillCatalogError, match="YAML parse error"):
+        resolve_project_skill_catalog(project, stage=False)
+    assert _skill_dirs(project) == disk_before  # no refusal touched the skill roots

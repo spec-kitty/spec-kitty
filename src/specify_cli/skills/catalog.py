@@ -31,7 +31,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from charter.activation.skill_preparation import PreparedSkill, SkillPreparationError, prepare_project_skill_activations
-from charter.drg import resolve_existing_org_roots
+from charter.drg import DRGLoadError, DRGValidationError, resolve_existing_org_roots
+from charter.offering.pack_skills import PackSkillConflictError
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK
@@ -143,7 +144,9 @@ def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> li
     try:
         prepared = prepare_project_skill_activations(project_root)
         rendered = [_Rendered(item, render_pack_skill(item)) for item in prepared]
-    except (SkillPreparationError, PackSkillRenderError) as exc:
+    except (SkillPreparationError, PackSkillRenderError, PackSkillConflictError, DRGLoadError, DRGValidationError) as exc:
+        # Every cause that stops the pack skills in force from being resolved is a refusal,
+        # whatever its own type (two packs sharing an id, a malformed or dangling org DRG fragment).
         raise PackSkillCatalogError(str(exc)) from exc
     _refuse_unsafe_names(rendered)
     _refuse_builtin_collisions(rendered, shipped)
