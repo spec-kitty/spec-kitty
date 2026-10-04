@@ -390,8 +390,9 @@ jobs:
   # banner naming its issue, surfaced by the summary step below. No escalation
   # step: every reproduction is already pinned to its own open P0 issue, so a
   # generic "Nightly suite red" issue would duplicate it. An empty marker
-  # (pytest exit 5) is green. Serial: the slice is a handful of tests, and the
-  # passing-reproduction notice is printed by the controller's terminal summary.
+  # (pytest exit 5) is green; exit 1 is the expected red, any other non-zero
+  # exit a broken lane. Serial: the slice is a handful of tests, and the
+  # passing and skipped reproduction notices are printed by the controller's terminal summary.
   p0-repro:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Open-P0 reproductions (nightly-only)
@@ -434,8 +435,11 @@ jobs:
         shell: bash
         run: |
           python3 scripts/ci/nightly_xunit.py summarize --suite-key p0-repro --xunit out/reports/xunit-nightly-p0-repro.xml --log-step 'Run open-P0 reproductions (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
-          if [ "${P0_REPRO_EXIT:-1}" -ne 0 ] && [ "${P0_REPRO_EXIT:-1}" -ne 5 ]; then
-            echo "::error::open-P0 reproductions are red (exit ${P0_REPRO_EXIT}): each failure names its [OPEN P0 #N] issue -- this is the expected signal while those P0s are open"
+          if [ "${P0_REPRO_EXIT:-99}" -eq 1 ]; then
+            echo "::error::open-P0 reproductions are red (exit 1): each failure names its [OPEN P0 #N] issue -- this is the expected signal while those P0s are open"
+            exit 1
+          elif [ "${P0_REPRO_EXIT:-99}" -ne 0 ] && [ "${P0_REPRO_EXIT:-99}" -ne 5 ]; then
+            echo "::error::the p0-repro lane is BROKEN, not an expected red (exit ${P0_REPRO_EXIT:-unset}: pytest 2=interrupted, 3=internal error, 4=usage or collection error; unset=the run step never recorded an exit code): no reproduction reached a verdict, so fix the lane"
             exit 1
           fi
           echo "No open-P0 reproduction is red (exit 0 or a marker-empty exit 5)."
