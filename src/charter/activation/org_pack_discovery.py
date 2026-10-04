@@ -19,6 +19,7 @@ relocation — ``charter.activation.context`` continues to re-export both names.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,26 @@ def _iter_org_charter_docs(repo_root: Path) -> list[tuple[str, dict[str, Any]]]:
     return docs
 
 
+def union_required_tokens(into: list[str], items: Iterable[object]) -> None:
+    """Union *items* into *into*: stripped, non-empty, first-seen order.
+
+    THE merge rule for every ``required_<kind>`` field. The charter-layer
+    readers below and ``specify_cli.doctrine.org_charter`` (which folds parsed
+    policies) both call it, so there is one owner of the semantics.
+    """
+    for item in items:
+        token = str(item).strip()
+        if token and token not in into:
+            into.append(token)
+
+
+def last_non_empty_token(current: str | None, candidate: object) -> str | None:
+    """Last-non-empty-wins fold step shared by ``skill_namespace`` / ``org_name``."""
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return current
+
+
 def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
     """Union every org pack's ``required_<kind>`` across packs.
 
@@ -163,12 +184,8 @@ def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
     for _name, raw in _iter_org_charter_docs(repo_root):
         for kind in _REQUIRED_KIND_FIELDS:
             value = raw.get(f"required_{kind}")
-            if not isinstance(value, list):
-                continue
-            for item in value:
-                token = str(item).strip()
-                if token and token not in out[kind]:
-                    out[kind].append(token)
+            if isinstance(value, list):
+                union_required_tokens(out[kind], value)
     return out
 
 
@@ -183,26 +200,20 @@ def read_org_required_ids(repo_root: Path, kind: ArtifactKind) -> list[str]:
     out: list[str] = []
     for _name, raw in _iter_org_charter_docs(repo_root):
         value = raw.get(field)
-        if not isinstance(value, list):
-            continue
-        for item in value:
-            token = str(item).strip()
-            if token and token not in out:
-                out.append(token)
+        if isinstance(value, list):
+            union_required_tokens(out, value)
     return out
 
 
 def read_org_skill_namespace(repo_root: Path) -> str | None:
     """Return the org ``skill_namespace`` (last non-empty value across packs wins).
 
-    Mirrors the merge rule of ``specify_cli.doctrine.org_charter`` without
-    importing it (charter must not import ``specify_cli``).
+    Folds with :func:`last_non_empty_token`, the same helper
+    ``specify_cli.doctrine.org_charter`` uses (single owner of the rule).
     """
     namespace: str | None = None
     for _name, raw in _iter_org_charter_docs(repo_root):
-        value = raw.get("skill_namespace")
-        if isinstance(value, str) and value.strip():
-            namespace = value.strip()
+        namespace = last_non_empty_token(namespace, raw.get("skill_namespace"))
     return namespace
 
 

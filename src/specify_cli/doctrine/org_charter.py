@@ -41,6 +41,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ruamel.yaml import YAML
 
 from charter.activation.activations import ActivationEntry, _activation_identity_key
+from charter.activation.org_pack_discovery import last_non_empty_token, union_required_tokens
 from charter.activation.default_pack import load_default_pack_activation_ids
 from charter.activation.kind_vocabulary import (
     UnrepresentableDirectiveIdError,
@@ -568,8 +569,7 @@ def _fold_policies(
     for policy in policies:
         if policy.org_name:
             org_name = policy.org_name
-        if policy.skill_namespace:
-            skill_namespace = policy.skill_namespace
+        skill_namespace = last_non_empty_token(skill_namespace, policy.skill_namespace)
         # Per-key replacement: later key wins; earlier keys not overridden
         # remain in place.
         merged_interview_defaults.update(policy.interview_defaults)
@@ -621,9 +621,7 @@ def _resolve_fold_schema_version(policies: list[OrgCharterPolicy], *, strict_sch
 def _accumulate_required(merged_required: dict[str, list[str]], policy: OrgCharterPolicy) -> None:
     """Union ``required_<kind>`` from *policy* into *merged_required* (first-seen order)."""
     for kind in REQUIRED_KIND_FIELDS:
-        for item in getattr(policy, f"required_{kind}"):
-            if item not in merged_required[kind]:
-                merged_required[kind].append(item)
+        union_required_tokens(merged_required[kind], getattr(policy, f"required_{kind}"))
 
 
 def _dedupe_governance(
