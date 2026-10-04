@@ -240,10 +240,23 @@ def pack_skills_matter(repo_root: Path, *, installed_pack_skills: bool = False) 
     caller's manifest fact) or ``activated_skills`` is an explicit non-empty list.
     A project with neither takes nothing from a pack, so the health of its org packs
     must not change what any skill path does.
+
+    This is the one condition every skill path classifies a failed resolution by:
+    when the in-force set cannot be established, a project where pack skills matter
+    is refused and any other behaves as a project with no org pack. It is total: a
+    project whose activation config cannot be read cannot show that nothing is
+    activated, so it counts as one where pack skills matter.
     """
     from charter.activation.pack_context import explicit_activated_skills
 
-    return installed_pack_skills or bool(explicit_activated_skills(repo_root))
+    if installed_pack_skills:
+        return True
+    try:
+        return bool(explicit_activated_skills(repo_root))
+    except Exception:
+        # Total by design, deliberately broad: whatever stops the activation config from being read, nothing
+        # proves that no skill is activated, so pack skills are taken to matter (a refusal, never a retirement).
+        return True
 
 
 def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills: bool = False) -> list[PreparedSkill]:

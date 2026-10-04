@@ -131,7 +131,21 @@ def _string_required_skills(root: Path, pack: Path) -> None:
     (pack / "org-charter.yaml").write_text("org_name: acme-org\nrequired_skills: deploy-helper\n", encoding="utf-8")
 
 
-@pytest.mark.parametrize("damage", [_broken_org_drg, _unfetched_pack, _unparsable_charter, _string_required_skills])
+def _pack_block(root: Path, pack: Path) -> tuple[Path, str, str]:
+    config = root / ".kittify" / "config.yaml"
+    return config, config.read_text(encoding="utf-8"), f"      - name: acme\n        local_path: {pack}\n"
+
+
+def _unset_env_var_in_pack_path(root: Path, pack: Path) -> None:
+    config, text, _entry = _pack_block(root, pack)
+    config.write_text(text.replace(f"local_path: {pack}", "local_path: ${SPEC_KITTY_TEST_UNSET_PACK_DIR}/pack"), encoding="utf-8")
+
+
+#: Damages to the org-pack registry or the pack on disk, valid for a project with or without a pack skill.
+REGISTRY_DAMAGES = [_unset_env_var_in_pack_path]
+
+
+@pytest.mark.parametrize("damage", [_broken_org_drg, _unfetched_pack, _unparsable_charter, _string_required_skills, *REGISTRY_DAMAGES])
 @pytest.mark.parametrize("migration", DETECTING)
 def test_a_broken_org_pack_changes_nothing_for_a_project_that_uses_no_pack_skill(tmp_path: Path, migration: type, damage: Callable[[Path, Path], None]) -> None:
     """No skill path may depend on the health of a pack the project takes no skill from (no pack entry, no activation)."""
@@ -153,8 +167,10 @@ def test_a_broken_org_pack_changes_nothing_for_a_project_that_uses_no_pack_skill
 
 def _skill_codes(root: Path, consent: ApplyConsent) -> set[str]:
     """Diagnostic codes of the skill paths. An unfetched pack also changes the *profile* provider's codes
-    (``profile_input_invalid`` and friends, unrelated to skills and untouched by this mission): not compared."""
-    return {item.code for item in prepare_upgrade_repairs(root, consent=consent).diagnostics if "profile" not in item.code}
+    (``profile_input_invalid`` and friends), and an unset ``${VAR}`` in a pack path stops the whole-tool inventory
+    (``inventory_unreadable``) -- on ``main`` too: neither belongs to the skill path, which this compares."""
+    unrelated = {"inventory_unreadable"}
+    return {item.code for item in prepare_upgrade_repairs(root, consent=consent).diagnostics if "profile" not in item.code and item.code not in unrelated}
 
 
 def _no_namespace(root: Path, pack: Path) -> None:
@@ -208,6 +224,18 @@ def _org_required_skills_not_a_list(root: Path, pack: Path) -> None:
     _org_required(root, pack, "org_name: acme-org\nskill_namespace: acme\nrequired_skills: deploy-helper\n")
 
 
+def _while_org_decides(damage: Callable[[Path, Path], None]) -> Callable[[Path, Path], None]:
+    """The registry damages with the org charter (not an explicit list) deciding what is in force: the registry is
+    then the only record of which pack the installed skill came from."""
+
+    def damaged(root: Path, pack: Path) -> None:
+        _org_required(root, pack)
+        damage(root, pack)
+
+    damaged.__name__ = f"{damage.__name__}_while_org_decides"
+    return damaged
+
+
 def _installed_copies(project: Path) -> list[Path]:
     return [project / ".claude" / "skills" / "acme-deploy-helper" / "SKILL.md", project / ".agents" / "skills" / "acme-deploy-helper" / "SKILL.md"]
 
@@ -224,6 +252,7 @@ def _installed_copies(project: Path) -> list[Path]:
         _org_required_pack_not_fetched,
         _org_charter_unparsable,
         _org_required_skills_not_a_list,
+        *[_while_org_decides(damage) for damage in REGISTRY_DAMAGES],
     ],
 )
 @pytest.mark.parametrize("migration", DETECTING)

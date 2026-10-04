@@ -30,19 +30,16 @@ import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from charter.activation.pack_context import CharterPackConfigError
 from charter.activation.skill_preparation import (
-    PackSkillConflictError,
     PreparedSkill,
-    SkillPreparationError,
     pack_skills_matter,
     prepare_project_skill_activations,
 )
-from charter.drg import DRGLoadError, DRGValidationError, resolve_existing_org_roots
+from charter.drg import resolve_existing_org_roots
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest
-from specify_cli.skills.pack_skill_renderer import PackSkillRenderError, render_pack_skill
+from specify_cli.skills.pack_skill_renderer import render_pack_skill
 from specify_cli.skills.paths import SkillPathObservation, skill_path_observations
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
@@ -144,12 +141,13 @@ def _project_may_have_pack_skills(project_root: Path, *, installed_pack_skills: 
     A project that shows evidence pack skills matter (an installed pack copy, or an
     explicit non-empty ``activated_skills``) is never filtered out: with its org pack
     unfetched there is no org root, yet the skills are still in force and must be
-    reported as unresolvable rather than read as "none".
+    reported as unresolvable rather than read as "none". That check comes first, so a
+    project that matters never resolves an org root here (and cannot fail doing so).
     """
     return (
-        (project_root / _PROJECT_SKILLS_DIR).is_dir()
+        pack_skills_matter(project_root, installed_pack_skills=installed_pack_skills)
+        or (project_root / _PROJECT_SKILLS_DIR).is_dir()
         or bool(resolve_existing_org_roots(project_root))
-        or pack_skills_matter(project_root, installed_pack_skills=installed_pack_skills)
     )
 
 
@@ -162,28 +160,34 @@ def _manifest_holds_pack_skills(project_root: Path) -> bool:
     return manifest is not None and any(entry.origin == ORIGIN_PACK for entry in manifest.entries)
 
 
+def _establish_pack_skills(project_root: Path, installed: bool) -> list[_Rendered]:
+    """Establish the pack skills in force: read the org configuration, prepare and render (no writes)."""
+    if not _project_may_have_pack_skills(project_root, installed_pack_skills=installed):
+        return []
+    prepared = prepare_project_skill_activations(project_root, installed_pack_skills=installed)
+    return [_Rendered(item, render_pack_skill(item)) for item in prepared]
+
+
 def _render_active_pack_skills(project_root: Path, shipped: SkillRegistry) -> list[_Rendered]:
-    """Prepare, render and collision-check the pack skills in force (no writes)."""
+    """Prepare, render and collision-check the pack skills in force (no writes).
+
+    Establishing the in-force set is ONE guarded step, and every way it can fail is
+    classified by the one condition :func:`~charter.activation.skill_preparation.pack_skills_matter`:
+    when pack skills matter to the project the failure is a refusal (:class:`PackSkillCatalogError`,
+    nothing written or deleted); when they do not, the project behaves exactly as one with no
+    org pack. A new way of failing to read the org configuration therefore needs no entry here.
+    """
+    installed = False
     try:
         installed = _manifest_holds_pack_skills(project_root)
-        if not _project_may_have_pack_skills(project_root, installed_pack_skills=installed):
+        rendered = _establish_pack_skills(project_root, installed)
+    except Exception as exc:
+        # The ONE classification point, deliberately broad: whatever stops the in-force set from being
+        # established (an unreadable or invalid org configuration, an unset ${VAR}, a pack that does not load,
+        # a failure nobody has met yet) is classified by pack_skills_matter alone -- a refusal that keeps the
+        # original as __cause__, or, when no pack skill matters, "no org pack".
+        if not pack_skills_matter(project_root, installed_pack_skills=installed):
             return []
-        prepared = prepare_project_skill_activations(project_root, installed_pack_skills=installed)
-        rendered = [_Rendered(item, render_pack_skill(item)) for item in prepared]
-    except (
-        SkillPreparationError,
-        PackSkillRenderError,
-        PackSkillConflictError,
-        DRGLoadError,
-        DRGValidationError,
-        CharterPackConfigError,
-        UnicodeDecodeError,
-        OSError,
-    ) as exc:
-        # Every cause that stops the pack skills in force from being resolved is a refusal,
-        # whatever its own type (two packs sharing an id, a malformed or dangling org DRG fragment,
-        # a non-list activation key, a pack file that cannot be read or decoded). This try covers
-        # only the read/prepare/render step: the staging writes below are not translated.
         raise PackSkillCatalogError(str(exc)) from exc
     _refuse_unsafe_names(rendered)
     _refuse_builtin_collisions(rendered, shipped)
