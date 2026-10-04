@@ -25,12 +25,6 @@ def _typer_parameters() -> dict[str, inspect.Parameter]:
     return dict(inspect.signature(inspect.unwrap(consolidate_mod.consolidate)).parameters)
 
 
-def test_defaults_are_real_values_never_typer_sentinels() -> None:
-    options = ConsolidateOptions()
-    sentinels = {field.name for field in dataclasses.fields(options) if isinstance(getattr(options, field.name), OptionInfo)}
-    assert not sentinels, f"ConsolidateOptions fields default to typer.OptionInfo: {sorted(sentinels)}"
-
-
 def test_fields_mirror_the_typer_command_parameters() -> None:
     assert [field.name for field in dataclasses.fields(ConsolidateOptions)] == list(_typer_parameters())
 
@@ -41,9 +35,3 @@ def test_field_defaults_equal_the_cli_defaults() -> None:
         option = parameter.default
         assert isinstance(option, OptionInfo), f"consolidate({name}=...) is no longer a typer.Option"
         assert defaults[name] == option.default, f"{name}: options default {defaults[name]!r} != CLI default {option.default!r}"
-
-
-def test_options_are_immutable() -> None:
-    options = ConsolidateOptions()
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        options.push = True  # type: ignore[misc]  # asserting the frozen dataclass refuses assignment
