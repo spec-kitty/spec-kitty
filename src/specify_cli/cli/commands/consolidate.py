@@ -38,10 +38,14 @@ Recovery semantics (WP01 / 067):
 #                            review-artifact / hollow-review preflights
 #   push_preflight.py        publish-layer push/target-sync preflight (#1706)
 #   forecast.py              ``--dry-run`` preview + JSON/human payload build
-#   ordering.py              mission-number bake cluster (+ merge ordering)
+#   ordering.py              dependency merge ordering
+#   mission_number/          stdlib-only ``is_assigned_mission_number`` leaf (__init__)
+#                            + the mission-number bake cluster (bake.py, #2600)
 #   done_bookkeeping.py      done/approved emission + done asserts + reconcile
 #   bookkeeping_projection.py status-surface trust + snapshot/restore + projection
-#   executor.py              ``_run_lane_based_consolidation[_locked]`` + the phase helpers
+#   executor.py              ``_run_lane_based_consolidation[_locked]`` (entry, lock, rollback door)
+#   run_state.py, phase_*.py, coord_strand.py, entry_preflight.py,
+#   resume_recovery.py       the executor's phase helpers, split by phase (#2026)
 #
 # RULES (do NOT regress):
 #   * This shim owns ONLY the ``consolidate`` command (plus the hidden
@@ -60,6 +64,7 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTIFY_DIR
 from mission_runtime import MissionArtifactKind, placement_seam
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import typer
@@ -153,10 +158,10 @@ from specify_cli.consolidation.done_bookkeeping import (
 # the test/integration-imported _run_lane_based_consolidation[_locked] keep importing
 # from the shim (FR-006). One-way import: ``executor`` never imports this shim.
 from specify_cli.consolidation.executor import (
-    CoordinationTeardownError,
     _run_lane_based_consolidation,
     _run_lane_based_consolidation_locked,
 )
+from specify_cli.consolidation.run_state import CoordinationTeardownError
 
 # WP09 (#2057): status-surface trust + final-bookkeeping snapshot/restore +
 # coord->target projection live in the merge seam's ``bookkeeping_projection``
@@ -192,12 +197,12 @@ from specify_cli.consolidation.resolve import (
     _resolve_target_branch,
 )
 
-# WP07 (#2057): the mission-number bake cluster lives in the merge seam's
-# ``ordering`` module (next to assign_next_mission_number). Re-imported here so
-# the shim body + the test-imported ``_bake_mission_number_into_mission_branch``
-# (re-exported via __all__) keep working with zero edits (FR-006). Lazy imports
-# inside the bake cluster stay lazy (C-007).
-from specify_cli.consolidation.ordering import (
+# WP07 (#2057) / #2600: the mission-number bake cluster lives in
+# ``consolidation/mission_number/bake.py`` (moved out of ``ordering`` by #2600).
+# Re-imported here so the shim body + the test-imported
+# ``_bake_mission_number_into_mission_branch`` (re-exported via __all__) keep
+# working (FR-006). Lazy imports inside the bake cluster stay lazy (C-007).
+from specify_cli.consolidation.mission_number.bake import (
     _bake_mission_number_into_mission_branch,
 )
 
@@ -807,6 +812,39 @@ def _resolve_effective_merge_strategy(
     return explicit or config or MergeStrategy.SQUASH
 
 
+@dataclass(frozen=True)
+class ConsolidateOptions:
+    """Every ``spec-kitty consolidate`` option, with its real CLI default (#3457).
+
+    The Typer command builds one of these from its parsed options and hands it to
+    :func:`run_consolidate`. A direct Python caller builds it instead of calling
+    the Typer function with every keyword: an option it does not name takes the
+    CLI default here, never an unresolved ``typer.OptionInfo`` sentinel. Field
+    order and defaults mirror :func:`consolidate`'s parameters (pinned by
+    ``tests/consolidation/test_consolidate_options.py``).
+    """
+
+    strategy: MergeStrategy | None = None
+    delete_branch: bool | None = None
+    remove_worktree: bool | None = None
+    push: bool = False
+    target_branch: str | None = None
+    dry_run: bool = False
+    json_output: bool = False
+    mission: str | None = None
+    resume: bool = False
+    abort: bool = False
+    context_token: str | None = None
+    keep_workspace: bool = False
+    allow_sparse_checkout: bool = False
+    yes: bool = False
+    skip_review_artifact_check: bool = False
+    note: str | None = None
+    skip_lanes: bool = False
+    attest_canceled_superseded: list[str] | None = None
+    attest_reason: str | None = None
+
+
 @require_main_repo
 def consolidate(
     strategy: MergeStrategy | None = typer.Option(
@@ -902,6 +940,58 @@ def consolidate(
     commits and finishes the teardown. Any other non-zero code is a refusal or
     failure.
     """
+    run_consolidate(
+        ConsolidateOptions(
+            strategy=strategy,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+            push=push,
+            target_branch=target_branch,
+            dry_run=dry_run,
+            json_output=json_output,
+            mission=mission,
+            resume=resume,
+            abort=abort,
+            context_token=context_token,
+            keep_workspace=keep_workspace,
+            allow_sparse_checkout=allow_sparse_checkout,
+            yes=yes,
+            skip_review_artifact_check=skip_review_artifact_check,
+            note=note,
+            skip_lanes=skip_lanes,
+            attest_canceled_superseded=attest_canceled_superseded,
+            attest_reason=attest_reason,
+        )
+    )
+
+
+def run_consolidate(options: ConsolidateOptions) -> None:
+    """Run ``spec-kitty consolidate`` with *options* (the command body, #3457).
+
+    :func:`consolidate` (the Typer command) only builds the options object;
+    direct callers call this with one, so they never enumerate every option.
+    Like ``consolidate.__wrapped__``, this does not apply ``require_main_repo``.
+    """
+    strategy = options.strategy
+    delete_branch = options.delete_branch
+    remove_worktree = options.remove_worktree
+    push = options.push
+    target_branch = options.target_branch
+    dry_run = options.dry_run
+    json_output = options.json_output
+    mission = options.mission
+    resume = options.resume
+    abort = options.abort
+    context_token = options.context_token
+    keep_workspace = options.keep_workspace
+    allow_sparse_checkout = options.allow_sparse_checkout
+    yes = options.yes
+    skip_review_artifact_check = options.skip_review_artifact_check
+    note = options.note
+    skip_lanes = options.skip_lanes
+    attest_canceled_superseded = options.attest_canceled_superseded
+    attest_reason = options.attest_reason
+
     del context_token, keep_workspace
     attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason)
 
