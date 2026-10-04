@@ -35,10 +35,10 @@ preserve reporting) is exercised for real, not stubbed out.
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import io
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -246,18 +246,17 @@ def _inject_orphaned_node(tmp_path: Path) -> None:
 
 
 def _invoke_synthesize(
-    tmp_path: Path,
+    isolate: Callable[..., Path],
     request: SynthesisRequest,
     syn_adapter: Any,
     extra_args: list[str],
 ) -> Any:
-    """Invoke ``charter synthesize --adapter fixture --json <extra_args>`` from ``tmp_path``.
+    """Invoke ``charter synthesize --adapter fixture --json <extra_args>`` from the test's ``tmp_path``.
 
-    The chdir keeps the charter write guard off the invoking checkout; the rationale is in ``tests/_support/charter_cwd.py``.
+    ``isolate`` is the ``charter_cwd_isolation`` fixture.
     """
+    isolate()
     with (
-        contextlib.chdir(tmp_path),
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch(
             "specify_cli.cli.commands.charter._collect_evidence_result",
             return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
@@ -279,13 +278,13 @@ def _invoke_synthesize(
 # ---------------------------------------------------------------------------
 
 
-def test_prune_removes_divergent_content_and_lists_each_deletion(tmp_path: Path) -> None:
+def test_prune_removes_divergent_content_and_lists_each_deletion(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _inject_backed_legacy_content(tmp_path)
     _seed_complete_bundle(tmp_path)
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--prune"])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--prune"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -307,12 +306,12 @@ def test_prune_removes_divergent_content_and_lists_each_deletion(tmp_path: Path)
 # ---------------------------------------------------------------------------
 
 
-def test_prune_with_nothing_to_prune_is_a_noop(tmp_path: Path) -> None:
+def test_prune_with_nothing_to_prune_is_a_noop(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _seed_complete_bundle(tmp_path)
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--prune"])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--prune"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -325,7 +324,7 @@ def test_prune_with_nothing_to_prune_is_a_noop(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_dry_run_reports_nonempty_planned_deletes_and_writes_nothing(tmp_path: Path) -> None:
+def test_dry_run_reports_nonempty_planned_deletes_and_writes_nothing(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _inject_backed_legacy_content(tmp_path)
@@ -334,7 +333,7 @@ def test_dry_run_reports_nonempty_planned_deletes_and_writes_nothing(tmp_path: P
     graph_before = _graph_path(tmp_path).read_bytes()
     manifest_before = (tmp_path / MANIFEST_PATH).read_bytes()
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--dry-run"])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--dry-run"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -351,12 +350,12 @@ def test_dry_run_reports_nonempty_planned_deletes_and_writes_nothing(tmp_path: P
 # ---------------------------------------------------------------------------
 
 
-def test_dry_run_reports_empty_planned_deletes_when_no_divergence(tmp_path: Path) -> None:
+def test_dry_run_reports_empty_planned_deletes_when_no_divergence(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _seed_complete_bundle(tmp_path)
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--dry-run"])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, ["--dry-run"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -369,13 +368,13 @@ def test_dry_run_reports_empty_planned_deletes_when_no_divergence(tmp_path: Path
 # ---------------------------------------------------------------------------
 
 
-def test_orphaned_removal_without_prune_refuses_with_remediation(tmp_path: Path) -> None:
+def test_orphaned_removal_without_prune_refuses_with_remediation(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _inject_orphaned_node(tmp_path)
     _seed_complete_bundle(tmp_path)
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
@@ -403,7 +402,7 @@ def test_orphaned_removal_without_prune_refuses_with_remediation(tmp_path: Path)
 # ---------------------------------------------------------------------------
 
 
-def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: Path) -> None:
+def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _seed_complete_bundle(tmp_path)
@@ -411,7 +410,7 @@ def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: 
     manifest_before = (tmp_path / MANIFEST_PATH).read_bytes()
     _graph_path(tmp_path).write_text("schema_version: '1.0'\nnodes: [\n  {urn: broken\n", encoding="utf-8")
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
@@ -428,13 +427,13 @@ def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: 
 # ---------------------------------------------------------------------------
 
 
-def test_backed_divergence_plain_run_preserves_and_warns(tmp_path: Path) -> None:
+def test_backed_divergence_plain_run_preserves_and_warns(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     adapter = _fixture_adapter()
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
     _inject_backed_legacy_content(tmp_path)
     _seed_complete_bundle(tmp_path)
 
-    result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
+    result = _invoke_synthesize(charter_cwd_isolation, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from textwrap import dedent
 from unittest.mock import patch
@@ -98,21 +99,17 @@ def tmp_repo_without_org_pack(tmp_path: Path) -> Path:
 
 def test_charter_status_reports_built_in_org_and_project(
     tmp_repo_with_org_pack: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    charter_cwd_isolation: Callable[..., Path],
 ) -> None:
     """When an org pack is configured, charter status --json must include an
     ``org_layer`` key in its payload that lists the configured packs.
 
     Verified via JSON output for precise structural assertions.
     """
-    monkeypatch.chdir(tmp_repo_with_org_pack)
+    charter_cwd_isolation(tmp_repo_with_org_pack)
     from specify_cli.cli.commands.charter import app as charter_app
 
     with (
-        patch(
-            "specify_cli.cli.commands.charter.find_repo_root",
-            return_value=tmp_repo_with_org_pack,
-        ),
         patch(
             "specify_cli.cli.commands.charter.ensure_charter_bundle_fresh",
             return_value=_make_sync_result_stub(tmp_repo_with_org_pack),
@@ -152,7 +149,7 @@ def test_charter_status_reports_built_in_org_and_project(
 
 def test_charter_status_reports_only_two_layers_without_org_pack(
     tmp_repo_without_org_pack: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    charter_cwd_isolation: Callable[..., Path],
 ) -> None:
     """NFR-001: when no org pack configured, charter status must not
     introduce an empty '[org]' section that would change the existing
@@ -162,14 +159,10 @@ def test_charter_status_reports_only_two_layers_without_org_pack(
     is an empty list — never a non-empty org section for a repo with no
     configured packs.
     """
-    monkeypatch.chdir(tmp_repo_without_org_pack)
+    charter_cwd_isolation(tmp_repo_without_org_pack)
     from specify_cli.cli.commands.charter import app as charter_app
 
     with (
-        patch(
-            "specify_cli.cli.commands.charter.find_repo_root",
-            return_value=tmp_repo_without_org_pack,
-        ),
         patch(
             "specify_cli.cli.commands.charter.ensure_charter_bundle_fresh",
             return_value=_make_sync_result_stub(tmp_repo_without_org_pack),

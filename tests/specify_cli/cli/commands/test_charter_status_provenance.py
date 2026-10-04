@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -208,16 +209,12 @@ def _make_evidence_summary() -> dict:
 
 
 def test_status_v1_bundle_exits_1_with_upgrade_message(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
 ) -> None:
     """FR-009: charter status blocks with an actionable error on a v1 bundle."""
     _setup_charter_v1_project(tmp_path)
-    monkeypatch.chdir(tmp_path)
-    with patch(
-        "specify_cli.cli.commands.charter.find_repo_root",
-        return_value=tmp_path,
-    ):
-        result = runner.invoke(charter_app, ["status"])
+    charter_cwd_isolation(tmp_path)
+    result = runner.invoke(charter_app, ["status"])
     assert result.exit_code == 1, (
         f"Expected exit code 1 for v1 bundle; got {result.exit_code}.\nOutput: {result.output}"
     )
@@ -229,32 +226,24 @@ def test_status_v1_bundle_exits_1_with_upgrade_message(
 
 
 def test_status_future_bundle_exits_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
 ) -> None:
     """FR-009: charter status blocks when bundle version is newer than CLI supports."""
     _setup_charter_project_with_version(tmp_path, bundle_schema_version=99)
-    monkeypatch.chdir(tmp_path)
-    with patch(
-        "specify_cli.cli.commands.charter.find_repo_root",
-        return_value=tmp_path,
-    ):
-        result = runner.invoke(charter_app, ["status"])
+    charter_cwd_isolation(tmp_path)
+    result = runner.invoke(charter_app, ["status"])
     assert result.exit_code == 1, (
         f"Expected exit code 1 for future bundle; got {result.exit_code}.\nOutput: {result.output}"
     )
 
 
 def test_status_v2_bundle_exits_0(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
 ) -> None:
     """FR-011: charter status exits 0 for a fully-migrated v2 bundle."""
     _setup_charter_v2_project(tmp_path)
-    monkeypatch.chdir(tmp_path)
+    charter_cwd_isolation(tmp_path)
     with (
-        patch(
-            "specify_cli.cli.commands.charter.find_repo_root",
-            return_value=tmp_path,
-        ),
         patch(
             "specify_cli.cli.commands.charter.ensure_charter_bundle_fresh",
             return_value=_make_sync_result_mock(tmp_path),
@@ -296,16 +285,12 @@ def test_manifest_status_counts_singular_live_artifacts_only(tmp_path: Path) -> 
 
 
 def test_status_provenance_json_includes_synthesizer_version(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
 ) -> None:
     """FR-010: synthesizer_version must appear in --json --provenance entries."""
     _setup_charter_v2_project(tmp_path)
-    monkeypatch.chdir(tmp_path)
+    charter_cwd_isolation(tmp_path)
     with (
-        patch(
-            "specify_cli.cli.commands.charter.find_repo_root",
-            return_value=tmp_path,
-        ),
         patch(
             "specify_cli.cli.commands.charter.ensure_charter_bundle_fresh",
             return_value=_make_sync_result_mock(tmp_path),
@@ -335,16 +320,12 @@ def test_status_provenance_json_includes_synthesizer_version(
 
 
 def test_status_provenance_json_includes_produced_at(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
 ) -> None:
     """FR-010: produced_at must appear in --json --provenance entries."""
     _setup_charter_v2_project(tmp_path)
-    monkeypatch.chdir(tmp_path)
+    charter_cwd_isolation(tmp_path)
     with (
-        patch(
-            "specify_cli.cli.commands.charter.find_repo_root",
-            return_value=tmp_path,
-        ),
         patch(
             "specify_cli.cli.commands.charter.ensure_charter_bundle_fresh",
             return_value=_make_sync_result_mock(tmp_path),
