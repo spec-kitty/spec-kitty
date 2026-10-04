@@ -123,6 +123,7 @@ SCHEMA_TRANSITION_EVENT = "StatusTransitionEvent"
 SCHEMA_LIFECYCLE_EVENT = "MissionLifecycleEvent"
 SCHEMA_REVIEW_OVERRIDE = "ReviewOverride"
 DROPPED_INVALID_WP_ID = "status-transition:invalid-wp-id"
+DROPPED_UNKNOWN_ROW = "unknown-row"
 
 
 # ---------------------------------------------------------------------------
@@ -1013,7 +1014,7 @@ def _row_label(row: Mapping[str, Any]) -> str:
     for key in ("event_type", "type", "kind"):
         if isinstance(row.get(key), str):
             return str(row[key])
-    return "unknown-row"
+    return DROPPED_UNKNOWN_ROW
 
 
 def project_events(mission_id: str, rows: Iterable[Mapping[str, Any]], projector: Projector) -> EventProjection:

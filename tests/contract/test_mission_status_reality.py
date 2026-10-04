@@ -62,6 +62,18 @@ AT = chr(64)
 # Collected at import: an empty enumeration is a collection error, never a silent skip.
 CASES: list[str] = require_cases(enumerate_missions(REPO_ROOT))
 
+# Every label of a row the projection drops on purpose, with the reason it is not a contract event. The set is explicit so a new row kind
+# in a committed log is a decision (map it into the contract, or add it here with its reason), never a silent drop.
+KNOWN_DROPPED_LABELS: dict[str, str] = {
+    "annotation": "assignment and subtask deltas: folded into the snapshot, not an event of the contract",
+    "WPCreated": "lifecycle type outside the seven the contract forwards (spec FR-007)",
+    "ReviewerSelfApproval": "lifecycle type outside the seven the contract forwards (spec FR-007)",
+    "DecisionPointOpened": "decision-moment row: not a status transition or one of the seven forwarded lifecycle types",
+    "DecisionPointResolved": "decision-moment row: not a status transition or one of the seven forwarded lifecycle types",
+    "RetrospectiveCaptured": "retrospective row: not a status transition or one of the seven forwarded lifecycle types",
+    "RetrospectiveCaptureFailed": "retrospective row: not a status transition or one of the seven forwarded lifecycle types",
+}
+
 # Filled by the per-Mission case; read by the counting test, which is the last test of the file.
 EXECUTED: set[str] = set()
 
@@ -400,6 +412,21 @@ def test_both_row_derived_event_kinds_occur_in_the_committed_logs(tools: helper.
     for result in results.values():
         kinds.update(result.kinds)
     assert kinds["status-transition"] > 0 and kinds["mission-lifecycle"] > 0, dict(kinds)
+
+
+@pytest.mark.timeout(120)
+def test_no_row_is_dropped_for_a_reason_nobody_decided(tools: helper.ContractTools, contract: helper.Contract) -> None:
+    """A transition with an unusable work package id, a row of no known kind and a row label nobody has classified are all silent drops otherwise."""
+    dropped: Counter[str] = Counter()
+    for result in _all_results(tools, contract).values():
+        dropped.update(result.dropped)
+    invalid, unknown = dropped[helper.DROPPED_INVALID_WP_ID], dropped[helper.DROPPED_UNKNOWN_ROW]
+    assert invalid == 0, f"{invalid} status transitions were dropped for a work package id the contract does not accept"
+    assert unknown == 0, f"{unknown} rows carry no event_type, type or kind: they are not an event of any known kind"
+    unclassified = sorted(set(dropped) - KNOWN_DROPPED_LABELS.keys() - {helper.DROPPED_INVALID_WP_ID, helper.DROPPED_UNKNOWN_ROW})
+    assert not unclassified, (
+        f"rows labelled {unclassified} are dropped and nobody decided that: map them into the contract, or add each to KNOWN_DROPPED_LABELS with a reason"
+    )
 
 
 # ---------------------------------------------------------------------------
