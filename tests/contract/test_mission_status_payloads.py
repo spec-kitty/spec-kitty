@@ -257,7 +257,7 @@ def test_strict_ordering_flags_inversions_ties_and_duplicate_ids_but_not_a_repea
 # Ratchet header format and the shrink-only ceiling
 # ---------------------------------------------------------------------------
 
-GOOD_HEADER = {"issue": "#5579", "owner": "@stijn-dejongh", "drain_by": "2026-12-31", "ceiling": 52}
+GOOD_HEADER = {"issue": "#5579", "owner": "@stijn-dejongh", "drain_by": "2026-12-31", "ceiling": 2, "disagreeing_missions": ["m-a", "m-b"]}
 
 
 def test_the_committed_header_is_well_formed_and_complete() -> None:
@@ -291,7 +291,7 @@ def test_a_malformed_or_early_drain_date_is_rejected(drain_by: Any) -> None:
 
 
 def test_a_missing_key_is_rejected() -> None:
-    for key in ("issue", "owner", "drain_by", "ceiling"):
+    for key in ("issue", "owner", "drain_by", "ceiling", "disagreeing_missions"):
         trimmed = {name: value for name, value in GOOD_HEADER.items() if name != key}
         assert any(key in problem for problem in helper.ratchet_header_problems(trimmed)), key
 
@@ -301,12 +301,19 @@ def test_a_malformed_ceiling_is_rejected(ceiling: Any) -> None:
     assert any("ceiling" in problem for problem in helper.ratchet_header_problems({**GOOD_HEADER, "ceiling": ceiling}))
 
 
-def test_the_ceiling_only_ever_moves_down() -> None:
-    assert helper.ceiling_problem(52, 52) is None, "control: at the ceiling is clean"
-    grew = helper.ceiling_problem(53, 52) or ""
-    assert "grew" in grew and "commit its status snapshot together with its work package files" in grew, "the failure names the remedy"
-    assert "header.ceiling" in grew and "may only be lowered" in grew and "never raise it" in grew
-    assert helper.ceiling_problem(40, 52) == "stale ceiling: lower header.ceiling in tests/contract/fixtures/mission_status_expected.json to 40"
+def test_the_pinned_list_only_ever_shrinks_and_the_ceiling_cannot_be_raised_without_a_name() -> None:
+    names = ["m-a", "m-b"]
+    assert helper.grown_problem(names, names) is None and helper.stale_problem(names, names) is None, "control: the pinned list is clean"
+    grew = helper.grown_problem(["m-a", "m-b", "m-new"], names) or ""
+    assert "m-new" in grew and "commit its status snapshot together with its work package files" in grew, "the failure names the Mission and the remedy"
+    assert "may only shrink" in grew and "never add a name or raise the ceiling" in grew
+    swapped = ["m-a", "m-new"]  # one Mission fixed, one new: the count stays at two, the names do not
+    assert "m-new" in (helper.grown_problem(swapped, names) or "") and "m-b" in (helper.stale_problem(swapped, names) or "")
+    stale = helper.stale_problem(["m-a"], names) or ""
+    assert stale.startswith("stale pin: m-b no longer disagree") and "lower header.ceiling to 1 " in stale, "the failure names the Mission and the new ceiling"
+    raised = {**GOOD_HEADER, "ceiling": 3}
+    assert any("cannot be raised without naming a Mission" in problem for problem in helper.ratchet_header_problems(raised))
+    assert any("disagreeing_missions" in problem for problem in helper.ratchet_header_problems({**GOOD_HEADER, "disagreeing_missions": ["m-b", "m-a"]}))
 
 
 # ---------------------------------------------------------------------------

@@ -369,19 +369,19 @@ def test_the_project_counts_the_overview_records(tools: helper.ContractTools, co
     assert helper.payload_leaks(project, tools) == []
 
 
-def test_the_disagreement_list_does_not_grow_beyond_the_ceiling() -> None:
+def test_the_disagreement_list_does_not_grow_beyond_the_pinned_missions() -> None:
     header = helper.load_expected(REPO_ROOT)["header"]
     assert helper.ratchet_header_problems(header) == []
     listed = helper.disagreement_list(own_directory_pass(REPO_ROOT))
-    problem = helper.ceiling_problem(len(listed), header["ceiling"])
+    problem = helper.grown_problem([name for name, _, _ in listed], header["disagreeing_missions"])
     detail = "\n".join(f"  {name}: {snapshot} snapshot work packages, {files} files" for name, snapshot, files in listed)
-    assert problem is None or "stale" in problem, f"{problem} (tracker {header['issue']}, owner {header['owner']}, drain by {header['drain_by']})\n{detail}"
+    assert problem is None, f"{problem} (tracker {header['issue']}, owner {header['owner']}, drain by {header['drain_by']})\n{detail}"
 
 
-def test_the_ceiling_is_not_stale() -> None:
+def test_the_pinned_disagreement_list_is_not_stale() -> None:
     header = helper.load_expected(REPO_ROOT)["header"]
-    measured = len(helper.disagreement_list(own_directory_pass(REPO_ROOT)))
-    assert measured >= header["ceiling"], helper.ceiling_problem(measured, header["ceiling"])
+    measured = [name for name, _, _ in helper.disagreement_list(own_directory_pass(REPO_ROOT))]
+    assert helper.stale_problem(measured, header["disagreeing_missions"]) is None, helper.stale_problem(measured, header["disagreeing_missions"])
 
 
 @pytest.mark.timeout(120)

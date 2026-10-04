@@ -327,12 +327,12 @@ def ordering_problems(overviews: Sequence[Mapping[str, Any]]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# The ratchet: header format and shrink-only ceiling
+# The ratchet: header format and shrink-only list of disagreeing Missions
 # ---------------------------------------------------------------------------
 
 
 def ratchet_header_problems(header: Mapping[str, Any]) -> list[str]:
-    """Problems with the ratchet keys of the pinned fixture header (issue, owner, drain_by, ceiling)."""
+    """Problems with the ratchet keys of the pinned fixture header (issue, owner, drain_by, ceiling, disagreeing_missions)."""
     problems: list[str] = []
     issue, owner, drain_by = header.get("issue"), header.get("owner"), header.get("drain_by")
     if not isinstance(issue, str) or not _ISSUE_REFERENCE.match(issue):
@@ -343,24 +343,39 @@ def ratchet_header_problems(header: Mapping[str, Any]) -> list[str]:
         problems.append(f"drain_by must be an ISO date, not {drain_by!r}")
     elif drain_by < DRAIN_BY_FLOOR:
         problems.append(f"drain_by {drain_by} is before the pinned floor {DRAIN_BY_FLOOR}")
-    ceiling = header.get("ceiling")
+    ceiling, pinned = header.get("ceiling"), header.get("disagreeing_missions")
     if not isinstance(ceiling, int) or isinstance(ceiling, bool) or ceiling < 0:
         problems.append(f"ceiling must be a non-negative integer, not {ceiling!r}")
+    if not isinstance(pinned, list) or not all(isinstance(name, str) for name in pinned) or pinned != sorted(set(pinned)):
+        problems.append("disagreeing_missions must be a sorted list of unique Mission names")
+    elif isinstance(ceiling, int) and not isinstance(ceiling, bool) and ceiling != len(pinned):
+        problems.append(f"ceiling {ceiling} must equal the {len(pinned)} names in disagreeing_missions: the ceiling cannot be raised without naming a Mission")
     return problems
 
 
-def ceiling_problem(measured: int, ceiling: int) -> str | None:
-    """Above the ceiling the list grew; below it the ceiling is stale and must be lowered (shrink-only)."""
-    if measured > ceiling:
-        return (
-            f"the disagreement list grew: {measured} Missions, ceiling {ceiling}. A new Mission must commit its status snapshot "
-            "together with its work package files, or fix the snapshot or files of the Mission listed below. header.ceiling in "
-            "tests/contract/fixtures/mission_status_expected.json may only be lowered, never raise it; the tracker and owner "
-            "named in that header own the drain"
-        )
-    if measured < ceiling:
-        return f"stale ceiling: lower header.ceiling in tests/contract/fixtures/mission_status_expected.json to {measured}"
-    return None
+def grown_problem(measured: Iterable[str], pinned: Iterable[str]) -> str | None:
+    """A Mission that disagrees today and is not pinned grew the list, whatever the count (a fixed Mission cannot pay for a new one)."""
+    added = sorted(set(measured) - set(pinned))
+    if not added:
+        return None
+    return (
+        f"the disagreement list grew: {', '.join(added)} disagree and are not pinned in header.disagreeing_missions. A new Mission must commit its "
+        "status snapshot together with its work package files, or fix the snapshot or files of the Mission listed below. header.disagreeing_missions "
+        "and header.ceiling in tests/contract/fixtures/mission_status_expected.json may only shrink, never add a name or raise the ceiling; the "
+        "tracker and owner named in that header own the drain"
+    )
+
+
+def stale_problem(measured: Iterable[str], pinned: Iterable[str]) -> str | None:
+    """A pinned Mission that no longer disagrees is a stale pin: remove it and lower the ceiling with it (shrink-only)."""
+    pinned_names = set(pinned)
+    fixed = sorted(pinned_names - set(measured))
+    if not fixed:
+        return None
+    return (
+        f"stale pin: {', '.join(fixed)} no longer disagree: remove them from header.disagreeing_missions and lower header.ceiling to "
+        f"{len(pinned_names) - len(fixed)} in tests/contract/fixtures/mission_status_expected.json"
+    )
 
 
 # ---------------------------------------------------------------------------
