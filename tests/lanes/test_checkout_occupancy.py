@@ -13,11 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.lanes.checkout_occupancy import (
-    _occupancy_candidate_wp_ids,
-    dirty_paths,
-    in_progress_wps_in_write_checkout,
-)
+from specify_cli.lanes.checkout_occupancy import dirty_paths, in_progress_wps_in_write_checkout
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -220,6 +216,8 @@ def test_candidate_check_skips_missing_or_corrupt_meta(tmp_path: Path) -> None:
     Called directly because the mission resolver already drops such
     directories before the scan reaches them.
     """
+    from specify_cli.lanes.checkout_occupancy import _occupancy_candidate_wp_ids
+
     missing = tmp_path / "missing"
     missing.mkdir()
     corrupt = tmp_path / "corrupt"
@@ -294,7 +292,11 @@ def _in_progress_occupant(
 
 
 def test_mission_writing_to_another_branch_is_not_an_occupant(tmp_path: Path) -> None:
-    """#5680: a status copy on a branch that is not the mission's write branch is not live."""
+    """#5680: a status copy on a branch that is not the mission's write branch is not live.
+
+    The branch is the only discriminator: the same fixture occupies the
+    checkout once it sits on the mission's write branch.
+    """
     repo = tmp_path / "repo"
     _init_repo(repo)
     _in_progress_occupant(repo, "occ-landed", "01OCCLANDED000000000000L", target_branch="fix/landed-elsewhere")
@@ -302,15 +304,8 @@ def test_mission_writing_to_another_branch_is_not_an_occupant(tmp_path: Path) ->
     assert _git(repo, "branch", "--show-current") == "main"
     assert in_progress_wps_in_write_checkout(repo, repo) == []
 
-
-def test_mission_writing_to_the_current_branch_is_an_occupant(tmp_path: Path) -> None:
-    """Control for the #5680 filter: the same fixture with the write branch set to the current branch."""
-    repo = tmp_path / "repo"
-    _init_repo(repo)
-    _git(repo, "checkout", "-q", "-b", "topic")
-    _in_progress_occupant(repo, "occ-live", "01OCCLIVE00000000000000V", target_branch="topic")
-
-    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-live", "WP01")]
+    _git(repo, "checkout", "-q", "-b", "fix/landed-elsewhere")
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-landed", "WP01")]
 
 
 def test_protected_target_mint_is_the_write_branch(tmp_path: Path) -> None:
@@ -323,6 +318,10 @@ def test_protected_target_mint_is_the_write_branch(tmp_path: Path) -> None:
 
     # occ-target-only writes to ``main`` and is skipped; occ-mint writes to the mint it sits on.
     assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-mint", "WP01")]
+
+    # Reverse arm: on the target branch the mint's copy is the stale one.
+    _git(repo, "checkout", "-q", "main")
+    assert in_progress_wps_in_write_checkout(repo, repo) == [("occ-target-only", "WP01")]
 
 
 @pytest.mark.parametrize(
