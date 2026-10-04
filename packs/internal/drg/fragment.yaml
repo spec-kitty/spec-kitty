@@ -123,6 +123,13 @@ nodes:
     kind: procedures
     title: "Test-Suite Quality Assessment (static triage, domain squads, shrink-only follow-through)"
     body_path: procedures/test-suite-quality-assessment.procedure.yaml
+  # Cloud-session dispatch: the maintainer workflow behind the operator-local
+  # spk-dispatch-cloud skill (ADR 2026-09-27-1: the skill stays thin and
+  # requires this procedure).
+  - id: cloud-session-dispatch
+    kind: procedures
+    title: "Cloud Session Dispatch (hand tracker issues to an autonomous cloud runner)"
+    body_path: procedures/cloud-session-dispatch.procedure.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -268,3 +275,22 @@ edges:
   - source: test-suite-quality-assessment
     target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
     relation: requires
+  # Cloud-session dispatch binds the per-kind doctrine rather than restating it.
+  - source: cloud-session-dispatch
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: cloud-session-dispatch
+    target: "directive:DIRECTIVE_025"
+    relation: suggests
+  - source: cloud-session-dispatch
+    target: "directive:RECONCILE_CHANGE_SCOPE_TENSIONS"
+    relation: suggests
+  - source: cloud-session-dispatch
+    target: "procedure:refactoring"
+    relation: suggests
+  - source: cloud-session-dispatch
+    target: "procedure:test-first-bug-fixing"
+    relation: suggests
+  - source: cloud-session-dispatch
+    target: "procedure:test-suite-quality-assessment"
+    relation: suggests

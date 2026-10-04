@@ -34,6 +34,7 @@ packs/internal/
 │   ├── memory-curation-and-escalation.procedure.yaml  # agent-memory curation and escalation
 │   ├── project-evolution-postmortem.procedure.yaml  # cycle postmortem: research squads + branded report
 │   ├── test-suite-quality-assessment.procedure.yaml # static triage, domain review squads, shrink-only follow-through
+│   ├── cloud-session-dispatch.procedure.yaml        # hand tracker issues to an autonomous cloud runner (behind spk-dispatch-cloud)
 │   ├── spec-kitty-arch-gate-adjudication.procedure.yaml  # refines built-in post-merge-arch-gate-adjudication
 │   └── spec-kitty-red-main-policy.procedure.yaml    # refines built-in red-main-release-discipline
 ├── styleguides/

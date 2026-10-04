@@ -5,6 +5,7 @@ required_procedures:
   - memory-curation-and-escalation
   - executive-debrief-generation
   - test-suite-quality-assessment
+  - cloud-session-dispatch
 required_directives:
   - NO_FULL_HEAVY_SUITES_IN_MISSION
 required_glossary_packs:

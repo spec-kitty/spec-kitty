@@ -1,0 +1,145 @@
+schema_version: "1.0"
+id: cloud-session-dispatch
+name: Cloud Session Dispatch (hand tracker issues to an autonomous cloud runner)
+purpose: >
+  The maintainer workflow for handing one or more spec-kitty/spec-kitty tracker
+  issues to a fresh Claude Code cloud session that runs a governed Spec Kitty
+  mission end to end and delivers a draft PR. The runner starts from nothing, so
+  the dispatch prompt is its whole world. This procedure makes that prompt
+  complete: branch off main, set up the latest CLI, align to the charter, ground
+  in the code before specifying, bind the doctrine for the kind of work, and
+  deliver through the canonical mission loop to a draft PR the operator merges.
+  It is the substance behind the operator-local `spk-dispatch-cloud` skill. Per
+  ADR 2026-09-27-1, the skill stays a thin wrapper that requires this procedure.
+entry_condition: >
+  The operator has asked for a tracker issue, or a coherent group of issues, to
+  be delivered by a cloud runner, and the dispatching session can create remote
+  sessions.
+exit_condition: >
+  A cloud session exists with a fully filled-in dispatch prompt (no
+  placeholders). The operator has the session id, the branch name, a short
+  summary of the instructions and any sequencing or collision note. No progress
+  is claimed that was not read back from the session.
+steps:
+  - title: Read every issue in full
+    description: >
+      Read the body, the comments (re-scope notes usually live there), the
+      parent and sub-issues, the milestone, the priority, and linked issues and
+      PRs. Never dispatch from titles.
+    actor: agent
+
+  - title: Check for collisions and blockers
+    description: >
+      List the operator's running sessions and the open PRs that touch the same
+      files. Also check for an open P0 on the same surface, an unmerged
+      prerequisite, or a frozen lane such as hosted work. Name each dependency in
+      the prompt, sequence the work explicitly, or stop and ask.
+    actor: agent
+    on_failure: >
+      If another runner owns the surface, report the collision to the operator
+      instead of spawning.
+
+  - title: Pick the kind and bind its doctrine
+    description: >
+      Choose one kind and point the runner at the doctrine for it. Each kind
+      also has non-goals the runner must respect.
+      - tidy-first (structural, behaviour-preserving): charter Standing Order 2,
+        DIRECTIVE_025 (tidy-first / enabler sequencing), the tidy-first carve-out
+        in RECONCILE_CHANGE_SCOPE_TENSIONS, the built-in refactoring procedure
+        and its refactoring tactics (extract-class-by-responsibility-split,
+        move-method, change-function-declaration or parameter object,
+        strangler-fig). No behaviour change. Move code first, then adjust
+        callers. Make no logic edits while moving. Add no new size or ratchet
+        gates: these runs rely on engineering discipline, not gates.
+      - bugfix: test-first-bug-fixing and disciplined-defect-diagnosis, red-first
+        through the pre-existing entry point. For an open P0, the reproduction
+        carries the p0_repro marker until the fix, and the fix PR removes it.
+      - test-quality: the test-suite-quality-assessment procedure. Retire a test
+        only after re-proving its named covering guard with a planted break. Add
+        seam units before trimming end-to-end tests.
+      - feature: ATDD-first, with the canonical mission templates and the ADRs
+        named in the issue.
+      - docs: the docs mission patterns and the terminology canon.
+    actor: agent
+
+  - title: Write the dispatch prompt, with every field filled in
+    description: >
+      The prompt has these sections, in this order.
+      (0) Setup: branch off the latest main (never push to main), sync and
+      install the CLI from the checkout, read CLAUDE.md and the charter in full,
+      and load `spec-kitty charter context --action <action>` for each phase.
+      The charter overrides the prompt.
+      (1) A read-only code-grounding run, committed as the mission's research
+      note before anything is specified. It records sizes and a responsibility
+      map of the target files; the invariants that must survive, with their ADR
+      and CLAUDE.md citations; every architectural or AST gate and shrink-only
+      ledger that references those files, and how to keep each one green
+      honestly; the current test seams and what they cost; interactions with
+      open P0s and sibling runs; and 90-day churn.
+      (2) The bound doctrine and the explicit non-goals.
+      (3) Numbered slices that can each be reviewed on their own, mapped to
+      issues, with done-when criteria.
+      (4) Testing per CLAUDE.md policy and NO_FULL_HEAVY_SUITES_IN_MISSION, with
+      exact commands and counts recorded in "Tests run".
+      (5) Delivery: the full canonical mission loop, a draft PR first that uses
+      the repo template, Closes only for fully delivered issues, closeout per
+      docs/development, and the operator merges.
+      (6) The operator's commit attribution trailer on every commit, and no AI
+      model identifier anywhere in commits or the PR.
+    actor: agent
+
+  - title: Spawn and report
+    description: >
+      Create the session against spec-kitty/spec-kitty at main, inheriting the
+      model and environment. Report the session id, the title, the branch and
+      the instruction summary. Never predict results. Read real state back
+      (session status, events) before claiming any progress.
+    actor: agent
+
+  - title: Relay later guidance
+    description: >
+      Send any steer or additional guidance the operator gives later to the
+      running session as a labelled operator addendum. Do not archive or
+      interrupt a session unless the operator asks.
+    actor: agent
+
+anti_patterns:
+  - name: Dispatching from a title
+    description: >
+      Re-scope notes, collisions and blocking P0s live in the comments and links.
+      A prompt built from the title sends the runner after stale scope.
+  - name: Placeholder prompts
+    description: >
+      A runner cannot ask what an unfilled field meant. Every section must be
+      concrete before spawning.
+  - name: One PR for unrelated domains
+    description: >
+      Unrelated issues go to separate dispatches. Group issues only when they
+      share a surface or a sequence.
+  - name: Gating instead of discipline
+    description: >
+      Adding size or ratchet gates the operator ruled out, instead of delivering
+      the refactor itself.
+  - name: Claiming unread progress
+    description: >
+      Reporting a runner's outcome before reading it back from the session.
+
+references:
+  - type: directive
+    id: DIRECTIVE_025
+    reason: Tidy-first / enabler sequencing for structural dispatches.
+  - type: directive
+    id: RECONCILE_CHANGE_SCOPE_TENSIONS
+    reason: The tidy-first carve-out that separates the preparatory step from the functional change.
+  - type: procedure
+    id: refactoring
+    reason: Behaviour-preserving refactoring workflow for tidy-first runs.
+  - type: procedure
+    id: test-first-bug-fixing
+    reason: Red-first workflow for bugfix dispatches.
+  - type: procedure
+    id: test-suite-quality-assessment
+    reason: Workflow for test-quality dispatches.
+  - type: directive
+    id: NO_FULL_HEAVY_SUITES_IN_MISSION
+    reason: The runner targets specific gate files and never runs the full heavy suites.
