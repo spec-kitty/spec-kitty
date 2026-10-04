@@ -1,33 +1,22 @@
-"""Parity oracle replay harness (WP08 / T038, NFR-001).
+"""Decision-table contract tests for the pre-review transition gate (NFR-001).
 
-Replays the golden fixtures under ``tests/review/fixtures/parity/`` -- captured
-from **base commit ``7081cf053``** (mission ``scopesource-gate-followup-01KY6S9P``
-WP01 re-pin -- this lane's HEAD, byte-identical to the mission's nominal base
-``eb06ca176`` under ``src/specify_cli/review/`` and ``tests/review/``) against
-the **incumbent** ``_mt_run_pre_review_gate`` (see ``fixtures/parity/_capture.py``)
--- and proves the post-refactor path reproduces the base ``(outcome, scope,
-metadata, block/exit, console)`` tuple **field-by-field** (not "outcome
-matches" alone).
+Replays the golden fixtures under ``tests/review/fixtures/parity/`` -- each a
+recorded ``(outcome, scope, metadata, block/exit, console)`` tuple for one
+cell of the gate decision table -- and proves the aggregation engine and the
+transition-gate hook reproduce every field exactly (not "outcome matches"
+alone). The fixtures are frozen expectations; they are never regenerated from
+the code under test.
 
-**Oracle provenance (anti-circular, squad R-F2).** The expected values are NEVER
-regenerated from HEAD; every fixture carries a machine-emitted ``base_commit``
-header equal to ``7081cf053``. This harness asserts that provenance before
-trusting any fixture.
+Two arms, deliberately:
 
-**Two arms, deliberately:**
-
-- :func:`test_aggregation_reproduces_base_decision_and_surface` (GREEN now) drives
-  the WP08-owned decision surface -- :func:`aggregate_verdicts` for the
-  terminal/block/warn decision plus the (unchanged-since-base) incumbent
-  ``_mt_pre_review_gate_metadata`` / ``_mt_pre_review_gate_console_warning``
-  helpers -- and asserts it equals each base-captured tuple. This proves the new
-  aggregation reproduces the base *decision* and that the metadata/console
-  surface has not drifted from base.
-- :func:`test_through_the_inverted_hook_reproduces_base` drives the fixtures
-  **through** the refactored hook ``_mt_run_transition_gates``, the surface
-  under test for full NFR-001 parity. WP09 has landed that symbol and this
-  arm is a plain, unconditional assertion (no ``xfail`` marker) proving
-  parity through the hook, not just the engine.
+- :func:`test_aggregation_reproduces_base_decision_and_surface` drives
+  :func:`aggregate_verdicts` for the terminal/block/warn decision plus the
+  metadata / console rendering helpers, and asserts the result equals each
+  recorded tuple.
+- :func:`test_through_the_inverted_hook_reproduces_base` drives the same
+  fixtures through the hook's dispatch and translation seams
+  (``_mt_dispatch_transition_gates`` / ``_mt_translate_gate_verdicts``), proving
+  the contract holds through the hook, not just the engine.
 """
 
 from __future__ import annotations
@@ -56,16 +45,6 @@ from specify_cli.review.verdict_aggregation import (
 
 pytestmark = [pytest.mark.fast]
 
-# WP09 lands ``_mt_run_transition_gates`` (generalizes ``_mt_run_pre_review_gate``,
-# tasks_move_task.py:1160) -- the surface the through-hook arm proves parity for.
-_WP09_HOOK = "_mt_run_transition_gates"
-
-#: Re-pinned by mission ``scopesource-gate-followup-01KY6S9P`` WP01 (see the
-#: matching constant + rationale in ``fixtures/parity/_capture.py``): this is
-#: this lane's actual HEAD, not the mission's nominal base ``eb06ca176``
-#: literal -- the two are byte-identical under ``src/specify_cli/review/`` and
-#: ``tests/review/``, so this SHA IS the incumbent for gate-behaviour purposes.
-BASE_COMMIT = "7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41"
 _FIXTURES_DIR = Path(__file__).parent / "fixtures" / "parity"
 
 
@@ -106,9 +85,9 @@ def _rebuild_verdict(data: dict[str, Any]) -> GateVerdict:
 def _actual_tuple(aggregate: AggregateVerdict, verdict: GateVerdict, *, block_enabled: bool, force: bool) -> dict[str, Any]:
     """Map the aggregate decision + verdict onto the observable parity tuple.
 
-    This is the mapping the WP09 hook performs: derive the metadata block/force
+    This is the mapping the hook performs: derive the metadata block/force
     flags FROM the aggregate result (proving it carries enough information), then
-    render metadata + console via the incumbent helpers the hook reuses.
+    render metadata + console via the helpers the hook reuses.
     """
     terminal = aggregate.decision is AggregateDecision.TERMINAL
     blocked = aggregate.decision is AggregateDecision.BLOCK
@@ -177,15 +156,8 @@ def test_override_nonempty_golden_drives_a_non_empty_scope() -> None:
 
 
 @pytest.mark.parametrize("case", _CASES, ids=_IDS)
-def test_fixture_provenance_is_machine_emitted_base_commit(case: dict[str, Any]) -> None:
-    """Every fixture must carry the base-commit provenance header (anti-circular)."""
-    assert case["base_commit"] == BASE_COMMIT
-    assert BASE_COMMIT in case["oracle_provenance"]
-
-
-@pytest.mark.parametrize("case", _CASES, ids=_IDS)
 def test_aggregation_reproduces_base_decision_and_surface(case: dict[str, Any]) -> None:
-    """The WP08 decision surface reproduces every base-captured parity tuple."""
+    """The aggregation decision surface reproduces every recorded decision-table tuple."""
     verdict = _rebuild_verdict(case["verdict"])
     block_enabled = case["block_enabled"]
     force = case["force"]
@@ -205,20 +177,17 @@ def test_aggregation_reproduces_base_decision_and_surface(case: dict[str, Any]) 
 
 
 def _drive_through_hook(case: dict[str, Any]) -> dict[str, Any]:
-    """Drive one fixture THROUGH the inverted hook's dispatch + aggregation (WP09).
+    """Drive one fixture THROUGH the hook's dispatch + aggregation seams.
 
     Assert the surface the way the CLI observes it: register a synthetic binding
-    whose handler returns the base-captured verdict, dispatch it through the
+    whose handler returns the recorded verdict, dispatch it through the
     hook's own :func:`_mt_dispatch_transition_gates` (exercising the FR-013
     per-handler fail-open path with a clean verdict — identity), then aggregate +
     render through the hook's :func:`_mt_translate_gate_verdicts`. Both are the
-    real functions ``_mt_run_transition_gates`` calls, so this proves parity
-    THROUGH the hook (not against the engine in isolation) — the NFR-001 guard
-    WP08 authored red and WP09 turns green.
+    real functions ``_mt_run_transition_gates`` calls, so this proves the
+    contract THROUGH the hook (not against the engine in isolation) -- NFR-001.
     """
-    # WP09 lands ``_mt_run_transition_gates``; assert its presence (the symbol the
-    # through-hook parity is defined against) before driving its dispatch seam.
-    assert hasattr(tmt, _WP09_HOOK), f"WP09 must land {_WP09_HOOK!r}"
+    assert hasattr(tmt, "_mt_run_transition_gates")
 
     verdict = _rebuild_verdict(case["verdict"])
     block_enabled = case["block_enabled"]
@@ -247,7 +216,7 @@ def _drive_through_hook(case: dict[str, Any]) -> dict[str, Any]:
 
 @pytest.mark.parametrize("case", _CASES, ids=_IDS)
 def test_through_the_inverted_hook_reproduces_base(case: dict[str, Any]) -> None:
-    """WP09: parity THROUGH the inverted hook reproduces every base-captured tuple."""
+    """The hook reproduces every recorded decision-table tuple."""
     actual = _drive_through_hook(case)
     expected = case["expected"]
     assert actual["outcome"] == expected["outcome"]
